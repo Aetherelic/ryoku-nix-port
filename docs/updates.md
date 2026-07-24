@@ -83,6 +83,9 @@ can't state declaratively (disk, boot, session, and the user-owned
 migration ledger: each is idempotent and safe on every update, and is retired
 once every supported install has run it. `reconcileShellConfig` migrates a stale
 `shell.json` (drops retired keys, revives the bar, clamps geometry).
+`reconcileLauncherLocalFrostDefault` moves only the launcher's retired shipped
+`bgBlur: 12` to the new 2 px local-frost default, then records a marker so a
+later deliberate 12 remains a user choice.
 `reconcileUserEditsAdopt` seeds the how-to guide and moves a machine's legacy
 loose files (`hypr/user.lua`, `hypr/monitors_user.lua`, `kitty/user.conf`) into
 the overlay. Idempotent.

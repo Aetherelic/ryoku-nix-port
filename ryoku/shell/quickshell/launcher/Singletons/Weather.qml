@@ -4,8 +4,8 @@ import Quickshell
 import Quickshell.Io
 import "../lib/weather.js" as Model
 
-// live weather for the pill's hover glance + the calendar footer. Open-Meteo,
-// no API key. location resolves once via a keyless IP lookup, cached at
+// Live weather for HeroShutter. Open-Meteo needs no API key; location resolves
+// once via a keyless IP lookup and is cached at
 // ~/.local/state/ryoku/weather-loc.json so a restart skips the coord round-trip.
 // replaced the old wttr.in scrape (rate-limited, re-located on every poll).
 // public contract = temp / condition / glyph / available, unchanged. hourly /
@@ -87,8 +87,8 @@ Singleton {
         wxCache.setText(text);           // cache the forecast so the next start opens on weather, not a bare date
     }
 
-    // load the resolved location from the shared cache the pill authoritatively
-    // writes (keyed by the explicit weatherLocation), so a location change in
+    // Load the resolved location from the shell's shared cache (keyed by the
+    // explicit weatherLocation), so a location change in
     // Settings reaches the launcher live and across restarts. The launcher used
     // to read this once at startup and never honour a later change, so it kept
     // showing the previously-located city.
@@ -109,14 +109,14 @@ Singleton {
 
     Component.onCompleted: {
         root.ready = true;
-        // replay the last cached forecast instantly so the card opens on weather
+        // Replay the last cached forecast so the hero opens on weather
         // rather than a bare date; the fresh fetch below overwrites it a moment later.
         var w = wxCache.text();
         if (w && w.length > 0)
             root.applyForecast(w);
         root.loadLoc();
-        // no cache yet (fresh profile): locate by IP for this session. The pill
-        // owns the shared cache and is its only writer, so the launcher never
+        // No cache yet (fresh profile): locate by IP for this session. The shell
+        // owns the shared cache, so the launcher never
         // clobbers the explicit-location resolution.
         if (!root.located)
             ipProc.running = true;

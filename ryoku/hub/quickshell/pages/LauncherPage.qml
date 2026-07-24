@@ -9,14 +9,14 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
 // App Launcher (DESIGN.md section 8, DESKTOP). The editor for the command
-// palette opened with Super+Space, rebuilt as the monochrome instrument. It is
+// hero shutter opened with Super+Space. It is
 // a full-bleed page: it owns the whole content region, so it draws its own
-// head, its own pinned live preview of the launcher home card, its own settings
+// head, its own pinned live preview of the launcher hero, its own settings
 // grid, and -- because the shell hides its global action bar for full-bleed
 // pages -- its own Save/Revert bar. Settings live in ~/.config/ryoku/launcher.json
 // (a flat file this page owns end to end); nothing is written until Save, and
 // the launcher watches the file, so a save retunes the palette the next time it
-// opens. Every value is a Token; the backdrop and thumbnails are genuine image
+// opens. Every value is a Token; the hero and thumbnails are genuine image
 // specimens, the one place colour is allowed on the sheet.
 Item {
     id: pg
@@ -32,10 +32,16 @@ Item {
         "heroStrength", "heroPosX", "heroPosY", "showWeather", "showGreeting"
     ]
     readonly property var factory: ({
-            "radius": 16, "bgBlur": 12, "weatherUnit": "auto", "heroImage": "",
+            "radius": 16, "bgBlur": 2, "weatherUnit": "auto", "heroImage": "",
             "heroStrength": 0.6, "heroPosX": 0.5, "heroPosY": 0.5,
             "showWeather": true, "showGreeting": true
         })
+    readonly property url shippedHero: {
+        var shellDir = String(Quickshell.env("RYOKU_SHELL_DIR") || "");
+        return shellDir.length > 0
+            ? "file://" + shellDir + "/quickshell/launcher/art/hands-adam.png"
+            : Qt.resolvedUrl("../../launcher/art/hands-adam.png");
+    }
 
     // draft is the live, in-memory edit; committed is the on-disk baseline.
     // both seed to factory so a binding never reads undefined before the file
@@ -51,7 +57,10 @@ Item {
         return r;
     }
     function same(a, b) { return String(a) === String(b); }
-    function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+    function finiteOr(v, fallback) {
+        var number = Number(v);
+        return isFinite(number) ? number : fallback;
+    }
     function basename(p) { return ("" + p).replace(/^.*\//, ""); }
     function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
@@ -144,7 +153,7 @@ Item {
         JsonAdapter {
             id: cfgA
             property real radius: 16
-            property int bgBlur: 12
+            property int bgBlur: 2
             property string weatherUnit: "auto"
             property string heroImage: ""
             property real heroStrength: 0.6
@@ -194,7 +203,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 760)
-            text: I18n.tr("Tune the command palette you open with Super+Space: its corners, the blur behind it, and the home card's greeting, weather and backdrop. Nothing is written until you save.")
+            text: I18n.tr("Tune the command palette you open with Super+Space: its corners, local frost, and the hero's greeting, weather and image. Nothing is written until you save.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -209,11 +218,11 @@ Item {
         index: "003"; label: I18n.tr("PALETTE")
     }
 
-    // ── pinned live preview of the launcher home card ───────────────────────
+    // ── pinned live preview of the launcher hero ────────────────────────────
     // Pinned above the scroll (DESIGN.md rule 11): it shows the real effect of
-    // the settings -- the backdrop cover-cropped by heroPosX/Y and dimmed by
+    // the settings -- the hero image cover-cropped by heroPosX/Y and dimmed by
     // heroStrength (drag to reposition), the greeting, and the weather glance or
-    // date. The backdrop is a genuine image specimen, the licensed colour here.
+    // date. The hero is a genuine image specimen, the licensed colour here.
     Preview {
         id: preview
         anchors { left: parent.left; right: parent.right; top: head.bottom }
@@ -227,41 +236,16 @@ Item {
             id: card
             anchors.fill: parent
 
-            // backmost: the hero backdrop, cover-cropped and dimmed exactly as
+            // backmost: the hero image, cover-cropped and dimmed exactly as
             // the launcher card renders it.
-            Rectangle {
-                id: heroClip
+            HeroCrop {
+                id: heroCrop
                 anchors.fill: parent
-                radius: Tokens.radius
-                color: "transparent"
-                clip: true
-
-                Image {
-                    id: heroImg
-                    visible: (pg.draft.heroImage || "").length > 0
-                    readonly property real ir: heroImg.implicitHeight > 0 ? heroImg.implicitWidth / heroImg.implicitHeight : 1
-                    readonly property real fr: card.height > 0 ? card.width / card.height : 1
-                    width: heroImg.ir > heroImg.fr ? card.height * heroImg.ir : card.width
-                    height: heroImg.ir > heroImg.fr ? card.height : card.width / heroImg.ir
-                    x: (card.width - width) * (Number(pg.draft.heroPosX) || 0)
-                    y: (card.height - height) * (Number(pg.draft.heroPosY) || 0)
-                    source: pg.draft.heroImage || ""
-                    opacity: Number(pg.draft.heroStrength) || 0
-                    asynchronous: true
-                    cache: true
-                    smooth: true
-                }
-
-                // empty state: the launcher falls back to its shipped art, which
-                // the Hub does not carry, so the preview says so in words.
-                Text {
-                    visible: (pg.draft.heroImage || "").length === 0
-                    anchors.centerIn: parent
-                    text: I18n.tr("SHIPPED ART")
-                    color: Tokens.inkFaint; font.family: Tokens.ui
-                    font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
-                    font.letterSpacing: Tokens.trackMark
-                }
+                source: pg.draft.heroImage !== undefined ? pg.draft.heroImage : ""
+                fallbackSource: pg.shippedHero
+                focalX: pg.finiteOr(pg.draft.heroPosX, 0.5)
+                focalY: pg.finiteOr(pg.draft.heroPosY, 0.5)
+                strength: pg.finiteOr(pg.draft.heroStrength, 0)
             }
 
             // left: greeting eyebrow over the hero clock. The clock is a
@@ -324,36 +308,36 @@ Item {
             }
 
             // the preview is also the editor for the focal point: drag it to
-            // pick the part of the backdrop that shows (DESIGN keeps this the
+            // pick the part of the hero that shows (DESIGN keeps this the
             // only way to set heroPosX/heroPosY, as the old page did).
             DragHandler {
                 id: dragH
                 target: null
-                enabled: (pg.draft.heroImage || "").length > 0
+                enabled: heroCrop.ready && (heroCrop.overflowX > 1 || heroCrop.overflowY > 1)
                 cursorShape: Qt.SizeAllCursor
                 property real ox: 0.5
                 property real oy: 0.5
                 onActiveChanged: if (dragH.active) {
-                    dragH.ox = Number(pg.draft.heroPosX) || 0;
-                    dragH.oy = Number(pg.draft.heroPosY) || 0;
+                    dragH.ox = pg.finiteOr(pg.draft.heroPosX, 0.5);
+                    dragH.oy = pg.finiteOr(pg.draft.heroPosY, 0.5);
                 }
                 onActiveTranslationChanged: {
                     if (!dragH.active)
                         return;
-                    var rx = heroImg.width - card.width;
-                    var ry = heroImg.height - card.height;
-                    if (rx > 1)
-                        pg.edit("heroPosX", pg.clamp01(dragH.ox - dragH.activeTranslation.x / rx));
-                    if (ry > 1)
-                        pg.edit("heroPosY", pg.clamp01(dragH.oy - dragH.activeTranslation.y / ry));
+                    if (heroCrop.overflowX > 1)
+                        pg.edit("heroPosX", heroCrop.dragFocal(
+                            dragH.ox, dragH.activeTranslation.x, heroCrop.overflowX));
+                    if (heroCrop.overflowY > 1)
+                        pg.edit("heroPosY", heroCrop.dragFocal(
+                            dragH.oy, dragH.activeTranslation.y, heroCrop.overflowY));
                 }
             }
-            HoverHandler { id: dragHov; enabled: (pg.draft.heroImage || "").length > 0; cursorShape: Qt.SizeAllCursor }
+            HoverHandler { id: dragHov; enabled: dragH.enabled; cursorShape: Qt.SizeAllCursor }
 
-            // drag hint, shown on hover over a set backdrop. A solid lift bar,
+            // drag hint, shown on hover over a set hero image. A solid lift bar,
             // no translucency (DESIGN.md section 6).
             Rectangle {
-                visible: (pg.draft.heroImage || "").length > 0 && dragHov.hovered
+                visible: dragH.enabled && dragHov.hovered
                 anchors { left: parent.left; bottom: parent.bottom; margins: Tokens.s2 }
                 width: dragHint.implicitWidth + Tokens.s4
                 height: 22
@@ -422,8 +406,8 @@ Item {
                     width: palSect.span(6)
                     height: Tokens.cellH
                     controlWidth: Spans.inlineWidth("step", 0, width)
-                    label: I18n.tr("Background blur")
-                    desc: I18n.tr("Frosts the desktop behind the open palette, even with blur off globally. 0 keeps it sharp.")
+                    label: I18n.tr("Local frost")
+                    desc: I18n.tr("Softens the frozen card-local desktop snapshot captured as the launcher opens. 0 keeps it sharp.")
                     unit: "px"
                     value: String(pg.draft.bgBlur)
                     def: String(pg.committed.bgBlur)
@@ -439,18 +423,18 @@ Item {
                 }
             }
 
-            // HOME CARD
+            // HERO
             Section {
                 id: hcSect
                 width: col.width
-                title: I18n.tr("HOME CARD")
+                title: I18n.tr("HERO")
 
                 Cell {
                     width: hcSect.span(4)
                     height: Tokens.cellH
                     controlWidth: Spans.inlineWidth("sw", 0, width)
                     label: I18n.tr("Show greeting")
-                    desc: I18n.tr("Time-of-day greeting above the home card clock.")
+                    desc: I18n.tr("Time-of-day greeting above the hero clock.")
                     value: pg.draft.showGreeting ? "ON" : "OFF"
                     def: pg.committed.showGreeting ? "ON" : "OFF"
                     changed: !pg.same(pg.draft.showGreeting, pg.committed.showGreeting)
@@ -467,7 +451,7 @@ Item {
                     height: Tokens.cellH
                     controlWidth: Spans.inlineWidth("sw", 0, width)
                     label: I18n.tr("Show weather")
-                    desc: I18n.tr("Current conditions and temperature on the home card; off shows the date.")
+                    desc: I18n.tr("Current conditions and temperature on the hero; off shows the date.")
                     value: pg.draft.showWeather ? "ON" : "OFF"
                     def: pg.committed.showWeather ? "ON" : "OFF"
                     changed: !pg.same(pg.draft.showWeather, pg.committed.showWeather)
@@ -484,7 +468,7 @@ Item {
                     height: Tokens.cellH
                     controlWidth: Spans.inlineWidth("seg", 3, width)
                     label: I18n.tr("Weather units")
-                    desc: I18n.tr("Temperature scale on the home card; Auto follows your locale.")
+                    desc: I18n.tr("Temperature scale on the hero; Auto follows your locale.")
                     value: pg.unitLabel(pg.draft.weatherUnit)
                     def: pg.unitLabel(pg.committed.weatherUnit)
                     changed: !pg.same(pg.draft.weatherUnit, pg.committed.weatherUnit)
@@ -499,13 +483,13 @@ Item {
                 }
             }
 
-            // BACKDROP
+            // HERO IMAGE
             Section {
                 id: bdSect
                 width: col.width
-                title: I18n.tr("BACKDROP")
+                title: I18n.tr("HERO IMAGE")
 
-                // the backdrop file affordance: a full-width module with the
+                // the hero file affordance: a full-width module with the
                 // current filename, the picker, and a way back to the shipped
                 // art. Built bespoke because a file path is not one of the eight
                 // controls; it still wears the cell's chrome (hairline, changed
@@ -550,7 +534,7 @@ Item {
                         spacing: Tokens.s2
 
                         Text {
-                            text: I18n.tr("BACKDROP IMAGE")
+                            text: I18n.tr("HERO IMAGE")
                             color: Tokens.inkMuted; font.family: Tokens.ui
                             font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
                         }
@@ -604,7 +588,7 @@ Item {
                     height: Tokens.cellH
                     controlWidth: Spans.inlineWidth("slid", 0, width)
                     label: I18n.tr("Strength")
-                    desc: I18n.tr("How visible the backdrop image is; 0 hides it completely.")
+                    desc: I18n.tr("How visible the hero image is; 0 hides it completely.")
                     unit: "%"
                     value: String(Math.round((Number(pg.draft.heroStrength) || 0) * 100))
                     def: String(Math.round((Number(pg.committed.heroStrength) || 0) * 100))
@@ -709,7 +693,7 @@ Item {
         }
     }
 
-    // ── the backdrop chooser: a monochrome thumbnail grid over a folder ──────
+    // ── the hero chooser: a monochrome thumbnail grid over a folder ─────────
     // ported from the old ImagePicker (folders-first, quick locations, PNG/JPG
     // filter, pick-and-close) and rebuilt in Tokens. Real thumbnails are image
     // specimens, so they keep their colour; everything else is paper and ink.
@@ -757,7 +741,7 @@ Item {
             Text {
                 id: ptitle
                 anchors { left: parent.left; top: parent.top; margins: Tokens.s4 }
-                text: I18n.tr("CHOOSE A BACKDROP")
+                text: I18n.tr("CHOOSE A HERO IMAGE")
                 color: Tokens.ink; font.family: Tokens.ui
                 font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
             }

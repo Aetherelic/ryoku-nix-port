@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Fixed
+- **`ryoku doctor` carries existing launcher blur settings into the local-frost
+  design without taking ownership from the user.** Before a one-time marker, an
+  exact saved `bgBlur: 12`, the retired shipped global-blur default, moves to the
+  new 2 px card-local frost default. Every other numeric value, a missing config,
+  or a missing key is preserved and marked complete; malformed/non-numeric JSON
+  is warned about and never marked. `--check` reports the exact migration
+  without writing either file. Once marked, even a deliberate 12 stays 12
+  (`internal/doctor/reconcile_launcher.go`,
+  `TestReconcileLauncherLocalFrost*`).
 - **`ryoku doctor` heals a shell daemon left on a dead Hyprland instance.** A
   daemon that outlived its compositor (a relogin or crash brings up a new
   Hyprland; the daemon runs detached and kept the old signature) still answers

@@ -1,116 +1,742 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Services.Mpris
+import Ryoku.Ui
+import Ryoku.Ui.Singletons as Ui
 import "Singletons"
 import "providers"
+import "lib/results.js" as Results
+import "lib/launcherstate.js" as LauncherState
 
-// The command palette body: a search row over the rest dashboard (empty query),
-// the all-apps grid (Ctrl+A from rest), the action-mode tabs + list ("/" prefix),
-// or the ranked result list. Ctrl+K opens the selected row's action panel. Grows
-// and shrinks with its content on the Ryoku morph curve. Providers register with
-// the dispatcher; this view only renders what the dispatcher returns.
 Item {
     id: root
 
     property real s: 1
     property bool shown: false
-    property string query: ""
-    property bool allApps: false
-    property bool help: false
+    property bool frostActive: false
+    property alias query: hero.query
+    required property Item providerSet
+
+    // Task 7 binds these to the card-sized layer surface. Their zero/empty
+    // values retain useful Task 6 fallbacks for standalone instantiation.
+    property string lifecyclePhase: ""
+    property int lifecycleGeneration: 0
+    property real lifecycleOuterHeight: 0
+    property real workAreaWidth: 1920
+    property real workAreaHeight: 1080
+    property real reportedSurfaceWidth: 0
+    property real reportedSurfaceHeight: 0
+
+    property string activeMode: "rest"
+    property bool suppressQueryRouting: false
+    property string selectedResultKey: ""
+    property int selectedIndex: -1
+    property int selectionFallbackIndex: 0
+    property bool shelfOpen: false
+    property string focusedActionId: ""
+    property string shelfSignature: ""
+    property string focusedWindowAddress: ""
+    property var windowRail: null
+    property var packedActionLayout: []
+    property string actionError: ""
+    property var freshResults: []
+    property string freshResultsToken: ""
+    property var results: []
+    property string displayRouteKey: ""
+    property string displayQueryToken: ""
+    property bool displayWasBusy: false
+    property int evaluationGeneration: 0
+    property bool evaluationQueued: false
+    property int outerGeometryGeneration: 0
+    property real lastOuterHeight: 0
+    property real pendingOuterHeight: 0
+    property bool lastBodyOpenForGeometry: false
+    property bool lastShelfOpenForGeometry: false
+    property int observedLifecycleGeneration: -1
+    property bool snappingHiddenGeometry: false
 
     signal requestClose()
+    signal outerHeightRequested(real height, bool growing, int duration)
 
-    readonly property var results: shown ? Dispatcher.results(query, Metrics.maxResults) : []
-    readonly property int totalCount: shown ? Dispatcher.results("", 0).length : 0
-    readonly property bool resting: query.length === 0
-    // grid and help are mutually exclusive body modes; exclude help here too so
-    // no toggle path can leave both drawing over each other.
-    readonly property bool gridMode: resting && allApps && !help
+    readonly property bool resting: activeMode === "rest" && query.length === 0
+    readonly property bool gridMode: activeMode === "all"
+    readonly property bool help: activeMode === "help"
+    readonly property bool bodyOpen: activeMode !== "rest"
+    readonly property bool askMode: activeMode === "special"
+        && query.length > 0 && query.charAt(0) === "\\"
+    readonly property string askQuestion: askMode
+        ? query.slice(1).replace(/^\s+/, "") : ""
 
-    // Sticky active player for the card. Proxy-free (Players.realPlayers drops
-    // playerctld and dedupes). A currently-playing source always wins; otherwise
-    // the last-shown player is held, so PAUSING the card never makes it jump to a
-    // different source (the old "pause and YT takes over" bug). onActivePlayerChanged
-    // records the shown player so a later pause has something to hold.
-    property string primaryDbus: ""
-    readonly property var activePlayer: {
-        var list = Players.realPlayers();
-        void Mpris.players.values;
-        if (!list || list.length === 0)
-            return null;
-        for (var i = 0; i < list.length; i++)
-            if (list[i].isPlaying)
-                return list[i];
-        if (root.primaryDbus.length > 0)
-            for (var j = 0; j < list.length; j++)
-                if (String(list[j].dbusName || "") === root.primaryDbus)
-                    return list[j];
-        for (var k = 0; k < list.length; k++)
-            if (list[k].canControl && list[k].trackTitle)
-                return list[k];
-        return list[0];
+    readonly property var activeRoute: {
+        if (activeMode === "all")
+            return LauncherState.routeForMode("all", query);
+        if (activeMode === "image")
+            return LauncherState.routeForMode("image", query);
+        if (activeMode === "file")
+            return LauncherState.routeForMode("file", query);
+        if (activeMode === "recent")
+            return LauncherState.routeForMode("recent", query);
+        if (activeMode === "special" && !askMode)
+            return Dispatcher.route(query);
+        return { providerId: null, provider: null, prefix: "", query: query };
     }
-    onActivePlayerChanged: if (activePlayer) root.primaryDbus = String(activePlayer.dbusName || "");
-    readonly property bool hasMedia: activePlayer !== null
-    // route the current query once; everything keys off the matched prefix so the
-    // mode chip, the tabs, and the find delegation stay consistent.
-    readonly property var routed: Dispatcher.route(query)
+    readonly property string routeProviderId: String(
+        activeRoute.providerId || activeRoute.provider || "")
+    readonly property string resultRouteKey: {
+        if (!shown || !bodyOpen || help || askMode)
+            return "";
+        if (activeMode === "federated")
+            return "federated";
+        return activeMode + "|" + routeProviderId + "|"
+            + String(activeRoute.prefix || "");
+    }
+    readonly property string resultQueryToken: resultRouteKey + "\u0000"
+        + String(activeRoute.query || "")
+    readonly property bool actionMode: activeMode === "special"
+        && routeProviderId === "actions"
+    readonly property bool actionBrowse: actionMode
+        && String(activeRoute.query || "").length === 0
+    readonly property bool answerMode: activeMode === "special"
+        && activeRoute.prefix === "?"
+        && String(activeRoute.query || "").length > 0
+        && providerSet.web && providerSet.web.answer
+        && providerSet.web.answer.available
     readonly property string modeLabel: {
-        var p = routed.prefix;
-        if (p === "/file") return "FILE";
-        if (p === "/folder") return "FOLDER";
-        if (p === "/image") return "IMAGE";
-        if (p === "/video") return "VIDEO";
-        if (p === "/") return "ACTIONS";
-        if (p === ">") return "PACKAGE";
-        if (p === "=") return "CALC";
-        if (p === "?") return "WEB";
-        if (p === "@") return "RADIO";
+        if (activeMode === "all") return "ALL";
+        if (activeMode === "image") return "IMG";
+        if (activeMode === "file") return "FILE";
+        if (activeMode === "recent") return "REC";
+        if (activeMode === "help") return "HELP";
         if (askMode) return "RASHIN";
+        var prefix = String(activeRoute.prefix || "");
+        if (prefix === "/file") return "FILE";
+        if (prefix === "/folder") return "FOLDER";
+        if (prefix === "/image") return "IMAGE";
+        if (prefix === "/video") return "VIDEO";
+        if (prefix === "/") return "ACTIONS";
+        if (prefix === ">") return "PACKAGE";
+        if (prefix === "=") return "CALC";
+        if (prefix === "?") return "WEB";
+        if (prefix === "@") return "RADIO";
         return "";
     }
-    readonly property bool actionMode: routed.provider === "actions"
-    // "?" prefix with a non-empty query and an available DDG answer: the
-    // AnswerPanel takes the body above the Search fallback row. Guarded on
-    // providers.web because the alias resolves after Providers instantiates.
-    readonly property bool answerMode: routed.prefix === "?"
-        && routed.query.length > 0
-        && providers.web && providers.web.answer && providers.web.answer.available
-    // tabs + hint row are browsing aids: show them only for a bare "/" (the
-    // action catalog), not once the user types "/play"; then the results take
-    // the space and nothing clips.
-    readonly property bool actionBrowse: actionMode && routed.query.length === 0
-    // "\" prefix: a one-shot quick ask to the Rashin agent. No provider claims
-    // it; the panel owns the whole body and the Enter key while active.
-    readonly property bool askMode: query.length > 0 && query[0] === "\\"
-    readonly property string askQuestion: askMode ? query.slice(1).replace(/^\s+/, "") : ""
-    // an async provider is resolving the current query and nothing has come back
-    // yet: show a spinner, not a premature "No matches".
-    readonly property bool searching: shown && !resting && Dispatcher.busy && results.length === 0
+
+    readonly property int totalCount: results.length
+    readonly property var selectedResult: {
+        for (var index = 0; index < results.length; index++) {
+            if (results[index] && results[index].resultKey === selectedResultKey)
+                return results[index];
+        }
+        return null;
+    }
+    readonly property var secondaryActions: selectedResult
+        && selectedResult.secondaryActions ? selectedResult.secondaryActions : []
+    readonly property string currentActionSignature: Results.actionSignature(selectedResult)
     readonly property var selectedActions: {
-        var r = root.results[list.selectedIndex];
-        return r && r.actions ? r.actions : [];
+        var actions = [];
+        if (!selectedResult)
+            return actions;
+        if (selectedResult.primaryAction)
+            actions.push(selectedResult.primaryAction);
+        for (var index = 0; index < secondaryActions.length; index++)
+            actions.push(secondaryActions[index]);
+        return actions;
     }
 
-    // Machine-readable snapshot for the command socket's `state` command; the
-    // QA runner asserts against this instead of scraping pixels.
+    readonly property bool busyForActiveProvider: {
+        void Dispatcher.busyRevision;
+        var busy = Dispatcher.busyProviders;
+        if (!bodyOpen || help || askMode)
+            return false;
+        if (routeProviderId.length > 0)
+            return Boolean(busy[routeProviderId]);
+        if (activeMode !== "federated")
+            return false;
+        for (var providerId in busy) {
+            var provider = Dispatcher.registry[providerId];
+            if (provider && (provider.defaultProvider || provider.numericFallback))
+                return true;
+        }
+        return false;
+    }
+    readonly property bool searching: shown && bodyOpen && busyForActiveProvider
+    readonly property bool hasMedia: {
+        void Mpris.players.values;
+        return Players.realPlayers().length > 0;
+    }
+
+    readonly property string emptyText: {
+        if (activeMode === "image")
+            return query.length === 0 ? "TYPE TO SEARCH IMAGES" : "NO IMAGES";
+        if (activeMode === "file")
+            return query.length === 0 ? "TYPE TO SEARCH FILES" : "NO FILES";
+        if (activeMode === "recent")
+            return "NO RECENT FILES";
+        if (activeMode === "all")
+            return "NO APPLICATIONS";
+        if (actionBrowse)
+            return "NO ACTIONS";
+        return "NO MATCHES";
+    }
+
+    readonly property var cardGeometry: Results.cardGeometry(
+        workAreaWidth, workAreaHeight, s,
+        bodyOpen ? drawer.rawDesiredHeight / Math.max(0.001, s) : 0)
+    readonly property real desiredCardHeight: bodyOpen
+        ? cardGeometry.height : 250 * s
+    readonly property real currentSurfaceWidth: reportedSurfaceWidth > 0
+        ? reportedSurfaceWidth : implicitWidth
+    readonly property real currentSurfaceHeight: reportedSurfaceHeight > 0
+        ? reportedSurfaceHeight : implicitHeight
+    readonly property string currentPhase: lifecyclePhase.length > 0
+        ? lifecyclePhase : (shown ? "open" : "closed")
+    readonly property bool transitionAnimationsEnabled: shown
+        && currentPhase !== "closed"
+        && currentPhase !== "prelude"
+    readonly property real heroPresentedHeight: hero.height
+    readonly property real drawerPresentedHeight: drawer.height
+    readonly property real drawerPresentedOpacity: drawer.opacity
+    readonly property real shelfPresentedHeight: drawer.actionShelfHeight
+
+    implicitWidth: cardGeometry.width
+    implicitHeight: hero.height + drawer.height
+    readonly property real restingHeight: 250 * s
+
+    function focusInput() {
+        hero.focusField();
+    }
+
+    function retainInputFocus() {
+        if (shown)
+            focusRepair.restart();
+    }
+
+    function syncInvocationGeometry() {
+        var synchronized = LauncherState.synchronizeOuterGeometry({
+            observedGeneration: observedLifecycleGeneration,
+            lifecycleGeneration: lifecycleGeneration,
+            lifecycleOuterHeight: lifecycleOuterHeight,
+            outerGeometryGeneration: outerGeometryGeneration,
+            bodyOpen: bodyOpen,
+            shelfOpen: shelfOpen
+        });
+        if (!synchronized)
+            return;
+        shrinkOuter.stop();
+        observedLifecycleGeneration = synchronized.observedGeneration;
+        outerGeometryGeneration = synchronized.outerGeometryGeneration;
+        lastOuterHeight = synchronized.lastOuterHeight;
+        pendingOuterHeight = synchronized.pendingOuterHeight;
+        lastBodyOpenForGeometry =
+            synchronized.lastBodyOpenForGeometry;
+        lastShelfOpenForGeometry =
+            synchronized.lastShelfOpenForGeometry;
+    }
+
+    function prepareRest() {
+        suppressQueryRouting = true;
+        activeMode = "rest";
+        query = "";
+        suppressQueryRouting = false;
+        closeShelf();
+        drawer.resetCategory();
+        drawer.resetAsk();
+        actionError = "";
+        resetSelection();
+    }
+
+    function snapHiddenGeometry() {
+        snappingHiddenGeometry = true;
+        hero.height = Qt.binding(function () {
+            return (root.bodyOpen ? 126 : 250) * root.s;
+        });
+        drawer.snapAnimations();
+        snappingHiddenGeometry = false;
+    }
+
+    function resetSelection() {
+        selectedResultKey = "";
+        selectedIndex = -1;
+        selectionFallbackIndex = 0;
+        Qt.callLater(reconcileResults);
+    }
+
+    function validateProviderSet() {
+        var requiredProviders = ["actions", "apps", "recent", "web"];
+        for (var index = 0; index < requiredProviders.length; index++) {
+            var name = requiredProviders[index];
+            if (!providerSet[name])
+                throw new Error("Launcher providerSet is missing " + name);
+        }
+    }
+
+    function evaluateCurrentResults() {
+        if (!shown || resting || help || askMode)
+            return [];
+        if (activeMode === "federated")
+            return Dispatcher.resultsFor(null, query, "", Metrics.maxResults);
+        if (activeMode === "all")
+            return Dispatcher.resultsFor("apps", query, "", Metrics.maxResults);
+        if (activeMode === "image")
+            return Dispatcher.resultsFor("find", query, "/image", Metrics.maxResults);
+        if (activeMode === "file")
+            return Dispatcher.resultsFor("find", query, "/file", Metrics.maxResults);
+        if (activeMode === "recent")
+            return Dispatcher.resultsFor("recent", query, "", Metrics.maxResults);
+        if (activeMode === "special") {
+            var routedQuery = Dispatcher.route(query);
+            return Dispatcher.resultsFor(
+                routedQuery.provider, routedQuery.query,
+                routedQuery.prefix, Metrics.maxResults);
+        }
+        return [];
+    }
+
+    function scheduleEvaluation() {
+        evaluationGeneration++;
+        if (evaluationQueued)
+            return;
+        evaluationQueued = true;
+        Qt.callLater(evaluateLatestResults);
+    }
+
+    function evaluateLatestResults() {
+        evaluationQueued = false;
+        var generation = evaluationGeneration;
+        var token = resultQueryToken;
+        var snapshot = evaluateCurrentResults();
+        if (!LauncherState.acceptEvaluationSnapshot(
+                generation, evaluationGeneration, token, resultQueryToken)) {
+            if (!evaluationQueued) {
+                evaluationQueued = true;
+                Qt.callLater(evaluateLatestResults);
+            }
+            return;
+        }
+        freshResultsToken = token;
+        freshResults = snapshot || [];
+        Qt.callLater(syncDisplayedResults);
+    }
+
+    function syncDisplayedResults() {
+        if (resultRouteKey.length === 0) {
+            emptySettlement.stop();
+            displayRouteKey = "";
+            displayQueryToken = "";
+            displayWasBusy = false;
+            results = [];
+            return;
+        }
+        if (displayRouteKey !== resultRouteKey) {
+            emptySettlement.stop();
+            displayRouteKey = resultRouteKey;
+            displayQueryToken = resultQueryToken;
+            displayWasBusy = false;
+            results = [];
+        }
+
+        var tokenChanged = displayQueryToken !== resultQueryToken;
+        displayQueryToken = resultQueryToken;
+        var snapshotCurrent = LauncherState.snapshotMatchesToken(
+            freshResultsToken, resultQueryToken);
+        if (!snapshotCurrent) {
+            if (busyForActiveProvider) {
+                emptySettlement.stop();
+                displayWasBusy = true;
+            }
+            return;
+        }
+        if (freshResults.length > 0) {
+            emptySettlement.stop();
+            results = freshResults;
+            return;
+        }
+        if (busyForActiveProvider) {
+            emptySettlement.stop();
+            displayWasBusy = true;
+            return;
+        }
+        if (results.length === 0) {
+            results = [];
+            return;
+        }
+        if (tokenChanged || !emptySettlement.running)
+            emptySettlement.restart();
+    }
+
+    function reconcileResults() {
+        var previousKey = selectedResultKey;
+        var reconciled = Results.reconcileSelection(
+            results, selectedResultKey, selectionFallbackIndex);
+        selectedResultKey = reconciled.key;
+        selectedIndex = reconciled.index;
+        selectionFallbackIndex = Math.max(0, reconciled.index);
+        if (shelfOpen && previousKey.length > 0 && previousKey !== reconciled.key)
+            closeShelf();
+        if (reconciled.index >= 0)
+            Qt.callLater(function () { drawer.revealRank(reconciled.index); });
+    }
+
+    function selectResult(resultKey, rank) {
+        if (resultKey === selectedResultKey)
+            return;
+        closeShelf();
+        selectedResultKey = resultKey;
+        selectedIndex = rank;
+        selectionFallbackIndex = Math.max(0, rank);
+        actionError = "";
+        Qt.callLater(function () { drawer.revealRank(rank); });
+    }
+
+    function moveSelection(delta) {
+        if (askMode) {
+            if (drawer.askChipCount > 0 || drawer.askResumeMode)
+                drawer.moveAsk(delta);
+            return;
+        }
+        if (results.length === 0)
+            return;
+        var index = selectedIndex < 0 ? 0
+            : Math.max(0, Math.min(results.length - 1, selectedIndex + delta));
+        var row = results[index];
+        if (!row)
+            return;
+        if (row.resultKey !== selectedResultKey)
+            closeShelf();
+        selectedIndex = index;
+        selectionFallbackIndex = index;
+        selectedResultKey = row.resultKey;
+        actionError = "";
+        drawer.revealRank(index);
+    }
+
+    function selectMode(mode) {
+        if (activeMode === mode) {
+            hero.focusField();
+            return;
+        }
+        var next = LauncherState.selectMode(mode, query, Dispatcher.prefixes);
+        suppressQueryRouting = true;
+        closeShelf();
+        activeMode = next.mode;
+        query = next.query;
+        suppressQueryRouting = false;
+        actionError = "";
+        resetSelection();
+        Qt.callLater(hero.focusField);
+    }
+
+    function returnToRest() {
+        suppressQueryRouting = true;
+        closeShelf();
+        activeMode = "rest";
+        query = "";
+        suppressQueryRouting = false;
+        actionError = "";
+        drawer.resetAsk();
+        resetSelection();
+        Qt.callLater(hero.focusField);
+    }
+
+    function routeVisibleQuery() {
+        if (suppressQueryRouting)
+            return;
+        closeShelf();
+        actionError = "";
+        var next;
+        if (query.length > 0 && query.charAt(0) === "\\")
+            next = { mode: "special", query: query };
+        else
+            next = LauncherState.resolveTypedPrefix(
+                activeMode, query, Dispatcher.prefixes);
+        activeMode = next.mode;
+        if (!(query.length > 0 && query.charAt(0) === "\\"))
+            drawer.resetAsk();
+        resetSelection();
+    }
+
+    function closeShelf() {
+        shelfOpen = false;
+        focusedActionId = "";
+    }
+
+    function handleCompositionStarted() {
+        closeShelf();
+        hero.focusField();
+    }
+
+    function openShelf() {
+        if (secondaryActions.length === 0)
+            return;
+        packedActionLayout = Results.packActions(secondaryActions);
+        shelfSignature = currentActionSignature;
+        focusedActionId = LauncherState.moveActionFocus(
+            packedActionLayout, "", "Open");
+        shelfOpen = focusedActionId.length > 0;
+        hero.focusField();
+    }
+
+    function toggleShelf() {
+        if (secondaryActions.length === 0)
+            return;
+        if (shelfOpen)
+            closeShelf();
+        else
+            openShelf();
+    }
+
+    function moveActionFocus(keyName) {
+        if (!shelfOpen)
+            return;
+        focusedActionId = LauncherState.moveActionFocus(
+            packedActionLayout, focusedActionId, keyName);
+    }
+
+    function currentSecondaryAction(actionId) {
+        for (var index = 0; index < secondaryActions.length; index++) {
+            if (String(secondaryActions[index].id) === String(actionId))
+                return secondaryActions[index];
+        }
+        return null;
+    }
+
+    function focusWindow(address) {
+        var target = String(address || "");
+        if (target.length === 0)
+            return;
+        focusedWindowAddress = target;
+        if (providerSet.windows && providerSet.windows.focusWindow)
+            providerSet.windows.focusWindow(target);
+        requestClose();
+    }
+
+    function executeAction(action) {
+        if (!action || action.enabled === false
+                || typeof action.execute !== "function") {
+            actionError = "ACTION UNAVAILABLE";
+            return;
+        }
+        try {
+            action.execute();
+            actionError = "";
+            if (action.closeOnExecute !== false)
+                requestClose();
+        } catch (error) {
+            var message = String(error || "ACTION FAILED").split("\n")[0];
+            actionError = message.length > 72
+                ? message.slice(0, 69) + "..." : message;
+            hero.focusField();
+        }
+    }
+
+    function activateCurrent() {
+        if (askMode) {
+            if (drawer.askResumeMode || drawer.askBusy
+                    || drawer.askAnswerCurrent || drawer.askPermissionPending)
+                drawer.activateAsk();
+            else
+                drawer.runAsk();
+            return;
+        }
+        if (windowRail && windowRail.hasWindows
+                && windowRail.focusedAddress.length > 0) {
+            focusWindow(windowRail.focusedAddress);
+            return;
+        }
+        if (shelfOpen) {
+            executeAction(currentSecondaryAction(focusedActionId));
+            return;
+        }
+        if (selectedResult && selectedResult.primaryAction)
+            executeAction(selectedResult.primaryAction);
+    }
+
+    function dismissStage() {
+        var escaped = LauncherState.escape({
+            mode: activeMode,
+            query: query,
+            shelfOpen: shelfOpen,
+            actionFocusId: focusedActionId,
+            preeditActive: hero.preeditText.length > 0,
+            phase: currentPhase
+        });
+        if (escaped.cancelPreedit) {
+            hero.cancelPreedit();
+            return;
+        }
+        if (shelfOpen) {
+            closeShelf();
+            hero.focusField();
+            return;
+        }
+        if (escaped.closeRequested) {
+            requestClose();
+            return;
+        }
+        if (bodyOpen) {
+            if (askMode && drawer.askBusy)
+                drawer.cancelAsk();
+            returnToRest();
+            return;
+        }
+    }
+
+    function showHelp() {
+        if (help) {
+            returnToRest();
+            return;
+        }
+        suppressQueryRouting = true;
+        closeShelf();
+        query = "";
+        activeMode = "help";
+        suppressQueryRouting = false;
+        actionError = "";
+        resetSelection();
+        Qt.callLater(hero.focusField);
+    }
+
+    function handleInputKey(event) {
+        var control = Boolean(event.modifiers & Qt.ControlModifier);
+        if (control && event.key === Qt.Key_K) {
+            toggleShelf();
+            return;
+        }
+        if (control && event.key === Qt.Key_A && resting) {
+            selectMode("all");
+            return;
+        }
+        if (shelfOpen) {
+            if (event.key === Qt.Key_Tab)
+                moveActionFocus(event.modifiers & Qt.ShiftModifier ? "Shift+Tab" : "Tab");
+            else if (event.key === Qt.Key_Backtab)
+                moveActionFocus("Shift+Tab");
+            else if (event.key === Qt.Key_Left)
+                moveActionFocus("Left");
+            else if (event.key === Qt.Key_Right)
+                moveActionFocus("Right");
+            else if (event.key === Qt.Key_Up)
+                moveActionFocus("Up");
+            else if (event.key === Qt.Key_Down)
+                moveActionFocus("Down");
+            return;
+        }
+        if (windowRail && windowRail.hasWindows) {
+            if (event.key === Qt.Key_Tab) {
+                windowRail.focusRelative(
+                    event.modifiers & Qt.ShiftModifier ? -1 : 1);
+                return;
+            }
+            if (event.key === Qt.Key_Backtab) {
+                windowRail.focusRelative(-1);
+                return;
+            }
+            if (event.key === Qt.Key_Left) {
+                windowRail.focusRelative(-1);
+                return;
+            }
+            if (event.key === Qt.Key_Right) {
+                windowRail.focusRelative(1);
+                return;
+            }
+        }
+        if (actionBrowse && event.key === Qt.Key_Tab)
+            drawer.cycleCategory(event.modifiers & Qt.ShiftModifier ? -1 : 1);
+        else if (actionBrowse && event.key === Qt.Key_Backtab)
+            drawer.cycleCategory(-1);
+    }
+
+    function requestOuterGeometry() {
+        if (!shown || observedLifecycleGeneration !== lifecycleGeneration)
+            return;
+        var target = Math.ceil(desiredCardHeight);
+        var bodyChanged = bodyOpen !== lastBodyOpenForGeometry;
+        var shelfChanged = shelfOpen !== lastShelfOpenForGeometry;
+        lastBodyOpenForGeometry = bodyOpen;
+        lastShelfOpenForGeometry = shelfOpen;
+        var duration = bodyChanged
+            ? Math.max(Motion.shutter, Motion.drawer)
+            : (shelfChanged ? Motion.shelf : Motion.drawer);
+        var decision = LauncherState.planOuterGeometry(
+            lastOuterHeight, target, outerGeometryGeneration);
+        outerGeometryGeneration = decision.generation;
+        pendingOuterHeight = decision.pendingHeight;
+        if (decision.cancelShrink)
+            shrinkOuter.stop();
+        if (decision.requestHeight > 0) {
+            lastOuterHeight = decision.requestHeight;
+            outerHeightRequested(
+                decision.requestHeight, decision.growing, duration);
+        } else if (decision.armShrink) {
+            shrinkOuter.generation = decision.generation;
+            shrinkOuter.duration = duration;
+            shrinkOuter.restart();
+        }
+    }
+
     function stateDump() {
-        var rs = [];
-        var n = Math.min(results.length, 12);
-        for (var i = 0; i < n; i++) {
-            var r = results[i] || {};
-            rs.push({
-                title: String(r.title || ""),
-                subtitle: String(r.subtitle || ""),
-                type: String(r.type || ""),
-                verb: String(r.verb || "")
+        var exportedResults = [];
+        var count = Math.min(results.length, 12);
+        for (var index = 0; index < count; index++) {
+            var row = results[index] || {};
+            exportedResults.push({
+                resultKey: String(row.resultKey || ""),
+                providerId: String(row.providerId || ""),
+                title: String(row.title || ""),
+                subtitle: String(row.subtitle || ""),
+                type: String(row.type || ""),
+                disabled: Boolean(row.disabled),
+                secondaryActionCount: row.secondaryActions
+                    ? row.secondaryActions.length : 0,
+                verb: row.primaryAction
+                    ? String(row.primaryAction.name || "") : String(row.verb || "")
             });
         }
-        var acts = [];
-        for (var j = 0; j < selectedActions.length; j++)
-            acts.push(String(selectedActions[j].name || ""));
+        var exportedActions = [];
+        for (var actionIndex = 0; actionIndex < selectedActions.length; actionIndex++)
+            exportedActions.push(String(selectedActions[actionIndex].name || ""));
+        var actionRowCellCounts = [];
+        var actionRowFullWidth = [];
+        for (var rowIndex = 0;
+                rowIndex < packedActionLayout.length; rowIndex++) {
+            var packedRow = packedActionLayout[rowIndex] || {};
+            var rowActions = packedRow.actions || packedRow;
+            actionRowCellCounts.push(
+                Array.isArray(rowActions) ? rowActions.length : 0);
+            actionRowFullWidth.push(Boolean(packedRow.fullWidth));
+        }
         return {
+            phase: currentPhase,
+            activeMode: activeMode,
             query: query,
+            selectedResultKey: selectedResultKey,
+            secondaryActionCount: secondaryActions.length,
+            focusedActionId: focusedActionId,
+            shelfOpen: shelfOpen,
+            surfaceWidth: Math.round(currentSurfaceWidth),
+            surfaceHeight: Math.round(currentSurfaceHeight),
+            heroHeight: Math.round(hero.height),
+            drawerHeight: Math.round(drawer.height),
+            drawerOpacity: Number(drawer.opacity),
+            inputFocused: hero.inputFocused,
+            windowRailActive: Boolean(windowRail && windowRail.hasWindows),
+            windowRailCount: windowRail ? windowRail.windowCount : 0,
+            windowRailAddresses: windowRail ? windowRail.windowAddresses : [],
+            windowRailFocusSerial: windowRail ? windowRail.focusSerial : 0,
+            focusedWindowAddress: windowRail
+                ? String(windowRail.focusedAddress || "") : focusedWindowAddress,
+            shelfHeight: Math.round(drawer.actionShelfHeight),
+            actionRowCellCounts: actionRowCellCounts,
+            actionRowFullWidth: actionRowFullWidth,
+            actionVisibleRange: String(drawer.actionVisibleRange || ""),
+            palette: {
+                lead: String(Theme.leadContainer),
+                onLead: String(Theme.onLead),
+                drawer: String(Theme.drawer),
+                frame: String(Theme.frame)
+            },
             resting: resting,
             gridMode: gridMode,
             help: help,
@@ -123,372 +749,198 @@ Item {
             resultCount: results.length,
             totalCount: totalCount,
             busyIds: Object.keys(Dispatcher.busyProviders),
-            selectedIndex: list.selectedIndex,
-            panelOpen: panel.open,
-            selectedActions: acts,
+            selectedIndex: selectedIndex,
+            panelOpen: shelfOpen,
+            selectedActions: exportedActions,
             hasMedia: hasMedia,
-            results: rs
+            results: exportedResults
         };
     }
 
-    readonly property real cardW: Metrics.windowW * s
-    readonly property int visibleRows: 8
-    readonly property int visibleCount: Math.min(results.length, visibleRows)
-    // each distinct type group draws an 18px section header, so the list must be
-    // tall enough for the rows AND their headers, otherwise the last row clips
-    // (the subtitle vanishes and the action verb sits wrong).
-    readonly property int sectionCount: {
-        var n = 0, prev = null;
-        for (var i = 0; i < visibleCount; i++) {
-            var t = results[i] ? (results[i].type || "") : "";
-            if (i === 0 || t !== prev) n++;
-            prev = t;
+    onQueryChanged: routeVisibleQuery()
+    onResultRouteKeyChanged: {
+        emptySettlement.stop();
+        freshResultsToken = "";
+        freshResults = [];
+        displayRouteKey = resultRouteKey;
+        displayQueryToken = resultQueryToken;
+        displayWasBusy = false;
+        results = [];
+        scheduleEvaluation();
+    }
+    onResultQueryTokenChanged: {
+        freshResultsToken = "";
+        freshResults = [];
+        scheduleEvaluation();
+    }
+    onBusyForActiveProviderChanged: {
+        if (busyForActiveProvider) {
+            displayWasBusy = true;
+            emptySettlement.stop();
+        } else if (displayWasBusy) {
+            displayWasBusy = false;
+            emptySettlement.stop();
+            scheduleEvaluation();
+        } else {
+            syncDisplayedResults();
         }
-        return n;
     }
-    readonly property real listH: visibleCount * (Metrics.rowHeight + Metrics.gapRow) * s + sectionCount * Metrics.sectionH * s
-    readonly property real gridH: 380 * s
-    readonly property real tabsH: actionBrowse ? tabs.implicitHeight + 6 * s : 0
-    readonly property real restH: rest.implicitHeight
-        + (hasMedia ? nowPlaying.implicitHeight + Metrics.padRow * s : 0)
-        + (hasMedia && mediaSources.sources.length > 0 ? mediaSources.implicitHeight + 6 * s : 0)
-        + (radioParked ? radioAside.implicitHeight + 6 * s : 0)
-    // the radio's between-states chip: a station the watcher parked, or a
-    // tune-in still resolving (state on air, no player yet) — both need a
-    // visible line or the radio reads as vanished/failed.
-    readonly property bool radioParked: (Radio.aside !== null && !Radio.on) || Radio.tuning
-    // Extra body slice for the instant-answer panel; padRow separates it from
-    // the Search fallback row that stays underneath so Enter still targets it.
-    readonly property real answerH: answerMode ? answerPanel.implicitHeight + Metrics.padRow * s : 0
-    readonly property real bodyH: help ? helpPanel.implicitHeight
-        : gridMode ? gridH
-        : askMode ? askPanel.implicitHeight + Metrics.padRow * s
-        : (resting ? restH
-        : (answerH + (results.length > 0 ? listH
-        : (searching ? loading.height : empty.height))))
-    readonly property real contentH: tabsH + bodyH
-
-    implicitWidth: cardW
-    implicitHeight: search.height + divider.height + contentH + Metrics.padOuter * 2 * s
-    // height as if at rest (no results/tabs). The window anchors the card top off
-    // this so typing grows the body downward while the search row stays put.
-    readonly property real restingHeight: search.height + divider.height + restH + Metrics.padOuter * 2 * s
-
-    Behavior on implicitHeight {
-        NumberAnimation { duration: Motion.morph; easing.type: Motion.easeMorph; easing.bezierCurve: Motion.morphCurve }
+    onResultsChanged: reconcileResults()
+    onCurrentActionSignatureChanged: {
+        if (shelfOpen && shelfSignature !== currentActionSignature)
+            closeShelf();
+    }
+    onDesiredCardHeightChanged: requestOuterGeometry()
+    onLifecycleGenerationChanged: syncInvocationGeometry()
+    onBodyOpenChanged: retainInputFocus()
+    onReportedSurfaceHeightChanged: retainInputFocus()
+        onShownChanged: {
+        if (shown) {
+            prepareRest();
+            focusedWindowAddress = "";
+            snapHiddenGeometry();
+            syncInvocationGeometry();
+            scheduleEvaluation();
+            Qt.callLater(hero.focusField);
+        } else {
+            prepareRest();
+            focusedWindowAddress = "";
+            snapHiddenGeometry();
+            scheduleEvaluation();
+        }
     }
 
-    // open/close morph: the card inflates from its top edge (where the search row
-    // sits) and fades, rather than popping in at full size. Synced to the window
-    // timer in shell.qml so the close plays fully before the window drops.
-    transformOrigin: Item.Top
-    opacity: shown ? 1 : 0
-    scale: shown ? 1 : 0.92
-    Behavior on opacity { NumberAnimation { duration: Motion.window; easing.type: Easing.OutCubic } }
-    Behavior on scale {
-        NumberAnimation { duration: Motion.window; easing.type: Motion.easeMorph; easing.bezierCurve: Motion.morphCurve }
+    Component.onCompleted: {
+        validateProviderSet();
+        syncInvocationGeometry();
+        scheduleEvaluation();
     }
 
-    Providers { id: providers }
-
+    Connections {
+        target: Dispatcher
+        function onRevisionChanged() { root.scheduleEvaluation(); }
+    }
 
     Binding {
-        target: providers.actions
+        target: providerSet.actions
         property: "activeCategory"
-        value: tabs.activeCategory
-        when: root.actionMode
+        value: drawer.activeCategory
+        when: root.shown && root.actionMode
     }
 
-    onShownChanged: {
-        if (shown) {
-            root.query = "";
-            root.allApps = false;
-            root.help = false;
-            search.clear();
-            list.selectedIndex = 0;
-            panel.open = false;
-            // a category picked last session must not silently narrow "/"
-            tabs.activeIndex = 0;
-            Qt.callLater(search.focusField);
+    Timer {
+        id: shrinkOuter
+        property int generation: 0
+        property int duration: Motion.drawer
+        interval: Math.max(Motion.shutter, Motion.drawer, Motion.shelf)
+        repeat: false
+        onTriggered: {
+            var desired = Math.ceil(root.desiredCardHeight);
+            if (LauncherState.acceptOuterShrink(
+                    generation, root.outerGeometryGeneration,
+                    root.pendingOuterHeight, desired, root.lastOuterHeight)) {
+                root.lastOuterHeight = root.pendingOuterHeight;
+                root.outerHeightRequested(
+                    root.pendingOuterHeight, false, duration);
+            }
         }
     }
-    onQueryChanged: {
-        panel.open = false;
-        if (query.length > 0) { root.allApps = false; root.help = false; }
-        // leaving ask mode drops any in-flight or finished ask
-        if (query.length === 0 || query[0] !== "\\") askPanel.reset();
+
+    Timer {
+        id: emptySettlement
+        interval: 240
+        repeat: false
+        onTriggered: {
+            if (root.displayRouteKey === root.resultRouteKey
+                    && root.displayQueryToken === root.resultQueryToken
+                    && LauncherState.snapshotMatchesToken(
+                        root.freshResultsToken, root.resultQueryToken)
+                    && !root.busyForActiveProvider
+                    && root.freshResults.length === 0)
+                root.results = [];
+        }
     }
 
-    Squircle {
-        anchors.fill: parent
-        radius: LauncherConfig.radius
-        power: 4
-        color: Theme.cardTop
-        borderColor: Theme.border
-        borderWidth: 1
+    // A layer-surface configure can briefly move active focus off the QML
+    // TextInput. Repair it on that transition only; this is not a poll.
+    Timer {
+        id: focusRepair
+        interval: 16
+        repeat: false
+        onTriggered: {
+            if (root.shown && !hero.inputFocused)
+                hero.focusField();
+        }
     }
 
-    // Absorb clicks on the card body so they never fall through to the shell's
-    // click-out scrim (which hides the launcher). The interactive children
-    // (search row, result rows, transport, source strips) are declared after
-    // this and sit on top, so they still receive their own clicks first; this
-    // only swallows clicks that land on empty card space.
-    MouseArea {
-        anchors.fill: parent
-        onClicked: {}
-    }
-
-    SearchRow {
-        id: search
+    HeroShutter {
+        id: hero
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.topMargin: (Metrics.padOuter - 8) * root.s
+        height: (root.bodyOpen ? 126 : 250) * root.s
         s: root.s
-        resultCount: root.results.length
-        totalCount: root.totalCount
-        modeLabel: root.modeLabel
-        gridActive: root.gridMode
-        helpActive: root.help
-        onTextChanged: { root.query = text; list.selectedIndex = 0; }
-        onMoved: (d) => { if (root.askMode && (askPanel.chips.length > 0 || askPanel.resumeMode)) askPanel.move(d); else if (panel.open) panel.move(d); else if (root.gridMode) appGrid.move(d * root.gridColumnsForMove); else list.move(d); }
-        onAccepted: { if (root.askMode) { if (askPanel.resumeMode || askPanel.busy || askPanel.answerCurrent || askPanel.permPending) askPanel.activate(); else askPanel.run(); } else if (panel.open) panel.run(); else if (root.gridMode) appGrid.activate(); else list.activate(); }
-        onDismissed: { if (root.askMode && askPanel.busy) { askPanel.cancel(); root.requestClose(); } else if (root.askMode && askPanel.resumeMode) { askPanel.reset(); root.query = ""; search.clear(); } else if (panel.open) panel.open = false; else if (root.help) root.help = false; else if (root.allApps) root.allApps = false; else root.requestClose(); }
-        onGridToggled: {
-            if (root.gridMode) {
-                root.allApps = false;
-            } else {
-                search.clear();
-                root.allApps = true;
-                root.help = false;
-            }
+        shown: root.shown
+        compressed: root.bodyOpen
+        shelfOpen: root.shelfOpen
+        windowRailActive: Boolean(windowRail && windowRail.hasWindows)
+        activeMode: root.activeMode
+        onMoved: delta => root.moveSelection(delta)
+        onAccepted: root.activateCurrent()
+        onDismissed: root.dismissStage()
+        onCompositionStarted: root.handleCompositionStarted()
+        onHelpRequested: root.showHelp()
+        onModeRequested: mode => root.selectMode(mode)
+        onKeyPressed: event => root.handleInputKey(event)
+        onInputFocusedChanged: {
+            if (!inputFocused)
+                root.retainInputFocus();
         }
-        onHelpToggled: {
-            root.help = !root.help;
-            if (root.help) { search.clear(); root.allApps = false; }
-        }
-        onKeyPressed: (e) => {
-            if (e.key === Qt.Key_K && (e.modifiers & Qt.ControlModifier)) {
-                if (root.selectedActions.length > 0)
-                    panel.open = !panel.open;
-                e.accepted = true;
-            } else if (e.key === Qt.Key_A && (e.modifiers & Qt.ControlModifier) && root.resting) {
-                root.allApps = !root.allApps;
-                if (root.allApps) root.help = false;
-                e.accepted = true;
-            } else if (root.actionMode && e.key === Qt.Key_Tab) {
-                // only cycle while the tab bar is visible; with a typed action
-                // query it would invisibly narrow the results. Still accept so
-                // Tab can't walk focus off the search field.
-                if (root.actionBrowse) tabs.cycle(1);
-                e.accepted = true;
-            } else if (root.actionMode && e.key === Qt.Key_Backtab) {
-                if (root.actionBrowse) tabs.cycle(-1);
-                e.accepted = true;
+
+        Behavior on height {
+            enabled: root.transitionAnimationsEnabled
+                && !root.snappingHiddenGeometry
+            NumberAnimation {
+                id: heroHeightMotion
+                duration: Motion.shutter
+                easing.type: Motion.easeMorph
+                easing.bezierCurve: Motion.morphCurve
             }
         }
     }
 
-    readonly property int gridColumnsForMove: Metrics.gridColumns
-
-    Rectangle {
-        id: divider
-        anchors.top: search.bottom
-        anchors.topMargin: 6 * root.s
+    ResultDrawer {
+        id: drawer
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        height: 1
-        color: Theme.hair
-    }
-
-    CategoryTabs {
-        id: tabs
-        visible: root.actionBrowse
-        anchors.top: divider.bottom
-        anchors.topMargin: 8 * root.s
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
+        anchors.top: hero.bottom
         s: root.s
-    }
-
-    RestDashboard {
-        id: rest
-        visible: root.resting && !root.allApps && !root.help
-        anchors.top: divider.bottom
-        anchors.topMargin: Metrics.padRow * root.s
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        s: root.s
-    }
-
-    HelpPanel {
-        id: helpPanel
-        visible: root.help
-        anchors.top: divider.bottom
-        anchors.topMargin: Metrics.padRow * root.s
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        s: root.s
-    }
-
-    AnswerPanel {
-        id: answerPanel
-        visible: root.answerMode
-        anchors.top: divider.bottom
-        anchors.topMargin: Metrics.padRow * root.s
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        s: root.s
-        answer: providers.web ? providers.web.answer : ({ available: false })
-    }
-
-    AskPanel {
-        id: askPanel
-        visible: root.askMode
-        anchors.top: divider.bottom
-        anchors.topMargin: Metrics.padRow * root.s
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        s: root.s
-        question: root.askQuestion
-        onFinished: root.requestClose()
-    }
-
-    NowPlaying {
-        id: nowPlaying
-        visible: root.resting && !root.allApps && !root.help && root.hasMedia
-        anchors.top: rest.bottom
-        anchors.topMargin: visible ? Metrics.padRow * root.s : 0
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        // collapse when hidden so the strip/saved rows below chain flush against
-        // the rest card instead of leaving the card's fixed height as a gap.
-        height: visible ? implicitHeight : 0
-        s: root.s
-        player: root.activePlayer
-    }
-
-    // Slim strips for the other media players, extending under the card so both
-    // sources read as one compact stack. Only when resting with media present.
-    MediaSources {
-        id: mediaSources
-        visible: root.resting && !root.allApps && !root.help && root.hasMedia && sources.length > 0
-        anchors.top: nowPlaying.bottom
-        anchors.topMargin: visible ? 6 * root.s : 0
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        height: visible ? implicitHeight : 0
-        s: root.s
-        activePlayer: root.activePlayer
-    }
-
-    // The parked-radio chip, at the bottom of the media stack (or directly
-    // under the rest card when nothing else plays): the radio the watcher set
-    // aside stays one tap from returning instead of silently vanishing.
-    RadioAside {
-        id: radioAside
-        visible: root.resting && !root.allApps && !root.help && root.radioParked
-        anchors.top: mediaSources.bottom
-        anchors.topMargin: visible ? 6 * root.s : 0
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        height: visible ? implicitHeight : 0
-        s: root.s
-    }
-
-    ResultGrid {
-        id: appGrid
-        visible: root.gridMode
-        anchors.top: divider.bottom
-        anchors.topMargin: Metrics.padRow * root.s
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Metrics.padOuter * root.s
-        anchors.rightMargin: Metrics.padOuter * root.s
-        height: root.gridH - Metrics.padRow * root.s
-        s: root.s
-        entries: root.gridMode ? providers.apps.allRows() : []
-        onActivated: root.requestClose()
-    }
-
-    ResultList {
-        id: list
-        visible: !root.resting && !root.askMode && root.results.length > 0
-        anchors.top: root.answerMode ? answerPanel.bottom : (root.actionBrowse ? tabs.bottom : divider.bottom)
-        anchors.topMargin: root.answerMode ? Metrics.padRow * root.s : 6 * root.s
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: (Metrics.padOuter - Metrics.padRow) * root.s
-        anchors.rightMargin: (Metrics.padOuter - Metrics.padRow) * root.s
-        height: root.listH
-        s: root.s
+        open: root.shown && root.bodyOpen
+        animationsEnabled: root.transitionAnimationsEnabled
+        frostActive: root.frostActive
+        maxHeight: root.cardGeometry.bodyHeight
         results: root.results
-        query: root.routed.query
-        onActivated: root.requestClose()
+        selectedResult: root.selectedResult
+        selectedResultKey: root.selectedResultKey
+        shelfOpen: root.shelfOpen
+        secondaryActions: root.secondaryActions
+        packedLayout: root.packedActionLayout
+        focusedActionId: root.focusedActionId
+        helpMode: root.help
+        askMode: root.askMode
+        answerMode: root.answerMode
+        actionBrowse: root.actionBrowse
+        searching: root.searching
+        emptyText: root.emptyText
+        errorText: root.actionError
+        askQuestion: root.askQuestion
+                answer: providerSet.web ? providerSet.web.answer : ({ available: false })
+        onLeadActivated: root.activateCurrent()
+        onResultSelected: (resultKey, rank) => root.selectResult(resultKey, rank)
+        onActionFocusRequested: actionId => root.focusedActionId = actionId
+        onActionExecuteRequested: actionId => root.executeAction(
+            root.currentSecondaryAction(actionId))
+        onAskFinished: root.requestClose()
     }
 
-    Row {
-        id: loading
-        visible: root.searching && !root.askMode
-        anchors.top: root.answerMode ? answerPanel.bottom : (root.actionBrowse ? tabs.bottom : divider.bottom)
-        anchors.topMargin: Metrics.padRow * root.s
-        anchors.horizontalCenter: parent.horizontalCenter
-        height: 40 * root.s
-        spacing: 8 * root.s
-        Spinner {
-            anchors.verticalCenter: parent.verticalCenter
-            size: 15 * root.s
-            color: Theme.verm
-        }
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Searching\u2026"
-            color: Theme.faint
-            font.family: Theme.font
-            font.pixelSize: 12 * root.s
-        }
-    }
-
-    Text {
-        id: empty
-        visible: !root.resting && !root.searching && !root.askMode && root.results.length === 0
-        anchors.top: root.answerMode ? answerPanel.bottom : (root.actionBrowse ? tabs.bottom : divider.bottom)
-        anchors.topMargin: Metrics.padRow * root.s
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: "No matches"
-        color: Theme.faint
-        font.family: Theme.font
-        font.pixelSize: 12 * root.s
-        height: 40 * root.s
-    }
-
-    ActionPanel {
-        id: panel
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.margins: Metrics.padOuter * root.s
-        height: open ? Math.min(root.selectedActions.length, 5) * 31 * root.s + 28 * root.s : 0
-        s: root.s
-        actions: root.selectedActions
-        onChosen: { panel.open = false; root.requestClose(); }
-    }
 }

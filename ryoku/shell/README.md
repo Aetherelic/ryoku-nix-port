@@ -13,10 +13,11 @@ package as the base config under `/usr/share/ryoku/config`, which
   thin client that forwards a command to that socket; Hyprland keybinds use it.
 - `quickshell/` The UI, hand-written Quickshell (QML): `pill` (the morphing top
   island; it also draws the screen frame and hosts the edge popouts under
-  `pill/popouts/`, the mixer and power), `ryoshot` (screenshot and
-  annotation), `visualizer` (the wallust-tinted desktop audio spectrum), and
-  `widgets` (the desktop clock and weather on the wallpaper: drag to move,
-  right-click for the menu).
+  `pill/popouts/`, the mixer and power), `launcher` (the card-sized hero shutter,
+  result ledger, and provider tree), `ryoshot` (screenshot and annotation),
+  `visualizer` (the wallust-tinted desktop audio spectrum), and `widgets` (the
+  desktop clock and weather on the wallpaper: drag to move, right-click for the
+  menu).
   These render the shell; they hold no daemon logic.
   The `pill/Singletons/Config` and `visualizer/Singletons/Config` singletons read
   the live appearance config from `~/.config/ryoku/shell.json` (frame and island
@@ -52,7 +53,8 @@ socket and one place that knows how to talk to the components:
 | Command | Effect |
 |---|---|
 | `ryoku-shell daemon` | start the shell: supervise `pill`, bring up clipboard history and the wallpaper, then serve the socket |
-| `launcher`, `clipboard`, `link`, `inbox`, `mixer`, `calendar`, `power`, `battery`, `media`, `peek`, `hide` | toggle a pill surface on the active monitor |
+| `launcher` | toggle the standalone card-sized app launcher on the active monitor |
+| `clipboard`, `link`, `inbox`, `mixer`, `calendar`, `power`, `battery`, `media`, `peek`, `hide` | toggle a pill surface on the active monitor |
 | `lock` | lock the screen with qylock (the shell ships no lock of its own) |
 | `wallpaper [next\|init\|set <path>]` | change the wallpaper and retheme |
 | `voice` | tap ``Super+` `` to toggle Voxtype transcription and the live mic wave surface (tap again to stop) |

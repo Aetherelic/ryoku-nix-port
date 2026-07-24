@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import "../lib/dispatch.js" as Dispatch
+import "../lib/results.js" as Results
 
 // Routes a search query to providers. A leading prefix char selects one provider;
 // an unprefixed query fans across every default provider, merged by score and
@@ -24,6 +25,7 @@ Singleton {
         for (var i = 0; i < extra.length; i++)
             p[extra[i]] = provider.providerId;
         root.prefixes = p;
+        root.notifyAsync();
     }
 
     // The provider a prefixed query targets, or "" for the default fan-out.
@@ -31,9 +33,9 @@ Singleton {
         return Dispatch.routePrefix(text, root.prefixes);
     }
 
-    // Bumped by async providers when a background query resolves; the launcher's
-    // results binding reads it so a late result (qalc, fd, gpk, music) repaints
-    // without the user retyping.
+    // Bumped whenever provider-visible state changes. The launcher coalesces
+    // revisions into imperative snapshots, so late async rows and model changes
+    // repaint without putting impure provider queries inside a QML binding.
     property int revision: 0
     function notifyAsync() { root.revision++; }
 
@@ -50,36 +52,65 @@ Singleton {
         root.busyRevision++;
     }
 
-    // Merged, score-sorted, capped result rows for the current query. Reads
-    // `revision` so async caches re-pull on resolve.
-    function results(text, limit) {
-        void root.revision;
-        var r = Dispatch.routePrefix(text, root.prefixes);
-        var rows = [];
-        if (r.provider) {
-            var p = root.registry[r.provider];
-            if (p)
-                rows = p.query(r.query, r.prefix);
-        } else {
-            for (var id in root.registry) {
-                var prov = root.registry[id];
-                if (prov && prov.defaultProvider)
-                    rows = rows.concat(prov.query(r.query));
-                else if (prov && prov.numericFallback && Dispatch.looksNumeric(r.query))
-                    rows = rows.concat(prov.query(r.query));
-            }
-            // QV4's Array.sort is not stable, so a bare score sort scrambles
-            // equal-score rows and destroys each provider's internal ranking
-            // (apps pre-rank by match tier + frecency). Tag emission order and
-            // use it as the tiebreak.
-            for (var n = 0; n < rows.length; n++)
-                rows[n]._ord = n;
-            rows.sort(function (a, b) {
-                var d = (a.score || 0) - (b.score || 0);
-                return d !== 0 ? d : a._ord - b._ord;
-            });
-        }
+    function capped(rows, limit) {
         var cap = limit && limit > 0 ? limit : rows.length;
         return rows.length > cap ? rows.slice(0, cap) : rows;
+    }
+
+    function providerRows(providerId, query, prefix) {
+        var provider = root.registry[providerId];
+        if (!provider)
+            return [];
+
+        var raw;
+        if (providerId === "apps" && String(query || "").length === 0
+                && typeof provider.allRows === "function")
+            raw = provider.allRows();
+        else
+            raw = provider.query(query, prefix);
+        return Results.normalizeRows(providerId, raw);
+    }
+
+    // Internal modes call this directly, so IMG/FILE can pass their provider
+    // mode without putting a synthetic prefix into the visible query. A null
+    // provider fans out exactly like an ordinary unprefixed search.
+    function resultsFor(providerId, query, prefix, limit) {
+        void root.revision;
+        var requested = providerId || "";
+        if (requested.length > 0)
+            return root.capped(root.providerRows(requested, query, prefix), limit);
+
+        var decorated = [];
+        var order = 0;
+        for (var id in root.registry) {
+            var provider = root.registry[id];
+            if (!provider)
+                continue;
+            var include = provider.defaultProvider
+                || (provider.numericFallback && Dispatch.looksNumeric(query));
+            if (!include)
+                continue;
+
+            var normalized = Results.normalizeRows(id, provider.query(query));
+            for (var index = 0; index < normalized.length; index++)
+                decorated.push({ row: normalized[index], order: order++ });
+        }
+
+        // QV4's Array.sort is not stable. Keep provider emission order as the
+        // explicit tie-break without leaking an implementation field into rows.
+        decorated.sort(function (a, b) {
+            var score = (a.row.score || 0) - (b.row.score || 0);
+            return score !== 0 ? score : a.order - b.order;
+        });
+
+        var rows = decorated.map(function (entry) { return entry.row; });
+        return root.capped(rows, limit);
+    }
+
+    // Public typed-query compatibility surface. Prefix parsing stays here;
+    // actual routing and normalization share the same resultsFor boundary.
+    function results(text, limit) {
+        var route = Dispatch.routePrefix(text, root.prefixes);
+        return root.resultsFor(route.provider, route.query, route.prefix, limit);
     }
 }

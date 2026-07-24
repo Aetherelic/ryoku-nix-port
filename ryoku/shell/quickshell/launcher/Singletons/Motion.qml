@@ -25,7 +25,6 @@ Singleton {
 
     readonly property int fast:       reduce ? 0 : 140
     readonly property int standard:   reduce ? 0 : 300
-    readonly property int morph:      reduce ? 0 : 420
     readonly property int shapeshift: reduce ? 0 : 820
     readonly property int glide:      reduce ? 0 : 260
     readonly property int heat:       reduce ? 0 : 1100
@@ -42,14 +41,13 @@ Singleton {
     // looping scan/pairing breath pulse.
     readonly property int pulse: reduce ? 0 : 420
 
-    // launcher motion budget: keystroke->results never animates (0); the action
-    // panel and view pushes get a short ease; the window show/hide spends the
-    // budget on a low-bounce spring so the open/close is the felt moment.
-    readonly property int panel:    reduce ? 0 : 140
-    readonly property int viewPush: reduce ? 0 : 180
-    readonly property int window:   reduce ? 0 : 240
-    readonly property real windowSpring:  reduce ? 12.0 : 3.0
-    readonly property real windowDamping: reduce ? 1.0 : 0.85
-    // selected-row highlight tracks the new row without blocking input.
-    readonly property int highlight: reduce ? 0 : 80
+    // Shutter motion explains a state change rather than decorating every
+    // keystroke. Task 7 consumes open/close for the layer-surface lifecycle.
+    readonly property int open:      reduce ? 0 : 210
+    readonly property int close:     reduce ? 0 : 160
+    readonly property int shutter:   reduce ? 0 : 360
+    readonly property int drawer:    reduce ? 0 : 280
+    readonly property int selection: reduce ? 0 : 90
+    readonly property int shelf:     reduce ? 0 : 180
+
 }

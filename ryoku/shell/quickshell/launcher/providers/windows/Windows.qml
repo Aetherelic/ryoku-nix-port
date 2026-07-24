@@ -1,4 +1,5 @@
 import QtQuick
+import QtQml.Models
 import Quickshell
 import Quickshell.Hyprland
 import "../../Singletons"
@@ -13,10 +14,26 @@ Provider {
 
     providerId: "windows"
 
-    // lastIpcObject only fills on an IPC refresh, so a window opened since the
-    // last refresh would be invisible to the switcher; nudge one per burst of
-    // queries. The refresh is async: results catch up a keystroke later.
-    Timer { id: refreshGate; interval: 800; repeat: false }
+    // Hyprland events keep the model live. This short coalescing gate only
+    // fills the initial IPC snapshot; it never turns the window rail into a
+    // visible once-a-second poll while the user is navigating results.
+    Timer { id: refreshGate; interval: 120; repeat: false }
+
+    Connections {
+        target: Hyprland.toplevels
+        function onValuesChanged() { Dispatcher.notifyAsync(); }
+    }
+
+    Instantiator {
+        model: Hyprland.toplevels
+        delegate: Connections {
+            required property var modelData
+            target: modelData
+            function onLastIpcObjectChanged() { Dispatcher.notifyAsync(); }
+            function onTitleChanged() { Dispatcher.notifyAsync(); }
+            function onWorkspaceChanged() { Dispatcher.notifyAsync(); }
+        }
+    }
 
     // Focusing must wait until the palette's close morph unmaps its exclusive-
     // focus layer: focusing earlier gets overridden when the unmap hands focus
@@ -24,7 +41,7 @@ Provider {
     property var pendingFocus: null
     Timer {
         id: focusDelay
-        interval: Motion.window + 110
+        interval: Motion.close + 110
         repeat: false
         onTriggered: {
             var e = windows.pendingFocus;
@@ -72,12 +89,15 @@ Provider {
     function rowFor(e) {
         return {
             id: "window:" + e.address,
+            windowAddress: e.address,
+            appId: e.cls,
             title: e.title,
             subtitle: e.cls,
             icon: e.cls ? Quickshell.iconPath(e.cls, "application-x-executable") : "",
             type: "Window",
             score: 5,
             actions: [{
+                id: "focus",
                 name: "Focus",
                 icon: "",
                 execute: function () {

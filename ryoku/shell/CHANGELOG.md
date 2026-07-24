@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Changed
+- **The app launcher is a hero shutter instead of a fullscreen search panel.**
+  `Super+Space` now opens only the 720 px image card and its heavy contact
+  shadow; typing compresses the hero while a dense lead result and 40 px ledger
+  unfold below it. `ALL`, `IMG`, `FILE`, and `REC` are quiet controls over the
+  image, the selected app no longer floats in a large empty row, and `Ctrl+K`
+  reveals only real Desktop Actions: zero reserves no space, one spans the
+  shelf, two or three share one row, four or more pair up with an odd full-width
+  finish, and seven or more scroll within three rows. The native layer surface
+  is card-sized with a matching input region, so there is no invisible
+  fullscreen click-catcher or opening flash. Global compositor blur, scrim, and
+  grain mutation are gone; a one-shot active-monitor capture supplies the
+  drawer's subtle 2 px local frost and falls back to solid in 50 ms. Opening,
+  closing, same-generation reversal, monitor transfer, grow-before-reveal, and
+  shrink-before-surface motion now have an explicit lifecycle
+  (`quickshell/launcher/{shell,LauncherSurface,LocalFrost,FrostLayer,HeroShutter,ResultDrawer,ActionShelf}.qml`,
+  `quickshell/launcher/lib/{lifecycle,launcherstate,results}.js`).
 - **Bar popouts and both sidebars are held closed while the shell is reworked;
   only the power menu still opens.** Every bar module tap and hover (plus the
   washi warp surfaces and the atoll popouts) is now inert, except the
@@ -57,6 +73,14 @@
   once (`launcher/Singletons/Weather.qml`, `widgets/Singletons/WeatherData.qml`).
 
 ### Added
+- **The launcher can browse standard recent files without scanning the home
+  directory.** `REC` parses `recently-used.xbel`, validates entries
+  asynchronously, drops missing paths, and offers Open plus Reveal. Result and
+  action IDs are stable across provider refreshes, while stale async replies are
+  generation-gated. The launcher also exposes a strict provider contract so a
+  malformed or disabled primary action cannot promote a later action into its
+  place (`quickshell/launcher/providers/recent/`,
+  `quickshell/launcher/lib/{providerids,requeststate}.js`).
 - **Folder icons follow the wallpaper.** Every palette change now retints the
   file-manager folders to the same accent the shell and GTK use. A helper
   (`hyprland/scripts/ryoku-cmd-folders`) maps the accent to the nearest Papirus

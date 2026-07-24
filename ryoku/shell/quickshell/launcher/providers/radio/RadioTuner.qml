@@ -19,14 +19,19 @@ Provider {
 
     property var stations: []
 
+    Connections {
+        target: Radio
+        function onTuningChanged() { Dispatcher.notifyAsync(); }
+    }
+
     function rowFor(r) {
         var acts = [];
         if (r.verb === "stop")
-            acts.push({ name: "Stop", icon: "", execute: function () { Radio.stop(); } });
+            acts.push({ id: "stop", name: "Stop", icon: "", execute: function () { Radio.stop(); } });
         else if (r.verb === "resume")
-            acts.push({ name: "Resume", icon: "", execute: function () { Radio.resume(); } });
+            acts.push({ id: "resume", name: "Resume", icon: "", execute: function () { Radio.resume(); } });
         else
-            acts.push({ name: "Tune in", icon: "", execute: (function (id) {
+            acts.push({ id: "tune", name: "Tune in", icon: "", execute: (function (id) {
                 return function () { Radio.start(id); };
             })(r.id) });
         return {
@@ -42,7 +47,7 @@ Provider {
 
     function query(text) {
         var t = (text || "").trim();
-        // "@stop" / "@off" tunes out — or lets a parked station go — from
+        // "@stop" / "@off" tunes out, or lets a parked station go, from
         // anywhere, no list browsing needed; "@resume" picks a parked one up.
         if (t === "stop" || t === "off") {
             if (Radio.on)
@@ -53,7 +58,7 @@ Provider {
                     icon: "",
                     type: "Radio",
                     score: -30,
-                    actions: [{ name: "Stop", icon: "", execute: function () { Radio.stop(); } }]
+                    actions: [{ id: "stop", name: "Stop", icon: "", execute: function () { Radio.stop(); } }]
                 }];
             if (Radio.aside)
                 return [{
@@ -63,7 +68,7 @@ Provider {
                     icon: "",
                     type: "Radio",
                     score: -30,
-                    actions: [{ name: "Dismiss", icon: "", execute: function () { Radio.stop(); } }]
+                    actions: [{ id: "dismiss", name: "Dismiss", icon: "", execute: function () { Radio.stop(); } }]
                 }];
         }
         if (t === "resume" && Radio.aside && !Radio.on)
@@ -74,7 +79,7 @@ Provider {
                 icon: "",
                 type: "Radio",
                 score: -30,
-                actions: [{ name: "Resume", icon: "", execute: function () { Radio.resume(); } }]
+                actions: [{ id: "resume", name: "Resume", icon: "", execute: function () { Radio.resume(); } }]
             }];
         var status = {
             on: Radio.on,

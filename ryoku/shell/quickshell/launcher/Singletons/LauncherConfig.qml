@@ -11,13 +11,13 @@ Singleton {
     id: root
 
     property alias radius:       adapter.radius        // outer card corner, px
-    property alias bgBlur:      adapter.bgBlur         // desktop blur behind the palette while open, px (0 = off)
+    property alias bgBlur:      adapter.bgBlur         // frozen card-local snapshot frost, px (0 = sharp)
     property alias weatherUnit:  adapter.weatherUnit   // auto (locale) | C | F
     property alias heroImage:    adapter.heroImage     // backdrop file, "" = shipped art
     property alias heroStrength: adapter.heroStrength  // backdrop opacity, 0..1
     property alias heroPosX:     adapter.heroPosX      // backdrop focal point, 0..1
     property alias heroPosY:     adapter.heroPosY
-    property alias showWeather:  adapter.showWeather   // weather glance on the home card
+    property alias showWeather:  adapter.showWeather   // weather glance on the hero
     property alias showGreeting: adapter.showGreeting  // "Good morning" line
 
     FileView {
@@ -32,7 +32,7 @@ Singleton {
         JsonAdapter {
             id: adapter
             property real radius: 16
-            property int bgBlur: 12
+            property int bgBlur: 2
             property string weatherUnit: "auto"
             property string heroImage: ""
             property real heroStrength: 0.6

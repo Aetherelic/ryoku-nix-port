@@ -224,8 +224,11 @@ Each surface is its own directory under `quickshell/`, each component its own
   stacked clock) and Caelestia (the numbered cell strip with the sliding
   indicator, Material Symbols iconography). See
   `docs/bar.md` for the bar and `docs/frame.md` for the popouts it grows.
-- **launcher** the Super-triggered app launcher and command palette, with a
-  zero-query rest card (the solar-arc clock and weather). See `docs/launcher.md`.
+- **launcher** the Super-triggered app launcher and command palette. Its
+  zero-query hero carries the image, solar clock, weather, fine search line,
+  and scope keys; typing compresses that hero and opens a dense result drawer
+  below it. The native layer surface is only as large as the card and its
+  shadow, never a fullscreen click-catcher. See `docs/launcher.md`.
 - **switcher** the full-screen Alt-Tab window switcher.
 - **ryoshot** screenshot capture and annotation.
 - **overview** the full-screen workspace expo (Super+Tab), launcher-style: the
@@ -302,7 +305,7 @@ to decorate.
 
 ## Art
 
-Figurative art (the launcher clock background, the Hub profile card, the welcome
+Figurative art (the launcher hero, the Hub profile card, the welcome
 backdrop, the fastfetch emblem) follows the website's pipeline: generated at dev time with
 `fal-ai/nano-banana-pro`, background flood-filled to the canvas colour so it
 blends seamlessly, and committed as a static asset (the running target has no

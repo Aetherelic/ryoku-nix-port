@@ -22,6 +22,7 @@ Singleton {
             return;
         root.usage[id] = (root.usage[id] || 0) + 1;
         store.setText(JSON.stringify(root.usage));
+        Dispatcher.notifyAsync();
     }
 
     FileView {
@@ -39,5 +40,6 @@ Singleton {
         } catch (e) {
             root.usage = ({});
         }
+        Dispatcher.notifyAsync();
     }
 }

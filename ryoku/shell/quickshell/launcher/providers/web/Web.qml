@@ -48,6 +48,7 @@ Provider {
             type: "Web",
             score: 90,
             actions: [{
+                id: "search",
                 name: "Search",
                 icon: "",
                 execute: function () { Qt.openUrlExternally(Engines.buildUrl(text, "g")); }

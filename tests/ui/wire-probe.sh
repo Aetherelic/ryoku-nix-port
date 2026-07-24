@@ -17,10 +17,9 @@ trap 'rm -rf "$work"' EXIT
 src="${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/shell.json"
 [ -f "$src" ] || { echo "no $src to probe against"; exit 77; }
 
-mkdir -p "$work/cfg" "$work/qs/schema"
+mkdir -p "$work/cfg" "$work/qs"
 cp "$src" "$work/cfg/shell.json"
 cp "$here/wire-probe.qml" "$work/qs/shell.qml"
-cp "$repo/ryoku/hub/quickshell/schema/ShellSettingsPage.js" "$work/qs/schema/"
 
 RYOKU_TEST_CFG="$work/cfg" \
 QML_IMPORT_PATH="${QML_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \

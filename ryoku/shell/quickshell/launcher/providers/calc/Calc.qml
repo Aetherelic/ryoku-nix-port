@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import "../../Singletons"
 import "calc.js" as Calc
+import "../requeststate.js" as RequestState
 import ".."
 
 // Calculator provider: evaluates the query with qalc. Routed by the "=" prefix,
@@ -21,6 +22,74 @@ Provider {
     property string cachedText: ""
     property string cachedResult: ""
     property string pendingText: ""
+    property int pendingGeneration: 0
+    property bool debounceReady: false
+    property var requestState: RequestState.initial()
+
+    function setRequestState(next) {
+        if (next === calc.requestState)
+            return false;
+        var wasBusy = RequestState.isBusy(calc.requestState);
+        var nowBusy = RequestState.isBusy(next);
+        calc.requestState = next;
+        if (wasBusy !== nowBusy)
+            Dispatcher.setBusy("calc", nowBusy);
+        return true;
+    }
+
+    function cancelProcess() {
+        if (proc.inFlight)
+            proc.running = false;
+    }
+
+    function clearRequest() {
+        var next = RequestState.clear(calc.requestState);
+        if (next === calc.requestState)
+            return;
+        calc.setRequestState(next);
+        debounce.stop();
+        calc.debounceReady = false;
+        calc.cancelProcess();
+    }
+
+    function adoptCached(key) {
+        var next = RequestState.adoptSettled(calc.requestState, key);
+        if (next === calc.requestState)
+            return;
+        calc.setRequestState(next);
+        debounce.stop();
+        calc.debounceReady = false;
+        calc.cancelProcess();
+    }
+
+    function schedule(text) {
+        var next = RequestState.begin(calc.requestState, text);
+        if (next === calc.requestState)
+            return;
+        calc.setRequestState(next);
+        calc.pendingText = text;
+        calc.pendingGeneration = next.generation;
+        calc.debounceReady = false;
+        debounce.restart();
+        calc.cancelProcess();
+    }
+
+    function startPending() {
+        if (!calc.debounceReady || proc.inFlight)
+            return;
+        var next = RequestState.markRunning(
+            calc.requestState, calc.pendingText, calc.pendingGeneration);
+        if (next === calc.requestState)
+            return;
+        calc.debounceReady = false;
+        calc.setRequestState(next);
+        proc.expr = calc.pendingText;
+        proc.requestGeneration = calc.pendingGeneration;
+        proc.out = "";
+        proc.inFlight = true;
+        proc.didStart = false;
+        proc.running = true;
+    }
 
     function rowFor(expr, result) {
         return {
@@ -31,6 +100,7 @@ Provider {
             type: "Calc",
             score: -10,   // a valid calc result outranks app matches
             actions: [{
+                id: "copy",
                 name: "Copy",
                 icon: "",
                 execute: function () { Quickshell.clipboardText = result; }
@@ -40,19 +110,15 @@ Provider {
 
     function query(text) {
         var t = (text || "").trim();
-        if (t.length === 0)
+        if (t.length === 0) {
+            calc.clearRequest();
             return [];
-        if (t === calc.cachedText)
-            return calc.cachedResult.length ? [rowFor(t, calc.cachedResult)] : [];
-        // New expression: schedule an evaluation without touching state inside
-        // the binding, and show nothing until it resolves. Guard the restart on
-        // pendingText too, so a re-query for the same in-flight expression (any
-        // other provider bumping Dispatcher.revision re-runs results()) does
-        // not keep pushing the debounce forward and starve the calc process.
-        if (t !== calc.pendingText) {
-            calc.pendingText = t;
-            debounce.restart();
         }
+        if (t === calc.cachedText) {
+            calc.adoptCached(t);
+            return calc.cachedResult.length ? [rowFor(t, calc.cachedResult)] : [];
+        }
+        calc.schedule(t);
         return [];
     }
 
@@ -61,31 +127,56 @@ Provider {
         interval: 60
         repeat: false
         onTriggered: {
-            proc.expr = calc.pendingText;
-            proc.running = false;
-            proc.running = true;
+            calc.debounceReady = true;
+            calc.startPending();
         }
     }
 
     Process {
         id: proc
-        onRunningChanged: Dispatcher.setBusy("calc", running)
         property string expr: ""
+        property int requestGeneration: 0
+        property bool inFlight: false
+        property bool didStart: false
         property string out: ""
         command: [Config.scriptsDir + "ryoku-cmd-calc", expr]
         stdout: SplitParser {
             onRead: data => proc.out += data + "\n"
         }
-        onStarted: proc.out = ""
+        onStarted: proc.didStart = true
+        onRunningChanged: {
+            if (!running && proc.inFlight && !proc.didStart) {
+                var expr = proc.expr;
+                var generation = proc.requestGeneration;
+                proc.inFlight = false;
+                if (calc.requestState.phase === "running"
+                        && RequestState.isCurrent(
+                            calc.requestState, expr, generation)) {
+                    calc.setRequestState(RequestState.settle(
+                        calc.requestState, expr, generation));
+                }
+                calc.startPending();
+            }
+        }
         onExited: (code, status) => {
-            // a killed (superseded) eval must not cache its partial output
-            // under the newer expression's key.
-            if (status !== 0)
-                return;
-            var result = Calc.parseResult(proc.out);
-            calc.cachedText = proc.expr;
-            calc.cachedResult = result ? result : "";
-            Dispatcher.notifyAsync();
+            var expr = proc.expr;
+            var generation = proc.requestGeneration;
+            proc.inFlight = false;
+            var current = calc.requestState.phase === "running"
+                && RequestState.isCurrent(
+                    calc.requestState, expr, generation);
+            if (current) {
+                if (status === 0) {
+                    var result = Calc.parseResult(proc.out);
+                    calc.cachedText = expr;
+                    calc.cachedResult = result ? result : "";
+                }
+                calc.setRequestState(RequestState.settle(
+                    calc.requestState, expr, generation));
+                if (status === 0)
+                    Dispatcher.notifyAsync();
+            }
+            calc.startPending();
         }
     }
 

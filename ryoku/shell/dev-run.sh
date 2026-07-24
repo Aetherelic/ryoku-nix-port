@@ -13,6 +13,9 @@ bin="$here/ipc/ryoku-shell"
 # the frame component imports Ryoku.Blobs from the QML path the daemon sets,
 # so build + install it once = dev loop renders the frame like a real deploy.
 "$here/plugin/build.sh" "$HOME/.local/lib/qt6/qml"
+# Keep the shared pure-QML module in step with this checkout too; HeroCrop and
+# the other design-system components are imported by the live launcher.
+"$here/../ui/install.sh" "$HOME/.local/lib/qt6/qml"
 
 export RYOKU_SHELL_DIR="$here"
 echo "ryoku-shell dev  (RYOKU_SHELL_DIR=$here)"

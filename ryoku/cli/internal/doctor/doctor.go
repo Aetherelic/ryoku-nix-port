@@ -115,6 +115,7 @@ func reconcilers() []reconciler {
 		{"cursor theme", reconcileCursorTheme},
 		{"Material Symbols icon font", reconcileIconFont},
 		{"shell config schema", reconcileShellConfig},
+		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
 		{"user edits overlay", reconcileUserEditsAdopt},
 		{"keyring unlock policy", reconcileKeyring},
 		{"SDDM greeter theme", reconcileGreeterTheme},

@@ -60,23 +60,20 @@ hl.config({
   },
 })
 
--- the launcher is a translucent layer-shell overlay; blur its backdrop so the
--- card reads against any wallpaper. its open/close is QML-driven, so suppress
--- Hyprland's own layer animation to avoid a double move. no_anim covers both
--- namespaces the launcher can use ("^launcher" matches "launcher" and
--- "launcher-noblur"); blur is scoped to the exact "launcher" namespace, so when
--- the App Launcher's blur is set to 0 the window uses "launcher-noblur" and its
--- backdrop is never frosted -- not even for the frame between the layer mapping
--- and the blur write landing (the frost that flashed in on open at the lowest).
+-- The launcher owns its card-sized reveal and local drawer frost in QML.
+-- Suppress Hyprland's layer animation so it never adds a second transition.
 hl.layer_rule({
   name    = "launcher-noanim",
-  match   = { namespace = "^launcher" },
+  match   = { namespace = "^launcher$" },
   no_anim = true,
 })
+
+-- The window-preview floater is a separate layer surface that follows the
+-- launcher selection. Its cards own their enter/exit in QML as well.
 hl.layer_rule({
-  name    = "launcher-blur",
-  match   = { namespace = "^launcher$" },
-  blur    = not no_blur,
+  name    = "launcher-window-rail-noanim",
+  match   = { namespace = "^launcher-window-rail$" },
+  no_anim = true,
 })
 
 -- the workspace overview (qs -c overview, Super+Tab) is a full-screen layer-shell
@@ -92,7 +89,7 @@ hl.layer_rule({
 
 -- ryolayer (qs -c ryolayer, Super+G) is a full-screen transparent tool layer:
 -- blur the desktop behind the board so its widgets read on top; the strength
--- slider drives decoration:blur:size live (the launcher's force/restore). At
+-- slider drives decoration:blur:size live. At
 -- blur 0 the board maps as "ryolayer-noblur" and never frosts. Pinned widgets
 -- ride their own small "ryolayer-pin" windows, never blurred. QML owns every
 -- open/close morph, so Hyprland's layer animation is suppressed for all three.

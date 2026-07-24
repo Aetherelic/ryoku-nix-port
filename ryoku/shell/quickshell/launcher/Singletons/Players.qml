@@ -3,10 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Mpris
 
-// The real, controllable MPRIS players: the playerctld proxy removed and deduped
-// by dbus name, so the now-playing card and the sources strip never show the same
-// source twice. Shared by Launcher, NowPlaying and MediaSources so all three agree
-// on what exists.
+// The real, controllable MPRIS players: playerctld is removed and D-Bus names
+// are deduplicated. The searchable MPRIS provider and radio collision minder
+// share this view of what exists.
 Singleton {
     id: root
 
@@ -17,8 +16,7 @@ Singleton {
         return p && String(p.dbusName || "").indexOf("playerctld") !== -1;
     }
 
-    // Real controllable players: the proxy removed and deduped by dbusName, so the
-    // card and the strip never show the same source twice.
+    // Real controllable players, with the proxy removed and D-Bus names unique.
     function realPlayers() {
         var list = Mpris.players.values;
         var out = [];

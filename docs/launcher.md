@@ -1,103 +1,235 @@
 # The launcher
 
-The launcher is the Ryoku command palette: a standalone, centered overlay
-summoned with `Super + Space`. It searches and launches apps, calculates, runs
-system actions, manages clipboard and snippets, switches windows, searches the
-web, finds files, installs packages, controls any media player, and searches and
-plays free music from YouTube Music. It is a full rebuild of the old pill
-app-list, dropped from the pill so it has the room a Raycast/Alfred-class palette
-needs.
+The launcher is Ryoku's app picker and command palette, opened with
+`Super + Space`. Its resting face is the hero image itself: time, weather, a
+fine search line, and four small scope keys sit directly over the art. There is
+no floating search capsule and no empty result panel waiting below it.
 
-It lives in `ryoku/shell/quickshell/launcher/`, a Quickshell component supervised
-by the `ryoku-shell` daemon (a peer of `pill`/`ryoshot`), kept warm so it opens
-instantly and toggles with `ryoku-shell launcher`.
+Typing works like opening a camera shutter. The 250 px hero compresses to
+126 px while a dark result drawer grows from its lower edge. The selected
+result takes one dense 70 px lead row; more matches continue as 40 px ledger
+rows. Clearing the query or pressing `Esc` closes the drawer and gives the image
+its room back.
 
-## Anatomy
+The launcher runs from `ryoku/shell/quickshell/launcher/` as a warm Quickshell
+component supervised by `ryoku-shell`. `ryoku-shell launcher` toggles it on the
+focused output.
 
-- `shell.qml` the layer-shell overlay window (namespace `launcher`), resident and
-  hidden at rest, shown on the focused monitor. Toggled over the daemon socket
-  with an IPC fallback. The desktop behind it is blurred via the `launcher` layer
-  rule in `hyprland/modules/decoration.lua`; while open, `shell.qml` drives the
-  compositor blur to the strength set by the Hub's App Launcher page (`bgBlur`,
-  through `hyprctl eval`) and puts the prior blur back on hide.
-- `Launcher.qml` the card body: the search row over the rest dashboard (empty
-  query), the all-apps grid (`Ctrl+A`), the action-mode tabs (`/` prefix), or the
-  ranked result list. Grows and shrinks on the Ryoku morph curve.
-- `SearchRow.qml` the 力 glyph, the query field, a result counter, and the
-  Google-Lens + music-recognition buttons.
-- `ResultList.qml` / `ResultGrid.qml` / `NowPlaying.qml` / `RestDashboard.qml` the
-  views. `ActionPanel.qml` is the per-item verb sheet (`Ctrl+K`); `CategoryTabs.qml`
-  is the action-mode tab bar.
+## Rest, search, and scopes
+
+At rest:
+
+- start typing for a federated search;
+- press or click `ALL` to browse applications;
+- use `IMG` or `FILE` for a focused filesystem search;
+- use `REC` for freedesktop recent files;
+- press `Ctrl+A` as the keyboard route to `ALL`;
+- press `F1` for the built-in reference.
+
+The scope is sticky while typing. `ALL` never leaks file or window results into
+an app browse; `IMG` and `FILE` keep the visible query clean instead of adding a
+synthetic prefix. Pressing the active scope again only returns focus to the
+query. `Esc` walks back one stage at a time: input-method preedit, expanded
+options, the current search/scope, then the launcher.
+
+Prefixes remain available for commands that do not need a permanent hero key:
+
+| Input | Scope |
+|---|---|
+| `/` | system actions, with categories across the drawer |
+| `/file`, `/folder`, `/image`, `/video` | a specific filesystem kind |
+| `>install`, `>remove`, `>search` | packages |
+| `=` or a numeric expression | calculator |
+| `?` | web search and instant answer |
+| `@` | radio search and playback |
+| `\` | one terse Rashin answer |
+
+Unprefixed text searches the default providers together. The selected result
+stays attached to its stable provider/result identity when an asynchronous
+provider inserts, removes, or reorders rows.
+
+## Primary actions and expanded app options
+
+`Enter` always runs the selected result's primary action. For an application,
+that primary action is **Launch**.
+
+Some `.desktop` files also advertise named Desktop Actions: for example,
+**New Window**, **New Incognito Window**, **Compose**, or **Open Profile**.
+Those real actions become the app's expanded options. Ryoku preserves their
+declared names and order; it does not invent options, repeat **Launch**, or
+promote a malformed action. An action with no usable ID, a duplicate ID, or a
+disabled/unexecutable entry is not counted.
+
+Press `Ctrl+K` on the selected result to open its options. The drawer only
+spends space that the selected app has earned:
+
+| Usable extra options | Layout |
+|---:|---|
+| 0 | Nothing opens. There is no marker, blank shelf, or reserved gap; `Ctrl+K` is a no-op. |
+| 1 | One full-width 38 px row. |
+| 2–3 | One 38 px row, split into equal cells. |
+| 4–6 | Two cells per row; an odd final option spans the full row. |
+| 7+ | The shelf shows at most three rows (114 px) and scrolls, with a visible range counter. |
+
+This means apps without Desktop Actions remain the compact 70 px lead plus the
+following ledger, never a large icon floating in empty space. Apps with actions
+expand immediately below that same lead row, so the options still read as part
+of the selected app.
+
+While the shelf is open:
+
+- `Tab` and `Shift+Tab` walk options in declaration order;
+- the arrow keys move through the packed rows;
+- `Enter` runs the focused option;
+- `Esc` closes only the shelf;
+- typing edits the query and closes the now-stale shelf;
+- hovering or clicking an option focuses or runs that exact option.
+
+The real query field keeps keyboard focus throughout. If the desktop-entry
+model changes while the shelf is open, an app update adds, removes, or reorders
+its actions, the action signature changes and the shelf closes instead of
+executing a stale target.
+
+### Open-window rail
+
+When the selected result is an app with matching Hyprland windows, a separate
+bottom layer-surface appears below the launcher. It is intentionally detached
+by a deep gap and local shadow; each window is its own static card with an app
+icon, title, and workspace cue. There is no screencopy or periodic preview
+refresh: Hyprland's toplevel events update the set directly. The rail is an
+earned surface: it does not exist for apps with no open windows and never
+covers the hero image.
+
+`Left` and `Right` move the bright focus frame between window cards. `Enter`
+switches to the framed window. `Tab` and `Shift+Tab` provide the same traversal
+without leaving the search field. The selected
+address is kept stable while results refresh, so typing does not make the
+keyboard cursor jump to a different open window. While the launcher is active,
+Ryoku temporarily freezes pointer-driven Hyprland focus and restores the
+user's exact setting after close; moving the pointer outside the card can never
+take typing away. The rail caps at six cards; when more windows match, the
+horizontal strip scrolls without changing the result selection.
+
+The same result contract serves every provider:
+
+```text
+result:
+  stable provider-local id
+  title, subtitle, icon, type, score
+  actions[0]                 primary
+  actions[1...]              optional secondary actions
+```
+
+The dispatcher validates the primary action first. A result whose primary is
+missing, disabled, or not executable remains informational and cannot smuggle a
+later secondary action into the primary slot.
+
+## Surface and motion
+
+The launcher is a card-sized layer surface, not a transparent fullscreen
+window. Its Wayland input region follows the transformed card itself; the thick
+shadow is visual only. Windows and pointer input outside the card remain
+untouched.
+
+Opening runs through five lifecycle states:
+
+1. `Closed`: no mapped launcher surface.
+2. `Prelude`: map a transparent card-sized buffer, acquire focus, wait two
+   render ticks, and attempt the local desktop capture for at most 50 ms.
+3. `Opening`: present the card over 210 ms.
+4. `Open`: grow the outer surface before revealing a larger drawer; on shrink,
+   clip and animate the visible card before contracting the surface.
+5. `Closing`: fade and translate for 160 ms, present two transparent ticks (or
+   take the 50 ms fallback), then release focus and unmap.
+
+A show during `Closing` reverses the same generation instead of unmapping and
+remapping. Moving invocation to another monitor closes the first output before
+mapping the next, so two launchers never overlap.
+
+The card carries two shadows inside a reserved transparent envelope: a hard
+down-right contact step and a broad dark falloff. The envelope is excluded from
+the input mask and sized for the full motion path, preventing either shadow from
+being clipped.
+
+## Local frost
+
+`bgBlur` now controls only a frozen crop behind the result drawer. During
+Prelude the launcher takes one cursor-free screenshot of the active output,
+freezes the future drawer region plus kernel bleed, and applies one local
+`MultiEffect`. The near-black drawer covers that texture at 94%, so the default
+2 px value reads as a slight material tooth rather than frosted glass.
+
+There is no compositor-wide blur mutation, fullscreen scrim, or grain layer.
+The resting hero creates no blur effect at all. Disabled blur, reduced motion,
+low-power policy, capture failure, or the 50 ms deadline all choose the same
+solid drawer instead of delaying or flashing the launcher.
+
+`ryoku doctor` performs a one-time migration for existing configs: an untouched
+old `bgBlur: 12` default becomes the new local `2`; every other value is
+preserved. A marker then makes any later deliberate value, including 12, final.
 
 ## Providers
 
-Each capability is a provider: its own folder under `providers/<name>/`, a single
-QML component implementing the `Provider` contract (`providerId`, optional
-`prefix`, `query(text) -> rows`). The `Dispatcher` singleton routes a prefixed
-query to one provider and fans an unprefixed one across the default set, merged by
-score. Adding a provider is a folder plus one line in `providers/Providers.qml`;
-the dispatcher discovers it by registration, never by an edit to the routing.
+Providers live under `providers/<name>/` and register with the shared
+`Dispatcher`. Only one provider tree exists for every output surface, so model
+ownership and in-flight requests do not split when focus moves between
+monitors.
 
-| Provider | Prefix | What it does |
+| Provider | How it appears | What it does |
 |---|---|---|
-| apps | (default), `>` | launch desktop apps, fuzzy + launch-frequency ranked |
-| calc | `=`, leading digit | qalc: math, units, currency |
-| actions | `/` | system actions (lock, wallpaper, screenshot, night light, media keys, settings) in category tabs |
-| clipboard | `;` | cliphist history, copy or delete |
-| windows | (default) | switch Hyprland windows |
-| web | `?` | web search with `!bang` site shortcuts, plus an inline DuckDuckGo instant answer |
-| files | (default, 3+ chars) | fd file search, open or reveal |
-| snippets | (default) | text expander (`{date}`/`{clipboard}`/`{selection}`/`{cursor}`) + quicklinks (`{query}`) |
-| packages | `install`/`remove`/`search` | GPK across every package manager |
-| mpris | (default, media words) | now-playing + transport for any player |
-| script | per-script keyword | run rofi-script / dmenu scripts |
-| rashin ask | `\` | one terse question to the Rashin agent (hermes): a pulsing strip names what it is doing (tool, thinking, writing), then the answer renders as selectable text over action chips. The daemon detects entities in the answer and each becomes a chip: real files open in nvim, folders in the file manager, URLs in the browser, shell commands and hex colors (with a live swatch) copy to the clipboard, plus COPY for the whole answer and CONTINUE IN DASHBOARD. Chips walk with the arrow keys and fire with ENTER; typing re-asks. Needs Rashin enabled; see `rashin.md` |
+| apps | federated, `ALL` | launch desktop apps, fuzzy and frequency ranked; expose real Desktop Actions |
+| windows | federated | focus an existing Hyprland window |
+| snippets | federated | expand snippets and quicklinks |
+| calc | numeric fallback, `=` | qalc math, units, and currency |
+| actions | `/` | lock, wallpaper, screenshot, night light, media, settings |
+| find | `IMG`, `FILE`, `/file` and kind prefixes | asynchronous `fd` search, open or reveal |
+| recent | `REC` | parse `recently-used.xbel`, discard missing paths, open or reveal |
+| packages | `>` commands | search/install/remove through GPK |
+| web | `?` | web search, bangs, and an inline DuckDuckGo answer |
+| mpris | matching search text | searchable tracks and player controls, never a rest-screen media card |
+| radio | `@` | find, play, or stop a stream |
+| script | script keyword | rofi-script/fuzzel-compatible custom commands |
+| rashin | `\` | ask the local agent and act on detected paths, links, commands, or colours |
 
-Ranking and protocol logic live as testable JavaScript in `lib/` and each
-provider's folder (`fuzzy.js`, `dispatch.js`, `rofiscript.js`, `wave.js`,
-per-provider parsers), each with a `.test.mjs` run by `node`.
+`REC` reads the standard XBEL history only. It validates paths asynchronously,
+does not crawl the home directory, and displays nothing for missing or malformed
+history.
 
-## Media
+Each shell-backed provider owns a generation token and busy state across both
+its debounce and process lifetime. Late output from an old query cannot replace
+the current results, and an empty drawer waits for the active provider to settle
+before saying there are no matches.
 
-The launcher surfaces whatever is already playing so you can control it without
-leaving the palette.
+## Hero image and colour
 
-- **Any player** (mpris): the now-playing row controls whatever is playing
-  (Spotify, a browser tab, an app) with play/pause/next/prev. It appears when the
-  query mentions a media word or matches the current track.
-- The now-playing card on the rest screen shows album art, title/artist, elapsed
-  and total time, and the signature wavy seekbar (a sine that animates only while
-  playing); the fill advances off a 500ms MPRIS position poll. A live cava wave
-  sweeps behind it while a track plays, gated so the analyser runs only while the
-  launcher is open and something is playing. For a player with no cover (some
-  browsers) it fetches one from the keyless iTunes Search API by artist and title
-  (noise-stripped for a better hit).
+The launcher and Ryoku Hub share `Ryoku.Ui.HeroCrop`. The Hub's App Launcher
+page is the only editor: choose an image, drag its focal point in the preview,
+set its strength, and save. The live hero uses the same cover-crop math, so wide,
+portrait, and off-centre images land exactly where the preview put them. A
+missing or unreadable path falls back to the shipped art.
+
+With **Match wallpaper** enabled, the drawer, lead, frame, provider rails, and
+selection roles resolve from the live Wallust/Material palette. The selected
+lead computes a readable foreground with a 4.5:1 minimum contrast instead of
+assuming that every wallpaper produces a dark accent. The sun/moon marker stays
+semantic rather than changing identity with the accent.
 
 ## Extending it
 
-- **Scripts** (no code): drop a `{ keyword, name, exec }` entry in
-  `~/.config/ryoku/launcher-scripts.json`. The script speaks the rofi-script /
-  fuzzel dmenu protocol (newline rows, `\0key\x1fvalue` directives,
-  `ROFI_RETV`/`ROFI_INFO` env), so existing rofi/fuzzel scripts work unchanged.
-- **Snippets / quicklinks**: `~/.config/ryoku/launcher-snippets.json` and
-  `launcher-quicklinks.json`.
-- **A native provider**: add `providers/<name>/<Name>.qml` (a `Provider`), register
-  it in `providers/Providers.qml`. Shell-backed providers run their process async
-  with a debounce and call `Dispatcher.notifyAsync()` when results land.
+- **Scripts:** add `{ keyword, name, exec }` entries to
+  `~/.config/ryoku/launcher-scripts.json`.
+- **Snippets and quicklinks:** use
+  `~/.config/ryoku/launcher-snippets.json` and
+  `~/.config/ryoku/launcher-quicklinks.json`.
+- **A native provider:** add one component under `providers/<name>/`, implement
+  the `Provider` result/action contract, and instantiate it once in
+  `providers/Providers.qml`.
 
-## Performance
+Result normalization, identity, action packing, selection reconciliation,
+request lifecycles, contrast, recent-file parsing, and surface transitions have
+Node/Go unit coverage. Live interaction scenarios live in
+`ryoku/shell/quickshell/launcher/qa/`; run the complete shell suite with:
 
-The launcher is one resident process. While open it has no RAM ceiling (album-art
-decode, mpv, blur). At rest it sheds the heavy work: no media process runs until a
-track is played, the clipboard is read on demand (not watched), and file/package
-searches only fork past a length gate. Keystroke-to-result never animates; the
-motion budget is spent on the window show/hide and the action-panel open
-(`Singletons/Motion.qml`).
-
-## Theming
-
-Colors, spacing, and motion are tokens in `Singletons/{Theme,Metrics,Motion}.qml`;
-components read them, never hardcoded values. With Settings -> Shell -> Match
-wallpaper on, `Theme` resolves to the live wallust palette (the same `shell.json`
-flag and `colors.json` the rest of the shell uses), so the launcher recolors with
-the system theme.
+```sh
+tests/shell-unit-tests.sh
+```

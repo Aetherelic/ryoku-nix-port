@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- **The App Launcher editor and live launcher now share the same hero crop.**
+  The page calls the image a hero instead of a home-card backdrop, keeps the
+  image picker and direct drag-to-frame interaction, and renders through the
+  same `Ryoku.Ui.HeroCrop` cover/focal-point math as the live shutter. Wide,
+  portrait, fallback, and off-centre images therefore land in the launcher
+  exactly where the saved preview put them
+  (`quickshell/pages/LauncherPage.qml`, `Ryoku.Ui/HeroCrop.qml`).
 - **Switching the engine back to Wallust actually reverts now.** Turning the
   Material You toggle off only re-fanned the Matugen colours still sitting in
   `colors.json`, so the desktop stayed on the M3 palette -- the switch looked

@@ -2,7 +2,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../../Singletons"
+import "../../lib/providerids.js" as ProviderIds
 import "../../lib/rofiscript.js" as RofiScript
+import "../requeststate.js" as RequestState
 import ".."
 
 // Script provider: runs user scripts that speak the rofi-script protocol, so the
@@ -18,10 +20,106 @@ Provider {
 
     readonly property string configPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/launcher-scripts.json"
     property var scripts: []
+    onScriptsChanged: {
+        script.cachedKey = "";
+        script.cachedRows = [];
+        script.clearRequest();
+        Dispatcher.notifyAsync();
+    }
     property string cachedKey: ""
     property var cachedRows: []
     property string pendingExec: ""
     property string pendingQuery: ""
+    property string pendingKey: ""
+    property int pendingGeneration: 0
+    property bool debounceReady: false
+    property var requestState: RequestState.initial()
+
+    function setRequestState(next) {
+        if (next === script.requestState)
+            return false;
+        var wasBusy = RequestState.isBusy(script.requestState);
+        var nowBusy = RequestState.isBusy(next);
+        script.requestState = next;
+        if (wasBusy !== nowBusy)
+            Dispatcher.setBusy("script", nowBusy);
+        return true;
+    }
+
+    function cancelProcess() {
+        if (listProc.inFlight)
+            listProc.running = false;
+    }
+
+    function clearRequest() {
+        var next = RequestState.clear(script.requestState);
+        if (next === script.requestState)
+            return;
+        script.setRequestState(next);
+        debounce.stop();
+        script.debounceReady = false;
+        script.cancelProcess();
+    }
+
+    function adoptCached(key) {
+        var next = RequestState.adoptSettled(script.requestState, key);
+        if (next === script.requestState)
+            return;
+        script.setRequestState(next);
+        debounce.stop();
+        script.debounceReady = false;
+        script.cancelProcess();
+    }
+
+    function schedule(def, text, key) {
+        var next = RequestState.begin(script.requestState, key);
+        if (next === script.requestState)
+            return;
+        script.setRequestState(next);
+        script.pendingExec = JSON.stringify(def.exec);
+        script.pendingQuery = text;
+        script.pendingKey = key;
+        script.pendingGeneration = next.generation;
+        script.debounceReady = false;
+        debounce.restart();
+        script.cancelProcess();
+    }
+
+    function startPending() {
+        if (!script.debounceReady || listProc.inFlight)
+            return;
+        var command;
+        try {
+            command = JSON.parse(script.pendingExec);
+        } catch (e) {
+            command = [];
+        }
+        if (!Array.isArray(command) || command.length === 0) {
+            script.debounceReady = false;
+            script.setRequestState(RequestState.settle(
+                script.requestState, script.pendingKey,
+                script.pendingGeneration));
+            return;
+        }
+        var next = RequestState.markRunning(
+            script.requestState, script.pendingKey,
+            script.pendingGeneration);
+        if (next === script.requestState)
+            return;
+        script.debounceReady = false;
+        script.setRequestState(next);
+        listProc.command = command;
+        listProc.environment = {
+            ROFI_RETV: "0",
+            ROFI_INFO: script.pendingQuery
+        };
+        listProc.cacheKey = script.pendingKey;
+        listProc.requestGeneration = script.pendingGeneration;
+        listProc.out = "";
+        listProc.inFlight = true;
+        listProc.didStart = false;
+        listProc.running = true;
+    }
 
     FileView {
         id: configFile
@@ -38,6 +136,7 @@ Provider {
                 script.scripts = [];
             }
         }
+        onLoadFailed: script.scripts = []
     }
 
     function matchScript(text) {
@@ -55,13 +154,14 @@ Provider {
         if (row.nonselectable)
             return null;
         return {
-            id: "script:" + def.keyword + ":" + row.text,
+            id: ProviderIds.scriptRowId(def.keyword, row),
             title: row.text,
             subtitle: def.name || def.keyword,
             icon: row.icon ? Quickshell.iconPath(row.icon, "") : "",
             type: def.name || "Script",
             score: 0,
             actions: [{
+                id: "run",
                 name: "Select",
                 icon: "",
                 execute: function () {
@@ -76,36 +176,31 @@ Provider {
 
     function query(text) {
         var m = matchScript((text || "").trim());
-        if (!m)
+        if (!m) {
+            script.clearRequest();
             return [];
+        }
         var key = m.def.keyword + "\u0000" + m.query;
         if (key === script.cachedKey) {
+            script.adoptCached(key);
             var out = [];
             for (var i = 0; i < script.cachedRows.length; i++) {
                 var r = script.rowFor(m.def, script.cachedRows[i]);
                 if (r) out.push(r);
             }
-            return out;
+            return ProviderIds.dedupeRows(out);
         }
-        script.pendingExec = JSON.stringify(m.def.exec);
-        script.pendingQuery = m.query;
-        script.pendingKey = key;
-        debounce.restart();
+        script.schedule(m.def, m.query, key);
         return [];
     }
-
-    property string pendingKey: ""
 
     Timer {
         id: debounce
         interval: 120
         repeat: false
         onTriggered: {
-            listProc.command = JSON.parse(script.pendingExec);
-            listProc.environment = { ROFI_RETV: "0", ROFI_INFO: script.pendingQuery };
-            listProc.cacheKey = script.pendingKey;
-            listProc.running = false;
-            listProc.running = true;
+            script.debounceReady = true;
+            script.startPending();
         }
     }
 
@@ -113,18 +208,46 @@ Provider {
         id: listProc
         property string out: ""
         property string cacheKey: ""
+        property int requestGeneration: 0
+        property bool inFlight: false
+        property bool didStart: false
         stdout: SplitParser {
             onRead: line => listProc.out += line + "\n"
         }
-        onStarted: listProc.out = ""
+        onStarted: listProc.didStart = true
+        onRunningChanged: {
+            if (!running && listProc.inFlight && !listProc.didStart) {
+                var key = listProc.cacheKey;
+                var generation = listProc.requestGeneration;
+                listProc.inFlight = false;
+                if (script.requestState.phase === "running"
+                        && RequestState.isCurrent(
+                            script.requestState, key, generation)) {
+                    script.setRequestState(RequestState.settle(
+                        script.requestState, key, generation));
+                }
+                script.startPending();
+            }
+        }
         onExited: (code, status) => {
-            // a killed (superseded) run must not cache truncated rows under
-            // the newer query's key.
-            if (status !== 0)
-                return;
-            script.cachedKey = listProc.cacheKey;
-            script.cachedRows = RofiScript.parse(listProc.out).rows;
-            Dispatcher.notifyAsync();
+            var key = listProc.cacheKey;
+            var generation = listProc.requestGeneration;
+            listProc.inFlight = false;
+            var current = script.requestState.phase === "running"
+                && RequestState.isCurrent(
+                    script.requestState, key, generation);
+            if (current) {
+                if (status === 0) {
+                    script.cachedKey = key;
+                    script.cachedRows = RofiScript.parse(
+                        listProc.out).rows;
+                }
+                script.setRequestState(RequestState.settle(
+                    script.requestState, key, generation));
+                if (status === 0)
+                    Dispatcher.notifyAsync();
+            }
+            script.startPending();
         }
     }
 
