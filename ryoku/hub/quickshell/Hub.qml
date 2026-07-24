@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import "Singletons"
 import "schema/BarPage.js" as BarSchema
 import "schema/FramePage.js" as FrameSchema
 import "schema/DesktopPage.js" as DesktopSchema
@@ -64,28 +65,33 @@ Rectangle {
 
     // The full catalogue. `wired` marks the pages whose content and
     // persistence are ported; the rest render an honest porting plate rather
-    // than a settings page that cannot save.
+    // than a settings page that cannot save. `adv` marks the power-user
+    // sections: the rail hides them until Advanced is on (search still reaches
+    // them), so the everyday view is the handful of settings most people ever
+    // touch -- displays, wifi, theme, bar, lockscreen, updates -- while the deep
+    // desktop internals, per-window rules, tools, system plumbing and the agent
+    // OS stay out of the way until asked for.
     readonly property var groups: [
         { name: "OVERVIEW", items: [ { key: "profile", name: "Profile" } ] },
         { name: "DEVICES", items: [
             { key: "displays", name: "Displays" }, { key: "connections", name: "Connections" },
-            { key: "input", name: "Input" }, { key: "cursor", name: "Cursor" }, { key: "gpu", name: "GPU" } ] },
+            { key: "input", name: "Input" }, { key: "cursor", name: "Cursor", adv: true }, { key: "gpu", name: "GPU", adv: true } ] },
         { name: "DESKTOP", items: [
-            { key: "windows", name: "Windows" }, { key: "appearance", name: "Appearance" }, { key: "bar", name: "Bar", wired: true }, { key: "frame", name: "Frame", wired: true }, { key: "desktop", name: "Desktop", wired: true },
-            { key: "widgets", name: "Widgets" }, { key: "animations", name: "Animations" },
+            { key: "windows", name: "Windows" }, { key: "appearance", name: "Appearance" }, { key: "bar", name: "Bar", wired: true }, { key: "frame", name: "Frame", wired: true, adv: true }, { key: "desktop", name: "Desktop", wired: true },
+            { key: "widgets", name: "Widgets", adv: true }, { key: "animations", name: "Animations", adv: true },
             { key: "lockscreen", name: "Lockscreen" }, { key: "launcher", name: "App Launcher" } ] },
         { name: "APPS & KEYS", items: [
-            { key: "keybinds", name: "Keybinds" }, { key: "windowrules", name: "Window Rules" },
-            { key: "appoverrides", name: "App Overrides" }, { key: "layerrules", name: "Layer Rules" } ] },
+            { key: "keybinds", name: "Keybinds" }, { key: "windowrules", name: "Window Rules", adv: true },
+            { key: "appoverrides", name: "App Overrides", adv: true }, { key: "layerrules", name: "Layer Rules", adv: true } ] },
         { name: "TOOLS", items: [
-            { key: "recording", name: "Recording" }, { key: "dictation", name: "Dictation" },
-            { key: "fastfetch", name: "Fastfetch" } ] },
+            { key: "recording", name: "Recording", adv: true }, { key: "dictation", name: "Dictation", adv: true },
+            { key: "fastfetch", name: "Fastfetch", adv: true } ] },
         { name: "SYSTEM", items: [
-            { key: "performance", name: "Performance" }, { key: "autostart", name: "Autostart" },
-            { key: "environment", name: "Environment" }, { key: "updates", name: "Updates" } ] },
+            { key: "performance", name: "Performance", adv: true }, { key: "autostart", name: "Autostart", adv: true },
+            { key: "environment", name: "Environment", adv: true } ] },
         { name: "ADD-ONS", items: [
             { key: "store", name: "Store" }, { key: "addons", name: "Installed" },
-            { key: "rashin", name: "Rashin" } ] },
+            { key: "rashin", name: "Rashin", adv: true } ] },
         { name: "", items: [ { key: "credits", name: "Credits" } ] }
     ]
 
@@ -180,6 +186,9 @@ Rectangle {
                 nameOf[it.key] = it.name;
                 out.push({ section: it.key, sectionName: it.name, group: "", tab: "", label: it.name, desc: "", kw: sectionKeywords[it.key] || "", key: "", isPage: true });
             }
+        // Updates left the rail for the top-right corner button, so it has no
+        // page row here; its one setting still surfaces in search, named right.
+        nameOf["updates"] = "Updates";
         for (var k in srcs) {
             var rows = srcs[k] || [];
             for (var ri = 0; ri < rows.length; ri++) {
@@ -270,6 +279,17 @@ Rectangle {
         "autostart": true, "environment": true
     })
     readonly property var ledgerSet: ({ "bar": true, "frame": true, "desktop": true, "appearance": true, "windows": true })
+    // Which rail sections drive the Hyprland compositor (they write settings.lua:
+    // input, window/layer rules, keybinds, animations, autostart, env, plus the
+    // display and cursor hardware). Everything else configures the Ryoku shell.
+    readonly property var hyprlandSet: ({
+        "displays": true, "input": true, "cursor": true, "windows": true,
+        "animations": true, "keybinds": true, "windowrules": true,
+        "appoverrides": true, "layerrules": true, "autostart": true, "environment": true
+    })
+    // A shell (non-Hyprland) section gets the red rail marker, so the settings that
+    // drive the desktop shell read apart from the compositor ones at a glance.
+    function isShellSection(key) { return !hub.hyprlandSet[key]; }
 
     readonly property var pageMeta: ({})
     function metaFor(s) {
@@ -715,31 +735,12 @@ Rectangle {
                 placeholder: I18n.tr("Search settings…")
                 onEdited: (t) => hub.query = t
             }
-            // progressive disclosure: one global switch reveals the deep knobs on
-            // every schema page (SettingsSheet filters rows tagged `adv`). Kept in
-            // the rail so it is one control, not one per page.
-            Item {
-                width: parent.width
-                height: Tokens.ctlH
-                Text {
-                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                    text: I18n.tr("Advanced settings")
-                    color: hub.advanced ? Tokens.ink : Tokens.inkMuted
-                    font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                    font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
-                }
-                Sw {
-                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                    on: hub.advanced
-                    onToggled: (v) => hub.advanced = v
-                }
-            }
         }
 
         // the rail foot: a genuine Code 39 plate, the poster's totem. It scans.
         Item {
             id: railFoot
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            anchors { left: parent.left; right: parent.right; bottom: advToggle.top }
             anchors.margins: Tokens.s5
             anchors.bottomMargin: Tokens.s4
             height: Tokens.s3 + edition.height + Tokens.s3 + plate.implicitHeight
@@ -764,6 +765,30 @@ Rectangle {
                 anchors { right: parent.right; bottom: parent.bottom; bottomMargin: 2 }
                 text: "+"; color: Tokens.inkFaint
                 font.family: Tokens.mono; font.pixelSize: 10
+            }
+        }
+
+        // the one global switch, seated at the foot below the plate: Advanced
+        // reveals the power-user sections in the rail and the deep knobs inside
+        // every schema page. Persisted like `section`, restored at startup by
+        // `advancedGet`. One control, not one per page.
+        Item {
+            id: advToggle
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            anchors.leftMargin: Tokens.s5; anchors.rightMargin: Tokens.s5
+            anchors.bottomMargin: Tokens.s4
+            height: Tokens.ctlH
+            Text {
+                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                text: I18n.tr("Advanced settings")
+                color: hub.advanced ? Tokens.ink : Tokens.inkMuted
+                font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+            }
+            Sw {
+                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                on: hub.advanced
+                onToggled: (v) => hub.advanced = v
             }
         }
 
@@ -814,13 +839,17 @@ Rectangle {
                         readonly property bool activeGroup: grp.modelData.items.some(function (i) { return i.key === hub.section; })
 
                         Item {
-                            readonly property bool anyMatch: hub.query === ""
-                                || grp.modelData.items.some(function (i) {
-                                    return i.name.toLowerCase().indexOf(hub.query.toLowerCase()) >= 0;
-                                })
+                            // the header shows only while the group has a visible
+                            // item: with Advanced off and every section in it
+                            // power-user (adv), the whole group (e.g. Tools) folds
+                            // away instead of leaving a bare header. The open
+                            // section always counts, so you never lose your place.
+                            readonly property bool anyShown: grp.modelData.items.some(function (i) {
+                                return !i.adv || hub.advanced || hub.section === i.key;
+                            })
                             width: parent.width
-                            height: !anyMatch ? 0 : (grp.modelData.name === "" ? Tokens.s4 : 30)
-                            visible: anyMatch
+                            height: !anyShown ? 0 : (grp.modelData.name === "" ? Tokens.s4 : 30)
+                            visible: anyShown
                             Row {
                                 visible: grp.modelData.name !== ""
                                 anchors.verticalCenter: parent.verticalCenter
@@ -857,11 +886,15 @@ Rectangle {
                             Item {
                                 id: navItem
                                 required property var modelData
-                                readonly property bool match: hub.query === ""
-                                    || modelData.name.toLowerCase().indexOf(hub.query.toLowerCase()) >= 0
+                                // Advanced off hides the power-user sections from
+                                // the rail (search still reaches them); the open
+                                // section stays put so turning it off never strands
+                                // you on a page the rail no longer lists.
+                                readonly property bool shown: !modelData.adv || hub.advanced
+                                    || hub.section === modelData.key
                                 width: nav.width
-                                height: match ? 34 : 0
-                                visible: match
+                                height: shown ? 34 : 0
+                                visible: shown
                                 readonly property bool sel: hub.section === modelData.key
                                 onSelChanged: if (sel) navFlick.reveal(navItem)
                                 Component.onCompleted: if (sel) navFlick.reveal(navItem)
@@ -872,6 +905,18 @@ Rectangle {
                                     radius: Tokens.radius
                                     color: navItem.sel ? Tokens.bone : (nh.hovered ? Tokens.tint10 : "transparent")
                                     Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                                }
+                                // Shell (non-Hyprland) sections wear a red tick at
+                                // the rail's inner edge, so the knobs that drive the
+                                // desktop shell stand apart from the compositor ones.
+                                Rectangle {
+                                    visible: hub.isShellSection(navItem.modelData.key)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    x: 0
+                                    width: 3
+                                    height: 18
+                                    radius: 1.5
+                                    color: Tokens.alert
                                 }
                                 // selection is typography, never a coloured bar:
                                 // the live section takes the sheet's // lead. On
@@ -1075,8 +1120,8 @@ Rectangle {
     Item {
         id: side
         visible: pageArea.withSide
-        anchors { right: parent.right; top: parent.top; bottom: bar.top }
-        anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s5; anchors.bottomMargin: Tokens.s3
+        anchors { right: parent.right; top: updatesBtn.bottom; bottom: bar.top }
+        anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s3; anchors.bottomMargin: Tokens.s3
         width: 360
 
         // state card: clean is a hairline; dirty inverts to bone.
@@ -1290,6 +1335,53 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // ── updates: a corner button, not a rail row ────────────────────────────
+    // Updates left the rail for a button in the top-right corner: an English
+    // UPDATES chip that opens the Updates page and wears a red dot
+    // (`Tokens.alert`, a fixed attention red) when the channel sits behind
+    // origin. It rides the empty top strip above every page's head, and is
+    // opaque, so it never collides with a page's running-head marginalia. The
+    // `Updates` singleton self-checks on load and on cadence, so the dot is live.
+    Item {
+        id: updatesBtn
+        anchors { top: parent.top; right: parent.right }
+        anchors.topMargin: Tokens.s2; anchors.rightMargin: Tokens.s4
+        z: 60
+        width: ubLabel.implicitWidth + Tokens.s3 * 2
+        height: 24
+        readonly property bool here: hub.section === "updates"
+        Rectangle {
+            anchors.fill: parent
+            radius: Tokens.radius
+            color: updatesBtn.here ? Tokens.bone : (ubh.hovered ? Tokens.paperLift : Tokens.paper)
+            border.width: Tokens.border
+            border.color: (updatesBtn.here || ubh.hovered) ? Tokens.lineStrong : Tokens.line
+            antialiasing: false
+            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+            Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+        }
+        Text {
+            id: ubLabel
+            anchors.centerIn: parent
+            text: I18n.tr("UPDATES")
+            color: updatesBtn.here ? Tokens.inkOnBone : Tokens.inkMuted
+            font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+            font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+        }
+        // the one red accent: an update is waiting on the channel.
+        Rectangle {
+            visible: Updates.available
+            width: 8; height: 8; radius: 4
+            color: Tokens.alert
+            border.width: 1; border.color: Tokens.paper
+            antialiasing: true
+            anchors { right: parent.right; top: parent.top; rightMargin: -3; topMargin: -3 }
+        }
+        HoverHandler { id: ubh; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: hub.section = "updates" }
     }
 
     // ── action bar ─────────────────────────────────────────────────────────

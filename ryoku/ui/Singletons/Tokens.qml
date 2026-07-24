@@ -49,6 +49,9 @@ Singleton {
     // ── colour ───────────────────────────────────────────────────────────
     readonly property color sun: matchWallpaper ? (wallustAdapter.color1.hsvValue > 0.01 ? wallustAdapter.color1 : "#e2342a") : "#e2342a"
     readonly property color sunDeep: matchWallpaper ? (wallustAdapter.color9.hsvValue > 0.01 ? wallustAdapter.color9 : "#b81f19") : "#b81f19"
+    // a fixed attention red for badges (e.g. the update dot); unlike `sun` it
+    // never follows the wallpaper, so an alert always reads as an alert.
+    readonly property color alert: "#e2342a"
 
     // ── type ─────────────────────────────────────────────────────────────
     readonly property string display: "Fraunces"

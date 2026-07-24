@@ -100,6 +100,34 @@
   key into it (button and file were wired but undocumented).
 
 ### Added
+- **Shell settings are flagged in red in the rail.** Every rail section that
+  configures the Ryoku shell rather than the Hyprland compositor now carries a
+  small red tick at its inner edge, so the shell pages (Bar, Frame, Desktop,
+  Widgets, App Launcher, Lockscreen, Appearance, Connections, Recording, and the
+  rest) read apart from the compositor pages (Displays, Input, Cursor, Windows,
+  Animations, Keybinds, Window Rules, App Overrides, Layer Rules, Autostart,
+  Environment) at a glance (`Hub.qml`).
+- **Updates moved to a top-right corner button with a live badge.** The Updates
+  section left the rail for a compact English UPDATES chip pinned to the Hub's
+  top-right corner, riding the empty top strip clear of each page's running-head
+  marginalia: it opens the Updates page from anywhere and wears a red dot
+  whenever the channel sits behind origin. The dot uses a new fixed `Tokens.alert` red
+  that never follows the wallpaper, so an update always reads as an update even
+  under a themed palette; the `Updates` singleton self-checks on load and on the
+  configured cadence, so the badge is live. The write ledger drops below the
+  button on the pages that show it (`Hub.qml`, `Ryoku.Ui` `Tokens.alert`).
+- **The Advanced switch curates the rail, and moves to its foot.** It used to
+  only reveal the deep knobs buried inside a few pages -- an effect you had to
+  already be on the right page to notice -- so the switch read as inert. Now
+  Advanced off also trims the sidebar to the everyday sections (Profile,
+  Displays, Connections, Input, Windows, Appearance, Bar, Desktop, Lockscreen,
+  App Launcher, Keybinds, Store, Installed), folding the power-user
+  ones (Cursor, GPU, Frame, Widgets, Animations, the per-window/layer rules and
+  App Overrides, every Tool, Performance/Autostart/Environment and Rashin) away
+  until it is on. Whole all-advanced groups (Tools) collapse header and all, the
+  open section always stays listed so a toggle never strands you, and search
+  still reaches everything. The switch itself leaves the top of the rail for its
+  foot, seated below the barcode plate as persistent chrome (`Hub.qml`).
 - **Displays page: live drag, no cursor-trapping gaps, and a main display.** The
   arrangement canvas now moves each display tile live under the cursor (it only
   jumped to the drop point before). Dropping a display always snaps it flush to a
