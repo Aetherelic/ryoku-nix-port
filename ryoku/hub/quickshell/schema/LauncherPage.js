@@ -31,6 +31,18 @@ var rows = [
     },
     {
         "tab": "",
+        "group": "RESULT MOTION",
+        "key": "resultSettleMs",
+        "label": "Type settle",
+        "desc": "Waits for a pause before the finished result deck fades in; higher values feel calmer",
+        "ctl": "step",
+        "src": "launcher.json",
+        "lo": 120.0,
+        "hi": 700.0,
+        "unit": "ms"
+    },
+    {
+        "tab": "",
         "group": "HERO",
         "key": "weatherUnit",
         "label": "Weather units",

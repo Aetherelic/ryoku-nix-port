@@ -11,8 +11,11 @@ result takes one dense 82 px lead row; more matches continue as 44 px ledger
 rows. Clearing the query or pressing `Esc` closes the drawer and gives the image
 its room back. The drawer reserves that same compact deck as soon as typing
 starts, so late provider replies fill cells instead of resizing the card.
-Rapid keystrokes are coalesced for 220 ms; the current result model then fades
-in over 140 ms, rather than replacing the deck once for every character.
+Rapid keystrokes wait through a 360 ms quiet period by default, then the current
+result model fades in as one 120 ms deck rather than replacing rows for every
+character. **Type settle** in Ryoku Hub adjusts that quiet period from 120 to
+700 ms; this is the intended control for a more immediate or more deliberate
+launcher.
 
 The launcher runs from `ryoku/shell/quickshell/launcher/` as a warm Quickshell
 component supervised by `ryoku-shell`. `ryoku-shell launcher` toggles it on the

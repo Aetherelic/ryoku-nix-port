@@ -92,7 +92,7 @@ var riceShellLook = []string{
 	"sidebarLeftEnabled", "sidebarRightEnabled", "sidebarLeftPanes", "sidebarRightPanes", "sidebarClickless", "sidebarWidth", "sidebarCornerSize",
 	"roundness", "fontFamily", "fontScale",
 }
-var riceLauncherLook = []string{"heroImage", "heroStrength", "heroPosX", "heroPosY", "bgBlur", "radius", "showGreeting", "showWeather"}
+var riceLauncherLook = []string{"heroImage", "heroStrength", "heroPosX", "heroPosY", "bgBlur", "radius", "showGreeting", "showWeather", "resultSettleMs"}
 
 // readJSONMap reads a store file into a generic map; a missing or torn file
 // reads as an empty map so an overlay still lands on a fresh key set.

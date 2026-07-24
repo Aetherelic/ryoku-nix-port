@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- **The App Launcher preview now shows the launcher, at its true scale.** The
+  old full-width mock only repeated the hero art, so it made the shutter look
+  larger and structurally different from the real palette. The specimen now
+  keeps the live 720 x 250 hero ratio, search line, scope keys and compact
+  centered physical size. The page also exposes **Type settle** (120-700 ms),
+  which controls when a completed typed-result deck is released
+  (`quickshell/pages/LauncherPage.qml`, `schema/LauncherPage.js`).
 - **The App Launcher editor and live launcher now share the same hero crop.**
   The page calls the image a hero instead of a home-card backdrop, keeps the
   image picker and direct drag-to-frame interaction, and renders through the

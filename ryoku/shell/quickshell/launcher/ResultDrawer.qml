@@ -11,6 +11,7 @@ Item {
     property bool open: false
     property bool animationsEnabled: true
     property bool snapping: false
+    property bool suppressResultDeckAnimation: false
     property bool frostActive: false
     property real maxHeight: 640
     property var results: []
@@ -31,7 +32,6 @@ Item {
     property bool windowFocusActive: false
     property string askQuestion: ""
     property var answer: ({ available: false })
-    property real resultDeckOpacity: hasResults ? 1 : 0
 
     signal leadActivated()
     signal resultSelected(string resultKey, int rank)
@@ -62,6 +62,7 @@ Item {
     readonly property int askChipCount: askPanel.chips.length
     readonly property string actionVisibleRange: actionShelf.visibleRange
     readonly property real actionShelfHeight: actionShelf.height
+    readonly property real resultDeckOpacity: resultDeck.opacity
 
     implicitHeight: desiredHeight
     height: desiredHeight
@@ -85,20 +86,18 @@ Item {
             easing.type: Easing.OutCubic
         }
     }
-    Behavior on resultDeckOpacity {
-        enabled: root.animationsEnabled && !root.snapping
-        NumberAnimation {
-            duration: Motion.selection + 50
-            easing.type: Easing.OutCubic
-        }
-    }
-
     function snapAnimations() {
         snapping = true;
         height = Qt.binding(function () { return root.desiredHeight; });
         opacity = Qt.binding(function () { return root.open ? 1 : 0; });
         actionShelf.snapAnimations();
         snapping = false;
+    }
+
+    function hideResultDeckImmediately() {
+        resultDeckFade.stop();
+        suppressResultDeckAnimation = true;
+        resultDeck.opacity = 0;
     }
 
     onAnimationsEnabledChanged: {
@@ -235,85 +234,109 @@ Item {
             visible: !root.helpMode && !root.askMode
 
             Item {
-                id: progress
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: root.progressHeight
-                z: 10
-                visible: height > 0
+                id: resultDeck
+                anchors.fill: parent
+                opacity: 0
+                visible: root.hasResults || opacity > 0.001
+                layer.enabled: opacity > 0.001 && opacity < 0.999
+                layer.smooth: true
 
-                Row {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 5 * root.s
-
-                    Spinner {
-                        anchors.verticalCenter: parent.verticalCenter
-                        size: 10 * root.s
-                        thickness: Math.max(1, root.s)
-                        color: Theme.providerOther
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "UPDATING"
-                        color: Theme.faint
-                        font.family: Theme.mono
-                        font.pixelSize: 7.5 * root.s
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 0.8 * root.s
+                Behavior on opacity {
+                    enabled: root.animationsEnabled && !root.snapping
+                        && !root.suppressResultDeckAnimation
+                    OpacityAnimator {
+                        id: resultDeckFade
+                        duration: 120
+                        easing.type: Easing.OutCubic
                     }
                 }
-            }
 
-            LeadResult {
-                id: lead
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: root.hasResults ? root.leadHeight : 0
-                visible: root.hasResults
-                s: root.s
-                entry: root.selectedResult
-                presentationOpacity: root.resultDeckOpacity
-                errorText: root.errorText
-                windowCount: root.windowCount
-                windowFocusActive: root.windowFocusActive
-                onActivated: root.leadActivated()
-            }
+                Connections {
+                    target: root
+                    function onHasResultsChanged() {
+                        resultDeck.opacity = root.hasResults ? 1 : 0;
+                    }
+                }
 
-            ActionShelf {
-                id: actionShelf
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: lead.bottom
-                s: root.s
-                open: root.shelfOpen && root.hasResults
-                animationsEnabled: root.animationsEnabled
-                actions: root.secondaryActions
-                packedLayout: root.packedLayout
-                focusedActionId: root.focusedActionId
-                onFocusRequested: actionId => root.actionFocusRequested(actionId)
-                onExecuteRequested: actionId => root.actionExecuteRequested(actionId)
-            }
+                Item {
+                    id: progress
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    height: root.progressHeight
+                    z: 10
+                    visible: height > 0
 
-            ResultLedger {
-                id: ledger
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: actionShelf.bottom
-                height: root.hasResults
-                    ? Math.max(0, Math.min(desiredHeight,
-                        standardBody.height - progress.height
-                            - lead.height - actionShelf.height))
-                    : 0
-                visible: root.hasResults && height > 0
-                s: root.s
-                results: root.results
-                opacity: root.resultDeckOpacity
-                selectedResultKey: root.selectedResultKey
-                onResultSelected: (resultKey, rank) => root.resultSelected(resultKey, rank)
+                    Row {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 5 * root.s
+
+                        Spinner {
+                            anchors.verticalCenter: parent.verticalCenter
+                            size: 10 * root.s
+                            thickness: Math.max(1, root.s)
+                            color: Theme.providerOther
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "UPDATING"
+                            color: Theme.faint
+                            font.family: Theme.mono
+                            font.pixelSize: 7.5 * root.s
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 0.8 * root.s
+                        }
+                    }
+                }
+
+                LeadResult {
+                    id: lead
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    height: root.hasResults ? root.leadHeight : 0
+                    visible: root.hasResults
+                    s: root.s
+                    entry: root.selectedResult
+                    errorText: root.errorText
+                    windowCount: root.windowCount
+                    windowFocusActive: root.windowFocusActive
+                    onActivated: root.leadActivated()
+                }
+
+                ActionShelf {
+                    id: actionShelf
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: lead.bottom
+                    s: root.s
+                    open: root.shelfOpen && root.hasResults
+                    animationsEnabled: root.animationsEnabled
+                    actions: root.secondaryActions
+                    packedLayout: root.packedLayout
+                    focusedActionId: root.focusedActionId
+                    onFocusRequested: actionId => root.actionFocusRequested(actionId)
+                    onExecuteRequested: actionId => root.actionExecuteRequested(actionId)
+                }
+
+                ResultLedger {
+                    id: ledger
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: actionShelf.bottom
+                    height: root.hasResults
+                        ? Math.max(0, Math.min(desiredHeight,
+                            standardBody.height - progress.height
+                                - lead.height - actionShelf.height))
+                        : 0
+                    visible: root.hasResults && height > 0
+                    s: root.s
+                    results: root.results
+                    selectedResultKey: root.selectedResultKey
+                    onResultSelected: (resultKey, rank) => root.resultSelected(resultKey, rank)
+                }
             }
 
             Row {

@@ -90,17 +90,6 @@ GridView {
 
         Rectangle {
             anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: cell.entry && cell.entry.resultKey === root.selectedResultKey
-                ? 4 * root.s : 2 * root.s
-            color: cell.entry
-                ? Theme.providerRail(cell.entry.providerId, cell.entry.type)
-                : Theme.providerOther
-        }
-
-        Rectangle {
-            anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1

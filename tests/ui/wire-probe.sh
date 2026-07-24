@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
-# Does the Hub still write what the UI says it wrote?
-#
-# A setting that renders but does not persist is worse than one that is
-# missing: it lies. This drives the real FileView + JsonAdapter contract
-# against a copy of the live shell.json, edits one of each kind (a real, an
-# enum, a set), flushes, and reads the file back.
-#
-#   tests/ui/wire-probe.sh
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-repo="$here/../.."
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

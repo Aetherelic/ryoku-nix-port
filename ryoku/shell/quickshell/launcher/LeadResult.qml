@@ -7,7 +7,6 @@ Rectangle {
     id: root
 
     property real s: 1
-    property real presentationOpacity: 1
     property var entry: null
     property string errorText: ""
     property int windowCount: 0
@@ -33,10 +32,8 @@ Rectangle {
 
     implicitHeight: 82 * s
     color: Theme.leadContainer
-    opacity: (entry && entry.disabled ? 0.56 : 1) * presentationOpacity
+    opacity: entry && entry.disabled ? 0.56 : 1
 
-    // The lead is the keyboard cursor. A frame keeps movement legible even
-    // when adjacent results have similar wallpaper-derived colors.
     border.width: Math.max(1, 2 * s)
     border.color: Theme.bright
 
@@ -149,17 +146,6 @@ Rectangle {
             && String(visualEntry.providerId || "") === "web"
 
         Rectangle {
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: 3 * parent.scaleFactor
-            color: parent.visualEntry
-                ? Theme.providerRail(parent.visualEntry.providerId,
-                    parent.visualEntry.type)
-                : Theme.providerOther
-        }
-
-        Rectangle {
             id: icon
             anchors.left: parent.left
             anchors.leftMargin: 15 * parent.scaleFactor
@@ -181,8 +167,10 @@ Rectangle {
                 asynchronous: true
                 smooth: true
                 visible: icon.parent.visualHasPreview || icon.parent.visualHasIcon
-                source: icon.parent.visualHasPreview
-                    ? icon.parent.visualEntry.preview : icon.parent.visualEntry.icon
+                source: !icon.parent.visualEntry ? ""
+                    : (icon.parent.visualHasPreview
+                        ? icon.parent.visualEntry.preview
+                        : icon.parent.visualEntry.icon)
             }
 
             Text {

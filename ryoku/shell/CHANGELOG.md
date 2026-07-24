@@ -47,7 +47,8 @@
   persistent raised cell cursor. Matching app windows no longer repeat in that
   grid: the detached rail is their sole presentation, while window-only searches
   still expose their direct Focus result. Rapid typing now coalesces result
-  publication for 220 ms and fades the finished deck in over 140 ms; noisy
+  publication for a configurable 360 ms quiet period and fades the finished
+  deck in over 120 ms as one surface; noisy
   repeated Hyprland title signals are deduplicated by the actual visible window
   signature before they can trigger another launcher evaluation.
 - **Workspaces, Super+Esc power, and every shell surface work again after a

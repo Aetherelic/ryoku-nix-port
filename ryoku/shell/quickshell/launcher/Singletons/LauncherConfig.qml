@@ -3,10 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Launcher knobs the Hub's App Launcher page edits, kept in
-// ~/.config/ryoku/launcher.json and watched, so a save retunes the palette the
-// next time it opens. Defaults here are canonical; the Hub mirrors them for
-// reset-to-default and seeds nothing of its own.
 Singleton {
     id: root
 
@@ -19,6 +15,7 @@ Singleton {
     property alias heroPosY:     adapter.heroPosY
     property alias showWeather:  adapter.showWeather   // weather glance on the hero
     property alias showGreeting: adapter.showGreeting  // "Good morning" line
+    property alias resultSettleMs: adapter.resultSettleMs // quiet period before a typed deck appears
 
     FileView {
         id: file
@@ -40,10 +37,9 @@ Singleton {
             property real heroPosY: 0.5
             property bool showWeather: true
             property bool showGreeting: true
+            property int resultSettleMs: 360
         }
     }
 
-    // seed only on a genuine first run, so a slow or failed load can't overwrite
-    // a present file with defaults.
     Component.onCompleted: if (!file.text()) file.writeAdapter();
 }

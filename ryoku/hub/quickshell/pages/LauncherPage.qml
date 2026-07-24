@@ -8,33 +8,21 @@ import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
-// App Launcher (DESIGN.md section 8, DESKTOP). The editor for the command
-// hero shutter opened with Super+Space. It is
-// a full-bleed page: it owns the whole content region, so it draws its own
-// head, its own pinned live preview of the launcher hero, its own settings
-// grid, and -- because the shell hides its global action bar for full-bleed
-// pages -- its own Save/Revert bar. Settings live in ~/.config/ryoku/launcher.json
-// (a flat file this page owns end to end); nothing is written until Save, and
-// the launcher watches the file, so a save retunes the palette the next time it
-// opens. Every value is a Token; the hero and thumbnails are genuine image
-// specimens, the one place colour is allowed on the sheet.
 Item {
     id: pg
 
     property var hub
     readonly property bool fullBleed: true
 
-    // ── config: the flat launcher.json keys and their canonical factory
-    // defaults (mirrored from the launcher's LauncherConfig singleton, the
-    // source of truth), used for reset-to-defaults and the struck default.
     readonly property var keys: [
         "radius", "bgBlur", "weatherUnit", "heroImage",
-        "heroStrength", "heroPosX", "heroPosY", "showWeather", "showGreeting"
+        "heroStrength", "heroPosX", "heroPosY", "showWeather", "showGreeting",
+        "resultSettleMs"
     ]
     readonly property var factory: ({
             "radius": 16, "bgBlur": 2, "weatherUnit": "auto", "heroImage": "",
             "heroStrength": 0.6, "heroPosX": 0.5, "heroPosY": 0.5,
-            "showWeather": true, "showGreeting": true
+            "showWeather": true, "showGreeting": true, "resultSettleMs": 360
         })
     readonly property url shippedHero: {
         var shellDir = String(Quickshell.env("RYOKU_SHELL_DIR") || "");
@@ -43,9 +31,6 @@ Item {
             : Qt.resolvedUrl("../../launcher/art/hands-adam.png");
     }
 
-    // draft is the live, in-memory edit; committed is the on-disk baseline.
-    // both seed to factory so a binding never reads undefined before the file
-    // has loaded, and the page reads clean until the first real edit.
     property var draft: pg.clone(pg.factory)
     property var committed: pg.clone(pg.factory)
     property bool loaded: false
@@ -64,9 +49,6 @@ Item {
     function basename(p) { return ("" + p).replace(/^.*\//, ""); }
     function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
-    // dirty is per-key draft-vs-disk; the count drives the action bar and the
-    // pulsing dot. Nothing here computes against factory: the struck default in
-    // a cell is the on-disk value, so "changed" and "dirty" are the same fact.
     readonly property int dirtyCount: {
         if (!pg.loaded)
             return 0;
@@ -78,15 +60,11 @@ Item {
     }
     readonly property bool dirty: pg.dirtyCount > 0
 
-    // ── draft ops (model on the wire-probe FileView pattern) ────────────────
-    // an edit rebuilds the map so the var reassignment re-fires every binding
-    // that reads draft (the preview, the cells, the dirty count).
     function edit(k, v) {
         var d = pg.clone(pg.draft);
         d[k] = v;
         pg.draft = d;
     }
-    // pull the whole file into draft + baseline; first load only.
     function adopt() {
         var d = {}, c = {};
         for (var i = 0; i < pg.keys.length; i++) {
@@ -97,9 +75,6 @@ Item {
         pg.draft = d;
         pg.committed = c;
     }
-    // a later external write landed on disk: rebase every key the user has not
-    // locally edited, and rebase the baseline of edited keys so the diff stays
-    // honest, but keep the user's unsaved value.
     function adoptExternal() {
         var d = {}, c = {};
         for (var i = 0; i < pg.keys.length; i++) {
@@ -124,13 +99,9 @@ Item {
     function revert() { pg.draft = pg.clone(pg.committed); }
     function resetDefaults() { pg.draft = pg.clone(pg.factory); }
 
-    // weatherUnit is stored as the launcher expects (auto | C | F); the seg
-    // shows readable labels and maps back.
     function unitLabel(k) { return k === "C" ? "\u00b0C" : k === "F" ? "\u00b0F" : "Auto"; }
     function unitKey(l) { return l === "\u00b0C" ? "C" : l === "\u00b0F" ? "F" : "auto"; }
 
-    // the unit the "auto" setting resolves to for the preview readout, derived
-    // from the locale the way the launcher's weather backend does.
     function localeUnit() {
         var l = String(Quickshell.env("LC_MEASUREMENT") || Quickshell.env("LANG") || "");
         return /(^|[_.@-])(US|LR|MM)([_.@-]|$)/.test(l) ? "F" : "C";
@@ -138,7 +109,6 @@ Item {
     readonly property string effUnit: pg.draft.weatherUnit === "auto"
         ? pg.localeUnit() : (String(pg.draft.weatherUnit) || "C")
 
-    // ── the config file this page owns end to end ───────────────────────────
     FileView {
         id: cfg
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/launcher.json"
@@ -161,10 +131,10 @@ Item {
             property real heroPosY: 0.5
             property bool showWeather: true
             property bool showGreeting: true
+            property int resultSettleMs: 360
         }
     }
 
-    // a local clock for the preview; minute precision, so a slow tick is fine.
     property var now: new Date()
     Timer { interval: 10000; running: true; repeat: true; onTriggered: pg.now = new Date(); }
     readonly property string clockStr: pg.pad2(pg.now.getHours()) + ":" + pg.pad2(pg.now.getMinutes())
@@ -174,7 +144,6 @@ Item {
         return h < 5 ? "GOOD NIGHT" : h < 12 ? "GOOD MORNING" : h < 18 ? "GOOD AFTERNOON" : "GOOD EVENING";
     }
 
-    // ── head: eyebrow, Fraunces title, blurb (matches every settings page) ──
     Column {
         id: head
         anchors { left: parent.left; right: parent.right; top: parent.top }
@@ -209,8 +178,6 @@ Item {
         }
     }
 
-    // marginalia in the head's right margin: the reference's masthead row as a
-    // running head, dressing the dead space beside the title. Ink only.
     Marginalia {
         anchors { right: parent.right; top: head.top }
         anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s1
@@ -218,145 +185,188 @@ Item {
         index: "003"; label: I18n.tr("PALETTE")
     }
 
-    // ── pinned live preview of the launcher hero ────────────────────────────
-    // Pinned above the scroll (DESIGN.md rule 11): it shows the real effect of
-    // the settings -- the hero image cover-cropped by heroPosX/Y and dimmed by
-    // heroStrength (drag to reposition), the greeting, and the weather glance or
-    // date. The hero is a genuine image specimen, the licensed colour here.
     Preview {
         id: preview
         anchors { left: parent.left; right: parent.right; top: head.bottom }
         anchors.leftMargin: Tokens.s6; anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s5
-        height: 244
-        label: I18n.tr("LIVE PREVIEW")
-        tag: "SUPER SPACE"
+        height: 226
+        label: I18n.tr("RESTING HERO")
+        tag: "720 × 250"
         live: true
 
         Item {
-            id: card
+            id: previewStage
             anchors.fill: parent
 
-            // backmost: the hero image, cover-cropped and dimmed exactly as
-            // the launcher card renders it.
-            HeroCrop {
-                id: heroCrop
-                anchors.fill: parent
-                source: pg.draft.heroImage !== undefined ? pg.draft.heroImage : ""
-                fallbackSource: pg.shippedHero
-                focalX: pg.finiteOr(pg.draft.heroPosX, 0.5)
-                focalY: pg.finiteOr(pg.draft.heroPosY, 0.5)
-                strength: pg.finiteOr(pg.draft.heroStrength, 0)
-            }
+            Item {
+                id: card
+                anchors.centerIn: parent
+                width: 720
+                height: 250
+                scale: Math.min(0.72, Math.min((previewStage.width - 24) / width,
+                    (previewStage.height - 12) / height))
+                transformOrigin: Item.Center
+                clip: true
 
-            // left: greeting eyebrow over the hero clock. The clock is a
-            // presented numeral, so Grotesk with tnum, never mono (DESIGN.md
-            // section 2). No breathing colon: the only perpetual animation
-            // allowed on the sheet is the dirty dot.
-            Column {
-                anchors { left: parent.left; top: parent.top }
-                anchors.leftMargin: Tokens.s4; anchors.topMargin: Tokens.s4
-                spacing: Tokens.s1
-
-                Text {
-                    visible: !!pg.draft.showGreeting
-                    text: pg.greeting; color: Tokens.ink
-                    font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
-                    font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+                HeroCrop {
+                    id: heroCrop
+                    anchors.fill: parent
+                    source: pg.draft.heroImage !== undefined ? pg.draft.heroImage : ""
+                    fallbackSource: pg.shippedHero
+                    focalX: pg.finiteOr(pg.draft.heroPosX, 0.5)
+                    focalY: pg.finiteOr(pg.draft.heroPosY, 0.5)
+                    strength: pg.finiteOr(pg.draft.heroStrength, 0)
                 }
-                Text {
-                    text: pg.clockStr; color: Tokens.ink
-                    font.family: Tokens.ui; font.pixelSize: Tokens.fHero
-                    font.weight: Font.Light; font.features: ({ "tnum": 1 })
+
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.52) }
+                        GradientStop { position: 0.34; color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.06) }
+                        GradientStop { position: 0.68; color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.10) }
+                        GradientStop { position: 1; color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.64) }
+                    }
                 }
-            }
 
-            // right: the weather glance when shown, the date otherwise. The
-            // temperature is a representative sample in the resolved unit -- the
-            // Hub does not fetch live weather -- so the glance shows the unit and
-            // the show/hide behaviour the setting actually controls.
-            Column {
-                anchors { right: parent.right; top: parent.top }
-                anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s4
-                spacing: Tokens.s1
+                Column {
+                    x: 16; y: 12; spacing: 1
 
-                Text {
+                    Text {
+                        visible: !!pg.draft.showGreeting
+                        text: pg.greeting; color: Tokens.ink
+                        font.family: Tokens.mono; font.pixelSize: 9
+                        font.weight: Font.DemiBold; font.letterSpacing: 1.5
+                    }
+                    Text {
+                        text: pg.clockStr; color: Tokens.ink
+                        font.family: Tokens.ui; font.pixelSize: 28
+                        font.weight: Font.Light; font.features: ({ "tnum": 1 })
+                    }
+                }
+
+                Column {
                     anchors.right: parent.right
-                    visible: !!pg.draft.showWeather
-                    text: (pg.effUnit === "F" ? "70" : "21") + (pg.effUnit === "F" ? I18n.tr("\u00b0F") : I18n.tr("\u00b0C"))
-                    color: Tokens.ink; font.family: Tokens.ui
-                    font.pixelSize: 22; font.weight: Font.Light; font.features: ({ "tnum": 1 })
-                }
-                Text {
-                    anchors.right: parent.right
-                    visible: !!pg.draft.showWeather
-                    text: I18n.tr("Clear sky")
-                    color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                }
-                Text {
-                    anchors.right: parent.right
-                    visible: !pg.draft.showWeather
-                    text: pg.dateStr
-                    color: Tokens.ink; font.family: Tokens.ui
-                    font.pixelSize: 22; font.weight: Font.Light
-                }
-                Text {
-                    anchors.right: parent.right
-                    visible: !!pg.draft.showWeather
-                    text: pg.dateStr
-                    color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
-                }
-            }
+                    y: 12
+                    anchors.rightMargin: 16
+                    spacing: 1
 
-            // the preview is also the editor for the focal point: drag it to
-            // pick the part of the hero that shows (DESIGN keeps this the
-            // only way to set heroPosX/heroPosY, as the old page did).
-            DragHandler {
-                id: dragH
-                target: null
-                enabled: heroCrop.ready && (heroCrop.overflowX > 1 || heroCrop.overflowY > 1)
-                cursorShape: Qt.SizeAllCursor
-                property real ox: 0.5
-                property real oy: 0.5
-                onActiveChanged: if (dragH.active) {
-                    dragH.ox = pg.finiteOr(pg.draft.heroPosX, 0.5);
-                    dragH.oy = pg.finiteOr(pg.draft.heroPosY, 0.5);
+                    Text {
+                        anchors.right: parent.right
+                        visible: !!pg.draft.showWeather
+                        text: (pg.effUnit === "F" ? "70" : "21")
+                            + (pg.effUnit === "F" ? I18n.tr("\u00b0F") : I18n.tr("\u00b0C"))
+                        color: Tokens.ink; font.family: Tokens.ui
+                        font.pixelSize: 19; font.weight: Font.Medium
+                        font.features: ({ "tnum": 1 })
+                    }
+                    Text {
+                        anchors.right: parent.right
+                        visible: !!pg.draft.showWeather
+                        text: I18n.tr("Clear sky")
+                        color: Tokens.inkMuted
+                        font.family: Tokens.ui; font.pixelSize: 10
+                    }
+                    Text {
+                        anchors.right: parent.right
+                        text: pg.dateStr
+                        color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: 9
+                        font.letterSpacing: 0.6
+                    }
                 }
-                onActiveTranslationChanged: {
-                    if (!dragH.active)
-                        return;
-                    if (heroCrop.overflowX > 1)
-                        pg.edit("heroPosX", heroCrop.dragFocal(
-                            dragH.ox, dragH.activeTranslation.x, heroCrop.overflowX));
-                    if (heroCrop.overflowY > 1)
-                        pg.edit("heroPosY", heroCrop.dragFocal(
-                            dragH.oy, dragH.activeTranslation.y, heroCrop.overflowY));
-                }
-            }
-            HoverHandler { id: dragHov; enabled: dragH.enabled; cursorShape: Qt.SizeAllCursor }
 
-            // drag hint, shown on hover over a set hero image. A solid lift bar,
-            // no translucency (DESIGN.md section 6).
-            Rectangle {
-                visible: dragH.enabled && dragHov.hovered
-                anchors { left: parent.left; bottom: parent.bottom; margins: Tokens.s2 }
-                width: dragHint.implicitWidth + Tokens.s4
-                height: 22
-                radius: Tokens.radius
-                color: Tokens.paperLift
-                border.width: Tokens.border
-                border.color: Tokens.line
-                Text {
-                    id: dragHint
-                    anchors.centerIn: parent
-                    text: I18n.tr("DRAG TO REPOSITION")
-                    color: Tokens.inkDim; font.family: Tokens.ui
-                    font.pixelSize: 9; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+                Item {
+                    x: 145; y: 105; width: 430; height: 30
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "⌕"
+                        color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 25
+                    }
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 26
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: I18n.tr("TYPE TO SEARCH")
+                        color: Tokens.inkMuted
+                        font.family: Tokens.mono; font.pixelSize: 11
+                        font.weight: Font.Medium; font.letterSpacing: 1.3
+                    }
+                    Rectangle {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.bottom: parent.bottom; height: 1; color: Tokens.ink
+                    }
+                }
+
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: 154; spacing: 7
+                    Repeater {
+                        model: ["ALL", "IMG", "FILE", "REC"]
+                        delegate: Rectangle {
+                            required property string modelData
+                            width: label.implicitWidth + 16; height: 19
+                            radius: 2
+                            color: "transparent"
+                            border.width: Tokens.border; border.color: Tokens.inkMuted
+                            Text {
+                                id: label
+                                anchors.centerIn: parent
+                                text: modelData; color: Tokens.ink
+                                font.family: Tokens.mono; font.pixelSize: 8
+                                font.weight: Font.DemiBold; font.letterSpacing: 0.7
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.bottom: parent.bottom; height: 1
+                    color: Tokens.lineStrong
+                }
+
+                DragHandler {
+                    id: dragH
+                    target: null
+                    enabled: heroCrop.ready && (heroCrop.overflowX > 1 || heroCrop.overflowY > 1)
+                    cursorShape: Qt.SizeAllCursor
+                    property real ox: 0.5
+                    property real oy: 0.5
+                    onActiveChanged: if (dragH.active) {
+                        dragH.ox = pg.finiteOr(pg.draft.heroPosX, 0.5);
+                        dragH.oy = pg.finiteOr(pg.draft.heroPosY, 0.5);
+                    }
+                    onActiveTranslationChanged: {
+                        if (!dragH.active)
+                            return;
+                        if (heroCrop.overflowX > 1)
+                            pg.edit("heroPosX", heroCrop.dragFocal(dragH.ox,
+                                dragH.activeTranslation.x / card.scale, heroCrop.overflowX));
+                        if (heroCrop.overflowY > 1)
+                            pg.edit("heroPosY", heroCrop.dragFocal(dragH.oy,
+                                dragH.activeTranslation.y / card.scale, heroCrop.overflowY));
+                    }
+                }
+                HoverHandler { id: dragHov; enabled: dragH.enabled; cursorShape: Qt.SizeAllCursor }
+
+                Rectangle {
+                    visible: dragH.enabled && dragHov.hovered
+                    anchors { left: parent.left; bottom: parent.bottom; margins: 8 }
+                    width: dragHint.implicitWidth + 16; height: 22; radius: 2
+                    color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.72)
+                    Text {
+                        id: dragHint
+                        anchors.centerIn: parent
+                        text: I18n.tr("DRAG TO REPOSITION")
+                        color: Tokens.ink; font.family: Tokens.mono
+                        font.pixelSize: 8; font.weight: Font.DemiBold; font.letterSpacing: 0.8
+                    }
                 }
             }
         }
     }
 
-    // ── the scrolling settings grid, grouped by meaning ─────────────────────
     Flickable {
         id: flick
         anchors {
@@ -376,8 +386,6 @@ Item {
             width: flick.width - Tokens.s3   // reserve a lane for the scroll rail
             spacing: Tokens.s5
 
-            // PALETTE: the window's shape and the frost behind it, two-up so the
-            // row fills instead of stranding a lone cell in dead width.
             Section {
                 id: palSect
                 width: col.width
@@ -423,7 +431,32 @@ Item {
                 }
             }
 
-            // HERO
+            Section {
+                id: motionSect
+                width: col.width
+                title: I18n.tr("RESULT MOTION")
+
+                Cell {
+                    width: motionSect.span(Spans.cols)
+                    height: Tokens.cellH
+                    controlWidth: Spans.inlineWidth("step", 0, width)
+                    label: I18n.tr("Type settle")
+                    desc: I18n.tr("Waits for a pause before the finished result deck fades in. Higher values feel calmer; lower values respond sooner.")
+                    unit: "ms"
+                    value: String(pg.draft.resultSettleMs)
+                    def: String(pg.committed.resultSettleMs)
+                    changed: !pg.same(pg.draft.resultSettleMs, pg.committed.resultSettleMs)
+                    source: "launcher.json"
+                    Step {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: Number(pg.draft.resultSettleMs) || 360
+                        from: 120; to: 700
+                        onModified: (v) => pg.edit("resultSettleMs", v)
+                    }
+                }
+            }
+
             Section {
                 id: hcSect
                 width: col.width
@@ -483,17 +516,11 @@ Item {
                 }
             }
 
-            // HERO IMAGE
             Section {
                 id: bdSect
                 width: col.width
                 title: I18n.tr("HERO IMAGE")
 
-                // the hero file affordance: a full-width module with the
-                // current filename, the picker, and a way back to the shipped
-                // art. Built bespoke because a file path is not one of the eight
-                // controls; it still wears the cell's chrome (hairline, changed
-                // bar, source tag) so it belongs in the grid.
                 Item {
                     id: heroCell
                     width: bdSect.span(Spans.cols)
@@ -607,9 +634,6 @@ Item {
         }
     }
 
-    // ── action bar: status + Reset / Revert / Save ──────────────────────────
-    // this page is full-bleed, so the shell's global action bar is hidden; this
-    // bar is the only way to persist. It mirrors DESIGN.md section 8 verbatim.
     Rectangle {
         id: bar
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -620,7 +644,6 @@ Item {
             height: 1; color: Tokens.line
         }
 
-        // marginalia in the bar's dead centre, between the status and the verbs.
         Marginalia {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
@@ -693,10 +716,6 @@ Item {
         }
     }
 
-    // ── the hero chooser: a monochrome thumbnail grid over a folder ─────────
-    // ported from the old ImagePicker (folders-first, quick locations, PNG/JPG
-    // filter, pick-and-close) and rebuilt in Tokens. Real thumbnails are image
-    // specimens, so they keep their colour; everything else is paper and ink.
     property bool pickerOpen: false
     readonly property string home: Quickshell.env("HOME") || ""
     property url pickerFolder: "file://" + pg.home + "/Pictures"
@@ -712,8 +731,6 @@ Item {
         visible: pg.pickerOpen
         z: 100
 
-        // click-catcher: an outside click cancels. No fill -- translucency is
-        // banned on app surfaces (DESIGN.md section 6); the panel is opaque lift.
         MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: pg.pickerOpen = false }
 
         FolderListModel {
@@ -803,8 +820,6 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 4
                         radius: Tokens.radius
-                        // a folder is a row-like item, so it inverts under the
-                        // cursor; an image cannot invert, so it gets an ink edge.
                         color: tile.fileIsDir && th.hovered ? Tokens.bone : (th.hovered ? Tokens.tint5 : "transparent")
                         border.width: Tokens.border
                         border.color: th.hovered ? (tile.fileIsDir ? Tokens.bone : Tokens.ink) : Tokens.line

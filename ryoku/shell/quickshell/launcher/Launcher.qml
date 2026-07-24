@@ -19,8 +19,6 @@ Item {
     property alias query: hero.query
     required property Item providerSet
 
-    // Task 7 binds these to the card-sized layer surface. Their zero/empty
-    // values retain useful Task 6 fallbacks for standalone instantiation.
     property string lifecyclePhase: ""
     property int lifecycleGeneration: 0
     property real lifecycleOuterHeight: 0
@@ -331,6 +329,14 @@ Item {
             return;
         }
         resultPresentation.restart();
+    }
+
+    function clearDisplayedResultsForInput() {
+        drawer.hideResultDeckImmediately();
+        results = [];
+        Qt.callLater(function () {
+            drawer.suppressResultDeckAnimation = false;
+        });
     }
 
     function syncDisplayedResults() {
@@ -830,8 +836,12 @@ Item {
     onResultQueryTokenChanged: {
         initialSelectionToken = resultQueryToken;
         resultPresentation.stop();
+        emptySettlement.stop();
         freshResultsToken = "";
         freshResults = [];
+        displayQueryToken = resultQueryToken;
+        displayWasBusy = false;
+        clearDisplayedResultsForInput();
         scheduleEvaluation();
     }
     onBusyForActiveProviderChanged: {
@@ -916,7 +926,7 @@ Item {
 
     Timer {
         id: resultPresentation
-        interval: 220
+        interval: LauncherConfig.resultSettleMs
         repeat: false
         onTriggered: root.syncDisplayedResults()
     }
@@ -936,8 +946,6 @@ Item {
         }
     }
 
-    // A layer-surface configure can briefly move active focus off the QML
-    // TextInput. Repair it on that transition only; this is not a poll.
     Timer {
         id: focusRepair
         interval: 16
@@ -948,9 +956,6 @@ Item {
         }
     }
 
-    // Typing expands the card and can make the compositor configure its layer
-    // surface after the TextInput handled the first key. Settle that one
-    // transition after the last character, rather than polling focus.
     Timer {
         id: typedFocusSettler
         interval: 260

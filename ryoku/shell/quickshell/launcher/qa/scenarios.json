@@ -744,8 +744,8 @@
       "covers": "typed result presentation debounce",
       "steps": [
         "show",
-        "sh mkdir -p /tmp/launcher-qa-fixtures; wtype -- a; sleep .05; wtype -- p; sleep .05; wtype -- p; sleep .08; S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S > /tmp/launcher-qa-fixtures/coalesce.early.json",
-        "sleep 0.3",
+        "sh mkdir -p /tmp/launcher-qa-fixtures; wtype -- a; sleep .30; S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S > /tmp/launcher-qa-fixtures/coalesce.first.json; wtype -- p; sleep .30; wtype -- p; sleep .08; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S > /tmp/launcher-qa-fixtures/coalesce.early.json",
+        "sleep 0.5",
         "sh S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S > /tmp/launcher-qa-fixtures/coalesce.settled.json"
       ],
       "asserts": [
@@ -755,7 +755,25 @@
         ".resultDeckOpacity == 1"
       ],
       "shell_asserts": [
-        "jq -e '.query == \"app\" and .resultCount == 0 and .resultDeckOpacity == 0' /tmp/launcher-qa-fixtures/coalesce.early.json >/dev/null && jq -e '.query == \"app\" and .resultCount > 0 and .selectedIndex == 0 and .resultDeckOpacity == 1' /tmp/launcher-qa-fixtures/coalesce.settled.json >/dev/null"
+        "jq -e '.query == \"a\" and .resultCount == 0 and .resultDeckOpacity == 0' /tmp/launcher-qa-fixtures/coalesce.first.json >/dev/null && jq -e '.query == \"app\" and .resultCount == 0 and .resultDeckOpacity == 0' /tmp/launcher-qa-fixtures/coalesce.early.json >/dev/null && jq -e '.query == \"app\" and .resultCount > 0 and .selectedIndex == 0 and .resultDeckOpacity == 1' /tmp/launcher-qa-fixtures/coalesce.settled.json >/dev/null"
+      ]
+    },
+    {
+      "id": "typed-results-clear-stale-deck",
+      "name": "A new character hides the prior query deck before it settles",
+      "covers": "query-token invalidation and single deck publication",
+      "steps": [
+        "show",
+        "sh wtype -- app; sleep .8; S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S > /tmp/launcher-qa-fixtures/stale.before.json; wtype -- x; sleep .10; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S > /tmp/launcher-qa-fixtures/stale.after.json",
+        "sleep 0.5"
+      ],
+      "asserts": [
+        ".query == \"appx\"",
+        ".resultCount > 0",
+        ".resultDeckOpacity == 1"
+      ],
+      "shell_asserts": [
+        "jq -e '.resultCount > 0 and .resultDeckOpacity == 1' /tmp/launcher-qa-fixtures/stale.before.json >/dev/null && jq -e '.query == \"appx\" and .resultCount == 0 and .resultDeckOpacity == 0' /tmp/launcher-qa-fixtures/stale.after.json >/dev/null"
       ]
     },
     {
