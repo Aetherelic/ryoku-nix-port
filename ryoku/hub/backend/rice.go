@@ -84,12 +84,11 @@ var riceHyprLayers = []string{"input", "windowRules", "layerRules", "appOverride
 // layers that live outside hypr.json; routed to their own store on apply.
 var riceExtraLayers = []string{"brand"}
 var riceShellLook = []string{
-	"frameRadius", "frameBorder", "frameSmoothing", "frameOpacity", "frameEnabled", "shadowStrength", "shadowSize",
-	"surfaceColor", "osdRadius", "osdOpacity",
-	"barEnabled", "barPosition", "barStyle", "barHeight", "barShowTitle", "barShowMedia", "barShowStatus", "barOccupiedWorkspaces",
-	"islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
-	"islandStyle", "islandWidth", "islandHeight", "islandRestCorner", "islandOpenCorner", "islandGap", "islandSmoothing", "islandOpacity", "islandAutohide",
-	"sidebarLeftEnabled", "sidebarRightEnabled", "sidebarLeftPanes", "sidebarRightPanes", "sidebarClickless", "sidebarWidth", "sidebarCornerSize",
+	"frameRadius", "frameBorder", "frameSmoothing", "frameOpacity", "frameEnabled",
+	"shadowStrength", "shadowSize", "surfaceColor", "grainStrength",
+	"osdRadius", "osdOpacity",
+	"barEnabled", "barPosition", "barHeight", "atollVariant",
+	"sidebarLeftPanes", "sidebarRightPanes", "sidebarWidth",
 	"roundness", "fontFamily", "fontScale",
 }
 var riceLauncherLook = []string{"heroImage", "heroStrength", "heroPosX", "heroPosY", "bgBlur", "radius", "showGreeting", "showWeather"}

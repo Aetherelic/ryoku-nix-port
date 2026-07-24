@@ -17,10 +17,9 @@ trap 'rm -rf "$work"' EXIT
 src="${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/shell.json"
 [ -f "$src" ] || { echo "no $src to probe against"; exit 77; }
 
-mkdir -p "$work/cfg" "$work/qs/schema"
+mkdir -p "$work/cfg" "$work/qs"
 cp "$src" "$work/cfg/shell.json"
 cp "$here/wire-probe.qml" "$work/qs/shell.qml"
-cp "$repo/ryoku/hub/quickshell/schema/ShellSettingsPage.js" "$work/qs/schema/"
 
 RYOKU_TEST_CFG="$work/cfg" \
 QML_IMPORT_PATH="${QML_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \
@@ -31,8 +30,8 @@ grep -q FLUSHED "$work/log" || { echo "FAIL: never flushed"; sed -n '1,20p' "$wo
 python3 - "$work/cfg/shell.json" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1]))
-want = {"frameBorder": 88, "barStyle": "delos",
-        "islandModules": ["workspaces", "clock", "tray"]}
+want = {"frameBorder": 88, "atollVariant": "ryoku",
+        "sidebarRightPanes": ["notifications", "calendar"]}
 bad = [k for k, v in want.items() if d.get(k) != v]
 for k, v in want.items():
     print("  %-14s %-34s %s" % (k, json.dumps(d.get(k)), "ok" if d.get(k) == v else "MISMATCH, wanted " + json.dumps(v)))

@@ -1,16 +1,5 @@
 .pragma library
 
-// ShellSettingsPage as data. 67 settings, 57 controls: the 13 hand-wired
-// member toggles are three sets, not thirteen switches.
-
-// per bar-style visibility: a bar-tab row with a `styles` list shows only when
-// the active barStyle is in it; a row without `styles` is universal. the sets
-// mirror which bar components actually read each Config key (verified in-tree).
-var BAND4 = ["noctalia", "caelestia", "aegis", "stele"];
-var BANDFLAT = BAND4.concat(["triptych", "nacre", "inir", "aurora", "angel"]);
-var THICK = BANDFLAT.concat(["atoll"]);
-var WSHOSTS = BANDFLAT.concat(["delos"]);
-
 var rows = [{
         "tab": "General",
         "group": "BRAND",

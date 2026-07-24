@@ -10,8 +10,8 @@ import "Singletons"
 // generic popup. two scopes:
 //   right-click bare desktop = desktop menu (show/hide each widget,
 //     settings, reload)
-//   right-click a widget     = its menu (cycle design, toggle date/motion/
-//     units, lock, snap to a zone, hide) + the same globals
+//   right-click a widget     = its menu (cycle design, toggle date, lock,
+//     snap to a zone, hide) + the same globals
 // every action writes the same widgets Config the drag and Ryoku Settings
 // do. fills the host window so its click-away catcher can dismiss.
 Item {
@@ -21,14 +21,12 @@ Item {
     visible: menu.open
 
     property bool open: false
-    property string scope: "desktop"   // desktop | clock | weather | cal
+    property string scope: "desktop"   // desktop | clock
     property real px: 0
     property real py: 0
 
     readonly property bool isWidget: menu.scope !== "desktop"
     readonly property bool isClock: menu.scope === "clock"
-    readonly property bool isWeather: menu.scope === "weather"
-    readonly property bool isCal: menu.scope === "cal"
     readonly property bool locked: menu.isWidget ? Config[menu.scope + "Locked"] : false
     readonly property string curAnchor: menu.isWidget ? Config[menu.scope + "Anchor"] : ""
     readonly property string curDesign: menu.isWidget ? Config[menu.scope + "Design"] : ""
@@ -46,19 +44,13 @@ Item {
 
     function cycleDesign() {
         const lists = {
-            clock: ["digital", "minimal", "analog", "flip", "rings"],
-            weather: ["card", "minimal", "strip"],
-            cal: ["month", "minimal", "agenda", "week", "heat"]
+            clock: ["digital", "minimal", "analog", "flip", "rings"]
         };
         const d = lists[menu.scope];
         if (!d)
             return;
         const key = menu.scope + "Design";
         Config.set(key, d[(d.indexOf(Config[key]) + 1) % d.length]);
-    }
-    function cycleCalAccent() {
-        const a = ["wallust", "brand", "mono"];
-        Config.set("calAccent", a[(a.indexOf(Config.calAccent) + 1) % a.length]);
     }
     function openSettings() {
         Quickshell.execDetached(["sh", "-c", "ryoku-hub config set section widgets; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
@@ -144,16 +136,10 @@ Item {
 
             // desktop scope.
             MenuRow { visible: !menu.isWidget; k: "Clock"; v: Config.clockEnabled ? "On" : "Off"; on: Config.clockEnabled; closeOnTrigger: false; onTriggered: Config.set("clockEnabled", !Config.clockEnabled) }
-            MenuRow { visible: !menu.isWidget; k: "Weather"; v: Config.weatherEnabled ? "On" : "Off"; on: Config.weatherEnabled; closeOnTrigger: false; onTriggered: Config.set("weatherEnabled", !Config.weatherEnabled) }
-            MenuRow { visible: !menu.isWidget; k: "Calendar"; v: Config.calEnabled ? "On" : "Off"; on: Config.calEnabled; closeOnTrigger: false; onTriggered: Config.set("calEnabled", !Config.calEnabled) }
 
             // widget scope.
             MenuRow { visible: menu.isWidget; k: "Design"; v: menu.cap(menu.curDesign); closeOnTrigger: false; onTriggered: menu.cycleDesign() }
             MenuRow { visible: menu.isClock; k: "Date"; v: Config.dateShow ? "On" : "Off"; on: Config.dateShow; closeOnTrigger: false; onTriggered: Config.toggle("dateShow") }
-            MenuRow { visible: menu.isWeather; k: "Motion"; v: Config.weatherAnimate ? "On" : "Off"; on: Config.weatherAnimate; closeOnTrigger: false; onTriggered: Config.toggle("weatherAnimate") }
-            MenuRow { visible: menu.isWeather; k: "Units"; v: Config.weatherUnit === "C" ? "\u00b0C" : "\u00b0F"; closeOnTrigger: false; onTriggered: Config.set("weatherUnit", Config.weatherUnit === "C" ? "F" : "C") }
-            MenuRow { visible: menu.isCal; k: "Week start"; v: Config.calWeekStart === "sun" ? "Sun" : "Mon"; closeOnTrigger: false; onTriggered: Config.set("calWeekStart", Config.calWeekStart === "sun" ? "mon" : "sun") }
-            MenuRow { visible: menu.isCal; k: "Accent"; v: menu.cap(Config.calAccent); closeOnTrigger: false; onTriggered: menu.cycleCalAccent() }
             MenuRow { visible: menu.isWidget; k: "Lock"; v: menu.locked ? "On" : "Off"; on: menu.locked; closeOnTrigger: false; onTriggered: Config.toggle(menu.scope + "Locked") }
 
             Rule { visible: menu.isWidget }

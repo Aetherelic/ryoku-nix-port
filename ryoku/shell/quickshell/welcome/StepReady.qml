@@ -30,7 +30,7 @@ Column {
         Repeater {
             model: [
                 "Super + Space launches anything.",
-                "Hover a top corner for the sidebars.",
+                "Super + Escape opens power and session controls.",
                 "Super + , opens Settings for everything else."
             ]
 

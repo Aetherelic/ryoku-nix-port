@@ -1,9 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// a Material Symbols Rounded glyph, the caelestia icon idiom: the ligature
-// name is the text ("calendar_month", "wifi", "power_settings_new") and the
-// variable axes carry fill. ships via ttf-material-symbols-variable.
+// Material Symbols Rounded ligature. The glyph name is the text and the
+// variable axes carry fill. Shipped by ttf-material-symbols-variable.
 Text {
     property real fill: 0
 

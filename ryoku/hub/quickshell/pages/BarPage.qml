@@ -4,22 +4,19 @@ import Ryoku.Ui.Singletons
 import ".."
 import "../schema/BarPage.js" as BarSchema
 
-// Bar: the status bar and the side panels. Content is the schema, rendered
-// through the shared SchemaPage; the write ledger, rail and action bar belong to
-// the shell. barStyle gates the per-style rows so each bar look shows only the
-// settings it reads.
+// Atoll bar and preserved sidebar content, rendered through the shared
+// SchemaPage. Opening controls stay absent until the sidebars are redesigned.
 Item {
     id: pg
     property var hub
 
     readonly property string pTitle: I18n.tr("Bar")
     readonly property string pEyebrow: I18n.tr("DESKTOP")
-    readonly property string pBlurb: I18n.tr("The status bar and side panels: content, clusters, the island, and sidebars.")
+    readonly property string pBlurb: I18n.tr("Atoll's floating islands and the preserved content of both sidebars.")
 
     SchemaPage {
         anchors.fill: parent
         schema: BarSchema.rows
-        styleKey: "barStyle"
         draft: pg.hub ? pg.hub.draft : null
         defaults: pg.hub ? pg.hub.committed : ({})
         advanced: pg.hub ? pg.hub.advanced : false

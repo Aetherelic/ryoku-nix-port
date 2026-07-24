@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+- **The desktop shell now has one Atoll bar and one bar-owned popup.** The
+  ilyamiro and Ryoku Atoll looks remain, with their weather, media, connectivity,
+  volume, battery and notification readouts left visible but inert. Power still
+  opens from `Super+Escape` or the Atoll button; the old renderers, Washi and
+  Atoll popup sets, sidebar entry paths, and their commands and settings are
+  removed. Both sidebar bodies and their Stash/System logic remain mounted for
+  the next UI, while the app launcher and frame stay in place. Ryoku Settings
+  exposes only the live Atoll contract, and `ryoku doctor` prunes retired
+  `shell.json` keys without touching preserved sidebar state.
+
 ### Fixed
 - **Multi-monitor: switching to a workspace on another monitor no longer drags
   its windows to the focused monitor.** `scripts/ryoku-workspace` dropped the

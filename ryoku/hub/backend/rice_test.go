@@ -17,16 +17,19 @@ func TestOverlayAndExtractRespectAllowlist(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(p, []byte(`{"barStyle":"noctalia","weatherLocation":"Oslo","fontScale":1.3}`), 0o644); err != nil {
+	if err := os.WriteFile(p, []byte(`{"barStyle":"noctalia","atollVariant":"ilyamiro","weatherLocation":"Oslo","fontScale":1.3}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := overlayStore(p, map[string]any{"barStyle": "caelestia", "weatherLocation": "X"}, riceShellLook); err != nil {
+	if err := overlayStore(p, map[string]any{"barStyle": "caelestia", "atollVariant": "ryoku", "weatherLocation": "X"}, riceShellLook); err != nil {
 		t.Fatal(err)
 	}
 	got := readJSONMap(p)
-	if got["barStyle"] != "caelestia" {
-		t.Fatalf("barStyle = %v, want caelestia", got["barStyle"])
+	if got["atollVariant"] != "ryoku" {
+		t.Fatalf("atollVariant = %v, want ryoku", got["atollVariant"])
+	}
+	if got["barStyle"] != "noctalia" {
+		t.Fatalf("retired barStyle was applied: %v", got["barStyle"])
 	}
 	if got["weatherLocation"] != "Oslo" {
 		t.Fatalf("non-allowlisted key clobbered: %v", got["weatherLocation"])
@@ -35,6 +38,9 @@ func TestOverlayAndExtractRespectAllowlist(t *testing.T) {
 	ex := extractStore(p, riceShellLook)
 	if _, ok := ex["weatherLocation"]; ok {
 		t.Fatal("extract leaked a non-allowlisted key")
+	}
+	if _, ok := ex["barStyle"]; ok {
+		t.Fatal("extract leaked the retired barStyle key")
 	}
 	if ex["fontScale"] == nil {
 		t.Fatal("extract dropped an allowlisted key")
@@ -50,7 +56,7 @@ func TestSaveLoadListRice(t *testing.T) {
 	r := Rice{
 		Schema: riceSchema, Slug: "demo", Name: "Demo", CreatedWith: "0.6.8",
 		Color: RiceColor{Mode: "wallpaper"},
-		Look:  map[string]map[string]any{"shell": {"barStyle": "delos"}},
+		Look:  map[string]map[string]any{"shell": {"atollVariant": "ryoku"}},
 	}
 	if err := saveRice(r); err != nil {
 		t.Fatal(err)
@@ -59,7 +65,7 @@ func TestSaveLoadListRice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Look["shell"]["barStyle"] != "delos" {
+	if got.Look["shell"]["atollVariant"] != "ryoku" {
 		t.Fatalf("round-trip lost look: %v", got.Look)
 	}
 
@@ -87,7 +93,7 @@ func TestCaptureRice(t *testing.T) {
 		}
 	}
 	write(hyprStorePath(), `{"appearance":{"rounding":10},"cursor":{"theme":"Bibata-Modern-Ice","size":24},"input":{"sensitivity":0.2}}`)
-	write(shellStorePath(), `{"barStyle":"delos","weatherLocation":"Oslo"}`)
+	write(shellStorePath(), `{"atollVariant":"ryoku","weatherLocation":"Oslo"}`)
 	write(launcherStorePath(), `{"heroStrength":0.5,"showWeather":true}`)
 	write(themeStatePath(), `{"followWallpaper":true}`)
 
@@ -104,8 +110,8 @@ func TestCaptureRice(t *testing.T) {
 	if _, ok := r.Look["hypr"]["input"]; ok {
 		t.Fatal("input leaked into look (it is a behavior layer)")
 	}
-	if r.Look["shell"]["barStyle"] != "delos" {
-		t.Fatalf("shell barStyle = %v", r.Look["shell"]["barStyle"])
+	if r.Look["shell"]["atollVariant"] != "ryoku" {
+		t.Fatalf("shell atollVariant = %v", r.Look["shell"]["atollVariant"])
 	}
 	if _, ok := r.Look["shell"]["weatherLocation"]; ok {
 		t.Fatal("personal key weatherLocation captured")
@@ -154,7 +160,7 @@ func TestApplyMergesAndRestoreReverts(t *testing.T) {
 		}
 	}
 	w(hyprStorePath(), `{"appearance":{"rounding":2},"cursor":{"theme":"Bibata-Modern-Ice","size":24}}`)
-	w(shellStorePath(), `{"barStyle":"noctalia","weatherLocation":"Oslo"}`)
+	w(shellStorePath(), `{"atollVariant":"ilyamiro","weatherLocation":"Oslo"}`)
 	w(launcherStorePath(), `{"heroStrength":0.6}`)
 	w(themeStatePath(), `{"followWallpaper":true}`)
 
@@ -162,14 +168,14 @@ func TestApplyMergesAndRestoreReverts(t *testing.T) {
 		t.Fatal(err)
 	}
 	w(filepath.Join(ricesDir(), "cool", "palette.json"), `{"background":"#101010","color4":"#ff8800","foreground":"#eeeeee"}`)
-	w(ricePath("cool"), `{"schema":1,"slug":"cool","name":"Cool","color":{"mode":"fixed","palette":"palette.json"},"look":{"hypr":{"appearance":{"rounding":18}},"shell":{"barStyle":"caelestia"},"launcher":{}}}`)
+	w(ricePath("cool"), `{"schema":1,"slug":"cool","name":"Cool","color":{"mode":"fixed","palette":"palette.json"},"look":{"hypr":{"appearance":{"rounding":18}},"shell":{"atollVariant":"ryoku"},"launcher":{}}}`)
 
 	if err := applyRice("cool", nil); err != nil {
 		t.Fatal(err)
 	}
 	shell := readJSONMap(shellStorePath())
-	if shell["barStyle"] != "caelestia" {
-		t.Fatalf("apply did not set barStyle: %v", shell["barStyle"])
+	if shell["atollVariant"] != "ryoku" {
+		t.Fatalf("apply did not set atollVariant: %v", shell["atollVariant"])
 	}
 	if shell["weatherLocation"] != "Oslo" {
 		t.Fatal("apply clobbered a personal key")
@@ -198,8 +204,8 @@ func TestApplyMergesAndRestoreReverts(t *testing.T) {
 		t.Fatal(err)
 	}
 	shell2 := readJSONMap(shellStorePath())
-	if shell2["barStyle"] != "noctalia" {
-		t.Fatalf("restore did not revert barStyle: %v", shell2["barStyle"])
+	if shell2["atollVariant"] != "ilyamiro" {
+		t.Fatalf("restore did not revert atollVariant: %v", shell2["atollVariant"])
 	}
 	ap2 := readJSONMap(hyprStorePath())["appearance"].(map[string]any)
 	if ap2["rounding"].(float64) != 2 {
@@ -238,7 +244,7 @@ func TestThemeAppsRoundTrip(t *testing.T) {
 
 	// capture with the toggle off records the choice on the rice.
 	w(hyprStorePath(), `{"appearance":{"rounding":2}}`)
-	w(shellStorePath(), `{"barStyle":"noctalia"}`)
+	w(shellStorePath(), `{"atollVariant":"ilyamiro"}`)
 	w(launcherStorePath(), `{}`)
 	w(themeStatePath(), `{"followWallpaper":true,"themeApps":false}`)
 	r, err := captureRice("Bare", nil)
@@ -284,7 +290,7 @@ func TestRiceTouchesAndExport(t *testing.T) {
 		CreatedWith: "0.6.8",
 		Color:       RiceColor{Mode: "fixed", Palette: "palette.json"},
 		Assets:      RiceAssets{Wallpaper: "wall.png"},
-		Look:        map[string]map[string]any{"hypr": {"rounding": 3.0}, "shell": {"barStyle": "stele"}},
+		Look:        map[string]map[string]any{"hypr": {"rounding": 3.0}, "shell": {"atollVariant": "ryoku"}},
 	}
 	rdir := filepath.Join(ricesDir(), "demo")
 	if err := os.MkdirAll(rdir, 0o755); err != nil {
@@ -398,20 +404,20 @@ func TestSquareShellAndKeybindRoundTrip(t *testing.T) {
 		}
 	}
 	w(hyprStorePath(), `{"appearance":{"rounding":12},"keybinds":[]}`)
-	w(shellStorePath(), `{"barStyle":"noctalia","frameRadius":9,"islandRadius":17,"roundness":10,"osdRadius":12}`)
+	w(shellStorePath(), `{"atollVariant":"ilyamiro","frameRadius":9,"roundness":10,"osdRadius":12}`)
 	w(launcherStorePath(), `{}`)
 	w(themeStatePath(), `{"followWallpaper":true}`)
 
 	if err := os.MkdirAll(filepath.Join(ricesDir(), "sq"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	w(ricePath("sq"), `{"schema":1,"slug":"sq","name":"Square","color":{"mode":"wallpaper"},"look":{"hypr":{"appearance":{"rounding":0}},"shell":{"frameRadius":0,"islandRadius":0,"roundness":0,"osdRadius":0},"launcher":{}},"layers":{"keybinds":[{"keys":"SUPER + T","action":"exec","value":"kitty"}]}}`)
+	w(ricePath("sq"), `{"schema":1,"slug":"sq","name":"Square","color":{"mode":"wallpaper"},"look":{"hypr":{"appearance":{"rounding":0}},"shell":{"frameRadius":0,"roundness":0,"osdRadius":0},"launcher":{}},"layers":{"keybinds":[{"keys":"SUPER + T","action":"exec","value":"kitty"}]}}`)
 
 	if err := applyRice("sq", []string{"keybinds"}); err != nil {
 		t.Fatal(err)
 	}
 	shell := readJSONMap(shellStorePath())
-	for _, k := range []string{"frameRadius", "islandRadius", "roundness", "osdRadius"} {
+	for _, k := range []string{"frameRadius", "roundness", "osdRadius"} {
 		if v, ok := shell[k].(float64); !ok || v != 0 {
 			t.Fatalf("square rice did not set shell %s to 0: %v", k, shell[k])
 		}
@@ -428,8 +434,8 @@ func TestSquareShellAndKeybindRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	shell2 := readJSONMap(shellStorePath())
-	if shell2["frameRadius"].(float64) != 9 || shell2["islandRadius"].(float64) != 17 {
-		t.Fatalf("restore did not revert the frame/island shape: %v", shell2)
+	if shell2["frameRadius"].(float64) != 9 {
+		t.Fatalf("restore did not revert the frame shape: %v", shell2)
 	}
 	if kb2, _ := readJSONMap(hyprStorePath())["keybinds"].([]any); len(kb2) != 0 {
 		t.Fatalf("restore did not remove the installed keybind: %v", readJSONMap(hyprStorePath())["keybinds"])
@@ -462,7 +468,7 @@ func TestCaptureNewStoresDecorsAndLiveWall(t *testing.T) {
 	w(mark, "PNG")
 	w(clip, "MP4")
 	w(hyprStorePath(), `{"appearance":{"rounding":8}}`)
-	w(shellStorePath(), `{"barStyle":"delos"}`)
+	w(shellStorePath(), `{"atollVariant":"ryoku"}`)
 	w(launcherStorePath(), `{"bgBlur":0.4,"radius":22}`)
 	w(themeStatePath(), `{"followWallpaper":true}`)
 	w(widgetsStorePath(), `{"clock24h":true,"clockScale":1.2}`)
@@ -548,7 +554,7 @@ func TestApplyNewStoresBrandAndVideoWall(t *testing.T) {
 		}
 	}
 	w(hyprStorePath(), `{"appearance":{"rounding":2}}`)
-	w(shellStorePath(), `{"barStyle":"noctalia"}`)
+	w(shellStorePath(), `{"atollVariant":"ilyamiro"}`)
 	w(launcherStorePath(), `{}`)
 	w(themeStatePath(), `{"followWallpaper":true}`)
 	w(widgetsStorePath(), `{"clock24h":false}`)
@@ -566,7 +572,7 @@ func TestApplyNewStoresBrandAndVideoWall(t *testing.T) {
 	w(ricePath("wave"), `{"schema":1,"slug":"wave","name":"Wave",
 	  "color":{"mode":"wallpaper"},
 	  "assets":{"wallpaper":"wall.mp4"},
-	  "look":{"hypr":{"appearance":{"rounding":18}},"shell":{"barStyle":"caelestia"},"launcher":{},
+	  "look":{"hypr":{"appearance":{"rounding":18}},"shell":{"atollVariant":"ryoku"},"launcher":{},
 	          "widgets":{"clock24h":true},"visualizer":{"bars":116},
 	          "decor":{"input.touchpad":{"shot":6,"src":"rice://decor-input-touchpad.png"}}},
 	  "layers":{"brand":{"name":"Berserk","markImage":"rice://brandmark.png"}}}`)
@@ -664,7 +670,7 @@ func TestSetWallVideoAndImport(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(exp, "configs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	w(filepath.Join(exp, "rice.json"), `{"schema":1,"slug":"demo","name":"Demo","color":{"mode":"wallpaper"},"look":{"shell":{"barStyle":"delos"}}}`)
+	w(filepath.Join(exp, "rice.json"), `{"schema":1,"slug":"demo","name":"Demo","color":{"mode":"wallpaper"},"look":{"shell":{"atollVariant":"ryoku"}}}`)
 	w(filepath.Join(exp, "wall.png"), "PNG")
 	w(filepath.Join(exp, "README.txt"), "hi")
 	w(filepath.Join(exp, "configs", "shell.json"), `{}`)

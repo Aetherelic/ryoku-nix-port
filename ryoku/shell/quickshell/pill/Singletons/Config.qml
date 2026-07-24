@@ -38,76 +38,18 @@ Singleton {
     property alias osdRadius:  adapter.osdRadius
     property alias osdOpacity: adapter.osdOpacity
 
-    // bar = the shell's resting face, drawn on the frame's thickened edge
-    // (Bar.qml). barPosition is "top" or "bottom"; barStyle picks the skin,
-    // one of noctalia and caelestia (reference shells), the native aegis, stele,
-    // triptych, nacre and delos, the flat frame-off iNiR skins inir/aurora/angel,
-    // the washi warping pill (ported from Ricelin), or the atoll floating-island
-    // bar (ported from ilyamiro). barHeight = the band the edge swells by (scaled per
-    // monitor). barShowTitle / barShowMedia / barShowStatus gate the focused
-    // window title, the now-playing module, and the status cluster.
-    // barOccupiedWorkspaces shows only workspaces with windows (plus the
-    // active one), hiding empty numbers.
-    property alias barEnabled:            adapter.barEnabled
-    property alias barPosition:           adapter.barPosition
-    property alias barStyle:              adapter.barStyle
-    property alias barHeight:             adapter.barHeight
+    // Atoll is the only bar; only its two looks vary.
+    property alias barEnabled:  adapter.barEnabled
+    property alias barPosition: adapter.barPosition
+    property alias barHeight:   adapter.barHeight
+    readonly property real barBandBase: barHeight + 18
+    property alias atollVariant: adapter.atollVariant
 
-    // atoll floats a tall multi-island design, so its thickness maps across the
-    // whole Thickness-control range as barHeight + the islands' fixed seat -- no
-    // dead floor, so every step visibly resizes the islands and the reserve tracks
-    // it. every other skin rides barHeight directly.
-    readonly property real barBandBase: barStyle === "atoll" ? barHeight + 18 : barHeight
-    property alias barShowTitle:          adapter.barShowTitle
-    property alias barShowMedia:          adapter.barShowMedia
-    property alias barShowStatus:         adapter.barShowStatus
-    property alias barOccupiedWorkspaces: adapter.barOccupiedWorkspaces
-    property alias barShowWeather:        adapter.barShowWeather
-    property alias barToggles:            adapter.barToggles
-    property alias barShowSpecialWs:      adapter.barShowSpecialWs
-    // barLayout{Left,Centre,Right} = the reorderable modular layout: each an
-    // ordered list of module ids for that zone (empty = the classic default).
-    // honoured on the straight-band skins; the bespoke skins keep their layout.
-    property alias barLayoutLeft:   adapter.barLayoutLeft
-    property alias barLayoutCentre: adapter.barLayoutCentre
-    property alias barLayoutRight:  adapter.barLayoutRight
-    // delos = the single floating-island bar. islandModules names the modules
-    // it carries, in display order, and the user picks them (power is not one:
-    // Super+Esc opens it). islandEdge / islandAlong persist where it last
-    // docked; islandHidden whether it is tucked to a nub.
-    property alias islandEdge:    adapter.islandEdge
-    property alias islandAlong:   adapter.islandAlong
-    property alias islandHidden:  adapter.islandHidden
-    property alias islandModules: adapter.islandModules
-    property alias islandRadius:  adapter.islandRadius
-    // washi = the floating warping pill (ported from Ricelin, which Ryoku forked
-    // from): a small rest pill that warps in place into full surfaces. washiVariant
-    // picks the look: `ryoku` (paper-ink, 力 mark, Ryoku fonts) or `ricelin`
-    // (faithful: warm, kanji headers, JetBrains Mono).
-    property alias washiVariant:  adapter.washiVariant
-    // atoll = ilyamiro's multi-island bar. atollVariant picks the look:
-    // `ilyamiro` (faithful: rounded translucent islands floating below the frame,
-    // JetBrains Mono) or `ryoku` (Ryoku-native: the frame swells to wrap square
-    // grainy paper-black islands, Space Grotesk).
-    property alias atollVariant:  adapter.atollVariant
-    // dyad = Jules3182's dual-edge bar (islands on the top AND bottom edge at
-    // once). dyadVariant: `faithful` (dark translucent capsules) or `ryoku`
-    // (paper-black square chips).
-    property alias dyadVariant:   adapter.dyadVariant
-
-    // sidebars = the two "Aside" panels that blob-melt out of the left and right
-    // screen edges, each summoned by hovering that side's top corner (or an IPC
-    // toggle). LEFT carries features (stash and future add-ons); RIGHT carries
-    // system controls + glance panes. sidebarLeftPanes / sidebarRightPanes pick
-    // which panes each shows and their order; sidebarClickless opens on hover
-    // (else click); sidebarWidth / sidebarCornerSize size the panel + corner.
-    property alias sidebarLeftEnabled:  adapter.sidebarLeftEnabled
-    property alias sidebarRightEnabled: adapter.sidebarRightEnabled
-    property alias sidebarLeftPanes:    adapter.sidebarLeftPanes
-    property alias sidebarRightPanes:   adapter.sidebarRightPanes
-    property alias sidebarClickless:    adapter.sidebarClickless
-    property alias sidebarWidth:        adapter.sidebarWidth
-    property alias sidebarCornerSize:   adapter.sidebarCornerSize
+    // Sidebar bodies and pane state are preserved for the next UI. No enable,
+    // corner or hover properties are exposed because every opener was removed.
+    property alias sidebarLeftPanes:  adapter.sidebarLeftPanes
+    property alias sidebarRightPanes: adapter.sidebarRightPanes
+    property alias sidebarWidth:      adapter.sidebarWidth
 
     // roundness = the shell-wide inner corner radius (the "Global" shape knob).
     // every internal tile, card, row and chip reads Theme.radius, which follows
@@ -172,35 +114,13 @@ Singleton {
             property real osdOpacity: 1
             property bool barEnabled: true
             property string barPosition: "top"
-            property string barStyle: "stele"
             property real barHeight: 30
-            property bool barShowTitle: true
-            property bool barShowMedia: true
-            property bool barShowStatus: true
-            property bool barOccupiedWorkspaces: true
-            property bool barShowWeather: true
-            property var barToggles: ["caffeine", "dnd", "nightlight"]
-            property bool barShowSpecialWs: true
-            property var barLayoutLeft: []
-            property var barLayoutCentre: []
-            property var barLayoutRight: []
-            property string islandEdge: "top"
-            property real islandAlong: -1
-            property bool islandHidden: false
-            property var islandModules: ["workspaces", "clock", "date", "media"]
-            property real islandRadius: 0
-            property string washiVariant: "ryoku"
             property string atollVariant: "ilyamiro"
-            property string dyadVariant: "faithful"
             property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
-            property bool sidebarLeftEnabled: true
-            property bool sidebarRightEnabled: true
             property var sidebarLeftPanes: ["stash"]
             property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
-            property bool sidebarClickless: true
             property real sidebarWidth: 340
-            property real sidebarCornerSize: 0
             property real roundness: 0
             property real grainStrength: 0.09
             property string weatherLocation: ""
@@ -239,9 +159,6 @@ Singleton {
         }
     }
 
-    // write the live adapter back to shell.json. the delos island calls this
-    // when it settles on a new edge so the dock survives a restart.
-    function persist() { file.writeAdapter(); }
 
     // seed only on a genuine first run (nothing to load), so a slow or failed
     // load can't overwrite a present file with defaults.

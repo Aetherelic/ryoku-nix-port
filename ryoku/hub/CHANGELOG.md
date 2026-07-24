@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+- **Ryoku Settings now describes the Atoll-only shell instead of the retired
+  style catalogue. The Bar page keeps the two-look Atoll control, live bar
+  geometry and preserved sidebar-content controls, and drops style, island and
+  sidebar-opener settings that no longer have a runtime consumer. The Desktop
+  Widgets page now edits the wallpaper clock only. The Ryoku theme preset and
+  rice look allowlist use Atoll, so an old style cannot be reapplied through a
+  preset or imported rice (`schema/BarPage.js`, `schema/WidgetsPage.js`,
+  `pages/BarPage.qml`, `pages/WidgetsPage.qml`, `backend/rice.go`,
+  `backend/schemes.go`).
+
 ### Fixed
 - **Switching the engine back to Wallust actually reverts now.** Turning the
   Material You toggle off only re-fanned the Matugen colours still sitting in

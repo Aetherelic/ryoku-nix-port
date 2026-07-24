@@ -3,16 +3,12 @@ import QtQuick
 import Quickshell.Widgets
 import "Singletons"
 
-// now-playing module: art thumb, ping-pong title, play state, all read from
-// the shared Media pick (wallpaper-filtered). click toggles playback, wheel
-// nudges the sink volume (the OSD panel narrates the change). hidden with no
-// player, so the plate only exists when there is music. a vertical bar keeps
-// only the art thumb (state tinted), the noctalia idiom.
+// Atoll's display-only now-playing readout. It reads the wallpaper-filtered
+// shared Media player and collapses with no active player.
 Row {
     id: media
 
     property real s: 1
-    property bool vertical: false
     // when >= 0, the widest the whole module may be; the title elides to fit so
     // the right cluster never crosses the centred clock. <0 leaves it uncapped.
     property real maxW: -1
@@ -23,17 +19,12 @@ Row {
     readonly property bool present: Media.present
     readonly property string line: Media.line
 
-    function toggle() {
-        Media.toggle();
-    }
 
     spacing: 11 * s
-    // art thumb: the noctalia circle, hairline edge; a music glyph while
-    // artless. carries the play state alone on a vertical bar (accent ring
-    // while sounding).
+    // Artwork with a music glyph fallback and an accent play-state ring.
     ClippingRectangle {
         anchors.verticalCenter: parent.verticalCenter
-        width: (media.vertical ? 20 : 14) * media.s
+        width: 14 * media.s
         height: width
         radius: width / 2
         color: Qt.alpha(Theme.bright, 0.05)
@@ -59,7 +50,6 @@ Row {
     }
 
     Marquee {
-        visible: !media.vertical
         id: title
         anchors.verticalCenter: parent.verticalCenter
         readonly property real natW: titleMetrics.advanceWidth
@@ -81,7 +71,6 @@ Row {
 
     // state glyph: filled play while sounding, pause otherwise.
     MaterialIcon {
-        visible: !media.vertical
         anchors.verticalCenter: parent.verticalCenter
         text: media.playing ? "play_arrow" : "pause"
         fill: 1

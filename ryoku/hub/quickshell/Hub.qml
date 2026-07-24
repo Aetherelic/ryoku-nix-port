@@ -125,7 +125,7 @@ Rectangle {
         "dictation": "voice typing speech transcribe whisper microphone stt",
         "windows": "window windows rounding corners softness gaps border borders thickness colour tiling dwindle master scrolling layout opacity transparency transparent dim blur shadow glow glass wobble wobbly title bar titlebar float snap resize animation",
         "appearance": "theme palette accent color colour wallpaper background rice scheme dark light night bluelight comfort brightness backlight",
-        "bar": "bar panel taskbar move reposition position island sidebar clusters band skins noctalia caelestia aegis stele content layout",
+        "bar": "bar panel taskbar move position atoll islands sidebar clusters content layout ilyamiro ryoku",
         "frame": "frame shape roundness surface colour opacity grain noise shadow notifications osd toast font text language type",
         "desktop": "desktop visualizer visualiser spectrum weather brand logo mark name widget board wallpaper",
         "launcher": "launcher spotlight command palette greeting weather home",
@@ -329,15 +329,12 @@ Rectangle {
         "frameRadius": 9, "roundness": 10, "frameBorder": 59, "frameEnabled": true,
         "frameSmoothing": 8, "frameOpacity": 1, "grainStrength": 0.09, "shadowStrength": 0.63, "shadowSize": 12,
         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
-        "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30, "washiVariant": "ryoku", "atollVariant": "ilyamiro", "dyadVariant": "faithful",
-        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true,
-        "barOccupiedWorkspaces": true, "islandEdge": "top", "islandAlong": -1,
-        "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"],
-        "islandRadius": 17, "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
+        "barEnabled": true, "barPosition": "top", "barHeight": 30,
+        "atollVariant": "ilyamiro", "fontFamily": "Space Grotesk", "fontScale": 1.3,
         "weatherLocation": "", "weatherUnit": "auto",
-        "sidebarLeftEnabled": true, "sidebarRightEnabled": true, "sidebarLeftPanes": ["stash"],
+        "sidebarLeftPanes": ["stash"],
         "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
-        "sidebarClickless": true, "sidebarWidth": 340, "sidebarCornerSize": 34,
+        "sidebarWidth": 340,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58, "bloom": 0.6,
         "reflection": 0.1, "idleWave": true, "style": "bars", "shape": "rounded",
         "position": "bottom", "mirror": false, "segments": 10, "fps": 30,
@@ -483,38 +480,16 @@ Rectangle {
             property real osdOpacity: 1
             property bool barEnabled: true
             property string barPosition: "top"
-            property string barStyle: "noctalia"
             property real barHeight: 30
-            property bool barShowTitle: true
-            property bool barShowMedia: true
-            property bool barShowStatus: true
-            property bool barOccupiedWorkspaces: true
-            property bool barShowWeather: true
-            property bool barShowSpecialWs: true
-            property var barToggles: ["caffeine", "dnd", "nightlight"]
-            property var barLayoutLeft: []
-            property var barLayoutCentre: []
-            property var barLayoutRight: []
-            property string washiVariant: "ryoku"
             property string atollVariant: "ilyamiro"
-            property string dyadVariant: "faithful"
-            property string islandEdge: "top"
-            property real islandAlong: -1
-            property bool islandHidden: false
-            property var islandModules: ["workspaces", "clock", "date", "media"]
-            property real islandRadius: 17
-            property string fontFamily: "JetBrainsMono Nerd Font"
+            property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property bool ryolayerEnabled: true
-            property bool sidebarLeftEnabled: true
-            property bool sidebarRightEnabled: true
             property var sidebarLeftPanes: ["stash"]
             property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
-            property bool sidebarClickless: true
             property real sidebarWidth: 340
-            property real sidebarCornerSize: 34
         }
     }
     FileView {

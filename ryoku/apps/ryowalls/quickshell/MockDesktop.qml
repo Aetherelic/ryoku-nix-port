@@ -5,12 +5,9 @@ import Quickshell.Io
 import Ryoku.Ui.Singletons
 import "Singletons"
 
-// The app's crown: the picked wallpaper under the user's actual rice, every
-// element recoloured by the candidate wallust scheme so the preview is a
-// specimen of what Set will do. The bar is the user's real skin, drawn by
-// Silhouette from shell.json; the terminal keeps its fastfetch card and the
-// 8-colour strip; cava keeps its motion (amendment 2). Everything inside the
-// canvas carries candidate colour, which is the entire point of the surface.
+// The selected wallpaper under the user's live look, recoloured by the
+// candidate Wallust scheme. The Atoll preview follows shell.json; the terminal
+// keeps its fastfetch card and colour strip, and cava keeps its motion.
 Item {
     id: mock
     clip: true
@@ -41,8 +38,7 @@ Item {
     readonly property color cCyan:   Wallhaven.col(6, "#6f9aa0")
     readonly property color cAccent: cBlue
 
-    // the user's real bar skin, so the preview is their desktop and not a generic
-    // one. barStyle keys map one-to-one to Silhouette's skins.
+    // The user's Atoll look and edge, read from the same shell store.
     FileView {
         id: shellCfg
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
@@ -51,7 +47,7 @@ Item {
         onFileChanged: reload()
         JsonAdapter {
             id: shell
-            property string barStyle: "noctalia"
+            property string atollVariant: "ilyamiro"
             property string barPosition: "top"
         }
     }
@@ -125,10 +121,7 @@ Item {
     // a whisper of shade so light module fills keep their edge on a bright wall.
     Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.16) }
 
-    // ── the bar: the user's real skin, recoloured by the candidate scheme ─────
-    // Silhouette draws in bone; a source-atop pass over the drawn pixels tints
-    // the whole skin toward the candidate foreground while keeping the skin's
-    // own light/dark structure, so it reads as their bar wearing the new palette.
+    // The user's Atoll look, recoloured by the candidate scheme.
     Canvas {
         id: bar
         z: 1
@@ -146,7 +139,7 @@ Item {
         onPaint: {
             var c = getContext("2d");
             c.reset();
-            Silhouette.draw(c, shell.barStyle, width, height, 0.98, 0.5);
+            Silhouette.draw(c, shell.atollVariant, width, height, 0.98, 0.5);
             var t = tint();
             c.globalCompositeOperation = "source-atop";
             c.fillStyle = "rgba(" + Math.round(t.r * 255) + "," + Math.round(t.g * 255) + "," + Math.round(t.b * 255) + "," + t.a + ")";
@@ -161,7 +154,7 @@ Item {
         }
         Connections {
             target: shell
-            function onBarStyleChanged() { bar.requestPaint() }
+            function onAtollVariantChanged() { bar.requestPaint() }
         }
     }
 

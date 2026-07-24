@@ -51,3 +51,30 @@ func TestSchemeFollowRoundTrips(t *testing.T) {
 		t.Errorf("follow round-trip: currentScheme() = %q, want follow", got)
 	}
 }
+
+func TestApplyRyokuThemeUsesRyokuAtollLook(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
+	t.Setenv("PATH", "")
+
+	shellPath := filepath.Join(dir, "config", "ryoku", "shell.json")
+	if err := os.MkdirAll(filepath.Dir(shellPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(shellPath, []byte(`{"barStyle":"stele","atollVariant":"ilyamiro","sidebarWidth":420}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := applyRyokuTheme(); err != nil {
+		t.Fatal(err)
+	}
+	got := readJSONMap(shellPath)
+	if got["atollVariant"] != "ryoku" {
+		t.Fatalf("atollVariant = %v, want ryoku", got["atollVariant"])
+	}
+	if got["sidebarWidth"] != float64(420) {
+		t.Fatalf("sidebarWidth was not preserved: %v", got["sidebarWidth"])
+	}
+}

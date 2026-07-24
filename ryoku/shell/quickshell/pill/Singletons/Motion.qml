@@ -44,17 +44,11 @@ Singleton {
     // looping scan/pairing breath pulse.
     readonly property int pulse: reduce ? 0 : 420
 
-    // bar module feedback: hover fills lift fast (the noctalia 100ms feel);
-    // the workspace indicator's trailing edge settles at trail while its
-    // leading edge moves at fast, so a switch stretches then contracts.
+    // Bar hover feedback and the workspace indicator's trailing settle.
     readonly property int hover: reduce ? 0 : 100
     readonly property int trail: reduce ? 0 : 340
 
-    // the caelestia curve family (Material 3 expressive), carried over with
-    // its durations so the bar and its popouts move like the reference:
-    //   emphasized      = the slide for indicators and reveals (400ms)
-    //   spatialDefault  = spring with overshoot for popout travel (500ms)
-    //   effectsDefault  = plain fades (200ms), effectsSlow for big reveals
+    // Shared expressive curves for indicators, reveals, popup travel and fades.
     readonly property var emphasizedCurve: [0.05, 0, 0.133, 0.06, 0.167, 0.4, 0.208, 0.82, 0.25, 1, 1, 1]
     readonly property int emphasized: reduce ? 0 : 400
     readonly property var spatialCurve: [0.38, 1.21, 0.22, 1, 1, 1]

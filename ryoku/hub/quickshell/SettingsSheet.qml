@@ -20,10 +20,6 @@ Item {
     property var defaults: ({})      // factory values, for the struck default
     property string tab: ""
     property string query: ""
-    // when set (e.g. "barStyle"), a schema row carrying a `styles` list is shown
-    // only while draft[styleKey] is in it, so each bar style exposes just the
-    // settings its bar actually reads. reads draft (replaced on edit) so it is live.
-    property string styleKey: ""
     // progressive disclosure: rows tagged `adv: true` are the deep knobs, hidden
     // until Advanced is on. search still reaches them (the query branch ignores
     // this), so nothing is ever truly buried.
@@ -34,8 +30,6 @@ Item {
     readonly property var rows: {
         var q = query.toLowerCase();
         return schema.filter(function (r) {
-            if (sheet.styleKey !== "" && r.styles && sheet.draft
-                && r.styles.indexOf(sheet.draft[sheet.styleKey]) < 0) return false;
             if (r.adv && !sheet.advanced && query === "") return false;
             if (r.tab !== sheet.tab && query === "") return false;
             if (query === "") return true;
@@ -238,7 +232,7 @@ Item {
                                 id: galleryC
                                 Gallery {
                                     anchors.fill: parent
-                                    options: Silhouette.skins
+                                    options: Silhouette.skins.filter((skin) => !cell.r.opts || cell.r.opts.indexOf(skin.key) >= 0)
                                     current: String(sheet.val(cell.r))
                                     onChose: (k) => sheet.edited(cell.r.key, k)
                                 }

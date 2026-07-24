@@ -6,7 +6,7 @@ import Ryoku.PluginKit.Singletons
 // desktop placement frame for one plugin widget on the wallpaper layer.
 // measures the plugin's natural size, pads it, draws an optional card/glass
 // backing with a soft lift, and carries the same desktop interaction the
-// shipped WidgetSlot (clock/weather) uses: left-drag to move (grid-snapped,
+// shipped WidgetSlot (the clock) uses: left-drag to move (grid-snapped,
 // clamped to the host), right-click for the menu, and a bottom-right resize
 // bracket that scrubs scale 0.5..2.5 with a live percent readout. free
 // position, scale, and lock state persist to plugins.json through the host.
@@ -118,7 +118,7 @@ Item {
         radius: slot.radius
         // match the shipped desktop widgets (WidgetSlot): translucent dark
         // card with a faint white hairline, so plugin tiles read identical
-        // to clock and weather on the wallpaper.
+        // to the clock on the wallpaper.
         color: slot.bg === "card" ? Qt.rgba(0, 0, 0, 0.42) : Qt.rgba(16 / 255, 16 / 255, 24 / 255, 0.26)
         border.width: 1
         border.color: slot.bg === "card" ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.16)

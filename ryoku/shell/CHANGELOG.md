@@ -3,16 +3,24 @@
 ## Unreleased
 
 ### Changed
-- **Bar popouts and both sidebars are held closed while the shell is reworked;
-  only the power menu still opens.** Every bar module tap and hover (plus the
-  washi warp surfaces and the atoll popouts) is now inert, except the
-  power/session menu, which still opens from Super+Esc and the bar power glyph
-  (`quickshell/pill/shell.qml`). The left (Features/Stash) and right (System)
-  sidebars keep every bit of their content but lose all their ways in: the hover
-  corners, the left-edge drag-to-stash, the `Super+D` / `Super+Alt+D` binds
-  (`hyprland/modules/binds.lua`), and the sidebar IPC verbs are all disabled.
-  Nothing is deleted, so it all returns by reverting this change. The app
-  launcher and the frame are untouched.
+- **The shell now rests on one Atoll bar while its surfaces are rebuilt.**
+  Both Atoll looks remain: ilyamiro and Ryoku. Washi and the other retired bar
+  renderers are deleted rather than hidden behind a style switch. Launcher,
+  Settings, workspace and tray actions still work; weather, media, connectivity,
+  volume, battery and notification state remain visible without opening panels.
+  The power/session menu is the only bar-owned popup and still opens from
+  Super+Escape or the Atoll power button. Voice and keyring service prompts,
+  the app launcher and the frame are unchanged. The left Stash sidebar and the
+  right System sidebar keep their components, data and pane state, but no
+  corner, hover, keybind, daemon or IPC route can open either one. The stale
+  Super+D, Super+Alt+D and Super+V bindings and their panel commands are gone.
+  Weather and calendar desktop widgets are also removed; the wallpaper clock
+  remains. `ryoku doctor` removes legacy `barStyle` and prunes retired style,
+  island and sidebar-opener keys without touching the preserved pane lists or
+  width. This removes the old renderers, Washi surfaces, Atoll popup
+  set and standalone bar popup wrappers while keeping the sidebar content ready
+  for its next UI (`quickshell/pill/`, `pill/popouts/`, `pill/Singletons/`,
+  `quickshell/widgets/`, `ipc/`, `hyprland/modules/binds.lua`).
 
 ### Fixed
 - **Workspaces, Super+Esc power, and every shell surface work again after a

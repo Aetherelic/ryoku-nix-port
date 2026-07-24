@@ -18,9 +18,7 @@ Singleton {
     readonly property color dim:      "#8f8770"
     readonly property color cardTop:  Config.matchWallpaper ? Wallust.base : "#16110b"
     readonly property color cardBot:  Config.matchWallpaper ? Wallust.deep : "#0f0c07"
-    // the hub's matte black paper (mirrors Ryoku.Ui Tokens.paper): the washi
-    // ryoku pill rides the brand grain over it. Fixed #000000, never wallpaper
-    // tinted, so the pill reads exactly like the hub's matte black.
+    // Matte black paper for Ryoku's square Atoll islands.
     readonly property color paper: "#000000"
     readonly property color border:   Config.matchWallpaper ? Wallust.line : Qt.rgba(243/255, 237/255, 225/255, 0.14)
     readonly property color lineStrong: Qt.rgba(236/255, 226/255, 205/255, 0.40)

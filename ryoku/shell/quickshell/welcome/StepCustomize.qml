@@ -5,13 +5,10 @@ import Quickshell.Io
 import Ryoku.Ui.Singletons
 import "Singletons"
 
-// Step 4 body: a few genuinely-wired quick choices, each through the same path the
-// full Hub uses, so the change is live and real. Wallpaper shuffles via
-// `ryoku-shell`; bar position, bar skin, and the frame corner are merged into
-// ~/.config/ryoku/shell.json with a key-preserving write (the shell watches the
-// file and retunes, no reload); window corner rounding round-trips the Hub's
-// appearance overrides through `ryoku-hub hypr get`/`save`. Scrolls if the window
-// is short.
+// Step 4 body: a few wired quick choices through the same paths the Hub uses.
+// Wallpaper shuffles through ryoku-shell; bar position, atoll look and frame
+// corner merge into shell.json; window rounding round-trips the Hub's Hyprland
+// appearance store.
 Flickable {
     id: step
 
@@ -23,10 +20,9 @@ Flickable {
 
     readonly property string cfgPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
 
-    // seeds mirror the shipped signature defaults (stele, square) and only show
-    // until syncFromDisk reads the live state.
+    // Seeds mirror the shipped atoll defaults until syncFromDisk reads the file.
     property string barPosition: "top"
-    property string barStyle: "stele"
+    property string atollVariant: "ilyamiro"
     property real frameRadius: 0
     property real windowRounding: 0
 
@@ -35,7 +31,7 @@ Flickable {
         try {
             var o = JSON.parse(shellFile.text() || "{}");
             if (o.barPosition) step.barPosition = o.barPosition;
-            if (o.barStyle) step.barStyle = o.barStyle;
+            step.atollVariant = o.atollVariant === "ryoku" ? "ryoku" : "ilyamiro";
             if (typeof o.frameRadius === "number") step.frameRadius = o.frameRadius;
         } catch (e) {}
     }
@@ -152,26 +148,21 @@ Flickable {
             }
         }
 
-        // --- Bar skin -----------------------------------------------------
+        // --- Atoll look ---------------------------------------------------
         Column {
             width: parent.width
             spacing: 12
 
-            GroupMark { width: parent.width; text: "Bar skin" }
+            GroupMark { width: parent.width; text: "Atoll look" }
 
             ChipRow {
                 width: parent.width
                 model: [
-                    { "key": "noctalia",  "label": "Noctalia" },
-                    { "key": "caelestia", "label": "Caelestia" },
-                    { "key": "aegis",     "label": "Aegis" },
-                    { "key": "stele",     "label": "Stele" },
-                    { "key": "triptych",  "label": "Triptych" },
-                    { "key": "delos",     "label": "Delos" },
-                    { "key": "nacre",     "label": "Nacre" }
+                    { "key": "ilyamiro", "label": "ilyamiro" },
+                    { "key": "ryoku", "label": "Ryoku" }
                 ]
-                current: step.barStyle
-                onSelected: (k) => { step.barStyle = k; step.setKey("barStyle", k); }
+                current: step.atollVariant
+                onSelected: (k) => { step.atollVariant = k; step.setKey("atollVariant", k); }
             }
         }
 
@@ -210,7 +201,7 @@ Flickable {
                 id: hint
                 width: col.width - 24
                 wrapMode: Text.WordWrap
-                text: "Every other knob \u2014 sidebars, widgets, colours \u2014 waits for you in Settings \u2192 Shell."
+                text: "Clock, colours and deeper shell knobs wait for you in Ryoku Settings."
                 color: Tokens.inkFaint
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fSmall

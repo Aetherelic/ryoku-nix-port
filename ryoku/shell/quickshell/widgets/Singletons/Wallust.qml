@@ -5,7 +5,7 @@ import Quickshell.Io
 
 // live wallust palette for the desktop widgets. wallust rewrites
 // ~/.cache/wallust/colors.json on every wallpaper change (see wallust.toml),
-// we watch it, so a clock/weather card tinted from the palette retunes to
+// we watch it, so a clock card tinted from the palette retunes to
 // whatever's on screen. defaults are the Ryoku brand palette so widgets look
 // right before the first wallust run, never grey.
 //

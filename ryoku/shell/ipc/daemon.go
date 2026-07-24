@@ -72,23 +72,8 @@ func componentDisabled(name string) bool {
 	return parseDisabledComponents(b)[name]
 }
 
-// pillSurfaces maps a client command to the pill IpcHandler function it toggles.
-var pillSurfaces = map[string]string{
-	"clipboard":  "clipboard",
-	"link":       "link",
-	"inbox":      "inbox",
-	"mixer":      "mixer",
-	"calendar":   "calendar",
-	"battery":    "battery",
-	"peek":       "peek",
-	"hide":       "hide",
-	"stash":      "stash",
-	"toolkit":    "toolkit",
-	"utilities":  "utilities",
-	"system":     "sidebarRight", // Super+Alt+D: right (System) sidebar
-	"workspaces": "workspaces",
-	"power":      "power",
-}
+// pillSurfaces maps the sole bar-owned popup command to the pill IpcHandler.
+var pillSurfaces = map[string]string{"power": "power"}
 
 type daemon struct {
 	mu             sync.Mutex
@@ -546,19 +531,6 @@ func route(cmd string) (config, target, fn string, ok bool) {
 	return "", "", "", false
 }
 
-// needsMonitor reports whether an IpcHandler function takes the active monitor.
-func needsMonitor(fn string) bool {
-	return fn != "hide"
-}
-
-// stashSendPath pulls the file out of a "stash-send <file>" line. The path can
-// hold spaces, so it's the whole remainder after the verb, not a split field.
-// ok is false when no path was given.
-func stashSendPath(line string) (path string, ok bool) {
-	path = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "stash-send"))
-	return path, path != ""
-}
-
 // dispatch turns one command line into actions and returns "ok" or "err ...".
 func (d *daemon) dispatch(line string) string {
 	fields := strings.Fields(line)
@@ -580,10 +552,7 @@ func (d *daemon) dispatch(line string) string {
 			// ipcCall retries until the fresh instance answers.
 			d.setGate(config, true)
 		}
-		mon := ""
-		if needsMonitor(fn) {
-			mon = d.activeMonitor()
-		}
+		mon := d.activeMonitor()
 		if config == "pill" {
 			return pillIpc(fn, mon)
 		}
@@ -651,16 +620,6 @@ func (d *daemon) dispatch(line string) string {
 			return "ok"
 		}
 		return "err plugins: unknown action"
-	case "stash-send":
-		// stash-send <file> -> open the deck's LocalSend picker on that file.
-		// Send goes straight to the qs client: its argv keeps a spaced path
-		// intact where the pill's space-joined socket line would not.
-		path, ok := stashSendPath(line)
-		if !ok {
-			return "err stash-send: missing file"
-		}
-		d.ensure("pill")
-		return ipcCallN("pill", "pill", "stashSend", d.activeMonitor(), path)
 	case "state":
 		// a parkable palette (launcher/overview) reporting its open state for the
 		// idle-park worker: `state <name> <0|1>`. 1 shows (cancels the park grace),

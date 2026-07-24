@@ -35,10 +35,9 @@ Item {
     readonly property var item: holder.children.length > 0 ? holder.children[0] : null
     readonly property real cw: slot.item ? slot.item.implicitWidth : 0
     readonly property real ch: slot.item ? slot.item.implicitHeight : 0
-    // true while the hosted widget wants the keyboard (its own `editing` flag,
-    // e.g. the calendar's focused add field). the host raises the layer's
-    // keyboard grab off this, the same way plugin tiles do; clock/weather never
-    // expose it, so they stay input-passive.
+    // true while the hosted widget wants the keyboard (its own `editing` flag).
+    // the host raises the layer's keyboard grab off this, the same way plugin
+    // tiles do; the clock never exposes it, so it stays input-passive.
     readonly property bool editing: slot.visible && !!(slot.item && slot.item.editing)
 
     // drag state. while holding (dragging, or briefly after release until
@@ -124,9 +123,9 @@ Item {
 
     // interaction grip UNDER the content: left-drag on bare widget area moves
     // the tile (grid-snapped) and right-click opens the menu, while an
-    // interactive widget (the calendar's day cells and add field) keeps its own
-    // clicks on top. clock/weather have no interactive children, so the whole
-    // surface still drags. a grip above the content would swallow every click.
+    // interactive widget keeps its own clicks on top. the clock has no
+    // interactive children, so the whole surface still drags. a grip above the
+    // content would swallow every click.
     MouseArea {
         id: grip
         anchors.fill: parent

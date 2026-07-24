@@ -16,9 +16,9 @@ Grid {
 
     Repeater {
         model: [
-            { "name": "The bar",       "reach": "Top edge",      "desc": "The " + Theme.mark + " seal, workspaces, clock, tray and status ride the top edge." },
+            { "name": "The bar",       "reach": "Top / bottom",  "desc": "Atoll carries the launcher, workspaces, clock, tray and status." },
             { "name": "The launcher",  "reach": "Super + Space", "desc": "Search apps, run commands, or ask a quick question." },
-            { "name": "The sidebars",  "reach": "Hover a corner","desc": "Left: your stash & features. Right: system controls, notifications, media." },
+            { "name": "The frame",     "reach": "Screen edge",   "desc": "The rounded border holds the power and service surfaces." },
             { "name": "Ryoku Settings","reach": "Super + ,",     "desc": "Displays, appearance, keybinds, the shell \u2014 every knob in one place." }
         ]
 

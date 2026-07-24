@@ -4,12 +4,10 @@ import Quickshell
 import Ryoku.Ui
 import "Singletons"
 
-// atoll: the multi-island bar ported from ilyamiro's nixos shell. instead of
-// one band, separate dark rounded islands float in the top strip (frame-off),
-// each cascading in on startup and lifting on hover; the active / on state
-// inverts to a bone chip, Ryoku's own emphasis. reuses Ryoku's data modules
-// (workspaces, clock, weather, media, status, tray) and singletons, restyled
-// into the island layout. click a module to open its edge popout.
+// Atoll, ported from ilyamiro's NixOS shell: separate dark islands float over
+// the wallpaper, cascade in on startup and lift where interactive. Launcher,
+// Settings, workspaces, tray and power keep their native actions. All other bar
+// modules are display-only.
 Item {
     id: atoll
     anchors.fill: parent
@@ -17,8 +15,7 @@ Item {
     required property real s
     required property real band
     required property var trayWindow
-    signal popoutRequested(string name, real center)
-    signal hoverPopoutRequested(string name, real center, bool hovered)
+    signal powerRequested(real center)
 
     readonly property int activeWsId: Workspaces.activeId
     readonly property real islandH: Math.max(28 * s, band - 8 * s)
@@ -57,8 +54,8 @@ Item {
         }
         Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
         Timer { interval: 40 + isl.slot * 90; running: atoll.booted; onTriggered: isl.reveal = true }
-        // ryoku wears the hub's matte grain over paper-black (the washi ryoku
-        // pill idiom); ilyamiro keeps the plain translucent card, no speckle.
+        // Ryoku wears the Hub's matte grain over paper-black; ilyamiro keeps the
+        // plain translucent card.
         Grain { anchors.fill: parent; anchors.margins: 1; visible: atoll.ryoku }
     }
 
@@ -109,7 +106,7 @@ Item {
                 spacing: 2 * atoll.s
                 IconBtn { glyph: "search"; onAct: Quickshell.execDetached(["ryoku-shell", "launcher"]) }
                 IconBtn { glyph: "settings"; onAct: Quickshell.execDetached(["sh", "-c", "flock -n -o /tmp/ryoku-hub.lock qs -c hub"]) }
-                IconBtn { glyph: "power_settings_new"; onAct: atoll.popoutRequested("power", atoll.centre(leftIsland)) }
+                IconBtn { glyph: "power_settings_new"; onAct: atoll.powerRequested(atoll.centre(leftIsland)) }
             }
         }
 
@@ -141,13 +138,6 @@ Item {
                 // title elides to the room between them.
                 maxW: Math.max(0, (atoll.width - centreIsland.width) / 2 - atoll.edge - leftIsland.width - wsIsland.width - 2 * atoll.gap - 36 * atoll.s)
             }
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
-                onEntered: atoll.hoverPopoutRequested("media", atoll.centre(mediaIsland), true)
-                onExited: atoll.hoverPopoutRequested("media", atoll.centre(mediaIsland), false)
-            }
         }
     }
 
@@ -166,17 +156,10 @@ Item {
                 width: clockMod.implicitWidth
                 height: clockMod.implicitHeight
                 BarClock { id: clockMod; anchors.centerIn: parent; s: atoll.s }
-                MouseArea {
-                    anchors.fill: parent
-                    anchors.margins: -8 * atoll.s
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: atoll.popoutRequested("calendar", atoll.centre(centreIsland))
-                }
             }
             BarWeather {
                 anchors.verticalCenter: parent.verticalCenter
                 s: atoll.s
-                onRequestPopout: (name, center) => atoll.popoutRequested(name, center)
             }
         }
     }
@@ -212,7 +195,6 @@ Item {
                 s: atoll.s
                 ryoku: atoll.ryoku
                 slotH: atoll.islandH - 12 * atoll.s
-                onRequestPopout: (name, center) => atoll.popoutRequested(name, center)
             }
         }
     }

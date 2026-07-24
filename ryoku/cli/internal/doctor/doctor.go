@@ -941,15 +941,21 @@ func reconcileDevResidue(checkOnly bool) recResult {
 
 // ---- reconciler: shell config schema -------------------------------------------
 
-// legacyIslandKeys: pill-era knobs the popouts rework retired. their presence
-// marks a ~/.config/ryoku/shell.json seeded before the rework, whose values
-// point the shell at a face that no longer exists (islandStyle "floating",
-// barEnabled false): an updated box would come up with no bar and no resting
-// island at all. materialize never touches this file, so only doctor can
-// converge it.
+// shell.json is user-owned, so doctor removes keys retired by the atoll-only
+// shell instead of relying on package materialization to overwrite the file.
+// Island keys also identify pill-era configs whose disabled bar replaced the
+// old resting island and therefore needs to be revived.
 var legacyIslandKeys = []string{
 	"islandWidth", "islandHeight", "islandRestCorner", "islandOpenCorner",
 	"islandGap", "islandSmoothing", "islandOpacity", "islandStyle", "islandAutohide",
+	"islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
+}
+var retiredShellKeys = []string{
+	"barStyle", "barShowTitle", "barShowMedia", "barShowStatus", "barOccupiedWorkspaces",
+	"barShowWeather", "barToggles", "barShowSpecialWs",
+	"barLayoutLeft", "barLayoutCentre", "barLayoutRight",
+	"washiVariant", "dyadVariant",
+	"sidebarLeftEnabled", "sidebarRightEnabled", "sidebarClickless", "sidebarCornerSize",
 }
 
 // shellConfigClamps: geometry knobs the renderer consumes raw; a value outside
@@ -977,7 +983,7 @@ func reconcileShellConfig(checkOnly bool) recResult {
 		return okRes("shell.json is on the current schema")
 	}
 	if checkOnly {
-		return wouldRes("shell.json carries pre-rework state: %s", strings.Join(changes, "; ")).
+		return wouldRes("shell.json carries retired state: %s", strings.Join(changes, "; ")).
 			withFix("ryoku doctor migrates it in place")
 	}
 	tmp := path + ".ryoku-tmp"
@@ -991,26 +997,33 @@ func reconcileShellConfig(checkOnly bool) recResult {
 	return fixedRes("migrated shell.json to the current schema: %s", strings.Join(changes, "; "))
 }
 
-// migrateShellConfig drops retired pill-era keys, revives the bar they pointed
-// at, and clamps out-of-range geometry. pure, so it is unit-testable; returns
-// the rewritten JSON and a human summary of what changed (empty = no change).
+// migrateShellConfig drops retired shell keys, revives pill-era bars and clamps
+// out-of-range geometry. It is pure so the migration can be tested without
+// touching a user's config.
 func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 	var cfg map[string]any
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return nil, nil, err
 	}
 	var changes []string
-	legacy := false
+	legacyIsland := false
 	for _, k := range legacyIslandKeys {
 		if _, ok := cfg[k]; ok {
 			delete(cfg, k)
-			legacy = true
+			legacyIsland = true
 		}
 	}
-	if legacy {
-		changes = append(changes, "dropped the retired island knobs")
-		// the resting island those files disabled the bar in favour of no
-		// longer exists; without the bar the rework has no shell face at all.
+	retired := legacyIsland
+	for _, k := range retiredShellKeys {
+		if _, ok := cfg[k]; ok {
+			delete(cfg, k)
+			retired = true
+		}
+	}
+	if retired {
+		changes = append(changes, "dropped retired bar and sidebar knobs")
+	}
+	if legacyIsland {
 		if on, ok := cfg["barEnabled"].(bool); ok && !on {
 			cfg["barEnabled"] = true
 			changes = append(changes, "enabled the bar (the resting island it replaced is gone)")

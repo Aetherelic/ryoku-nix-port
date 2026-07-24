@@ -18,8 +18,8 @@ import "../Singletons"
 // + reveal all live here; each popup file only supplies its content. `align`
 // slides the body along the edge (start/center/end).
 //
-//   Popout { group: blobGroup; frameThickness: 16; radius: Theme.radius; smoothing: 30
-//            edge: "left"; openW: 220; openH: 200; Mixer {} }
+//   Popout { group: blobGroup; frameThickness: 16; radius: Theme.radius
+//            edge: "left"; openW: 220; openH: 200 }
 Item {
     id: root
 
@@ -29,9 +29,8 @@ Item {
     property real smoothing: 30
     property string edge: "left"          // "left" | "right" | "top" | "bottom"
     property string align: "center"       // "start" | "center" | "end" (along the edge)
-    // when >= 0, centre the body at this coordinate along the edge (the host
-    // hands the triggering module's centre here so the popout emerges from it,
-    // like caelestia's currentCenter); < 0 falls back to `align`.
+    // When non-negative, centre the body at this coordinate along the edge;
+    // negative values fall back to `align`.
     property real alongCenter: -1
     property real openW: 220
     property real openH: 200
@@ -40,23 +39,18 @@ Item {
     // as the whole side of the frame swelling open, no gap at either end. only
     // meaningful for a left/right edge.
     property bool fullSpan: false
-    // size tracks the content's implicit size (the mixer grows as its device
-    // picker expands or a stream appears); melt rather than snap.
+    // Size changes melt rather than snap.
     Behavior on openW { NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
     Behavior on openH { NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
     property real hoverW: 0                // hover-band span along the edge (0 = match body)
     property real hoverH: 0                // hover-band depth from the edge (0 = frameThickness)
     property real s: 1
     property bool pinned: false           // force open (IPC / inspection)
-    // false = the popout never opens from an edge hover band; it opens only
-    // when pinned (a bar module tap) and then stays while the body is hovered.
-    // caelestia's power button is click-only like this; an edge band on a bar
-    // edge would otherwise overlap the modules it sits behind.
+    // False disables the edge hover band, so only an explicit pin opens the
+    // surface.
     property bool hoverOpen: true
-    // a bar module owns this popout: it drives this true while the module (not
-    // an edge band) is hovered, and feeds `alongCenter` its own centre, so the
-    // popout emerges from the module. this is caelestia's per-module ownership
-    // (currentName/currentCenter) with a fixed module->popout mapping.
+    // A component-owned hover trigger uses the same `alongCenter` contract as
+    // an explicitly pinned control.
     property bool triggerHovered: false
     // hold the along-centre while the popout is open, so it stays put when the
     // pointer leaves the owning icon for the body. it's live while the icon is
@@ -241,29 +235,11 @@ Item {
     // the fillet residual is already zero when the shape drops out.
     readonly property real burial: (1 - Math.max(0, Math.min(1, prog))) * smoothing
 
-    // triptych and nacre keep a hairline top that dips between the three lobes. a
-    // popout there fills the band across its own span while open (bodyBlob's
-    // neck does that, so the frame swells under it while the other clusters
-    // keep their dips). on close it does not deflate in place and leave a wide
-    // empty band to collapse: it narrows back toward the module it grew from
-    // (curW tracks the melt, centred on the trigger), so the band retracts into
-    // that lobe and the dips return around it -- the popout melts back into the
-    // frame it came out of. the flat iNiR skins (inir/aurora/angel) and atoll's
-    // floating islands narrow-melt too: they have no swelled band, so a
-    // full-width neck would hang over the bar.
-    readonly property bool dipHost: Config.barStyle === "delos" || (!vertical && (root.noWeld || ["triptych", "nacre", "inir", "aurora", "angel", "atoll"].includes(Config.barStyle)))
-
-    // a welded popout grows a neck into the frame-border blob and, on close, buries
-    // that inner face one smoothing-depth in, so the border reads as swallowing it.
-    // with the frame off there is no border: the neck would bridge empty space and
-    // flicker as it drops out (the close bump), so noWeld drops the neck and the
-    // corner hug. it KEEPS the burial, though -- retracting the inner face still
-    // makes the blob hit zero size before it can strand a metaball fillet, so a
-    // floating island melts shut clean with no shrinking nub. noWeld = any skin
-    // with the frame off (border gone), plus atoll -- both its variants float
-    // their islands over the wallpaper (ilyamiro round, ryoku square), so the
-    // frame never swells a band for them to weld into.
-    readonly property bool noWeld: Config.barStyle === "atoll" || !Config.frameEnabled
+    // Atoll floats off the frame: horizontal popouts narrow toward their icon
+    // and never grow a welding neck into the border. Retained vertical sidebar
+    // bodies keep their normal full-span geometry while disabled.
+    readonly property bool dipHost: !vertical
+    readonly property bool noWeld: true
 
     BlobRect {
         id: bodyBlob

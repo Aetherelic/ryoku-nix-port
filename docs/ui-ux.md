@@ -215,15 +215,14 @@ Each surface is its own directory under `quickshell/`, each component its own
 
 - **frame** the rounded screen border and the popouts that melt into it; the
   desktop's signature surface. See `docs/frame.md`.
-- **pill** the shell surface directory (`quickshell/pill/`, the name is
-  historical): the module **bar** riding one frame edge and every popout it
-  opens. The bar is the resting face (the 力 seal, the sliding workspace strip,
-  the focused title, the clock, now-playing, status glyphs, tray, and power),
-  placeable top or bottom, in two skins carried one-to-one from
-  the credited reference shells: Noctalia (capsule modules, dot workspaces, the
-  stacked clock) and Caelestia (the numbered cell strip with the sliding
-  indicator, Material Symbols iconography). See
-  `docs/bar.md` for the bar and `docs/frame.md` for the popouts it grows.
+- **pill** the historical shell surface directory (`quickshell/pill/`): the
+  Atoll bar floating at the top or bottom edge, the shared frame scene, and the
+  service surfaces. Atoll carries launcher, Settings, workspaces, now-playing,
+  clock, weather, tray, connectivity, volume, battery and notification status.
+  Status is display-only; the power/session menu is the only bar-owned popup.
+  `atollVariant` selects the
+  faithful ilyamiro look or Ryoku's square paper-black treatment. See
+  `docs/bar.md` and `docs/frame.md`.
 - **launcher** the Super-triggered app launcher and command palette, with a
   zero-query rest card (the solar-arc clock and weather). See `docs/launcher.md`.
 - **switcher** the full-screen Alt-Tab window switcher.
@@ -242,22 +241,22 @@ Each surface is its own directory under `quickshell/`, each component its own
 - **the keyring prompt** the GNOME keyring password prompt, grown from the bar
   edge as a popout rather than gcr's centred dialog. The `ryoku-shell` daemon acts as the
   keyring system prompter and drives it; `KeyringSurface.qml` renders it.
-- **the sidebars** two full-height panels that melt out of the left and right
-  frame edges on a top-corner hover, the frame's blob swelling open edge to edge.
-  Left is Features (the Stash board, room for more); right is System (力 masthead,
-  the control-centre toggles, capture tools plus a clipboard button, a volume
-  fader, and a tab rail over notifications, calendar, now-playing, weather, and
-  recording). See `docs/frame.md`.
-- **desktop widgets** the clock and weather that sit on the wallpaper, a
-  click-through `WlrLayer.Bottom` surface configured in Ryoku Settings' Desktop
-  Widgets section. Faces and weather skies live under `quickshell/widgets`.
+- **the sidebars** preserved full-height left and right frame bodies with no
+  opening route. Left retains the Stash board; right retains control logic plus
+  notifications, calendar, now-playing, weather and recording panes. No corner,
+  edge, hover, keybind or IPC action exposes them until their UI is redesigned.
+  See `docs/frame.md`.
+- **desktop widgets** the clock and enabled third-party widgets on the
+  wallpaper, hosted by one `WlrLayer.Bottom` surface and configured in Ryoku
+  Settings' Desktop Widgets section. Clock faces live under
+  `quickshell/widgets/clock`.
 - **Ryoku Settings (the Hub)** the settings app (`ryoku/hub/quickshell/`, run as
   `qs -c hub`). Its `PageHeader`, `NavRail`, and the primitives above set the
   pattern every page follows.
 - **welcome** the first-run guided tour, shown once on the first login: a floating
   window (`qs -c welcome`) over generated threshold art that walks a new
   user through the core keybinds, names each surface and how to summon it, and
-  offers a few live quick settings (wallpaper, bar position and skin, frame and window roundness). The Hyprland
+  offers a few live quick settings (wallpaper, bar position and Atoll look, frame and window roundness). The Hyprland
   autostart launches it once, gated on a `~/.local/state/ryoku/welcome-seen` flag;
   it lives in `quickshell/welcome`.
 
@@ -273,8 +272,8 @@ to decorate.
   travel, `spatial` (500ms, `spatialCurve`, a spring with overshoot) popout open
   and travel, `effects` (200ms) plain fades. The curves are `cubic-bezier`
   control-point arrays fed to `easing.bezierCurve` with `easing.type:
-  Easing.BezierSpline`; the caelestia Material-3-expressive family is carried
-  over one-to-one so the bar and its popouts move like the reference.
+  `Easing.BezierSpline`; the shared expressive curve family keeps indicator,
+  popout and Atoll reveal motion coherent.
 - Drive transitions from **state** (`states` + `transitions`), not imperative
   timers, wherever possible; the popout reveal is the model.
 - **The frame's give is physical, not scripted.** A `BlobRect`'s `stiffness` /
@@ -287,9 +286,9 @@ to decorate.
 
 ## Building or replicating an animation
 
-1. Read the closest existing component first; the bar and its popouts
-   (`quickshell/pill/`) show the project's durations, curves, and structure.
-   Reuse the `Motion` tokens.
+1. Read the closest existing component first; the Atoll bar, power surface and
+   service popouts under `quickshell/pill/` show the project's durations,
+   curves, and structure. Reuse the `Motion` tokens.
 2. Break the target motion into property transitions (size, position, opacity)
    and the easing between them, and reproduce each with a `Behavior` or a named
    animation on a `Motion` token. If the frame itself should give, let a

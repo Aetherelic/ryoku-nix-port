@@ -7,8 +7,8 @@ import "Singletons"
 // selected chip inverts to a bone plate (emphasis is inversion, never an accent
 // fill). Unlike the fixed segmented control it holds two choices or seven
 // without crowding, and wraps on a narrow column. `model` is a list of
-// { key, label }, kept over Ryoku.Ui's Chips because the tour's keys are not
-// their labels ("noctalia" / "Noctalia").
+// { key, label }, kept over Ryoku.Ui's Chips because a key may differ from its
+// displayed label.
 Flow {
     id: chips
 

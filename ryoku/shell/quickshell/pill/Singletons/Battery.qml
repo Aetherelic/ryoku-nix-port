@@ -3,11 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
 
-// laptop battery state for the pill, from UPower's display device. gated so a
-// desktop without a battery reports present=false (hover cluster + 蓄 surface
-// stay hidden). exposes pct, charge state, signed draw/charge wattage,
-// capacity, optional health, plus a formatted time-to-empty/full string. low
-// = discharging and <=20%.
+// Laptop battery state from UPower's display device. A desktop without a
+// battery reports present=false so Atoll omits the display-only status chip.
+// The fuller state remains available to the preserved sidebar logic.
 Singleton {
     id: root
 

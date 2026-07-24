@@ -8,21 +8,12 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "../schema/WidgetsPage.js" as Schema
 
-// Desktop Widgets (DESIGN.md section 8, DESKTOP). The clock, calendar and
-// weather that float on the wallpaper, edited here and mirrored in a pinned
-// right-hand column of live specimen cards so the chosen face, size, opacity and
-// accent read without leaning over to the desktop; each card's corner map marks
-// where the widget sits, and an off widget dims under a struck header. This is a
-// full-bleed page: the shell hides its side panel and action bar, so the page
-// draws its own head, its own preview column, and its own Save/Revert bar. It
-// owns widgets.json directly; nothing lands on the desktop until Save. Every
-// value the chrome draws is a Token; the cards render the real desktop widgets.
-//
-// SettingsSheet and the three reused Preview components live one directory up.
-// They are pulled in with Loader-by-URL rather than `import ".."`: a bare
-// directory type-import only resolves for pages loaded from inside the shell's
-// own config root, so a URL load is the form that works both in the shell and
-// when this page is loaded standalone.
+// Desktop Widgets (DESIGN.md section 8, DESKTOP). The wallpaper clock is edited
+// here and mirrored in a pinned live specimen so its face, size, opacity and
+// placement read without leaning over to the desktop. This is a full-bleed page:
+// the shell hides its side panel and action bar, so the page draws its own head,
+// preview and Save/Revert bar. It owns widgets.json directly; nothing lands on
+// the desktop until Save.
 Item {
     id: pg
 
@@ -31,39 +22,24 @@ Item {
 
     readonly property string query: (pg.hub && pg.hub.query) ? pg.hub.query : ""
 
-    // ── the file's flat key set, mirrored by the JsonAdapter below ──────────
+    // ── the file's clock key set, mirrored by the JsonAdapter below ─────────
     readonly property var keys: [
         "clockEnabled", "clockDesign", "clock24h", "clockSeconds", "clockScale",
         "clockOpacity", "clockRadius", "clockAccent", "clockBg", "clockAnchor",
-        "clockX", "clockY", "clockLocked",
-        "dateShow", "dateDesign",
-        "calEnabled", "calDesign", "calWeekStart", "calScale", "calOpacity",
-        "calRadius", "calAccent", "calBg", "calAnchor", "calX", "calY", "calLocked",
-        "weatherEnabled", "weatherDesign", "weatherUnit", "weatherScope",
-        "weatherAnimate", "weatherScale", "weatherOpacity", "weatherRadius",
-        "weatherAnchor", "weatherX", "weatherY", "weatherLocked"
+        "clockX", "clockY", "clockLocked", "dateShow", "dateDesign"
     ]
 
-    // factory values, mirroring the desktop widgets' canonical Config defaults.
-    // used only by RESET; declared here so the page owns its own truth.
+    // Factory values mirror the wallpaper clock's canonical Config defaults.
     readonly property var factory: ({
         "clockEnabled": true, "clockDesign": "digital", "clock24h": true, "clockSeconds": false,
         "clockScale": 1.0, "clockOpacity": 1.0, "clockRadius": 26, "clockAccent": "wallust",
         "clockBg": "none", "clockAnchor": "top-left", "clockX": 72, "clockY": 64, "clockLocked": false,
-        "dateShow": true, "dateDesign": "inline",
-        "calEnabled": false, "calDesign": "month", "calWeekStart": "mon", "calScale": 1.0,
-        "calOpacity": 1.0, "calRadius": 26, "calAccent": "wallust", "calBg": "glass",
-        "calAnchor": "bottom-right", "calX": 72, "calY": 64, "calLocked": false,
-        "weatherEnabled": true, "weatherDesign": "card", "weatherUnit": "C", "weatherScope": "today",
-        "weatherAnimate": true, "weatherScale": 1.0, "weatherOpacity": 1.0, "weatherRadius": 26,
-        "weatherAnchor": "top-right", "weatherX": 72, "weatherY": 64, "weatherLocked": false
+        "dateShow": true, "dateDesign": "inline"
     })
 
-    // scale and opacity persist as ratios (0.5..2.5, 0.2..1.0). The shipped Slid
-    // emits whole numbers, so the sheet edits them as integer percents and the
-    // draft is converted back to a ratio at the boundary; the file stays native.
-    readonly property var pctKeys: ({ "clockOpacity": true, "weatherOpacity": true, "calOpacity": true })
-    readonly property var scaleKeys: ({ "clockScale": true, "weatherScale": true, "calScale": true })
+    // Scale and opacity persist as ratios; the sheet edits integer percents.
+    readonly property var pctKeys: ({ "clockOpacity": true })
+    readonly property var scaleKeys: ({ "clockScale": true })
 
     property var draft: ({})
     property var committed: ({})
@@ -132,20 +108,11 @@ Item {
     }
     readonly property bool dirty: pg.dirtyCount > 0
 
-    // ── schema, remapped to the four meaning groups the design asks for ──────
-    // the generated schema tabs by widget and buries DATE under the clock; the
-    // page wants CLOCK / DATE / CALENDAR / WEATHER as sections in one scroll, so
-    // every row is re-grouped and put on a single synthetic tab. ratio rows are
-    // retargeted to integer-percent sliders (see pctKeys/scaleKeys).
-    function groupOf(k) {
-        if (k.indexOf("date") === 0) return "DATE";
-        if (k.indexOf("clock") === 0) return "CLOCK";
-        if (k.indexOf("cal") === 0) return "CALENDAR";
-        if (k.indexOf("weather") === 0) return "WEATHER";
-        return "CLOCK";
-    }
+    // The clock and its date rows share one synthetic tab; ratio rows become
+    // integer-percent sliders at the sheet boundary.
+    function groupOf(k) { return k.indexOf("date") === 0 ? "DATE" : "CLOCK"; }
     readonly property var schemaRows: {
-        var order = ["CLOCK", "DATE", "CALENDAR", "WEATHER"];
+        var order = ["CLOCK", "DATE"];
         var out = [];
         for (var gi = 0; gi < order.length; gi++) {
             for (var i = 0; i < Schema.rows.length; i++) {
@@ -308,30 +275,6 @@ Item {
             property bool clockLocked: false
             property bool dateShow: true
             property string dateDesign: "inline"
-            property bool calEnabled: false
-            property string calDesign: "month"
-            property string calWeekStart: "mon"
-            property real calScale: 1.0
-            property real calOpacity: 1.0
-            property int calRadius: 26
-            property string calAccent: "wallust"
-            property string calBg: "glass"
-            property string calAnchor: "bottom-right"
-            property int calX: 72
-            property int calY: 64
-            property bool calLocked: false
-            property bool weatherEnabled: true
-            property string weatherDesign: "card"
-            property string weatherUnit: "C"
-            property string weatherScope: "today"
-            property bool weatherAnimate: true
-            property real weatherScale: 1.0
-            property real weatherOpacity: 1.0
-            property int weatherRadius: 26
-            property string weatherAnchor: "top-right"
-            property int weatherX: 72
-            property int weatherY: 64
-            property bool weatherLocked: false
         }
     }
 
@@ -364,7 +307,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("The clock, calendar and weather that float on your wallpaper, previewed live on the right. Pick a face, size, opacity and corner for each; nothing lands on the desktop until you save.")
+            text: I18n.tr("The clock that floats on your wallpaper, previewed live on the right. Pick its face, size, opacity and corner; nothing lands on the desktop until you save.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -379,10 +322,8 @@ Item {
         glyph: "wave"; glyph2: "column"
     }
 
-    // ── the live preview: a pinned right column of specimen cards, one per
-    // widget, so the chosen face, accent, size and opacity read at a glance while
-    // the settings scroll full-height on the left. no cramped desktop mock; the
-    // corner map in each card header carries where the widget sits. ───────────
+    // ── the live clock preview: a pinned specimen card whose corner map marks
+    // placement on the wallpaper. ────────────────────────────────────────────
     Item {
         id: previewCol
         anchors { right: parent.right; top: head.bottom; bottom: bar.top }
@@ -400,7 +341,7 @@ Item {
             }
             Text {
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                text: ((pg.draft.clockEnabled ? 1 : 0) + (pg.draft.calEnabled ? 1 : 0) + (pg.draft.weatherEnabled ? 1 : 0)) + " / 3 ON"
+                text: (pg.draft.clockEnabled ? "1 / 1 ON" : "0 / 1 ON")
                 color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
             }
         }
@@ -410,7 +351,7 @@ Item {
             anchors { left: parent.left; right: parent.right; top: pvHead.bottom; bottom: parent.bottom }
             anchors.topMargin: Tokens.s3
             spacing: Tokens.s4
-            readonly property real cardH: (height - 2 * Tokens.s4) / 3
+            readonly property real cardH: height
 
             SpecimenCard {
                 width: parent.width; height: pvCards.cardH
@@ -431,47 +372,6 @@ Item {
                             item.accentChoice = Qt.binding(() => pg.draft.clockAccent || "wallust");
                             item.dateShow = Qt.binding(() => pg.draft.dateShow === true);
                             item.dateDesign = Qt.binding(() => pg.draft.dateDesign || "inline");
-                        }
-                    }
-                }
-            }
-            SpecimenCard {
-                width: parent.width; height: pvCards.cardH
-                title: I18n.tr("CALENDAR")
-                on: pg.draft.calEnabled === true
-                anchor: pg.draft.calAnchor || "bottom-right"
-                userScale: pg.draft.calScale || 1
-                userOpacity: pg.draft.calOpacity === undefined ? 1 : pg.draft.calOpacity
-                natW: 230; natH: 250
-                preview: Component {
-                    Loader {
-                        anchors.fill: parent
-                        source: Qt.resolvedUrl("../CalendarPreview.qml")
-                        onLoaded: {
-                            item.design = Qt.binding(() => pg.draft.calDesign || "month");
-                            item.accentChoice = Qt.binding(() => pg.draft.calAccent || "wallust");
-                            item.weekStart = Qt.binding(() => pg.draft.calWeekStart || "mon");
-                        }
-                    }
-                }
-            }
-            SpecimenCard {
-                width: parent.width; height: pvCards.cardH
-                title: I18n.tr("WEATHER")
-                on: pg.draft.weatherEnabled === true
-                anchor: pg.draft.weatherAnchor || "top-right"
-                userScale: pg.draft.weatherScale || 1
-                userOpacity: pg.draft.weatherOpacity === undefined ? 1 : pg.draft.weatherOpacity
-                natW: 320; natH: 200
-                preview: Component {
-                    Loader {
-                        anchors.fill: parent
-                        source: Qt.resolvedUrl("../WeatherPreview.qml")
-                        onLoaded: {
-                            item.design = Qt.binding(() => pg.draft.weatherDesign || "card");
-                            item.unit = Qt.binding(() => pg.draft.weatherUnit || "C");
-                            item.scope = Qt.binding(() => pg.draft.weatherScope || "today");
-                            item.animate = Qt.binding(() => pg.draft.weatherAnimate === true);
                         }
                     }
                 }

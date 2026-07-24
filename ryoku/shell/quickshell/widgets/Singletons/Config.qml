@@ -3,16 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// live config for the desktop widgets. one source of truth: the knobs Ryoku
-// Settings' Desktop Widgets section edits, the desktop drag/right-click writes,
-// and the shipped defaults. JSON at ~/.config/ryoku/widgets.json, watched, so a
-// Settings save or a desktop drag retunes the running widgets next file event.
-//
-// placement = compass anchor (one of nine zones, kept across resolutions by a
-// fixed edge margin) | "free" (absolute x/y in monitor pixels, set by dragging).
-// dragging flips to "free"; right-click/Settings snap back to a zone. scale, bg,
-// radius, opacity, design are independent. write helpers below let the desktop
-// edit the same file Settings does.
+// Live config for the wallpaper clock. Ryoku Settings, desktop dragging and the
+// right-click menu share widgets.json; FileView watches it so every surface
+// follows the next write. Placement is a compass anchor or free monitor pixels.
 Singleton {
     id: root
 
@@ -32,35 +25,6 @@ Singleton {
     property alias clockRadius:  adapter.clockRadius
     property alias dateShow:     adapter.dateShow
     property alias dateDesign:   adapter.dateDesign     // inline | badge | stacked
-
-    // -- weather -------------------------------------------------------------
-    property alias weatherEnabled: adapter.weatherEnabled
-    property alias weatherDesign:  adapter.weatherDesign  // card | minimal | strip
-    property alias weatherUnit:    adapter.weatherUnit    // C | F
-    property alias weatherScope:   adapter.weatherScope   // today | week
-    property alias weatherAnimate: adapter.weatherAnimate
-    property alias weatherScale:   adapter.weatherScale
-    property alias weatherAnchor:  adapter.weatherAnchor
-    property alias weatherX:       adapter.weatherX
-    property alias weatherY:       adapter.weatherY
-    property alias weatherLocked:  adapter.weatherLocked
-    property alias weatherOpacity: adapter.weatherOpacity
-    property alias weatherBg:      adapter.weatherBg       // none | card | glass
-    property alias weatherRadius:  adapter.weatherRadius
-
-    // -- calendar ------------------------------------------------------------
-    property alias calEnabled:   adapter.calEnabled
-    property alias calDesign:    adapter.calDesign     // month | minimal | agenda | week
-    property alias calAccent:    adapter.calAccent     // wallust | brand | mono
-    property alias calWeekStart: adapter.calWeekStart  // mon | sun
-    property alias calScale:     adapter.calScale
-    property alias calAnchor:    adapter.calAnchor
-    property alias calX:         adapter.calX
-    property alias calY:         adapter.calY
-    property alias calLocked:    adapter.calLocked
-    property alias calOpacity:   adapter.calOpacity
-    property alias calBg:        adapter.calBg          // none | card | glass
-    property alias calRadius:    adapter.calRadius
 
     // brand: the desktop's mark + name, user-overridable from Ryoku Settings ->
     // Shell -> Global. a small cross-cutting identity master (like theme.json).
@@ -128,32 +92,6 @@ Singleton {
             property bool dateShow: true
             property string dateDesign: "inline"
 
-            property bool weatherEnabled: true
-            property string weatherDesign: "card"
-            property string weatherUnit: "C"
-            property string weatherScope: "today"
-            property bool weatherAnimate: true
-            property real weatherScale: 1.0
-            property string weatherAnchor: "top-right"
-            property int weatherX: 72
-            property int weatherY: 64
-            property bool weatherLocked: false
-            property real weatherOpacity: 1.0
-            property string weatherBg: "glass"
-            property int weatherRadius: 26
-
-            property bool calEnabled: false
-            property string calDesign: "month"
-            property string calAccent: "wallust"
-            property string calWeekStart: "mon"
-            property real calScale: 1.0
-            property string calAnchor: "bottom-right"
-            property int calX: 72
-            property int calY: 64
-            property bool calLocked: false
-            property real calOpacity: 1.0
-            property string calBg: "glass"
-            property int calRadius: 26
         }
     }
 

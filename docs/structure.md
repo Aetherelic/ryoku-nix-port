@@ -31,15 +31,14 @@ truth for the live desktop.
 - `lockscreen/` `qylock/` (the lock theme and its quickshell lockscreen),
   `install-qylock`, and `sddm/` (the greeter setup).
 - `shell/` the desktop shell subsystem: `quickshell/` (the QML UI: `pill` (the
-  plated top bar and morphing island, which also draws the screen frame, hosts
-  the edge popouts under `pill/popouts/`, and grows the centre-island control
-  deck (`Super+D`:
-  stash, tools, and utilities)), `launcher`, `ryoshot`, `ryolayer` (the Super+G tool overlay), `welcome` (the first-run guided tour), and `widgets` (the desktop
-  clock and weather on the wallpaper), and `plugins` (the third-party shell
-  plugin runtime: `discover.sh` merges the catalogue with the user's
-  `plugins.json`, `shell.qml` is the desktop-widget host layer, and `kit/` is the
-  `Ryoku.PluginKit` QML module a plugin imports for the signature look; see
-  `docs/plugins.md`)),
+  Atoll bar, screen frame, power menu, service surfaces, and the preserved but
+  inactive sidebar bodies under `pill/popouts/`), `launcher`, `ryoshot`,
+  `ryolayer` (the Super+G tool overlay), `welcome` (the first-run guided tour),
+  and `widgets` (the wallpaper clock and enabled third-party widgets), plus
+  `plugins` (the third-party shell plugin runtime: `discover.sh` merges the
+  catalogue with the user's `plugins.json`, the widget host carries desktop
+  placements, and `kit/` is the `Ryoku.PluginKit` QML module a plugin imports
+  for the signature look; see `docs/plugins.md`)),
   `plugin/` (`Ryoku.Blobs`, the C++/QML SDF metaball module the frame renders
   with; `build.sh` builds it, and it ships prebuilt), `wallust/` (palette from
   the wallpaper), `qt6ct/` (the Qt icon theme, `qt6ct.conf`),

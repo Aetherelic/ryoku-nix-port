@@ -3,10 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// light network presence for the bar's status cluster: connection kind
-// (ethernet/wifi/none) and wifi signal, polled gently through nmcli. the Link
-// surface owns the heavy lifting (scans, connecting); this only answers "am I
-// online and how well" without waking the radio (--rescan no).
+// Lightweight network presence for Atoll's display-only status: connection
+// kind (ethernet/wifi/none), Wi-Fi signal and radio state. It polls gently
+// without scanning or exposing connection controls.
 Singleton {
     id: root
 

@@ -1150,13 +1150,20 @@ func TestHyprFollowMouseNotDefault(t *testing.T) {
 	}
 }
 
-// migrateShellConfig: pill-era files lose the island knobs and get the bar
-// back; out-of-range geometry clamps; a current-schema file is left alone.
+// migrateShellConfig drops retired style and opener knobs, revives the bar for
+// pill-era configs, and clamps out-of-range geometry.
 func TestMigrateShellConfig(t *testing.T) {
 	legacy := []byte(`{
-		"islandStyle": "floating", "islandWidth": 109, "islandAutohide": true,
-		"barEnabled": false, "barHeight": 26,
-		"frameBorder": 59, "fontScale": 1.3
+		"barStyle": "washi",
+		"barShowTitle": true, "barShowMedia": true, "barShowStatus": true,
+		"barOccupiedWorkspaces": true, "barShowWeather": true,
+		"barToggles": ["caffeine"], "barShowSpecialWs": true,
+		"barLayoutLeft": ["workspaces"], "barLayoutCentre": ["clock"], "barLayoutRight": ["tray"],
+		"washiVariant": "ryoku", "dyadVariant": "faithful",
+		"islandStyle": "floating", "islandWidth": 109, "islandRadius": 17, "islandAutohide": true,
+		"sidebarLeftEnabled": true, "sidebarRightEnabled": true, "sidebarClickless": true, "sidebarCornerSize": 54,
+		"sidebarLeftPanes": ["stash"], "sidebarWidth": 360,
+		"barEnabled": false, "barHeight": 26, "frameBorder": 59, "fontScale": 1.3
 	}`)
 	out, changes, err := migrateShellConfig(legacy)
 	if err != nil || len(changes) == 0 {
@@ -1170,6 +1177,17 @@ func TestMigrateShellConfig(t *testing.T) {
 		if _, ok := cfg[k]; ok {
 			t.Errorf("retired key %s survived the migration", k)
 		}
+	}
+	for _, k := range retiredShellKeys {
+		if _, ok := cfg[k]; ok {
+			t.Errorf("retired key %s survived the migration", k)
+		}
+	}
+	if panes, _ := cfg["sidebarLeftPanes"].([]any); len(panes) != 1 || panes[0] != "stash" {
+		t.Errorf("preserved sidebar content changed: %v", panes)
+	}
+	if width, _ := cfg["sidebarWidth"].(float64); width != 360 {
+		t.Errorf("preserved sidebar width changed: %v", width)
 	}
 	if on, _ := cfg["barEnabled"].(bool); !on {
 		t.Error("legacy barEnabled:false must flip on (the island face is gone)")

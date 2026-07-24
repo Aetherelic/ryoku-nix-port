@@ -2,19 +2,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// weather module: the condition symbol + the temperature, read from the shared
-// Weather singleton (Open-Meteo, no key). the Weather model's glyph names map to
-// Material Symbols here so the readout matches the status cluster's iconography.
-// click opens the weather popout at the module. hidden until a reading lands, so
-// the slot only exists with real data. root is an Item (not a Row) so the click
-// MouseArea can fill it without fighting a positioner.
+// Display-only Atoll weather: the Open-Meteo condition and temperature.
+// Hidden until the shared Weather singleton has a real reading.
 Item {
     id: wx
 
     property real s: 1
-    property bool vertical: false
-
-    signal requestPopout(string name, real center)
 
     readonly property var symFor: ({
         "sun": "clear_day", "cloud": "cloud", "fog": "foggy",
@@ -25,10 +18,6 @@ Item {
     implicitWidth: row.implicitWidth
     implicitHeight: row.implicitHeight
 
-    function open() {
-        const p = wx.mapToItem(null, wx.width / 2, wx.height / 2);
-        wx.requestPopout("weather", wx.vertical ? p.y : p.x);
-    }
 
     Row {
         id: row
@@ -48,7 +37,6 @@ Item {
             }
         }
         Text {
-            visible: !wx.vertical
             anchors.verticalCenter: parent.verticalCenter
             text: Weather.temp
             color: Theme.subtle
@@ -59,9 +47,4 @@ Item {
         }
     }
 
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: wx.open()
-    }
 }

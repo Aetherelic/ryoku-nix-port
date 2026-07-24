@@ -1,12 +1,9 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Ryoku.Ui
-import Ryoku.Ui.Singletons
-import "schema/ShellSettingsPage.js" as Schema
 
-// wiring probe: the real FileView + JsonAdapter contract from ShellSettingsPage,
-// driven by the schema, writing to a copy of the real shell.json.
+// Wiring probe for the Hub's real FileView + JsonAdapter shell contract,
+// writing current Atoll and preserved-sidebar fields into a disposable copy.
 ShellRoot {
     id: root
     property string cfgDir: Quickshell.env("RYOKU_TEST_CFG")
@@ -14,20 +11,18 @@ ShellRoot {
     property var draft: ({})
 
     readonly property var shellKeys: [
-        "frameRadius","roundness","frameBorder","frameEnabled","frameSmoothing","frameOpacity",
-        "shadowStrength","shadowSize","surfaceColor","osdRadius","osdOpacity",
-        "barEnabled","barPosition","barStyle","barHeight","barShowTitle","barShowMedia",
-        "barShowStatus","barOccupiedWorkspaces","islandEdge","islandAlong","islandHidden",
-        "islandModules","islandRadius","fontFamily","fontScale","weatherLocation","weatherUnit",
-        "sidebarLeftEnabled","sidebarRightEnabled","sidebarLeftPanes","sidebarRightPanes",
-        "sidebarClickless","sidebarWidth","sidebarCornerSize"
+        "language","frameRadius","roundness","frameBorder","frameEnabled",
+        "frameSmoothing","frameOpacity","grainStrength","shadowStrength","shadowSize",
+        "surfaceColor","osdRadius","osdOpacity","barEnabled","barPosition","barHeight",
+        "atollVariant","fontFamily","fontScale","weatherLocation","weatherUnit",
+        "ryolayerEnabled","sidebarLeftPanes","sidebarRightPanes","sidebarWidth"
     ]
 
     function adopt() {
         var d = {};
         for (var i = 0; i < shellKeys.length; i++) d[shellKeys[i]] = shellA[shellKeys[i]];
         draft = d; loaded = true;
-        console.log("ADOPTED frameBorder=" + d.frameBorder + " barStyle=" + d.barStyle);
+        console.log("ADOPTED frameBorder=" + d.frameBorder + " atollVariant=" + d.atollVariant);
     }
     function edit(k, v) {
         var d = {}; for (var x in draft) d[x] = draft[x];
@@ -51,52 +46,42 @@ ShellRoot {
         onLoaded: if (!root.loaded) root.adopt()
         JsonAdapter {
             id: shellA
+            property string language: "Auto"
             property real frameRadius: 9
             property real roundness: 10
             property real frameBorder: 59
             property bool frameEnabled: true
             property real frameSmoothing: 8
             property real frameOpacity: 1
+            property real grainStrength: 0.09
             property real shadowStrength: 0.63
             property real shadowSize: 12
-            property color surfaceColor: "#0f1115"
+            property string surfaceColor: "#0f1115"
             property real osdRadius: 28
             property real osdOpacity: 1
             property bool barEnabled: true
             property string barPosition: "top"
-            property string barStyle: "noctalia"
             property real barHeight: 30
-            property bool barShowTitle: true
-            property bool barShowMedia: true
-            property bool barShowStatus: true
-            property bool barOccupiedWorkspaces: true
-            property string islandEdge: "top"
-            property real islandAlong: -1
-            property bool islandHidden: false
-            property var islandModules: ["workspaces","clock","date","media"]
-            property real islandRadius: 17
-            property string fontFamily: "JetBrainsMono Nerd Font"
+            property string atollVariant: "ilyamiro"
+            property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
             property string weatherLocation: ""
             property string weatherUnit: "auto"
-            property bool sidebarLeftEnabled: true
-            property bool sidebarRightEnabled: true
+            property bool ryolayerEnabled: true
             property var sidebarLeftPanes: ["stash"]
             property var sidebarRightPanes: ["notifications","calendar","media","weather","recording"]
-            property bool sidebarClickless: true
             property real sidebarWidth: 340
-            property real sidebarCornerSize: 34
         }
     }
 
-    // drive the probe headlessly: adopt, edit three kinds, flush, quit.
+    // Drive the probe headlessly: adopt, edit a real, enum and set, flush, quit.
     Timer {
         interval: 900; running: true
         onTriggered: {
             if (!root.loaded) { console.log("PROBE-FAIL not loaded"); Qt.quit(); return }
-            root.edit("frameBorder", 88);                                   // real
-            root.edit("barStyle", "delos");                                 // enum
-            root.edit("islandModules", ["workspaces","clock","tray"]);      // set
+            root.edit("frameBorder", 88);                              // real
+            root.edit("atollVariant", "ryoku");                        // enum
+            root.edit("sidebarRightPanes", ["notifications","calendar"]); // set
             root.flush();
             quit.start();
         }

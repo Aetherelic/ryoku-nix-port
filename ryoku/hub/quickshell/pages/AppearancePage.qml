@@ -1151,7 +1151,7 @@ Item {
                     Row {
                         width: parent.width
                         spacing: Tokens.s3
-                        Text { width: Math.max(0, parent.width - ryokuBtn.width - Tokens.s3); anchors.verticalCenter: parent.verticalCenter; wrapMode: Text.WordWrap; text: I18n.tr("Reset the whole desktop to the Ryoku signature: the stele bar, square corners, Space Grotesk, and the grainy mono palette."); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                        Text { width: Math.max(0, parent.width - ryokuBtn.width - Tokens.s3); anchors.verticalCenter: parent.verticalCenter; wrapMode: Text.WordWrap; text: I18n.tr("Reset the whole desktop to the Ryoku signature: the atoll bar, square corners, Space Grotesk, and the grainy mono palette."); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
                         Btn { id: ryokuBtn; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("APPLY RYOKU THEME"); primary: true; onAct: pg.applyRyokuTheme() }
                     }
                 }

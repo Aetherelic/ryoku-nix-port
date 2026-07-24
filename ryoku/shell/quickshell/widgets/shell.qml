@@ -11,24 +11,15 @@ import Quickshell.Wayland
 import Quickshell.Io
 import "Singletons"
 import "clock"
-import "weather"
-import "calendar"
 
 // desktop widgets layer: WlrLayer.Bottom (below windows), one per monitor,
-// carrying the clock and weather. only clicks on bare wallpaper land here,
+// carrying the clock. only clicks on bare wallpaper land here,
 // so windows above keep their input. drag = move (snaps to the fade-in
 // grid), right-click a widget = its menu, right-click empty = global menu.
 // every knob is live from Config; drag, menus and Ryoku Settings all write
 // the same file, so surfaces retune with no reload.
 ShellRoot {
     id: root
-
-    // one IP-located weather fetch, shared across monitors, in the user's unit.
-    Binding {
-        target: WeatherData
-        property: "unit"
-        value: Config.weatherUnit
-    }
 
     // hand the keyboard back after a widget text field releases its grab. the
     // widget layer never unmaps, and dropping an exclusive grab on a mapped
@@ -86,7 +77,7 @@ ShellRoot {
 
             // enabled desktopWidget-hosted plugins, filtered from the shared
             // Registry. drives the Repeater below so plugin tiles ride the
-            // SAME wallpaper layer as clock/weather: one layer, one input
+            // SAME wallpaper layer as the clock: one layer, one input
             // model, no second full-screen surface fighting for input.
             readonly property var desktopPlugins: Registry.plugins.filter(p => p.placement && p.placement.host === "desktopWidget")
 
@@ -131,7 +122,7 @@ ShellRoot {
 
             WidgetGrid {
                 anchors.fill: parent
-                active: clockSlot.dragging || weatherSlot.dragging || calSlot.dragging
+                active: clockSlot.dragging
                 gridSize: clockSlot.gridSize
             }
 
@@ -150,48 +141,6 @@ ShellRoot {
                 opacity: Config.clockOpacity
                 onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
                 Clock {}
-            }
-
-            WidgetSlot {
-                id: weatherSlot
-                widget: "weather"
-                visible: Config.weatherEnabled
-                anchor: Config.weatherAnchor
-                freeX: Config.weatherX
-                freeY: Config.weatherY
-                locked: Config.weatherLocked
-                bg: Config.weatherBg
-                radius: Config.weatherRadius
-                scaleCfg: Config.weatherScale
-                pad: Config.weatherBg === "none" ? 0 : Math.round(24 * Config.weatherScale)
-                opacity: Config.weatherOpacity
-                onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
-                Weather {}
-            }
-
-            WidgetSlot {
-                id: calSlot
-                widget: "cal"
-                visible: Config.calEnabled
-                anchor: Config.calAnchor
-                freeX: Config.calX
-                freeY: Config.calY
-                locked: Config.calLocked
-                bg: Config.calBg
-                radius: Config.calRadius
-                scaleCfg: Config.calScale
-                pad: Config.calBg === "none" ? 0 : Math.round(20 * Config.calScale)
-                opacity: Config.calOpacity
-                onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
-                // the calendar's add field types on this wallpaper layer, so the
-                // layer grabs the keyboard while the field holds focus, the same
-                // exclusive grab the plugin tiles use. the destruction guard
-                // releases the grab if the slot is torn down mid-focus, so a
-                // face swap or teardown can't leak an exclusive keyboard grab
-                // (matches the plugin slot below).
-                onEditingChanged: win.kbWanted += editing ? 1 : -1
-                Component.onDestruction: if (editing) win.kbWanted -= 1
-                Calendar {}
             }
 
             // one draggable PluginDesktopSlot per enabled desktopWidget plugin.

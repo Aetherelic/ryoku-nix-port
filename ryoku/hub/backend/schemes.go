@@ -226,20 +226,16 @@ func mustJSON(v any) []byte {
 }
 
 // applyRyokuTheme resets the desktop to the Ryoku signature in one move: the
-// stele bar, square corners everywhere, Space Grotesk type across the shell and
-// apps, and the grainy-mono palette. Wired to the "Ryoku theme" button on the
-// Appearance and Rices pages so a drifted look returns in one click.
+// atoll bar, square corners everywhere, Space Grotesk type across the shell and
+// apps, and the grainy-mono palette. Wired to the Appearance and Rices pages.
 func applyRyokuTheme() error {
-	// the signature look in shell.json, merged so the user's sizing, weather,
-	// sidebar panes and other choices survive.
+	// Merge so sizing, weather and preserved sidebar content choices survive.
 	mergeShellJSON(map[string]any{
-		"barStyle":          "stele",
-		"roundness":         0,
-		"islandRadius":      0,
-		"frameRadius":       0,
-		"osdRadius":         0,
-		"sidebarCornerSize": 0,
-		"fontFamily":        "Space Grotesk",
+		"atollVariant": "ryoku",
+		"roundness":    0,
+		"frameRadius":  0,
+		"osdRadius":    0,
+		"fontFamily":   "Space Grotesk",
 	})
 	// square window corners: pin the appearance override the daemon reads.
 	o := loadOverrides()

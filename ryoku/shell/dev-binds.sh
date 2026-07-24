@@ -8,7 +8,6 @@ bin="$here/ipc/ryoku-shell"
 
 binds=(
 	"SUPER,Space,exec,$bin launcher"
-	"SUPER,V,exec,$bin clipboard"
 	"SUPER,L,exec,$bin lock"
 	"SUPER,B,exec,$bin wallpaper"
 	"SUPER,C,exec,$bin wallpaper-switcher"
