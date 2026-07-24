@@ -322,23 +322,17 @@ ShellRoot {
         function bluetooth(mon: string): void { if (Config.barStyle === "washi") root.sfc(mon, "link"); else root.togglePopout(mon, "bluetooth"); }
         function batteryPopout(mon: string): void { root.togglePopout(mon, "battery"); }
         function clipboard(mon: string): void { root.sfc(mon, "clipboard"); }
-        function stash(mon: string): void { root.sidebarLeftPane = "stash"; root.popoutMon = mon; root.popout = "sidebarLeft"; }
-        // stash-send <file>: open the left sidebar's stash pane and jump straight
-        // to its LocalSend picker, so the file manager can hand a file to the send
-        // flow. sets the popout directly (not toggle) so it never closes it.
-        function stashSend(mon: string, file: string): void {
-            root.sidebarLeftPane = "stash";
-            root.popoutMon = mon;
-            root.popout = "sidebarLeft";
-            Stash.openSendPicker(file);
-        }
-        // deck-era names, repointed to the left features sidebar (Super+D binds
-        // and the file manager still call these).
-        function toolkit(mon: string): void { root.togglePopout(mon, "sidebarLeft"); }
-        function utilities(mon: string): void { root.togglePopout(mon, "sidebarLeft"); }
+        // Sidebars are held closed while the shell is reworked (see the overlay's
+        // sidebarLeftOn / sidebarRightOn below): every open path is inert so
+        // nothing external reveals a panel with no on-screen presence. The
+        // Features/stash and System content all remain, ready to return.
+        function stash(mon: string): void {}
+        function stashSend(mon: string, file: string): void {}
+        function toolkit(mon: string): void {}
+        function utilities(mon: string): void {}
         function workspaces(mon: string): void { root.sfc(mon, "workspaces"); }
-        function sidebarLeft(mon: string): void { root.togglePopout(mon, "sidebarLeft"); }
-        function sidebarRight(mon: string): void { root.togglePopout(mon, "sidebarRight"); }
+        function sidebarLeft(mon: string): void {}
+        function sidebarRight(mon: string): void {}
         function keyringPrompt(payload: string): void {
             Keyring.apply(payload);
             var m = Keyring.mon !== "" ? Keyring.mon
@@ -392,11 +386,9 @@ ShellRoot {
             if (Config.barStyle === "washi") root.sfc(mon, "link"); else root.togglePopout(mon, fn);
             return true;
         case "sidebarLeft": case "sidebarRight":
-            root.togglePopout(mon, fn); return true;
         case "toolkit": case "utilities":
-            root.togglePopout(mon, "sidebarLeft"); return true;
         case "stash":
-            root.sidebarLeftPane = "stash"; root.popoutMon = mon; root.popout = "sidebarLeft"; return true;
+            return true; // sidebars held closed; see the IpcHandler + sidebarLeftOn/RightOn
         case "batteryPopout":
             root.togglePopout(mon, "battery"); return true;
         case "pluginPopout":
@@ -569,8 +561,14 @@ ShellRoot {
             // right frame edges (fullSpan), each fusing into the top and bottom
             // frame so a whole side swells open with no gap. the top/bottom gaps
             // become the content inset, so it clears a bar and the bottom frame.
-            readonly property bool sidebarLeftOn: Config.sidebarLeftEnabled
-            readonly property bool sidebarRightOn: Config.sidebarRightEnabled
+            // Sidebars are held closed while the shell is reworked: their content,
+            // Config, and Hub Sidebar settings are all preserved, but forcing these
+            // off here gates every open path at once (hover corners, the edge-drag
+            // strip, the input mask, and the panels themselves), independent of the
+            // saved shell.json. Restore by reading Config.sidebarLeftEnabled /
+            // Config.sidebarRightEnabled again.
+            readonly property bool sidebarLeftOn: false
+            readonly property bool sidebarRightOn: false
             readonly property real sidebarW: Config.sidebarWidth * s
             readonly property real sidebarTopGap: (barTop ? barVisibleH : frameTopVisible) + 14 * s
             readonly property real sidebarBotGap: (barBottom ? barVisibleH : frameTopVisible) + 14 * s
@@ -917,8 +915,11 @@ ShellRoot {
                     position: overlay.barPos
                     band: overlay.barBand
                     trayWindow: overlay
-                    onPopoutRequested: (name, center) => root.togglePopoutAt(overlay.modelData.name, name, center)
-                    onHoverPopoutRequested: (name, center, hovered) => root.setHoverPopout(overlay.modelData.name, name, center, hovered)
+                    // Bar popouts are held closed while the shell is reworked: only
+                    // the power/session menu still opens (Super+Esc and the power
+                    // glyph); every other module tap and all hover popouts are inert.
+                    onPopoutRequested: (name, center) => { if (name === "power") root.togglePopoutAt(overlay.modelData.name, name, center); }
+                    onHoverPopoutRequested: (name, center, hovered) => {}
                 }
 
                 // dyad: the dual-edge floating-island bar (ported from Jules3182).
@@ -932,8 +933,8 @@ ShellRoot {
                     anchors.fill: parent
                     s: overlay.s
                     ryoku: Config.dyadVariant === "ryoku"
-                    onPopoutRequested: (name, centre) => { root.dyadPopoutEdge = centre.y < overlay.height / 2 ? "top" : "bottom"; root.togglePopoutAt(overlay.modelData.name, name, centre.x); }
-                    onHoverPopoutRequested: (name, centre, hovered) => { root.dyadPopoutEdge = centre.y < overlay.height / 2 ? "top" : "bottom"; root.setHoverPopout(overlay.modelData.name, name, centre.x, hovered); }
+                    onPopoutRequested: (name, centre) => { if (name === "power") { root.dyadPopoutEdge = centre.y < overlay.height / 2 ? "top" : "bottom"; root.togglePopoutAt(overlay.modelData.name, name, centre.x); } }
+                    onHoverPopoutRequested: (name, centre, hovered) => {}
                 }
 
                 // mixer popout: on a side bar the volume status icon owns it --
@@ -1535,8 +1536,8 @@ ShellRoot {
                     smoothing: Config.frameSmoothing
                     active: overlay.delos && Config.barEnabled && !overlay.monFullscreen
                     trayWindow: overlay
-                    onPopoutRequested: (name) => root.togglePopoutAt(overlay.modelData.name, name, delosIsland.alongCentre)
-                    onHoverPopoutRequested: (name, hovered) => root.setHoverPopout(overlay.modelData.name, name, delosIsland.alongCentre, hovered)
+                    onPopoutRequested: (name) => { if (name === "power") root.togglePopoutAt(overlay.modelData.name, name, delosIsland.alongCentre); }
+                    onHoverPopoutRequested: (name, hovered) => {}
                 }
 
                 WashiPill {
@@ -1546,7 +1547,7 @@ ShellRoot {
                     active: overlay.washi && Config.barEnabled && !overlay.monFullscreen
                     trayWindow: overlay
                     surface: (overlay.washi && root.washiMon === overlay.modelData.name) ? root.washiSurface : ""
-                    onRequestSurface: (name) => root.toggleWashi(overlay.modelData.name, name)
+                    onRequestSurface: (name) => { if (name === "power") root.toggleWashi(overlay.modelData.name, name); }
                     onRequestClose: { if (root.washiMon === overlay.modelData.name) root.washiSurface = ""; }
                 }
 

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Changed
+- **Bar popouts and both sidebars are held closed while the shell is reworked;
+  only the power menu still opens.** Every bar module tap and hover (plus the
+  washi warp surfaces and the atoll popouts) is now inert, except the
+  power/session menu, which still opens from Super+Esc and the bar power glyph
+  (`quickshell/pill/shell.qml`). The left (Features/Stash) and right (System)
+  sidebars keep every bit of their content but lose all their ways in: the hover
+  corners, the left-edge drag-to-stash, the `Super+D` / `Super+Alt+D` binds
+  (`hyprland/modules/binds.lua`), and the sidebar IPC verbs are all disabled.
+  Nothing is deleted, so it all returns by reverting this change. The app
+  launcher and the frame are untouched.
+
 ### Fixed
 - **Workspaces, Super+Esc power, and every shell surface work again after a
   Hyprland restart mid-session.** `ipc/daemon.go` read `HYPRLAND_INSTANCE_SIGNATURE`
