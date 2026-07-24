@@ -46,7 +46,10 @@
   query begins at row 01, and arrows traverse the visible two-column grid with a
   persistent raised cell cursor. Matching app windows no longer repeat in that
   grid: the detached rail is their sole presentation, while window-only searches
-  still expose their direct Focus result.
+  still expose their direct Focus result. Rapid typing now coalesces result
+  publication for 220 ms and fades the finished deck in over 140 ms; noisy
+  repeated Hyprland title signals are deduplicated by the actual visible window
+  signature before they can trigger another launcher evaluation.
 - **Workspaces, Super+Esc power, and every shell surface work again after a
   Hyprland restart mid-session.** `ipc/daemon.go` read `HYPRLAND_INSTANCE_SIGNATURE`
   once at launch and never refreshed it, and the daemon can outlive its compositor

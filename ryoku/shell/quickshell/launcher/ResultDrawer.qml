@@ -31,6 +31,7 @@ Item {
     property bool windowFocusActive: false
     property string askQuestion: ""
     property var answer: ({ available: false })
+    property real resultDeckOpacity: hasResults ? 1 : 0
 
     signal leadActivated()
     signal resultSelected(string resultKey, int rank)
@@ -81,6 +82,13 @@ Item {
         NumberAnimation {
             id: opacityMotion
             duration: Motion.drawer
+            easing.type: Easing.OutCubic
+        }
+    }
+    Behavior on resultDeckOpacity {
+        enabled: root.animationsEnabled && !root.snapping
+        NumberAnimation {
+            duration: Motion.selection + 50
             easing.type: Easing.OutCubic
         }
     }
@@ -268,6 +276,7 @@ Item {
                 visible: root.hasResults
                 s: root.s
                 entry: root.selectedResult
+                presentationOpacity: root.resultDeckOpacity
                 errorText: root.errorText
                 windowCount: root.windowCount
                 windowFocusActive: root.windowFocusActive
@@ -302,6 +311,7 @@ Item {
                 visible: root.hasResults && height > 0
                 s: root.s
                 results: root.results
+                opacity: root.resultDeckOpacity
                 selectedResultKey: root.selectedResultKey
                 onResultSelected: (resultKey, rank) => root.resultSelected(resultKey, rank)
             }

@@ -739,6 +739,26 @@
       ]
     },
     {
+      "id": "typed-results-coalesce",
+      "name": "Rapid keystrokes publish one settled result model",
+      "covers": "typed result presentation debounce",
+      "steps": [
+        "show",
+        "sh mkdir -p /tmp/launcher-qa-fixtures; wtype -- a; sleep .05; wtype -- p; sleep .05; wtype -- p; sleep .08; S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S > /tmp/launcher-qa-fixtures/coalesce.early.json",
+        "sleep 0.3",
+        "sh S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S > /tmp/launcher-qa-fixtures/coalesce.settled.json"
+      ],
+      "asserts": [
+        ".query == \"app\"",
+        ".resultCount > 0",
+        ".selectedIndex == 0",
+        ".resultDeckOpacity == 1"
+      ],
+      "shell_asserts": [
+        "jq -e '.query == \"app\" and .resultCount == 0 and .resultDeckOpacity == 0' /tmp/launcher-qa-fixtures/coalesce.early.json >/dev/null && jq -e '.query == \"app\" and .resultCount > 0 and .selectedIndex == 0 and .resultDeckOpacity == 1' /tmp/launcher-qa-fixtures/coalesce.settled.json >/dev/null"
+      ]
+    },
+    {
       "id": "find-empty-state",
       "name": "/file with no hits shows the empty state, not a hang",
       "covers": "find empty result + No matches UI",

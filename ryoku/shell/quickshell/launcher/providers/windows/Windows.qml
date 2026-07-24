@@ -14,14 +14,38 @@ Provider {
 
     providerId: "windows"
 
-    // Hyprland events keep the model live. This short coalescing gate only
-    // fills the initial IPC snapshot; it never turns the window rail into a
-    // visible once-a-second poll while the user is navigating results.
-    Timer { id: refreshGate; interval: 120; repeat: false }
+    // Hyprland events keep the model live after one initial snapshot. Refreshing
+    // from every query creates a revision loop: query -> refresh -> valuesChanged
+    // -> dispatcher revision -> query. That loop makes the whole launcher redraw
+    // while the user types.
+    property bool initialSnapshotRequested: false
+    property bool notifyQueued: false
+    property string publishedSignature: ""
+
+    function requestInitialSnapshot() {
+        if (initialSnapshotRequested)
+            return;
+        initialSnapshotRequested = true;
+        Hyprland.refreshToplevels();
+    }
+
+    function queueLiveUpdate() {
+        if (notifyQueued)
+            return;
+        notifyQueued = true;
+        Qt.callLater(function () {
+            notifyQueued = false;
+            var signature = windows.windowSignature();
+            if (signature === publishedSignature)
+                return;
+            publishedSignature = signature;
+            Dispatcher.notifyAsync();
+        });
+    }
 
     Connections {
         target: Hyprland.toplevels
-        function onValuesChanged() { Dispatcher.notifyAsync(); }
+        function onValuesChanged() { windows.queueLiveUpdate(); }
     }
 
     Instantiator {
@@ -29,9 +53,9 @@ Provider {
         delegate: Connections {
             required property var modelData
             target: modelData
-            function onLastIpcObjectChanged() { Dispatcher.notifyAsync(); }
-            function onTitleChanged() { Dispatcher.notifyAsync(); }
-            function onWorkspaceChanged() { Dispatcher.notifyAsync(); }
+            function onLastIpcObjectChanged() { windows.queueLiveUpdate(); }
+            function onTitleChanged() { windows.queueLiveUpdate(); }
+            function onWorkspaceChanged() { windows.queueLiveUpdate(); }
         }
     }
 
@@ -75,15 +99,30 @@ Provider {
                 continue;
             if (o.workspace && String(o.workspace.name).indexOf("special:") === 0)
                 continue;
+            var workspace = o.workspace && o.workspace.name
+                ? String(o.workspace.name) : "";
             out.push({
                 address: o.address,
                 toplevel: t,
                 title: o.title || o.class || "Window",
                 cls: o.class || "",
+                workspace: workspace,
                 keywords: [o.class || ""]
             });
         }
         return out;
+    }
+
+    function windowSignature() {
+        var list = windows.entries();
+        var parts = [];
+        for (var index = 0; index < list.length; index++) {
+            var entry = list[index];
+            parts.push([entry.address, entry.title, entry.cls, entry.workspace]
+                .join("\u001f"));
+        }
+        parts.sort();
+        return parts.join("\u001e");
     }
 
     function rowFor(e) {
@@ -109,10 +148,7 @@ Provider {
     }
 
     function query(text) {
-        if (!refreshGate.running) {
-            Hyprland.refreshToplevels();
-            refreshGate.start();
-        }
+        windows.requestInitialSnapshot();
         var list = windows.entries();
         var q = (text || "").trim().toLowerCase();
         var rows = [];
@@ -122,5 +158,9 @@ Provider {
         return rows;
     }
 
-    Component.onCompleted: Dispatcher.register(windows);
+    Component.onCompleted: {
+        windows.publishedSignature = windows.windowSignature();
+        windows.requestInitialSnapshot();
+        Dispatcher.register(windows);
+    }
 }

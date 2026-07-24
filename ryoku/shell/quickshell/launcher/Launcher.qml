@@ -321,7 +321,16 @@ Item {
         }
         freshResultsToken = token;
         freshResults = snapshot || [];
-        Qt.callLater(syncDisplayedResults);
+        scheduleResultPresentation();
+    }
+
+    function scheduleResultPresentation() {
+        if (resultRouteKey.length === 0) {
+            resultPresentation.stop();
+            syncDisplayedResults();
+            return;
+        }
+        resultPresentation.restart();
     }
 
     function syncDisplayedResults() {
@@ -794,6 +803,7 @@ Item {
             modeLabel: modeLabel,
             searching: searching,
             busy: Dispatcher.busy,
+            resultDeckOpacity: Number(drawer.resultDeckOpacity),
             resultCount: results.length,
             totalCount: totalCount,
             busyIds: Object.keys(Dispatcher.busyProviders),
@@ -808,6 +818,7 @@ Item {
     onQueryChanged: routeVisibleQuery()
     onResultRouteKeyChanged: {
         emptySettlement.stop();
+        resultPresentation.stop();
         freshResultsToken = "";
         freshResults = [];
         displayRouteKey = resultRouteKey;
@@ -818,6 +829,7 @@ Item {
     }
     onResultQueryTokenChanged: {
         initialSelectionToken = resultQueryToken;
+        resultPresentation.stop();
         freshResultsToken = "";
         freshResults = [];
         scheduleEvaluation();
@@ -831,7 +843,7 @@ Item {
             emptySettlement.stop();
             scheduleEvaluation();
         } else {
-            syncDisplayedResults();
+            scheduleResultPresentation();
         }
     }
     onResultsChanged: reconcileResults()
@@ -900,6 +912,13 @@ Item {
                     root.pendingOuterHeight, false, duration);
             }
         }
+    }
+
+    Timer {
+        id: resultPresentation
+        interval: 220
+        repeat: false
+        onTriggered: root.syncDisplayedResults()
     }
 
     Timer {

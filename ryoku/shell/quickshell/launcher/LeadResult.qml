@@ -7,6 +7,7 @@ Rectangle {
     id: root
 
     property real s: 1
+    property real presentationOpacity: 1
     property var entry: null
     property string errorText: ""
     property int windowCount: 0
@@ -32,7 +33,7 @@ Rectangle {
 
     implicitHeight: 82 * s
     color: Theme.leadContainer
-    opacity: entry && entry.disabled ? 0.56 : 1
+    opacity: (entry && entry.disabled ? 0.56 : 1) * presentationOpacity
 
     // The lead is the keyboard cursor. A frame keeps movement legible even
     // when adjacent results have similar wallpaper-derived colors.
