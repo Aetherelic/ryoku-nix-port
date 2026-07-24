@@ -65,10 +65,20 @@ Keyboard coverage is part of the matrix:
 - typing closes the shelf while the actual query field keeps focus;
 - a changed action signature closes the shelf instead of running a stale
   action;
-- pointer hover focuses and pointer click runs the exact cell.
+- pointer hover is visual only and pointer click runs the exact cell.
 
-Apps with no additional actions stay dense: the selected 70 px lead and 40 px
+Apps with no additional actions stay dense: the selected 82 px lead and 44 px
 ledger rows are the only result space.
+
+## Open-window rail
+
+Matching application windows appear in a separate, pointer-transparent rail
+below the card. It never changes the selected result while the pointer moves.
+`Enter` launches the selected result by default, even when matching windows
+exist. `Tab` or `Shift+Tab` explicitly enters the rail; then `Left` / `Right`
+choose a card and `Enter` focuses that window. A second `Tab` returns to the
+result deck. The rail maps and follows the card with one-shot focus settlement,
+so the query field remains focused through the surface configure transition.
 
 ## Visual and motion review
 

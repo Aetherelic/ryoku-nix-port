@@ -222,7 +222,6 @@ Flickable {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             enabled: root.open && actionCell.currentAction !== null
-                            onEntered: root.focusRequested(String(actionCell.packedAction.id))
                             onClicked: {
                                 root.focusRequested(String(actionCell.packedAction.id));
                                 root.executeRequested(String(actionCell.packedAction.id));

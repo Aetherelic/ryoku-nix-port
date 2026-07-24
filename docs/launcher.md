@@ -7,7 +7,7 @@ no floating search capsule and no empty result panel waiting below it.
 
 Typing works like opening a camera shutter. The 250 px hero compresses to
 126 px while a dark result drawer grows from its lower edge. The selected
-result takes one dense 70 px lead row; more matches continue as 40 px ledger
+result takes one dense 82 px lead row; more matches continue as 44 px ledger
 rows. Clearing the query or pressing `Esc` closes the drawer and gives the image
 its room back.
 
@@ -71,7 +71,7 @@ spends space that the selected app has earned:
 | 4–6 | Two cells per row; an odd final option spans the full row. |
 | 7+ | The shelf shows at most three rows (114 px) and scrolls, with a visible range counter. |
 
-This means apps without Desktop Actions remain the compact 70 px lead plus the
+This means apps without Desktop Actions remain the compact 82 px lead plus the
 following ledger, never a large icon floating in empty space. Apps with actions
 expand immediately below that same lead row, so the options still read as part
 of the selected app.
@@ -83,7 +83,7 @@ While the shelf is open:
 - `Enter` runs the focused option;
 - `Esc` closes only the shelf;
 - typing edits the query and closes the now-stale shelf;
-- hovering or clicking an option focuses or runs that exact option.
+- hovering an option is visual only; clicking runs that exact option.
 
 The real query field keeps keyboard focus throughout. If the desktop-entry
 model changes while the shelf is open, an app update adds, removes, or reorders
@@ -100,11 +100,14 @@ refresh: Hyprland's toplevel events update the set directly. The rail is an
 earned surface: it does not exist for apps with no open windows and never
 covers the hero image.
 
-`Left` and `Right` move the bright focus frame between window cards. `Enter`
-switches to the framed window. `Tab` and `Shift+Tab` provide the same traversal
-without leaving the search field. The selected
-address is kept stable while results refresh, so typing does not make the
-keyboard cursor jump to a different open window. While the launcher is active,
+`Enter` always keeps its default meaning: it launches a new instance of the
+selected application. Press `Tab` or `Shift+Tab` to explicitly enter the window
+rail; its header and the lead row then change to **WINDOW FOCUS**. `Left` and
+`Right` move the bright focus frame between window cards, and `Enter` switches
+to the framed window. Press `Tab` again to return to the result deck without
+leaving the query field. The selected address is kept stable while results
+refresh, so typing does not make the keyboard cursor jump to a different open
+window. While the launcher is active,
 Ryoku temporarily freezes pointer-driven Hyprland focus and restores the
 user's exact setting after close; moving the pointer outside the card can never
 take typing away. The rail caps at six cards; when more windows match, the

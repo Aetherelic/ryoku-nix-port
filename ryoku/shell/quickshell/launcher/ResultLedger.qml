@@ -9,7 +9,6 @@ GridView {
     property real s: 1
     property var results: []
     property string selectedResultKey: ""
-    property point lastPointer: Qt.point(-1, -1)
 
     signal resultSelected(string resultKey, int rank)
 
@@ -24,11 +23,11 @@ GridView {
         return output;
     }
     readonly property int ledgerRowCount: Math.ceil(rows.length / 2)
-    readonly property real desiredHeight: Math.min(3, ledgerRowCount) * 40 * s
+    readonly property real desiredHeight: Math.min(4, ledgerRowCount) * 44 * s
 
     model: rows.length
     cellWidth: width / 2
-    cellHeight: 40 * s
+    cellHeight: 44 * s
     clip: true
     reuseItems: true
     boundsBehavior: Flickable.StopAtBounds
@@ -173,14 +172,6 @@ GridView {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
 
-            onPositionChanged: mouse => {
-                var globalPoint = pointer.mapToItem(null, mouse.x, mouse.y);
-                if (globalPoint.x === root.lastPointer.x
-                        && globalPoint.y === root.lastPointer.y)
-                    return;
-                root.lastPointer = Qt.point(globalPoint.x, globalPoint.y);
-                cell.selectResult();
-            }
             onClicked: cell.selectResult()
         }
     }

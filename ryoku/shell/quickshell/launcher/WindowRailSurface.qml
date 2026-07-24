@@ -74,6 +74,8 @@ PanelWindow {
             open: win.eligible
             animationsEnabled: !Motion.reduce
             entry: win.launcher ? win.launcher.selectedResult : null
+            focusActive: win.launcher
+                && win.launcher.interactionRegion === "windows"
             onFocusRequested: address => {
                 if (win.launcher)
                     win.launcher.focusedWindowAddress = address;
@@ -83,11 +85,26 @@ PanelWindow {
 
     Component.onCompleted: ready(win)
     onVisibleChanged: {
-        if (!visible || !launcher)
-            return;
-        Qt.callLater(function () {
+        if (visible) {
+            Qt.callLater(function () {
+                if (win.visible && win.launcher)
+                    win.launcher.focusInput();
+            });
+            inputFocusSettler.restart();
+        }
+    }
+    onTopOffsetChanged: if (visible) inputFocusSettler.restart()
+
+    // The parent surface is still receiving configure events while the rail
+    // follows its lower edge. Refocus once after that geometry settles; this
+    // is a one-shot map transition, never a repeating focus poll.
+    Timer {
+        id: inputFocusSettler
+        interval: 180
+        repeat: false
+        onTriggered: {
             if (win.visible && win.launcher)
                 win.launcher.focusInput();
-        });
+        }
     }
 }

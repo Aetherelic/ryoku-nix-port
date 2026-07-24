@@ -31,6 +31,16 @@
   launcher and the frame are untouched.
 
 ### Fixed
+- **The typed launcher stays focused and makes app/window activation explicit.**
+  Pointer motion no longer selects result rows or Desktop Actions, so it cannot
+  retrigger the lead swap, drawer layout, or a window-rail rematch. The typed
+  deck now holds a taller 82 px lead plus four 44 px ledger rows, while the
+  query focus is repaired once after the card and its detached rail finish
+  configuring, including a close/show reversal. `Enter` always launches a new
+  instance of the selected app; `Tab` explicitly enters the separate matching
+  window rail, where `Left`/`Right` select and `Enter` focuses a window. Direct
+  Window search results retain their normal Focus primary action
+  (`quickshell/launcher/{Launcher,HeroShutter,LeadResult,ResultDrawer,ResultLedger,WindowRail,WindowRailSurface}.qml`).
 - **Workspaces, Super+Esc power, and every shell surface work again after a
   Hyprland restart mid-session.** `ipc/daemon.go` read `HYPRLAND_INSTANCE_SIGNATURE`
   once at launch and never refreshed it, and the daemon can outlive its compositor

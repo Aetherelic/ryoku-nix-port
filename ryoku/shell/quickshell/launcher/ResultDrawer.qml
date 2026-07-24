@@ -26,6 +26,8 @@ Item {
     property bool searching: false
     property string emptyText: "NO MATCHES"
     property string errorText: ""
+    property int windowCount: 0
+    property bool windowFocusActive: false
     property string askQuestion: ""
     property var answer: ({ available: false })
 
@@ -38,10 +40,11 @@ Item {
     readonly property real pad: 10 * s
     readonly property bool hasResults: selectedResult !== null && results.length > 0
     readonly property real progressHeight: searching && hasResults ? 18 * s : 0
+    readonly property real leadHeight: 82 * s
     readonly property real prefixHeight: actionBrowse || answerMode
         ? prefixStack.implicitHeight + 8 * s : 0
     readonly property real resultBodyHeight: hasResults
-        ? progressHeight + 70 * s + actionShelf.targetHeight
+        ? progressHeight + leadHeight + actionShelf.targetHeight
             + ledger.desiredHeight
         : 52 * s
     readonly property real standardDesiredHeight: pad * 2 + prefixHeight + resultBodyHeight
@@ -260,11 +263,13 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: progress.bottom
-                height: root.hasResults ? 70 * root.s : 0
+                height: root.hasResults ? root.leadHeight : 0
                 visible: root.hasResults
                 s: root.s
                 entry: root.selectedResult
                 errorText: root.errorText
+                windowCount: root.windowCount
+                windowFocusActive: root.windowFocusActive
                 onActivated: root.leadActivated()
             }
 

@@ -174,6 +174,15 @@ function compositionKeyDisposition(preeditActive, escapeKey) {
   return escapeKey ? "cancel" : "input";
 }
 
+function toggleFocusRegion(region, hasWindows) {
+  if (!hasWindows) return "results";
+  return text(region) === "windows" ? "results" : "windows";
+}
+
+function activationTarget(region, hasWindows) {
+  return hasWindows && text(region) === "windows" ? "window" : "result";
+}
+
 function escape(state) {
   const current = Object.assign({}, state);
 
@@ -322,6 +331,8 @@ if (typeof module !== "undefined" && module.exports) {
     acceptOuterShrink,
     synchronizeOuterGeometry,
     compositionKeyDisposition,
+    toggleFocusRegion,
+    activationTarget,
     escape,
     moveActionFocus
   };

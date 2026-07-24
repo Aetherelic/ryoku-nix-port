@@ -866,12 +866,14 @@
         "show",
         "type kitty",
         "settle",
+        "key Tab",
         "key Right",
         "sleep 0.4"
       ],
       "asserts": [
         ".windowRailActive == true",
         ".windowRailCount >= 2",
+        ".windowRailFocusActive == true",
         ".windowRailFocusSerial >= 1",
         ".focusedWindowAddress != \"\""
       ],
@@ -882,11 +884,58 @@
       ]
     },
     {
+      "id": "win-rail-launch-new",
+      "name": "Enter launches a new instance until window focus is explicitly selected",
+      "covers": "default activation stays on the app result while open windows are visible",
+      "steps": [
+        "sh mkdir -p /tmp/launcher-qa-fixtures; hyprctl clients -j | jq '[.[]|select(.class==\"kitty\")]|length' >/tmp/launcher-qa-fixtures/kitty.instances.before; kitty --title qa-launch-choice sh -c 'sleep 180' >/dev/null 2>&1 & echo $! >/tmp/launcher-qa-fixtures/kitty.choice.pid; sleep 1.5",
+        "show",
+        "type kitty",
+        "settle",
+        "key Return",
+        "sleep 1.5"
+      ],
+      "asserts": [
+        ".open == false"
+      ],
+      "shell_asserts": [
+        "before=$(cat /tmp/launcher-qa-fixtures/kitty.instances.before); after=$(hyprctl clients -j | jq '[.[]|select(.class==\"kitty\")]|length'); [ \"$after\" -gt \"$before\" ]"
+      ],
+      "teardown": [
+        "pid=$(cat /tmp/launcher-qa-fixtures/kitty.choice.pid 2>/dev/null); [ -n \"$pid\" ] && kill $pid 2>/dev/null || true"
+      ]
+    },
+    {
+      "id": "win-rail-keeps-input-focus",
+      "name": "A mapped window rail never takes text focus after typing",
+      "covers": "post-layout focus repair for the separate window surface",
+      "steps": [
+        "sh mkdir -p /tmp/launcher-qa-fixtures; kitty --title qa-focus-retain sh -c 'sleep 180' >/dev/null 2>&1 & echo $! >/tmp/launcher-qa-fixtures/kitty.focus.pid; sleep 1.5",
+        "show",
+        "type kitty",
+        "settle",
+        "sleep 0.5",
+        "sh S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .2) | socat - UNIX-CONNECT:$S >/tmp/launcher-qa-fixtures/focus.before.json",
+        "type y",
+        "sleep 0.4"
+      ],
+      "asserts": [
+        ".query == \"kittyy\"",
+        ".inputFocused == true"
+      ],
+      "shell_asserts": [
+        "jq -e '.windowRailActive == true and .inputFocused == true' /tmp/launcher-qa-fixtures/focus.before.json >/dev/null"
+      ],
+      "teardown": [
+        "pid=$(cat /tmp/launcher-qa-fixtures/kitty.focus.pid 2>/dev/null); [ -n \"$pid\" ] && kill $pid 2>/dev/null || true"
+      ]
+    },
+    {
       "id": "win-focus",
       "name": "Enter on a window row focuses that window",
       "covers": "windows Focus action via Hyprland dispatch",
       "steps": [
-        "sh hyprctl activewindow -j | jq -r .address >/tmp/launcher-qa-fixtures/orig.addr; kitty --title qa-probe-win sh -c 'sleep 180' & sleep 1.5; hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:$(cat /tmp/launcher-qa-fixtures/orig.addr)\\\" })\"",
+        "sh mkdir -p /tmp/launcher-qa-fixtures; hyprctl activewindow -j | jq -r .address >/tmp/launcher-qa-fixtures/orig.addr; kitty --title qa-probe-win sh -c 'sleep 180' & sleep 1.5; hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:$(cat /tmp/launcher-qa-fixtures/orig.addr)\\\" })\"",
         "sleep 0.5",
         "show",
         "type qa-probe-win",

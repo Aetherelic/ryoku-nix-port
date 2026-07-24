@@ -8,6 +8,7 @@ const {
   MODES,
   acceptEvaluationSnapshot,
   acceptOuterShrink,
+  activationTarget,
   compositionKeyDisposition,
   escape,
   moveActionFocus,
@@ -16,7 +17,8 @@ const {
   routeForMode,
   snapshotMatchesToken,
   selectMode,
-  synchronizeOuterGeometry
+  synchronizeOuterGeometry,
+  toggleFocusRegion
 } = require("./launcherstate.js");
 
 const prefixes = {
@@ -428,4 +430,16 @@ test("unknown keys and stale action ids are stable", () => {
   const layout = actionLayout(4);
   assert.equal(moveActionFocus(layout, "action-1", "Home"), "action-1");
   assert.equal(moveActionFocus(layout, "missing", "Right"), "action-0");
+});
+
+test("window focus is an explicit Tab destination and Enter otherwise launches", () => {
+  assert.equal(toggleFocusRegion("results", true, false), "windows");
+  assert.equal(toggleFocusRegion("windows", true, false), "results");
+  assert.equal(toggleFocusRegion("results", true, true), "windows");
+  assert.equal(toggleFocusRegion("windows", true, true), "results");
+  assert.equal(toggleFocusRegion("results", false, false), "results");
+
+  assert.equal(activationTarget("results", true), "result");
+  assert.equal(activationTarget("windows", true), "window");
+  assert.equal(activationTarget("windows", false), "result");
 });

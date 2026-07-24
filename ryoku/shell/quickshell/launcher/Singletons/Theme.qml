@@ -13,19 +13,19 @@ Singleton {
     readonly property color vermDeep: Config.matchWallpaper ? Qt.darker(Wallust.accent, 1.3) : "#b81f19"
     readonly property color gold:     "#d9a441"
     // warm-white text ramp (website --ink).
-    readonly property color cream:    "#e6dccb"
-    readonly property color bright:   "#f3ede1"
+    readonly property color cream:    Ui.Tokens.ink
+    readonly property color bright:   Ui.Tokens.ink
     // near-black canvas (website --paper), or wallust surfaces when matching.
     readonly property color cardTop:  Config.matchWallpaper ? Wallust.base : "#16110b"
     readonly property color border:   Config.matchWallpaper ? Wallust.line : Qt.rgba(243/255, 237/255, 225/255, 0.14)
     readonly property color lineStrong: Qt.rgba(236/255, 226/255, 205/255, 0.40)
     readonly property color shadow:   "#000000"
     readonly property color tileBg:   Config.matchWallpaper ? Wallust.elevated : "#1b150e"
-    readonly property color subtle:   "#c7bfae"
-    readonly property color faint:    "#5c5249"
-    readonly property color iconDim:  "#8f8770"
-    readonly property color hair:     Qt.rgba(243/255, 237/255, 225/255, 0.12)
-    readonly property color sheen:    Qt.rgba(243/255, 237/255, 225/255, 0.06)
+    readonly property color subtle:   Ui.Tokens.inkDim
+    readonly property color faint:    Ui.Tokens.inkMuted
+    readonly property color iconDim:  Ui.Tokens.inkMuted
+    readonly property color hair:     Ui.Tokens.lineSoft
+    readonly property color sheen:    Ui.Tokens.tint5
     readonly property color vermDim:  "#b05a43"
     readonly property color vermDimDeep: "#65342b"
     readonly property color vermBurn: "#8f321d"
@@ -37,10 +37,8 @@ Singleton {
     // Shutter roles. The drawer stays in the same dark surface band as the
     // desktop while the promoted lead borrows the shared bone/Material role.
     // Only the thin provider rail carries route colour.
-    readonly property color drawer: Config.matchWallpaper
-        ? Qt.darker(Ui.Tokens.paperLift, 1.08) : "#0b0907"
-    readonly property color drawerRaised: Config.matchWallpaper
-        ? Wallust.elevated : "#15110d"
+    readonly property color drawer: Ui.Tokens.paper
+    readonly property color drawerRaised: Ui.Tokens.paperLift
     readonly property color frame: Ui.Tokens.lineStrong
     readonly property color leadContainer: Config.matchWallpaper
         ? Ui.Tokens.bone : cream

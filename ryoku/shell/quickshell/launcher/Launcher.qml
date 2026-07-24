@@ -38,6 +38,7 @@ Item {
     property string focusedActionId: ""
     property string shelfSignature: ""
     property string focusedWindowAddress: ""
+    property string interactionRegion: "results"
     property var windowRail: null
     property var packedActionLayout: []
     property string actionError: ""
@@ -257,6 +258,7 @@ Item {
     }
 
     function resetSelection() {
+        interactionRegion = "results";
         selectedResultKey = "";
         selectedIndex = -1;
         selectionFallbackIndex = 0;
@@ -382,6 +384,7 @@ Item {
     function selectResult(resultKey, rank) {
         if (resultKey === selectedResultKey)
             return;
+        interactionRegion = "results";
         closeShelf();
         selectedResultKey = resultKey;
         selectedIndex = rank;
@@ -398,6 +401,7 @@ Item {
         }
         if (results.length === 0)
             return;
+        interactionRegion = "results";
         var index = selectedIndex < 0 ? 0
             : Math.max(0, Math.min(results.length - 1, selectedIndex + delta));
         var row = results[index];
@@ -443,6 +447,8 @@ Item {
     function routeVisibleQuery() {
         if (suppressQueryRouting)
             return;
+        if (shown)
+            typedFocusSettler.restart();
         closeShelf();
         actionError = "";
         var next;
@@ -540,7 +546,9 @@ Item {
                 drawer.runAsk();
             return;
         }
-        if (windowRail && windowRail.hasWindows
+        if (LauncherState.activationTarget(interactionRegion,
+                windowRail && windowRail.hasWindows) === "window"
+                && windowRail && windowRail.hasWindows
                 && windowRail.focusedAddress.length > 0) {
             focusWindow(windowRail.focusedAddress);
             return;
@@ -623,16 +631,15 @@ Item {
                 moveActionFocus("Down");
             return;
         }
-        if (windowRail && windowRail.hasWindows) {
-            if (event.key === Qt.Key_Tab) {
-                windowRail.focusRelative(
-                    event.modifiers & Qt.ShiftModifier ? -1 : 1);
-                return;
-            }
-            if (event.key === Qt.Key_Backtab) {
-                windowRail.focusRelative(-1);
-                return;
-            }
+        if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
+                && windowRail && windowRail.hasWindows) {
+            interactionRegion = LauncherState.toggleFocusRegion(
+                interactionRegion, true);
+            hero.focusField();
+            return;
+        }
+        if (interactionRegion === "windows" && windowRail
+                && windowRail.hasWindows) {
             if (event.key === Qt.Key_Left) {
                 windowRail.focusRelative(-1);
                 return;
@@ -725,6 +732,7 @@ Item {
             windowRailCount: windowRail ? windowRail.windowCount : 0,
             windowRailAddresses: windowRail ? windowRail.windowAddresses : [],
             windowRailFocusSerial: windowRail ? windowRail.focusSerial : 0,
+            windowRailFocusActive: interactionRegion === "windows",
             focusedWindowAddress: windowRail
                 ? String(windowRail.focusedAddress || "") : focusedWindowAddress,
             shelfHeight: Math.round(drawer.actionShelfHeight),
@@ -792,6 +800,13 @@ Item {
     }
     onDesiredCardHeightChanged: requestOuterGeometry()
     onLifecycleGenerationChanged: syncInvocationGeometry()
+    onCurrentPhaseChanged: {
+        if (shown && currentPhase !== "closing"
+                && currentPhase !== "closed") {
+            Qt.callLater(hero.focusField);
+            phaseFocusSettler.restart();
+        }
+    }
     onBodyOpenChanged: retainInputFocus()
     onReportedSurfaceHeightChanged: retainInputFocus()
         onShownChanged: {
@@ -873,6 +888,30 @@ Item {
         }
     }
 
+    // Typing expands the card and can make the compositor configure its layer
+    // surface after the TextInput handled the first key. Settle that one
+    // transition after the last character, rather than polling focus.
+    Timer {
+        id: typedFocusSettler
+        interval: 260
+        repeat: false
+        onTriggered: {
+            if (root.shown && root.bodyOpen && !hero.inputFocused)
+                hero.focusField();
+        }
+    }
+
+    Timer {
+        id: phaseFocusSettler
+        interval: 140
+        repeat: false
+        onTriggered: {
+            if (root.shown && root.currentPhase !== "closing"
+                    && root.currentPhase !== "closed" && !hero.inputFocused)
+                hero.focusField();
+        }
+    }
+
     HeroShutter {
         id: hero
         anchors.left: parent.left
@@ -884,6 +923,7 @@ Item {
         compressed: root.bodyOpen
         shelfOpen: root.shelfOpen
         windowRailActive: Boolean(windowRail && windowRail.hasWindows)
+        windowRailFocused: root.interactionRegion === "windows"
         activeMode: root.activeMode
         onMoved: delta => root.moveSelection(delta)
         onAccepted: root.activateCurrent()
@@ -933,6 +973,8 @@ Item {
         searching: root.searching
         emptyText: root.emptyText
         errorText: root.actionError
+        windowCount: windowRail ? windowRail.windowCount : 0
+        windowFocusActive: root.interactionRegion === "windows"
         askQuestion: root.askQuestion
                 answer: providerSet.web ? providerSet.web.answer : ({ available: false })
         onLeadActivated: root.activateCurrent()

@@ -9,6 +9,8 @@ Rectangle {
     property real s: 1
     property var entry: null
     property string errorText: ""
+    property int windowCount: 0
+    property bool windowFocusActive: false
     property var outgoingSnapshot: null
     property var currentSnapshot: null
     property string displayedKey: ""
@@ -28,7 +30,7 @@ Rectangle {
         return detail.length ? title + ", " + detail : title;
     }
 
-    implicitHeight: 70 * s
+    implicitHeight: 82 * s
     color: Theme.leadContainer
     opacity: entry && entry.disabled ? 0.56 : 1
 
@@ -212,7 +214,9 @@ Rectangle {
             Text {
                 anchors.right: parent.right
                 text: parent.parent.visualPrimary
-                    ? String(parent.parent.visualPrimary.name || "OPEN").toUpperCase()
+                    ? (root.windowCount > 0 ? "OPEN NEW"
+                        : String(parent.parent.visualPrimary.name || "OPEN")
+                            .toUpperCase())
                     : "INFO"
                 color: Theme.onLead
                 font.family: Theme.mono
@@ -223,7 +227,12 @@ Rectangle {
 
             Text {
                 anchors.right: parent.right
-                text: parent.parent.visualExecutable ? "\u23ce  ENTER" : "NO ACTION"
+                text: !parent.parent.visualExecutable ? "NO ACTION"
+                    : (root.windowCount > 0
+                        ? (root.windowFocusActive
+                            ? "WINDOW FOCUS  ·  ENTER"
+                            : "ENTER NEW  ·  TAB WINDOWS")
+                        : "\u23ce  ENTER")
                 color: Theme.onLeadDim
                 font.family: Theme.mono
                 font.pixelSize: 8 * parent.parent.scaleFactor

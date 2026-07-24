@@ -13,6 +13,7 @@ Item {
     property bool open: false
     property bool animationsEnabled: true
     property var entry: null
+    property bool focusActive: false
     property string focusedAddress: ""
     property int focusSerial: 0
     property string observedEntryKey: ""
@@ -22,7 +23,7 @@ Item {
     readonly property var windows: {
         void Hyprland.toplevels.values;
         var result = root.entry;
-        if (!result || !root.open)
+        if (!result || !root.open || String(result.type || "") !== "App")
             return [];
 
         var wantedAddress = String(result.windowAddress || "");
@@ -124,7 +125,7 @@ Item {
         Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: "OPEN  /  " + root.windows.length + " WINDOW"
+            text: "OPEN WINDOWS  /  " + root.windows.length + " WINDOW"
                 + (root.windows.length === 1 ? "" : "S")
             color: Theme.subtle
             font.family: Theme.mono
@@ -136,8 +137,10 @@ Item {
         Text {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: "LEFT / RIGHT  FOCUS  ·  ENTER  SWITCH"
-            color: Theme.faint
+            text: root.focusActive
+                ? "LEFT / RIGHT  ·  ENTER  SWITCH"
+                : "TAB  ·  FOCUS WINDOWS"
+            color: root.focusActive ? Theme.bright : Theme.faint
             font.family: Theme.mono
             font.pixelSize: 7 * root.s
             font.letterSpacing: 0.5 * root.s
@@ -163,13 +166,13 @@ Item {
             required property var modelData
             readonly property bool focused: String(modelData.address)
                 === root.focusedAddress
+            readonly property bool railSelected: focused && root.focusActive
             width: 184 * root.s
             height: 64 * root.s
             radius: Math.max(2, 5 * root.s)
-            color: focused ? Theme.leadContainer
-                : Qt.rgba(8 / 255, 9 / 255, 11 / 255, 0.92)
-            border.width: focused ? 2 : 1
-            border.color: focused ? Theme.bright : Theme.hair
+            color: railSelected ? Theme.leadContainer : Theme.drawerRaised
+            border.width: railSelected ? 2 : 1
+            border.color: railSelected ? Theme.bright : Theme.hair
 
             Behavior on color {
                 ColorAnimation { duration: Motion.selection; easing.type: Easing.OutCubic }
@@ -186,7 +189,7 @@ Item {
                 width: 32 * root.s
                 height: width
                 radius: Math.max(2, 4 * root.s)
-                color: tile.focused
+                color: tile.railSelected
                     ? Qt.rgba(0, 0, 0, 0.18) : Theme.drawerRaised
 
                 IconImage {
@@ -209,10 +212,10 @@ Item {
                 Text {
                     width: parent.width
                     text: tile.modelData.title
-                    color: tile.focused ? Theme.bright : Theme.cream
+                    color: tile.railSelected ? Theme.onLead : Theme.cream
                     font.family: Theme.font
                     font.pixelSize: 9.2 * root.s
-                    font.weight: tile.focused ? Font.DemiBold : Font.Medium
+                    font.weight: tile.railSelected ? Font.DemiBold : Font.Medium
                     elide: Text.ElideRight
                 }
 
