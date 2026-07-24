@@ -103,6 +103,7 @@ Item {
     property string phase: "idle"   // idle | running | prompt | done | error
     property real progress: 0
     property string label: ""
+    property int ownerPid: 0
     property var steps: []
     property var logLines: []
     property string errorMsg: ""
@@ -134,6 +135,28 @@ Item {
         ? 1
         : Math.max(0, Math.min(1, Math.max(pg.progress, pg.stepFraction)))
 
+    function checkOwner() {
+        if (pg.phase !== "running" || pg.ownerPid < 2 || ownerProbe.running)
+            return;
+        ownerProbe.command = ["sh", "-c", "kill -0 \"$1\" 2>/dev/null", "sh", "" + pg.ownerPid];
+        ownerProbe.running = true;
+    }
+
+    Process {
+        id: ownerProbe
+        onExited: (code) => {
+            if (code !== 0 && pg.phase === "running")
+                pg.dismiss();
+        }
+    }
+
+    Timer {
+        interval: 1200
+        running: pg.phase === "running" && pg.ownerPid > 1
+        repeat: true
+        onTriggered: pg.checkOwner()
+    }
+
     FileView {
         id: stateFile
         path: pg.statePath
@@ -151,6 +174,7 @@ Item {
             pg.phase = o.phase || "idle";
             pg.progress = (typeof o.progress === "number") ? o.progress : 0;
             pg.label = o.label || "";
+            pg.ownerPid = (typeof o.pid === "number") ? Math.floor(o.pid) : 0;
             pg.steps = o.steps || [];
             pg.logLines = o.log || [];
             pg.errorMsg = o.error || "";
@@ -163,6 +187,7 @@ Item {
         } catch (e) {
             pg.phase = "idle";
             pg.progress = 0;
+            pg.ownerPid = 0;
             pg.steps = [];
             pg.logLines = [];
             pg.errorMsg = "";
@@ -170,6 +195,7 @@ Item {
         // settled back to idle = finished. refresh so the list clears.
         if (prev !== "idle" && pg.phase === "idle")
             Updates.check();
+        pg.checkOwner();
     }
 
     // answer a prompt phase: write the choice to the back-channel `ryoku update`
