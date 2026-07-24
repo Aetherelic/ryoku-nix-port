@@ -183,6 +183,20 @@ function activationTarget(region, hasWindows) {
   return hasWindows && text(region) === "windows" ? "window" : "result";
 }
 
+function moveResultIndex(index, count, key) {
+  const length = Math.max(0, Number(count) | 0);
+  if (length === 0) return -1;
+  const requested = Number(index) | 0;
+  if (requested < 0) return 0;
+  const current = Math.max(0, Math.min(length - 1, requested));
+  if (key === "Up") return Math.max(0, current - 2);
+  if (key === "Down") return Math.min(length - 1, current + 2);
+  if (key === "Left") return current % 2 === 0 ? current : current - 1;
+  if (key === "Right") return current % 2 === 0 && current + 1 < length
+    ? current + 1 : current;
+  return current;
+}
+
 function escape(state) {
   const current = Object.assign({}, state);
 
@@ -333,6 +347,7 @@ if (typeof module !== "undefined" && module.exports) {
     compositionKeyDisposition,
     toggleFocusRegion,
     activationTarget,
+    moveResultIndex,
     escape,
     moveActionFocus
   };

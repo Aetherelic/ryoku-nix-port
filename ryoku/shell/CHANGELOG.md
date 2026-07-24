@@ -5,7 +5,7 @@
 ### Changed
 - **The app launcher is a hero shutter instead of a fullscreen search panel.**
   `Super+Space` now opens only the 720 px image card and its heavy contact
-  shadow; typing compresses the hero while a dense lead result and 40 px ledger
+  shadow; typing compresses the hero while a dense lead result and 44 px ledger
   unfold below it. `ALL`, `IMG`, `FILE`, and `REC` are quiet controls over the
   image, the selected app no longer floats in a large empty row, and `Ctrl+K`
   reveals only real Desktop Actions: zero reserves no space, one spans the
@@ -41,6 +41,12 @@
   window rail, where `Left`/`Right` select and `Enter` focuses a window. Direct
   Window search results retain their normal Focus primary action
   (`quickshell/launcher/{Launcher,HeroShutter,LeadResult,ResultDrawer,ResultLedger,WindowRail,WindowRailSurface}.qml`).
+- **Typed results no longer reshuffle while providers settle.** The search drawer
+  reserves its lead plus four ledger rows before a provider responds, every new
+  query begins at row 01, and arrows traverse the visible two-column grid with a
+  persistent raised cell cursor. Matching app windows no longer repeat in that
+  grid: the detached rail is their sole presentation, while window-only searches
+  still expose their direct Focus result.
 - **Workspaces, Super+Esc power, and every shell surface work again after a
   Hyprland restart mid-session.** `ipc/daemon.go` read `HYPRLAND_INSTANCE_SIGNATURE`
   once at launch and never refreshed it, and the daemon can outlive its compositor

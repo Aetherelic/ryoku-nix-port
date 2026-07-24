@@ -147,6 +147,10 @@ Provider {
         return p.indexOf(find.home) === 0 ? "~" + p.slice(find.home.length) : p;
     }
 
+    function fileUrl(path) {
+        return "file://" + encodeURIComponent(String(path)).replace(/%2F/g, "/");
+    }
+
     // Section label per mode, so folder results read FOLDER, not FILE.
     function kindFor(mode) {
         if (mode === "folder") return "Folder";
@@ -164,6 +168,7 @@ Provider {
             title: baseName(path),
             subtitle: shortPath(path.replace(/\/[^/]*$/, "")),
             icon: "",
+            preview: kind === "Image" ? fileUrl(path) : "",
             type: kind || "File",
             score: 0,
             actions: [

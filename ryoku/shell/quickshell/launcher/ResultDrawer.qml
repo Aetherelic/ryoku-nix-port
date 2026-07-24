@@ -2,6 +2,7 @@ import QtQuick
 import Ryoku.Ui
 import Ryoku.Ui.Singletons as Ui
 import "Singletons"
+import "lib/results.js" as Results
 
 Item {
     id: root
@@ -40,13 +41,12 @@ Item {
     readonly property real pad: 10 * s
     readonly property bool hasResults: selectedResult !== null && results.length > 0
     readonly property real progressHeight: searching && hasResults ? 18 * s : 0
-    readonly property real leadHeight: 82 * s
+    readonly property real leadHeight: Results.LAYOUT.leadHeight * s
     readonly property real prefixHeight: actionBrowse || answerMode
         ? prefixStack.implicitHeight + 8 * s : 0
     readonly property real resultBodyHeight: hasResults
-        ? progressHeight + leadHeight + actionShelf.targetHeight
-            + ledger.desiredHeight
-        : 52 * s
+        ? leadHeight + actionShelf.targetHeight + ledger.desiredHeight
+        : leadHeight + ledger.desiredHeight
     readonly property real standardDesiredHeight: pad * 2 + prefixHeight + resultBodyHeight
     readonly property real rawDesiredHeight: helpMode
         ? pad * 2 + helpPanel.implicitHeight
@@ -232,6 +232,7 @@ Item {
                 anchors.right: parent.right
                 anchors.top: parent.top
                 height: root.progressHeight
+                z: 10
                 visible: height > 0
 
                 Row {
@@ -262,7 +263,7 @@ Item {
                 id: lead
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.top: progress.bottom
+                anchors.top: parent.top
                 height: root.hasResults ? root.leadHeight : 0
                 visible: root.hasResults
                 s: root.s

@@ -44,6 +44,7 @@ Item {
     property string actionError: ""
     property var freshResults: []
     property string freshResultsToken: ""
+    property string initialSelectionToken: ""
     property var results: []
     property string displayRouteKey: ""
     property string displayQueryToken: ""
@@ -308,7 +309,8 @@ Item {
         evaluationQueued = false;
         var generation = evaluationGeneration;
         var token = resultQueryToken;
-        var snapshot = evaluateCurrentResults();
+        var snapshot = Results.hideDuplicateWindowRows(
+            evaluateCurrentResults());
         if (!LauncherState.acceptEvaluationSnapshot(
                 generation, evaluationGeneration, token, resultQueryToken)) {
             if (!evaluationQueued) {
@@ -352,6 +354,12 @@ Item {
         }
         if (freshResults.length > 0) {
             emptySettlement.stop();
+            if (initialSelectionToken === resultQueryToken) {
+                selectedResultKey = "";
+                selectedIndex = -1;
+                selectionFallbackIndex = 0;
+                initialSelectionToken = "";
+            }
             results = freshResults;
             return;
         }
@@ -393,6 +401,22 @@ Item {
         Qt.callLater(function () { drawer.revealRank(rank); });
     }
 
+    function selectResultIndex(index) {
+        if (results.length === 0)
+            return;
+        var bounded = Math.max(0, Math.min(results.length - 1, index));
+        var row = results[bounded];
+        if (!row)
+            return;
+        if (row.resultKey !== selectedResultKey)
+            closeShelf();
+        selectedIndex = bounded;
+        selectionFallbackIndex = bounded;
+        selectedResultKey = row.resultKey;
+        actionError = "";
+        drawer.revealRank(bounded);
+    }
+
     function moveSelection(delta) {
         if (askMode) {
             if (drawer.askChipCount > 0 || drawer.askResumeMode)
@@ -404,16 +428,20 @@ Item {
         interactionRegion = "results";
         var index = selectedIndex < 0 ? 0
             : Math.max(0, Math.min(results.length - 1, selectedIndex + delta));
-        var row = results[index];
-        if (!row)
+        selectResultIndex(index);
+    }
+
+    function moveSelectionByKey(keyName) {
+        if (askMode) {
+            if (keyName === "Up") drawer.moveAsk(-1);
+            else if (keyName === "Down") drawer.moveAsk(1);
             return;
-        if (row.resultKey !== selectedResultKey)
-            closeShelf();
-        selectedIndex = index;
-        selectionFallbackIndex = index;
-        selectedResultKey = row.resultKey;
-        actionError = "";
-        drawer.revealRank(index);
+        }
+        if (results.length === 0)
+            return;
+        interactionRegion = "results";
+        selectResultIndex(LauncherState.moveResultIndex(
+            selectedIndex, results.length, keyName));
     }
 
     function selectMode(mode) {
@@ -649,6 +677,18 @@ Item {
                 return;
             }
         }
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right
+                || event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+            if (event.key === Qt.Key_Left)
+                moveSelectionByKey("Left");
+            else if (event.key === Qt.Key_Right)
+                moveSelectionByKey("Right");
+            else if (event.key === Qt.Key_Up)
+                moveSelectionByKey("Up");
+            else
+                moveSelectionByKey("Down");
+            return;
+        }
         if (actionBrowse && event.key === Qt.Key_Tab)
             drawer.cycleCategory(event.modifiers & Qt.ShiftModifier ? -1 : 1);
         else if (actionBrowse && event.key === Qt.Key_Backtab)
@@ -777,6 +817,7 @@ Item {
         scheduleEvaluation();
     }
     onResultQueryTokenChanged: {
+        initialSelectionToken = resultQueryToken;
         freshResultsToken = "";
         freshResults = [];
         scheduleEvaluation();
@@ -924,6 +965,7 @@ Item {
         shelfOpen: root.shelfOpen
         windowRailActive: Boolean(windowRail && windowRail.hasWindows)
         windowRailFocused: root.interactionRegion === "windows"
+        resultNavigationActive: root.bodyOpen && !root.shelfOpen
         activeMode: root.activeMode
         onMoved: delta => root.moveSelection(delta)
         onAccepted: root.activateCurrent()

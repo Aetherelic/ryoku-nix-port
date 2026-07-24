@@ -6,6 +6,7 @@ const {
   LAYOUT,
   actionSignature,
   cardGeometry,
+  hideDuplicateWindowRows,
   normalizeRows,
   packActions,
   reconcileSelection,
@@ -18,6 +19,14 @@ const execute = () => {};
 
 test("provider-local ids cannot collide", () => {
   assert.notEqual(resultKey("apps", "same"), resultKey("find", "same"));
+});
+
+test("an app result owns its matching-open-window presentation", () => {
+  const app = { providerId: "apps", title: "kitty" };
+  const window = { providerId: "windows", title: "kitty terminal" };
+  const web = { providerId: "web", title: "kitty" };
+  assert.deepEqual(hideDuplicateWindowRows([app, window, web]), [app, web]);
+  assert.deepEqual(hideDuplicateWindowRows([window, web]), [window, web]);
 });
 
 test("a malformed primary disables the row without promoting a secondary", () => {
@@ -148,8 +157,8 @@ test("Shutter geometry keeps the approved dense dimensions", () => {
     workMargin: 32,
     heroRest: 250,
     heroCompressed: 126,
-    leadHeight: 70,
-    ledgerRowHeight: 40,
+    leadHeight: 82,
+    ledgerRowHeight: 44,
     actionRowHeight: 38,
     shelfMaxHeight: 114
   });

@@ -3,8 +3,8 @@ var LAYOUT = Object.freeze({
   workMargin: 32,
   heroRest: 250,
   heroCompressed: 126,
-  leadHeight: 70,
-  ledgerRowHeight: 40,
+  leadHeight: 82,
+  ledgerRowHeight: 44,
   actionRowHeight: 38,
   shelfMaxHeight: 114
 });
@@ -114,6 +114,13 @@ function reconcileSelection(rows, selectedResultKey, fallbackIndex) {
   return { key: source[index].resultKey, index };
 }
 
+function hideDuplicateWindowRows(rows) {
+  const source = Array.isArray(rows) ? rows : [];
+  const hasApp = source.some(row => row && String(row.providerId || "") === "apps");
+  return hasApp ? source.filter(row => String(row && row.providerId || "") !== "windows")
+    : source;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LAYOUT,
@@ -124,6 +131,7 @@ if (typeof module !== "undefined" && module.exports) {
     packActions,
     cardGeometry,
     shelfGeometry,
-    reconcileSelection
+    reconcileSelection,
+    hideDuplicateWindowRows
   };
 }

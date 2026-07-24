@@ -14,16 +14,16 @@ GridView {
 
     readonly property var rows: {
         var output = [];
-        for (var index = 0; index < results.length; index++) {
-            var entry = results[index];
-            if (!entry || entry.resultKey === selectedResultKey)
-                continue;
-            output.push({ entry: entry, rank: index + 1 });
+        var source = root.results || [];
+        for (var index = 0; index < source.length; index++) {
+            var entry = source[index];
+            if (entry)
+                output.push({ entry: entry, rank: index + 1 });
         }
         return output;
     }
     readonly property int ledgerRowCount: Math.ceil(rows.length / 2)
-    readonly property real desiredHeight: Math.min(4, ledgerRowCount) * 44 * s
+    readonly property real desiredHeight: 4 * 44 * s
 
     model: rows.length
     cellWidth: width / 2
@@ -53,6 +53,9 @@ GridView {
         readonly property var rowData: root.rows[index]
         readonly property var entry: rowData ? rowData.entry : null
         readonly property bool hasIcon: entry && String(entry.icon || "").length > 0
+        readonly property bool hasPreview: entry
+            && String(entry.preview || "").length > 0
+        readonly property bool isWeb: entry && String(entry.providerId || "") === "web"
 
         objectName: "result-" + (entry ? String(entry.resultKey || "") : "")
         width: root.cellWidth
@@ -77,10 +80,20 @@ GridView {
         }
 
         Rectangle {
+            anchors.fill: parent
+            color: cell.entry && cell.entry.resultKey === root.selectedResultKey
+                ? Theme.drawerRaised : "transparent"
+            border.width: cell.entry && cell.entry.resultKey
+                === root.selectedResultKey ? 1 : 0
+            border.color: Theme.bright
+        }
+
+        Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            width: 2 * root.s
+            width: cell.entry && cell.entry.resultKey === root.selectedResultKey
+                ? 4 * root.s : 2 * root.s
             color: cell.entry
                 ? Theme.providerRail(cell.entry.providerId, cell.entry.type)
                 : Theme.providerOther
@@ -115,19 +128,38 @@ GridView {
             font.features: ({ "tnum": 1 })
         }
 
-        Image {
+        Rectangle {
             id: icon
             anchors.left: rank.right
             anchors.verticalCenter: parent.verticalCenter
-            width: cell.hasIcon ? 21 * root.s : 0
-            height: 21 * root.s
-            sourceSize.width: Math.round(42 * root.s)
-            sourceSize.height: Math.round(42 * root.s)
-            fillMode: Image.PreserveAspectFit
-            asynchronous: true
-            smooth: true
-            visible: cell.hasIcon
-            source: cell.hasIcon ? cell.entry.icon : ""
+            width: cell.hasPreview || cell.hasIcon || cell.isWeb ? 21 * root.s : 0
+            height: width
+            color: cell.isWeb ? Theme.onLead : Theme.drawerRaised
+            border.width: cell.hasPreview ? 1 : 0
+            border.color: Theme.hair
+            clip: true
+
+            Image {
+                anchors.fill: parent
+                sourceSize.width: Math.round(42 * root.s)
+                sourceSize.height: Math.round(42 * root.s)
+                fillMode: cell.hasPreview ? Image.PreserveAspectCrop
+                    : Image.PreserveAspectFit
+                asynchronous: true
+                smooth: true
+                visible: cell.hasPreview || cell.hasIcon
+                source: cell.hasPreview ? cell.entry.preview : cell.entry.icon
+            }
+
+            Text {
+                anchors.centerIn: parent
+                visible: cell.isWeb
+                text: "?"
+                color: Theme.drawer
+                font.family: Theme.mono
+                font.pixelSize: 14 * root.s
+                font.weight: Font.DemiBold
+            }
         }
 
         Column {
@@ -161,15 +193,9 @@ GridView {
             }
         }
 
-        Rectangle {
-            anchors.fill: parent
-            color: pointer.containsMouse ? Theme.sheen : "transparent"
-        }
-
         MouseArea {
             id: pointer
             anchors.fill: parent
-            hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
 
             onClicked: cell.selectResult()

@@ -10,6 +10,7 @@ const {
   acceptOuterShrink,
   activationTarget,
   compositionKeyDisposition,
+  moveResultIndex,
   escape,
   moveActionFocus,
   planOuterGeometry,
@@ -442,4 +443,14 @@ test("window focus is an explicit Tab destination and Enter otherwise launches",
   assert.equal(activationTarget("results", true), "result");
   assert.equal(activationTarget("windows", true), "window");
   assert.equal(activationTarget("windows", false), "result");
+});
+
+test("result arrows move through the visible two-column grid", () => {
+  assert.equal(moveResultIndex(0, 6, "Right"), 1);
+  assert.equal(moveResultIndex(1, 6, "Right"), 1);
+  assert.equal(moveResultIndex(1, 6, "Left"), 0);
+  assert.equal(moveResultIndex(1, 6, "Down"), 3);
+  assert.equal(moveResultIndex(4, 6, "Up"), 2);
+  assert.equal(moveResultIndex(4, 5, "Down"), 4);
+  assert.equal(moveResultIndex(-1, 6, "Down"), 0);
 });

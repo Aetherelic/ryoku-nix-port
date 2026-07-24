@@ -15,6 +15,7 @@ Item {
     property bool shelfOpen: false
     property bool windowRailActive: false
     property bool windowRailFocused: false
+    property bool resultNavigationActive: false
     property string activeMode: "rest"
     property alias query: field.text
     readonly property string preeditText: field.preeditText
@@ -329,9 +330,11 @@ Item {
                         || event.key === Qt.Key_Right
                         || event.key === Qt.Key_Up
                         || event.key === Qt.Key_Down))
-                        || (root.windowRailFocused
+                        || (root.resultNavigationActive
                             && (event.key === Qt.Key_Left
-                                || event.key === Qt.Key_Right))) {
+                                || event.key === Qt.Key_Right
+                                || event.key === Qt.Key_Up
+                                || event.key === Qt.Key_Down))) {
                     root.keyPressed(event);
                     event.accepted = true;
                 } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {

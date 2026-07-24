@@ -9,7 +9,8 @@ Typing works like opening a camera shutter. The 250 px hero compresses to
 126 px while a dark result drawer grows from its lower edge. The selected
 result takes one dense 82 px lead row; more matches continue as 44 px ledger
 rows. Clearing the query or pressing `Esc` closes the drawer and gives the image
-its room back.
+its room back. The drawer reserves that same compact deck as soon as typing
+starts, so late provider replies fill cells instead of resizing the card.
 
 The launcher runs from `ryoku/shell/quickshell/launcher/` as a warm Quickshell
 component supervised by `ryoku-shell`. `ryoku-shell launcher` toggles it on the
@@ -47,6 +48,12 @@ Prefixes remain available for commands that do not need a permanent hero key:
 Unprefixed text searches the default providers together. The selected result
 stays attached to its stable provider/result identity when an asynchronous
 provider inserts, removes, or reorders rows.
+
+Each edited query begins at result `01`. Arrow keys move the visible two-column
+ledger (`Left`/`Right` across a row, `Up`/`Down` by a row); the selected cell
+keeps a raised material plate, bright outline, and thicker provider rail in
+place. The lead mirrors that exact cell without pulling it out of the ledger,
+so keyboard movement never causes the remaining rows to reshuffle.
 
 ## Primary actions and expanded app options
 
@@ -109,9 +116,14 @@ leaving the query field. The selected address is kept stable while results
 refresh, so typing does not make the keyboard cursor jump to a different open
 window. While the launcher is active,
 Ryoku temporarily freezes pointer-driven Hyprland focus and restores the
-user's exact setting after close; moving the pointer outside the card can never
+user’s exact setting after close; moving the pointer outside the card can never
 take typing away. The rail caps at six cards; when more windows match, the
 horizontal strip scrolls without changing the result selection.
+
+When an application match owns an open-window rail, its matching `Window`
+provider rows are deliberately omitted from the app deck. Existing windows
+therefore have one home, the detached rail, while a query that finds only a window
+still presents that direct **Focus** result normally.
 
 The same result contract serves every provider:
 
@@ -202,6 +214,12 @@ Each shell-backed provider owns a generation token and busy state across both
 its debounce and process lifetime. Late output from an old query cannot replace
 the current results, and an empty drawer waits for the active provider to settle
 before saying there are no matches.
+
+Web fallback rows use a dedicated question-mark search tile rather than an app
+icon, making **Search** visibly different from **Launch** or **Open**. Image
+finder rows carry a local file preview into both the lead and ledger; ordinary
+files keep the compact icon treatment, so preview loading never changes row
+geometry.
 
 ## Hero image and colour
 

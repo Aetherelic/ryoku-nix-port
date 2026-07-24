@@ -86,6 +86,7 @@ Rectangle {
             title: String(source.title || ""),
             subtitle: String(source.subtitle || ""),
             icon: String(source.icon || ""),
+            preview: String(source.preview || ""),
             disabled: source.disabled === true,
             primaryAction: source.primaryAction ? {
                 id: String(source.primaryAction.id || ""),
@@ -141,6 +142,10 @@ Rectangle {
             && visualEntry && !visualEntry.disabled
         readonly property bool visualHasIcon: visualEntry
             && String(visualEntry.icon || "").length > 0
+        readonly property bool visualHasPreview: visualEntry
+            && String(visualEntry.preview || "").length > 0
+        readonly property bool visualIsWeb: visualEntry
+            && String(visualEntry.providerId || "") === "web"
 
         Rectangle {
             anchors.left: parent.left
@@ -153,25 +158,47 @@ Rectangle {
                 : Theme.providerOther
         }
 
-        Image {
+        Rectangle {
             id: icon
             anchors.left: parent.left
             anchors.leftMargin: 15 * parent.scaleFactor
             anchors.verticalCenter: parent.verticalCenter
-            width: parent.visualHasIcon ? 38 * parent.scaleFactor : 0
-            height: 38 * parent.scaleFactor
-            sourceSize.width: Math.round(76 * parent.scaleFactor)
-            sourceSize.height: Math.round(76 * parent.scaleFactor)
-            fillMode: Image.PreserveAspectFit
-            asynchronous: true
-            smooth: true
-            visible: parent.visualHasIcon
-            source: parent.visualHasIcon ? parent.visualEntry.icon : ""
+            width: parent.visualHasPreview || parent.visualHasIcon
+                || parent.visualIsWeb ? 38 * parent.scaleFactor : 0
+            height: width
+            color: parent.visualIsWeb ? Theme.onLead : Theme.drawerRaised
+            border.width: parent.visualHasPreview ? Math.max(1, parent.scaleFactor) : 0
+            border.color: Theme.onLeadDim
+            clip: true
+
+            Image {
+                anchors.fill: parent
+                sourceSize.width: Math.round(76 * icon.parent.scaleFactor)
+                sourceSize.height: Math.round(76 * icon.parent.scaleFactor)
+                fillMode: icon.parent.visualHasPreview ? Image.PreserveAspectCrop
+                    : Image.PreserveAspectFit
+                asynchronous: true
+                smooth: true
+                visible: icon.parent.visualHasPreview || icon.parent.visualHasIcon
+                source: icon.parent.visualHasPreview
+                    ? icon.parent.visualEntry.preview : icon.parent.visualEntry.icon
+            }
+
+            Text {
+                anchors.centerIn: parent
+                visible: icon.parent.visualIsWeb
+                text: "?"
+                color: Theme.leadContainer
+                font.family: Theme.mono
+                font.pixelSize: 24 * icon.parent.scaleFactor
+                font.weight: Font.DemiBold
+            }
         }
 
         Column {
             anchors.left: icon.right
-            anchors.leftMargin: parent.visualHasIcon
+            anchors.leftMargin: parent.visualHasPreview || parent.visualHasIcon
+                || parent.visualIsWeb
                 ? 13 * parent.scaleFactor : 15 * parent.scaleFactor
             anchors.right: command.left
             anchors.rightMargin: 14 * parent.scaleFactor
