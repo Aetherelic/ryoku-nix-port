@@ -173,11 +173,11 @@ being clipped.
 
 ## Local frost
 
-`bgBlur` now controls only a frozen crop behind the result drawer. During
-Prelude the launcher takes one cursor-free screenshot of the active output,
-freezes the future drawer region plus kernel bleed, and applies one local
-`MultiEffect`. The near-black drawer covers that texture at 94%, so the default
-2 px value reads as a slight material tooth rather than frosted glass.
+`bgBlur` controls a frozen crop behind the result drawer. During Prelude the
+launcher takes one cursor-free screenshot of the active output, freezes the
+future drawer region plus kernel bleed, and applies one local `MultiEffect`.
+The drawer leaves 28% of that texture visible when frost is active, so the
+default 2 px value is perceptible without becoming frosted glass.
 
 There is no compositor-wide blur mutation, fullscreen scrim, or grain layer.
 The resting hero creates no blur effect at all. Disabled blur, reduced motion,

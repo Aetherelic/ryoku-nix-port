@@ -96,6 +96,10 @@ function frostPresentation(options) {
   };
 }
 
+function frostBackdropOpacity(active) {
+  return active ? 0.72 : 1;
+}
+
 function initialState() {
   return {
     phase: PHASES.CLOSED,
@@ -545,6 +549,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     CAPTURE: CAPTURE,
     PHASES: PHASES,
+    frostBackdropOpacity: frostBackdropOpacity,
     frostPresentation: frostPresentation,
     initialState: initialState,
     mapsMonitor: mapsMonitor,

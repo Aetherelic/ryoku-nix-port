@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- **Backdrop frost now says what it affects.** The launcher editor calls the
+  control **Backdrop frost** and explains that it blurs the captured desktop
+  seen through the result drawer; zero keeps the drawer solid
+  (`quickshell/pages/LauncherPage.qml`).
 - **The App Launcher preview now shows the launcher, at its true scale.** The
   old full-width mock only repeated the hero art, so it made the shutter look
   larger and structurally different from the real palette. The specimen now

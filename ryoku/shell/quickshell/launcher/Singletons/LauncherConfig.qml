@@ -6,16 +6,16 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    property alias radius:       adapter.radius        // outer card corner, px
-    property alias bgBlur:      adapter.bgBlur         // frozen card-local snapshot frost, px (0 = sharp)
-    property alias weatherUnit:  adapter.weatherUnit   // auto (locale) | C | F
-    property alias heroImage:    adapter.heroImage     // backdrop file, "" = shipped art
-    property alias heroStrength: adapter.heroStrength  // backdrop opacity, 0..1
-    property alias heroPosX:     adapter.heroPosX      // backdrop focal point, 0..1
+    property alias radius:       adapter.radius
+    property alias bgBlur:      adapter.bgBlur
+    property alias weatherUnit:  adapter.weatherUnit
+    property alias heroImage:    adapter.heroImage
+    property alias heroStrength: adapter.heroStrength
+    property alias heroPosX:     adapter.heroPosX
     property alias heroPosY:     adapter.heroPosY
-    property alias showWeather:  adapter.showWeather   // weather glance on the hero
-    property alias showGreeting: adapter.showGreeting  // "Good morning" line
-    property alias resultSettleMs: adapter.resultSettleMs // quiet period before a typed deck appears
+    property alias showWeather:  adapter.showWeather
+    property alias showGreeting: adapter.showGreeting
+    property alias resultSettleMs: adapter.resultSettleMs
 
     FileView {
         id: file

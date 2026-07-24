@@ -3,6 +3,7 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons as Ui
 import "Singletons"
 import "lib/results.js" as Results
+import "lib/lifecycle.js" as Lifecycle
 
 Item {
     id: root
@@ -140,7 +141,8 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: root.frostActive
-            ? Qt.rgba(Theme.drawer.r, Theme.drawer.g, Theme.drawer.b, 0.94)
+            ? Qt.rgba(Theme.drawer.r, Theme.drawer.g, Theme.drawer.b,
+                Lifecycle.frostBackdropOpacity(root.frostActive))
             : Theme.drawer
     }
 

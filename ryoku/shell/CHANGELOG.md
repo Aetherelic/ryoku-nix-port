@@ -31,6 +31,10 @@
   launcher and the frame are untouched.
 
 ### Fixed
+- **Backdrop frost is visible when it is enabled.** The frozen desktop crop was
+  being captured correctly, but the result drawer covered it at 94% opacity.
+  Frost now leaves 28% of the blurred backdrop visible while preserving the
+  drawer's contrast and card-local scope (`quickshell/launcher/{ResultDrawer,LauncherSurface}.qml`).
 - **The typed launcher stays focused and makes app/window activation explicit.**
   Pointer motion no longer selects result rows or Desktop Actions, so it cannot
   retrigger the lead swap, drawer layout, or a window-rail rematch. The typed

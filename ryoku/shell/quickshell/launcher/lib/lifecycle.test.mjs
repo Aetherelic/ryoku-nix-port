@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const {
   CAPTURE,
   PHASES,
+  frostBackdropOpacity,
   frostPresentation,
   initialState,
   mapsMonitor,
@@ -706,4 +707,9 @@ test("frost presentation is dormant at Rest and bounded to the visible drawer", 
     textureHeight: 540,
     opacity: 1
   });
+});
+
+test("an active frost keeps the captured backdrop visibly present", () => {
+  assert.equal(frostBackdropOpacity(false), 1);
+  assert.equal(frostBackdropOpacity(true), 0.72);
 });

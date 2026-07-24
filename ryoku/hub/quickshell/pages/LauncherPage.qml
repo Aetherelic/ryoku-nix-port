@@ -383,7 +383,7 @@ Item {
 
         Column {
             id: col
-            width: flick.width - Tokens.s3   // reserve a lane for the scroll rail
+            width: flick.width - Tokens.s3
             spacing: Tokens.s5
 
             Section {
@@ -414,8 +414,8 @@ Item {
                     width: palSect.span(6)
                     height: Tokens.cellH
                     controlWidth: Spans.inlineWidth("step", 0, width)
-                    label: I18n.tr("Local frost")
-                    desc: I18n.tr("Softens the frozen card-local desktop snapshot captured as the launcher opens. 0 keeps it sharp.")
+                    label: I18n.tr("Backdrop frost")
+                    desc: I18n.tr("Blurs the frozen desktop visible through the result drawer. 0 keeps the drawer solid.")
                     unit: "px"
                     value: String(pg.draft.bgBlur)
                     def: String(pg.committed.bgBlur)
@@ -753,7 +753,7 @@ Item {
             color: Tokens.paperLift
             border.width: Tokens.border
             border.color: Tokens.lineStrong
-            MouseArea { anchors.fill: parent; onClicked: {} }   // absorb inside clicks
+            MouseArea { anchors.fill: parent; onClicked: {} }
 
             Text {
                 id: ptitle
