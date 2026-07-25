@@ -16,7 +16,6 @@ import Ryoku.Ui
 ShellRoot {
     id: root
 
-    property string hostMode: "standalone"
     property string openMon: ""
     readonly property bool open: openMon !== ""
 
