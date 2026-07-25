@@ -48,7 +48,8 @@ Item {
 
     // { [monitor]: { [anchor]: record } }, driven by the pure MenuState model.
     property var menuState: ({})
-    signal surfaceClosed(string id)
+    signal surfaceClosed(string id, var context)
+    signal pluginUnpinRequested(string pluginId)
 
     readonly property bool anyOpen: {
         const mon = menuState[monitorName];
@@ -110,7 +111,7 @@ Item {
         return rec && rec.along !== undefined ? rec.along : -1;
     }
 
-    function openSurface(id, ownerRect, requestedMonitor) {
+    function openSurface(id, ownerRect, requestedMonitor, context) {
         if (requestedMonitor !== undefined && requestedMonitor !== "" && requestedMonitor !== root.monitorName) return;
         const voiceOff = id === "voice-off";
         const surfaceID = voiceOff ? "voice" : id;
@@ -136,9 +137,10 @@ Item {
         const along = horiz ? local.x + ownerRect.width / 2 : local.y + ownerRect.height / 2;
         const trigger = { x: local.x, y: local.y, width: ownerRect.width, height: ownerRect.height };
         const previous = MenuState.activeAt(root.menuState, root.monitorName, rec.anchor);
-        if (previous && previous.id !== surfaceID) root.surfaceClosed(previous.id);
+        if (previous && previous.id !== surfaceID) root.surfaceClosed(previous.id, previous);
         root.menuState = MenuState.open(root.menuState, root.monitorName,
-            Object.assign({}, rec, { id: surfaceID, anchor: rec.anchor, along: along, trigger: trigger, off: voiceOff }));
+            Object.assign({}, rec, { id: surfaceID, anchor: rec.anchor, along: along, trigger: trigger,
+                off: voiceOff, promptId: surfaceID === "keyring" && context ? context.promptId : undefined }));
     }
     function openMenu(id, ownerRect) {
         root.openSurface(id, ownerRect, root.monitorName);
@@ -154,7 +156,7 @@ Item {
             return;
         }
         const previous = MenuState.activeAt(root.menuState, root.monitorName, "top");
-        if (previous) root.surfaceClosed(previous.id);
+        if (previous) root.surfaceClosed(previous.id, previous);
         const rec = { id: id, anchor: "top", along: root.width / 2,
             trigger: { x: root.width / 2, y: root.height / 2, width: 1, height: 1 } };
         root.menuState = MenuState.open(root.menuState, root.monitorName, rec);
@@ -171,11 +173,15 @@ Item {
         }
         root.closeMenu(id === "voice-off" ? "voice" : id);
     }
+    function retireKeyringPrompt(promptId) {
+        const active = MenuState.activeAt(root.menuState, root.monitorName, "top");
+        if (active && active.id === "keyring" && active.promptId !== promptId) root.closeAt("top");
+    }
 
     function closeAt(anchor) {
         const active = MenuState.activeAt(root.menuState, root.monitorName, anchor);
         if (!active) return;
-        root.surfaceClosed(active.id);
+        root.surfaceClosed(active.id, active);
         root.menuState = MenuState.closeAt(root.menuState, root.monitorName, anchor);
     }
     function closeMenu(id) {
@@ -222,6 +228,7 @@ Item {
             const id = root.activeIdAt("top");
             return id.indexOf("plugin:") === 0 ? id.substring(7) : "";
         }
-        onUnpinRequested: root.closeAt("top")
+        onUnpinRequested: pluginId => root.pluginUnpinRequested(pluginId)
     }
+    onPluginUnpinRequested: pluginId => root.closeSurface("plugin:" + pluginId, root.monitorName)
 }

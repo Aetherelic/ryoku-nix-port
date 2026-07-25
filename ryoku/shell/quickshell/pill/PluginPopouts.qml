@@ -30,7 +30,7 @@ Item {
     // fires when a keybind/IPC-pinned popout should dismiss because the pointer
     // left it (pinned closes like a hover-opened one). pill clears its popout
     // pin in response.
-    signal unpinRequested()
+    signal unpinRequested(string pluginId)
 
     anchors.fill: parent
 
@@ -113,7 +113,7 @@ Item {
             Timer {
                 id: graceTimer
                 interval: pop._touched ? 220 : pop._graceMs
-                onTriggered: if (pop.pinned && !pop.hovered) root.unpinRequested();
+                onTriggered: if (pop.pinned && !pop.hovered) root.unpinRequested(pop.modelData.id);
             }
             // body fits content vertically. openH = loaded content's intrinsic
             // height + inner pad, so no deadspace. width is fixed (content lays

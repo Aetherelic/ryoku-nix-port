@@ -28,9 +28,10 @@ ShellRoot {
     signal menuRequested(string id, rect ownerRect)
     signal surfaceRequested(string id, rect ownerRect)
     signal actionRequested(string id)
-    signal surfaceRequestedForMonitor(string id, string monitor)
+    signal surfaceRequestedForMonitor(string id, string monitor, var context)
     signal surfaceCloseRequested(string id, string monitor)
     signal barMenuRequested(string monitor, string id)
+    signal keyringPromptChanged(int promptId)
 
     function runBarAction(id) {
         switch (id) {
@@ -196,8 +197,8 @@ ShellRoot {
         function onAuthStepAside(mon, id) { root.surfaceCloseRequested(id, mon); }
     }
 
-    function requestSurface(id, mon) {
-        root.surfaceRequestedForMonitor(id, mon);
+    function requestSurface(id, mon, context) {
+        root.surfaceRequestedForMonitor(id, mon, context);
     }
 
     IpcHandler {
@@ -207,8 +208,10 @@ ShellRoot {
         function power(mon: string): void { root.requestSurface("power", mon); }
         function keyringPrompt(payload: string): void {
             Keyring.apply(payload);
+            root.keyringPromptChanged(Keyring.promptId);
             root.requestSurface("keyring", Keyring.mon !== "" ? Keyring.mon
-                : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""));
+                : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""),
+                { promptId: Keyring.promptId });
         }
         function keyringHide(): void {
             Keyring.clear();
@@ -582,15 +585,16 @@ ShellRoot {
                     active: !overlay.monFullscreen
                     sidebarTopInset: overlay.sidebarTopGap
                     sidebarBottomInset: overlay.sidebarBotGap
-                    onSurfaceClosed: id => surfaceLifecycle.handleClosed(id)
+                    onSurfaceClosed: (id, context) => surfaceLifecycle.handleClosed(id, context)
 
                     Connections {
                         target: root
                         function onMenuRequested(id, ownerRect) { frameMenus.openSurface(id, ownerRect, ""); }
                         function onSurfaceRequested(id, ownerRect) { frameMenus.openSurface(id, ownerRect, ""); }
-                        function onSurfaceRequestedForMonitor(id, mon) { frameMenus.openSurface(id, null, mon); }
+                        function onSurfaceRequestedForMonitor(id, mon, context) { frameMenus.openSurface(id, null, mon, context); }
                         function onSurfaceCloseRequested(id, mon) { frameMenus.closeSurface(id, mon); }
                         function onBarMenuRequested(mon, id) { frameMenus.openSurface(id, null, mon); }
+                        function onKeyringPromptChanged(promptId) { frameMenus.retireKeyringPrompt(promptId); }
                     }
                 }
 

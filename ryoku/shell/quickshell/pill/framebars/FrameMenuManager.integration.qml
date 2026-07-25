@@ -11,6 +11,7 @@ ShellRoot {
         id: keyring
         property bool active: false
         property bool busy: false
+        property int promptId: -1
         property int dismissCount: 0
         function dismiss() {
             if (active && !busy) {
@@ -32,7 +33,7 @@ ShellRoot {
         scale: 1
         group: root.group
         frameThickness: 16
-        onSurfaceClosed: id => lifecycle.handleClosed(id)
+        onSurfaceClosed: (id, context) => lifecycle.handleClosed(id, context)
     }
     FrameMenuManager {
         id: second
@@ -42,6 +43,7 @@ ShellRoot {
         scale: 1
         group: root.group
         frameThickness: 16
+        onSurfaceClosed: (id, context) => lifecycle.handleClosed(id, context)
     }
     Connections {
         target: Stash
@@ -54,9 +56,13 @@ ShellRoot {
         interval: 100
         running: true
         onTriggered: {
-            function openKeyring() {
+            function openKeyringOn(manager, monitor, promptId) {
                 keyring.active = true;
-                first.openSurface("keyring", null, "eDP-1");
+                keyring.busy = false;
+                keyring.promptId = promptId;
+                first.retireKeyringPrompt(promptId);
+                second.retireKeyringPrompt(promptId);
+                manager.openSurface("keyring", null, monitor, { promptId: promptId });
             }
             function closesKeyring(action) {
                 const beforeDismiss = keyring.dismissCount;
@@ -87,38 +93,55 @@ ShellRoot {
             first.openSurface("plugin:missing", null, "eDP-1");
             first.openSurface("plugin:missing", null, "eDP-1");
             const pluginToggle = first.activeIdAt("top") === "";
+            first.openSurface("plugin:old", null, "eDP-1");
+            first.openSurface("plugin:replacement", null, "eDP-1");
+            first.pluginUnpinRequested("old");
+            const delayedPluginUnpinSafe = first.activeIdAt("top") === "plugin:replacement";
             first.openSurface("voice-off", null, "eDP-1");
             const voicePassive = first.activeIdAt("top") === "voice" && !first.modal;
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 1);
             const keyringFocus = first.activeIdAt("top") === "keyring" && first.modal;
             first.openSurface("power", null, "eDP-1");
             first.closeSurface("voice-off", "eDP-1");
             const normalizedStaleClose = first.activeIdAt("top") === "power";
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 2);
             const bodyClose = closesKeyring(() => first.closeMenu("keyring"));
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 3);
             const escapeClose = closesKeyring(() => first.closeAll());
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 4);
             const backdropClose = closesKeyring(() => first.closeAll());
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 5);
             const focusGrabClose = closesKeyring(() => first.closeAll());
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 6);
             const daemonClose = closesKeyring(() => first.closeSurface("keyring", "eDP-1"));
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 7);
             const fullscreenClose = closesKeyring(() => first.active = false);
             first.active = true;
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 8);
             const replacementClose = closesKeyring(() => first.openSurface("power", null, "eDP-1"));
             first.openSurface("voice", null, "eDP-1");
-            openKeyring();
+            openKeyringOn(first, "eDP-1", 9);
             const beforeStaleDismiss = keyring.dismissCount;
             first.closeSurface("voice-off", "eDP-1");
             const staleKeyringSafe = first.activeIdAt("top") === "keyring" && keyring.dismissCount === beforeStaleDismiss;
+            openKeyringOn(first, "eDP-1", 10);
+            openKeyringOn(second, "HDMI-A-1", 11);
+            const handoffRetiresOld = first.activeIdAt("top") === "" && second.activeIdAt("top") === "keyring";
+            const beforeHandoffDismiss = keyring.dismissCount;
+            const beforeHandoffFocus = root.focusCount;
+            first.closeSurface("keyring", "eDP-1");
+            const staleHandoffCloseSafe = second.activeIdAt("top") === "keyring"
+                && keyring.active && keyring.promptId === 11
+                && keyring.dismissCount === beforeHandoffDismiss && root.focusCount === beforeHandoffFocus;
+            second.closeSurface("keyring", "HDMI-A-1");
+            const activeHandoffCloseOnce = keyring.dismissCount === beforeHandoffDismiss + 1
+                && root.focusCount === beforeHandoffFocus + 1;
             first.closeAll();
             console.log((firstOpen && replacement && authStepAside && isolatedClose && staleClose && monitorGuard && modalMask
-                && powerToggle && pluginToggle && voicePassive && keyringFocus && normalizedStaleClose
+                && powerToggle && pluginToggle && delayedPluginUnpinSafe && voicePassive && keyringFocus && normalizedStaleClose
                 && bodyClose && escapeClose && backdropClose && focusGrabClose && daemonClose
-                && fullscreenClose && replacementClose && staleKeyringSafe)
+                && fullscreenClose && replacementClose && staleKeyringSafe && handoffRetiresOld
+                && staleHandoffCloseSafe && activeHandoffCloseOnce)
                 ? "FRAME-MENU-MANAGER-PASS" : "FRAME-MENU-MANAGER-FAIL");
             Qt.quit();
         }

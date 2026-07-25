@@ -4,8 +4,8 @@ QtObject {
     required property var keyring
     signal focusRestored()
 
-    function handleClosed(id) {
-        if (id !== "keyring") return;
+    function handleClosed(id, context) {
+        if (id !== "keyring" || !context || context.promptId !== keyring.promptId || !keyring.active || keyring.busy) return;
         keyring.dismiss();
         focusRestored();
     }
