@@ -96,7 +96,7 @@ Item {
         root.menuState = MenuState.closeAt(root.menuState, root.monitorName, anchor);
     }
     function closeMenu(id) {
-        const rec = MenuCatalog.menu(id);
+        const rec = MenuState.recordFor(root.menus, id);
         if (rec) root.closeAt(rec.anchor);
     }
     function closeAll() {
