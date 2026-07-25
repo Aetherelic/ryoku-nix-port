@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "BarStudioModel.js" as Model
 
@@ -20,24 +20,33 @@ ColumnLayout {
         for (let i = 0; i < root.path.length; i += 2) list = list[root.path[i]].widgets;
         return list;
     }
+    readonly property var widgetIds: root.catalog.widgetIds()
+    readonly property var widgetLabels: root.widgetIds.map(id => labels.item(id))
     spacing: Tokens.s2
+
+    CatalogLabels { id: labels }
 
     RowLayout {
         Layout.fillWidth: true
-        ComboBox { id: addPick; Layout.fillWidth: true; model: root.catalog.widgetIds(); onActivated: root.addition = currentText }
-        Button { text: qsTr("Add"); enabled: root.addition.length > 0; onClicked: root.staged(Model.addMenuWidget(root.config, root.menuId, root.path, root.addition, root.catalog)) }
+        Chips {
+            Layout.fillWidth: true
+            options: root.widgetLabels
+            current: labels.item(root.addition)
+            onChose: label => root.addition = root.widgetIds.find(id => labels.item(id) === label) || ""
+        }
+        Btn { text: qsTr("Add"); armed: root.addition.length > 0; onAct: root.staged(Model.addMenuWidget(root.config, root.menuId, root.path, root.addition, root.catalog)) }
     }
     Repeater {
         model: root.items
         delegate: RowLayout {
             required property var modelData
             required property int index
-            readonly property string label: typeof modelData === "string" ? modelData : modelData.id
-            Label { text: label }
-            Button { text: qsTr("Up"); enabled: index > 0; onClicked: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, root.path, index - 1, root.catalog)) }
-            Button { text: qsTr("Down"); enabled: index < root.items.length - 1; onClicked: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, root.path, index + 1, root.catalog)) }
-            Button { text: qsTr("Move"); onClicked: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, [], root.config.menus[root.menuId].widgets.length, root.catalog)) }
-            Button { text: qsTr("Remove"); onClicked: root.staged(Model.removeMenuWidget(root.config, root.menuId, root.path, index, root.catalog)) }
+            readonly property string itemId: typeof modelData === "string" ? modelData : modelData.id
+            Text { text: labels.item(itemId) }
+            Btn { text: qsTr("Up"); armed: index > 0; onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, root.path, index - 1, root.catalog)) }
+            Btn { text: qsTr("Down"); armed: index < root.items.length - 1; onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, root.path, index + 1, root.catalog)) }
+            Btn { text: qsTr("Move"); onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, [], root.config.menus[root.menuId].widgets.length, root.catalog)) }
+            Btn { text: qsTr("Remove"); onAct: root.staged(Model.removeMenuWidget(root.config, root.menuId, root.path, index)) }
         }
     }
 }

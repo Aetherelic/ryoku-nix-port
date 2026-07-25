@@ -64,6 +64,17 @@ fresh(nestedMoved, nestedRemoved, "remove nested menu widget");
 eq(nestedRemoved.menus.clock.widgets[0].widgets, [], "nested widget removal updates children");
 eq(nestedMenu.menus.clock.widgets, ["clock", { id: "container", widgets: [] }], "nested operations leave source menu unchanged");
 
+const nestedMoveSource = Model.createMenu(base, "clock", MenuCatalog);
+nestedMoveSource.menus.clock.widgets = [{ id: "container", widgets: [{ id: "container", widgets: ["divider"] }] }];
+const directDescendantRejected = Model.moveMenuWidget(nestedMoveSource, "clock", [], 0, [0, "widgets"], 0, MenuCatalog);
+fresh(nestedMoveSource, directDescendantRejected, "reject direct descendant menu move");
+eq(directDescendantRejected, nestedMoveSource, "direct descendant move preserves the normalized root");
+eq(nestedMoveSource.menus.clock.widgets, [{ id: "container", widgets: [{ id: "container", widgets: ["divider"] }] }], "direct descendant move leaves source root intact");
+const deepDescendantRejected = Model.moveMenuWidget(nestedMoveSource, "clock", [], 0, [0, "widgets", 0, "widgets"], 0, MenuCatalog);
+fresh(nestedMoveSource, deepDescendantRejected, "reject deep descendant menu move");
+eq(deepDescendantRejected, nestedMoveSource, "deep descendant move preserves the normalized root");
+eq(nestedMoveSource.menus.clock.widgets[0].widgets[0].widgets, ["divider"], "deep descendant move leaves source descendants intact");
+
 if (failed > 0) {
     console.error(`\n${failed} test(s) FAILED`);
     process.exit(1);

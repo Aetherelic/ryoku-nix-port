@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "../barstudio"
 import "../../../shell/quickshell/pill/framebars/BarCatalog.js" as BarCatalog
@@ -19,6 +20,8 @@ Item {
         if (page.hub && next) page.hub.edit("frameBars", next);
     }
 
+    CatalogLabels { id: labels }
+
     ScrollView {
         anchors.fill: parent
         contentWidth: availableWidth
@@ -26,28 +29,25 @@ Item {
             width: parent.width
             spacing: Tokens.s4
 
-            Label {
+            Text {
                 Layout.fillWidth: true
                 text: qsTr("Bar Studio")
                 font.family: Tokens.display
                 font.pixelSize: Tokens.fTitle
                 wrapMode: Text.Wrap
             }
-            Label {
+            Text {
                 Layout.fillWidth: true
                 text: qsTr("Arrange the bounded frame rails, menus, surfaces, styles, and catalogue.")
                 wrapMode: Text.Wrap
             }
             RowLayout {
                 Layout.fillWidth: true
-                Label { text: qsTr("Styles") }
-                ComboBox {
-                    model: ["ok-frame", "ryoku-frame"]
-                    currentIndex: page.config.style === "ryoku-frame" ? 1 : 0
-                    onActivated: page.stage(Model.setStyle(page.config, currentText))
-                }
+                Text { text: qsTr("Styles") }
+                Btn { text: labels.style("ok-frame"); primary: page.config.style === "ok-frame"; onAct: page.stage(Model.setStyle(page.config, "ok-frame")) }
+                Btn { text: labels.style("ryoku-frame"); primary: page.config.style === "ryoku-frame"; onAct: page.stage(Model.setStyle(page.config, "ryoku-frame")) }
             }
-            Label { text: qsTr("Rails"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }
+            Text { text: qsTr("Rails"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }
             Repeater {
                 model: ["top", "left", "bottom", "right"]
                 delegate: ColumnLayout {
@@ -57,11 +57,11 @@ Item {
                     ZoneEditor { Layout.fillWidth: true; config: page.config; edge: modelData; catalog: BarCatalog; onStaged: next => page.stage(next) }
                 }
             }
-            Label { text: qsTr("Menus"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }
+            Text { text: qsTr("Menus"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }
             MenuEditor { Layout.fillWidth: true; config: page.config; catalog: MenuCatalog; onStaged: next => page.stage(next) }
-            Label { text: qsTr("Frame Surfaces"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }
+            Text { text: qsTr("Frame Surfaces"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }
             SurfaceEditor { Layout.fillWidth: true; config: page.config; catalog: MenuCatalog; onStaged: next => page.stage(next) }
-            Label { text: qsTr("Catalogue"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }
+            Text { text: qsTr("Catalogue"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }
             CatalogPanel { Layout.fillWidth: true; barCatalog: BarCatalog; menuCatalog: MenuCatalog }
         }
     }

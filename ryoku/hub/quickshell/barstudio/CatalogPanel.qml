@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import Ryoku.Ui.Singletons
 
@@ -11,12 +10,14 @@ ColumnLayout {
     required property var menuCatalog
     spacing: Tokens.s2
 
-    Label { text: qsTr("Catalogue"); font: Tokens.ui }
-    Label {
+    CatalogLabels { id: labels }
+
+    Text { text: qsTr("Catalogue"); font.family: Tokens.ui }
+    Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
         text: qsTr("Only catalogued widgets, menus, anchors, panes, and frame surfaces can be saved.")
     }
-    Label { text: qsTr("Bar widgets: %1").arg(root.barCatalog.ids().join(", ")) }
-    Label { text: qsTr("Menu widgets: %1").arg(root.menuCatalog.widgetIds().join(", ")) }
+    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("Bar widgets: %1").arg(root.barCatalog.ids().map(id => labels.item(id)).join(", ")) }
+    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("Menu widgets: %1").arg(root.menuCatalog.widgetIds().map(id => labels.item(id)).join(", ")) }
 }

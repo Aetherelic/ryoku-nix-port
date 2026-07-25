@@ -98,8 +98,11 @@ function moveMenuWidget(config, id, fromPath, index, toPath, targetIndex, catalo
     const target = menu ? pathList(menu, toPath) : null;
     if (!source || !target || !Number.isInteger(index) || index < 0 || index >= source.length) return next;
     const item = source[index];
+    const descendantPath = Array.isArray(toPath) && toPath.length >= fromPath.length + 2
+        && fromPath.every((part, pathIndex) => toPath[pathIndex] === part)
+        && toPath[fromPath.length] === index && toPath[fromPath.length + 1] === "widgets";
     const widget = catalog.widget(typeof item === "string" ? item : item && item.id);
-    if (!widget || (source !== target && target.some(value => JSON.stringify(value) === JSON.stringify(item)))) return next;
+    if (descendantPath || !widget || (source !== target && target.some(value => JSON.stringify(value) === JSON.stringify(item)))) return next;
     source.splice(index, 1);
     const bounded = Math.max(0, Math.min(Number.isInteger(targetIndex) ? targetIndex : target.length, target.length));
     target.splice(bounded, 0, item);

@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "BarStudioModel.js" as Model
 
@@ -24,16 +24,24 @@ ColumnLayout {
         }
         return out;
     }
+    readonly property var compatibleLabels: root.compatible.map(id => labels.item(id))
     spacing: Tokens.s3
+
+    CatalogLabels { id: labels }
 
     RowLayout {
         Layout.fillWidth: true
-        Label { text: qsTr("Add compatible widget") }
-        ComboBox { id: addPick; Layout.fillWidth: true; model: root.compatible; onActivated: root.addition = currentText }
-        Button {
+        Text { text: qsTr("Add compatible widget") }
+        Chips {
+            Layout.fillWidth: true
+            options: root.compatibleLabels
+            current: labels.item(root.addition)
+            onChose: label => root.addition = root.compatible.find(id => labels.item(id) === label) || ""
+        }
+        Btn {
             text: qsTr("Add")
-            enabled: root.addition.length > 0
-            onClicked: root.staged(Model.addZoneItem(root.config, root.edge, root.horizontal ? "start" : "top", root.addition, root.catalog))
+            armed: root.addition.length > 0
+            onAct: root.staged(Model.addZoneItem(root.config, root.edge, root.horizontal ? "start" : "top", root.addition, root.catalog))
         }
     }
     Repeater {

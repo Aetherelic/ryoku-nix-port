@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "BarStudioModel.js" as Model
 
@@ -16,25 +16,22 @@ ColumnLayout {
     readonly property var rail: root.config.rails[root.edge]
     spacing: Tokens.s2
 
-    Label { text: qsTr("%1 rail").arg(root.edge); font: Tokens.ui }
+    CatalogLabels { id: labels }
+
+    Text { text: qsTr("%1 rail").arg(labels.edge(root.edge)); font.family: Tokens.ui }
     RowLayout {
         Layout.fillWidth: true
-        Switch {
-            text: qsTr("Enabled")
-            checked: root.rail.enabled
-            onToggled: root.staged(Model.setRail(root.config, root.edge, { enabled: checked }))
-        }
-        Switch {
-            text: qsTr("Reveal")
-            checked: root.rail.reveal
-            onToggled: root.staged(Model.setRail(root.config, root.edge, { reveal: checked }))
-        }
-        Label { text: qsTr("Size") }
-        SpinBox {
+        Text { text: qsTr("Enabled") }
+        Sw { on: root.rail.enabled; onToggled: value => root.staged(Model.setRail(root.config, root.edge, { enabled: value })) }
+        Text { text: qsTr("Reveal") }
+        Sw { on: root.rail.reveal; onToggled: value => root.staged(Model.setRail(root.config, root.edge, { reveal: value })) }
+        Text { text: qsTr("Size") }
+        Text { text: root.rail.size; font.family: Tokens.mono }
+        Step {
             from: root.edge === "top" || root.edge === "bottom" ? 16 : 24
             to: root.edge === "top" || root.edge === "bottom" ? 96 : 112
             value: root.rail.size
-            onValueModified: root.staged(Model.setRail(root.config, root.edge, { size: value }))
+            onModified: value => root.staged(Model.setRail(root.config, root.edge, { size: value }))
         }
     }
 }
