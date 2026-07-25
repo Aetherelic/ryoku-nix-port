@@ -11,6 +11,7 @@ Item {
 
     signal menuRequested(string id, rect ownerRect)
     signal surfaceRequested(string id, rect ownerRect)
+    signal actionRequested(string id)
 
     Repeater {
         model: ["top", "left", "bottom", "right"]
@@ -21,13 +22,15 @@ Item {
             scale: bar.railScale
             rail: bar.frameBars.rails[modelData]
             style: bar.style
-            visible: rail.enabled
-            onWidgetActivated: (id, ownerRect) => {
-                if (bar.frameBars.menus[id])
-                    bar.menuRequested(id, ownerRect);
-                else if (bar.frameBars.surfaces[id])
-                    bar.surfaceRequested(id, ownerRect);
+            delegate: Component {
+                BarWidgetHost {
+                    edge: modelData
+                    scale: bar.railScale
+                    onMenuRequested: (id, ownerRect) => bar.menuRequested(id, ownerRect)
+                    onActionRequested: id => bar.actionRequested(id)
+                }
             }
+            visible: rail.enabled
         }
     }
 }

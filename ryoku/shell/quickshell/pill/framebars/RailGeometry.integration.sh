@@ -8,8 +8,11 @@ mkdir "$work/qs"
 cp "$here/RailGeometry.integration.qml" "$work/qs/shell.qml"
 ln -s "$here" "$work/qs/framebars"
 ln -s "$here/../Bar.qml" "$work/qs/Bar.qml"
+ln -s "$here/../BarWidgetHost.qml" "$work/qs/BarWidgetHost.qml"
 ln -s "$here/../FrameRail.qml" "$work/qs/FrameRail.qml"
 ln -s "$here/../RailZone.qml" "$work/qs/RailZone.qml"
+ln -s "$here/../Singletons" "$work/qs/Singletons"
+ln -s "$here/../lib" "$work/qs/lib"
 
 QT_QPA_PLATFORM=offscreen \
 QML_IMPORT_PATH="${QML_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \

@@ -9,8 +9,8 @@ ShellRoot {
     readonly property real frameLip: 9
     readonly property var frameBars: ({
         rails: {
-            top: { enabled: true, size: 32, start: [], center: [], end: [] },
-            left: { enabled: true, size: 48, top: [], center: [], bottom: [] },
+            top: { enabled: true, size: 32, start: [], center: ["clock"], end: [] },
+            left: { enabled: true, size: 48, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["tray", "network", "clock"] },
             bottom: { enabled: false, size: 32, start: [], center: [], end: [] },
             right: { enabled: false, size: 48, top: [], center: [], bottom: [] }
         },
