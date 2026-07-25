@@ -494,6 +494,25 @@ ShellRoot {
                 Region { x: keyringPop.maskX; y: keyringPop.maskY; width: keyringPop.maskW; height: keyringPop.maskH }
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
+                // frame menus: each open menu unions its trigger (owner) and body
+                // rects so the click target and the open body keep catching input;
+                // idle anchors stay zero-size and click through.
+                Region { x: frameMenus.masks["top"].tx; y: frameMenus.masks["top"].ty; width: frameMenus.masks["top"].tw; height: frameMenus.masks["top"].th }
+                Region { x: frameMenus.masks["top"].bx; y: frameMenus.masks["top"].by; width: frameMenus.masks["top"].bw; height: frameMenus.masks["top"].bh }
+                Region { x: frameMenus.masks["top-left"].tx; y: frameMenus.masks["top-left"].ty; width: frameMenus.masks["top-left"].tw; height: frameMenus.masks["top-left"].th }
+                Region { x: frameMenus.masks["top-left"].bx; y: frameMenus.masks["top-left"].by; width: frameMenus.masks["top-left"].bw; height: frameMenus.masks["top-left"].bh }
+                Region { x: frameMenus.masks["top-right"].tx; y: frameMenus.masks["top-right"].ty; width: frameMenus.masks["top-right"].tw; height: frameMenus.masks["top-right"].th }
+                Region { x: frameMenus.masks["top-right"].bx; y: frameMenus.masks["top-right"].by; width: frameMenus.masks["top-right"].bw; height: frameMenus.masks["top-right"].bh }
+                Region { x: frameMenus.masks["left"].tx; y: frameMenus.masks["left"].ty; width: frameMenus.masks["left"].tw; height: frameMenus.masks["left"].th }
+                Region { x: frameMenus.masks["left"].bx; y: frameMenus.masks["left"].by; width: frameMenus.masks["left"].bw; height: frameMenus.masks["left"].bh }
+                Region { x: frameMenus.masks["right"].tx; y: frameMenus.masks["right"].ty; width: frameMenus.masks["right"].tw; height: frameMenus.masks["right"].th }
+                Region { x: frameMenus.masks["right"].bx; y: frameMenus.masks["right"].by; width: frameMenus.masks["right"].bw; height: frameMenus.masks["right"].bh }
+                Region { x: frameMenus.masks["bottom"].tx; y: frameMenus.masks["bottom"].ty; width: frameMenus.masks["bottom"].tw; height: frameMenus.masks["bottom"].th }
+                Region { x: frameMenus.masks["bottom"].bx; y: frameMenus.masks["bottom"].by; width: frameMenus.masks["bottom"].bw; height: frameMenus.masks["bottom"].bh }
+                Region { x: frameMenus.masks["bottom-left"].tx; y: frameMenus.masks["bottom-left"].ty; width: frameMenus.masks["bottom-left"].tw; height: frameMenus.masks["bottom-left"].th }
+                Region { x: frameMenus.masks["bottom-left"].bx; y: frameMenus.masks["bottom-left"].by; width: frameMenus.masks["bottom-left"].bw; height: frameMenus.masks["bottom-left"].bh }
+                Region { x: frameMenus.masks["bottom-right"].tx; y: frameMenus.masks["bottom-right"].ty; width: frameMenus.masks["bottom-right"].tw; height: frameMenus.masks["bottom-right"].th }
+                Region { x: frameMenus.masks["bottom-right"].bx; y: frameMenus.masks["bottom-right"].by; width: frameMenus.masks["bottom-right"].bw; height: frameMenus.masks["bottom-right"].bh }
                 Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
                 Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
             }
@@ -511,11 +530,14 @@ ShellRoot {
             FocusScope {
                 id: focusScope
                 anchors.fill: parent
-                focus: overlay.kbPopout
+                focus: overlay.kbPopout || frameMenus.anyOpen
                 // whole shell hides while a window is fullscreen.
                 visible: !overlay.monFullscreen
 
-                Keys.onEscapePressed: if (overlay.kbPopout) root.popout = ""
+                Keys.onEscapePressed: {
+                    if (overlay.kbPopout) root.popout = "";
+                    else if (frameMenus.anyOpen) frameMenus.closeAll();
+                }
 
                 // Ryoku brand grain: one fine matte over the whole overlay -- the
                 // frame, the bar, every popout, and (through the transparent body)
@@ -615,6 +637,24 @@ ShellRoot {
                     onMenuRequested: (id, ownerRect) => root.menuRequested(id, ownerRect)
                     onSurfaceRequested: (id, ownerRect) => root.surfaceRequested(id, ownerRect)
                     onActionRequested: id => root.runBarAction(id)
+                }
+
+                // per-monitor frame menu manager: a bar widget asks for a menu via
+                // root.menuRequested; only the owning monitor's manager opens it on
+                // the shared Popout scene. The focus grab below dismisses on a
+                // backdrop click, and Escape closes through the FocusScope.
+                FrameMenuManager {
+                    id: frameMenus
+                    monitorName: overlay.modelData.name
+                    scale: overlay.s
+                    group: blobGroup
+                    frameThickness: overlay.surfaceFrameThickness
+                    active: !overlay.monFullscreen
+
+                    Connections {
+                        target: root
+                        function onMenuRequested(id, ownerRect) { frameMenus.openMenu(id, ownerRect); }
+                    }
                 }
 
                 // power popout: the session menu, grown from the bar edge. The
@@ -749,9 +789,13 @@ ShellRoot {
                 }
 
                 HyprlandFocusGrab {
-                    active: root.popout !== "" && root.popoutMon === overlay.modelData.name && !overlay.kbPopout && root.popout !== "voice"
+                    active: !overlay.kbPopout && (frameMenus.anyOpen
+                        || (root.popout !== "" && root.popoutMon === overlay.modelData.name && root.popout !== "voice"))
                     windows: [overlay]
-                    onCleared: if (root.popoutMon === overlay.modelData.name) root.popout = ""
+                    onCleared: {
+                        if (root.popoutMon === overlay.modelData.name) root.popout = "";
+                        frameMenus.closeAll();
+                    }
                 }
 
                 // Plugin frame popouts fuse into the same blob field as Power.
