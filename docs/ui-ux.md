@@ -216,13 +216,11 @@ Each surface is its own directory under `quickshell/`, each component its own
 - **frame** the rounded screen border and the popouts that melt into it; the
   desktop's signature surface. See `docs/frame.md`.
 - **pill** the historical shell surface directory (`quickshell/pill/`): the
-  Atoll bar floating at the top or bottom edge, the shared frame scene, and the
-  service surfaces. Atoll carries launcher, Settings, workspaces, now-playing,
-  clock, weather, tray, connectivity, volume, battery and notification status.
-  Status is display-only; the power/session menu is the only bar-owned popup.
-  `atollVariant` selects the
-  faithful ilyamiro look or Ryoku's square paper-black treatment. See
-  `docs/bar.md` and `docs/frame.md`.
+  four-edge frame-bar system, shared frame scene, and service surfaces.
+  Configurable rails carry the clock, quick settings, workspaces, dock, tray,
+  connectivity, and status widgets. The monitor-local menu manager owns
+  bounded frame menus and preserved Stash/System surfaces. See `docs/bar.md`
+  and `docs/frame.md`.
 - **launcher** the Super-triggered app launcher and command palette, with a
   zero-query rest card (the solar-arc clock and weather). See `docs/launcher.md`.
 - **switcher** the full-screen Alt-Tab window switcher.
@@ -256,9 +254,9 @@ Each surface is its own directory under `quickshell/`, each component its own
 - **welcome** the first-run guided tour, shown once on the first login: a floating
   window (`qs -c welcome`) over generated threshold art that walks a new
   user through the core keybinds, names each surface and how to summon it, and
-  offers a few live quick settings (wallpaper, bar position and Atoll look, frame and window roundness). The Hyprland
-  autostart launches it once, gated on a `~/.local/state/ryoku/welcome-seen` flag;
-  it lives in `quickshell/welcome`.
+  offers a few live quick settings (wallpaper, Bar Studio, frame and window
+  roundness). The Hyprland autostart launches it once, gated on a
+  `~/.local/state/ryoku/welcome-seen` flag; it lives in `quickshell/welcome`.
 
 ## Motion
 
@@ -273,7 +271,7 @@ to decorate.
   and travel, `effects` (200ms) plain fades. The curves are `cubic-bezier`
   control-point arrays fed to `easing.bezierCurve` with `easing.type:
   `Easing.BezierSpline`; the shared expressive curve family keeps indicator,
-  popout and Atoll reveal motion coherent.
+  popout, and frame-bar reveal motion coherent.
 - Drive transitions from **state** (`states` + `transitions`), not imperative
   timers, wherever possible; the popout reveal is the model.
 - **The frame's give is physical, not scripted.** A `BlobRect`'s `stiffness` /
@@ -286,8 +284,8 @@ to decorate.
 
 ## Building or replicating an animation
 
-1. Read the closest existing component first; the Atoll bar, power surface and
-   service popouts under `quickshell/pill/` show the project's durations,
+1. Read the closest existing component first; `FrameRail`, the power surface,
+   and service surfaces under `quickshell/pill/` show the project's durations,
    curves, and structure. Reuse the `Motion` tokens.
 2. Break the target motion into property transitions (size, position, opacity)
    and the easing between them, and reproduce each with a `Behavior` or a named

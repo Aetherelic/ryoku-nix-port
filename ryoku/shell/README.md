@@ -11,15 +11,15 @@ package as the base config under `/usr/share/ryoku/config`, which
   it supervises the Quickshell components, starts the clipboard and wallpaper
   helpers, and listens on a single Unix socket. As `ryoku-shell <command>` it is a
   thin client that forwards a command to that socket; Hyprland keybinds use it.
-- `quickshell/` The hand-written QML UI: `pill` (the Atoll bar, screen
-  frame, power menu, service surfaces and preserved inactive sidebars),
-  `launcher`, `overview`, `ryoshot`, `ryolayer`, `visualizer`, `welcome`, and
-  `widgets` (the wallpaper clock plus enabled third-party widgets).
-  These render the shell; they hold no daemon logic.
+- `quickshell/` The hand-written QML UI: `pill` (the four-edge frame bars,
+  screen frame, bounded menu manager, power menu, and preserved frame
+  surfaces), `launcher`, `overview`, `ryoshot`, `ryolayer`, `visualizer`,
+  `welcome`, and `widgets` (the wallpaper clock plus enabled third-party
+  widgets). These render the shell; they hold no daemon logic.
   `pill/Singletons/Config` and `visualizer/Singletons/Config` watch
   `~/.config/ryoku/shell.json` and `~/.config/ryoku/visualizer.json`, so Ryoku
   Settings retunes their live appearance without a reload. The shell store owns
-  frame, Atoll, type, preserved sidebar and weather-data settings.
+  frame-bar, type, frame-surface, and weather-data settings.
   `widgets/Singletons/Config` watches `~/.config/ryoku/widgets.json` for the
   clock design, size, shape and placement.
 - `plugin/` `Ryoku.Blobs`, the packaged C++/QML SDF module used by the frame and
@@ -45,9 +45,9 @@ socket and one place that knows how to talk to the components:
 | Command | Effect |
 |---|---|
 | `ryoku-shell daemon` | supervise the persistent components, clipboard history and wallpaper workers, then serve the socket |
-| `launcher`, `power` | toggle the launcher or power menu on the active monitor |
+| `launcher`, `power` | toggle the launcher or power surface on the active monitor |
+| `bar <id>` | open a finite frame-bar menu or surface on the active monitor |
 | `overview`, `ryolayer`, `wallpaper-switcher` | open the workspace overview, widget board or wallpaper picker |
-| `plugin <id>` | toggle one enabled frame-popout plugin |
 | `lock` | lock the screen with qylock |
 | `wallpaper [next\|init\|set <path>]` | change the wallpaper and retheme |
 | `voice` | toggle Voxtype transcription and its live mic surface |
@@ -69,9 +69,8 @@ idle/dim), `upower` (battery state), `wireplumber` (`wpctl`), `pipewire-pulse`
 (`pactl` voice-call state and mic source), `cava` (music, mic, and desktop visualizers), `playerctl` (media keys),
 `jq`, `glib2` (`gio`), `curl` (weather and LocalSend), and `python`/`openssl`/
 `libnotify`/`xdg-utils` (the LocalSend file stash and opening stashed files).
-The preserved sidebar tools use `grim`/`slurp`, `hyprpicker`, `curl`/`jq`,
-`mpv`, `tesseract`, `zbar`, `gpu-screen-recorder`/`wf-recorder`, and
-`hyprsunset`; their UI has no opening route during the sidebar rebuild.
+The frame-surface tools use `grim`/`slurp`, `hyprpicker`, `curl`/`jq`, `mpv`,
+`tesseract`, `zbar`, `gpu-screen-recorder`/`wf-recorder`, and `hyprsunset`.
 The ``Super+` `` voice dictation drives `voxtype` (optional, from `voxtype-bin`)
 for the transcription and `wtype` to type it into the focused app; pick the
 engine and model in Ryoku Settings' Dictation page.

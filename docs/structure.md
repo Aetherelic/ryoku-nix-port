@@ -31,8 +31,8 @@ truth for the live desktop.
 - `lockscreen/` `qylock/` (the lock theme and its quickshell lockscreen),
   `install-qylock`, and `sddm/` (the greeter setup).
 - `shell/` the desktop shell subsystem: `quickshell/` (the QML UI: `pill` (the
-  Atoll bar, screen frame, power menu, service surfaces, and the preserved but
-  inactive sidebar bodies under `pill/popouts/`), `launcher`, `ryoshot`,
+  four-edge frame bars, shared frame scene, bounded menu manager, power menu,
+  and preserved frame surfaces), `launcher`, `ryoshot`,
   `ryolayer` (the Super+G tool overlay), `welcome` (the first-run guided tour),
   and `widgets` (the wallpaper clock and enabled third-party widgets), plus
   `plugins` (the third-party shell plugin runtime: `discover.sh` merges the

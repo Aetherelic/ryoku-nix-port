@@ -3,24 +3,21 @@
 ## Unreleased
 
 ### Changed
-- **The shell now rests on one Atoll bar while its surfaces are rebuilt.**
-  Both Atoll looks remain: ilyamiro and Ryoku. Washi and the other retired bar
-  renderers are deleted rather than hidden behind a style switch. Launcher,
-  Settings, workspace and tray actions still work; weather, media, connectivity,
-  volume, battery and notification state remain visible without opening panels.
-  The power/session menu is the only bar-owned popup and still opens from
-  Super+Escape or the Atoll power button. Voice and keyring service prompts,
-  the app launcher and the frame are unchanged. The left Stash sidebar and the
-  right System sidebar keep their components, data and pane state, but no
-  corner, hover, keybind, daemon or IPC route can open either one. The stale
-  Super+D, Super+Alt+D and Super+V bindings and their panel commands are gone.
-  Weather and calendar desktop widgets are also removed; the wallpaper clock
-  remains. `ryoku doctor` removes legacy `barStyle` and prunes retired style,
-  island and sidebar-opener keys without touching the preserved pane lists or
-  width. This removes the old renderers, Washi surfaces, Atoll popup
-  set and standalone bar popup wrappers while keeping the sidebar content ready
-  for its next UI (`quickshell/pill/`, `pill/popouts/`, `pill/Singletons/`,
-  `quickshell/widgets/`, `ipc/`, `hyprland/modules/binds.lua`).
+- **The shell now uses configurable frame bars instead of an Atoll bar.**
+  Each monitor owns one shared frame scene with independent top, bottom, left,
+  and right rails. The stock profile keeps a compact clock at the top and the
+  familiar quick settings, workspace, dock, tray, network, and clock flow on
+  the left; the other rails are ready to enable in Bar Studio. Super+Period
+  opens Bar Studio in Ryoku Settings, where bounded widgets, menus, and the
+  preserved Stash and System surfaces can be arranged and saved through the
+  normal configuration pipeline. `ok-frame` and `ryoku-frame` share this
+  topology while changing only chrome and metrics. All frame menus, power,
+  voice, keyring, and plugin surfaces use one monitor-local manager, which
+  handles replacement, input masks, Escape, backdrop, focus-loss, and
+  fullscreen closure safely. The retired Atoll renderer and configuration
+  migrate to this contract through `ryoku doctor`
+  (`quickshell/pill/framebars/`, `hub/quickshell/barstudio/`, `ipc/`,
+  `cli/internal/doctor/`).
 
 ### Fixed
 - **Workspaces, Super+Esc power, and every shell surface work again after a

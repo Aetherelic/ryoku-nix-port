@@ -1,90 +1,82 @@
-# The bar
+# Frame bars
 
-Ryoku ships one bar: Atoll, a row of floating islands at the top or bottom
-screen edge. `ryoku/shell/quickshell/pill/Bar.qml` is the small host and
-`AtollBar.qml` owns the layout. The `pill/` directory name is historical.
+Ryoku renders one frame-bar system: four independent rails that share the
+monitor's frame scene. `ryoku/shell/quickshell/pill/Bar.qml` creates a
+`FrameRail` for each edge and reads the normalized `frameBars` object from
+`~/.config/ryoku/shell.json`.
 
-The bar shares the shell's full-screen transparent frame overlay. A separate
-reserve window claims the chosen edge so tiled windows stop below the islands.
-The overlay input mask covers the bar strip and active surfaces only; the rest
-of the screen passes through to applications.
+A rail is a thin interactive strip, not a second panel process. The monitor
+overlay owns its input region and the corresponding exclusive-zone reserve, so
+tiled windows clear exactly the enabled edge rails.
 
-## Settings
+## Default profile
 
-Ryoku Settings exposes the live bar contract:
+The shipped profile enables a compact top rail and a continuous left rail:
 
-- `barEnabled` shows or hides the islands.
-- `barPosition` accepts `top` or `bottom`.
-- `barHeight` sets the unscaled island strip height.
-- `atollVariant` selects `ilyamiro` or `ryoku`.
-- `fontScale` participates in the per-monitor scale.
+- **Top**: centred clock.
+- **Left**: quick settings and workspaces at the top, dock in the centre, tray,
+  network, and clock at the bottom.
+- **Bottom and right**: configured but initially disabled.
 
-The shell scale is:
+Every edge has its own `enabled`, `size`, `reveal`, and three axis-appropriate
+zones. Horizontal rails use `start`, `center`, and `end`; vertical rails use
+`top`, `center`, and `bottom`. The runtime accepts only catalogued widgets that
+fit the target axis.
 
-    monitor height / 1080 * fontScale
+## Styles
 
-with `fontScale` clamped to 0.7 through 1.6. Atoll has no runtime style
-selector. `ryoku doctor` removes legacy `barStyle`, style, island and
-sidebar-opener keys from user-owned `shell.json`.
+`frameBars.style` accepts two shared-chrome styles:
 
-The two Atoll looks share layout and behavior:
+- `ok-frame`: subdued dark material, fine light outline, and a compact clock.
+- `ryoku-frame`: paper material, grain, Ryoku typography, and brand accents.
 
-- `ilyamiro` uses rounded translucent islands and the faithful mono treatment.
-- `ryoku` uses compact square paper-black islands, Space Grotesk and the shell
-  grain.
+Style changes materials and metrics only. It never selects a different rail,
+menu, or input-routing tree. Theme colours come from `Theme` and `Wallust`;
+user configurations do not carry a second palette.
 
-## Layout
+## Bar Studio
 
-The islands reveal in a short startup cascade:
+Open **Bar Studio** with **Super+Period**. The shortcut records the Bar Studio
+section before opening the guarded Ryoku Settings process.
 
-- Left: launcher, Ryoku Settings and power; workspace controls; now-playing
-  when a player is present.
-- Center: the clock, date and current weather.
-- Right: system tray when populated; network, Bluetooth, volume, battery and
-  notification status.
+Bar Studio stages a complete immutable `frameBars` object through the normal Hub
+draft and Save flow. It supports:
 
-`AtollWorkspaces.qml` owns workspace switching. `BarMedia.qml` and
-`BarWeather.qml` are display-only readouts. `BarTray.qml` hosts StatusNotifier
-items. `AtollStatus.qml` keeps connectivity, volume, battery, notification and
-do-not-disturb state visible without opening panels.
+- enabling rails and editing their zone contents;
+- adding, moving, and removing only compatible catalogued widgets;
+- creating and editing bounded menus, including nested menu widgets;
+- editing the registered `stash` and `system` frame surfaces, including their
+  anchors, widths, and preserved pane order;
+- switching `ok-frame` and `ryoku-frame` without changing layout geometry.
 
-The bar strip itself accepts the mouse wheel for volume. Volume and brightness
-changes are narrated by the standalone bottom-center OSD rather than a bar
-popup.
+Use Save to materialize the draft. Reset discards the draft through the same Hub
+pipeline; Bar Studio does not write configuration files directly.
 
-## Popups
+## Menus and surfaces
 
-The power/session menu is the only bar-owned popup. Super+Escape opens it
-through `ryoku-shell power`; the Atoll power icon requests the same surface at
-its island center. `shell.qml` owns the `Popout` and its input mask, while
-`PowerPanel.qml` owns the actions.
+A rail widget reports its owner rectangle to the monitor-local
+`FrameMenuManager`. That manager owns one active surface per anchor and monitor,
+combines the trigger and body mask regions, and closes a surface on Escape,
+backdrop click, focus loss, or fullscreen.
 
-Calendar, media, mixer, network, Bluetooth, battery, resource, clipboard,
-weather, workspace and notification bar popups are gone. Atoll status items
-stay visible but inert where their old click would have opened one.
+`ryoku-shell bar <id>` opens a bounded catalogue entry on the active monitor.
+The catalogued IDs are `quick-settings`, `clock`, `launcher`, `clipboard`,
+`screenshot`, `recording`, `theme`, `wallpaper`, `weather`, `media`, `stash`,
+and `system`. Unknown IDs are rejected before they reach Quickshell.
 
-The left stash/sidebar and right system/sidebar bodies remain mounted for a
-future UI, but no corner, edge, hover, keybind or IPC route opens them.
+`ryoku-shell power`, `ryoku-shell voice`, and enabled plugin commands retain
+their existing entry points but share this same manager scene. Repeating power
+or a plugin command toggles that matching surface; a different surface at the
+same anchor replaces it safely.
 
-## Sizing and motion
+## Extending frame bars
 
-`barBandBase` is `barHeight + 18` before monitor scaling. Each island derives
-its height from that band and keeps a small edge inset and gap. The startup
-reveal changes only translation and opacity; media and tray islands collapse to
-zero width when absent.
+1. Add a catalogued widget or surface with an explicit axis/anchor contract.
+2. Add the matching finite IPC route if it needs a command entry point.
+3. Keep menu body work gated by its `open` state and release it on close.
+4. Preserve owner rectangles, mask regions, monitor locality, and identity-safe
+   close behavior.
+5. Add the behavior test and Bar Studio label before exposing the new ID.
 
-The center clock remains anchored independently of the left and right groups.
-Media width is capped against the center island so a long title elides rather
-than crossing the clock.
-
-## Changing the bar
-
-- Keep layout work in `AtollBar.qml`; `Bar.qml` remains a host.
-- Put a reusable readout in its own component and size it from `s` and the
-  island height.
-- Do not add a `barStyle` branch or restore a retired renderer.
-- A status item that has no custom surface stays display-only. Do not wire it
-  to a generic old popup.
-- If a new surface is intentionally introduced, add its command route, popout,
-  mask region and focused-monitor behavior together, then document the new
-  contract here.
+Do not introduce a parallel renderer, unbounded component loader, or direct
+configuration writer.

@@ -23,6 +23,7 @@ Item {
     readonly property var projects: [
         { "name": "qylock",       "by": "Darkkal44",      "role": "lockscreen",          "url": "https://github.com/Darkkal44/qylock" },
         { "name": "caelestia",    "by": "caelestia-dots", "role": "Quickshell craft",     "url": "https://github.com/caelestia-dots/shell" },
+        { "name": "OkShell",       "by": "John Oberhauser", "role": "frame-bar layout, rail catalogue, Studio workflow (GPL-3.0)", "url": "https://github.com/JohnOberhauser/OkShell/tree/87a9d09d923163cd03f396a395be3bb02b335b6e" },
         { "name": "rishot",       "by": "Gakuseei",       "role": "screenshot flow",      "url": "https://github.com/Gakuseei/rishot" },
         { "name": "cava-bg",      "by": "leriart",        "role": "audio-reactive walls", "url": "https://github.com/leriart/cava-bg" },
         { "name": "Brain_Shell",  "by": "Brainitech",     "role": "shell craft",          "url": "https://github.com/Brainitech/Brain_Shell" },
