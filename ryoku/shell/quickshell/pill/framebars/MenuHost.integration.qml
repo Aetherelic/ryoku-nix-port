@@ -1,11 +1,9 @@
 import QtQuick
 import Quickshell
 import "Singletons"
+import "framebars/widgets" as Widgets
+import "popouts" as Popouts
 
-// Offscreen check that MenuWidgetHost's finite switch resolves every implemented
-// menu id to a real component while catalogued-but-deferred (Task 8) ids still
-// hit the developer-error default. Also exercises the open-state gates: a menu
-// releases its shared poller/scan/activation when it closes.
 ShellRoot {
     id: root
 
@@ -13,6 +11,7 @@ ShellRoot {
         "audio-input", "audio-output", "power-profile", "quick-settings", "quick-actions",
         "layout-switcher", "container", "divider", "spacer"]
     readonly property var deferred: ["launcher", "clipboard", "screenshot", "theme", "wallpaper", "weather", "media"]
+    property bool layoutStopped: false
 
     function hosts(item, out) {
         if (item.widgetId !== undefined) out.push(item);
@@ -42,6 +41,41 @@ ShellRoot {
         MenuWidgetHost { id: nwHost; width: 360; scale: 1; open: false; widgetId: "network" }
     }
 
+        Loader {
+            id: layoutHost
+            active: true
+            sourceComponent: Component {
+                Widgets.LayoutControl {
+                    active: true
+                    processCommand: ["sh", "-c", "sleep 5"]
+                    onStopped: root.layoutStopped = true
+                }
+            }
+        }
+
+    Loader {
+        id: ppDestroyHost
+        active: true
+        sourceComponent: Component {
+            MenuWidgetHost { width: 360; scale: 1; open: false; widgetId: "power-profile" }
+        }
+    }
+
+    Loader {
+        id: nwDestroyHost
+        active: true
+        sourceComponent: Component {
+            MenuWidgetHost { width: 360; scale: 1; open: false; widgetId: "network" }
+        }
+    }
+
+    Popouts.SidebarSystem {
+        width: 340
+        height: 600
+        open: false
+        panes: ["notifications"]
+    }
+
     Timer {
         interval: 300
         running: true
@@ -53,7 +87,6 @@ ShellRoot {
             const resolvedOk = root.implemented.every(id => { const h = found(id); return h && h.loaded; });
             const deferredOk = root.deferred.every(id => { const h = found(id); return h && !h.loaded; });
 
-            // open-state gates: bump on open, release on close.
             const wBase = Toggles.watchers;
             qaHost.open = true;
             const wOn = Toggles.watchers;
@@ -62,21 +95,30 @@ ShellRoot {
             const qaGate = wOn === wBase + 1 && wOff === wBase;
 
             ppHost.open = true;
-            const ppOn = PowerProfiles.active;
+            ppDestroyHost.item.open = true;
             ppHost.open = false;
-            const ppGate = ppOn === true && PowerProfiles.active === false;
+            const ppConcurrentClose = PowerProfiles.active;
+            ppDestroyHost.active = false;
+            const ppFinalRelease = PowerProfiles.active === false;
 
             nwHost.open = true;
-            const nwOn = Network.vpnPolling;
+            nwDestroyHost.item.open = true;
             nwHost.open = false;
-            const nwGate = nwOn === true && Network.vpnPolling === false;
+            const nwConcurrentClose = Network.vpnPolling;
+            nwDestroyHost.active = false;
+            const nwFinalRelease = Network.vpnPolling === false;
 
-            console.log("RESOLVED " + JSON.stringify(root.implemented.filter(id => { const h = found(id); return h && h.loaded; })));
-            console.log("DEFERRED-INERT " + JSON.stringify(root.deferred.filter(id => { const h = found(id); return h && !h.loaded; })));
-            console.log("GATES qa=" + qaGate + " powerprofile=" + ppGate + " network=" + nwGate);
-            console.log((resolvedOk && deferredOk) ? "MENU-HOST-RESOLVE-PASS" : "MENU-HOST-RESOLVE-FAIL");
-            console.log((qaGate && ppGate && nwGate) ? "MENU-OPEN-GATE-PASS" : "MENU-OPEN-GATE-FAIL");
-            Qt.quit();
+            layoutHost.active = false;
+            const lifecycleGate = ppConcurrentClose && ppFinalRelease && nwConcurrentClose && nwFinalRelease;
+            Qt.callLater(function() {
+                console.log("RESOLVED " + JSON.stringify(root.implemented.filter(id => { const h = found(id); return h && h.loaded; })));
+                console.log("DEFERRED-INERT " + JSON.stringify(root.deferred.filter(id => { const h = found(id); return h && !h.loaded; })));
+                console.log("GATES qa=" + qaGate + " lifecycle=" + lifecycleGate + " layout-destruction=" + root.layoutStopped);
+                console.log((resolvedOk && deferredOk) ? "MENU-HOST-RESOLVE-PASS" : "MENU-HOST-RESOLVE-FAIL");
+                console.log((qaGate && lifecycleGate && root.layoutStopped) ? "MENU-OPEN-GATE-PASS" : "MENU-OPEN-GATE-FAIL");
+                Qt.quit();
+            });
+
         }
     }
 }

@@ -13,9 +13,9 @@ Item {
     implicitWidth: 30 * scale
     implicitHeight: 30 * scale
 
-    onActiveChanged: Network.vpnPolling = active
-    Component.onCompleted: Network.vpnPolling = active
-    Component.onDestruction: Network.vpnPolling = false
+    onActiveChanged: Network.setVpnPolling(root, root.active)
+    Component.onCompleted: Network.setVpnPolling(root, root.active)
+    Component.onDestruction: Network.setVpnPolling(root, false)
 
     Pill.MaterialIcon {
         anchors.centerIn: parent

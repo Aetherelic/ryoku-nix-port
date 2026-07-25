@@ -1,6 +1,3 @@
-// Deterministic single-menu ownership: one active menu per anchor per monitor.
-// State shape is { [monitor]: { [anchor]: record } }; opening at a busy anchor
-// on the same monitor replaces its record, other monitors stay independent.
 function cloneState(state) {
     return state && typeof state === "object" ? JSON.parse(JSON.stringify(state)) : {};
 }
@@ -30,10 +27,6 @@ function activeAt(state, monitor, anchor) {
     return state[monitor][anchor];
 }
 
-// Resolve the configured menu record to open by id from the manager's normalized
-// list. The open key must come from this record's anchor -- the same one the
-// rendered delegate keys menuOpen off -- not the immutable catalog anchor, or a
-// user-overridden anchor would key state where no delegate is listening.
 function recordFor(menus, id) {
     if (!Array.isArray(menus)) return null;
     for (let i = 0; i < menus.length; ++i) if (menus[i] && menus[i].id === id) return menus[i];

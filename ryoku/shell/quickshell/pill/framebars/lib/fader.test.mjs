@@ -12,7 +12,6 @@ eq(clamp01(0.5), 0.5, "a mid value passes through");
 eq(clamp01(-0.3), 0, "below zero clamps to the floor");
 eq(clamp01(1.4), 1, "above one clamps to the ceiling");
 
-// wheel/keyboard nudges move by signed percent and never leave 0..1.
 eq(stepped(0.5, 5), 0.55, "a positive step raises the level by percent");
 eq(stepped(0.02, -5), 0, "a step past the floor clamps to zero");
 eq(stepped(0.98, 5), 1, "a step past the ceiling clamps to one");

@@ -6,9 +6,6 @@ import "../../Singletons"
 import "../lib/devices.js" as DeviceModel
 import "../lib/audioselect.js" as AudioSelect
 
-// Audio-output frame menu: the default sink's volume/mute fader over the list of
-// switchable output devices. Selection is resolved by node name so it stays
-// stable across a Pipewire graph refresh; the VU peak meter runs only while open.
 Item {
     id: root
 
@@ -48,18 +45,10 @@ Item {
 
         Pill.MicroLabel { label: qsTr("Output"); s: root.s }
 
-        Pill.HFader {
+        MenuVolumeFader {
             width: parent.width
             s: root.s
-            icon: "speaker"
-            lit: root.open
-            value: Audio.sink ? Audio.sink.audio.volume : 0
-            muted: Audio.sink ? Audio.sink.audio.muted : false
-            valueLabel: !Audio.sink ? "" : (Audio.sink.audio.muted ? qsTr("off") : Math.round(Audio.sink.audio.volume * 100) + "%")
-            peakNode: Audio.sink
-            peakEnabled: root.open && !!Audio.sink
-            onMoved: v => { if (Audio.sink) Audio.sink.audio.volume = v; }
-            onIconTapped: { if (Audio.sink) Audio.sink.audio.muted = !Audio.sink.audio.muted; }
+            open: root.open
         }
 
         MenuDivider { width: parent.width; scale: root.s }

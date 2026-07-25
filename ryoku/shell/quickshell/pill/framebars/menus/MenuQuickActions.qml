@@ -6,11 +6,6 @@ import "../../Singletons"
 import "../MenuCatalog.js" as MenuCatalog
 import "../lib/menupoll.js" as Poll
 
-// Quick-actions frame menu: the fixed control-centre catalogue from Task 1. The
-// reactive toggles (wifi/bluetooth/mic/dnd/night/keep-awake/game) drive their
-// singletons directly and show live state; the capture/session/clipboard actions
-// are emitted as actionRequested for the shell to route. The shared Toggles
-// probes are watched only while the menu is open.
 Item {
     id: root
 

@@ -5,33 +5,18 @@ import Quickshell
 import ".."
 import "../Singletons"
 import "../lib/weather.js" as Wx
-import "../framebars/lib/notifs.js" as NotifModel
 
-// the RIGHT sidebar's content = "System": the unified control centre over a
-// data-driven glance rail. a plain transparent Item -- the frame blob behind it
-// IS the surface, so this only fills its parent. a fixed header (力 clock +
-// weather, the full DeckControls centre, a volume fader) sits over a tab rail
-// whose panes are chosen by the `panes` array: the notification digest, the
-// month calendar, the now-playing player, the weather forecast, and screen
-// recording. `open` + `effectivePane` gate the live work so a hidden pane costs
-// nothing; the shell owns `pane` and hears `paneSelected` on a tab tap.
 Item {
     id: root
 
     property real s: 1
     property bool open: false
-    // full-span sidebar: the blob fills the frame top-to-bottom, so these insets
-    // push the content clear of a top bar and the bottom frame.
     property real topInset: 20 * s
     property real botInset: 20 * s
 
-    // enabled pane keys, in display order (from Config), and the shell-owned
-    // current pane; the tab rail reports taps back up via paneSelected.
     property var panes: []
     property string pane: ""
     signal paneSelected(string key)
-    // the tools strip dismisses the sidebar when a capture grabs the screen; the
-    // clipboard button asks the shell to open the clipboard-history popout.
     signal dismiss()
     signal clipboardRequested()
 
@@ -39,12 +24,7 @@ Item {
     implicitWidth: 340 * s
 
     readonly property var loc: Qt.locale("en_US")
-    readonly property int notifCount: NotifModel.count(Notifs.groups)
 
-    // every glance pane this sidebar knows how to show, in canonical order. the
-    // enabled subset (`tabs`) is `panes` mapped over this in the caller's order;
-    // effectivePane falls back to the first enabled tab when `pane` is unset or
-    // no longer enabled, so the rail is never left pointing at nothing.
     readonly property var catalog: [
         { key: "notifications", glyph: "notifications" },
         { key: "calendar",      glyph: "calendar_month" },
@@ -198,43 +178,12 @@ Item {
             }
         }
 
-        // the full control centre: Keep-Awake / Game session tiles over the
-        // wifi / bluetooth / mic / dnd / night quick-toggles. self-sizing, and
-        // its probes only poll while the sidebar is open.
-        DeckControls {
+        SidebarControls {
             width: parent.width
             s: root.s
-            active: root.open
-        }
-
-        // quick actions: the screen-capture tools (they grab the screen, so a
-        // launch dismisses the sidebar) and a clipboard-history button, grouped
-        // right under the control toggles.
-        DeckTools {
-            width: parent.width
-            s: root.s
-            onRequestClose: root.dismiss()
+            open: root.open
+            onDismiss: root.dismiss()
             onClipboardRequested: root.clipboardRequested()
-        }
-
-        // volume, wired straight to the default sink.
-        HFader {
-            width: parent.width
-            s: root.s
-            icon: "speaker"
-            lit: root.open
-            value: Audio.sink ? Audio.sink.audio.volume : 0
-            muted: Audio.sink ? Audio.sink.audio.muted : false
-            valueLabel: !Audio.sink ? "" : (Audio.sink.audio.muted ? "off" : Math.round(Audio.sink.audio.volume * 100) + "%")
-            onMoved: (v) => { if (Audio.sink) Audio.sink.audio.volume = v; }
-            onIconTapped: { if (Audio.sink) Audio.sink.audio.muted = !Audio.sink.audio.muted; }
-        }
-
-        // brightness: internal backlight + a fader per detected external monitor.
-        BrightnessControl {
-            width: parent.width
-            s: root.s
-            active: root.open
         }
     }
 
@@ -280,146 +229,11 @@ Item {
         anchors.rightMargin: 18 * root.s
         anchors.bottomMargin: root.botInset
 
-        // ── notifications digest ───────────────────────────────────────────
-        Item {
+        SidebarNotifications {
             anchors.fill: parent
+            s: root.s
+            open: root.open && root.effectivePane === "notifications"
             visible: root.effectivePane === "notifications"
-
-            Item {
-                id: notifHead
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: 14 * root.s
-                MicroLabel {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    label: "Recent"
-                    s: root.s
-                }
-                Text {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: root.notifCount > 0
-                    text: "Clear"
-                    color: clearHov.hovered ? Theme.brand : Theme.faint
-                    font.family: Theme.mono
-                    font.pixelSize: 8.5 * root.s
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 1.6 * root.s
-                    font.capitalization: Font.AllUppercase
-                    HoverHandler { id: clearHov; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: Notifs.clearAll() }
-                }
-            }
-
-            Text {
-                anchors.top: notifHead.bottom
-                anchors.topMargin: 16 * root.s
-                anchors.left: parent.left
-                anchors.right: parent.right
-                visible: root.notifCount === 0
-                text: "No notifications"
-                color: Theme.faint
-                font.family: Theme.font
-                font.pixelSize: 12 * root.s
-                font.weight: Font.Medium
-            }
-
-            ListView {
-                anchors.top: notifHead.bottom
-                anchors.topMargin: 12 * root.s
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                clip: true
-                spacing: 10 * root.s
-                visible: root.notifCount > 0
-                model: (root.open && root.effectivePane === "notifications") ? Notifs.groups : []
-                boundsBehavior: Flickable.StopAtBounds
-
-                delegate: Item {
-                    id: nrow
-                    required property var modelData
-                    width: ListView.view.width
-                    implicitHeight: nbody.implicitHeight
-
-                    Item {
-                        id: ndismiss
-                        width: 22 * root.s
-                        height: 22 * root.s
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        GlyphIcon {
-                            anchors.centerIn: parent
-                            width: 12 * root.s
-                            height: 12 * root.s
-                            name: "close"
-                            color: ndHov.hovered ? Theme.brand : Theme.faint
-                            stroke: 1.8
-                        }
-                        HoverHandler { id: ndHov; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: Notifs.dismissApp(nrow.modelData.app) }
-                    }
-
-                    Column {
-                        id: nbody
-                        anchors.left: parent.left
-                        anchors.right: ndismiss.left
-                        anchors.rightMargin: 8 * root.s
-                        spacing: 3 * root.s
-
-                        Row {
-                            width: parent.width
-                            spacing: 6 * root.s
-                            Text {
-                                text: nrow.modelData.app
-                                color: Theme.faint
-                                font.family: Theme.mono
-                                font.pixelSize: 8 * root.s
-                                font.weight: Font.DemiBold
-                                font.letterSpacing: 1.2 * root.s
-                                font.capitalization: Font.AllUppercase
-                            }
-                            Text {
-                                visible: nrow.modelData.count > 1
-                                text: "×" + nrow.modelData.count
-                                color: Theme.brand
-                                font.family: Theme.mono
-                                font.pixelSize: 8 * root.s
-                                font.weight: Font.DemiBold
-                            }
-                            Item { width: 1; height: 1 }
-                            Text {
-                                text: Notifs.ageLabel(nrow.modelData.preview)
-                                color: Theme.faint
-                                font.family: Theme.mono
-                                font.pixelSize: 8 * root.s
-                            }
-                        }
-                        Text {
-                            width: parent.width
-                            text: nrow.modelData.preview ? (nrow.modelData.preview.summary || "") : ""
-                            elide: Text.ElideRight
-                            color: Theme.cream
-                            font.family: Theme.font
-                            font.pixelSize: 12 * root.s
-                            font.weight: Font.Medium
-                        }
-                        Text {
-                            width: parent.width
-                            visible: nrow.modelData.preview ? (nrow.modelData.preview.body || "").length > 0 : false
-                            text: nrow.modelData.preview ? (nrow.modelData.preview.body || "") : ""
-                            elide: Text.ElideRight
-                            maximumLineCount: 2
-                            wrapMode: Text.Wrap
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: 10.5 * root.s
-                        }
-                    }
-                }
-            }
         }
 
         // ── calendar (the pill's month surface, reused) ────────────────────

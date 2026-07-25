@@ -16,6 +16,7 @@ singleton Keyring Keyring.qml
 singleton Events Events.qml
 singleton Network Network.qml
 singleton PowerProfiles PowerProfiles.qml
+singleton BluetoothDiscovery BluetoothDiscovery.qml
 singleton Media Media.qml
 singleton Fullscreen Fullscreen.qml
 singleton Toggles Toggles.qml

@@ -5,9 +5,6 @@ import "../.." as Pill
 import "../../Singletons"
 import "../lib/notifs.js" as NotifModel
 
-// Notifications frame menu: the per-app digest from Notifs, with per-app
-// dismissal and a clear-all. The row model is built only while the menu is open,
-// so a closed menu holds no delegates.
 Item {
     id: root
 

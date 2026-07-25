@@ -1,6 +1,3 @@
-// Device-list normalization for the audio and bluetooth frame menus. Both turn a
-// live service list (Pipewire nodes, Quickshell.Bluetooth devices) into a plain,
-// ordered row model the menu can render without re-deriving selection or battery.
 
 function audioRows(nodes, current, opts) {
     opts = opts || {};

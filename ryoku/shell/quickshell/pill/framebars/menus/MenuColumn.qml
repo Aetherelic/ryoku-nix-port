@@ -2,8 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// Ordered vertical stack of menu widgets. The list is built only while the menu
-// is effectively open, so a closed menu holds no widget instances.
 Column {
     id: root
 

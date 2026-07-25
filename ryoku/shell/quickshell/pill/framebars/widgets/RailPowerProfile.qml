@@ -14,12 +14,12 @@ Item {
     implicitHeight: 30 * scale
 
     function refresh() {
-        PowerProfiles.setActive(active);
+        PowerProfiles.setActive(root, active);
     }
 
     onActiveChanged: refresh()
     Component.onCompleted: refresh()
-    Component.onDestruction: PowerProfiles.setActive(false)
+    Component.onDestruction: PowerProfiles.setActive(root, false)
 
     Timer {
         interval: 30000

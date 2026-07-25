@@ -1,46 +1,29 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
-import Quickshell.Io
 import "../.." as Pill
 import "../../Singletons"
-import "../lib/providers.js" as Providers
+import "../widgets" as Widgets
 
-// Layout-switcher frame menu: the bounded set of validated Hyprland layouts from
-// Task 5's provider, with the active workspace layout highlighted. The active
-// layout is read only while the menu is open.
 Item {
     id: root
 
     required property real s
     required property bool open
 
-    readonly property var layouts: Providers.layouts
-    property string current: ""
+    readonly property var layouts: layoutControl.layouts
+    readonly property string current: layoutControl.current
 
     implicitWidth: 250 * s
     implicitHeight: col.implicitHeight
 
-    onOpenChanged: {
-        if (root.open)
-            root.refresh();
-        else
-            layoutProc.running = false;
-    }
-    Component.onCompleted: root.refresh()
-
-    function refresh() {
-        if (root.open)
-            layoutProc.running = true;
+    Widgets.LayoutControl {
+        id: layoutControl
+        active: root.open
     }
 
     function choose(layout) {
-        if (!Providers.layouts.includes(layout))
-            return;
-        // Change the config keyword rather than invoking a dispatcher.
-        Quickshell.execDetached(["hyprctl", "eval", 'hl.config({ general = { layout = "' + layout + '" } })']);
-        root.current = layout;
+        layoutControl.choose(layout)
     }
 
     function label(layout) {
@@ -53,20 +36,6 @@ Item {
         return layout;
     }
 
-    Process {
-        id: layoutProc
-        command: ["sh", "-c", "hyprctl -j activeworkspace 2>/dev/null | jq -r '.tiledLayout // .layout // empty'"]
-        stdout: StdioCollector {
-            onStreamFinished: root.current = Providers.parseLayouts(this.text)[0] || ""
-        }
-    }
-
-    Timer {
-        interval: 30000
-        repeat: true
-        running: root.open
-        onTriggered: root.refresh()
-    }
 
     Column {
         id: col

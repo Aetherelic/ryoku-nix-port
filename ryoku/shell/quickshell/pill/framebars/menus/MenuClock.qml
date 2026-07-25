@@ -6,9 +6,6 @@ import "../.." as Pill
 import "../../Singletons"
 import "../../lib/events.js" as EventsModel
 
-// Clock frame menu: time, date and weather from the existing SystemClock /
-// Weather sources over today's agenda from the shared Events calendar. The
-// SystemClock ticks only while the menu is open.
 Item {
     id: root
 

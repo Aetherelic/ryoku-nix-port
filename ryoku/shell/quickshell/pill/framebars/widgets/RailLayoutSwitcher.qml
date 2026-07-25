@@ -1,7 +1,4 @@
 import QtQuick
-import Quickshell
-import Quickshell.Io
-import "../lib/providers.js" as Providers
 import "../.." as Pill
 import "../../Singletons"
 
@@ -11,43 +8,16 @@ Item {
     required property string edge
     required property real scale
     required property bool active
-    property var layouts: Providers.layouts
-    property string current: ""
+    readonly property var layouts: layoutControl.layouts
+    readonly property string current: layoutControl.current
     signal menuRequested(string id, rect ownerRect)
 
     implicitWidth: 30 * scale
     implicitHeight: 30 * scale
 
-    function refresh() {
-        if (active) layoutProc.running = true;
-    }
-
-    function choose(layout) {
-        if (!active || !Providers.layouts.includes(layout)) return;
-        // This changes a config keyword rather than invoking a Hyprland dispatcher.
-        Quickshell.execDetached(["hyprctl", "eval", 'hl.config({ general = { layout = "' + layout + '" } })']);
-        current = layout;
-    }
-
-    onActiveChanged: {
-        if (active) refresh();
-        else layoutProc.running = false;
-    }
-    Component.onCompleted: refresh()
-
-    Process {
-        id: layoutProc
-        command: ["sh", "-c", "hyprctl -j activeworkspace 2>/dev/null | jq -r '.tiledLayout // .layout // empty'"]
-        stdout: StdioCollector {
-            onStreamFinished: root.current = Providers.parseLayouts(this.text)[0] || ""
-        }
-    }
-
-    Timer {
-        interval: 30000
-        repeat: true
-        running: root.active
-        onTriggered: root.refresh()
+    LayoutControl {
+        id: layoutControl
+        active: root.active
     }
 
     Pill.MaterialIcon {

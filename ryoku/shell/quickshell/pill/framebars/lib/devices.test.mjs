@@ -10,8 +10,6 @@ function eq(actual, expected, msg) {
     else { failed++; console.log("FAIL " + msg + "\n  expected " + e + "\n  got      " + a); }
 }
 
-// Audio nodes mirror Quickshell PwNode: stable node.name plus a resolved
-// label/icon (Audio.nodeLabel / Audio.nodeIcon). The row list is keyed by name.
 const speaker = { name: "alsa_output.pci-0000_65_00.6.analog-stereo", label: "ALC285 Analog", icon: "speaker" };
 const bt = { name: "bluez_output.80_99_E7_F7_25_1B.1", label: "WH-1000XM6", icon: "headphones" };
 const nodes = [speaker, bt];
@@ -24,8 +22,6 @@ eq(audioRows(nodes, bt, opts), [
 eq(audioRows(null, null, opts), [], "a missing node list normalizes to empty");
 eq(audioRows(nodes, null, opts).some(r => r.selected), false, "no default means nothing is selected");
 
-// Bluetooth devices mirror Quickshell.Bluetooth device objects (captured from a
-// real WH-1000XM6): name, address, connected, paired, battery.
 const devices = [
     { name: "Keyboard K380", address: "AA:BB", connected: false, paired: true, batteryAvailable: false },
     { name: "WH-1000XM6", address: "80:99:E7:F7:25:1B", connected: true, paired: false, batteryAvailable: true, battery: 0.8 },

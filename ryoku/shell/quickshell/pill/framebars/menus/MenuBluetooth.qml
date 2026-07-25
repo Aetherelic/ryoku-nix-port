@@ -6,9 +6,6 @@ import "../.." as Pill
 import "../../Singletons"
 import "../lib/devices.js" as DeviceModel
 
-// Bluetooth frame menu: the adapter power route plus the normalized device list
-// (connected first, with battery). Discovery scans only while the menu is open
-// and the adapter is on, so a closed menu never leaves a scan running.
 Item {
     id: root
 
@@ -16,21 +13,20 @@ Item {
     required property bool open
 
     readonly property var adapter: Bluetooth.defaultAdapter
-    readonly property bool enabled: root.adapter ? root.adapter.enabled : false
-    readonly property var rows: (root.open && root.enabled && Bluetooth.devices)
+    readonly property bool adapterEnabled: root.adapter ? root.adapter.enabled : false
+    readonly property var rows: (root.open && root.adapterEnabled && Bluetooth.devices)
         ? DeviceModel.btRows(Bluetooth.devices.values) : []
 
     implicitWidth: 290 * s
     implicitHeight: col.implicitHeight
 
     onOpenChanged: root.syncScan()
-    onEnabledChanged: root.syncScan()
+    onAdapterEnabledChanged: root.syncScan()
     Component.onCompleted: root.syncScan()
-    Component.onDestruction: if (root.adapter) root.adapter.discovering = false
+    Component.onDestruction: BluetoothDiscovery.setDiscovering(root, root.adapter, false)
 
     function syncScan() {
-        if (root.adapter)
-            root.adapter.discovering = root.open && root.adapter.enabled;
+        BluetoothDiscovery.setDiscovering(root, root.adapter, root.open && root.adapterEnabled);
     }
 
     function deviceByAddress(addr) {
@@ -59,9 +55,9 @@ Item {
             width: parent.width
             height: 40 * root.s
             radius: Theme.radius
-            color: root.enabled ? Qt.alpha(Theme.brand, 0.16) : (adHov.hovered ? Theme.frameBg : Theme.tileBg)
+            color: root.adapterEnabled ? Qt.alpha(Theme.brand, 0.16) : (adHov.hovered ? Theme.frameBg : Theme.tileBg)
             border.width: 1
-            border.color: root.enabled ? Theme.brand : (adHov.hovered ? Theme.frameBorder : Theme.border)
+            border.color: root.adapterEnabled ? Theme.brand : (adHov.hovered ? Theme.frameBorder : Theme.border)
             visible: root.adapter !== null
             Behavior on color { ColorAnimation { duration: Motion.fast } }
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
@@ -74,7 +70,7 @@ Item {
                 width: 16 * root.s
                 height: 16 * root.s
                 name: "bluetooth"
-                color: root.enabled ? Theme.brand : Theme.iconDim
+                color: root.adapterEnabled ? Theme.brand : Theme.iconDim
                 stroke: 1.6
             }
             Text {
@@ -91,8 +87,8 @@ Item {
                 anchors.right: parent.right
                 anchors.rightMargin: 12 * root.s
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.enabled ? qsTr("On") : qsTr("Off")
-                color: root.enabled ? Theme.brand : Theme.faint
+                text: root.adapterEnabled ? qsTr("On") : qsTr("Off")
+                color: root.adapterEnabled ? Theme.brand : Theme.faint
                 font.family: Theme.mono
                 font.pixelSize: 10 * root.s
                 font.weight: Font.DemiBold
@@ -114,7 +110,7 @@ Item {
 
         Text {
             width: parent.width
-            visible: root.enabled && root.rows.length === 0
+            visible: root.adapterEnabled && root.rows.length === 0
             text: qsTr("Searching…")
             color: Theme.faint
             font.family: Theme.font

@@ -1,6 +1,3 @@
-// View-model transforms over Notifs.groups for the notifications frame menu:
-// the total count and the per-app dismissable rows. Kept pure so the menu and
-// the sidebar render the same digest and the routing is unit-tested.
 
 function count(groups) {
     var list = Array.isArray(groups) ? groups : [];

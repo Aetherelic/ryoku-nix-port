@@ -4,9 +4,6 @@ import QtQuick
 import "../.." as Pill
 import "../../Singletons"
 
-// Power-profile frame menu: the profiles the system exposes via PowerProfiles,
-// with the active one highlighted. PowerProfiles polls only while active, which
-// this menu drives from its open state.
 Item {
     id: root
 
@@ -16,9 +13,9 @@ Item {
     implicitWidth: 260 * s
     implicitHeight: col.implicitHeight
 
-    onOpenChanged: PowerProfiles.setActive(root.open)
-    Component.onCompleted: PowerProfiles.setActive(root.open)
-    Component.onDestruction: PowerProfiles.setActive(false)
+    onOpenChanged: PowerProfiles.setActive(root, root.open)
+    Component.onCompleted: PowerProfiles.setActive(root, root.open)
+    Component.onDestruction: PowerProfiles.setActive(root, false)
 
     function label(name) {
         switch (name) {

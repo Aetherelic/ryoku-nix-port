@@ -1,7 +1,3 @@
-// Resolve which audio node is selected in a way that survives a Pipewire graph
-// refresh. Pipewire hands out fresh node objects on every change, so match on
-// the stable node.name; when the remembered device is gone, fall back to the
-// live default rather than dropping the selection.
 
 function stable(nodes, prevName, fallback) {
     var list = Array.isArray(nodes) ? nodes : [];

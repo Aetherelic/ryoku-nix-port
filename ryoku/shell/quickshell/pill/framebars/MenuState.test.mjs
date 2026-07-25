@@ -36,12 +36,6 @@ eq(activeAt(rejectAnchor, "eDP-1", undefined), null, "rejects a missing anchor")
 eq(activeAt(state, "eDP-1", "bottom"), null, "unset anchor is null");
 eq(activeAt(state, "DP-9", "left"), null, "unknown monitor is null");
 
-// Anchor-source agreement: the manager keys open state off recordFor's anchor,
-// the rendered delegate keys menuOpen off the same normalized record. A config
-// override must move BOTH together. The catalog default here is "left"; config
-// overrides it to "top". Opening at the config anchor is what makes the menu
-// visible -- keying at the stale catalog anchor would open where no delegate
-// listens, the desync this guards against.
 const normalizedMenus = [{ id: "quick-settings", anchor: "top", minWidth: 410 }];
 const opened = recordFor(normalizedMenus, "quick-settings");
 eq(opened.anchor, "top", "recordFor takes the config-overridden anchor, not the catalog default");

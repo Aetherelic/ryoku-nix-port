@@ -4,9 +4,6 @@ import QtQuick
 import "../.." as Pill
 import "../../Singletons"
 
-// Network frame menu: connection status and signal from the Network singleton,
-// the Wi-Fi radio route via Toggles, and live VPN state. VPN polling runs only
-// while the menu is open.
 Item {
     id: root
 
@@ -16,13 +13,9 @@ Item {
     implicitWidth: 280 * s
     implicitHeight: col.implicitHeight
 
-    onOpenChanged: {
-        Network.vpnPolling = root.open;
-        if (root.open)
-            Network.refresh();
-    }
-    Component.onCompleted: Network.vpnPolling = root.open
-    Component.onDestruction: Network.vpnPolling = false
+    onOpenChanged: Network.setVpnPolling(root, root.open)
+    Component.onCompleted: Network.setVpnPolling(root, root.open)
+    Component.onDestruction: Network.setVpnPolling(root, false)
 
     readonly property bool online: Network.kind.length > 0
     readonly property string statusLabel: Network.kind === "ethernet" ? qsTr("Ethernet")

@@ -1,7 +1,3 @@
-// Refcount step for a menu that shares a poller (e.g. Toggles.watchers): given
-// the last watched state and the current open state, report the new watched
-// state and the delta to apply. Idempotent, so opening or closing a menu twice
-// never leaks a duplicate background scan.
 
 function watchDelta(watching, active) {
     var on = active === true;
@@ -9,4 +5,14 @@ function watchDelta(watching, active) {
     return { watching: on, delta: on ? 1 : -1 };
 }
 
-if (typeof module !== "undefined" && module.exports) module.exports = { watchDelta };
+function setOwnership(owners, owner, active) {
+    var current = Array.isArray(owners) ? owners : [];
+    var index = current.indexOf(owner);
+    if (active === true)
+        return index < 0 ? current.concat([owner]) : current;
+    if (index < 0)
+        return current;
+    return current.slice(0, index).concat(current.slice(index + 1));
+}
+
+if (typeof module !== "undefined" && module.exports) module.exports = { watchDelta, setOwnership };

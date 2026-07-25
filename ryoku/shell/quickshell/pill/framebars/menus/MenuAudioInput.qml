@@ -6,9 +6,6 @@ import "../../Singletons"
 import "../lib/devices.js" as DeviceModel
 import "../lib/audioselect.js" as AudioSelect
 
-// Audio-input frame menu: the default source's volume/mute fader over the list
-// of switchable input devices. Selection resolves by node name so it survives a
-// Pipewire graph refresh; the VU peak meter runs only while open.
 Item {
     id: root
 

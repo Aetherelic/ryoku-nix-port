@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../framebars/lib/providers.js" as Providers
+import "../framebars/lib/menupoll.js" as MenuPoll
 
 Singleton {
     id: root
@@ -11,10 +12,12 @@ Singleton {
     property bool available: false
     property var profiles: []
     property bool active: false
+    property var activeOwners: []
 
 
-    function setActive(enabled) {
-        active = enabled;
+    function setActive(owner, enabled) {
+        activeOwners = MenuPoll.setOwnership(activeOwners, owner, enabled);
+        active = activeOwners.length > 0;
         if (active) refresh();
         else {
             readProc.running = false;

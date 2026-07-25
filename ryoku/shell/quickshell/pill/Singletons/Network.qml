@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../framebars/lib/providers.js" as Providers
+import "../framebars/lib/menupoll.js" as MenuPoll
 
 // Lightweight network presence for Atoll's display-only status: connection
 // kind (ethernet/wifi/none), Wi-Fi signal and radio state. It polls gently
@@ -18,6 +19,7 @@ Singleton {
     property bool vpnActive: false
     property string vpnName: ""
     property bool vpnPolling: false
+    property var vpnPollOwners: []
 
     onVpnPollingChanged: {
         if (vpnPolling) vpnProc.running = true;
@@ -26,6 +28,12 @@ Singleton {
             vpnActive = false;
             vpnName = "";
         }
+    }
+
+    function setVpnPolling(owner, enabled) {
+        vpnPollOwners = MenuPoll.setOwnership(vpnPollOwners, owner, enabled);
+        vpnPolling = vpnPollOwners.length > 0;
+        if (vpnPolling) refresh();
     }
 
 
