@@ -92,6 +92,8 @@ Popout {
             open: root.effectiveOpen
             panes: root.record ? root.record.panes : []
             pane: root.manager ? root.manager.stashPane : ""
+            monitorName: root.manager ? root.manager.monitorName : ""
+            surfaceId: root.record ? root.record.id : ""
             onPaneSelected: key => { if (root.manager) root.manager.stashPane = key; }
         }
     }

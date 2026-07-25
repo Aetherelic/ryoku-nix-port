@@ -27,6 +27,8 @@ Item {
     property var panes: []
     property string pane: ""
     signal paneSelected(string key)
+    property string monitorName: ""
+    property string surfaceId: ""
 
     // true while a file drag is over the drop-accepting pane (the stash board),
     // so the shell can keep the sidebar open through a drag mid-grab.
@@ -177,6 +179,8 @@ Item {
                 anchors.bottom: parent.bottom
                 s: root.s
                 active: root.open && root.effectivePane === "stash"
+                monitorName: root.monitorName
+                surfaceId: root.surfaceId
                 onRequestClose: {}
             }
         }

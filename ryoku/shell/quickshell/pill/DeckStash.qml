@@ -24,6 +24,8 @@ Item {
 
     // reserved (none here: stash flows raise their own overlays).
     signal requestClose()
+    property string monitorName: ""
+    property string surfaceId: ""
 
     // fixed cell + grid height so implicitHeight never depends on the column
     // width handed down by the deck (width-driven height -> loop with the deck's
@@ -603,8 +605,8 @@ Item {
         onSendAll: Stash.openSendAll()
         onSendText: Stash.openSendText()
         onDownload: Stash.openDownload()
-        onCompress: Stash.requestCompress()
-        onInstall: Stash.requestInstall()
+        onCompress: Stash.requestCompress(stash.monitorName, stash.surfaceId)
+        onInstall: Stash.requestInstall(stash.monitorName, stash.surfaceId)
     }
 
     // ── sheets (send / recv / task) over the body ───────────────────────

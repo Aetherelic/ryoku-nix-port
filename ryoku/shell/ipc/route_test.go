@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 )
 
 // route = the single source of truth for which panel a keybind toggles; a wrong
@@ -80,5 +81,60 @@ func TestDispatchFrameSurface(t *testing.T) {
 		if got := d.dispatch(command); got == "ok" {
 			t.Errorf("dispatch(%q) = ok, want rejection", command)
 		}
+	}
+}
+
+func TestDispatchSurfaceSocketContracts(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Setenv("PATH", t.TempDir())
+	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: pillSockPath(), Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	d := &daemon{sup: map[string]bool{"pill": true}, activeMon: "DP-1"}
+	for _, command := range []string{"bar", "bar missing", "bar launcher extra"} {
+		if got := d.dispatch(command); got == "ok" {
+			t.Errorf("dispatch(%q) = ok, want rejection", command)
+		}
+	}
+	if err := listener.SetDeadline(time.Now().Add(50 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	if conn, err := listener.Accept(); err == nil {
+		conn.Close()
+		t.Fatal("rejected bar input sent pill IPC")
+	} else if !strings.Contains(err.Error(), "i/o timeout") {
+		t.Fatalf("Accept after rejected bar input = %v", err)
+	}
+	if err := listener.SetDeadline(time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	calls := make(chan string, 2)
+	go func() {
+		for range 2 {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			line, _ := bufio.NewReader(conn).ReadString('\n')
+			calls <- strings.TrimSpace(line)
+			_, _ = fmt.Fprintln(conn, "ok")
+			conn.Close()
+		}
+	}()
+
+	if got := d.dispatch("power"); got != "ok" {
+		t.Fatalf("dispatch(power) = %q, want ok", got)
+	}
+	if got := <-calls; got != "openSurface DP-1 power" {
+		t.Fatalf("power pill IPC = %q", got)
+	}
+	if got := d.dispatch("voice"); got != "ok" {
+		t.Fatalf("dispatch(voice) = %q, want ok", got)
+	}
+	if got := <-calls; got != "openSurface DP-1 voice-off" {
+		t.Fatalf("voice pill IPC = %q", got)
 	}
 }

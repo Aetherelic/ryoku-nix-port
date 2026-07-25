@@ -184,10 +184,16 @@ ShellRoot {
         kbBounceTimer.restart();
     }
 
+    FrameSurfaceLifecycle {
+        id: surfaceLifecycle
+        keyring: Keyring
+        onFocusRestored: root.restoreFocus()
+    }
+
 
     Connections {
         target: Stash
-        function onAuthStepAside() { root.surfaceCloseRequested("", ""); }
+        function onAuthStepAside(mon, id) { root.surfaceCloseRequested(id, mon); }
     }
 
     function requestSurface(id, mon) {
@@ -576,6 +582,7 @@ ShellRoot {
                     active: !overlay.monFullscreen
                     sidebarTopInset: overlay.sidebarTopGap
                     sidebarBottomInset: overlay.sidebarBotGap
+                    onSurfaceClosed: id => surfaceLifecycle.handleClosed(id)
 
                     Connections {
                         target: root

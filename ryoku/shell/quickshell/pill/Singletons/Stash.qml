@@ -85,9 +85,9 @@ Singleton {
     property string taskState: "idle"     // idle | confirm | running | done | error
     property string taskMsg: ""
 
-    // Emitted when an install reaches a privileged (sudo/polkit) step so the shell
-    // can step the control deck aside and let the prompt take keyboard focus.
-    signal authStepAside()
+    signal authStepAside(string monitor, string surfaceId)
+    property string taskMonitor: ""
+    property string taskSurfaceId: ""
 
     // Cobalt download window.
     property bool dlOpen: false
@@ -230,19 +230,23 @@ Singleton {
     }
 
     // ── Install / compress ──────────────────────────────────────────────
-    function requestInstall() {
+    function requestInstall(monitor, surfaceId) {
         if (root.hasInstallable) {
             root.task = "install";
             root.taskMsg = "";
             root.taskState = "confirm";
+            root.taskMonitor = monitor || "";
+            root.taskSurfaceId = surfaceId || "";
         }
     }
 
-    function requestCompress() {
+    function requestCompress(monitor, surfaceId) {
         if (root.hasMedia) {
             root.task = "compress";
             root.taskMsg = "";
             root.taskState = "confirm";
+            root.taskMonitor = monitor || "";
+            root.taskSurfaceId = surfaceId || "";
         }
     }
 
@@ -265,6 +269,8 @@ Singleton {
         root.task = "";
         root.taskState = "idle";
         root.taskMsg = "";
+        root.taskMonitor = "";
+        root.taskSurfaceId = "";
     }
 
     // ── Cobalt download + remux ─────────────────────────────────────────
@@ -413,7 +419,7 @@ Singleton {
             onRead: (line) => {
                 var l = ("" + line).trim();
                 if (l === "@AUTH") {
-                    root.authStepAside();
+                    root.authStepAside(root.taskMonitor, root.taskSurfaceId);
                     return;
                 }
                 if (l.length > 0)
