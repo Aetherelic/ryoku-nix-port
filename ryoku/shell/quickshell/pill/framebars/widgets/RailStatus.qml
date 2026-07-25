@@ -1,4 +1,5 @@
 import QtQuick
+import "../.." as Pill
 import "../../Singletons"
 
 Item {
@@ -21,13 +22,12 @@ Item {
     implicitWidth: horizontal ? 28 * scale : 28 * scale
     implicitHeight: 28 * scale
 
-    Text {
+    Pill.MaterialIcon {
         anchors.centerIn: parent
         text: root.glyph
+        fill: statusId === "notifications" && Notifs.unread > 0 ? 1 : 0
         color: Theme.cream
-        font.family: "Material Symbols Rounded"
         font.pixelSize: 18 * root.scale
-        font.variableAxes: ({ "FILL": statusId === "notifications" && Notifs.unread > 0 ? 1 : 0, "opsz": 20 })
     }
 
     MouseArea {

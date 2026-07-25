@@ -1,4 +1,5 @@
 import QtQuick
+import "../.." as Pill
 import "../../Singletons"
 
 Item {
@@ -11,11 +12,10 @@ Item {
     implicitWidth: 30 * scale
     implicitHeight: 30 * scale
 
-    Text {
+    Pill.MaterialIcon {
         anchors.centerIn: parent
         text: "tune"
         color: Theme.cream
-        font.family: "Material Symbols Rounded"
         font.pixelSize: 19 * root.scale
     }
 

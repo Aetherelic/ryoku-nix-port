@@ -1,5 +1,5 @@
 import QtQuick
-import Quickshell
+import "../.." as Pill
 import "../../Singletons"
 
 Item {
@@ -10,31 +10,27 @@ Item {
     required property real scale
     signal actionRequested(string id)
 
-    readonly property var action: ({
-        "lock": { glyph: "lock", command: ["ryoku-shell", "lock"] },
-        "logout": { glyph: "logout", command: ["hyprctl", "dispatch", "exit"] },
-        "reboot": { glyph: "restart_alt", command: ["systemctl", "reboot"] },
-        "shutdown": { glyph: "power_settings_new", command: ["systemctl", "poweroff"] },
-        "screenshot": { glyph: "screenshot", command: ["sh", "-c", "flock -n -o /tmp/ryoshot.lock qs -c ryoshot"] },
-        "wallpaper": { glyph: "image", command: ["ryoku-shell", "wallpaper-switcher"] },
-        "color-picker": { glyph: "eyedropper", command: ["ryoku-cmd-color-picker"] }
-    })[actionId]
+    readonly property var glyphs: ({
+        "lock": "lock",
+        "logout": "logout",
+        "reboot": "restart_alt",
+        "shutdown": "power_settings_new",
+        "screenshot": "screenshot",
+        "wallpaper": "image",
+        "color-picker": "eyedropper"
+    })
     implicitWidth: 30 * scale
     implicitHeight: 30 * scale
 
-    Text {
+    Pill.MaterialIcon {
         anchors.centerIn: parent
-        text: root.action ? root.action.glyph : "error"
+        text: root.glyphs[root.actionId] || "error"
         color: Theme.cream
-        font.family: "Material Symbols Rounded"
         font.pixelSize: 19 * root.scale
     }
 
     MouseArea {
         anchors.fill: parent
-        onClicked: {
-            if (root.action) Quickshell.execDetached(root.action.command);
-            root.actionRequested(root.actionId);
-        }
+        onClicked: root.actionRequested(root.actionId)
     }
 }

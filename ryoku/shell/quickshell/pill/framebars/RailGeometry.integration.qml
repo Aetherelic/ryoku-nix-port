@@ -59,6 +59,10 @@ ShellRoot {
             + " mask=" + JSON.stringify(expected) + " reserve=" + reserve);
         return matches;
     }
+    function hostIds(item, ids) {
+        if (item.widgetId !== undefined && item.widgetId.length > 0) ids.push(item.widgetId);
+        for (let i = 0; i < item.children.length; ++i) hostIds(item.children[i], ids);
+    }
 
     Item {
         id: scene
@@ -72,6 +76,12 @@ ShellRoot {
             frameBars: root.frameBars
             style: ({ group: null })
         }
+        BarWidgetHost {
+            id: unsupported
+            widgetId: "vpn"
+            edge: "left"
+            scale: root.monitorScale
+        }
     }
 
     Timer {
@@ -79,6 +89,11 @@ ShellRoot {
         running: true
         onTriggered: {
             const passed = root.checkRail("top") && root.checkRail("left");
+            const ids = [];
+            root.hostIds(scene, ids);
+            const expected = ["clock", "dock", "network", "quick-settings", "tray", "vpn", "workspaces"];
+            const contract = expected.every(id => ids.includes(id));
+            console.log(contract ? "FRAME-BAR-CONTRACT-PASS" : "FRAME-BAR-CONTRACT-FAIL " + JSON.stringify(ids));
             console.log(passed ? "RAIL-GEOMETRY-PASS" : "RAIL-GEOMETRY-FAIL");
             Qt.quit();
         }

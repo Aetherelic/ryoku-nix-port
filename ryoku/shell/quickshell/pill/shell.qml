@@ -28,6 +28,21 @@ ShellRoot {
     id: root
     signal menuRequested(string id, rect ownerRect)
     signal surfaceRequested(string id, rect ownerRect)
+    signal actionRequested(string id)
+
+    function runBarAction(id) {
+        switch (id) {
+        case "lock": Quickshell.execDetached(["ryoku-shell", "lock"]); break;
+        case "logout": Hyprland.dispatch("hl.dsp.exit()"); break;
+        case "reboot": Quickshell.execDetached(["systemctl", "reboot"]); break;
+        case "shutdown": Quickshell.execDetached(["systemctl", "poweroff"]); break;
+        case "screenshot": Quickshell.execDetached(["sh", "-c", "flock -n -o /tmp/ryoshot.lock qs -c ryoshot"]); break;
+        case "wallpaper": Quickshell.execDetached(["ryoku-shell", "wallpaper-switcher"]); break;
+        case "color-picker": Quickshell.execDetached(["ryoku-cmd-color-picker"]); break;
+        default: return;
+        }
+        root.actionRequested(id);
+    }
 
 
 
@@ -599,6 +614,7 @@ ShellRoot {
                     style: ({ group: blobGroup })
                     onMenuRequested: (id, ownerRect) => root.menuRequested(id, ownerRect)
                     onSurfaceRequested: (id, ownerRect) => root.surfaceRequested(id, ownerRect)
+                    onActionRequested: id => root.runBarAction(id)
                 }
 
                 // power popout: the session menu, grown from the bar edge. The

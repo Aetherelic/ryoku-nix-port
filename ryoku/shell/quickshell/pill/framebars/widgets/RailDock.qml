@@ -13,6 +13,7 @@ Item {
     signal activate(string className)
     signal pin(string className)
     signal unpin(string className)
+    signal menuRequested(string id, rect ownerRect)
     readonly property bool horizontal: edge === "top" || edge === "bottom"
     readonly property var classes: Dock.resolve(pinned, activeClients)
     implicitWidth: horizontal ? dock.implicitWidth : 34 * scale
