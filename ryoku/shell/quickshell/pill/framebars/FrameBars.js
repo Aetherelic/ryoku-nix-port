@@ -84,7 +84,7 @@ function addWidget(config, edge, zone, id, barCatalog) {
     const axis = horizontal(edge) ? "horizontal" : "vertical";
     if (!item || !item.axes.includes(axis)) return output;
     if (output.rails[edge][zone].includes(id)) return output;
-    output.rails[edge][zone] = [id];
+    output.rails[edge][zone].push(id);
     return output;
 }
 
@@ -97,8 +97,9 @@ function moveWidget(config, fromEdge, fromZone, index, toEdge, toZone, targetInd
     const item = barCatalog.entry(id);
     const axis = horizontal(toEdge) ? "horizontal" : "vertical";
     if (!item || !item.axes.includes(axis)) return output;
-    source.splice(index, 1);
     const target = output.rails[toEdge][toZone];
+    if (target !== source && target.includes(id)) return output;
+    source.splice(index, 1);
     const position = Math.max(0, Math.min(typeof targetIndex === "number" ? targetIndex : target.length, target.length));
     target.splice(position, 0, id);
     return output;

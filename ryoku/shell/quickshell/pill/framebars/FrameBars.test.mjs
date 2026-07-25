@@ -18,6 +18,10 @@ eq(reference.rails.left.center, ["dock"], "reference dock is left-centre");
 eq(reference.rails.bottom.enabled, false, "bottom rail starts disabled");
 eq(reference.rails.left.bottom, ["tray", "network", "clock"], "reference vertical rail shape is preserved");
 eq(reference.rails.right.top, [], "disabled right rail retains vertical zones");
+eq(Object.keys(reference.rails.bottom).sort(), ["center", "enabled", "end", "reveal", "size", "start"], "bottom rail has horizontal zones");
+eq(reference.rails.bottom.start, [], "bottom start list defaults empty");
+eq(reference.rails.bottom.center, [], "bottom centre list defaults empty");
+eq(reference.rails.bottom.end, [], "bottom end list defaults empty");
 
 const normalized = normalize({
     version: 99,
@@ -40,15 +44,33 @@ eq(normalized.menus["quick-settings"].anchor, "left", "normalizer restores inval
 eq(normalized.surfaces.stash.anchor, "left", "normalizer normalizes invalid surface anchor");
 eq(normalized.arbitrary, undefined, "normalizer drops arbitrary keys");
 
+const addInput = defaultConfig();
+const added = addWidget(addInput, "left", "bottom", "battery", BarCatalog);
+eq(added.rails.left.bottom, ["tray", "network", "clock", "battery"], "compatible widget appends to an occupied zone");
+eq(addInput, defaultConfig(), "add leaves its input unchanged");
 eq(addWidget(reference, "top", "start", "tray", BarCatalog).rails.top.start, ["tray"], "compatible top widget is added");
-eq(addWidget(reference, "left", "top", "tray", BarCatalog).rails.left.top, ["tray"], "compatible left widget is added");
 eq(addWidget(reference, "top", "start", "dock", BarCatalog).rails.top.start, [], "cross-axis widget is rejected");
+
+const moveInput = defaultConfig();
+const moved = moveWidget(moveInput, "left", "top", 0, "top", "end", 0, BarCatalog);
+eq(moved.rails.top.end, ["quick-settings"], "widget moves across compatible rails");
+eq(moved.rails.left.top, ["workspaces"], "successful move removes only the source widget");
+eq(moveInput, defaultConfig(), "move leaves its input unchanged");
+eq(moveWidget(reference, "left", "bottom", 2, "top", "center", 0, BarCatalog), reference, "move rejects an existing target-zone widget");
 eq(moveWidget(reference, "left", "bottom", 0, "left", "bottom", 2, BarCatalog).rails.left.bottom, ["network", "clock", "tray"], "same-zone move honors target index");
 eq(moveWidget(reference, "left", "center", 0, "top", "end", 0, BarCatalog).rails.left.center, ["dock"], "cross-axis move leaves config unchanged");
-eq(removeWidget(reference, "left", "center", 0).rails.left.center, [], "remove deletes only requested occurrence");
-eq(addWidget(reference, "top", "start", "clock", BarCatalog).rails.top.start, ["clock"], "widgets may occupy different zones");
-eq(setMenu(reference, "quick-settings", { anchor: "top-right", widgets: ["clock"] }, MenuCatalog).menus["quick-settings"].anchor, "top-right", "menu updates normalize anchors");
-eq(setSurface(reference, "stash", { anchor: "bad" }, MenuCatalog).surfaces.stash.anchor, "left", "surface updates normalize anchors");
+
+const removeInput = defaultConfig();
+eq(removeWidget(removeInput, "left", "center", 0).rails.left.center, [], "remove deletes only requested occurrence");
+eq(removeInput, defaultConfig(), "remove leaves its input unchanged");
+eq(removeWidget(reference, "top", "center", 8).rails.top.center, ["clock"], "invalid removal leaves config unchanged");
+
+const menuInput = defaultConfig();
+eq(setMenu(menuInput, "quick-settings", { anchor: "top-right", widgets: ["clock"] }, MenuCatalog).menus["quick-settings"].anchor, "top-right", "menu updates normalize anchors");
+eq(menuInput, defaultConfig(), "setMenu leaves its input unchanged");
+const surfaceInput = defaultConfig();
+eq(setSurface(surfaceInput, "stash", { anchor: "bad" }, MenuCatalog).surfaces.stash.anchor, "left", "surface updates normalize anchors");
+eq(surfaceInput, defaultConfig(), "setSurface leaves its input unchanged");
 
 if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 console.log("\nAll tests PASSED");

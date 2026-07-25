@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"ryoku-cli/internal/sys"
 	"reflect"
+	"ryoku-cli/internal/sys"
 	"strings"
 	"testing"
 )
@@ -1152,36 +1152,36 @@ func TestHyprFollowMouseNotDefault(t *testing.T) {
 }
 
 func TestMigrateShellConfig(t *testing.T) {
-    legacy := []byte(`{
+	legacy := []byte(`{
         "barEnabled": false, "barPosition": "bottom", "barHeight": 26, "atollVariant": "ryoku",
         "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["calendar"], "sidebarWidth": 360
     }`)
-    out, changes, err := migrateShellConfig(legacy)
-    if err != nil || len(changes) == 0 {
-        t.Fatalf("legacy file should migrate: changes=%v err=%v", changes, err)
-    }
-    var cfg map[string]any
-    if err := json.Unmarshal(out, &cfg); err != nil {
-        t.Fatalf("migrated JSON does not parse: %v", err)
-    }
-    frameBars, ok := cfg["frameBars"].(map[string]any)
-    if !ok {
-        t.Fatal("legacy settings must seed frameBars")
-    }
-    rails := frameBars["rails"].(map[string]any)
-    if top := rails["top"].(map[string]any); !top["enabled"].(bool) {
-        t.Error("legacy settings must seed the top reference rail")
-    }
-    if left := rails["left"].(map[string]any); !left["enabled"].(bool) {
-        t.Error("legacy settings must seed the left reference rail")
-    }
-    for _, key := range []string{"barEnabled", "barPosition", "barHeight", "atollVariant", "sidebarLeftPanes", "sidebarRightPanes", "sidebarWidth"} {
-        if _, ok := cfg[key]; !ok {
-            t.Errorf("compatibility key %s was removed", key)
-        }
-    }
+	out, changes, err := migrateShellConfig(legacy)
+	if err != nil || len(changes) == 0 {
+		t.Fatalf("legacy file should migrate: changes=%v err=%v", changes, err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("migrated JSON does not parse: %v", err)
+	}
+	frameBars, ok := cfg["frameBars"].(map[string]any)
+	if !ok {
+		t.Fatal("legacy settings must seed frameBars")
+	}
+	rails := frameBars["rails"].(map[string]any)
+	if top := rails["top"].(map[string]any); !top["enabled"].(bool) {
+		t.Error("legacy settings must seed the top reference rail")
+	}
+	if left := rails["left"].(map[string]any); !left["enabled"].(bool) {
+		t.Error("legacy settings must seed the left reference rail")
+	}
+	for _, key := range []string{"barEnabled", "barPosition", "barHeight", "atollVariant", "sidebarLeftPanes", "sidebarRightPanes", "sidebarWidth"} {
+		if _, ok := cfg[key]; !ok {
+			t.Errorf("compatibility key %s was removed", key)
+		}
+	}
 
-    malformed := []byte(`{
+	malformed := []byte(`{
         "frameBars": {
             "style": "bad",
             "rails": {
@@ -1192,42 +1192,42 @@ func TestMigrateShellConfig(t *testing.T) {
             "surfaces": { "stash": { "anchor": "wrong" } }
         }
     }`)
-    out, changes, err = migrateShellConfig(malformed)
-    if err != nil || len(changes) == 0 {
-        t.Fatalf("malformed frameBars should normalize: changes=%v err=%v", changes, err)
-    }
-    if err := json.Unmarshal(out, &cfg); err != nil {
-        t.Fatalf("normalized JSON does not parse: %v", err)
-    }
-    frameBars = cfg["frameBars"].(map[string]any)
-    rails = frameBars["rails"].(map[string]any)
-    top := rails["top"].(map[string]any)
-    left := rails["left"].(map[string]any)
-    if top["size"].(float64) != 16 || left["size"].(float64) != 112 {
-        t.Errorf("rail sizes were not clamped: top=%v left=%v", top["size"], left["size"])
-    }
-    if got := top["start"]; !reflect.DeepEqual(got, []any{"tray"}) {
-        t.Errorf("horizontal ids were not normalized: %v", got)
-    }
-    if got := left["top"]; !reflect.DeepEqual(got, []any{"clock"}) {
-        t.Errorf("vertical ids were not normalized: %v", got)
-    }
-    menus := frameBars["menus"].(map[string]any)
-    if menus["quick-settings"].(map[string]any)["anchor"] != "left" {
-        t.Errorf("menu anchor was not normalized: %v", menus)
-    }
-    surfaces := frameBars["surfaces"].(map[string]any)
-    if surfaces["stash"].(map[string]any)["anchor"] != "left" {
-        t.Errorf("surface anchor was not normalized: %v", surfaces)
-    }
+	out, changes, err = migrateShellConfig(malformed)
+	if err != nil || len(changes) == 0 {
+		t.Fatalf("malformed frameBars should normalize: changes=%v err=%v", changes, err)
+	}
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("normalized JSON does not parse: %v", err)
+	}
+	frameBars = cfg["frameBars"].(map[string]any)
+	rails = frameBars["rails"].(map[string]any)
+	top := rails["top"].(map[string]any)
+	left := rails["left"].(map[string]any)
+	if top["size"].(float64) != 16 || left["size"].(float64) != 112 {
+		t.Errorf("rail sizes were not clamped: top=%v left=%v", top["size"], left["size"])
+	}
+	if got := top["start"]; !reflect.DeepEqual(got, []any{"tray"}) {
+		t.Errorf("horizontal ids were not normalized: %v", got)
+	}
+	if got := left["top"]; !reflect.DeepEqual(got, []any{"clock"}) {
+		t.Errorf("vertical ids were not normalized: %v", got)
+	}
+	menus := frameBars["menus"].(map[string]any)
+	if menus["quick-settings"].(map[string]any)["anchor"] != "left" {
+		t.Errorf("menu anchor was not normalized: %v", menus)
+	}
+	surfaces := frameBars["surfaces"].(map[string]any)
+	if surfaces["stash"].(map[string]any)["anchor"] != "left" {
+		t.Errorf("surface anchor was not normalized: %v", surfaces)
+	}
 
-    out, changes, err = migrateShellConfig(out)
-    if err != nil || out != nil || changes != nil {
-        t.Fatalf("normalized frameBars must be idempotent: out=%s changes=%v err=%v", out, changes, err)
-    }
-    if _, _, err := migrateShellConfig([]byte("not json")); err == nil {
-        t.Fatal("garbage must error, not silently rewrite")
-    }
+	out, changes, err = migrateShellConfig(out)
+	if err != nil || out != nil || changes != nil {
+		t.Fatalf("normalized frameBars must be idempotent: out=%s changes=%v err=%v", out, changes, err)
+	}
+	if _, _, err := migrateShellConfig([]byte("not json")); err == nil {
+		t.Fatal("garbage must error, not silently rewrite")
+	}
 }
 
 // limineDropFlat mirrors the installer's promote surgery: flat placeholder
