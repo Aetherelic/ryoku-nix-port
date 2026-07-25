@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// Display-only Atoll weather: the Open-Meteo condition and temperature.
+// Display-only rail weather: the Open-Meteo condition and temperature.
 // Hidden until the shared Weather singleton has a real reading.
 Item {
     id: wx

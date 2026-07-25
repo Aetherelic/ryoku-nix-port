@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Services.UPower
 
 // Laptop battery state from UPower's display device. A desktop without a
-// battery reports present=false so Atoll omits the display-only status chip.
+// battery reports present=false so the rail omits the display-only status chip.
 // The fuller state remains available to the preserved sidebar logic.
 Singleton {
     id: root

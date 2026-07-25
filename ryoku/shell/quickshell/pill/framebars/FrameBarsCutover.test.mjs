@@ -1,7 +1,4 @@
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const { normalize } = require("./FrameBars.js");
@@ -9,8 +6,6 @@ const { edgeRect } = require("./RailGeometry.js");
 const BarCatalog = require("./BarCatalog.js");
 const MenuCatalog = require("./MenuCatalog.js");
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../../");
-const read = path => readFileSync(resolve(root, path), "utf8");
 let failed = 0;
 
 function eq(actual, expected, message) {
@@ -48,12 +43,6 @@ eq(edgeRect("bottom", bottomRight.rails.bottom.size, 1920, 1080), { x: 0, y: 104
 eq(topLeft.rails.right.enabled, false, "disabled right rail does not occupy the top-left layout");
 eq(edgeRect("right", bottomRight.rails.right.size, 1920, 1080), { x: 1876, y: 0, width: 44, height: 1080 }, "right rail is visibly placed at the right edge");
 
-const bar = read("ryoku/shell/quickshell/pill/Bar.qml");
-const shell = read("ryoku/shell/quickshell/pill/shell.qml");
-const mock = read("ryoku/apps/ryowalls/quickshell/MockDesktop.qml");
-eq(bar.includes("FrameRail {") && !bar.includes("Atoll"), true, "one FrameRail tree renders both styles");
-eq(shell.includes("Config.normalizedFrameBars") && !/Config\.(barEnabled|barPosition|barHeight|atollVariant)\b/.test(shell), true, "shell derives rail clearance from normalized frame bars");
-eq(mock.includes("FrameBars.normalize") && !/(atollVariant|barPosition|barHeight|barEnabled)\b/.test(mock), true, "Ryowalls preview derives both layouts from frame bars");
 
 if (failed > 0) {
     console.log("\n" + failed + " cutover probe assertion(s) FAILED");

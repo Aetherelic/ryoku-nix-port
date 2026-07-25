@@ -5,7 +5,7 @@ import Quickshell.Io
 import "../framebars/lib/providers.js" as Providers
 import "../framebars/lib/menupoll.js" as MenuPoll
 
-// Lightweight network presence for Atoll's display-only status: connection
+// Lightweight network presence for the rail's display-only status.
 // kind (ethernet/wifi/none), Wi-Fi signal and radio state. It polls gently
 // without scanning or exposing connection controls.
 Singleton {

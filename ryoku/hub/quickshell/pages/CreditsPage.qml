@@ -35,7 +35,7 @@ Item {
         { "name": "Omarchy",      "by": "DHH",            "role": "opinionated Arch",     "url": "" },
         { "name": "CachyOS",      "by": "CachyOS team",   "role": "performance Arch",     "url": "" },
         { "name": "Ricelin",      "by": "Gakuseei",       "role": "washi warping pill",   "url": "https://github.com/Gakuseei/Ricelin" },
-        { "name": "nixos-configuration", "by": "ilyamiro", "role": "atoll island bar",    "url": "https://github.com/ilyamiro/nixos-configuration" },
+        { "name": "nixos-configuration", "by": "ilyamiro", "role": "legacy island bar",   "url": "https://github.com/ilyamiro/nixos-configuration" },
         { "name": "dotfiles",     "by": "Jules3182",     "role": "dyad dual-edge bar",   "url": "https://github.com/Jules3182/dotfiles" }
     ]
 

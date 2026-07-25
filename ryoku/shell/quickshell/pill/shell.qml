@@ -19,7 +19,7 @@ import Ryoku.Ui
 import "Singletons"
 import "framebars/RailGeometry.js" as RailGeometry
 
-// Per monitor the shell maps an exclusive-zone strip for the atoll bar, a
+// Per monitor the shell maps exclusive-zone frame rails, a
 // full-screen transparent overlay for the frame and retained surfaces, and the
 // standalone volume/brightness OSD. The overlay mask catches only the bar and
 // active surfaces; all other clicks pass through.

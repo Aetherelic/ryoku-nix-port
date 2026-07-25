@@ -124,7 +124,7 @@ Rectangle {
         "dictation": "voice typing speech transcribe whisper microphone stt",
         "windows": "window windows rounding corners softness gaps border borders thickness colour tiling dwindle master scrolling layout opacity transparency transparent dim blur shadow glow glass wobble wobbly title bar titlebar float snap resize animation",
         "appearance": "theme palette accent color colour wallpaper background rice scheme dark light night bluelight comfort brightness backlight",
-        "bar-studio": "bar frame rails zones widgets menus surfaces style catalogue layout atoll islands sidebar",
+        "bar-studio": "bar frame rails zones widgets menus surfaces style catalogue layout framebars sidebar",
         "desktop": "desktop visualizer visualiser spectrum weather brand logo mark name widget board wallpaper",
         "launcher": "launcher spotlight command palette greeting weather home",
         "fastfetch": "fetch neofetch terminal system info logo ascii emblem readout",

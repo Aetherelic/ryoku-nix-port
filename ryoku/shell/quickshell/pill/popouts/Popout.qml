@@ -235,7 +235,7 @@ Item {
     // the fillet residual is already zero when the shape drops out.
     readonly property real burial: (1 - Math.max(0, Math.min(1, prog))) * smoothing
 
-    // Atoll floats off the frame: horizontal popouts narrow toward their icon
+    // Horizontal frame surfaces narrow toward their trigger icon
     // and never grow a welding neck into the border. Retained vertical sidebar
     // bodies keep their normal full-span geometry while disabled.
     readonly property bool dipHost: !vertical
@@ -257,7 +257,7 @@ Item {
         // as a dark bump on an opaque one (the power panel's wallpaper hero). so
         // drop the body from the field until it actually opens, matching bodyClip.
         visible: root.prog > 0.004
-        // noWeld has no frame band to weld into (frame off, or atoll's floating
+        // noWeld has no frame band to weld into (frame off, or a free-floating
         // islands), so it grows no neck -- but it stays a blob and still buries its
         // inner face on close (see `burial`), so it hits zero size cleanly instead
         // of stranding a shrinking fillet nub. it melts shut toward the bar it grew

@@ -3,11 +3,8 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// Atoll silhouette shared by the Hub control kit and the ryowalls preview.
 Singleton {
-    readonly property var skins: [
-        { key: "atoll", origin: "ilyamiro", draw: "ilyamiro", what: "Floating dark islands, a bright active chip, a startup cascade" }
-    ]
+    readonly property var skins: []
 
     function pill(c, x, y, w, h, r) {
         c.beginPath();
