@@ -9,7 +9,7 @@ ShellRoot {
     readonly property real frameLip: 9
     readonly property var frameBars: ({
         rails: {
-            top: { enabled: true, size: 32, start: [], center: ["clock"], end: [] },
+            top: { enabled: true, size: 32, start: ["lock"], center: ["clock"], end: [] },
             left: { enabled: true, size: 48, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["tray", "network", "clock"] },
             bottom: { enabled: false, size: 32, start: [], center: [], end: [] },
             right: { enabled: false, size: 48, top: [], center: [], bottom: [] }
@@ -63,6 +63,10 @@ ShellRoot {
         if (item.widgetId !== undefined && item.widgetId.length > 0) ids.push(item.widgetId);
         for (let i = 0; i < item.children.length; ++i) hostIds(item.children[i], ids);
     }
+    function hosts(item, result) {
+        if (item.widgetId !== undefined && item.widgetId.length > 0) result.push(item);
+        for (let i = 0; i < item.children.length; ++i) hosts(item.children[i], result);
+    }
 
     Item {
         id: scene
@@ -75,6 +79,10 @@ ShellRoot {
             railScale: root.monitorScale
             frameBars: root.frameBars
             style: ({ group: null })
+            property var menus: []
+            property var actions: []
+            onMenuRequested: (id, ownerRect) => menus.push({ id: id, rect: ownerRect })
+            onActionRequested: id => actions.push(id)
         }
         BarWidgetHost {
             id: unsupported
@@ -89,11 +97,26 @@ ShellRoot {
         running: true
         onTriggered: {
             const passed = root.checkRail("top") && root.checkRail("left");
-            const ids = [];
-            root.hostIds(scene, ids);
-            const expected = ["clock", "dock", "network", "quick-settings", "tray", "vpn", "workspaces"];
-            const contract = expected.every(id => ids.includes(id));
-            console.log(contract ? "FRAME-BAR-CONTRACT-PASS" : "FRAME-BAR-CONTRACT-FAIL " + JSON.stringify(ids));
+            const allHosts = [];
+            root.hosts(scene, allHosts);
+            const expected = ["clock", "dock", "lock", "network", "quick-settings", "tray", "workspaces"];
+            const resolved = expected.every(id => allHosts.some(host => host.widgetId === id && host.loaded));
+            const emit = (id, signal) => {
+                const host = allHosts.find(candidate => candidate.widgetId === id);
+                const loader = host.children.find(child => child.item !== undefined);
+                if (signal === "actionRequested") loader.item[signal](id);
+                else loader.item[signal](id, Qt.rect(0, 0, 1, 1));
+            };
+            emit("clock", "menuRequested");
+            emit("quick-settings", "menuRequested");
+            emit("dock", "menuRequested");
+            emit("tray", "menuRequested");
+            emit("lock", "actionRequested");
+            const menuIds = bar.menus.map(entry => entry.id).sort();
+            const menus = JSON.stringify(menuIds) === JSON.stringify(["clock", "dock", "quick-settings", "tray"]);
+            const rectangles = bar.menus.every(entry => entry.rect.width === 1 && entry.rect.height === 1);
+            const actions = JSON.stringify(bar.actions) === JSON.stringify(["lock"]);
+            console.log(resolved && menus && rectangles && actions ? "FRAME-BAR-CONTRACT-PASS" : "FRAME-BAR-CONTRACT-FAIL");
             console.log(passed ? "RAIL-GEOMETRY-PASS" : "RAIL-GEOMETRY-FAIL");
             Qt.quit();
         }

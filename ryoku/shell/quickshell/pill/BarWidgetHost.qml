@@ -17,6 +17,7 @@ Item {
     signal activated()
 
     implicitWidth: widgetLoader.item ? widgetLoader.item.implicitWidth : 0
+    readonly property bool loaded: widgetLoader.item !== null
     implicitHeight: widgetLoader.item ? widgetLoader.item.implicitHeight : 0
 
     function componentFor(id) {
