@@ -14,7 +14,7 @@ function ok(condition, msg) { eq(!!condition, true, msg); }
 const requiredMenuWidgets = [
     "launcher", "audio-input", "audio-output", "bluetooth", "clipboard", "clock",
     "container", "divider", "spacer", "network", "notifications", "power-profile",
-    "quick-settings", "screenshot", "theme", "wallpaper", "weather", "media",
+    "quick-settings", "screenshot", "recording", "theme", "wallpaper", "weather", "media",
     "layout-switcher", "quick-actions"
 ];
 eq(MenuCatalog.widgetIds().sort(), requiredMenuWidgets.sort(), "all approved menu widgets are catalogued");

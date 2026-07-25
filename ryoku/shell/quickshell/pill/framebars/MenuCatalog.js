@@ -14,6 +14,7 @@ const widgets = {
     "power-profile": { id: "power-profile", nested: false },
     "quick-settings": { id: "quick-settings", nested: false },
     "screenshot": { id: "screenshot", nested: false },
+    "recording": { id: "recording", nested: false },
     "theme": { id: "theme", nested: false },
     "wallpaper": { id: "wallpaper", nested: false },
     "weather": { id: "weather", nested: false },

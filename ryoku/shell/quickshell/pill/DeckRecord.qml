@@ -79,19 +79,19 @@ Item {
 
     onActiveChanged: if (active) refreshRecs()
 
-    // pre-warm recordings once at startup, so the first open is already at its
-    // final size and the panel doesn't re-morph as the list returns.
-    Component.onCompleted: refreshRecs()
-
     // refresh the list a hair after a recording ends so the new file shows up.
     Connections {
         target: Recorder
         function onActiveChanged() {
-            if (!Recorder.active)
+            if (root.active && !Recorder.active)
                 recRefresh.restart();
         }
     }
-    Timer { id: recRefresh; interval: 1500; onTriggered: root.refreshRecs() }
+    Timer {
+        id: recRefresh
+        interval: 1500
+        onTriggered: if (root.active) root.refreshRecs()
+    }
 
     // flat icon button (play / folder / trash / pause / stop). tints carry
     // semantics: vermilion = destructive, cream = neutral, iconDim = rest.

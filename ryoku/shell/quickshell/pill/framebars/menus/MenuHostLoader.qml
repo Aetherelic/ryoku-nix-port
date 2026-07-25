@@ -14,6 +14,7 @@ Loader {
     property bool open: false
     property int depth: 0
 
+    signal requestClose()
     source: Qt.resolvedUrl("../../MenuWidgetHost.qml")
     onLoaded: {
         item.widgetId = Qt.binding(() => (typeof host.widget === "string") ? host.widget : (host.widget && host.widget.id ? host.widget.id : ""));
@@ -21,5 +22,11 @@ Loader {
         item.scale = Qt.binding(() => host.scale);
         item.open = Qt.binding(() => host.open);
         item.depth = Qt.binding(() => host.depth);
+    }
+
+    Connections {
+        target: host.item
+        ignoreUnknownSignals: true
+        function onRequestClose() { host.requestClose(); }
     }
 }

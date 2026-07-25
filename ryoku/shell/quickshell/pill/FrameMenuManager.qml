@@ -91,6 +91,15 @@ Item {
         root.menuState = MenuState.open(root.menuState, root.monitorName,
             { id: id, anchor: anchor, along: along, trigger: trigger });
     }
+    function openMenuAt(id, x, y) {
+        const rec = MenuState.recordFor(root.menus, id);
+        if (!rec) return;
+        const anchor = rec.anchor;
+        const horiz = anchor.indexOf("top") === 0 || anchor.indexOf("bottom") === 0;
+        const along = horiz ? x : y;
+        root.menuState = MenuState.open(root.menuState, root.monitorName,
+            { id: id, anchor: anchor, along: along, trigger: { x: x, y: y, width: 1, height: 1 } });
+    }
 
     function closeAt(anchor) {
         root.menuState = MenuState.closeAt(root.menuState, root.monitorName, anchor);
@@ -122,6 +131,7 @@ Item {
             anchor: modelData.anchor
             menuOpen: root.active && root.activeIdAt(modelData.anchor) === modelData.id
             alongCenter: root.alongAt(modelData.anchor)
+            onRequestClose: root.closeMenu(modelData.id)
         }
     }
 }

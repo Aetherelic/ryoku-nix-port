@@ -29,6 +29,7 @@ ShellRoot {
     signal menuRequested(string id, rect ownerRect)
     signal surfaceRequested(string id, rect ownerRect)
     signal actionRequested(string id)
+    signal barMenuRequested(string monitor, string id)
 
     function runBarAction(id) {
         switch (id) {
@@ -272,6 +273,7 @@ ShellRoot {
         function voiceOff(mon: string): void { root.voiceOff = true; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
         function voiceHide(): void { if (root.popout === "voice") root.popout = ""; }
         function pluginPopout(mon: string, id: string): void { root.togglePopout(mon, "plugin:" + id); }
+        function bar(mon: string, id: string): void { root.barMenuRequested(mon, id); }
     }
 
     // The daemon writes surface commands to this socket to toggle pill surfaces
@@ -299,6 +301,9 @@ ShellRoot {
             root.voiceOff = true; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
         case "voiceHide":
             if (root.popout === "voice") root.popout = "";
+            return true;
+        case "bar":
+            root.barMenuRequested(mon, parts.length > 2 ? parts[2] : "");
             return true;
         default:
             return false;
@@ -654,6 +659,10 @@ ShellRoot {
                     Connections {
                         target: root
                         function onMenuRequested(id, ownerRect) { frameMenus.openMenu(id, ownerRect); }
+                        function onBarMenuRequested(mon, id) {
+                            if (mon === overlay.modelData.name)
+                                frameMenus.openMenuAt(id, overlay.width / 2, overlay.height / 2);
+                        }
                     }
                 }
 

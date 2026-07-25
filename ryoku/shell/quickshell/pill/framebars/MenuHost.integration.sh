@@ -26,18 +26,11 @@ grep -q MENU-HOST-RESOLVE-PASS "$work/log" || { echo "FAIL: menu host resolution
 grep -q MENU-OPEN-GATE-PASS "$work/log" || { echo "FAIL: menu open-state gating"; fail=1; }
 
 # Every implemented id must resolve without the developer-error default firing.
-for id in clock notifications network bluetooth audio-input audio-output power-profile quick-settings quick-actions layout-switcher; do
+for id in clock notifications network bluetooth audio-input audio-output power-profile quick-settings quick-actions layout-switcher container divider spacer launcher clipboard screenshot recording theme wallpaper weather media; do
   if grep -q "no host component for $id\$" "$work/log"; then
     echo "FAIL: implemented id '$id' hit the dev-error default"; fail=1
   fi
 done
 
-# Every deferred (Task 8) id must still hit the developer-error default.
-for id in launcher clipboard screenshot theme wallpaper weather media; do
-  if ! grep -q "no host component for $id\$" "$work/log"; then
-    echo "FAIL: deferred id '$id' did not dev-error as expected"; fail=1
-  fi
-done
-
 if (( fail )); then exit 1; fi
-echo "menu-host-integration: every implemented id resolves, Task-8 ids dev-error, open-state gates release"
+echo "menu-host-integration: every catalogued id resolves and open-state gates release"

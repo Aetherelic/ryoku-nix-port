@@ -1170,6 +1170,26 @@ func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 		cfg["frameBars"] = defaultFrameBarsFromLegacy(cfg)
 		changes = append(changes, "migrated Atoll settings to frame bars")
 	}
+	if _, left := cfg["sidebarLeftPanes"]; left || cfg["sidebarRightPanes"] != nil || cfg["sidebarWidth"] != nil {
+		frameBars := frameMap(cfg["frameBars"])
+		surfaces := frameMap(frameBars["surfaces"])
+		stash := frameMap(surfaces["stash"])
+		system := frameMap(surfaces["system"])
+		stash["panes"] = cfg["sidebarLeftPanes"]
+		system["panes"] = cfg["sidebarRightPanes"]
+		if width, ok := cfg["sidebarWidth"]; ok {
+			stash["minWidth"] = width
+			system["minWidth"] = width
+		}
+		surfaces["stash"] = stash
+		surfaces["system"] = system
+		frameBars["surfaces"] = surfaces
+		cfg["frameBars"] = frameBars
+		delete(cfg, "sidebarLeftPanes")
+		delete(cfg, "sidebarRightPanes")
+		delete(cfg, "sidebarWidth")
+		changes = append(changes, "migrated sidebar panes to frame surfaces")
+	}
 	normalized, frameChanges := normalizeFrameBars(cfg["frameBars"])
 	cfg["frameBars"] = normalized
 	changes = append(changes, frameChanges...)

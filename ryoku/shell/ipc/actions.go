@@ -16,6 +16,19 @@ import (
 // ~/.config. empty in a deployed setup.
 var shellDir = os.Getenv("RYOKU_SHELL_DIR")
 
+var frameBarMenuIDs = map[string]bool{
+	"launcher": true, "clipboard": true, "screenshot": true, "recording": true,
+	"theme": true, "wallpaper": true, "weather": true, "media": true,
+}
+
+func barMenuID(cmd string) (string, bool) {
+	fields := strings.Fields(cmd)
+	if len(fields) != 2 || fields[0] != "bar" || !frameBarMenuIDs[fields[1]] {
+		return "", false
+	}
+	return fields[1], true
+}
+
 // qsSelect: qs config selector for a component. by repo path in dev, by config
 // name when deployed.
 func qsSelect(name string) []string {

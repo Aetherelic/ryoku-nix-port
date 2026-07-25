@@ -516,6 +516,9 @@ func route(cmd string) (config, target, fn string, ok bool) {
 	if f, p := pillSurfaces[cmd]; p {
 		return "pill", "pill", f, true
 	}
+	if _, ok := barMenuID(cmd); ok {
+		return "pill", "pill", "bar", true
+	}
 	switch cmd {
 	case "launcher":
 		return "launcher", "launcher", "toggle", true
@@ -554,6 +557,10 @@ func (d *daemon) dispatch(line string) string {
 		}
 		mon := d.activeMonitor()
 		if config == "pill" {
+			if fn == "bar" {
+				menuID, _ := barMenuID(cmd)
+				return pillIpc(fn, mon, menuID)
+			}
 			return pillIpc(fn, mon)
 		}
 		return ipcCall(config, target, fn, mon)

@@ -12,6 +12,12 @@ func TestRoute(t *testing.T) {
 		{"overview", "overview", "overview", "toggle"},
 		{"ryolayer", "ryolayer", "ryolayer", "toggle"},
 		{"power", "pill", "pill", "power"},
+		{"bar launcher", "pill", "pill", "bar"},
+		{"bar clipboard", "pill", "pill", "bar"},
+		{"bar screenshot", "pill", "pill", "bar"},
+		{"bar recording", "pill", "pill", "bar"},
+		{"bar wallpaper", "pill", "pill", "bar"},
+		{"bar media", "pill", "pill", "bar"},
 	}
 	for _, c := range cases {
 		config, target, fn, ok := route(c.cmd)
@@ -25,6 +31,11 @@ func TestRoute(t *testing.T) {
 	for _, cmd := range []string{"clipboard", "link", "inbox", "mixer", "calendar", "battery", "stash", "toolkit", "utilities", "system", "workspaces", "sysinfo", "peek", "hide", "voice", "lock", "wallpaper", "wallpaper-switcher", "reload", "status", "ping", "quit", "bogus", ""} {
 		if _, _, _, ok := route(cmd); ok {
 			t.Fatalf("route(%q) should not be a single IPC call", cmd)
+		}
+	}
+	for _, cmd := range []string{"bar", "bar missing", "bar launcher extra"} {
+		if _, _, _, ok := route(cmd); ok {
+			t.Fatalf("route(%q) should reject an unknown or malformed bar menu", cmd)
 		}
 	}
 }

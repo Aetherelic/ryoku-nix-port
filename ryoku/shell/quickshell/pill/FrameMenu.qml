@@ -15,6 +15,7 @@ Popout {
     property string anchor: "left"
     property bool menuOpen: false
 
+    signal requestClose()
     readonly property var widgetIds: record && record.widgets ? record.widgets : []
     readonly property real fallbackMinWidth: 200
     readonly property real minWidth: record && record.minWidth ? record.minWidth : fallbackMinWidth
@@ -39,5 +40,6 @@ Popout {
         scale: root.s
         open: root.effectiveOpen
         widgets: root.widgetIds
+        onRequestClose: root.requestClose()
     }
 }

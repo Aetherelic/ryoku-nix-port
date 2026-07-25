@@ -8,6 +8,7 @@ Column {
     property var widgets: []
     property bool open: false
     property real scale: 1
+    signal requestClose()
     spacing: 6 * scale
 
     Repeater {
@@ -18,6 +19,7 @@ Column {
             widget: modelData
             scale: root.scale
             open: root.open
+            onRequestClose: root.requestClose()
         }
     }
 }

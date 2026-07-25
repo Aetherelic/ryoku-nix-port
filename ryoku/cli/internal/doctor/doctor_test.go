@@ -1154,7 +1154,7 @@ func TestHyprFollowMouseNotDefault(t *testing.T) {
 func TestMigrateShellConfig(t *testing.T) {
 	legacy := []byte(`{
         "barEnabled": false, "barPosition": "bottom", "barHeight": 26, "atollVariant": "ryoku",
-        "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["calendar"], "sidebarWidth": 360
+        "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["weather", "calendar", "media"], "sidebarWidth": 360
     }`)
 	out, changes, err := migrateShellConfig(legacy)
 	if err != nil || len(changes) == 0 {
@@ -1175,7 +1175,27 @@ func TestMigrateShellConfig(t *testing.T) {
 	if left := rails["left"].(map[string]any); !left["enabled"].(bool) {
 		t.Error("legacy settings must seed the left reference rail")
 	}
-	for _, key := range []string{"barEnabled", "barPosition", "barHeight", "atollVariant", "sidebarLeftPanes", "sidebarRightPanes", "sidebarWidth"} {
+	surfaces := frameBars["surfaces"].(map[string]any)
+	stash := surfaces["stash"].(map[string]any)
+	system := surfaces["system"].(map[string]any)
+	if stash["anchor"] != "left" || system["anchor"] != "right" {
+		t.Errorf("sidebar anchors were not preserved: stash=%v system=%v", stash["anchor"], system["anchor"])
+	}
+	if stash["minWidth"].(float64) != 360 || system["minWidth"].(float64) != 360 {
+		t.Errorf("sidebar width was not preserved: stash=%v system=%v", stash["minWidth"], system["minWidth"])
+	}
+	if got := stash["panes"]; !reflect.DeepEqual(got, []any{"stash"}) {
+		t.Errorf("left sidebar panes were not preserved: %v", got)
+	}
+	if got := system["panes"]; !reflect.DeepEqual(got, []any{"weather", "calendar", "media"}) {
+		t.Errorf("right sidebar pane order was not preserved: %v", got)
+	}
+	for _, key := range []string{"sidebarLeftPanes", "sidebarRightPanes", "sidebarWidth"} {
+		if _, ok := cfg[key]; ok {
+			t.Errorf("sidebar-only key %s survived migration", key)
+		}
+	}
+	for _, key := range []string{"barEnabled", "barPosition", "barHeight", "atollVariant"} {
 		if _, ok := cfg[key]; !ok {
 			t.Errorf("compatibility key %s was removed", key)
 		}
@@ -1216,7 +1236,7 @@ func TestMigrateShellConfig(t *testing.T) {
 	if menus["quick-settings"].(map[string]any)["anchor"] != "left" {
 		t.Errorf("menu anchor was not normalized: %v", menus)
 	}
-	surfaces := frameBars["surfaces"].(map[string]any)
+	surfaces = frameBars["surfaces"].(map[string]any)
 	if surfaces["stash"].(map[string]any)["anchor"] != "left" {
 		t.Errorf("surface anchor was not normalized: %v", surfaces)
 	}

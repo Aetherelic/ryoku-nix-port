@@ -16,6 +16,7 @@ Item {
     property bool open: false
     property real scale: 1
     property int depth: 0
+    signal requestClose()
 
     implicitWidth: loader.item ? loader.item.implicitWidth : 0
     implicitHeight: loader.item ? loader.item.implicitHeight : 0
@@ -36,10 +37,24 @@ Item {
         case "quick-settings": return quickSettingsComponent;
         case "quick-actions": return quickActionsComponent;
         case "layout-switcher": return layoutSwitcherComponent;
+        case "launcher": return launcherComponent;
+        case "clipboard": return clipboardComponent;
+        case "screenshot":
+        case "recording": return captureComponent;
+        case "theme": return themeComponent;
+        case "wallpaper": return wallpaperComponent;
+        case "weather": return weatherComponent;
+        case "media": return mediaComponent;
         default:
             if (MenuCatalog.widget(id)) console.error("frame menus: no host component for " + id);
             return null;
         }
+    }
+
+    Connections {
+        target: loader.item
+        ignoreUnknownSignals: true
+        function onRequestClose() { root.requestClose(); }
     }
 
     Loader {
@@ -71,4 +86,11 @@ Item {
     Component { id: quickSettingsComponent; MenuQuickSettings { width: root.width; s: root.scale; open: root.open } }
     Component { id: quickActionsComponent; MenuQuickActions { width: root.width; s: root.scale; open: root.open } }
     Component { id: layoutSwitcherComponent; MenuLayoutSwitcher { width: root.width; s: root.scale; open: root.open } }
+    Component { id: launcherComponent; MenuLauncher { width: root.width; s: root.scale; open: root.open } }
+    Component { id: clipboardComponent; MenuClipboard { width: root.width; s: root.scale; open: root.open } }
+    Component { id: captureComponent; MenuCapture { width: root.width; s: root.scale; open: root.open } }
+    Component { id: themeComponent; MenuTheme { width: root.width; s: root.scale; open: root.open } }
+    Component { id: wallpaperComponent; MenuWallpaper { width: root.width; s: root.scale; open: root.open } }
+    Component { id: weatherComponent; MenuWeather { width: root.width; s: root.scale; open: root.open } }
+    Component { id: mediaComponent; MenuMedia { width: root.width; s: root.scale; open: root.open } }
 }

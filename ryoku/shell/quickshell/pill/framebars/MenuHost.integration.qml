@@ -9,10 +9,9 @@ ShellRoot {
 
     readonly property var implemented: ["clock", "notifications", "network", "bluetooth",
         "audio-input", "audio-output", "power-profile", "quick-settings", "quick-actions",
-        "layout-switcher", "container", "divider", "spacer"]
-    readonly property var deferred: ["launcher", "clipboard", "screenshot", "theme", "wallpaper", "weather", "media"]
-    property bool layoutStopped: false
-
+        "layout-switcher", "container", "divider", "spacer", "launcher", "clipboard",
+        "screenshot", "recording", "theme", "wallpaper", "weather", "media"]
+    readonly property var deferred: []
     function hosts(item, out) {
         if (item.widgetId !== undefined) out.push(item);
         for (let i = 0; i < item.children.length; ++i) root.hosts(item.children[i], out);
@@ -22,6 +21,7 @@ ShellRoot {
         id: scene
         width: 600
         height: 400
+        property bool layoutStopped: false
 
         Column {
             Repeater {
@@ -48,7 +48,7 @@ ShellRoot {
                 Widgets.LayoutControl {
                     active: true
                     processCommand: ["sh", "-c", "sleep 5"]
-                    onStopped: root.layoutStopped = true
+                    onStopped: scene.layoutStopped = true
                 }
             }
         }
@@ -113,9 +113,9 @@ ShellRoot {
             Qt.callLater(function() {
                 console.log("RESOLVED " + JSON.stringify(root.implemented.filter(id => { const h = found(id); return h && h.loaded; })));
                 console.log("DEFERRED-INERT " + JSON.stringify(root.deferred.filter(id => { const h = found(id); return h && !h.loaded; })));
-                console.log("GATES qa=" + qaGate + " lifecycle=" + lifecycleGate + " layout-destruction=" + root.layoutStopped);
+                console.log("GATES qa=" + qaGate + " lifecycle=" + lifecycleGate + " layout-destruction=" + scene.layoutStopped);
                 console.log((resolvedOk && deferredOk) ? "MENU-HOST-RESOLVE-PASS" : "MENU-HOST-RESOLVE-FAIL");
-                console.log((qaGate && lifecycleGate && root.layoutStopped) ? "MENU-OPEN-GATE-PASS" : "MENU-OPEN-GATE-FAIL");
+                console.log((qaGate && lifecycleGate && scene.layoutStopped) ? "MENU-OPEN-GATE-PASS" : "MENU-OPEN-GATE-FAIL");
                 Qt.quit();
             });
 

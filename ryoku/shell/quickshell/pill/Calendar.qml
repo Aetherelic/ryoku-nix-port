@@ -50,6 +50,7 @@ PillSurface {
     SystemClock {
         id: sysClock
         precision: SystemClock.Minutes
+        enabled: root.active
     }
 
     function firstWeekdayOffset(year, month) {
