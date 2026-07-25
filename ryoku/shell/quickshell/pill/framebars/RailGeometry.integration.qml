@@ -59,10 +59,6 @@ ShellRoot {
             + " mask=" + JSON.stringify(expected) + " reserve=" + reserve);
         return matches;
     }
-    function hostIds(item, ids) {
-        if (item.widgetId !== undefined && item.widgetId.length > 0) ids.push(item.widgetId);
-        for (let i = 0; i < item.children.length; ++i) hostIds(item.children[i], ids);
-    }
     function hosts(item, result) {
         if (item.widgetId !== undefined && item.widgetId.length > 0) result.push(item);
         for (let i = 0; i < item.children.length; ++i) hosts(item.children[i], result);
@@ -84,12 +80,6 @@ ShellRoot {
             onMenuRequested: (id, ownerRect) => menus.push({ id: id, rect: ownerRect })
             onActionRequested: id => actions.push(id)
         }
-        BarWidgetHost {
-            id: unsupported
-            widgetId: "vpn"
-            edge: "left"
-            scale: root.monitorScale
-        }
     }
 
     Timer {
@@ -101,11 +91,17 @@ ShellRoot {
             root.hosts(scene, allHosts);
             const expected = ["clock", "dock", "lock", "network", "quick-settings", "tray", "workspaces"];
             const resolved = expected.every(id => allHosts.some(host => host.widgetId === id && host.loaded));
+            const origins = {};
             const emit = (id, signal) => {
                 const host = allHosts.find(candidate => candidate.widgetId === id);
-                const loader = host.children.find(child => child.item !== undefined);
-                if (signal === "actionRequested") loader.item[signal](id);
-                else loader.item[signal](id, Qt.rect(0, 0, 1, 1));
+                const widgetLoader = host.children.find(child => child.item !== undefined);
+                const item = widgetLoader.item;
+                if (signal === "actionRequested") item[signal](id);
+                else {
+                    const point = item.mapToGlobal(0, 0);
+                    origins[id] = { x: point.x, y: point.y };
+                    item[signal](id, Qt.rect(0, 0, 1, 1));
+                }
             };
             emit("clock", "menuRequested");
             emit("quick-settings", "menuRequested");
@@ -114,7 +110,8 @@ ShellRoot {
             emit("lock", "actionRequested");
             const menuIds = bar.menus.map(entry => entry.id).sort();
             const menus = JSON.stringify(menuIds) === JSON.stringify(["clock", "dock", "quick-settings", "tray"]);
-            const rectangles = bar.menus.every(entry => entry.rect.width === 1 && entry.rect.height === 1);
+            const rectangles = bar.menus.every(entry => entry.rect.width === 1 && entry.rect.height === 1
+                && entry.rect.x === origins[entry.id].x && entry.rect.y === origins[entry.id].y);
             const actions = JSON.stringify(bar.actions) === JSON.stringify(["lock"]);
             console.log(resolved && menus && rectangles && actions ? "FRAME-BAR-CONTRACT-PASS" : "FRAME-BAR-CONTRACT-FAIL");
             console.log(passed ? "RAIL-GEOMETRY-PASS" : "RAIL-GEOMETRY-FAIL");

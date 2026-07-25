@@ -14,7 +14,6 @@ Item {
     readonly property bool horizontal: edge === "top" || edge === "bottom"
     transformOrigin: edge === "bottom" ? Item.BottomLeft : (edge === "right" ? Item.TopRight : Item.TopLeft)
 
-    signal widgetActivated(string id, rect ownerRect)
 
     width: horizontal ? parent.width / scale : rail.size
     height: horizontal ? rail.size : parent.height / scale
@@ -44,7 +43,6 @@ Item {
             ids: root.rail.start
             horizontal: true
             delegate: root.delegate
-            onWidgetActivated: (id, ownerRect) => root.widgetActivated(id, ownerRect)
         }
         RailZone {
             width: parent.width / 3
@@ -52,7 +50,6 @@ Item {
             ids: root.rail.center
             horizontal: true
             delegate: root.delegate
-            onWidgetActivated: (id, ownerRect) => root.widgetActivated(id, ownerRect)
         }
         RailZone {
             width: parent.width / 3
@@ -60,7 +57,6 @@ Item {
             ids: root.rail.end
             horizontal: true
             delegate: root.delegate
-            onWidgetActivated: (id, ownerRect) => root.widgetActivated(id, ownerRect)
         }
     }
 
@@ -75,7 +71,6 @@ Item {
             ids: root.rail.top
             horizontal: false
             delegate: root.delegate
-            onWidgetActivated: (id, ownerRect) => root.widgetActivated(id, ownerRect)
         }
         RailZone {
             width: parent.width
@@ -83,7 +78,6 @@ Item {
             ids: root.rail.center
             horizontal: false
             delegate: root.delegate
-            onWidgetActivated: (id, ownerRect) => root.widgetActivated(id, ownerRect)
         }
         RailZone {
             width: parent.width
@@ -91,7 +85,6 @@ Item {
             ids: root.rail.bottom
             horizontal: false
             delegate: root.delegate
-            onWidgetActivated: (id, ownerRect) => root.widgetActivated(id, ownerRect)
         }
     }
 }

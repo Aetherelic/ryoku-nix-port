@@ -14,7 +14,6 @@ Item {
     required property real scale
     signal menuRequested(string id, rect ownerRect)
     signal actionRequested(string id)
-    signal activated()
 
     implicitWidth: widgetLoader.item ? widgetLoader.item.implicitWidth : 0
     readonly property bool loaded: widgetLoader.item !== null
