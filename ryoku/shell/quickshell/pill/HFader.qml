@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Services.Pipewire
 import "Singletons"
+import "framebars/lib/fader.js" as Fader
 
 // horizontal ink fader for the mixer: a matte thread track with a vermilion
 // fill and a flat tick; the leading glyph doubles as a mute toggle; a faint VU
@@ -31,7 +32,7 @@ Item {
 
     // nudge by signed percent, clamped, firing both signals so hardware tracks.
     function step(deltaPct) {
-        var v = Math.max(0, Math.min(1, root.value + deltaPct / 100));
+        var v = Fader.stepped(root.value, deltaPct);
         root.moved(v);
         root.committed(v);
     }
@@ -105,7 +106,7 @@ Item {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: parent.width * Math.max(0, Math.min(1, vu.peak))
+                width: parent.width * Fader.clamp01(vu.peak)
                 radius: parent.radius
                 visible: root.peakEnabled && !root.muted
                 color: Theme.vermLit
@@ -117,7 +118,7 @@ Item {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: parent.width * Math.max(0, Math.min(1, root.value))
+                width: parent.width * Fader.clamp01(root.value)
                 radius: parent.radius
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
@@ -136,7 +137,7 @@ Item {
             color: Theme.tickRest
             anchors.verticalCenter: thread.verticalCenter
             x: Math.max(0, Math.min(parent.width - width,
-                Math.max(0, Math.min(1, root.value)) * parent.width - width / 2))
+                Fader.clamp01(root.value) * parent.width - width / 2))
             opacity: root.lit ? 0 : 1
             Behavior on opacity { NumberAnimation { duration: Motion.fast } }
             Behavior on x { enabled: !drag.pressed; NumberAnimation { duration: Motion.fast } }
@@ -150,7 +151,7 @@ Item {
             preventStealing: true
             cursorShape: Qt.PointingHandCursor
             function setFromX(mx) {
-                root.moved(Math.max(0, Math.min(1, mx / width)));
+                root.moved(Fader.clamp01(mx / width));
             }
             onPressed: (e) => setFromX(e.x)
             onPositionChanged: (e) => { if (pressed) setFromX(e.x); }

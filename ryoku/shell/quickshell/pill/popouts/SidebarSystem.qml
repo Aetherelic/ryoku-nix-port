@@ -5,6 +5,7 @@ import Quickshell
 import ".."
 import "../Singletons"
 import "../lib/weather.js" as Wx
+import "../framebars/lib/notifs.js" as NotifModel
 
 // the RIGHT sidebar's content = "System": the unified control centre over a
 // data-driven glance rail. a plain transparent Item -- the frame blob behind it
@@ -38,6 +39,7 @@ Item {
     implicitWidth: 340 * s
 
     readonly property var loc: Qt.locale("en_US")
+    readonly property int notifCount: NotifModel.count(Notifs.groups)
 
     // every glance pane this sidebar knows how to show, in canonical order. the
     // enabled subset (`tabs`) is `panes` mapped over this in the caller's order;
@@ -298,7 +300,7 @@ Item {
                 Text {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: Notifs.groups.length > 0
+                    visible: root.notifCount > 0
                     text: "Clear"
                     color: clearHov.hovered ? Theme.brand : Theme.faint
                     font.family: Theme.mono
@@ -316,7 +318,7 @@ Item {
                 anchors.topMargin: 16 * root.s
                 anchors.left: parent.left
                 anchors.right: parent.right
-                visible: Notifs.groups.length === 0
+                visible: root.notifCount === 0
                 text: "No notifications"
                 color: Theme.faint
                 font.family: Theme.font
@@ -332,7 +334,7 @@ Item {
                 anchors.bottom: parent.bottom
                 clip: true
                 spacing: 10 * root.s
-                visible: Notifs.groups.length > 0
+                visible: root.notifCount > 0
                 model: (root.open && root.effectivePane === "notifications") ? Notifs.groups : []
                 boundsBehavior: Flickable.StopAtBounds
 

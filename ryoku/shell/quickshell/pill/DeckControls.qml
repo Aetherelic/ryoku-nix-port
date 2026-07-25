@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth
 import "Singletons"
+import "framebars/lib/menupoll.js" as Poll
 
 /**
  * controls zone of the 力 deck = the unified control centre. two "session"
@@ -50,10 +51,10 @@ Item {
     // when a control surface is actually showing.
     property bool watching: false
     function syncWatch() {
-        if (root.active === root.watching)
-            return;
-        Toggles.watchers += root.active ? 1 : -1;
-        root.watching = root.active;
+        const r = Poll.watchDelta(root.watching, root.active);
+        if (r.delta !== 0)
+            Toggles.watchers += r.delta;
+        root.watching = r.watching;
     }
     onActiveChanged: syncWatch()
     Component.onCompleted: syncWatch()

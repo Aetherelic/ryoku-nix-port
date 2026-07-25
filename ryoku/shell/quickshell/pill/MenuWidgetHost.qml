@@ -19,12 +19,23 @@ Item {
 
     implicitWidth: loader.item ? loader.item.implicitWidth : 0
     implicitHeight: loader.item ? loader.item.implicitHeight : 0
+    readonly property bool loaded: loader.item !== null
 
     function componentFor(id) {
         switch (id) {
         case "container": return containerComponent;
         case "divider": return dividerComponent;
         case "spacer": return spacerComponent;
+        case "clock": return clockComponent;
+        case "notifications": return notificationsComponent;
+        case "network": return networkComponent;
+        case "bluetooth": return bluetoothComponent;
+        case "audio-input": return audioInputComponent;
+        case "audio-output": return audioOutputComponent;
+        case "power-profile": return powerProfileComponent;
+        case "quick-settings": return quickSettingsComponent;
+        case "quick-actions": return quickActionsComponent;
+        case "layout-switcher": return layoutSwitcherComponent;
         default:
             if (MenuCatalog.widget(id)) console.error("frame menus: no host component for " + id);
             return null;
@@ -50,4 +61,14 @@ Item {
     }
     Component { id: dividerComponent; MenuDivider { scale: root.scale } }
     Component { id: spacerComponent; MenuSpacer { scale: root.scale } }
+    Component { id: clockComponent; MenuClock { width: root.width; s: root.scale; open: root.open } }
+    Component { id: notificationsComponent; MenuNotifications { width: root.width; s: root.scale; open: root.open } }
+    Component { id: networkComponent; MenuNetwork { width: root.width; s: root.scale; open: root.open } }
+    Component { id: bluetoothComponent; MenuBluetooth { width: root.width; s: root.scale; open: root.open } }
+    Component { id: audioInputComponent; MenuAudioInput { width: root.width; s: root.scale; open: root.open } }
+    Component { id: audioOutputComponent; MenuAudioOutput { width: root.width; s: root.scale; open: root.open } }
+    Component { id: powerProfileComponent; MenuPowerProfile { width: root.width; s: root.scale; open: root.open } }
+    Component { id: quickSettingsComponent; MenuQuickSettings { width: root.width; s: root.scale; open: root.open } }
+    Component { id: quickActionsComponent; MenuQuickActions { width: root.width; s: root.scale; open: root.open } }
+    Component { id: layoutSwitcherComponent; MenuLayoutSwitcher { width: root.width; s: root.scale; open: root.open } }
 }
