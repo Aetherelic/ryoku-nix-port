@@ -24,10 +24,12 @@ Item {
         text: horizontal ? Qt.formatTime(clock.date, "HH:mm") : Qt.formatTime(clock.date, "HH\nmm")
         horizontalAlignment: Text.AlignHCenter
         color: Theme.cream
-        font.family: Theme.font
-        font.pixelSize: 12 * scale
-        font.weight: Font.DemiBold
-        font.features: ({ "tnum": 1 })
+        font {
+            family: Theme.font
+            pixelSize: 12 * scale
+            weight: Font.DemiBold
+            features: ({ "tnum": 1 })
+        }
     }
 
     MouseArea {

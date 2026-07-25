@@ -32,20 +32,27 @@ Item {
         Repeater {
             model: root.ids
 
-            delegate: Rectangle {
+            delegate: Item {
                 required property int modelData
                 width: 24 * root.scale
                 height: 24 * root.scale
-                radius: 3 * root.scale
-                color: modelData === Workspaces.activeId ? Theme.bright : "transparent"
+
+                Rectangle {
+                    anchors.fill: parent
+                    visible: modelData === Workspaces.activeId
+                    radius: 3 * root.scale
+                    color: Theme.bright
+                }
 
                 Text {
                     anchors.centerIn: parent
                     text: modelData
                     color: modelData === Workspaces.activeId ? Theme.cardBot : Theme.cream
-                    font.family: Theme.font
-                    font.pixelSize: 11 * root.scale
-                    font.weight: Font.DemiBold
+                    font {
+                        family: Theme.font
+                        pixelSize: 11 * root.scale
+                        weight: Font.DemiBold
+                    }
                 }
 
                 MouseArea {

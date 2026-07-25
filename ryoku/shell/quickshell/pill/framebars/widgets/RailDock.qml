@@ -28,20 +28,27 @@ Item {
         Repeater {
             model: root.classes
 
-            delegate: Rectangle {
+            delegate: Item {
                 required property string modelData
                 width: 28 * root.scale
                 height: 28 * root.scale
-                radius: 3 * root.scale
-                color: area.containsMouse ? Qt.alpha(Theme.cream, 0.14) : "transparent"
+
+                Rectangle {
+                    anchors.fill: parent
+                    visible: area.containsMouse
+                    radius: 3 * root.scale
+                    color: Qt.alpha(Theme.cream, 0.14)
+                }
 
                 Text {
                     anchors.centerIn: parent
                     text: modelData.slice(0, 1).toUpperCase()
                     color: Theme.cream
-                    font.family: Theme.font
-                    font.pixelSize: 12 * root.scale
-                    font.weight: Font.DemiBold
+                    font {
+                        family: Theme.font
+                        pixelSize: 12 * root.scale
+                        weight: Font.DemiBold
+                    }
                 }
 
                 MouseArea {
