@@ -1,4 +1,4 @@
-const layouts = ["dwindle", "master", "scrolling", "monocle"];
+var layouts = ["dwindle", "master", "scrolling", "monocle"];
 
 function lines(output) {
     return typeof output === "string" ? output.split("\n") : [];
@@ -34,4 +34,4 @@ function parseLayouts(output) {
     return result;
 }
 
-if (typeof module !== "undefined" && module.exports) module.exports = { parseVpn, parseProfiles, parseLayouts };
+if (typeof module !== "undefined" && module.exports) module.exports = { layouts, parseVpn, parseProfiles, parseLayouts };

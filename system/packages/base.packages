@@ -28,7 +28,6 @@ snap-pac
 
 # Networking
 networkmanager
-power-profiles-daemon
 iwd
 # wireless-regdb: regulatory database; without it the WiFi domain caps at world-00 (low TX power)
 wireless-regdb
@@ -105,6 +104,7 @@ gst-libav
 brightnessctl
 hypridle
 upower
+power-profiles-daemon
 fuzzel
 grim
 playerctl

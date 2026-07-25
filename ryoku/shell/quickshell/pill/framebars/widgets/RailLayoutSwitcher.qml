@@ -11,8 +11,7 @@ Item {
     required property string edge
     required property real scale
     required property bool active
-    readonly property var supportedLayouts: ["dwindle", "master", "scrolling", "monocle"]
-    property var layouts: supportedLayouts
+    property var layouts: Providers.layouts
     property string current: ""
     signal menuRequested(string id, rect ownerRect)
 
@@ -24,7 +23,8 @@ Item {
     }
 
     function choose(layout) {
-        if (!active || !supportedLayouts.includes(layout)) return;
+        if (!active || !Providers.layouts.includes(layout)) return;
+        // This changes a config keyword rather than invoking a Hyprland dispatcher.
         Quickshell.execDetached(["hyprctl", "eval", 'hl.config({ general = { layout = "' + layout + '" } })']);
         current = layout;
     }
