@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import "../../Singletons"
 import "../lib/dock.js" as Dock
 Item {
@@ -13,7 +14,6 @@ Item {
     signal activate(string className)
     signal pin(string className)
     signal unpin(string className)
-    signal menuRequested(string id, rect ownerRect)
     readonly property bool horizontal: edge === "top" || edge === "bottom"
     readonly property var classes: Dock.resolve(pinned, activeClients)
     implicitWidth: horizontal ? dock.implicitWidth : 34 * scale
@@ -29,9 +29,19 @@ Item {
             model: root.classes
 
             delegate: Item {
+                id: entry
                 required property string modelData
                 width: 28 * root.scale
                 height: 28 * root.scale
+
+                // The desktop entry owns the real icon; the window class is the
+                // fallback lookup, and its initial is the last resort so an
+                // unmatched client still reads as something.
+                readonly property string iconSource: {
+                    const desktop = DesktopEntries.heuristicLookup(entry.modelData);
+                    const byEntry = (desktop && desktop.icon) ? Quickshell.iconPath(desktop.icon, true) : "";
+                    return byEntry !== "" ? byEntry : Quickshell.iconPath(entry.modelData, true);
+                }
 
                 Rectangle {
                     anchors.fill: parent
@@ -40,9 +50,22 @@ Item {
                     color: Qt.alpha(Theme.cream, 0.14)
                 }
 
+                Image {
+                    anchors.centerIn: parent
+                    width: 20 * root.scale
+                    height: 20 * root.scale
+                    visible: entry.iconSource !== ""
+                    source: entry.iconSource
+                    sourceSize.width: width
+                    sourceSize.height: height
+                    smooth: true
+                    asynchronous: true
+                }
+
                 Text {
                     anchors.centerIn: parent
-                    text: modelData.slice(0, 1).toUpperCase()
+                    visible: entry.iconSource === ""
+                    text: entry.modelData.slice(0, 1).toUpperCase()
                     color: Theme.cream
                     font {
                         family: Theme.font
@@ -57,10 +80,9 @@ Item {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     hoverEnabled: true
                     onClicked: event => {
-                        if (event.button === Qt.LeftButton) root.activate(modelData);
-                        else if (root.pinned.includes(modelData)) root.unpin(modelData);
-                        else root.pin(modelData);
-                        root.menuRequested("dock", Qt.rect(0, 0, root.width, root.height));
+                        if (event.button === Qt.LeftButton) root.activate(entry.modelData);
+                        else if (root.pinned.includes(entry.modelData)) root.unpin(entry.modelData);
+                        else root.pin(entry.modelData);
                     }
                 }
             }

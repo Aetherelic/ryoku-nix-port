@@ -1195,7 +1195,7 @@ func TestMigrateShellConfig(t *testing.T) {
 			t.Errorf("sidebar-only key %s survived migration", key)
 		}
 	}
-	for _, key := range []string{"barEnabled", "barPosition", "barHeight", "atollVariant"} {
+	for _, key := range retiredShellKeys {
 		if _, ok := cfg[key]; ok {
 			t.Errorf("retired key %s survived migration", key)
 		}
@@ -1251,6 +1251,44 @@ func TestMigrateShellConfig(t *testing.T) {
 	}
 	if _, _, err := migrateShellConfig([]byte("not json")); err == nil {
 		t.Fatal("garbage must error, not silently rewrite")
+	}
+}
+
+// A box upgrading from any Atoll-era release carries the whole retired set, not
+// just the four geometry keys. Every one of them must go, and the settings the
+// shell still reads must survive untouched.
+func TestMigrateShellConfigDropsEveryRetiredKey(t *testing.T) {
+	cfg := map[string]any{"fontScale": 0.96, "language": "Auto", "ryolayerEnabled": true}
+	for _, key := range retiredShellKeys {
+		cfg[key] = "carried"
+	}
+	raw, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, changes, err := migrateShellConfig(raw)
+	if err != nil || len(changes) == 0 {
+		t.Fatalf("retired keys should migrate: changes=%v err=%v", changes, err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("migrated JSON does not parse: %v", err)
+	}
+	for _, key := range retiredShellKeys {
+		if _, ok := got[key]; ok {
+			t.Errorf("retired key %s survived migration", key)
+		}
+	}
+	for key, want := range map[string]any{"fontScale": 0.96, "language": "Auto", "ryolayerEnabled": true} {
+		if got[key] != want {
+			t.Errorf("live setting %s = %v, want %v", key, got[key], want)
+		}
+	}
+	if _, ok := got["frameBars"]; !ok {
+		t.Error("migration must leave a frame-bars object behind")
+	}
+	if out, changes, err := migrateShellConfig(out); err != nil || out != nil || changes != nil {
+		t.Fatalf("retired-key migration must be idempotent: out=%s changes=%v err=%v", out, changes, err)
 	}
 }
 

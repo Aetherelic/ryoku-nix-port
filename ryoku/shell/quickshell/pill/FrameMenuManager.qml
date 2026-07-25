@@ -20,7 +20,19 @@ Item {
     required property string monitorName
     required property real scale
     required property var group
-    required property real frameThickness
+    // Clearance from the screen edge to the inside of each rail, per edge. A
+    // surface grows out of its own anchor's edge, so it must clear THAT rail;
+    // a single top-rail figure tucked every left and right body under the side
+    // rails.
+    required property var railClearances
+    readonly property real frameThickness: root.clearanceFor("top")
+    function clearanceFor(anchor) {
+        const edge = anchor.indexOf("top") === 0 ? "top"
+            : anchor.indexOf("bottom") === 0 ? "bottom"
+            : anchor;
+        const value = root.railClearances ? root.railClearances[edge] : undefined;
+        return typeof value === "number" ? value : 0;
+    }
     property bool active: true
 
     readonly property var menus: {
@@ -121,7 +133,12 @@ Item {
         }
         const rec = MenuState.recordFor(root.records, surfaceID);
         if (!rec) return;
-        if (surfaceID === "power" && root.activeIdAt(rec.anchor) === surfaceID) {
+        // Asking again for the surface that already owns this anchor closes it:
+        // a bar button and its command both read as one toggle. Keyring and
+        // voice are daemon lifecycle surfaces, not user toggles: a fresh prompt
+        // or a re-show must replace the live record, never dismiss it.
+        const daemonOwned = surfaceID === "keyring" || surfaceID === "voice";
+        if (!daemonOwned && root.activeIdAt(rec.anchor) === surfaceID) {
             root.closeAt(rec.anchor);
             return;
         }
@@ -202,7 +219,7 @@ Item {
         delegate: FrameMenu {
             required property var modelData
             group: root.group
-            frameThickness: root.frameThickness
+            frameThickness: root.clearanceFor(modelData.anchor)
             radius: Config.frameRadius
             smoothing: Config.frameSmoothing
             s: root.scale

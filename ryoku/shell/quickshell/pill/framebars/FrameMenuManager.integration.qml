@@ -32,7 +32,7 @@ ShellRoot {
         monitorName: "eDP-1"
         scale: 1
         group: root.group
-        frameThickness: 16
+        railClearances: ({ top: 16, left: 16, bottom: 16, right: 16 })
         onSurfaceClosed: (id, context) => lifecycle.handleClosed(id, context)
     }
     FrameMenuManager {
@@ -42,7 +42,7 @@ ShellRoot {
         monitorName: "HDMI-A-1"
         scale: 1
         group: root.group
-        frameThickness: 16
+        railClearances: ({ top: 16, left: 16, bottom: 16, right: 16 })
         onSurfaceClosed: (id, context) => lifecycle.handleClosed(id, context)
     }
     Connections {

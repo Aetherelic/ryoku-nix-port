@@ -1160,6 +1160,21 @@ func normalizeFrameBars(v any) (map[string]any, []string) {
 	return out, []string{"normalized frameBars"}
 }
 
+// retiredShellKeys are shell.json keys no shipped surface reads any more: the
+// Atoll bar geometry and skins, its module/toggle lists, the island knobs, and
+// the sidebar openers that frame surfaces replaced. Frame bars carry all of it
+// now, so a machine upgrading from any older release sheds them here rather
+// than keeping dead state around forever.
+var retiredShellKeys = []string{
+	"atollVariant", "barEnabled", "barHeight", "barLayoutCentre", "barLayoutLeft",
+	"barLayoutRight", "barOccupiedWorkspaces", "barPosition", "barShowMedia",
+	"barShowSpecialWs", "barShowStatus", "barShowTitle", "barShowWeather",
+	"barStyle", "barToggles", "dyadVariant", "islandAlong", "islandEdge",
+	"islandHidden", "islandModules", "islandRadius", "sidebarClickless",
+	"sidebarCornerSize", "sidebarLeftEnabled", "sidebarRightEnabled",
+	"washiVariant",
+}
+
 func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 	var cfg map[string]any
 	if err := json.Unmarshal(raw, &cfg); err != nil {
@@ -1194,7 +1209,7 @@ func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 	cfg["frameBars"] = normalized
 	changes = append(changes, frameChanges...)
 	removed := false
-	for _, key := range []string{"barEnabled", "barPosition", "barHeight", "atollVariant"} {
+	for _, key := range retiredShellKeys {
 		if _, exists := cfg[key]; exists {
 			delete(cfg, key)
 			removed = true

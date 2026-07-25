@@ -134,11 +134,11 @@ ShellRoot {
             };
             emit("clock", "menuRequested");
             emit("quick-settings", "menuRequested");
-            emit("dock", "menuRequested");
             emit("tray", "menuRequested");
             emit("lock", "actionRequested");
             const menuIds = bar.menus.map(entry => entry.id).sort();
-            const menus = JSON.stringify(menuIds) === JSON.stringify(["clock", "dock", "quick-settings", "tray"]);
+            // The dock activates and pins windows; it owns no catalogued menu.
+            const menus = JSON.stringify(menuIds) === JSON.stringify(["clock", "quick-settings", "tray"]);
             const rectangles = bar.menus.every(entry => entry.rect.width === 1 && entry.rect.height === 1
                 && entry.rect.x === origins[entry.id].x && entry.rect.y === origins[entry.id].y);
             const actions = JSON.stringify(bar.actions) === JSON.stringify(["lock"]);

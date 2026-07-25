@@ -20,8 +20,10 @@ The shipped profile enables a compact top rail and a continuous left rail:
 
 Every edge has its own `enabled`, `size`, `reveal`, and three axis-appropriate
 zones. Horizontal rails use `start`, `center`, and `end`; vertical rails use
-`top`, `center`, and `bottom`. The runtime accepts only catalogued widgets that
-fit the target axis.
+`top`, `center`, and `bottom`. A zone holds its group against its own end of
+the rail: a start zone hugs the leading edge, a centre zone sits on the rail's
+midpoint, an end zone hugs the trailing edge. The runtime accepts only
+catalogued widgets that fit the target axis.
 
 ## Styles
 
@@ -64,10 +66,17 @@ The catalogued IDs are `quick-settings`, `clock`, `launcher`, `clipboard`,
 `screenshot`, `recording`, `theme`, `wallpaper`, `weather`, `media`, `stash`,
 and `system`. Unknown IDs are rejected before they reach Quickshell.
 
+Asking for the surface that already owns an anchor closes it, so a rail button
+and its command both read as one toggle. A different surface at the same anchor
+replaces it safely. Escape and a click outside dismiss whatever is open; the
+keyring prompt and the voice surface are daemon-owned and replace rather than
+toggle.
+
+A surface clears the rail it grows from, and it draws above the rails, so a
+body never hides under rail chrome.
+
 `ryoku-shell power`, `ryoku-shell voice`, and enabled plugin commands retain
-their existing entry points but share this same manager scene. Repeating power
-or a plugin command toggles that matching surface; a different surface at the
-same anchor replaces it safely.
+their existing entry points and share this same manager scene.
 
 ## Extending frame bars
 

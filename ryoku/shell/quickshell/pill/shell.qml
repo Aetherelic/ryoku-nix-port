@@ -362,17 +362,20 @@ ShellRoot {
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
 
             readonly property var frameBars: Config.normalizedFrameBars
-            readonly property var rails: frameBars.rails
+            // Read through `overlay.` and keep the rail host's id distinct: an id
+            // shadows a same-named property in this scope, which once left every
+            // rail rect at zero and swallowed all bar input.
+            readonly property var rails: overlay.frameBars.rails
             readonly property real frameLip: Math.max(0, Config.effectiveFrameBorder - 50)
-            readonly property real surfaceFrameThickness: frameLip + railThickness("top")
             readonly property real sidebarTopGap: railClearance("top") + 14 * s
             readonly property real sidebarBotGap: railClearance("bottom") + 14 * s
             readonly property var topRailRect: RailGeometry.edgeRect("top", railThickness("top"), width, height)
             readonly property var leftRailRect: RailGeometry.edgeRect("left", railThickness("left"), width, height)
             readonly property var bottomRailRect: RailGeometry.edgeRect("bottom", railThickness("bottom"), width, height)
             readonly property var rightRailRect: RailGeometry.edgeRect("right", railThickness("right"), width, height)
-            function railThickness(edge) { return rails[edge].size * s; }
-            function railEnabled(edge) { return rails[edge].enabled; }
+            function railRecord(edge) { return rails[edge] || ({ size: 0, enabled: false }); }
+            function railThickness(edge) { return railRecord(edge).size * s; }
+            function railEnabled(edge) { return railRecord(edge).enabled === true; }
             function railClearance(edge) {
                 return railEnabled(edge)
                     ? RailGeometry.reserve(edge, frameLip, railThickness(edge), true)
@@ -560,7 +563,7 @@ ShellRoot {
 
 
                 Bar {
-                    id: frameBars
+                    id: frameRails
                     anchors.fill: parent
                     z: 1
                     visible: !overlay.monFullscreen
@@ -574,14 +577,22 @@ ShellRoot {
 
                 // per-monitor frame menu manager: a bar widget asks for a menu via
                 // root.menuRequested; only the owning monitor's manager opens it on
-                // the shared Popout scene. The focus grab below dismisses on a
-                // backdrop click, and Escape closes through the FocusScope.
+                // the shared Popout scene. The backdrop press above dismisses a
+                // click outside, and Escape closes through the FocusScope.
                 FrameMenuManager {
                     id: frameMenus
+                    // Above the rails: a surface grows out of a rail and must
+                    // cover it, or the rail chrome clips the body's first rows.
+                    z: 2
                     monitorName: overlay.modelData.name
                     scale: overlay.s
                     group: blobGroup
-                    frameThickness: overlay.surfaceFrameThickness
+                    railClearances: ({
+                        top: overlay.railClearance("top"),
+                        left: overlay.railClearance("left"),
+                        bottom: overlay.railClearance("bottom"),
+                        right: overlay.railClearance("right")
+                    })
                     active: !overlay.monFullscreen
                     sidebarTopInset: overlay.sidebarTopGap
                     sidebarBottomInset: overlay.sidebarBotGap
@@ -599,11 +610,12 @@ ShellRoot {
                 }
 
 
-                HyprlandFocusGrab {
-                    active: frameMenus.modal
-                    windows: [overlay]
-                    onCleared: frameMenus.closeAll()
-                }
+                // No HyprlandFocusGrab here. A modal surface already takes the
+                // layer's exclusive keyboard focus, and Hyprland clears a grab the
+                // moment that focus moves to the grabbing layer: the two together
+                // closed every surface a few milliseconds after it opened. The
+                // full-screen mask plus the backdrop press above dismisses a click
+                // outside, and Escape closes through the FocusScope.
 
 
                 RecordHud {

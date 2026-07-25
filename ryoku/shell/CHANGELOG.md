@@ -20,6 +20,43 @@
   `cli/internal/doctor/`).
 
 ### Fixed
+- **Frame surfaces open again, and stay open.** On a real session every menu,
+  the power card and both sidebars vanished a few milliseconds after opening.
+  A modal surface takes the overlay's exclusive keyboard focus, and the shell
+  also ran a `HyprlandFocusGrab` over the same window; Hyprland cleared the
+  grab the instant focus moved to the grabbing layer and the clear handler shut
+  everything. The grab is gone: the full-screen mask, the backdrop press, and
+  Escape already covered dismissal (`quickshell/pill/shell.qml`).
+- **The bar accepts clicks.** The overlay declared a `frameBars` property and
+  gave the rail host the id `frameBars`; the id shadowed the property, so every
+  rail rectangle resolved to zero, the input mask claimed no bar strip, and no
+  widget ever saw a pointer. The host is now `frameRails` and the geometry
+  reads through `overlay.` (`quickshell/pill/shell.qml`).
+- **Rail zones sit where their names say.** Every zone left-aligned its group,
+  so a centred clock drifted a third of the screen off-centre and an end group
+  never reached the far edge. Zones now hold start, centre, and end, centre
+  their widgets on the rail's short axis, and space them evenly
+  (`quickshell/pill/RailZone.qml`, `quickshell/pill/FrameRail.qml`).
+- **A surface clears its own rail.** Every body was inset by the *top* rail's
+  thickness whatever edge it grew from, so left and right surfaces slid under
+  the side rails and lost their first characters. The manager now takes a
+  clearance per edge and menus draw above the rails, with the body padded off
+  its own border (`quickshell/pill/FrameMenuManager.qml`,
+  `quickshell/pill/framebars/menus/MenuColumn.qml`).
+- **The dock shows applications, not initials.** It rendered the first letter
+  of each window class. It now resolves the desktop entry's icon, falls back to
+  the window class, and keeps the initial only when neither resolves; a dock
+  click no longer fires a menu request for a menu that never existed
+  (`quickshell/pill/framebars/widgets/RailDock.qml`).
+- **Asking twice closes.** Only power and plugins toggled; every other surface
+  re-opened on a second press. A rail button and its `ryoku-shell bar <id>`
+  command now read as one toggle, while the daemon-owned keyring and voice
+  surfaces still replace their record (`quickshell/pill/FrameMenuManager.qml`).
+- **`ryoku doctor` sheds the whole Atoll-era config, not four keys of it.**
+  A migrated `shell.json` kept `barStyle`, the bar layout/toggle lists, the
+  island knobs, the dyad and washi variants and the sidebar openers: twenty-two
+  settings no shipped surface reads. They are all retired now, and the settings
+  the shell still reads are left alone (`cli/internal/doctor/doctor.go`).
 - **Workspaces, Super+Esc power, and every shell surface work again after a
   Hyprland restart mid-session.** `ipc/daemon.go` read `HYPRLAND_INSTANCE_SIGNATURE`
   once at launch and never refreshed it, and the daemon can outlive its compositor

@@ -42,6 +42,7 @@ Item {
             height: parent.height
             ids: root.rail.start
             horizontal: true
+            align: "start"
             delegate: root.delegate
         }
         RailZone {
@@ -49,6 +50,7 @@ Item {
             height: parent.height
             ids: root.rail.center
             horizontal: true
+            align: "center"
             delegate: root.delegate
         }
         RailZone {
@@ -56,6 +58,7 @@ Item {
             height: parent.height
             ids: root.rail.end
             horizontal: true
+            align: "end"
             delegate: root.delegate
         }
     }
@@ -70,6 +73,7 @@ Item {
             height: parent.height / 3
             ids: root.rail.top
             horizontal: false
+            align: "start"
             delegate: root.delegate
         }
         RailZone {
@@ -77,6 +81,7 @@ Item {
             height: parent.height / 3
             ids: root.rail.center
             horizontal: false
+            align: "center"
             delegate: root.delegate
         }
         RailZone {
@@ -84,6 +89,7 @@ Item {
             height: parent.height / 3
             ids: root.rail.bottom
             horizontal: false
+            align: "end"
             delegate: root.delegate
         }
     }
