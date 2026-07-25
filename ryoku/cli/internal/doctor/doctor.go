@@ -941,33 +941,6 @@ func reconcileDevResidue(checkOnly bool) recResult {
 
 // ---- reconciler: shell config schema -------------------------------------------
 
-// shell.json is user-owned, so doctor removes keys retired by the atoll-only
-// shell instead of relying on package materialization to overwrite the file.
-// Island keys also identify pill-era configs whose disabled bar replaced the
-// old resting island and therefore needs to be revived.
-var legacyIslandKeys = []string{
-	"islandWidth", "islandHeight", "islandRestCorner", "islandOpenCorner",
-	"islandGap", "islandSmoothing", "islandOpacity", "islandStyle", "islandAutohide",
-	"islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
-}
-var retiredShellKeys = []string{
-	"barStyle", "barShowTitle", "barShowMedia", "barShowStatus", "barOccupiedWorkspaces",
-	"barShowWeather", "barToggles", "barShowSpecialWs",
-	"barLayoutLeft", "barLayoutCentre", "barLayoutRight",
-	"washiVariant", "dyadVariant",
-	"sidebarLeftEnabled", "sidebarRightEnabled", "sidebarClickless", "sidebarCornerSize",
-}
-
-// shellConfigClamps: geometry knobs the renderer consumes raw; a value outside
-// these ranges draws a broken frame (the Hub sliders stay well inside them).
-var shellConfigClamps = map[string][2]float64{
-	"frameBorder":    {50, 120},
-	"frameRadius":    {0, 32},
-	"frameSmoothing": {1, 32},
-	"barHeight":      {16, 64},
-	"fontScale":      {0.7, 1.6},
-}
-
 func reconcileShellConfig(checkOnly bool) recResult {
 	path := filepath.Join(sys.ConfigHome(), "ryoku", "shell.json")
 	raw, err := os.ReadFile(path)
@@ -997,51 +970,209 @@ func reconcileShellConfig(checkOnly bool) recResult {
 	return fixedRes("migrated shell.json to the current schema: %s", strings.Join(changes, "; "))
 }
 
-// migrateShellConfig drops retired shell keys, revives pill-era bars and clamps
-// out-of-range geometry. It is pure so the migration can be tested without
-// touching a user's config.
+func frameRail(enabled bool, size float64, zones map[string][]any) map[string]any {
+	rail := map[string]any{"enabled": enabled, "size": size, "reveal": true}
+	for zone, ids := range zones {
+		rail[zone] = ids
+	}
+	return rail
+}
+
+func defaultFrameBarsFromLegacy(_ map[string]any) map[string]any {
+	return map[string]any{
+		"version": float64(1),
+		"style":   "ok-frame",
+		"rails": map[string]any{
+			"top":    frameRail(true, 32, map[string][]any{"start": {}, "center": {"clock"}, "end": {}}),
+			"left":   frameRail(true, 48, map[string][]any{"top": {"quick-settings", "workspaces"}, "center": {"dock"}, "bottom": {"tray", "network", "clock"}}),
+			"bottom": frameRail(false, 32, map[string][]any{"start": {}, "center": {}, "end": {}}),
+			"right":  frameRail(false, 48, map[string][]any{"top": {}, "center": {}, "bottom": {}}),
+		},
+		"menus": map[string]any{
+			"quick-settings": map[string]any{"anchor": "left", "minWidth": float64(410), "expansion": "always", "widgets": []any{"clock", "network", "audio-output"}},
+		},
+		"surfaces": map[string]any{
+			"stash":  map[string]any{"anchor": "left", "minWidth": float64(340), "panes": []any{"stash"}},
+			"system": map[string]any{"anchor": "right", "minWidth": float64(340), "panes": []any{"notifications", "calendar", "media", "weather", "recording"}},
+		},
+		"dock": map[string]any{"pinned": []any{}},
+	}
+}
+
+var frameBarAxes = map[string][]string{
+	"audio-input": {"horizontal", "vertical"}, "audio-output": {"horizontal", "vertical"},
+	"battery": {"horizontal", "vertical"}, "bluetooth": {"horizontal", "vertical"},
+	"clipboard": {"horizontal", "vertical"}, "clock": {"horizontal", "vertical"},
+	"dock": {"vertical"}, "layout-switcher": {"horizontal", "vertical"},
+	"workspaces": {"horizontal", "vertical"}, "color-picker": {"horizontal", "vertical"},
+	"lock": {"horizontal", "vertical"}, "logout": {"horizontal", "vertical"},
+	"network": {"horizontal", "vertical"}, "notifications": {"horizontal", "vertical"},
+	"power-profile": {"horizontal", "vertical"}, "quick-settings": {"horizontal", "vertical"},
+	"reboot": {"horizontal", "vertical"}, "recording": {"horizontal", "vertical"},
+	"screenshot": {"horizontal", "vertical"}, "shutdown": {"horizontal", "vertical"},
+	"tray": {"horizontal", "vertical"}, "vpn": {"horizontal", "vertical"},
+	"wallpaper": {"horizontal", "vertical"},
+}
+
+var frameMenuWidgets = map[string]bool{
+	"launcher": true, "audio-input": true, "audio-output": true, "bluetooth": true,
+	"clipboard": true, "clock": true, "container": true, "divider": true, "spacer": true,
+	"network": true, "notifications": true, "power-profile": true, "quick-settings": true,
+	"screenshot": true, "theme": true, "wallpaper": true, "weather": true, "media": true,
+	"layout-switcher": true, "quick-actions": true,
+}
+
+func frameMap(value any) map[string]any {
+	m, _ := value.(map[string]any)
+	return m
+}
+
+func frameStringList(value any, allowed map[string]bool) []any {
+	values, _ := value.([]any)
+	out := make([]any, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		id, ok := value.(string)
+		if ok && allowed[id] && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+func frameRailList(value any, axis string) []any {
+	values, _ := value.([]any)
+	out := make([]any, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		id, ok := value.(string)
+		if !ok || seen[id] {
+			continue
+		}
+		for _, supported := range frameBarAxes[id] {
+			if supported == axis {
+				seen[id] = true
+				out = append(out, id)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func frameNumber(value any, fallback, low, high float64) float64 {
+	n, ok := value.(float64)
+	if !ok {
+		return fallback
+	}
+	return min(max(n, low), high)
+}
+
+func frameAnchor(value any, fallback string) string {
+	anchor, ok := value.(string)
+	if !ok {
+		return fallback
+	}
+	for _, valid := range []string{"bottom", "bottom-left", "bottom-right", "left", "right", "top", "top-left", "top-right"} {
+		if anchor == valid {
+			return anchor
+		}
+	}
+	return fallback
+}
+
+func normalizeFrameBars(v any) (map[string]any, []string) {
+	base := defaultFrameBarsFromLegacy(nil)
+	source := frameMap(v)
+	out := defaultFrameBarsFromLegacy(nil)
+	if style, ok := source["style"].(string); ok && (style == "ok-frame" || style == "ryoku-frame") {
+		out["style"] = style
+	}
+	baseRails := frameMap(base["rails"])
+	sourceRails := frameMap(source["rails"])
+	outRails := frameMap(out["rails"])
+	for _, edge := range []string{"top", "left", "bottom", "right"} {
+		fallback := frameMap(baseRails[edge])
+		raw := frameMap(sourceRails[edge])
+		rail := frameMap(outRails[edge])
+		if enabled, ok := raw["enabled"].(bool); ok {
+			rail["enabled"] = enabled
+		}
+		if reveal, ok := raw["reveal"].(bool); ok {
+			rail["reveal"] = reveal
+		}
+		horizontal := edge == "top" || edge == "bottom"
+		if horizontal {
+			rail["size"] = frameNumber(raw["size"], fallback["size"].(float64), 16, 96)
+		} else {
+			rail["size"] = frameNumber(raw["size"], fallback["size"].(float64), 24, 112)
+		}
+		axis := "vertical"
+		zones := []string{"top", "center", "bottom"}
+		if horizontal {
+			axis, zones = "horizontal", []string{"start", "center", "end"}
+		}
+		for _, zone := range zones {
+			if _, present := raw[zone]; present {
+				rail[zone] = frameRailList(raw[zone], axis)
+			}
+		}
+	}
+	baseMenus, sourceMenus, outMenus := frameMap(base["menus"]), frameMap(source["menus"]), frameMap(out["menus"])
+	menuFallback, menuRaw, menuOut := frameMap(baseMenus["quick-settings"]), frameMap(sourceMenus["quick-settings"]), frameMap(outMenus["quick-settings"])
+	menuOut["anchor"] = frameAnchor(menuRaw["anchor"], menuFallback["anchor"].(string))
+	menuOut["minWidth"] = frameNumber(menuRaw["minWidth"], menuFallback["minWidth"].(float64), 1, 10000)
+	if expansion, ok := menuRaw["expansion"].(string); ok && (expansion == "always" || expansion == "never") {
+		menuOut["expansion"] = expansion
+	}
+	if _, present := menuRaw["widgets"]; present {
+		menuOut["widgets"] = frameStringList(menuRaw["widgets"], frameMenuWidgets)
+	}
+	baseSurfaces, sourceSurfaces, outSurfaces := frameMap(base["surfaces"]), frameMap(source["surfaces"]), frameMap(out["surfaces"])
+	for _, id := range []string{"stash", "system"} {
+		fallback, raw, surface := frameMap(baseSurfaces[id]), frameMap(sourceSurfaces[id]), frameMap(outSurfaces[id])
+		surface["anchor"] = frameAnchor(raw["anchor"], fallback["anchor"].(string))
+		surface["minWidth"] = frameNumber(raw["minWidth"], fallback["minWidth"].(float64), 1, 10000)
+		if _, present := raw["panes"]; present {
+			allowed := map[string]bool{}
+			for _, pane := range fallback["panes"].([]any) {
+				allowed[pane.(string)] = true
+			}
+			surface["panes"] = frameStringList(raw["panes"], allowed)
+		}
+	}
+	dockRaw, dockOut := frameMap(source["dock"]), frameMap(out["dock"])
+	if pinned, ok := dockRaw["pinned"].([]any); ok {
+		outPinned := make([]any, 0, len(pinned))
+		for _, value := range pinned {
+			if id, ok := value.(string); ok {
+				outPinned = append(outPinned, id)
+			}
+		}
+		dockOut["pinned"] = outPinned
+	}
+	before, _ := json.Marshal(source)
+	after, _ := json.Marshal(out)
+	if bytes.Equal(before, after) {
+		return out, nil
+	}
+	return out, []string{"normalized frameBars"}
+}
+
 func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 	var cfg map[string]any
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return nil, nil, err
 	}
 	var changes []string
-	legacyIsland := false
-	for _, k := range legacyIslandKeys {
-		if _, ok := cfg[k]; ok {
-			delete(cfg, k)
-			legacyIsland = true
-		}
+	if _, present := cfg["frameBars"]; !present {
+		cfg["frameBars"] = defaultFrameBarsFromLegacy(cfg)
+		changes = append(changes, "migrated Atoll settings to frame bars")
 	}
-	retired := legacyIsland
-	for _, k := range retiredShellKeys {
-		if _, ok := cfg[k]; ok {
-			delete(cfg, k)
-			retired = true
-		}
-	}
-	if retired {
-		changes = append(changes, "dropped retired bar and sidebar knobs")
-	}
-	if legacyIsland {
-		if on, ok := cfg["barEnabled"].(bool); ok && !on {
-			cfg["barEnabled"] = true
-			changes = append(changes, "enabled the bar (the resting island it replaced is gone)")
-		}
-		if _, ok := cfg["barPosition"]; !ok {
-			cfg["barPosition"] = "top"
-		}
-	}
-	for k, r := range shellConfigClamps {
-		v, ok := cfg[k].(float64)
-		if !ok {
-			continue
-		}
-		if v < r[0] || v > r[1] {
-			cfg[k] = min(max(v, r[0]), r[1])
-			changes = append(changes, fmt.Sprintf("clamped %s %g into [%g, %g]", k, v, r[0], r[1]))
-		}
-	}
+	normalized, frameChanges := normalizeFrameBars(cfg["frameBars"])
+	cfg["frameBars"] = normalized
+	changes = append(changes, frameChanges...)
 	if len(changes) == 0 {
 		return nil, nil, nil
 	}
