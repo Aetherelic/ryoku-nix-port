@@ -72,7 +72,7 @@ func componentDisabled(name string) bool {
 	return parseDisabledComponents(b)[name]
 }
 
-// pillSurfaces maps the sole bar-owned popup command to the pill IpcHandler.
+// pillSurfaces are compatibility commands routed through the manager scene.
 var pillSurfaces = map[string]string{"power": "power"}
 
 type daemon struct {
@@ -513,11 +513,11 @@ func (d *daemon) handle(conn net.Conn) {
 // and function it triggers. ok is false for commands that need more than one IPC
 // call (wallpaper, reload, status, ...).
 func route(cmd string) (config, target, fn string, ok bool) {
-	if f, p := pillSurfaces[cmd]; p {
-		return "pill", "pill", f, true
+	if _, p := pillSurfaces[cmd]; p {
+		return "pill", "pill", "openSurface", true
 	}
 	if _, ok := barMenuID(cmd); ok {
-		return "pill", "pill", "bar", true
+		return "pill", "pill", "openSurface", true
 	}
 	switch cmd {
 	case "launcher":
@@ -543,9 +543,11 @@ func (d *daemon) dispatch(line string) string {
 	cmd, args := fields[0], fields[1:]
 	routeCmd := cmd
 	if cmd == "bar" {
+		if _, ok := barMenuID(line); !ok {
+			return "err bar: unknown or malformed surface"
+		}
 		routeCmd = line
 	}
-
 	if config, target, fn, ok := route(routeCmd); ok {
 		if componentDisabled(config) {
 			// the user turned this component off; its keybind is a silent no-op
@@ -561,9 +563,12 @@ func (d *daemon) dispatch(line string) string {
 		}
 		mon := d.activeMonitor()
 		if config == "pill" {
-			if fn == "bar" {
-				menuID, _ := barMenuID(routeCmd)
-				return pillIpc(fn, mon, menuID)
+			if fn == "openSurface" {
+				id := pillSurfaces[cmd]
+				if cmd == "bar" {
+					id, _ = barMenuID(routeCmd)
+				}
+				return pillIpc(fn, mon, id)
 			}
 			return pillIpc(fn, mon)
 		}
@@ -622,7 +627,7 @@ func (d *daemon) dispatch(line string) string {
 			return "err plugin: missing id"
 		}
 		d.ensure("pill")
-		return pillIpc("pluginPopout", d.activeMonitor(), args[0])
+		return pillIpc("openSurface", d.activeMonitor(), "plugin:"+args[0])
 	case "plugins":
 		// plugins reload -> the per-monitor PluginPopouts watch plugins.json and
 		// re-discover on change, so a Settings save retunes live; this is a no-op
@@ -658,16 +663,16 @@ func (d *daemon) voice() string {
 	if !dictationReady() {
 		d.voiceOn = false
 		d.ensure("pill")
-		return pillIpc("voiceOff", d.activeMonitor())
+		return pillIpc("openSurface", d.activeMonitor(), "voice-off")
 	}
 	d.voiceOn = !d.voiceOn
 	if d.voiceOn {
 		d.ensure("pill")
 		voxtypeRecord("start")
-		return pillIpc("voiceShow", d.activeMonitor())
+		return pillIpc("openSurface", d.activeMonitor(), "voice")
 	}
 	voxtypeRecord("stop")
-	return pillIpc("voiceHide")
+	return pillIpc("closeSurface", d.activeMonitor(), "voice")
 }
 
 // reload restarts every supervised component by terminating it; the supervisor

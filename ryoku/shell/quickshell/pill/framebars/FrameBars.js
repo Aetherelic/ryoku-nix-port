@@ -35,6 +35,7 @@ function defaultConfig() {
         },
         menus: {
             "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock", "network", "audio-output"] },
+            clock: { anchor: "top", minWidth: 280, expansion: "never", widgets: ["clock"] },
             launcher: { anchor: "left", minWidth: 420, expansion: "always", widgets: ["launcher"] },
             clipboard: { anchor: "left", minWidth: 420, expansion: "always", widgets: ["clipboard"] },
             screenshot: { anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["screenshot"] },

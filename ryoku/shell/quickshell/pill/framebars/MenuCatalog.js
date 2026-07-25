@@ -24,6 +24,7 @@ const widgets = {
 };
 const menus = {
     "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock", "network", "audio-output"] },
+    clock: { id: "clock", anchor: "top", minWidth: 280, expansion: "never", widgets: ["clock"] },
     launcher: { id: "launcher", anchor: "left", minWidth: 420, expansion: "always", widgets: ["launcher"] },
     clipboard: { id: "clipboard", anchor: "left", minWidth: 420, expansion: "always", widgets: ["clipboard"] },
     screenshot: { id: "screenshot", anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["screenshot"] },

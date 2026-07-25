@@ -17,7 +17,6 @@ import Quickshell.Hyprland
 import Ryoku.Blobs
 import Ryoku.Ui
 import "Singletons"
-import "popouts"
 import "framebars/RailGeometry.js" as RailGeometry
 
 // Per monitor the shell maps an exclusive-zone strip for the atoll bar, a
@@ -29,6 +28,8 @@ ShellRoot {
     signal menuRequested(string id, rect ownerRect)
     signal surfaceRequested(string id, rect ownerRect)
     signal actionRequested(string id)
+    signal surfaceRequestedForMonitor(string id, string monitor)
+    signal surfaceCloseRequested(string id, string monitor)
     signal barMenuRequested(string monitor, string id)
 
     function runBarAction(id) {
@@ -45,34 +46,6 @@ ShellRoot {
         root.actionRequested(id);
     }
 
-
-
-    // The one pinned bar popup (power) and the monitor it belongs to. Voice,
-    // keyring and plugin surfaces share the same state but open through their
-    // dedicated service paths rather than from the bar.
-    property string popout: ""
-    property string popoutMon: ""
-    property bool voiceOff: false
-    // Along-axis centre of the atoll power icon. Service-driven surfaces use -1
-    // so Popout centres itself on the configured edge.
-    property real popoutCenter: 0
-    // Sidebar pane state and content remain intact for the later opener rebuild.
-    property string sidebarLeftPane: ""
-    property string sidebarRightPane: ""
-
-    // Keyring is the only surviving keyboard popout. Voice stays focus-passive;
-    // sidebars remain mounted but have no entry path.
-    readonly property var kbPopouts: ["keyring"]
-    property string prevPopout: ""
-    onPopoutChanged: {
-        if (kbPopouts.indexOf(prevPopout) >= 0 && kbPopouts.indexOf(popout) < 0)
-            restoreFocus();
-        // dismissing the keyring popout cancels the pending prompt (a no-op if the
-        // daemon already cleared it via keyringHide).
-        if (prevPopout === "keyring" && popout !== "keyring")
-            Keyring.dismiss();
-        prevPopout = popout;
-    }
 
     function refresh() {
         Hyprland.refreshMonitors();
@@ -212,68 +185,34 @@ ShellRoot {
     }
 
 
-    // a stash install hitting a sudo/polkit prompt asks the deck to step
-    // aside so the prompt (a window beneath our keyboard grab) takes focus
-    // instead of landing behind the open deck.
     Connections {
         target: Stash
-        function onAuthStepAside() { root.popout = ""; }
+        function onAuthStepAside() { root.surfaceCloseRequested("", ""); }
     }
 
-    // Pin or unpin a service-driven surface on one monitor.
-    function togglePopout(mon, name) {
-        if (root.popout === name && root.popoutMon === mon) {
-            root.popout = "";
-            return;
-        }
-        // unpin the old popout before moving the anchor: a pinned popout tracks
-        // popoutCenter live, so writing the new centre first teleports the old
-        // body along the bar instead of letting it melt where it opened.
-        root.popout = "";
-        root.popoutMon = mon;
-        root.popoutCenter = -1;   // keybind/IPC: no owning icon, so centre on the bar
-        root.popout = name;
+    function requestSurface(id, mon) {
+        root.surfaceRequestedForMonitor(id, mon);
     }
-
-    // open a popout at a bar icon: record the icon's along-axis centre so the
-    // blob grows from the icon on any bar edge.
-    function togglePopoutAt(mon, name, center) {
-        if (root.popout === name && root.popoutMon === mon) {
-            root.popout = "";
-            return;
-        }
-        root.popout = "";         // same unpin-first order as togglePopout
-        root.popoutMon = mon;
-        root.popoutCenter = center;
-        root.popout = name;
-    }
-
-
 
     IpcHandler {
         target: "pill"
-        function power(mon: string): void { root.togglePopout(mon, "power"); }
+        function openSurface(mon: string, id: string): void { root.requestSurface(id, mon); }
+        function closeSurface(mon: string, id: string): void { root.surfaceCloseRequested(id, mon); }
+        function power(mon: string): void { root.requestSurface("power", mon); }
         function keyringPrompt(payload: string): void {
             Keyring.apply(payload);
-            var m = Keyring.mon !== "" ? Keyring.mon
-                : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
-            root.popout = "";
-            root.popoutMon = m;
-            root.popoutCenter = -1;
-            root.popout = "keyring";
+            root.requestSurface("keyring", Keyring.mon !== "" ? Keyring.mon
+                : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""));
         }
         function keyringHide(): void {
-            // Daemon-driven teardown (unlock resolved). clear() first so the
-            // popout's dismiss path cannot cancel the resolved prompt.
             Keyring.clear();
-            if (root.popout === "keyring")
-                root.popout = "";
+            root.surfaceCloseRequested("keyring", "");
         }
-        function voiceShow(mon: string): void { root.voiceOff = false; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
-        function voiceOff(mon: string): void { root.voiceOff = true; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
-        function voiceHide(): void { if (root.popout === "voice") root.popout = ""; }
-        function pluginPopout(mon: string, id: string): void { root.togglePopout(mon, "plugin:" + id); }
-        function bar(mon: string, id: string): void { root.barMenuRequested(mon, id); }
+        function voiceShow(mon: string): void { root.requestSurface("voice", mon); }
+        function voiceOff(mon: string): void { root.requestSurface("voice-off", mon); }
+        function voiceHide(): void { root.surfaceCloseRequested("voice", ""); }
+        function pluginPopout(mon: string, id: string): void { root.requestSurface("plugin:" + id, mon); }
+        function bar(mon: string, id: string): void { root.requestSurface(id, mon); }
     }
 
     // The daemon writes surface commands to this socket to toggle pill surfaces
@@ -283,28 +222,28 @@ ShellRoot {
     readonly property string pillSockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-pill.sock"
 
     // runPillCommand mirrors the IpcHandler above for the socket fast path:
-    // "<fn> <mon> [arg]" runs the same surface toggle. Returns false on an
-    // unknown command so the daemon falls back to the qs client.
     function runPillCommand(line) {
         var parts = line.trim().split(" ");
         var fn = parts[0];
         var mon = parts.length > 1 ? parts[1] : "";
+        var id = parts.length > 2 ? parts[2] : "";
         switch (fn) {
+        case "openSurface":
+            root.requestSurface(id, mon); return true;
+        case "closeSurface":
+            root.surfaceCloseRequested(id, mon); return true;
         case "power":
-            root.togglePopout(mon, "power"); return true;
+            root.requestSurface("power", mon); return true;
         case "pluginPopout":
-            root.togglePopout(mon, "plugin:" + (parts.length > 2 ? parts[2] : ""));
-            return true;
+            root.requestSurface("plugin:" + id, mon); return true;
         case "voiceShow":
-            root.voiceOff = false; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
+            root.requestSurface("voice", mon); return true;
         case "voiceOff":
-            root.voiceOff = true; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
+            root.requestSurface("voice-off", mon); return true;
         case "voiceHide":
-            if (root.popout === "voice") root.popout = "";
-            return true;
+            root.surfaceCloseRequested("voice", mon); return true;
         case "bar":
-            root.barMenuRequested(mon, parts.length > 2 ? parts[2] : "");
-            return true;
+            root.requestSurface(id, mon); return true;
         default:
             return false;
         }
@@ -415,10 +354,7 @@ ShellRoot {
 
             readonly property var frameBars: Config.normalizedFrameBars
             readonly property var rails: frameBars.rails
-            readonly property var stashSurface: frameBars.surfaces.stash
-            readonly property var systemSurface: frameBars.surfaces.system
             readonly property real frameLip: Math.max(0, Config.effectiveFrameBorder - 50)
-            readonly property string popoutEdge: "top"
             readonly property real surfaceFrameThickness: frameLip + railThickness("top")
             readonly property real sidebarTopGap: railClearance("top") + 14 * s
             readonly property real sidebarBotGap: railClearance("bottom") + 14 * s
@@ -434,9 +370,7 @@ ShellRoot {
                     : frameLip;
             }
 
-            readonly property bool kbPopout: root.popoutMon === modelData.name
-                && root.kbPopouts.indexOf(root.popout) >= 0
-            readonly property bool modal: kbPopout
+            readonly property bool modal: frameMenus.modal
 
             // true when this monitor's visible workspace holds a fullscreen
             // window. Fullscreen owns the id -> fullscreen map (hyprctl-backed,
@@ -449,17 +383,13 @@ ShellRoot {
                 return false;
             }
 
-            onMonFullscreenChanged: if (monFullscreen) {
-                if (root.popoutMon === modelData.name) root.popout = "";
-            }
+            onMonFullscreenChanged: if (monFullscreen) frameMenus.closeAll()
 
             screen: modelData
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Overlay
-            // None, not OnDemand: this layer is always mapped, so OnDemand would
-            // hold the keyboard after a popout closes and a launched window can't type.
-            WlrLayershell.keyboardFocus: kbPopout ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+            WlrLayershell.keyboardFocus: modal ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
             WlrLayershell.namespace: "pill"
 
             anchors { top: true; left: true; right: true; bottom: true }
@@ -494,12 +424,6 @@ ShellRoot {
                 Region { x: overlay.leftRailRect.x; y: overlay.leftRailRect.y; width: overlay.railEnabled("left") ? overlay.leftRailRect.width : 0; height: overlay.railEnabled("left") ? overlay.leftRailRect.height : 0 }
                 Region { x: overlay.bottomRailRect.x; y: overlay.bottomRailRect.y; width: overlay.railEnabled("bottom") ? overlay.bottomRailRect.width : 0; height: overlay.railEnabled("bottom") ? overlay.bottomRailRect.height : 0 }
                 Region { x: overlay.rightRailRect.x; y: overlay.rightRailRect.y; width: overlay.railEnabled("right") ? overlay.rightRailRect.width : 0; height: overlay.railEnabled("right") ? overlay.rightRailRect.height : 0 }
-                Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
-                Region { x: powerPop.maskX; y: powerPop.maskY; width: powerPop.maskW; height: powerPop.maskH }
-                Region { x: voicePop.maskX; y: voicePop.maskY; width: voicePop.maskW; height: voicePop.maskH }
-                Region { x: keyringPop.maskX; y: keyringPop.maskY; width: keyringPop.maskW; height: keyringPop.maskH }
-                Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
-                Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
                 // frame menus: each open menu unions its trigger (owner) and body
                 // rects so the click target and the open body keep catching input;
                 // idle anchors stay zero-size and click through.
@@ -527,23 +451,17 @@ ShellRoot {
                 anchors.fill: parent
                 enabled: overlay.modal
                 acceptedButtons: Qt.AllButtons
-                onPressed: (mouse) => {
-                    if (overlay.inRail(mouse.x, mouse.y)) return;
-                    if (overlay.kbPopout) root.popout = "";
+                onPressed: mouse => {
+                    if (!overlay.inRail(mouse.x, mouse.y)) frameMenus.closeAll();
                 }
             }
 
             FocusScope {
                 id: focusScope
                 anchors.fill: parent
-                focus: overlay.kbPopout || frameMenus.anyOpen
-                // whole shell hides while a window is fullscreen.
+                focus: frameMenus.anyOpen
                 visible: !overlay.monFullscreen
-
-                Keys.onEscapePressed: {
-                    if (overlay.kbPopout) root.popout = "";
-                    else if (frameMenus.anyOpen) frameMenus.closeAll();
-                }
+                Keys.onEscapePressed: frameMenus.closeAll()
 
                 // Ryoku brand grain: one fine matte over the whole overlay -- the
                 // frame, the bar, every popout, and (through the transparent body)
@@ -656,174 +574,26 @@ ShellRoot {
                     group: blobGroup
                     frameThickness: overlay.surfaceFrameThickness
                     active: !overlay.monFullscreen
+                    sidebarTopInset: overlay.sidebarTopGap
+                    sidebarBottomInset: overlay.sidebarBotGap
 
                     Connections {
                         target: root
-                        function onMenuRequested(id, ownerRect) { frameMenus.openMenu(id, ownerRect); }
-                        function onBarMenuRequested(mon, id) {
-                            if (mon === overlay.modelData.name)
-                                frameMenus.openMenuAt(id, overlay.width / 2, overlay.height / 2);
-                        }
+                        function onMenuRequested(id, ownerRect) { frameMenus.openSurface(id, ownerRect, ""); }
+                        function onSurfaceRequested(id, ownerRect) { frameMenus.openSurface(id, ownerRect, ""); }
+                        function onSurfaceRequestedForMonitor(id, mon) { frameMenus.openSurface(id, null, mon); }
+                        function onSurfaceCloseRequested(id, mon) { frameMenus.closeSurface(id, mon); }
+                        function onBarMenuRequested(mon, id) { frameMenus.openSurface(id, null, mon); }
                     }
                 }
 
-                // power popout: the session menu, grown from the bar edge. The
-                // one surviving popup (Super+Esc and the atoll power icon).
-                Popout {
-                    id: powerPop
-                    group: blobGroup
-                    frameThickness: overlay.surfaceFrameThickness
-                    radius: Config.frameRadius
-                    smoothing: Config.frameSmoothing
-                    edge: overlay.popoutEdge
-                    align: "center"
-                    alongCenter: root.popoutCenter
-                    hoverOpen: false
-                    s: overlay.s
-                    active: !overlay.monFullscreen
-                    pinned: root.popout === "power" && root.popoutMon === overlay.modelData.name
-                    openW: powerContent.implicitWidth
-                    openH: powerContent.implicitHeight
-
-                    PowerPanel {
-                        id: powerContent
-                        s: overlay.s
-                        open: powerPop.prog > 0.5
-                        onCloseRequested: root.popout = ""
-                    }
-                }
-
-                // voice popout: the dictation overlay. grabs nothing (excluded
-                // from the focus grab below) so dictation lands in the focused app.
-                Popout {
-                    id: voicePop
-                    group: blobGroup
-                    frameThickness: overlay.surfaceFrameThickness
-                    radius: Config.frameRadius
-                    smoothing: Config.frameSmoothing
-                    edge: overlay.popoutEdge
-                    hoverOpen: false
-                    alongCenter: root.popoutCenter
-                    s: overlay.s
-                    active: !overlay.monFullscreen
-                    pinned: root.popout === "voice" && root.popoutMon === overlay.modelData.name
-                    openW: voiceContent.implicitWidth
-                    openH: voiceContent.implicitHeight
-
-                    VoicePopout {
-                        id: voiceContent
-                        s: overlay.s
-                        off: root.voiceOff
-                        open: voicePop.prog > 0.5
-                        onCloseRequested: root.popout = ""
-                    }
-                }
-
-                // keyring popout: the secret-service password prompt. a keyboard
-                // popout; dismissing it cancels the prompt (onPopoutChanged).
-                Popout {
-                    id: keyringPop
-                    group: blobGroup
-                    frameThickness: overlay.surfaceFrameThickness
-                    radius: Config.frameRadius
-                    smoothing: Config.frameSmoothing
-                    edge: overlay.popoutEdge
-                    hoverOpen: false
-                    alongCenter: root.popoutCenter
-                    s: overlay.s
-                    active: !overlay.monFullscreen
-                    pinned: root.popout === "keyring" && root.popoutMon === overlay.modelData.name
-                    openW: keyringContent.implicitWidth
-                    openH: keyringContent.implicitHeight
-
-                    KeyringPopout {
-                        id: keyringContent
-                        s: overlay.s
-                        open: keyringPop.prog > 0.5
-                        onCloseRequested: root.popout = ""
-                    }
-                }
-
-                Popout {
-                    id: sidebarLeftPop
-                    group: blobGroup
-                    frameThickness: overlay.frameLip
-                    radius: Config.frameRadius
-                    smoothing: Config.frameSmoothing
-                    edge: overlay.stashSurface.anchor
-                    hoverOpen: false
-                    closeDelay: 300
-                    s: overlay.s
-                    active: false
-                    fullSpan: true
-                    openW: overlay.stashSurface.minWidth * overlay.s
-                    openH: overlay.height
-
-                    SidebarFeatures {
-                        id: sidebarLeftContent
-                        s: overlay.s
-                        topInset: overlay.sidebarTopGap
-                        botInset: overlay.sidebarBotGap
-                        open: sidebarLeftPop.prog > 0.5
-                        panes: overlay.stashSurface.panes
-                        pane: root.sidebarLeftPane
-                        onPaneSelected: (k) => root.sidebarLeftPane = k
-                    }
-                }
-
-                Popout {
-                    id: sidebarRightPop
-                    group: blobGroup
-                    frameThickness: overlay.frameLip
-                    radius: Config.frameRadius
-                    smoothing: Config.frameSmoothing
-                    edge: overlay.systemSurface.anchor
-                    hoverOpen: false
-                    closeDelay: 300
-                    s: overlay.s
-                    active: false
-                    fullSpan: true
-                    openW: overlay.systemSurface.minWidth * overlay.s
-                    openH: overlay.height
-
-                    SidebarSystem {
-                        s: overlay.s
-                        topInset: overlay.sidebarTopGap
-                        botInset: overlay.sidebarBotGap
-                        open: sidebarRightPop.prog > 0.5
-                        panes: overlay.systemSurface.panes
-                        pane: root.sidebarRightPane
-                        onPaneSelected: (k) => root.sidebarRightPane = k
-                        onDismiss: { if (root.popout === "sidebarRight" && root.popoutMon === overlay.modelData.name) root.popout = ""; }
-                    }
-                }
 
                 HyprlandFocusGrab {
-                    active: !overlay.kbPopout && (frameMenus.anyOpen
-                        || (root.popout !== "" && root.popoutMon === overlay.modelData.name && root.popout !== "voice"))
+                    active: frameMenus.modal
                     windows: [overlay]
-                    onCleared: {
-                        if (root.popoutMon === overlay.modelData.name) root.popout = "";
-                        frameMenus.closeAll();
-                    }
+                    onCleared: frameMenus.closeAll()
                 }
 
-                // Plugin frame popouts fuse into the same blob field as Power.
-                PluginPopouts {
-                    id: pluginPops
-                    group: blobGroup
-                    s: overlay.s
-                    active: !overlay.monFullscreen
-                    frameThickness: 16
-                    radius: Config.frameRadius
-                    smoothing: Config.frameSmoothing
-                    pinnedId: (root.popoutMon === overlay.modelData.name && root.popout.indexOf("plugin:") === 0)
-                              ? root.popout.substring(7) : ""
-                    onUnpinRequested: {
-                        if (root.popout.indexOf("plugin:") === 0 && root.popoutMon === overlay.modelData.name)
-                            root.popout = "";
-                    }
-                }
 
                 RecordHud {
                     id: recHud

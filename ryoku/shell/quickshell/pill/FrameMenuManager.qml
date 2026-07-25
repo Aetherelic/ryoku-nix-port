@@ -4,6 +4,7 @@ import QtQuick
 import "framebars/MenuState.js" as MenuState
 import "framebars/MenuCatalog.js" as MenuCatalog
 import "Singletons"
+import "popouts"
 
 // The single per-monitor frame menu manager. It repeats the configured menu
 // records and owns which record is active at each anchor for THIS monitor.
@@ -22,13 +23,28 @@ Item {
     required property real frameThickness
     property bool active: true
 
-    // configured menus as a repeatable list of {id, anchor, minWidth, widgets, ...}.
     readonly property var menus: {
         const src = Config.normalizedFrameBars.menus || ({});
         const out = [];
-        for (const id in src) out.push(Object.assign({ id: id }, src[id]));
+        for (const id in src) out.push(Object.assign({ id: id, kind: "menu" }, src[id]));
         return out;
     }
+    readonly property var surfaces: {
+        const src = Config.normalizedFrameBars.surfaces || ({});
+        const out = [];
+        for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: true }, src[id]));
+        out.push(
+            { id: "power", kind: "power", anchor: "top", minWidth: 480 },
+            { id: "voice", kind: "voice", anchor: "top", minWidth: 420 },
+            { id: "keyring", kind: "keyring", anchor: "top", minWidth: 420 }
+        );
+        return out;
+    }
+    readonly property var records: menus.concat(surfaces)
+    property string stashPane: ""
+    property string systemPane: ""
+    property real sidebarTopInset: 0
+    property real sidebarBottomInset: 0
 
     // { [monitor]: { [anchor]: record } }, driven by the pure MenuState model.
     property var menuState: ({})
@@ -37,6 +53,13 @@ Item {
         const mon = menuState[monitorName];
         if (!mon) return false;
         for (const a in mon) if (mon[a]) return true;
+        return false;
+    }
+    readonly property bool modal: {
+        const mon = menuState[monitorName];
+        if (!mon) return false;
+        for (const anchor in mon)
+            if (mon[anchor] && mon[anchor].id !== "voice") return true;
         return false;
     }
 
@@ -63,6 +86,17 @@ Item {
             out[fm.anchor].bw = fm.maskW;
             out[fm.anchor].bh = fm.maskH;
         }
+        const plugin = pluginPopouts.first;
+        if (plugin && plugin.pinned && out[plugin.edge]) {
+            out[plugin.edge].tx = plugin.triggerX;
+            out[plugin.edge].ty = plugin.triggerY;
+            out[plugin.edge].tw = plugin.triggerW;
+            out[plugin.edge].th = plugin.triggerH;
+            out[plugin.edge].bx = plugin.maskX;
+            out[plugin.edge].by = plugin.maskY;
+            out[plugin.edge].bw = plugin.maskW;
+            out[plugin.edge].bh = plugin.maskH;
+        }
         return out;
     }
 
@@ -75,37 +109,60 @@ Item {
         return rec && rec.along !== undefined ? rec.along : -1;
     }
 
-    // Open a catalogued menu at its anchor for this monitor. ownerRect is the
-    // trigger's global rect; requests from another monitor's overlay map outside
-    // this item and are ignored, so every monitor's manager sees one broadcast
-    // signal but only the owning monitor reacts.
-    function openMenu(id, ownerRect) {
-        const rec = MenuState.recordFor(root.menus, id);
+    function openSurface(id, ownerRect, requestedMonitor) {
+        if (requestedMonitor !== undefined && requestedMonitor !== "" && requestedMonitor !== root.monitorName) return;
+        const voiceOff = id === "voice-off";
+        const surfaceID = voiceOff ? "voice" : id;
+        if (surfaceID.indexOf("plugin:") === 0) {
+            root.openPlugin(surfaceID.substring(7));
+            return;
+        }
+        const rec = MenuState.recordFor(root.records, surfaceID);
         if (!rec) return;
-        const local = root.mapFromGlobal(ownerRect.x, ownerRect.y);
-        if (local.x < 0 || local.y < 0 || local.x >= root.width || local.y >= root.height) return;
-        const anchor = rec.anchor;
-        const horiz = anchor.indexOf("top") === 0 || anchor.indexOf("bottom") === 0;
+        let local;
+        if (ownerRect && ownerRect.width > 0 && ownerRect.height > 0) {
+            local = root.mapFromGlobal(ownerRect.x, ownerRect.y);
+            if (local.x < 0 || local.y < 0 || local.x >= root.width || local.y >= root.height) return;
+        } else {
+            local = { x: root.width / 2, y: root.height / 2 };
+            ownerRect = { width: 1, height: 1 };
+        }
+        const horiz = rec.anchor.indexOf("top") === 0 || rec.anchor.indexOf("bottom") === 0;
         const along = horiz ? local.x + ownerRect.width / 2 : local.y + ownerRect.height / 2;
         const trigger = { x: local.x, y: local.y, width: ownerRect.width, height: ownerRect.height };
         root.menuState = MenuState.open(root.menuState, root.monitorName,
-            { id: id, anchor: anchor, along: along, trigger: trigger });
+            Object.assign({}, rec, { id: surfaceID, anchor: rec.anchor, along: along, trigger: trigger, off: voiceOff }));
+    }
+    function openMenu(id, ownerRect) {
+        root.openSurface(id, ownerRect, root.monitorName);
     }
     function openMenuAt(id, x, y) {
-        const rec = MenuState.recordFor(root.menus, id);
-        if (!rec) return;
-        const anchor = rec.anchor;
-        const horiz = anchor.indexOf("top") === 0 || anchor.indexOf("bottom") === 0;
-        const along = horiz ? x : y;
-        root.menuState = MenuState.open(root.menuState, root.monitorName,
-            { id: id, anchor: anchor, along: along, trigger: { x: x, y: y, width: 1, height: 1 } });
+        root.openSurface(id, { x: x, y: y, width: 1, height: 1 }, root.monitorName);
+    }
+    function openPlugin(pluginID) {
+        if (pluginID === "") return;
+        const rec = { id: "plugin:" + pluginID, anchor: "top", along: root.width / 2,
+            trigger: { x: root.width / 2, y: root.height / 2, width: 1, height: 1 } };
+        root.menuState = MenuState.open(root.menuState, root.monitorName, rec);
+    }
+    function closeSurface(id, requestedMonitor) {
+        if (requestedMonitor !== undefined && requestedMonitor !== "" && requestedMonitor !== root.monitorName) return;
+        if (id === "" || id === undefined) {
+            root.closeAll();
+            return;
+        }
+        if (id.indexOf("plugin:") === 0) {
+            if (root.activeIdAt("top") === id) root.closeAt("top");
+            return;
+        }
+        root.closeMenu(id === "voice-off" ? "voice" : id);
     }
 
     function closeAt(anchor) {
         root.menuState = MenuState.closeAt(root.menuState, root.monitorName, anchor);
     }
     function closeMenu(id) {
-        const rec = MenuState.recordFor(root.menus, id);
+        const rec = MenuState.recordFor(root.records, id);
         if (rec) root.closeAt(rec.anchor);
     }
     function closeAll() {
@@ -118,7 +175,7 @@ Item {
 
     Repeater {
         id: menuRepeater
-        model: root.menus
+        model: root.records
         delegate: FrameMenu {
             required property var modelData
             group: root.group
@@ -127,11 +184,27 @@ Item {
             smoothing: Config.frameSmoothing
             s: root.scale
             active: root.active
+            manager: root
             record: modelData
             anchor: modelData.anchor
             menuOpen: root.active && root.activeIdAt(modelData.anchor) === modelData.id
             alongCenter: root.alongAt(modelData.anchor)
             onRequestClose: root.closeMenu(modelData.id)
         }
+    }
+
+    PluginPopouts {
+        id: pluginPopouts
+        group: root.group
+        s: root.scale
+        active: root.active
+        frameThickness: root.frameThickness
+        radius: Config.frameRadius
+        smoothing: Config.frameSmoothing
+        pinnedId: {
+            const id = root.activeIdAt("top");
+            return id.indexOf("plugin:") === 0 ? id.substring(7) : "";
+        }
+        onUnpinRequested: root.closeAt("top")
     }
 }

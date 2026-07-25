@@ -17,13 +17,11 @@ func TestRoute(t *testing.T) {
 		{"launcher", "launcher", "launcher", "toggle"},
 		{"overview", "overview", "overview", "toggle"},
 		{"ryolayer", "ryolayer", "ryolayer", "toggle"},
-		{"power", "pill", "pill", "power"},
-		{"bar launcher", "pill", "pill", "bar"},
-		{"bar clipboard", "pill", "pill", "bar"},
-		{"bar screenshot", "pill", "pill", "bar"},
-		{"bar recording", "pill", "pill", "bar"},
-		{"bar wallpaper", "pill", "pill", "bar"},
-		{"bar media", "pill", "pill", "bar"},
+		{"power", "pill", "pill", "openSurface"},
+		{"bar quick-settings", "pill", "pill", "openSurface"},
+		{"bar clock", "pill", "pill", "openSurface"},
+		{"bar launcher", "pill", "pill", "openSurface"},
+		{"bar clipboard", "pill", "pill", "openSurface"},
 	}
 	for _, c := range cases {
 		config, target, fn, ok := route(c.cmd)
@@ -46,7 +44,7 @@ func TestRoute(t *testing.T) {
 	}
 }
 
-func TestDispatchBarMenu(t *testing.T) {
+func TestDispatchFrameSurface(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	listener, err := net.Listen("unix", pillSockPath())
 	if err != nil {
@@ -74,8 +72,8 @@ func TestDispatchBarMenu(t *testing.T) {
 			t.Errorf("dispatch(bar %s) = %q, want ok", id, got)
 			continue
 		}
-		if got := <-calls; got != "bar DP-1 "+id {
-			t.Errorf("pill IPC = %q, want %q", got, "bar DP-1 "+id)
+		if got := <-calls; got != "openSurface DP-1 "+id {
+			t.Errorf("pill IPC = %q, want %q", got, "openSurface DP-1 "+id)
 		}
 	}
 	for _, command := range []string{"bar", "bar missing", "bar launcher extra"} {
