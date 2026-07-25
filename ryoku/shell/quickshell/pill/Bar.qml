@@ -1,37 +1,33 @@
 pragma ComponentBehavior: Bound
-import QtQuick
-import Quickshell.Services.Pipewire
 
-// The Atoll-only host. Launcher, Settings, workspaces, tray and power remain
-// interactive; all other bar modules are display-only.
+import QtQuick
+
 Item {
     id: bar
 
-    required property real s
-    // Base island strip height before monitor scaling.
-    property real band: 0
-    required property var trayWindow
+    required property real scale
+    required property var frameBars
+    required property var style
 
-    signal powerRequested(real center)
+    signal menuRequested(string id, rect ownerRect)
+    signal surfaceRequested(string id, rect ownerRect)
 
+    Repeater {
+        model: ["top", "left", "bottom", "right"]
 
-    // a wheel over the bar strip nudges the sink volume (narrated by the OSD).
-    readonly property var sink: Pipewire.defaultAudioSink
-    function nudgeVolume(steps) {
-        if (!sink || !sink.audio)
-            return;
-        sink.audio.muted = false;
-        sink.audio.volume = Math.max(0, Math.min(1, sink.audio.volume + steps * 0.03));
-    }
-    WheelHandler {
-        onWheel: (w) => bar.nudgeVolume(w.angleDelta.y > 0 ? 1 : -1)
-    }
-
-    AtollBar {
-        anchors.fill: parent
-        s: bar.s
-        band: bar.band
-        trayWindow: bar.trayWindow
-        onPowerRequested: (center) => bar.powerRequested(center)
+        FrameRail {
+            required property string modelData
+            edge: modelData
+            scale: bar.scale
+            rail: bar.frameBars.rails[modelData]
+            style: bar.style
+            visible: rail.enabled
+            onWidgetActivated: (id, ownerRect) => {
+                if (bar.frameBars.menus[id])
+                    bar.menuRequested(id, ownerRect);
+                else if (bar.frameBars.surfaces[id])
+                    bar.surfaceRequested(id, ownerRect);
+            }
+        }
     }
 }

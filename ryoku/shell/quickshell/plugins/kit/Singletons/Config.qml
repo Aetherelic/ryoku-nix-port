@@ -2,6 +2,9 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../../../pill/framebars/FrameBars.js" as FrameBars
+import "../../../pill/framebars/BarCatalog.js" as BarCatalog
+import "../../../pill/framebars/MenuCatalog.js" as MenuCatalog
 
 // live shell appearance config. single source of truth for the look knobs
 // Ryoku Settings' Shell section edits, plus the shipped defaults the shell
@@ -51,6 +54,8 @@ Singleton {
     // (surfaces + keybinds still summon the pill). toggled by Ryoku Settings
     // -> Shell -> Bar.
     property alias barEnabled: adapter.barEnabled
+    property alias frameBars: adapter.frameBars
+    readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
     FileView {
         id: file
@@ -80,6 +85,7 @@ Singleton {
             property string islandStyle: "floating"
             property bool islandAutohide: true
             property bool barEnabled: true
+            property var frameBars: FrameBars.defaultConfig()
         }
     }
 

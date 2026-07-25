@@ -18,6 +18,7 @@ import Ryoku.Blobs
 import Ryoku.Ui
 import "Singletons"
 import "popouts"
+import "framebars/RailGeometry.js" as RailGeometry
 
 // Per monitor the shell maps an exclusive-zone strip for the atoll bar, a
 // full-screen transparent overlay for the frame and retained surfaces, and the
@@ -301,46 +302,83 @@ ShellRoot {
         model: Quickshell.screens
 
         PanelWindow {
-            id: reserve
             required property var modelData
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
-            readonly property real zone: Math.max(0, Config.effectiveFrameBorder - 50) + Config.barBandBase * s
+            readonly property var rail: Config.normalizedFrameBars.rails.top
+            readonly property real zone: RailGeometry.reserve("top", Math.max(0, Config.effectiveFrameBorder - 50), rail.size * s, rail.enabled)
 
             screen: modelData
-            visible: barPos === "top"
+            visible: rail.enabled
             color: "transparent"
             exclusionMode: ExclusionMode.Normal
             exclusiveZone: zone
             aboveWindows: true
             anchors { top: true; left: true; right: true }
             implicitHeight: zone
-            mask: emptyReserve
-            Region { id: emptyReserve }
+            mask: Region {}
         }
     }
 
-    // A bottom bar claims its own edge strip, independent of the top reserve.
     Variants {
         model: Quickshell.screens
 
         PanelWindow {
-            id: sideReserve
             required property var modelData
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property bool active: Config.barEnabled && Config.barPosition === "bottom"
-            readonly property real zone: Math.max(0, Config.effectiveFrameBorder - 50) + Config.barBandBase * s
+            readonly property var rail: Config.normalizedFrameBars.rails.left
+            readonly property real zone: RailGeometry.reserve("left", Math.max(0, Config.effectiveFrameBorder - 50), rail.size * s, rail.enabled)
 
             screen: modelData
-            visible: active
+            visible: rail.enabled
             color: "transparent"
             exclusionMode: ExclusionMode.Normal
-            exclusiveZone: active ? zone : 0
+            exclusiveZone: zone
+            aboveWindows: true
+            anchors { top: true; bottom: true; left: true }
+            implicitWidth: zone
+            mask: Region {}
+        }
+    }
+
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            required property var modelData
+            readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
+            readonly property var rail: Config.normalizedFrameBars.rails.bottom
+            readonly property real zone: RailGeometry.reserve("bottom", Math.max(0, Config.effectiveFrameBorder - 50), rail.size * s, rail.enabled)
+
+            screen: modelData
+            visible: rail.enabled
+            color: "transparent"
+            exclusionMode: ExclusionMode.Normal
+            exclusiveZone: zone
             aboveWindows: true
             anchors { bottom: true; left: true; right: true }
             implicitHeight: zone
-            mask: emptySideReserve
-            Region { id: emptySideReserve }
+            mask: Region {}
+        }
+    }
+
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            required property var modelData
+            readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
+            readonly property var rail: Config.normalizedFrameBars.rails.right
+            readonly property real zone: RailGeometry.reserve("right", Math.max(0, Config.effectiveFrameBorder - 50), rail.size * s, rail.enabled)
+
+            screen: modelData
+            visible: rail.enabled
+            color: "transparent"
+            exclusionMode: ExclusionMode.Normal
+            exclusiveZone: zone
+            aboveWindows: true
+            anchors { top: true; bottom: true; right: true }
+            implicitWidth: zone
+            mask: Region {}
         }
     }
 
@@ -352,22 +390,25 @@ ShellRoot {
             required property var modelData
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
 
-            // Atoll floats against the configured top or bottom edge. Its frame
-            // never swells into the island strip.
-            readonly property string barPos: !Config.barEnabled ? "" : (Config.barPosition === "bottom" ? "bottom" : "top")
-            readonly property bool barTop: barPos === "top"
-            readonly property bool barBottom: barPos === "bottom"
-            readonly property string popoutEdge: Config.barPosition === "bottom" ? "bottom" : "top"
-            readonly property real frameTopVisible: Math.max(0, Config.effectiveFrameBorder - 50)
-            readonly property real barBand: Config.barBandBase * s
-            readonly property real barVisibleH: frameTopVisible + barBand
-            readonly property real surfaceFrameThickness: Config.barEnabled ? barVisibleH : frameTopVisible
-
-            // Both sidebar bodies stay here for their later UI rebuild, but all
-            // corners, edge drops, keybinds and IPC entry paths are gone.
+            readonly property var frameBars: Config.normalizedFrameBars
+            readonly property var rails: frameBars.rails
+            readonly property real frameLip: Math.max(0, Config.effectiveFrameBorder - 50)
+            readonly property string popoutEdge: "top"
+            readonly property real surfaceFrameThickness: frameLip + railThickness("top")
             readonly property real sidebarW: Config.sidebarWidth * s
-            readonly property real sidebarTopGap: (barTop ? barVisibleH : frameTopVisible) + 14 * s
-            readonly property real sidebarBotGap: (barBottom ? barVisibleH : frameTopVisible) + 14 * s
+            readonly property real sidebarTopGap: railClearance("top") + 14 * s
+            readonly property real sidebarBotGap: railClearance("bottom") + 14 * s
+            readonly property var topRailRect: RailGeometry.edgeRect("top", railThickness("top"), width, height)
+            readonly property var leftRailRect: RailGeometry.edgeRect("left", railThickness("left"), width, height)
+            readonly property var bottomRailRect: RailGeometry.edgeRect("bottom", railThickness("bottom"), width, height)
+            readonly property var rightRailRect: RailGeometry.edgeRect("right", railThickness("right"), width, height)
+            function railThickness(edge) { return rails[edge].size * s; }
+            function railEnabled(edge) { return rails[edge].enabled; }
+            function railClearance(edge) {
+                return railEnabled(edge)
+                    ? RailGeometry.reserve(edge, frameLip, railThickness(edge), true)
+                    : frameLip;
+            }
 
             readonly property bool kbPopout: root.popoutMon === modelData.name
                 && root.kbPopouts.indexOf(root.popout) >= 0
@@ -404,17 +445,18 @@ ShellRoot {
             // mid-drag; losing the region there kills the grab and the island
             // snaps home while the button is still held.
             mask: monFullscreen ? hiddenRegion
-                : ((modal || recHud.dragging) ? fullRegion : barRegion)
+                : ((modal || recHud.dragging) ? fullRegion : railRegion)
 
-            // Atoll only occupies a horizontal strip at the selected edge.
-            readonly property real barMaskX: 0
-            readonly property real barMaskY: barBottom ? height - barVisibleH : 0
-            readonly property real barMaskW: width
-            readonly property real barMaskH: barVisibleH
-            function inBarStrip(x, y) {
-                return Config.barEnabled
-                    && x >= barMaskX && x < barMaskX + barMaskW
-                    && y >= barMaskY && y < barMaskY + barMaskH;
+            function inRail(x, y) {
+                const edges = ["top", "left", "bottom", "right"];
+                for (let i = 0; i < edges.length; i++) {
+                    const edge = edges[i];
+                    const rect = RailGeometry.edgeRect(edge, railThickness(edge), width, height);
+                    if (railEnabled(edge) && x >= rect.x && x < rect.x + rect.width
+                            && y >= rect.y && y < rect.y + rect.height)
+                        return true;
+                }
+                return false;
             }
             Region { id: hiddenRegion }
             Region {
@@ -423,12 +465,11 @@ ShellRoot {
                 height: overlay.height
             }
             Region {
-                id: barRegion
-                // Bar strip plus the surviving surface masks.
-                x: overlay.barMaskX
-                y: overlay.barMaskY
-                width: Config.barEnabled ? overlay.barMaskW : 0
-                height: Config.barEnabled ? overlay.barMaskH : 0
+                id: railRegion
+                Region { x: overlay.topRailRect.x; y: overlay.topRailRect.y; width: overlay.railEnabled("top") ? overlay.topRailRect.width : 0; height: overlay.railEnabled("top") ? overlay.topRailRect.height : 0 }
+                Region { x: overlay.leftRailRect.x; y: overlay.leftRailRect.y; width: overlay.railEnabled("left") ? overlay.leftRailRect.width : 0; height: overlay.railEnabled("left") ? overlay.leftRailRect.height : 0 }
+                Region { x: overlay.bottomRailRect.x; y: overlay.bottomRailRect.y; width: overlay.railEnabled("bottom") ? overlay.bottomRailRect.width : 0; height: overlay.railEnabled("bottom") ? overlay.bottomRailRect.height : 0 }
+                Region { x: overlay.rightRailRect.x; y: overlay.rightRailRect.y; width: overlay.railEnabled("right") ? overlay.rightRailRect.width : 0; height: overlay.railEnabled("right") ? overlay.rightRailRect.height : 0 }
                 Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
                 Region { x: powerPop.maskX; y: powerPop.maskY; width: powerPop.maskW; height: powerPop.maskH }
                 Region { x: voicePop.maskX; y: voicePop.maskY; width: voicePop.maskW; height: voicePop.maskH }
@@ -444,9 +485,7 @@ ShellRoot {
                 enabled: overlay.modal
                 acceptedButtons: Qt.AllButtons
                 onPressed: (mouse) => {
-                    // A bar-strip press belongs to the bar; only a true backdrop
-                    // press dismisses the keyboard surface.
-                    if (overlay.inBarStrip(mouse.x, mouse.y)) return;
+                    if (overlay.inRail(mouse.x, mouse.y)) return;
                     if (overlay.kbPopout) root.popout = "";
                 }
             }
@@ -547,20 +586,14 @@ ShellRoot {
                 }
 
 
-                // Atoll rides the transparent frame overlay and keeps the power
-                // menu as its only bar-owned popup.
                 Bar {
-                    id: topBar
+                    id: frameBars
+                    anchors.fill: parent
                     z: 1
-                    visible: Config.barEnabled && !overlay.monFullscreen
-                    x: overlay.barMaskX
-                    y: overlay.barMaskY
-                    width: overlay.barMaskW
-                    height: overlay.barMaskH
-                    s: overlay.s
-                    band: overlay.barBand
-                    trayWindow: overlay
-                    onPowerRequested: (center) => root.togglePopoutAt(overlay.modelData.name, "power", center)
+                    visible: !overlay.monFullscreen
+                    scale: overlay.s
+                    frameBars: overlay.frameBars
+                    style: ({ group: blobGroup })
                 }
 
                 // power popout: the session menu, grown from the bar edge. The
@@ -643,7 +676,7 @@ ShellRoot {
                 Popout {
                     id: sidebarLeftPop
                     group: blobGroup
-                    frameThickness: overlay.frameTopVisible
+                    frameThickness: overlay.frameLip
                     radius: Config.frameRadius
                     smoothing: Config.frameSmoothing
                     edge: "left"
@@ -670,7 +703,7 @@ ShellRoot {
                 Popout {
                     id: sidebarRightPop
                     group: blobGroup
-                    frameThickness: overlay.frameTopVisible
+                    frameThickness: overlay.frameLip
                     radius: Config.frameRadius
                     smoothing: Config.frameSmoothing
                     edge: "right"
@@ -722,8 +755,8 @@ ShellRoot {
                     group: blobGroup
                     s: overlay.s
                     smoothing: Config.frameSmoothing
-                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
-                    barBand: overlay.barBand
+                    barEdge: overlay.railEnabled("top") ? "top" : ""
+                    barBand: overlay.railEnabled("top") ? overlay.railThickness("top") : 0
                 }
 
             }

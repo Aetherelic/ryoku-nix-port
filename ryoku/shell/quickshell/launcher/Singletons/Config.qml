@@ -2,6 +2,9 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../../pill/framebars/FrameBars.js" as FrameBars
+import "../../pill/framebars/BarCatalog.js" as BarCatalog
+import "../../pill/framebars/MenuCatalog.js" as MenuCatalog
 
 // live shell appearance config. one source of truth for the look knobs Ryoku
 // Settings' Shell section edits, plus the shipped defaults the shell falls back
@@ -52,6 +55,8 @@ Singleton {
     // in place of the resting island. when on, the island never shows at rest
     // (surfaces / keybinds still summon the pill). Settings -> Shell -> Bar.
     property alias barEnabled: adapter.barEnabled
+    property alias frameBars: adapter.frameBars
+    readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
     // typography: UI font family (Theme.font reads this) + a scale that grows
     // or shrinks the whole pill (text and the island around it). keeps the
@@ -111,6 +116,7 @@ Singleton {
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
             property real grainStrength: 0.09
+            property var frameBars: FrameBars.defaultConfig()
         }
     }
 

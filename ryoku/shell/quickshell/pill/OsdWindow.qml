@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "Singletons"
+import "framebars/RailGeometry.js" as RailGeometry
 
 // Volume / brightness OSD in its own small layer window, bottom-centre just
 // above the bar. Re-homed from the floating pill: the Osd component still
@@ -17,14 +18,12 @@ PanelWindow {
     required property var modelData
     readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
 
-    // top/bottom bar (left/right collapse to top, as the overlay does).
-    readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
-    readonly property bool barBottom: barPos === "bottom"
-    // clear the bottom bar band (or just the bottom frame lip), matching the
-    // overlay's barVisibleH, then float a small gap above it.
-    readonly property real frameLip: Math.max(0, Config.frameBorder - 50)
-    readonly property real barVisibleH: frameLip + Config.barHeight * s
-    readonly property real bottomInset: (barBottom ? barVisibleH : frameLip) + 12 * s
+    readonly property real frameLip: Math.max(0, Config.effectiveFrameBorder - 50)
+    readonly property var bottomRail: Config.normalizedFrameBars.rails.bottom
+    readonly property real bottomRailThickness: bottomRail.size * s
+    readonly property real bottomInset: (bottomRail.enabled
+        ? RailGeometry.reserve("bottom", frameLip, bottomRailThickness, true)
+        : frameLip) + 12 * s
 
     // this monitor's visible workspace holds a fullscreen window: the whole
     // shell hides then, so the OSD stays down too (suppressed clears its
