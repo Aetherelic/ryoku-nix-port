@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../framebars/lib/providers.js" as Providers
 
 // Lightweight network presence for Atoll's display-only status: connection
 // kind (ethernet/wifi/none), Wi-Fi signal and radio state. It polls gently
@@ -14,6 +15,19 @@ Singleton {
     // 0..1 wifi signal, meaningful while kind === "wifi"
     property real level: 0
     property bool wifiRadio: true
+    property bool vpnActive: false
+    property string vpnName: ""
+    property bool vpnPolling: false
+
+    onVpnPollingChanged: {
+        if (vpnPolling) vpnProc.running = true;
+        else {
+            vpnProc.running = false;
+            vpnActive = false;
+            vpnName = "";
+        }
+    }
+
 
     function refresh() {
         stateProc.running = true;
@@ -38,6 +52,25 @@ Singleton {
                 root.wifiRadio = (parts[2] || "").indexOf("enabled") >= 0;
             }
         }
+    }
+
+    Process {
+        id: vpnProc
+        command: ["sh", "-c", "nmcli -t -f TYPE,NAME connection show --active 2>/dev/null | sed -n 's/^vpn:/vpn:connected:/p'"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const vpn = Providers.parseVpn(this.text);
+                root.vpnActive = vpn.active;
+                root.vpnName = vpn.name;
+            }
+        }
+    }
+
+    Timer {
+        interval: 30000
+        repeat: true
+        running: root.vpnPolling
+        onTriggered: vpnProc.running = true
     }
 
     Timer {

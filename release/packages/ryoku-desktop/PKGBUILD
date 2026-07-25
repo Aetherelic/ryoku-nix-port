@@ -172,6 +172,7 @@ depends=(
   'libqalculate'         # calculator backend (launcher Super+Space)
   'songrec'              # Recognize Music (launcher)
   'upower'               # battery + power status (pill/bar battery indicator)
+  'power-profiles-daemon'
   # external-monitor brightness over DDC/CI: the pill DISPLAY faders and the
   # XF86MonBrightness keys drive external displays through `ddcutil setvcp`.
   # was base.packages-only, so it never reached update/shell boxes (the pill

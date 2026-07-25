@@ -27,6 +27,9 @@ Item {
         case "tray": return trayComponent;
         case "quick-settings": return quickSettingsComponent;
         case "dock": return dockComponent;
+        case "layout-switcher": return layoutSwitcherComponent;
+        case "power-profile": return powerProfileComponent;
+        case "vpn": return vpnComponent;
         case "audio-input":
         case "audio-output":
         case "battery":
@@ -108,5 +111,8 @@ Item {
         }
     }
     Component { id: statusComponent; RailStatus { edge: root.edge; scale: root.scale; statusId: root.widgetId } }
+    Component { id: layoutSwitcherComponent; RailLayoutSwitcher { edge: root.edge; scale: root.scale; active: root.visible } }
+    Component { id: powerProfileComponent; RailPowerProfile { edge: root.edge; scale: root.scale; active: root.visible } }
+    Component { id: vpnComponent; RailVpn { edge: root.edge; scale: root.scale; active: root.visible } }
     Component { id: actionComponent; RailAction { edge: root.edge; scale: root.scale; actionId: root.widgetId } }
 }
