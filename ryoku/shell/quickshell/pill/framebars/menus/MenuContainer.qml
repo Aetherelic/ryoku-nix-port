@@ -3,8 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 
 // Nested composition: a bounded, orientation-aware group of menu widgets. The
-// depth cap stops a self-referential container from recursing without end. Like
-// MenuColumn it loads the host by url to avoid a circular type dependency.
+// depth cap stops a self-referential container from recursing without end.
 Item {
     id: root
 
@@ -28,18 +27,13 @@ Item {
 
     Component {
         id: hostComp
-        Loader {
-            id: host
+        MenuHostLoader {
             required property var modelData
             width: root.orientation === "horizontal" ? implicitWidth : root.width
-            source: Qt.resolvedUrl("../../MenuWidgetHost.qml")
-            onLoaded: {
-                item.widgetId = Qt.binding(() => (typeof host.modelData === "string") ? host.modelData : (host.modelData && host.modelData.id ? host.modelData.id : ""));
-                item.widgetData = Qt.binding(() => (typeof host.modelData === "object") ? host.modelData : null);
-                item.scale = Qt.binding(() => root.scale);
-                item.open = Qt.binding(() => root.open);
-                item.depth = Qt.binding(() => root.depth + 1);
-            }
+            widget: modelData
+            scale: root.scale
+            open: root.open
+            depth: root.depth + 1
         }
     }
 

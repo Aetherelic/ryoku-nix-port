@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { open, closeAt, activeAt } = require("./MenuState.js");
+const { open, closeAt, activeAt, recordFor } = require("./MenuState.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {
@@ -35,6 +35,20 @@ eq(activeAt(rejectAnchor, "eDP-1", undefined), null, "rejects a missing anchor")
 
 eq(activeAt(state, "eDP-1", "bottom"), null, "unset anchor is null");
 eq(activeAt(state, "DP-9", "left"), null, "unknown monitor is null");
+
+// Anchor-source agreement: the manager keys open state off recordFor's anchor,
+// the rendered delegate keys menuOpen off the same normalized record. A config
+// override must move BOTH together. The catalog default here is "left"; config
+// overrides it to "top". Opening at the config anchor is what makes the menu
+// visible -- keying at the stale catalog anchor would open where no delegate
+// listens, the desync this guards against.
+const normalizedMenus = [{ id: "quick-settings", anchor: "top", minWidth: 410 }];
+const opened = recordFor(normalizedMenus, "quick-settings");
+eq(opened.anchor, "top", "recordFor takes the config-overridden anchor, not the catalog default");
+const overrideState = open({}, "eDP-1", { id: opened.id, anchor: opened.anchor });
+eq(activeAt(overrideState, "eDP-1", "top").id, "quick-settings", "menu opens at the overridden anchor the delegate renders at");
+eq(activeAt(open({}, "eDP-1", { id: "quick-settings", anchor: "left" }), "eDP-1", "top"), null, "keying at the stale catalog anchor leaves the delegate anchor empty");
+eq(recordFor(normalizedMenus, "no-such-menu"), null, "recordFor rejects an unconfigured id");
 
 if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 console.log("\nAll tests PASSED");

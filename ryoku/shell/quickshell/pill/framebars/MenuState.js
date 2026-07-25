@@ -30,4 +30,14 @@ function activeAt(state, monitor, anchor) {
     return state[monitor][anchor];
 }
 
-if (typeof module !== "undefined" && module.exports) module.exports = { open, closeAt, activeAt };
+// Resolve the configured menu record to open by id from the manager's normalized
+// list. The open key must come from this record's anchor -- the same one the
+// rendered delegate keys menuOpen off -- not the immutable catalog anchor, or a
+// user-overridden anchor would key state where no delegate is listening.
+function recordFor(menus, id) {
+    if (!Array.isArray(menus)) return null;
+    for (let i = 0; i < menus.length; ++i) if (menus[i] && menus[i].id === id) return menus[i];
+    return null;
+}
+
+if (typeof module !== "undefined" && module.exports) module.exports = { open, closeAt, activeAt, recordFor };

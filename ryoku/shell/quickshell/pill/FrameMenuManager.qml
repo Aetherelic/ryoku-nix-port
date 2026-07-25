@@ -80,7 +80,7 @@ Item {
     // this item and are ignored, so every monitor's manager sees one broadcast
     // signal but only the owning monitor reacts.
     function openMenu(id, ownerRect) {
-        const rec = MenuCatalog.menu(id);
+        const rec = MenuState.recordFor(root.menus, id);
         if (!rec) return;
         const local = root.mapFromGlobal(ownerRect.x, ownerRect.y);
         if (local.x < 0 || local.y < 0 || local.x >= root.width || local.y >= root.height) return;

@@ -16,7 +16,8 @@ Popout {
     property bool menuOpen: false
 
     readonly property var widgetIds: record && record.widgets ? record.widgets : []
-    readonly property real minWidth: record && record.minWidth ? record.minWidth : 200
+    readonly property real fallbackMinWidth: 200
+    readonly property real minWidth: record && record.minWidth ? record.minWidth : fallbackMinWidth
     // stays true through the close melt so the body tears down only once flush.
     readonly property bool effectiveOpen: menuOpen || prog > 0.004
 
