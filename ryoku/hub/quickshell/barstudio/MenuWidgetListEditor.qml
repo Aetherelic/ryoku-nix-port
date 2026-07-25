@@ -14,6 +14,13 @@ ColumnLayout {
     required property var catalog
     signal staged(var next)
     property string addition: ""
+    property int selected: -1
+    function select(index) {
+        if (index < 0 || index >= items.length) return;
+        selected = index;
+        rows.itemAt(index).selectionControl.forceActiveFocus();
+    }
+
 
     readonly property var items: {
         let list = root.config.menus[root.menuId].widgets;
@@ -37,16 +44,25 @@ ColumnLayout {
         Btn { text: qsTr("Add"); armed: root.addition.length > 0; onAct: root.staged(Model.addMenuWidget(root.config, root.menuId, root.path, root.addition, root.catalog)) }
     }
     Repeater {
+        id: rows
         model: root.items
         delegate: RowLayout {
             required property var modelData
             required property int index
             readonly property string itemId: typeof modelData === "string" ? modelData : modelData.id
-            Text { text: labels.item(itemId) }
-            Btn { text: qsTr("Up"); armed: index > 0; onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, root.path, index - 1, root.catalog)) }
-            Btn { text: qsTr("Down"); armed: index < root.items.length - 1; onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, root.path, index + 1, root.catalog)) }
-            Btn { text: qsTr("Move"); onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, [], root.config.menus[root.menuId].widgets.length, root.catalog)) }
-            Btn { text: qsTr("Remove"); onAct: root.staged(Model.removeMenuWidget(root.config, root.menuId, root.path, index)) }
+            property alias selectionControl: selection
+            Btn {
+                id: selection
+                objectName: "menu-widget-selection-" + index
+                text: labels.item(itemId)
+                primary: root.selected === index
+                onAct: root.select(index)
+                onNavigation: key => root.select(index + (key === Qt.Key_Up ? -1 : 1))
+            }
+            Btn { objectName: "menu-widget-up-" + index; text: qsTr("Up"); armed: index > 0; onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, root.path, index - 1, root.catalog)) }
+            Btn { objectName: "menu-widget-down-" + index; text: qsTr("Down"); armed: index < root.items.length - 1; onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, root.path, index + 1, root.catalog)) }
+            Btn { objectName: "menu-widget-move-" + index; text: qsTr("Move"); onAct: root.staged(Model.moveMenuWidget(root.config, root.menuId, root.path, index, [], root.config.menus[root.menuId].widgets.length, root.catalog)) }
+            Btn { objectName: "menu-widget-remove-" + index; text: qsTr("Remove"); onAct: root.staged(Model.removeMenuWidget(root.config, root.menuId, root.path, index)) }
         }
     }
 }

@@ -6,13 +6,18 @@ Rectangle {
     id: sw
     property bool on: false
     signal toggled(bool v)
+    function activate() {
+        toggled(!on);
+    }
+
 
     implicitWidth: 54
     implicitHeight: 24
     radius: Tokens.radius
+    activeFocusOnTab: true
     color: "transparent"
     border.width: Tokens.border
-    border.color: hh.hovered ? Tokens.lineStrong : Tokens.line
+    border.color: hh.hovered || activeFocus ? Tokens.lineStrong : Tokens.line
     antialiasing: false
     Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
 
@@ -29,5 +34,11 @@ Rectangle {
         Behavior on x { NumberAnimation { duration: Tokens.snap; easing.type: Tokens.easeSnap } }
     }
     HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
-    TapHandler { onTapped: sw.toggled(!sw.on) }
+    TapHandler { onTapped: sw.activate() }
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            sw.activate()
+            event.accepted = true
+        }
+    }
 }

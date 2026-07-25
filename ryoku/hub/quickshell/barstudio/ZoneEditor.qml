@@ -33,12 +33,14 @@ ColumnLayout {
         Layout.fillWidth: true
         Text { text: qsTr("Add compatible widget") }
         Chips {
+            objectName: "zone-addition"
             Layout.fillWidth: true
             options: root.compatibleLabels
             current: labels.item(root.addition)
             onChose: label => root.addition = root.compatible.find(id => labels.item(id) === label) || ""
         }
         Btn {
+            objectName: "zone-add"
             text: qsTr("Add")
             armed: root.addition.length > 0
             onAct: root.staged(Model.addZoneItem(root.config, root.edge, root.horizontal ? "start" : "top", root.addition, root.catalog))

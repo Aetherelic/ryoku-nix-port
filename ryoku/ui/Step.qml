@@ -10,6 +10,10 @@ Row {
     property int to: 100
     property int stepBy: (to - from) > 60 ? 4 : 1
     signal modified(int v)
+    function activate(up) {
+        if ((up && value < to) || (!up && value > from)) bump(up);
+    }
+
 
     spacing: 0
 
@@ -20,14 +24,15 @@ Row {
             required property int index
             readonly property bool up: index === 1
             readonly property bool spent: up ? step.value >= step.to : step.value <= step.from
+            activeFocusOnTab: !spent
 
             width: 29
             height: 24
             radius: Tokens.radius
             opacity: spent ? 0.3 : 1
-            color: bh.hovered && !spent ? Tokens.tint10 : "transparent"
+            color: (bh.hovered || activeFocus) && !spent ? Tokens.tint10 : "transparent"
             border.width: Tokens.border
-            border.color: bh.hovered && !spent ? Tokens.lineStrong : Tokens.line
+            border.color: (bh.hovered || activeFocus) && !spent ? Tokens.lineStrong : Tokens.line
             Behavior on color { ColorAnimation { duration: Tokens.snap } }
 
             Text {
@@ -41,10 +46,16 @@ Row {
             TapHandler {
                 enabled: !parent.spent
                 longPressThreshold: 0.4
-                onTapped: step.bump(parent.up)
+                onTapped: step.activate(parent.up)
                 onLongPressed: repeat.start()
                 onPressedChanged: if (!pressed) repeat.stop()
                 onCanceled: repeat.stop()
+            }
+            Keys.onPressed: event => {
+                if (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    step.activate(up)
+                    event.accepted = true
+                }
             }
             Timer {
                 id: repeat
