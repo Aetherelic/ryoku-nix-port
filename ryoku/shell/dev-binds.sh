@@ -11,6 +11,7 @@ binds=(
 	"SUPER,L,exec,$bin lock"
 	"SUPER,B,exec,$bin wallpaper"
 	"SUPER,C,exec,$bin wallpaper-switcher"
+	"SUPER,period,exec,ryoku-hub config set section bar-studio; flock -n -o /tmp/ryoku-hub.lock qs -c hub"
 )
 
 case "${1:-on}" in

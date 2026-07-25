@@ -74,6 +74,32 @@ func TestConfigUnknownKey(t *testing.T) {
 	}
 }
 
+func TestLegacyBarAndFrameSectionsMigrateToBarStudio(t *testing.T) {
+	for _, legacy := range []string{"bar", "frame"} {
+		t.Run(legacy, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("XDG_CONFIG_HOME", dir)
+			path := filepath.Join(dir, "ryoku", "hub.toml")
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("[ui]\nsection = \""+legacy+"\"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if got := loadConfig().UI.Section; got != "bar-studio" {
+				t.Fatalf("loaded legacy %q section = %q, want bar-studio", legacy, got)
+			}
+			bytes, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !contains(string(bytes), "section = \"bar-studio\"") {
+				t.Fatalf("legacy section was not persisted as bar-studio:\n%s", bytes)
+			}
+		})
+	}
+}
+
 func contains(haystack, needle string) bool {
 	return len(haystack) >= len(needle) && (indexOf(haystack, needle) >= 0)
 }

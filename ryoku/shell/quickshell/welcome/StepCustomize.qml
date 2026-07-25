@@ -6,9 +6,8 @@ import Ryoku.Ui.Singletons
 import "Singletons"
 
 // Step 4 body: a few wired quick choices through the same paths the Hub uses.
-// Wallpaper shuffles through ryoku-shell; bar position, atoll look and frame
-// corner merge into shell.json; window rounding round-trips the Hub's Hyprland
-// appearance store.
+// Wallpaper shuffles through ryoku-shell; Bar Studio owns the frame-bar layout;
+// window rounding round-trips the Hub's Hyprland appearance store.
 Flickable {
     id: step
 
@@ -20,18 +19,13 @@ Flickable {
 
     readonly property string cfgPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
 
-    // Seeds mirror the shipped atoll defaults until syncFromDisk reads the file.
-    property string barPosition: "top"
-    property string atollVariant: "ilyamiro"
     property real frameRadius: 0
     property real windowRounding: 0
 
-    // read the current shell values so the controls open on the live state.
+    // Read the current shell values so the controls open on the live state.
     function syncFromDisk() {
         try {
             var o = JSON.parse(shellFile.text() || "{}");
-            if (o.barPosition) step.barPosition = o.barPosition;
-            step.atollVariant = o.atollVariant === "ryoku" ? "ryoku" : "ilyamiro";
             if (typeof o.frameRadius === "number") step.frameRadius = o.frameRadius;
         } catch (e) {}
     }
@@ -61,6 +55,7 @@ Flickable {
     }
 
     Process { id: wallProc; command: ["ryoku-shell", "wallpaper", "next"] }
+    Process { id: barStudioProc; command: ["sh", "-c", "ryoku-hub config set section bar-studio; flock -n -o /tmp/ryoku-hub.lock qs -c hub"] }
 
     Process {
         id: roundInit
@@ -133,36 +128,31 @@ Flickable {
             }
         }
 
-        // --- Bar position -------------------------------------------------
         Column {
             width: parent.width
             spacing: 12
 
-            GroupMark { width: parent.width; text: "Bar position" }
+            GroupMark { width: parent.width; text: qsTr("Bar Studio") }
 
-            ChipRow {
+            Row {
                 width: parent.width
-                model: [{ "key": "top", "label": "Top" }, { "key": "bottom", "label": "Bottom" }]
-                current: step.barPosition
-                onSelected: (k) => { step.barPosition = k; step.setKey("barPosition", k); }
-            }
-        }
-
-        // --- Atoll look ---------------------------------------------------
-        Column {
-            width: parent.width
-            spacing: 12
-
-            GroupMark { width: parent.width; text: "Atoll look" }
-
-            ChipRow {
-                width: parent.width
-                model: [
-                    { "key": "ilyamiro", "label": "ilyamiro" },
-                    { "key": "ryoku", "label": "Ryoku" }
-                ]
-                current: step.atollVariant
-                onSelected: (k) => { step.atollVariant = k; step.setKey("atollVariant", k); }
+                spacing: 16
+                WelcomeButton {
+                    kind: "solid"
+                    label: qsTr("Open Bar Studio")
+                    anchors.verticalCenter: parent.verticalCenter
+                    onClicked: barStudioProc.running = true
+                }
+                Text {
+                    width: parent.width - 180
+                    anchors.verticalCenter: parent.verticalCenter
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Arrange frame rails, menus, surfaces, and styles in one place.")
+                    color: Tokens.inkMuted
+                    font.family: Tokens.ui
+                    font.pixelSize: Tokens.fSmall
+                    lineHeight: 1.25
+                }
             }
         }
 

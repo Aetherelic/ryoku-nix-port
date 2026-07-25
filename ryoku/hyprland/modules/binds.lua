@@ -55,6 +55,7 @@ hl.bind(K(mod .. " + SHIFT + M"), hl.dsp.exec_cmd("ryoku-shell visualizer-overla
 hl.bind(K(mod .. " + G"),         hl.dsp.exec_cmd("ryoku-shell ryolayer"))         -- ryolayer: the tool overlay (music + EQ, mic; drag, resize, pin over the desktop)
 hl.bind(K(mod .. " + grave"),     hl.dsp.exec_cmd("ryoku-shell voice"))             -- tap: Voxtype speech-to-text + mic wave (tap again to stop)
 hl.bind(K(mod .. " + comma"),     hl.dsp.exec_cmd("flock -n -o /tmp/ryoku-hub.lock qs -c hub"))     -- ryoku settings
+hl.bind(K(mod .. " + period"),    hl.dsp.exec_cmd("ryoku-hub config set section bar-studio; flock -n -o /tmp/ryoku-hub.lock qs -c hub"))
 hl.bind(K(mod .. " + K"),         hl.dsp.exec_cmd("ryoku-hub config set section keybinds; flock -n -o /tmp/ryoku-hub.lock qs -c hub")) -- keybind reference (the live shortcut legend)
 hl.bind(K(mod .. " + S"),         hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))  -- screenshot
 hl.bind(K(mod .. " + SHIFT + C"), hl.dsp.exec_cmd("hyprpicker -a"))                 -- pick a color

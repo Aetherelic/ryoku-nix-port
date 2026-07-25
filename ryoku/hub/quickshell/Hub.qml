@@ -6,8 +6,6 @@ import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "Singletons"
-import "schema/BarPage.js" as BarSchema
-import "schema/FramePage.js" as FrameSchema
 import "schema/DesktopPage.js" as DesktopSchema
 import "schema/AppearancePage.js" as AppearanceSchema
 import "schema/WindowsPage.js" as WindowsSchema
@@ -78,7 +76,7 @@ Rectangle {
             { key: "displays", name: "Displays" }, { key: "connections", name: "Connections" },
             { key: "input", name: "Input" }, { key: "cursor", name: "Cursor", adv: true }, { key: "gpu", name: "GPU", adv: true } ] },
         { name: "DESKTOP", items: [
-            { key: "windows", name: "Windows" }, { key: "appearance", name: "Appearance" }, { key: "bar", name: "Bar", wired: true }, { key: "frame", name: "Frame", wired: true, adv: true }, { key: "desktop", name: "Desktop", wired: true },
+            { key: "windows", name: "Windows" }, { key: "appearance", name: "Appearance" }, { key: "bar-studio", name: "Bar Studio", wired: true }, { key: "desktop", name: "Desktop", wired: true },
             { key: "widgets", name: "Widgets", adv: true }, { key: "animations", name: "Animations", adv: true },
             { key: "lockscreen", name: "Lockscreen" }, { key: "launcher", name: "App Launcher" } ] },
         { name: "APPS & KEYS", items: [
@@ -103,7 +101,7 @@ Rectangle {
     readonly property var jpName: ({
         "profile": "横顔", "displays": "画面", "input": "入力", "cursor": "矢印", "keybinds": "操作",
         "connections": "接続", "gpu": "描画", "recording": "録画", "dictation": "音声",
-        "windows": "窓", "appearance": "外観", "bar": "帯", "frame": "枠", "desktop": "卓上", "launcher": "起動", "fastfetch": "情報",
+        "windows": "窓", "appearance": "外観", "bar-studio": "帯", "desktop": "卓上", "launcher": "起動", "fastfetch": "情報",
         "widgets": "部品", "lockscreen": "施錠", "animations": "動き", "store": "商店",
         "addons": "拡張", "windowrules": "規則", "appoverrides": "上書", "layerrules": "階層",
         "autostart": "自動", "environment": "環境", "performance": "性能", "rashin": "羅針",
@@ -126,8 +124,7 @@ Rectangle {
         "dictation": "voice typing speech transcribe whisper microphone stt",
         "windows": "window windows rounding corners softness gaps border borders thickness colour tiling dwindle master scrolling layout opacity transparency transparent dim blur shadow glow glass wobble wobbly title bar titlebar float snap resize animation",
         "appearance": "theme palette accent color colour wallpaper background rice scheme dark light night bluelight comfort brightness backlight",
-        "bar": "bar panel taskbar move position atoll islands sidebar clusters content layout ilyamiro ryoku",
-        "frame": "frame shape roundness surface colour opacity grain noise shadow notifications osd toast font text language type",
+        "bar-studio": "bar frame rails zones widgets menus surfaces style catalogue layout atoll islands sidebar",
         "desktop": "desktop visualizer visualiser spectrum weather brand logo mark name widget board wallpaper",
         "launcher": "launcher spotlight command palette greeting weather home",
         "fastfetch": "fetch neofetch terminal system info logo ascii emblem readout",
@@ -153,7 +150,7 @@ Rectangle {
     // anywhere. Ranking is fuzzy: exact word > substring > subsequence.
     readonly property var searchIndex: {
         var srcs = {
-            "bar": BarSchema.rows, "frame": FrameSchema.rows, "desktop": DesktopSchema.rows, "appearance": AppearanceSchema.rows, "windows": WindowsSchema.rows,
+            "bar-studio": [], "desktop": DesktopSchema.rows, "appearance": AppearanceSchema.rows, "windows": WindowsSchema.rows,
             "input": InputSchema.rows, "cursor": CursorSchema.rows, "keybinds": KeybindsSchema.rows,
             "displays": DisplaysSchema.rows, "gpu": GpuSchema.rows,
             "recording": RecordingSchema.rows, "dictation": DictationSchema.rows,
@@ -275,11 +272,11 @@ Rectangle {
     // `framed` pages keep the rail + bottom action bar; `ledger` pages also get
     // the right write-ledger column. Everything else is full-bleed.
     readonly property var framedSet: ({
-        "bar": true, "frame": true, "desktop": true, "appearance": true, "windows": true, "input": true, "cursor": true, "animations": true,
+        "bar-studio": true, "desktop": true, "appearance": true, "windows": true, "input": true, "cursor": true, "animations": true,
         "windowrules": true, "appoverrides": true, "layerrules": true,
         "autostart": true, "environment": true
     })
-    readonly property var ledgerSet: ({ "bar": true, "frame": true, "desktop": true, "appearance": true, "windows": true })
+    readonly property var ledgerSet: ({ "bar-studio": true, "desktop": true, "appearance": true, "windows": true })
     // Which rail sections drive the Hyprland compositor (they write settings.lua:
     // input, window/layer rules, keybinds, animations, autostart, env, plus the
     // display and cursor hardware). Everything else configures the Ryoku shell.
@@ -315,7 +312,7 @@ Rectangle {
         return false;
     }
     function pageFile(s) {
-        var map = { "windows": "WindowsPage", "profile": "ProfilePage", "bar": "BarPage", "frame": "FramePage", "desktop": "DesktopPage", "environment": "EnvironmentPage", "autostart": "AutostartPage", "layerrules": "LayerRulesPage", "windowrules": "WindowRulesPage", "appoverrides": "AppOverridesPage", "animations": "AnimationsPage", "appearance": "AppearancePage", "input": "InputPage", "cursor": "CursorPage", "keybinds": "KeybindsPage", "dictation": "DictationPage", "displays": "DisplaysPage", "connections": "ConnectionsPage", "gpu": "GpuPage", "updates": "UpdatesPage", "rashin": "RashinPage", "recording": "RecordingPage", "performance": "PerformancePage", "launcher": "LauncherPage", "lockscreen": "LockscreenPage", "fastfetch": "FastfetchPage", "store": "StorePage", "addons": "AddonsPage", "widgets": "WidgetsPage", "credits": "CreditsPage" };
+        var map = { "windows": "WindowsPage", "profile": "ProfilePage", "bar-studio": "BarStudioPage", "desktop": "DesktopPage", "environment": "EnvironmentPage", "autostart": "AutostartPage", "layerrules": "LayerRulesPage", "windowrules": "WindowRulesPage", "appoverrides": "AppOverridesPage", "animations": "AnimationsPage", "appearance": "AppearancePage", "input": "InputPage", "cursor": "CursorPage", "keybinds": "KeybindsPage", "dictation": "DictationPage", "displays": "DisplaysPage", "connections": "ConnectionsPage", "gpu": "GpuPage", "updates": "UpdatesPage", "rashin": "RashinPage", "recording": "RecordingPage", "performance": "PerformancePage", "launcher": "LauncherPage", "lockscreen": "LockscreenPage", "fastfetch": "FastfetchPage", "store": "StorePage", "addons": "AddonsPage", "widgets": "WidgetsPage", "credits": "CreditsPage" };
         return map[s] ? Qt.resolvedUrl("pages/" + map[s] + ".qml") : "";
     }
     function openPick(r) { picker.openFor(r); }
@@ -348,7 +345,7 @@ Rectangle {
     // key -> source file, derived from the schema so it cannot drift.
     readonly property var srcOf: {
         var m = {};
-        var rows = BarSchema.rows.concat(FrameSchema.rows).concat(DesktopSchema.rows);
+        var rows = DesktopSchema.rows;
         for (var i = 0; i < rows.length; i++) {
             var r = rows[i];
             if (r.src && r.src !== "none") m[r.key] = r.src;

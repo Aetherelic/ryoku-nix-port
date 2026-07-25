@@ -76,5 +76,9 @@ const surfaceInput = defaultConfig();
 eq(setSurface(surfaceInput, "stash", { anchor: "bad" }, MenuCatalog).surfaces.stash.anchor, "left", "surface updates normalize anchors");
 eq(surfaceInput, defaultConfig(), "setSurface leaves its input unchanged");
 
+const nestedInput = defaultConfig();
+nestedInput.menus.clock.widgets = ["clock", { id: "container", widgets: ["divider"] }];
+eq(normalize(nestedInput, BarCatalog, MenuCatalog).menus.clock.widgets, ["clock", { id: "container", widgets: ["divider"] }], "normalizer preserves bounded nested menu widgets");
+
 if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 console.log("\nAll tests PASSED");

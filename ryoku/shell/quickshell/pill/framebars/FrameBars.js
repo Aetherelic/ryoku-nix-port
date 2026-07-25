@@ -23,6 +23,23 @@ function idsFor(value, edge, catalog) {
     return ids;
 }
 
+function menuWidgetsFor(value, catalog, depth) {
+    if (!Array.isArray(value) || depth > 3) return [];
+    const out = [];
+    for (const item of value) {
+        const id = typeof item === "string" ? item : (isObject(item) ? item.id : "");
+        const entry = catalog.widget(id);
+        if (!entry) continue;
+        if (entry.nested) {
+            if (!isObject(item)) continue;
+            out.push({ id: id, widgets: menuWidgetsFor(item.widgets, catalog, depth + 1) });
+        } else if (typeof item === "string") {
+            out.push(item);
+        }
+    }
+    return out;
+}
+
 function defaultConfig() {
     return {
         version: 1,
@@ -72,7 +89,7 @@ function normalize(raw, barCatalog, menuCatalog) {
             anchor: menuCatalog.anchors().includes(value.anchor) ? value.anchor : fallback.anchor,
             minWidth: typeof value.minWidth === "number" && isFinite(value.minWidth) ? Math.max(1, Math.round(value.minWidth)) : fallback.minWidth,
             expansion: value.expansion === "always" || value.expansion === "never" ? value.expansion : fallback.expansion,
-            widgets: Array.isArray(value.widgets) ? value.widgets.filter(widget => menuCatalog.widget(widget)) : clone(fallback.widgets)
+            widgets: Array.isArray(value.widgets) ? menuWidgetsFor(value.widgets, menuCatalog, 0) : clone(fallback.widgets)
         };
     }
     for (const id of ["stash", "system"]) {
