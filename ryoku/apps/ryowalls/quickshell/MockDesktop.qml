@@ -4,10 +4,13 @@ import Quickshell
 import Quickshell.Io
 import Ryoku.Ui.Singletons
 import "Singletons"
+import "../../../shell/quickshell/pill/framebars/FrameBars.js" as FrameBars
+import "../../../shell/quickshell/pill/framebars/BarCatalog.js" as BarCatalog
+import "../../../shell/quickshell/pill/framebars/MenuCatalog.js" as MenuCatalog
 
 // The selected wallpaper under the user's live look, recoloured by the
-// candidate Wallust scheme. The Atoll preview follows shell.json; the terminal
-// keeps its fastfetch card and colour strip, and cava keeps its motion.
+// candidate Wallust scheme. The frame-bar preview follows shell.json; the
+// terminal keeps its fastfetch card and colour strip, and cava keeps its motion.
 Item {
     id: mock
     clip: true
@@ -38,7 +41,6 @@ Item {
     readonly property color cCyan:   Wallhaven.col(6, "#6f9aa0")
     readonly property color cAccent: cBlue
 
-    // The user's Atoll look and edge, read from the same shell store.
     FileView {
         id: shellCfg
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
@@ -47,9 +49,16 @@ Item {
         onFileChanged: reload()
         JsonAdapter {
             id: shell
-            property string atollVariant: "ilyamiro"
-            property string barPosition: "top"
+            property var frameBars: FrameBars.defaultConfig()
         }
+    }
+
+    readonly property var frameBars: FrameBars.normalize(shell.frameBars, BarCatalog, MenuCatalog)
+    function railThickness(edge) { return frameBars.rails[edge].size * mock.s; }
+    function railMaterial() {
+        return frameBars.style === "ryoku-frame"
+            ? Qt.rgba(cBg.r, cBg.g, cBg.b, 0.92)
+            : Qt.rgba(cBg.r, cBg.g, cBg.b, 0.76);
     }
 
     // the user's real visualizer config, so the mock's cava is their cava (bars,
@@ -121,40 +130,25 @@ Item {
     // a whisper of shade so light module fills keep their edge on a bright wall.
     Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.16) }
 
-    // The user's Atoll look, recoloured by the candidate scheme.
-    Canvas {
-        id: bar
-        z: 1
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: 12 * mock.s
-        anchors.rightMargin: 12 * mock.s
-        height: 34
-        anchors.top: shell.barPosition === "bottom" ? undefined : parent.top
-        anchors.bottom: shell.barPosition === "bottom" ? parent.bottom : undefined
-        anchors.topMargin: 8 * mock.s
-        anchors.bottomMargin: 8 * mock.s
+    Repeater {
+        model: ["top", "left", "bottom", "right"]
 
-        function tint() { return Qt.rgba(mock.cFg.r, mock.cFg.g, mock.cFg.b, 0.92); }
-        onPaint: {
-            var c = getContext("2d");
-            c.reset();
-            Silhouette.draw(c, shell.atollVariant, width, height, 0.98, 0.5);
-            var t = tint();
-            c.globalCompositeOperation = "source-atop";
-            c.fillStyle = "rgba(" + Math.round(t.r * 255) + "," + Math.round(t.g * 255) + "," + Math.round(t.b * 255) + "," + t.a + ")";
-            c.fillRect(0, 0, width, height);
-            c.globalCompositeOperation = "source-over";
-        }
-        Component.onCompleted: requestPaint()
-        onWidthChanged: requestPaint()
-        Connections {
-            target: Wallhaven
-            function onPaletteChanged() { bar.requestPaint() }
-        }
-        Connections {
-            target: shell
-            function onAtollVariantChanged() { bar.requestPaint() }
+        delegate: Rectangle {
+            required property string modelData
+            readonly property var rail: mock.frameBars.rails[modelData]
+            readonly property bool horizontal: modelData === "top" || modelData === "bottom"
+
+            visible: rail.enabled
+            z: 1
+            width: horizontal ? parent.width : Math.min(parent.width, mock.railThickness(modelData))
+            height: horizontal ? Math.min(parent.height, mock.railThickness(modelData)) : parent.height
+            anchors.top: modelData === "top" ? parent.top : undefined
+            anchors.bottom: modelData === "bottom" ? parent.bottom : undefined
+            anchors.left: modelData === "left" ? parent.left : undefined
+            anchors.right: modelData === "right" ? parent.right : undefined
+            color: mock.railMaterial()
+            border.width: mock.frameBars.style === "ok-frame" ? 1 : 0
+            border.color: Qt.rgba(mock.cFg.r, mock.cFg.g, mock.cFg.b, 0.45)
         }
     }
 

@@ -1193,6 +1193,16 @@ func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 	normalized, frameChanges := normalizeFrameBars(cfg["frameBars"])
 	cfg["frameBars"] = normalized
 	changes = append(changes, frameChanges...)
+	removed := false
+	for _, key := range []string{"barEnabled", "barPosition", "barHeight", "atollVariant"} {
+		if _, exists := cfg[key]; exists {
+			delete(cfg, key)
+			removed = true
+		}
+	}
+	if removed {
+		changes = append(changes, "removed retired bar settings")
+	}
 	if len(changes) == 0 {
 		return nil, nil, nil
 	}

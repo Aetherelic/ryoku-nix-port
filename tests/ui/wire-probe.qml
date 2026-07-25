@@ -13,8 +13,7 @@ ShellRoot {
     readonly property var shellKeys: [
         "language","frameRadius","roundness","frameBorder","frameEnabled",
         "frameSmoothing","frameOpacity","grainStrength","shadowStrength","shadowSize",
-        "surfaceColor","osdRadius","osdOpacity","barEnabled","barPosition","barHeight",
-        "frameBars","atollVariant","fontFamily","fontScale","weatherLocation","weatherUnit",
+        "surfaceColor","osdRadius","osdOpacity","frameBars","fontFamily","fontScale","weatherLocation","weatherUnit",
         "ryolayerEnabled","sidebarLeftPanes","sidebarRightPanes","sidebarWidth"
     ]
 
@@ -59,10 +58,6 @@ ShellRoot {
             property string surfaceColor: "#0f1115"
             property real osdRadius: 28
             property real osdOpacity: 1
-            property bool barEnabled: true
-            property string barPosition: "top"
-            property real barHeight: 30
-            property string atollVariant: "ilyamiro"
             property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
             property string weatherLocation: ""

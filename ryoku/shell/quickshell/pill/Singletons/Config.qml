@@ -41,12 +41,6 @@ Singleton {
     property alias osdRadius:  adapter.osdRadius
     property alias osdOpacity: adapter.osdOpacity
 
-    // Atoll is the only bar; only its two looks vary.
-    property alias barEnabled:  adapter.barEnabled
-    property alias barPosition: adapter.barPosition
-    property alias barHeight:   adapter.barHeight
-    readonly property real barBandBase: barHeight + 18
-    property alias atollVariant: adapter.atollVariant
     property alias frameBars: adapter.frameBars
     readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
@@ -112,10 +106,6 @@ Singleton {
             property color surfaceColor: "#0f1115"
             property real osdRadius: 0
             property real osdOpacity: 1
-            property bool barEnabled: true
-            property string barPosition: "top"
-            property real barHeight: 30
-            property string atollVariant: "ilyamiro"
             property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
             property real roundness: 0

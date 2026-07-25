@@ -26,7 +26,7 @@ Item {
         color: Theme.cream
         font {
             family: Theme.font
-            pixelSize: 12 * scale
+            pixelSize: 12 * scale * Theme.frameClockScale
             weight: Font.DemiBold
             features: ({ "tnum": 1 })
         }

@@ -8,6 +8,7 @@ ShellRoot {
     readonly property real monitorScale: 1.3
     readonly property real frameLip: 9
     readonly property var frameBars: ({
+        style: "ok-frame",
         rails: {
             top: { enabled: true, size: 32, start: ["lock"], center: ["clock"], end: [] },
             left: { enabled: true, size: 48, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["tray", "network", "clock"] },
@@ -33,17 +34,17 @@ ShellRoot {
         return Math.abs(actual - expected) < 0.01;
     }
 
-    function checkRail(edge) {
-        const rail = findRail(scene, edge);
-        const thickness = frameBars.rails[edge].size * monitorScale;
-        const expected = RailGeometry.edgeRect(edge, thickness, scene.width, scene.height);
+    function checkRail(sceneItem, bars, edge) {
+        const rail = findRail(sceneItem, edge);
+        const thickness = bars.rails[edge].size * monitorScale;
+        const expected = RailGeometry.edgeRect(edge, thickness, sceneItem.width, sceneItem.height);
         const reserve = RailGeometry.reserve(edge, frameLip, thickness, true);
         if (!rail) {
             console.log("FAIL " + edge + " rail missing");
             return false;
         }
-        const first = rail.mapToItem(scene, 0, 0);
-        const last = rail.mapToItem(scene, rail.width, rail.height);
+        const first = rail.mapToItem(sceneItem, 0, 0);
+        const last = rail.mapToItem(sceneItem, rail.width, rail.height);
         const actual = {
             x: Math.min(first.x, last.x),
             y: Math.min(first.y, last.y),
@@ -81,12 +82,40 @@ ShellRoot {
             onActionRequested: id => actions.push(id)
         }
     }
+    Item {
+        id: bottomRightScene
+        width: 1920
+        height: 1080
+        visible: false
+
+        readonly property var frameBars: ({
+            style: "ryoku-frame",
+            rails: {
+                top: { enabled: false, size: 32, start: [], center: [], end: [] },
+                left: { enabled: false, size: 48, top: [], center: [], bottom: [] },
+                bottom: { enabled: true, size: 32, start: ["lock"], center: ["clock"], end: [] },
+                right: { enabled: true, size: 48, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["tray", "network", "clock"] }
+            },
+            menus: {},
+            surfaces: {}
+        })
+
+        Bar {
+            anchors.fill: parent
+            railScale: root.monitorScale
+            frameBars: parent.frameBars
+            style: ({ group: null })
+        }
+    }
 
     Timer {
         interval: 50
         running: true
         onTriggered: {
-            const passed = root.checkRail("top") && root.checkRail("left");
+            const passed = root.checkRail(scene, root.frameBars, "top")
+                && root.checkRail(scene, root.frameBars, "left")
+                && root.checkRail(bottomRightScene, bottomRightScene.frameBars, "bottom")
+                && root.checkRail(bottomRightScene, bottomRightScene.frameBars, "right");
             const allHosts = [];
             root.hosts(scene, allHosts);
             const expected = ["clock", "dock", "lock", "network", "quick-settings", "tray", "workspaces"];

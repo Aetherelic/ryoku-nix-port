@@ -51,10 +51,6 @@ Singleton {
     property alias islandStyle:    adapter.islandStyle
     property alias islandAutohide: adapter.islandAutohide
 
-    // top bar = opt-in bar drawn on the frame's thickened top edge (Bar.qml),
-    // in place of the resting island. when on, the island never shows at rest
-    // (surfaces / keybinds still summon the pill). Settings -> Shell -> Bar.
-    property alias barEnabled: adapter.barEnabled
     property alias frameBars: adapter.frameBars
     readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
@@ -112,7 +108,6 @@ Singleton {
             property real islandOpacity: 1
             property string islandStyle: "floating"
             property bool islandAutohide: true
-            property bool barEnabled: true
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
             property real grainStrength: 0.09

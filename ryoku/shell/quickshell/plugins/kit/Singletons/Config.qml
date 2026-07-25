@@ -49,11 +49,6 @@ Singleton {
     property alias islandStyle:    adapter.islandStyle
     property alias islandAutohide: adapter.islandAutohide
 
-    // optional bar drawn on the frame's thickened top edge (Bar.qml), shown
-    // in place of the resting island. when on, island never shows at rest
-    // (surfaces + keybinds still summon the pill). toggled by Ryoku Settings
-    // -> Shell -> Bar.
-    property alias barEnabled: adapter.barEnabled
     property alias frameBars: adapter.frameBars
     readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
@@ -84,7 +79,6 @@ Singleton {
             property real islandOpacity: 1
             property string islandStyle: "floating"
             property bool islandAutohide: true
-            property bool barEnabled: true
             property var frameBars: FrameBars.defaultConfig()
         }
     }

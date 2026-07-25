@@ -533,9 +533,9 @@ ShellRoot {
                 // as the frame swelling open at top-centre, not a bar on top.
                 BlobGroup {
                     id: blobGroup
-                    color: Config.matchWallpaper ? Wallust.surface : Config.surfaceColor
-                    borderColor: Wallust.border
-                    borderWidth: 1.5
+                    color: Theme.frameRailSurface
+                    borderColor: Theme.frameRailOutline
+                    borderWidth: Theme.frameRailOutlineWidth
                     smoothing: Config.frameSmoothing
                     shadowStrength: Config.shadowStrength
                     shadowSize: Config.shadowSize

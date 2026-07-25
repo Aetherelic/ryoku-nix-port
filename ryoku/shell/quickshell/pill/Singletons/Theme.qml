@@ -3,6 +3,13 @@ import QtQuick
 import Quickshell
 
 Singleton {
+    readonly property bool ryokuFrame: Config.normalizedFrameBars.style === "ryoku-frame"
+    readonly property color frameRailSurface: ryokuFrame
+        ? (Config.matchWallpaper ? Wallust.surface : Config.surfaceColor)
+        : (Config.matchWallpaper ? Qt.darker(Wallust.surface, 1.18) : Qt.darker(Config.surfaceColor, 1.18))
+    readonly property color frameRailOutline: ryokuFrame ? Wallust.border : Qt.lighter(Wallust.border, 1.2)
+    readonly property real frameRailOutlineWidth: ryokuFrame ? 1.5 : 1
+    readonly property real frameClockScale: ryokuFrame ? 1 : 0.88
     readonly property color brand:    Config.matchWallpaper ? Wallust.accent : "#e2342a"
     readonly property color verm:     brand
     readonly property color vermLit:  Config.matchWallpaper ? Qt.lighter(Wallust.accent, 1.22) : "#e83b30"

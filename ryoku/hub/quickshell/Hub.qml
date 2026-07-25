@@ -327,8 +327,7 @@ Rectangle {
         "frameRadius": 9, "roundness": 10, "frameBorder": 59, "frameEnabled": true,
         "frameSmoothing": 8, "frameOpacity": 1, "grainStrength": 0.09, "shadowStrength": 0.63, "shadowSize": 12,
         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
-        "barEnabled": true, "barPosition": "top", "barHeight": 30,
-        "atollVariant": "ilyamiro", "fontFamily": "Space Grotesk", "fontScale": 1.3,
+        "fontFamily": "Space Grotesk", "fontScale": 1.3,
         "frameBars": FrameBars.defaultConfig(),
         "weatherLocation": "", "weatherUnit": "auto",
         "sidebarLeftPanes": ["stash"],
@@ -478,10 +477,6 @@ Rectangle {
             property string surfaceColor: "#0f1115"
             property real osdRadius: 28
             property real osdOpacity: 1
-            property bool barEnabled: true
-            property string barPosition: "top"
-            property real barHeight: 30
-            property string atollVariant: "ilyamiro"
             property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
             property string weatherLocation: ""

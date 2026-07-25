@@ -1196,9 +1196,13 @@ func TestMigrateShellConfig(t *testing.T) {
 		}
 	}
 	for _, key := range []string{"barEnabled", "barPosition", "barHeight", "atollVariant"} {
-		if _, ok := cfg[key]; !ok {
-			t.Errorf("compatibility key %s was removed", key)
+		if _, ok := cfg[key]; ok {
+			t.Errorf("retired key %s survived migration", key)
 		}
+	}
+	out, changes, err = migrateShellConfig(out)
+	if err != nil || out != nil || changes != nil {
+		t.Fatalf("legacy migration must be idempotent: out=%s changes=%v err=%v", out, changes, err)
 	}
 
 	malformed := []byte(`{

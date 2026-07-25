@@ -87,7 +87,7 @@ var riceShellLook = []string{
 	"frameRadius", "frameBorder", "frameSmoothing", "frameOpacity", "frameEnabled",
 	"shadowStrength", "shadowSize", "surfaceColor", "grainStrength",
 	"osdRadius", "osdOpacity",
-	"barEnabled", "barPosition", "barHeight", "atollVariant", "frameBars",
+	"frameBars",
 	"roundness", "fontFamily", "fontScale",
 }
 var riceLauncherLook = []string{"heroImage", "heroStrength", "heroPosX", "heroPosY", "bgBlur", "radius", "showGreeting", "showWeather"}
