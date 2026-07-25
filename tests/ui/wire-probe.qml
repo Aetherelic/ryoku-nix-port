@@ -3,7 +3,7 @@ import Quickshell
 import Quickshell.Io
 
 // Wiring probe for the Hub's real FileView + JsonAdapter shell contract,
-// writing current Atoll and preserved-sidebar fields into a disposable copy.
+// writing frame-bar and preserved-sidebar fields into a disposable copy.
 ShellRoot {
     id: root
     property string cfgDir: Quickshell.env("RYOKU_TEST_CFG")
@@ -14,7 +14,7 @@ ShellRoot {
         "language","frameRadius","roundness","frameBorder","frameEnabled",
         "frameSmoothing","frameOpacity","grainStrength","shadowStrength","shadowSize",
         "surfaceColor","osdRadius","osdOpacity","barEnabled","barPosition","barHeight",
-        "atollVariant","fontFamily","fontScale","weatherLocation","weatherUnit",
+        "frameBars","atollVariant","fontFamily","fontScale","weatherLocation","weatherUnit",
         "ryolayerEnabled","sidebarLeftPanes","sidebarRightPanes","sidebarWidth"
     ]
 
@@ -22,7 +22,7 @@ ShellRoot {
         var d = {};
         for (var i = 0; i < shellKeys.length; i++) d[shellKeys[i]] = shellA[shellKeys[i]];
         draft = d; loaded = true;
-        console.log("ADOPTED frameBorder=" + d.frameBorder + " atollVariant=" + d.atollVariant);
+        console.log("ADOPTED frameBorder=" + d.frameBorder + " frameBars=" + JSON.stringify(d.frameBars));
     }
     function edit(k, v) {
         var d = {}; for (var x in draft) d[x] = draft[x];
@@ -71,16 +71,28 @@ ShellRoot {
             property var sidebarLeftPanes: ["stash"]
             property var sidebarRightPanes: ["notifications","calendar","media","weather","recording"]
             property real sidebarWidth: 340
+            property var frameBars: ({})
         }
     }
 
-    // Drive the probe headlessly: adopt, edit a real, enum and set, flush, quit.
+    // Drive the probe headlessly: adopt, edit a real, frame bars and set, flush, quit.
     Timer {
         interval: 900; running: true
         onTriggered: {
             if (!root.loaded) { console.log("PROBE-FAIL not loaded"); Qt.quit(); return }
             root.edit("frameBorder", 88);                              // real
-            root.edit("atollVariant", "ryoku");                        // enum
+            root.edit("frameBars", {
+                "version": 1, "style": "ryoku-frame",
+                "rails": { "top": { "enabled": true, "size": 38, "reveal": true,
+                                      "start": ["tray"], "center": ["clock"], "end": [] },
+                           "left": { "enabled": true, "size": 52, "reveal": true,
+                                      "top": [], "center": ["dock"], "bottom": [] },
+                           "bottom": { "enabled": false, "size": 32, "reveal": true,
+                                        "start": [], "center": [], "end": [] },
+                           "right": { "enabled": false, "size": 48, "reveal": true,
+                                       "top": [], "center": [], "bottom": [] } },
+                "menus": {}, "dock": { "pinned": [] }
+            });
             root.edit("sidebarRightPanes", ["notifications","calendar"]); // set
             root.flush();
             quit.start();

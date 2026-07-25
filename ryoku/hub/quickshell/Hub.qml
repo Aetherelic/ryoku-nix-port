@@ -31,6 +31,7 @@ import "schema/AutostartPage.js" as AutostartSchema
 import "schema/EnvironmentPage.js" as EnvironmentSchema
 import "schema/PerformancePage.js" as PerformanceSchema
 import "schema/UpdatesPage.js" as UpdatesSchema
+import "../../shell/quickshell/pill/framebars/FrameBars.js" as FrameBars
 
 // Ryoku Settings, assembled. The rail owns navigation and global search; the
 // head, cells and tabs are drawn once by SchemaPage from a page's schema; the
@@ -331,6 +332,7 @@ Rectangle {
         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
         "barEnabled": true, "barPosition": "top", "barHeight": 30,
         "atollVariant": "ilyamiro", "fontFamily": "Space Grotesk", "fontScale": 1.3,
+        "frameBars": FrameBars.defaultConfig(),
         "weatherLocation": "", "weatherUnit": "auto",
         "sidebarLeftPanes": ["stash"],
         "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
@@ -351,6 +353,7 @@ Rectangle {
             var r = rows[i];
             if (r.src && r.src !== "none") m[r.key] = r.src;
         }
+        m.frameBars = "shell";
         return m;
     }
     function adapterFor(src) { return src === "viz" ? vizA : (src === "brand" ? brandA : shellA); }
@@ -490,6 +493,7 @@ Rectangle {
             property var sidebarLeftPanes: ["stash"]
             property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
             property real sidebarWidth: 340
+            property var frameBars: FrameBars.defaultConfig()
         }
     }
     FileView {

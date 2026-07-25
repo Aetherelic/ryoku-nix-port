@@ -3,8 +3,8 @@
 #
 # A setting that renders but does not persist is worse than one that is
 # missing: it lies. This drives the real FileView + JsonAdapter contract
-# against a copy of the live shell.json, edits one of each kind (a real, an
-# enum, a set), flushes, and reads the file back.
+# against a copy of the live shell.json, edits a real, a nested object and a
+# set, flushes, and reads the file back.
 #
 #   tests/ui/wire-probe.sh
 set -euo pipefail
@@ -30,11 +30,24 @@ grep -q FLUSHED "$work/log" || { echo "FAIL: never flushed"; sed -n '1,20p' "$wo
 python3 - "$work/cfg/shell.json" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1]))
-want = {"frameBorder": 88, "atollVariant": "ryoku",
-        "sidebarRightPanes": ["notifications", "calendar"]}
-bad = [k for k, v in want.items() if d.get(k) != v]
+frame_bars = d.get("frameBars")
+want = {
+    "frameBorder": 88,
+    "frameBars.style": "ryoku-frame",
+    "frameBars.rails.top.size": 38,
+    "frameBars.rails.left.center": ["dock"],
+    "sidebarRightPanes": ["notifications", "calendar"],
+}
+got = {
+    "frameBorder": d.get("frameBorder"),
+    "frameBars.style": frame_bars.get("style") if isinstance(frame_bars, dict) else None,
+    "frameBars.rails.top.size": frame_bars.get("rails", {}).get("top", {}).get("size") if isinstance(frame_bars, dict) else None,
+    "frameBars.rails.left.center": frame_bars.get("rails", {}).get("left", {}).get("center") if isinstance(frame_bars, dict) else None,
+    "sidebarRightPanes": d.get("sidebarRightPanes"),
+}
+bad = [k for k, v in want.items() if got[k] != v]
 for k, v in want.items():
-    print("  %-14s %-34s %s" % (k, json.dumps(d.get(k)), "ok" if d.get(k) == v else "MISMATCH, wanted " + json.dumps(v)))
+    print("  %-29s %-34s %s" % (k, json.dumps(got[k]), "ok" if got[k] == v else "MISMATCH, wanted " + json.dumps(v)))
 sys.exit(1 if bad else 0)
 PY
 echo "wire-probe: the adapter writes what the UI set"

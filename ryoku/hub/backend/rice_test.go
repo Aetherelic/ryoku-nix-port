@@ -81,7 +81,7 @@ func TestSaveLoadListRice(t *testing.T) {
 // captureRice pulls only look keys into look, routes behavior keys to layers
 // only when opted in, records the cursor by name, and reads the colour mode
 // from the master. personal keys (weatherLocation) never travel.
-func TestCaptureRice(t *testing.T) {
+func TestRiceCapture(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	if err := os.MkdirAll(filepath.Join(dir, "ryoku"), 0o755); err != nil {
@@ -93,7 +93,7 @@ func TestCaptureRice(t *testing.T) {
 		}
 	}
 	write(hyprStorePath(), `{"appearance":{"rounding":10},"cursor":{"theme":"Bibata-Modern-Ice","size":24},"input":{"sensitivity":0.2}}`)
-	write(shellStorePath(), `{"atollVariant":"ryoku","weatherLocation":"Oslo"}`)
+	write(shellStorePath(), `{"atollVariant":"ryoku","frameBars":{"style":"ryoku-frame"},"weatherLocation":"Oslo","sidebarWidth":360}`)
 	write(launcherStorePath(), `{"heroStrength":0.5,"showWeather":true}`)
 	write(themeStatePath(), `{"followWallpaper":true}`)
 
@@ -110,11 +110,17 @@ func TestCaptureRice(t *testing.T) {
 	if _, ok := r.Look["hypr"]["input"]; ok {
 		t.Fatal("input leaked into look (it is a behavior layer)")
 	}
+	if frameBars, ok := r.Look["shell"]["frameBars"].(map[string]any); !ok || frameBars["style"] != "ryoku-frame" {
+		t.Fatalf("shell frameBars = %v, want ryoku-frame", r.Look["shell"]["frameBars"])
+	}
 	if r.Look["shell"]["atollVariant"] != "ryoku" {
-		t.Fatalf("shell atollVariant = %v", r.Look["shell"]["atollVariant"])
+		t.Fatalf("shell atollVariant = %v, want ryoku", r.Look["shell"]["atollVariant"])
 	}
 	if _, ok := r.Look["shell"]["weatherLocation"]; ok {
 		t.Fatal("personal key weatherLocation captured")
+	}
+	if _, ok := r.Look["shell"]["sidebarWidth"]; ok {
+		t.Fatal("personal key sidebarWidth captured")
 	}
 	if r.Assets.Cursor != "Bibata-Modern-Ice" {
 		t.Fatalf("cursor = %q", r.Assets.Cursor)
@@ -139,7 +145,7 @@ func TestCaptureRice(t *testing.T) {
 // key survives), flips the colour master for a fixed rice and writes its
 // palette, and reloads. restoreRice(".baseline") then reverts every store to
 // the pristine pre-apply snapshot.
-func TestApplyMergesAndRestoreReverts(t *testing.T) {
+func TestRiceApplyMergesAndRestoreReverts(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
@@ -160,7 +166,7 @@ func TestApplyMergesAndRestoreReverts(t *testing.T) {
 		}
 	}
 	w(hyprStorePath(), `{"appearance":{"rounding":2},"cursor":{"theme":"Bibata-Modern-Ice","size":24}}`)
-	w(shellStorePath(), `{"atollVariant":"ilyamiro","weatherLocation":"Oslo"}`)
+	w(shellStorePath(), `{"atollVariant":"ilyamiro","frameBars":{"style":"ok-frame","rails":{"top":{"size":44}}},"weatherLocation":"Oslo","sidebarWidth":360}`)
 	w(launcherStorePath(), `{"heroStrength":0.6}`)
 	w(themeStatePath(), `{"followWallpaper":true}`)
 
@@ -168,17 +174,24 @@ func TestApplyMergesAndRestoreReverts(t *testing.T) {
 		t.Fatal(err)
 	}
 	w(filepath.Join(ricesDir(), "cool", "palette.json"), `{"background":"#101010","color4":"#ff8800","foreground":"#eeeeee"}`)
-	w(ricePath("cool"), `{"schema":1,"slug":"cool","name":"Cool","color":{"mode":"fixed","palette":"palette.json"},"look":{"hypr":{"appearance":{"rounding":18}},"shell":{"atollVariant":"ryoku"},"launcher":{}}}`)
+	w(ricePath("cool"), `{"schema":1,"slug":"cool","name":"Cool","color":{"mode":"fixed","palette":"palette.json"},"look":{"hypr":{"appearance":{"rounding":18}},"shell":{"atollVariant":"ryoku","frameBars":{"style":"ryoku-frame","rails":{"top":{"size":38}}}},"launcher":{}}}`)
 
 	if err := applyRice("cool", nil); err != nil {
 		t.Fatal(err)
 	}
 	shell := readJSONMap(shellStorePath())
+	frameBars := shell["frameBars"].(map[string]any)
+	if frameBars["style"] != "ryoku-frame" {
+		t.Fatalf("apply did not set frameBars.style: %v", frameBars["style"])
+	}
 	if shell["atollVariant"] != "ryoku" {
 		t.Fatalf("apply did not set atollVariant: %v", shell["atollVariant"])
 	}
 	if shell["weatherLocation"] != "Oslo" {
 		t.Fatal("apply clobbered a personal key")
+	}
+	if shell["sidebarWidth"] != float64(360) {
+		t.Fatal("apply clobbered a personal sidebar value")
 	}
 	ap := readJSONMap(hyprStorePath())["appearance"].(map[string]any)
 	if ap["rounding"].(float64) != 18 {
@@ -204,6 +217,10 @@ func TestApplyMergesAndRestoreReverts(t *testing.T) {
 		t.Fatal(err)
 	}
 	shell2 := readJSONMap(shellStorePath())
+	frameBars2 := shell2["frameBars"].(map[string]any)
+	if frameBars2["style"] != "ok-frame" {
+		t.Fatalf("restore did not revert frameBars.style: %v", frameBars2["style"])
+	}
 	if shell2["atollVariant"] != "ilyamiro" {
 		t.Fatalf("restore did not revert atollVariant: %v", shell2["atollVariant"])
 	}

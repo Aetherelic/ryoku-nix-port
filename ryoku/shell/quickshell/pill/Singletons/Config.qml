@@ -2,6 +2,9 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../framebars/FrameBars.js" as FrameBars
+import "../framebars/BarCatalog.js" as BarCatalog
+import "../framebars/MenuCatalog.js" as MenuCatalog
 
 // live shell appearance config. one source of truth for the look knobs Ryoku
 // Settings' Shell section edits, plus the shipped defaults the shell falls back
@@ -44,6 +47,8 @@ Singleton {
     property alias barHeight:   adapter.barHeight
     readonly property real barBandBase: barHeight + 18
     property alias atollVariant: adapter.atollVariant
+    property alias frameBars: adapter.frameBars
+    readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
     // Sidebar bodies and pane state are preserved for the next UI. No enable,
     // corner or hover properties are exposed because every opener was removed.
@@ -125,6 +130,7 @@ Singleton {
             property real grainStrength: 0.09
             property string weatherLocation: ""
             property string weatherUnit: "auto"
+            property var frameBars: FrameBars.defaultConfig()
         }
     }
 

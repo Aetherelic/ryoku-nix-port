@@ -52,7 +52,7 @@ func TestSchemeFollowRoundTrips(t *testing.T) {
 	}
 }
 
-func TestApplyRyokuThemeUsesRyokuAtollLook(t *testing.T) {
+func TestApplyRyokuThemeUsesRyokuFrameBarLook(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
@@ -63,7 +63,7 @@ func TestApplyRyokuThemeUsesRyokuAtollLook(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(shellPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(shellPath, []byte(`{"barStyle":"stele","atollVariant":"ilyamiro","sidebarWidth":420}`), 0o644); err != nil {
+	if err := os.WriteFile(shellPath, []byte(`{"barStyle":"stele","atollVariant":"ilyamiro","frameBars":{"style":"ok-frame","rails":{"top":{"size":44}}},"sidebarWidth":420}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -71,8 +71,12 @@ func TestApplyRyokuThemeUsesRyokuAtollLook(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := readJSONMap(shellPath)
-	if got["atollVariant"] != "ryoku" {
-		t.Fatalf("atollVariant = %v, want ryoku", got["atollVariant"])
+	frameBars := got["frameBars"].(map[string]any)
+	if frameBars["style"] != "ryoku-frame" {
+		t.Fatalf("frameBars.style = %v, want ryoku-frame", frameBars["style"])
+	}
+	if frameBars["rails"].(map[string]any)["top"].(map[string]any)["size"] != float64(44) {
+		t.Fatalf("frameBars was not preserved: %v", frameBars)
 	}
 	if got["sidebarWidth"] != float64(420) {
 		t.Fatalf("sidebarWidth was not preserved: %v", got["sidebarWidth"])
