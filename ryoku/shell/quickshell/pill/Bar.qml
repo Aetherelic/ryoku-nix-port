@@ -5,7 +5,7 @@ import QtQuick
 Item {
     id: bar
 
-    required property real scale
+    required property real railScale
     required property var frameBars
     required property var style
 
@@ -18,7 +18,7 @@ Item {
         FrameRail {
             required property string modelData
             edge: modelData
-            scale: bar.scale
+            scale: bar.railScale
             rail: bar.frameBars.rails[modelData]
             style: bar.style
             visible: rail.enabled

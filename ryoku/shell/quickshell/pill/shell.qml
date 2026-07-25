@@ -26,6 +26,9 @@ import "framebars/RailGeometry.js" as RailGeometry
 // active surfaces; all other clicks pass through.
 ShellRoot {
     id: root
+    signal menuRequested(string id, rect ownerRect)
+    signal surfaceRequested(string id, rect ownerRect)
+
 
 
     // The one pinned bar popup (power) and the monitor it belongs to. Voice,
@@ -591,9 +594,11 @@ ShellRoot {
                     anchors.fill: parent
                     z: 1
                     visible: !overlay.monFullscreen
-                    scale: overlay.s
+                    railScale: overlay.s
                     frameBars: overlay.frameBars
                     style: ({ group: blobGroup })
+                    onMenuRequested: (id, ownerRect) => root.menuRequested(id, ownerRect)
+                    onSurfaceRequested: (id, ownerRect) => root.surfaceRequested(id, ownerRect)
                 }
 
                 // power popout: the session menu, grown from the bar edge. The
