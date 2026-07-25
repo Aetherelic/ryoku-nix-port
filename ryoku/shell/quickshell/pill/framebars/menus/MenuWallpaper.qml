@@ -35,7 +35,7 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: 42 * root.s
             anchors.verticalCenter: parent.verticalCenter
-            text: "Open wallpaper picker"
+            text: qsTr("Open wallpaper picker")
             color: Theme.cream
             font.family: Theme.font
             font.pixelSize: 12 * root.s

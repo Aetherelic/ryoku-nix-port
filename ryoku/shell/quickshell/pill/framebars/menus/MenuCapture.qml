@@ -20,11 +20,13 @@ Item {
 
         Repeater {
             model: [
-                { label: "Screenshot", icon: "camera", action: "shot" },
-                { label: Recorder.active ? "Stop" : "Record", icon: Recorder.active ? "stop" : "record", action: "record" }
+                { label: qsTr("Screenshot"), icon: "camera", action: "shot" },
+                { label: Recorder.active ? qsTr("Stop") : qsTr("Record"), icon: Recorder.active ? "stop" : "record", action: "record" }
             ]
             delegate: Rectangle {
-                required property var modelData
+                required property string label
+                required property string icon
+                required property string action
                 width: (row.width - row.spacing) / 2
                 height: 54 * root.s
                 radius: Theme.radius
@@ -38,13 +40,13 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 18 * root.s
                         height: 18 * root.s
-                        name: modelData.icon
+                        name: icon
                         color: Theme.brand
                         stroke: 1.6
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: modelData.label
+                        text: label
                         color: Theme.cream
                         font.family: Theme.font
                         font.pixelSize: 10 * root.s
@@ -53,7 +55,7 @@ Item {
                 HoverHandler { id: captureHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler {
                     onTapped: {
-                        if (modelData.action === "record") {
+                        if (action === "record") {
                             if (Recorder.active) Recorder.stop();
                             else Recorder.chooserOpen = true;
                         } else {

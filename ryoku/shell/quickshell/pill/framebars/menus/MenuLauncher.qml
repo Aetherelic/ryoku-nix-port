@@ -9,7 +9,7 @@ Item {
     required property real s
     required property bool open
 
-    readonly property string hostMode: "external"
+    signal requestClose()
     implicitWidth: 320 * s
     implicitHeight: button.height
 
@@ -23,9 +23,11 @@ Item {
         border.color: Theme.border
 
         Pill.GlyphIcon {
-            anchors.left: parent.left
-            anchors.leftMargin: 12 * root.s
-            anchors.verticalCenter: parent.verticalCenter
+            anchors {
+                left: parent.left
+                verticalCenter: parent.verticalCenter
+                leftMargin: 12 * root.s
+            }
             width: 18 * root.s
             height: 18 * root.s
             name: "search"
@@ -33,15 +35,22 @@ Item {
             stroke: 1.6
         }
         Text {
-            anchors.left: parent.left
-            anchors.leftMargin: 42 * root.s
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Search apps and actions"
+            anchors {
+                left: parent.left
+                verticalCenter: parent.verticalCenter
+                leftMargin: 42 * root.s
+            }
+            text: qsTr("Search apps and actions")
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: 12 * root.s
         }
         HoverHandler { id: launchHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"]) }
+        TapHandler {
+            onTapped: {
+                Quickshell.execDetached(["ryoku-shell", "launcher"]);
+                root.requestClose();
+            }
+        }
     }
 }

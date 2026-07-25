@@ -50,11 +50,6 @@ Singleton {
     property alias frameBars: adapter.frameBars
     readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
-    // Sidebar bodies and pane state are preserved for the next UI. No enable,
-    // corner or hover properties are exposed because every opener was removed.
-    property alias sidebarLeftPanes:  adapter.sidebarLeftPanes
-    property alias sidebarRightPanes: adapter.sidebarRightPanes
-    property alias sidebarWidth:      adapter.sidebarWidth
 
     // roundness = the shell-wide inner corner radius (the "Global" shape knob).
     // every internal tile, card, row and chip reads Theme.radius, which follows
@@ -123,9 +118,6 @@ Singleton {
             property string atollVariant: "ilyamiro"
             property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
-            property var sidebarLeftPanes: ["stash"]
-            property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
-            property real sidebarWidth: 340
             property real roundness: 0
             property real grainStrength: 0.09
             property string weatherLocation: ""

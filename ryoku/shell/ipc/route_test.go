@@ -1,6 +1,12 @@
 package main
 
-import "testing"
+import (
+	"bufio"
+	"fmt"
+	"net"
+	"strings"
+	"testing"
+)
 
 // route = the single source of truth for which panel a keybind toggles; a wrong
 // entry silently opens the wrong surface, so pin every command.
@@ -36,6 +42,45 @@ func TestRoute(t *testing.T) {
 	for _, cmd := range []string{"bar", "bar missing", "bar launcher extra"} {
 		if _, _, _, ok := route(cmd); ok {
 			t.Fatalf("route(%q) should reject an unknown or malformed bar menu", cmd)
+		}
+	}
+}
+
+func TestDispatchBarMenu(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	listener, err := net.Listen("unix", pillSockPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	calls := make(chan string, len(frameBarMenuIDs))
+	go func() {
+		for range frameBarMenuIDs {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			line, _ := bufio.NewReader(conn).ReadString('\n')
+			calls <- strings.TrimSpace(line)
+			_, _ = fmt.Fprintln(conn, "ok")
+			conn.Close()
+		}
+	}()
+
+	d := &daemon{sup: map[string]bool{"pill": true}, activeMon: "DP-1"}
+	for id := range frameBarMenuIDs {
+		if got := d.dispatch("bar " + id); got != "ok" {
+			t.Errorf("dispatch(bar %s) = %q, want ok", id, got)
+			continue
+		}
+		if got := <-calls; got != "bar DP-1 "+id {
+			t.Errorf("pill IPC = %q, want %q", got, "bar DP-1 "+id)
+		}
+	}
+	for _, command := range []string{"bar", "bar missing", "bar launcher extra"} {
+		if got := d.dispatch(command); got == "ok" {
+			t.Errorf("dispatch(%q) = ok, want rejection", command)
 		}
 	}
 }

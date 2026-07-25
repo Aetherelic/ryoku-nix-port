@@ -415,10 +415,11 @@ ShellRoot {
 
             readonly property var frameBars: Config.normalizedFrameBars
             readonly property var rails: frameBars.rails
+            readonly property var stashSurface: frameBars.surfaces.stash
+            readonly property var systemSurface: frameBars.surfaces.system
             readonly property real frameLip: Math.max(0, Config.effectiveFrameBorder - 50)
             readonly property string popoutEdge: "top"
             readonly property real surfaceFrameThickness: frameLip + railThickness("top")
-            readonly property real sidebarW: Config.sidebarWidth * s
             readonly property real sidebarTopGap: railClearance("top") + 14 * s
             readonly property real sidebarBotGap: railClearance("bottom") + 14 * s
             readonly property var topRailRect: RailGeometry.edgeRect("top", railThickness("top"), width, height)
@@ -749,13 +750,13 @@ ShellRoot {
                     frameThickness: overlay.frameLip
                     radius: Config.frameRadius
                     smoothing: Config.frameSmoothing
-                    edge: "left"
+                    edge: overlay.stashSurface.anchor
                     hoverOpen: false
                     closeDelay: 300
                     s: overlay.s
                     active: false
                     fullSpan: true
-                    openW: overlay.sidebarW
+                    openW: overlay.stashSurface.minWidth * overlay.s
                     openH: overlay.height
 
                     SidebarFeatures {
@@ -764,7 +765,7 @@ ShellRoot {
                         topInset: overlay.sidebarTopGap
                         botInset: overlay.sidebarBotGap
                         open: sidebarLeftPop.prog > 0.5
-                        panes: Config.sidebarLeftPanes
+                        panes: overlay.stashSurface.panes
                         pane: root.sidebarLeftPane
                         onPaneSelected: (k) => root.sidebarLeftPane = k
                     }
@@ -776,13 +777,13 @@ ShellRoot {
                     frameThickness: overlay.frameLip
                     radius: Config.frameRadius
                     smoothing: Config.frameSmoothing
-                    edge: "right"
+                    edge: overlay.systemSurface.anchor
                     hoverOpen: false
                     closeDelay: 300
                     s: overlay.s
                     active: false
                     fullSpan: true
-                    openW: overlay.sidebarW
+                    openW: overlay.systemSurface.minWidth * overlay.s
                     openH: overlay.height
 
                     SidebarSystem {
@@ -790,7 +791,7 @@ ShellRoot {
                         topInset: overlay.sidebarTopGap
                         botInset: overlay.sidebarBotGap
                         open: sidebarRightPop.prog > 0.5
-                        panes: Config.sidebarRightPanes
+                        panes: overlay.systemSurface.panes
                         pane: root.sidebarRightPane
                         onPaneSelected: (k) => root.sidebarRightPane = k
                         onDismiss: { if (root.popout === "sidebarRight" && root.popoutMon === overlay.modelData.name) root.popout = ""; }

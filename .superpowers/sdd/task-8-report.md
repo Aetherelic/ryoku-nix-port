@@ -17,3 +17,11 @@
 ## Live-daemon limitation
 
 No installed `qs -c pill` daemon was started, stopped, restarted, or taken over. Interactive desktop actions were not invoked because screenshot and recording require exclusive screen input. The equivalent programmatic/offscreen verification checked menu resolution and open-state gates only.
+
+## Review-fix evidence
+
+- Red: `(cd ryoku/shell/ipc && go test . -run TestDispatchBarMenu -count=1 -v)` failed for all eight allowed ids with `err unknown command: bar`. Green: the same focused test passed after dispatch retained the normalized `bar <id>` input through route and pill IPC construction. It uses a Unix pill socket and verifies each call is `bar DP-1 <id>`; missing, unknown, and extra arguments are rejected.
+- Red: `(cd ryoku/shell/quickshell/pill/framebars && node FrameBars.test.mjs)` failed because every Task-8 default menu record was absent. Green: it passed after all eight finite records were added to the default configuration and catalogue.
+- `(cd ryoku/cli && go test ./internal/doctor -run FrameBars -count=1)` passed.
+- `RYOKU_PATH=/home/nero/Work/ryoku-arch/.worktrees/frame-bars tests/shell-unit-tests.sh` passed all 32 Node test files, including the updated frame-bar defaults test.
+- `/usr/lib/qt6/bin/qmllint quickshell/pill/framebars/menus/MenuClipboard.qml quickshell/pill/framebars/menus/MenuLauncher.qml quickshell/pill/framebars/menus/MenuCapture.qml quickshell/pill/framebars/menus/MenuMedia.qml quickshell/pill/framebars/menus/MenuWeather.qml quickshell/pill/framebars/menus/MenuTheme.qml quickshell/pill/framebars/menus/MenuWallpaper.qml quickshell/pill/shell.qml quickshell/pill/Singletons/Config.qml` completed. The external Quickshell/Ryoku module diagnostics and existing dynamic-loader warnings remain; the new clipboard missing Theme properties were corrected. The focused clipboard lint now has only declaration-scope unqualified-access warnings. No live daemon was started, stopped, restarted, or taken over.

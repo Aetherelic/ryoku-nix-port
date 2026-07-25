@@ -28,7 +28,7 @@ Item {
             }
             Column {
                 Text {
-                    text: Weather.available ? Weather.temp : "Weather unavailable"
+                    text: Weather.available ? Weather.temp : qsTr("Weather unavailable")
                     color: Theme.bright
                     font.family: Theme.display
                     font.pixelSize: 24 * root.s

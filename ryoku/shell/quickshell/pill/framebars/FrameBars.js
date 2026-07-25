@@ -33,7 +33,17 @@ function defaultConfig() {
             bottom: { enabled: false, size: 32, reveal: true, start: [], center: [], end: [] },
             right: { enabled: false, size: 48, reveal: true, top: [], center: [], bottom: [] }
         },
-        menus: { "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock", "network", "audio-output"] } },
+        menus: {
+            "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock", "network", "audio-output"] },
+            launcher: { anchor: "left", minWidth: 420, expansion: "always", widgets: ["launcher"] },
+            clipboard: { anchor: "left", minWidth: 420, expansion: "always", widgets: ["clipboard"] },
+            screenshot: { anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["screenshot"] },
+            recording: { anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["recording"] },
+            theme: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
+            wallpaper: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["wallpaper"] },
+            weather: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
+            media: { anchor: "right", minWidth: 360, expansion: "always", widgets: ["media"] }
+        },
         surfaces: {
             stash: { anchor: "left", minWidth: 340, panes: ["stash"] },
             system: { anchor: "right", minWidth: 340, panes: ["notifications", "calendar", "media", "weather", "recording"] }
@@ -54,7 +64,7 @@ function normalize(raw, barCatalog, menuCatalog) {
         output.rails[edge].size = sizeFor(rail.size, edge, base.rails[edge].size);
         for (const zone of zones(edge)) output.rails[edge][zone] = Array.isArray(rail[zone]) ? idsFor(rail[zone], edge, barCatalog) : clone(base.rails[edge][zone]);
     }
-    for (const id of ["quick-settings"]) {
+    for (const id of Object.keys(base.menus)) {
         const value = isObject(source.menus) && isObject(source.menus[id]) ? source.menus[id] : {};
         const fallback = base.menus[id];
         output.menus[id] = {

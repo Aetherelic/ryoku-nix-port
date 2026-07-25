@@ -541,8 +541,12 @@ func (d *daemon) dispatch(line string) string {
 		return "err empty command"
 	}
 	cmd, args := fields[0], fields[1:]
+	routeCmd := cmd
+	if cmd == "bar" {
+		routeCmd = line
+	}
 
-	if config, target, fn, ok := route(cmd); ok {
+	if config, target, fn, ok := route(routeCmd); ok {
 		if componentDisabled(config) {
 			// the user turned this component off; its keybind is a silent no-op
 			// rather than a failed ipc call to a process that will never start.
@@ -558,7 +562,7 @@ func (d *daemon) dispatch(line string) string {
 		mon := d.activeMonitor()
 		if config == "pill" {
 			if fn == "bar" {
-				menuID, _ := barMenuID(cmd)
+				menuID, _ := barMenuID(routeCmd)
 				return pillIpc(fn, mon, menuID)
 			}
 			return pillIpc(fn, mon)

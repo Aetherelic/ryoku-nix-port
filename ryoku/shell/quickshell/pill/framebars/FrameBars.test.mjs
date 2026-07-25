@@ -23,6 +23,10 @@ eq(reference.rails.bottom.start, [], "bottom start list defaults empty");
 eq(reference.rails.bottom.center, [], "bottom centre list defaults empty");
 eq(reference.rails.bottom.end, [], "bottom end list defaults empty");
 
+for (const id of ["launcher", "clipboard", "screenshot", "recording", "theme", "wallpaper", "weather", "media"]) {
+    eq(reference.menus[id].widgets, [id], `default ${id} menu is configured`);
+}
+
 const normalized = normalize({
     version: 99,
     style: "unknown",

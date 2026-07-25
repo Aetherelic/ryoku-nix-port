@@ -17,7 +17,7 @@ Item {
         spacing: 10 * root.s
 
         Text {
-            text: Media.present ? (Media.player ? Media.player.trackTitle : "") : "Nothing playing"
+            text: Media.present ? (Media.player ? Media.player.trackTitle : "") : qsTr("Nothing playing")
             color: Media.present ? Theme.bright : Theme.faint
             font.family: Theme.display
             font.pixelSize: 18 * root.s
