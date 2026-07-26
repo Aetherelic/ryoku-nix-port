@@ -29,7 +29,7 @@ import "schema/AutostartPage.js" as AutostartSchema
 import "schema/EnvironmentPage.js" as EnvironmentSchema
 import "schema/PerformancePage.js" as PerformanceSchema
 import "schema/UpdatesPage.js" as UpdatesSchema
-import "../../shell/quickshell/pill/framebars/FrameBars.js" as FrameBars
+import Ryoku.FrameBars
 
 // Ryoku Settings, assembled. The rail owns navigation and global search; the
 // head, cells and tabs are drawn once by SchemaPage from a page's schema; the

@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../.." as Pill
 import "../../Singletons"
-import "../MenuCatalog.js" as MenuCatalog
+import Ryoku.FrameBars
 import "../lib/menupoll.js" as Poll
 
 Item {

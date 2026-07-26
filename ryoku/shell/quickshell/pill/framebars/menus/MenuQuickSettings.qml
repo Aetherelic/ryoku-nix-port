@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../MenuCatalog.js" as MenuCatalog
+import Ryoku.FrameBars
 
 Item {
     id: root

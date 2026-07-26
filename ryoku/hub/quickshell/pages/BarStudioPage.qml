@@ -6,8 +6,7 @@ import QtQuick.Layouts
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "../barstudio"
-import "../../../shell/quickshell/pill/framebars/BarCatalog.js" as BarCatalog
-import "../../../shell/quickshell/pill/framebars/MenuCatalog.js" as MenuCatalog
+import Ryoku.FrameBars
 import "../barstudio/BarStudioModel.js" as Model
 
 Item {

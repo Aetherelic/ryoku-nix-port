@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const BarCatalog = require("./BarCatalog.js");
+const BarCatalog = require("../../../framebars/BarCatalog.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {

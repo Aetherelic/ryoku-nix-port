@@ -2,9 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../framebars/FrameBars.js" as FrameBars
-import "../framebars/BarCatalog.js" as BarCatalog
-import "../framebars/MenuCatalog.js" as MenuCatalog
+import Ryoku.FrameBars
 
 // live shell appearance config. one source of truth for the look knobs Ryoku
 // Settings' Shell section edits, plus the shipped defaults the shell falls back

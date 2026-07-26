@@ -14,6 +14,11 @@ bin="$here/ipc/ryoku-shell"
 # so build + install it once = dev loop renders the frame like a real deploy.
 "$here/plugin/build.sh" "$HOME/.local/lib/qt6/qml"
 
+# the shared frame-bar schema + catalogs live in Ryoku.FrameBars, imported by
+# every config root and the Hub Bar Studio; install it so the dev loop resolves
+# the module like a real deploy.
+"$here/framebars/install.sh" "$HOME/.local/lib/qt6/qml"
+
 export RYOKU_SHELL_DIR="$here"
 echo "ryoku-shell dev  (RYOKU_SHELL_DIR=$here)"
 echo "  edit anything under $here/quickshell and it reloads live"

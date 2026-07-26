@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const MenuCatalog = require("./MenuCatalog.js");
+const MenuCatalog = require("../../../framebars/MenuCatalog.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {

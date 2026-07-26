@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "framebars/MenuCatalog.js" as MenuCatalog
+import Ryoku.FrameBars
 import "framebars/menus"
 
 // Finite host for menu widgets: a closed switch resolves the generic

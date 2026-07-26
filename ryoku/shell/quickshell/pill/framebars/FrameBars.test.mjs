@@ -1,8 +1,8 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { defaultConfig, normalize, addWidget, moveWidget, removeWidget, setMenu, setSurface } = require("./FrameBars.js");
-const BarCatalog = require("./BarCatalog.js");
-const MenuCatalog = require("./MenuCatalog.js");
+const { defaultConfig, normalize, addWidget, moveWidget, removeWidget, setMenu, setSurface } = require("../../../framebars/FrameBars.js");
+const BarCatalog = require("../../../framebars/BarCatalog.js");
+const MenuCatalog = require("../../../framebars/MenuCatalog.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {

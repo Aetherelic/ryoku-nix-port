@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "framebars/MenuState.js" as MenuState
-import "framebars/MenuCatalog.js" as MenuCatalog
+import Ryoku.FrameBars
 import "Singletons"
 import "popouts"
 

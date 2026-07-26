@@ -271,6 +271,13 @@ say "installing Ryoku.PluginKit module"
 "$here/quickshell/plugins/kit/install.sh" "$qmldir"
 say "installed Ryoku.PluginKit -> $qmldir/Ryoku/PluginKit"
 
+# Install the Ryoku.FrameBars QML module (the shared frame-bar config schema and
+# catalogs every config root and the Hub Bar Studio import). Pure QML + JS, a
+# plain copy, no toolchain.
+say "installing Ryoku.FrameBars module"
+"$here/framebars/install.sh" "$qmldir"
+say "installed Ryoku.FrameBars -> $qmldir/Ryoku/FrameBars"
+
 # Quickshell components: a deployed daemon runs `qs -c <name>`, reading
 # ~/.config/quickshell/<name>.
 say "installing quickshell components -> $cfg/quickshell"

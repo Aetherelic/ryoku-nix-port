@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Hyprland
-import "framebars/BarCatalog.js" as BarCatalog
+import Ryoku.FrameBars
 import "framebars/widgets"
 import "Singletons"
 

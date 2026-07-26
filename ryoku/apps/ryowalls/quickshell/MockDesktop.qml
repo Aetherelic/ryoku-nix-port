@@ -4,9 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Ryoku.Ui.Singletons
 import "Singletons"
-import "../../../shell/quickshell/pill/framebars/FrameBars.js" as FrameBars
-import "../../../shell/quickshell/pill/framebars/BarCatalog.js" as BarCatalog
-import "../../../shell/quickshell/pill/framebars/MenuCatalog.js" as MenuCatalog
+import Ryoku.FrameBars
 
 // The selected wallpaper under the user's live look, recoloured by the
 // candidate Wallust scheme. The frame-bar preview follows shell.json; the

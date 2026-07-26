@@ -1,10 +1,10 @@
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { normalize } = require("./FrameBars.js");
+const { normalize } = require("../../../framebars/FrameBars.js");
 const { edgeRect } = require("./RailGeometry.js");
-const BarCatalog = require("./BarCatalog.js");
-const MenuCatalog = require("./MenuCatalog.js");
+const BarCatalog = require("../../../framebars/BarCatalog.js");
+const MenuCatalog = require("../../../framebars/MenuCatalog.js");
 
 let failed = 0;
 
