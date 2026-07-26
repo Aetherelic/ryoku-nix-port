@@ -122,6 +122,7 @@ Popout {
             : root.kind === "keyring" ? keyringBody
             : root.kind === "stash" ? stashBody
             : root.kind === "system" ? systemBody
+            : root.record && root.record.id === "screenshare" ? screenshareBody
             : menuBody
     }
 
@@ -133,6 +134,16 @@ Popout {
             scale: root.bodyScale
             open: root.effectiveOpen
             widgets: root.widgetIds
+            onRequestClose: root.requestClose()
+        }
+    }
+    Component {
+        id: screenshareBody
+        MenuScreenshare {
+            width: root.openW
+            height: root.openH
+            s: root.bodyScale
+            open: root.effectiveOpen
             onRequestClose: root.requestClose()
         }
     }

@@ -1,6 +1,5 @@
 const anchorIds = ["bottom", "bottom-left", "bottom-right", "left", "right", "top", "top-left", "top-right"];
 const widgets = {
-    "launcher": { id: "launcher", nested: false },
     "audio-input": { id: "audio-input", nested: false },
     "audio-output": { id: "audio-output", nested: false },
     "bluetooth": { id: "bluetooth", nested: false },
@@ -28,8 +27,7 @@ const menus = {
     clipboard: { id: "clipboard", anchor: "left", minWidth: 410, expansion: "always", widgets: ["clipboard"] },
     notifications: { id: "notifications", anchor: "left", minWidth: 410, expansion: "always", widgets: ["notifications"] },
     screenshot: { id: "screenshot", anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },
-    "app-launcher": { id: "app-launcher", anchor: "top-left", minWidth: 410, expansion: "always", widgets: ["launcher"] },
-    wallpaper: { id: "wallpaper", anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["wallpaper"] },
+    wallpaper: { id: "wallpaper", anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["theme", "wallpaper"] },
     screenshare: { id: "screenshare", anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
     recording: { id: "recording", anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["recording"] },
     theme: { id: "theme", anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },

@@ -22,4 +22,8 @@ singleton Fullscreen Fullscreen.qml
 singleton Toggles Toggles.qml
 singleton Workspaces Workspaces.qml
 singleton Session Session.qml
+singleton SessionActions SessionActions.qml
 singleton Tray Tray.qml
+singleton Clipboard Clipboard.qml
+singleton Screenshare Screenshare.qml
+singleton Capture Capture.qml

@@ -81,16 +81,16 @@ Item {
         return false;
     }
     // Keyboard focus the frame raises while something is open (contract 05 sec
-    // 4): Exclusive for the launcher and the screenshare picker, OnDemand for
-    // the wallpaper menu, None for every pointer-only menu. Ryoku's own modal
-    // surfaces take Exclusive like the launcher; the voice toast takes none.
+    // 4): Exclusive for the screenshare picker, OnDemand for the wallpaper menu,
+    // None for every pointer-only menu. Ryoku's own modal surfaces take
+    // Exclusive too; the voice toast takes none.
     readonly property string keyboardMode: {
         const mon = menuState[monitorName];
         if (!mon) return "none";
         for (const anchor in mon) {
             const rec = mon[anchor];
             if (!rec) continue;
-            if (rec.id === "app-launcher" || rec.id === "screenshare") return "exclusive";
+            if (rec.id === "screenshare") return "exclusive";
             if (rec.id === "wallpaper") return "ondemand";
             if (rec.kind && rec.kind !== "menu" && rec.id !== "voice") return "exclusive";
         }

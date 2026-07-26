@@ -24,13 +24,13 @@ eq(reference.rails.bottom.start, [], "bottom start list defaults empty");
 eq(reference.rails.bottom.center, [], "bottom centre list defaults empty");
 eq(reference.rails.bottom.end, [], "bottom end list defaults empty");
 
-for (const id of ["quick-settings", "clock", "clipboard", "notifications", "screenshot", "wallpaper", "recording", "theme", "weather", "media"]) {
+for (const id of ["quick-settings", "clock", "clipboard", "notifications", "screenshot", "recording", "theme", "weather", "media"]) {
     eq(reference.menus[id].widgets, [id], `default ${id} menu is configured`);
 }
-eq(reference.menus["app-launcher"].widgets, ["launcher"], "app-launcher menu hosts the launcher widget");
-eq(reference.menus["app-launcher"].anchor, "top-left", "app-launcher anchors top-left");
+eq(reference.menus["app-launcher"], undefined, "the app launcher is Ryoku's own surface, not a frame menu");
 eq([reference.menus.clock.anchor, reference.menus.clipboard.anchor, reference.menus.notifications.anchor, reference.menus.screenshot.anchor], ["left", "left", "left", "left"], "the reference side menus all anchor left");
 eq([reference.menus.wallpaper.anchor, reference.menus.wallpaper.minWidth], ["bottom-left", 1200], "wallpaper anchors bottom-left at 1200 wide");
+eq(reference.menus.wallpaper.widgets, ["theme", "wallpaper"], "wallpaper menu nests the theme picker above the grid");
 eq(reference.menus.launcher, undefined, "the retired launcher menu id is gone");
 eq(reference.menus.screenshare.widgets, [], "screenshare is placed with no config widgets");
 
@@ -53,9 +53,9 @@ eq(normalized.rails.left.top, ["clock"], "normalizer drops duplicate and unknown
 eq(normalized.rails.left.bottom, defaultConfig().rails.left.bottom, "normalizer restores a malformed zone to its default");
 eq(normalized.menus["quick-settings"].anchor, "left", "normalizer restores invalid menu anchor");
 eq(normalized.menus["quick-settings"].widgets, ["quick-settings"], "normalize pins quick-settings to its fixed cohesive stack");
-const renamed = normalize({ menus: { launcher: { anchor: "right", minWidth: 999 } } }, BarCatalog, MenuCatalog);
+const renamed = normalize({ menus: { launcher: { anchor: "right", minWidth: 999 }, "app-launcher": { anchor: "right", minWidth: 999 } } }, BarCatalog, MenuCatalog);
 eq(renamed.menus.launcher, undefined, "normalize drops the retired launcher menu id from a stale config");
-eq(renamed.menus["app-launcher"].anchor, "top-left", "normalize re-seeds app-launcher from defaults");
+eq(renamed.menus["app-launcher"], undefined, "normalize drops the retired app-launcher menu id from a stale config");
 eq(renamed.menus.notifications.anchor, "left", "normalize re-seeds the added notifications menu");
 eq(normalized.surfaces.stash.anchor, "left", "normalizer normalizes invalid surface anchor");
 eq(normalized.arbitrary, undefined, "normalizer drops arbitrary keys");

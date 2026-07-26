@@ -404,10 +404,14 @@ ShellRoot {
         stitchProc.runWith(args, after);
     }
 
+    // shutter cue: the daemon owns the shell's event sounds, so a completed
+    // capture asks it to play rather than shipping an asset in this config.
+    function shutter() { Quickshell.execDetached(["ryoku-shell", "sound", "shutter"]); }
+
     function doCopy() {
         var auto = defaultPath;
         grabTo(auto, function (ok) {
-            if (ok) copyProc.run(auto);
+            if (ok) { root.shutter(); copyProc.run(auto); }
             else Qt.quit();
         });
     }
@@ -416,6 +420,7 @@ ShellRoot {
         var auto = root.defaultPath;
         grabTo(auto, function (ok) {
             if (!ok) { Qt.quit(); return; }
+            root.shutter();
             root.savedAuto = auto;
             root.dialogMode = true;
             saveDialog.open();
@@ -425,7 +430,7 @@ ShellRoot {
     function doUpload() {
         var tmp = "/tmp/ryoshot-upload.png";
         grabTo(tmp, function (ok) {
-            if (ok) uploadProc.run(tmp);
+            if (ok) { root.shutter(); uploadProc.run(tmp); }
             else Qt.quit();
         });
     }
@@ -438,6 +443,7 @@ ShellRoot {
         root.beautifySrc = "";
         root.grabTo("/tmp/ryoshot-beautify-src.png", function (ok) {
             if (!ok) return;
+            root.shutter();
             root.composeMode = mode;
             root.composeActive = true;
             root.beautifySrc = "/tmp/ryoshot-beautify-src.png";
@@ -511,11 +517,7 @@ ShellRoot {
     Process {
         id: copyProc
         function run(file) {
-            command = ["sh", "-c",
-                "wl-copy --type image/png < \"$1\"; "
-                + "if [ \"$(stat -c%s \"$1\")\" -ge 4900000 ]; then magick \"$1\" -quality 92 jpeg:- | cliphist store; "
-                + "else cliphist store < \"$1\"; fi",
-                "_", file];
+            command = ["sh", "-c", "wl-copy --type image/png < \"$1\"", "_", file];
             running = true;
         }
         onExited: (code) => { console.log("ryoshot: wl-copy exit " + code); Qt.quit(); }

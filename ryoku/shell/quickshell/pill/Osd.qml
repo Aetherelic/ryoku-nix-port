@@ -1,230 +1,134 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import Quickshell.Widgets
 import Quickshell.Services.Pipewire
-import Quickshell.Services.Mpris
 import "Singletons"
 
+// One OSD: an icon and a value bar, for volume-out, mic-in, or brightness. There
+// is deliberately NO show or hide animation (contract 12 sec 5) -- the hosting
+// window maps the instant `flashing` turns true and unmaps the instant the
+// 1000 ms hold elapses; a re-trigger just restarts that hold. Volume and mic
+// read PipeWire; brightness reads the daemon `osd` feed. Triggers arriving in
+// the startup-settle window are ignored so device enumeration never flashes the
+// OSD (Ryoku's arm window stands in for the reference per-OSD shown_count: the
+// PipeWire startup change-event count is not fixed the way the reference's
+// watch-stream is, so a time window is the robust equivalent).
 Item {
     id: root
 
-    property real s: 1
+    required property real s
+    property string kind: "volume"          // volume | mic | brightness
     property bool suppressed: false
-    property bool flashing: false
-    property string kind: "volume"
+
+    readonly property bool isVolume: kind === "volume"
+    readonly property bool isMic: kind === "mic"
+    readonly property bool isBrightness: kind === "brightness"
+
+    // --- value and mute per kind -------------------------------------------
+    readonly property var device: isVolume ? Pipewire.defaultAudioSink
+        : isMic ? Pipewire.defaultAudioSource : null
+    readonly property var audio: (device && device.audio) ? device.audio : null
+    readonly property bool muted: audio ? audio.muted : false
+    readonly property real value: isBrightness
+        ? OsdFeed.brightness
+        : (audio ? Math.max(0, Math.min(1, audio.volume)) : 0)
+
+    // Bucket -> Material Symbols icon, muted winning, on the reference
+    // thresholds (contract 12 sec 3): audio >66 high, >33 medium, >0 low, else
+    // muted; brightness >66 high, >33 medium, else low. Material Symbols carries
+    // no microphone-sensitivity levels, so mic collapses to on/off (documented
+    // divergence, matching the rail's audio-input glyph).
+    readonly property string iconName: {
+        var pct = Math.round(value * 100);
+        if (isBrightness)
+            return pct > 66 ? "brightness_high" : pct > 33 ? "brightness_medium" : "brightness_low";
+        if (isMic)
+            return (muted || pct <= 0) ? "mic_off" : "mic";
+        if (muted)
+            return "volume_off";
+        return pct > 66 ? "volume_up" : pct > 33 ? "volume_down" : pct > 0 ? "volume_mute" : "volume_off";
+    }
+
+    // --- flash state machine (no animation) --------------------------------
     property bool armed: false
-    property string shownTrackLine: ""
-    property bool shownPlaying: false
-    property string shownArtUrl: ""
-    property string lastTrackLine: ""
-    property bool lastPlaying: false
+    property bool flashing: false
 
-    readonly property var sink: Pipewire.defaultAudioSink
-    readonly property bool muted: sink && sink.audio ? sink.audio.muted : false
-    readonly property real volume: sink && sink.audio ? Math.max(0, Math.min(1, sink.audio.volume)) : 0
-
-    property var stickyPlayer: null
-    readonly property var player: {
-        var list = Mpris.players.values;
-        if (!list || list.length === 0)
-            return null;
-        for (var i = 0; i < list.length; i++) {
-            if (list[i] && list[i].isPlaying)
-                return list[i];
-        }
-        if (stickyPlayer && list.indexOf(stickyPlayer) >= 0)
-            return stickyPlayer;
-        return list[0];
-    }
-    readonly property bool playing: player !== null && player.isPlaying
-    readonly property string trackLine: {
-        if (!player)
-            return "";
-        var t = player.trackTitle ? player.trackTitle : "";
-        var a = Theme.joinArtists(player.trackArtists, player.trackArtist);
-        return a.length > 0 ? t + " · " + a : t;
-    }
-
-    readonly property real desiredW: 248 * s
-    readonly property real desiredH: 44 * s
-
-    function trackEvent() {
-    }
-
-    function flash(which) {
-        if (!armed || suppressed || cooldownTimer.running)
+    function flash() {
+        if (!armed || suppressed)
             return;
-        if (which === "track")
-            return;
-        kind = which;
         flashing = true;
         hideTimer.restart();
     }
 
-    onSuppressedChanged: {
-        if (suppressed) {
-            hideTimer.stop();
-            flashing = false;
-        } else {
-            cooldownTimer.restart();
-        }
+    onSuppressedChanged: if (suppressed) {
+        hideTimer.stop();
+        flashing = false;
     }
 
+    // Startup-settle window: ignore triggers until the shell has enumerated
+    // devices, so no OSD flashes at login.
     Timer {
-        interval: 1500
+        interval: Motion.startupReveal
         running: true
         onTriggered: root.armed = true
     }
 
+    // The 1000 ms auto-hide hold, restarted on every value change.
     Timer {
         id: hideTimer
-        interval: 1400
+        interval: Motion.osdHide
         onTriggered: root.flashing = false
     }
 
-    Timer {
-        id: cooldownTimer
-        interval: 200
-    }
-
-    PwObjectTracker {
-        objects: [root.sink].filter(Boolean)
-    }
-
+    // Audio triggers: any volume or mute change on the tracked default device.
+    PwObjectTracker { objects: root.device ? [root.device] : [] }
     Connections {
-        target: root.sink && root.sink.audio ? root.sink.audio : null
-        function onVolumesChanged() { root.flash("volume"); }
-        function onMutedChanged() { root.flash("volume"); }
+        target: root.audio
+        function onVolumesChanged() { root.flash(); }
+        function onMutedChanged() { root.flash(); }
     }
-
-    onPlayerChanged: {
-        Qt.callLater(function() {
-            if (stickyPlayer !== player)
-                stickyPlayer = player;
-        });
-        trackEvent();
-    }
-
+    // Brightness trigger: the daemon feed bumps its sequence on each change.
     Connections {
-        target: root.player
-        function onTrackTitleChanged() { root.trackEvent(); }
-        function onPlaybackStateChanged() { root.trackEvent(); }
+        target: root.isBrightness ? OsdFeed : null
+        function onBrightnessSeqChanged() { root.flash(); }
     }
 
-    Item {
-        id: volRow
-        anchors.fill: parent
-        opacity: root.kind === "volume" ? 1 : 0
-        visible: opacity > 0.01
-        Behavior on opacity { NumberAnimation { duration: 150 } }
+    // --- content: icon + value bar (contract 12 sec 2) ---------------------
+    // Inner box width 300, spacing 20, icon 48; the bar fills the remainder.
+    implicitWidth: 300 * root.s
+    implicitHeight: 48 * root.s
 
-        GlyphIcon {
-            id: volGlyph
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: 17 * root.s
-            height: 17 * root.s
-            name: root.muted ? "speaker-off" : "speaker"
-            color: root.muted ? Theme.onSurfaceVariant : Theme.onSurfaceVariant
-            stroke: 1.7
-        }
+    MaterialIcon {
+        id: glyph
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        width: 48 * root.s
+        height: 48 * root.s
+        font.pixelSize: 48 * root.s
+        text: root.iconName
+        color: Theme.onSurface
+    }
 
-        Text {
-            id: volPct
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: 32 * root.s
-            horizontalAlignment: Text.AlignRight
-            text: Math.round(root.volume * 100) + "%"
-            color: root.muted ? Theme.onSurfaceVariant : Theme.onSurface
-            font.family: Theme.fontPrimary
-            font.pixelSize: 11 * root.s
-            font.weight: Font.DemiBold
-            font.features: { "tnum": 1 }
-        }
+    // ok-progress-bar: trough (primary-container) + highlight (on-primary-
+    // container), min-height 8, radius 8, thumb hidden.
+    Rectangle {
+        id: trough
+        anchors.left: glyph.right
+        anchors.leftMargin: 20 * root.s
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        height: 8 * root.s
+        radius: Theme.radiusWidget
+        color: Theme.primaryContainer
 
         Rectangle {
-            anchors.left: volGlyph.right
-            anchors.leftMargin: 12 * root.s
-            anchors.right: volPct.left
-            anchors.rightMargin: 12 * root.s
-            anchors.verticalCenter: parent.verticalCenter
-            height: 4 * root.s
-            radius: Theme.radiusWidget
-            color: Theme.threadBg
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: parent.width * root.volume
-                radius: parent.radius
-                color: root.muted ? Theme.vermDim : Theme.vermLit
-                Behavior on width { NumberAnimation { duration: Motion.fast } }
-                Behavior on color { ColorAnimation { duration: Motion.fast } }
-            }
-        }
-    }
-
-    Item {
-        id: trackRow
-        anchors.fill: parent
-        opacity: root.kind === "track" ? 1 : 0
-        visible: opacity > 0.01
-        Behavior on opacity { NumberAnimation { duration: 150 } }
-
-        ClippingRectangle {
-            id: coverBox
             anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: 30 * root.s
-            height: 30 * root.s
-            radius: Theme.radiusWidget
-            color: Theme.surfaceContainerHigh
-
-            Image {
-                id: cover
-                anchors.fill: parent
-                source: root.shownArtUrl
-                sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: true
-                visible: status === Image.Ready && root.shownArtUrl !== ""
-            }
-            GlyphIcon {
-                anchors.centerIn: parent
-                width: parent.width * 0.45
-                height: width
-                name: "music"
-                color: Theme.onSurfaceVariant
-                visible: !cover.visible
-            }
-        }
-
-        GlyphIcon {
-            id: trackGlyph
-            anchors.left: coverBox.right
-            anchors.leftMargin: 11 * root.s
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16 * root.s
-            height: 16 * root.s
-            name: root.shownPlaying ? "play-s" : "pause-s"
-            color: Theme.onSurfaceVariant
-            stroke: 1.7
-        }
-
-        Text {
-            anchors.left: trackGlyph.right
-            anchors.leftMargin: 10 * root.s
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.shownTrackLine
-            color: Theme.onSurface
-            font.family: Theme.fontPrimary
-            font.pixelSize: 11.5 * root.s
-            font.weight: Font.DemiBold
-            maximumLineCount: 1
-            elide: Text.ElideRight
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: parent.width * root.value
+            radius: parent.radius
+            color: Theme.onPrimaryContainer
+            visible: width > 0
         }
     }
 }

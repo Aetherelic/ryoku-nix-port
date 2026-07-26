@@ -37,7 +37,6 @@ Item {
         case "quick-settings": return quickSettingsComponent;
         case "quick-actions": return quickActionsComponent;
         case "layout-switcher": return layoutSwitcherComponent;
-        case "launcher": return launcherComponent;
         case "clipboard": return clipboardComponent;
         case "screenshot":
         case "recording": return captureComponent;
@@ -86,7 +85,6 @@ Item {
     Component { id: quickSettingsComponent; MenuQuickSettings { width: root.width; s: root.scale; open: root.open } }
     Component { id: quickActionsComponent; MenuQuickActions { width: root.width; s: root.scale; open: root.open } }
     Component { id: layoutSwitcherComponent; MenuLayoutSwitcher { width: root.width; s: root.scale; open: root.open } }
-    Component { id: launcherComponent; MenuLauncher { width: root.width; s: root.scale; open: root.open } }
     Component { id: clipboardComponent; MenuClipboard { width: root.width; s: root.scale; open: root.open } }
     Component { id: captureComponent; MenuCapture { width: root.width; s: root.scale; open: root.open } }
     Component { id: themeComponent; MenuTheme { width: root.width; s: root.scale; open: root.open } }

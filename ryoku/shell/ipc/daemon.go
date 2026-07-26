@@ -25,6 +25,9 @@ type component struct {
 
 var components = []component{
 	{"pill", true},
+	// backdrop is always-on like pill: the in-shell desktop wallpaper, one
+	// ryoku-wallpaper Background window per monitor, replacing the external daemon.
+	{"backdrop", true},
 	{"launcher", false},  // on-demand: starts on Super+Space, parks when idle
 	{"visualizer", true}, // audio-gated: parked while the desktop is silent
 	{"widgets", true},    // covered-gated: parked while windows cover the desktop
@@ -79,11 +82,10 @@ type daemon struct {
 	mu             sync.Mutex
 	sup            map[string]bool      // components that already have a supervisor goroutine
 	proc           map[string]*exec.Cmd // current live process per component
-	wallMu         sync.Mutex           // serializes the wallpaper hot path (pick + transition)
+	wallMu         sync.Mutex           // serializes the wallpaper hot path (pick + apply)
 	paintSig       chan struct{}        // coalescing wake for the palette/border worker
 	ledsSig        chan struct{}        // coalescing wake for the OpenRGB worker
 	widgetSig      chan struct{}        // coalescing wake for the widget-occupancy gate
-	lastTransition int                  // index of the last transition preset; guarded by wallMu
 	quit           chan struct{}
 	closed         bool
 	ln             net.Listener
@@ -104,6 +106,8 @@ type daemon struct {
 	calls          map[string]callFunc      // "topic.method" -> control handler
 	clip           *clipState               // clipboard history state (nil until started)
 	tray           *trayState               // system tray watcher/host state (nil until started)
+	wall           *wallSurface             // in-shell desktop wallpaper (nil until started)
+	polkit         *polkitAgent             // PolicyKit1 authentication agent (nil until started)
 }
 
 func runDaemon() error {
@@ -265,18 +269,27 @@ func setupQmlImportPath() {
 	}
 }
 
-// bootstrap brings the shell up: clipboard-history watchers, the theme workers,
-// the wallpaper daemon and the first wallpaper, then the persistent Quickshell
+// bootstrap brings the shell up: the clipboard history and its selection
+// watcher, the tray host, the keyring prompter, the theme workers, the in-shell
+// wallpaper surface and the first wallpaper, then the persistent Quickshell
 // components.
 func (d *daemon) bootstrap() {
-	startCliphist()
 	d.startClipboard()
 	d.startTray()
+	d.startWeather()
+	d.startScreenshare()
+	d.startPowerProfiles()
+	d.startNetwork()
+	d.startOsd()
 	d.prompter = startKeyringPrompter()
+	d.startSession()
+	d.startPolkit()
+	d.startWallpaper()
 	go d.paintWorker()
 	go d.ledsWorker()
 	go d.watchHyprland()
 	go d.watchAudio()
+	go d.watchPowerSounds()
 	go d.widgetGateWorker()
 	go d.idlePark()
 	go func() {
@@ -538,6 +551,12 @@ func (d *daemon) handle(conn net.Conn) {
 // and function it triggers. ok is false for commands that need more than one IPC
 // call (wallpaper, reload, status, ...).
 func route(cmd string) (config, target, fn string, ok bool) {
+	if cmd == "menu app-launcher" {
+		// The app launcher is Ryoku's own surface (Super+Space opens it), not an
+		// in-frame menu; the frame's app-launcher entry funnels to the one
+		// launcher verb, so there is a single launcher reached one way.
+		return "launcher", "launcher", "toggle", true
+	}
 	if _, p := pillSurfaces[cmd]; p {
 		return "pill", "pill", "openSurface", true
 	}
@@ -569,14 +588,20 @@ func (d *daemon) dispatch(line string) string {
 	routeCmd := cmd
 	switch cmd {
 	case "menu":
-		// menu close clears every open menu; menu <id> toggles one.
-		if len(args) == 1 && args[0] == "close" {
+		// menu close clears every open menu; menu <id> toggles one. app-launcher
+		// is Ryoku's own launcher surface (Super+Space), not a frame menu, so it
+		// is accepted here and routed to the one launcher verb (see route).
+		switch {
+		case len(args) == 1 && args[0] == "close":
 			return d.menuClose()
+		case len(args) == 1 && args[0] == "app-launcher":
+			routeCmd = line
+		default:
+			if _, ok := menuID(line); !ok {
+				return "err menu: unknown or malformed id"
+			}
+			routeCmd = line
 		}
-		if _, ok := menuID(line); !ok {
-			return "err menu: unknown or malformed id"
-		}
-		routeCmd = line
 	case "bar":
 		// bar <edge|all> <toggle|reveal|hide> drives the bar reveal state.
 		edge, action, ok := parseBarEdge(args)
@@ -704,6 +729,15 @@ func (d *daemon) dispatch(line string) string {
 			return "err state: need <name> <0|1>"
 		}
 		d.setPaletteVisible(args[0], args[1] == "1")
+		return "ok"
+	case "sound":
+		// an event cue from a config outside the daemon (ryoshot fires the
+		// shutter on capture). The daemon owns the assets and playback; it only
+		// accepts a known event name.
+		if len(args) != 1 || !knownSound(args[0]) {
+			return "err sound: expected a known event"
+		}
+		playSound(args[0])
 		return "ok"
 
 	default:

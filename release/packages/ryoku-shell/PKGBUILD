@@ -24,6 +24,9 @@ build() {
   # -mod=vendor keeps the build hermetic. godbus is vendored, so the signed-repo
   # CI builds offline regardless of whatever GOFLAGS makepkg picked up.
   CGO_ENABLED=0 go build -trimpath -mod=vendor -o "$srcdir/ryoku-shell" .
+  # ryoku-share: the screen-share picker helper xdg-desktop-portal-hyprland runs
+  # as its screencopy custom picker. Same module, a second main under ./share.
+  CGO_ENABLED=0 go build -trimpath -mod=vendor -o "$srcdir/ryoku-share" ./share
   # ryoku-livewall: the C video-wallpaper daemon the shell drives. It software-
   # decodes a downscaled clip into wl_shm on a wlr background surface (no GL, so
   # ~40 MB RSS on any GPU vs mpv/mpvpaper's 300-700 MB). build.sh generates the
@@ -33,5 +36,6 @@ build() {
 
 package() {
   install -Dm755 "$srcdir/ryoku-shell" "$pkgdir/usr/bin/ryoku-shell"
+  install -Dm755 "$srcdir/ryoku-share" "$pkgdir/usr/bin/ryoku-share"
   install -Dm755 "$srcdir/ryoku-livewall" "$pkgdir/usr/bin/ryoku-livewall"
 }

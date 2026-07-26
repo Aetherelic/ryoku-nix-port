@@ -9,7 +9,7 @@ ShellRoot {
 
     readonly property var implemented: ["clock", "notifications", "network", "bluetooth",
         "audio-input", "audio-output", "power-profile", "quick-settings", "quick-actions",
-        "layout-switcher", "container", "divider", "spacer", "launcher", "clipboard",
+        "layout-switcher", "container", "divider", "spacer", "clipboard",
         "screenshot", "recording", "theme", "wallpaper", "weather", "media"]
     readonly property var deferred: []
     function hosts(item, out) {

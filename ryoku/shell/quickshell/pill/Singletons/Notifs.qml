@@ -3,228 +3,215 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Notifications
 
+// Notification model, faithful to the reference wayle-notification service
+// (contract 07 sec 4.3, sec 8; verified against monitoring.rs). Two flat,
+// newest-first lists with NO app grouping:
+//   history  the panel list: every tracked, non-transient notification, newest
+//            first, self-expiring per remove_expired.
+//   popups   the transient popup list: newest first (insert at 0), gated by DND,
+//            dedup-then-front by id, each with its own display timer.
+// Urgency is parsed by the server but has ZERO effect here: no styling, no
+// ordering, no timeout weighting, exactly as upstream. DND is shell-owned (bound
+// from Flags.dnd in shell.qml) and suppresses popups only; history still fills.
 Singleton {
     id: root
 
+    // Shell-owned Do Not Disturb; gates popups only.
     property bool dnd: false
-    property var seenIds: ({})
+
+    // popup_duration: the reference wayle builder default. Quickshell's server
+    // carries no popup timer, so the shell owns it.
+    readonly property int popupDuration: 5000
+
+    // 24-hour clock for the card time label. The reference default is 12-hour
+    // (general.clock_format_24_h = false); the Go clock config owns this in the
+    // settings phase, so it follows the reference default for now.
+    property bool format24h: false
+
+    // Arrival wall-clock per id, for newest-first ordering and expiry math.
     property var arrivalMs: ({})
-    property var popups: []
-    property int tick: 0
-    property var expandedApps: ({})
-    property var history: []
-    property var userDismissed: ({})
-    property var expireAt: ({})
+    // Popup display deadlines per id (absent = persist, no timer).
+    property var popupExpireAt: ({})
 
+    // Raw server-tracked notifications (the rail's has-notifs dot reads this).
     readonly property var tracked: server.trackedNotifications.values
-    readonly property int count: tracked.length + history.length
 
-    readonly property int unread: {
-        var u = 0;
-        for (var i = 0; i < tracked.length; i++)
-            if (!seenIds[tracked[i].id]) u++;
-        return u;
+    // Panel list: flat, newest-first, transient excluded. A notification whose
+    // remove_expired has elapsed has already left `tracked` (historyReaper calls
+    // expire()); expire_timeout 0 is excluded here because it is removed from
+    // history at once while its popup persists (contract 07 sec 8 asymmetry).
+    readonly property var history: {
+        var t = root.tracked;
+        var out = [];
+        for (var i = 0; i < t.length; i++) {
+            var n = t[i];
+            if (n.transient || n.expireTimeout === 0)
+                continue;
+            out.push(n);
+        }
+        out.sort(function(a, b) { return (root.arrivalMs[b.id] || 0) - (root.arrivalMs[a.id] || 0); });
+        return out;
     }
 
-    readonly property var groups: {
-        var map = {};
-        var order = [];
-        for (var i = 0; i < tracked.length; i++) {
-            var n = tracked[i];
-            var app = (n.appName && n.appName.length) ? n.appName : "System";
-            if (map[app] === undefined) { map[app] = []; order.push(app); }
-            map[app].push({ live: true, n: n, t: arrivalMs[n.id] || 0 });
-        }
-        for (var j = 0; j < history.length; j++) {
-            var h = history[j];
-            if (map[h.app] === undefined) { map[h.app] = []; order.push(h.app); }
-            map[h.app].push({ live: false, n: h, t: h.ts || 0 });
-        }
-        function coalesce(list, it) {
-            var last = list.length > 0 ? list[list.length - 1] : null;
-            if (last && last.n.summary === it.n.summary && last.n.body === it.n.body) {
-                last.count++;
-                last.items.push(it.n);
-            } else {
-                list.push({ live: it.live, n: it.n, count: 1, items: [it.n] });
-            }
-        }
-        var gs = order.map(function(app) {
-            var items = map[app];
-            items.sort(function(a, b) { return b.t - a.t; });
-            var criticals = [];
-            var entries = [];
-            for (var k = 0; k < items.length; k++)
-                coalesce(items[k].n.urgency === NotificationUrgency.Critical ? criticals : entries, items[k]);
-            var preview = items.find(function(it) { return it.n.urgency !== NotificationUrgency.Critical; });
-            return {
-                app: app,
-                count: items.length,
-                t: items[0].t,
-                newest: items[0].n,
-                preview: preview ? preview.n : items[0].n,
-                criticals: criticals,
-                entries: entries
-            };
-        });
-        gs.sort(function(a, b) { return b.t - a.t; });
-        return gs;
+    // Popup list: flat, newest-first. Managed imperatively so the display timers
+    // can drive it.
+    property var popups: []
+
+    // Popup timer rule (contract 07 sec 8): expire_timeout -1 (server default)
+    // -> popupDuration; 0 -> never (persist); n>0 -> min(popupDuration, n).
+    function popupTtl(n) {
+        var et = n.expireTimeout;
+        if (et === 0) return -1;
+        if (et < 0) return root.popupDuration;
+        return Math.min(root.popupDuration, et);
     }
 
-    function iconFor(n) {
-        if (!n) return "";
-        var img = n.image || "";
-        var names = [];
-        if (img.indexOf("image://icon/") === 0) {
-            names.push(img.substring(13));
-        } else if (img.length) {
-            return img;
-        }
-        names.push(n.appIcon, n.desktopEntry, (n.appName || n.app || "").toLowerCase());
-        for (var i = 0; i < names.length; i++) {
-            var nm = names[i];
-            if (!nm || !nm.length) continue;
-            if (nm.indexOf("/") === 0 || nm.indexOf("file://") === 0) return nm;
-            var p = Quickshell.iconPath(nm, true);
-            if (p.length) return p;
-        }
-        return "";
-    }
-
-    function dismissNotif(n) {
-        if (!n) return;
-        if (typeof n.dismiss === "function") {
-            var d = Object.assign({}, userDismissed);
-            d[n.id] = true;
-            root.userDismissed = d;
-            n.dismiss();
-        } else {
-            root.history = root.history.filter(function(h) { return h.id !== n.id; });
-        }
-    }
-
-    function dismissEntry(e) {
-        if (!e || !e.items) return;
-        var d = Object.assign({}, userDismissed);
-        var gone = {};
-        var live = [];
-        for (var i = 0; i < e.items.length; i++) {
-            var n = e.items[i];
-            if (typeof n.dismiss === "function") {
-                d[n.id] = true;
-                live.push(n);
-            } else {
-                gone[n.id] = true;
-            }
-        }
-        root.userDismissed = d;
-        for (var j = 0; j < live.length; j++) live[j].dismiss();
-        root.history = root.history.filter(function(h) { return !gone[h.id]; });
-    }
-
-    // open the app behind a notification: invoke its default action if
-    // present, then focus its Hyprland window (workspace switch included) by
-    // matching desktopEntry/appName against window classes. dismiss after,
-    // same as stock notification-center behaviour.
-    function activateEntry(e) {
-        if (!e || !e.n) return;
-        var n = e.n;
-        var acts = n.actions || [];
-        for (var i = 0; i < acts.length; i++) {
-            if (acts[i].identifier === "default") {
-                acts[i].invoke();
-                break;
-            }
-        }
-        var token = String(n.desktopEntry && n.desktopEntry.length ? n.desktopEntry : (n.appName || "")).toLowerCase();
-        if (token.length > 0)
-            Quickshell.execDetached(["sh", "-c",
-                "addr=$(hyprctl clients -j | jq -r --arg q \"$1\" '[.[] | select(((.class // \"\") | ascii_downcase | contains($q)) or ((.initialClass // \"\") | ascii_downcase | contains($q)))][0].address // empty'); [ -n \"$addr\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:$addr\\\" })\"",
-                "sh", token]);
-        dismissEntry(e);
-    }
-
-    function dismissApp(app) {
-        var doomed = tracked.filter(function(n) {
-            return ((n.appName && n.appName.length) ? n.appName : "System") === app;
-        });
-        var d = Object.assign({}, userDismissed);
-        for (var i = 0; i < doomed.length; i++) d[doomed[i].id] = true;
-        root.userDismissed = d;
-        for (var j = 0; j < doomed.length; j++) doomed[j].dismiss();
-        root.history = root.history.filter(function(h) { return h.app !== app; });
-    }
-
-    function markAllSeen() {
-        var m = {};
-        for (var i = 0; i < tracked.length; i++) m[tracked[i].id] = true;
-        root.seenIds = m;
-    }
-
-    function clearAll() {
-        var l = tracked.slice();
-        var d = Object.assign({}, userDismissed);
-        for (var i = 0; i < l.length; i++) d[l[i].id] = true;
-        root.userDismissed = d;
-        for (var j = 0; j < l.length; j++) l[j].dismiss();
-        root.history = [];
-        root.popups = [];
+    // Add a popup: dedup-then-insert-front (a re-posted id moves to the top, not
+    // duplicated), then arm its timer unless it is persistent.
+    function addPopup(n) {
+        var list = root.popups.filter(function(p) { return p.id !== n.id; });
+        list.unshift(n);
+        root.popups = list;
+        var ttl = root.popupTtl(n);
+        var e = Object.assign({}, root.popupExpireAt);
+        if (ttl < 0)
+            delete e[n.id];
+        else
+            e[n.id] = Date.now() + ttl;
+        root.popupExpireAt = e;
+        schedulePopupReap();
     }
 
     function removePopup(n) {
         root.popups = root.popups.filter(function(p) { return p !== n; });
+        var e = Object.assign({}, root.popupExpireAt);
+        delete e[n.id];
+        root.popupExpireAt = e;
     }
 
-    function toggleExpanded(app) {
-        var e = Object.assign({}, expandedApps);
-        e[app] = e[app] !== true;
-        root.expandedApps = e;
+    // Close button (contract 07 sec 4.3): DismissedByUser.
+    function dismiss(n) {
+        if (n && typeof n.dismiss === "function")
+            n.dismiss();
     }
 
+    // Clear all (contract 07 sec 4.3): dismiss every history item. Their popups
+    // fall away with them via the closed hook; a persistent popup (expire_timeout
+    // 0, not in history) is deliberately left, matching dismiss_all.
+    function clearAll() {
+        var h = root.history.slice();
+        for (var i = 0; i < h.length; i++)
+            if (typeof h[i].dismiss === "function")
+                h[i].dismiss();
+    }
+
+    // Card time label (contract 07 sec 2.3): 24h "HH:MM"; 12h "hh:MM am/pm".
+    function timeLabel(n) {
+        var ts = root.arrivalMs[n.id];
+        if (!ts)
+            return "";
+        var d = new Date(ts);
+        var mm = ("0" + d.getMinutes()).slice(-2);
+        if (root.format24h)
+            return ("0" + d.getHours()).slice(-2) + ":" + mm;
+        var h = d.getHours();
+        return ("0" + ((h % 12) || 12)).slice(-2) + ":" + mm + " " + (h < 12 ? "am" : "pm");
+    }
+
+    // Popup reaper: remove popups past their deadline. A transient popup is
+    // released entirely (expire) since it never entered history; a normal popup
+    // just leaves the popup list and stays in history.
+    Timer {
+        id: popupReaper
+        onTriggered: {
+            var now = Date.now();
+            var e = Object.assign({}, root.popupExpireAt);
+            var live = [];
+            var release = [];
+            for (var i = 0; i < root.popups.length; i++) {
+                var p = root.popups[i];
+                var due = e[p.id];
+                if (due !== undefined && due <= now) {
+                    delete e[p.id];
+                    if (p.transient && typeof p.expire === "function")
+                        release.push(p);
+                } else {
+                    live.push(p);
+                }
+            }
+            root.popupExpireAt = e;
+            if (live.length !== root.popups.length)
+                root.popups = live;
+            for (var j = 0; j < release.length; j++)
+                release[j].expire();
+            root.schedulePopupReap();
+        }
+    }
+
+    function schedulePopupReap() {
+        var now = Date.now();
+        var soonest = -1;
+        for (var id in root.popupExpireAt) {
+            var due = root.popupExpireAt[id];
+            if (soonest < 0 || due < soonest)
+                soonest = due;
+        }
+        popupReaper.stop();
+        if (soonest >= 0) {
+            popupReaper.interval = Math.max(1, soonest - now);
+            popupReaper.start();
+        }
+    }
+
+    // History reaper (remove_expired, contract 07 sec 8): a notification with
+    // expire_timeout n>0 leaves history at arrival + n (full, uncapped); -1 and
+    // 0 are handled elsewhere (-1 never, 0 excluded from history immediately).
+    Timer {
+        id: historyReaper
+        onTriggered: {
+            var now = Date.now();
+            var t = root.tracked;
+            for (var i = 0; i < t.length; i++) {
+                var n = t[i];
+                if (n.transient || n.expireTimeout <= 0)
+                    continue;
+                if ((root.arrivalMs[n.id] || 0) + n.expireTimeout <= now && typeof n.expire === "function")
+                    n.expire();
+            }
+            root.scheduleHistoryReap();
+        }
+    }
+
+    function scheduleHistoryReap() {
+        var now = Date.now();
+        var soonest = -1;
+        var t = root.tracked;
+        for (var i = 0; i < t.length; i++) {
+            var n = t[i];
+            if (n.transient || n.expireTimeout <= 0)
+                continue;
+            var due = (root.arrivalMs[n.id] || 0) + n.expireTimeout;
+            if (soonest < 0 || due < soonest)
+                soonest = due;
+        }
+        historyReaper.stop();
+        if (soonest >= 0) {
+            historyReaper.interval = Math.max(1, soonest - now);
+            historyReaper.start();
+        }
+    }
+
+    // On close (dismiss / expire / app request): drop the popup and forget the
+    // bookkeeping; history recomputes from the shrunken tracked list.
     function hookClosed(n) {
         n.closed.connect(function(reason) {
-            if (!root.userDismissed[n.id])
-                root.history = [{
-                    app: (n.appName && n.appName.length) ? n.appName : "System",
-                    summary: n.summary,
-                    body: n.body,
-                    appIcon: n.appIcon,
-                    desktopEntry: n.desktopEntry,
-                    image: n.image,
-                    urgency: n.urgency,
-                    ts: root.arrivalMs[n.id] || Date.now(),
-                    id: "h" + n.id + "-" + Date.now()
-                }].concat(root.history).slice(0, 50);
-            else {
-                var du = Object.assign({}, root.userDismissed);
-                delete du[n.id];
-                root.userDismissed = du;
-            }
             root.removePopup(n);
-            var b = Object.assign({}, root.arrivalMs);
-            delete b[n.id];
-            root.arrivalMs = b;
-            var c = Object.assign({}, root.expireAt);
-            delete c[n.id];
-            root.expireAt = c;
+            var a = Object.assign({}, root.arrivalMs);
+            delete a[n.id];
+            root.arrivalMs = a;
+            root.schedulePopupReap();
+            root.scheduleHistoryReap();
         });
-    }
-
-    function ageLabel(n) {
-        void root.tick;
-        var t = arrivalMs[n.id] || n.ts;
-        if (!t) return "";
-        var m = Math.floor((Date.now() - t) / 60000);
-        if (m < 1) return "now";
-        if (m < 60) return m + "m";
-        return Math.floor(m / 60) + "h";
-    }
-
-    Timer {
-        interval: 30000
-        running: root.count > 0
-        repeat: true
-        onTriggered: root.tick++
     }
 
     NotificationServer {
@@ -238,24 +225,23 @@ Singleton {
             var l = trackedNotifications.values;
             var a = Object.assign({}, root.arrivalMs);
             for (var i = 0; i < l.length; i++) {
-                if (!a[l[i].id]) a[l[i].id] = Date.now();
+                if (!a[l[i].id])
+                    a[l[i].id] = Date.now();
                 root.hookClosed(l[i]);
             }
             root.arrivalMs = a;
+            root.scheduleHistoryReap();
         }
 
         onNotification: function(n) {
             var a = Object.assign({}, root.arrivalMs);
             a[n.id] = Date.now();
             root.arrivalMs = a;
-            var e = Object.assign({}, root.expireAt);
-            e[n.id] = Date.now() + (n.urgency === NotificationUrgency.Low ? 4000 : 6000);
-            root.expireAt = e;
             n.tracked = true;
             root.hookClosed(n);
-            var critical = n.urgency === NotificationUrgency.Critical;
-            if (!root.dnd || critical)
-                root.popups = root.popups.concat([n]).slice(-3);
+            if (!root.dnd)
+                root.addPopup(n);
+            root.scheduleHistoryReap();
         }
     }
 }

@@ -34,7 +34,6 @@ Item {
         case "workspaces": return workspacesComponent;
         case "tray": return trayComponent;
         case "quick-settings": return quickSettingsComponent;
-        case "app-launcher": return appLauncherComponent;
         case "dock": return dockComponent;
         case "layout-switcher": return layoutSwitcherComponent;
         case "power-profile": return powerProfileComponent;
@@ -46,6 +45,7 @@ Item {
         case "bluetooth":
         case "network":
         case "notifications": return statusComponent;
+        case "app-launcher":
         case "clipboard":
         case "color-picker":
         case "lock":
@@ -137,7 +137,6 @@ Item {
     Component { id: workspacesComponent; RailWorkspaces { edge: root.edge; scale: root.scale } }
     Component { id: trayComponent; RailTray { edge: root.edge; scale: root.scale } }
     Component { id: quickSettingsComponent; RailQuickSettings { edge: root.edge; scale: root.scale } }
-    Component { id: appLauncherComponent; RailAppLauncher { edge: root.edge; scale: root.scale } }
     Component {
         id: dockComponent
         RailDock {

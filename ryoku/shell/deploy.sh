@@ -104,6 +104,14 @@ mkdir -p "$bindir"
 install -m755 "$here/ipc/ryoku-shell" "$bindir/ryoku-shell"
 say "installed $bindir/ryoku-shell"
 
+# Build the screen-share picker helper. xdg-desktop-portal-hyprland runs it as
+# the screencopy custom picker (see hyprland/xdph.conf); it forwards the portal's
+# window list to the daemon and prints the chosen source.
+say "building ryoku-share"
+(cd "$here/ipc" && go build -o ryoku-share ./share)
+install -m755 "$here/ipc/ryoku-share" "$bindir/ryoku-share"
+say "installed $bindir/ryoku-share"
+
 # Every hyprland leaf script the config calls by bare name (ryoku-app, the
 # ryoku-cmd-*, ...). The package ships them to /usr/bin; a checkout must put the
 # current copies on PATH too, else a new one like ryoku-app is simply missing.

@@ -17,9 +17,10 @@ import (
 var shellDir = os.Getenv("RYOKU_SHELL_DIR")
 
 var frameBarMenuIDs = map[string]bool{
-	"quick-settings": true, "clock": true, "app-launcher": true, "clipboard": true,
+	"quick-settings": true, "clock": true, "clipboard": true,
 	"notifications": true, "screenshot": true, "recording": true, "theme": true,
 	"wallpaper": true, "weather": true, "media": true, "stash": true, "system": true,
+	"screenshare": true,
 }
 
 func menuID(cmd string) (string, bool) {
@@ -217,21 +218,6 @@ func dictationReady() bool {
 		return false
 	}
 	return exec.Command("systemctl", "--user", "is-active", "--quiet", "voxtype.service").Run() == nil
-}
-
-// startCliphist starts the wl-paste watchers that feed clipboard history, once.
-func startCliphist() {
-	for _, kind := range []string{"text", "image"} {
-		pattern := "wl-paste --type " + kind + " --watch cliphist"
-		if pgrepRunning(pattern) {
-			continue
-		}
-		cmd := exec.Command("wl-paste", "--type", kind, "--watch", "cliphist", "store")
-		_ = cmd.Start()
-		if cmd.Process != nil {
-			_ = cmd.Process.Release()
-		}
-	}
 }
 
 func pgrepRunning(pattern string) bool {

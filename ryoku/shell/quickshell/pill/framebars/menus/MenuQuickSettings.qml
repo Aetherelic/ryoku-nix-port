@@ -23,7 +23,7 @@ Item {
         width: root.width
         spacing: 0
 
-        MenuClock { width: col.width; s: root.s; open: root.open }
+        MenuClockCard { width: col.width; s: root.s; open: root.open }
         MenuNetwork { width: col.width; s: root.s; open: root.open }
         MenuBluetooth { width: col.width; s: root.s; open: root.open }
         MenuAudioOutput { width: col.width; s: root.s; open: root.open }

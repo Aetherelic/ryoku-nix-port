@@ -1,5 +1,5 @@
 const entries = [
-    ["app-launcher", "App Launcher", ["horizontal", "vertical"], "menu", "launcher"],
+    ["app-launcher", "App Launcher", ["horizontal", "vertical"], "quick-action", "launcher"],
     ["audio-input", "Audio Input", ["horizontal", "vertical"], "widget", null],
     ["audio-output", "Audio Output", ["horizontal", "vertical"], "widget", null],
     ["battery", "Battery", ["horizontal", "vertical"], "widget", null],

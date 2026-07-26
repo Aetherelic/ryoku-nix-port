@@ -5,6 +5,7 @@
 /installation/tests/cache/
 /installation/tui/ryoku-tui
 /ryoku/shell/ipc/ryoku-shell
+/ryoku/shell/ipc/ryoku-share
 /ryoku/hub/backend/ryoku-hub
 /ryoku/rashin/backend/ryoku-rashin
 /ryoku/cli/ryoku

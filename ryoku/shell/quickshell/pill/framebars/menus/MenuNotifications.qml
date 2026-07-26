@@ -3,133 +3,120 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../.." as Pill
 import "../../Singletons"
-import "../lib/notifs.js" as NotifModel
 
+// Notification history panel (contract 07 sec 2.3/4.3): a DND toggle, a
+// "Notification History" title and a "Clear all" action, an "Empty" placeholder,
+// then every notification newest first as its own card. There is NO grouping by
+// app: the list is flat, ordered strictly by recency. Urgency has no visual or
+// timeout effect, and no app icon or image is drawn. Cards come from the shared
+// NotificationCard; the model is the flat Notifs.history.
 Item {
     id: root
 
     required property real s
     required property bool open
+    signal requestClose()
 
-    readonly property var rows: root.open ? NotifModel.rows(Notifs.groups) : []
+    readonly property var notifs: root.open ? Notifs.history : []
 
-    implicitWidth: 300 * s
+    implicitWidth: 410 * s
     implicitHeight: col.implicitHeight
 
     Column {
         id: col
         width: root.width
-        spacing: 11 * root.s
+        spacing: 12 * root.s
 
+        // Header: DND toggle, title (fills), clear all.
         Item {
+            id: header
             width: parent.width
-            height: 14 * root.s
-            Pill.MicroLabel {
+            height: Math.max(titleText.implicitHeight, clearBtn.implicitHeight, dndBtn.height)
+
+            Rectangle {
+                id: dndBtn
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                label: qsTr("Recent")
-                s: root.s
-            }
-            Text {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.rows.length > 0
-                text: qsTr("Clear")
-                color: clearHov.hovered ? Theme.primary : Theme.onSurfaceVariant
-                font.family: Theme.mono
-                font.pixelSize: 8.5 * root.s
-                font.weight: Font.DemiBold
-                font.letterSpacing: 1.6 * root.s
-                font.capitalization: Font.AllUppercase
-                HoverHandler { id: clearHov; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: Notifs.clearAll() }
-            }
-        }
+                width: Theme.iconSm + Theme.paddingSm * 2
+                height: width
+                radius: Theme.radiusWidget
+                color: dndHov.hovered
+                    ? Qt.tint(Theme.surface, Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08))
+                    : "transparent"
 
-        Text {
-            width: parent.width
-            visible: root.rows.length === 0
-            text: qsTr("No notifications")
-            color: Theme.onSurfaceVariant
-            font.family: Theme.fontPrimary
-            font.pixelSize: 12 * root.s
-            font.weight: Font.Medium
-        }
-
-        Repeater {
-            model: root.rows
-            delegate: Item {
-                id: nrow
-                required property var modelData
-                width: col.width
-                implicitHeight: nbody.implicitHeight
-
-                Item {
-                    id: ndismiss
-                    width: 22 * root.s
-                    height: 22 * root.s
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    Pill.GlyphIcon {
-                        anchors.centerIn: parent
-                        width: 12 * root.s
-                        height: 12 * root.s
-                        name: "close"
-                        color: ndHov.hovered ? Theme.primary : Theme.onSurfaceVariant
-                        stroke: 1.8
-                    }
-                    HoverHandler { id: ndHov; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: Notifs.dismissApp(nrow.modelData.app) }
+                Pill.MaterialIcon {
+                    anchors.centerIn: parent
+                    text: Flags.dnd ? "notifications_off" : "notifications"
+                    font.pixelSize: Theme.iconSm
+                    color: Flags.dnd ? Theme.primary : (dndHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant)
                 }
 
-                Column {
-                    id: nbody
-                    anchors.left: parent.left
-                    anchors.right: ndismiss.left
-                    anchors.rightMargin: 8 * root.s
-                    spacing: 3 * root.s
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Flags.dnd = !Flags.dnd
+                    HoverHandler { id: dndHov }
+                }
+            }
 
-                    Row {
-                        width: parent.width
-                        spacing: 6 * root.s
-                        Text {
-                            text: nrow.modelData.app
-                            color: Theme.onSurfaceVariant
-                            font.family: Theme.mono
-                            font.pixelSize: 8 * root.s
-                            font.weight: Font.DemiBold
-                            font.letterSpacing: 1.2 * root.s
-                            font.capitalization: Font.AllUppercase
-                        }
-                        Text {
-                            visible: nrow.modelData.count > 1
-                            text: "\u00d7" + nrow.modelData.count
-                            color: Theme.primary
-                            font.family: Theme.mono
-                            font.pixelSize: 8 * root.s
-                            font.weight: Font.DemiBold
-                        }
+            Text {
+                id: titleText
+                anchors.left: dndBtn.right
+                anchors.leftMargin: Theme.paddingSm
+                anchors.right: clearBtn.left
+                anchors.rightMargin: Theme.paddingSm
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Notification History")
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
+                font.pixelSize: Theme.fontMd
+                font.weight: Font.Bold
+                elide: Text.ElideRight
+            }
+
+            Text {
+                id: clearBtn
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Clear all")
+                color: clearHov.hovered ? Theme.primary : Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
+                font.pixelSize: Theme.fontSm
+                HoverHandler { id: clearHov; cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    onTapped: {
+                        Notifs.clearAll();
+                        root.requestClose();
                     }
-                    Text {
-                        width: parent.width
-                        text: nrow.modelData.summary
-                        elide: Text.ElideRight
-                        color: Theme.onSurface
-                        font.family: Theme.fontPrimary
-                        font.pixelSize: 12 * root.s
-                        font.weight: Font.Medium
-                    }
-                    Text {
-                        width: parent.width
-                        visible: nrow.modelData.body.length > 0
-                        text: nrow.modelData.body
-                        elide: Text.ElideRight
-                        maximumLineCount: 2
-                        wrapMode: Text.Wrap
-                        color: Theme.onSurfaceVariant
-                        font.family: Theme.fontPrimary
-                        font.pixelSize: 10.5 * root.s
-                    }
+                }
+            }
+        }
+
+        // Empty placeholder.
+        Text {
+            width: parent.width
+            visible: root.notifs.length === 0
+            text: qsTr("Empty")
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
+            font.pixelSize: Theme.fontMd
+        }
+
+        // The flat, newest-first card list; inter-card spacing 10 (contract 07
+        // sec 2.3 DynamicBox).
+        Column {
+            width: parent.width
+            spacing: 10 * root.s
+
+            Repeater {
+                model: root.notifs
+
+                delegate: Pill.NotificationCard {
+                    required property var modelData
+                    width: col.width
+                    notif: modelData
+                    onActionInvoked: root.requestClose()
                 }
             }
         }

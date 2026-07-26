@@ -62,9 +62,8 @@ dumb. Build it with `go build` in `ipc/`; the binary belongs on `PATH` as
 
 Beyond Hyprland, quickshell, `go` (to build `ryoku-shell`), and cmake + ninja +
 qt6-shadertools (to build the `Ryoku.Blobs` plugin), the shell calls at
-runtime: `awww` (wallpaper daemon), `wallust` (palette), `openrgb` (keyboard and
-LED color), `cliphist` and `wl-clipboard`, `imagemagick` (clipboard and
-wallpaper thumbnails), `hyprpicker`, `hypridle` and `brightnessctl` (laptop
+LED color), `wl-clipboard` (clipboard history and capture copy), `imagemagick`
+(wallpaper thumbnails), `hyprpicker`, `hypridle` and `brightnessctl` (laptop
 idle/dim), `upower` (battery state), `wireplumber` (`wpctl`), `pipewire-pulse`
 (`pactl` voice-call state and mic source), `cava` (music, mic, and desktop visualizers), `playerctl` (media keys),
 `jq`, `glib2` (`gio`), `curl` (weather and LocalSend), and `python`/`openssl`/

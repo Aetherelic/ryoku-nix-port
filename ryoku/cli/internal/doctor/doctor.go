@@ -1096,7 +1096,7 @@ var frameBarAxes = map[string][]string{
 }
 
 var frameMenuWidgets = map[string]bool{
-	"launcher": true, "audio-input": true, "audio-output": true, "bluetooth": true,
+	"audio-input": true, "audio-output": true, "bluetooth": true,
 	"clipboard": true, "clock": true, "container": true, "divider": true, "spacer": true,
 	"network": true, "notifications": true, "power-profile": true, "quick-settings": true,
 	"screenshot": true, "theme": true, "wallpaper": true, "weather": true, "media": true,

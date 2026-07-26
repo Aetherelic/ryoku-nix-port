@@ -333,6 +333,7 @@ Rectangle {
         "sidebarLeftPanes": ["stash"],
         "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
         "sidebarWidth": 340,
+        "ryolayerEnabled": true,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58, "bloom": 0.6,
         "reflection": 0.1, "idleWave": true, "style": "bars", "shape": "rounded",
         "position": "bottom", "mirror": false, "segments": 10, "fps": 30,
@@ -352,12 +353,16 @@ Rectangle {
         m.frameBars = "shell";
         return m;
     }
-    function adapterFor(src) { return src === "viz" ? vizA : (src === "brand" ? brandA : shellA); }
+    function adapterFor(src) { return src === "viz" ? vizA : brandA; }
     function fileFor(src) { return src === "viz" ? "visualizer" : (src === "brand" ? "brand" : "shell"); }
 
     function snapshot() {
         var s = {};
-        for (var k in defs) { var src = srcOf[k] || "shell"; s[k] = adapterFor(src)[k]; }
+        for (var k in defs) {
+            var src = srcOf[k] || "shell";
+            if (src === "shell") { var v = Settings.get(k); s[k] = v === undefined ? defs[k] : v; }
+            else s[k] = adapterFor(src)[k];
+        }
         return s;
     }
     function rebase() {
@@ -384,10 +389,10 @@ Rectangle {
             if (draft[k] === undefined || committed[k] === undefined) continue;
             if (JSON.stringify(draft[k]) === JSON.stringify(committed[k])) continue;
             var src = srcOf[k] || "shell";
-            adapterFor(src)[k] = draft[k];
+            if (src === "shell") Settings.patch(k, draft[k]);
+            else adapterFor(src)[k] = draft[k];
             files[src] = true;
         }
-        if (files.shell) shellFV.writeAdapter();
         if (files.viz) vizFV.writeAdapter();
         if (files.brand) brandFV.writeAdapter();
         hub.committed = JSON.parse(JSON.stringify(hub.draft));
@@ -456,36 +461,14 @@ Rectangle {
 
     property string cfgDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku"
 
-    FileView {
-        id: shellFV
-        path: hub.cfgDir + "/shell.json"
-        watchChanges: true
-        onFileChanged: reload()
-        onLoaded: hub.rebase()
-        JsonAdapter {
-            id: shellA
-            property string language: "Auto"
-            property real frameRadius: 9
-            property real roundness: 10
-            property real frameBorder: 59
-            property bool frameEnabled: true
-            property real frameSmoothing: 8
-            property real frameOpacity: 1
-            property real shadowStrength: 0.63
-            property real shadowSize: 12
-            property string surfaceColor: "#0f1115"
-            property real osdRadius: 28
-            property real osdOpacity: 1
-            property string fontFamily: "Space Grotesk"
-            property real fontScale: 1.3
-            property string weatherLocation: ""
-            property string weatherUnit: "auto"
-            property bool ryolayerEnabled: true
-            property var sidebarLeftPanes: ["stash"]
-            property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
-            property real sidebarWidth: 340
-            property var frameBars: FrameBars.defaultConfig()
-        }
+    // shell.json is owned by the ryoku-shell settings daemon; the Hub reads it
+    // through the `settings` topic and writes it only through settings.patch
+    // (Singletons/Settings.qml), never opening the file itself. A fresh daemon
+    // frame rebases committed onto the pushed values, the way the FileView
+    // reload did before the daemon owned the schema.
+    Connections {
+        target: Settings
+        function onRevisionChanged() { hub.rebase(); }
     }
     FileView {
         id: vizFV

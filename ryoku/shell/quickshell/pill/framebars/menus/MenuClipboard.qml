@@ -1,7 +1,18 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import Quickshell.Io
+import "../.." as Pill
 import "../../Singletons"
 
+// Clipboard history panel (contract 07 sec 2.2/4.2): a "Clipboard History"
+// header with a "Clear all" action, an "Empty" placeholder when there is no
+// history, then the entries newest first. Each entry is a bordered surface tile
+// titled "#{id}" that renders by kind -- a two-line text preview, a framed
+// thumbnail for images, or "{mime}  ({size})" for anything else -- with a trash
+// button in its top-right corner. A body tap re-sets the Wayland selection and
+// promotes the entry to the front; there is no synthetic paste and no search
+// field. All state comes from the daemon `clipboard` topic (Clipboard.qml); QML
+// runs no external history tool.
 Item {
     id: root
 
@@ -9,74 +20,53 @@ Item {
     required property bool open
     signal requestClose()
 
-    implicitWidth: 320 * s
-    implicitHeight: title.implicitHeight + list.implicitHeight + 20 * s
+    readonly property var entries: root.open ? Clipboard.entries : []
 
-    function clearHistory() {
-        history.clear();
-    }
+    implicitWidth: 410 * s
+    implicitHeight: col.implicitHeight
 
-    onOpenChanged: if (!open) clearHistory()
-    Component.onDestruction: clearHistory()
-
-    ListModel {
-        id: history
-    }
-
-    Text {
-        id: title
-        anchors.left: parent.left
-        anchors.right: parent.right
-        text: qsTr("Clipboard history")
-        color: Theme.onSurface
-        font.family: Theme.display
-        font.pixelSize: 18 * root.s
+    // Reference format_size: "{n} B" below 1 KiB, "{:.1} KB" below 1 MiB, else
+    // "{:.1} MB" (contract 07 sec 2.2).
+    function humanSize(bytes) {
+        if (bytes < 1024)
+            return bytes + " B";
+        if (bytes < 1048576)
+            return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / 1048576).toFixed(1) + " MB";
     }
 
     Column {
-        id: list
-        anchors {
-            top: title.bottom
-            left: parent.left
-            right: parent.right
-            topMargin: 10 * root.s
-        }
-        spacing: 4 * root.s
+        id: col
+        width: root.width
+        spacing: 12 * root.s
 
-        Repeater {
-            model: history
+        Item {
+            id: header
+            width: parent.width
+            height: Math.max(titleText.implicitHeight, clearBtn.implicitHeight)
 
-            delegate: Rectangle {
-                required property string entryId
-                required property string label
-
-                width: list.width
-                height: labelText.implicitHeight + 12 * root.s
-                radius: Theme.radiusWidget
-                color: mouse.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh
-
-                Text {
-                    id: labelText
-                    anchors {
-                        verticalCenter: parent.verticalCenter
-                        left: parent.left
-                        right: parent.right
-                        margins: 6 * root.s
-                    }
-                    text: model.label
-                    color: Theme.onSurface
-                    font.family: Theme.fontPrimary
-                    font.pixelSize: 11 * root.s
-                    elide: Text.ElideRight
-                }
-
-                MouseArea {
-                    id: mouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        copy.command = ["sh", "-c", "cliphist decode \"$1\" | wl-copy", "_", model.entryId];
-                        copy.running = true;
+            Text {
+                id: titleText
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Clipboard History")
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
+                font.pixelSize: Theme.fontMd
+                font.weight: Font.Bold
+            }
+            Text {
+                id: clearBtn
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Clear all")
+                color: clearHov.hovered ? Theme.primary : Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
+                font.pixelSize: Theme.fontSm
+                HoverHandler { id: clearHov; cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    onTapped: {
+                        Clipboard.clear();
                         root.requestClose();
                     }
                 }
@@ -84,34 +74,147 @@ Item {
         }
 
         Text {
-            visible: root.open && history.count === 0 && !cliphist.running
-            width: list.width
-            text: qsTr("No clipboard history")
+            width: parent.width
+            visible: root.entries.length === 0
+            text: qsTr("Empty")
             color: Theme.onSurfaceVariant
             font.family: Theme.fontPrimary
-            font.pixelSize: 11 * root.s
+            font.pixelSize: Theme.fontMd
         }
-    }
 
-    Process {
-        id: cliphist
-        command: ["cliphist", "list"]
-        running: root.open
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (!root.open)
-                    return;
-                history.clear();
-                for (const line of text.split("\n")) {
-                    const tab = line.indexOf("\t");
-                    if (tab > 0)
-                        history.append({ entryId: line.slice(0, tab), label: line.slice(tab + 1) });
+        Repeater {
+            model: root.entries
+
+            delegate: Rectangle {
+                id: entry
+                required property var modelData
+
+                readonly property string kind: entry.modelData.kind
+                readonly property int entryId: entry.modelData.id
+
+                width: col.width
+                radius: Theme.radiusWidget
+                border.width: Theme.borderWidth
+                border.color: Theme.outline
+                color: body.containsMouse
+                    ? Qt.tint(Theme.surface, Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08))
+                    : Theme.surface
+                implicitHeight: entryCol.implicitHeight + Theme.paddingMd * 2
+
+                Behavior on color { ColorAnimation { duration: Motion.rowFade; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve } }
+
+                MouseArea {
+                    id: body
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Clipboard.copy(entry.entryId)
+                }
+
+                Column {
+                    id: entryCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Theme.paddingMd
+                    spacing: Theme.paddingMd
+
+                    // "#{id}" title; the trash button overlays this row's right.
+                    Item {
+                        width: parent.width
+                        height: titleRow.implicitHeight
+
+                        Text {
+                            id: titleRow
+                            anchors.left: parent.left
+                            anchors.right: trash.left
+                            anchors.rightMargin: Theme.paddingSm
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "#" + entry.entryId
+                            color: Theme.onSurfaceVariant
+                            font.family: Theme.fontPrimary
+                            font.pixelSize: Theme.fontSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            id: trash
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Theme.iconSm + Theme.paddingSm * 2
+                            height: width
+                            radius: Theme.radiusWidget
+                            color: trashHov.hovered
+                                ? Qt.tint(Theme.surface, Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08))
+                                : "transparent"
+
+                            Pill.MaterialIcon {
+                                anchors.centerIn: parent
+                                text: "delete"
+                                font.pixelSize: Theme.iconSm
+                                color: trashHov.hovered ? Theme.error : Theme.onSurfaceVariant
+                            }
+
+                            MouseArea {
+                                id: trashArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Clipboard.del(entry.entryId)
+                                HoverHandler { id: trashHov }
+                            }
+                        }
+                    }
+
+                    // Text preview: two ellipsised lines, wrapping mid-word.
+                    Text {
+                        width: parent.width
+                        visible: entry.kind === "text"
+                        text: entry.modelData.preview || ""
+                        color: Theme.onSurface
+                        font.family: Theme.fontPrimary
+                        font.pixelSize: Theme.fontSm
+                        font.weight: Font.Bold
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                    }
+
+                    // Image preview: a framed, cover-fit thumbnail from the
+                    // daemon-persisted PNG.
+                    Rectangle {
+                        width: parent.width
+                        height: 200 * root.s
+                        visible: entry.kind === "image"
+                        radius: Theme.radiusWidget
+                        border.width: Theme.borderWidth
+                        border.color: Theme.outline
+                        color: "transparent"
+                        clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: Theme.borderWidth
+                            source: entry.kind === "image" && entry.modelData.thumb ? "file://" + entry.modelData.thumb : ""
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            cache: false
+                        }
+                    }
+
+                    // Binary preview: the mime and a human-readable size.
+                    Text {
+                        width: parent.width
+                        visible: entry.kind !== "text" && entry.kind !== "image"
+                        text: (entry.modelData.mime || "") + "  (" + root.humanSize(entry.modelData.size || 0) + ")"
+                        color: Theme.onSurface
+                        font.family: Theme.fontPrimary
+                        font.pixelSize: Theme.fontSm
+                        font.weight: Font.Bold
+                        elide: Text.ElideRight
+                    }
                 }
             }
         }
-    }
-
-    Process {
-        id: copy
     }
 }

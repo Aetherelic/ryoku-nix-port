@@ -9,12 +9,21 @@ import "../../Singletons"
 // centered title and artist, a debounced seek scrubber flanked by elapsed and
 // total time, and a centered transport row (shuffle, previous, play/pause, next,
 // loop) whose buttons dim to their capability flags. With more than one real
-// player a switcher header names the active one and steps between them.
+// player a switcher header names the active one and steps between them, and the
+// cards slide horizontally 200ms (contract 06 sec 5: gtk::Stack SlideLeftRight)
+// through the shared 200ms ease-out envelope.
 //
 // The whole entry stays hidden (no reserved height) until a real player exists;
 // the shared Media pick already drops the live-wallpaper player. There is no
 // album art: the reference card intentionally shows only text, scrubber and
 // transport (contract 06 sec 6/9).
+//
+// Position comes from the player's own position property (a stream), not a QML
+// poll of an external tool: each card binds to player.position and nudges the
+// binding with positionChanged() while playing, the standard Quickshell idiom
+// (see launcher/NowPlaying.qml). Seek is debounced 300ms after the drag stops
+// with a 3s post-seek window that ignores incoming positions; audio volume is
+// not debounced (that lives on the audio rows).
 Item {
     id: root
 
@@ -23,7 +32,7 @@ Item {
 
     // Non-wallpaper players in service order (no client sort); the same pick the
     // rest of the shell shares, so Media.player is one of these when non-empty.
-    readonly property var players: Mpris.players.values.filter(function (p) { return p && !Media.isWallpaper(p); })
+    readonly property var players: Mpris.players.values.filter(p => p && !Media.isWallpaper(p))
     // A local switcher pick overrides Media's auto-choice and falls back to it
     // once the picked player leaves the list.
     property var picked: null
@@ -32,18 +41,6 @@ Item {
 
     visible: root.players.length > 0
     implicitHeight: root.players.length > 0 ? content.implicitHeight : 0
-
-    // --- seek state ---------------------------------------------------------
-    // Polled elapsed seconds: the raw player.position only refreshes when read.
-    property real posn: 0
-    readonly property real len: (root.player && root.player.length > 0) ? root.player.length : 0
-    readonly property real liveFrac: root.len > 0 ? Math.max(0, Math.min(1, root.posn / root.len)) : 0
-    // While a seek is armed the scrubber and elapsed label hold the target so the
-    // thumb never snaps back to a stream position that has not caught up yet.
-    property bool seekArmed: false
-    property bool seekSent: false
-    property real seekFrac: 0
-    readonly property real shownFrac: root.seekArmed ? root.seekFrac : root.liveFrac
 
     // "{h}:{mm}:{ss}" past an hour, else "{m}:{ss}".
     function fmtTime(sec) {
@@ -55,95 +52,6 @@ Item {
         if (h >= 1)
             return h + ":" + (m < 10 ? "0" : "") + m + ":" + ss;
         return m + ":" + ss;
-    }
-
-    // Each scrub change previews immediately and restarts the debounce; the real
-    // seek only lands 300ms after the last change stops (contract 06 sec 4/5).
-    function onScrub(frac) {
-        root.seekFrac = Math.max(0, Math.min(1, frac));
-        root.seekArmed = true;
-        root.seekSent = false;
-        seekDebounce.restart();
-    }
-
-    function refreshPos() {
-        root.posn = root.player ? root.player.position : 0;
-    }
-
-    // A switch or track change abandons any pending seek and re-reads position.
-    onPlayerChanged: {
-        seekDebounce.stop();
-        seekIgnore.stop();
-        root.seekArmed = false;
-        root.seekSent = false;
-        root.refreshPos();
-    }
-
-    Timer {
-        id: posPoll
-        interval: 1000
-        repeat: true
-        running: root.open && root.player !== null
-        triggeredOnStart: true
-        onTriggered: {
-            root.refreshPos();
-            // Resume live updates early once the stream reflects a sent seek.
-            if (root.seekSent && Math.abs(root.posn - root.seekFrac * root.len) < 1.5) {
-                root.seekArmed = false;
-                root.seekSent = false;
-                seekIgnore.stop();
-            }
-        }
-    }
-
-    Timer {
-        id: seekDebounce
-        interval: 300
-        repeat: false
-        onTriggered: {
-            if (root.player && root.len > 0) {
-                root.player.position = root.seekFrac * root.len;
-                root.seekSent = true;
-                seekIgnore.restart();
-            } else {
-                root.seekArmed = false;
-            }
-        }
-    }
-
-    // The stream never reflected the seek inside the window, so trust it again.
-    Timer {
-        id: seekIgnore
-        interval: 3000
-        repeat: false
-        onTriggered: {
-            root.seekArmed = false;
-            root.seekSent = false;
-        }
-    }
-
-    function iconShuffle() {
-        return (root.player && root.player.shuffle) ? "shuffle_on" : "shuffle";
-    }
-    function iconLoop() {
-        if (root.player) {
-            if (root.player.loopState === MprisLoopState.Track)
-                return "repeat_one_on";
-            if (root.player.loopState === MprisLoopState.Playlist)
-                return "repeat_on";
-        }
-        return "repeat";
-    }
-    // None -> Playlist -> Track -> None (contract 06 sec 4).
-    function cycleLoop() {
-        if (!root.player)
-            return;
-        if (root.player.loopState === MprisLoopState.None)
-            root.player.loopState = MprisLoopState.Playlist;
-        else if (root.player.loopState === MprisLoopState.Playlist)
-            root.player.loopState = MprisLoopState.Track;
-        else
-            root.player.loopState = MprisLoopState.None;
     }
 
     // A surface tile carrying one centered Material Symbols glyph; content dims to
@@ -158,6 +66,212 @@ Item {
             anchors.centerIn: parent
             font.pixelSize: Theme.iconSm
             color: ib.contentColor
+        }
+    }
+
+    // One player's now-playing card: title/artist/scrubber/transport, self-
+    // contained seek state, and its own position stream tick. Only the active,
+    // playing card ticks; the rest hold their last position.
+    component MediaCard: Rectangle {
+        id: card
+        property var player: null
+        property bool active: false
+        property bool cardOpen: false
+
+        color: "transparent"
+        radius: Theme.radiusWidget
+        border.width: Theme.borderWidth
+        border.color: Theme.outline
+        implicitHeight: cardCol.implicitHeight + Theme.paddingMd * 2
+
+        readonly property real posn: card.player ? card.player.position : 0
+        readonly property real len: (card.player && card.player.length > 0) ? card.player.length : 0
+        readonly property real liveFrac: card.len > 0 ? Math.max(0, Math.min(1, card.posn / card.len)) : 0
+        // While a seek is armed the scrubber and elapsed label hold the target so
+        // the thumb never snaps back to a stream position not caught up yet.
+        property bool seekArmed: false
+        property bool seekSent: false
+        property real seekFrac: 0
+        readonly property real shownFrac: card.seekArmed ? card.seekFrac : card.liveFrac
+
+        // A track/player swap on a reused delegate abandons any pending seek.
+        onPlayerChanged: {
+            seekDebounce.stop();
+            seekIgnore.stop();
+            card.seekArmed = false;
+            card.seekSent = false;
+        }
+
+        // Each scrub change previews immediately and restarts the debounce; the
+        // real seek lands 300ms after the last change stops (contract 06 sec 4/5).
+        function onScrub(frac) {
+            card.seekFrac = Math.max(0, Math.min(1, frac));
+            card.seekArmed = true;
+            card.seekSent = false;
+            seekDebounce.restart();
+        }
+
+        function iconShuffle() {
+            return (card.player && card.player.shuffle) ? "shuffle_on" : "shuffle";
+        }
+        function iconLoop() {
+            if (card.player) {
+                if (card.player.loopState === MprisLoopState.Track)
+                    return "repeat_one_on";
+                if (card.player.loopState === MprisLoopState.Playlist)
+                    return "repeat_on";
+            }
+            return "repeat";
+        }
+        // None -> Playlist -> Track -> None (contract 06 sec 4).
+        function cycleLoop() {
+            if (!card.player)
+                return;
+            if (card.player.loopState === MprisLoopState.None)
+                card.player.loopState = MprisLoopState.Playlist;
+            else if (card.player.loopState === MprisLoopState.Playlist)
+                card.player.loopState = MprisLoopState.Track;
+            else
+                card.player.loopState = MprisLoopState.None;
+        }
+
+        // MPRIS never pushes position, so advance the binding while playing by
+        // re-reading the stream; the standard Quickshell nudge (NowPlaying.qml).
+        Timer {
+            interval: 500
+            repeat: true
+            running: card.active && card.cardOpen && card.player !== null && card.player.isPlaying
+            onTriggered: {
+                card.player.positionChanged();
+                // Resume live updates early once the stream reflects a sent seek.
+                if (card.seekSent && Math.abs(card.posn - card.seekFrac * card.len) < 1.5) {
+                    card.seekArmed = false;
+                    card.seekSent = false;
+                    seekIgnore.stop();
+                }
+            }
+        }
+        Timer {
+            id: seekDebounce
+            interval: 300
+            onTriggered: {
+                if (card.player && card.len > 0) {
+                    card.player.position = card.seekFrac * card.len;
+                    card.seekSent = true;
+                    seekIgnore.restart();
+                } else {
+                    card.seekArmed = false;
+                }
+            }
+        }
+        // The stream never reflected the seek inside the window, so trust it again.
+        Timer {
+            id: seekIgnore
+            interval: 3000
+            onTriggered: {
+                card.seekArmed = false;
+                card.seekSent = false;
+            }
+        }
+
+        Column {
+            id: cardCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: Theme.paddingMd
+            spacing: Theme.paddingSm
+
+            // Title (dimmer variant tone) and artist, both centered.
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: card.player ? (card.player.trackTitle || "") : ""
+                color: Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
+                font.pixelSize: Theme.fontSm
+                font.weight: Font.Bold
+                elide: Text.ElideRight
+            }
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: card.player ? Theme.joinArtists(card.player.trackArtists, card.player.trackArtist) : ""
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
+                font.pixelSize: Theme.fontSm
+                font.weight: Font.Bold
+                elide: Text.ElideRight
+            }
+
+            // Time + scrubber row: elapsed | slider | total, 20px each side.
+            Item {
+                width: parent.width
+                height: scrubber.implicitHeight
+
+                Text {
+                    id: curTime
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.fmtTime(card.shownFrac * card.len)
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
+                    font.pixelSize: Theme.fontSm
+                }
+                Text {
+                    id: totTime
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.fmtTime(card.len)
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
+                    font.pixelSize: Theme.fontSm
+                }
+                RevealerRowSlider {
+                    id: scrubber
+                    anchors.left: curTime.right
+                    anchors.right: totTime.left
+                    anchors.leftMargin: 20
+                    anchors.rightMargin: 20
+                    anchors.verticalCenter: parent.verticalCenter
+                    rightMargin: 0
+                    enabled: card.player ? card.player.canSeek : false
+                    value: card.shownFrac
+                    onMoved: frac => card.onScrub(frac)
+                }
+            }
+
+            // Centered transport row; each button dims to its capability.
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 12
+
+                IconButton {
+                    iconName: card.iconShuffle()
+                    enabled: card.player ? card.player.shuffleSupported : false
+                    onClicked: if (card.player) card.player.shuffle = !card.player.shuffle
+                }
+                IconButton {
+                    iconName: "skip_previous"
+                    enabled: card.player ? card.player.canGoPrevious : false
+                    onClicked: if (card.player) card.player.previous()
+                }
+                IconButton {
+                    iconName: (card.player && card.player.isPlaying) ? "pause" : "play_arrow"
+                    enabled: card.player ? card.player.canTogglePlaying : false
+                    onClicked: if (card.player) card.player.togglePlaying()
+                }
+                IconButton {
+                    iconName: "skip_next"
+                    enabled: card.player ? card.player.canGoNext : false
+                    onClicked: if (card.player) card.player.next()
+                }
+                IconButton {
+                    iconName: card.iconLoop()
+                    enabled: card.player ? card.player.loopSupported : false
+                    onClicked: card.cycleLoop()
+                }
+            }
         }
     }
 
@@ -205,114 +319,33 @@ Item {
             }
         }
 
-        // --- the bordered now-playing card ----------------------------------
-        Rectangle {
-            id: card
+        // --- the sliding card stack -----------------------------------------
+        // A clipped viewport over a strip of per-player cards; switching player
+        // slides the strip 200ms on the shared ease-out envelope (contract 06
+        // sec 5: gtk::Stack SlideLeftRight, GTK ease-out).
+        Item {
+            id: viewport
             width: parent.width
-            color: "transparent"
-            radius: Theme.radiusWidget
-            border.width: Theme.borderWidth
-            border.color: Theme.outline
-            implicitHeight: cardCol.implicitHeight + Theme.paddingMd * 2
+            height: strip.implicitHeight
+            clip: true
 
-            Column {
-                id: cardCol
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: Theme.paddingMd
-                spacing: Theme.paddingSm
-
-                // Title (dimmer variant tone) and artist, both centered; a long
-                // line elides rather than marqueeing (see report).
-                Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: root.player ? (root.player.trackTitle || "") : ""
-                    color: Theme.onSurfaceVariant
-                    font.family: Theme.fontPrimary
-                    font.pixelSize: Theme.fontSm
-                    font.weight: Font.Bold
-                    elide: Text.ElideRight
-                }
-                Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: root.player ? Theme.joinArtists(root.player.trackArtists, root.player.trackArtist) : ""
-                    color: Theme.onSurface
-                    font.family: Theme.fontPrimary
-                    font.pixelSize: Theme.fontSm
-                    font.weight: Font.Bold
-                    elide: Text.ElideRight
+            Row {
+                id: strip
+                height: parent.height
+                x: -Math.max(0, root.idx) * viewport.width
+                Behavior on x {
+                    NumberAnimation { duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve }
                 }
 
-                // Time + scrubber row: elapsed | slider | total, 20px on each
-                // side of the bar.
-                Item {
-                    width: parent.width
-                    height: scrubber.implicitHeight
-
-                    Text {
-                        id: curTime
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.fmtTime(root.shownFrac * root.len)
-                        color: Theme.onSurface
-                        font.family: Theme.fontPrimary
-                        font.pixelSize: Theme.fontSm
-                    }
-                    Text {
-                        id: totTime
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.fmtTime(root.len)
-                        color: Theme.onSurface
-                        font.family: Theme.fontPrimary
-                        font.pixelSize: Theme.fontSm
-                    }
-                    RevealerRowSlider {
-                        id: scrubber
-                        anchors.left: curTime.right
-                        anchors.right: totTime.left
-                        anchors.leftMargin: 20
-                        anchors.rightMargin: 20
-                        anchors.verticalCenter: parent.verticalCenter
-                        rightMargin: 0
-                        enabled: root.player ? root.player.canSeek : false
-                        value: root.shownFrac
-                        onMoved: frac => root.onScrub(frac)
-                    }
-                }
-
-                // Centered transport row; each button dims to its capability.
-                Row {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 12
-
-                    IconButton {
-                        iconName: root.iconShuffle()
-                        enabled: root.player ? root.player.shuffleSupported : false
-                        onClicked: if (root.player) root.player.shuffle = !root.player.shuffle
-                    }
-                    IconButton {
-                        iconName: "skip_previous"
-                        enabled: root.player ? root.player.canGoPrevious : false
-                        onClicked: if (root.player) root.player.previous()
-                    }
-                    IconButton {
-                        iconName: (root.player && root.player.isPlaying) ? "pause" : "play_arrow"
-                        enabled: root.player ? root.player.canTogglePlaying : false
-                        onClicked: if (root.player) root.player.togglePlaying()
-                    }
-                    IconButton {
-                        iconName: "skip_next"
-                        enabled: root.player ? root.player.canGoNext : false
-                        onClicked: if (root.player) root.player.next()
-                    }
-                    IconButton {
-                        iconName: root.iconLoop()
-                        enabled: root.player ? root.player.loopSupported : false
-                        onClicked: root.cycleLoop()
+                Repeater {
+                    model: root.players
+                    delegate: MediaCard {
+                        required property var modelData
+                        required property int index
+                        width: viewport.width
+                        player: modelData
+                        active: index === root.idx
+                        cardOpen: root.open
                     }
                 }
             }

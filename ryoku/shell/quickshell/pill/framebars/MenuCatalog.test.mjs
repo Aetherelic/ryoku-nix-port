@@ -12,7 +12,7 @@ function eq(actual, expected, msg) {
 function ok(condition, msg) { eq(!!condition, true, msg); }
 
 const requiredMenuWidgets = [
-    "launcher", "audio-input", "audio-output", "bluetooth", "clipboard", "clock",
+    "audio-input", "audio-output", "bluetooth", "clipboard", "clock",
     "container", "divider", "spacer", "network", "notifications", "power-profile",
     "quick-settings", "screenshot", "recording", "theme", "wallpaper", "weather", "media",
     "layout-switcher", "quick-actions"

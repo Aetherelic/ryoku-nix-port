@@ -33,18 +33,47 @@ ShellRoot {
     signal barMenuRequested(string monitor, string id)
     signal keyringPromptChanged(int promptId)
 
-    function runBarAction(id) {
+    function runBarAction(id, mon) {
         switch (id) {
         case "lock": Quickshell.execDetached(["ryoku-shell", "lock"]); break;
-        case "logout": Hyprland.dispatch("hl.dsp.exit()"); break;
-        case "reboot": Quickshell.execDetached(["systemctl", "reboot"]); break;
-        case "shutdown": Quickshell.execDetached(["systemctl", "poweroff"]); break;
+        // logout / reboot / shutdown confirm first (contract 13 sec 2c); the
+        // action runs from the confirmation dialog, never straight off the click.
+        case "logout":
+        case "reboot":
+        case "shutdown": root.askSessionAction(id, mon); return;
         case "screenshot": Quickshell.execDetached(["sh", "-c", "flock -n -o /tmp/ryoshot.lock qs -c ryoshot"]); break;
         case "wallpaper": Quickshell.execDetached(["ryoku-shell", "wallpaper-switcher"]); break;
         case "color-picker": Quickshell.execDetached(["ryoku-cmd-color-picker"]); break;
+        case "app-launcher": Quickshell.execDetached(["ryoku-shell", "launcher"]); break;
         default: return;
         }
         root.actionRequested(id);
+    }
+
+    // Session-action confirmation (contract 13 sec 2c, 8). A frame-bar
+    // logout/reboot/shutdown click asks for confirmation on its own monitor; the
+    // RyokuConfirmationDialog runs the action (SessionActions -> the daemon) only
+    // when the positive button is pressed. The shutdown copy is corrected here:
+    // the reference shutdown dialog wrongly asks "log out" / "Logout" (a source
+    // copy-paste that still powers off); Ryoku asks "shut down" / "Shutdown".
+    property string sessionAction: ""            // "" | "logout" | "reboot" | "shutdown"
+    property string sessionActionMonitor: ""
+    readonly property var sessionCopy: ({
+        "logout":   { message: "Are you sure you want to log out?",  positive: "Logout" },
+        "reboot":   { message: "Are you sure you want to reboot?",   positive: "Reboot" },
+        "shutdown": { message: "Are you sure you want to shut down?", positive: "Shutdown" }
+    })
+    readonly property string sessionMessage: root.sessionAction !== "" ? root.sessionCopy[root.sessionAction].message : ""
+    readonly property string sessionPositive: root.sessionAction !== "" ? root.sessionCopy[root.sessionAction].positive : ""
+
+    function askSessionAction(id, mon) {
+        root.sessionActionMonitor = (mon && mon !== "") ? mon
+            : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
+        root.sessionAction = id;
+    }
+    function clearSessionAction() {
+        root.sessionAction = "";
+        root.sessionActionMonitor = "";
     }
 
     // --- Frame reservation model (contracts 01 and 02) ---------------------
@@ -265,6 +294,7 @@ ShellRoot {
         function bar(mon: string, id: string): void { root.requestSurface(id, mon); }
         function closeAllMenus(mon: string): void { root.surfaceCloseRequested("", mon); }
         function setBar(mon: string, edge: string, action: string): void { root.setBar(edge, action); }
+        function sessionConfirm(mon: string, action: string): void { root.askSessionAction(action, mon); }
     }
 
     // The daemon writes surface commands to this socket to toggle pill surfaces
@@ -563,7 +593,7 @@ ShellRoot {
                     style: ({ group: blobGroup })
                     onMenuRequested: (id, ownerRect) => root.menuRequested(id, ownerRect)
                     onSurfaceRequested: (id, ownerRect) => root.surfaceRequested(id, ownerRect)
-                    onActionRequested: id => root.runBarAction(id)
+                    onActionRequested: id => root.runBarAction(id, overlay.modelData.name)
                 }
 
                 // per-monitor frame menu manager: a bar widget asks for a menu via
@@ -633,6 +663,28 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         RegionOverlay {}
+    }
+
+    // capture selection overlays (contract 09): one per output while the
+    // screenshot menu is picking a region, monitor or window.
+    Variants {
+        model: Quickshell.screens
+        CaptureOverlay {}
+    }
+
+    // Session-action confirmation dialog (contract 13 sec 2c): a ryoku-dialog
+    // layer surface, one per screen but shown only on the monitor whose frame bar
+    // was clicked. The positive button runs the power action through the daemon.
+    Variants {
+        model: Quickshell.screens
+        RyokuConfirmationDialog {
+            action: (root.sessionActionMonitor === modelData.name) ? root.sessionAction : ""
+            message: root.sessionMessage
+            positiveLabel: root.sessionPositive
+            negativeLabel: "Cancel"
+            onConfirmed: a => { SessionActions.run(a); root.clearSessionAction(); }
+            onCancelled: root.clearSessionAction()
+        }
     }
 
     // the self-view is a recording companion: when the last capture stops, clear

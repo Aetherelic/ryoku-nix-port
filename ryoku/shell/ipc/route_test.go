@@ -21,7 +21,7 @@ func TestRoute(t *testing.T) {
 		{"power", "pill", "pill", "openSurface"},
 		{"menu quick-settings", "pill", "pill", "openSurface"},
 		{"menu clock", "pill", "pill", "openSurface"},
-		{"menu app-launcher", "pill", "pill", "openSurface"},
+		{"menu app-launcher", "launcher", "launcher", "toggle"},
 		{"menu clipboard", "pill", "pill", "openSurface"},
 	}
 	for _, c := range cases {

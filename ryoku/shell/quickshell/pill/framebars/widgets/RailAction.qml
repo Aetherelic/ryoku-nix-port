@@ -17,6 +17,7 @@ Item {
     // clipboard/screenshot/wallpaper are menu-openers; the others are actions.
     readonly property var menuIds: ({ "clipboard": true, "screenshot": true, "wallpaper": true })
     readonly property var glyphs: ({
+        "app-launcher": "apps",
         "lock": "lock",
         "logout": "logout",
         "reboot": "restart_alt",
