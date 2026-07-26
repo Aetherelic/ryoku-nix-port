@@ -1,31 +1,34 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import "../.." as Pill
 import "../../Singletons"
 
+// VPN indicator: a box-shape indicator (no click) that self-hides unless a
+// tunnel is up. `active` (the host visibility) gates the singleton's polling so a
+// new tunnel is still discovered while the chip itself is hidden. Contract 04
+// sec 3.2 (vpn_indicator).
 Item {
     id: root
 
     required property string edge
     required property real scale
     required property bool active
-    signal menuRequested(string id, rect ownerRect)
 
-    implicitWidth: 30 * scale
-    implicitHeight: 30 * scale
+    readonly property bool selfShown: Network.vpnActive
+    visible: selfShown
+    implicitWidth: selfShown ? btn.implicitWidth : 0
+    implicitHeight: selfShown ? btn.implicitHeight : 0
 
     onActiveChanged: Network.setVpnPolling(root, root.active)
     Component.onCompleted: Network.setVpnPolling(root, root.active)
     Component.onDestruction: Network.setVpnPolling(root, false)
 
-    Pill.MaterialIcon {
+    RailButton {
+        id: btn
         anchors.centerIn: parent
-        text: Network.vpnActive ? "vpn_key" : "vpn_key_off"
-        color: Theme.onSurface
-        font.pixelSize: 18 * root.scale
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        onClicked: root.menuRequested("network", Qt.rect(0, 0, root.width, root.height))
+        edge: root.edge
+        scale: root.scale
+        icon: "vpn_lock"
+        interactive: false
     }
 }

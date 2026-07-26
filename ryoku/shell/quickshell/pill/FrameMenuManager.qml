@@ -90,7 +90,7 @@ Item {
         for (const anchor in mon) {
             const rec = mon[anchor];
             if (!rec) continue;
-            if (rec.id === "launcher" || rec.id === "screenshare") return "exclusive";
+            if (rec.id === "app-launcher" || rec.id === "screenshare") return "exclusive";
             if (rec.id === "wallpaper") return "ondemand";
             if (rec.kind && rec.kind !== "menu" && rec.id !== "voice") return "exclusive";
         }
@@ -255,6 +255,7 @@ Item {
             required property var modelData
             group: root.group
             frameThickness: root.clearanceFor(modelData.anchor)
+            clearances: root.railClearances
             radius: Config.frameRadius
             smoothing: Config.frameSmoothing
             s: root.scale
@@ -263,7 +264,7 @@ Item {
             record: modelData
             anchor: modelData.anchor
             menuOpen: root.active && root.activeIdAt(modelData.anchor) === modelData.id
-            alongCenter: root.alongAt(modelData.anchor)
+            triggerAlong: root.alongAt(modelData.anchor)
             onRequestClose: root.closeMenu(modelData.id)
         }
     }

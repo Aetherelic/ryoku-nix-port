@@ -2,6 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
+// The shared menu panel body (contract 05 sec 2a): a vertical stack of the
+// menu's widgets inside a 20px margin, exactly minimumWidth wide (the width is
+// set by the host and never grows to content). Content taller than the band
+// scrolls vertically with no visible scrollbar chrome; there is no horizontal
+// scrolling.
 Item {
     id: root
 
@@ -10,29 +15,36 @@ Item {
     property real scale: 1
     signal requestClose()
 
-    // Rows never touch the body edge: the surface grows out of a rail, and a
-    // flush row loses its first characters under that rail's material or gets
-    // cut by the body's own rounded edge.
-    readonly property real pad: 14 * scale
+    readonly property real pad: 20 * scale
     implicitWidth: column.implicitWidth + pad * 2
     implicitHeight: column.implicitHeight + pad * 2
 
-    Column {
-        id: column
-        x: root.pad
-        y: root.pad
-        width: Math.max(0, root.width - root.pad * 2)
-        spacing: 6 * root.scale
+    Flickable {
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: column.implicitHeight + root.pad * 2
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        // Only steal drags when there is overflow to scroll.
+        interactive: contentHeight > height
 
-        Repeater {
-            model: root.open ? root.widgets : []
-            delegate: MenuHostLoader {
-                required property var modelData
-                width: column.width
-                widget: modelData
-                scale: root.scale
-                open: root.open
-                onRequestClose: root.requestClose()
+        Column {
+            id: column
+            x: root.pad
+            y: root.pad
+            width: root.width - root.pad * 2
+            spacing: 0
+
+            Repeater {
+                model: root.open ? root.widgets : []
+                delegate: MenuHostLoader {
+                    required property var modelData
+                    width: column.width
+                    widget: modelData
+                    scale: root.scale
+                    open: root.open
+                    onRequestClose: root.requestClose()
+                }
             }
         }
     }

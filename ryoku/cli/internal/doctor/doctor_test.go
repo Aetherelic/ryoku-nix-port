@@ -1254,6 +1254,45 @@ func TestMigrateShellConfig(t *testing.T) {
 	}
 }
 
+// A store carrying the pre-parity menu shape (the retired `launcher` menu id and
+// a stale quick-settings widget list) converges: the launcher key is dropped and
+// the quick-settings stack resolves to its fixed widget, so the shell re-seeds
+// the reference menus from defaults on the next read.
+func TestMigrateShellConfigConvergesMenus(t *testing.T) {
+	before := []byte(`{
+        "frameBars": {
+            "style": "slate-frame",
+            "menus": {
+                "launcher": { "anchor": "left", "minWidth": 420, "expansion": "always", "widgets": ["launcher"] },
+                "quick-settings": { "anchor": "left", "minWidth": 410, "expansion": "always", "widgets": ["clock", "network", "audio-output"] },
+                "clock": { "anchor": "top", "minWidth": 280, "expansion": "never", "widgets": ["clock"] }
+            }
+        }
+    }`)
+	out, changes, err := migrateShellConfig(before)
+	if err != nil || len(changes) == 0 {
+		t.Fatalf("pre-parity menus should converge: changes=%v err=%v", changes, err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("converged JSON does not parse: %v", err)
+	}
+	menus := cfg["frameBars"].(map[string]any)["menus"].(map[string]any)
+	if _, ok := menus["launcher"]; ok {
+		t.Errorf("retired launcher menu id survived migration: %v", menus)
+	}
+	qs, ok := menus["quick-settings"].(map[string]any)
+	if !ok {
+		t.Fatalf("quick-settings menu missing after convergence: %v", menus)
+	}
+	if got := qs["widgets"]; !reflect.DeepEqual(got, []any{"quick-settings"}) {
+		t.Errorf("quick-settings widgets did not converge to the fixed stack: %v", got)
+	}
+	if out2, changes2, err := migrateShellConfig(out); err != nil || out2 != nil || changes2 != nil {
+		t.Fatalf("menu convergence must be idempotent: out=%s changes=%v err=%v", out2, changes2, err)
+	}
+}
+
 // A box upgrading from any Atoll-era release carries the whole retired set, not
 // just the four geometry keys. Every one of them must go, and the settings the
 // shell still reads must survive untouched.

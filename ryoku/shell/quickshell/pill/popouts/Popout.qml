@@ -32,6 +32,10 @@ Item {
     // When non-negative, centre the body at this coordinate along the edge;
     // negative values fall back to `align`.
     property real alongCenter: -1
+    // When >= 0, replace the frame-lip inset with this exact value. The frame
+    // menus set 0 so a menu abuts its bar band precisely (contract 05 sec 7),
+    // instead of the Ryoku popout's decorative corner inset.
+    property real edgeInsetOverride: -1
     property real openW: 220
     property real openH: 200
     // full-height sidebar: the body fills the frame top-to-bottom and fuses into
@@ -121,7 +125,7 @@ Item {
     // corner. the wall is the on-screen frame lip (frameBorder - 50, the same
     // the frame border and barVisibleH use), NOT the bar's full thickness --
     // using frameThickness held a corner popout a whole band's width off.
-    readonly property real edgeInset: Math.max(0, Config.frameBorder - 50) + 12 * s
+    readonly property real edgeInset: root.edgeInsetOverride >= 0 ? root.edgeInsetOverride : Math.max(0, Config.frameBorder - 50) + 12 * s
     function alignPos(span, sz) {
         if (effectiveAlong >= 0)
             return Math.max(edgeInset, Math.min(span - sz - edgeInset, effectiveAlong - sz / 2));

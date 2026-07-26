@@ -20,7 +20,7 @@ const requiredMenuWidgets = [
 eq(MenuCatalog.widgetIds().sort(), requiredMenuWidgets.sort(), "all approved menu widgets are catalogued");
 eq(MenuCatalog.anchors().sort(), ["bottom", "bottom-left", "bottom-right", "left", "right", "top", "top-left", "top-right"].sort(), "all frame anchors exist");
 ok(MenuCatalog.surface("stash").panes.includes("stash"), "stash is a registered frame surface");
-ok(MenuCatalog.menu("quick-settings").widgets.includes("clock"), "quick settings has real default content");
+ok(MenuCatalog.menu("quick-settings").widgets.includes("quick-settings"), "quick settings is one cohesive stack widget");
 ok(MenuCatalog.menu("clock").widgets.includes("clock"), "clock is a bounded frame menu");
 ok(MenuCatalog.widget("container").nested, "container accepts child widget lists");
 ok(MenuCatalog.quickAction("lock").action === "lock", "quick action routes are fixed identifiers");

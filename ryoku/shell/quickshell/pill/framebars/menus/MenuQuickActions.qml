@@ -1,153 +1,95 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
+import Quickshell.Hyprland
 import "../.." as Pill
 import "../../Singletons"
-import Ryoku.FrameBars
-import "../lib/menupoll.js" as Poll
 
+// One quick-action row (contract 06 sec 2.11): a centred horizontal row of
+// 48x48 surface tiles, 12px apart, one per configured action. Toggle actions
+// highlight (primary) while on and flip their backing state without closing the
+// menu; command actions run and close. Icons are 24px Material Symbols.
+//
+// Divergence recorded: the reference wraps Logout/Reboot/Shutdown in a
+// ConfirmationDialog first; Ryoku fires them through the same immediate path its
+// bar power actions already use (runBarAction), so behaviour matches the rest of
+// the Ryoku shell. A ConfirmationDialog (contract 16 sec 2.2) is the follow-up.
 Item {
     id: root
 
-    required property real s
-    required property bool open
+    property real s: 1
+    property bool open: false
+    property var actions: []
+    signal requestClose()
 
-    signal actionRequested(string id)
+    implicitHeight: 48
 
-    readonly property var actionIds: MenuCatalog.quickActionIds()
-
-    implicitWidth: 320 * s
-    implicitHeight: grid.implicitHeight
-
+    // Keep the toggle probes awake while this row is shown (contract 06 sec 3).
     property bool watching: false
     function syncWatch() {
-        const r = Poll.watchDelta(root.watching, root.open);
-        if (r.delta !== 0)
-            Toggles.watchers += r.delta;
-        root.watching = r.watching;
+        if (root.open && !root.watching) { Toggles.watchers += 1; root.watching = true; }
+        else if (!root.open && root.watching) { Toggles.watchers -= 1; root.watching = false; }
     }
     onOpenChanged: root.syncWatch()
     Component.onCompleted: root.syncWatch()
     Component.onDestruction: if (root.watching) Toggles.watchers -= 1
 
-    readonly property var meta: ({
-        "lock": "lock", "logout": "logout", "reboot": "reboot", "shutdown": "shutdown",
-        "lens": "lens", "color": "eyedropper", "ocr": "ocr", "qr": "qr", "mirror": "webcam",
-        "clipboard": "clipboard", "wifi": "wifi", "bluetooth": "bluetooth", "microphone": "mic",
-        "do-not-disturb": "dnd", "night-light": "moon", "keep-awake": "coffee", "game-mode": "cpu"
-    })
-
-    function isToggle(id) {
-        return id === "wifi" || id === "bluetooth" || id === "microphone" || id === "do-not-disturb"
-            || id === "night-light" || id === "keep-awake" || id === "game-mode";
-    }
-
+    function isToggle(id) { return id === "airplane" || id === "night-light"; }
     function isOn(id) {
         switch (id) {
-        case "wifi": return Toggles.wifiOn;
-        case "bluetooth": return Toggles.btOn;
-        case "microphone": return !Toggles.micMuted;
-        case "do-not-disturb": return Flags.dnd;
+        case "airplane": return !Toggles.wifiOn;
         case "night-light": return Toggles.nightOn;
-        case "keep-awake": return Flags.keepAwake;
-        case "game-mode": return Flags.gameMode;
         }
         return false;
     }
-
+    function iconFor(id) {
+        switch (id) {
+        case "airplane": return "flight";
+        case "night-light": return "bedtime";
+        case "color": return "colorize";
+        case "settings": return "settings";
+        case "logout": return "logout";
+        case "lock": return "lock";
+        case "reboot": return "restart_alt";
+        case "shutdown": return "power_settings_new";
+        }
+        return "circle";
+    }
     function act(id) {
         switch (id) {
-        case "wifi": Toggles.toggleWifi(); return;
-        case "bluetooth": Toggles.toggleBt(); return;
-        case "microphone": Toggles.toggleMic(); return;
-        case "do-not-disturb": Flags.dnd = !Flags.dnd; return;
+        case "airplane": Toggles.toggleWifi(); return;
         case "night-light": Toggles.toggleNight(); return;
-        case "keep-awake": Flags.keepAwake = !Flags.keepAwake; return;
-        case "game-mode": Flags.gameMode = !Flags.gameMode; return;
+        case "color": Quickshell.execDetached(["ryoku-cmd-color-picker"]); root.requestClose(); return;
+        case "settings": Quickshell.execDetached(["ryoku-shell", "hub", "open"]); root.requestClose(); return;
+        case "lock": Quickshell.execDetached(["ryoku-shell", "lock"]); root.requestClose(); return;
+        case "logout": Hyprland.dispatch("hl.dsp.exit()"); return;
+        case "reboot": Quickshell.execDetached(["systemctl", "reboot"]); return;
+        case "shutdown": Quickshell.execDetached(["systemctl", "poweroff"]); return;
         }
-        root.actionRequested(id);
     }
 
-    function label(id) {
-        switch (id) {
-        case "lock": return qsTr("Lock");
-        case "logout": return qsTr("Log Out");
-        case "reboot": return qsTr("Reboot");
-        case "shutdown": return qsTr("Shut Down");
-        case "lens": return qsTr("Lens");
-        case "color": return qsTr("Color");
-        case "ocr": return qsTr("OCR");
-        case "qr": return qsTr("QR");
-        case "mirror": return qsTr("Mirror");
-        case "clipboard": return qsTr("Clipboard");
-        case "wifi": return qsTr("Wi-Fi");
-        case "bluetooth": return qsTr("Bluetooth");
-        case "microphone": return qsTr("Microphone");
-        case "do-not-disturb": return qsTr("Do Not Disturb");
-        case "night-light": return qsTr("Night Light");
-        case "keep-awake": return qsTr("Keep Awake");
-        case "game-mode": return qsTr("Game Mode");
-        }
-        return id;
-    }
-
-    Grid {
-        id: grid
-        width: root.width
-        columns: 5
-        readonly property real cellW: (width - spacing * (columns - 1)) / columns
-        spacing: 8 * root.s
+    Row {
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: 12
 
         Repeater {
-            model: root.actionIds
-            delegate: Item {
-                id: cell
+            model: root.actions
+            delegate: MenuButton {
+                id: tile
                 required property var modelData
-                readonly property bool on: root.isToggle(cell.modelData) && root.isOn(cell.modelData)
-                width: grid.cellW
-                height: 58 * root.s
-
-                Rectangle {
-                    id: tile
-                    anchors.top: parent.top
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: 40 * root.s
-                    height: 40 * root.s
-                    radius: Theme.radiusWidget
-                    color: cell.on ? Theme.primary : (cHov.hovered ? Theme.frameBg : Theme.surfaceContainerHigh)
-                    border.width: 1
-                    border.color: cell.on ? Theme.primary : (cHov.hovered ? Theme.frameBorder : Theme.outline)
-                    Behavior on color { ColorAnimation { duration: Motion.fast } }
-                    Behavior on border.color { ColorAnimation { duration: Motion.fast } }
-
-                    Pill.GlyphIcon {
-                        anchors.centerIn: parent
-                        width: 16 * root.s
-                        height: 16 * root.s
-                        name: root.meta[cell.modelData]
-                        color: cell.on ? Theme.onPrimary : (cHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant)
-                        stroke: 1.6
-                    }
-
-                    Accessible.role: Accessible.Button
-                    Accessible.name: root.label(cell.modelData)
+                minW: 48
+                minH: 48
+                selected: root.isToggle(tile.modelData) && root.isOn(tile.modelData)
+                onClicked: root.act(tile.modelData)
+                Pill.MaterialIcon {
+                    anchors.centerIn: parent
+                    width: Theme.iconMd
+                    height: Theme.iconMd
+                    font.pixelSize: Theme.iconMd
+                    text: root.iconFor(tile.modelData)
+                    color: tile.contentColor
                 }
-
-                Text {
-                    anchors.top: tile.bottom
-                    anchors.topMargin: 5 * root.s
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: root.label(cell.modelData)
-                    elide: Text.ElideRight
-                    color: cell.on ? Theme.primary : Theme.onSurfaceVariant
-                    font.family: Theme.fontPrimary
-                    font.pixelSize: 8 * root.s
-                }
-
-                HoverHandler { id: cHov; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: root.act(cell.modelData) }
             }
         }
     }

@@ -45,20 +45,22 @@ function defaultConfig() {
         version: 1,
         style: "slate-frame",
         rails: {
-            top: { enabled: true, size: 32, reveal: true, start: [], center: ["clock"], end: [] },
-            left: { enabled: true, size: 48, reveal: true, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["tray", "network", "clock"] },
+            top: { enabled: true, size: 32, reveal: true, start: [], center: [], end: [] },
+            left: { enabled: true, size: 48, reveal: true, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["recording", "tray", "screenshot", "wallpaper", "clipboard", "notifications", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"] },
             bottom: { enabled: false, size: 32, reveal: true, start: [], center: [], end: [] },
             right: { enabled: false, size: 48, reveal: true, top: [], center: [], bottom: [] }
         },
         menus: {
-            "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock", "network", "audio-output"] },
-            clock: { anchor: "top", minWidth: 280, expansion: "never", widgets: ["clock"] },
-            launcher: { anchor: "left", minWidth: 420, expansion: "always", widgets: ["launcher"] },
-            clipboard: { anchor: "left", minWidth: 420, expansion: "always", widgets: ["clipboard"] },
-            screenshot: { anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["screenshot"] },
+            "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
+            clock: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock"] },
+            clipboard: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clipboard"] },
+            notifications: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["notifications"] },
+            screenshot: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },
+            "app-launcher": { anchor: "top-left", minWidth: 410, expansion: "always", widgets: ["launcher"] },
+            wallpaper: { anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["wallpaper"] },
+            screenshare: { anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
             recording: { anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["recording"] },
             theme: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
-            wallpaper: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["wallpaper"] },
             weather: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
             media: { anchor: "right", minWidth: 360, expansion: "always", widgets: ["media"] }
         },
@@ -69,6 +71,11 @@ function defaultConfig() {
         dock: { pinned: [] }
     };
 }
+
+// Side menus support the four reference vertical expansion modes; corner and
+// edge menus ignore it. "never" is kept as an accepted legacy value (top-pinned,
+// same as "always").
+const menuExpansions = ["always", "never", "both", "up", "down"];
 
 function normalize(raw, barCatalog, menuCatalog) {
     const base = defaultConfig();
@@ -88,10 +95,14 @@ function normalize(raw, barCatalog, menuCatalog) {
         output.menus[id] = {
             anchor: menuCatalog.anchors().includes(value.anchor) ? value.anchor : fallback.anchor,
             minWidth: typeof value.minWidth === "number" && isFinite(value.minWidth) ? Math.max(1, Math.round(value.minWidth)) : fallback.minWidth,
-            expansion: value.expansion === "always" || value.expansion === "never" ? value.expansion : fallback.expansion,
+            expansion: menuExpansions.includes(value.expansion) ? value.expansion : fallback.expansion,
             widgets: Array.isArray(value.widgets) ? menuWidgetsFor(value.widgets, menuCatalog, 0) : clone(fallback.widgets)
         };
     }
+    // The quick-settings menu is one cohesive stack (MenuQuickSettings), not a
+    // user-composed widget list, so its widgets always resolve to the fixed
+    // default regardless of any stale persisted list.
+    output.menus["quick-settings"].widgets = clone(base.menus["quick-settings"].widgets);
     for (const id of ["stash", "system"]) {
         const value = isObject(source.surfaces) && isObject(source.surfaces[id]) ? source.surfaces[id] : {};
         const fallback = base.surfaces[id];
@@ -149,7 +160,7 @@ function setMenu(config, id, value, menuCatalog) {
     output.menus[id] = {
         anchor: menuCatalog.anchors().includes(source.anchor) ? source.anchor : fallback.anchor,
         minWidth: typeof source.minWidth === "number" && isFinite(source.minWidth) ? Math.max(1, Math.round(source.minWidth)) : fallback.minWidth,
-        expansion: source.expansion === "always" || source.expansion === "never" ? source.expansion : fallback.expansion,
+        expansion: menuExpansions.includes(source.expansion) ? source.expansion : fallback.expansion,
         widgets: Array.isArray(source.widgets) ? source.widgets.filter(widget => menuCatalog.widget(widget)) : clone(fallback.widgets)
     };
     return output;

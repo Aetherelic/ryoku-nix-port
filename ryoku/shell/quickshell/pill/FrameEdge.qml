@@ -43,12 +43,17 @@ PanelWindow {
         left: edge !== "right"
         right: edge !== "left"
     }
-    implicitWidth: horizontal ? 0 : Math.round(zone)
-    implicitHeight: horizontal ? Math.round(zone) : 0
-
-    // A fully released edge (zone 0) unmaps instead of committing a zero
-    // thickness surface; it re-maps as soon as the reveal animates back up.
-    visible: zone > 0.5
+    // Never unmap. The reservation stack order is fixed at map time and the
+    // exclusive-zone arrange gives corners to whoever reserves first, so the
+    // four edges MUST map in a fixed order (top, bottom, left, right from
+    // shell.qml) for the horizontal edges to own the corners and the vertical
+    // ones to inset between them. Unmapping a collapsed edge and remapping it on
+    // reveal reorders the stack (the largest target crosses the map threshold
+    // first), which inverts the insets. So the surface stays mapped at a 1 px
+    // floor and only its exclusive zone drops to 0 when the bar hides.
+    implicitWidth: horizontal ? 0 : Math.max(1, Math.round(zone))
+    implicitHeight: horizontal ? Math.max(1, Math.round(zone)) : 0
+    visible: true
 
     mask: Region {}
 }

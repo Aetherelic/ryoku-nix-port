@@ -11,7 +11,7 @@ function eq(actual, expected, msg) {
 }
 function ok(condition, msg) { eq(!!condition, true, msg); }
 
-const requiredBars = ["audio-input", "audio-output", "battery", "bluetooth", "clipboard", "clock",
+const requiredBars = ["app-launcher", "audio-input", "audio-output", "battery", "bluetooth", "clipboard", "clock",
     "dock", "layout-switcher", "workspaces", "color-picker", "lock", "logout", "network",
     "notifications", "power-profile", "quick-settings", "reboot", "recording", "screenshot",
     "shutdown", "tray", "vpn", "wallpaper"];

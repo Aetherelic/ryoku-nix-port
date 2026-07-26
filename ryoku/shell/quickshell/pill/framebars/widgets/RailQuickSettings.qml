@@ -1,7 +1,11 @@
-import QtQuick
-import "../.." as Pill
-import "../../Singletons"
+pragma ComponentBehavior: Bound
 
+import QtQuick
+
+// Quick-settings launch button: opens the main quick-settings menu on left click.
+// The reference shows a configurable distro logo here; Ryoku has no distro-logo
+// config or glyphs, so it uses the settings "tune" glyph for the same role.
+// Contract 04 sec 3.2 (quick_settings).
 Item {
     id: root
 
@@ -9,18 +13,15 @@ Item {
     required property real scale
     signal menuRequested(string id, rect ownerRect)
 
-    implicitWidth: 30 * scale
-    implicitHeight: 30 * scale
+    implicitWidth: btn.implicitWidth
+    implicitHeight: btn.implicitHeight
 
-    Pill.MaterialIcon {
+    RailButton {
+        id: btn
         anchors.centerIn: parent
-        text: "tune"
-        color: Theme.onSurface
-        font.pixelSize: 19 * root.scale
-    }
-
-    MouseArea {
-        anchors.fill: parent
+        edge: root.edge
+        scale: root.scale
+        icon: "tune"
         onClicked: root.menuRequested("quick-settings", Qt.rect(0, 0, root.width, root.height))
     }
 }

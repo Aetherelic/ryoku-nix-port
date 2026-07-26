@@ -5,7 +5,8 @@ import "framebars/RailGeometry.js" as RailGeometry
 ShellRoot {
     id: root
 
-    readonly property real monitorScale: 1.3
+    // The frame is fixed logical pixels, as the reference is. A rail band is its
+    // configured size, never multiplied by a monitor or font scale.
     readonly property real frameLip: 9
     readonly property var frameBars: ({
         style: "slate-frame",
@@ -36,7 +37,7 @@ ShellRoot {
 
     function checkRail(sceneItem, bars, edge) {
         const rail = findRail(sceneItem, edge);
-        const thickness = bars.rails[edge].size * monitorScale;
+        const thickness = bars.rails[edge].size;
         const expected = RailGeometry.edgeRect(edge, thickness, sceneItem.width, sceneItem.height);
         const reserve = RailGeometry.reserve(edge, frameLip, thickness, true);
         if (!rail) {
@@ -73,7 +74,6 @@ ShellRoot {
         Bar {
             id: bar
             anchors.fill: parent
-            railScale: root.monitorScale
             frameBars: root.frameBars
             style: ({ group: null })
             property var menus: []
@@ -102,7 +102,6 @@ ShellRoot {
 
         Bar {
             anchors.fill: parent
-            railScale: root.monitorScale
             frameBars: parent.frameBars
             style: ({ group: null })
         }
@@ -134,11 +133,12 @@ ShellRoot {
             };
             emit("clock", "menuRequested");
             emit("quick-settings", "menuRequested");
-            emit("tray", "menuRequested");
             emit("lock", "actionRequested");
             const menuIds = bar.menus.map(entry => entry.id).sort();
-            // The dock activates and pins windows; it owns no catalogued menu.
-            const menus = JSON.stringify(menuIds) === JSON.stringify(["clock", "quick-settings", "tray"]);
+            // The tray reveals its items in place and opens each item's own menu
+            // via the daemon; it owns no catalogued frame menu. The dock activates
+            // and pins windows; it owns no catalogued menu either.
+            const menus = JSON.stringify(menuIds) === JSON.stringify(["clock", "quick-settings"]);
             const rectangles = bar.menus.every(entry => entry.rect.width === 1 && entry.rect.height === 1
                 && entry.rect.x === origins[entry.id].x && entry.rect.y === origins[entry.id].y);
             const actions = JSON.stringify(bar.actions) === JSON.stringify(["lock"]);

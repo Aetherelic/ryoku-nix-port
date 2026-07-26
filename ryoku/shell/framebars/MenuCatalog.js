@@ -23,14 +23,16 @@ const widgets = {
     "quick-actions": { id: "quick-actions", nested: false }
 };
 const menus = {
-    "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock", "network", "audio-output"] },
-    clock: { id: "clock", anchor: "top", minWidth: 280, expansion: "never", widgets: ["clock"] },
-    launcher: { id: "launcher", anchor: "left", minWidth: 420, expansion: "always", widgets: ["launcher"] },
-    clipboard: { id: "clipboard", anchor: "left", minWidth: 420, expansion: "always", widgets: ["clipboard"] },
-    screenshot: { id: "screenshot", anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["screenshot"] },
+    "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
+    clock: { id: "clock", anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock"] },
+    clipboard: { id: "clipboard", anchor: "left", minWidth: 410, expansion: "always", widgets: ["clipboard"] },
+    notifications: { id: "notifications", anchor: "left", minWidth: 410, expansion: "always", widgets: ["notifications"] },
+    screenshot: { id: "screenshot", anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },
+    "app-launcher": { id: "app-launcher", anchor: "top-left", minWidth: 410, expansion: "always", widgets: ["launcher"] },
+    wallpaper: { id: "wallpaper", anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["wallpaper"] },
+    screenshare: { id: "screenshare", anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
     recording: { id: "recording", anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["recording"] },
     theme: { id: "theme", anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
-    wallpaper: { id: "wallpaper", anchor: "right", minWidth: 320, expansion: "never", widgets: ["wallpaper"] },
     weather: { id: "weather", anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
     media: { id: "media", anchor: "right", minWidth: 360, expansion: "always", widgets: ["media"] }
 };

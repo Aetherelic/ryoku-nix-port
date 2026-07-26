@@ -1064,13 +1064,13 @@ func defaultFrameBarsFromLegacy(_ map[string]any) map[string]any {
 		"version": float64(1),
 		"style":   "slate-frame",
 		"rails": map[string]any{
-			"top":    frameRail(true, 32, map[string][]any{"start": {}, "center": {"clock"}, "end": {}}),
-			"left":   frameRail(true, 48, map[string][]any{"top": {"quick-settings", "workspaces"}, "center": {"dock"}, "bottom": {"tray", "network", "clock"}}),
+			"top":    frameRail(true, 32, map[string][]any{"start": {}, "center": {}, "end": {}}),
+			"left":   frameRail(true, 48, map[string][]any{"top": {"quick-settings", "workspaces"}, "center": {"dock"}, "bottom": {"recording", "tray", "screenshot", "wallpaper", "clipboard", "notifications", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"}}),
 			"bottom": frameRail(false, 32, map[string][]any{"start": {}, "center": {}, "end": {}}),
 			"right":  frameRail(false, 48, map[string][]any{"top": {}, "center": {}, "bottom": {}}),
 		},
 		"menus": map[string]any{
-			"quick-settings": map[string]any{"anchor": "left", "minWidth": float64(410), "expansion": "always", "widgets": []any{"clock", "network", "audio-output"}},
+			"quick-settings": map[string]any{"anchor": "left", "minWidth": float64(410), "expansion": "always", "widgets": []any{"quick-settings"}},
 		},
 		"surfaces": map[string]any{
 			"stash":  map[string]any{"anchor": "left", "minWidth": float64(340), "panes": []any{"stash"}},
@@ -1204,12 +1204,14 @@ func normalizeFrameBars(v any) (map[string]any, []string) {
 	menuFallback, menuRaw, menuOut := frameMap(baseMenus["quick-settings"]), frameMap(sourceMenus["quick-settings"]), frameMap(outMenus["quick-settings"])
 	menuOut["anchor"] = frameAnchor(menuRaw["anchor"], menuFallback["anchor"].(string))
 	menuOut["minWidth"] = frameNumber(menuRaw["minWidth"], menuFallback["minWidth"].(float64), 1, 10000)
-	if expansion, ok := menuRaw["expansion"].(string); ok && (expansion == "always" || expansion == "never") {
-		menuOut["expansion"] = expansion
+	if expansion, ok := menuRaw["expansion"].(string); ok {
+		switch expansion {
+		case "always", "never", "both", "up", "down":
+			menuOut["expansion"] = expansion
+		}
 	}
-	if _, present := menuRaw["widgets"]; present {
-		menuOut["widgets"] = frameStringList(menuRaw["widgets"], frameMenuWidgets)
-	}
+	// The quick-settings widget list is a fixed cohesive stack, not user-composed,
+	// so it always converges to the default rather than preserving a stale list.
 	baseSurfaces, sourceSurfaces, outSurfaces := frameMap(base["surfaces"]), frameMap(source["surfaces"]), frameMap(out["surfaces"])
 	for _, id := range []string{"stash", "system"} {
 		fallback, raw, surface := frameMap(baseSurfaces[id]), frameMap(sourceSurfaces[id]), frameMap(outSurfaces[id])

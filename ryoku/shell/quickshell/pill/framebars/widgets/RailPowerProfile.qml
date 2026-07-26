@@ -1,43 +1,38 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import "../.." as Pill
 import "../../Singletons"
 
+// Power-profile indicator: a box-shape indicator (no click) whose glyph tracks
+// the active profile. `active` (host visibility) gates the singleton's polling.
+// Contract 04 sec 3.2 (power_profile): power-saver / balanced / performance,
+// unknown falls back to the balanced glyph.
 Item {
     id: root
 
     required property string edge
     required property real scale
     required property bool active
-    signal menuRequested(string id, rect ownerRect)
 
-    implicitWidth: 30 * scale
-    implicitHeight: 30 * scale
+    implicitWidth: btn.implicitWidth
+    implicitHeight: btn.implicitHeight
 
-    function refresh() {
-        PowerProfiles.setActive(root, active);
-    }
-
-    onActiveChanged: refresh()
-    Component.onCompleted: refresh()
+    onActiveChanged: PowerProfiles.setActive(root, root.active)
+    Component.onCompleted: PowerProfiles.setActive(root, root.active)
     Component.onDestruction: PowerProfiles.setActive(root, false)
 
-    Timer {
-        interval: 30000
-        repeat: true
-        running: root.active
-        onTriggered: root.refresh()
+    readonly property string glyph: {
+        const p = PowerProfiles.profile;
+        return p === "power-saver" ? "eco" : (p === "performance" ? "bolt" : "balance");
     }
 
-    Pill.MaterialIcon {
+    RailButton {
+        id: btn
         anchors.centerIn: parent
-        text: "speed"
-        color: Theme.onSurface
+        edge: root.edge
+        scale: root.scale
+        icon: root.glyph
+        interactive: false
         opacity: PowerProfiles.available ? 1 : 0.45
-        font.pixelSize: 18 * root.scale
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        onClicked: root.menuRequested("power-profile", Qt.rect(0, 0, root.width, root.height))
     }
 }

@@ -4,127 +4,87 @@ import QtQuick
 import "../.." as Pill
 import "../../Singletons"
 
+// Network entry (contract 06 sec 2.6): a RevealerRow whose inert action button
+// carries the connection-status icon and whose label reports the current link;
+// the reveal exposes the Wi-Fi radio toggle and the active VPN.
+//
+// Divergence recorded: the reference reveal also lists available access points,
+// saved networks and WireGuard tunnels with connect/import flows. That needs a
+// typed network topic on the Go daemon (NetworkManager state), which Ryoku does
+// not yet serve; the Network singleton here is display-only and QML must not poll
+// NetworkManager directly. Once a network topic exists (StateServices slice),
+// the available/WG sections attach here without touching the framework.
 Item {
     id: root
 
-    required property real s
-    required property bool open
+    property real s: 1
+    property bool open: false
 
-    implicitWidth: 280 * s
-    implicitHeight: col.implicitHeight
+    implicitHeight: row.implicitHeight
 
     onOpenChanged: Network.setVpnPolling(root, root.open)
     Component.onCompleted: Network.setVpnPolling(root, root.open)
     Component.onDestruction: Network.setVpnPolling(root, false)
 
-    readonly property bool online: Network.kind.length > 0
-    readonly property string statusLabel: Network.kind === "ethernet" ? qsTr("Ethernet")
-        : Network.kind === "wifi" ? qsTr("Wi-Fi") : qsTr("Offline")
-    readonly property string statusIcon: Network.kind === "ethernet" ? "ethernet" : "wifi"
+    readonly property string statusIcon: Network.kind === "ethernet" ? "lan"
+        : Network.kind === "wifi" ? "wifi"
+        : "wifi_off"
+    readonly property string statusLabel: {
+        var base = Network.kind === "ethernet" ? qsTr("Wired")
+            : Network.kind === "wifi" ? qsTr("Wi-Fi")
+            : qsTr("Not Connected");
+        return Network.vpnActive ? base + qsTr(" (+VPN)") : base;
+    }
 
-    Column {
-        id: col
+    RevealerRow {
+        id: row
         width: root.width
-        spacing: 12 * root.s
+        actionIconName: root.statusIcon
+        actionSensitive: false
 
-        Pill.MicroLabel { label: qsTr("Network"); s: root.s }
+        middle: RevealerRowLabel {
+            anchors.fill: parent
+            label: root.statusLabel
+        }
 
-        Row {
+        Column {
             width: parent.width
-            spacing: 11 * root.s
-            Pill.GlyphIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 20 * root.s
-                height: 20 * root.s
-                name: root.statusIcon
-                color: root.online ? Theme.primary : Theme.onSurfaceVariant
-                stroke: 1.7
+            spacing: 8
+
+            MenuButton {
+                id: wifiToggle
+                width: parent.width
+                minH: wifiLabel.implicitHeight + wifiToggle.pad * 2
+                selected: Network.wifiRadio
+                onClicked: { Toggles.toggleWifi(); Network.refresh(); }
+                RevealerIconLabel {
+                    id: wifiLabel
+                    anchors.fill: parent
+                    iconName: "wifi"
+                    iconColor: wifiToggle.contentColor
+                    label: Network.wifiRadio ? qsTr("Wi-Fi On") : qsTr("Wi-Fi Off")
+                }
             }
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 1 * root.s
+
+            Row {
+                width: parent.width
+                spacing: 10
+                visible: Network.vpnActive
+                Pill.MaterialIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Theme.iconSm
+                    height: Theme.iconSm
+                    font.pixelSize: Theme.iconSm
+                    text: "vpn_lock"
+                    color: Theme.primary
+                }
                 Text {
-                    text: root.statusLabel
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("VPN: %1").arg(Network.vpnName)
                     color: Theme.onSurface
                     font.family: Theme.fontPrimary
-                    font.pixelSize: 13 * root.s
-                    font.weight: Font.DemiBold
+                    font.pixelSize: Theme.fontSm
                 }
-                Text {
-                    visible: Network.kind === "wifi"
-                    text: qsTr("Signal %1%").arg(Math.round(Network.level * 100))
-                    color: Theme.onSurfaceVariant
-                    font.family: Theme.mono
-                    font.pixelSize: 10 * root.s
-                }
-            }
-        }
-
-        Rectangle {
-            id: wifiRow
-            width: parent.width
-            height: 40 * root.s
-            radius: Theme.radiusWidget
-            color: Network.wifiRadio ? Qt.alpha(Theme.primary, 0.16) : (wifiHov.hovered ? Theme.frameBg : Theme.surfaceContainerHigh)
-            border.width: 1
-            border.color: Network.wifiRadio ? Theme.primary : (wifiHov.hovered ? Theme.frameBorder : Theme.outline)
-            Behavior on color { ColorAnimation { duration: Motion.fast } }
-            Behavior on border.color { ColorAnimation { duration: Motion.fast } }
-
-            Pill.GlyphIcon {
-                id: wifiIcon
-                anchors.left: parent.left
-                anchors.leftMargin: 12 * root.s
-                anchors.verticalCenter: parent.verticalCenter
-                width: 16 * root.s
-                height: 16 * root.s
-                name: "wifi"
-                color: Network.wifiRadio ? Theme.primary : Theme.onSurfaceVariant
-                stroke: 1.6
-            }
-            Text {
-                anchors.left: wifiIcon.right
-                anchors.leftMargin: 10 * root.s
-                anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("Wi-Fi")
-                color: Theme.onSurface
-                font.family: Theme.fontPrimary
-                font.pixelSize: 12.5 * root.s
-                font.weight: Font.DemiBold
-            }
-            Text {
-                anchors.right: parent.right
-                anchors.rightMargin: 12 * root.s
-                anchors.verticalCenter: parent.verticalCenter
-                text: Network.wifiRadio ? qsTr("On") : qsTr("Off")
-                color: Network.wifiRadio ? Theme.primary : Theme.onSurfaceVariant
-                font.family: Theme.mono
-                font.pixelSize: 10 * root.s
-                font.weight: Font.DemiBold
-                font.capitalization: Font.AllUppercase
-            }
-            HoverHandler { id: wifiHov; cursorShape: Qt.PointingHandCursor }
-            TapHandler { onTapped: { Toggles.toggleWifi(); Network.refresh(); } }
-        }
-
-        Row {
-            width: parent.width
-            spacing: 8 * root.s
-            visible: Network.vpnActive
-            Pill.GlyphIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 15 * root.s
-                height: 15 * root.s
-                name: "lock"
-                color: Theme.primary
-                stroke: 1.6
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("VPN: %1").arg(Network.vpnName)
-                color: Theme.onSurface
-                font.family: Theme.fontPrimary
-                font.pixelSize: 11.5 * root.s
             }
         }
     }

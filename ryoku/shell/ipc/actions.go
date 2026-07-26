@@ -17,9 +17,9 @@ import (
 var shellDir = os.Getenv("RYOKU_SHELL_DIR")
 
 var frameBarMenuIDs = map[string]bool{
-	"quick-settings": true, "clock": true, "launcher": true, "clipboard": true,
-	"screenshot": true, "recording": true, "theme": true, "wallpaper": true,
-	"weather": true, "media": true, "stash": true, "system": true,
+	"quick-settings": true, "clock": true, "app-launcher": true, "clipboard": true,
+	"notifications": true, "screenshot": true, "recording": true, "theme": true,
+	"wallpaper": true, "weather": true, "media": true, "stash": true, "system": true,
 }
 
 func menuID(cmd string) (string, bool) {

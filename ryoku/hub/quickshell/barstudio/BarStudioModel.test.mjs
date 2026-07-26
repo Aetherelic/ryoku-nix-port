@@ -47,9 +47,10 @@ eq(rejected, base, "incompatible vertical-only widget move is a clean no-op");
 const menuCreated = Model.createMenu(base, "clock", MenuCatalog);
 fresh(base, menuCreated, "create menu");
 eq(menuCreated.menus.clock.widgets, ["clock"], "menu creation uses bounded catalogue record");
+const clockAnchorBefore = menuCreated.menus.clock.anchor;
 const menuAnchored = Model.setMenuAnchor(menuCreated, "clock", "bottom-right", MenuCatalog);
 fresh(menuCreated, menuAnchored, "set menu anchor");
-eq(menuCreated.menus.clock.anchor, "top", "anchor update leaves source untouched");
+eq(menuCreated.menus.clock.anchor, clockAnchorBefore, "anchor update leaves source untouched");
 eq(menuAnchored.menus.clock.anchor, "bottom-right", "anchor update accepts catalogue anchor");
 
 const nestedMenu = Model.addMenuWidget(menuAnchored, "clock", [], "container", MenuCatalog);

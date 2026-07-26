@@ -4,86 +4,187 @@ import QtQuick
 import Quickshell
 import "../../Singletons"
 import "../lib/dock.js" as Dock
+
+// The dock. Order is pinned classes first (a pinned app may have zero clients),
+// then running unpinned classes by pid (the host hands clients pre-sorted). Each
+// item is a 48x44 button with a 24px app icon; the active window's class shows the
+// selected fill. The running indicator overlays the outer edge: zero clients none,
+// one to three clients that many 4x4 dots, four or more a single line (16x4 on a
+// horizontal bar, 4x16 on a vertical bar). Left click focuses/cycles/launches
+// (host-driven); right click toggles pin. No middle click, no hover preview, no
+// tooltip. Contract 03 sec 2.1/2.2/3.3/4.1.
 Item {
     id: root
 
     required property var pinned
-    required property var activeClients
+    required property var clients        // [{ className, address, pid }], pid-sorted
+    required property string activeClass
     required property string edge
     required property real scale
     signal activate(string className)
     signal pin(string className)
     signal unpin(string className)
-    readonly property bool horizontal: edge === "top" || edge === "bottom"
-    readonly property var classes: Dock.resolve(pinned, activeClients)
-    implicitWidth: horizontal ? dock.implicitWidth : 34 * scale
-    implicitHeight: horizontal ? 34 * scale : dock.implicitHeight
 
-    Grid {
+    readonly property bool horizontal: edge === "top" || edge === "bottom"
+    readonly property real cross: 48 * scale
+    readonly property var classes: Dock.resolve(pinned, clients)
+    readonly property var counts: {
+        const c = {};
+        const list = Array.isArray(clients) ? clients : [];
+        for (let i = 0; i < list.length; ++i) {
+            const cl = list[i] && list[i].className;
+            if (cl)
+                c[cl] = (c[cl] || 0) + 1;
+        }
+        return c;
+    }
+
+    implicitWidth: horizontal ? dock.implicitWidth : Math.max(cross, dock.implicitWidth)
+    implicitHeight: horizontal ? Math.max(cross, dock.implicitHeight) : dock.implicitHeight
+
+    Loader {
         id: dock
         anchors.centerIn: parent
-        columns: root.horizontal ? Math.max(1, root.classes.length) : 1
-        spacing: 5 * root.scale
+        sourceComponent: root.horizontal ? rowComp : colComp
+    }
 
-        Repeater {
-            model: root.classes
+    Component {
+        id: rowComp
+        Row {
+            spacing: 0
+            Repeater { model: root.classes; delegate: itemComp }
+        }
+    }
+    Component {
+        id: colComp
+        Column {
+            spacing: 0
+            Repeater { model: root.classes; delegate: itemComp }
+        }
+    }
 
-            delegate: Item {
-                id: entry
-                required property string modelData
-                width: 28 * root.scale
-                height: 28 * root.scale
+    Component {
+        id: itemComp
+        Item {
+            id: item
+            required property string modelData
+            readonly property string className: modelData
+            readonly property bool selected: root.activeClass.length > 0 && root.activeClass === className
+            readonly property int count: root.counts[className] || 0
+            readonly property color fg: selected ? Theme.onPrimary : Theme.onSurface
+            readonly property real iconPx: Theme.iconMd * root.scale
 
-                // The desktop entry owns the real icon; the window class is the
-                // fallback lookup, and its initial is the last resort so an
-                // unmatched client still reads as something.
-                readonly property string iconSource: {
-                    const desktop = DesktopEntries.heuristicLookup(entry.modelData);
-                    const byEntry = (desktop && desktop.icon) ? Quickshell.iconPath(desktop.icon, true) : "";
-                    return byEntry !== "" ? byEntry : Quickshell.iconPath(entry.modelData, true);
+            width: root.horizontal ? Math.max(36 * root.scale, iconPx + 20 * root.scale) : root.cross
+            height: root.horizontal ? root.cross : Math.max(36 * root.scale, iconPx + 20 * root.scale)
+
+            // The desktop entry owns the real icon; the window class is the
+            // fallback lookup, and its initial is the last resort so an unmatched
+            // client still reads as something (contract 03 sec 3.4).
+            readonly property string iconSource: {
+                const desktop = DesktopEntries.heuristicLookup(className);
+                const byEntry = (desktop && desktop.icon) ? Quickshell.iconPath(desktop.icon, true) : "";
+                return byEntry !== "" ? byEntry : Quickshell.iconPath(className, true);
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.radiusWidget
+                color: item.selected ? Theme.primary
+                    : (area.containsMouse
+                        ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08)
+                        : "transparent")
+            }
+
+            Image {
+                anchors.centerIn: parent
+                width: item.iconPx
+                height: item.iconPx
+                visible: item.iconSource !== ""
+                source: item.iconSource
+                sourceSize.width: width
+                sourceSize.height: height
+                smooth: true
+                asynchronous: true
+            }
+
+            Text {
+                anchors.centerIn: parent
+                visible: item.iconSource === ""
+                text: item.className.slice(0, 1).toUpperCase()
+                color: item.fg
+                font {
+                    family: Theme.fontPrimary
+                    pixelSize: 14 * root.scale
+                    weight: Font.DemiBold
                 }
+            }
 
+            // Running indicator on the bar's outer edge (contract 03 sec 2.2):
+            // its orientation follows the bar, dots for 1..3 clients, one line for
+            // 4 or more. Non-interactive.
+            Item {
+                anchors.margins: 4 * root.scale
+                anchors.left: root.edge === "left" ? parent.left : undefined
+                anchors.right: root.edge === "right" ? parent.right : undefined
+                anchors.top: root.edge === "top" ? parent.top : undefined
+                anchors.bottom: root.edge === "bottom" ? parent.bottom : undefined
+                anchors.horizontalCenter: root.horizontal ? parent.horizontalCenter : undefined
+                anchors.verticalCenter: !root.horizontal ? parent.verticalCenter : undefined
+                width: childrenRect.width
+                height: childrenRect.height
+
+                Loader {
+                    active: item.count >= 1 && item.count <= 3
+                    sourceComponent: root.horizontal ? dotRow : dotColumn
+                }
                 Rectangle {
-                    anchors.fill: parent
-                    visible: area.containsMouse
-                    radius: 3 * root.scale
-                    color: Qt.alpha(Theme.onSurface, 0.14)
+                    visible: item.count >= 4
+                    width: root.horizontal ? 16 * root.scale : 4 * root.scale
+                    height: root.horizontal ? 4 * root.scale : 16 * root.scale
+                    radius: 2 * root.scale
+                    color: item.fg
                 }
 
-                Image {
-                    anchors.centerIn: parent
-                    width: 20 * root.scale
-                    height: 20 * root.scale
-                    visible: entry.iconSource !== ""
-                    source: entry.iconSource
-                    sourceSize.width: width
-                    sourceSize.height: height
-                    smooth: true
-                    asynchronous: true
-                }
-
-                Text {
-                    anchors.centerIn: parent
-                    visible: entry.iconSource === ""
-                    text: entry.modelData.slice(0, 1).toUpperCase()
-                    color: Theme.onSurface
-                    font {
-                        family: Theme.fontPrimary
-                        pixelSize: 12 * root.scale
-                        weight: Font.DemiBold
+                Component {
+                    id: dotRow
+                    Row {
+                        spacing: 2 * root.scale
+                        Repeater {
+                            model: item.count
+                            delegate: Rectangle {
+                                width: 4 * root.scale; height: 4 * root.scale
+                                radius: width / 2; color: item.fg
+                            }
+                        }
                     }
                 }
-
-                MouseArea {
-                    id: area
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    hoverEnabled: true
-                    onClicked: event => {
-                        if (event.button === Qt.LeftButton) root.activate(entry.modelData);
-                        else if (root.pinned.includes(entry.modelData)) root.unpin(entry.modelData);
-                        else root.pin(entry.modelData);
+                Component {
+                    id: dotColumn
+                    Column {
+                        spacing: 2 * root.scale
+                        Repeater {
+                            model: item.count
+                            delegate: Rectangle {
+                                width: 4 * root.scale; height: 4 * root.scale
+                                radius: width / 2; color: item.fg
+                            }
+                        }
                     }
+                }
+            }
+
+            MouseArea {
+                id: area
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                hoverEnabled: true
+                onClicked: event => {
+                    if (event.button === Qt.LeftButton)
+                        root.activate(item.className);
+                    else if (root.pinned.includes(item.className))
+                        root.unpin(item.className);
+                    else
+                        root.pin(item.className);
                 }
             }
         }
