@@ -15,7 +15,7 @@ Item {
     Pill.MaterialIcon {
         anchors.centerIn: parent
         text: "tune"
-        color: Theme.cream
+        color: Theme.onSurface
         font.pixelSize: 19 * root.scale
     }
 

@@ -72,12 +72,12 @@ Item {
         signal toggled()
 
         height: 46 * root.s
-        radius: Theme.radius
-        color: st.on ? Qt.alpha(Theme.brand, 0.16)
-            : (stHov.hovered ? Theme.frameBg : Theme.tileBg)
+        radius: Theme.radiusWidget
+        color: st.on ? Qt.alpha(Theme.primary, 0.16)
+            : (stHov.hovered ? Theme.frameBg : Theme.surfaceContainerHigh)
         border.width: 1
-        border.color: st.on ? Theme.brand
-            : (stHov.hovered ? Theme.frameBorder : Theme.border)
+        border.color: st.on ? Theme.primary
+            : (stHov.hovered ? Theme.frameBorder : Theme.outline)
         Behavior on color { ColorAnimation { duration: Motion.fast } }
         Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
@@ -89,7 +89,7 @@ Item {
             width: 16 * root.s
             height: 16 * root.s
             name: st.glyph
-            color: st.on ? Theme.brand : Theme.iconDim
+            color: st.on ? Theme.primary : Theme.onSurfaceVariant
             stroke: 1.6
         }
 
@@ -105,7 +105,7 @@ Item {
                 width: parent.width
                 text: st.label
                 elide: Text.ElideRight
-                color: Theme.faint
+                color: Theme.onSurfaceVariant
                 font.family: Theme.mono
                 font.pixelSize: 8 * root.s
                 font.weight: Font.DemiBold
@@ -116,8 +116,8 @@ Item {
                 width: parent.width
                 text: st.value
                 elide: Text.ElideRight
-                color: st.on ? Theme.brand : Theme.cream
-                font.family: Theme.font
+                color: st.on ? Theme.primary : Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 13 * root.s
                 font.weight: Font.DemiBold
                 font.features: { "tnum": 1 }
@@ -135,10 +135,10 @@ Item {
         property bool on: false
         signal acted()
         height: 38 * root.s
-        radius: Theme.radius
-        color: tt.on ? Theme.brand : (tHov.hovered ? Theme.frameBg : "transparent")
+        radius: Theme.radiusWidget
+        color: tt.on ? Theme.primary : (tHov.hovered ? Theme.frameBg : "transparent")
         border.width: 1
-        border.color: tt.on ? Theme.brand : (tHov.hovered ? Theme.frameBorder : Theme.border)
+        border.color: tt.on ? Theme.primary : (tHov.hovered ? Theme.frameBorder : Theme.outline)
         Behavior on color { ColorAnimation { duration: Motion.fast } }
         Behavior on border.color { ColorAnimation { duration: Motion.fast } }
         GlyphIcon {
@@ -146,7 +146,7 @@ Item {
             width: 15 * root.s
             height: 15 * root.s
             name: tt.glyph
-            color: tt.on ? Theme.onAccent : (tHov.hovered ? Theme.cream : Theme.iconDim)
+            color: tt.on ? Theme.onPrimary : (tHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant)
             stroke: 1.6
         }
         HoverHandler { id: tHov; cursorShape: Qt.PointingHandCursor }

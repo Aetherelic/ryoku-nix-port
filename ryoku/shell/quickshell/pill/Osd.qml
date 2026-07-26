@@ -124,7 +124,7 @@ Item {
             width: 17 * root.s
             height: 17 * root.s
             name: root.muted ? "speaker-off" : "speaker"
-            color: root.muted ? Theme.dim : Theme.iconDim
+            color: root.muted ? Theme.onSurfaceVariant : Theme.onSurfaceVariant
             stroke: 1.7
         }
 
@@ -135,8 +135,8 @@ Item {
             width: 32 * root.s
             horizontalAlignment: Text.AlignRight
             text: Math.round(root.volume * 100) + "%"
-            color: root.muted ? Theme.dim : Theme.cream
-            font.family: Theme.font
+            color: root.muted ? Theme.onSurfaceVariant : Theme.onSurface
+            font.family: Theme.fontPrimary
             font.pixelSize: 11 * root.s
             font.weight: Font.DemiBold
             font.features: { "tnum": 1 }
@@ -149,7 +149,7 @@ Item {
             anchors.rightMargin: 12 * root.s
             anchors.verticalCenter: parent.verticalCenter
             height: 4 * root.s
-            radius: Theme.radius
+            radius: Theme.radiusWidget
             color: Theme.threadBg
 
             Rectangle {
@@ -178,8 +178,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 30 * root.s
             height: 30 * root.s
-            radius: Theme.radius
-            color: Theme.tileBg
+            radius: Theme.radiusWidget
+            color: Theme.surfaceContainerHigh
 
             Image {
                 id: cover
@@ -196,7 +196,7 @@ Item {
                 width: parent.width * 0.45
                 height: width
                 name: "music"
-                color: Theme.subtle
+                color: Theme.onSurfaceVariant
                 visible: !cover.visible
             }
         }
@@ -209,7 +209,7 @@ Item {
             width: 16 * root.s
             height: 16 * root.s
             name: root.shownPlaying ? "play-s" : "pause-s"
-            color: Theme.iconDim
+            color: Theme.onSurfaceVariant
             stroke: 1.7
         }
 
@@ -219,8 +219,8 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: root.shownTrackLine
-            color: Theme.cream
-            font.family: Theme.font
+            color: Theme.onSurface
+            font.family: Theme.fontPrimary
             font.pixelSize: 11.5 * root.s
             font.weight: Font.DemiBold
             maximumLineCount: 1

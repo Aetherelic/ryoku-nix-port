@@ -29,10 +29,10 @@ Item {
                 required property string action
                 width: (row.width - row.spacing) / 2
                 height: 54 * root.s
-                radius: Theme.radius
-                color: captureHover.hovered ? Theme.frameBg : Theme.tileBg
+                radius: Theme.radiusWidget
+                color: captureHover.hovered ? Theme.frameBg : Theme.surfaceContainerHigh
                 border.width: 1
-                border.color: Theme.border
+                border.color: Theme.outline
                 Column {
                     anchors.centerIn: parent
                     spacing: 4 * root.s
@@ -41,14 +41,14 @@ Item {
                         width: 18 * root.s
                         height: 18 * root.s
                         name: icon
-                        color: Theme.brand
+                        color: Theme.primary
                         stroke: 1.6
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: label
-                        color: Theme.cream
-                        font.family: Theme.font
+                        color: Theme.onSurface
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 10 * root.s
                     }
                 }

@@ -67,8 +67,8 @@ Item {
             width: parent.width
             visible: root.rows.length === 0
             text: qsTr("No input devices")
-            color: Theme.faint
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
             font.weight: Font.Medium
         }
@@ -80,10 +80,10 @@ Item {
                 required property var modelData
                 width: col.width
                 height: 38 * root.s
-                radius: Theme.radius
-                color: drow.modelData.selected ? Qt.alpha(Theme.brand, 0.16) : (dHov.hovered ? Theme.frameBg : "transparent")
+                radius: Theme.radiusWidget
+                color: drow.modelData.selected ? Qt.alpha(Theme.primary, 0.16) : (dHov.hovered ? Theme.frameBg : "transparent")
                 border.width: 1
-                border.color: drow.modelData.selected ? Theme.brand : (dHov.hovered ? Theme.frameBorder : Theme.border)
+                border.color: drow.modelData.selected ? Theme.primary : (dHov.hovered ? Theme.frameBorder : Theme.outline)
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
                 Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
@@ -95,7 +95,7 @@ Item {
                     width: 15 * root.s
                     height: 15 * root.s
                     name: drow.modelData.icon
-                    color: drow.modelData.selected ? Theme.brand : Theme.iconDim
+                    color: drow.modelData.selected ? Theme.primary : Theme.onSurfaceVariant
                     stroke: 1.6
                 }
                 Text {
@@ -106,8 +106,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: drow.modelData.label
                     elide: Text.ElideRight
-                    color: drow.modelData.selected ? Theme.brand : Theme.cream
-                    font.family: Theme.font
+                    color: drow.modelData.selected ? Theme.primary : Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s
                     font.weight: drow.modelData.selected ? Font.DemiBold : Font.Medium
                 }
@@ -119,7 +119,7 @@ Item {
                     width: 13 * root.s
                     height: 13 * root.s
                     name: "check"
-                    color: Theme.brand
+                    color: Theme.primary
                     stroke: 2
                     visible: drow.modelData.selected
                 }

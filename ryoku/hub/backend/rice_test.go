@@ -17,7 +17,7 @@ func TestOverlayAndExtractRespectAllowlist(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(p, []byte(`{"barStyle":"noctalia","frameBars":{"style":"ok-frame"},"weatherLocation":"Oslo","fontScale":1.3}`), 0o644); err != nil {
+	if err := os.WriteFile(p, []byte(`{"barStyle":"noctalia","frameBars":{"style":"slate-frame"},"weatherLocation":"Oslo","fontScale":1.3}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,7 +163,7 @@ func TestRiceApplyMergesAndRestoreReverts(t *testing.T) {
 		}
 	}
 	w(hyprStorePath(), `{"appearance":{"rounding":2},"cursor":{"theme":"Bibata-Modern-Ice","size":24}}`)
-	w(shellStorePath(), `{"frameBars":{"style":"ok-frame","rails":{"top":{"size":44}}},"weatherLocation":"Oslo","sidebarWidth":360}`)
+	w(shellStorePath(), `{"frameBars":{"style":"slate-frame","rails":{"top":{"size":44}}},"weatherLocation":"Oslo","sidebarWidth":360}`)
 	w(launcherStorePath(), `{"heroStrength":0.6}`)
 	w(themeStatePath(), `{"followWallpaper":true}`)
 
@@ -208,7 +208,7 @@ func TestRiceApplyMergesAndRestoreReverts(t *testing.T) {
 	}
 	shell2 := readJSONMap(shellStorePath())
 	frameBars2 := shell2["frameBars"].(map[string]any)
-	if frameBars2["style"] != "ok-frame" {
+	if frameBars2["style"] != "slate-frame" {
 		t.Fatalf("restore did not revert frameBars.style: %v", frameBars2["style"])
 	}
 	if !loadThemeState().FollowWallpaper {
@@ -244,7 +244,7 @@ func TestThemeAppsRoundTrip(t *testing.T) {
 
 	// capture with the toggle off records the choice on the rice.
 	w(hyprStorePath(), `{"appearance":{"rounding":2}}`)
-	w(shellStorePath(), `{"frameBars":{"style":"ok-frame"}}`)
+	w(shellStorePath(), `{"frameBars":{"style":"slate-frame"}}`)
 	w(launcherStorePath(), `{}`)
 	w(themeStatePath(), `{"followWallpaper":true,"themeApps":false}`)
 	r, err := captureRice("Bare", nil)
@@ -404,7 +404,7 @@ func TestSquareShellAndKeybindRoundTrip(t *testing.T) {
 		}
 	}
 	w(hyprStorePath(), `{"appearance":{"rounding":12},"keybinds":[]}`)
-	w(shellStorePath(), `{"frameBars":{"style":"ok-frame"},"frameRadius":9,"roundness":10,"osdRadius":12}`)
+	w(shellStorePath(), `{"frameBars":{"style":"slate-frame"},"frameRadius":9,"roundness":10,"osdRadius":12}`)
 	w(launcherStorePath(), `{}`)
 	w(themeStatePath(), `{"followWallpaper":true}`)
 
@@ -554,7 +554,7 @@ func TestApplyNewStoresBrandAndVideoWall(t *testing.T) {
 		}
 	}
 	w(hyprStorePath(), `{"appearance":{"rounding":2}}`)
-	w(shellStorePath(), `{"frameBars":{"style":"ok-frame"}}`)
+	w(shellStorePath(), `{"frameBars":{"style":"slate-frame"}}`)
 	w(launcherStorePath(), `{}`)
 	w(themeStatePath(), `{"followWallpaper":true}`)
 	w(widgetsStorePath(), `{"clock24h":false}`)

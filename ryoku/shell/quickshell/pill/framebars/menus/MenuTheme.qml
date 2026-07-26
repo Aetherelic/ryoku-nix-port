@@ -17,10 +17,10 @@ Item {
         id: button
         width: parent.width
         height: 46 * root.s
-        radius: Theme.radius
-        color: themeHover.hovered ? Theme.frameBg : Theme.tileBg
+        radius: Theme.radiusWidget
+        color: themeHover.hovered ? Theme.frameBg : Theme.surfaceContainerHigh
         border.width: 1
-        border.color: Theme.border
+        border.color: Theme.outline
         Pill.GlyphIcon {
             anchors.left: parent.left
             anchors.leftMargin: 12 * root.s
@@ -28,7 +28,7 @@ Item {
             width: 18 * root.s
             height: 18 * root.s
             name: "palette"
-            color: Theme.brand
+            color: Theme.primary
             stroke: 1.6
         }
         Text {
@@ -36,8 +36,8 @@ Item {
             anchors.leftMargin: 42 * root.s
             anchors.verticalCenter: parent.verticalCenter
             text: qsTr("Choose wallpaper and theme")
-            color: Theme.cream
-            font.family: Theme.font
+            color: Theme.onSurface
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
         }
         HoverHandler { id: themeHover; cursorShape: Qt.PointingHandCursor }

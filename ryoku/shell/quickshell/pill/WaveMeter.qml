@@ -35,7 +35,7 @@ Item {
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
 
-            ctx.strokeStyle = Qt.alpha(Theme.brand, 0.18);
+            ctx.strokeStyle = Qt.alpha(Theme.primary, 0.18);
             ctx.beginPath();
             for (let x = 0; x <= w; x += 1.5) {
                 const y = mid + root.amp * Math.sin(x * k);
@@ -47,7 +47,7 @@ Item {
             ctx.stroke();
 
             if (fill > 1) {
-                ctx.strokeStyle = Theme.brand;
+                ctx.strokeStyle = Theme.primary;
                 ctx.beginPath();
                 for (let x = 0; x <= fill; x += 1.5) {
                     const y = mid + root.amp * Math.sin(x * k);

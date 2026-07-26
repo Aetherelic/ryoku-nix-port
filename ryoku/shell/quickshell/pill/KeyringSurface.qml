@@ -89,16 +89,16 @@ PillSurface {
                 width: 30 * root.s
                 height: 30 * root.s
                 radius: width / 2
-                color: Qt.alpha(Theme.brand, 0.14)
+                color: Qt.alpha(Theme.primary, 0.14)
                 border.width: 1
-                border.color: Qt.alpha(Theme.brand, 0.40)
+                border.color: Qt.alpha(Theme.primary, 0.40)
 
                 GlyphIcon {
                     anchors.centerIn: parent
                     width: 16 * root.s
                     height: 16 * root.s
                     name: "lock-round"
-                    color: Theme.brand
+                    color: Theme.primary
                     stroke: 1.8
                 }
             }
@@ -107,8 +107,8 @@ PillSurface {
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - 40 * root.s
                 text: root.headerText
-                color: Theme.bright
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 14 * root.s
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
@@ -119,8 +119,8 @@ PillSurface {
             width: parent.width
             visible: Keyring.message !== ""
             text: Keyring.message
-            color: Theme.cream
-            font.family: Theme.font
+            color: Theme.onSurface
+            font.family: Theme.fontPrimary
             font.pixelSize: 11.5 * root.s
             wrapMode: Text.WordWrap
             lineHeight: 1.15
@@ -130,8 +130,8 @@ PillSurface {
             width: parent.width
             visible: Keyring.description !== ""
             text: Keyring.description
-            color: Theme.subtle
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 10.5 * root.s
             wrapMode: Text.WordWrap
         }
@@ -142,10 +142,10 @@ PillSurface {
             visible: root.isPassword
             width: parent.width
             height: 36 * root.s
-            radius: Theme.radius
-            color: Theme.tileBg
+            radius: Theme.radiusWidget
+            color: Theme.surfaceContainerHigh
             border.width: 1
-            border.color: field1.activeFocus ? Theme.frameBorder : Theme.border
+            border.color: field1.activeFocus ? Theme.frameBorder : Theme.outline
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
             TextField {
@@ -158,13 +158,13 @@ PillSurface {
                 verticalAlignment: TextInput.AlignVCenter
                 echoMode: TextInput.Password
                 passwordCharacter: "\u2022"
-                color: Theme.cream
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 13 * root.s
                 placeholderText: root.isPasswordNew ? "New password" : "Password"
-                placeholderTextColor: Theme.faint
+                placeholderTextColor: Theme.onSurfaceVariant
                 selectByMouse: true
-                selectionColor: Theme.verm
+                selectionColor: Theme.primary
                 enabled: !Keyring.busy
                 onTextChanged: root.mismatch = false
                 onAccepted: root.isPasswordNew ? field2.forceActiveFocus() : root.trySubmit()
@@ -176,10 +176,10 @@ PillSurface {
             visible: root.isPasswordNew
             width: parent.width
             height: 36 * root.s
-            radius: Theme.radius
-            color: Theme.tileBg
+            radius: Theme.radiusWidget
+            color: Theme.surfaceContainerHigh
             border.width: 1
-            border.color: field2.activeFocus ? Theme.frameBorder : (root.mismatch ? Qt.alpha(Theme.verm, 0.6) : Theme.border)
+            border.color: field2.activeFocus ? Theme.frameBorder : (root.mismatch ? Qt.alpha(Theme.primary, 0.6) : Theme.outline)
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
             TextField {
@@ -192,13 +192,13 @@ PillSurface {
                 verticalAlignment: TextInput.AlignVCenter
                 echoMode: TextInput.Password
                 passwordCharacter: "\u2022"
-                color: Theme.cream
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 13 * root.s
                 placeholderText: "Confirm password"
-                placeholderTextColor: Theme.faint
+                placeholderTextColor: Theme.onSurfaceVariant
                 selectByMouse: true
-                selectionColor: Theme.verm
+                selectionColor: Theme.primary
                 enabled: !Keyring.busy
                 onTextChanged: root.mismatch = false
                 onAccepted: root.trySubmit()
@@ -217,10 +217,10 @@ PillSurface {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 17 * root.s
                 height: 17 * root.s
-                radius: Theme.radius
-                color: checked ? Theme.brand : "transparent"
+                radius: Theme.radiusWidget
+                color: checked ? Theme.primary : "transparent"
                 border.width: 1
-                border.color: checked ? Theme.brand : Theme.border
+                border.color: checked ? Theme.primary : Theme.outline
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
 
                 Text {
@@ -228,7 +228,7 @@ PillSurface {
                     text: "\u2713"
                     visible: choiceBox.checked
                     color: "#fdeee6"
-                    font.family: Theme.font
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11 * root.s
                     font.weight: Font.Bold
                 }
@@ -246,8 +246,8 @@ PillSurface {
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - 26 * root.s
                 text: Keyring.choiceLabel
-                color: Theme.subtle
-                font.family: Theme.font
+                color: Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
                 font.pixelSize: 10.5 * root.s
                 wrapMode: Text.WordWrap
                 MouseArea {
@@ -265,7 +265,7 @@ PillSurface {
             visible: root.warnText !== ""
             text: root.warnText
             color: Theme.vermLit
-            font.family: Theme.font
+            font.family: Theme.fontPrimary
             font.pixelSize: 10.5 * root.s
             wrapMode: Text.WordWrap
         }
@@ -280,8 +280,8 @@ PillSurface {
                 id: continueBtn
                 width: (parent.width - parent.spacing) / 2
                 height: 34 * root.s
-                radius: Theme.radius
-                color: continueArea.containsMouse ? Theme.vermLit : Theme.brand
+                radius: Theme.radiusWidget
+                color: continueArea.containsMouse ? Theme.vermLit : Theme.primary
                 opacity: Keyring.busy ? 0.6 : 1
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
 
@@ -289,7 +289,7 @@ PillSurface {
                     anchors.centerIn: parent
                     text: Keyring.busy ? "Checking\u2026" : root.continueText
                     color: "#fdeee6"
-                    font.family: Theme.font
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s
                     font.weight: Font.DemiBold
                 }
@@ -307,17 +307,17 @@ PillSurface {
             Rectangle {
                 width: (parent.width - parent.spacing) / 2
                 height: 34 * root.s
-                radius: Theme.radius
-                color: cancelArea.containsMouse ? Theme.frameBg : Theme.tileBg
+                radius: Theme.radiusWidget
+                color: cancelArea.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh
                 border.width: 1
-                border.color: Theme.border
+                border.color: Theme.outline
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
 
                 Text {
                     anchors.centerIn: parent
                     text: root.cancelText
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s
                     font.weight: Font.Medium
                 }

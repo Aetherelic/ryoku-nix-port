@@ -98,6 +98,12 @@ type daemon struct {
 	gateWake       map[string]chan struct{} // wakes a parked supervisor when its gate opens
 	parkMu         sync.Mutex               // guards hiddenSince
 	hiddenSince    map[string]time.Time     // parkable palette -> when it last went hidden (absent = shown)
+	topicsMu       sync.Mutex               // guards topics
+	topics         map[string]*stateTopic   // subsystem name -> pub/sub state topic
+	callsMu        sync.Mutex               // guards calls
+	calls          map[string]callFunc      // "topic.method" -> control handler
+	clip           *clipState               // clipboard history state (nil until started)
+	tray           *trayState               // system tray watcher/host state (nil until started)
 }
 
 func runDaemon() error {
@@ -264,6 +270,8 @@ func setupQmlImportPath() {
 // components.
 func (d *daemon) bootstrap() {
 	startCliphist()
+	d.startClipboard()
+	d.startTray()
 	d.prompter = startKeyringPrompter()
 	go d.paintWorker()
 	go d.ledsWorker()
@@ -506,6 +514,23 @@ func (d *daemon) handle(conn net.Conn) {
 		fmt.Fprintln(conn, d.keyringRespond(cmd, strings.TrimRight(secret, "\r\n")))
 		return
 	}
+	// Typed subsystem state rides the same socket: a long-lived subscription
+	// stream, or a request/response control call. Both outlive the one-shot
+	// command deadline, which they clear for themselves.
+	if strings.HasPrefix(cmd, "subscribe ") {
+		d.serveSubscription(conn, cmd)
+		return
+	}
+	if strings.HasPrefix(cmd, "call ") {
+		d.serveCalls(conn, r, cmd)
+		return
+	}
+	// A clipboard capture helper streams new selection bytes after its header
+	// line, so they never reach a command line.
+	if strings.HasPrefix(cmd, "clip-ingest ") {
+		fmt.Fprintln(conn, d.clipIngest(cmd, r))
+		return
+	}
 	fmt.Fprintln(conn, d.dispatch(cmd))
 }
 
@@ -516,7 +541,7 @@ func route(cmd string) (config, target, fn string, ok bool) {
 	if _, p := pillSurfaces[cmd]; p {
 		return "pill", "pill", "openSurface", true
 	}
-	if _, ok := barMenuID(cmd); ok {
+	if _, ok := menuID(cmd); ok {
 		return "pill", "pill", "openSurface", true
 	}
 	switch cmd {
@@ -542,11 +567,23 @@ func (d *daemon) dispatch(line string) string {
 	}
 	cmd, args := fields[0], fields[1:]
 	routeCmd := cmd
-	if cmd == "bar" {
-		if _, ok := barMenuID(line); !ok {
-			return "err bar: unknown or malformed surface"
+	switch cmd {
+	case "menu":
+		// menu close clears every open menu; menu <id> toggles one.
+		if len(args) == 1 && args[0] == "close" {
+			return d.menuClose()
+		}
+		if _, ok := menuID(line); !ok {
+			return "err menu: unknown or malformed id"
 		}
 		routeCmd = line
+	case "bar":
+		// bar <edge|all> <toggle|reveal|hide> drives the bar reveal state.
+		edge, action, ok := parseBarEdge(args)
+		if !ok {
+			return "err bar: expected <top|bottom|left|right|all> <toggle|reveal|hide>"
+		}
+		return d.barToggle(edge, action)
 	}
 	if config, target, fn, ok := route(routeCmd); ok {
 		if componentDisabled(config) {
@@ -565,8 +602,8 @@ func (d *daemon) dispatch(line string) string {
 		if config == "pill" {
 			if fn == "openSurface" {
 				id := pillSurfaces[cmd]
-				if cmd == "bar" {
-					id, _ = barMenuID(routeCmd)
+				if cmd == "menu" {
+					id, _ = menuID(routeCmd)
 				}
 				return pillIpc(fn, mon, id)
 			}
@@ -579,7 +616,30 @@ func (d *daemon) dispatch(line string) string {
 	case "voice":
 		return d.voice()
 	case "lock":
+		// lock status is the reference check (prints locked/unlocked, exit 0);
+		// bare lock engages the session lock.
+		if len(args) >= 1 && args[0] == "status" {
+			if isLocked() {
+				return "locked"
+			}
+			return "unlocked"
+		}
 		return lockSession()
+	case "audio":
+		if len(args) != 1 {
+			return "err audio: expected up, down, or mute"
+		}
+		return d.audio(args[0])
+	case "brightness":
+		if len(args) != 1 {
+			return "err brightness: expected up or down"
+		}
+		return d.brightness(args[0])
+	case "hub":
+		if len(args) != 1 {
+			return "err hub: expected open or close"
+		}
+		return d.hub(args[0])
 	case "wallpaper-switcher":
 		// spawn the picker as a one-shot modal (like ryoshot or the hub), not a
 		// resident surface: it shows on launch and quits on close, so it holds no

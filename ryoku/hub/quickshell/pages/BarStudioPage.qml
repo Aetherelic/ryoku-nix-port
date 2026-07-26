@@ -43,7 +43,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Text { text: qsTr("Styles") }
-                Btn { text: labels.style("ok-frame"); primary: page.config.style === "ok-frame"; onAct: page.stage(Model.setStyle(page.config, "ok-frame")) }
+                Btn { text: labels.style("slate-frame"); primary: page.config.style === "slate-frame"; onAct: page.stage(Model.setStyle(page.config, "slate-frame")) }
                 Btn { text: labels.style("ryoku-frame"); primary: page.config.style === "ryoku-frame"; onAct: page.stage(Model.setStyle(page.config, "ryoku-frame")) }
             }
             Text { text: qsTr("Rails"); font.family: Tokens.ui; font.pixelSize: Tokens.fValue }

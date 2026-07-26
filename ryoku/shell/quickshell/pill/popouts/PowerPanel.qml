@@ -142,7 +142,4 @@ Item {
             opacity: 0.4
         }
     }
-
-    // grain tooth over the whole panel so it reads matte, hero included.
-    Grain { anchors.fill: parent }
 }

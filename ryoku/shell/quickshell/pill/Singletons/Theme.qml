@@ -2,85 +2,155 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
+/**
+ * Shell-wide style tokens: 30 Material colour roles plus shadow/scrim, sizing,
+ * and fonts. Every colour resolves through a four-layer fallback chain, highest
+ * priority first:
+ *
+ *   named scheme  ->  live wallpaper  ->  compiled default
+ *   (surface also honours a user override; see below)
+ *
+ * - compiled default: the Everforest Dark base palette. What shows when no
+ *   dynamic theme is active.
+ * - live wallpaper: the Wallust singleton, active while Config.matchWallpaper is
+ *   on; a wallpaper change retunes every role live.
+ * - named scheme: one of the static presets. The full 30-role palettes are owned
+ *   by the Go theme daemon (a role() lookup honours a `namedScheme` palette
+ *   object the daemon assigns here); null while no preset is selected. This is
+ *   the single extension point for the static-theme catalog.
+ * - user override: Config.surfaceColor is the one per-token colour knob Ryoku
+ *   ships and doubles as the base surface. There is no cascading style engine,
+ *   so only token-level overrides map, not arbitrary per-widget rules.
+ *
+ * Sizing, opacity, and the primary font take their override from the Config
+ * attribute knobs (roundness, frameOpacity, fontFamily) and fall back to the
+ * compiled defaults.
+ */
 Singleton {
-    readonly property bool ryokuFrame: Config.normalizedFrameBars.style === "ryoku-frame"
-    readonly property color frameRailSurface: ryokuFrame
-        ? (Config.matchWallpaper ? Wallust.surface : Config.surfaceColor)
-        : (Config.matchWallpaper ? Qt.darker(Wallust.surface, 1.18) : Qt.darker(Config.surfaceColor, 1.18))
-    readonly property color frameRailOutline: ryokuFrame ? Wallust.border : Qt.lighter(Wallust.border, 1.2)
-    readonly property real frameRailOutlineWidth: ryokuFrame ? 1.5 : 1
-    readonly property real frameClockScale: ryokuFrame ? 1 : 0.88
-    readonly property color brand:    Config.matchWallpaper ? Wallust.accent : "#e2342a"
-    readonly property color verm:     brand
-    readonly property color vermLit:  Config.matchWallpaper ? Qt.lighter(Wallust.accent, 1.22) : "#e83b30"
-    readonly property color vermDeep: Config.matchWallpaper ? Qt.darker(Wallust.accent, 1.3) : "#b81f19"
-    readonly property color sun:      "#e2342a"
-    readonly property color gold:     "#d9a441"
-    readonly property color cream:    "#e6dccb"
-    readonly property color bright:   "#f3ede1"
-    // a foreground that stays legible on the accent fill: dark ink when the
-    // accent is light (a pale wallpaper pick), warm-white when it is dark, so a
-    // toggle icon never washes out against Theme.brand.
-    readonly property color onAccent: (0.299 * brand.r + 0.587 * brand.g + 0.114 * brand.b) > 0.6 ? "#100d08" : bright
-    readonly property color dim:      "#8f8770"
-    readonly property color cardTop:  Config.matchWallpaper ? Wallust.base : "#16110b"
-    readonly property color cardBot:  Config.matchWallpaper ? Wallust.deep : "#0f0c07"
-    // Matte black paper for Ryoku frame materials.
-    readonly property color paper: "#000000"
-    readonly property color border:   Config.matchWallpaper ? Wallust.line : Qt.rgba(243/255, 237/255, 225/255, 0.14)
-    readonly property color lineStrong: Qt.rgba(236/255, 226/255, 205/255, 0.40)
-    readonly property color shadow:   Qt.rgba(0, 0, 0, 0.62)
-    // brutalist hard offset shadow: opaque black, no blur (the website's
-    // --shadow / hub's shadow). `shadow` above stays semi-transparent for the
-    // soft blurred drop shadows (tray, wallpaper tiles).
-    readonly property color shadowHard: "#000000"
-    readonly property int shadowOffset: 3
-    readonly property color tileBg:   Config.matchWallpaper ? Wallust.elevated : "#1b150e"
-    readonly property color subtle:   "#c7bfae"
-    readonly property color faint:    "#5c5249"
-    readonly property color iconDim:  "#8f8770"
-    readonly property color hair:     Qt.rgba(243/255, 237/255, 225/255, 0.12)
-    readonly property color sheen:    Qt.rgba(243/255, 237/255, 225/255, 0.06)
-    readonly property color vermDim:  "#b05a43"
-    readonly property color vermDimDeep: "#65342b"
-    readonly property color vermBurn: "#8f321d"
-    readonly property color tickRest: "#8f8770"
-    readonly property color threadBg: Qt.rgba(226/255, 52/255, 42/255, 0.13)
-    readonly property color flameCore: "#ffd2bf"
-    readonly property color flameGlow: "#ff9e64"
+    id: root
 
-    /**
-     * Flame canvas ramp: literal hex strings (color type won't work), fed
-     * directly to Canvas addColorStop/strokeStyle. A color property serializes
-     * to #aarrggbb and corrupts the gradient render.
-     */
-    readonly property string flameInk:   "#e83b30"
-    readonly property string flameEmber: "#7a2a1a"
-    readonly property string flameBurn:  "#8f321d"
-    readonly property string flameTip:   "#ffd2bf"
-    readonly property color todayWarm: "#ff9e64"
-    readonly property color ghost:     "#414868"
-    readonly property color frameBg:     Qt.rgba(226/255, 52/255, 42/255, 0.10)
-    readonly property color frameBorder: Qt.rgba(243/255, 237/255, 225/255, 0.18)
-    readonly property color creamMenu:   Qt.rgba(230/255, 220/255, 203/255, 0.82)
-    readonly property real shadowOpacity: 0.5
+    // Whether a Ryoku-frame style is selected; drives the frame-chrome tokens.
+    readonly property bool ryokuFrame: Config.normalizedFrameBars.style === "ryoku-frame"
+
+    // The live wallpaper palette is active only while Match wallpaper is on.
+    readonly property bool matchWallpaper: Config.matchWallpaper
+
+    // Extension point for the static theme catalog (the 57 presets). Their
+    // 30-role palettes live in the Go theme daemon; it assigns a palette object
+    // here when a preset is active. null = no preset (wallpaper or base palette
+    // applies). Writable so the daemon can drive it.
+    property var namedScheme: null
+
+    // Resolve one colour role through the layer chain: a selected named scheme
+    // wins, then the live wallpaper palette, then the compiled Everforest base.
+    function role(key, base) {
+        if (namedScheme && namedScheme[key] !== undefined)
+            return namedScheme[key];
+        if (matchWallpaper)
+            return Wallust[key];
+        return base;
+    }
+
+    // --- 30 Material colour roles (compiled defaults: Everforest Dark) --------
+    // surface additionally honours the Config.surfaceColor user override, which
+    // defaults to the compiled surface value.
+    readonly property color surface:                 namedScheme && namedScheme.surface !== undefined ? namedScheme.surface : (matchWallpaper ? Wallust.surface : Config.surfaceColor)
+    readonly property color onSurface:               role("onSurface", "#D3C6AA")
+    readonly property color surfaceVariant:          role("surfaceVariant", "#2E383C")
+    readonly property color onSurfaceVariant:        role("onSurfaceVariant", "#9DA9A0")
+    readonly property color surfaceContainerLowest:  role("surfaceContainerLowest", "#1E2326")
+    readonly property color surfaceContainerLow:     role("surfaceContainerLow", "#272E33")
+    readonly property color surfaceContainer:        role("surfaceContainer", "#2E383C")
+    readonly property color surfaceContainerHigh:    role("surfaceContainerHigh", "#374145")
+    readonly property color surfaceContainerHighest: role("surfaceContainerHighest", "#414B50")
+    readonly property color inverseSurface:          role("inverseSurface", "#D3C6AA")
+    readonly property color inverseOnSurface:        role("inverseOnSurface", "#1E2326")
+    readonly property color surfaceTint:             role("surfaceTint", "#7FBBB3")
+    readonly property color primary:                 role("primary", "#A7C080")
+    readonly property color onPrimary:               role("onPrimary", "#1E2326")
+    readonly property color primaryContainer:        role("primaryContainer", "#3C4841")
+    readonly property color onPrimaryContainer:      role("onPrimaryContainer", "#A7C080")
+    readonly property color secondary:               role("secondary", "#7FBBB3")
+    readonly property color onSecondary:             role("onSecondary", "#1E2326")
+    readonly property color secondaryContainer:      role("secondaryContainer", "#384B55")
+    readonly property color onSecondaryContainer:    role("onSecondaryContainer", "#7FBBB3")
+    readonly property color tertiary:                role("tertiary", "#83C092")
+    readonly property color onTertiary:              role("onTertiary", "#1E2326")
+    readonly property color tertiaryContainer:       role("tertiaryContainer", "#3C4841")
+    readonly property color onTertiaryContainer:     role("onTertiaryContainer", "#83C092")
+    readonly property color error:                   role("error", "#E67E80")
+    readonly property color onError:                 role("onError", "#1E2326")
+    readonly property color errorContainer:          role("errorContainer", "#493B40")
+    readonly property color onErrorContainer:        role("onErrorContainer", "#E67E80")
+    readonly property color outline:                 role("outline", "#7A8478")
+    readonly property color outlineVariant:          role("outlineVariant", "#374145")
+
+    // shadow and scrim are Material roles Ryoku paints with; always near-black.
+    readonly property color shadow: role("shadow", "#000000")
+    readonly property color scrim:  role("scrim", "#000000")
+
+    // --- frame chrome (Ryoku blob frame; no Material equivalent) --------------
+    // The rail surface sinks a touch on the legacy per-edge frame so the bars
+    // read as recessed; on the Ryoku frame it sits flush with the surface.
+    readonly property color frameRailSurface:      ryokuFrame ? surface : Qt.darker(surface, 1.18)
+    readonly property color frameRailOutline:      ryokuFrame ? outline : Qt.lighter(outline, 1.2)
+    readonly property real  frameRailOutlineWidth: ryokuFrame ? 1.5 : 1
+    readonly property real  frameClockScale:       ryokuFrame ? 1 : 0.88
+
+    // --- derived accent variants (Ryoku hover/active/gradient tints) ----------
+    // No Material role covers a lightened/muted accent, so these track primary.
+    readonly property color vermLit:     Qt.lighter(primary, 1.22)
+    readonly property color vermDim:      Qt.darker(primary, 1.4)
+    readonly property color vermDimDeep:  Qt.darker(primary, 2.2)
+    readonly property color threadBg:     Qt.rgba(primary.r, primary.g, primary.b, 0.13)
+
+    // --- overlay tints (Ryoku selection/hover fills over the surface) ---------
+    readonly property color frameBg:     Qt.rgba(primary.r, primary.g, primary.b, 0.10)
+    readonly property color frameBorder: Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.18)
+    // A dim tone for out-of-scope elements, e.g. out-of-month calendar days.
+    readonly property color ghost:       Qt.darker(onSurfaceVariant, 1.6)
+
+    // --- flame identity (the RASHIN mark; a fixed Ryoku accent) ---------------
+    readonly property color flameGlow: "#ff9e64"
+    readonly property color flameCore: "#ffd2bf"
+
+    // Hard offset for the brutalist drop shadow (opaque, no blur).
+    readonly property int shadowOffset: 3
+
+    // --- sizing (compiled defaults; roundness/opacity are the Config knobs) ---
+    readonly property int  radiusWidget: Math.round(Config.roundness)
+    readonly property int  radiusWindow: Math.round(Config.roundness)
+    readonly property int  borderWidth: 2
+    readonly property int  paddingSm: 4
+    readonly property int  paddingMd: 8
+    readonly property int  paddingLg: 16
+    readonly property int  iconSm: 16
+    readonly property int  iconMd: 24
+    readonly property int  iconLg: 32
+    readonly property real windowOpacity: Config.frameOpacity
+
+    // --- fonts ----------------------------------------------------------------
+    // Primary is the shell UI face (Config override); secondary/tertiary are
+    // override slots that inherit primary until a theme sets them.
+    readonly property string fontPrimary:   Config.fontFamily.length > 0 ? Config.fontFamily : "Space Grotesk"
+    readonly property string fontSecondary: fontPrimary
+    readonly property string fontTertiary:  fontPrimary
+    readonly property int fontSm: 14
+    readonly property int fontMd: 16
+    readonly property int fontLg: 18
+    readonly property int fontXl: 26
+    readonly property int fontXxl: 32
+    readonly property int fontXxxl: 48
+    // Ryoku-specific faces: a serif display, a monospace, and a CJK face.
     readonly property string display: "Fraunces"
-    readonly property string font: Config.fontFamily.length > 0 ? Config.fontFamily : "Space Grotesk"
-    readonly property string fontJp: "Noto Sans CJK JP"
-    readonly property string mono: "JetBrainsMono Nerd Font"
-    // brand mark + name, user-overridable via ~/.config/ryoku/brand.json (Shell ->
-    // Global). defaults to the 力 seal / "Ryoku". BrandMark renders `mark`, or
-    // `markSource` (an image) when set. Ryoku's own apps never read these.
+    readonly property string mono:    "JetBrainsMono Nerd Font"
+    readonly property string fontJp:  "Noto Sans CJK JP"
+
+    // brand mark, user-overridable via ~/.config/ryoku/brand.json (Shell ->
+    // Global). BrandMark renders `mark`, or `markSource` (an image) when set.
     readonly property string mark: Config.markText.length > 0 ? Config.markText : "\u529b"
     readonly property string markSource: Config.markImage
     readonly property bool markTint: Config.markTint
-    readonly property string brandName: Config.brandName.length > 0 ? Config.brandName : "Ryoku"
-    // inner corner radius, shell-wide: follows the Global "roundness" knob so
-    // every tile, card, row and chip shares one rounded shape that echoes the
-    // frame's melt. 0 restores the old brutalist sharp corners; true circles
-    // (status dots, slider knobs) set their own radius: width/2 and are unaffected.
-    readonly property int radius: Math.round(Config.roundness)
-    readonly property int shadowStep: 6
 
     /**
      * MPRIS trackArtists arrives as a JS array from some players and as a

@@ -7,13 +7,13 @@ import "Singletons"
 // glyph/text, or an image) from Ryoku Settings -> Shell -> Global; stored in
 // ~/.config/ryoku/brand.json. Ryoku's own apps (the Hub, ryo* apps) never use
 // this and keep the 力 brand. Drop-in for the old
-// `Text { text: "力"; font.family: Theme.fontJp; color: Theme.brand }` seal:
+// `Text { text: "力"; font.family: Theme.fontJp; color: Theme.primary }` seal:
 // pass the old pixelSize as `size` and the old colour as `color`.
 Item {
     id: mark
 
     property real size: 13
-    property color color: Theme.brand
+    property color color: Theme.primary
     property int weight: Font.Medium
     // recolour a single-colour image mark to `color` (matches the tinted 力
     // idiom); off shows a full-colour logo as-is. no effect in text mode.

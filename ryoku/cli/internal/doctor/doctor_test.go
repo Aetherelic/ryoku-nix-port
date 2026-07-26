@@ -1844,3 +1844,50 @@ func TestReconcileRyodecors(t *testing.T) {
 		t.Fatalf("a user's own decor file must survive the reconciler")
 	}
 }
+
+// reconcileFrameBarsStyle converges a store that still names a retired bar style
+// onto the current default, leaving every other key untouched, and does nothing
+// once the value is current or absent.
+func TestMigrateFrameBarsStyle(t *testing.T) {
+	// a retired style name migrates, and unrelated keys survive untouched.
+	retired := []byte(`{"frameBars":{"style":"retired-frame","rails":{"top":{"size":44}}},"weatherLocation":"Oslo","fontScale":1.3}`)
+	out, changed, err := migrateFrameBarsStyle(retired)
+	if err != nil || !changed {
+		t.Fatalf("retired style must migrate: changed=%v err=%v", changed, err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("migrated JSON does not parse: %v", err)
+	}
+	frameBars := cfg["frameBars"].(map[string]any)
+	if frameBars["style"] != "slate-frame" {
+		t.Errorf("style did not converge on the default: %v", frameBars["style"])
+	}
+	if size := frameBars["rails"].(map[string]any)["top"].(map[string]any)["size"].(float64); size != 44 {
+		t.Errorf("unrelated frameBars key was lost: rail size = %v", size)
+	}
+	if cfg["weatherLocation"] != "Oslo" || cfg["fontScale"].(float64) != 1.3 {
+		t.Errorf("unrelated top-level keys were lost: %v", cfg)
+	}
+
+	// migrating is idempotent: the default it wrote is now a no-op.
+	if _, changed, err := migrateFrameBarsStyle(out); err != nil || changed {
+		t.Errorf("re-migrating the current value must be a no-op: changed=%v err=%v", changed, err)
+	}
+
+	// both current style names are left alone.
+	for _, current := range []string{"slate-frame", "ryoku-frame"} {
+		body := []byte(fmt.Sprintf(`{"frameBars":{"style":%q}}`, current))
+		if _, changed, err := migrateFrameBarsStyle(body); err != nil || changed {
+			t.Errorf("current style %q must be untouched: changed=%v err=%v", current, changed, err)
+		}
+	}
+
+	// an absent style key, or no frameBars at all, is untouched.
+	if _, changed, err := migrateFrameBarsStyle([]byte(`{"frameBars":{"rails":{}},"weatherLocation":"Oslo"}`)); err != nil || changed {
+		t.Errorf("absent style must be untouched: changed=%v err=%v", changed, err)
+	}
+	if _, changed, err := migrateFrameBarsStyle([]byte(`{"weatherLocation":"Oslo"}`)); err != nil || changed {
+		t.Errorf("absent frameBars must be untouched: changed=%v err=%v", changed, err)
+	}
+}

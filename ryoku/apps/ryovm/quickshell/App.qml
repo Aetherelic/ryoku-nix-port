@@ -8,8 +8,8 @@ import "Singletons"
 // ryoport, the harbour: one console for every machine you command -- the local
 // iron in the yard (QEMU), and the distant ports reached over SSH. A hub shell:
 // the rail owns navigation, three plates fill the stage (the harbour dashboard,
-// the machine yard, the remote fleet), and one grain matte lies over it all.
-// Paper and ink; the frame carries no accent, the content none at all.
+// the machine yard, the remote fleet). Paper and ink; the frame carries no accent,
+// the content none at all.
 Rectangle {
     id: app
 
@@ -131,7 +131,4 @@ Rectangle {
         id: addSheet
         onClosed: { addSheet.open = false; addSheet.editAlias = ""; }
     }
-
-    // ── the matte: one grain layer, topmost over everything ──────────────────
-    Grain { anchors.fill: parent }
 }

@@ -14,8 +14,8 @@ import "../Singletons"
 // high-contrast bone xerox, bleeds on black; the identity is monumental in
 // Fraunces over a huge 顔 watermark; the machine's live vitals read as
 // line-and-stat callouts pinned to the face (not boxes) -- a body scan of the
-// operator; the dossier trails as brutalist small-print; a film-grain tooth and
-// the audio-wave signal sit over it. Full-bleed. Bone on black; the only colour
+// operator; the dossier trails as brutalist small-print; the audio-wave signal
+// sits over it. Full-bleed. Bone on black; the only colour
 // is the wallust strip (data). Driven by LiveStats at 1.5s -- read-only.
 Item {
     id: pg
@@ -595,14 +595,6 @@ Item {
                 PauseAnimation { duration: 2600 }
             }
         }
-    }
-
-    // Film-grain tooth over the whole plate -- the xerox, not a clean render.
-    Image {
-        anchors.fill: parent
-        source: Qt.resolvedUrl("../art/grain.png")
-        fillMode: Image.Tile
-        opacity: 0.5
     }
 
     // Marginalia spine.

@@ -31,7 +31,7 @@ Item {
     Pill.MaterialIcon {
         anchors.centerIn: parent
         text: "speed"
-        color: Theme.cream
+        color: Theme.onSurface
         opacity: PowerProfiles.available ? 1 : 0.45
         font.pixelSize: 18 * root.scale
     }

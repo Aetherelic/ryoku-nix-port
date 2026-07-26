@@ -17,10 +17,10 @@ Item {
         id: button
         width: parent.width
         height: 42 * root.s
-        radius: Theme.radius
-        color: launchHover.hovered ? Theme.frameBg : Theme.tileBg
+        radius: Theme.radiusWidget
+        color: launchHover.hovered ? Theme.frameBg : Theme.surfaceContainerHigh
         border.width: 1
-        border.color: Theme.border
+        border.color: Theme.outline
 
         Pill.GlyphIcon {
             anchors {
@@ -31,7 +31,7 @@ Item {
             width: 18 * root.s
             height: 18 * root.s
             name: "search"
-            color: Theme.iconDim
+            color: Theme.onSurfaceVariant
             stroke: 1.6
         }
         Text {
@@ -41,8 +41,8 @@ Item {
                 leftMargin: 42 * root.s
             }
             text: qsTr("Search apps and actions")
-            color: Theme.dim
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
         }
         HoverHandler { id: launchHover; cursorShape: Qt.PointingHandCursor }

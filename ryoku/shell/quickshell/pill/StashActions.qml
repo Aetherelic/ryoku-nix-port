@@ -51,10 +51,10 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 40 * root.s
             height: 34 * root.s
-            radius: Theme.radius
-            color: t.lit ? Theme.frameBg : Theme.tileBg
+            radius: Theme.radiusWidget
+            color: t.lit ? Theme.frameBg : Theme.surfaceContainerHigh
             border.width: 1
-            border.color: t.lit ? Theme.frameBorder : Theme.border
+            border.color: t.lit ? Theme.frameBorder : Theme.outline
 
             Behavior on color { ColorAnimation { duration: Motion.fast } }
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
@@ -64,7 +64,7 @@ Item {
                 width: 17 * root.s
                 height: 17 * root.s
                 name: t.glyph
-                color: t.lit ? Theme.cream : Theme.iconDim
+                color: t.lit ? Theme.onSurface : Theme.onSurfaceVariant
                 stroke: 1.7
             }
         }
@@ -74,8 +74,8 @@ Item {
             anchors.topMargin: 5 * root.s
             anchors.horizontalCenter: parent.horizontalCenter
             text: t.label
-            color: t.lit ? Theme.cream : Theme.subtle
-            font.family: Theme.font
+            color: t.lit ? Theme.onSurface : Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 8.5 * root.s
             font.weight: Font.DemiBold
             font.capitalization: Font.AllUppercase
@@ -137,6 +137,6 @@ Item {
         y: 6 * root.s
         width: 1
         height: 22 * root.s
-        color: Theme.hair
+        color: Theme.outlineVariant
     }
 }

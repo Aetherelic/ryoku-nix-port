@@ -26,7 +26,7 @@ Item {
         anchors.centerIn: parent
         text: root.glyph
         fill: statusId === "notifications" && Notifs.unread > 0 ? 1 : 0
-        color: Theme.cream
+        color: Theme.onSurface
         font.pixelSize: 18 * root.scale
     }
 

@@ -97,7 +97,7 @@ Item {
     // semantics: vermilion = destructive, cream = neutral, iconDim = rest.
     component IconBtn: Rectangle {
         property string glyph: ""
-        property color tint: Theme.iconDim
+        property color tint: Theme.onSurfaceVariant
         property real box: 26
         signal clicked()
         width: box * root.s
@@ -139,13 +139,13 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     width: recPillText.implicitWidth + 14 * root.s
                     height: 20 * root.s
-                    color: Recorder.paused ? Theme.faint : Theme.brand
+                    color: Recorder.paused ? Theme.onSurfaceVariant : Theme.primary
                     opacity: Recorder.paused ? 1 : Recorder.pulse
                     Text {
                         id: recPillText
                         anchors.centerIn: parent
                         text: Recorder.paused ? "PAUSED" : "REC"
-                        color: Theme.cream
+                        color: Theme.onSurface
                         font.family: Theme.mono
                         font.pixelSize: 9.5 * root.s
                         font.weight: Font.Bold
@@ -155,8 +155,8 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: Recorder.elapsedText
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 13 * root.s
                     font.features: { "tnum": 1 }
                 }
@@ -169,7 +169,7 @@ Item {
                 IconBtn {
                     visible: Recorder.canPause
                     glyph: Recorder.paused ? "play" : "pause"
-                    tint: Theme.cream
+                    tint: Theme.onSurface
                     onClicked: Recorder.togglePause()
                 }
                 IconBtn {
@@ -186,9 +186,9 @@ Item {
             width: parent.width
             visible: !Recorder.active
             height: 32 * root.s
-            color: recBtnHov.hovered ? Theme.frameBg : Theme.tileBg
+            color: recBtnHov.hovered ? Theme.frameBg : Theme.surfaceContainerHigh
             border.width: 1
-            border.color: Theme.border
+            border.color: Theme.outline
             Behavior on color { ColorAnimation { duration: Motion.fast } }
 
             Row {
@@ -199,13 +199,13 @@ Item {
                     width: 13 * root.s
                     height: 13 * root.s
                     name: "record"
-                    color: Theme.brand
+                    color: Theme.primary
                     stroke: 1.7
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "RECORD"
-                    color: Theme.cream
+                    color: Theme.onSurface
                     font.family: Theme.mono
                     font.pixelSize: 10.5 * root.s
                     font.weight: Font.DemiBold
@@ -223,9 +223,9 @@ Item {
             width: parent.width
             visible: !Recorder.active
             implicitHeight: dcCol.implicitHeight + 16 * root.s
-            color: Theme.tileBg
+            color: Theme.surfaceContainerHigh
             border.width: 1
-            border.color: Theme.border
+            border.color: Theme.outline
 
             GlyphIcon {
                 id: dcIcon
@@ -235,7 +235,7 @@ Item {
                 width: 15 * root.s
                 height: 15 * root.s
                 name: "discord"
-                color: Recorder.discordMode ? Theme.brand : Theme.iconDim
+                color: Recorder.discordMode ? Theme.primary : Theme.onSurfaceVariant
                 stroke: 1.6
             }
 
@@ -259,16 +259,16 @@ Item {
                 spacing: 2 * root.s
                 Text {
                     text: "Discord clip"
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s
                     font.weight: Font.DemiBold
                 }
                 Text {
                     width: parent.width
                     text: "Quick clips auto-compress to fit Discord (under 10 MB), keeping quality and sound. Studio stays full size."
-                    color: Theme.faint
-                    font.family: Theme.font
+                    color: Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 10 * root.s
                     wrapMode: Text.WordWrap
                     lineHeight: 1.15
@@ -280,8 +280,8 @@ Item {
         Text {
             visible: recModel.count === 0 && !Recorder.active
             text: "No recordings yet"
-            color: Theme.faint
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 11 * root.s
         }
 
@@ -314,8 +314,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: recItem.label
                     elide: Text.ElideRight
-                    color: Theme.subtle
-                    font.family: Theme.font
+                    color: Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11 * root.s
                 }
 
@@ -325,7 +325,7 @@ Item {
                     anchors.rightMargin: 6 * root.s
                     anchors.verticalCenter: parent.verticalCenter
                     text: recItem.size
-                    color: Theme.faint
+                    color: Theme.onSurfaceVariant
                     font.family: Theme.mono
                     font.pixelSize: 9.5 * root.s
                     font.features: { "tnum": 1 }
@@ -339,7 +339,7 @@ Item {
                     IconBtn {
                         glyph: "play"
                         box: 24
-                        tint: Theme.cream
+                        tint: Theme.onSurface
                         onClicked: { Quickshell.execDetached(["xdg-open", recItem.path]); root.requestClose(); }
                     }
                     IconBtn {

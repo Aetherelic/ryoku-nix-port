@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "popouts"
 import "framebars/menus"
+import "Singletons"
 
 // One menu body riding the shared Popout: the anchor maps to a Popout edge and
 // alignment, and the body sizes itself from its MenuColumn. Openness is owned
@@ -35,6 +36,23 @@ Popout {
     pinned: root.menuOpen
     openW: Math.max(root.minWidth * root.s, body.item ? body.item.implicitWidth : 0)
     openH: root.fullSpan ? root.height : (body.item ? body.item.implicitHeight : 0)
+
+    // Reveal envelope by position: side menus slide (menuSlide, 250 ms
+    // ease-out-cubic), corner and edge menus grow diagonally (diagonal, 200 ms
+    // ease-in-out-quad), matching the reference (contracts 01 and 05). Overrides
+    // the shared morph transition; a re-trigger retargets prog from its current
+    // value, reproducing the reverse/restart-from-current interrupt.
+    readonly property bool sideMenu: root.edge === "left" || root.edge === "right"
+    transitions: [
+        Transition {
+            to: "open"
+            NumberAnimation { property: "prog"; duration: root.sideMenu ? Motion.menuSlide : Motion.diagonal; easing.type: root.sideMenu ? Motion.menuSlideCurve : Motion.diagonalCurve }
+        },
+        Transition {
+            from: "open"
+            NumberAnimation { property: "prog"; duration: root.sideMenu ? Motion.menuSlide : Motion.diagonal; easing.type: root.sideMenu ? Motion.menuSlideCurve : Motion.diagonalCurve }
+        }
+    ]
 
     Loader {
         id: body

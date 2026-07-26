@@ -4,37 +4,72 @@ import Quickshell
 import Quickshell.Io
 
 /**
- * The live wallust palette for the pill/shell, used only when Ryoku Settings ->
- * Shell -> Match wallpaper is on. wallust rewrites ~/.cache/wallust/colors.json on
- * every wallpaper change (see wallust.toml) and this watches it, so the pill's
- * surface fill and accent retune to whatever is on screen.
+ * The live palette for the pill/shell, active only when Ryoku Settings ->
+ * Shell -> Match wallpaper is on. wallust rewrites ~/.cache/wallust/colors.json
+ * on every wallpaper change (see wallust.toml) and this watches it, so the
+ * shell surface and accents retune to whatever is on screen.
  *
- * `base` keeps the terminal (kitty) background's hue but is tone-mapped into the
- * shell's dark band by shade(): the terminal may go bright crimson on a saturated
- * red wallpaper, the shell surface may not -- it clamps dark enough for the
- * static light text (Theme.bright/cream/subtle) to stay readable. Backgrounds
- * already inside the band pass through untouched, so on normal dark palettes the
- * shell still reads as exactly the terminal surface. `elevated`/`deep`/`line`
- * shift its value for the pill's depth hierarchy. `accent` is the vivified lead
- * tint, lightened by legible() just enough to clear 3:1 against the elevated
- * surface -- a red accent on a red-derived surface drifts to salmon instead of
- * vanishing. Defaults are the Ryoku brand palette so the pill looks right before
- * the first wallust run; they sit inside the band, so they render unchanged.
+ * This is the runtime override source for Theme.qml: it exposes the same 30
+ * Material color roles Theme exposes, so the live and the compiled-default
+ * paths are interchangeable. wallust emits a sixteen-colour terminal palette,
+ * not Material roles, so the roles are derived here: the wallpaper background is
+ * tone-mapped into a dark surface band by shade() (a bright wallpaper never
+ * lifts the surface out of readable contrast), the depth ramp is walked off it
+ * by tone(), the ANSI lead hues are vivified and floored to >= 3:1 against the
+ * surface by legible(), and the on/container roles are mixed from those. A
+ * fuller role set can later be fed in verbatim by the Go theme daemon; the
+ * property names stay the same either way. Defaults sit at Everforest Dark so
+ * the shell reads correctly before the first wallust run.
  */
 Singleton {
-    // The shell surface ramp, matched to the wallpaper's terminal background,
-    // tone-mapped into the dark band (tiles lighter, recesses darker, hairline
-    // borders lighter still).
-    readonly property color base:     shade(adapter.background)
-    readonly property color elevated: tone(base, 0.05)
-    readonly property color deep:     tone(base, -0.03)
-    readonly property color line:     tone(base, 0.14)
-    // Alias kept for the blob fill in shell.qml.
-    readonly property color surface:  base
-    readonly property color accent:   legible(vivid(adapter.color4), elevated, 3.0)
-    readonly property color accent2:  legible(vivid(adapter.color5), elevated, 3.0)
-    // Raw color4, the exact hue Hyprland's border uses (hypr-colors.lua active = color4).
-    readonly property color border:   adapter.color4
+    id: w
+
+    // Surface family: the wallpaper background tone-mapped into the dark band,
+    // then the container ramp lifted off it (recesses darker, tiles lighter).
+    readonly property color surface:                 shade(adapter.background)
+    readonly property color surfaceContainerLowest:  surface
+    readonly property color surfaceContainerLow:     tone(surface, 0.03)
+    readonly property color surfaceContainer:        tone(surface, 0.05)
+    readonly property color surfaceContainerHigh:    tone(surface, 0.09)
+    readonly property color surfaceContainerHighest: tone(surface, 0.14)
+    readonly property color surfaceVariant:          tone(surface, 0.05)
+    readonly property color surfaceTint:             primary
+    readonly property color inverseSurface:          onSurface
+    readonly property color inverseOnSurface:        surface
+
+    // Foreground: the wallpaper text colour, floored for legibility, plus a
+    // muted variant mixed toward the surface for secondary text.
+    readonly property color onSurface:        legible(adapter.foreground, surface, 4.5)
+    readonly property color onSurfaceVariant: mix(onSurface, surface, 0.32)
+
+    // Accent families: ANSI lead hues (color4 lead, color5 second, color6 third,
+    // color1 the red channel for error), vivified and lifted to clear 3:1
+    // against the surface so a wallpaper-matched accent never sinks into it.
+    readonly property color primary:              legible(vivid(adapter.color4), surfaceContainer, 3.0)
+    readonly property color onPrimary:            onColor(primary)
+    readonly property color primaryContainer:     mix(surface, primary, 0.28)
+    readonly property color onPrimaryContainer:   legible(primary, primaryContainer, 4.5)
+    readonly property color secondary:            legible(vivid(adapter.color5), surfaceContainer, 3.0)
+    readonly property color onSecondary:          onColor(secondary)
+    readonly property color secondaryContainer:   mix(surface, secondary, 0.28)
+    readonly property color onSecondaryContainer: legible(secondary, secondaryContainer, 4.5)
+    readonly property color tertiary:             legible(vivid(adapter.color6), surfaceContainer, 3.0)
+    readonly property color onTertiary:           onColor(tertiary)
+    readonly property color tertiaryContainer:    mix(surface, tertiary, 0.28)
+    readonly property color onTertiaryContainer:  legible(tertiary, tertiaryContainer, 4.5)
+    readonly property color error:                legible(vivid(adapter.color1), surfaceContainer, 3.0)
+    readonly property color onError:              onColor(error)
+    readonly property color errorContainer:       mix(surface, error, 0.28)
+    readonly property color onErrorContainer:     legible(error, errorContainer, 4.5)
+
+    // Lines: neutral borders mixed between surface and text, a strong and a
+    // subtle weight.
+    readonly property color outline:        mix(surface, onSurface, 0.42)
+    readonly property color outlineVariant: mix(surface, onSurface, 0.20)
+
+    // Shadow and scrim are always near-black regardless of the wallpaper.
+    readonly property color shadow: "#000000"
+    readonly property color scrim:  "#000000"
 
     // Tone-map the wallpaper background into the shell's dark band, hue kept.
     // HSV value inside [0.08, 0.26] passes through; pure black lifts to a soft
@@ -56,6 +91,19 @@ Singleton {
     function tone(c, dv) {
         var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
         return Qt.hsva(hue, c.hsvSaturation, Math.max(0, Math.min(1, c.hsvValue + dv)), 1);
+    }
+
+    // Linear blend of two colours, t in [0,1] toward b, opaque result.
+    function mix(a, b, t) {
+        return Qt.rgba(a.r + (b.r - a.r) * t,
+                       a.g + (b.g - a.g) * t,
+                       a.b + (b.b - a.b) * t, 1);
+    }
+
+    // The legible on-colour for a fill: whichever of the dark surface or the
+    // light text contrasts more with it.
+    function onColor(c) {
+        return contrast(c, surface) >= contrast(c, onSurface) ? surface : onSurface;
     }
 
     // Lift saturation and floor brightness so an accent reads as colour, not mud,
@@ -80,7 +128,7 @@ Singleton {
 
     // Walk fg toward white in 18% steps (max 8) until it clears `target`
     // against bg. Colors that already pass return unchanged, so well-behaved
-    // palettes and the no-wallust defaults render exactly as before.
+    // palettes and the Everforest defaults render exactly as before.
     function legible(fg, bg, target) {
         var r = fg.r, g = fg.g, b = fg.b;
         for (var i = 0; i < 8; i++) {
@@ -101,11 +149,17 @@ Singleton {
         printErrors: false
         onFileChanged: reload()
 
+        // Defaults are Everforest Dark so a wallpaper-matched shell reads
+        // correctly before the first wallust run: background/foreground set the
+        // surface and text, color4/5/6 the accent families, color1 the error red.
         JsonAdapter {
             id: adapter
-            property color background: "#16110b"
-            property color color4: "#e2342a"
-            property color color5: "#e83b30"
+            property color background: "#1E2326"
+            property color foreground: "#D3C6AA"
+            property color color1: "#E67E80"
+            property color color4: "#A7C080"
+            property color color5: "#7FBBB3"
+            property color color6: "#83C092"
         }
     }
 }

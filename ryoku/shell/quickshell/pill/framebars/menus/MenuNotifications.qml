@@ -35,7 +35,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: root.rows.length > 0
                 text: qsTr("Clear")
-                color: clearHov.hovered ? Theme.brand : Theme.faint
+                color: clearHov.hovered ? Theme.primary : Theme.onSurfaceVariant
                 font.family: Theme.mono
                 font.pixelSize: 8.5 * root.s
                 font.weight: Font.DemiBold
@@ -50,8 +50,8 @@ Item {
             width: parent.width
             visible: root.rows.length === 0
             text: qsTr("No notifications")
-            color: Theme.faint
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
             font.weight: Font.Medium
         }
@@ -75,7 +75,7 @@ Item {
                         width: 12 * root.s
                         height: 12 * root.s
                         name: "close"
-                        color: ndHov.hovered ? Theme.brand : Theme.faint
+                        color: ndHov.hovered ? Theme.primary : Theme.onSurfaceVariant
                         stroke: 1.8
                     }
                     HoverHandler { id: ndHov; cursorShape: Qt.PointingHandCursor }
@@ -94,7 +94,7 @@ Item {
                         spacing: 6 * root.s
                         Text {
                             text: nrow.modelData.app
-                            color: Theme.faint
+                            color: Theme.onSurfaceVariant
                             font.family: Theme.mono
                             font.pixelSize: 8 * root.s
                             font.weight: Font.DemiBold
@@ -104,7 +104,7 @@ Item {
                         Text {
                             visible: nrow.modelData.count > 1
                             text: "\u00d7" + nrow.modelData.count
-                            color: Theme.brand
+                            color: Theme.primary
                             font.family: Theme.mono
                             font.pixelSize: 8 * root.s
                             font.weight: Font.DemiBold
@@ -114,8 +114,8 @@ Item {
                         width: parent.width
                         text: nrow.modelData.summary
                         elide: Text.ElideRight
-                        color: Theme.cream
-                        font.family: Theme.font
+                        color: Theme.onSurface
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 12 * root.s
                         font.weight: Font.Medium
                     }
@@ -126,8 +126,8 @@ Item {
                         elide: Text.ElideRight
                         maximumLineCount: 2
                         wrapMode: Text.Wrap
-                        color: Theme.dim
-                        font.family: Theme.font
+                        color: Theme.onSurfaceVariant
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 10.5 * root.s
                     }
                 }

@@ -95,9 +95,6 @@ ShellRoot {
             WlrLayershell.keyboardFocus: (shown && isFocused) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
             anchors { top: true; bottom: true; left: true; right: true }
 
-            // Ryoku brand grain over the expo, matching the desktop.
-            Grain { anchors.fill: parent; z: 10000; opacity: Config.grainStrength }
-
             // Hold the layer mapped through the outro, then unmap once it settles.
             Timer { id: closing; interval: Motion.window; repeat: false }
             onShownChanged: {

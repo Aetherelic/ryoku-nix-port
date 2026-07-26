@@ -89,7 +89,7 @@ PanelWindow {
             width: 28
             height: 28
             name: "webcam"
-            color: Theme.subtle
+            color: Theme.onSurfaceVariant
             stroke: 1.7
         }
 
@@ -118,7 +118,7 @@ PanelWindow {
             radius: bubble.rad
             color: "transparent"
             border.width: 2
-            border.color: Theme.brand
+            border.color: Theme.primary
         }
 
         // Figma-style edit handles (roundness dot, resize grip, flip): pure

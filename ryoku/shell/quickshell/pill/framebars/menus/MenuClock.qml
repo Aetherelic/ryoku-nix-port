@@ -40,7 +40,7 @@ Item {
                 spacing: 2 * root.s
                 Text {
                     text: Qt.formatTime(clock.date, "HH:mm")
-                    color: Theme.bright
+                    color: Theme.onSurface
                     font.family: Theme.display
                     font.pixelSize: 34 * root.s
                     font.weight: Font.Medium
@@ -48,8 +48,8 @@ Item {
                 }
                 Text {
                     text: root.loc.toString(clock.date, "dddd, d MMMM")
-                    color: Theme.dim
-                    font.family: Theme.font
+                    color: Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11.5 * root.s
                     font.weight: Font.Medium
                 }
@@ -66,13 +66,13 @@ Item {
                     width: 24 * root.s
                     height: 24 * root.s
                     name: Weather.glyph
-                    color: Theme.cream
+                    color: Theme.onSurface
                     stroke: 1.6
                 }
                 Text {
                     anchors.right: parent.right
                     text: Weather.temp
-                    color: Theme.cream
+                    color: Theme.onSurface
                     font.family: Theme.mono
                     font.pixelSize: 13 * root.s
                     font.weight: Font.DemiBold
@@ -88,8 +88,8 @@ Item {
             width: parent.width
             visible: root.todayEvents.length === 0
             text: qsTr("No events today")
-            color: Theme.faint
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
             font.weight: Font.Medium
         }
@@ -108,7 +108,7 @@ Item {
                     Text {
                         width: 46 * root.s
                         text: (erow.modelData.time && erow.modelData.time.length) ? erow.modelData.time : qsTr("all-day")
-                        color: Theme.faint
+                        color: Theme.onSurfaceVariant
                         font.family: Theme.mono
                         font.pixelSize: 10 * root.s
                     }
@@ -116,8 +116,8 @@ Item {
                         width: parent.width - 56 * root.s
                         text: erow.modelData.text
                         elide: Text.ElideRight
-                        color: Theme.cream
-                        font.family: Theme.font
+                        color: Theme.onSurface
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 12 * root.s
                     }
                 }

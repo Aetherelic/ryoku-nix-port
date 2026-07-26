@@ -10,8 +10,8 @@ Row {
     property string label: ""
     property real s: 1
     property bool mark: true           // lead with the 力 seal after the tick
-    property color tick: Theme.brand
-    property color labelColor: Theme.dim
+    property color tick: Theme.primary
+    property color labelColor: Theme.onSurfaceVariant
 
     spacing: 9 * eye.s
 

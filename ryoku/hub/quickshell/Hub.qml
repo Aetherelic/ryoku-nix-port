@@ -146,7 +146,7 @@ Rectangle {
 
     // ── global search ────────────────────────────────────────────────────
     // The rail search matches page titles AND every option (label, hint, key)
-    // inside every schema page, so "grain" finds the Shell grain slider from
+    // inside every schema page, so "noise" finds the Blur noise control from
     // anywhere. Ranking is fuzzy: exact word > substring > subsequence.
     readonly property var searchIndex: {
         var srcs = {
@@ -325,7 +325,7 @@ Rectangle {
 
     readonly property var defs: ({
         "frameRadius": 9, "roundness": 10, "frameBorder": 59, "frameEnabled": true,
-        "frameSmoothing": 8, "frameOpacity": 1, "grainStrength": 0.09, "shadowStrength": 0.63, "shadowSize": 12,
+        "frameSmoothing": 8, "frameOpacity": 1, "shadowStrength": 0.63, "shadowSize": 12,
         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
         "fontFamily": "Space Grotesk", "fontScale": 1.3,
         "frameBars": FrameBars.defaultConfig(),
@@ -471,7 +471,6 @@ Rectangle {
             property bool frameEnabled: true
             property real frameSmoothing: 8
             property real frameOpacity: 1
-            property real grainStrength: 0.09
             property real shadowStrength: 0.63
             property real shadowSize: 12
             property string surfaceColor: "#0f1115"
@@ -1395,7 +1394,4 @@ Rectangle {
         }
     }
 
-    // this app's own grain, topmost. The shell's global overlay cuts a hole
-    // where the Hub window sits, so this is the only grain it carries.
-    Grain { anchors.fill: parent; z: 10000 }
 }

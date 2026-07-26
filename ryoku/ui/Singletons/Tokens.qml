@@ -96,9 +96,6 @@ Singleton {
     readonly property int ease: Easing.OutCubic
     readonly property int easeSnap: Easing.OutQuad
 
-    // ── grain ────────────────────────────────────────────────────────────
-    readonly property real grainOpacity: 0.10
-
     // ── Dynamic theme & wallust palette readers ──────────────────────────
     FileView {
         id: themeFile

@@ -89,10 +89,10 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: 38 * tools.s
                     height: 38 * tools.s
-                    radius: Theme.radius
+                    radius: Theme.radiusWidget
                     color: tile.lit ? Theme.frameBg : "transparent"
                     border.width: 1
-                    border.color: tile.lit ? Theme.frameBorder : Theme.border
+                    border.color: tile.lit ? Theme.frameBorder : Theme.outline
                     Behavior on color { ColorAnimation { duration: Motion.fast } }
                     Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
@@ -101,7 +101,7 @@ Item {
                         width: 15 * tools.s
                         height: 15 * tools.s
                         name: tile.modelData.glyph
-                        color: tile.lit ? Theme.cream : Theme.iconDim
+                        color: tile.lit ? Theme.onSurface : Theme.onSurfaceVariant
                         stroke: 1.6
                     }
                 }
@@ -111,8 +111,8 @@ Item {
                     anchors.topMargin: 6 * tools.s
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: tile.modelData.label
-                    color: tile.lit ? Theme.cream : Theme.subtle
-                    font.family: Theme.font
+                    color: tile.lit ? Theme.onSurface : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 9.5 * tools.s
                 }
 
@@ -139,7 +139,7 @@ Item {
                     visible: tile.index > 0
                     width: 1
                     height: 22 * tools.s
-                    color: Theme.hair
+                    color: Theme.outlineVariant
                     x: 0
                     y: (btn.height - height) / 2
                 }

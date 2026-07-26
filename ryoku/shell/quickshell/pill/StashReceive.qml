@@ -18,7 +18,7 @@ Rectangle {
     readonly property bool active: Stash.recvState !== "idle"
 
     radius: Motion.rTile * s
-    color: Qt.alpha(Theme.cardTop, 0.98)
+    color: Qt.alpha(Theme.surfaceContainer, 0.98)
     visible: active
 
     MouseArea { anchors.fill: parent; hoverEnabled: true }
@@ -90,8 +90,8 @@ Rectangle {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "Listening as " + (Stash.recvAlias.length > 0 ? Stash.recvAlias : "Ryoku Stash")
-                color: Theme.cream
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 12 * root.s
                 font.weight: Font.DemiBold
                 textFormat: Text.PlainText
@@ -101,8 +101,8 @@ Rectangle {
                 text: Stash.recvCount > 0
                     ? ("Received " + Stash.recvCount + (Stash.recvCount === 1 ? " file" : " files"))
                     : "Other devices can send files here"
-                color: Stash.recvCount > 0 ? Theme.flameGlow : Theme.subtle
-                font.family: Theme.font
+                color: Stash.recvCount > 0 ? Theme.flameGlow : Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
                 font.pixelSize: 9.5 * root.s
                 font.weight: Font.Medium
             }
@@ -110,8 +110,8 @@ Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: Stash.recvLast.length > 0
                 text: "↓ " + Stash.recvLast
-                color: Theme.dim
-                font.family: Theme.font
+                color: Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
                 font.pixelSize: 9 * root.s
                 elide: Text.ElideMiddle
                 width: root.width - 60 * root.s
@@ -126,9 +126,9 @@ Rectangle {
             width: stopRow.implicitWidth + 28 * root.s
             height: 30 * root.s
             radius: Motion.rSmall * root.s
-            color: stopArea.containsMouse ? Theme.frameBg : Theme.tileBg
+            color: stopArea.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh
             border.width: 1
-            border.color: stopArea.containsMouse ? Theme.frameBorder : Theme.border
+            border.color: stopArea.containsMouse ? Theme.frameBorder : Theme.outline
             Behavior on color { ColorAnimation { duration: Motion.fast } }
 
             Row {
@@ -139,14 +139,14 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 12 * root.s; height: 12 * root.s
                     name: "close"
-                    color: stopArea.containsMouse ? Theme.cream : Theme.iconDim
+                    color: stopArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                     stroke: 1.7
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Stop listening"
-                    color: stopArea.containsMouse ? Theme.cream : Theme.subtle
-                    font.family: Theme.font
+                    color: stopArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 10.5 * root.s
                     font.weight: Font.DemiBold
                 }
@@ -197,8 +197,8 @@ Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.width - 56 * root.s
                 text: (Stash.offerAlias.length > 0 ? Stash.offerAlias : "A device") + " wants to send"
-                color: Theme.cream
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 12 * root.s
                 font.weight: Font.DemiBold
                 textFormat: Text.PlainText
@@ -209,7 +209,7 @@ Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Stash.offerCount + (Stash.offerCount === 1 ? " file" : " files")
                 color: Theme.flameGlow
-                font.family: Theme.font
+                font.family: Theme.fontPrimary
                 font.pixelSize: 10 * root.s
                 font.weight: Font.Medium
             }
@@ -223,9 +223,9 @@ Rectangle {
                 width: declineRow.implicitWidth + 24 * root.s
                 height: 30 * root.s
                 radius: Motion.rSmall * root.s
-                color: declineArea.containsMouse ? Theme.frameBg : Theme.tileBg
+                color: declineArea.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh
                 border.width: 1
-                border.color: declineArea.containsMouse ? Theme.frameBorder : Theme.border
+                border.color: declineArea.containsMouse ? Theme.frameBorder : Theme.outline
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
                 Row {
                     id: declineRow
@@ -235,14 +235,14 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 12 * root.s; height: 12 * root.s
                         name: "close"
-                        color: declineArea.containsMouse ? Theme.cream : Theme.iconDim
+                        color: declineArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                         stroke: 1.7
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Decline"
-                        color: declineArea.containsMouse ? Theme.cream : Theme.subtle
-                        font.family: Theme.font
+                        color: declineArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 10.5 * root.s
                         font.weight: Font.DemiBold
                     }
@@ -278,8 +278,8 @@ Rectangle {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Accept"
-                        color: Theme.cream
-                        font.family: Theme.font
+                        color: Theme.onSurface
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 10.5 * root.s
                         font.weight: Font.DemiBold
                     }

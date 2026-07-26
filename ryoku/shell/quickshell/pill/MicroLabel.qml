@@ -14,15 +14,15 @@ Row {
     Rectangle {
         width: 5 * ml.s
         height: 5 * ml.s
-        radius: Theme.radius
-        color: Theme.brand
+        radius: Theme.radiusWidget
+        color: Theme.primary
         anchors.verticalCenter: parent.verticalCenter
     }
 
     Text {
         anchors.verticalCenter: parent.verticalCenter
         text: ml.label
-        color: Theme.faint
+        color: Theme.onSurfaceVariant
         font.family: Theme.mono
         font.pixelSize: 10 * ml.s
         font.weight: Font.DemiBold

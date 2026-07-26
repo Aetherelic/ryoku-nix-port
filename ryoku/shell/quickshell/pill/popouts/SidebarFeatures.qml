@@ -66,7 +66,7 @@ Item {
     component Divider: Rectangle {
         width: parent ? parent.width : 0
         height: 1
-        color: Theme.hair
+        color: Theme.outlineVariant
     }
 
     // tab-rail button: a Material glyph that fills and lights, with an accent
@@ -81,7 +81,7 @@ Item {
             anchors.centerIn: parent
             text: tb.glyph
             fill: tb.sel ? 1 : 0
-            color: tb.sel ? Theme.brand : (tbHov.hovered ? Theme.cream : Theme.iconDim)
+            color: tb.sel ? Theme.primary : (tbHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant)
             font.pixelSize: 20 * root.s
             Behavior on color { ColorAnimation { duration: Motion.fast } }
         }
@@ -90,8 +90,8 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 16 * root.s
             height: 2 * root.s
-            radius: Theme.radius
-            color: Theme.brand
+            radius: Theme.radiusWidget
+            color: Theme.primary
             visible: tb.sel
         }
         HoverHandler { id: tbHov; cursorShape: Qt.PointingHandCursor }

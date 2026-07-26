@@ -37,7 +37,7 @@ Item {
                 width: 20 * root.s
                 height: 20 * root.s
                 name: root.statusIcon
-                color: root.online ? Theme.brand : Theme.iconDim
+                color: root.online ? Theme.primary : Theme.onSurfaceVariant
                 stroke: 1.7
             }
             Column {
@@ -45,15 +45,15 @@ Item {
                 spacing: 1 * root.s
                 Text {
                     text: root.statusLabel
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 13 * root.s
                     font.weight: Font.DemiBold
                 }
                 Text {
                     visible: Network.kind === "wifi"
                     text: qsTr("Signal %1%").arg(Math.round(Network.level * 100))
-                    color: Theme.dim
+                    color: Theme.onSurfaceVariant
                     font.family: Theme.mono
                     font.pixelSize: 10 * root.s
                 }
@@ -64,10 +64,10 @@ Item {
             id: wifiRow
             width: parent.width
             height: 40 * root.s
-            radius: Theme.radius
-            color: Network.wifiRadio ? Qt.alpha(Theme.brand, 0.16) : (wifiHov.hovered ? Theme.frameBg : Theme.tileBg)
+            radius: Theme.radiusWidget
+            color: Network.wifiRadio ? Qt.alpha(Theme.primary, 0.16) : (wifiHov.hovered ? Theme.frameBg : Theme.surfaceContainerHigh)
             border.width: 1
-            border.color: Network.wifiRadio ? Theme.brand : (wifiHov.hovered ? Theme.frameBorder : Theme.border)
+            border.color: Network.wifiRadio ? Theme.primary : (wifiHov.hovered ? Theme.frameBorder : Theme.outline)
             Behavior on color { ColorAnimation { duration: Motion.fast } }
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
@@ -79,7 +79,7 @@ Item {
                 width: 16 * root.s
                 height: 16 * root.s
                 name: "wifi"
-                color: Network.wifiRadio ? Theme.brand : Theme.iconDim
+                color: Network.wifiRadio ? Theme.primary : Theme.onSurfaceVariant
                 stroke: 1.6
             }
             Text {
@@ -87,8 +87,8 @@ Item {
                 anchors.leftMargin: 10 * root.s
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("Wi-Fi")
-                color: Theme.cream
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 12.5 * root.s
                 font.weight: Font.DemiBold
             }
@@ -97,7 +97,7 @@ Item {
                 anchors.rightMargin: 12 * root.s
                 anchors.verticalCenter: parent.verticalCenter
                 text: Network.wifiRadio ? qsTr("On") : qsTr("Off")
-                color: Network.wifiRadio ? Theme.brand : Theme.faint
+                color: Network.wifiRadio ? Theme.primary : Theme.onSurfaceVariant
                 font.family: Theme.mono
                 font.pixelSize: 10 * root.s
                 font.weight: Font.DemiBold
@@ -116,14 +116,14 @@ Item {
                 width: 15 * root.s
                 height: 15 * root.s
                 name: "lock"
-                color: Theme.brand
+                color: Theme.primary
                 stroke: 1.6
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("VPN: %1").arg(Network.vpnName)
-                color: Theme.cream
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 11.5 * root.s
             }
         }

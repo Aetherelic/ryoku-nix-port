@@ -129,7 +129,7 @@ function setRail(config, edge, changes) {
 
 function setStyle(config, style) {
     const next = copy(config);
-    if (style === "ok-frame" || style === "ryoku-frame") next.style = style;
+    if (style === "slate-frame" || style === "ryoku-frame") next.style = style;
     return next;
 }
 

@@ -29,7 +29,7 @@ catalogued widgets that fit the target axis.
 
 `frameBars.style` accepts two shared-chrome styles:
 
-- `ok-frame`: subdued dark material, fine light outline, and a compact clock.
+- `slate-frame`: subdued dark material, fine light outline, and a compact clock.
 - `ryoku-frame`: paper material, grain, Ryoku typography, and brand accents.
 
 Style changes materials and metrics only. It never selects a different rail,
@@ -49,7 +49,7 @@ draft and Save flow. It supports:
 - creating and editing bounded menus, including nested menu widgets;
 - editing the registered `stash` and `system` frame surfaces, including their
   anchors, widths, and preserved pane order;
-- switching `ok-frame` and `ryoku-frame` without changing layout geometry.
+- switching `slate-frame` and `ryoku-frame` without changing layout geometry.
 
 Use Save to materialize the draft. Reset discards the draft through the same Hub
 pipeline; Bar Studio does not write configuration files directly.

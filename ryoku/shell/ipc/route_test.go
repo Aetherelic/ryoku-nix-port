@@ -19,10 +19,10 @@ func TestRoute(t *testing.T) {
 		{"overview", "overview", "overview", "toggle"},
 		{"ryolayer", "ryolayer", "ryolayer", "toggle"},
 		{"power", "pill", "pill", "openSurface"},
-		{"bar quick-settings", "pill", "pill", "openSurface"},
-		{"bar clock", "pill", "pill", "openSurface"},
-		{"bar launcher", "pill", "pill", "openSurface"},
-		{"bar clipboard", "pill", "pill", "openSurface"},
+		{"menu quick-settings", "pill", "pill", "openSurface"},
+		{"menu clock", "pill", "pill", "openSurface"},
+		{"menu launcher", "pill", "pill", "openSurface"},
+		{"menu clipboard", "pill", "pill", "openSurface"},
 	}
 	for _, c := range cases {
 		config, target, fn, ok := route(c.cmd)
@@ -38,9 +38,9 @@ func TestRoute(t *testing.T) {
 			t.Fatalf("route(%q) should not be a single IPC call", cmd)
 		}
 	}
-	for _, cmd := range []string{"bar", "bar missing", "bar launcher extra"} {
+	for _, cmd := range []string{"menu", "menu bogus", "menu clock extra", "bar", "bar left", "bar left toggle"} {
 		if _, _, _, ok := route(cmd); ok {
-			t.Fatalf("route(%q) should reject an unknown or malformed bar menu", cmd)
+			t.Fatalf("route(%q) should not be a single IPC call", cmd)
 		}
 	}
 }
@@ -53,9 +53,10 @@ func TestDispatchFrameSurface(t *testing.T) {
 	}
 	defer listener.Close()
 
-	calls := make(chan string, len(frameBarMenuIDs))
+	calls := make(chan string, len(frameBarMenuIDs)+2)
 	go func() {
-		for range frameBarMenuIDs {
+		n := len(frameBarMenuIDs) + 2
+		for range n {
 			conn, err := listener.Accept()
 			if err != nil {
 				return
@@ -69,15 +70,27 @@ func TestDispatchFrameSurface(t *testing.T) {
 
 	d := &daemon{sup: map[string]bool{"pill": true}, activeMon: "DP-1"}
 	for id := range frameBarMenuIDs {
-		if got := d.dispatch("bar " + id); got != "ok" {
-			t.Errorf("dispatch(bar %s) = %q, want ok", id, got)
+		if got := d.dispatch("menu " + id); got != "ok" {
+			t.Errorf("dispatch(menu %s) = %q, want ok", id, got)
 			continue
 		}
 		if got := <-calls; got != "openSurface DP-1 "+id {
 			t.Errorf("pill IPC = %q, want %q", got, "openSurface DP-1 "+id)
 		}
 	}
-	for _, command := range []string{"bar", "bar missing", "bar launcher extra"} {
+	// menu close and bar edge toggles map to the reference close-all and the
+	// per-edge bar operations, each on its own pill function.
+	if got := d.dispatch("menu close"); got != "ok" {
+		t.Errorf("dispatch(menu close) = %q, want ok", got)
+	} else if got := <-calls; got != "closeAllMenus DP-1" {
+		t.Errorf("menu close pill IPC = %q, want %q", got, "closeAllMenus DP-1")
+	}
+	if got := d.dispatch("bar left toggle"); got != "ok" {
+		t.Errorf("dispatch(bar left toggle) = %q, want ok", got)
+	} else if got := <-calls; got != "setBar DP-1 left toggle" {
+		t.Errorf("bar toggle pill IPC = %q, want %q", got, "setBar DP-1 left toggle")
+	}
+	for _, command := range []string{"bar", "bar left", "bar sideways toggle", "bar left sideways", "menu", "menu bogus", "menu clock extra"} {
 		if got := d.dispatch(command); got == "ok" {
 			t.Errorf("dispatch(%q) = ok, want rejection", command)
 		}
@@ -94,7 +107,7 @@ func TestDispatchSurfaceSocketContracts(t *testing.T) {
 	defer listener.Close()
 
 	d := &daemon{sup: map[string]bool{"pill": true}, activeMon: "DP-1"}
-	for _, command := range []string{"bar", "bar missing", "bar launcher extra"} {
+	for _, command := range []string{"bar", "bar left", "bar sideways toggle", "menu", "menu bogus"} {
 		if got := d.dispatch(command); got == "ok" {
 			t.Errorf("dispatch(%q) = ok, want rejection", command)
 		}

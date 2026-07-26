@@ -37,6 +37,12 @@ func main() {
 		}
 		return
 	}
+	if args[0] == "__clip-ingest" {
+		// wl-paste --watch helper: read the new selection and stream it to the
+		// daemon. Internal, not a user verb.
+		runClipIngest()
+		return
+	}
 	if err := sendCommand(strings.Join(args, " ")); err != nil {
 		fmt.Fprintln(os.Stderr, "ryoku-shell:", err)
 		os.Exit(1)

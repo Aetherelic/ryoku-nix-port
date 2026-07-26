@@ -8,7 +8,7 @@ Item {
     id: root
 
     property string text: ""
-    property color color: Theme.cream
+    property color color: Theme.onSurface
     property real pixelSize: 14
     property int weight: Font.Normal
     property bool active: true
@@ -24,7 +24,7 @@ Item {
         x: 0
         text: root.text
         color: root.color
-        font.family: Theme.font
+        font.family: Theme.fontPrimary
         font.pixelSize: root.pixelSize
         font.weight: root.weight
         elide: root.overflowing ? Text.ElideNone : Text.ElideRight

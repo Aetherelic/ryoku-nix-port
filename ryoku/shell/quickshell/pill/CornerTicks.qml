@@ -7,7 +7,7 @@ Item {
 
     property real s: 1
     property real len: 9 * s
-    property color tint: Theme.hair
+    property color tint: Theme.outlineVariant
 
     // Top-left
     Rectangle { anchors.left: parent.left; anchors.top: parent.top; width: ticks.len; height: 1; color: ticks.tint }

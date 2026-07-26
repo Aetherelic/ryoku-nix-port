@@ -18,7 +18,7 @@ Item {
 
         Text {
             text: Media.present ? (Media.player ? Media.player.trackTitle : "") : qsTr("Nothing playing")
-            color: Media.present ? Theme.bright : Theme.faint
+            color: Media.present ? Theme.onSurface : Theme.onSurfaceVariant
             font.family: Theme.display
             font.pixelSize: 18 * root.s
             elide: Text.ElideRight
@@ -26,8 +26,8 @@ Item {
         }
         Text {
             text: Media.player ? Theme.joinArtists(Media.player.trackArtists, Media.player.trackArtist) : ""
-            color: Theme.dim
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 11 * root.s
             width: parent.width
             elide: Text.ElideRight
@@ -41,14 +41,14 @@ Item {
                     required property string modelData
                     width: 34 * root.s
                     height: 30 * root.s
-                    radius: Theme.radius
-                    color: mediaHover.hovered ? Theme.frameBg : Theme.tileBg
+                    radius: Theme.radiusWidget
+                    color: mediaHover.hovered ? Theme.frameBg : Theme.surfaceContainerHigh
                     Pill.GlyphIcon {
                         anchors.centerIn: parent
                         width: 16 * root.s
                         height: 16 * root.s
                         name: modelData === "play" ? (Media.playing ? "pause" : "play") : modelData
-                        color: Theme.cream
+                        color: Theme.onSurface
                         stroke: 1.6
                     }
                     HoverHandler { id: mediaHover; cursorShape: Qt.PointingHandCursor }

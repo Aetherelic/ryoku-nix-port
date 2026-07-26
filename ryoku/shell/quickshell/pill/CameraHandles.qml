@@ -26,9 +26,9 @@ Item {
         radius: width / 2
         x: handles.rad - width / 2
         y: handles.rad - height / 2
-        color: Theme.cream
+        color: Theme.onSurface
         border.width: 2
-        border.color: Theme.brand
+        border.color: Theme.primary
         HoverHandler { cursorShape: Qt.SizeFDiagCursor }
     }
     Rectangle { // "Radius N" readout
@@ -43,7 +43,7 @@ Item {
             id: rL
             anchors.centerIn: parent
             text: "Radius " + Math.round(handles.rad)
-            color: Theme.cream
+            color: Theme.onSurface
             font.family: Theme.mono
             font.pixelSize: 11
             font.weight: Font.DemiBold
@@ -57,9 +57,9 @@ Item {
         radius: 3
         x: handles.width - width - 5
         y: handles.height - height - 5
-        color: Theme.cream
+        color: Theme.onSurface
         border.width: 2
-        border.color: Theme.brand
+        border.color: Theme.primary
         HoverHandler { cursorShape: Qt.SizeFDiagCursor }
     }
     Rectangle { // "W x H" readout
@@ -76,7 +76,7 @@ Item {
             id: sL
             anchors.centerIn: parent
             text: Math.round(Camera.bw) + " x " + Math.round(Camera.bh)
-            color: Theme.cream
+            color: Theme.onSurface
             font.family: Theme.mono
             font.pixelSize: 11
             font.weight: Font.DemiBold
@@ -99,7 +99,7 @@ Item {
             width: 15
             height: 15
             name: "flip"
-            color: Camera.flipped ? Theme.brand : Theme.cream
+            color: Camera.flipped ? Theme.primary : Theme.onSurface
             stroke: 1.7
         }
         HoverHandler { id: flipHov; cursorShape: Qt.PointingHandCursor }

@@ -47,7 +47,7 @@ Item {
                     anchors.fill: parent
                     visible: area.containsMouse
                     radius: 3 * root.scale
-                    color: Qt.alpha(Theme.cream, 0.14)
+                    color: Qt.alpha(Theme.onSurface, 0.14)
                 }
 
                 Image {
@@ -66,9 +66,9 @@ Item {
                     anchors.centerIn: parent
                     visible: entry.iconSource === ""
                     text: entry.modelData.slice(0, 1).toUpperCase()
-                    color: Theme.cream
+                    color: Theme.onSurface
                     font {
-                        family: Theme.font
+                        family: Theme.fontPrimary
                         pixelSize: 12 * root.scale
                         weight: Font.DemiBold
                     }

@@ -20,7 +20,7 @@ Item {
     Pill.MaterialIcon {
         anchors.centerIn: parent
         text: Network.vpnActive ? "vpn_key" : "vpn_key_off"
-        color: Theme.cream
+        color: Theme.onSurface
         font.pixelSize: 18 * root.scale
     }
 

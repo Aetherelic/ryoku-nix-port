@@ -56,7 +56,7 @@ Item {
             width: 17 * root.s
             height: 17 * root.s
             name: root.muted ? (root.icon === "mic" ? "mic-off" : "speaker-off") : root.icon
-            color: root.muted ? Theme.faint : (root.lit ? Theme.cream : Theme.iconDim)
+            color: root.muted ? Theme.onSurfaceVariant : (root.lit ? Theme.onSurface : Theme.onSurfaceVariant)
             stroke: 1.7
         }
 
@@ -75,9 +75,9 @@ Item {
         width: 34 * root.s
         horizontalAlignment: Text.AlignRight
         text: root.valueLabel
-        color: root.muted ? Theme.faint : (root.lit ? Theme.cream : Theme.dim)
+        color: root.muted ? Theme.onSurfaceVariant : (root.lit ? Theme.onSurface : Theme.onSurfaceVariant)
         opacity: (root.lit || root.muted) ? 1 : 0.7
-        font.family: Theme.font
+        font.family: Theme.fontPrimary
         font.pixelSize: 9.5 * root.s
         font.weight: Font.DemiBold
         Behavior on opacity { NumberAnimation { duration: Motion.fast } }
@@ -122,8 +122,8 @@ Item {
                 radius: parent.radius
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: root.muted ? Theme.ghost : (root.active ? Theme.verm : Theme.vermDim) }
-                    GradientStop { position: 1.0; color: root.muted ? Theme.faint : (root.active ? Theme.vermLit : Theme.vermDimDeep) }
+                    GradientStop { position: 0.0; color: root.muted ? Theme.ghost : (root.active ? Theme.primary : Theme.vermDim) }
+                    GradientStop { position: 1.0; color: root.muted ? Theme.onSurfaceVariant : (root.active ? Theme.vermLit : Theme.vermDimDeep) }
                 }
                 Behavior on width { enabled: !drag.pressed; NumberAnimation { duration: Motion.fast } }
             }
@@ -133,8 +133,8 @@ Item {
             id: tick
             width: 2.5 * root.s
             height: 11 * root.s
-            radius: Theme.radius
-            color: Theme.tickRest
+            radius: Theme.radiusWidget
+            color: Theme.outline
             anchors.verticalCenter: thread.verticalCenter
             x: Math.max(0, Math.min(parent.width - width,
                 Fader.clamp01(root.value) * parent.width - width / 2))

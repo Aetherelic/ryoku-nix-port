@@ -54,12 +54,12 @@ EOF
     esac
 }
 
-run_case ok-frame top-left
+run_case slate-frame top-left
 run_case ryoku-frame top-left
-run_case ok-frame bottom-right
+run_case slate-frame bottom-right
 run_case ryoku-frame bottom-right
 
-[[ "${geometry[ok-frame/top-left]}" == "${geometry[ryoku-frame/top-left]}" ]] || { echo "FAIL: top-left geometry changed with style"; exit 1; }
-[[ "${geometry[ok-frame/bottom-right]}" == "${geometry[ryoku-frame/bottom-right]}" ]] || { echo "FAIL: bottom-right geometry changed with style"; exit 1; }
-[[ "${material[ok-frame/top-left]}" != "${material[ryoku-frame/top-left]}" ]] || { echo "FAIL: styles did not change preview material"; exit 1; }
+[[ "${geometry[slate-frame/top-left]}" == "${geometry[ryoku-frame/top-left]}" ]] || { echo "FAIL: top-left geometry changed with style"; exit 1; }
+[[ "${geometry[slate-frame/bottom-right]}" == "${geometry[ryoku-frame/bottom-right]}" ]] || { echo "FAIL: bottom-right geometry changed with style"; exit 1; }
+[[ "${material[slate-frame/top-left]}" != "${material[ryoku-frame/top-left]}" ]] || { echo "FAIL: styles did not change preview material"; exit 1; }
 echo "frame-bars-cutover-integration: shared geometry and Ryowalls preview verified"

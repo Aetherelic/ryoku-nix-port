@@ -23,9 +23,9 @@ Item {
         anchors.centerIn: parent
         text: horizontal ? Qt.formatTime(clock.date, "HH:mm") : Qt.formatTime(clock.date, "HH\nmm")
         horizontalAlignment: Text.AlignHCenter
-        color: Theme.cream
+        color: Theme.onSurface
         font {
-            family: Theme.font
+            family: Theme.fontPrimary
             pixelSize: 12 * scale * Theme.frameClockScale
             weight: Font.DemiBold
             features: ({ "tnum": 1 })

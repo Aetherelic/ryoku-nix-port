@@ -25,7 +25,7 @@ Item {
     Pill.MaterialIcon {
         anchors.centerIn: parent
         text: root.glyphs[root.actionId] || "error"
-        color: Theme.cream
+        color: Theme.onSurface
         font.pixelSize: 19 * root.scale
     }
 

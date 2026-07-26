@@ -76,7 +76,6 @@ Item {
         border.width: Tokens.border
         border.color: hoverProbe.hovered ? Tokens.lineStrong : Tokens.line
     }
-    Grain { anchors.fill: parent; opacity: Tokens.grainOpacity }
 
     // Plate drag and click-swallow. A MouseArea, not a DragHandler: it sits as a
     // background sibling BELOW the body Loader, so a control on top grabs its own

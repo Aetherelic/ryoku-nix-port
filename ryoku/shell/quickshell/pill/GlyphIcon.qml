@@ -9,7 +9,7 @@ Item {
     id: root
 
     property string name: ""
-    property color color: Theme.iconDim
+    property color color: Theme.onSurfaceVariant
     property real stroke: 1.8
     property real fillProgress: 1
 

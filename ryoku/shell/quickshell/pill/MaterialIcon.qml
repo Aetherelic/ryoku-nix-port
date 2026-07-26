@@ -9,7 +9,7 @@ Text {
     font.family: "Material Symbols Rounded"
     font.weight: 500
     font.variableAxes: ({ "FILL": fill, "opsz": 20 })
-    color: Theme.subtle
+    color: Theme.onSurfaceVariant
     verticalAlignment: Text.AlignVCenter
     horizontalAlignment: Text.AlignHCenter
 }

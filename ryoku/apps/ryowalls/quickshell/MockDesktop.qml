@@ -145,7 +145,7 @@ Item {
             anchors.left: modelData === "left" ? parent.left : undefined
             anchors.right: modelData === "right" ? parent.right : undefined
             color: mock.railMaterial()
-            border.width: mock.frameBars.style === "ok-frame" ? 1 : 0
+            border.width: mock.frameBars.style === "slate-frame" ? 1 : 0
             border.color: Qt.rgba(mock.cFg.r, mock.cFg.g, mock.cFg.b, 0.45)
         }
     }

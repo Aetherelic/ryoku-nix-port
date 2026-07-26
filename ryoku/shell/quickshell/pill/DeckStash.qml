@@ -90,7 +90,7 @@ Item {
                 width: 11 * stash.s
                 height: 11 * stash.s
                 name: "chevron-left"
-                color: bArea.containsMouse ? Theme.cream : Theme.subtle
+                color: bArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                 stroke: 1.9
             }
             Text {
@@ -99,7 +99,7 @@ Item {
                 anchors.leftMargin: 4 * stash.s
                 anchors.verticalCenter: parent.verticalCenter
                 text: "BACK"
-                color: bArea.containsMouse ? Theme.cream : Theme.subtle
+                color: bArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                 font.family: Theme.mono
                 font.pixelSize: 9.5 * stash.s
                 font.weight: Font.DemiBold
@@ -123,7 +123,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 1
             height: 11 * stash.s
-            color: Theme.hair
+            color: Theme.outlineVariant
         }
 
         Text {
@@ -134,7 +134,7 @@ Item {
             text: Stash.count > 0
                 ? Stash.count + (Stash.count === 1 ? " FILE" : " FILES")
                 : "EMPTY"
-            color: Stash.count > 0 ? Theme.dim : Theme.faint
+            color: Stash.count > 0 ? Theme.onSurfaceVariant : Theme.onSurfaceVariant
             font.family: Theme.mono
             font.pixelSize: 9.5 * stash.s
             font.weight: Font.DemiBold
@@ -154,10 +154,10 @@ Item {
             height: 18 * stash.s
             radius: height / 2
             color: recvChip.on ? Qt.alpha(Theme.flameGlow, 0.16)
-                : (recvArea.containsMouse ? Theme.frameBg : Theme.tileBg)
+                : (recvArea.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh)
             border.width: 1
             border.color: recvChip.on ? Qt.alpha(Theme.flameGlow, 0.55)
-                : (recvArea.containsMouse ? Theme.frameBorder : Theme.border)
+                : (recvArea.containsMouse ? Theme.frameBorder : Theme.outline)
 
             Behavior on color { ColorAnimation { duration: Motion.fast } }
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
@@ -172,7 +172,7 @@ Item {
                     width: 5 * stash.s
                     height: 5 * stash.s
                     radius: width / 2
-                    color: recvChip.on ? Theme.flameGlow : Theme.iconDim
+                    color: recvChip.on ? Theme.flameGlow : Theme.onSurfaceVariant
                     SequentialAnimation on opacity {
                         running: recvChip.on
                         loops: Animation.Infinite
@@ -183,7 +183,7 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: recvChip.on ? "LISTENING" : "RECEIVE"
-                    color: recvChip.on ? Theme.flameGlow : (recvArea.containsMouse ? Theme.cream : Theme.subtle)
+                    color: recvChip.on ? Theme.flameGlow : (recvArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant)
                     font.family: Theme.mono
                     font.pixelSize: 8.5 * stash.s
                     font.weight: Font.DemiBold
@@ -210,7 +210,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 1
-        color: Theme.hair
+        color: Theme.outlineVariant
     }
 
     // ── file grid ───────────────────────────────────────────────────────
@@ -222,17 +222,17 @@ Item {
         anchors.right: parent.right
         anchors.bottom: actions.top
         anchors.bottomMargin: 12 * stash.s
-        color: Qt.alpha(Theme.cardBot, 0.5)
+        color: Qt.alpha(Theme.surfaceContainerLow, 0.5)
         border.width: 1
-        border.color: Theme.hair
-        radius: Theme.radius
+        border.color: Theme.outlineVariant
+        radius: Theme.radiusWidget
         clip: true
 
         // square spec grid behind the files (same texture as the hub Profile drop window).
         Canvas {
             anchors.fill: parent
             z: -2
-            property string tint: "rgba(" + Math.round(Theme.cream.r * 255) + ", " + Math.round(Theme.cream.g * 255) + ", " + Math.round(Theme.cream.b * 255) + ", 0.05)"
+            property string tint: "rgba(" + Math.round(Theme.onSurface.r * 255) + ", " + Math.round(Theme.onSurface.g * 255) + ", " + Math.round(Theme.onSurface.b * 255) + ", 0.05)"
             property real step: 30 * stash.s
             onWidthChanged: requestPaint()
             onHeightChanged: requestPaint()
@@ -291,12 +291,12 @@ Item {
                     id: card
                     anchors.fill: parent
                     anchors.margins: 4 * stash.s
-                    radius: Theme.radius
+                    radius: Theme.radiusWidget
                     clip: true
-                    color: (tile.hovered || tile.confirming) ? Theme.frameBg : Theme.tileBg
+                    color: (tile.hovered || tile.confirming) ? Theme.frameBg : Theme.surfaceContainerHigh
                     border.width: 1
                     border.color: tile.confirming ? Qt.alpha(Theme.vermLit, 0.7)
-                        : (tile.hovered ? Theme.frameBorder : Theme.border)
+                        : (tile.hovered ? Theme.frameBorder : Theme.outline)
 
                     Behavior on color { ColorAnimation { duration: Motion.fast } }
                     Behavior on border.color { ColorAnimation { duration: Motion.fast } }
@@ -329,7 +329,7 @@ Item {
                         width: 28 * stash.s
                         height: 28 * stash.s
                         name: stash.catGlyph(tile.ext)
-                        color: tile.hovered ? Theme.cream : Theme.iconDim
+                        color: tile.hovered ? Theme.onSurface : Theme.onSurfaceVariant
                         stroke: 1.5
                         Behavior on opacity { NumberAnimation { duration: Motion.fast } }
                     }
@@ -341,7 +341,7 @@ Item {
                         anchors.verticalCenterOffset: 12 * stash.s
                         visible: !tile.isImage && !tile.confirming
                         text: tile.ext
-                        color: Theme.faint
+                        color: Theme.onSurfaceVariant
                         font.family: Theme.mono
                         font.pixelSize: 8 * stash.s
                         font.weight: Font.Bold
@@ -357,7 +357,7 @@ Item {
                         visible: tile.isImage && !tile.confirming
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: "transparent" }
-                            GradientStop { position: 1.0; color: Qt.alpha(Theme.cardBot, 0.85) }
+                            GradientStop { position: 1.0; color: Qt.alpha(Theme.surfaceContainerLow, 0.85) }
                         }
                     }
 
@@ -369,8 +369,8 @@ Item {
                         anchors.margins: 6 * stash.s
                         visible: !tile.confirming
                         text: tile.fileName
-                        color: tile.isImage ? Theme.bright : Theme.subtle
-                        font.family: Theme.font
+                        color: tile.isImage ? Theme.onSurface : Theme.onSurfaceVariant
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 9 * stash.s
                         font.weight: Font.Medium
                         horizontalAlignment: Text.AlignHCenter
@@ -405,9 +405,9 @@ Item {
                             width: 22 * stash.s
                             height: 22 * stash.s
                             radius: width / 2
-                            color: sendArea.containsMouse ? Theme.frameBorder : Qt.alpha(Theme.cardBot, 0.92)
+                            color: sendArea.containsMouse ? Theme.frameBorder : Qt.alpha(Theme.surfaceContainerLow, 0.92)
                             border.width: 1
-                            border.color: Theme.border
+                            border.color: Theme.outline
 
                             Behavior on color { ColorAnimation { duration: Motion.fast } }
 
@@ -416,7 +416,7 @@ Item {
                                 width: 12 * stash.s
                                 height: 12 * stash.s
                                 name: "send"
-                                color: sendArea.containsMouse ? Theme.cream : Theme.iconDim
+                                color: sendArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                                 stroke: 1.6
                             }
 
@@ -433,9 +433,9 @@ Item {
                             width: 22 * stash.s
                             height: 22 * stash.s
                             radius: width / 2
-                            color: removeArea.containsMouse ? Theme.vermLit : Qt.alpha(Theme.cardBot, 0.92)
+                            color: removeArea.containsMouse ? Theme.vermLit : Qt.alpha(Theme.surfaceContainerLow, 0.92)
                             border.width: 1
-                            border.color: Theme.border
+                            border.color: Theme.outline
 
                             Behavior on color { ColorAnimation { duration: Motion.fast } }
 
@@ -444,7 +444,7 @@ Item {
                                 width: 12 * stash.s
                                 height: 12 * stash.s
                                 name: "trash"
-                                color: removeArea.containsMouse ? Theme.cream : Theme.iconDim
+                                color: removeArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                                 stroke: 1.6
                             }
 
@@ -469,8 +469,8 @@ Item {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: "Remove?"
-                            color: Theme.cream
-                            font.family: Theme.font
+                            color: Theme.onSurface
+                            font.family: Theme.fontPrimary
                             font.pixelSize: 10 * stash.s
                             font.weight: Font.DemiBold
                         }
@@ -490,7 +490,7 @@ Item {
                                     anchors.centerIn: parent
                                     width: 13 * stash.s; height: 13 * stash.s
                                     name: "check"
-                                    color: yesArea.containsMouse ? Theme.cardBot : Theme.vermLit
+                                    color: yesArea.containsMouse ? Theme.surfaceContainerLow : Theme.vermLit
                                     stroke: 2
                                 }
                                 MouseArea {
@@ -507,13 +507,13 @@ Item {
                                 radius: width / 2
                                 color: noArea.containsMouse ? Theme.frameBg : "transparent"
                                 border.width: 1
-                                border.color: Theme.border
+                                border.color: Theme.outline
                                 Behavior on color { ColorAnimation { duration: Motion.fast } }
                                 GlyphIcon {
                                     anchors.centerIn: parent
                                     width: 12 * stash.s; height: 12 * stash.s
                                     name: "close"
-                                    color: noArea.containsMouse ? Theme.cream : Theme.iconDim
+                                    color: noArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                                     stroke: 1.8
                                 }
                                 MouseArea {
@@ -553,8 +553,8 @@ Item {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: dropArea.containsDrag ? "Release to stash" : "Drop files here"
-                    color: dropArea.containsDrag ? Theme.flameGlow : Theme.faint
-                    font.family: Theme.font
+                    color: dropArea.containsDrag ? Theme.flameGlow : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11 * stash.s
                     font.weight: Font.Medium
                 }
@@ -573,10 +573,10 @@ Item {
     // brand ring while a drag hovers the section, over the whole body.
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radius
+        radius: Theme.radiusWidget
         color: "transparent"
         border.width: 1.5 * stash.s
-        border.color: Qt.alpha(Theme.brand, 0.55)
+        border.color: Qt.alpha(Theme.primary, 0.55)
         visible: dropArea.containsDrag
         z: 5
     }

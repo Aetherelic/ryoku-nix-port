@@ -8,6 +8,8 @@ Item {
     required property real railScale
     required property var frameBars
     required property var style
+    // Per-edge reveal baseline from the shared reveal model in shell.qml.
+    required property var revealState
 
     signal menuRequested(string id, rect ownerRect)
     signal surfaceRequested(string id, rect ownerRect)
@@ -19,7 +21,7 @@ Item {
         FrameRail {
             required property string modelData
             edge: modelData
-            scale: bar.railScale
+            revealed: bar.revealState ? bar.revealState[modelData] === true : false
             rail: bar.frameBars.rails[modelData]
             style: bar.style
             delegate: Component {

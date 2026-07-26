@@ -63,7 +63,7 @@ func TestApplyRyokuThemeUsesRyokuFrameBarLook(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(shellPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(shellPath, []byte(`{"barStyle":"stele","frameBars":{"style":"ok-frame","rails":{"top":{"size":44}}},"sidebarWidth":420}`), 0o644); err != nil {
+	if err := os.WriteFile(shellPath, []byte(`{"barStyle":"stele","frameBars":{"style":"slate-frame","rails":{"top":{"size":44}}},"sidebarWidth":420}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

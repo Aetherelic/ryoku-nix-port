@@ -10,7 +10,7 @@ Rectangle {
 
     property real s: 1
     property string glyph: ""
-    property color tint: Theme.iconDim
+    property color tint: Theme.onSurfaceVariant
     signal tapped()
 
     width: 26 * s

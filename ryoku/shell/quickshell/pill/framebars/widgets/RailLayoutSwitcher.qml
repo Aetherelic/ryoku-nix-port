@@ -23,7 +23,7 @@ Item {
     Pill.MaterialIcon {
         anchors.centerIn: parent
         text: "dashboard_customize"
-        color: Theme.cream
+        color: Theme.onSurface
         font.pixelSize: 18 * root.scale
     }
 

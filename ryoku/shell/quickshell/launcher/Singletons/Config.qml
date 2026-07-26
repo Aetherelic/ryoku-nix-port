@@ -58,9 +58,6 @@ Singleton {
     property alias fontFamily: adapter.fontFamily
     property alias fontScale:  adapter.fontScale
 
-    // grain matte opacity, shared with the shell overlay (shell.json).
-    property alias grainStrength: adapter.grainStrength
-
     // matchWallpaper: when on, every shell surface (frame, island, popouts,
     // every surface, plus desktop widgets, plugin tiles, the window switcher)
     // follows the live wallust palette instead of the static Tokyo Night
@@ -108,7 +105,6 @@ Singleton {
             property bool islandAutohide: true
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
-            property real grainStrength: 0.09
             property var frameBars: FrameBars.defaultConfig()
         }
     }

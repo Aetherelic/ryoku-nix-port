@@ -13,6 +13,6 @@ Item {
         width: Math.max(0, root.width - root.inset * 2)
         height: root.thickness
         anchors.verticalCenter: parent.verticalCenter
-        color: Theme.hair
+        color: Theme.outlineVariant
     }
 }

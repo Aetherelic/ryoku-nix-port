@@ -17,8 +17,6 @@ Rectangle {
     radius: Tokens.radius
     border { width: Tokens.border; color: Tokens.line }
 
-    Grain { anchors.fill: parent; opacity: Tokens.grainOpacity }
-
     Row {
         id: row
         anchors.centerIn: parent

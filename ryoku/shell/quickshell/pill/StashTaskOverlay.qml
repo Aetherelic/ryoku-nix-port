@@ -26,7 +26,7 @@ Rectangle {
         : ("Compress " + Stash.count + (Stash.count === 1 ? " file" : " files") + "? Smaller copies are written beside the originals.")
 
     radius: Motion.rTile * s
-    color: Qt.alpha(Theme.cardTop, 0.98)
+    color: Qt.alpha(Theme.surfaceContainer, 0.98)
     visible: Stash.task !== "" && Stash.taskState !== "idle"
 
     MouseArea { anchors.fill: parent; hoverEnabled: true }
@@ -58,8 +58,8 @@ Rectangle {
         Text {
             width: parent.width
             text: root.prompt
-            color: Theme.cream
-            font.family: Theme.font
+            color: Theme.onSurface
+            font.family: Theme.fontPrimary
             font.pixelSize: 11 * root.s
             font.weight: Font.Medium
             horizontalAlignment: Text.AlignHCenter
@@ -79,13 +79,13 @@ Rectangle {
                 radius: Motion.rSmall * root.s
                 color: cancelArea.containsMouse ? Theme.frameBg : "transparent"
                 border.width: 1
-                border.color: Theme.border
+                border.color: Theme.outline
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
                 Text {
                     anchors.centerIn: parent
                     text: "Cancel"
-                    color: cancelArea.containsMouse ? Theme.cream : Theme.subtle
-                    font.family: Theme.font
+                    color: cancelArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 10.5 * root.s
                     font.weight: Font.DemiBold
                 }
@@ -113,14 +113,14 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 12 * root.s; height: 12 * root.s
                         name: root.glyph
-                        color: runArea.containsMouse ? Theme.cardBot : Theme.flameGlow
+                        color: runArea.containsMouse ? Theme.surfaceContainerLow : Theme.flameGlow
                         stroke: 1.7
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.verb
-                        color: runArea.containsMouse ? Theme.cardBot : Theme.flameCore
-                        font.family: Theme.font
+                        color: runArea.containsMouse ? Theme.surfaceContainerLow : Theme.flameCore
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 10.5 * root.s
                         font.weight: Font.DemiBold
                     }
@@ -189,8 +189,8 @@ Rectangle {
             text: root.running ? (root.gerund + "…")
                 : root.ok ? (root.verb + " done")
                 : (root.verb + " failed")
-            color: Theme.cream
-            font.family: Theme.font
+            color: Theme.onSurface
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
             font.weight: Font.DemiBold
         }
@@ -199,8 +199,8 @@ Rectangle {
             width: parent.width
             visible: !root.running && Stash.taskMsg.length > 0
             text: Stash.taskMsg
-            color: Theme.subtle
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 10 * root.s
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
@@ -215,16 +215,16 @@ Rectangle {
             width: 88 * root.s
             height: 28 * root.s
             radius: Motion.rSmall * root.s
-            color: doneArea.containsMouse ? Theme.frameBg : Theme.tileBg
+            color: doneArea.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh
             border.width: 1
-            border.color: doneArea.containsMouse ? Theme.frameBorder : Theme.border
+            border.color: doneArea.containsMouse ? Theme.frameBorder : Theme.outline
             Behavior on color { ColorAnimation { duration: Motion.fast } }
 
             Text {
                 anchors.centerIn: parent
                 text: "Done"
-                color: doneArea.containsMouse ? Theme.cream : Theme.subtle
-                font.family: Theme.font
+                color: doneArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
                 font.pixelSize: 11 * root.s
                 font.weight: Font.DemiBold
             }

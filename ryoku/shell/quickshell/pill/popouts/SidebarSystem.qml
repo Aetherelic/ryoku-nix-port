@@ -57,7 +57,7 @@ Item {
     component Divider: Rectangle {
         width: parent ? parent.width : 0
         height: 1
-        color: Theme.hair
+        color: Theme.outlineVariant
     }
 
     // one media transport control: a stroked glyph that lifts on hover, dims when
@@ -75,9 +75,9 @@ Item {
             width: (mb.accent ? 24 : 18) * root.s
             height: (mb.accent ? 24 : 18) * root.s
             name: mb.glyph
-            color: !mb.on ? Theme.faint
-                 : mb.accent ? (mbHov.hovered ? Theme.vermLit : Theme.brand)
-                 : (mbHov.hovered ? Theme.bright : Theme.cream)
+            color: !mb.on ? Theme.onSurfaceVariant
+                 : mb.accent ? (mbHov.hovered ? Theme.vermLit : Theme.primary)
+                 : (mbHov.hovered ? Theme.onSurface : Theme.onSurface)
             stroke: 2
             Behavior on color { ColorAnimation { duration: Motion.hover } }
         }
@@ -98,7 +98,7 @@ Item {
             anchors.centerIn: parent
             text: tb.glyph
             fill: tb.sel ? 1 : 0
-            color: tb.sel ? Theme.brand : (tbHov.hovered ? Theme.cream : Theme.iconDim)
+            color: tb.sel ? Theme.primary : (tbHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant)
             font.pixelSize: 20 * root.s
             Behavior on color { ColorAnimation { duration: Motion.fast } }
         }
@@ -107,8 +107,8 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 16 * root.s
             height: 2 * root.s
-            radius: Theme.radius
-            color: Theme.brand
+            radius: Theme.radiusWidget
+            color: Theme.primary
             visible: tb.sel
         }
         HoverHandler { id: tbHov; cursorShape: Qt.PointingHandCursor }
@@ -138,7 +138,7 @@ Item {
                 Eyebrow { label: "System"; s: root.s }
                 Text {
                     text: Qt.formatTime(sys.date, "HH:mm")
-                    color: Theme.bright
+                    color: Theme.onSurface
                     font.family: Theme.display
                     font.pixelSize: 36 * root.s
                     font.weight: Font.Medium
@@ -146,8 +146,8 @@ Item {
                 }
                 Text {
                     text: root.loc.toString(sys.date, "dddd, d MMMM")
-                    color: Theme.dim
-                    font.family: Theme.font
+                    color: Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11.5 * root.s
                     font.weight: Font.Medium
                 }
@@ -164,13 +164,13 @@ Item {
                     width: 24 * root.s
                     height: 24 * root.s
                     name: Weather.glyph
-                    color: Theme.cream
+                    color: Theme.onSurface
                     stroke: 1.6
                 }
                 Text {
                     anchors.right: parent.right
                     text: Weather.temp
-                    color: Theme.cream
+                    color: Theme.onSurface
                     font.family: Theme.mono
                     font.pixelSize: 14 * root.s
                     font.weight: Font.DemiBold
@@ -257,8 +257,8 @@ Item {
                 anchors.centerIn: parent
                 visible: !Media.present
                 text: "Nothing playing"
-                color: Theme.faint
-                font.family: Theme.font
+                color: Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
                 font.pixelSize: 12 * root.s
                 font.weight: Font.Medium
             }
@@ -281,7 +281,7 @@ Item {
                 Marquee {
                     width: parent.width
                     text: Media.player ? (Media.player.trackTitle || "") : ""
-                    color: Theme.bright
+                    color: Theme.onSurface
                     pixelSize: 15 * root.s
                     weight: Font.DemiBold
                     active: root.open && root.effectivePane === "media"
@@ -290,8 +290,8 @@ Item {
                     width: parent.width
                     text: Media.player ? Theme.joinArtists(Media.player.trackArtists, Media.player.trackArtist) : ""
                     elide: Text.ElideRight
-                    color: Theme.dim
-                    font.family: Theme.font
+                    color: Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s
                 }
 
@@ -305,7 +305,7 @@ Item {
                         anchors.left: parent.left
                         // a live radio has no elapsed: the tally lamp stands in.
                         text: Media.radio ? "● LIVE" : root.fmt(parent.pos)
-                        color: Media.radio ? Theme.vermLit : Theme.dim
+                        color: Media.radio ? Theme.vermLit : Theme.onSurfaceVariant
                         font.family: Theme.mono
                         font.pixelSize: 10 * root.s
                         SequentialAnimation on opacity {
@@ -319,7 +319,7 @@ Item {
                     Text {
                         anchors.right: parent.right
                         text: Media.radio ? "24/7" : root.fmt(parent.len)
-                        color: Theme.dim
+                        color: Theme.onSurfaceVariant
                         font.family: Theme.mono
                         font.pixelSize: 10 * root.s
                     }
@@ -328,8 +328,8 @@ Item {
                 Rectangle {
                     width: parent.width
                     height: 3 * root.s
-                    radius: Theme.radius
-                    color: Qt.alpha(Theme.bright, 0.14)
+                    radius: Theme.radiusWidget
+                    color: Qt.alpha(Theme.onSurface, 0.14)
                     // flat while the radio broadcasts: a buffer length is not a
                     // position, and a creeping bar on a 24/7 stream is a lie.
                     readonly property real frac: (!Media.radio && Media.player && Media.player.length > 0)
@@ -337,8 +337,8 @@ Item {
                     Rectangle {
                         width: parent.width * parent.frac
                         height: parent.height
-                        radius: Theme.radius
-                        color: Theme.brand
+                        radius: Theme.radiusWidget
+                        color: Theme.primary
                         Behavior on width { NumberAnimation { duration: 480; easing.type: Easing.Linear } }
                     }
                 }
@@ -376,8 +376,8 @@ Item {
                 anchors.centerIn: parent
                 visible: !Weather.available
                 text: "Weather unavailable"
-                color: Theme.faint
-                font.family: Theme.font
+                color: Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
                 font.pixelSize: 12 * root.s
                 font.weight: Font.Medium
             }
@@ -397,7 +397,7 @@ Item {
                         width: 40 * root.s
                         height: 40 * root.s
                         name: Weather.glyph
-                        color: Theme.cream
+                        color: Theme.onSurface
                         stroke: 1.5
                     }
                     Column {
@@ -405,15 +405,15 @@ Item {
                         spacing: 2 * root.s
                         Text {
                             text: Weather.temp
-                            color: Theme.bright
+                            color: Theme.onSurface
                             font.family: Theme.display
                             font.pixelSize: 26 * root.s
                             font.weight: Font.Medium
                         }
                         Text {
                             text: Weather.condition + (Weather.city.length ? "  ·  " + Weather.city : "")
-                            color: Theme.dim
-                            font.family: Theme.font
+                            color: Theme.onSurfaceVariant
+                            font.family: Theme.fontPrimary
                             font.pixelSize: 11 * root.s
                         }
                     }
@@ -439,7 +439,7 @@ Item {
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: Weather.hourly[hcell.index].hour
-                                        color: Theme.faint
+                                        color: Theme.onSurfaceVariant
                                         font.family: Theme.mono
                                         font.pixelSize: 8.5 * root.s
                                     }
@@ -448,13 +448,13 @@ Item {
                                         width: 18 * root.s
                                         height: 18 * root.s
                                         name: Wx.glyphFor(Weather.hourly[hcell.index].code)
-                                        color: Theme.subtle
+                                        color: Theme.onSurfaceVariant
                                         stroke: 1.5
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: Weather.hourly[hcell.index].temp + "\u00b0"
-                                        color: Theme.cream
+                                        color: Theme.onSurface
                                         font.family: Theme.mono
                                         font.pixelSize: 10 * root.s
                                         font.weight: Font.DemiBold
@@ -481,8 +481,8 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 46 * root.s
                                 text: Weather.daily[dcell.index].day
-                                color: Theme.cream
-                                font.family: Theme.font
+                                color: Theme.onSurface
+                                font.family: Theme.fontPrimary
                                 font.pixelSize: 11 * root.s
                             }
                             GlyphIcon {
@@ -490,14 +490,14 @@ Item {
                                 width: 16 * root.s
                                 height: 16 * root.s
                                 name: Wx.glyphFor(Weather.daily[dcell.index].code)
-                                color: Theme.subtle
+                                color: Theme.onSurfaceVariant
                                 stroke: 1.5
                             }
                             Text {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: Weather.daily[dcell.index].hi + "\u00b0  " + Weather.daily[dcell.index].lo + "\u00b0"
-                                color: Theme.dim
+                                color: Theme.onSurfaceVariant
                                 font.family: Theme.mono
                                 font.pixelSize: 10 * root.s
                             }

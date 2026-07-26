@@ -69,12 +69,32 @@ Item {
         for (const a in mon) if (mon[a]) return true;
         return false;
     }
-    readonly property bool modal: {
+    // A Ryoku surface (sidebar, power, keyring, plugin) is open. These keep
+    // Ryoku's outside-click dismissal and take keyboard; the reference frame
+    // menus deliberately do not (contract 05 sec 4). The passive voice toast is
+    // never modal.
+    readonly property bool surfaceModal: {
         const mon = menuState[monitorName];
         if (!mon) return false;
         for (const anchor in mon)
-            if (mon[anchor] && mon[anchor].id !== "voice") return true;
+            if (mon[anchor] && mon[anchor].kind && mon[anchor].kind !== "menu" && mon[anchor].id !== "voice") return true;
         return false;
+    }
+    // Keyboard focus the frame raises while something is open (contract 05 sec
+    // 4): Exclusive for the launcher and the screenshare picker, OnDemand for
+    // the wallpaper menu, None for every pointer-only menu. Ryoku's own modal
+    // surfaces take Exclusive like the launcher; the voice toast takes none.
+    readonly property string keyboardMode: {
+        const mon = menuState[monitorName];
+        if (!mon) return "none";
+        for (const anchor in mon) {
+            const rec = mon[anchor];
+            if (!rec) continue;
+            if (rec.id === "launcher" || rec.id === "screenshare") return "exclusive";
+            if (rec.id === "wallpaper") return "ondemand";
+            if (rec.kind && rec.kind !== "menu" && rec.id !== "voice") return "exclusive";
+        }
+        return "none";
     }
 
     // per-anchor trigger (owner) and body (Popout) mask rects, in window
@@ -123,6 +143,22 @@ Item {
         return rec && rec.along !== undefined ? rec.along : -1;
     }
 
+    // Single-open invariant (contract 05 sec 4): before revealing a menu or
+    // surface, close every other open one on this monitor, so at most one is
+    // ever shown per frame. Daemon-lifecycle toasts (voice, keyring) are exempt
+    // and are neither closed here nor closed by opening a menu.
+    function closeOtherUsers(state, keepId) {
+        const mon = state[root.monitorName];
+        if (!mon) return state;
+        let next = state;
+        for (const anchor in mon) {
+            const rec = mon[anchor];
+            if (!rec || rec.id === keepId || rec.id === "voice" || rec.id === "keyring") continue;
+            root.surfaceClosed(rec.id, rec);
+            next = MenuState.closeAt(next, root.monitorName, anchor);
+        }
+        return next;
+    }
     function openSurface(id, ownerRect, requestedMonitor, context) {
         if (requestedMonitor !== undefined && requestedMonitor !== "" && requestedMonitor !== root.monitorName) return;
         const voiceOff = id === "voice-off";
@@ -153,9 +189,9 @@ Item {
         const horiz = rec.anchor.indexOf("top") === 0 || rec.anchor.indexOf("bottom") === 0;
         const along = horiz ? local.x + ownerRect.width / 2 : local.y + ownerRect.height / 2;
         const trigger = { x: local.x, y: local.y, width: ownerRect.width, height: ownerRect.height };
-        const previous = MenuState.activeAt(root.menuState, root.monitorName, rec.anchor);
-        if (previous && previous.id !== surfaceID) root.surfaceClosed(previous.id, previous);
-        root.menuState = MenuState.open(root.menuState, root.monitorName,
+        const daemon = surfaceID === "keyring" || surfaceID === "voice";
+        const base = daemon ? root.menuState : root.closeOtherUsers(root.menuState, surfaceID);
+        root.menuState = MenuState.open(base, root.monitorName,
             Object.assign({}, rec, { id: surfaceID, anchor: rec.anchor, along: along, trigger: trigger,
                 off: voiceOff, promptId: surfaceID === "keyring" && context ? context.promptId : undefined }));
     }
@@ -172,11 +208,10 @@ Item {
             root.closeAt("top");
             return;
         }
-        const previous = MenuState.activeAt(root.menuState, root.monitorName, "top");
-        if (previous) root.surfaceClosed(previous.id, previous);
-        const rec = { id: id, anchor: "top", along: root.width / 2,
+        const base = root.closeOtherUsers(root.menuState, id);
+        const rec = { id: id, kind: "plugin", anchor: "top", along: root.width / 2,
             trigger: { x: root.width / 2, y: root.height / 2, width: 1, height: 1 } };
-        root.menuState = MenuState.open(root.menuState, root.monitorName, rec);
+        root.menuState = MenuState.open(base, root.monitorName, rec);
     }
     function closeSurface(id, requestedMonitor) {
         if (requestedMonitor !== undefined && requestedMonitor !== "" && requestedMonitor !== root.monitorName) return;

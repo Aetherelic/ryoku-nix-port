@@ -47,6 +47,47 @@ ShellRoot {
         root.actionRequested(id);
     }
 
+    // --- Frame reservation model (contracts 01 and 02) ---------------------
+    // The single ryoku-frame overlay hosts every bar and menu as content. Four
+    // ryoku-frame-edge background surfaces reserve screen space, one per edge,
+    // so tiled windows clear the revealed bars. Reserve = the bar's thickness
+    // (its widgets' fixed band, or a 1px collapsed strip when the bar is empty)
+    // plus the frame border. A hidden bar reserves nothing and releases its
+    // edge; hover reveals a hidden bar inside the frame without re-reserving.
+    readonly property real frameBorderPx: Theme.borderWidth
+    property var edgeRevealed: ({ top: false, bottom: false, left: false, right: false })
+    function railHasWidgets(rail, edge) {
+        if (!rail)
+            return false;
+        const zs = (edge === "top" || edge === "bottom") ? ["start", "center", "end"] : ["top", "center", "bottom"];
+        for (let i = 0; i < zs.length; ++i)
+            if (Array.isArray(rail[zs[i]]) && rail[zs[i]].length > 0)
+                return true;
+        return false;
+    }
+    function edgeReserve(edge) {
+        const rail = Config.normalizedFrameBars.rails[edge];
+        if (!rail || !root.edgeRevealed[edge])
+            return 0;
+        return (root.railHasWidgets(rail, edge) ? rail.size : 1) + root.frameBorderPx;
+    }
+    // CLI/daemon bar control (ryoku-shell bar <edge|all> <toggle|reveal|hide>).
+    // A hidden bar drops its edge reserve; the frame overlay stays mapped.
+    function setBar(edge, action) {
+        const edges = edge === "all" ? ["top", "bottom", "left", "right"] : [edge];
+        const next = Object.assign({}, root.edgeRevealed);
+        for (let i = 0; i < edges.length; ++i) {
+            const e = edges[i];
+            if (next[e] === undefined)
+                continue;
+            next[e] = action === "toggle" ? !next[e]
+                : action === "reveal" ? true
+                : action === "hide" ? false
+                : next[e];
+        }
+        root.edgeRevealed = next;
+    }
+
 
     function refresh() {
         Hyprland.refreshMonitors();
@@ -85,7 +126,7 @@ ShellRoot {
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Background
-        WlrLayershell.namespace: "pill-inhibit"
+        WlrLayershell.namespace: "ryoku-frame-inhibit"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         anchors { top: true; left: true }
         IdleInhibitor { window: inhibitWin; enabled: Flags.keepAwake }
@@ -109,7 +150,7 @@ ShellRoot {
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.namespace: "pill-kbbounce"
+        WlrLayershell.namespace: "ryoku-frame-kbfocus"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         anchors { top: true; left: true }
     }
@@ -222,6 +263,8 @@ ShellRoot {
         function voiceHide(): void { root.surfaceCloseRequested("voice", ""); }
         function pluginPopout(mon: string, id: string): void { root.requestSurface("plugin:" + id, mon); }
         function bar(mon: string, id: string): void { root.requestSurface(id, mon); }
+        function closeAllMenus(mon: string): void { root.surfaceCloseRequested("", mon); }
+        function setBar(mon: string, edge: string, action: string): void { root.setBar(edge, action); }
     }
 
     // The daemon writes surface commands to this socket to toggle pill surfaces
@@ -253,6 +296,10 @@ ShellRoot {
             root.surfaceCloseRequested("voice", mon); return true;
         case "bar":
             root.requestSurface(id, mon); return true;
+        case "closeAllMenus":
+            root.surfaceCloseRequested("", mon); return true;
+        case "setBar":
+            root.setBar(id, parts.length > 3 ? parts[3] : ""); return true;
         default:
             return false;
         }
@@ -269,87 +316,77 @@ ShellRoot {
         }
     }
 
-    Variants {
-        model: Quickshell.screens
-
-        PanelWindow {
-            required property var modelData
-            readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property var rail: Config.normalizedFrameBars.rails.top
-            readonly property real zone: RailGeometry.reserve("top", Math.max(0, Config.effectiveFrameBorder - 50), rail.size * s, rail.enabled)
-
-            screen: modelData
-            visible: rail.enabled
-            color: "transparent"
-            exclusionMode: ExclusionMode.Normal
-            exclusiveZone: zone
-            aboveWindows: true
-            anchors { top: true; left: true; right: true }
-            implicitHeight: zone
-            mask: Region {}
+    // Bars configured reveal-by-default slide in 1000 ms after startup
+    // (contract 02 sec 3); until then every edge is collapsed and reserves
+    // nothing. reduce->0 makes the reveal instant.
+    Timer {
+        interval: Motion.startupReveal
+        running: true
+        repeat: false
+        onTriggered: {
+            const rails = Config.normalizedFrameBars.rails;
+            const next = ({ top: false, bottom: false, left: false, right: false });
+            for (const e in next)
+                next[e] = !!(rails[e] && rails[e].reveal);
+            root.edgeRevealed = next;
         }
     }
 
-    Variants {
-        model: Quickshell.screens
-
-        PanelWindow {
-            required property var modelData
-            readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property var rail: Config.normalizedFrameBars.rails.left
-            readonly property real zone: RailGeometry.reserve("left", Math.max(0, Config.effectiveFrameBorder - 50), rail.size * s, rail.enabled)
-
-            screen: modelData
-            visible: rail.enabled
-            color: "transparent"
-            exclusionMode: ExclusionMode.Normal
-            exclusiveZone: zone
-            aboveWindows: true
-            anchors { top: true; bottom: true; left: true }
-            implicitWidth: zone
-            mask: Region {}
-        }
+    // ryoku-frame-root: a 1x1 background anchor pinned to the frame's inner
+    // corner (it reserves nothing, so the edge reservations push it inward). It
+    // draws nothing and takes no input; it mirrors the reference's hidden root
+    // that holds shared state, kept so the layer topology matches.
+    PanelWindow {
+        color: "transparent"
+        implicitWidth: 1
+        implicitHeight: 1
+        exclusionMode: ExclusionMode.Normal
+        exclusiveZone: 0
+        WlrLayershell.layer: WlrLayer.Background
+        WlrLayershell.namespace: "ryoku-frame-root"
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        anchors { top: true; left: true }
+        mask: Region {}
     }
 
+    // Four ryoku-frame-edge background surfaces, one per edge per screen. They
+    // reserve screen space equal to the revealed bar's thickness plus the frame
+    // border and take no input; the bars and menus are drawn in the overlay
+    // below. A hidden bar reserves nothing, releasing its edge.
     Variants {
         model: Quickshell.screens
-
-        PanelWindow {
+        FrameEdge {
             required property var modelData
-            readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property var rail: Config.normalizedFrameBars.rails.bottom
-            readonly property real zone: RailGeometry.reserve("bottom", Math.max(0, Config.effectiveFrameBorder - 50), rail.size * s, rail.enabled)
-
+            edge: "top"
             screen: modelData
-            visible: rail.enabled
-            color: "transparent"
-            exclusionMode: ExclusionMode.Normal
-            exclusiveZone: zone
-            aboveWindows: true
-            anchors { bottom: true; left: true; right: true }
-            implicitHeight: zone
-            mask: Region {}
+            reserve: root.edgeReserve("top")
         }
     }
-
     Variants {
         model: Quickshell.screens
-
-        PanelWindow {
+        FrameEdge {
             required property var modelData
-            readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property var rail: Config.normalizedFrameBars.rails.right
-            readonly property real zone: RailGeometry.reserve("right", Math.max(0, Config.effectiveFrameBorder - 50), rail.size * s, rail.enabled)
-
+            edge: "bottom"
             screen: modelData
-            visible: rail.enabled
-            color: "transparent"
-            exclusionMode: ExclusionMode.Normal
-            exclusiveZone: zone
-            aboveWindows: true
-            anchors { top: true; bottom: true; right: true }
-            implicitWidth: zone
-            mask: Region {}
+            reserve: root.edgeReserve("bottom")
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        FrameEdge {
+            required property var modelData
+            edge: "left"
+            screen: modelData
+            reserve: root.edgeReserve("left")
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        FrameEdge {
+            required property var modelData
+            edge: "right"
+            screen: modelData
+            reserve: root.edgeReserve("right")
         }
     }
 
@@ -366,7 +403,7 @@ ShellRoot {
             // shadows a same-named property in this scope, which once left every
             // rail rect at zero and swallowed all bar input.
             readonly property var rails: overlay.frameBars.rails
-            readonly property real frameLip: Math.max(0, Config.effectiveFrameBorder - 50)
+            readonly property real frameLip: root.frameBorderPx
             readonly property real sidebarTopGap: railClearance("top") + 14 * s
             readonly property real sidebarBotGap: railClearance("bottom") + 14 * s
             readonly property var topRailRect: RailGeometry.edgeRect("top", railThickness("top"), width, height)
@@ -374,15 +411,14 @@ ShellRoot {
             readonly property var bottomRailRect: RailGeometry.edgeRect("bottom", railThickness("bottom"), width, height)
             readonly property var rightRailRect: RailGeometry.edgeRect("right", railThickness("right"), width, height)
             function railRecord(edge) { return rails[edge] || ({ size: 0, enabled: false }); }
-            function railThickness(edge) { return railRecord(edge).size * s; }
+            function railThickness(edge) { return Math.max(0, root.edgeReserve(edge) - root.frameBorderPx); }
             function railEnabled(edge) { return railRecord(edge).enabled === true; }
             function railClearance(edge) {
-                return railEnabled(edge)
-                    ? RailGeometry.reserve(edge, frameLip, railThickness(edge), true)
-                    : frameLip;
+                const reserve = root.edgeReserve(edge);
+                return reserve > 0 ? reserve : frameLip;
             }
 
-            readonly property bool modal: frameMenus.modal
+            readonly property bool surfaceModal: frameMenus.surfaceModal
 
             // true when this monitor's visible workspace holds a fullscreen
             // window. Fullscreen owns the id -> fullscreen map (hyprctl-backed,
@@ -400,9 +436,11 @@ ShellRoot {
             screen: modelData
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: modal ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-            WlrLayershell.namespace: "pill"
+            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.keyboardFocus: frameMenus.keyboardMode === "exclusive" ? WlrKeyboardFocus.Exclusive
+                : frameMenus.keyboardMode === "ondemand" ? WlrKeyboardFocus.OnDemand
+                : WlrKeyboardFocus.None
+            WlrLayershell.namespace: "ryoku-frame"
 
             anchors { top: true; left: true; right: true; bottom: true }
 
@@ -411,7 +449,7 @@ ShellRoot {
             // mid-drag; losing the region there kills the grab and the island
             // snaps home while the button is still held.
             mask: monFullscreen ? hiddenRegion
-                : ((modal || recHud.dragging) ? fullRegion : railRegion)
+                : ((surfaceModal || recHud.dragging) ? fullRegion : railRegion)
 
             function inRail(x, y) {
                 const edges = ["top", "left", "bottom", "right"];
@@ -436,6 +474,13 @@ ShellRoot {
                 Region { x: overlay.leftRailRect.x; y: overlay.leftRailRect.y; width: overlay.railEnabled("left") ? overlay.leftRailRect.width : 0; height: overlay.railEnabled("left") ? overlay.leftRailRect.height : 0 }
                 Region { x: overlay.bottomRailRect.x; y: overlay.bottomRailRect.y; width: overlay.railEnabled("bottom") ? overlay.bottomRailRect.width : 0; height: overlay.railEnabled("bottom") ? overlay.bottomRailRect.height : 0 }
                 Region { x: overlay.rightRailRect.x; y: overlay.rightRailRect.y; width: overlay.railEnabled("right") ? overlay.rightRailRect.width : 0; height: overlay.railEnabled("right") ? overlay.rightRailRect.height : 0 }
+                // 1px hover strips at each screen edge, always exposed so a
+                // hidden bar (reserve released, band mask gone) can still be
+                // revealed by pointer proximity (contract 02 sec 4).
+                Region { x: 0; y: 0; width: overlay.railEnabled("top") ? overlay.width : 0; height: overlay.railEnabled("top") ? 1 : 0 }
+                Region { x: 0; y: overlay.height - 1; width: overlay.railEnabled("bottom") ? overlay.width : 0; height: overlay.railEnabled("bottom") ? 1 : 0 }
+                Region { x: 0; y: 0; width: overlay.railEnabled("left") ? 1 : 0; height: overlay.railEnabled("left") ? overlay.height : 0 }
+                Region { x: overlay.width - 1; y: 0; width: overlay.railEnabled("right") ? 1 : 0; height: overlay.railEnabled("right") ? overlay.height : 0 }
                 // frame menus: each open menu unions its trigger (owner) and body
                 // rects so the click target and the open body keep catching input;
                 // idle anchors stay zero-size and click through.
@@ -461,7 +506,7 @@ ShellRoot {
 
             MouseArea {
                 anchors.fill: parent
-                enabled: overlay.modal
+                enabled: overlay.surfaceModal
                 acceptedButtons: Qt.AllButtons
                 onPressed: mouse => {
                     if (!overlay.inRail(mouse.x, mouse.y)) frameMenus.closeAll();
@@ -473,92 +518,35 @@ ShellRoot {
                 anchors.fill: parent
                 focus: frameMenus.anyOpen
                 visible: !overlay.monFullscreen
-                Keys.onEscapePressed: frameMenus.closeAll()
-
-                // Ryoku brand grain: one fine matte over the whole overlay -- the
-                // frame, the bar, every popout, and (through the transparent body)
-                // the apps behind it. Topmost so it reads on every surface; an
-                // Image carries no input, so clicks still reach the chrome and the
-                // windows below. Hidden on fullscreen with the rest of the scope.
-                Item {
-                    id: grainLayer
-                    anchors.fill: parent
-                    z: 10000
-                    readonly property var monObj: {
-                        var ms = Hyprland.monitors.values;
-                        for (var i = 0; i < ms.length; i++)
-                            if (ms[i] && ms[i].name === overlay.modelData.name)
-                                return ms[i].lastIpcObject;
-                        return null;
-                    }
-                    readonly property real monX: (monObj && typeof monObj.x === "number") ? monObj.x : 0
-                    readonly property real monY: (monObj && typeof monObj.y === "number") ? monObj.y : 0
-                    // the ryoku apps carry their own grain; cut their windows out
-                    // of this overlay so they are never doubled (matched by title).
-                    readonly property var holes: {
-                        var out = [];
-                        var tl = Hyprland.toplevels.values;
-                        for (var i = 0; i < tl.length; i++) {
-                            var o = tl[i] && tl[i].lastIpcObject;
-                            if (!o || !o.at || !o.size || o.mapped === false) continue;
-                            if (["ryovm", "ryowalls", "Ryoku Settings"].indexOf(o.title) < 0) continue;
-                            out.push({ hx: o.at[0] - grainLayer.monX, hy: o.at[1] - grainLayer.monY, hw: o.size[0], hh: o.size[1] });
-                        }
-                        return out;
-                    }
-                    Grain { id: grainSrc; anchors.fill: parent; opacity: 1; visible: false }
-                    Item {
-                        id: grainMask
-                        anchors.fill: parent
-                        visible: false
-                        layer.enabled: true
-                        Repeater {
-                            model: grainLayer.holes
-                            Rectangle {
-                                x: modelData.hx; y: modelData.hy
-                                width: modelData.hw; height: modelData.hh
-                                color: "white"
-                            }
-                        }
-                    }
-                    MultiEffect {
-                        anchors.fill: parent
-                        source: grainSrc
-                        opacity: Config.grainStrength
-                        maskEnabled: grainLayer.holes.length > 0
-                        maskSource: grainMask
-                        maskThresholdMin: 0.5
-                        maskInverted: true
-                    }
-                }
+                Keys.onEscapePressed: if (frameMenus.keyboardMode === "exclusive") frameMenus.closeAll()
 
                 // frame and pill share one blob field, so the pill reads
                 // as the frame swelling open at top-centre, not a bar on top.
                 BlobGroup {
                     id: blobGroup
-                    color: Theme.frameRailSurface
-                    borderColor: Theme.frameRailOutline
-                    borderWidth: Theme.frameRailOutlineWidth
+                    color: Theme.surface
+                    borderColor: Theme.outline
+                    borderWidth: Theme.borderWidth
                     smoothing: Config.frameSmoothing
                     shadowStrength: Config.shadowStrength
                     shadowSize: Config.shadowSize
                 }
 
                 BlobInvertedRect {
-                    // rounded screen border, sits in Hyprland's gaps_out
-                    // ring. oversized 50px so the outer edge clips
-                    // off-screen and only the inner (window) edge shows;
-                    // borders grow to keep the hole at gaps_out.
+                    // The painted frame band: one continuous inverted-rect over
+                    // the whole surface, per-edge thickness = that edge's reserve
+                    // (bar band + border), inner corners rounded at radiusWindow.
+                    // Menus notch inward by growing a body into the same blob
+                    // field. This is the single paint pass of contract 01 sec 2b.
                     anchors.fill: parent
-                    anchors.margins: -50
                     group: blobGroup
-                    radius: Config.frameEnabled ? Config.frameRadius : 0
-                    borderTop: Config.effectiveFrameBorder
-                    borderBottom: Config.effectiveFrameBorder
-                    borderLeft: Config.effectiveFrameBorder
-                    borderRight: Config.effectiveFrameBorder
-                    opacity: Config.frameOpacity
-                    visible: !overlay.monFullscreen
+                    radius: Theme.radiusWindow
+                    borderTop: root.edgeReserve("top")
+                    borderBottom: root.edgeReserve("bottom")
+                    borderLeft: root.edgeReserve("left")
+                    borderRight: root.edgeReserve("right")
+                    opacity: Theme.windowOpacity
+                    visible: !overlay.monFullscreen && Config.frameEnabled
                 }
 
 
@@ -567,7 +555,10 @@ ShellRoot {
                     anchors.fill: parent
                     z: 1
                     visible: !overlay.monFullscreen
-                    railScale: overlay.s
+                    // Fixed reference px: the frame does not scale with the
+                    // monitor or fontScale, so the bar band matches the reserve.
+                    railScale: 1
+                    revealState: root.edgeRevealed
                     frameBars: overlay.frameBars
                     style: ({ group: blobGroup })
                     onMenuRequested: (id, ownerRect) => root.menuRequested(id, ownerRect)

@@ -188,8 +188,6 @@ ShellRoot {
             WlrLayershell.keyboardFocus: (shown && isFocused) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
             anchors { top: true; bottom: true; left: true; right: true }
 
-            Grain { anchors.fill: parent; z: 10000; opacity: board.opacity * Tokens.grainOpacity }
-
             Timer { id: closing; interval: Motion.windowOut; repeat: false }
             onShownChanged: if (!shown) closing.restart()
 

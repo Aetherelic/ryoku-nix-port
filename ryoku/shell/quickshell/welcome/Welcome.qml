@@ -8,8 +8,8 @@ import "Singletons"
 // The first-run walkthrough: a five-step guided tour over the threshold art.
 // Left half is the constant chrome (brand lockup, progress) laid over the art;
 // the right half carries the current step (header + body) and the tour navigation.
-// Paper and ink throughout: the scrims are the paper flooding over the art, the
-// grain is the matte, and the only accent is the 力 mark and the art's own sun.
+// Paper and ink throughout: the scrims are the paper flooding over the art,
+// and the only accent is the 力 mark and the art's own sun.
 // Shown once on first login (autostart guards a state flag), and dismissible any
 // time (Escape / Skip / close) -- the daemon marks it seen after this window exits.
 Rectangle {
@@ -313,7 +313,4 @@ Rectangle {
     }
     onStepChanged: reveal.restart()
     Component.onCompleted: reveal.restart()
-
-    // the matte: one grain layer, topmost over everything.
-    Grain { anchors.fill: parent }
 }

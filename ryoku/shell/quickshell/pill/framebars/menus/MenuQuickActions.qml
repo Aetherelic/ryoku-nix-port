@@ -113,10 +113,10 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: 40 * root.s
                     height: 40 * root.s
-                    radius: Theme.radius
-                    color: cell.on ? Theme.brand : (cHov.hovered ? Theme.frameBg : Theme.tileBg)
+                    radius: Theme.radiusWidget
+                    color: cell.on ? Theme.primary : (cHov.hovered ? Theme.frameBg : Theme.surfaceContainerHigh)
                     border.width: 1
-                    border.color: cell.on ? Theme.brand : (cHov.hovered ? Theme.frameBorder : Theme.border)
+                    border.color: cell.on ? Theme.primary : (cHov.hovered ? Theme.frameBorder : Theme.outline)
                     Behavior on color { ColorAnimation { duration: Motion.fast } }
                     Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
@@ -125,7 +125,7 @@ Item {
                         width: 16 * root.s
                         height: 16 * root.s
                         name: root.meta[cell.modelData]
-                        color: cell.on ? Theme.onAccent : (cHov.hovered ? Theme.cream : Theme.iconDim)
+                        color: cell.on ? Theme.onPrimary : (cHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant)
                         stroke: 1.6
                     }
 
@@ -141,8 +141,8 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     text: root.label(cell.modelData)
                     elide: Text.ElideRight
-                    color: cell.on ? Theme.brand : Theme.subtle
-                    font.family: Theme.font
+                    color: cell.on ? Theme.primary : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 8 * root.s
                 }
 

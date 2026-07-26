@@ -59,7 +59,7 @@ PanelWindow {
         color: Config.matchWallpaper ? Wallust.surface : Config.surfaceColor
         opacity: Config.osdOpacity
         border.width: 1.5
-        border.color: Wallust.border
+        border.color: Wallust.outline
         antialiasing: true
     }
 

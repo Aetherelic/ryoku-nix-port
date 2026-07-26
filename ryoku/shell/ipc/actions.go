@@ -22,9 +22,9 @@ var frameBarMenuIDs = map[string]bool{
 	"weather": true, "media": true, "stash": true, "system": true,
 }
 
-func barMenuID(cmd string) (string, bool) {
+func menuID(cmd string) (string, bool) {
 	fields := strings.Fields(cmd)
-	if len(fields) != 2 || fields[0] != "bar" || !frameBarMenuIDs[fields[1]] {
+	if len(fields) != 2 || fields[0] != "menu" || !frameBarMenuIDs[fields[1]] {
 		return "", false
 	}
 	return fields[1], true

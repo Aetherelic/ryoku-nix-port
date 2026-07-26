@@ -8,7 +8,7 @@ ShellRoot {
     readonly property real monitorScale: 1.3
     readonly property real frameLip: 9
     readonly property var frameBars: ({
-        style: "ok-frame",
+        style: "slate-frame",
         rails: {
             top: { enabled: true, size: 32, start: ["lock"], center: ["clock"], end: [] },
             left: { enabled: true, size: 48, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["tray", "network", "clock"] },

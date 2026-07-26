@@ -28,7 +28,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         text: qsTr("Clipboard history")
-        color: Theme.bright
+        color: Theme.onSurface
         font.family: Theme.display
         font.pixelSize: 18 * root.s
     }
@@ -52,8 +52,8 @@ Item {
 
                 width: list.width
                 height: labelText.implicitHeight + 12 * root.s
-                radius: Theme.radius
-                color: mouse.containsMouse ? Theme.frameBg : Theme.tileBg
+                radius: Theme.radiusWidget
+                color: mouse.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh
 
                 Text {
                     id: labelText
@@ -64,8 +64,8 @@ Item {
                         margins: 6 * root.s
                     }
                     text: model.label
-                    color: Theme.bright
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11 * root.s
                     elide: Text.ElideRight
                 }
@@ -87,8 +87,8 @@ Item {
             visible: root.open && history.count === 0 && !cliphist.running
             width: list.width
             text: qsTr("No clipboard history")
-            color: Theme.dim
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 11 * root.s
         }
     }

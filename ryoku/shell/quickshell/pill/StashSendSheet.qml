@@ -34,7 +34,7 @@ Rectangle {
     property string pickAlias: ""
 
     radius: Motion.rTile * s
-    color: Qt.alpha(Theme.cardTop, 0.98)
+    color: Qt.alpha(Theme.surfaceContainer, 0.98)
     visible: active
 
     onActiveChanged: if (!active) { root.pickIp = ""; root.pickAlias = ""; }
@@ -96,15 +96,15 @@ Rectangle {
 
                 Text {
                     text: root.sending ? "Sending" : root.scanning ? "Scanning" : "Send to"
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11 * root.s
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: root.subject
-                    color: Theme.dim
-                    font.family: Theme.font
+                    color: Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 8.5 * root.s
                     font.weight: Font.Medium
                     elide: Text.ElideRight
@@ -130,7 +130,7 @@ Rectangle {
                 anchors.centerIn: parent
                 width: 12 * root.s; height: 12 * root.s
                 name: "scan"
-                color: rescanHeadArea.containsMouse ? Theme.cream : Theme.iconDim
+                color: rescanHeadArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                 stroke: 1.7
             }
             MouseArea {
@@ -155,9 +155,9 @@ Rectangle {
         visible: root.isText
         height: visible ? 64 * root.s : 0
         radius: Motion.rSmall * root.s
-        color: Theme.tileBg
+        color: Theme.surfaceContainerHigh
         border.width: 1
-        border.color: field.activeFocus ? Theme.frameBorder : Theme.border
+        border.color: field.activeFocus ? Theme.frameBorder : Theme.outline
         Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
         Flickable {
@@ -170,8 +170,8 @@ Rectangle {
                 id: field
                 width: parent.width
                 text: Stash.composeText
-                color: Theme.bright
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 11 * root.s
                 wrapMode: TextEdit.Wrap
                 selectByMouse: true
@@ -190,7 +190,7 @@ Rectangle {
                     anchors.fill: parent
                     visible: field.text.length === 0
                     text: "Type or paste a note to send…"
-                    color: Theme.faint
+                    color: Theme.onSurfaceVariant
                     font: field.font
                     wrapMode: Text.Wrap
                 }
@@ -205,9 +205,9 @@ Rectangle {
             width: pasteRow.implicitWidth + 14 * root.s
             height: 18 * root.s
             radius: height / 2
-            color: pasteArea.containsMouse ? Theme.frameBg : Qt.alpha(Theme.cardBot, 0.85)
+            color: pasteArea.containsMouse ? Theme.frameBg : Qt.alpha(Theme.surfaceContainerLow, 0.85)
             border.width: 1
-            border.color: pasteArea.containsMouse ? Theme.frameBorder : Theme.border
+            border.color: pasteArea.containsMouse ? Theme.frameBorder : Theme.outline
             Behavior on color { ColorAnimation { duration: Motion.fast } }
 
             Row {
@@ -218,14 +218,14 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 10 * root.s; height: 10 * root.s
                     name: "clipboard"
-                    color: pasteArea.containsMouse ? Theme.cream : Theme.iconDim
+                    color: pasteArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                     stroke: 1.6
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Paste"
-                    color: pasteArea.containsMouse ? Theme.cream : Theme.subtle
-                    font.family: Theme.font
+                    color: pasteArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 8.5 * root.s
                     font.weight: Font.DemiBold
                 }
@@ -264,9 +264,9 @@ Rectangle {
             width: ListView.view.width
             height: 38 * root.s
             radius: Motion.rSmall * root.s
-            color: drowArea.containsMouse && root.canPick ? Theme.frameBg : Theme.tileBg
+            color: drowArea.containsMouse && root.canPick ? Theme.frameBg : Theme.surfaceContainerHigh
             border.width: 1
-            border.color: drowArea.containsMouse && root.canPick ? Theme.frameBorder : Theme.border
+            border.color: drowArea.containsMouse && root.canPick ? Theme.frameBorder : Theme.outline
 
             Behavior on color { ColorAnimation { duration: Motion.fast } }
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
@@ -278,7 +278,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 16 * root.s; height: 16 * root.s
                 name: "hotspot"
-                color: drowArea.containsMouse && root.canPick ? Theme.flameGlow : Theme.iconDim
+                color: drowArea.containsMouse && root.canPick ? Theme.flameGlow : Theme.onSurfaceVariant
                 stroke: 1.6
             }
 
@@ -293,8 +293,8 @@ Rectangle {
                 Text {
                     width: parent.width
                     text: drow.model.alias
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11 * root.s
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
@@ -304,8 +304,8 @@ Rectangle {
                 Text {
                     width: parent.width
                     text: drow.model.ip
-                    color: Theme.subtle
-                    font.family: Theme.font
+                    color: Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 9 * root.s
                     elide: Text.ElideRight
                     maximumLineCount: 1
@@ -320,7 +320,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 12 * root.s; height: 12 * root.s
                 name: "chevron-right"
-                color: Theme.iconDim
+                color: Theme.onSurfaceVariant
                 stroke: 1.7
                 opacity: drowArea.containsMouse && root.canPick ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: Motion.fast } }
@@ -346,8 +346,8 @@ Rectangle {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.scanning ? "Looking for devices…" : "No devices found"
-            color: Theme.faint
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 10.5 * root.s
             font.weight: Font.Medium
         }
@@ -356,7 +356,7 @@ Rectangle {
             visible: !root.scanning
             text: "Open LocalSend on the other device"
             color: Theme.ghost
-            font.family: Theme.font
+            font.family: Theme.fontPrimary
             font.pixelSize: 9 * root.s
         }
 
@@ -368,9 +368,9 @@ Rectangle {
             width: rescanRow.implicitWidth + 26 * root.s
             height: 28 * root.s
             radius: Motion.rSmall * root.s
-            color: rescanArea.containsMouse ? Theme.frameBg : Theme.tileBg
+            color: rescanArea.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh
             border.width: 1
-            border.color: rescanArea.containsMouse ? Theme.frameBorder : Theme.border
+            border.color: rescanArea.containsMouse ? Theme.frameBorder : Theme.outline
             Behavior on color { ColorAnimation { duration: Motion.fast } }
 
             Row {
@@ -381,14 +381,14 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 12 * root.s; height: 12 * root.s
                     name: "scan"
-                    color: rescanArea.containsMouse ? Theme.cream : Theme.iconDim
+                    color: rescanArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                     stroke: 1.7
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Scan again"
-                    color: rescanArea.containsMouse ? Theme.cream : Theme.subtle
-                    font.family: Theme.font
+                    color: rescanArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 10 * root.s
                     font.weight: Font.DemiBold
                 }
@@ -407,7 +407,7 @@ Rectangle {
     Rectangle {
         anchors.fill: parent
         radius: Motion.rTile * root.s
-        color: Qt.alpha(Theme.cardBot, 0.6)
+        color: Qt.alpha(Theme.surfaceContainerLow, 0.6)
         visible: root.pickIp !== "" && !root.sending
         MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: { root.pickIp = ""; root.pickAlias = ""; } }
 
@@ -416,9 +416,9 @@ Rectangle {
             width: parent.width - 40 * root.s
             height: confirmCol.implicitHeight + 28 * root.s
             radius: Motion.rTile * root.s
-            color: Theme.cardTop
+            color: Theme.surfaceContainer
             border.width: 1
-            border.color: Theme.border
+            border.color: Theme.outline
             MouseArea { anchors.fill: parent; hoverEnabled: true }
 
             Column {
@@ -430,8 +430,8 @@ Rectangle {
                 Text {
                     width: parent.width
                     text: "Send " + root.subject + " to " + root.pickAlias + "?"
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11.5 * root.s
                     font.weight: Font.DemiBold
                     horizontalAlignment: Text.AlignHCenter
@@ -449,13 +449,13 @@ Rectangle {
                         radius: Motion.rSmall * root.s
                         color: cancelArea.containsMouse ? Theme.frameBg : "transparent"
                         border.width: 1
-                        border.color: Theme.border
+                        border.color: Theme.outline
                         Behavior on color { ColorAnimation { duration: Motion.fast } }
                         Text {
                             anchors.centerIn: parent
                             text: "Cancel"
-                            color: cancelArea.containsMouse ? Theme.cream : Theme.subtle
-                            font.family: Theme.font
+                            color: cancelArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                            font.family: Theme.fontPrimary
                             font.pixelSize: 10.5 * root.s
                             font.weight: Font.DemiBold
                         }
@@ -483,14 +483,14 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 12 * root.s; height: 12 * root.s
                                 name: "send"
-                                color: sendOkArea.containsMouse ? Theme.cardBot : Theme.flameGlow
+                                color: sendOkArea.containsMouse ? Theme.surfaceContainerLow : Theme.flameGlow
                                 stroke: 1.7
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "Send"
-                                color: sendOkArea.containsMouse ? Theme.cardBot : Theme.flameCore
-                                font.family: Theme.font
+                                color: sendOkArea.containsMouse ? Theme.surfaceContainerLow : Theme.flameCore
+                                font.family: Theme.fontPrimary
                                 font.pixelSize: 10.5 * root.s
                                 font.weight: Font.DemiBold
                             }

@@ -95,7 +95,7 @@ QtObject {
 
     function style(id) {
         switch (id) {
-        case "ok-frame": return qsTr("OK Frame")
+        case "slate-frame": return qsTr("Slate Frame")
         case "ryoku-frame": return qsTr("Ryoku Frame")
         default: return qsTr("Unknown")
         }

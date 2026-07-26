@@ -39,7 +39,7 @@ const normalized = normalize({
     dock: { pinned: ["firefox", 4] },
     arbitrary: true
 }, BarCatalog, MenuCatalog);
-eq(normalized.style, "ok-frame", "normalizer resets invalid style");
+eq(normalized.style, "slate-frame", "normalizer resets invalid style");
 eq(normalized.rails.top.size, 16, "normalizer clamps horizontal size");
 eq(normalized.rails.left.size, 112, "normalizer clamps vertical size");
 eq(normalized.rails.left.top, ["clock"], "normalizer drops duplicate and unknown identifiers");

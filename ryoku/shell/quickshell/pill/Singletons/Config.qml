@@ -44,16 +44,12 @@ Singleton {
 
 
     // roundness = the shell-wide inner corner radius (the "Global" shape knob).
-    // every internal tile, card, row and chip reads Theme.radius, which follows
+    // every internal tile, card, row and chip reads Theme.radiusWidget, which follows
     // this, so the whole shell shares one rounded shape that echoes the frame's
     // melt. 0 restores the old brutalist sharp corners.
     property alias roundness: adapter.roundness
 
-    // grainStrength = opacity of the brand grain matte the shell overlay rides
-    // (and, through its transparent body, the apps behind it). 0 turns it off.
-    property alias grainStrength: adapter.grainStrength
-
-    // typography: UI font family (Theme.font reads this) + a scale that grows
+    // typography: UI font family (Theme.fontPrimary reads this) + a scale that grows
     // or shrinks the whole shell (the bar text and the surfaces around it),
     // keeping the readout legible without overflow.
     property alias fontFamily: adapter.fontFamily
@@ -101,13 +97,12 @@ Singleton {
             property real frameOpacity: 1
             property real shadowStrength: 0.63
             property real shadowSize: 12
-            property color surfaceColor: "#0f1115"
+            property color surfaceColor: "#1E2326"
             property real osdRadius: 0
             property real osdOpacity: 1
             property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
-            property real roundness: 0
-            property real grainStrength: 0.09
+            property real roundness: 8
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property var frameBars: FrameBars.defaultConfig()

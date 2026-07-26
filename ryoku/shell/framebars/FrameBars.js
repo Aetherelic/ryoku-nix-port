@@ -43,7 +43,7 @@ function menuWidgetsFor(value, catalog, depth) {
 function defaultConfig() {
     return {
         version: 1,
-        style: "ok-frame",
+        style: "slate-frame",
         rails: {
             top: { enabled: true, size: 32, reveal: true, start: [], center: ["clock"], end: [] },
             left: { enabled: true, size: 48, reveal: true, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["tray", "network", "clock"] },
@@ -74,7 +74,7 @@ function normalize(raw, barCatalog, menuCatalog) {
     const base = defaultConfig();
     const source = isObject(raw) ? raw : {};
     const output = defaultConfig();
-    output.style = source.style === "ok-frame" || source.style === "ryoku-frame" ? source.style : base.style;
+    output.style = source.style === "slate-frame" || source.style === "ryoku-frame" ? source.style : base.style;
     for (const edge of ["top", "left", "bottom", "right"]) {
         const rail = isObject(source.rails) && isObject(source.rails[edge]) ? source.rails[edge] : {};
         output.rails[edge].enabled = typeof rail.enabled === "boolean" ? rail.enabled : base.rails[edge].enabled;

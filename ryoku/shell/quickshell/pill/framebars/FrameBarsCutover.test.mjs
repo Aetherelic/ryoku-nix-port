@@ -22,7 +22,7 @@ function layout(style, rails) {
     return normalize({ version: 1, style, rails }, BarCatalog, MenuCatalog);
 }
 
-const topLeft = layout("ok-frame", {
+const topLeft = layout("slate-frame", {
     top: { enabled: true, size: 32, start: ["workspaces"], center: ["clock"], end: ["quick-settings"] },
     left: { enabled: true, size: 44, top: ["launcher"], center: ["dock"], bottom: ["tray"] },
     bottom: { enabled: false },
@@ -35,7 +35,7 @@ const bottomRight = layout("ryoku-frame", {
     right: { enabled: true, size: 44, top: ["launcher"], center: ["dock"], bottom: ["tray"] }
 });
 
-eq(topLeft.style, "ok-frame", "ok-frame top-left style survives normalization");
+eq(topLeft.style, "slate-frame", "slate-frame top-left style survives normalization");
 eq(bottomRight.style, "ryoku-frame", "ryoku-frame bottom-right style survives normalization");
 eq(edgeRect("top", topLeft.rails.top.size, 1920, 1080), { x: 0, y: 0, width: 1920, height: 32 }, "top rail is visibly placed at the top edge");
 eq(edgeRect("left", topLeft.rails.left.size, 1920, 1080), { x: 0, y: 0, width: 44, height: 1080 }, "left rail is visibly placed at the left edge");

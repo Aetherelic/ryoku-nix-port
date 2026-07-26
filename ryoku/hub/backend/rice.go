@@ -85,7 +85,7 @@ var riceHyprLayers = []string{"input", "windowRules", "layerRules", "appOverride
 var riceExtraLayers = []string{"brand"}
 var riceShellLook = []string{
 	"frameRadius", "frameBorder", "frameSmoothing", "frameOpacity", "frameEnabled",
-	"shadowStrength", "shadowSize", "surfaceColor", "grainStrength",
+	"shadowStrength", "shadowSize", "surfaceColor",
 	"osdRadius", "osdOpacity",
 	"frameBars",
 	"roundness", "fontFamily", "fontScale",

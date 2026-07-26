@@ -52,10 +52,10 @@ Item {
                 readonly property bool sel: root.current === lrow.modelData
                 width: col.width
                 height: 38 * root.s
-                radius: Theme.radius
-                color: lrow.sel ? Qt.alpha(Theme.brand, 0.16) : (lHov.hovered ? Theme.frameBg : "transparent")
+                radius: Theme.radiusWidget
+                color: lrow.sel ? Qt.alpha(Theme.primary, 0.16) : (lHov.hovered ? Theme.frameBg : "transparent")
                 border.width: 1
-                border.color: lrow.sel ? Theme.brand : (lHov.hovered ? Theme.frameBorder : Theme.border)
+                border.color: lrow.sel ? Theme.primary : (lHov.hovered ? Theme.frameBorder : Theme.outline)
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
                 Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
@@ -64,8 +64,8 @@ Item {
                     anchors.leftMargin: 14 * root.s
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.label(lrow.modelData)
-                    color: lrow.sel ? Theme.brand : Theme.cream
-                    font.family: Theme.font
+                    color: lrow.sel ? Theme.primary : Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 12.5 * root.s
                     font.weight: lrow.sel ? Font.DemiBold : Font.Medium
                 }
@@ -76,7 +76,7 @@ Item {
                     width: 13 * root.s
                     height: 13 * root.s
                     name: "check"
-                    color: Theme.brand
+                    color: Theme.primary
                     stroke: 2
                     visible: lrow.sel
                 }

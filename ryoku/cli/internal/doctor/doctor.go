@@ -114,6 +114,7 @@ func reconcilers() []reconciler {
 		{"desktop portal routing", reconcilePortalRouting},
 		{"cursor theme", reconcileCursorTheme},
 		{"Material Symbols icon font", reconcileIconFont},
+		{"frame bar style name", reconcileFrameBarsStyle},
 		{"shell config schema", reconcileShellConfig},
 		{"user edits overlay", reconcileUserEditsAdopt},
 		{"keyring unlock policy", reconcileKeyring},
@@ -970,6 +971,86 @@ func reconcileShellConfig(checkOnly bool) recResult {
 	return fixedRes("migrated shell.json to the current schema: %s", strings.Join(changes, "; "))
 }
 
+// ---- reconciler: frame bar style name ----------------------------------------
+
+// reconcileFrameBarsStyle converges a persisted frameBars.style that still
+// carries the retired bar-style name. The style itself did not change, only its
+// name, so an install that saved the old value would silently fall back to the
+// default until the store is rewritten. Surgical and idempotent: only the one
+// string moves, every other key survives untouched, and a store already on a
+// current style (or with no style key) is left alone.
+func reconcileFrameBarsStyle(checkOnly bool) recResult {
+	path := filepath.Join(sys.ConfigHome(), "ryoku", "shell.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return okRes("no shell.json yet (seeded on first shell run)")
+	}
+	migrated, changed, err := migrateFrameBarsStyle(raw)
+	if err != nil {
+		return warnRes("shell.json does not parse (%v); the shell falls back to defaults", err).
+			withFix("delete %s to re-seed it", path)
+	}
+	if !changed {
+		return okRes("frameBars.style names a current bar style")
+	}
+	if checkOnly {
+		return wouldRes("frameBars.style still names the retired bar style").
+			withFix("ryoku doctor renames it in place")
+	}
+	tmp := path + ".ryoku-tmp"
+	if err := os.WriteFile(tmp, migrated, 0o644); err != nil {
+		return failRes("could not write %s: %v", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return failRes("could not replace %s: %v", path, err)
+	}
+	return fixedRes("renamed the retired frameBars.style to the current bar style")
+}
+
+// migrateFrameBarsStyle rewrites a shell store whose frameBars.style names a
+// retired bar style so it converges on the current default. The two names the
+// shell reads today are the only values left alone; anything else present (the
+// old name included) moves to the default. Every other key is preserved as its
+// own raw bytes, and an absent or non-string style is a no-op, so a store that
+// is already current comes back unchanged.
+func migrateFrameBarsStyle(raw []byte) ([]byte, bool, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil {
+		return nil, false, err
+	}
+	frameRaw, ok := top["frameBars"]
+	if !ok {
+		return nil, false, nil
+	}
+	var frame map[string]json.RawMessage
+	if err := json.Unmarshal(frameRaw, &frame); err != nil {
+		return nil, false, err
+	}
+	var style string
+	if err := json.Unmarshal(frame["style"], &style); err != nil {
+		return nil, false, nil
+	}
+	if style == "slate-frame" || style == "ryoku-frame" {
+		return nil, false, nil
+	}
+	next, err := json.Marshal("slate-frame")
+	if err != nil {
+		return nil, false, err
+	}
+	frame["style"] = next
+	frameBytes, err := json.Marshal(frame)
+	if err != nil {
+		return nil, false, err
+	}
+	top["frameBars"] = frameBytes
+	out, err := json.MarshalIndent(top, "", "  ")
+	if err != nil {
+		return nil, false, err
+	}
+	return append(out, '\n'), true, nil
+}
+
 func frameRail(enabled bool, size float64, zones map[string][]any) map[string]any {
 	rail := map[string]any{"enabled": enabled, "size": size, "reveal": true}
 	for zone, ids := range zones {
@@ -981,7 +1062,7 @@ func frameRail(enabled bool, size float64, zones map[string][]any) map[string]an
 func defaultFrameBarsFromLegacy(_ map[string]any) map[string]any {
 	return map[string]any{
 		"version": float64(1),
-		"style":   "ok-frame",
+		"style":   "slate-frame",
 		"rails": map[string]any{
 			"top":    frameRail(true, 32, map[string][]any{"start": {}, "center": {"clock"}, "end": {}}),
 			"left":   frameRail(true, 48, map[string][]any{"top": {"quick-settings", "workspaces"}, "center": {"dock"}, "bottom": {"tray", "network", "clock"}}),
@@ -1086,7 +1167,7 @@ func normalizeFrameBars(v any) (map[string]any, []string) {
 	base := defaultFrameBarsFromLegacy(nil)
 	source := frameMap(v)
 	out := defaultFrameBarsFromLegacy(nil)
-	if style, ok := source["style"].(string); ok && (style == "ok-frame" || style == "ryoku-frame") {
+	if style, ok := source["style"].(string); ok && (style == "slate-frame" || style == "ryoku-frame") {
 		out["style"] = style
 	}
 	baseRails := frameMap(base["rails"])

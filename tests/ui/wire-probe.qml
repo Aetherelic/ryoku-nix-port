@@ -12,7 +12,7 @@ ShellRoot {
 
     readonly property var shellKeys: [
         "language","frameRadius","roundness","frameBorder","frameEnabled",
-        "frameSmoothing","frameOpacity","grainStrength","shadowStrength","shadowSize",
+        "frameSmoothing","frameOpacity","shadowStrength","shadowSize",
         "surfaceColor","osdRadius","osdOpacity","frameBars","fontFamily","fontScale","weatherLocation","weatherUnit",
         "ryolayerEnabled","sidebarLeftPanes","sidebarRightPanes","sidebarWidth"
     ]
@@ -52,7 +52,6 @@ ShellRoot {
             property bool frameEnabled: true
             property real frameSmoothing: 8
             property real frameOpacity: 1
-            property real grainStrength: 0.09
             property real shadowStrength: 0.63
             property real shadowSize: 12
             property string surfaceColor: "#0f1115"

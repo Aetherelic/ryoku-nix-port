@@ -77,7 +77,7 @@ Item {
     readonly property int margin: Tokens.s7
     readonly property real colW: Math.min(560, pg.width * 0.56 - pg.margin)
 
-    // the plate. grain is a global shell layer, never added per page.
+    // the plate.
     Rectangle {
         anchors.fill: parent
         color: Tokens.paper
@@ -277,7 +277,7 @@ Item {
             }
 
             // colophon: the self-documenting block. each face set in itself at
-            // its role size, then the ink ramp, the grain note, the disclosure.
+            // its role size, then the ink ramp, the disclosure.
             Column {
                 width: parent.width
                 spacing: Tokens.s4
@@ -312,13 +312,6 @@ Item {
                             ratio: modelData.ratio
                         }
                     }
-                }
-
-                Text {
-                    text: I18n.tr("GRAIN · TILED NOISE · ") + (Tokens.grainOpacity * 100).toFixed(1) + "%"
-                    color: Tokens.inkFaint
-                    font.family: Tokens.mono
-                    font.pixelSize: Tokens.fTiny
                 }
 
                 Text {

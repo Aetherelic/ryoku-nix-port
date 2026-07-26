@@ -54,10 +54,10 @@ Item {
         Rectangle {
             width: parent.width
             height: 40 * root.s
-            radius: Theme.radius
-            color: root.adapterEnabled ? Qt.alpha(Theme.brand, 0.16) : (adHov.hovered ? Theme.frameBg : Theme.tileBg)
+            radius: Theme.radiusWidget
+            color: root.adapterEnabled ? Qt.alpha(Theme.primary, 0.16) : (adHov.hovered ? Theme.frameBg : Theme.surfaceContainerHigh)
             border.width: 1
-            border.color: root.adapterEnabled ? Theme.brand : (adHov.hovered ? Theme.frameBorder : Theme.border)
+            border.color: root.adapterEnabled ? Theme.primary : (adHov.hovered ? Theme.frameBorder : Theme.outline)
             visible: root.adapter !== null
             Behavior on color { ColorAnimation { duration: Motion.fast } }
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
@@ -70,7 +70,7 @@ Item {
                 width: 16 * root.s
                 height: 16 * root.s
                 name: "bluetooth"
-                color: root.adapterEnabled ? Theme.brand : Theme.iconDim
+                color: root.adapterEnabled ? Theme.primary : Theme.onSurfaceVariant
                 stroke: 1.6
             }
             Text {
@@ -78,8 +78,8 @@ Item {
                 anchors.leftMargin: 10 * root.s
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("Bluetooth")
-                color: Theme.cream
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 12.5 * root.s
                 font.weight: Font.DemiBold
             }
@@ -88,7 +88,7 @@ Item {
                 anchors.rightMargin: 12 * root.s
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.adapterEnabled ? qsTr("On") : qsTr("Off")
-                color: root.adapterEnabled ? Theme.brand : Theme.faint
+                color: root.adapterEnabled ? Theme.primary : Theme.onSurfaceVariant
                 font.family: Theme.mono
                 font.pixelSize: 10 * root.s
                 font.weight: Font.DemiBold
@@ -102,8 +102,8 @@ Item {
             width: parent.width
             visible: root.adapter === null
             text: qsTr("No Bluetooth adapter")
-            color: Theme.faint
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
             font.weight: Font.Medium
         }
@@ -112,8 +112,8 @@ Item {
             width: parent.width
             visible: root.adapterEnabled && root.rows.length === 0
             text: qsTr("Searching…")
-            color: Theme.faint
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
             font.weight: Font.Medium
         }
@@ -125,10 +125,10 @@ Item {
                 required property var modelData
                 width: col.width
                 height: 38 * root.s
-                radius: Theme.radius
+                radius: Theme.radiusWidget
                 color: dHov.hovered ? Theme.frameBg : "transparent"
                 border.width: 1
-                border.color: drow.modelData.connected ? Theme.brand : (dHov.hovered ? Theme.frameBorder : Theme.border)
+                border.color: drow.modelData.connected ? Theme.primary : (dHov.hovered ? Theme.frameBorder : Theme.outline)
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
 
                 Pill.GlyphIcon {
@@ -139,7 +139,7 @@ Item {
                     width: 15 * root.s
                     height: 15 * root.s
                     name: "bluetooth"
-                    color: drow.modelData.connected ? Theme.brand : Theme.iconDim
+                    color: drow.modelData.connected ? Theme.primary : Theme.onSurfaceVariant
                     stroke: 1.6
                 }
                 Text {
@@ -150,8 +150,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: drow.modelData.name
                     elide: Text.ElideRight
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s
                 }
                 Text {
@@ -162,7 +162,7 @@ Item {
                     text: drow.modelData.battery >= 0 ? (drow.modelData.battery + "%")
                         : drow.modelData.connected ? qsTr("Connected")
                         : drow.modelData.paired ? qsTr("Paired") : qsTr("Pair")
-                    color: drow.modelData.connected ? Theme.brand : Theme.faint
+                    color: drow.modelData.connected ? Theme.primary : Theme.onSurfaceVariant
                     font.family: Theme.mono
                     font.pixelSize: 9.5 * root.s
                     font.weight: Font.DemiBold

@@ -10,7 +10,7 @@ import "Singletons"
 // ryowalls: pick a wallpaper and see what it does to your whole rice before you
 // commit. The left column browses (or grades / tunes the palette); the right
 // column is the preview stack, pinned across every lane because it is the
-// feedback loop. Paper and ink, one grain layer over everything.
+// feedback loop. Paper and ink.
 Rectangle {
     id: app
 
@@ -672,7 +672,4 @@ Rectangle {
         nameFilters: ["Video (*.mp4 *.mkv *.mov)"]
         onAccepted: Wallhaven.importLive(selectedFile)
     }
-
-    // one grain layer, topmost over everything including the overlays.
-    Grain { anchors.fill: parent }
 }

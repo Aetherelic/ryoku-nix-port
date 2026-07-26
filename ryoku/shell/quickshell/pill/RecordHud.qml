@@ -123,7 +123,7 @@ Item {
         property real s: 1
         property string glyph: ""
         property string label: ""
-        property color tint: Theme.cream
+        property color tint: Theme.onSurface
         property bool primary: false
         signal tapped()
         implicitWidth: aRow.implicitWidth + 14 * act.s
@@ -393,7 +393,7 @@ Item {
                             width: 3 * hud.s
                             height: 3 * hud.s
                             radius: width / 2
-                            color: gripHov.hovered ? Theme.cream : Theme.subtle
+                            color: gripHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant
                         }
                     }
                 }
@@ -404,14 +404,14 @@ Item {
                 width: 9 * hud.s
                 height: 9 * hud.s
                 radius: width / 2
-                color: Recorder.paused ? Theme.faint : Theme.vermLit
+                color: Recorder.paused ? Theme.onSurfaceVariant : Theme.vermLit
                 opacity: Recorder.paused ? 1 : Recorder.pulse
             }
 
             Text {
                 text: Recorder.elapsedText
-                color: Theme.cream
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 13 * hud.s
                 font.features: { "tnum": 1 }
             }
@@ -420,7 +420,7 @@ Item {
                 visible: Recorder.canPause
                 s: hud.s
                 glyph: Recorder.paused ? "play" : "pause"
-                tint: Theme.cream
+                tint: Theme.onSurface
                 onTapped: Recorder.togglePause()
             }
             RecordButton {
@@ -432,19 +432,19 @@ Item {
             RecordButton {
                 s: hud.s
                 glyph: hud.sinkMuted ? "speaker-off" : "speaker"
-                tint: hud.sinkMuted ? Theme.faint : Theme.cream
+                tint: hud.sinkMuted ? Theme.onSurfaceVariant : Theme.onSurface
                 onTapped: hud.toggleSink()
             }
             RecordButton {
                 s: hud.s
                 glyph: hud.micMuted ? "mic-off" : "mic"
-                tint: hud.micMuted ? Theme.faint : Theme.cream
+                tint: hud.micMuted ? Theme.onSurfaceVariant : Theme.onSurface
                 onTapped: hud.toggleMic()
             }
             RecordButton {
                 s: hud.s
                 glyph: "compress"
-                tint: Theme.subtle
+                tint: Theme.onSurfaceVariant
                 onTapped: hud.hidden = !hud.hidden
             }
         }
@@ -462,16 +462,16 @@ Item {
             horizontalItemAlignment: Grid.AlignHCenter
             verticalItemAlignment: Grid.AlignVCenter
 
-            RecordButton { s: hud.s; glyph: Recorder.regionGeom !== "" ? "region" : "monitor"; tint: Recorder.regionGeom !== "" ? Theme.cream : Theme.subtle; onTapped: { if (Recorder.regionGeom !== "") Recorder.regionGeom = ""; else Recorder.pickRegion(); } }
-            RecordButton { s: hud.s; glyph: hud.optDesktopAudio ? "speaker" : "speaker-off"; tint: hud.optDesktopAudio ? Theme.cream : Theme.subtle; onTapped: hud.optDesktopAudio = !hud.optDesktopAudio }
-            RecordButton { s: hud.s; glyph: hud.optMic ? "mic" : "mic-off"; tint: hud.optMic ? Theme.cream : Theme.subtle; onTapped: hud.optMic = !hud.optMic }
-            RecordButton { s: hud.s; glyph: "webcam"; tint: Camera.active ? Theme.cream : Theme.subtle; onTapped: Camera.toggle() }
+            RecordButton { s: hud.s; glyph: Recorder.regionGeom !== "" ? "region" : "monitor"; tint: Recorder.regionGeom !== "" ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: { if (Recorder.regionGeom !== "") Recorder.regionGeom = ""; else Recorder.pickRegion(); } }
+            RecordButton { s: hud.s; glyph: hud.optDesktopAudio ? "speaker" : "speaker-off"; tint: hud.optDesktopAudio ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: hud.optDesktopAudio = !hud.optDesktopAudio }
+            RecordButton { s: hud.s; glyph: hud.optMic ? "mic" : "mic-off"; tint: hud.optMic ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: hud.optMic = !hud.optMic }
+            RecordButton { s: hud.s; glyph: "webcam"; tint: Camera.active ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: Camera.toggle() }
 
             Rectangle {
                 width: (hud.layoutVertical ? 18 : 1) * hud.s
                 height: (hud.layoutVertical ? 1 : 18) * hud.s
                 radius: 0.5 * hud.s
-                color: Theme.subtle
+                color: Theme.onSurfaceVariant
                 opacity: 0.35
             }
 
@@ -479,7 +479,7 @@ Item {
             Action { s: hud.s; glyph: "film"; label: "Studio"; onTapped: hud.startStudio() }
             Action { s: hud.s; glyph: "folder"; label: "Edit"; onTapped: hud.launchRyomotion() }
 
-            RecordButton { s: hud.s; glyph: "close"; tint: Theme.subtle; onTapped: Recorder.chooserOpen = false }
+            RecordButton { s: hud.s; glyph: "close"; tint: Theme.onSurfaceVariant; onTapped: Recorder.chooserOpen = false }
         }
     }
 
@@ -493,7 +493,7 @@ Item {
         radius: width / 2
         x: cx - width / 2
         y: cy - height / 2
-        color: Recorder.paused ? Theme.faint : Theme.vermLit
+        color: Recorder.paused ? Theme.onSurfaceVariant : Theme.vermLit
         opacity: Recorder.anyActive ? Math.max(0, 1 - hud.prog / 0.5) * (Recorder.paused ? 0.9 : Recorder.pulse) : 0
         visible: opacity > 0.01
     }

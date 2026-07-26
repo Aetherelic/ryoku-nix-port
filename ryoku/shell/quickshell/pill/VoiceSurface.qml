@@ -48,7 +48,7 @@ PillSurface {
             width: 16 * root.s
             height: 16 * root.s
             name: "mic"
-            color: Qt.tint(Theme.iconDim, Qt.alpha(Theme.brand, root.energy))
+            color: Qt.tint(Theme.onSurfaceVariant, Qt.alpha(Theme.primary, root.energy))
             stroke: 1.7
         }
 
@@ -85,7 +85,7 @@ PillSurface {
                 ctx.lineWidth = 2 * root.s;
                 ctx.lineCap = "round";
                 ctx.lineJoin = "round";
-                ctx.strokeStyle = Qt.alpha(Theme.brand, 0.4 + 0.6 * root.energy);
+                ctx.strokeStyle = Qt.alpha(Theme.primary, 0.4 + 0.6 * root.energy);
 
                 ctx.beginPath();
                 for (let x = 0; x <= w; x += 1.5) {
@@ -121,14 +121,14 @@ PillSurface {
             width: 15 * root.s
             height: 15 * root.s
             name: "mic-off"
-            color: Theme.iconDim
+            color: Theme.onSurfaceVariant
             stroke: 1.7
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: "Dictation off"
-            color: Theme.subtle
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 12 * root.s
         }
     }

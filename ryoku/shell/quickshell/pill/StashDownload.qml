@@ -17,7 +17,7 @@ Rectangle {
     readonly property string mono: "JetBrainsMono Nerd Font"
 
     radius: Motion.rTile * s
-    color: Qt.alpha(Theme.cardTop, 0.98)
+    color: Qt.alpha(Theme.surfaceContainer, 0.98)
     visible: Stash.dlOpen
 
     MouseArea { anchors.fill: parent; hoverEnabled: true }
@@ -36,8 +36,8 @@ Rectangle {
             id: tbT
             anchors.centerIn: parent
             text: tb.label
-            color: tb.sel ? Theme.cream : Theme.subtle
-            font.family: Theme.font
+            color: tb.sel ? Theme.onSurface : Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 9.5 * root.s
             font.weight: Font.DemiBold
             font.capitalization: Font.AllUppercase
@@ -81,7 +81,7 @@ Rectangle {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "cobalt"
-                    color: Theme.cream
+                    color: Theme.onSurface
                     font.family: root.mono
                     font.pixelSize: 12 * root.s
                     font.weight: Font.DemiBold
@@ -118,9 +118,9 @@ Rectangle {
             width: mbRow.implicitWidth + 18 * root.s
             height: 30 * root.s
             radius: Motion.rSmall * root.s
-            color: mb.sel ? Qt.alpha(Theme.flameGlow, 0.16) : (mbA.containsMouse ? Theme.frameBg : Theme.tileBg)
+            color: mb.sel ? Qt.alpha(Theme.flameGlow, 0.16) : (mbA.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh)
             border.width: 1
-            border.color: mb.sel ? Qt.alpha(Theme.flameGlow, 0.6) : (mbA.containsMouse ? Theme.frameBorder : Theme.border)
+            border.color: mb.sel ? Qt.alpha(Theme.flameGlow, 0.6) : (mbA.containsMouse ? Theme.frameBorder : Theme.outline)
             Behavior on color { ColorAnimation { duration: Motion.fast } }
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
             Row {
@@ -131,14 +131,14 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 13 * root.s; height: 13 * root.s
                     name: mb.glyph
-                    color: mb.sel ? Theme.flameGlow : (mbA.containsMouse ? Theme.cream : Theme.iconDim)
+                    color: mb.sel ? Theme.flameGlow : (mbA.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant)
                     stroke: 1.7
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: mb.label
-                    color: mb.sel ? Theme.flameCore : (mbA.containsMouse ? Theme.cream : Theme.subtle)
-                    font.family: Theme.font
+                    color: mb.sel ? Theme.flameCore : (mbA.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant)
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 10 * root.s
                     font.weight: Font.DemiBold
                 }
@@ -171,9 +171,9 @@ Rectangle {
             anchors.right: parent.right
             height: 34 * root.s
             radius: Motion.rSmall * root.s
-            color: Theme.tileBg
+            color: Theme.surfaceContainerHigh
             border.width: 1
-            border.color: field.activeFocus ? Theme.frameBorder : Theme.border
+            border.color: field.activeFocus ? Theme.frameBorder : Theme.outline
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
             GlyphIcon {
@@ -183,7 +183,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 14 * root.s; height: 14 * root.s
                 name: "link"
-                color: Theme.iconDim
+                color: Theme.onSurfaceVariant
                 stroke: 1.6
             }
 
@@ -195,8 +195,8 @@ Rectangle {
                 anchors.rightMargin: 8 * root.s
                 anchors.verticalCenter: parent.verticalCenter
                 text: Stash.dlText
-                color: Theme.bright
-                font.family: Theme.font
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
                 font.pixelSize: 11 * root.s
                 clip: true
                 selectByMouse: true
@@ -216,7 +216,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: field.text.length === 0
                     text: "paste the link here"
-                    color: Theme.faint
+                    color: Theme.onSurfaceVariant
                     font: field.font
                 }
             }
@@ -229,9 +229,9 @@ Rectangle {
                 width: pasteRow.implicitWidth + 14 * root.s
                 height: 24 * root.s
                 radius: Motion.rSmall * root.s
-                color: pasteArea.containsMouse ? Theme.frameBg : Qt.alpha(Theme.cardBot, 0.7)
+                color: pasteArea.containsMouse ? Theme.frameBg : Qt.alpha(Theme.surfaceContainerLow, 0.7)
                 border.width: 1
-                border.color: pasteArea.containsMouse ? Theme.frameBorder : Theme.border
+                border.color: pasteArea.containsMouse ? Theme.frameBorder : Theme.outline
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
                 Row {
                     id: pasteRow
@@ -241,14 +241,14 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 11 * root.s; height: 11 * root.s
                         name: "clipboard"
-                        color: pasteArea.containsMouse ? Theme.cream : Theme.iconDim
+                        color: pasteArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                         stroke: 1.6
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Paste"
-                        color: pasteArea.containsMouse ? Theme.cream : Theme.subtle
-                        font.family: Theme.font
+                        color: pasteArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                        font.family: Theme.fontPrimary
                         font.pixelSize: 9.5 * root.s
                         font.weight: Font.DemiBold
                     }
@@ -280,7 +280,7 @@ Rectangle {
                     anchors.centerIn: parent
                     width: 13 * root.s; height: 13 * root.s
                     name: "tray-down"
-                    color: getArea.containsMouse && getChip.on ? Theme.cardBot : Theme.flameGlow
+                    color: getArea.containsMouse && getChip.on ? Theme.surfaceContainerLow : Theme.flameGlow
                     stroke: 1.8
                 }
                 MouseArea {
@@ -313,8 +313,8 @@ Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
             text: "Remux fixes a file's container (missing timestamps, odd codecs) without re-encoding. Lossless and on-device."
-            color: Theme.subtle
-            font.family: Theme.font
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
             font.pixelSize: 9.5 * root.s
             lineHeight: 1.3
             wrapMode: Text.WordWrap
@@ -330,13 +330,13 @@ Rectangle {
             radius: Motion.rSmall * root.s
             color: dropArea.containsDrag ? Qt.alpha(Theme.flameGlow, 0.12) : "transparent"
             border.width: 1
-            border.color: dropArea.containsDrag ? Qt.alpha(Theme.flameGlow, 0.6) : Theme.border
+            border.color: dropArea.containsDrag ? Qt.alpha(Theme.flameGlow, 0.6) : Theme.outline
             Behavior on color { ColorAnimation { duration: Motion.fast } }
             Text {
                 anchors.centerIn: parent
                 text: dropArea.containsDrag ? "Release to add" : "Drop a file in, or pick one below"
-                color: dropArea.containsDrag ? Theme.flameGlow : Theme.faint
-                font.family: Theme.font
+                color: dropArea.containsDrag ? Theme.flameGlow : Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
                 font.pixelSize: 9.5 * root.s
             }
             DropArea {
@@ -370,7 +370,7 @@ Rectangle {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.isRemux ? "media in the stash" : "processing queue"
-                color: Theme.dim
+                color: Theme.onSurfaceVariant
                 font.family: root.mono
                 font.pixelSize: 9 * root.s
                 font.weight: Font.DemiBold
@@ -381,7 +381,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !root.isRemux && Stash.queueModel.count > 0
                 text: "clear"
-                color: clearArea.containsMouse ? Theme.cream : Theme.faint
+                color: clearArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                 font.family: root.mono
                 font.pixelSize: 9 * root.s
                 MouseArea {
@@ -414,9 +414,9 @@ Rectangle {
                 width: ListView.view.width
                 height: 34 * root.s
                 radius: Motion.rSmall * root.s
-                color: Theme.tileBg
+                color: Theme.surfaceContainerHigh
                 border.width: 1
-                border.color: Theme.border
+                border.color: Theme.outline
 
                 readonly property bool running: q.model.state === "running"
                 readonly property bool done: q.model.state === "done"
@@ -458,7 +458,7 @@ Rectangle {
                         width: 6 * root.s; height: 6 * root.s; radius: width / 2
                         color: "transparent"
                         border.width: 1.4 * root.s
-                        border.color: Theme.iconDim
+                        border.color: Theme.onSurfaceVariant
                     }
                 }
 
@@ -470,8 +470,8 @@ Rectangle {
                     anchors.rightMargin: 8 * root.s
                     anchors.verticalCenter: parent.verticalCenter
                     text: q.model.name
-                    color: Theme.cream
-                    font.family: Theme.font
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 10.5 * root.s
                     font.weight: Font.Medium
                     elide: Text.ElideMiddle
@@ -488,8 +488,8 @@ Rectangle {
                         : q.done ? "done"
                         : q.failed ? (q.model.msg.length > 0 ? q.model.msg : "failed")
                         : "queued"
-                    color: q.done ? Theme.flameGlow : q.failed ? Theme.vermLit : Theme.subtle
-                    font.family: Theme.font
+                    color: q.done ? Theme.flameGlow : q.failed ? Theme.vermLit : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 9.5 * root.s
                     font.weight: Font.DemiBold
                     font.features: { "tnum": 1 }
@@ -530,9 +530,9 @@ Rectangle {
                         height: isMedia ? 32 * root.s : 0
                         visible: isMedia
                         radius: Motion.rSmall * root.s
-                        color: mrowArea.containsMouse ? Theme.frameBg : Theme.tileBg
+                        color: mrowArea.containsMouse ? Theme.frameBg : Theme.surfaceContainerHigh
                         border.width: 1
-                        border.color: mrowArea.containsMouse ? Theme.frameBorder : Theme.border
+                        border.color: mrowArea.containsMouse ? Theme.frameBorder : Theme.outline
                         Behavior on color { ColorAnimation { duration: Motion.fast } }
 
                         GlyphIcon {
@@ -543,7 +543,7 @@ Rectangle {
                             width: 14 * root.s; height: 14 * root.s
                             name: /^(png|jpe?g|webp|gif|bmp)$/.test(mrow.ext) ? "image"
                                 : /^(mp3|flac|wav|ogg|opus|m4a|aac)$/.test(mrow.ext) ? "music" : "film"
-                            color: mrowArea.containsMouse ? Theme.cream : Theme.iconDim
+                            color: mrowArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
                             stroke: 1.6
                         }
                         Text {
@@ -553,8 +553,8 @@ Rectangle {
                             anchors.rightMargin: 8 * root.s
                             anchors.verticalCenter: parent.verticalCenter
                             text: mrow.fileName
-                            color: Theme.cream
-                            font.family: Theme.font
+                            color: Theme.onSurface
+                            font.family: Theme.fontPrimary
                             font.pixelSize: 10.5 * root.s
                             elide: Text.ElideMiddle
                             maximumLineCount: 1
@@ -567,7 +567,7 @@ Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 13 * root.s; height: 13 * root.s
                             name: "remux"
-                            color: mrowArea.containsMouse ? Theme.flameGlow : Theme.iconDim
+                            color: mrowArea.containsMouse ? Theme.flameGlow : Theme.onSurfaceVariant
                             stroke: 1.7
                         }
                         MouseArea {
@@ -590,8 +590,8 @@ Rectangle {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.isRemux ? "no media in the stash" : "nothing here yet"
-                color: Theme.faint
-                font.family: Theme.font
+                color: Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
                 font.pixelSize: 10.5 * root.s
                 font.weight: Font.Medium
             }
@@ -599,7 +599,7 @@ Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.isRemux ? "drop a video or audio file above" : "paste a link to start a download"
                 color: Theme.ghost
-                font.family: Theme.font
+                font.family: Theme.fontPrimary
                 font.pixelSize: 9 * root.s
             }
         }

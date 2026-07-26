@@ -41,15 +41,15 @@ Item {
                     anchors.fill: parent
                     visible: modelData === Workspaces.activeId
                     radius: 3 * root.scale
-                    color: Theme.bright
+                    color: Theme.onSurface
                 }
 
                 Text {
                     anchors.centerIn: parent
                     text: modelData
-                    color: modelData === Workspaces.activeId ? Theme.cardBot : Theme.cream
+                    color: modelData === Workspaces.activeId ? Theme.surfaceContainerLow : Theme.onSurface
                     font {
-                        family: Theme.font
+                        family: Theme.fontPrimary
                         pixelSize: 11 * root.scale
                         weight: Font.DemiBold
                     }

@@ -24,7 +24,7 @@ Item {
     property real s: 1
     property bool active: true
     property real frameThickness: 16
-    property real radius: Theme.radius
+    property real radius: Theme.radiusWidget
     property real smoothing: 30
     property string pinnedId: ""
     // fires when a keybind/IPC-pinned popout should dismiss because the pointer

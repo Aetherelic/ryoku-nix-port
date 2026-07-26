@@ -23,20 +23,20 @@ Item {
                 width: 34 * root.s
                 height: 34 * root.s
                 name: Weather.glyph
-                color: Theme.cream
+                color: Theme.onSurface
                 stroke: 1.5
             }
             Column {
                 Text {
                     text: Weather.available ? Weather.temp : qsTr("Weather unavailable")
-                    color: Theme.bright
+                    color: Theme.onSurface
                     font.family: Theme.display
                     font.pixelSize: 24 * root.s
                 }
                 Text {
                     text: Weather.available ? Weather.condition + (Weather.city.length ? "  ·  " + Weather.city : "") : ""
-                    color: Theme.dim
-                    font.family: Theme.font
+                    color: Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
                     font.pixelSize: 11 * root.s
                 }
             }
@@ -53,7 +53,7 @@ Item {
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: Weather.hourly[index].hour
-                        color: Theme.faint
+                        color: Theme.onSurfaceVariant
                         font.family: Theme.mono
                         font.pixelSize: 9 * root.s
                     }
@@ -62,7 +62,7 @@ Item {
                         width: 16 * root.s
                         height: 16 * root.s
                         name: Wx.glyphFor(Weather.hourly[index].code)
-                        color: Theme.subtle
+                        color: Theme.onSurfaceVariant
                         stroke: 1.4
                     }
                 }
