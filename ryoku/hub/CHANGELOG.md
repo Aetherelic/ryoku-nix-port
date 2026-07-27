@@ -2,7 +2,25 @@
 
 ## Unreleased
 
+### Fixed
+- **Appearance's colour controls apply when you set them, and the live scheme
+  regenerates again.** Three faults stacked. The mode and contrast knobs staged
+  behind the shared Save, so setting them appeared to do nothing until you found
+  the action bar; they now write straight through, as the scheme picker already
+  did. `matugen set` unmarshalled the payload onto a zero struct, so every save
+  from this page wrote `themeRyokuApps: false` and emptied the roster it does not
+  show; it merges onto the stored config now, and the page sends only the two keys
+  it owns. And the ALGORITHM picker could select `scheme-monochrome`, which drains
+  the colour out of every wallpaper -- indistinguishable from live colours being
+  broken -- so it is gone (`backend/matugen.go`, `quickshell/pages/AppearancePage.qml`).
+
 ### Changed
+- **The Theme tab leads with colour generation, and the 57 named palettes sit in
+  a drawer.** Mode and contrast are what the live scheme is made of, so they come
+  first; the scheme section keeps the two dynamic picks and the palette in use
+  visible and folds the rest behind ALL THEMES, instead of a six-row wall of
+  swatches between the reader and everything below it
+  (`quickshell/pages/AppearancePage.qml`).
 - **The palette cache path is `~/.cache/ryoku/colors.json`, and the hub palette
   singleton is `Palette`.** `wallustCacheDir()` is renamed `ryokuCacheDir()` and
   points at `~/.cache/ryoku/`, the rotating-border blocks read `hypr-colors.lua`

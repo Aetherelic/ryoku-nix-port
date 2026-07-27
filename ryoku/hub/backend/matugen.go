@@ -10,7 +10,6 @@ import (
 )
 
 type matugenConfig struct {
-	SchemeType       string          `json:"schemeType"`       // e.g. "scheme-tonal-spot"
 	Mode             string          `json:"mode"`             // "dark", "light", "smart"
 	Contrast         float64         `json:"contrast"`         // -1.0 to 1.0
 	LightnessDark    float64         `json:"lightnessDark"`    // -1.0 to 1.0
@@ -126,14 +125,13 @@ func paletteCarrier(pal map[string]string) map[string]any {
 
 func defaultMatugenConfig() matugenConfig {
 	return matugenConfig{
-		SchemeType:       "scheme-tonal-spot",
-		Mode:             "dark",
+		Mode:             "smart",
 		Contrast:         0.0,
 		LightnessDark:    0.0,
 		LightnessLight:   0.0,
 		Prefer:           "saturation",
 		SourceColorIndex: 0,
-		ThemeRyokuApps:   false,
+		ThemeRyokuApps:   true,
 		Templates: map[string]bool{
 			"btop":     true,
 			"qt":       true,
@@ -148,6 +146,8 @@ func defaultMatugenConfig() matugenConfig {
 			"steam":    true,
 			"kitty":    true,
 			"cava":     true,
+			"fish":     true,
+			"yazi":     true,
 			"ghostty":  true,
 			"micro":    true,
 			"papirus":  true,
@@ -190,7 +190,10 @@ func runMatugenCmd(args []string) error {
 		if len(args) < 2 {
 			return fmt.Errorf("matugen set requires JSON argument")
 		}
-		var cfg matugenConfig
+		// Merge onto what is stored, never onto a zero struct: the caller sends the
+		// knobs its page owns, and a key it omits (themeRyokuApps, the roster) would
+		// otherwise be written as Go's zero value and silently turn app theming off.
+		cfg := loadMatugenConfig()
 		if err := json.Unmarshal([]byte(args[1]), &cfg); err != nil {
 			return err
 		}
@@ -237,6 +240,8 @@ func renderActiveTemplates(cfg matugenConfig, pal map[string]string) {
 		filepath.Join(dataHome, "TelegramDesktop", "tdata"),
 		filepath.Join(home, ".steam", "steam", "steamui", "skins", "Material-Theme", "css", "main", "colors"),
 		filepath.Join(configHome(), "cava"),
+		filepath.Join(configHome(), "fish", "conf.d"),
+		filepath.Join(configHome(), "yazi"),
 		filepath.Join(configHome(), "ghostty"),
 		filepath.Join(configHome(), "micro", "colorschemes"),
 		filepath.Join(cacheHome(), "matugen"),
