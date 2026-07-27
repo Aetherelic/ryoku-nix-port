@@ -52,15 +52,12 @@ function defaultConfig() {
         },
         menus: {
             "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
-            clipboard: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clipboard"] },
-            notifications: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["notifications"] },
             screenshot: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },
             wallpaper: { anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["theme", "wallpaper"] },
             screenshare: { anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
             recording: { anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["recording"] },
             theme: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
             weather: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
-            media: { anchor: "right", minWidth: 360, expansion: "always", widgets: ["media"] }
         },
         surfaces: {
             stash: { anchor: "left", minWidth: 340, panes: ["stash"] },

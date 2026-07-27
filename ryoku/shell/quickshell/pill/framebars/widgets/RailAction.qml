@@ -2,9 +2,9 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// The static-icon widgets. Three of them open a menu on left click
-// (clipboard/screenshot/wallpaper -> their reference menus), the rest fire a
-// direct action (lock/logout/reboot/shutdown/color-picker). Contract 04 sec 3.2.
+// The static-icon widgets. Clipboard opens the quick-settings clipboard page,
+// screenshot and wallpaper open their own menus, and the rest fire a direct
+// action (lock/logout/reboot/shutdown/color-picker). Contract 04 sec 3.2.
 Item {
     id: root
 
@@ -14,8 +14,9 @@ Item {
     signal menuRequested(string id, rect ownerRect)
     signal actionRequested(string id)
 
-    // clipboard/screenshot/wallpaper are menu-openers; the others are actions.
-    readonly property var menuIds: ({ "clipboard": true, "screenshot": true, "wallpaper": true })
+    // screenshot/wallpaper open their own menus; clipboard deep-links into the
+    // quick-settings clipboard page (its standalone menu retired).
+    readonly property var menuIds: ({ "screenshot": true, "wallpaper": true })
     readonly property var glyphs: ({
         "app-launcher": "view-app-grid",
         "lock": "system-lock-screen",
@@ -38,7 +39,9 @@ Item {
         scale: root.scale
         icon: root.glyphs[root.actionId] || "application-x-executable"
         onClicked: {
-            if (root.menuIds[root.actionId])
+            if (root.actionId === "clipboard")
+                root.menuRequested("quick-settings#clipboard", Qt.rect(0, 0, root.width, root.height));
+            else if (root.menuIds[root.actionId])
                 root.menuRequested(root.actionId, Qt.rect(0, 0, root.width, root.height));
             else
                 root.actionRequested(root.actionId);

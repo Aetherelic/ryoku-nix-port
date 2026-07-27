@@ -17,6 +17,7 @@ Item {
     property real scale: 1
     property int depth: 0
     property real avail: 0
+    property string initialPage: ""
     signal requestClose()
 
     implicitWidth: loader.item ? loader.item.implicitWidth : 0
@@ -83,7 +84,7 @@ Item {
     Component { id: audioInputComponent; MenuAudioInput { width: root.width; s: root.scale; open: root.open } }
     Component { id: audioOutputComponent; MenuAudioOutput { width: root.width; s: root.scale; open: root.open } }
     Component { id: powerProfileComponent; MenuPowerProfile { width: root.width; s: root.scale; open: root.open } }
-    Component { id: quickSettingsComponent; MenuQuickSettings { width: root.width; s: root.scale; open: root.open; avail: root.avail } }
+    Component { id: quickSettingsComponent; MenuQuickSettings { width: root.width; s: root.scale; open: root.open; avail: root.avail; initialPage: root.initialPage } }
     Component { id: quickActionsComponent; MenuQuickActions { width: root.width; s: root.scale; open: root.open } }
     Component { id: layoutSwitcherComponent; MenuLayoutSwitcher { width: root.width; s: root.scale; open: root.open } }
     Component { id: clipboardComponent; MenuClipboard { width: root.width; s: root.scale; open: root.open } }

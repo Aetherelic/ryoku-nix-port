@@ -23,15 +23,12 @@ const widgets = {
 };
 const menus = {
     "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
-    clipboard: { id: "clipboard", anchor: "left", minWidth: 410, expansion: "always", widgets: ["clipboard"] },
-    notifications: { id: "notifications", anchor: "left", minWidth: 410, expansion: "always", widgets: ["notifications"] },
     screenshot: { id: "screenshot", anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },
     wallpaper: { id: "wallpaper", anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["theme", "wallpaper"] },
     screenshare: { id: "screenshare", anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
     recording: { id: "recording", anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["recording"] },
     theme: { id: "theme", anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
     weather: { id: "weather", anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
-    media: { id: "media", anchor: "right", minWidth: 360, expansion: "always", widgets: ["media"] }
 };
 const surfaces = {
     "stash": { id: "stash", anchor: "left", minWidth: 340, panes: ["stash"] },

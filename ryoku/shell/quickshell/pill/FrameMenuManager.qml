@@ -207,6 +207,13 @@ Item {
         const rec = MenuState.activeAt(menuState, monitorName, anchor);
         return rec && rec.along !== undefined ? rec.along : -1;
     }
+    // The live (menuState) record active at this anchor when its id matches, so
+    // a delegate can read the dynamic open-time fields (off, page) that the
+    // static config record does not carry. Null when this record is not open.
+    function openRecordAt(anchor, id) {
+        const rec = MenuState.activeAt(root.menuState, root.monitorName, anchor);
+        return rec && rec.id === id ? rec : null;
+    }
 
     // Single-open invariant (contract 05 sec 4): before revealing a menu or
     // surface, close every other open one on this monitor, so at most one is
@@ -226,8 +233,14 @@ Item {
     }
     function openSurface(id, ownerRect, requestedMonitor, context) {
         if (requestedMonitor !== undefined && requestedMonitor !== "" && requestedMonitor !== root.monitorName) return;
-        const voiceOff = id === "voice-off";
-        const surfaceID = voiceOff ? "voice" : id;
+        // A "#page" suffix on the id carries an initial sidebar page (a bar
+        // indicator deep-linking into quick-settings), stripped before the id
+        // is matched to a surface record.
+        const hash = id.indexOf("#");
+        const page = hash >= 0 ? id.substring(hash + 1) : "";
+        const reqId = hash >= 0 ? id.substring(0, hash) : id;
+        const voiceOff = reqId === "voice-off";
+        const surfaceID = voiceOff ? "voice" : reqId;
         if (surfaceID.indexOf("plugin:") === 0) {
             root.openPlugin(surfaceID.substring(7));
             return;
@@ -240,6 +253,14 @@ Item {
         // or a re-show must replace the live record, never dismiss it.
         const daemonOwned = surfaceID === "keyring" || surfaceID === "voice";
         if (!daemonOwned && root.activeIdAt(rec.anchor) === surfaceID) {
+            // Re-asking with a different page switches to it in place; re-asking
+            // for the page already shown (or with no page) toggles the surface
+            // shut, so a bar button and its command still read as one toggle.
+            const cur = MenuState.activeAt(root.menuState, root.monitorName, rec.anchor);
+            if (page !== "" && cur && cur.page !== page) {
+                root.menuState = MenuState.open(root.menuState, root.monitorName, Object.assign({}, cur, { page: page }));
+                return;
+            }
             root.closeAt(rec.anchor);
             return;
         }
@@ -258,7 +279,7 @@ Item {
         const base = daemon ? root.menuState : root.closeOtherUsers(root.menuState, surfaceID);
         root.menuState = MenuState.open(base, root.monitorName,
             Object.assign({}, rec, { id: surfaceID, anchor: rec.anchor, along: along, trigger: trigger,
-                off: voiceOff, promptId: surfaceID === "keyring" && context ? context.promptId : undefined }));
+                off: voiceOff, page: page, promptId: surfaceID === "keyring" && context ? context.promptId : undefined }));
     }
     function openMenu(id, ownerRect) {
         root.openSurface(id, ownerRect, root.monitorName);
@@ -329,6 +350,7 @@ Item {
             record: modelData
             anchor: modelData.anchor
             menuOpen: root.active && root.activeIdAt(modelData.anchor) === modelData.id
+            openRecord: root.openRecordAt(modelData.anchor, modelData.id)
             triggerAlong: root.alongAt(modelData.anchor)
             onRequestClose: root.closeMenu(modelData.id)
         }

@@ -98,7 +98,7 @@ Item {
             if (Audio.source && Audio.source.audio)
                 Audio.source.audio.muted = !Audio.source.audio.muted;
         } else if (statusId === "notifications") {
-            root.menuRequested("notifications", Qt.rect(0, 0, root.width, root.height));
+            root.menuRequested("quick-settings#notifications", Qt.rect(0, 0, root.width, root.height));
         }
     }
 

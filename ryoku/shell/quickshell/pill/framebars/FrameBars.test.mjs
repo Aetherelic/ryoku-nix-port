@@ -24,15 +24,18 @@ eq(reference.rails.bottom.start, [], "bottom start list defaults empty");
 eq(reference.rails.bottom.center, [], "bottom centre list defaults empty");
 eq(reference.rails.bottom.end, [], "bottom end list defaults empty");
 
-for (const id of ["quick-settings", "clipboard", "notifications", "screenshot", "recording", "theme", "weather", "media"]) {
+for (const id of ["quick-settings", "screenshot", "recording", "theme", "weather"]) {
     eq(reference.menus[id].widgets, [id], `default ${id} menu is configured`);
 }
 eq(reference.menus["app-launcher"], undefined, "the app launcher is Ryoku's own surface, not a frame menu");
-eq([reference.menus.clipboard.anchor, reference.menus.notifications.anchor, reference.menus.screenshot.anchor], ["left", "left", "left"], "the reference side menus all anchor left");
+eq([reference.menus["quick-settings"].anchor, reference.menus.screenshot.anchor, reference.menus.screenshare.anchor], ["left", "left", "left"], "the reference left menus anchor left");
 eq([reference.menus.wallpaper.anchor, reference.menus.wallpaper.minWidth], ["bottom-left", 1200], "wallpaper anchors bottom-left at 1200 wide");
 eq(reference.menus.wallpaper.widgets, ["theme", "wallpaper"], "wallpaper menu nests the theme picker above the grid");
 eq(reference.menus.launcher, undefined, "the retired launcher menu id is gone");
 eq(reference.menus.clock, undefined, "the retired clock menu is gone; the clock widget opens quick settings");
+eq(reference.menus.notifications, undefined, "the retired notifications menu is gone; the bell opens the quick-settings notifications page");
+eq(reference.menus.clipboard, undefined, "the retired clipboard menu is gone; the clipboard button opens the quick-settings clipboard page");
+eq(reference.menus.media, undefined, "the retired media menu is gone; media lives in the quick-settings sidebar");
 eq(reference.menus.screenshare.widgets, [], "screenshare is placed with no config widgets");
 
 const normalized = normalize({
@@ -57,7 +60,7 @@ eq(normalized.menus["quick-settings"].widgets, ["quick-settings"], "normalize pi
 const renamed = normalize({ menus: { launcher: { anchor: "right", minWidth: 999 }, "app-launcher": { anchor: "right", minWidth: 999 } } }, BarCatalog, MenuCatalog);
 eq(renamed.menus.launcher, undefined, "normalize drops the retired launcher menu id from a stale config");
 eq(renamed.menus["app-launcher"], undefined, "normalize drops the retired app-launcher menu id from a stale config");
-eq(renamed.menus.notifications.anchor, "left", "normalize re-seeds the added notifications menu");
+eq(renamed.menus.notifications, undefined, "the retired notifications menu never returns from normalize");
 eq(normalized.surfaces.stash.anchor, "left", "normalizer normalizes invalid surface anchor");
 eq(normalized.arbitrary, undefined, "normalizer drops arbitrary keys");
 
@@ -91,8 +94,8 @@ eq(setSurface(surfaceInput, "stash", { anchor: "bad" }, MenuCatalog).surfaces.st
 eq(surfaceInput, defaultConfig(), "setSurface leaves its input unchanged");
 
 const nestedInput = defaultConfig();
-nestedInput.menus.notifications.widgets = ["clock", { id: "container", widgets: ["divider"] }];
-eq(normalize(nestedInput, BarCatalog, MenuCatalog).menus.notifications.widgets, ["clock", { id: "container", widgets: ["divider"] }], "normalizer preserves bounded nested menu widgets");
+nestedInput.menus.weather.widgets = ["clock", { id: "container", widgets: ["divider"] }];
+eq(normalize(nestedInput, BarCatalog, MenuCatalog).menus.weather.widgets, ["clock", { id: "container", widgets: ["divider"] }], "normalizer preserves bounded nested menu widgets");
 
 // normalize completes a partial config: any absent top-level subtree is restored
 // from the schema default, so a reader that goes through normalize never sees a

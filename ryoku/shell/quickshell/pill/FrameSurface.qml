@@ -19,6 +19,10 @@ Popout {
     property var record: null
     property string anchor: "top"
     property bool menuOpen: false
+    // Live "voice opened in its inactive state" flag from the manager record
+    // (the static config record does not carry it). Gates the dictation capture
+    // and the surface's off note.
+    property bool off: false
     property var manager: null
     // The trigger centre the manager derives for the surface (its owning bar
     // widget or the screen centre for an IPC open).
@@ -92,7 +96,8 @@ Popout {
         id: voiceBody
         VoicePopout {
             s: root.s
-            off: root.record && root.record.off === true
+            off: root.off
+            capture: root.menuOpen && !root.off
             open: root.effectiveOpen
             onCloseRequested: root.requestClose()
         }

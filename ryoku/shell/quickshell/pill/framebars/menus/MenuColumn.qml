@@ -13,6 +13,9 @@ Item {
     property var widgets: []
     property bool open: false
     property real scale: 1
+    // Forwarded to the sole quick-settings widget: an initial sidebar page to
+    // open on (a bar indicator deep-linking into a page). "" opens the main view.
+    property string initialPage: ""
     signal requestClose()
 
     readonly property real pad: 20 * scale
@@ -46,6 +49,7 @@ Item {
                     // A sole widget owns the whole band (the sidebar fills it);
                     // stacked widgets keep natural heights.
                     avail: root.widgets.length === 1 ? root.height - root.pad * 2 : 0
+                    initialPage: root.initialPage
                     onRequestClose: root.requestClose()
                 }
             }

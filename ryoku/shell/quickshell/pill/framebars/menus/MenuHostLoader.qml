@@ -14,6 +14,7 @@ Loader {
     property bool open: false
     property int depth: 0
     property real avail: 0
+    property string initialPage: ""
 
     signal requestClose()
     source: Qt.resolvedUrl("../../MenuWidgetHost.qml")
@@ -24,6 +25,7 @@ Loader {
         item.open = Qt.binding(() => host.open);
         item.depth = Qt.binding(() => host.depth);
         item.avail = Qt.binding(() => host.avail);
+        item.initialPage = Qt.binding(() => host.initialPage);
     }
 
     Connections {

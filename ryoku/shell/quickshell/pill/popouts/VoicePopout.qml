@@ -13,6 +13,7 @@ Item {
     property real s: 1
     property bool open: false
     property bool off: false
+    property bool capture: false
     signal closeRequested()
 
     implicitWidth: 320 * root.s
@@ -23,6 +24,7 @@ Item {
         anchors.fill: parent
         s: root.s
         off: root.off
+        capture: root.capture
         open: true
         shown: true
         openProgress: 1

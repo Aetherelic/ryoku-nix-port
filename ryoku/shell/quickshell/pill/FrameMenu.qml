@@ -24,6 +24,13 @@ Item {
 
     // Set by the FrameMenuManager delegate.
     property var record: null
+    // The live menuState record for this anchor while open (else null), from the
+    // manager. It carries the dynamic open-time fields the static config record
+    // lacks: `off` (voice opened in its inactive state) and `page` (an initial
+    // sidebar page). Derived below and forwarded to the bodies.
+    property var openRecord: null
+    readonly property bool recordOff: !!(root.openRecord && root.openRecord.off)
+    readonly property string recordPage: root.openRecord && root.openRecord.page ? root.openRecord.page : ""
     property string anchor: "left"
     property bool menuOpen: false
     property var manager: null
@@ -155,6 +162,7 @@ Item {
             scale: 1
             open: root.effectiveOpen
             widgets: root.widgetIds
+            initialPage: root.recordPage
             onRequestClose: root.requestClose()
         }
     }
@@ -187,6 +195,7 @@ Item {
             active: root.active
             manager: root.manager
             record: root.record
+            off: root.recordOff
             anchor: root.anchor
             menuOpen: root.menuOpen
             triggerAlong: root.triggerAlong

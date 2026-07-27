@@ -18,13 +18,18 @@ PillSurface {
 
     // dictation isn't running: show a plain "off" note in place of the wave.
     property bool off: false
+    // Drives the mic capture: true only while the surface is genuinely open and
+    // dictation is active (set by the host), never merely mounted.
+    property bool capture: false
     ameForm: "off"
 
     implicitHeight: 30 * root.s
 
-    // run cava only while we're actually listening, never leave it running.
-    onOpenChanged: VoiceBars.active = root.open && !root.off
-    onOffChanged: VoiceBars.active = root.open && !root.off
+    // cava runs only while genuinely open and dictation active. The capture gate
+    // (menuOpen and not off) keeps it silent when opened in the inactive state
+    // and stops it the instant a close begins, never during the melt.
+    onCaptureChanged: VoiceBars.active = root.capture
+    Component.onCompleted: VoiceBars.active = root.capture
     Component.onDestruction: VoiceBars.active = false
 
     // mic energy 0..1. mic glyph + wave brighten as user speaks, rest dim.

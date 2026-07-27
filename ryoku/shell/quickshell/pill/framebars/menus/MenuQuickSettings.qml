@@ -28,6 +28,12 @@ Item {
     // ---- detail-page navigation --------------------------------------------
     // "" = main; else network | bluetooth | audio-out | audio-in.
     property string page: ""
+    // A bar indicator can deep-link into a page: this initial page is applied
+    // when the sidebar opens (and while open, if it changes). "" is the main view.
+    property string initialPage: ""
+    // Pages mount on first visit and stay cached (the iNiR lesson), so opening
+    // the sidebar loads only the main view. seen[page] latches on first show.
+    property var seen: ({})
     function pageTitle() {
         switch (root.page) {
         case "network": return qsTr("Wi-Fi");
@@ -35,6 +41,9 @@ Item {
         case "audio-out": return qsTr("Sound output");
         case "audio-in": return qsTr("Microphone");
         case "theme": return qsTr("Colour scheme");
+        case "notifications": return qsTr("Notifications");
+        case "clipboard": return qsTr("Clipboard");
+        case "media": return qsTr("Media");
         }
         return "";
     }
@@ -52,8 +61,17 @@ Item {
         else if (!root.open && root.watching) { Toggles.watchers -= 1; root.watching = false; }
     }
     onOpenChanged: {
-        if (!root.open) root.page = "";
+        if (root.open) { if (root.initialPage !== "") root.page = root.initialPage; }
+        else root.page = "";
         root.syncWatch();
+    }
+    onInitialPageChanged: if (root.open && root.initialPage !== "") root.page = root.initialPage;
+    onPageChanged: {
+        if (root.page !== "" && !root.seen[root.page]) {
+            const next = Object.assign({}, root.seen);
+            next[root.page] = true;
+            root.seen = next;
+        }
     }
 
     // ---- main band ----------------------------------------------------------
@@ -67,7 +85,7 @@ Item {
         x: (root.page !== "") ? -root.width / 3 : 0
         visible: x > -root.width / 3 + 0.5
         implicitHeight: headerCol.implicitHeight + 420
-        Behavior on x { NumberAnimation { duration: 420; easing.type: Easing.OutQuint } }
+        Behavior on x { NumberAnimation { duration: Motion.push; easing.type: Motion.pushCurve } }
 
         Column {
             id: headerCol
@@ -171,9 +189,9 @@ Item {
         // under the dock.
         Flickable {
             anchors.top: headerCol.bottom
-            anchors.topMargin: 10
+            anchors.topMargin: 12
             anchors.bottom: bottomDock.top
-            anchors.bottomMargin: 10
+            anchors.bottomMargin: 12
             width: parent.width
             contentWidth: width
             contentHeight: flowCol.implicitHeight
@@ -282,14 +300,51 @@ Item {
                 active: root.open && !(root.page !== "")
             }
 
-            // Media, only while a player exists (the card hides itself).
-            MenuMedia { width: parent.width; s: root.s; open: root.open && !(root.page !== "") }
+            // Shelf: notifications, clipboard, and the media player each open as
+            // a slide-in page (their sparse standalone menus retired into here).
+            QsSection { width: parent.width; label: qsTr("Shelf") }
+            Column {
+                width: parent.width
+                spacing: 8
+                QsNavRow {
+                    width: parent.width
+                    icon: Flags.dnd ? "notifications_off" : "notifications"
+                    label: qsTr("Notifications")
+                    sub: Notifs.history.length > 0 ? String(Notifs.history.length) : qsTr("None")
+                    onActivated: root.page = "notifications"
+                }
+                QsNavRow {
+                    width: parent.width
+                    icon: "content_paste"
+                    label: qsTr("Clipboard")
+                    sub: Clipboard.entries.length > 0 ? String(Clipboard.entries.length) : qsTr("Empty")
+                    onActivated: root.page = "clipboard"
+                }
+                QsNavRow {
+                    width: parent.width
+                    icon: "music_note"
+                    label: qsTr("Media")
+                    sub: Media.present ? Media.line : qsTr("Nothing playing")
+                    onActivated: root.page = "media"
+                }
+            }
 
             // The clock menu body, the translated reference surface (calendar,
             // weather, conditions), moved whole into the sidebar. One calendar
             // for the shell; the standalone clock menu is retired.
             MenuClock { width: parent.width; s: root.s; open: root.open && root.page === "" }
         }
+        }
+
+        // Sumi edge: the lit top line of the docked footer band, separating it
+        // from the scrolling content above.
+        Rectangle {
+            anchors.left: bottomDock.left
+            anchors.right: bottomDock.right
+            anchors.bottom: bottomDock.top
+            anchors.bottomMargin: 12
+            height: 1
+            color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.10)
         }
 
         // Power and session footer docked to the panel's bottom edge.
@@ -353,7 +408,7 @@ Item {
         // The page rides in over the gliding main band, full width, no fade.
         x: (root.page !== "") ? 0 : root.width
         visible: x < root.width - 0.5
-        Behavior on x { NumberAnimation { duration: 420; easing.type: Easing.OutQuint } }
+        Behavior on x { NumberAnimation { duration: Motion.push; easing.type: Motion.pushCurve } }
 
         // Opaque panel backing: the page rides in as a solid sheet, so the
         // parallaxing main band never shows through mid-transition.
@@ -399,39 +454,119 @@ Item {
                     id: pageStack
                     width: parent.width
 
-                    MenuNetwork {
-                        pageMode: true
+                    Loader {
+                        width: pageStack.width
+                        active: root.seen["network"] === true
                         visible: root.page === "network"
-                        width: parent.width
-                        s: root.s
-                        open: root.open && root.page === "network"
+                        sourceComponent: Component {
+                            MenuNetwork {
+                                pageMode: true
+                                width: parent.width
+                                s: root.s
+                                open: root.open && root.page === "network"
+                            }
+                        }
                     }
-                    MenuBluetooth {
-                        pageMode: true
+                    Loader {
+                        width: pageStack.width
+                        active: root.seen["bluetooth"] === true
                         visible: root.page === "bluetooth"
-                        width: parent.width
-                        s: root.s
-                        open: root.open && root.page === "bluetooth"
+                        sourceComponent: Component {
+                            MenuBluetooth {
+                                pageMode: true
+                                width: parent.width
+                                s: root.s
+                                open: root.open && root.page === "bluetooth"
+                            }
+                        }
                     }
-                    MenuAudioOutput {
-                        pageMode: true
+                    Loader {
+                        width: pageStack.width
+                        active: root.seen["audio-out"] === true
                         visible: root.page === "audio-out"
-                        width: parent.width
-                        s: root.s
-                        open: root.open && root.page === "audio-out"
+                        sourceComponent: Component {
+                            MenuAudioOutput {
+                                pageMode: true
+                                width: parent.width
+                                s: root.s
+                                open: root.open && root.page === "audio-out"
+                            }
+                        }
                     }
-                    MenuAudioInput {
-                        pageMode: true
+                    Loader {
+                        width: pageStack.width
+                        active: root.seen["audio-in"] === true
                         visible: root.page === "audio-in"
-                        width: parent.width
-                        s: root.s
-                        open: root.open && root.page === "audio-in"
+                        sourceComponent: Component {
+                            MenuAudioInput {
+                                pageMode: true
+                                width: parent.width
+                                s: root.s
+                                open: root.open && root.page === "audio-in"
+                            }
+                        }
                     }
-                    MenuTheme {
+                    Loader {
+                        width: pageStack.width
+                        active: root.seen["theme"] === true
                         visible: root.page === "theme"
-                        width: parent.width
-                        s: root.s
-                        open: root.open && root.page === "theme"
+                        sourceComponent: Component {
+                            MenuTheme {
+                                width: parent.width
+                                s: root.s
+                                open: root.open && root.page === "theme"
+                            }
+                        }
+                    }
+                    Loader {
+                        width: pageStack.width
+                        active: root.seen["notifications"] === true
+                        visible: root.page === "notifications"
+                        sourceComponent: Component {
+                            MenuNotifications {
+                                width: parent.width
+                                s: root.s
+                                open: root.open && root.page === "notifications"
+                                onRequestClose: root.requestClose()
+                            }
+                        }
+                    }
+                    Loader {
+                        width: pageStack.width
+                        active: root.seen["clipboard"] === true
+                        visible: root.page === "clipboard"
+                        sourceComponent: Component {
+                            MenuClipboard {
+                                width: parent.width
+                                s: root.s
+                                open: root.open && root.page === "clipboard"
+                                onRequestClose: root.requestClose()
+                            }
+                        }
+                    }
+                    Loader {
+                        width: pageStack.width
+                        active: root.seen["media"] === true
+                        visible: root.page === "media"
+                        sourceComponent: Component {
+                            Column {
+                                width: parent.width
+                                spacing: 12
+                                MenuMedia {
+                                    width: parent.width
+                                    s: root.s
+                                    open: root.open && root.page === "media"
+                                }
+                                Text {
+                                    width: parent.width
+                                    visible: !Media.present
+                                    text: qsTr("Nothing playing")
+                                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                    font.family: Theme.fontPrimary
+                                    font.pixelSize: Theme.fontMd
+                                }
+                            }
+                        }
                     }
                 }
             }
