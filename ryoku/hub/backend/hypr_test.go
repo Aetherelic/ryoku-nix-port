@@ -668,11 +668,11 @@ func TestGenPluginsHyprbarsButtons(t *testing.T) {
 	}
 }
 
-// hyprfocus: the keys the plugin at the 0.55.4 pin actually registers (verified
-// live via hyprctl getoption) are mode / fade_opacity / bounce_strength /
-// slide_height, with no `enable` key (loading the .so enables it). A newer
-// upstream commit renamed these, but our package builds the 0.55.4-matched
-// commit, so these are the ones that must be emitted.
+// hyprfocus: the package tracks upstream's hyprpm pin for the running
+// Hyprland, and the 0.56 plugin registers enable / keyboard_focus_animation /
+// mouse_focus_animation / fade_opacity / shrink_percentage / slide_height
+// (verified against the built .so). The store keeps the stable mode/bounce
+// names; the emit maps bounce onto the plugin's shrink animation.
 func TestGenPluginsHyprfocusKeys(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // hermetic: no checkout ~/.local plugin, so /usr/lib
 	o := defaultOverrides()
@@ -681,16 +681,22 @@ func TestGenPluginsHyprfocusKeys(t *testing.T) {
 	out := genLua(o, true)
 	for _, want := range []string{
 		`hl.plugin.load("/usr/lib/hyprland/plugins/hyprfocus.so")`,
-		`mode = "bounce"`, `fade_opacity = 0.8`, `bounce_strength = 0.95`, `slide_height = 20.0`,
+		"enable = true",
+		`keyboard_focus_animation = "shrink"`, `mouse_focus_animation = "none"`,
+		`fade_opacity = 0.8`, `shrink_percentage = 0.95`, `slide_height = 20.0`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
 	}
-	for _, not := range []string{"enable = true", "keyboard_focus_animation", "shrink_percentage"} {
+	for _, not := range []string{"mode =", "bounce_strength"} {
 		if strings.Contains(out, not) {
 			t.Errorf("stale hyprfocus key %q emitted:\n%s", not, out)
 		}
+	}
+	o.Plugins.Hyprfocus.Mode = "slide"
+	if out := genLua(o, true); !strings.Contains(out, `keyboard_focus_animation = "slide"`) {
+		t.Errorf("slide mode did not pass through:\n%s", out)
 	}
 }
 

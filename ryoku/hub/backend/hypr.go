@@ -265,7 +265,7 @@ type Hyprglass struct {
 
 type Hyprfocus struct {
 	Enabled bool    `json:"enabled"`
-	Mode    string  `json:"mode"`    // flash | bounce | slide
+	Mode    string  `json:"mode"`    // flash | bounce (plugin: shrink) | slide
 	Opacity float64 `json:"opacity"` // fade_opacity, for flash
 	Bounce  float64 `json:"bounce"`  // bounce_strength, for bounce
 	Slide   float64 `json:"slide"`   // slide_height px, for slide
@@ -900,10 +900,20 @@ func genPlugins(o Overrides) string {
 	}
 
 	if hf := p.Hyprfocus; hf.Enabled {
+		// The package tracks upstream's hyprpm pin for the running Hyprland, and
+		// the 0.56 plugin renamed its keys: the focus animation is chosen per
+		// input source and the bounce effect became shrink. The store keeps the
+		// stable mode/bounce names; only the emit follows the plugin.
+		anim := hf.Mode
+		if anim == "bounce" {
+			anim = "shrink"
+		}
 		opts := []string{
-			fmt.Sprintf("mode = %s", luaStr(hf.Mode)),
+			"enable = true",
+			fmt.Sprintf("keyboard_focus_animation = %s", luaStr(anim)),
+			`mouse_focus_animation = "none"`,
 			fmt.Sprintf("fade_opacity = %s", luaNum(hf.Opacity)),
-			fmt.Sprintf("bounce_strength = %s", luaNum(hf.Bounce)),
+			fmt.Sprintf("shrink_percentage = %s", luaNum(hf.Bounce)),
 			fmt.Sprintf("slide_height = %s", luaNum(hf.Slide)),
 		}
 		b.WriteString(genPluginBlock("hyprfocus", "hyprfocus", opts, ""))
