@@ -56,21 +56,5 @@ var rows = [{
         "lo": 2500.0,
         "hi": 6500.0,
         "unit": "K"
-    },{
-        "tab": "Theme",
-        "group": "BORDER COLOURS",
-        "key": "appearance.activeBorder",
-        "label": "Active window",
-        "desc": "Frame colour of the focused window, only with a fixed palette",
-        "ctl": "color",
-        "src": "hypr.json"
-    },{
-        "tab": "Theme",
-        "group": "BORDER COLOURS",
-        "key": "appearance.inactiveBorder",
-        "label": "Inactive window",
-        "desc": "Frame colour of unfocused windows, only with a fixed palette",
-        "ctl": "color",
-        "src": "hypr.json"
     }
 ];
