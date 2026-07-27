@@ -245,14 +245,15 @@ func resolveUnit(unit string) string {
 	}
 }
 
-// wxShort renders a float the way the reference prints its raw temperature and
-// wind values: the shortest decimal that round-trips the f32, no fixed places.
+// wxShort renders a display value as a whole number: every surface prints
+// temperatures and wind at integer precision, so the strings stay tidy and
+// never crowd their row.
 func wxShort(v float64) string {
-	return strconv.FormatFloat(float64(float32(v)), 'f', -1, 32)
+	return strconv.Itoa(int(math.Round(v)))
 }
 
-// fmtTemp formats a celsius value in the display unit (reference: raw f32 plus
-// the unit symbol; fahrenheit = c*9/5+32).
+// fmtTemp formats a celsius value in the display unit, rounded to the degree
+// (fahrenheit = c*9/5+32).
 func fmtTemp(celsius float64, unit string) string {
 	if unit == "fahrenheit" {
 		return wxShort(celsius*9.0/5.0+32.0) + "\u00b0F"
