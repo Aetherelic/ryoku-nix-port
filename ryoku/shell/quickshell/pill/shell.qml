@@ -96,8 +96,12 @@ ShellRoot {
     }
     function edgeReserve(edge) {
         const rail = Config.normalizedFrameBars.rails[edge];
-        if (!rail || !root.edgeRevealed[edge])
+        if (!rail)
             return 0;
+        // A hidden bar keeps a 1px reserve: the hover strip stays reachable, as
+        // measured on the reference (hidden left bar reserves 1, not 0).
+        if (!root.edgeRevealed[edge])
+            return 1;
         return (root.railHasWidgets(rail, edge) ? rail.size : 1) + root.frameBorderPx;
     }
     // CLI/daemon bar control (ryoku-shell bar <edge|all> <toggle|reveal|hide>).
