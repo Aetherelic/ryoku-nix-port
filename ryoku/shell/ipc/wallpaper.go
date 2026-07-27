@@ -34,7 +34,7 @@ func liveDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "l
 func wallState() string { return filepath.Join(stateDir(), "ryoku-wallpaper") }
 func wallBag() string   { return filepath.Join(stateDir(), "ryoku-wallpaper-bag") }
 
-// wallpaperApply: pick a wallpaper per mode (init | set | next | refresh) and
+// wallpaperApply: pick a wallpaper per mode (init | set | next | random | refresh)
 // show it. Images are painted by the in-shell backdrop surface (the daemon copies
 // the pick into a cache file, bumps a revision, and publishes it); videos play
 // through ryoku-livewall. The slow retheme (palette, borders, LEDs) goes to
@@ -81,6 +81,10 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 		// hotplug: a new monitor's backdrop window subscribes and paints the
 		// current revision on its own, so there is nothing to repaint here.
 		return nil
+	case "random":
+		// Super+Shift+W: a random image from the switcher pool, never the current
+		// one; the image branch below reveals it with a random transition preset.
+		pic = pickRandomImage(imagePics(), readState())
 	case "init":
 		if cur := readState(); cur != "" && isFile(cur) {
 			pic = cur
@@ -107,9 +111,17 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 	}
 
 	// images: stop any video so the backdrop is revealed, then copy the pick into
-	// the cache and bump the revision; the backdrop crossfades to it.
+	// the cache and bump the revision. A user-driven switch (set / next / random)
+	// reveals with a random transition preset; init just crossfades onto the fresh
+	// backdrop, so a login never fires a full reveal.
 	stopLive()
-	if err := d.wall.show(pic); err != nil {
+	var err error
+	if mode == "init" {
+		err = d.wall.show(pic)
+	} else {
+		err = d.wall.showTransition(pic, d.pickTransition())
+	}
+	if err != nil {
 		return err
 	}
 	_ = os.MkdirAll(stateDir(), 0o755)
@@ -380,16 +392,42 @@ func (d *daemon) scheduleTheme() {
 // coalesced burst themes the final wallpaper. runs for the life of the daemon.
 func (d *daemon) paintWorker() {
 	for range d.paintSig {
+		// A fixed named theme (matugen engine) owns the palette: fan its curated
+		// palette into the same app templates the wallpaper path renders, then
+		// reload, so apps follow the shell rail's master instead of keeping the
+		// last wallpaper render (the shell-dark / apps-light split). No wallpaper
+		// is needed, so this runs before the wallpaper-file guard below.
+		if isMatugenEngine() && staticThemeActive() {
+			if name := staticThemeName(); name != "" {
+				if err := d.matugenApplyStatic(name); err != nil {
+					fmt.Fprintf(os.Stderr, "paintWorker matugen static: %v\n", err)
+				} else {
+					_ = exec.Command("hyprctl", "reload", "config-only").Run()
+					select {
+					case d.ledsSig <- struct{}{}:
+					default:
+					}
+				}
+			}
+			continue
+		}
 		pic := readState()
 		if pic == "" || !isFile(pic) {
 			continue
 		}
-		// fixed-palette theme (Ryoku Settings) owns the colours: change the image
-		// but keep the locked palette, don't re-derive, unless matugen engine is active.
-		if themePaletteLocked() && !isMatugenEngine() {
+		// The dynamic matugen pipeline owns the palette only while Match wallpaper
+		// is on and no fixed named theme is selected; otherwise it idles so it
+		// never fights the theme daemon's static palette. The wallust fallback
+		// keeps its own gate: a locked (non-following) palette is left untouched.
+		if isMatugenEngine() {
+			if !matugenFollows() {
+				continue
+			}
+		} else if themePaletteLocked() {
 			continue
 		}
-		// wallust reads an image, so a video is themed off one extracted frame.
+		// matugen and wallust both read a still image, so a video is themed off
+		// one extracted frame.
 		src := pic
 		if isVideo(pic) {
 			if src = liveFrame(pic); src == "" {
@@ -397,8 +435,8 @@ func (d *daemon) paintWorker() {
 			}
 		}
 		if isMatugenEngine() {
-			if out, err := exec.Command(findHubBin(), "hypr", "matugen", "apply", src).CombinedOutput(); err != nil {
-				fmt.Fprintf(os.Stderr, "paintWorker matugen apply: %v: %s\n", err, out)
+			if err := d.matugenApply(src); err != nil {
+				fmt.Fprintf(os.Stderr, "paintWorker matugen: %v\n", err)
 			}
 		} else {
 			_ = exec.Command("wallust", append([]string{"run", src}, tuneArgs()...)...).Run()

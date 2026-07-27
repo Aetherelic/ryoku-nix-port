@@ -1,0 +1,680 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+)
+
+// TestMatugenArgs pins the argv the pipeline hands matugen for each knob
+// combination: the matugen.json tokens pass straight through, the resolved
+// light/dark mode is the -m value, lightness / source-index / prefer are wired
+// from the knobs, and contrast clamps to [-1, 1].
+func TestMatugenArgs(t *testing.T) {
+	cases := []struct {
+		name string
+		k    matugenKnobs
+		mode string
+		want []string
+	}{
+		{
+			"tonal-spot / dark / saturation / 0.2",
+			matugenKnobs{SchemeType: "scheme-tonal-spot", Prefer: "saturation", Contrast: 0.2},
+			"dark",
+			[]string{"image", "/w.png", "-t", "scheme-tonal-spot", "-m", "dark", "--contrast", "0.20", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "saturation", "--json", "hex", "--dry-run"},
+		},
+		{
+			"vibrant / light / value / +0.5 / ld+0.3 / ll-0.2 / idx2",
+			matugenKnobs{SchemeType: "scheme-vibrant", Prefer: "value", Contrast: 0.5, LightnessDark: 0.3, LightnessLight: -0.2, SourceColorIndex: 2},
+			"light",
+			[]string{"image", "/w.png", "-t", "scheme-vibrant", "-m", "light", "--contrast", "0.50", "--lightness-dark", "0.30", "--lightness-light", "-0.20", "--source-color-index", "2", "--prefer", "value", "--json", "hex", "--dry-run"},
+		},
+		{
+			"monochrome / contrast clamp high",
+			matugenKnobs{SchemeType: "scheme-monochrome", Prefer: "darkness", Contrast: 5},
+			"dark",
+			[]string{"image", "/w.png", "-t", "scheme-monochrome", "-m", "dark", "--contrast", "1.00", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "darkness", "--json", "hex", "--dry-run"},
+		},
+		{
+			"fruit-salad / contrast clamp low",
+			matugenKnobs{SchemeType: "scheme-fruit-salad", Prefer: "less-saturation", Contrast: -5},
+			"light",
+			[]string{"image", "/w.png", "-t", "scheme-fruit-salad", "-m", "light", "--contrast", "-1.00", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "less-saturation", "--json", "hex", "--dry-run"},
+		},
+	}
+	for _, c := range cases {
+		got, err := matugenArgs("/w.png", c.k, c.mode)
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", c.name, err)
+			continue
+		}
+		if !slices.Equal(got, c.want) {
+			t.Errorf("%s:\n got %v\nwant %v", c.name, got, c.want)
+		}
+	}
+}
+
+// TestMatugenArgsRejectsUnknown: an out-of-schema token is an error, so the
+// caller fails loudly instead of feeding matugen a value it would reject. An
+// unresolved mode ("smart" reaching matugenArgs) is a caller bug and also fails.
+func TestMatugenArgsRejectsUnknown(t *testing.T) {
+	cases := []struct {
+		name string
+		k    matugenKnobs
+		mode string
+	}{
+		{"unknown schemeType", matugenKnobs{SchemeType: "scheme-bogus", Prefer: "saturation"}, "dark"},
+		{"unresolved smart mode", matugenKnobs{SchemeType: "scheme-tonal-spot", Prefer: "saturation"}, "smart"},
+		{"unknown prefer", matugenKnobs{SchemeType: "scheme-tonal-spot", Prefer: "nope"}, "dark"},
+	}
+	for _, c := range cases {
+		if _, err := matugenArgs("/w.png", c.k, c.mode); err == nil {
+			t.Errorf("%s: expected error, got nil", c.name)
+		}
+	}
+}
+
+// TestReadMatugenKnobs proves the one knob store (matugen.json) is the source:
+// a missing file yields the shipped defaults, and a full file maps every field
+// (native tokens, lightness, source index, app-suite toggle, and the per-app
+// roster) into the knobs the pipeline reads.
+func TestReadMatugenKnobs(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	ryoku := filepath.Join(home, ".config", "ryoku")
+	if err := os.MkdirAll(ryoku, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Missing file -> defaults.
+	k := readMatugenKnobs()
+	if k.SchemeType != "scheme-tonal-spot" || k.Mode != "smart" || k.Prefer != "saturation" || !k.ThemeRyokuApps {
+		t.Errorf("defaults: got %+v", k)
+	}
+
+	// Full file -> every field mapped.
+	writeFile(t, filepath.Join(ryoku, "matugen.json"),
+		`{"engine":"matugen","schemeType":"scheme-vibrant","mode":"dark","contrast":0.2,`+
+			`"lightnessDark":0.1,"lightnessLight":-0.1,"prefer":"value","sourceColorIndex":3,`+
+			`"themeRyokuApps":false,"templates":{"kitty":true,"btop":false,"gtk":true}}`)
+	k = readMatugenKnobs()
+	if k.Engine != "matugen" || k.SchemeType != "scheme-vibrant" || k.Mode != "dark" ||
+		k.Contrast != 0.2 || k.LightnessDark != 0.1 || k.LightnessLight != -0.1 ||
+		k.Prefer != "value" || k.SourceColorIndex != 3 || k.ThemeRyokuApps {
+		t.Errorf("full file: got %+v", k)
+	}
+	if k.Templates["kitty"] != true || k.Templates["btop"] != false || k.Templates["gtk"] != true {
+		t.Errorf("roster: got %v", k.Templates)
+	}
+}
+
+// TestSmartMode is the smart-mode rule at the decision point: a dark image
+// (low luma) selects a dark scheme, a light image a light one, split at the
+// mid-point (>= 0.5 is light).
+func TestSmartMode(t *testing.T) {
+	cases := []struct {
+		luma float64
+		want string
+	}{
+		{0.00, "dark"}, {0.10, "dark"}, {0.4999, "dark"},
+		{0.50, "light"}, {0.90, "light"}, {1.00, "light"},
+	}
+	for _, c := range cases {
+		if got := smartMode(c.luma); got != c.want {
+			t.Errorf("smartMode(%.4f) = %q, want %q", c.luma, got, c.want)
+		}
+	}
+}
+
+// TestResolveModeBothBranches drives the whole smart resolution off real images:
+// a near-black wallpaper resolves dark, a near-white one light, while an explicit
+// light/dark knob passes through regardless of the wallpaper.
+func TestResolveModeBothBranches(t *testing.T) {
+	home := t.TempDir()
+	darkPNG := filepath.Join(home, "dark.png")
+	lightPNG := filepath.Join(home, "light.png")
+	writeSolidPNG(t, darkPNG, 12)
+	writeSolidPNG(t, lightPNG, 240)
+
+	if l := meanLuma(solidRGBA(4, 4, 0, 0, 0)); l > 0.01 {
+		t.Errorf("meanLuma(black) = %.4f, want ~0", l)
+	}
+	if l := meanLuma(solidRGBA(4, 4, 255, 255, 255)); l < 0.99 {
+		t.Errorf("meanLuma(white) = %.4f, want ~1", l)
+	}
+
+	cases := []struct {
+		name, mode, img, want string
+	}{
+		{"smart + dark wallpaper -> dark", "smart", darkPNG, "dark"},
+		{"smart + light wallpaper -> light", "smart", lightPNG, "light"},
+		{"explicit dark ignores a light wallpaper", "dark", lightPNG, "dark"},
+		{"explicit light ignores a dark wallpaper", "light", darkPNG, "light"},
+	}
+	for _, c := range cases {
+		if got := resolveMode(c.mode, c.img); got != c.want {
+			t.Errorf("%s: resolveMode(%q, ...) = %q, want %q", c.name, c.mode, got, c.want)
+		}
+	}
+}
+
+// TestMatugenBase16Color8IsLegibleForeground defends the dark-on-dark fix:
+// base16 color8 (the "bright black" muted ink Tokens reads as inkMuted/inkFaint)
+// must map to `outline`, a legible mid-lightness foreground role, NOT to
+// `surface_variant`, a dark background role that painted muted ink invisibly.
+func TestMatugenBase16Color8IsLegibleForeground(t *testing.T) {
+	pal := map[string]string{
+		"surface": "#13140d", "on_surface": "#e4e3d7",
+		"outline": "#909283", "surface_variant": "#46483c",
+		"primary": "#bdce80", "secondary": "#c4caa9", "tertiary": "#a1d0c5",
+		"error": "#ffb4ab",
+	}
+	b16 := matugenBase16(pal)
+	if b16["color8"] != "#909283" {
+		t.Errorf("color8 = %q, want outline #909283 (legible muted ink)", b16["color8"])
+	}
+	if b16["color8"] == "#46483c" {
+		t.Errorf("color8 must not map to surface_variant #46483c (dark-on-dark defect)")
+	}
+	// Sanity on the surrounding ramp: surface is the dark ground, foreground the
+	// light ink.
+	if b16["color0"] != "#13140d" || b16["background"] != "#13140d" {
+		t.Errorf("color0/background = %q/%q, want surface #13140d", b16["color0"], b16["background"])
+	}
+	if b16["color7"] != "#e4e3d7" || b16["foreground"] != "#e4e3d7" {
+		t.Errorf("color7/foreground = %q/%q, want on_surface #e4e3d7", b16["color7"], b16["foreground"])
+	}
+}
+
+// TestTemplateGroup pins the block -> roster-key mapping so one toggle governs
+// every block that themes an app (both GTK stylesheets, both discord clients,
+// the two Qt toolkits, the Hyprland border).
+func TestTemplateGroup(t *testing.T) {
+	cases := map[string]string{
+		"gtk3": "gtk", "gtk4": "gtk",
+		"vesktop": "discord", "equibop": "discord",
+		"qt6ct": "qt", "qt5ct": "qt5", "hypr": "hyprland",
+		"kitty": "kitty", "btop": "btop", "papirus": "papirus", "cava": "cava",
+	}
+	for block, want := range cases {
+		if got := templateGroup(block); got != want {
+			t.Errorf("templateGroup(%q) = %q, want %q", block, got, want)
+		}
+	}
+}
+
+// TestFilterMatugenConfig is the roster gate: the [config] preamble always
+// renders, an enabled block renders with its comments and post_hook, and a
+// disabled block (or a whole group like gtk) is dropped entirely, so the render
+// set is exactly the enabled roster.
+func TestFilterMatugenConfig(t *testing.T) {
+	const core = `[config]
+# preamble kept always
+
+[templates.kitty]
+input_path = "~/a"
+output_path = "~/b"
+
+[templates.hypr]
+input_path = "~/c"
+output_path = "~/d"
+
+[templates.qt6ct]
+input_path = "~/e"
+output_path = "~/f"
+post_hook = "recolor-folders"
+`
+	roster := map[string]bool{"kitty": true, "hyprland": false, "qt": true}
+	out := filterMatugenConfig(core, func(g string) bool { return roster[g] })
+
+	if !strings.Contains(out, "[config]") || !strings.Contains(out, "preamble kept always") {
+		t.Errorf("[config] preamble dropped:\n%s", out)
+	}
+	if !strings.Contains(out, "[templates.kitty]") {
+		t.Errorf("kitty enabled but dropped:\n%s", out)
+	}
+	if strings.Contains(out, "[templates.hypr]") {
+		t.Errorf("hyprland disabled but rendered:\n%s", out)
+	}
+	if !strings.Contains(out, "[templates.qt6ct]") || !strings.Contains(out, `post_hook = "recolor-folders"`) {
+		t.Errorf("qt enabled but block or its post_hook dropped:\n%s", out)
+	}
+
+	const apps = `[config]
+[templates.gtk3]
+output_path = "~/g3"
+[templates.gtk4]
+output_path = "~/g4"
+[templates.vesktop]
+output_path = "~/v"
+[templates.qt5ct]
+output_path = "~/q5"
+`
+	on := map[string]bool{"gtk": false, "discord": true, "qt5": true}
+	got := filterMatugenConfig(apps, func(g string) bool { return on[g] })
+	if strings.Contains(got, "[templates.gtk3]") || strings.Contains(got, "[templates.gtk4]") {
+		t.Errorf("gtk disabled but a gtk block rendered:\n%s", got)
+	}
+	if !strings.Contains(got, "[templates.vesktop]") {
+		t.Errorf("discord enabled but vesktop dropped:\n%s", got)
+	}
+	if !strings.Contains(got, "[templates.qt5ct]") {
+		t.Errorf("qt5 enabled but qt5ct dropped:\n%s", got)
+	}
+}
+
+// TestMatugenReload proves the toolkit reload actions fire with the right argv,
+// through the process shim so the test never touches the desktop: the libadwaita
+// colour-scheme preference tracks the mode, the gtk-theme name flips off and back
+// to force a stylesheet re-read, and kitty gets SIGUSR1.
+func TestMatugenReload(t *testing.T) {
+	var got [][]string
+	origRun, origOut := runCommand, runCommandOutput
+	t.Cleanup(func() { runCommand, runCommandOutput = origRun, origOut })
+	runCommand = func(name string, args ...string) error {
+		got = append(got, append([]string{name}, args...))
+		return nil
+	}
+	runCommandOutput = func(name string, args ...string) ([]byte, error) {
+		return []byte("'Adwaita-dark'\n"), nil
+	}
+
+	has := func(want ...string) bool {
+		for _, c := range got {
+			if slices.Equal(c, want) {
+				return true
+			}
+		}
+		return false
+	}
+
+	matugenReload("dark")
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark") {
+		t.Errorf("dark: color-scheme prefer-dark not set; got %v", got)
+	}
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "") ||
+		!has("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "Adwaita-dark") {
+		t.Errorf("dark: gtk-theme not flipped off and back; got %v", got)
+	}
+	if !has("pkill", "-USR1", "-x", "kitty") {
+		t.Errorf("dark: kitty SIGUSR1 not sent; got %v", got)
+	}
+
+	got = nil
+	matugenReload("light")
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-light") {
+		t.Errorf("light: color-scheme prefer-light not set; got %v", got)
+	}
+}
+
+// TestMatugenFollows is the trigger rule: the dynamic pipeline runs only when
+// Match wallpaper is on and no fixed named theme is selected. Match off, or a
+// static theme active, leaves it idle so it never fights the theme daemon.
+func TestMatugenFollows(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	ryoku := filepath.Join(home, ".config", "ryoku")
+	if err := os.MkdirAll(ryoku, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name   string
+		follow bool
+		theme  string
+		want   bool
+	}{
+		{"match on + wallpaper theme -> run", true, "Wallpaper", true},
+		{"match on + default theme -> run", true, "Default", true},
+		{"match on + no theme key -> run", true, "", true},
+		{"match off -> idle", false, "Wallpaper", false},
+		{"match on + static named theme -> idle", true, "Solitude", false},
+	}
+	for _, c := range cases {
+		if err := os.WriteFile(filepath.Join(ryoku, "theme.json"), []byte(fmt.Sprintf(`{"followWallpaper":%v}`, c.follow)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(ryoku, "shell.json"), []byte(fmt.Sprintf(`{"theme":{"theme":%q}}`, c.theme)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := matugenFollows(); got != c.want {
+			t.Errorf("%s: matugenFollows() = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// TestMatugenApplyInvokesBinary drives matugenApply against a PATH-shimmed
+// matugen that records its argv and emits a canned palette. It proves the knobs
+// come from matugen.json, that smart mode resolves the -m value from the
+// wallpaper's luminance (both branches), that the mode selects the colour
+// bucket, and that the shell palette lands with the base16 keys plus the
+// camelCase Material 3 roles Theme.qml reads. gsettings and pkill are shimmed so
+// the test never touches the desktop.
+func TestMatugenApplyInvokesBinary(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
+
+	bin := t.TempDir()
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	logFile := filepath.Join(home, "matugen.argv")
+	jsonDark := filepath.Join(home, "dark.json")
+	jsonLight := filepath.Join(home, "light.json")
+	writeFile(t, jsonDark, fakeMatugenJSON("#0a0a0a", "#0b0b0b", "#0c0c0c"))
+	writeFile(t, jsonLight, fakeMatugenJSON("#f0f0f0", "#f1f1f1", "#f2f2f2"))
+
+	// The shim records argv, then for `image` emits the palette matching the
+	// requested mode (-m dark|light picks the bucket), else no-ops (render pass).
+	shim := `printf '%s\n' "$*" >> "` + logFile + `"
+mode=dark
+prev=
+for a in "$@"; do case "$prev" in -m) mode="$a";; esac; prev="$a"; done
+case "$1" in
+  image) if [ "$mode" = light ]; then cat "` + jsonLight + `"; else cat "` + jsonDark + `"; fi ;;
+esac`
+	writeShim(t, filepath.Join(bin, "matugen"), shim)
+	writeShim(t, filepath.Join(bin, "gsettings"), ":")
+	writeShim(t, filepath.Join(bin, "pkill"), ":")
+
+	// Deploy a minimal matugen config so the render pass has configs to run.
+	mgDir := filepath.Join(home, ".config", "matugen")
+	if err := os.MkdirAll(mgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(mgDir, "config.toml"), "[config]\n")
+	writeFile(t, filepath.Join(mgDir, "apps.toml"), "[config]\n")
+
+	ryoku := filepath.Join(home, ".config", "ryoku")
+	if err := os.MkdirAll(ryoku, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	darkWall := filepath.Join(home, "dark-wall.png")
+	lightWall := filepath.Join(home, "light-wall.png")
+	writeSolidPNG(t, darkWall, 12)
+	writeSolidPNG(t, lightWall, 240)
+	colorsPath := filepath.Join(home, ".cache", "wallust", "colors.json")
+
+	combos := []struct {
+		name, scheme, mode, prefer, img string
+		contrast                        float64
+		wantArgs                        string
+		wantSurface                     string // colors.json surface for the resolved bucket
+	}{
+		{
+			"smart + dark wallpaper resolves -m dark", "scheme-tonal-spot", "smart", "saturation", darkWall, 0,
+			"image " + darkWall + " -t scheme-tonal-spot -m dark --contrast 0.00 --lightness-dark 0.00 --lightness-light 0.00 --source-color-index 0 --prefer saturation --json hex --dry-run",
+			"#0a0a0a",
+		},
+		{
+			"smart + light wallpaper resolves -m light", "scheme-tonal-spot", "smart", "saturation", lightWall, 0,
+			"image " + lightWall + " -t scheme-tonal-spot -m light --contrast 0.00 --lightness-dark 0.00 --lightness-light 0.00 --source-color-index 0 --prefer saturation --json hex --dry-run",
+			"#f2f2f2",
+		},
+		{
+			"explicit light / vibrant / value / +0.5", "scheme-vibrant", "light", "value", darkWall, 0.5,
+			"image " + darkWall + " -t scheme-vibrant -m light --contrast 0.50 --lightness-dark 0.00 --lightness-light 0.00 --source-color-index 0 --prefer value --json hex --dry-run",
+			"#f2f2f2",
+		},
+	}
+	for _, c := range combos {
+		_ = os.Remove(logFile)
+		_ = os.Remove(colorsPath)
+		writeFile(t, filepath.Join(ryoku, "matugen.json"),
+			fmt.Sprintf(`{"engine":"matugen","schemeType":%q,"mode":%q,"prefer":%q,"contrast":%v,"themeRyokuApps":true}`,
+				c.scheme, c.mode, c.prefer, c.contrast))
+
+		if err := (&daemon{}).matugenApply(c.img); err != nil {
+			t.Fatalf("%s: matugenApply: %v", c.name, err)
+		}
+
+		logged, err := os.ReadFile(logFile)
+		if err != nil {
+			t.Fatalf("%s: read argv log: %v", c.name, err)
+		}
+		if !strings.Contains(string(logged), c.wantArgs) {
+			t.Errorf("%s: argv log missing expected image call\n want line: %s\n got:\n%s", c.name, c.wantArgs, logged)
+		}
+
+		var pal map[string]string
+		b, err := os.ReadFile(colorsPath)
+		if err != nil {
+			t.Fatalf("%s: colors.json not written: %v", c.name, err)
+		}
+		if err := json.Unmarshal(b, &pal); err != nil {
+			t.Fatalf("%s: colors.json parse: %v", c.name, err)
+		}
+		for _, k := range []string{"background", "foreground", "color0", "color4", "color8"} {
+			if pal[k] == "" {
+				t.Errorf("%s: colors.json missing base16 key %q", c.name, k)
+			}
+		}
+		for _, k := range []string{"surface", "onSurface", "primary", "onPrimary", "surfaceContainerHigh", "outline", "shadow", "scrim"} {
+			if pal[k] == "" {
+				t.Errorf("%s: colors.json missing Material 3 role %q", c.name, k)
+			}
+		}
+		if pal["surface"] != c.wantSurface {
+			t.Errorf("%s: surface = %q, want %q (mode bucket not selected)", c.name, pal["surface"], c.wantSurface)
+		}
+	}
+}
+
+// TestMatugenColorsJSONAlignsWithThemeQml pins the shell palette key set to the
+// 30 Material colour roles (plus shadow and scrim) Theme.qml resolves, so the
+// produced palette always lines up with what the pill reads.
+func TestMatugenColorsJSONAlignsWithThemeQml(t *testing.T) {
+	pal := map[string]string{}
+	for _, kv := range matugenRoleKeys {
+		pal[kv[0]] = "#123456"
+	}
+	out := matugenColorsJSON(pal)
+	want := []string{
+		"surface", "surfaceVariant", "surfaceContainerLowest", "surfaceContainerLow",
+		"surfaceContainer", "surfaceContainerHigh", "surfaceContainerHighest",
+		"inverseSurface", "inverseOnSurface", "surfaceTint", "primary", "primaryContainer",
+		"secondary", "secondaryContainer", "tertiary", "tertiaryContainer", "error",
+		"errorContainer", "outline", "outlineVariant", "onSurface", "onSurfaceVariant",
+		"onPrimary", "onPrimaryContainer", "onSecondary", "onSecondaryContainer",
+		"onTertiary", "onTertiaryContainer", "onError", "onErrorContainer", "shadow", "scrim",
+	}
+	for _, k := range want {
+		if out[k] == "" {
+			t.Errorf("colors.json missing role %q Theme.qml reads", k)
+		}
+	}
+}
+
+// TestMatugenIsolatedDrive drives the real matugenApply in an isolated HOME with
+// the shipped templates deployed and a recording-wrapper shim in front of the
+// real matugen. It proves the argv matches the knob mapping for smart mode, the
+// shell palette lands where Theme.qml watches with the Material 3 roles, the GTK
+// stylesheets are written, and -- the roster gate -- an enabled template renders
+// while a disabled one does not. Skipped where matugen is absent so the hermetic
+// suite stays green everywhere.
+func TestMatugenIsolatedDrive(t *testing.T) {
+	const realMatugen = "/usr/bin/matugen"
+	if _, err := os.Stat(realMatugen); err != nil {
+		t.Skip("real matugen not installed; skipping end-to-end drive")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
+
+	if err := os.MkdirAll(filepath.Join(home, ".config"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.CopyFS(filepath.Join(home, ".config", "matugen"), os.DirFS("../matugen")); err != nil {
+		t.Fatalf("deploy templates: %v", err)
+	}
+
+	bin := t.TempDir()
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	logFile := filepath.Join(home, "matugen.argv")
+	writeShim(t, filepath.Join(bin, "matugen"), `printf '%s\n' "$*" >> "`+logFile+`"; exec `+realMatugen+` "$@"`)
+	writeShim(t, filepath.Join(bin, "gsettings"), ":")
+	writeShim(t, filepath.Join(bin, "pkill"), ":")
+	writeShim(t, filepath.Join(bin, "ryoku-cmd-folders"), ":")
+	writeShim(t, filepath.Join(bin, "papirus-folders"), ":")
+
+	img := filepath.Join(home, "wall.png")
+	writePNG(t, img) // a dark-ish gradient; smart resolves dark
+	ryoku := filepath.Join(home, ".config", "ryoku")
+	if err := os.MkdirAll(ryoku, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Roster: kitty + gtk on, btop off. Smart mode + the shipped knobs.
+	writeFile(t, filepath.Join(ryoku, "matugen.json"),
+		`{"engine":"matugen","schemeType":"scheme-tonal-spot","mode":"smart","prefer":"saturation","contrast":0.2,`+
+			`"themeRyokuApps":true,"templates":{"kitty":true,"hyprland":true,"gtk":true,"qt":true,"btop":false}}`)
+
+	colorsPath := filepath.Join(home, ".cache", "wallust", "colors.json")
+	kittyOut := filepath.Join(home, ".config", "kitty", "current-theme.conf")
+	btopOut := filepath.Join(home, ".config", "btop", "themes", "ryoku.theme")
+	gtk4 := filepath.Join(home, ".config", "gtk-4.0", "gtk.css")
+	gtk3 := filepath.Join(home, ".config", "gtk-3.0", "gtk.css")
+	themeRoles := make([]string, len(matugenRoleKeys))
+	for i, kv := range matugenRoleKeys {
+		themeRoles[i] = kv[1]
+	}
+
+	if err := (&daemon{}).matugenApply(img); err != nil {
+		t.Fatalf("matugenApply: %v", err)
+	}
+
+	argv, _ := os.ReadFile(logFile)
+	t.Logf("matugen argv seen by shim:\n%s", strings.TrimSpace(string(argv)))
+	wantArgs := "image " + img + " -t scheme-tonal-spot -m dark --contrast 0.20 --lightness-dark 0.00 --lightness-light 0.00 --source-color-index 0 --prefer saturation --json hex --dry-run"
+	if !strings.Contains(string(argv), wantArgs) {
+		t.Errorf("argv missing expected image call\n want: %s", wantArgs)
+	}
+
+	b, err := os.ReadFile(colorsPath)
+	if err != nil {
+		t.Fatalf("colors.json not written where Theme.qml watches (%s): %v", colorsPath, err)
+	}
+	var pal map[string]string
+	if err := json.Unmarshal(b, &pal); err != nil {
+		t.Fatalf("colors.json parse: %v", err)
+	}
+	missing := 0
+	for _, k := range themeRoles {
+		if pal[k] == "" {
+			missing++
+			t.Errorf("colors.json missing role %q", k)
+		}
+	}
+	t.Logf("colors.json at %s: %d keys, %d/%d Theme.qml roles present; surface=%s primary=%s onSurface=%s color8(outline)=%s",
+		colorsPath, len(pal), len(themeRoles)-missing, len(themeRoles), pal["surface"], pal["primary"], pal["onSurface"], pal["color8"])
+
+	// Render set = enabled roster: kitty and GTK enabled -> written; btop
+	// disabled -> not written.
+	for _, g := range []string{gtk4, gtk3, kittyOut} {
+		if fi, err := os.Stat(g); err != nil {
+			t.Errorf("enabled template output %s not written: %v", g, err)
+		} else {
+			t.Logf("wrote %s (%d bytes)", g, fi.Size())
+		}
+	}
+	if _, err := os.Stat(btopOut); err == nil {
+		t.Errorf("btop disabled in roster but %s was rendered", btopOut)
+	} else {
+		t.Logf("btop disabled -> %s correctly absent", btopOut)
+	}
+}
+
+// --- helpers ---------------------------------------------------------------
+
+func writeShim(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// fakeMatugenJSON renders a matugen --json hex document covering every role the
+// pipeline reads, each with a distinct dark/default/light colour so mode
+// selection is observable.
+func fakeMatugenJSON(dark, def, light string) string {
+	roles := []string{
+		"surface", "surface_variant", "surface_container_lowest", "surface_container_low",
+		"surface_container", "surface_container_high", "surface_container_highest",
+		"inverse_surface", "inverse_on_surface", "surface_tint", "primary", "primary_container",
+		"secondary", "secondary_container", "tertiary", "tertiary_container", "error",
+		"error_container", "outline", "outline_variant", "on_surface", "on_surface_variant",
+		"on_primary", "on_primary_container", "on_secondary", "on_secondary_container",
+		"on_tertiary", "on_tertiary_container", "on_error", "on_error_container", "shadow",
+		"scrim", "background", "on_background", "inverse_primary",
+	}
+	colors := map[string]any{}
+	for _, r := range roles {
+		colors[r] = map[string]any{
+			"dark":    map[string]any{"color": dark},
+			"default": map[string]any{"color": def},
+			"light":   map[string]any{"color": light},
+		}
+	}
+	b, _ := json.Marshal(map[string]any{"colors": colors})
+	return string(b)
+}
+
+// solidRGBA builds a w*h image of one colour, for the luminance helpers.
+func solidRGBA(w, h int, r, g, b uint8) *image.RGBA {
+	im := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			im.Set(x, y, color.RGBA{R: r, G: g, B: b, A: 255})
+		}
+	}
+	return im
+}
+
+// writeSolidPNG writes a solid-gray PNG so smart mode resolves deterministically
+// (a low gray -> dark, a high gray -> light).
+func writeSolidPNG(t *testing.T, path string, gray uint8) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, solidRGBA(16, 16, gray, gray, gray)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// writePNG writes a small multi-colour gradient PNG so matugen has several source
+// colours to choose between (it needs --prefer to pick one non-interactively).
+func writePNG(t *testing.T, path string) {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
+	for y := range 64 {
+		for x := range 64 {
+			img.Set(x, y, color.RGBA{R: uint8(x * 4), G: uint8(y * 4), B: uint8((x + y) * 2), A: 255})
+		}
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, img); err != nil {
+		t.Fatal(err)
+	}
+}

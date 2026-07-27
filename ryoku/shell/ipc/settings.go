@@ -87,6 +87,10 @@ var (
 		"AirplaneMode", "DoNotDisturb", "ColorPicker", "IdleInhibitor", "Lock",
 		"Logout", "NightLight", "Reboot", "Settings", "Shutdown",
 	}
+
+	// theme.theme accepts the two dynamic variants (which carry no static palette)
+	// plus every static catalog name (themes_gen.go). An unknown name is rejected.
+	themeThemeValues = append([]string{"Default", "Wallpaper"}, themeCatalogNames...)
 )
 
 // settings mirrors the reference configuration schema (contract 14), minus the
@@ -399,6 +403,7 @@ func (g *generalSettings) normalize(v *validator) {
 
 func (t *themeSettings) normalize(v *validator) {
 	v.nonEmpty("theme.theme", t.Theme)
+	v.enum("theme.theme", t.Theme, themeThemeValues)
 	v.enum("theme.matugen.preference", t.Matugen.Preference, matugenPrefValues)
 	v.enum("theme.matugen.scheme_type", t.Matugen.SchemeType, matugenTypeValues)
 	v.enum("theme.matugen.mode", t.Matugen.Mode, matugenModeValues)
@@ -556,6 +561,28 @@ func setByPath(m map[string]any, segs []string, value json.RawMessage, create bo
 			return fmt.Errorf("unknown setting %q", strings.Join(segs, "."))
 		}
 	}
+	// Passthrough whole-object replacement preserves absent subtrees. When a
+	// single-segment passthrough patch replaces a top-level object with another
+	// object, overlay the incoming keys onto the existing value instead of
+	// swapping the whole map, so a writer that ships a value missing a subtree it
+	// never touched (a stale or partial frameBars, the dock-pinning path, a hand
+	// edit) can never drop that subtree from the store. Present keys are replaced,
+	// so edits and removals still apply; only keys absent from the patch survive.
+	// Nested passthrough paths and scalar or array values keep plain replace.
+	if create && len(segs) == 1 {
+		if existing, ok := cur[last].(map[string]any); ok {
+			if incoming, ok := v.(map[string]any); ok {
+				merged := make(map[string]any, len(existing)+len(incoming))
+				for k, val := range existing {
+					merged[k] = val
+				}
+				for k, val := range incoming {
+					merged[k] = val
+				}
+				v = merged
+			}
+		}
+	}
 	cur[last] = v
 	return nil
 }
@@ -603,6 +630,24 @@ func writeContract(full map[string]any, ns *settings) {
 	for k, v := range settingsToMap(ns) {
 		full[k] = v
 	}
+}
+
+// resolveThemePalette syncs the passthrough themePalette key to the active theme:
+// the selected static theme's palette (role token -> hex) is copied in, or the key
+// is removed for the two dynamic variants (Default, Wallpaper), which have none.
+// Called wherever raw and its theme selection are rebuilt (load, patch, and reset
+// through patch), so the pill's Theme.namedScheme always tracks the chosen theme.
+func resolveThemePalette(full map[string]any, themeName string) {
+	pal, ok := themePalettes[themeName]
+	if !ok {
+		delete(full, "themePalette")
+		return
+	}
+	m := make(map[string]any, len(pal))
+	for k, v := range pal {
+		m[k] = v
+	}
+	full["themePalette"] = m
 }
 
 // buildSettings reads the six schema namespaces out of a decoded file, defaulting
@@ -681,6 +726,7 @@ func loadSettingsFile(path string) (map[string]any, *settings, time.Time) {
 		cur = def
 	}
 	writeContract(raw, cur)
+	resolveThemePalette(raw, cur.Theme.Theme)
 	return raw, cur, mtime
 }
 
@@ -725,6 +771,7 @@ func (s *settingsStore) patch(path string, value json.RawMessage) error {
 			return err
 		}
 		writeContract(full, ns)
+		resolveThemePalette(full, ns.Theme.Theme)
 		newCur = ns
 	}
 	if err := s.persistLocked(full); err != nil {
@@ -815,6 +862,7 @@ func (s *settingsStore) reload() {
 		return
 	}
 	writeContract(raw, cur)
+	resolveThemePalette(raw, cur.Theme.Theme)
 	s.raw, s.cur = raw, cur
 	frame := s.frameLocked()
 	s.mu.Unlock()
@@ -858,8 +906,19 @@ func (d *daemon) startSettings() {
 	t := d.registerTopic("settings")
 
 	store.mu.Lock()
-	store.onChange = t.publish
 	frame := store.frameLocked()
+	// Nudge the paint worker whenever the theme keys the matugen pipeline reads
+	// (the active theme and the scheme knobs) change, so a knob patch retunes the
+	// desktop the same way a wallpaper change does. The publish is unchanged; this
+	// only layers the re-theme trigger on top of it.
+	lastThemeSig := matugenThemeSig(frame)
+	store.onChange = func(f []byte) {
+		t.publish(f)
+		if sig := matugenThemeSig(f); sig != lastThemeSig {
+			lastThemeSig = sig
+			d.scheduleTheme()
+		}
+	}
 	store.mu.Unlock()
 	t.publish(frame)
 

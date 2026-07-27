@@ -47,6 +47,27 @@ Singleton {
     // master shared with the daemon and window borders). on by default.
     property alias matchWallpaper: themeAdapter.followWallpaper
 
+    // themePalette: the active static theme's palette (role token -> hex), which
+    // the daemon resolves and writes as a top-level key in shell.json; absent for
+    // the two dynamic variants (Default, Wallpaper). The shared JsonAdapter can't
+    // represent a removed key -- it only overwrites keys still present -- so read
+    // presence straight from the frame text: a missing key resolves to null, and
+    // Theme.namedScheme then falls back to the wallpaper or base palette.
+    property var themePalette: null
+    function refreshThemePalette() {
+        var pal = null;
+        var t = file.text();
+        if (t) {
+            try {
+                var o = JSON.parse(t);
+                if (o && typeof o.themePalette === "object" && o.themePalette !== null)
+                    pal = o.themePalette;
+            } catch (e) {
+            }
+        }
+        themePalette = pal;
+    }
+
     // brand: the desktop's mark + name, user-overridable from Ryoku Settings ->
     // Shell -> Global. a small cross-cutting identity master (like theme.json).
     // markText is the glyph/short-text seal (default 力); markImage an optional
@@ -66,6 +87,7 @@ Singleton {
         printErrors: false
         atomicWrites: true
         onFileChanged: reload()
+        onLoaded: root.refreshThemePalette()
 
         JsonAdapter {
             id: adapter
@@ -117,5 +139,6 @@ Singleton {
     Component.onCompleted: {
         if (!file.text()) file.writeAdapter();
         if (!brandFile.text()) brandFile.writeAdapter();
+        root.refreshThemePalette();
     }
 }

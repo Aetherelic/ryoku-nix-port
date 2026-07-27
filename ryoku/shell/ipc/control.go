@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
+	"time"
 )
 
 // control.go adds the reference control surface to the CLI over the existing
@@ -120,19 +122,71 @@ func (d *daemon) barToggle(edge, action string) string {
 }
 
 // hub opens or closes Ryoku Hub, which replaces the reference settings window.
-// Open spawns the single-instance Hub the same flock-guarded way every Hub entry
-// point does; close asks a running Hub to quit. Both are fire-and-forget, like
-// the reference's void settings open/close.
-func (d *daemon) hub(sub string) string {
+// The Hub is one app: Bar Studio and every other page are sections inside it,
+// reached by in-app navigation, never separate processes. Open on a running
+// Hub navigates (when a section is named) and raises the window; open on a
+// cold Hub spawns the single flock-guarded instance and then navigates.
+// Close asks a running Hub to quit. All fire-and-forget, like the reference's
+// void settings open/close.
+func hubSelect() []string {
+	if shellDir != "" {
+		return []string{"-p", filepath.Join(shellDir, "..", "hub", "quickshell")}
+	}
+	return []string{"-c", "hub"}
+}
+
+// hubNav points a running Hub at a section; true when an instance answered.
+func hubNav(section string) bool {
+	argv := append(hubSelect(), "ipc", "call", "nav", "open", section)
+	return exec.Command("qs", argv...).Run() == nil
+}
+
+// hubAlive: a running Hub answers its nav ipc.
+func hubAlive() bool {
+	argv := append(hubSelect(), "ipc", "call", "nav", "section")
+	return exec.Command("qs", argv...).Run() == nil
+}
+
+// hubRaise brings the Hub window to the focused workspace. The Hub is the
+// only floating org.quickshell client the shell spawns, so class targeting
+// is unambiguous here.
+func hubRaise() {
+	_ = exec.Command("hyprctl", "dispatch", "focuswindow", "class:org.quickshell").Run()
+}
+
+func (d *daemon) hub(sub, section string) string {
 	switch sub {
 	case "open":
-		argv := append([]string{"-n", "-o", "/tmp/ryoku-hub.lock", "qs"}, qsSelect("hub")...)
-		go func() { _ = exec.Command("flock", argv...).Run() }()
+		go func() {
+			if hubAlive() {
+				if section != "" {
+					hubNav(section)
+				}
+				hubRaise()
+				return
+			}
+			argv := append([]string{"-n", "/tmp/ryoku-hub.lock", "qs"}, hubSelect()...)
+			cmd := exec.Command("flock", argv...)
+			if err := cmd.Start(); err != nil {
+				return
+			}
+			if section != "" {
+				// the fresh instance answers ipc once its root loads; nudge the
+				// section as soon as it does.
+				for range 40 {
+					time.Sleep(250 * time.Millisecond)
+					if hubNav(section) {
+						break
+					}
+				}
+			}
+			_ = cmd.Wait()
+		}()
 		return "ok"
 	case "close":
-		argv := append(qsSelect("hub"), "ipc", "call", "hub", "close")
+		argv := append(hubSelect(), "ipc", "call", "hub", "close")
 		go func() { _ = exec.Command("qs", argv...).Run() }()
 		return "ok"
 	}
-	return "err hub: expected open or close"
+	return "err hub: expected open [section] or close"
 }

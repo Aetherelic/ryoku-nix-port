@@ -440,3 +440,68 @@ func TestDefaultsValidate(t *testing.T) {
 		t.Fatalf("shipped defaults do not validate: %v", err)
 	}
 }
+
+// TestFrameBarsPatchPreservesSubtrees enforces the subtree-preservation
+// invariant: a whole-object passthrough patch that omits a subtree can never
+// drop it from the store, while a subtree the patch does carry is replaced
+// wholesale (so edits and removals still apply). This is the single chokepoint
+// that guarantees no writer -- Bar Studio staging, save, revert, the dock-pinning
+// path, or a hand edit -- can wipe a frameBars config subtree.
+func TestFrameBarsPatchPreservesSubtrees(t *testing.T) {
+	s := newTestStore(t)
+	full := `{"version":1,"style":"slate-frame",` +
+		`"rails":{"left":{"enabled":true,"size":48}},` +
+		`"menus":{"wallpaper":{"anchor":"bottom-left","minWidth":1200},"clock":{"anchor":"left"}},` +
+		`"surfaces":{"stash":{"anchor":"left"}},` +
+		`"dock":{"pinned":["firefox"]}}`
+	if err := s.patch("frameBars", rm(full)); err != nil {
+		t.Fatalf("seed frameBars: %v", err)
+	}
+
+	// A partial write that carries only the rails subtree (thickness bumped),
+	// omitting menus, surfaces, dock, style and version entirely.
+	if err := s.patch("frameBars", rm(`{"rails":{"left":{"enabled":true,"size":64}}}`)); err != nil {
+		t.Fatalf("partial frameBars: %v", err)
+	}
+	frame := s.frameLocked()
+
+	// The carried subtree is updated.
+	if got := frameNum(t, frame, "frameBars.rails.left.size"); got != 64 {
+		t.Fatalf("rails.left.size = %v, want 64", got)
+	}
+	// Every omitted subtree survives with its exact contents (frameGet fails the
+	// test if any segment is missing, so these calls assert presence directly).
+	if got := frameGet(t, frame, "frameBars.menus.wallpaper.anchor"); got != "bottom-left" {
+		t.Fatalf("menus subtree dropped by a partial write: %v", got)
+	}
+	if got := frameGet(t, frame, "frameBars.surfaces.stash.anchor"); got != "left" {
+		t.Fatalf("surfaces subtree dropped: %v", got)
+	}
+	if got := frameGet(t, frame, "frameBars.dock.pinned"); got == nil {
+		t.Fatalf("dock subtree dropped")
+	}
+	if got := frameGet(t, frame, "frameBars.style"); got != "slate-frame" {
+		t.Fatalf("style subtree dropped: %v", got)
+	}
+	if got := frameNum(t, frame, "frameBars.version"); got != 1 {
+		t.Fatalf("version dropped: %v", got)
+	}
+
+	// A subtree the patch DOES carry is replaced wholesale, so a removed member
+	// (retiring the clock menu, say) actually goes away rather than lingering
+	// behind a deep merge.
+	if err := s.patch("frameBars", rm(`{"menus":{"wallpaper":{"anchor":"bottom-left","minWidth":1200}}}`)); err != nil {
+		t.Fatalf("menus replace: %v", err)
+	}
+	frame = s.frameLocked()
+	menus, ok := frameGet(t, frame, "frameBars.menus").(map[string]any)
+	if !ok {
+		t.Fatalf("menus not an object")
+	}
+	if _, present := menus["clock"]; present {
+		t.Fatalf("carried menus subtree was merged, not replaced: clock lingered")
+	}
+	if _, present := menus["wallpaper"]; !present {
+		t.Fatalf("wallpaper lost on menus replace")
+	}
+}

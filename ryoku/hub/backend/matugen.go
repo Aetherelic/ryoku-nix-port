@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -92,7 +91,7 @@ func paletteCarrier(pal map[string]string) map[string]any {
 		"primary": accent, "on_primary": bg, "primary_container": accent,
 		"on_primary_container": fg, "primary_fixed": accent, "primary_fixed_dim": accent,
 		"inverse_primary": accent,
-		"secondary": pick("color6", "color4"), "on_secondary": bg,
+		"secondary":       pick("color6", "color4"), "on_secondary": bg,
 		"secondary_container": dim, "on_secondary_container": fg,
 		"secondary_fixed": pick("color6", "color4"), "secondary_fixed_dim": pick("color6", "color4"),
 		"tertiary": pick("color5", "color2"), "on_tertiary": bg,
@@ -197,30 +196,11 @@ func runMatugenCmd(args []string) error {
 		if err := json.Unmarshal([]byte(args[1]), &cfg); err != nil {
 			return err
 		}
-		prev := loadMatugenConfig()
-		if err := saveMatugenConfig(cfg); err != nil {
-			return err
-		}
-		// Apply live so a settings change takes hold at once. Matugen re-derives
-		// the whole palette from the wallpaper. Switching *back* to wallust must
-		// re-derive too: re-apply the current scheme (follow re-runs wallust on
-		// the wallpaper, a fixed scheme reloads its palette) so the stale matugen
-		// colors.json is replaced -- not just re-fanned through the templates. A
-		// same-engine wallust change (per-app toggle) keeps the fast re-fan path.
-		if cfg.Engine == "matugen" {
-			_ = generateMatugenTheme("")
-		} else if prev.Engine == "matugen" {
-			_ = applyScheme(currentScheme())
-		} else if pal := readPalette(filepath.Join(wallustCacheDir(), "colors.json")); pal != nil {
-			renderActiveTemplates(cfg, pal)
-		}
-		return nil
-	case "apply":
-		imgPath := ""
-		if len(args) > 1 {
-			imgPath = args[1]
-		}
-		return generateMatugenTheme(imgPath)
+		// Persist knobs only. The shell daemon watches matugen.json and is the
+		// sole renderer of the palette for both engines, so it retints on this
+		// write; rendering here would fight it and, for matugen, author a
+		// divergent colors.json.
+		return saveMatugenConfig(cfg)
 	case "render-apps":
 		pal := readPalette(filepath.Join(wallustCacheDir(), "colors.json"))
 		if pal != nil {
@@ -231,201 +211,6 @@ func runMatugenCmd(args []string) error {
 	default:
 		return fmt.Errorf("unknown matugen subcommand %q", args[0])
 	}
-}
-
-// generateMatugenTheme executes matugen on wallpaper image, parses palette,
-// updates ~/.cache/wallust/colors.json and renders configured app templates.
-func generateMatugenTheme(imgPath string) error {
-	cfg := loadMatugenConfig()
-	if imgPath == "" {
-		stateFile := filepath.Join(cacheHome(), "..", ".local", "state", "ryoku-wallpaper")
-		b, err := os.ReadFile(stateFile)
-		if err == nil {
-			imgPath = strings.TrimSpace(string(b))
-		}
-	}
-	if imgPath == "" || !isFile(imgPath) {
-		wallDir := filepath.Join(os.Getenv("HOME"), "Pictures", "Wallpapers")
-		entries, err := os.ReadDir(wallDir)
-		if err == nil {
-			for _, e := range entries {
-				if !e.IsDir() && (strings.HasSuffix(e.Name(), ".png") || strings.HasSuffix(e.Name(), ".jpg") || strings.HasSuffix(e.Name(), ".jpeg") || strings.HasSuffix(e.Name(), ".webp")) {
-					imgPath = filepath.Join(wallDir, e.Name())
-					break
-				}
-			}
-		}
-	}
-	if imgPath == "" || !isFile(imgPath) {
-		return fmt.Errorf("no valid wallpaper image found at %q", imgPath)
-	}
-	// matugen decodes still images only. A live/video wallpaper (.webm/.mp4)
-	// must be sampled to one frame first, exactly as the shell's paint path does;
-	// otherwise matugen panics ("not recognized as an image format") and the
-	// whole apply -- colors.json, every app template, and the folder-recolor
-	// post_hook -- silently no-ops.
-	if isVideoWallpaper(imgPath) {
-		frame := videoStill(imgPath)
-		if frame == "" {
-			return fmt.Errorf("could not sample a still frame from live wallpaper %q", imgPath)
-		}
-		imgPath = frame
-	}
-	cliArgs := []string{
-		"image", imgPath,
-		"-t", cfg.SchemeType,
-		"-m", cfg.Mode,
-		"--lightness-dark", strconv.FormatFloat(cfg.LightnessDark, 'f', 2, 64),
-		"--lightness-light", strconv.FormatFloat(cfg.LightnessLight, 'f', 2, 64),
-		"--source-color-index", strconv.Itoa(cfg.SourceColorIndex),
-		"--prefer", cfg.Prefer,
-		"--json", "hex",
-		"--dry-run",
-	}
-
-	out, err := exec.Command("matugen", cliArgs...).CombinedOutput()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "matugen CLI error: %v: %s\n", err, out)
-		return err
-	}
-
-	var m3Data map[string]any
-	if err := json.Unmarshal(out, &m3Data); err != nil {
-		fmt.Fprintf(os.Stderr, "matugen parse error: %v\n", err)
-		return err
-	}
-
-	// Extract colors map from Matugen output JSON
-	colorsObj, ok := m3Data["colors"].(map[string]any)
-	if !ok {
-		return fmt.Errorf("invalid matugen json format: missing colors key")
-	}
-
-	palette := map[string]string{}
-	modeKey := cfg.Mode
-	if modeKey == "smart" || modeKey == "" {
-		modeKey = "dark"
-	}
-
-	for k, v := range colorsObj {
-		colorPropMap, ok := v.(map[string]any)
-		if !ok {
-			continue
-		}
-		var hexVal string
-		for _, m := range []string{modeKey, "default", "dark", "light"} {
-			if modeMap, ok := colorPropMap[m].(map[string]any); ok {
-				if h, ok := modeMap["color"].(string); ok && h != "" {
-					hexVal = h
-					break
-				} else if h, ok := modeMap["hex"].(string); ok && h != "" {
-					hexVal = h
-					break
-				}
-			}
-		}
-		if hexVal != "" {
-			palette[k] = hexVal
-		}
-	}
-
-	if len(palette) == 0 {
-		return fmt.Errorf("no colors extracted from matugen output")
-	}
-
-	// Map Material 3 colors to Ryoku base16 / wallust expected keys (color0..color15, background, foreground, etc.)
-	getHex := func(key, fallback string) string {
-		if val, ok := palette[key]; ok && val != "" {
-			return val
-		}
-		return fallback
-	}
-
-	bg := getHex("surface", getHex("background", "#121212"))
-	fg := getHex("on_surface", getHex("on_background", "#e6e6e6"))
-	primary := getHex("primary", "#a8c7fa")
-	secondary := getHex("secondary", "#7cacf8")
-	tertiary := getHex("tertiary", "#ffb4a9")
-	errorCol := getHex("error", "#ffb4ab")
-	surfaceVar := getHex("surface_variant", "#444746")
-	outline := getHex("outline", "#8e918f")
-
-	wallustMap := map[string]string{
-		"background": bg,
-		"foreground": fg,
-		"cursor":     fg,
-		"color0":     bg,
-		"color1":     errorCol,
-		"color2":     primary,
-		"color3":     tertiary,
-		"color4":     secondary,
-		"color5":     getHex("primary_container", primary),
-		"color6":     getHex("secondary_container", secondary),
-		"color7":     fg,
-		"color8":     surfaceVar,
-		"color9":     getHex("error_container", errorCol),
-		"color10":    primary,
-		"color11":    tertiary,
-		"color12":    secondary,
-		"color13":    getHex("inverse_primary", primary),
-		"color14":    outline,
-		"color15":    getHex("on_primary_container", fg),
-	}
-
-	// Also add all M3 colors to wallustMap so templates can use both Material 3 roles and base16
-	for k, v := range palette {
-		wallustMap[k] = v
-	}
-
-	// colors.json always carries the wallpaper's Material 3 palette, so the
-	// pieces that follow the wallpaper irrespective of the shell's own look --
-	// the visualiser, the folder-icon accent and the Hyprland window border --
-	// track it on both "Ryoku Interface" settings. The Hub, pill and widgets
-	// read it only when FollowWallpaper is on; with it off they fall back to
-	// their signature monochrome constants (Tokens/Theme), so "Original" keeps
-	// the shell mono while the accents still follow the wallpaper.
-	_ = os.MkdirAll(wallustCacheDir(), 0o755)
-	_ = atomicWrite(filepath.Join(wallustCacheDir(), "colors.json"), mustJSON(wallustMap), 0o644)
-	st := loadThemeState()
-	st.FollowWallpaper = cfg.ThemeRyokuApps
-	if cfg.ThemeRyokuApps {
-		st.Scheme = ""
-	} else {
-		st.Scheme = "mono"
-	}
-	saveThemeState(st)
-	// Build active apps.toml filtered by user toggles in cfg.Templates
-	renderActiveTemplates(cfg, wallustMap)
-
-	// Trigger live updates
-	_ = exec.Command("hyprctl", "reload", "config-only").Run()
-	_ = exec.Command("pkill", "-USR1", "-x", "kitty").Run()
-	nudgeGtk()
-
-	return nil
-}
-
-// isVideoWallpaper reports whether p is a live/video wallpaper matugen cannot read.
-func isVideoWallpaper(p string) bool {
-	switch strings.ToLower(filepath.Ext(p)) {
-	case ".mp4", ".webm", ".mkv", ".mov":
-		return true
-	}
-	return false
-}
-
-// videoStill samples one frame from a live wallpaper so matugen has an image to
-// extract a palette from. Returns "" when ffmpeg is absent or fails, so the
-// caller reports a clean error instead of crashing matugen.
-func videoStill(video string) string {
-	out := filepath.Join(cacheHome(), "ryoku", "matugen-frame.png")
-	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
-		return ""
-	}
-	if err := exec.Command("ffmpeg", "-y", "-ss", "1", "-i", video, "-frames:v", "1", out).Run(); err != nil || !isFile(out) {
-		return ""
-	}
-	return out
 }
 
 // renderActiveTemplates generates matugen configs for enabled templates

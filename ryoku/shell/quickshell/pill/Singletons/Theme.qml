@@ -33,11 +33,11 @@ Singleton {
     // The live wallpaper palette is active only while Match wallpaper is on.
     readonly property bool matchWallpaper: Config.matchWallpaper
 
-    // Extension point for the static theme catalog (the 57 presets). Their
-    // 30-role palettes live in the Go theme daemon; it assigns a palette object
-    // here when a preset is active. null = no preset (wallpaper or base palette
-    // applies). Writable so the daemon can drive it.
-    property var namedScheme: null
+    // Extension point for the static theme catalog (the 57 presets). Their full
+    // palettes live in the Go theme daemon, which resolves the active preset into
+    // the themePalette key of shell.json; Config surfaces it here. null = no
+    // preset (a dynamic variant), so role() falls back to wallpaper or the base.
+    property var namedScheme: Config.themePalette
 
     // Resolve one colour role through the layer chain: a selected named scheme
     // wins, then the live wallpaper palette, then the compiled Solitude base.
@@ -110,6 +110,72 @@ Singleton {
     readonly property color frameBorder: Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.18)
     // A dim tone for out-of-scope elements, e.g. out-of-month calendar days.
     readonly property color ghost:       Qt.darker(onSurfaceVariant, 1.6)
+
+    // --- smart contrast ink (WCAG) --------------------------------------------
+    // Sidebar ink (text, icons) must stay legible on whatever surface a palette
+    // paints: any of the named presets (raw daemon palettes, uncontrasted), a
+    // light or dark wallpaper palette, or a translucent panel where the
+    // wallpaper bleeds through. These are pure math on colours already in
+    // scope, so bindings stay cheap; each resolves an ink role against the
+    // background it truly sits on and corrects ONLY when the role fails, so a
+    // well-behaved palette is returned untouched and renders exactly as before.
+
+    // WCAG relative luminance of an opaque colour.
+    function relLum(c) {
+        function lin(u) { return u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4); }
+        return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+    }
+
+    // WCAG contrast ratio between two opaque colours (1..21).
+    function contrastRatio(a, b) {
+        var la = relLum(a), lb = relLum(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+
+    // Composite a colour (honouring its own alpha) over an opaque background,
+    // so an alpha-tinted fill resolves to the flat tone the eye actually reads.
+    function blend(over, base) {
+        var a = over.a;
+        return Qt.rgba(over.r * a + base.r * (1 - a),
+                       over.g * a + base.g * (1 - a),
+                       over.b * a + base.b * (1 - a), 1);
+    }
+
+    // The background the sidebar ink truly sits on: the panel surface, and when
+    // the frame is translucent (frameOpacity < 1) that surface composited over
+    // the live wallpaper tone bleeding through it. Opaque frame -> just surface.
+    readonly property color effectiveSurface: windowOpacity >= 0.999
+        ? surface
+        : blend(Qt.rgba(surface.r, surface.g, surface.b, windowOpacity), Wallust.wallpaperTone)
+
+    // Smart ink: keep `role` when it already clears `minRatio` against `bg`
+    // (the common case, a sound palette is untouched), else nudge it toward the
+    // pole `bg` needs (white on a dark bg, black on a light one) until it
+    // clears. An accent is lightened/darkened in place, keeping its hue for the
+    // first steps; only a pathological pairing walks to a near-neutral. Pure
+    // black or white clears >= 4.58:1 on any bg, so the walk always lands.
+    function inkOn(bg, role, minRatio) {
+        var target = (minRatio === undefined) ? 4.5 : minRatio;
+        if (contrastRatio(role, bg) >= target)
+            return role;
+        var pole = relLum(bg) > 0.179 ? 0 : 1;
+        var r = role.r, g = role.g, b = role.b;
+        for (var i = 0; i < 12; ++i) {
+            r += (pole - r) * 0.18;
+            g += (pole - g) * 0.18;
+            b += (pole - b) * 0.18;
+            var c = Qt.rgba(r, g, b, 1);
+            if (contrastRatio(c, bg) >= target)
+                return c;
+        }
+        return Qt.rgba(pole, pole, pole, 1);
+    }
+
+    // The best neutral ink for a background at `minRatio` (default 4.5), seeded
+    // from onSurface so a good palette returns its own text colour verbatim.
+    function ink(bg, minRatio) {
+        return inkOn(bg, onSurface, minRatio === undefined ? 4.5 : minRatio);
+    }
 
     // --- flame identity (the RASHIN mark; a fixed Ryoku accent) ---------------
     readonly property color flameGlow: "#ff9e64"
