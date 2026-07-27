@@ -65,6 +65,6 @@ Item {
             hovered: pageTap.containsMouse && !pageTap.pressed
         }
         scale: pageTap.pressed ? 0.9 : 1
-        Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
+        Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
     }
 }

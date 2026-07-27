@@ -40,9 +40,9 @@ Item {
         visible: opacity > 0.004
         z: 100
 
-        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-        Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
+        Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+        Behavior on y { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
 
         Text {
             id: cap

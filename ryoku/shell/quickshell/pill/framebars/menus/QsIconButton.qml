@@ -27,7 +27,7 @@ Rectangle {
 
     // Native press feel: the face dips under the pointer and springs back.
     scale: tap.pressed ? 0.92 : 1
-    Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
+    Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
 
     Pill.MaterialIcon {
         anchors.centerIn: parent

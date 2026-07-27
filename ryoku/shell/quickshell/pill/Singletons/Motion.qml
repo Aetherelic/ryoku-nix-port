@@ -25,54 +25,71 @@ Singleton {
             id: perf
             property bool lowPowerMode: false
             property bool reduceMotion: false
+            property real motionSpeed: 1.0
         }
     }
+
+    // Global animation tempo. A user multiplier (performance.json, default 1.0)
+    // scales every motion duration below, so the whole shell speeds up or eases
+    // off in one place; reduce still wins by collapsing to an instant cut. An
+    // absent or out-of-range value falls back to 1.0.
+    readonly property real speed: {
+        const v = perf.motionSpeed;
+        return (typeof v === "number" && v > 0 && v <= 8) ? v : 1.0;
+    }
+    function dur(ms) { return root.reduce ? 0 : Math.round(ms * root.speed); }
 
     // Bar, spacer, hover and startup reveal/hide. Measured ease-out-cubic over
     // 250 ms (measure/MOTION-MEASURED.md; contract 02 sec 5). Interrupt: reverse
     // from the current position, which a RevealBehavior retarget reproduces.
-    readonly property int barReveal: reduce ? 0 : 250
+    readonly property int barReveal: root.dur(250)
     readonly property int barRevealCurve: Easing.OutCubic
 
     // Left/right side menu slide. A reveal that reverses rather than restarting, 250 ms, ease-out-cubic,
     // same envelope as the bar (contract 05 sec 5; contract 01 sec 5). Interrupt:
     // reverse from current.
-    readonly property int menuSlide: reduce ? 0 : 250
+    readonly property int menuSlide: root.dur(250)
     readonly property int menuSlideCurve: Easing.OutCubic
+
+    // Sidebar page push: the one continuous navigation move, 420 ms on a long
+    // OutQuint settle so the incoming page glides in and eases to rest, never
+    // snaps. The single language for every sidebar page transition.
+    readonly property int push: root.dur(420)
+    readonly property int pushCurve: Easing.OutQuint
 
     // Corner/top/bottom scale grow that restarts from its current position. 200 ms easeInOutQuad, set
     // explicitly in source (contract 01 sec 5; contract 05 sec 5). Interrupt:
     // restart from the current position toward the new target.
-    readonly property int diagonal: reduce ? 0 : 200
+    readonly property int diagonal: root.dur(200)
     readonly property int diagonalCurve: Easing.InOutQuad
 
     // Menu swap within one stack region: a stacked crossfade, linear opacity,
     // 200 ms (contract 01 sec 5; contract 05 sec 5).
-    readonly property int crossfade: reduce ? 0 : 200
+    readonly property int crossfade: root.dur(200)
     readonly property int crossfadeCurve: Easing.Linear
 
     // Revealer row/button expand: child height SlideDown, 200 ms ease-out-cubic
     // (contract 16 sec 5; contract 06 sec 5). Notification cards (contract 12
     // sec 5), dynamic-list entries and the weather inner slide share this.
-    readonly property int rowReveal: reduce ? 0 : 200
+    readonly property int rowReveal: root.dur(200)
     readonly property int rowRevealCurve: Easing.OutCubic
 
     // Revealed-content fade and the chevron 0->90 turn: CSS `ease` =
     // cubic-bezier(0.25, 0.1, 0.25, 1) over 200 ms (contract 16 sec 5;
     // contract 06 sec 5). Thumbnail hover is the same curve over 150 ms
     // (contract 08 sec 5).
-    readonly property int rowFade: reduce ? 0 : 200
-    readonly property int chevronRotate: reduce ? 0 : 200
-    readonly property int thumbHover: reduce ? 0 : 150
+    readonly property int rowFade: root.dur(200)
+    readonly property int chevronRotate: root.dur(200)
+    readonly property int thumbHover: root.dur(150)
     readonly property int easeType: Easing.Bezier
     readonly property var easeCurve: [0.25, 0.1, 0.25, 1, 1, 1]
 
     // Desktop wallpaper swap crossfade, 200 ms (contract 08 sec 5,
     // TRANSITION_DURATION_MS). Linear opacity like the menu crossfade.
-    readonly property int wallpaperFade: reduce ? 0 : 200
+    readonly property int wallpaperFade: root.dur(200)
 
     // Weather outer-stack crossfade, 250 ms, set in source (contract 08 sec 5).
-    readonly property int weatherFade: reduce ? 0 : 250
+    readonly property int weatherFade: root.dur(250)
 
     // OSD auto-hide hold: the OSD has NO show/hide animation (contract 12 sec 5);
     // only this 1000 ms dwell from the last value update is timed, and a new
@@ -92,12 +109,12 @@ Singleton {
     // Pending Ryoku vocabulary: still consumed by surfaces this wave does not
     // touch (Popout, Deck*, Stash*, KeyringSurface, WaveMeter, SidebarSystem).
     // Retained until those surfaces are translated; tracked in the slice report.
-    readonly property int fast:     reduce ? 0 : 140
-    readonly property int standard: reduce ? 0 : 300
-    readonly property int morph:    reduce ? 0 : 420
-    readonly property int hover:    reduce ? 0 : 100
-    readonly property int spatial:  reduce ? 0 : 500
-    readonly property int effects:  reduce ? 0 : 200
+    readonly property int fast:     root.dur(140)
+    readonly property int standard: root.dur(300)
+    readonly property int morph:    root.dur(420)
+    readonly property int hover:    root.dur(100)
+    readonly property int spatial:  root.dur(500)
+    readonly property int effects:  root.dur(200)
     readonly property int easeStandard: Easing.OutCubic
     readonly property var spatialCurve: [0.38, 1.21, 0.22, 1, 1, 1]
     readonly property var effectsCurve: [0.34, 0.8, 0.34, 1, 1, 1]
