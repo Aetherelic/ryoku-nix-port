@@ -1,62 +1,59 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "popouts"
 import "framebars/menus"
 import "Singletons"
 
-// One menu body riding the shared Popout. Openness is owned by FrameMenuManager
-// (menuOpen), never a private boolean, so a busy anchor's content is replaced by
-// flipping which record is active.
+// One reference frame menu (contract 05 sec 7). It is NOT a window, overlay
+// card or blob: the open panel is the frame's own band grown wider, painted by
+// FrameChrome's composite hole. So this file paints no background of its own; it
+// only feeds FrameChrome the resting panel rect (setChromeSource, via the
+// manager) and rides FrameChrome's animated band, clipping its fixed-size body
+// into the growing band like a curtain. Width is EXACTLY minimumWidth (no
+// natural-width growth), rendered at reference pixels (scale 1) to match the
+// unscaled frame band.
 //
-// A reference frame menu (kind "menu") is placed by the exact contract-05 sec 7
-// formulas, not by the Ryoku popout's trigger-follow: it is EXACTLY minimumWidth
-// wide (no natural-width growth, no horizontal scroll), rendered at fixed
-// reference pixels (scale 1) to match the unscaled frame band, and its vertical
-// band placement obeys the four expansion modes. Ryoku's own surfaces (power,
-// voice, keyring, stash, system) keep the trigger-centred, monitor-scaled
-// behaviour untouched.
-Popout {
+// Openness is owned by FrameMenuManager (menuOpen), never a private boolean, so
+// a busy anchor's content is replaced by flipping which record is active. The
+// Ryoku-own surfaces (power/voice/keyring/stash/system) are NOT menus; they are
+// hosted by FrameSurface (still a Popout blob this pass), delegated below.
+Item {
     id: root
 
+    anchors.fill: parent
+
+    // Set by the FrameMenuManager delegate.
     property var record: null
     property string anchor: "left"
     property bool menuOpen: false
     property var manager: null
-    // Per-edge clearance from the screen to the inside of each rail, so the
-    // formulas can reference all four bar thicknesses (L/R/T/B), not just the
-    // anchor's own.
     property var clearances: null
-    // The trigger centre the manager derives for Ryoku surfaces; menus ignore it.
     property real triggerAlong: -1
+    property real s: 1
+    property bool active: true
+    // Forwarded to FrameSurface for the Ryoku-own surface popouts.
+    property var group: null
+    property real frameThickness: 0
+    property real radius: 8
+    property real smoothing: 0
 
     signal requestClose()
 
     readonly property var widgetIds: record && record.widgets ? record.widgets : []
-    readonly property real fallbackMinWidth: 200
-    readonly property real minWidth: record && record.minWidth ? record.minWidth : fallbackMinWidth
+    readonly property real minWidth: record && record.minWidth ? record.minWidth : 200
     readonly property string kind: record && record.kind ? record.kind : "menu"
     readonly property bool isMenu: root.kind === "menu"
-    readonly property string expansion: record && record.expansion ? record.expansion : "always"
-    // stays true through the close melt so the body tears down only once flush.
-    readonly property bool effectiveOpen: menuOpen || prog > 0.004
+    readonly property bool isScreenshare: root.record && root.record.id === "screenshare"
 
-    // Reference menus render at fixed reference pixels, matching the railScale-1
-    // frame band; surfaces keep the per-monitor UI scale.
-    readonly property real bodyScale: root.isMenu ? 1 : root.s
+    // The reveal fades the body content in and out; on a same-region swap the
+    // two bodies crossfade (200 ms) while the chrome band stays put. It also
+    // holds the body mounted through the close so it tears down once flush.
+    property real bodyReveal: root.menuOpen ? 1 : 0
+    Behavior on bodyReveal { NumberAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
+    readonly property bool effectiveOpen: root.menuOpen || root.bodyReveal > 0.004
 
-    edge: anchor.indexOf("top") === 0 ? "top"
-        : anchor.indexOf("bottom") === 0 ? "bottom"
-        : anchor
-    align: (anchor.indexOf("-left") >= 0) ? "start"
-         : (anchor.indexOf("-right") >= 0) ? "end"
-         : "center"
-    fullSpan: record && record.fullSpan === true
-    hoverOpen: false
-    pinned: root.menuOpen
-    // A reference menu abuts its bar band exactly; a surface keeps the popout inset.
-    edgeInsetOverride: root.isMenu ? 0 : -1
-
+    // Per-edge clearance (bar band + border, or the bare frame lip) so the
+    // formulas reference all four bar thicknesses, not just this anchor's.
     readonly property real clL: root.clearances && typeof root.clearances.left === "number" ? root.clearances.left : 0
     readonly property real clR: root.clearances && typeof root.clearances.right === "number" ? root.clearances.right : 0
     readonly property real clT: root.clearances && typeof root.clearances.top === "number" ? root.clearances.top : 0
@@ -65,73 +62,97 @@ Popout {
     // bottom bar thicknesses (contract 05 sec 7, H = MH - T - B).
     readonly property real bandH: Math.max(0, root.height - root.clT - root.clB)
 
-    // Width rule (contract 05 sec 2a): a reference menu is EXACTLY minimumWidth;
-    // natural width never propagates. Surfaces keep their scaled/natural width.
-    openW: root.isMenu ? root.minWidth : Math.max(root.minWidth * root.s, body.item ? body.item.implicitWidth : 0)
-    // Height = content, capped at the band; overflow scrolls inside the panel.
-    openH: root.fullSpan ? root.height
-         : root.isMenu ? Math.min(body.item ? body.item.implicitHeight : 0, root.bandH)
-         : (body.item ? body.item.implicitHeight : 0)
-
+    readonly property string edge: root.anchor.indexOf("top") === 0 ? "top"
+        : root.anchor.indexOf("bottom") === 0 ? "bottom"
+        : root.anchor
     readonly property bool sideMenu: root.edge === "left" || root.edge === "right"
+    readonly property bool atLeft: root.anchor === "left" || root.anchor.indexOf("-left") >= 0
+    readonly property bool atRight: root.anchor === "right" || root.anchor.indexOf("-right") >= 0
+    readonly property bool atBottom: root.anchor.indexOf("bottom") === 0
 
-    // Contract 05 sec 7 top-left corner, expressed as the along-axis centre the
-    // Popout consumes. Side menus place vertically by the four expansion modes;
-    // top/bottom and corner menus place horizontally by their anchor, flush to
-    // the hole edge (L or MW-R) or centred on the hole.
-    readonly property real menuAlong: {
-        if (root.sideMenu) {
-            const hm = root.openH;
-            if (root.expansion === "up")
-                return (root.height - root.clB) - hm / 2;      // ExpandUp: bottom-pinned
-            if (root.expansion === "both")
-                return (root.clT + root.height - root.clB) / 2; // ExpandBothWays: centred
-            return root.clT + hm / 2;                           // AlwaysExpanded / ExpandDown: top-pinned
-        }
-        const wm = root.openW;
-        if (root.align === "start")
-            return root.clL + wm / 2;                            // flush to the hole's left edge (x = L)
-        if (root.align === "end")
-            return (root.width - root.clR) - wm / 2;            // flush to the hole's right edge (x = MW - R)
-        return (root.clL + root.width - root.clR) / 2;          // centred on the hole (cx)
+    // Natural body height; side menus fill the band (top-pinned content), edge
+    // and corner menus size to content, capped at the band with the panel's own
+    // vertical scroll taking any overflow.
+    readonly property real contentH: menuBody.item ? menuBody.item.implicitHeight : 0
+
+    // Resting panel rect in window coords (contract 05 sec 7). Width is exactly
+    // minimumWidth. FrameChrome animates the reveal from this rect.
+    readonly property real restW: root.minWidth
+    readonly property real restH: root.sideMenu ? root.bandH : Math.min(root.contentH, root.bandH)
+    readonly property real restX: root.atLeft ? root.clL
+        : root.atRight ? (root.width - root.clR - root.restW)
+        : ((root.clL + root.width - root.clR) / 2 - root.restW / 2)
+    readonly property real restY: root.atBottom ? (root.height - root.clB - root.restH) : root.clT
+
+    // The animated band from FrameChrome (shared, single-open). The active
+    // menu's body clips into it so it reveals edge-first as the band grows.
+    readonly property var panel: root.manager ? root.manager.chromePanel : null
+
+    // Feed the manager the resting rect + anchor while open, so FrameChrome can
+    // paint and animate the band. On close the manager holds the last rect and
+    // retracts the band; on a same-region swap the new menu pushes the same
+    // rect, so the band never blinks.
+    function pushChrome() {
+        if (!root.isMenu || !root.menuOpen || !root.manager)
+            return;
+        // Compute the rect atomically from width/height so a top-anchored y
+        // never lags a just-changed height (which would flash the band one
+        // frame off-screen while the readonly restY binding catches up).
+        const w = root.restW;
+        const h = root.restH;
+        const x = root.atLeft ? root.clL
+            : root.atRight ? (root.width - root.clR - w)
+            : ((root.clL + root.width - root.clR) / 2 - w / 2);
+        const y = root.atBottom ? (root.height - root.clB - h) : root.clT;
+        root.manager.setChromeSource(root.anchor, x, y, w, h, root.sideMenu);
     }
-    alongCenter: root.isMenu ? root.menuAlong : root.triggerAlong
+    onMenuOpenChanged: root.pushChrome()
+    onRestXChanged: root.pushChrome()
+    onRestYChanged: root.pushChrome()
+    onRestWChanged: root.pushChrome()
+    onRestHChanged: root.pushChrome()
+    Component.onCompleted: root.pushChrome()
 
-    // Reveal envelope by position: side menus slide (menuSlide, 250 ms
-    // ease-out-cubic), corner and edge menus grow diagonally (diagonal, 200 ms
-    // ease-in-out-quad), matching the reference (contracts 01 and 05). Overrides
-    // the shared morph transition; a re-trigger retargets prog from its current
-    // value, reproducing the reverse/restart-from-current interrupt.
-    transitions: [
-        Transition {
-            to: "open"
-            NumberAnimation { property: "prog"; duration: root.sideMenu ? Motion.menuSlide : Motion.diagonal; easing.type: root.sideMenu ? Motion.menuSlideCurve : Motion.diagonalCurve }
-        },
-        Transition {
-            from: "open"
-            NumberAnimation { property: "prog"; duration: root.sideMenu ? Motion.menuSlide : Motion.diagonal; easing.type: root.sideMenu ? Motion.menuSlideCurve : Motion.diagonalCurve }
+    // Input mask: the resting panel rect while open (drops the instant a close
+    // starts, matching the reference's non-melting mask). Surfaces forward their
+    // Popout mask.
+    readonly property real maskX: root.isMenu ? root.restX : (surfaceHost.item ? surfaceHost.item.maskX : 0)
+    readonly property real maskY: root.isMenu ? root.restY : (surfaceHost.item ? surfaceHost.item.maskY : 0)
+    readonly property real maskW: root.isMenu ? (root.menuOpen ? root.restW : 0) : (surfaceHost.item ? surfaceHost.item.maskW : 0)
+    readonly property real maskH: root.isMenu ? (root.menuOpen ? root.restH : 0) : (surfaceHost.item ? surfaceHost.item.maskH : 0)
+
+    // ---- Reference-menu path: a plain clipped body riding FrameChrome's band.
+    Item {
+        id: clipHost
+        visible: root.isMenu && root.effectiveOpen
+        clip: true
+        x: root.panel ? root.panel.x : root.restX
+        y: root.panel ? root.panel.y : root.restY
+        width: root.panel ? root.panel.w : 0
+        height: root.panel ? root.panel.h : 0
+
+        Loader {
+            id: menuBody
+            active: root.isMenu && root.effectiveOpen
+            width: root.restW
+            height: root.restH
+            // Aligned to the edge/corner the band grows from, so the widening
+            // clip reveals the body from the band side, never the free edge.
+            x: root.atLeft ? 0
+                : root.atRight ? (clipHost.width - root.restW)
+                : ((clipHost.width - root.restW) / 2)
+            y: root.atBottom ? (clipHost.height - root.restH) : 0
+            opacity: root.bodyReveal
+            sourceComponent: root.isScreenshare ? screenshareBody : menuColumnBody
         }
-    ]
-
-    Loader {
-        id: body
-        width: root.openW
-        height: root.openH
-        sourceComponent: root.kind === "power" ? powerBody
-            : root.kind === "voice" ? voiceBody
-            : root.kind === "keyring" ? keyringBody
-            : root.kind === "stash" ? stashBody
-            : root.kind === "system" ? systemBody
-            : root.record && root.record.id === "screenshare" ? screenshareBody
-            : menuBody
     }
 
     Component {
-        id: menuBody
+        id: menuColumnBody
         MenuColumn {
-            width: root.openW
-            height: root.openH
-            scale: root.bodyScale
+            width: root.restW
+            height: root.restH
+            scale: 1
             open: root.effectiveOpen
             widgets: root.widgetIds
             onRequestClose: root.requestClose()
@@ -140,63 +161,36 @@ Popout {
     Component {
         id: screenshareBody
         MenuScreenshare {
-            width: root.openW
-            height: root.openH
-            s: root.bodyScale
+            width: root.restW
+            height: root.restH
+            s: 1
             open: root.effectiveOpen
             onRequestClose: root.requestClose()
         }
     }
-    Component {
-        id: powerBody
-        PowerPanel {
-            s: root.s
-            open: root.effectiveOpen
-            onCloseRequested: root.requestClose()
-        }
+
+    // ---- Ryoku-own surface path: still a Popout blob this pass (FrameSurface).
+    Loader {
+        id: surfaceHost
+        anchors.fill: parent
+        active: !root.isMenu
+        sourceComponent: surfaceComponent
     }
     Component {
-        id: voiceBody
-        VoicePopout {
+        id: surfaceComponent
+        FrameSurface {
+            group: root.group
+            frameThickness: root.frameThickness
+            radius: root.radius
+            smoothing: root.smoothing
             s: root.s
-            off: root.record && root.record.off === true
-            open: root.effectiveOpen
-            onCloseRequested: root.requestClose()
-        }
-    }
-    Component {
-        id: keyringBody
-        KeyringPopout {
-            s: root.s
-            open: root.effectiveOpen
-            onCloseRequested: root.requestClose()
-        }
-    }
-    Component {
-        id: stashBody
-        SidebarFeatures {
-            s: root.s
-            topInset: root.manager ? root.manager.sidebarTopInset : 0
-            botInset: root.manager ? root.manager.sidebarBottomInset : 0
-            open: root.effectiveOpen
-            panes: root.record ? root.record.panes : []
-            pane: root.manager ? root.manager.stashPane : ""
-            monitorName: root.manager ? root.manager.monitorName : ""
-            surfaceId: root.record ? root.record.id : ""
-            onPaneSelected: key => { if (root.manager) root.manager.stashPane = key; }
-        }
-    }
-    Component {
-        id: systemBody
-        SidebarSystem {
-            s: root.s
-            topInset: root.manager ? root.manager.sidebarTopInset : 0
-            botInset: root.manager ? root.manager.sidebarBottomInset : 0
-            open: root.effectiveOpen
-            panes: root.record ? root.record.panes : []
-            pane: root.manager ? root.manager.systemPane : ""
-            onPaneSelected: key => { if (root.manager) root.manager.systemPane = key; }
-            onDismiss: root.requestClose()
+            active: root.active
+            manager: root.manager
+            record: root.record
+            anchor: root.anchor
+            menuOpen: root.menuOpen
+            triggerAlong: root.triggerAlong
+            onRequestClose: root.requestClose()
         }
     }
 }

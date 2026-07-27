@@ -533,13 +533,17 @@ ShellRoot {
                 visible: !overlay.monFullscreen
                 Keys.onEscapePressed: if (frameMenus.keyboardMode === "exclusive") frameMenus.closeAll()
 
-                // frame and pill share one blob field, so the pill reads
-                // as the frame swelling open at top-centre, not a bar on top.
+                // Shared blob field for the Ryoku-own surfaces (power/voice/
+                // keyring/stash/system via FrameSurface), the plugin popouts and
+                // RecordHud. FrameChrome now owns the ONE frame border, so this
+                // field draws NO border of its own: a bordered blob beside the
+                // painted frame border reads as a duplicated stroke (user
+                // verdict 2026-07-26). Bodies are flush surface colour; full
+                // band-growth for these surfaces is a later pass.
                 BlobGroup {
                     id: blobGroup
                     color: Theme.surface
-                    borderColor: Theme.outline
-                    borderWidth: Theme.borderWidth
+                    borderWidth: 0
                     smoothing: 0
                     shadowStrength: 0
                     shadowSize: 0
@@ -549,7 +553,10 @@ ShellRoot {
                     // The painted frame band: per-edge thickness = that edge's
                     // reserve (bar band + border), the 2px outline stroked just
                     // inside the hole edge, inner corners arced at radiusWindow.
-                    // Exact geometry, no field morphing (contract 01 sec 2b).
+                    // When a menu is open the hole loses that menu's animated
+                    // panel rect, so the open panel reads as the band grown
+                    // wider -- one silhouette, no field morphing (contract 01
+                    // sec 2b, menu parity spec).
                     anchors.fill: parent
                     reserveTop: root.edgeReserve("top")
                     reserveBottom: root.edgeReserve("bottom")
@@ -559,6 +566,11 @@ ShellRoot {
                     surface: Theme.surface
                     outline: Theme.outline
                     strokeWidth: Theme.borderWidth
+                    panelAnchor: frameMenus.chromePanel.anchor
+                    panelX: frameMenus.chromePanel.x
+                    panelY: frameMenus.chromePanel.y
+                    panelW: frameMenus.chromePanel.w
+                    panelH: frameMenus.chromePanel.h
                     opacity: Theme.windowOpacity
                     visible: !overlay.monFullscreen && Config.frameEnabled
                 }
@@ -636,11 +648,28 @@ ShellRoot {
         }
     }
 
-    // volume / brightness OSD, re-homed from the floating pill into its own
-    // small bottom-centre layer window, just above the bar.
+    // The three OSDs (contract 12 sec 1): volume-out, mic-in, brightness. Each
+    // is its own ryoku-osd overlay surface on every monitor; exclusive zone 0
+    // lets the compositor clamp each to the desktop hole, which self-centres it.
     Variants {
         model: Quickshell.screens
-        OsdWindow {}
+        OsdWindow { kind: "volume" }
+    }
+    Variants {
+        model: Quickshell.screens
+        OsdWindow { kind: "mic" }
+    }
+    Variants {
+        model: Quickshell.screens
+        OsdWindow { kind: "brightness" }
+    }
+
+    // Notification popup container (contract 12 sec 1, contract 07): one
+    // ryoku-notifications overlay per monitor, newest-first cards top-anchored on
+    // the configured side (Right default).
+    Variants {
+        model: Quickshell.screens
+        NotificationPopups {}
     }
 
     // persistent region-capture boundary shown while a region recording runs.

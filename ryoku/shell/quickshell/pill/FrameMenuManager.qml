@@ -97,6 +97,71 @@ Item {
         return "none";
     }
 
+    // The single reference menu (kind "menu") open on this monitor, or null.
+    // Ryoku-own surfaces (power/voice/keyring/stash/system) and plugins keep
+    // their own blob popouts and never feed the chrome band.
+    readonly property var activeMenu: {
+        const mon = menuState[monitorName];
+        if (!mon) return null;
+        for (const a in mon)
+            if (mon[a] && mon[a].kind === "menu") return mon[a];
+        return null;
+    }
+
+    // Latched chrome-band source: the open menu's resting panel rect + anchor,
+    // held through the close so the band retracts along the right edge instead
+    // of vanishing. A side menu (left/right) slides; an edge/corner menu scales.
+    property var chromeRest: ({ x: 0, y: 0, w: 0, h: 0 })
+    property string chromeAnchor: ""
+    property bool chromeSide: true
+    // 0 closed .. 1 open. Side menus slide 250 ms ease-out-cubic, edge/corner
+    // menus scale 200 ms ease-in-out-quad; a Behavior retarget reverses (slide)
+    // or restarts (scale) from the current value on interrupt (contract 05 sec 5).
+    property real chromeReveal: 0
+    Behavior on chromeReveal {
+        NumberAnimation {
+            duration: root.chromeSide ? Motion.menuSlide : Motion.diagonal
+            easing.type: root.chromeSide ? Motion.menuSlideCurve : Motion.diagonalCurve
+        }
+    }
+
+    // FrameMenu calls this while its menu is open: it latches the band source
+    // and drives the reveal to 1 with the current edge's curve. A same-region
+    // swap pushes an identical rect so the band does not blink; a fresh open
+    // animates in from the band. On close (activeMenu -> null) the reveal falls
+    // to 0 along the held edge.
+    function setChromeSource(anchor, x, y, w, h, isSide) {
+        root.chromeAnchor = anchor;
+        root.chromeRest = { x: x, y: y, w: w, h: h };
+        root.chromeSide = isSide;
+        root.chromeReveal = 1;
+    }
+    onActiveMenuChanged: if (!root.activeMenu) root.chromeReveal = 0;
+
+    // The animated band rect + anchor FrameChrome carves out of the desktop
+    // hole and each menu body clips into. Interpolated from the latched rest
+    // rect by the reveal: side menus slide their inner edge inward; edge and
+    // corner menus scale from the anchor origin.
+    readonly property var chromePanel: {
+        const r = root.chromeRest;
+        const p = root.chromeReveal;
+        const a = root.chromeAnchor;
+        const rr = r.x + r.w;
+        const rb = r.y + r.h;
+        const cx = r.x + r.w / 2;
+        const wp = r.w * p;
+        const hp = r.h * p;
+        if (a === "left")         return { anchor: a, x: r.x,         y: r.y,     w: wp, h: r.h };
+        if (a === "right")        return { anchor: a, x: rr - wp,     y: r.y,     w: wp, h: r.h };
+        if (a === "top")          return { anchor: a, x: cx - wp / 2, y: r.y,     w: wp, h: hp };
+        if (a === "bottom")       return { anchor: a, x: cx - wp / 2, y: rb - hp, w: wp, h: hp };
+        if (a === "top-left")     return { anchor: a, x: r.x,         y: r.y,     w: wp, h: hp };
+        if (a === "top-right")    return { anchor: a, x: rr - wp,     y: r.y,     w: wp, h: hp };
+        if (a === "bottom-left")  return { anchor: a, x: r.x,         y: rb - hp, w: wp, h: hp };
+        if (a === "bottom-right") return { anchor: a, x: rr - wp,     y: rb - hp, w: wp, h: hp };
+        return { anchor: "", x: r.x, y: r.y, w: 0, h: 0 };
+    }
+
     // per-anchor trigger (owner) and body (Popout) mask rects, in window
     // coordinates. Zero rects for idle anchors contribute nothing to the mask.
     readonly property var masks: {

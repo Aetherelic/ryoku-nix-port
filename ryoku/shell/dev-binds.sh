@@ -9,9 +9,11 @@ bin="$here/ipc/ryoku-shell"
 binds=(
 	"SUPER,Space,exec,$bin launcher"
 	"SUPER,L,exec,$bin lock"
-	"SUPER,B,exec,$bin wallpaper"
+	"SUPER,Escape,exec,$bin menu quick-settings"
+	"SUPER,W,exec,$bin menu wallpaper"
+	"SUPER,S,exec,$bin menu screenshot"
 	"SUPER,C,exec,$bin wallpaper-switcher"
-	"SUPER,period,exec,ryoku-hub config set section bar-studio; flock -n -o /tmp/ryoku-hub.lock qs -c hub"
+	"SUPER,Tab,exec,$bin overview"
 )
 
 case "${1:-on}" in

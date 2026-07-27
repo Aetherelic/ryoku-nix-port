@@ -8,15 +8,16 @@ import "Singletons"
 // is deliberately NO show or hide animation (contract 12 sec 5) -- the hosting
 // window maps the instant `flashing` turns true and unmaps the instant the
 // 1000 ms hold elapses; a re-trigger just restarts that hold. Volume and mic
-// read PipeWire; brightness reads the daemon `osd` feed. Triggers arriving in
-// the startup-settle window are ignored so device enumeration never flashes the
-// OSD (Ryoku's arm window stands in for the reference per-OSD shown_count: the
-// PipeWire startup change-event count is not fixed the way the reference's
-// watch-stream is, so a time window is the robust equivalent).
+// read PipeWire; brightness reads the daemon `osd` feed.
+//
+// Startup gate (contract 12 sec 4): the reference swallows the first two Show
+// events per OSD (the device-enumeration watcher firings at login) and renders
+// from the third onward, so a fresh shell never flashes for initial state syncs.
+// `shownCount` reproduces that count gate exactly (it never resets, so every
+// trigger after the first two shows the OSD).
 Item {
     id: root
 
-    required property real s
     property string kind: "volume"          // volume | mic | brightness
     property bool suppressed: false
 
@@ -33,44 +34,46 @@ Item {
         ? OsdFeed.brightness
         : (audio ? Math.max(0, Math.min(1, audio.volume)) : 0)
 
-    // Bucket -> Material Symbols icon, muted winning, on the reference
+    // Bucket -> freedesktop symbolic glyph, muted winning, on the reference
     // thresholds (contract 12 sec 3): audio >66 high, >33 medium, >0 low, else
-    // muted; brightness >66 high, >33 medium, else low. Material Symbols carries
-    // no microphone-sensitivity levels, so mic collapses to on/off (documented
-    // divergence, matching the rail's audio-input glyph).
+    // muted; mic identical on the microphone-sensitivity set; brightness >66
+    // high, >33 medium, else low. Names are the shell's own glyph set
+    // (framebars/icons), never a font.
     readonly property string iconName: {
         var pct = Math.round(value * 100);
         if (isBrightness)
-            return pct > 66 ? "brightness_high" : pct > 33 ? "brightness_medium" : "brightness_low";
+            return pct > 66 ? "brightness-high" : pct > 33 ? "brightness-medium" : "brightness-low";
         if (isMic)
-            return (muted || pct <= 0) ? "mic_off" : "mic";
-        if (muted)
-            return "volume_off";
-        return pct > 66 ? "volume_up" : pct > 33 ? "volume_down" : pct > 0 ? "volume_mute" : "volume_off";
+            return (muted || pct <= 0) ? "microphone-sensitivity-muted"
+                : pct > 66 ? "microphone-sensitivity-high"
+                : pct > 33 ? "microphone-sensitivity-medium"
+                : "microphone-sensitivity-low";
+        return (muted || pct <= 0) ? "audio-volume-muted"
+            : pct > 66 ? "audio-volume-high"
+            : pct > 33 ? "audio-volume-medium"
+            : "audio-volume-low";
     }
 
     // --- flash state machine (no animation) --------------------------------
-    property bool armed: false
+    property int shownCount: 0
     property bool flashing: false
 
     function flash() {
-        if (!armed || suppressed)
+        if (suppressed)
             return;
-        flashing = true;
-        hideTimer.restart();
+        // Swallow the first two shows (startup device enumeration), render from
+        // the third onward, mirroring the reference shown_count gate.
+        if (shownCount > 1) {
+            flashing = true;
+            hideTimer.restart();
+        } else {
+            shownCount += 1;
+        }
     }
 
     onSuppressedChanged: if (suppressed) {
         hideTimer.stop();
         flashing = false;
-    }
-
-    // Startup-settle window: ignore triggers until the shell has enumerated
-    // devices, so no OSD flashes at login.
-    Timer {
-        interval: Motion.startupReveal
-        running: true
-        onTriggered: root.armed = true
     }
 
     // The 1000 ms auto-hide hold, restarted on every value change.
@@ -94,32 +97,33 @@ Item {
     }
 
     // --- content: icon + value bar (contract 12 sec 2) ---------------------
-    // Inner box width 300, spacing 20, icon 48; the bar fills the remainder.
-    implicitWidth: 300 * root.s
-    implicitHeight: 48 * root.s
+    // Fixed logical px, matching the reference exactly: inner box width 300,
+    // spacing 20, icon 48, bar min-height 8. No monitor or font scaling -- the
+    // reference OSD is a fixed-size readout.
+    implicitWidth: 300
+    implicitHeight: 48
 
-    MaterialIcon {
+    SymbolIcon {
         id: glyph
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        width: 48 * root.s
-        height: 48 * root.s
-        font.pixelSize: 48 * root.s
-        text: root.iconName
+        name: root.iconName
+        size: 48
         color: Theme.onSurface
     }
 
-    // ok-progress-bar: trough (primary-container) + highlight (on-primary-
-    // container), min-height 8, radius 8, thumb hidden.
+    // Value bar: trough (surfaceContainerLow) + fill (secondary), min-height 8,
+    // radius 8, thumb hidden. The live-reference palette resolves these tokens to
+    // trough #1a1d1f and fill #a8adb0 under the Solitude defaults.
     Rectangle {
         id: trough
         anchors.left: glyph.right
-        anchors.leftMargin: 20 * root.s
+        anchors.leftMargin: 20
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        height: 8 * root.s
+        height: 8
         radius: Theme.radiusWidget
-        color: Theme.primaryContainer
+        color: Theme.surfaceContainerLow
 
         Rectangle {
             anchors.left: parent.left
@@ -127,7 +131,7 @@ Item {
             anchors.bottom: parent.bottom
             width: parent.width * root.value
             radius: parent.radius
-            color: Theme.onPrimaryContainer
+            color: Theme.secondary
             visible: width > 0
         }
     }
