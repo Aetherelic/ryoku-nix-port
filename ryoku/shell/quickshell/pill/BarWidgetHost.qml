@@ -123,6 +123,15 @@ Item {
         anchors.centerIn: parent
         sourceComponent: root.componentFor(root.widgetId)
     }
+    Timer {
+        interval: 2000; running: true; repeat: false
+        onTriggered: {
+            if (root.edge === "left" && root.visible) {
+                var g = root.mapToGlobal(0, 0);
+                console.log("HOST " + root.widgetId + " gy=" + Math.round(g.y) + " h=" + Math.round(root.height) + " ih=" + Math.round(root.implicitHeight));
+            }
+        }
+    }
     Connections {
         target: widgetLoader.item
         ignoreUnknownSignals: true

@@ -47,7 +47,7 @@ Item {
             RailButton {
                 edge: root.edge
                 scale: root.scale
-                icon: "widgets"
+                icon: "tray"
                 onClicked: root.revealed = !root.revealed
             }
             Item {
@@ -66,7 +66,7 @@ Item {
             RailButton {
                 edge: root.edge
                 scale: root.scale
-                icon: "widgets"
+                icon: "tray"
                 onClicked: root.revealed = !root.revealed
             }
             Item {

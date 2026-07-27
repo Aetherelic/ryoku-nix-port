@@ -1,10 +1,11 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "../.." as Pill
+import "../../Singletons"
 
-// Quick-settings launch button: opens the main quick-settings menu on left click.
-// The reference shows a configurable distro logo here; Ryoku has no distro-logo
-// config or glyphs, so it uses the settings "tune" glyph for the same role.
+// Quick-settings launch button: opens the main quick-settings menu on left
+// click. Shows the distro mark, as the reference does by default.
 // Contract 04 sec 3.2 (quick_settings).
 Item {
     id: root
@@ -21,7 +22,7 @@ Item {
         anchors.centerIn: parent
         edge: root.edge
         scale: root.scale
-        icon: "tune"
+        icon: "arch"
         onClicked: root.menuRequested("quick-settings", Qt.rect(0, 0, root.width, root.height))
     }
 }

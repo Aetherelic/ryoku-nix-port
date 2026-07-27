@@ -1,14 +1,16 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import "../../Singletons"
+import "../.." as Pill
 import "../lib/dock.js" as Dock
 
 // The dock. Order is pinned classes first (a pinned app may have zero clients),
 // then running unpinned classes by pid (the host hands clients pre-sorted). Each
-// item is a 48x44 button with a 24px app icon; the active window's class shows the
-// selected fill. The running indicator overlays the outer edge: zero clients none,
+// item is a 48x44 button with a 24px glyph resolved from the shell icon set.
+// The running indicator overlays the outer edge: zero clients none,
 // one to three clients that many 4x4 dots, four or more a single line (16x4 on a
 // horizontal bar, 4x16 on a vertical bar). Left click focuses/cycles/launches
 // (host-driven); right click toggles pin. No middle click, no hover preview, no
@@ -69,54 +71,56 @@ Item {
             id: item
             required property string modelData
             readonly property string className: modelData
-            readonly property bool selected: root.activeClass.length > 0 && root.activeClass === className
             readonly property int count: root.counts[className] || 0
-            readonly property color fg: selected ? Theme.onPrimary : Theme.onSurface
+            readonly property color fg: Theme.onSurface
             readonly property real iconPx: Theme.iconMd * root.scale
 
             width: root.horizontal ? Math.max(36 * root.scale, iconPx + 20 * root.scale) : root.cross
             height: root.horizontal ? root.cross : Math.max(36 * root.scale, iconPx + 20 * root.scale)
 
-            // The desktop entry owns the real icon; the window class is the
-            // fallback lookup, and its initial is the last resort so an unmatched
-            // client still reads as something (contract 03 sec 3.4).
-            readonly property string iconSource: {
+            // The shell's own glyph set is the only icon source, exactly as the
+            // reference resolves app icons against its shell theme: a class with
+            // no glyph there falls back to the app-grid dots. No system icon
+            // themes, no coloured app icons (bar parity spec sec 4).
+            readonly property string themedGlyph: {
                 const desktop = DesktopEntries.heuristicLookup(className);
-                const byEntry = (desktop && desktop.icon) ? Quickshell.iconPath(desktop.icon, true) : "";
-                return byEntry !== "" ? byEntry : Quickshell.iconPath(className, true);
+                const name = (desktop && desktop.icon) ? desktop.icon : className;
+                return name.toLowerCase();
             }
 
             Rectangle {
                 anchors.fill: parent
                 radius: Theme.radiusWidget
-                color: item.selected ? Theme.primary
-                    : (area.containsMouse
-                        ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08)
-                        : "transparent")
+                color: area.containsMouse
+                    ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08)
+                    : "transparent"
             }
 
             Image {
+                id: dockIcon
                 anchors.centerIn: parent
                 width: item.iconPx
                 height: item.iconPx
-                visible: item.iconSource !== ""
-                source: item.iconSource
+                visible: false
+                source: Qt.resolvedUrl("../icons/" + item.themedGlyph + "-symbolic.svg")
                 sourceSize.width: width
                 sourceSize.height: height
                 smooth: true
-                asynchronous: true
             }
 
-            Text {
-                anchors.centerIn: parent
-                visible: item.iconSource === ""
-                text: item.className.slice(0, 1).toUpperCase()
+            ColorOverlay {
+                anchors.fill: dockIcon
+                visible: dockIcon.status === Image.Ready
+                source: dockIcon
                 color: item.fg
-                font {
-                    family: Theme.fontPrimary
-                    pixelSize: 14 * root.scale
-                    weight: Font.DemiBold
-                }
+            }
+
+            Pill.SymbolIcon {
+                anchors.centerIn: parent
+                visible: dockIcon.status !== Image.Ready
+                name: "view-app-grid"
+                size: item.iconPx
+                color: item.fg
             }
 
             // Running indicator on the bar's outer edge (contract 03 sec 2.2):

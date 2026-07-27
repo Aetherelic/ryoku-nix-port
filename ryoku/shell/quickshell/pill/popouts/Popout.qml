@@ -125,7 +125,7 @@ Item {
     // corner. the wall is the on-screen frame lip (frameBorder - 50, the same
     // the frame border and barVisibleH use), NOT the bar's full thickness --
     // using frameThickness held a corner popout a whole band's width off.
-    readonly property real edgeInset: root.edgeInsetOverride >= 0 ? root.edgeInsetOverride : Math.max(0, Config.frameBorder - 50) + 12 * s
+    readonly property real edgeInset: root.edgeInsetOverride >= 0 ? root.edgeInsetOverride : 12 * s
     function alignPos(span, sz) {
         if (effectiveAlong >= 0)
             return Math.max(edgeInset, Math.min(span - sz - edgeInset, effectiveAlong - sz / 2));

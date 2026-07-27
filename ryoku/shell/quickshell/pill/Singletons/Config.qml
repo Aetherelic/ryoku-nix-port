@@ -12,26 +12,14 @@ import Ryoku.FrameBars
 // of its own.
 //
 // geometry = unscaled base pixels at 1080p. osd values are multiplied by the
-// per-monitor scale `s` where they're read; frameRadius / frameBorder sit in
-// Hyprland's gaps ring and stay unscaled, matching the hand-tuned originals.
+// per-monitor scale `s` where they're read.
 Singleton {
     id: root
 
-    // frame = rounded screen border the popouts swell out of.
-    property alias frameRadius:    adapter.frameRadius
-    property alias frameBorder:    adapter.frameBorder
+    // frame = the painted border band; its geometry is the edge reserve, its
+    // corner radius the Theme sizing token, so only enable and opacity remain.
     property alias frameEnabled:   adapter.frameEnabled
-    property alias frameSmoothing: adapter.frameSmoothing
     property alias frameOpacity:   adapter.frameOpacity
-    property alias shadowStrength: adapter.shadowStrength
-    property alias shadowSize:     adapter.shadowSize
-    // frame off collapses the border ring (and its shadow) to nothing, so a bar
-    // sits flush at the screen edge; the frameBorder setting is kept intact.
-    readonly property real effectiveFrameBorder: frameEnabled ? frameBorder : 50
-
-    // surface = warm dark fill shared by the frame and its popouts. one blob field,
-    // so a single colour reads as one continuous surface.
-    property alias surfaceColor:   adapter.surfaceColor
 
     // osd = the volume/brightness flash and notification toasts: small edge
     // windows that share the frame surface. osdRadius rounds their corners,
@@ -42,17 +30,8 @@ Singleton {
     property alias frameBars: adapter.frameBars
     readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
-
-    // roundness = the shell-wide inner corner radius (the "Global" shape knob).
-    // every internal tile, card, row and chip reads Theme.radiusWidget, which follows
-    // this, so the whole shell shares one rounded shape that echoes the frame's
-    // melt. 0 restores the old brutalist sharp corners.
-    property alias roundness: adapter.roundness
-
-    // typography: UI font family (Theme.fontPrimary reads this) + a scale that grows
-    // or shrinks the whole shell (the bar text and the surfaces around it),
-    // keeping the readout legible without overflow.
-    property alias fontFamily: adapter.fontFamily
+    // typography: a scale that grows or shrinks the whole shell (the bar text
+    // and the surfaces around it), keeping the readout legible without overflow.
     property alias fontScale:  adapter.fontScale
 
     // weather: an explicit location override (a city name; blank = auto-locate by
@@ -90,19 +69,11 @@ Singleton {
 
         JsonAdapter {
             id: adapter
-            property real frameRadius: 0
-            property real frameBorder: 59
             property bool frameEnabled: true
-            property real frameSmoothing: 8
             property real frameOpacity: 1
-            property real shadowStrength: 0.63
-            property real shadowSize: 12
-            property color surfaceColor: "#1E2326"
             property real osdRadius: 0
             property real osdOpacity: 1
-            property string fontFamily: "Space Grotesk"
             property real fontScale: 1.3
-            property real roundness: 8
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property var frameBars: FrameBars.defaultConfig()
@@ -118,7 +89,7 @@ Singleton {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter { id: themeAdapter; property bool followWallpaper: true }
+        JsonAdapter { id: themeAdapter; property bool followWallpaper: false }
     }
 
     // brand identity master (mark + name), shared with doctor and the

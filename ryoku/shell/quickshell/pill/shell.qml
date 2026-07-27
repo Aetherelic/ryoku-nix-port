@@ -481,17 +481,6 @@ ShellRoot {
             mask: monFullscreen ? hiddenRegion
                 : ((surfaceModal || recHud.dragging) ? fullRegion : railRegion)
 
-            function inRail(x, y) {
-                const edges = ["top", "left", "bottom", "right"];
-                for (let i = 0; i < edges.length; i++) {
-                    const edge = edges[i];
-                    const rect = RailGeometry.edgeRect(edge, railThickness(edge), width, height);
-                    if (railEnabled(edge) && x >= rect.x && x < rect.x + rect.width
-                            && y >= rect.y && y < rect.y + rect.height)
-                        return true;
-                }
-                return false;
-            }
             Region { id: hiddenRegion }
             Region {
                 id: fullRegion
@@ -534,14 +523,8 @@ ShellRoot {
                 Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
             }
 
-            MouseArea {
-                anchors.fill: parent
-                enabled: overlay.surfaceModal
-                acceptedButtons: Qt.AllButtons
-                onPressed: mouse => {
-                    if (!overlay.inRail(mouse.x, mouse.y)) frameMenus.closeAll();
-                }
-            }
+            // No outside-click dismissal: a menu closes only on its seven
+            // defined paths (contract 05 sec 4).
 
             FocusScope {
                 id: focusScope
@@ -557,24 +540,25 @@ ShellRoot {
                     color: Theme.surface
                     borderColor: Theme.outline
                     borderWidth: Theme.borderWidth
-                    smoothing: Config.frameSmoothing
-                    shadowStrength: Config.shadowStrength
-                    shadowSize: Config.shadowSize
+                    smoothing: 0
+                    shadowStrength: 0
+                    shadowSize: 0
                 }
 
-                BlobInvertedRect {
-                    // The painted frame band: one continuous inverted-rect over
-                    // the whole surface, per-edge thickness = that edge's reserve
-                    // (bar band + border), inner corners rounded at radiusWindow.
-                    // Menus notch inward by growing a body into the same blob
-                    // field. This is the single paint pass of contract 01 sec 2b.
+                FrameChrome {
+                    // The painted frame band: per-edge thickness = that edge's
+                    // reserve (bar band + border), the 2px outline stroked just
+                    // inside the hole edge, inner corners arced at radiusWindow.
+                    // Exact geometry, no field morphing (contract 01 sec 2b).
                     anchors.fill: parent
-                    group: blobGroup
-                    radius: Theme.radiusWindow
-                    borderTop: root.edgeReserve("top")
-                    borderBottom: root.edgeReserve("bottom")
-                    borderLeft: root.edgeReserve("left")
-                    borderRight: root.edgeReserve("right")
+                    reserveTop: root.edgeReserve("top")
+                    reserveBottom: root.edgeReserve("bottom")
+                    reserveLeft: root.edgeReserve("left")
+                    reserveRight: root.edgeReserve("right")
+                    holeRadius: Theme.radiusWindow
+                    surface: Theme.surface
+                    outline: Theme.outline
+                    strokeWidth: Theme.borderWidth
                     opacity: Theme.windowOpacity
                     visible: !overlay.monFullscreen && Config.frameEnabled
                 }
@@ -643,7 +627,7 @@ ShellRoot {
                     id: recHud
                     group: blobGroup
                     s: overlay.s
-                    smoothing: Config.frameSmoothing
+                    smoothing: 0
                     barEdge: overlay.railEnabled("top") ? "top" : ""
                     barBand: overlay.railEnabled("top") ? overlay.railThickness("top") : 0
                 }

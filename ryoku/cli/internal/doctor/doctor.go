@@ -116,6 +116,7 @@ func reconcilers() []reconciler {
 		{"Material Symbols icon font", reconcileIconFont},
 		{"frame bar style name", reconcileFrameBarsStyle},
 		{"shell config schema", reconcileShellConfig},
+		{"shell style knobs", reconcileLegacyStyleKnobs},
 		{"user edits overlay", reconcileUserEditsAdopt},
 		{"keyring unlock policy", reconcileKeyring},
 		{"SDDM greeter theme", reconcileGreeterTheme},
@@ -1044,6 +1045,77 @@ func migrateFrameBarsStyle(raw []byte) ([]byte, bool, error) {
 		return nil, false, err
 	}
 	top["frameBars"] = frameBytes
+	out, err := json.MarshalIndent(top, "", "  ")
+	if err != nil {
+		return nil, false, err
+	}
+	return append(out, '\n'), true, nil
+}
+
+// ---- reconciler: retired shell style knobs -----------------------------------
+
+// reconcileLegacyStyleKnobs strips the style keys a persisted shell.json may
+// still carry for looks the shell no longer has. surfaceColor / fontFamily /
+// roundness each duplicated a Theme token that now owns the value (surface,
+// fontPrimary, radiusWidget); frameSmoothing / shadowStrength / shadowSize drove
+// the retired soft-chrome look, whose blur hid the frame's crisp 2px border.
+// Surgical and idempotent: only these keys move, every other key survives
+// untouched, and a store already free of them is left alone.
+func reconcileLegacyStyleKnobs(checkOnly bool) recResult {
+	path := filepath.Join(sys.ConfigHome(), "ryoku", "shell.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return okRes("no shell.json yet (seeded on first shell run)")
+	}
+	migrated, changed, err := stripLegacyStyleKnobs(raw)
+	if err != nil {
+		return warnRes("shell.json does not parse (%v); the shell falls back to defaults", err).
+			withFix("delete %s to re-seed it", path)
+	}
+	if !changed {
+		return okRes("shell.json carries no retired style knobs")
+	}
+	if checkOnly {
+		return wouldRes("shell.json still carries retired style knobs (%s)", strings.Join(legacyStyleKnobs, " / ")).
+			withFix("ryoku doctor strips them in place")
+	}
+	tmp := path + ".ryoku-tmp"
+	if err := os.WriteFile(tmp, migrated, 0o644); err != nil {
+		return failRes("could not write %s: %v", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return failRes("could not replace %s: %v", path, err)
+	}
+	return fixedRes("stripped retired style knobs from shell.json")
+}
+
+// legacyStyleKnobs are shell.json keys the shell no longer reads: each was a look
+// override for a style the shell no longer has.
+var legacyStyleKnobs = []string{
+	"surfaceColor", "fontFamily", "roundness",
+	"frameRadius", "frameBorder",
+	"frameSmoothing", "shadowStrength", "shadowSize",
+}
+
+// stripLegacyStyleKnobs removes the retired style knobs from a shell store,
+// preserving every other key as its own raw bytes. An absent knob is a no-op, so
+// a store already free of them comes back unchanged.
+func stripLegacyStyleKnobs(raw []byte) ([]byte, bool, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil {
+		return nil, false, err
+	}
+	changed := false
+	for _, key := range legacyStyleKnobs {
+		if _, ok := top[key]; ok {
+			delete(top, key)
+			changed = true
+		}
+	}
+	if !changed {
+		return nil, false, nil
+	}
 	out, err := json.MarshalIndent(top, "", "  ")
 	if err != nil {
 		return nil, false, err

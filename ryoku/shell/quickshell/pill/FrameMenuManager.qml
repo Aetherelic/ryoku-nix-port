@@ -256,8 +256,8 @@ Item {
             group: root.group
             frameThickness: root.clearanceFor(modelData.anchor)
             clearances: root.railClearances
-            radius: Config.frameRadius
-            smoothing: Config.frameSmoothing
+            radius: Theme.radiusWindow
+            smoothing: 0
             s: root.scale
             active: root.active
             manager: root
@@ -275,8 +275,8 @@ Item {
         s: root.scale
         active: root.active
         frameThickness: root.frameThickness
-        radius: Config.frameRadius
-        smoothing: Config.frameSmoothing
+        radius: Theme.radiusWindow
+        smoothing: 0
         pinnedId: {
             const id = root.activeIdAt("top");
             return id.indexOf("plugin:") === 0 ? id.substring(7) : "";

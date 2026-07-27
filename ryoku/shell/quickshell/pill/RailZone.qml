@@ -12,7 +12,7 @@ Item {
     required property var ids
     required property bool horizontal
     required property string align
-    property real spacing: 8
+    property real spacing: 0
     property Component delegate: null
 
     readonly property bool atStart: align === "start"

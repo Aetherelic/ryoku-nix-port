@@ -27,11 +27,11 @@ Item {
     // anything else falls back to the generic layout glyph.
     readonly property string glyph: {
         const l = layoutControl.current;
-        return l === "dwindle" ? "auto_awesome_mosaic"
-            : l === "master" ? "view_sidebar"
-            : l === "scrolling" ? "view_column"
-            : l === "monocle" ? "crop_square"
-            : "dashboard_customize";
+        return l === "dwindle" ? "layout-dwindle"
+            : l === "master" ? "layout-master"
+            : l === "scrolling" ? "layout-scrolling"
+            : l === "monocle" ? "layout-monocle"
+            : "layout";
     }
 
     RailButton {

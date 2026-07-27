@@ -23,7 +23,7 @@ Item {
 
     readonly property string glyph: {
         const p = PowerProfiles.profile;
-        return p === "power-saver" ? "eco" : (p === "performance" ? "bolt" : "balance");
+        return "power-profile-" + (p === "power-saver" || p === "performance" ? p : "balanced");
     }
 
     RailButton {

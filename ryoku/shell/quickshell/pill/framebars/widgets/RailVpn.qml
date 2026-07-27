@@ -28,7 +28,7 @@ Item {
         anchors.centerIn: parent
         edge: root.edge
         scale: root.scale
-        icon: "vpn_lock"
+        icon: "shield-check"
         interactive: false
     }
 }

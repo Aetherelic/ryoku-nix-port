@@ -1930,3 +1930,60 @@ func TestMigrateFrameBarsStyle(t *testing.T) {
 		t.Errorf("absent frameBars must be untouched: changed=%v err=%v", changed, err)
 	}
 }
+
+// stripLegacyStyleKnobs drops the retired surfaceColor / fontFamily / roundness
+// keys, leaves every other key untouched, and does nothing once they are gone.
+func TestStripLegacyStyleKnobs(t *testing.T) {
+	// all six knobs present alongside live keys: the knobs go, the rest stay.
+	full := []byte(`{"surfaceColor":"#0f1115","fontFamily":"Space Grotesk","roundness":0,"frameSmoothing":8,"shadowStrength":0.63,"shadowSize":12,"frameRadius":9,"frameBorder":59,"frameEnabled":true,"frameBars":{"style":"slate-frame"},"weatherLocation":"Oslo"}`)
+	out, changed, err := stripLegacyStyleKnobs(full)
+	if err != nil || !changed {
+		t.Fatalf("legacy knobs must be stripped: changed=%v err=%v", changed, err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("stripped JSON does not parse: %v", err)
+	}
+	for _, key := range legacyStyleKnobs {
+		if _, present := cfg[key]; present {
+			t.Errorf("retired knob %q survived the strip", key)
+		}
+	}
+	if cfg["frameEnabled"] != true || cfg["weatherLocation"] != "Oslo" {
+		t.Errorf("unrelated top-level keys were lost: %v", cfg)
+	}
+	if frameBars, ok := cfg["frameBars"].(map[string]any); !ok || frameBars["style"] != "slate-frame" {
+		t.Errorf("nested frameBars was not preserved: %v", cfg["frameBars"])
+	}
+
+	// stripping is idempotent: the cleaned store is now a no-op.
+	if _, changed, err := stripLegacyStyleKnobs(out); err != nil || changed {
+		t.Errorf("re-stripping a clean store must be a no-op: changed=%v err=%v", changed, err)
+	}
+
+	// a store carrying only some of the knobs strips exactly those present.
+	partial := []byte(`{"roundness":8,"fontScale":1.3}`)
+	out, changed, err = stripLegacyStyleKnobs(partial)
+	if err != nil || !changed {
+		t.Fatalf("a lone knob must still strip: changed=%v err=%v", changed, err)
+	}
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("stripped JSON does not parse: %v", err)
+	}
+	if _, present := cfg["roundness"]; present {
+		t.Error("roundness survived a partial strip")
+	}
+	if cfg["fontScale"].(float64) != 1.3 {
+		t.Errorf("unrelated key lost in a partial strip: %v", cfg)
+	}
+
+	// a store with none of the knobs is left untouched.
+	if _, changed, err := stripLegacyStyleKnobs([]byte(`{"frameOpacity":1,"weatherUnit":"auto"}`)); err != nil || changed {
+		t.Errorf("a store with no retired knobs must be untouched: changed=%v err=%v", changed, err)
+	}
+
+	// garbage errors rather than silently rewriting.
+	if _, _, err := stripLegacyStyleKnobs([]byte("not json")); err == nil {
+		t.Fatal("garbage must error, not silently rewrite")
+	}
+}

@@ -151,18 +151,10 @@ Item {
             readonly property bool wsActive: root.activeIds[wsId] === true
             edge: root.edge
             scale: root.scale
+            // active/inactive is a filled vs hollow glyph (contract: on-surface
+            // in both states, no bg change), so the button never flips to primary.
+            icon: wsActive ? "workspace-selected" : "workspace"
             onClicked: root.focusWorkspace(wsId)
-
-            // active/inactive is a filled vs hollow glyph (contract: on-surface in
-            // both states, no bg change), so the button never flips to primary.
-            Rectangle {
-                width: Theme.iconSm * root.scale
-                height: Theme.iconSm * root.scale
-                radius: 3 * root.scale
-                color: wsButton.wsActive ? Theme.onSurface : "transparent"
-                border.width: Math.max(1, Math.round(1.5 * root.scale))
-                border.color: Theme.onSurface
-            }
         }
     }
 

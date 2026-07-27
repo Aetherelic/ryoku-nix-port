@@ -22,6 +22,7 @@ Item {
     property string label: ""             // text alternative (clock); "" hides it
     property real iconSize: Theme.iconSm  // nominal content size (16, dock uses 24)
     property real labelSize: 12
+    property real labelLineHeight: 0     // FixedHeight line spacing for multi-line labels; 0 = font default
     property bool interactive: true
     property bool active: false           // selected -> primary fill + on-primary fg
     property bool scrollable: false       // audio only: hover-gated vertical wheel
@@ -60,16 +61,13 @@ Item {
         width: childrenRect.width
         height: childrenRect.height
 
-        Pill.MaterialIcon {
-            // Sized to the nominal icon box so the font line height cannot push
-            // the button past its 36px minimum; the glyph centres inside it.
+        Pill.SymbolIcon {
+            // The exact glyph set: freedesktop-named symbolic SVGs, sized to
+            // the nominal icon box and flattened to the widget's colour.
             visible: root.icon.length > 0
-            width: visible ? root.iconSize * root.scale : 0
-            height: visible ? root.iconSize * root.scale : 0
-            text: root.icon
-            fill: root.iconFill
+            name: root.icon
+            size: root.iconSize * root.scale
             color: root.iconColor
-            font.pixelSize: root.iconSize * root.scale
         }
 
         Text {
@@ -77,6 +75,8 @@ Item {
             text: root.label
             horizontalAlignment: Text.AlignHCenter
             color: root.iconColor
+            lineHeightMode: root.labelLineHeight > 0 ? Text.FixedHeight : Text.ProportionalHeight
+            lineHeight: root.labelLineHeight > 0 ? root.labelLineHeight * root.scale : 1
             font {
                 family: Theme.fontPrimary
                 pixelSize: root.labelSize * root.scale

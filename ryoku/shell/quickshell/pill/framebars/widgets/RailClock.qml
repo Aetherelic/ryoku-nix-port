@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import "../../Singletons"
 
 // The one timer-driven widget: a SystemClock ticks the readout (everything else
 // is event driven). Horizontal bars show HH:mm on one line, vertical bars stack
@@ -32,7 +31,7 @@ Item {
         const d = clock.date;
         const h = d.getHours();
         const shown = format24h ? h : ((h % 12) || 12);
-        const hh = format24h ? ("0" + shown).slice(-2) : ("" + shown);
+        const hh = ("0" + shown).slice(-2);
         const mm = ("0" + d.getMinutes()).slice(-2);
         return horizontal ? (hh + ":" + mm) : (hh + "\n" + mm);
     }
@@ -43,7 +42,8 @@ Item {
         edge: root.edge
         scale: root.scale
         label: root.timeText()
-        labelSize: 12 * Theme.frameClockScale
+        labelSize: 13
+        labelLineHeight: 17.2
         onClicked: root.menuRequested("clock", Qt.rect(0, 0, root.width, root.height))
     }
 }

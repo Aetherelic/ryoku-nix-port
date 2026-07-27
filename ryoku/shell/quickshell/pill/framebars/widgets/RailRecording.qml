@@ -22,7 +22,7 @@ Item {
         anchors.centerIn: parent
         edge: root.edge
         scale: root.scale
-        icon: "fiber_manual_record"
+        icon: "record"
         iconColor: Theme.error
         onClicked: Recorder.stop()
     }

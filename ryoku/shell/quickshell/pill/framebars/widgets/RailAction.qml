@@ -17,15 +17,15 @@ Item {
     // clipboard/screenshot/wallpaper are menu-openers; the others are actions.
     readonly property var menuIds: ({ "clipboard": true, "screenshot": true, "wallpaper": true })
     readonly property var glyphs: ({
-        "app-launcher": "apps",
-        "lock": "lock",
-        "logout": "logout",
-        "reboot": "restart_alt",
-        "shutdown": "power_settings_new",
-        "screenshot": "screenshot_monitor",
+        "app-launcher": "view-app-grid",
+        "lock": "system-lock-screen",
+        "logout": "system-log-out",
+        "reboot": "system-reboot",
+        "shutdown": "system-shutdown",
+        "screenshot": "video-display",
         "wallpaper": "wallpaper",
-        "clipboard": "content_paste",
-        "color-picker": "colorize"
+        "clipboard": "edit-paste",
+        "color-picker": "color-select"
     })
 
     implicitWidth: btn.implicitWidth
@@ -36,7 +36,7 @@ Item {
         anchors.centerIn: parent
         edge: root.edge
         scale: root.scale
-        icon: root.glyphs[root.actionId] || "error"
+        icon: root.glyphs[root.actionId] || "application-x-executable"
         onClicked: {
             if (root.menuIds[root.actionId])
                 root.menuRequested(root.actionId, Qt.rect(0, 0, root.width, root.height));

@@ -29,7 +29,7 @@ Item {
 
     anchors.fill: parent
 
-    readonly property real baseLip: Math.max(0, Config.frameBorder - 50)
+    readonly property real baseLip: 0
     function lipFor(e) { return hud.baseLip + (e === hud.barEdge ? hud.barBand : 0); }
     readonly property real lipT: hud.lipFor("top")
     readonly property real lipB: hud.lipFor("bottom")

@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Ryoku.Blobs
 import "Singletons"
 
 // One bar edge: a fixed-thickness band pinned to its screen edge, holding the
@@ -21,7 +20,12 @@ Item {
     property Component delegate: null
 
     readonly property bool horizontal: edge === "top" || edge === "bottom"
-    readonly property real band: rail.size
+    // An empty bar renders nothing: no band, no slab, no hover slide. Only the
+    // frame chrome's own 1px surface + 2px border shows on that edge.
+    readonly property int itemCount: horizontal
+        ? (rail.start || []).length + (rail.center || []).length + (rail.end || []).length
+        : (rail.top || []).length + (rail.center || []).length + (rail.bottom || []).length
+    readonly property real band: itemCount > 0 ? rail.size : 0
     // reveal_child = revealed || hovered (contract 02 sec 4).
     readonly property bool shown: revealed || bandHover.hovered
 
@@ -48,19 +52,14 @@ Item {
         Behavior on x { NumberAnimation { duration: Motion.barReveal; easing.type: Motion.barRevealCurve } }
         Behavior on y { NumberAnimation { duration: Motion.barReveal; easing.type: Motion.barRevealCurve } }
 
-        BlobRect {
-            anchors.fill: parent
-            group: root.style.group
-            topLeftRadius: 0
-            topRightRadius: 0
-            bottomLeftRadius: 0
-            bottomRightRadius: 0
-            sinks: false
-        }
-
+        // The band visual is the frame chrome's job (FrameChrome paints every
+        // edge's surface and border in one pass); the rail is pure content.
         Row {
             visible: root.horizontal
-            width: parent.width
+            // Content sits between the adjacent edge bands' surface slivers:
+            // measured first item centre 18.8, last 1179.8 on the reference.
+            x: 1
+            width: parent.width - 3
             height: parent.height
 
             RailZone {
@@ -91,8 +90,9 @@ Item {
 
         Column {
             visible: !root.horizontal
+            y: 1
             width: parent.width
-            height: parent.height
+            height: parent.height - 3
 
             RailZone {
                 width: parent.width
