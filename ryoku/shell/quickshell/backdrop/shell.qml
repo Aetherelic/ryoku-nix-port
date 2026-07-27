@@ -30,6 +30,9 @@ ShellRoot {
     property string wallpaperUrl: ""
     // content_fit -> Image.fillMode (contract 08 sec 3.3); Cover is the default.
     property string fit: "Cover"
+    // The reveal preset for the current revision (null = plain crossfade), streamed
+    // on the same wallpaper topic frame and handed to the backdrop's reveal shader.
+    property var transition: null
 
     readonly property string sockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
 
@@ -37,6 +40,7 @@ ShellRoot {
         try {
             const f = JSON.parse(line);
             root.fit = f.fit || "Cover";
+            root.transition = f.transition || null; // set before url so onUrlChanged sees the matching preset
             root.wallpaperUrl = (f.path && f.path.length > 0) ? "file://" + f.path + "?v=" + (f.revision || 0) : "";
         } catch (e) {
             // A malformed frame must never blank the desktop; keep the last image.
@@ -101,6 +105,7 @@ ShellRoot {
                 anchors.fill: parent
                 url: root.wallpaperUrl
                 fit: root.fit
+                transition: root.transition
             }
         }
     }

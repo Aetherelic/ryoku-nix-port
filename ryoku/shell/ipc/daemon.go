@@ -107,6 +107,7 @@ type daemon struct {
 	clip           *clipState               // clipboard history state (nil until started)
 	tray           *trayState               // system tray watcher/host state (nil until started)
 	wall           *wallSurface             // in-shell desktop wallpaper (nil until started)
+	lastTransition int                      // previous wallpaper transition preset index (-1 = none); guarded by wallMu
 	polkit         *polkitAgent             // PolicyKit1 authentication agent (nil until started)
 }
 
@@ -144,15 +145,16 @@ func runDaemon() error {
 	}
 
 	d := &daemon{
-		sup:         map[string]bool{},
-		proc:        map[string]*exec.Cmd{},
-		paintSig:    make(chan struct{}, 1),
-		ledsSig:     make(chan struct{}, 1),
-		widgetSig:   make(chan struct{}, 1),
-		quit:        make(chan struct{}),
-		gateWant:    map[string]bool{},
-		gateWake:    map[string]chan struct{}{},
-		hiddenSince: map[string]time.Time{},
+		sup:            map[string]bool{},
+		proc:           map[string]*exec.Cmd{},
+		paintSig:       make(chan struct{}, 1),
+		ledsSig:        make(chan struct{}, 1),
+		widgetSig:      make(chan struct{}, 1),
+		quit:           make(chan struct{}),
+		gateWant:       map[string]bool{},
+		gateWake:       map[string]chan struct{}{},
+		hiddenSince:    map[string]time.Time{},
+		lastTransition: -1,
 	}
 	d.ln = ln
 
@@ -288,6 +290,7 @@ func (d *daemon) bootstrap() {
 	d.startPolkit()
 	d.startWallpaper()
 	go d.paintWorker()
+	go d.watchMatugenKnobs()
 	go d.ledsWorker()
 	go d.watchHyprland()
 	go d.watchAudio()
@@ -663,10 +666,13 @@ func (d *daemon) dispatch(line string) string {
 		}
 		return d.brightness(args[0])
 	case "hub":
-		if len(args) != 1 {
-			return "err hub: expected open or close"
+		switch len(args) {
+		case 1:
+			return d.hub(args[0], "")
+		case 2:
+			return d.hub(args[0], args[1])
 		}
-		return d.hub(args[0])
+		return "err hub: expected open [section] or close"
 	case "wallpaper-switcher":
 		// spawn the picker as a one-shot modal (like ryoshot or the hub), not a
 		// resident surface: it shows on launch and quits on close, so it holds no

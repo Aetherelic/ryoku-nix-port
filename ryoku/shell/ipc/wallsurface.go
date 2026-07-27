@@ -24,10 +24,11 @@ type wallSurface struct {
 	topic    *stateTopic
 	cacheDir string
 
-	mu       sync.Mutex
-	revision int
-	path     string // current cache file the surface paints ("" = none set)
-	fit      string // content fit -> QML Image.fillMode
+	mu         sync.Mutex
+	revision   int
+	path       string            // current cache file the surface paints ("" = none set)
+	fit        string            // content fit -> QML Image.fillMode
+	transition *pickedTransition // reveal preset for the current revision (nil = plain crossfade)
 }
 
 // wallSurfaceCacheDir is where the chosen image is copied (contract 08 sec 3.1).
@@ -89,11 +90,19 @@ func (d *daemon) startWallpaper() {
 	d.wall.mu.Unlock()
 }
 
-// show copies pic into a fresh revision-stamped cache file, bumps the revision,
-// re-reads the content fit, and publishes the new frame. The surface crossfades
-// to it. Cache files older than the previous revision are pruned once published,
-// so the crossfade's outgoing image is never removed mid-fade.
+// show copies pic into a fresh revision-stamped cache file and publishes it with
+// no reveal preset (nil transition), so the backdrop plays its plain crossfade.
+// Used by init and by the live still-frame.
 func (w *wallSurface) show(pic string) error {
+	return w.showTransition(pic, nil)
+}
+
+// showTransition copies pic into a fresh revision-stamped cache file, bumps the
+// revision, re-reads the content fit, records the reveal preset, and publishes the
+// new frame. The backdrop reveals to it with tr's kind / easing / edge (or a plain
+// crossfade when tr is nil). Cache files older than the previous revision are
+// pruned once published, so the outgoing image is never removed mid-reveal.
+func (w *wallSurface) showTransition(pic string, tr *pickedTransition) error {
 	if w == nil {
 		return nil
 	}
@@ -110,6 +119,7 @@ func (w *wallSurface) show(pic string) error {
 	w.revision = rev
 	w.path = dst
 	w.fit = wallpaperContentFit()
+	w.transition = tr
 	w.publishLocked()
 	w.prune()
 	return nil
@@ -135,10 +145,11 @@ func (w *wallSurface) publishLocked() {
 		return
 	}
 	frame, err := json.Marshal(struct {
-		Path     string `json:"path"`
-		Revision int    `json:"revision"`
-		Fit      string `json:"fit"`
-	}{w.path, w.revision, w.fit})
+		Path       string            `json:"path"`
+		Revision   int               `json:"revision"`
+		Fit        string            `json:"fit"`
+		Transition *pickedTransition `json:"transition,omitempty"`
+	}{w.path, w.revision, w.fit, w.transition})
 	if err != nil {
 		return
 	}
