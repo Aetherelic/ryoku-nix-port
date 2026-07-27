@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Fixed
+- **A Bar Studio rail edit lands on the running desktop, not just at the next
+  restart.** The per-edge reveal baseline (`edgeRevealed`) was seeded once at
+  startup and by the `ryoku-shell bar` CLI, so toggling a rail's pin/auto-hide in
+  Bar Studio changed nothing until the shell relaunched; it now re-derives from
+  the live config whenever a rail's `reveal` changes, while a CLI or hover reveal
+  on an untouched edge is preserved. Turning a rail off also reclaims its edge at
+  once: `edgeReserve` collapses a disabled rail to the frame lip instead of
+  holding its full band, so a widget-laden rail no longer leaves an empty margin
+  when it is switched off (`quickshell/pill/shell.qml`).
 - **Picking the live scheme turns wallpaper-following back on.** The colour master
   was split in two: the Appearance page and the sidebar write `theme.theme`
   (shell.json), while the dynamic pipeline is gated on `followWallpaper`

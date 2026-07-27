@@ -85,6 +85,13 @@ ShellRoot {
     // edge; hover reveals a hidden bar inside the frame without re-reserving.
     readonly property real frameBorderPx: Theme.borderWidth
     property var edgeRevealed: ({ top: false, bottom: false, left: false, right: false })
+    // The reveal baseline (config `reveal` per edge) is applied live after
+    // startup: a Bar Studio pin/auto-hide edit retargets edgeRevealed for the
+    // edge it changed through applyRevealConfig, so the running desktop repaints
+    // without a restart. A CLI or hover reveal on an untouched edge survives,
+    // since only an edge whose config value actually changed is retargeted.
+    property bool revealReady: false
+    property var revealBaseline: ({ top: false, bottom: false, left: false, right: false })
     function railHasWidgets(rail, edge) {
         if (!rail)
             return false;
@@ -102,7 +109,10 @@ ShellRoot {
         // measured on the reference (hidden left bar reserves 1, not 0).
         if (!root.edgeRevealed[edge])
             return 1;
-        return (root.railHasWidgets(rail, edge) ? rail.size : 1) + root.frameBorderPx;
+        // A disabled rail collapses to the frame lip (never its full band), so
+        // turning a rail off reclaims its edge live even while it still holds
+        // widgets; only an enabled rail with widgets reserves its thickness.
+        return ((rail.enabled && root.railHasWidgets(rail, edge)) ? rail.size : 1) + root.frameBorderPx;
     }
     // CLI/daemon bar control (ryoku-shell bar <edge|all> <toggle|reveal|hide>).
     // A hidden bar drops its edge reserve; the frame overlay stays mapped.
@@ -119,6 +129,30 @@ ShellRoot {
                 : next[e];
         }
         root.edgeRevealed = next;
+    }
+    // Retarget edgeRevealed from the live config after startup, so a Bar Studio
+    // pin/auto-hide edit lands on the running desktop. Only an edge whose config
+    // `reveal` differs from the last applied baseline is retargeted, so a CLI or
+    // hover reveal on an untouched edge is preserved.
+    function applyRevealConfig() {
+        const rails = Config.normalizedFrameBars.rails;
+        const edges = ["top", "bottom", "left", "right"];
+        const base = root.revealBaseline;
+        const nextBase = {};
+        const nextReveal = Object.assign({}, root.edgeRevealed);
+        let changed = false;
+        for (let i = 0; i < edges.length; ++i) {
+            const e = edges[i];
+            const want = !!(rails[e] && rails[e].reveal);
+            nextBase[e] = want;
+            if (base[e] !== want) {
+                nextReveal[e] = want;
+                changed = true;
+            }
+        }
+        root.revealBaseline = nextBase;
+        if (changed)
+            root.edgeRevealed = nextReveal;
     }
 
 
@@ -363,6 +397,18 @@ ShellRoot {
             for (const e in next)
                 next[e] = !!(rails[e] && rails[e].reveal);
             root.edgeRevealed = next;
+            root.revealBaseline = Object.assign({}, next);
+            root.revealReady = true;
+        }
+    }
+
+    // A live config change (a Bar Studio pin/auto-hide edit) retargets the
+    // reveal baseline once startup has seeded it.
+    Connections {
+        target: Config
+        function onNormalizedFrameBarsChanged() {
+            if (root.revealReady)
+                root.applyRevealConfig();
         }
     }
 
