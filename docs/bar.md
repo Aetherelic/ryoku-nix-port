@@ -39,8 +39,7 @@ running frame:
 
 - the frame chrome the shell draws around the desktop: the draw toggle and the
   window opacity;
-- each rail's own switches: on or off, visibility (pinned, or auto-hide that
-  slides in when the pointer touches that edge), and thickness;
+- each rail's own switches: on or off, and thickness;
 - the widgets in each rail's three zones: add a catalogued widget that fits the
   rail's axis and is not already on it, remove one, or reorder within a zone.
 
