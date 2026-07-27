@@ -218,7 +218,7 @@ Item {
             width: 13
             height: 2
             radius: Theme.radius
-            color: (hgrip.containsMouse || slot.resizing) ? Theme.brand : Theme.faint
+            color: (hgrip.containsMouse || slot.resizing) ? Theme.accent : Theme.faint
             Behavior on color { ColorAnimation { duration: 100 } }
         }
         Rectangle {
@@ -227,7 +227,7 @@ Item {
             width: 2
             height: 13
             radius: Theme.radius
-            color: (hgrip.containsMouse || slot.resizing) ? Theme.brand : Theme.faint
+            color: (hgrip.containsMouse || slot.resizing) ? Theme.accent : Theme.faint
             Behavior on color { ColorAnimation { duration: 100 } }
         }
 

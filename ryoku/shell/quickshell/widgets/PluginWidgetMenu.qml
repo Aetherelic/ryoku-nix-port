@@ -170,9 +170,9 @@ Item {
                             width: 42
                             height: 22
                             radius: Theme.radiusTile
-                            color: sw.on ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.20) : Theme.tile
+                            color: sw.on ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.20) : Theme.tile
                             border.width: 1
-                            border.color: sw.on ? Theme.brand : Theme.line
+                            border.color: sw.on ? Theme.accent : Theme.line
                             Behavior on color { ColorAnimation { duration: Theme.quick } }
                             Rectangle {
                                 width: 16
@@ -180,7 +180,7 @@ Item {
                                 radius: 8
                                 y: 3
                                 x: sw.on ? parent.width - width - 3 : 3
-                                color: sw.on ? Theme.brand : Theme.inkDim
+                                color: sw.on ? Theme.accent : Theme.inkDim
                                 Behavior on x { NumberAnimation { duration: Theme.quick; easing.type: Theme.ease } }
                             }
                             TapHandler { onTapped: menu.set(fieldWrap.f.key, !sw.on) }
@@ -234,7 +234,7 @@ Item {
                                     width: Math.round(parent.width * slRow.frac)
                                     height: parent.height
                                     radius: Theme.radiusTile
-                                    color: Theme.brand
+                                    color: Theme.accent
                                 }
                             }
                             Rectangle {
@@ -245,7 +245,7 @@ Item {
                                 x: Math.round((track.width - width) * slRow.frac)
                                 color: Theme.surface
                                 border.width: 1
-                                border.color: Theme.brand
+                                border.color: Theme.accent
                             }
                             MouseArea {
                                 anchors.fill: parent
@@ -294,7 +294,7 @@ Item {
                                     radius: Theme.radiusTile
                                     color: Theme.tile
                                     border.width: 1
-                                    border.color: String(menu.val(fieldWrap.f)).length === 0 ? Theme.brand : Theme.line
+                                    border.color: String(menu.val(fieldWrap.f)).length === 0 ? Theme.accent : Theme.line
                                     Text {
                                         anchors.centerIn: parent
                                         text: "Default"
@@ -337,7 +337,7 @@ Item {
                                         radius: Theme.radiusTile
                                         color: Theme.tile
                                         border.width: thumb.sel ? 2 : 1
-                                        border.color: thumb.sel ? Theme.brand : Theme.line
+                                        border.color: thumb.sel ? Theme.accent : Theme.line
                                         clip: true
                                         Image {
                                             anchors.fill: parent

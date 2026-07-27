@@ -45,7 +45,7 @@ Item {
     Text {
         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
         text: row.label
-        color: row.accent ? Theme.brand : (ma.containsMouse ? Theme.ink : Theme.inkSoft)
+        color: row.accent ? Theme.accent : (ma.containsMouse ? Theme.ink : Theme.inkSoft)
         font.family: Theme.font
         font.pixelSize: 14
         font.weight: Font.Medium
@@ -56,7 +56,7 @@ Item {
         visible: row.value.length > 0
         anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
         text: row.value
-        color: row.on ? Theme.brand : Theme.inkDim
+        color: row.on ? Theme.accent : Theme.inkDim
         font.family: Theme.font
         font.pixelSize: 13
         font.weight: Font.Medium

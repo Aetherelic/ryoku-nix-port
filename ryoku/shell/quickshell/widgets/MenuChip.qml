@@ -32,11 +32,11 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radiusTile
-        color: chip.selected ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.18)
+        color: chip.selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
             : ma.pressed ? Theme.tilePress
             : ma.containsMouse ? Theme.tileHover : Theme.tile
         border.width: 1
-        border.color: chip.selected ? Theme.brand : Theme.line
+        border.color: chip.selected ? Theme.accent : Theme.line
         Behavior on color { ColorAnimation { duration: Theme.quick } }
     }
 

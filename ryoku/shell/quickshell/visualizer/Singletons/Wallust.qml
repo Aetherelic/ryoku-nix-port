@@ -3,37 +3,58 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// live wallust palette for the visualiser. wallust rewrites
-// ~/.cache/wallust/colors.json on every wallpaper change (see wallust.toml);
-// this watches it so the spectrum retunes to whatever is on screen. defaults
-// are the Ryoku brand palette, so the visualiser looks right before the
-// first wallust run and never falls back to grey.
-//
-// stops = ordered low->high freq ramp the bars sample with colorAt(t). each
-// stop is vivified, so a muted wallpaper still glows.
+// Thin reader of the daemon palette for the visualiser. The theme daemon is the
+// sole author of colour in Ryoku: a fixed named theme publishes its palette into
+// shell.json's themePalette key, and follow-the-wallpaper mode writes the live
+// palette to ~/.cache/wallust/colors.json. This reads both and resolves each
+// role exactly the way the pill's Theme does -- a named scheme wins, then the
+// live wallpaper palette, then the compiled default -- so the spectrum retints
+// on ANY scheme change, static named theme or wallpaper-follow, with no colour
+// math of its own. The compiled defaults (Everforest) only paint the first
+// frames before the daemon's first write.
 Singleton {
     id: root
 
-    readonly property color background: adapter.background
-    readonly property color accent: vivid(adapter.color4)
+    // The follow-the-wallpaper master (theme.json, the single colour source the
+    // daemon and window borders also read).
+    property bool matchWallpaper: false
 
-    readonly property var stops: [
-        vivid(adapter.color1),
-        vivid(adapter.color3),
-        vivid(adapter.color2),
-        vivid(adapter.color6),
-        vivid(adapter.color4),
-        vivid(adapter.color5)
-    ]
+    // The static named scheme's palette (shell.json themePalette; null for the
+    // dynamic Default/Wallpaper variants) and the live wallpaper roles
+    // (colors.json). Both are parsed straight from the file text: half the role
+    // names start with "on", which JsonAdapter's signal-handler grammar rejects,
+    // a removed themePalette key only reads as absent from raw text, and a bare
+    // JsonAdapter does not repopulate reliably for a lazily-created singleton.
+    property var namedScheme: null
+    property var wall: ({})
 
-    // lift saturation, floor brightness, so the spectrum reads as colour, not
-    // mud, no matter how desaturated the wallpaper is. greys (no measurable
-    // hue) are only brightened, never tinted.
-    function vivid(c) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        var sat = c.hsvSaturation < 0.06 ? 0 : Math.min(1, c.hsvSaturation * 1.25 + 0.08);
-        return Qt.hsva(hue, sat, Math.max(c.hsvValue, 0.72), 1);
+    // A palette value is only usable when it is a non-empty hex string; a null,
+    // missing or half-written role falls through to the next layer, so a partial
+    // colors.json (mid-write) or a scheme missing a role never paints black.
+    function usable(v) { return typeof v === "string" && v.length > 0; }
+
+    // Resolve one role through the layer chain: a selected named scheme wins,
+    // then the live wallpaper palette while Match wallpaper is on, then the base.
+    function role(key, base) {
+        if (namedScheme && usable(namedScheme[key]))
+            return namedScheme[key];
+        if (matchWallpaper && usable(wall[key]))
+            return wall[key];
+        return base;
     }
+
+    // The accent leads: Material accent roles consumed verbatim (the daemon
+    // already curates them for contrast). accent is the lead the floor glow and
+    // oscilloscope trace paint with.
+    readonly property color accent:    role("primary",   "#a7c080")
+    readonly property color secondary: role("secondary", "#7fbbb3")
+    readonly property color tertiary:  role("tertiary",  "#83c092")
+    readonly property color err:       role("error",     "#e67e80")
+
+    // Ordered low->high sweep the bars sample with colorAt(t): the palette's
+    // accent roles laid end to end, so every band is a system colour and the
+    // whole spectrum re-tunes when the palette changes.
+    readonly property var stops: [accent, tertiary, secondary, err, tertiary, accent]
 
     // linear-interp the ramp at t in [0,1].
     function colorAt(t) {
@@ -53,34 +74,69 @@ Singleton {
                        a.b + (b.b - a.b) * f, 1);
     }
 
+    function refreshWall() {
+        try {
+            const t = wallFile.text();
+            root.wall = t && t.length ? (JSON.parse(t) || {}) : {};
+        } catch (e) {
+            root.wall = {};
+        }
+    }
+    function refreshNamed() {
+        var pal = null;
+        try {
+            const t = shellFile.text();
+            if (t) {
+                const o = JSON.parse(t);
+                if (o && typeof o.themePalette === "object" && o.themePalette !== null)
+                    pal = o.themePalette;
+            }
+        } catch (e) {
+            pal = null;
+        }
+        root.namedScheme = pal;
+    }
+    function refreshMatch() {
+        try {
+            const t = themeFile.text();
+            const o = t ? JSON.parse(t) : null;
+            root.matchWallpaper = !!(o && o.followWallpaper);
+        } catch (e) {
+            root.matchWallpaper = false;
+        }
+    }
+
     FileView {
-        id: file
+        id: wallFile
         path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
+        onLoaded: root.refreshWall()
+    }
+    FileView {
+        id: shellFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.refreshNamed()
+    }
+    FileView {
+        id: themeFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/theme.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.refreshMatch()
+    }
 
-        JsonAdapter {
-            id: adapter
-            property color background: "#16161e"
-            property color foreground: "#c0caf5"
-            property color color0: "#16161e"
-            property color color1: "#f7768e"
-            property color color2: "#9ece6a"
-            property color color3: "#e0af68"
-            property color color4: "#7aa2f7"
-            property color color5: "#bb9af7"
-            property color color6: "#7dcfff"
-            property color color7: "#c0caf5"
-            property color color8: "#414868"
-            property color color9: "#f7768e"
-            property color color10: "#9ece6a"
-            property color color11: "#e0af68"
-            property color color12: "#7aa2f7"
-            property color color13: "#bb9af7"
-            property color color14: "#7dcfff"
-            property color color15: "#c0caf5"
-        }
+    Component.onCompleted: {
+        refreshWall();
+        refreshNamed();
+        refreshMatch();
     }
 }

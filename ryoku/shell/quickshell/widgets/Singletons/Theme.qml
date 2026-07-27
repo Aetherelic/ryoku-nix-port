@@ -2,37 +2,47 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// shared widget tokens. brand constant, type family, a small neutral ink
-// ramp. widgets sit on the wallpaper so text leans bright/cool and colour
-// accents come from Wallust; brand orange stays fixed (the one deliberate
-// highlight). motion = the shell's morph curve (OutExpo), so a widget
-// feels like the same desktop as the pill.
+// Shared widget tokens: the design-language geometry, motion and type, with
+// every colour resolved from the daemon palette through Wallust so the clock,
+// its card and the right-click menu follow the active theme (a fixed named
+// scheme or the live wallpaper) instead of a hardcoded tint. `brand` stays the
+// fixed vermillion identity (the 力 seal and the clock's deliberate "brand"
+// accent option); `accent` is the live system accent the interactive chrome
+// paints with. motion = the shell's morph curve (OutExpo).
 Singleton {
-    // brand: fixed vermillion, used sparingly. the one accent that never themes.
+    // brand: fixed vermillion identity. Never themes -- that is the point. Used
+    // by the 力 seal and the clock's deliberate "brand" accent option.
     readonly property color brand: "#e2342a"
     readonly property color sun:   "#e2342a"
     readonly property color gold:  "#d9a441"
 
-    // neutral inks for text on an arbitrary wallpaper. bright, with soft +
-    // dim steps. pair with a drop shadow for contrast on any backdrop.
-    readonly property color ink:     "#f5f3ff"
-    readonly property color inkSoft: "#d2d7ef"
-    readonly property color inkDim:  "#9aa3c8"
+    // accent: the live system accent (the palette's primary role). The menu
+    // chrome -- selected chips, the "on" value, toggles, sliders, borders and
+    // resize grips -- paints with this so it retints on every scheme change.
+    readonly property color accent: Wallust.accent
+
+    // inks resolved from the palette so text reads on the themed surface in light
+    // and dark alike; a widget on bare wallpaper pairs them with a drop shadow.
+    readonly property color ink:     Wallust.onSurface
+    readonly property color inkDim:  Wallust.onSurfaceVariant
+    readonly property color inkSoft: Qt.rgba((ink.r + inkDim.r) / 2,
+                                             (ink.g + inkDim.g) / 2,
+                                             (ink.b + inkDim.b) / 2, 1)
     readonly property color shadow:  Qt.rgba(0, 0, 0, 0.55)
 
-    // carbon-dossier surface for the desktop menu (chrome reads as the shell:
-    // the website's warm near-black + hairline + faint ink for eyebrows).
-    readonly property color cardTop: Wallust.matchWallpaper ? Wallust.base : "#16110b"
-    readonly property color cardBot: Wallust.matchWallpaper ? Wallust.deep : "#0f0c07"
-    readonly property color hair:    Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.13)
-    readonly property color faint:   Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.42)
-    readonly property color lineStrong: Qt.rgba(236 / 255, 226 / 255, 205 / 255, 0.40)
+    // carbon-dossier surface for the desktop menu: the palette surface over a
+    // recessed floor, with ink-derived hairline + faint eyebrow tints so the
+    // chrome follows the theme.
+    readonly property color cardTop: Wallust.surface
+    readonly property color cardBot: Wallust.deep
+    readonly property color hair:    Qt.rgba(ink.r, ink.g, ink.b, 0.13)
+    readonly property color faint:   Qt.rgba(ink.r, ink.g, ink.b, 0.42)
+    readonly property color lineStrong: Qt.rgba(ink.r, ink.g, ink.b, 0.42)
 
     // ── menu surface: the right-click chrome, in the sidebar design idiom ──
-    // an opaque lifted plate over the wallpaper (follows the wallust dark band
-    // when matching, else a cool near-black); rows and chips wash with
+    // an opaque lifted plate (the palette surface); rows and chips wash with
     // ink-derived tints so hover and press read on any palette.
-    readonly property color surface:   Wallust.matchWallpaper ? Wallust.base : "#17161d"
+    readonly property color surface:   Wallust.surface
     readonly property color line:      Qt.rgba(ink.r, ink.g, ink.b, 0.16)
     readonly property color tile:      Qt.rgba(ink.r, ink.g, ink.b, 0.06)
     readonly property color tileHover: Qt.rgba(ink.r, ink.g, ink.b, 0.10)

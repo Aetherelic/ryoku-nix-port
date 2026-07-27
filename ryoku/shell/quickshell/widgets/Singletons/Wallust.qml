@@ -3,71 +3,76 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// live wallust palette for the desktop widgets. wallust rewrites
-// ~/.cache/wallust/colors.json on every wallpaper change (see wallust.toml),
-// we watch it, so a clock card tinted from the palette retunes to
-// whatever's on screen. defaults are the Ryoku brand palette so widgets look
-// right before the first wallust run, never grey.
-//
-// accent/accent2 = the two leads. ramp / colorAt(t) = ordered sweep the ring
-// clock and gradients sample. every tint vivified so a muted wallpaper still
-// reads as colour (matches the visualiser).
+// Thin reader of the daemon palette for the desktop widgets. The theme daemon is
+// the sole author of colour in Ryoku: a fixed named theme publishes its palette
+// into shell.json's themePalette key, and follow-the-wallpaper mode writes the
+// live palette to ~/.cache/wallust/colors.json. This resolves each role the
+// pill's way -- a named scheme wins, then the live wallpaper palette, then the
+// compiled default -- so the clock, its card and the right-click menu retint on
+// ANY scheme change (static named theme or wallpaper-follow) with no colour math
+// of its own. Defaults are a cool near-black so widgets read before the daemon's
+// first write. base/elevated/deep/line map onto the palette's own surface depth
+// ramp; accent/accent2 are Material accent roles consumed verbatim.
 Singleton {
     id: root
 
-    readonly property color background: adapter.background
-    readonly property color foreground: adapter.foreground
-    readonly property color accent:  vivid(adapter.color4)
-    readonly property color accent2: vivid(adapter.color5)
+    // Follow-the-wallpaper master (theme.json), the static named scheme's palette
+    // (shell.json themePalette; null for the dynamic variants) and the live
+    // wallpaper roles (colors.json). All three are parsed straight from the file
+    // text: half the role names start with "on" (which JsonAdapter's
+    // signal-handler grammar rejects), a removed themePalette key only reads as
+    // absent from raw text, and a bare JsonAdapter does not repopulate reliably
+    // for a lazily-created singleton.
+    property bool matchWallpaper: false
+    property var namedScheme: null
+    property var wall: ({})
 
-    // shell-wide "Match wallpaper" toggle (theme.json.FollowWallpaper) + the
-    // surface ramp it drives. base = terminal background exactly; rest shift value.
-    readonly property bool  matchWallpaper: shellCfg.followWallpaper
-    readonly property color base:     shade(background)
-    readonly property color elevated: tone(base, 0.05)
-    readonly property color deep:     tone(base, -0.03)
-    readonly property color line:     tone(base, 0.14)
+    // A palette value is only usable when it is a non-empty hex string; a null,
+    // missing or half-written role falls through to the next layer, so a partial
+    // colors.json (mid-write) or a scheme missing a role never paints black.
+    function usable(v) { return typeof v === "string" && v.length > 0; }
 
-    // Tone-map the wallpaper background into the shell's dark band, hue kept:
-    // HSV value inside [0.08, 0.26] passes through, pure black lifts to a soft
-    // near-black, brighter compresses to just past the ceiling; saturation caps
-    // at 0.55 so a saturated wallpaper reads as a deep tint, never neon.
-    function shade(c) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        var s = Math.min(c.hsvSaturation, 0.55);
-        var v = c.hsvValue;
-        if (v < 0.08)      v = 0.08;
-        else if (v > 0.26) v = 0.26 + (v - 0.26) * 0.06;
-        return Qt.hsva(hue, s, v, 1);
+    // Resolve one role through the layer chain: a selected named scheme wins,
+    // then the live wallpaper palette while Match wallpaper is on, then the base.
+    function role(key, base) {
+        if (namedScheme && usable(namedScheme[key]))
+            return namedScheme[key];
+        if (matchWallpaper && usable(wall[key]))
+            return wall[key];
+        return base;
     }
 
-    readonly property var ramp: [
-        vivid(adapter.color1),
-        vivid(adapter.color3),
-        vivid(adapter.color2),
-        vivid(adapter.color6),
-        vivid(adapter.color4),
-        vivid(adapter.color5)
-    ]
+    // --- surface depth ramp (the menu plate and the clock card sit on these) --
+    readonly property color surface:  role("surface", "#17161d")
+    readonly property color base:     surface
+    readonly property color elevated: role("surfaceContainer", "#26242d")
+    readonly property color deep:     role("surfaceContainerLowest", "#0f0c07")
+    readonly property color line:     role("outlineVariant", "#3d484d")
 
-    // lift saturation, floor brightness so a tint reads as colour not mud,
-    // no matter how desaturated the wallpaper palette is. greys (no measurable
-    // hue) only get brightened, never tinted.
-    function vivid(c) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        var sat = c.hsvSaturation < 0.06 ? 0 : Math.min(1, c.hsvSaturation * 1.2 + 0.06);
-        return Qt.hsva(hue, sat, Math.max(c.hsvValue, 0.74), 1);
-    }
+    // --- ink, resolved from the palette so text stays legible on its surface.
+    // Declared plain and set via Binding: QML's signal-handler grammar parses an
+    // inline `onSurface:` as a change-handler for the sibling `surface` property
+    // and silently drops the binding (the transparent-black trap), so a Binding
+    // element assigns the role by name instead. ---
+    property color onSurface
+    property color onSurfaceVariant
+    Binding { target: root; property: "onSurface";        value: root.role("onSurface", "#f5f3ff") }
+    Binding { target: root; property: "onSurfaceVariant"; value: root.role("onSurfaceVariant", "#9aa3c8") }
 
-    // shift HSV value by dv, hue + sat kept. used for the ramp.
-    function tone(c, dv) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        return Qt.hsva(hue, c.hsvSaturation, Math.max(0, Math.min(1, c.hsvValue + dv)), 1);
-    }
+    // --- accents: Material accent roles, verbatim (the daemon curates them) ----
+    readonly property color accent:    role("primary", "#e2342a")
+    readonly property color accent2:   role("secondary", "#7fbbb3")
+    readonly property color tertiary:  role("tertiary", "#83c092")
+    readonly property color err:       role("error", "#e67e80")
 
-    // linear interp the ramp at t in [0,1].
+    // Ordered sweep the ring clock and gradients sample with colorAt(t): the
+    // palette's accent roles laid end to end, so the sweep re-tunes with the
+    // theme.
+    readonly property var stops: [accent, tertiary, accent2, err, tertiary, accent]
+
+    // linear-interp the ramp at t in [0,1].
     function colorAt(t) {
-        var s = root.ramp;
+        var s = root.stops;
         var n = s.length;
         if (n === 0)
             return root.accent;
@@ -78,49 +83,74 @@ Singleton {
         var f = x - i;
         var a = s[i];
         var b = s[i + 1];
-        return Qt.rgba(a.r + (b.r - a.r) * f, a.g + (b.g - a.g) * f, a.b + (b.b - a.b) * f, 1);
+        return Qt.rgba(a.r + (b.r - a.r) * f,
+                       a.g + (b.g - a.g) * f,
+                       a.b + (b.b - a.b) * f, 1);
+    }
+
+    function refreshWall() {
+        try {
+            const t = wallFile.text();
+            root.wall = t && t.length ? (JSON.parse(t) || {}) : {};
+        } catch (e) {
+            root.wall = {};
+        }
+    }
+    function refreshNamed() {
+        var pal = null;
+        try {
+            const t = shellFile.text();
+            if (t) {
+                const o = JSON.parse(t);
+                if (o && typeof o.themePalette === "object" && o.themePalette !== null)
+                    pal = o.themePalette;
+            }
+        } catch (e) {
+            pal = null;
+        }
+        root.namedScheme = pal;
+    }
+    function refreshMatch() {
+        try {
+            const t = themeFile.text();
+            const o = t ? JSON.parse(t) : null;
+            root.matchWallpaper = !!(o && o.followWallpaper);
+        } catch (e) {
+            root.matchWallpaper = false;
+        }
     }
 
     FileView {
-        id: file
+        id: wallFile
         path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-
-        JsonAdapter {
-            id: adapter
-            property color background: "#16161e"
-            property color foreground: "#c0caf5"
-            property color color0: "#16161e"
-            property color color1: "#f7768e"
-            property color color2: "#9ece6a"
-            property color color3: "#e0af68"
-            property color color4: "#7aa2f7"
-            property color color5: "#bb9af7"
-            property color color6: "#7dcfff"
-            property color color7: "#c0caf5"
-            property color color8: "#414868"
-            property color color9: "#f7768e"
-            property color color10: "#9ece6a"
-            property color color11: "#e0af68"
-            property color color12: "#7aa2f7"
-            property color color13: "#bb9af7"
-            property color color14: "#7dcfff"
-            property color color15: "#c0caf5"
-        }
+        onLoaded: root.refreshWall()
     }
-
     FileView {
+        id: shellFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.refreshNamed()
+    }
+    FileView {
+        id: themeFile
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/theme.json"
         blockLoading: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter {
-            id: shellCfg
-            property bool followWallpaper: true
-        }
+        onLoaded: root.refreshMatch()
+    }
+
+    Component.onCompleted: {
+        refreshWall();
+        refreshNamed();
+        refreshMatch();
     }
 }
