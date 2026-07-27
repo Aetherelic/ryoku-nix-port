@@ -17,6 +17,21 @@ function glyphFor(code) {
     return "cloud";
 }
 
+// WMO weather code -> a Material Symbols weather glyph name (the set the shell's
+// MaterialIcon renders). Day/night split for clear and partly cloudy; an unknown
+// code falls back to a neutral cloud, never the brand mark.
+function symbolFor(code, isDay) {
+    var day = isDay === undefined ? true : !!isDay;
+    if (code === 0) return day ? "clear_day" : "clear_night";
+    if (code === 1 || code === 2) return day ? "partly_cloudy_day" : "partly_cloudy_night";
+    if (code === 3) return "cloud";
+    if (code === 45 || code === 48) return "foggy";
+    if (code >= 95) return "thunderstorm";
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "weather_snowy";
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rainy";
+    return "cloud";
+}
+
 // Short condition word for a WMO code (the display text, replacing wttr.in's %C).
 function labelFor(code) {
     if (code === 0) return "Clear";
@@ -114,5 +129,5 @@ function parseGeo(json) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-    module.exports = { glyphFor, labelFor, unitFor, tempSymbol, formatTemp, parseForecast, parseLoc, parseGeo, parseJson };
+    module.exports = { glyphFor, labelFor, symbolFor, unitFor, tempSymbol, formatTemp, parseForecast, parseLoc, parseGeo, parseJson };
 }

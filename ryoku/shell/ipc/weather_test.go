@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
+	"os"
 	"testing"
 	"time"
 )
@@ -192,7 +194,7 @@ func TestBuildFrame(t *testing.T) {
 	// 30 hourly slots: index 0 is 5h in the past, so the current hour lands mid
 	// array; ensures the 24-cap starts from the current hour, not index 0.
 	var htime []string
-	var temp, code, isday, uv, hum, feels, wind, precip []float64
+	var temp, code, isday, uv, hum, feels, wind, precip, winddir, vis, pres, pmm, eaqi, pm25, pm10, ozone []float64
 	for i := range 30 {
 		htime = append(htime, hourTime(i-5))
 		temp = append(temp, 20)
@@ -207,6 +209,14 @@ func TestBuildFrame(t *testing.T) {
 		feels = append(feels, 19)
 		wind = append(wind, 10)
 		precip = append(precip, 40)
+		winddir = append(winddir, 270)
+		vis = append(vis, 24000)
+		pres = append(pres, 1013)
+		pmm = append(pmm, 0.2)
+		eaqi = append(eaqi, 42)
+		pm25 = append(pm25, 8)
+		pm10 = append(pm10, 15)
+		ozone = append(ozone, 60)
 	}
 
 	var dtime, sunrise, sunset []string
@@ -226,6 +236,7 @@ func TestBuildFrame(t *testing.T) {
 			Time: htime, Temperature2m: temp, WeatherCode: code, IsDay: isday,
 			UvIndex: uv, RelativeHumidity2m: hum, ApparentTemperature: feels,
 			WindSpeed10m: wind, PrecipitationProbability: precip,
+			WindDirection10m: winddir, Visibility: vis, PressureMsl: pres, Precipitation: pmm,
 		},
 		Daily: wxDailyData{
 			Time: dtime, WeatherCode: dcode, Temperature2mMax: dmax,
@@ -234,7 +245,8 @@ func TestBuildFrame(t *testing.T) {
 	}
 
 	loc := wxLocation{city: "Testville", region: "Testshire", lat: 1, lon: 2}
-	frame := buildFrame(data, loc, "celsius", true)
+	air := &wxAirResponse{Hourly: wxAirData{Time: htime, EuropeanAqi: eaqi, Pm25: pm25, Pm10: pm10, Ozone: ozone}}
+	frame := buildFrame(data, air, loc, "celsius", true)
 
 	if frame.Status != "loaded" || !frame.HasData {
 		t.Fatalf("status = %q hasData = %v", frame.Status, frame.HasData)
@@ -275,6 +287,46 @@ func TestBuildFrame(t *testing.T) {
 		t.Errorf("hourly[0] uv = %q", frame.Hourly[0].Uv)
 	}
 
+	// Current extras: condition word, wind direction, visibility, pressure,
+	// precip, and today's high/low anchoring the hero arrows.
+	if frame.Current.Condition != "Clear" {
+		t.Errorf("condition = %q", frame.Current.Condition)
+	}
+	if frame.Current.WindDir != "W" || frame.Current.WindDeg != 270 {
+		t.Errorf("wind dir = %q/%d", frame.Current.WindDir, frame.Current.WindDeg)
+	}
+	if frame.Current.Visibility != "24 km" || frame.Current.Pressure != "1013 hPa" {
+		t.Errorf("visibility/pressure = %q/%q", frame.Current.Visibility, frame.Current.Pressure)
+	}
+	if frame.Current.Precip != "0.2 mm" || frame.Current.PrecipProb != 40 {
+		t.Errorf("precip = %q/%d", frame.Current.Precip, frame.Current.PrecipProb)
+	}
+	if frame.Current.Hi != 25 || frame.Current.Lo != 12 || frame.Current.High != "25\u00b0C" || frame.Current.Low != "12\u00b0C" {
+		t.Errorf("today hi/lo = %d/%d %q/%q", frame.Current.Hi, frame.Current.Lo, frame.Current.High, frame.Current.Low)
+	}
+	// Range bars: every shown day spans the same 12..25 window, so each fills
+	// the whole track.
+	if frame.Daily[0].LoFrac != 0 || frame.Daily[0].HiFrac != 1 {
+		t.Errorf("daily[0] frac = %v..%v", frame.Daily[0].LoFrac, frame.Daily[0].HiFrac)
+	}
+	// Moon block is always present and self-consistent.
+	if frame.Moon == nil || frame.Moon.Name == "" || frame.Moon.Illumination < 0 || frame.Moon.Illumination > 100 {
+		t.Errorf("moon = %+v", frame.Moon)
+	}
+	// Air block reflects the synthetic EAQI 42 (Moderate) and pollutants.
+	if frame.Air == nil || !frame.Air.Available {
+		t.Fatalf("air = %+v", frame.Air)
+	}
+	if frame.Air.Eaqi != 42 || frame.Air.Verdict != "Moderate" {
+		t.Errorf("air eaqi/verdict = %d/%q", frame.Air.Eaqi, frame.Air.Verdict)
+	}
+	if frame.Air.Pm25 != "8" || frame.Air.Pm10 != "15" || frame.Air.Ozone != "60" {
+		t.Errorf("air pollutants = %q/%q/%q", frame.Air.Pm25, frame.Air.Pm10, frame.Air.Ozone)
+	}
+	if frame.UpdatedAt == "" {
+		t.Error("updatedAt is empty")
+	}
+
 	// The frame must marshal to a non-null hourly/daily array.
 	b, err := json.Marshal(frame)
 	if err != nil {
@@ -282,6 +334,78 @@ func TestBuildFrame(t *testing.T) {
 	}
 	if !json.Valid(b) {
 		t.Fatal("frame is not valid json")
+	}
+}
+
+func TestConditionLabel(t *testing.T) {
+	cases := map[int]string{0: "Clear", 2: "Cloudy", 3: "Cloudy", 45: "Fog", 48: "Fog", 61: "Rain", 80: "Rain", 71: "Snow", 86: "Snow", 95: "Thunder", 99: "Thunder"}
+	for code, want := range cases {
+		if got := conditionLabel(code); got != want {
+			t.Errorf("conditionLabel(%d) = %q, want %q", code, got, want)
+		}
+	}
+}
+
+func TestWindCardinal(t *testing.T) {
+	cases := map[float64]string{0: "N", 45: "NE", 90: "E", 135: "SE", 180: "S", 225: "SW", 270: "W", 315: "NW", 359: "N"}
+	for deg, want := range cases {
+		if got := windCardinal(deg); got != want {
+			t.Errorf("windCardinal(%v) = %q, want %q", deg, got, want)
+		}
+	}
+}
+
+func TestAqiVerdict(t *testing.T) {
+	type row struct {
+		eaqi    float64
+		verdict string
+	}
+	for _, r := range []row{{10, "Good"}, {30, "Fair"}, {50, "Moderate"}, {70, "Poor"}, {90, "Very Poor"}, {120, "Extremely Poor"}} {
+		if got, _ := aqiVerdict(r.eaqi); got != r.verdict {
+			t.Errorf("aqiVerdict(%v) = %q, want %q", r.eaqi, got, r.verdict)
+		}
+	}
+	if _, frac := aqiVerdict(50); frac != 0.5 {
+		t.Errorf("aqiVerdict(50) frac = %v, want 0.5", frac)
+	}
+	if _, frac := aqiVerdict(150); frac != 1 {
+		t.Errorf("aqiVerdict(150) frac = %v, want clamped 1", frac)
+	}
+	if _, frac := aqiVerdict(-5); frac != 0 {
+		t.Errorf("aqiVerdict(-5) frac = %v, want clamped 0", frac)
+	}
+}
+
+func TestMoonPhase(t *testing.T) {
+	const synodic = 29.53058867
+	ref := time.Date(2000, 1, 6, 18, 14, 0, 0, time.UTC)
+	quarter := time.Duration(synodic / 4 * 24 * float64(time.Hour))
+	type row struct {
+		at      time.Time
+		idx     int
+		illumLo float64
+		illumHi float64
+	}
+	rows := []row{
+		{ref, 0, 0, 0.02},
+		{ref.Add(quarter), 2, 0.45, 0.55},
+		{ref.Add(2 * quarter), 4, 0.98, 1.0},
+		{ref.Add(3 * quarter), 6, 0.45, 0.55},
+	}
+	for _, r := range rows {
+		idx, _, illum := moonPhase(r.at)
+		if idx != r.idx {
+			t.Errorf("moonPhase(%v) idx = %d, want %d", r.at, idx, r.idx)
+		}
+		if illum < r.illumLo || illum > r.illumHi {
+			t.Errorf("moonPhase(%v) illum = %v, want [%v,%v]", r.at, illum, r.illumLo, r.illumHi)
+		}
+	}
+	if bm := buildMoon(ref.Add(quarter)); !bm.Waxing || bm.Name != "First Quarter" {
+		t.Errorf("buildMoon first quarter = %+v", bm)
+	}
+	if bm := buildMoon(ref.Add(3 * quarter)); bm.Waxing || bm.Name != "Last Quarter" {
+		t.Errorf("buildMoon last quarter = %+v", bm)
 	}
 }
 
@@ -297,5 +421,42 @@ func TestResolveUnit(t *testing.T) {
 	}
 	if got := resolveUnit("fahrenheit"); got != "fahrenheit" {
 		t.Errorf("explicit unit ignored env: %q", got)
+	}
+}
+
+// TestWeatherLiveDump is a throwaway manual driver: it fetches a real forecast
+// and air-quality reading (the box is online) and prints the published frame, so
+// the new moon/air/range/metric fields can be eyeballed against live data. Set
+// WX_LIVE_DUMP=1 to run; WX_UNIT (celsius|fahrenheit), WX_LOC (a city, empty = IP
+// locate) and WX_OUT (a file for the compact frame) tune it.
+func TestWeatherLiveDump(t *testing.T) {
+	if os.Getenv("WX_LIVE_DUMP") != "1" {
+		t.Skip("manual live weather dump")
+	}
+	s := &wxState{client: &http.Client{Timeout: wxHTTPTimeout}}
+	loc, kind, err := s.resolveLocation(wxConfig{query: os.Getenv("WX_LOC")})
+	if err != nil {
+		t.Fatalf("resolve location: %s: %v", kind, err)
+	}
+	data, kind, err := s.fetchForecast(loc.lat, loc.lon)
+	if err != nil {
+		t.Fatalf("fetch forecast: %s: %v", kind, err)
+	}
+	air, aerr := s.fetchAir(loc.lat, loc.lon)
+	if aerr != nil {
+		t.Logf("air fetch failed (frame will mark it unavailable): %v", aerr)
+	}
+	unit := os.Getenv("WX_UNIT")
+	if unit == "" {
+		unit = "celsius"
+	}
+	frame := buildFrame(data, air, *loc, unit, true)
+	pretty, _ := json.MarshalIndent(frame, "", "  ")
+	t.Logf("live frame (%s):\n%s", unit, pretty)
+	if out := os.Getenv("WX_OUT"); out != "" {
+		compact, _ := json.Marshal(frame)
+		if werr := os.WriteFile(out, compact, 0o644); werr != nil {
+			t.Fatalf("write %s: %v", out, werr)
+		}
 	}
 }

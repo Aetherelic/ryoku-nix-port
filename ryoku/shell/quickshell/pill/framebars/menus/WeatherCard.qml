@@ -1,17 +1,20 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "../.." as Pill
 import "../../Singletons"
 
-// The `.weather-container` page body of the weather widget (contract 08 sec 2.4):
-// a bordered surface card, radius-widget, border-width outline, 8 px padding,
-// with a bold title above vertically stacked content. Used by the Current,
-// Hourly and Daily pages.
+// The single quiet-card primitive every section of the weather surface is built
+// from: a transparent surface at the widget radius, a hairline outline, a lit
+// sumi top edge, and the 8px inner padding of the pill idiom. An optional
+// eyebrow (the vermilion tick, 力 seal, mono label) names the section; the
+// default content stacks below it on the 4px rhythm.
 Item {
     id: root
 
     property real s: 1
-    property string title: ""
+    property string eyebrow: ""
+    property real spacing: 8 * root.s
 
     default property alias content: body.data
 
@@ -27,26 +30,27 @@ Item {
         border.color: Theme.outline
         implicitHeight: stack.implicitHeight + 2 * (Theme.paddingMd * root.s)
 
+        Pill.SumiEdge { radius: Theme.radiusWidget }
+
         Column {
             id: stack
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.margins: Theme.paddingMd * root.s
-            spacing: 8 * root.s
+            spacing: 10 * root.s
 
-            Text {
-                text: root.title
-                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
-                font.family: Theme.fontPrimary
-                font.pixelSize: Theme.fontLg * root.s
-                font.weight: Font.Bold
+            Pill.Eyebrow {
+                visible: root.eyebrow.length > 0
+                label: root.eyebrow
+                mark: false
+                s: root.s
             }
 
             Column {
                 id: body
                 width: parent.width
-                spacing: 8 * root.s
+                spacing: root.spacing
             }
         }
     }

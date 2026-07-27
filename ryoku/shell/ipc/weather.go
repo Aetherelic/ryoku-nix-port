@@ -38,6 +38,7 @@ const (
 	wxForecastURL  = "https://api.open-meteo.com/v1/forecast"
 	wxGeocodingURL = "https://geocoding-api.open-meteo.com/v1/search"
 	wxIPURL        = "http://ip-api.com/json/?fields=status,city,regionName,country,lat,lon"
+	wxAirURL       = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 	wxHourlyParams = "temperature_2m,relative_humidity_2m,apparent_temperature," +
 		"precipitation_probability,precipitation,weather_code,cloud_cover,pressure_msl," +
@@ -45,12 +46,14 @@ const (
 	wxDailyParams = "weather_code,temperature_2m_max,temperature_2m_min," +
 		"relative_humidity_2m_mean,sunrise,sunset,uv_index_max,precipitation_sum," +
 		"precipitation_probability_max,wind_speed_10m_max"
+	wxAirParams = "pm10,pm2_5,ozone,european_aqi"
 
 	wxPollInterval = 15 * time.Minute
 	wxMaxRetries   = 3
 	wxRetryBase    = 5 * time.Second
 	wxRateWait     = 60 * time.Second
 	wxHTTPTimeout  = 10 * time.Second
+	wxDailyRows    = 3
 )
 
 // Weather conditions, reproduced from the reference WeatherCondition enum. Only
@@ -145,6 +148,27 @@ func wmoCondition(code int) string {
 		return condThunderstorm
 	default:
 		return condUnknown
+	}
+}
+
+// conditionLabel is the short display word for a WMO code, mirroring the JS
+// labelFor so the daemon can ship the hero's condition text ready to bind.
+func conditionLabel(code int) string {
+	switch {
+	case code == 0:
+		return "Clear"
+	case code <= 3:
+		return "Cloudy"
+	case code == 45 || code == 48:
+		return "Fog"
+	case code >= 95:
+		return "Thunder"
+	case (code >= 71 && code <= 77) || code == 85 || code == 86:
+		return "Snow"
+	case (code >= 51 && code <= 67) || (code >= 80 && code <= 82):
+		return "Rain"
+	default:
+		return "Cloudy"
 	}
 }
 
@@ -252,6 +276,39 @@ func windUnits(unit string) string {
 	return " kmh winds"
 }
 
+// windCardinal turns a wind bearing in degrees into a 16-point compass label.
+func windCardinal(deg float64) string {
+	dirs := [...]string{"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"}
+	i := int(math.Mod(math.Round(deg/22.5), 16))
+	if i < 0 {
+		i += 16
+	}
+	return dirs[i]
+}
+
+// fmtVisibility formats a metre visibility in the display unit (km, or miles for
+// the imperial holdouts).
+func fmtVisibility(meters float64, unit string) string {
+	if unit == "fahrenheit" {
+		return strconv.Itoa(int(math.Round(meters/1609.344))) + " mi"
+	}
+	return strconv.Itoa(int(math.Round(meters/1000.0))) + " km"
+}
+
+// fmtPressure formats a mean-sea-level pressure in hPa.
+func fmtPressure(hpa float64) string {
+	return strconv.Itoa(int(math.Round(hpa))) + " hPa"
+}
+
+// fmtPrecip formats an hourly precipitation amount in the display unit (mm, or
+// inches for the imperial holdouts), trimming trailing zeros.
+func fmtPrecip(mm float64, unit string) string {
+	if unit == "fahrenheit" {
+		return strconv.FormatFloat(math.Round(mm/25.4*100)/100, 'f', -1, 64) + " in"
+	}
+	return strconv.FormatFloat(math.Round(mm*10)/10, 'f', -1, 64) + " mm"
+}
+
 // tempInt rounds a celsius value in the display unit to a whole number, for the
 // singleton's legacy numeric fields.
 func tempInt(celsius float64, unit string) int {
@@ -267,6 +324,11 @@ func fmtClock(iso string, clock24 bool) string {
 	if !ok {
 		return ""
 	}
+	return fmtClockTime(t, clock24)
+}
+
+// fmtClockTime formats a time value as HH:MM (24h) or I:MM PM (12h).
+func fmtClockTime(t time.Time, clock24 bool) string {
 	if clock24 {
 		return t.Format("15:04")
 	}
@@ -315,6 +377,10 @@ type wxHourlyData struct {
 	WeatherCode              []float64 `json:"weather_code"`
 	WindSpeed10m             []float64 `json:"wind_speed_10m"`
 	UvIndex                  []float64 `json:"uv_index"`
+	WindDirection10m         []float64 `json:"wind_direction_10m"`
+	Precipitation            []float64 `json:"precipitation"`
+	PressureMsl              []float64 `json:"pressure_msl"`
+	Visibility               []float64 `json:"visibility"`
 	IsDay                    []float64 `json:"is_day"`
 }
 
@@ -331,6 +397,18 @@ type wxDailyData struct {
 type wxForecastResponse struct {
 	Hourly wxHourlyData `json:"hourly"`
 	Daily  wxDailyData  `json:"daily"`
+}
+
+type wxAirData struct {
+	Time        []string  `json:"time"`
+	Pm10        []float64 `json:"pm10"`
+	Pm25        []float64 `json:"pm2_5"`
+	Ozone       []float64 `json:"ozone"`
+	EuropeanAqi []float64 `json:"european_aqi"`
+}
+
+type wxAirResponse struct {
+	Hourly wxAirData `json:"hourly"`
 }
 
 // wxLocation is a resolved place: coordinates plus the display name parts.
@@ -360,6 +438,7 @@ func (l wxLocation) locationLine() string {
 type wxCurrent struct {
 	Icon        string `json:"icon"`
 	Code        int    `json:"code"`
+	Condition   string `json:"condition"`
 	IsDay       bool   `json:"isDay"`
 	Temperature string `json:"temperature"`
 	FeelsLike   string `json:"feelsLike"`
@@ -369,6 +448,16 @@ type wxCurrent struct {
 	WindUnits   string `json:"windUnits"`
 	Sunrise     string `json:"sunrise"`
 	Sunset      string `json:"sunset"`
+	WindDir     string `json:"windDir"`
+	WindDeg     int    `json:"windDeg"`
+	Precip      string `json:"precip"`
+	PrecipProb  int    `json:"precipProb"`
+	Visibility  string `json:"visibility"`
+	Pressure    string `json:"pressure"`
+	Hi          int    `json:"hi"`
+	Lo          int    `json:"lo"`
+	High        string `json:"high"`
+	Low         string `json:"low"`
 	// Legacy numeric views for the sidebar consumers.
 	Temp      int `json:"temp"`
 	Feels     int `json:"feels"`
@@ -380,6 +469,7 @@ type wxHour struct {
 	Hour        string `json:"hour"`
 	Icon        string `json:"icon"`
 	Code        int    `json:"code"`
+	IsDay       bool   `json:"isDay"`
 	Temp        int    `json:"temp"`
 	Temperature string `json:"temperature"`
 	Uv          string `json:"uv"`
@@ -387,14 +477,34 @@ type wxHour struct {
 }
 
 type wxDay struct {
-	Weekday string `json:"weekday"`
-	Day     string `json:"day"`
-	Icon    string `json:"icon"`
-	Code    int    `json:"code"`
-	Hi      int    `json:"hi"`
-	Lo      int    `json:"lo"`
-	High    string `json:"high"`
-	Low     string `json:"low"`
+	Weekday string  `json:"weekday"`
+	Day     string  `json:"day"`
+	Icon    string  `json:"icon"`
+	Code    int     `json:"code"`
+	Hi      int     `json:"hi"`
+	Lo      int     `json:"lo"`
+	High    string  `json:"high"`
+	Low     string  `json:"low"`
+	LoFrac  float64 `json:"loFrac"`
+	HiFrac  float64 `json:"hiFrac"`
+}
+
+type wxMoon struct {
+	Phase        int     `json:"phase"`
+	Name         string  `json:"name"`
+	Illumination int     `json:"illumination"`
+	Fraction     float64 `json:"fraction"`
+	Waxing       bool    `json:"waxing"`
+}
+
+type wxAir struct {
+	Available bool    `json:"available"`
+	Eaqi      int     `json:"eaqi"`
+	Verdict   string  `json:"verdict"`
+	Frac      float64 `json:"frac"`
+	Pm25      string  `json:"pm25"`
+	Pm10      string  `json:"pm10"`
+	Ozone     string  `json:"ozone"`
 }
 
 type wxFrame struct {
@@ -407,6 +517,9 @@ type wxFrame struct {
 	Current   *wxCurrent `json:"current"`
 	Hourly    []wxHour   `json:"hourly"`
 	Daily     []wxDay    `json:"daily"`
+	Moon      *wxMoon    `json:"moon"`
+	Air       *wxAir     `json:"air"`
+	UpdatedAt string     `json:"updatedAt"`
 }
 
 // wxConfig is the location and display configuration QML pushes in.
@@ -559,7 +672,8 @@ func (s *wxState) fetchOnce() {
 	for attempt := 1; attempt <= wxMaxRetries; attempt++ {
 		data, kind, err := s.fetchForecast(loc.lat, loc.lon)
 		if err == nil {
-			s.publishFrame(buildFrame(data, *loc, unit, cfg.clock24))
+			air, _ := s.fetchAir(loc.lat, loc.lon)
+			s.publishFrame(buildFrame(data, air, *loc, unit, cfg.clock24))
 			return
 		}
 		if !wxRetryable(kind) || attempt == wxMaxRetries {
@@ -658,6 +772,23 @@ func (s *wxState) fetchForecast(lat, lon float64) (*wxForecastResponse, string, 
 	return &resp, "", nil
 }
 
+// fetchAir requests the current air quality for a coordinate. It is best-effort
+// (one call per forecast refresh, no retry ladder): a failure leaves the frame
+// without an air block rather than failing the whole weather read.
+func (s *wxState) fetchAir(lat, lon float64) (*wxAirResponse, error) {
+	q := url.Values{}
+	q.Set("latitude", strconv.FormatFloat(lat, 'f', -1, 64))
+	q.Set("longitude", strconv.FormatFloat(lon, 'f', -1, 64))
+	q.Set("hourly", wxAirParams)
+	q.Set("timezone", "auto")
+	q.Set("forecast_days", "1")
+	var resp wxAirResponse
+	if _, err := s.getJSON(wxAirURL+"?"+q.Encode(), &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // getJSON performs a GET and decodes JSON, mapping transport and status failures
 // to the reference error kinds.
 func (s *wxState) getJSON(rawURL string, out any) (string, error) {
@@ -720,20 +851,120 @@ func clampInt(v float64, lo, hi int) int {
 	return n
 }
 
-// buildFrame turns a forecast response into the published frame, applying the
-// display unit and clock format. Current conditions come from the current hour;
-// hourly keeps 24 entries from that hour; daily keeps 7; astronomy is daily[0].
-func buildFrame(data *wxForecastResponse, loc wxLocation, unit string, clock24 bool) wxFrame {
+var wxMoonNames = [...]string{
+	"New Moon", "Waxing Crescent", "First Quarter", "Waxing Gibbous",
+	"Full Moon", "Waning Gibbous", "Last Quarter", "Waning Crescent",
+}
+
+// moonPhase returns the 8-phase index (0 new .. 4 full .. 7 waning crescent),
+// the fraction of the synodic month elapsed, and the illuminated fraction, from
+// a dependency-free approximation anchored to the 2000-01-06 18:14 UTC new moon.
+func moonPhase(t time.Time) (int, float64, float64) {
+	const synodic = 29.53058867
+	ref := time.Date(2000, 1, 6, 18, 14, 0, 0, time.UTC)
+	days := t.UTC().Sub(ref).Hours() / 24.0
+	phase := math.Mod(days, synodic) / synodic
+	if phase < 0 {
+		phase += 1
+	}
+	illum := (1 - math.Cos(2*math.Pi*phase)) / 2
+	idx := int(math.Mod(math.Round(phase*8), 8))
+	return idx, phase, illum
+}
+
+// buildMoon packages the moon phase for the frame: the 8-phase index and name,
+// the percent illuminated, and the raw fraction/waxing flag the QML strip draws.
+func buildMoon(t time.Time) *wxMoon {
+	idx, phase, illum := moonPhase(t)
+	return &wxMoon{
+		Phase:        idx,
+		Name:         wxMoonNames[idx],
+		Illumination: int(math.Round(illum * 100)),
+		Fraction:     illum,
+		Waxing:       phase < 0.5,
+	}
+}
+
+// aqiVerdict maps a European AQI value to its band word and a 0..1 position on
+// the scale bar (0 at 0, 1 at the 100 top of the banded scale).
+func aqiVerdict(eaqi float64) (string, float64) {
+	frac := clampFrac(eaqi / 100.0)
+	switch {
+	case eaqi < 20:
+		return "Good", frac
+	case eaqi < 40:
+		return "Fair", frac
+	case eaqi < 60:
+		return "Moderate", frac
+	case eaqi < 80:
+		return "Poor", frac
+	case eaqi < 100:
+		return "Very Poor", frac
+	default:
+		return "Extremely Poor", frac
+	}
+}
+
+// aqiVal rounds a pollutant concentration to a whole number for display.
+func aqiVal(v float64) string {
+	return strconv.Itoa(int(math.Round(v)))
+}
+
+// clampFrac clamps a value to the 0..1 range.
+func clampFrac(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
+}
+
+// dailyRange returns the coldest low and warmest high across the first
+// wxDailyRows days (the days the tab shows), so each range bar scales against
+// the same span.
+func dailyRange(d wxDailyData, n int, unit string) (int, int, bool) {
+	rows := wxDailyRows
+	if rows > n {
+		rows = n
+	}
+	if rows <= 0 {
+		return 0, 0, false
+	}
+	lo := tempInt(at(d.Temperature2mMin, 0), unit)
+	hi := tempInt(at(d.Temperature2mMax, 0), unit)
+	for i := 1; i < rows; i++ {
+		if v := tempInt(at(d.Temperature2mMin, i), unit); v < lo {
+			lo = v
+		}
+		if v := tempInt(at(d.Temperature2mMax, i), unit); v > hi {
+			hi = v
+		}
+	}
+	return lo, hi, true
+}
+
+// buildFrame turns the forecast and air-quality responses into the published
+// frame, applying the display unit and clock format. Current conditions come
+// from the current hour; hourly keeps 24 entries; daily keeps 7 with range-bar
+// fractions over the shown days; moon phase and the update time are computed
+// locally, and the air block is best-effort (nil-safe).
+func buildFrame(data *wxForecastResponse, air *wxAirResponse, loc wxLocation, unit string, clock24 bool) wxFrame {
 	h := data.Hourly
 	idx := currentHourIndex(h.Time)
+	now := time.Now()
 
 	frame := wxFrame{
-		Status:   "loaded",
-		Location: loc.locationLine(),
-		City:     loc.city,
-		HasData:  true,
-		Hourly:   []wxHour{},
-		Daily:    []wxDay{},
+		Status:    "loaded",
+		Location:  loc.locationLine(),
+		City:      loc.city,
+		HasData:   true,
+		Hourly:    []wxHour{},
+		Daily:     []wxDay{},
+		UpdatedAt: fmtClockTime(now, clock24),
+		Moon:      buildMoon(now),
+		Air:       buildAir(air),
 	}
 
 	var sunrise, sunset string
@@ -744,6 +975,18 @@ func buildFrame(data *wxForecastResponse, loc wxLocation, unit string, clock24 b
 		sunset = fmtClock(data.Daily.Sunset[0], clock24)
 	}
 
+	// Today's high/low anchor the hero arrows.
+	var todayHi, todayLo int
+	var todayHigh, todayLow string
+	if len(data.Daily.Temperature2mMax) > 0 {
+		todayHi = tempInt(data.Daily.Temperature2mMax[0], unit)
+		todayHigh = fmtTemp(data.Daily.Temperature2mMax[0], unit)
+	}
+	if len(data.Daily.Temperature2mMin) > 0 {
+		todayLo = tempInt(data.Daily.Temperature2mMin[0], unit)
+		todayLow = fmtTemp(data.Daily.Temperature2mMin[0], unit)
+	}
+
 	if idx < len(h.Time) && len(h.Time) > 0 {
 		code := int(at(h.WeatherCode, idx))
 		isDay := at(h.IsDay, idx) > 0.5
@@ -751,8 +994,10 @@ func buildFrame(data *wxForecastResponse, loc wxLocation, unit string, clock24 b
 		celsius := at(h.Temperature2m, idx)
 		feels := at(h.ApparentTemperature, idx)
 		windKmh := at(h.WindSpeed10m, idx)
+		windDeg := at(h.WindDirection10m, idx)
 		frame.Current = &wxCurrent{
 			Icon:        weatherIcon(cond, isDay),
+			Condition:   conditionLabel(code),
 			Code:        code,
 			IsDay:       isDay,
 			Temperature: fmtTemp(celsius, unit),
@@ -761,8 +1006,18 @@ func buildFrame(data *wxForecastResponse, loc wxLocation, unit string, clock24 b
 			UvIndex:     clampInt(at(h.UvIndex, idx), 0, 15),
 			Wind:        windValue(windKmh, unit),
 			WindUnits:   windUnits(unit),
+			WindDir:     windCardinal(windDeg),
+			WindDeg:     clampInt(windDeg, 0, 360),
+			Precip:      fmtPrecip(at(h.Precipitation, idx), unit),
+			PrecipProb:  clampInt(at(h.PrecipitationProbability, idx), 0, 100),
+			Visibility:  fmtVisibility(at(h.Visibility, idx), unit),
+			Pressure:    fmtPressure(at(h.PressureMsl, idx)),
 			Sunrise:     sunrise,
 			Sunset:      sunset,
+			Hi:          todayHi,
+			Lo:          todayLo,
+			High:        todayHigh,
+			Low:         todayLow,
 			Temp:        tempInt(celsius, unit),
 			Feels:       tempInt(feels, unit),
 			WindValue:   int(math.Round(windKmhInUnit(windKmh, unit))),
@@ -783,6 +1038,7 @@ func buildFrame(data *wxForecastResponse, loc wxLocation, unit string, clock24 b
 			Hour:        hourField(h.Time[i]),
 			Icon:        weatherIcon(cond, isDay),
 			Code:        code,
+			IsDay:       isDay,
 			Temp:        tempInt(celsius, unit),
 			Temperature: fmtTemp(celsius, unit),
 			Uv:          strconv.Itoa(clampInt(at(h.UvIndex, i), 0, 15)) + " UV",
@@ -795,21 +1051,32 @@ func buildFrame(data *wxForecastResponse, loc wxLocation, unit string, clock24 b
 	if dend > len(d.Time) {
 		dend = len(d.Time)
 	}
+	rangeLo, rangeHi, haveRange := dailyRange(d, dend, unit)
 	for i := range dend {
 		code := int(at(d.WeatherCode, i))
 		cond := wmoCondition(code)
 		hi := at(d.Temperature2mMax, i)
 		lo := at(d.Temperature2mMin, i)
+		hiI := tempInt(hi, unit)
+		loI := tempInt(lo, unit)
 		weekday := fmtWeekday(d.Time[i])
+		loFrac, hiFrac := 0.0, 1.0
+		if haveRange && rangeHi > rangeLo {
+			span := float64(rangeHi - rangeLo)
+			loFrac = clampFrac(float64(loI-rangeLo) / span)
+			hiFrac = clampFrac(float64(hiI-rangeLo) / span)
+		}
 		frame.Daily = append(frame.Daily, wxDay{
 			Weekday: weekday,
 			Day:     weekday,
 			Icon:    weatherIcon(cond, true),
 			Code:    code,
-			Hi:      tempInt(hi, unit),
-			Lo:      tempInt(lo, unit),
+			Hi:      hiI,
+			Lo:      loI,
 			High:    fmtTemp(hi, unit),
 			Low:     fmtTemp(lo, unit),
+			LoFrac:  loFrac,
+			HiFrac:  hiFrac,
 		})
 	}
 
@@ -830,6 +1097,26 @@ func hourField(iso string) string {
 		return iso[11:13]
 	}
 	return ""
+}
+
+// buildAir packages the current-hour air quality, or an unavailable block when
+// the best-effort fetch returned nothing.
+func buildAir(air *wxAirResponse) *wxAir {
+	if air == nil || len(air.Hourly.Time) == 0 {
+		return &wxAir{Available: false}
+	}
+	idx := currentHourIndex(air.Hourly.Time)
+	eaqi := at(air.Hourly.EuropeanAqi, idx)
+	verdict, frac := aqiVerdict(eaqi)
+	return &wxAir{
+		Available: true,
+		Eaqi:      int(math.Round(eaqi)),
+		Verdict:   verdict,
+		Frac:      frac,
+		Pm25:      aqiVal(at(air.Hourly.Pm25, idx)),
+		Pm10:      aqiVal(at(air.Hourly.Pm10, idx)),
+		Ozone:     aqiVal(at(air.Hourly.Ozone, idx)),
+	}
 }
 
 func (s *wxState) publishFrame(frame wxFrame) {

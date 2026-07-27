@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { glyphFor, labelFor, unitFor, tempSymbol, formatTemp, parseForecast, parseLoc, parseJson } = require("./weather.js");
+const { glyphFor, labelFor, symbolFor, unitFor, tempSymbol, formatTemp, parseForecast, parseLoc, parseJson } = require("./weather.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {
@@ -29,6 +29,18 @@ eq(labelFor(0), "Clear", "label clear");
 eq(labelFor(3), "Cloudy", "label cloudy");
 eq(labelFor(61), "Rain", "label rain");
 eq(labelFor(95), "Thunder", "label thunder");
+
+// WMO code -> Material Symbols weather glyph (day/night split, neutral fallback)
+eq(symbolFor(0, true), "clear_day", "code 0 day -> clear_day");
+eq(symbolFor(0, false), "clear_night", "code 0 night -> clear_night");
+eq(symbolFor(2, true), "partly_cloudy_day", "code 2 day -> partly_cloudy_day");
+eq(symbolFor(2, false), "partly_cloudy_night", "code 2 night -> partly_cloudy_night");
+eq(symbolFor(3, true), "cloud", "code 3 -> cloud");
+eq(symbolFor(45, true), "foggy", "code 45 -> foggy");
+eq(symbolFor(61, true), "rainy", "code 61 -> rainy");
+eq(symbolFor(71, true), "weather_snowy", "code 71 -> weather_snowy");
+eq(symbolFor(95, true), "thunderstorm", "code 95 -> thunderstorm");
+eq(symbolFor(4, true), "cloud", "unmapped code -> neutral cloud, never brand");
 
 eq(unitFor("en_US.UTF-8"), "fahrenheit", "US locale -> fahrenheit");
 eq(unitFor("en_US"), "fahrenheit", "bare US locale -> fahrenheit");

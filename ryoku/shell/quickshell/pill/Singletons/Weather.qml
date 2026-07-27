@@ -26,6 +26,9 @@ Singleton {
     readonly property var current: frame.current || null
     readonly property var hourly: frame.hourly || []
     readonly property var daily: frame.daily || []
+    readonly property var moon: frame.moon || null
+    readonly property var air: frame.air || null
+    readonly property string updatedAt: frame.updatedAt || ""
 
     // Legacy contract kept for the sidebar/calendar popouts, derived from the
     // frame so those surfaces render unchanged.
@@ -55,6 +58,17 @@ Singleton {
 
     // The error-state Retry button re-kicks the daemon's poll.
     function retry() { root.send("weather.retry", {}); }
+
+    // Switch the temperature unit from the surface. The persisted weatherUnit is
+    // patched through the daemon's settings seam (the sole writer of shell.json,
+    // so themePalette and the other keys survive), and a re-fetch in the new unit
+    // is kicked now so the surface re-renders live without waiting on the file
+    // round-trip; Config's file watch fires sendConfigure again once the patch
+    // lands, which the daemon dedupes.
+    function setUnit(unit) {
+        root.send("settings.patch", { path: "weatherUnit", value: unit });
+        root.send("weather.configure", { location: Config.weatherLocation, unit: unit, clock24: true });
+    }
 
     // Push the configured location, unit and clock format to the daemon, which
     // owns the fetch. "auto" units are resolved daemon-side from the locale.
