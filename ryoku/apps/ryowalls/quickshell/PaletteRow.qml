@@ -1,7 +1,7 @@
 import QtQuick
 import Ryoku.Ui.Singletons
 
-// The wallust scheme as one contiguous, hairline-framed swatch strip. The
+// The palette as one contiguous, hairline-framed swatch strip. The
 // swatches carry their own colour: a swatch's job is to be its colour, so this
 // is the one place chroma is allowed (amendment 6). Everything around it is ink.
 Rectangle {

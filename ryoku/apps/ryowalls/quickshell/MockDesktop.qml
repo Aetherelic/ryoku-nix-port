@@ -7,7 +7,7 @@ import "Singletons"
 import Ryoku.FrameBars
 
 // The selected wallpaper under the user's live look, recoloured by the
-// candidate Wallust scheme. The frame-bar preview follows shell.json; the
+// candidate palette. The frame-bar preview follows shell.json; the
 // terminal keeps its fastfetch card and colour strip, and cava keeps its motion.
 Item {
     id: mock
@@ -28,7 +28,7 @@ Item {
     }
 
     // the candidate scheme, read straight off the live palette with graceful
-    // fallbacks so the mock is never blank while wallust runs.
+    // fallbacks so the mock is never blank while the palette loads.
     readonly property color cBg:     Wallhaven.col(0, "#101010")
     readonly property color cFg:     Wallhaven.col(15, Wallhaven.col(7, "#e8e8e8"))
     readonly property color cRed:    Wallhaven.col(1, "#c1564b")
@@ -247,7 +247,7 @@ Item {
         mock.phase += 0.32;
     }
     // each band is a colour swept across the candidate palette, exactly the
-    // shell's Wallust.colorAt sweep. before an image is picked the palette is
+    // shell's Palette.colorAt sweep. before an image is picked the palette is
     // empty, so a mid-tone candidate ramp keeps the specimen legible.
     function bandColor(t) {
         var p = Wallhaven.palette;

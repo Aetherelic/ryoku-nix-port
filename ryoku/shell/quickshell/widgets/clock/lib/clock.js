@@ -45,12 +45,12 @@ function dateParts(date) {
     };
 }
 
-// pick the accent (wallust | brand | mono) from the candidate colours the
+// pick the accent (palette | brand | mono) from the candidate colours the
 // dispatcher already holds.
-function pickAccent(choice, wallust, brand, mono) {
+function pickAccent(choice, palette, brand, mono) {
     if (choice === "brand") return brand;
     if (choice === "mono") return mono;
-    return wallust;
+    return palette;
 }
 
 if (typeof module !== "undefined" && module.exports) {

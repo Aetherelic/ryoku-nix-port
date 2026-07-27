@@ -6,7 +6,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import "Singletons"
 
-// desktop audio visualiser. click-through, wallust-tinted cava spectrum across
+// desktop audio visualiser. click-through, palette-tinted cava spectrum across
 // the bottom of each monitor. default = on the wallpaper, behind every window
 // (WlrLayer.Bottom). `ryoku-shell visualizer-overlay` raises it over windows
 // (WlrLayer.Top) on demand and flips back. on by default; `ryoku-shell

@@ -25,8 +25,8 @@ package as the base config under `/usr/share/ryoku/config`, which
 - `plugin/` `Ryoku.Blobs`, the packaged C++/QML SDF module used by the frame and
   active edge surfaces. `build.sh` builds it onto a QML import path. See
   `docs/frame.md`.
-- `wallust/` Palette generation from the current wallpaper (the kitty palette, the
-  Hyprland colors, and the shell visualiser palette at `~/.cache/wallust/colors.json`).
+- `matugen/` Palette generation from the current wallpaper (the kitty palette, the
+  Hyprland colors, and the shell visualiser palette at `~/.cache/ryoku/colors.json`).
 - `qt6ct/` The Qt platform theme config (`qt6ct.conf`): the icon theme
   (`Papirus-Dark`) and Fusion style for Qt apps. GTK apps are themed by the
   Hyprland autostart (`gsettings color-scheme`), not a shipped file.

@@ -308,7 +308,7 @@ func (d *daemon) showLiveWallpaper(pic string) error {
 	return nil
 }
 
-// liveFrame: one still from the video for wallust, which reads an image. offset
+// liveFrame: one still from the video for matugen, which reads an image. offset
 // defaults to a second in; the ryowalls frame slider can move it. "" on failure,
 // so the palette just keeps its previous value.
 func liveFrame(video string) string {
@@ -321,10 +321,10 @@ func liveFrame(video string) string {
 	return out
 }
 
-// frameOffset: seconds into the video that wallust samples, from the per-video
+// frameOffset: seconds into the video that matugen samples, from the per-video
 // sticky tune; "1" by default.
 func frameOffset(video string) string {
-	b, err := os.ReadFile(wallustTune())
+	b, err := os.ReadFile(ryowallsTune())
 	if err != nil {
 		return "1"
 	}
@@ -390,7 +390,7 @@ func (d *daemon) scheduleTheme() {
 
 // paintWorker: regen the palette for whatever is on screen, reload hypr
 // (config-only, monitors untouched), wake the LED worker. matugenApply extracts
-// the palette to ~/.cache/wallust/colors.json (the desktop visualiser live-
+// the palette to ~/.cache/ryoku/colors.json (the desktop visualiser live-
 // watches it, so its spectrum retunes too) and fans that one palette into every
 // app config. reads state every pass, so a coalesced burst themes the final
 // wallpaper. runs for the life of the daemon.
@@ -474,9 +474,9 @@ func blankGtk(cfgBase string) {
 	}
 }
 
-// wallustTune: the ryowalls per-image tune (ryoku-wallust.json). frameOffset
+// ryowallsTune: the ryowalls per-image tune (ryoku-ryowalls.json). frameOffset
 // reads the sampled frame second for a video wallpaper from it.
-func wallustTune() string { return filepath.Join(stateDir(), "ryoku-wallust.json") }
+func ryowallsTune() string { return filepath.Join(stateDir(), "ryoku-ryowalls.json") }
 
 // ledsWorker: push accent to OpenRGB. detection is slow (seconds), so it lives on
 // its own coalescing worker and never touches the wallpaper hot path. runs for

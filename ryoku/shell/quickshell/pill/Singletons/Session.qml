@@ -40,7 +40,7 @@ Singleton {
 
     // ── wallpaper ──────────────────────────────────────────────────────────
     // The daemon writes the active wallpaper path here on every set; the live
-    // still it extracts for wallust sits beside it, and is our instant poster
+    // still it extracts for the palette sits beside it, and is our instant poster
     // while a clip's video decoder spins up.
     property string wallpaper: ""
     readonly property string livePoster: s.stateDir + "/ryoku-live-frame.png"

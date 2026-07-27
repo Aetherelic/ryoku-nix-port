@@ -51,7 +51,6 @@ import (
 // (~/.config/ryoku/matugen.json). The token values are matugen's own CLI
 // vocabulary, so the constructed argv passes them straight through.
 type matugenKnobs struct {
-	Engine           string          // "wallust" | "matugen"
 	SchemeType       string          // e.g. "scheme-tonal-spot"
 	Mode             string          // "dark" | "light" | "smart"
 	Contrast         float64         // -1.0 .. 1.0
@@ -81,7 +80,6 @@ var (
 // produces a valid argv. They mirror the shipped matugen.json.
 func defaultMatugenKnobs() matugenKnobs {
 	return matugenKnobs{
-		Engine:         "wallust",
 		SchemeType:     "scheme-tonal-spot",
 		Mode:           "smart",
 		Contrast:       0,
@@ -100,7 +98,6 @@ func readMatugenKnobs() matugenKnobs {
 		return k
 	}
 	var doc struct {
-		Engine           *string         `json:"engine"`
 		SchemeType       *string         `json:"schemeType"`
 		Mode             *string         `json:"mode"`
 		Contrast         *float64        `json:"contrast"`
@@ -113,9 +110,6 @@ func readMatugenKnobs() matugenKnobs {
 	}
 	if json.Unmarshal(b, &doc) != nil {
 		return k
-	}
-	if doc.Engine != nil {
-		k.Engine = *doc.Engine
 	}
 	if doc.SchemeType != nil && *doc.SchemeType != "" {
 		k.SchemeType = *doc.SchemeType
@@ -845,10 +839,10 @@ func matugenKnobsPath() string {
 }
 
 // matugenColorsPath is the shell palette every Quickshell singleton watches. It
-// keeps the wallust cache location so a single reader convention serves both the
-// legacy and the matugen palette sources.
+// lives under the ryoku cache dir; a single reader convention serves the matugen
+// palette source the shell singletons watch.
 func matugenColorsPath() string {
-	return filepath.Join(matugenCacheHome(), "wallust", "colors.json")
+	return filepath.Join(matugenCacheHome(), "ryoku", "colors.json")
 }
 
 // matugenEnsureDirs pre-creates the template output directories so matugen's own
@@ -859,7 +853,6 @@ func matugenEnsureDirs() {
 	data := matugenDataHome()
 	for _, d := range []string{
 		filepath.Join(cache, "ryoku"),
-		filepath.Join(cache, "wallust"),
 		filepath.Join(cache, "matugen"),
 		filepath.Join(cfg, "kitty"),
 		filepath.Join(cfg, "btop", "themes"),

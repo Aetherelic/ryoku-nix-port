@@ -10,7 +10,7 @@ Item {
     id: date
 
     readonly property var dp: Clk.dateParts(Now.date)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Wallust.accent, Theme.brand, Theme.ink)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Palette.accent, Theme.brand, Theme.ink)
     readonly property real px: Math.round(22 * Config.clockScale)
 
     implicitWidth: row.implicitWidth

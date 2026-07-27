@@ -64,7 +64,7 @@ Rectangle {
     // session last set on the desktop: SET WALLPAPER captures the candidate, and
     // any later divergence reads as pending. Before the first set the desktop is
     // unknown, so a pick is armed and the card says it is not yet on the desktop.
-    property var desktop: ({ valid: false, name: "", image: "", paletteName: "dark16", frame: 1, colours: [], sig: "" })
+    property var desktop: ({ valid: false, name: "", image: "", frame: 1, colours: [], sig: "" })
 
     function candImage() {
         var s = Wallhaven.selected;
@@ -84,10 +84,10 @@ Rectangle {
         var a = Wallhaven.adjust;
         return a.brightness + "," + a.contrast + "," + a.saturation + "," + a.warmth + "," + (a.vignette ? 1 : 0);
     }
-    // the palette colours reload on every preview, so the signature keys off the
-    // stable names, not the swatches: a palette re-extract must not flip dirty.
+    // the palette colours are global now and reload on every preview, so the
+    // signature keys off the image, sampled frame and grade -- not the swatches.
     function candSig() {
-        return candSetPath() + "|" + Wallhaven.paletteName + "|" + Wallhaven.settings.frame + "|" + adjustSig();
+        return candSetPath() + "|" + Wallhaven.settings.frame + "|" + adjustSig();
     }
     readonly property bool armed: Wallhaven.selected !== null && (!desktop.valid || desktop.sig !== candSig())
     readonly property bool clean: desktop.valid && desktop.sig === candSig()
@@ -97,7 +97,6 @@ Rectangle {
             valid: true,
             name: Wallhaven.selected ? ("" + (Wallhaven.selected.name || Wallhaven.selected.id || "")) : "",
             image: candSetPath(),
-            paletteName: Wallhaven.paletteName,
             frame: Wallhaven.settings.frame,
             colours: (Wallhaven.palette || []).slice(),
             sig: candSig()
@@ -466,7 +465,6 @@ Rectangle {
             desktopValid: app.desktop.valid
             desktopName: app.desktop.name
             desktopColours: app.desktop.colours
-            desktopPaletteName: app.desktop.paletteName
             desktopImage: app.desktop.image
             desktopFrame: app.desktop.frame
             candImage: app.candSetPath()

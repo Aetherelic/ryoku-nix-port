@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Changed
+- **The palette cache path is `~/.cache/ryoku/colors.json`, and the hub palette
+  singleton is `Palette`.** `wallustCacheDir()` is renamed `ryokuCacheDir()` and
+  points at `~/.cache/ryoku/`, the rotating-border blocks read `hypr-colors.lua`
+  from there, and the hub's `Wallust` singleton (Profile plate and clock preview)
+  is renamed `Palette`. The clock accent choice `wallust` is renamed `palette` to
+  match. The retired wallust engine leaves no path or type name behind
+  (`backend/schemes.go`, `backend/matugen.go`, `backend/rice.go`, `backend/hypr.go`,
+  `quickshell/Singletons/`, `quickshell/ClockPreview.qml`, `quickshell/schema/WidgetsPage.js`).
 - **Appearance > Theme now picks the colour scheme from the daemon's named
   catalog, the same settings seam the shell sidebar theme picker uses.** The old
   Follow / Light / Dark / Mono segmented control -- which drove the hub's own

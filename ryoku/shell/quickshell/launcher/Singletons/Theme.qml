@@ -7,20 +7,20 @@ import "../lib/contrast.js" as Contrast
 Singleton {
     // Accent follows the wallpaper when matchWallpaper is on (a core feature);
     // the fixed fallback is the Ryoku brand vermillion (website tokens.css).
-    readonly property color brand:    Config.matchWallpaper ? Wallust.accent : "#e2342a"
+    readonly property color brand:    Config.matchWallpaper ? Palette.accent : "#e2342a"
     readonly property color verm:     brand
-    readonly property color vermLit:  Config.matchWallpaper ? Qt.lighter(Wallust.accent, 1.22) : "#e83b30"
-    readonly property color vermDeep: Config.matchWallpaper ? Qt.darker(Wallust.accent, 1.3) : "#b81f19"
+    readonly property color vermLit:  Config.matchWallpaper ? Qt.lighter(Palette.accent, 1.22) : "#e83b30"
+    readonly property color vermDeep: Config.matchWallpaper ? Qt.darker(Palette.accent, 1.3) : "#b81f19"
     readonly property color gold:     "#d9a441"
     // warm-white text ramp (website --ink).
     readonly property color cream:    Ui.Tokens.ink
     readonly property color bright:   Ui.Tokens.ink
-    // near-black canvas (website --paper), or wallust surfaces when matching.
-    readonly property color cardTop:  Config.matchWallpaper ? Wallust.base : "#16110b"
-    readonly property color border:   Config.matchWallpaper ? Wallust.line : Qt.rgba(243/255, 237/255, 225/255, 0.14)
+    // near-black canvas (website --paper), or palette surfaces when matching.
+    readonly property color cardTop:  Config.matchWallpaper ? Palette.base : "#16110b"
+    readonly property color border:   Config.matchWallpaper ? Palette.line : Qt.rgba(243/255, 237/255, 225/255, 0.14)
     readonly property color lineStrong: Qt.rgba(236/255, 226/255, 205/255, 0.40)
     readonly property color shadow:   "#000000"
-    readonly property color tileBg:   Config.matchWallpaper ? Wallust.elevated : "#1b150e"
+    readonly property color tileBg:   Config.matchWallpaper ? Palette.elevated : "#1b150e"
     readonly property color subtle:   Ui.Tokens.inkDim
     readonly property color faint:    Ui.Tokens.inkMuted
     readonly property color iconDim:  Ui.Tokens.inkMuted
@@ -48,7 +48,7 @@ Singleton {
     readonly property color onModeActive: onLead
     readonly property color modeIdle: Qt.rgba(0, 0, 0, 0.76)
     readonly property color providerApps: Ui.Tokens.sun
-    readonly property color providerFind: Config.matchWallpaper ? Wallust.accent2 : vermDim
+    readonly property color providerFind: Config.matchWallpaper ? Palette.accent2 : vermDim
     readonly property color providerRecent: Ui.Tokens.inkMuted
     readonly property color providerOther: Ui.Tokens.inkDim
 

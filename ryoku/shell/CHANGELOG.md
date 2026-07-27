@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Changed
+- **The live palette moved to `~/.cache/ryoku/colors.json`, and the per-shell
+  palette singleton is now `Palette`.** The daemon authored the wallpaper palette
+  (and `hypr-colors.lua`) under the retired wallust engine's cache dir; it now
+  writes both under `~/.cache/ryoku/`, and every thin reader (pill, widgets,
+  visualiser, plugin kit, launcher, overview, wallpaper, and `Ryoku.Ui`'s Tokens)
+  plus `decoration.lua`'s border source follow the new path. The `Wallust`
+  singleton is renamed `Palette` (file and qmldir) across every shell, the
+  daemon's dead engine knob is dropped, and the ryowalls tune state file is
+  `ryoku-ryowalls.json`. No behaviour changes; the last wallust artifact name is
+  retired (`ipc/matugen.go`, `ipc/wallpaper.go`, `quickshell/*/Singletons/`,
+  `ui/Singletons/Tokens.qml`, `matugen/config.toml`, `hyprland/modules/decoration.lua`).
 - **Every desktop surface follows the daemon palette, and the window border
   follows named themes too.** The audio visualiser, the desktop widgets and
   their right-click menu, the plugin kit, and the `Ryoku.Ui` Tokens the Hub and

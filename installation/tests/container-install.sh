@@ -94,7 +94,7 @@ files=(
   pip/pip.conf
   mimeapps.list
 )
-dirs=(quickshell/hub wallust)
+dirs=(quickshell/hub)
 
 missing=()
 for f in "${files[@]}"; do

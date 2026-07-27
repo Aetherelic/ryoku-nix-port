@@ -14,7 +14,7 @@ Singleton {
     property alias clockDesign:  adapter.clockDesign   // digital | minimal | analog | flip | rings
     property alias clock24h:     adapter.clock24h
     property alias clockSeconds: adapter.clockSeconds
-    property alias clockAccent:  adapter.clockAccent   // wallust | brand | mono
+    property alias clockAccent:  adapter.clockAccent   // palette | brand | mono
     property alias clockScale:   adapter.clockScale
     property alias clockAnchor:  adapter.clockAnchor   // top-left .. center .. bottom-right | free
     property alias clockX:       adapter.clockX        // free placement, monitor pixels
@@ -80,7 +80,7 @@ Singleton {
             property string clockDesign: "digital"
             property bool clock24h: true
             property bool clockSeconds: false
-            property string clockAccent: "wallust"
+            property string clockAccent: "palette"
             property real clockScale: 1.0
             property string clockAnchor: "top-left"
             property int clockX: 72

@@ -24,7 +24,7 @@ surfaces. Run `ryoku-shell reload` after changing QML.
       Config.qml             ~/.config/ryoku/widgets.json
       Registry.qml           enabled plugin catalogue
       Theme.qml              widget tokens
-      Wallust.qml            live wallpaper palette
+      Palette.qml            live wallpaper palette
       Now.qml                shared clock tick
     clock/
       Clock.qml              face and date dispatcher
@@ -42,7 +42,7 @@ for wallpaper input.
   which blurs rendered text and hides the slot's real size.
 - Report `implicitWidth` and `implicitHeight` from every face.
 - Let typography, spacing and short purposeful motion carry the design.
-- Read wallpaper-following colour from `Wallust`; use fixed brand colour only
+- Read wallpaper-following colour from `Palette`; use fixed brand colour only
   for a deliberate accent.
 - Keep one face or date treatment per file.
 - The right-click chrome is one shared component, `DesktopMenu`, in the

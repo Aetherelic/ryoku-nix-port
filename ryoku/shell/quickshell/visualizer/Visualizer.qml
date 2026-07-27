@@ -8,7 +8,7 @@ import "Singletons"
 // dots, an oscilloscope line (the live audio waveform), a filled wave, lit
 // polar looks: a radial ring of bars and a morphing circle sized by amplitude.
 // bars/dots/line/wave/segments anchor bottom/top/centre; radial and circle sit
-// at screen centre. each band = a wallust colour so the sweep retunes with the
+// at screen centre. each band = a palette colour so the sweep retunes with the
 // wallpaper. soft bloom behind, fading reflection under bottom bars, optional
 // falling peak caps.
 //
@@ -254,7 +254,7 @@ Item {
     }
 
     function bandColor(i) {
-        return Wallust.colorAt(root.bands > 1 ? i / (root.bands - 1) : 0.5);
+        return Palette.colorAt(root.bands > 1 ? i / (root.bands - 1) : 0.5);
     }
     function lengthAt(i) {
         // min sliver fades with the spectrum when idle wave is off, so a
@@ -287,7 +287,7 @@ Item {
         opacity: (root.wantIdleWave ? 0.08 : 0) + 0.34 * root.activity
         gradient: Gradient {
             GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 1.0; color: Qt.alpha(Wallust.accent, 0.5) }
+            GradientStop { position: 1.0; color: Qt.alpha(Palette.accent, 0.5) }
         }
     }
 
@@ -429,13 +429,13 @@ Item {
                     y1: 0
                     x2: area.width
                     y2: 0
-                    GradientStop { position: 0; color: Qt.alpha(Wallust.colorAt(0), 0.92) }
-                    GradientStop { position: 0.1667; color: Qt.alpha(Wallust.colorAt(0.1667), 0.92) }
-                    GradientStop { position: 0.3333; color: Qt.alpha(Wallust.colorAt(0.3333), 0.92) }
-                    GradientStop { position: 0.5; color: Qt.alpha(Wallust.colorAt(0.5), 0.92) }
-                    GradientStop { position: 0.6667; color: Qt.alpha(Wallust.colorAt(0.6667), 0.92) }
-                    GradientStop { position: 0.8333; color: Qt.alpha(Wallust.colorAt(0.8333), 0.92) }
-                    GradientStop { position: 1; color: Qt.alpha(Wallust.colorAt(1), 0.92) }
+                    GradientStop { position: 0; color: Qt.alpha(Palette.colorAt(0), 0.92) }
+                    GradientStop { position: 0.1667; color: Qt.alpha(Palette.colorAt(0.1667), 0.92) }
+                    GradientStop { position: 0.3333; color: Qt.alpha(Palette.colorAt(0.3333), 0.92) }
+                    GradientStop { position: 0.5; color: Qt.alpha(Palette.colorAt(0.5), 0.92) }
+                    GradientStop { position: 0.6667; color: Qt.alpha(Palette.colorAt(0.6667), 0.92) }
+                    GradientStop { position: 0.8333; color: Qt.alpha(Palette.colorAt(0.8333), 0.92) }
+                    GradientStop { position: 1; color: Qt.alpha(Palette.colorAt(1), 0.92) }
                 }
                 PathSvg { path: root.fillPath }
             }
@@ -450,7 +450,7 @@ Item {
             width: root.width
             height: Math.max(1.5, 1.5 * root.ui)
             y: root.scopeBaseY - height / 2
-            color: Qt.alpha(Wallust.accent, 0.20)
+            color: Qt.alpha(Palette.accent, 0.20)
             antialiasing: true
         }
         Shape {
@@ -458,7 +458,7 @@ Item {
             visible: root.effStyle === "line"
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
-                strokeColor: Qt.alpha(Qt.lighter(Wallust.accent, 1.5), 0.20)
+                strokeColor: Qt.alpha(Qt.lighter(Palette.accent, 1.5), 0.20)
                 strokeWidth: Math.max(8, 9 * root.ui)
                 capStyle: ShapePath.RoundCap
                 joinStyle: ShapePath.RoundJoin
@@ -471,7 +471,7 @@ Item {
             visible: root.effStyle === "line"
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
-                strokeColor: Qt.lighter(Wallust.accent, 1.9)
+                strokeColor: Qt.lighter(Palette.accent, 1.9)
                 strokeWidth: Math.max(2, 2.4 * root.ui)
                 capStyle: ShapePath.RoundCap
                 joinStyle: ShapePath.RoundJoin
@@ -492,7 +492,7 @@ Item {
             y: root.cy - ring.rr
             color: "transparent"
             border.width: Math.max(1, 1.5 * root.ui)
-            border.color: Qt.alpha(Wallust.accent, 0.4)
+            border.color: Qt.alpha(Palette.accent, 0.4)
             antialiasing: true
         }
         Repeater {
@@ -528,7 +528,7 @@ Item {
             visible: root.effStyle === "circle"
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
-                strokeColor: Qt.lighter(Wallust.accent, 1.5)
+                strokeColor: Qt.lighter(Palette.accent, 1.5)
                 strokeWidth: Math.max(2, 2.2 * root.ui)
                 capStyle: ShapePath.RoundCap
                 joinStyle: ShapePath.RoundJoin
@@ -537,9 +537,9 @@ Item {
                     y1: 0
                     x2: root.cx + root.ringR0 + root.ringMax
                     y2: 0
-                    GradientStop { position: 0; color: Qt.alpha(Wallust.colorAt(0), 0.3) }
-                    GradientStop { position: 0.5; color: Qt.alpha(Wallust.colorAt(0.5), 0.3) }
-                    GradientStop { position: 1; color: Qt.alpha(Wallust.colorAt(1), 0.3) }
+                    GradientStop { position: 0; color: Qt.alpha(Palette.colorAt(0), 0.3) }
+                    GradientStop { position: 0.5; color: Qt.alpha(Palette.colorAt(0.5), 0.3) }
+                    GradientStop { position: 1; color: Qt.alpha(Palette.colorAt(1), 0.3) }
                 }
                 PathSvg { path: root.circlePath }
             }

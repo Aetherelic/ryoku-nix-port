@@ -11,7 +11,7 @@ import Quickshell
  *
  * - compiled default: the Solitude Dark base palette. What shows when no dynamic
  *   theme is active, and the value the shell ships with.
- * - live wallpaper: the Wallust singleton, active while Config.matchWallpaper is
+ * - live wallpaper: the Palette singleton, active while Config.matchWallpaper is
  *   on; a wallpaper change retunes every role live.
  * - named scheme: one of the static presets. The full 30-role palettes are owned
  *   by the Go theme daemon (a role() lookup honours a `namedScheme` palette
@@ -45,7 +45,7 @@ Singleton {
         if (namedScheme && namedScheme[key] !== undefined)
             return namedScheme[key];
         if (matchWallpaper)
-            return Wallust[key];
+            return Palette[key];
         return base;
     }
 
@@ -146,7 +146,7 @@ Singleton {
     // the live wallpaper tone bleeding through it. Opaque frame -> just surface.
     readonly property color effectiveSurface: windowOpacity >= 0.999
         ? surface
-        : blend(Qt.rgba(surface.r, surface.g, surface.b, windowOpacity), Wallust.wallpaperTone)
+        : blend(Qt.rgba(surface.r, surface.g, surface.b, windowOpacity), Palette.wallpaperTone)
 
     // Smart ink: keep `role` when it already clears `minRatio` against `bg`
     // (the common case, a sound palette is untouched), else nudge it toward the

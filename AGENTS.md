@@ -26,7 +26,7 @@ These are not negotiable. Most are enforced by the git hooks in `.githooks/`.
    `ryoku/hyprland/`, one concern per file. Never hand-write a raw
    `hyprland.conf`. A standalone daemon or app that cannot read Lua keeps its own
    native config under its own directory (for example `hypridle.conf`,
-   `wallust.toml`, `kitty.conf`); that is the only reason a non-Lua config exists.
+   `matugen/config.toml`, `kitty.conf`); that is the only reason a non-Lua config exists.
 
 3. **One concern per file.** A Lua module does one thing. A QML component is one
    component in one file. Split things out; do not pile unrelated logic together.

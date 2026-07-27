@@ -7,9 +7,9 @@ import Quickshell
 // fallback is the Ryoku brand vermillion. Brutalist geometry: radius 0, hairline
 // borders, hard offset shadows.
 Singleton {
-    readonly property color brand:    Config.matchWallpaper ? Wallust.accent : "#e2342a"
-    readonly property color vermLit:  Config.matchWallpaper ? Qt.lighter(Wallust.accent, 1.22) : "#e83b30"
-    readonly property color vermDeep: Config.matchWallpaper ? Qt.darker(Wallust.accent, 1.3) : "#b81f19"
+    readonly property color brand:    Config.matchWallpaper ? Palette.accent : "#e2342a"
+    readonly property color vermLit:  Config.matchWallpaper ? Qt.lighter(Palette.accent, 1.22) : "#e83b30"
+    readonly property color vermDeep: Config.matchWallpaper ? Qt.darker(Palette.accent, 1.3) : "#b81f19"
     readonly property color gold:     "#d9a441"
 
     // warm-white text ramp (website --ink).
@@ -19,11 +19,11 @@ Singleton {
     readonly property color dim:      "#8f8770"
     readonly property color faint:    "#5c5249"
 
-    // near-black canvas (website --paper), or wallust surfaces when matching.
-    readonly property color cardTop:  Config.matchWallpaper ? Wallust.base     : "#16110b"
-    readonly property color cardBot:  Config.matchWallpaper ? Wallust.deep     : "#0f0c07"
-    readonly property color tileBg:   Config.matchWallpaper ? Wallust.elevated : "#1b150e"
-    readonly property color border:   Config.matchWallpaper ? Wallust.line     : Qt.rgba(243/255, 237/255, 225/255, 0.14)
+    // near-black canvas (website --paper), or palette surfaces when matching.
+    readonly property color cardTop:  Config.matchWallpaper ? Palette.base     : "#16110b"
+    readonly property color cardBot:  Config.matchWallpaper ? Palette.deep     : "#0f0c07"
+    readonly property color tileBg:   Config.matchWallpaper ? Palette.elevated : "#1b150e"
+    readonly property color border:   Config.matchWallpaper ? Palette.line     : Qt.rgba(243/255, 237/255, 225/255, 0.14)
     readonly property color hair:     Qt.rgba(243/255, 237/255, 225/255, 0.12)
     readonly property color sheen:    Qt.rgba(243/255, 237/255, 225/255, 0.06)
     readonly property color shadow:   "#000000"

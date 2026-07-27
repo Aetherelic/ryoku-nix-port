@@ -32,7 +32,7 @@ its place; if it does not, remove it.
   black ink; there is no second value. Even a destructive confirm is a bone
   plate and an unambiguous word, not a red one.
 - **The accent lives on the frame, not the content.** The shell frame carries
-  one accent: with *Match wallpaper* on it is the `wallust` colour walked toward
+  one accent: with *Match wallpaper* on it is the palette colour walked toward
   legibility, and off it falls back to the brand sun `#e2342a` (deep `#b81f19`).
   The content never competes with it.
 - **Colour is data, and the red sun is brand.** The only colour inside a surface
@@ -81,12 +81,12 @@ and do not copy the pattern into another page.
 
 ### What follows the wallpaper, and what does not
 
-The old text here claimed wallust overrides only the accent. It does not, and
+The old text here claimed the palette overrides only the accent. It does not, and
 never did. What the shell actually does, which is the better policy:
 
-- **The accent follows the wallpaper.** `Wallust.accent` is `legible(vivid(color4),
+- **The accent follows the wallpaper.** `Palette.accent` is `legible(vivid(color4),
   elevated, 3.0)`: the wallpaper's colour, walked toward white until it clears
-  3:1 against the surface it sits on. Three of the nine Wallust copies skipped
+  3:1 against the surface it sits on. Three of the nine Palette copies skipped
   that clamp, which is why the Hub used to preview an accent the shell would
   never render.
 - **The surfaces follow the wallpaper too, inside a clamp.** `shade()` tone-maps

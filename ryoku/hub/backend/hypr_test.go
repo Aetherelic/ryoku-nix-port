@@ -440,7 +440,7 @@ func TestGenAnimatedBorderFixed(t *testing.T) {
 	}
 }
 
-// genAnimatedBorder while colours follow the wallpaper reads the live wallust
+// genAnimatedBorder while colours follow the wallpaper reads the live palette
 // accents at load time, so the sweep re-themes on reload; a preview turning it
 // off stops the sweep and restores a solid border.
 func TestGenAnimatedBorderFollow(t *testing.T) {
@@ -448,7 +448,7 @@ func TestGenAnimatedBorderFollow(t *testing.T) {
 	o.Appearance.AnimatedBorder = true
 	got := genAnimatedBorder(o, true, false)
 	if !strings.Contains(got, "hypr-colors.lua") || !strings.Contains(got, "colors = {") {
-		t.Errorf("following animated border must read wallust accents into a gradient:\n%s", got)
+		t.Errorf("following animated border must read palette accents into a gradient:\n%s", got)
 	}
 	if !strings.Contains(got, `style = "loop"`) {
 		t.Errorf("following animated border must loop:\n%s", got)

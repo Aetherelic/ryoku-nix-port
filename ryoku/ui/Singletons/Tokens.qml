@@ -9,7 +9,7 @@ import Quickshell.Io
 //
 // Colour resolves live from the daemon palette the same way the pill's Theme
 // does: a fixed named colour scheme (shell.json themePalette) wins, then the
-// live wallpaper palette (~/.cache/wallust/colors.json Material roles), then the
+    // live wallpaper palette (~/.cache/ryoku/colors.json Material roles), then the
 // compiled signature default. So every Ryoku app (the Hub, Ryowalls, ...)
 // retints on ANY scheme change, a named theme or a wallpaper switch, with no
 // colour math of its own. The kit's role names are kept; only their source moved
@@ -130,7 +130,7 @@ Singleton {
     // ── daemon palette readers ───────────────────────────────────────────────
     function refreshWall() {
         try {
-            const txt = wallustFile.text();
+            const txt = paletteFile.text();
             t.wall = txt && txt.length ? (JSON.parse(txt) || {}) : {};
         } catch (e) {
             t.wall = {};
@@ -179,8 +179,8 @@ Singleton {
         onLoaded: t.refreshNamed()
     }
     FileView {
-        id: wallustFile
-        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
+        id: paletteFile
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false

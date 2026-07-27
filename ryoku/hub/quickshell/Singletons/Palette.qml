@@ -4,10 +4,10 @@ import Quickshell
 import Quickshell.Io
 
 /**
- * The live wallust palette, for the Desktop Widgets previews. Reads the same
- * ~/.cache/wallust/colors.json the desktop widgets read, so a preview shows the
+ * The live palette, for the Desktop Widgets previews. Reads the same
+ * ~/.cache/ryoku/colors.json the desktop widgets read, so a preview shows the
  * real wallpaper colours rather than a stand-in ramp. Mirrors the widgets'
- * Wallust singleton (each Quickshell config carries its own thin palette reader);
+ * Palette singleton (each Quickshell config carries its own thin palette reader);
  * the defaults are the Ryoku brand palette.
  */
 Singleton {
@@ -48,7 +48,7 @@ Singleton {
 
     FileView {
         id: file
-        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false

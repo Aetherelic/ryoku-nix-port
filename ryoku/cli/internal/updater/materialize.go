@@ -12,7 +12,7 @@ import (
 // generatedSeed: base files seeded once on a fresh install, then never
 // clobbered or pruned by an update. The machine owns them after first boot.
 // Two kinds qualify: per-machine files the runtime regenerates (monitors.lua,
-// gpu.lua; kitty/current-theme.conf, which wallust rewrites from the wallpaper)
+// gpu.lua; kitty/current-theme.conf, which matugen rewrites from the wallpaper)
 // and user-owned config the package only seeds a starting point for
 // (keyboard.lua; hypr/user.lua, seeded with a header so a hand-edit sticks;
 // fastfetch/config.jsonc, which has no include mechanism, so direct edits

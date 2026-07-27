@@ -4,12 +4,12 @@ import Quickshell
 import Quickshell.Io
 
 /**
- * The live wallust palette, mirrored for the overview surface the same way the
+ * The live palette, mirrored for the overview surface the same way the
  * pill and launcher mirror it (each qs config has its own singleton root). Used
- * only when Match wallpaper is on. wallust rewrites ~/.cache/wallust/colors.json
+ * only when Match wallpaper is on. matugen rewrites ~/.cache/ryoku/colors.json
  * on every wallpaper change; this watches it so the overview's fill and accent
  * track whatever is on screen. Defaults are the Ryoku brand palette so it looks
- * right before the first wallust run.
+ * right before the first matugen run.
  */
 Singleton {
     readonly property color base:     shade(adapter.background)
@@ -71,7 +71,7 @@ Singleton {
     }
 
     FileView {
-        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false

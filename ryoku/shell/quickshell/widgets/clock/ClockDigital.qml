@@ -6,14 +6,14 @@ import "lib/clock.js" as Clk
 /**
  * Digital face: a big tabular mono time, the colon breathing once a second, with
  * the seconds and AM/PM stacked small to the right. The colon and seconds carry
- * the accent (wallust, brand, or neutral by the Accent setting); the digits stay
+ * the accent (palette, brand, or neutral by the Accent setting); the digits stay
  * bright ink so they read on any wallpaper.
  */
 Item {
     id: face
 
     readonly property var t: Clk.parts(Now.date, Config.clock24h)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Wallust.accent, Theme.brand, Theme.ink)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Palette.accent, Theme.brand, Theme.ink)
     readonly property real px: Math.round(88 * Config.clockScale)
     readonly property bool side: Config.clockSeconds || !Config.clock24h
 

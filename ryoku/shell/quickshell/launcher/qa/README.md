@@ -111,7 +111,7 @@ The final live pass uses the Hub editor and the real launcher together:
 
 - shipped fallback, wide, portrait, strongly off-centre, and missing hero paths;
 - drag both axes in the Hub, save, and compare the live crop to the preview;
-- two visually different wallpapers under both Wallust and Material roles;
+- two visually different wallpapers under both palette and Material roles;
 - palette hashes before/after, selected-lead contrast of at least 4.5:1, and no
   stale colour from the prior wallpaper;
 - default 2 px local frost, zero frost, reduced motion, and low-power fallback;

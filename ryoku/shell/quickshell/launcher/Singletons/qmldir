@@ -1,7 +1,7 @@
 singleton Theme Theme.qml
 singleton Config Config.qml
 singleton LauncherConfig LauncherConfig.qml
-singleton Wallust Wallust.qml
+singleton Palette Palette.qml
 singleton Motion Motion.qml
 singleton Metrics Metrics.qml
 singleton Frecency Frecency.qml

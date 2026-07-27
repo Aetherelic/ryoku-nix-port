@@ -42,7 +42,7 @@ Singleton {
 
     // matchWallpaper: when on, every shell surface (frame, bar, popouts, plus
     // desktop widgets, plugin tiles, the window switcher)
-    // follows the live wallust palette instead of the static Tokyo Night
+    // follows the live palette instead of the static Tokyo Night
     // tokens. sourced from theme.json (`FollowWallpaper`, the single colour
     // master shared with the daemon and window borders). on by default.
     property alias matchWallpaper: themeAdapter.followWallpaper

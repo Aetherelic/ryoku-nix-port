@@ -195,12 +195,12 @@ func runMatugenCmd(args []string) error {
 			return err
 		}
 		// Persist knobs only. The shell daemon watches matugen.json and is the
-		// sole renderer of the palette for both engines, so it retints on this
+		// sole renderer of the palette, so it retints on this
 		// write; rendering here would fight it and, for matugen, author a
 		// divergent colors.json.
 		return saveMatugenConfig(cfg)
 	case "render-apps":
-		pal := readPalette(filepath.Join(wallustCacheDir(), "colors.json"))
+		pal := readPalette(filepath.Join(ryokuCacheDir(), "colors.json"))
 		if pal != nil {
 			cfg := loadMatugenConfig()
 			renderActiveTemplates(cfg, pal)
@@ -226,7 +226,6 @@ func renderActiveTemplates(cfg matugenConfig, pal map[string]string) {
 
 	targetDirs := []string{
 		filepath.Join(configHome(), "kitty"),
-		filepath.Join(cacheHome(), "wallust"),
 		filepath.Join(configHome(), "qt6ct", "colors"),
 		filepath.Join(configHome(), "qt5ct", "colors"),
 		filepath.Join(configHome(), "gtk-3.0"),

@@ -14,7 +14,7 @@ import "lib/weather.js" as Wx
 // falls back to a plain clock. It is the same fill-is-elapsed grammar as the
 // NowPlaying seekbar below it, so the resting card and the playing card read as
 // one family. The sky colours are fixed (golden day, cool night), deliberately
-// independent of the wallust accent so the sun stays a sun on any wallpaper.
+// independent of the palette accent so the sun stays a sun on any wallpaper.
 // Surface is the recessed cardBot with a hairline border and a top sheen so it
 // sits in the window; corner radius steps one inside the window so the nested
 // corners read concentric. Right column carries the weather glance when resolved
@@ -116,7 +116,7 @@ Item {
                 anchors.fill: parent
                 property real phase: 0
                 readonly property real frac: root.dayFrac
-                // phase sky colour (fixed day/night, never the wallust accent).
+                // phase sky colour (fixed day/night, never the palette accent).
                 readonly property color tint: root.phaseColor
 
                 onFracChanged: requestPaint()
@@ -253,7 +253,7 @@ Item {
                     font.pixelSize: 34 * root.s
                     font.weight: Font.Medium
                     // Breathing colon in the phase tint, the shared clock-face
-                    // heartbeat tied to the sky rather than the wallust accent.
+                    // heartbeat tied to the sky rather than the palette accent.
                     // Gated on visibility so a hidden palette really is idle.
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite

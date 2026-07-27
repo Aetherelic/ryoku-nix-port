@@ -3,7 +3,7 @@ import QtQuick
 import Quickshell
 
 // Shared widget tokens: the design-language geometry, motion and type, with
-// every colour resolved from the daemon palette through Wallust so the clock,
+// every colour resolved from the daemon palette through Palette so the clock,
 // its card and the right-click menu follow the active theme (a fixed named
 // scheme or the live wallpaper) instead of a hardcoded tint. `brand` stays the
 // fixed vermillion identity (the 力 seal and the clock's deliberate "brand"
@@ -19,12 +19,12 @@ Singleton {
     // accent: the live system accent (the palette's primary role). The menu
     // chrome -- selected chips, the "on" value, toggles, sliders, borders and
     // resize grips -- paints with this so it retints on every scheme change.
-    readonly property color accent: Wallust.accent
+    readonly property color accent: Palette.accent
 
     // inks resolved from the palette so text reads on the themed surface in light
     // and dark alike; a widget on bare wallpaper pairs them with a drop shadow.
-    readonly property color ink:     Wallust.onSurface
-    readonly property color inkDim:  Wallust.onSurfaceVariant
+    readonly property color ink:     Palette.onSurface
+    readonly property color inkDim:  Palette.onSurfaceVariant
     readonly property color inkSoft: Qt.rgba((ink.r + inkDim.r) / 2,
                                              (ink.g + inkDim.g) / 2,
                                              (ink.b + inkDim.b) / 2, 1)
@@ -33,8 +33,8 @@ Singleton {
     // carbon-dossier surface for the desktop menu: the palette surface over a
     // recessed floor, with ink-derived hairline + faint eyebrow tints so the
     // chrome follows the theme.
-    readonly property color cardTop: Wallust.surface
-    readonly property color cardBot: Wallust.deep
+    readonly property color cardTop: Palette.surface
+    readonly property color cardBot: Palette.deep
     readonly property color hair:    Qt.rgba(ink.r, ink.g, ink.b, 0.13)
     readonly property color faint:   Qt.rgba(ink.r, ink.g, ink.b, 0.42)
     readonly property color lineStrong: Qt.rgba(ink.r, ink.g, ink.b, 0.42)
@@ -42,7 +42,7 @@ Singleton {
     // ── menu surface: the right-click chrome, in the sidebar design idiom ──
     // an opaque lifted plate (the palette surface); rows and chips wash with
     // ink-derived tints so hover and press read on any palette.
-    readonly property color surface:   Wallust.surface
+    readonly property color surface:   Palette.surface
     readonly property color line:      Qt.rgba(ink.r, ink.g, ink.b, 0.16)
     readonly property color tile:      Qt.rgba(ink.r, ink.g, ink.b, 0.06)
     readonly property color tileHover: Qt.rgba(ink.r, ink.g, ink.b, 0.10)

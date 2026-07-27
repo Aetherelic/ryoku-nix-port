@@ -2,5 +2,5 @@ singleton Theme Theme.qml
 singleton Updates Updates.qml
 singleton SysInfo SysInfo.qml
 singleton LiveStats LiveStats.qml
-singleton Wallust Wallust.qml
+singleton Palette Palette.qml
 singleton Settings Settings.qml

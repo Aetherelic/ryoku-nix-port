@@ -15,13 +15,11 @@ Item {
     property bool desktopValid: false
     property string desktopName: ""
     property var desktopColours: []
-    property string desktopPaletteName: "dark16"
     property string desktopImage: ""
     property real desktopFrame: 1
     property string candImage: ""
     property bool isVideo: false
 
-    readonly property string candPaletteName: Wallhaven.paletteName
     readonly property var candColours: Wallhaven.palette
     readonly property real candFrame: Wallhaven.settings.frame
 
@@ -37,7 +35,6 @@ Item {
         return n;
     }
     readonly property bool imageDiff: !desktopValid || desktopImage !== candImage
-    readonly property bool paletteDiff: candPaletteName !== (desktopValid ? desktopPaletteName : "")
     readonly property bool frameDiff: isVideo && (!desktopValid || Math.abs(desktopFrame - candFrame) > 0.001)
 
     implicitHeight: clean ? 40 : dirtyCol.implicitHeight + 2 * Tokens.s3
@@ -122,12 +119,11 @@ Item {
             PaletteRow { width: parent.width; implicitHeight: 16; colors: card.candColours }
         }
 
-        // up to three rows in file syntax: image, palette, frame.
+        // up to two rows in file syntax: image, frame.
         Column {
             width: parent.width
             spacing: 1
             DiffRow { visible: card.imageDiff; k: "image";   was: card.desktopValid ? card.base(card.desktopImage) : "(none)"; now: card.base(card.candImage) }
-            DiffRow { visible: card.paletteDiff; k: "palette"; was: card.desktopValid ? card.desktopPaletteName : "(default)"; now: card.candPaletteName }
             DiffRow { visible: card.frameDiff; k: "frame";   was: card.desktopValid ? card.desktopFrame.toFixed(1) + "s" : "(default)"; now: card.candFrame.toFixed(1) + "s" }
         }
     }

@@ -115,7 +115,7 @@ var rows = [
         "label": "Apply this rice / Applied",
         "desc": "Sums up what applying alters: windows, bar, colours, wallpaper, cursor",
         "ctl": "action",
-        "src": "settings.lua, wallust colors.json, kitty theme)"
+        "src": "settings.lua, ryoku colors.json, kitty theme)"
     },
     {
         "tab": "",

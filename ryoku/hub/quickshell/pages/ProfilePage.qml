@@ -16,7 +16,7 @@ import "../Singletons"
 // line-and-stat callouts pinned to the face (not boxes) -- a body scan of the
 // operator; the dossier trails as brutalist small-print; the audio-wave signal
 // sits over it. Full-bleed. Bone on black; the only colour
-// is the wallust strip (data). Driven by LiveStats at 1.5s -- read-only.
+// is the palette strip (data). Driven by LiveStats at 1.5s -- read-only.
 Item {
     id: pg
 
@@ -100,7 +100,7 @@ Item {
         return "";
     }
 
-    readonly property var paletteModel: SysInfo.sysPalette.length > 0 ? SysInfo.sysPalette.split(",") : Wallust.ramp
+    readonly property var paletteModel: SysInfo.sysPalette.length > 0 ? SysInfo.sysPalette.split(",") : Palette.ramp
     readonly property string barcodeText: "RYOKU-" + SysInfo.codename.toUpperCase() + "-" + (pg.installDate.length > 0 ? pg.installDate : "UNKNOWN")
 
     // customization: read from ProfileStore with the plate's built-in default, so

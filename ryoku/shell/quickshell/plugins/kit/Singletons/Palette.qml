@@ -6,7 +6,7 @@ import Quickshell.Io
 // Thin reader of the daemon palette for the plugin kit. The theme daemon is the
 // sole author of colour in Ryoku: a fixed named theme publishes its palette into
 // shell.json's themePalette key, and follow-the-wallpaper mode writes the live
-// palette to ~/.cache/wallust/colors.json. This resolves each role the pill's
+// palette to ~/.cache/ryoku/colors.json. This resolves each role the pill's
 // way -- a named scheme wins, then the live wallpaper palette, then the compiled
 // default -- so a plugin's card, ink and accent retint on ANY scheme change
 // (static named theme or wallpaper-follow) with no colour math of its own.
@@ -94,7 +94,7 @@ Singleton {
 
     FileView {
         id: wallFile
-        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false

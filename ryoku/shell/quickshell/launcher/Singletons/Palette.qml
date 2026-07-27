@@ -4,9 +4,9 @@ import Quickshell
 import Quickshell.Io
 
 /**
- * The live wallust palette for the pill/shell, used only when Ryoku Settings ->
- * Shell -> Match wallpaper is on. wallust rewrites ~/.cache/wallust/colors.json on
- * every wallpaper change (see wallust.toml) and this watches it, so the pill's
+ * The live palette for the pill/shell, used only when Ryoku Settings ->
+ * Shell -> Match wallpaper is on. matugen rewrites ~/.cache/ryoku/colors.json on
+ * every wallpaper change and this watches it, so the pill's
  * surface fill and accent retune to whatever is on screen.
  *
  * `base` keeps the terminal (kitty) background's hue but is tone-mapped into the
@@ -15,7 +15,7 @@ import Quickshell.Io
  * `line` shift its value for the depth hierarchy. `accent` is the vivified lead
  * tint, lightened by legible() until it clears 3:1 against the elevated surface.
  * Defaults are the Ryoku brand palette so the launcher looks right before the
- * first wallust run; they sit inside the band, so they render unchanged.
+ * first matugen run; they sit inside the band, so they render unchanged.
  */
 Singleton {
     // The shell surface ramp, matched to the wallpaper's terminal background,
@@ -87,7 +87,7 @@ Singleton {
 
     FileView {
         id: file
-        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false

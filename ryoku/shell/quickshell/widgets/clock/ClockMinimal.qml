@@ -10,7 +10,7 @@ Item {
     id: face
 
     readonly property var t: Clk.parts(Now.date, Config.clock24h)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Wallust.accent, Theme.brand, Theme.ink)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Palette.accent, Theme.brand, Theme.ink)
     readonly property real px: Math.round(82 * Config.clockScale)
     readonly property string caption: (Config.clockSeconds ? face.t.ss : "")
         + (Config.clockSeconds && !Config.clock24h ? "  " : "")

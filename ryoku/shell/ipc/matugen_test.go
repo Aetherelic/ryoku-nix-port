@@ -106,7 +106,7 @@ func TestReadMatugenKnobs(t *testing.T) {
 			`"lightnessDark":0.1,"lightnessLight":-0.1,"prefer":"value","sourceColorIndex":3,`+
 			`"themeRyokuApps":false,"templates":{"kitty":true,"btop":false,"gtk":true}}`)
 	k = readMatugenKnobs()
-	if k.Engine != "matugen" || k.SchemeType != "scheme-vibrant" || k.Mode != "dark" ||
+	if k.SchemeType != "scheme-vibrant" || k.Mode != "dark" ||
 		k.Contrast != 0.2 || k.LightnessDark != 0.1 || k.LightnessLight != -0.1 ||
 		k.Prefer != "value" || k.SourceColorIndex != 3 || k.ThemeRyokuApps {
 		t.Errorf("full file: got %+v", k)
@@ -401,7 +401,7 @@ esac`
 	lightWall := filepath.Join(home, "light-wall.png")
 	writeSolidPNG(t, darkWall, 12)
 	writeSolidPNG(t, lightWall, 240)
-	colorsPath := filepath.Join(home, ".cache", "wallust", "colors.json")
+	colorsPath := filepath.Join(home, ".cache", "ryoku", "colors.json")
 
 	combos := []struct {
 		name, scheme, mode, prefer, img string
@@ -537,7 +537,7 @@ func TestMatugenIsolatedDrive(t *testing.T) {
 		`{"engine":"matugen","schemeType":"scheme-tonal-spot","mode":"smart","prefer":"saturation","contrast":0.2,`+
 			`"themeRyokuApps":true,"templates":{"kitty":true,"hyprland":true,"gtk":true,"qt":true,"btop":false}}`)
 
-	colorsPath := filepath.Join(home, ".cache", "wallust", "colors.json")
+	colorsPath := filepath.Join(home, ".cache", "ryoku", "colors.json")
 	kittyOut := filepath.Join(home, ".config", "kitty", "current-theme.conf")
 	btopOut := filepath.Join(home, ".config", "btop", "themes", "ryoku.theme")
 	gtk4 := filepath.Join(home, ".config", "gtk-4.0", "gtk.css")

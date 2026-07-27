@@ -1679,18 +1679,18 @@ func genMotion(o Overrides, full bool) string {
 	return b.String()
 }
 
-// gradientBorderBlock re-reads the live wallust accents at load time (like
+// gradientBorderBlock re-reads the live palette accents at load time (like
 // decoration.lua) so the rotating border re-themes with the wallpaper on reload.
 const gradientBorderBlock = "do\n" +
-	"  local ok, wc = pcall(dofile, os.getenv(\"HOME\") .. \"/.cache/wallust/hypr-colors.lua\")\n" +
+	"  local ok, wc = pcall(dofile, os.getenv(\"HOME\") .. \"/.cache/ryoku/hypr-colors.lua\")\n" +
 	"  local function rgb(h, f) if type(h) ~= \"string\" then h = f end return \"rgb(\" .. h:gsub(\"#\", \"\") .. \")\" end\n" +
 	"  hl.config({ general = { [\"col.active_border\"] = { colors = { rgb(ok and wc and wc.active, \"#e0563b\"), rgb(ok and wc and wc.inactive, \"#313a4d\") }, angle = 45 } } })\n" +
 	"end\n"
 
-// solidBorderBlock restores the plain wallust active border, for a preview that
+// solidBorderBlock restores the plain palette active border, for a preview that
 // switches the rotating border back off.
 const solidBorderBlock = "do\n" +
-	"  local ok, wc = pcall(dofile, os.getenv(\"HOME\") .. \"/.cache/wallust/hypr-colors.lua\")\n" +
+	"  local ok, wc = pcall(dofile, os.getenv(\"HOME\") .. \"/.cache/ryoku/hypr-colors.lua\")\n" +
 	"  local function rgb(h, f) if type(h) ~= \"string\" then h = f end return \"rgb(\" .. h:gsub(\"#\", \"\") .. \")\" end\n" +
 	"  hl.config({ general = { [\"col.active_border\"] = rgb(ok and wc and wc.active, \"#e0563b\") } })\n" +
 	"end\n"
@@ -1711,7 +1711,7 @@ func borderAngleHyprSpeed(friendly float64) float64 {
 // genAnimatedBorder: a rotating gradient on the active window border. off writes
 // nothing to settings.lua (the base solid border stands); a live preview instead
 // stops the sweep and restores the solid border so the toggle reads at once. the
-// gradient reads the wallust accents at load time when colours follow the
+// gradient reads the palette accents at load time when colours follow the
 // wallpaper, and uses the fixed border colours otherwise.
 func genAnimatedBorder(o Overrides, follow, full bool) string {
 	a := o.Appearance

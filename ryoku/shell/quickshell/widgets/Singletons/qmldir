@@ -1,5 +1,5 @@
 singleton Config Config.qml
-singleton Wallust Wallust.qml
+singleton Palette Palette.qml
 singleton Now Now.qml
 singleton Theme Theme.qml
 singleton Registry Registry.qml

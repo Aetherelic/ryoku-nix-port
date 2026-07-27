@@ -35,11 +35,11 @@ var rows = [
         "group": "WIDGET",
         "key": "clockAccent",
         "label": "Accent",
-        "desc": "Highlight colour: wallust follows the wallpaper, mono stays greyscale",
+        "desc": "Highlight colour: palette follows the wallpaper, mono stays greyscale",
         "ctl": "seg",
         "src": "widgets.json",
         "opts": [
-            "wallust",
+            "palette",
             "brand",
             "mono"
         ]

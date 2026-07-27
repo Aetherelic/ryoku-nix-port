@@ -51,9 +51,9 @@ var bootChainSkip = map[string]bool{
 	"snapper": true, "snap-pac": true,
 }
 
-// the standard Ryoku extras, all best-effort here. awww (the wallpaper daemon)
-// and wallust (the palette generator) are hard ryoku-desktop depends from the
-// [ryoku] repo, so the packages step already pulled them; no AUR build is needed.
+// the standard Ryoku extras, all best-effort here. awww (the wallpaper daemon,
+// from the [ryoku] repo) and matugen (the palette generator, from the official
+// repo) are hard ryoku-desktop depends the packages step already pulled; no AUR build is needed.
 var aurPkgs = []string{"bibata-cursor-theme-bin", "localsend-bin", "voxtype-bin"}
 
 // system/packages/dev.packages; ryoku recovery builds from source and needs go.
@@ -508,7 +508,7 @@ var backupMove = []string{
 }
 var backupCopy = []string{
 	".config/niri", ".config/sway", ".config/kitty", ".config/fish", ".config/nvim",
-	".config/fastfetch", ".config/yazi", ".config/wallust", ".config/qt6ct",
+	".config/fastfetch", ".config/yazi", ".config/matugen", ".config/qt6ct",
 	".config/starship.toml", ".config/mimeapps.list",
 	".config/systemd/user", // raw symlink tree, restore.sh puts wants wiring back as-was
 }
@@ -1052,7 +1052,7 @@ EOF`); err != nil {
 
 func stepAUR(e *engine) error {
 	if !e.p.aur {
-		e.say("AUR extras skipped by choice; wallpaper needs wallust + awww (ryoku doctor will nag)")
+		e.say("AUR extras skipped by choice; wallpaper needs awww (ryoku doctor will nag)")
 		return nil
 	}
 	helper := e.f.aurHelper
@@ -1156,9 +1156,9 @@ func stepVerify(e *engine) error {
 		e.say("  DKMS modules are rejected at boot. To switch later, disable Secure Boot in")
 		e.say("  firmware or sign the kernel and modules (sbctl), then re-run this installer.")
 	}
-	// wallust is a hard ryoku-desktop depend from [ryoku], so the packages step
+	// matugen is a hard ryoku-desktop depend (official repo), so the packages step
 	// must have pulled it; a miss here means the desktop set install is broken.
-	check(has("wallust"), "wallust palette generator (colors follow the wallpaper)")
+	check(has("matugen"), "matugen palette generator (colors follow the wallpaper)")
 	if !has("awww") {
 		e.say(gWarn + " awww missing (AUR): static wallpapers will not set until it installs (ryoku doctor retries it)")
 	}

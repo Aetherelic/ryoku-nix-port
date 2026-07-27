@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Changed
+- `ryowalls/`: **the palette preview runs through matugen, and the per-image
+  scheme tune is gone.** The `palette` verb dropped its wallust invocation and
+  now derives the 16-slot preview strip from `matugen image --json hex
+  --dry-run`, mapped onto the daemon's base16 order exactly, so the preview
+  matches what Set writes. The PALETTE lane's tone / character / colorspace /
+  backend / saturation / threshold / contrast rows are removed (colours follow
+  Appearance > Wallpaper globally now); the 16-swatch strip and the
+  live-wallpaper frame control stay, and the pending diff no longer tracks a
+  per-image palette name. The tune state file is `ryoku-ryowalls.json`
+  (`bin/ryowalls`, `quickshell/Singletons/Wallhaven.qml`, `quickshell/PaletteSheet.qml`,
+  `quickshell/App.qml`, `quickshell/PendingCard.qml`, `quickshell/PreviewStack.qml`).
 - `ryovm/`: **a new connection defaults its login to `root`, not you.** A blank
   user on a remote host silently resolves to your local username, which almost
   never matches a VPS and reads as a dead box on first probe. The add form now

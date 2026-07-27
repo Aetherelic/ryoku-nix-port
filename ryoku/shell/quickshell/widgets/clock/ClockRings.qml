@@ -4,7 +4,7 @@ import "../Singletons"
 import "lib/clock.js" as Clk
 
 // rings face: three concentric arcs sweeping hour / minute / second, drawn
-// from the wallust ramp so the whole dial retunes per wallpaper (the design
+// from the palette ramp so the whole dial retunes per wallpaper (the design
 // where the palette IS the point). each ring rides a faint track with a
 // round-capped progress arc; time sits digital in the centre. brand/mono
 // accents fall back to graded shades of brand or ink.
@@ -19,7 +19,7 @@ Item {
     implicitHeight: dia
 
     // repaint when time, palette, accent or size changes.
-    readonly property var repaintKey: [Now.date, Config.clockAccent, Wallust.accent, face.dia, Config.clock24h]
+    readonly property var repaintKey: [Now.date, Config.clockAccent, Palette.accent, face.dia, Config.clock24h]
     onRepaintKeyChanged: canvas.requestPaint()
 
     function css(c, a) {
@@ -27,8 +27,8 @@ Item {
     }
     function ringColor(i) {
         var f = [0.2, 0.5, 0.85][i];
-        if (Config.clockAccent === "wallust")
-            return face.css(Wallust.colorAt(f), 1);
+        if (Config.clockAccent === "palette")
+            return face.css(Palette.colorAt(f), 1);
         if (Config.clockAccent === "brand")
             return face.css(Qt.lighter(Theme.brand, 0.85 + i * 0.28), 1);
         return face.css(Theme.ink, 0.55 + i * 0.22);

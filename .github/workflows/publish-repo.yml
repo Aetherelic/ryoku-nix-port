@@ -97,7 +97,7 @@ jobs:
           # wayland/wayland-protocols) plus hyprcursor/pkgconf build the compositor
           # plugin packages (hypr-dynamic-cursors, ryoku-hypr-plugins, hyprglass,
           # imgborders); makepkg runs --nodeps, so their makedepends must be present
-          # here. rust (cargo) builds wallust and awww from source (awww's
+          # here. rust (cargo) builds awww from source (awww's
           # common/build.rs probes liblz4, hence lz4). gnupg signs, rclone
           # uploads, git backs checkout.
           pacman -Syu --noconfirm --needed \

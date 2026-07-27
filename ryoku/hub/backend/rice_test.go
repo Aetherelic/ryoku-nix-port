@@ -190,8 +190,8 @@ func TestRiceApplyMergesAndRestoreReverts(t *testing.T) {
 	if loadThemeState().FollowWallpaper {
 		t.Fatal("a fixed rice must turn off followWallpaper")
 	}
-	if !isFile(filepath.Join(dir, "cache", "wallust", "colors.json")) {
-		t.Fatal("fixed palette not written to the wallust cache")
+	if !isFile(filepath.Join(dir, "cache", "ryoku", "colors.json")) {
+		t.Fatal("fixed palette not written to the ryoku cache")
 	}
 	reloaded := false
 	for _, c := range calls {
@@ -321,8 +321,8 @@ func TestRiceTouchesAndExport(t *testing.T) {
 	if l := find("launcher.json"); l == nil || l.Provided {
 		t.Fatalf("launcher.json should be present but not provided: %+v", l)
 	}
-	if find("wallust") == nil {
-		t.Fatal("fixed rice should touch the wallust cache")
+	if find("colors.json") == nil {
+		t.Fatal("fixed rice should touch the ryoku palette cache")
 	}
 	if find("Desktop wallpaper") == nil {
 		t.Fatal("bundled wallpaper not reported")

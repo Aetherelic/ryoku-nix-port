@@ -23,7 +23,7 @@ func TestIsVideo(t *testing.T) {
 func TestFrameOffset(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", dir)
-	tune := filepath.Join(dir, "ryoku-wallust.json")
+	tune := filepath.Join(dir, "ryoku-ryowalls.json")
 	video := "/home/x/Pictures/livewalls/clip.mp4"
 
 	// no tune -> the auto default

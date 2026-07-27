@@ -32,7 +32,7 @@ Item {
     // Factory values mirror the wallpaper clock's canonical Config defaults.
     readonly property var factory: ({
         "clockEnabled": true, "clockDesign": "digital", "clock24h": true, "clockSeconds": false,
-        "clockScale": 1.0, "clockOpacity": 1.0, "clockRadius": 26, "clockAccent": "wallust",
+        "clockScale": 1.0, "clockOpacity": 1.0, "clockRadius": 26, "clockAccent": "palette",
         "clockBg": "none", "clockAnchor": "top-left", "clockX": 72, "clockY": 64, "clockLocked": false,
         "dateShow": true, "dateDesign": "inline"
     })
@@ -267,7 +267,7 @@ Item {
             property real clockScale: 1.0
             property real clockOpacity: 1.0
             property int clockRadius: 26
-            property string clockAccent: "wallust"
+            property string clockAccent: "palette"
             property string clockBg: "none"
             property string clockAnchor: "top-left"
             property int clockX: 72
@@ -369,7 +369,7 @@ Item {
                             item.design = Qt.binding(() => pg.draft.clockDesign || "digital");
                             item.is24 = Qt.binding(() => pg.draft.clock24h === true);
                             item.seconds = Qt.binding(() => pg.draft.clockSeconds === true);
-                            item.accentChoice = Qt.binding(() => pg.draft.clockAccent || "wallust");
+                            item.accentChoice = Qt.binding(() => pg.draft.clockAccent || "palette");
                             item.dateShow = Qt.binding(() => pg.draft.dateShow === true);
                             item.dateDesign = Qt.binding(() => pg.draft.dateDesign || "inline");
                         }

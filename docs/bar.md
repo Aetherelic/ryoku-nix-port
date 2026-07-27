@@ -33,7 +33,7 @@ catalogued widgets that fit the target axis.
 - `ryoku-frame`: paper material, grain, Ryoku typography, and brand accents.
 
 Style changes materials and metrics only. It never selects a different rail,
-menu, or input-routing tree. Theme colours come from `Theme` and `Wallust`;
+menu, or input-routing tree. Theme colours come from `Theme` and `Palette`;
 user configurations do not carry a second palette.
 
 ## Bar Studio

@@ -101,6 +101,9 @@ gst-plugins-ugly
 gst-libav
 
 # Wayland tools
+# matugen: the material-you palette engine the shell daemon runs on every
+# wallpaper / scheme change to author colors.json and fan it into app configs.
+matugen
 brightnessctl
 hypridle
 upower

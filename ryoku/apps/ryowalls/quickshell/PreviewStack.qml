@@ -14,7 +14,6 @@ Item {
     property bool desktopValid: false
     property string desktopName: ""
     property var desktopColours: []
-    property string desktopPaletteName: "dark16"
     property string desktopImage: ""
     property real desktopFrame: 1
     property string candImage: ""
@@ -98,7 +97,6 @@ Item {
         desktopValid: stack.desktopValid
         desktopName: stack.desktopName
         desktopColours: stack.desktopColours
-        desktopPaletteName: stack.desktopPaletteName
         desktopImage: stack.desktopImage
         desktopFrame: stack.desktopFrame
         candImage: stack.candImage

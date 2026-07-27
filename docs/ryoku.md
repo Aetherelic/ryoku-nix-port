@@ -38,7 +38,7 @@ built from it; the live machine is only ever a deployment target.
   orchestrates pacman, yay, and snapper.
 - **Hyprland** (`ryoku/hyprland/`) is the compositor, configured in Lua, one
   concern per module. Its autostart brings up the shell and the hardware helpers.
-- **Theming** is wallpaper-driven: `wallust` regenerates the palette from the
+- **Theming** is wallpaper-driven: `matugen` regenerates the palette from the
   current wallpaper, and the terminal and Hyprland colors follow it. With *Theme
   apps* on (the default), `matugen` fans that same palette into GTK / GUI apps
   (Files, editors, other libadwaita/GTK apps) too; off, they stay stock. Brand-

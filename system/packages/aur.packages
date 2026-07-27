@@ -28,11 +28,6 @@ catppuccin-cursors-mocha
 # fail to build; best-effort, like every package in this set.
 apple_cursor
 
-# wallust (the wallpaper -> color palette generator) now ships first-class from
-# the [ryoku] repo as a ryoku-desktop dependency, not the AUR: its AUR package
-# pins a checksum against Codeberg's auto-generated source archive, which
-# Codeberg regenerates non-reproducibly, so the pin drifts and the build fails.
-
 # Wallpaper daemon (awww / awww-daemon): now ships first-class from the [ryoku]
 # repo as a hard ryoku-desktop dependency, not the AUR. The AUR build was skipped
 # on offline installs and best-effort on failure, so a fresh box could come up

@@ -3,7 +3,7 @@ import QtQuick
 import Quickshell
 
 // The plugin kit's design tokens. Colour resolves from the daemon palette
-// through Wallust so a plugin's card, ink and accent follow the active theme (a
+// through the Palette singleton so a plugin's card, ink and accent follow the active theme (a
 // fixed named scheme or the live wallpaper) instead of a hardcoded tint; the
 // RASHIN flame and the rest-card sky stay fixed identity, deliberately
 // independent of the accent. brand/verm are the live accent (the palette
@@ -12,32 +12,32 @@ Singleton {
     // accent family: the live system accent (palette primary), with lit/deep
     // variants tinted off it. brand + verm are the accent under their historical
     // names, so existing plugin content follows the theme with no change.
-    readonly property color accent:   Wallust.accent
-    readonly property color brand:    Wallust.accent
+    readonly property color accent:   Palette.accent
+    readonly property color brand:    Palette.accent
     readonly property color verm:     brand
-    readonly property color vermLit:  Qt.lighter(Wallust.accent, 1.22)
-    readonly property color vermDeep: Qt.darker(Wallust.accent, 1.3)
+    readonly property color vermLit:  Qt.lighter(Palette.accent, 1.22)
+    readonly property color vermDeep: Qt.darker(Palette.accent, 1.3)
     // fixed brand marks, never themed (the deliberate identity accents).
     readonly property color sun:      "#e2342a"
     readonly property color gold:     "#d9a441"
     // text ramp, resolved from the palette so a plugin's copy reads on the themed
     // card in light and dark alike.
-    readonly property color cream:    Wallust.onSurface
-    readonly property color bright:   Wallust.onSurface
-    readonly property color dim:      Wallust.onSurfaceVariant
+    readonly property color cream:    Palette.onSurface
+    readonly property color bright:   Palette.onSurface
+    readonly property color dim:      Palette.onSurfaceVariant
     // card surface, from the palette depth ramp. panelTop/panelBot are the Card
     // gradient stops (aliases of cardTop/cardBot).
-    readonly property color cardTop:  Wallust.base
-    readonly property color cardBot:  Wallust.deep
+    readonly property color cardTop:  Palette.base
+    readonly property color cardBot:  Palette.deep
     readonly property color panelTop: cardTop
     readonly property color panelBot: cardBot
-    readonly property color border:   Wallust.line
+    readonly property color border:   Palette.line
     readonly property color lineStrong: Qt.rgba(bright.r, bright.g, bright.b, 0.40)
     readonly property color shadow:   "#000000"
-    readonly property color tileBg:   Wallust.elevated
-    readonly property color subtle:   Wallust.onSurface
-    readonly property color faint:    Wallust.onSurfaceVariant
-    readonly property color iconDim:  Wallust.onSurfaceVariant
+    readonly property color tileBg:   Palette.elevated
+    readonly property color subtle:   Palette.onSurface
+    readonly property color faint:    Palette.onSurfaceVariant
+    readonly property color iconDim:  Palette.onSurfaceVariant
     readonly property color hair:     Qt.rgba(bright.r, bright.g, bright.b, 0.12)
     readonly property color sheen:    Qt.rgba(bright.r, bright.g, bright.b, 0.06)
     // ember tones for the flame gradients: warm browns of the fixed RASHIN
@@ -45,7 +45,7 @@ Singleton {
     readonly property color vermDim:  "#b05a43"
     readonly property color vermDimDeep: "#65342b"
     readonly property color vermBurn: "#8f321d"
-    readonly property color tickRest: Wallust.onSurfaceVariant
+    readonly property color tickRest: Palette.onSurfaceVariant
     readonly property color threadBg: Qt.rgba(accent.r, accent.g, accent.b, 0.13)
     readonly property color flameCore: "#ffd2bf"
     readonly property color flameGlow: "#ff9e64"

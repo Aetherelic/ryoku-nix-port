@@ -18,7 +18,7 @@ desktop. See `docs/structure.md` for the repo-wide map.
 - `shell/` The Ryoku shell subsystem: `quickshell/` (the QML UI: the morphing
   `pill` island and its `popouts`, the `sidebar`, and `ryoshot`), `plugin/`
   (`Ryoku.Blobs`, the C++/QML SDF metaball module the frame renders with; ships
-  prebuilt), `wallust/` (palette from the wallpaper), `qt6ct/` (the Qt icon
+  prebuilt), `matugen/` (palette from the wallpaper), `qt6ct/` (the Qt icon
   theme, `qt6ct.conf`),
   `systemd/` (the user session target), and `ipc/` (`ryoku-shell`, the Go shell
   daemon that supervises the UI, owns wallpaper/clipboard/lock, and serves the

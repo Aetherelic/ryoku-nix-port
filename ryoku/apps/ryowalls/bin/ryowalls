@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Engine for ryowalls: search and download wallpapers (wallhaven + curated /
-# scraped live sources), a palette verb that prints an image's wallust scheme for
+# scraped live sources), a palette verb that prints an image's matugen palette for
 # the honest live preview, an adjust verb that grades an image (brightness /
 # contrast / saturation / warmth / vignette) for the editor, and an enhance verb
 # that AI-upscales an image or video on the GPU with progress. WALLHAVEN_API_KEY
-# raises limits; the palette + adjust verbs take the same flags the desktop applies.
+# raises limits; the palette verb mirrors the daemon's matugen engine so the live preview matches what Set writes.
 set -euo pipefail
 
 api="https://wallhaven.cc/api/v1"
@@ -194,7 +194,7 @@ enhance_video() {
 	enh_write "$out" "done" "$total" "$total"
 	enh_verdict "done" video 0 0 "$out"
 	# the desktop swap detaches, bounded at 20s: the shell's set can take seconds
-	# (wallust + livewall relaunch) or wedge outright, and the UI holds a dead
+	# (matugen + livewall relaunch) or wedge outright, and the UI holds a dead
 	# "Enhanced" — button hidden, every click swallowed — until this process
 	# exits. The still-current guard runs before detaching, so a wallpaper the
 	# user moved off of is never yanked back; the straggler window is seconds
@@ -297,32 +297,34 @@ download)
 	finish "$out"
 	;;
 palette)
-	url=""; pal=""; cs=""; backend=""; sat=""; thr=""; contrast=0
-	while [ $# -gt 0 ]; do
-		case "$1" in
-		--palette) pal="$2"; shift 2 ;;
-		--colorspace) cs="$2"; shift 2 ;;
-		--backend) backend="$2"; shift 2 ;;
-		--saturation) sat="$2"; shift 2 ;;
-		--threshold) thr="$2"; shift 2 ;;
-		--contrast) contrast=1; shift ;;
-		*) [ -z "$url" ] && url="$1"; shift ;;
-		esac
-	done
-	: "${url:?image url required}"
+	url="${1:?image url required}"
 	tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 	img="$tmp/img"
 	if [ -f "$url" ]; then cp -- "$url" "$img"; else curl -fsSL "${auth[@]}" "$url" -o "$img"; fi
-	# Skip templates, sequences and hooks, cache in the scratch dir: generating
-	# the scheme never disturbs the running desktop. Tune flags mirror the apply.
-	wargs=(run "$img" -T -s -q --no-hooks --print-scheme)
-	[ -n "$pal" ] && wargs+=(-p "$pal")
-	[ -n "$cs" ] && wargs+=(-c "$cs")
-	[ -n "$backend" ] && wargs+=(-b "$backend")
-	[ -n "$sat" ] && wargs+=(--saturation "$sat")
-	[ -n "$thr" ] && wargs+=(-t "$thr")
-	[ "$contrast" = 1 ] && wargs+=(-k)
-	XDG_CACHE_HOME="$tmp/cache" wallust "${wargs[@]}"
+	# Derive the 16-slot palette matugen-backed, mirroring the daemon engine so the
+	# preview matches what Set writes. Mode + source preference come from the one
+	# knob store (~/.config/ryoku/matugen.json); smart resolves to dark for the
+	# preview (the daemon's per-image luma split owns the live light/dark choice).
+	# --dry-run touches nothing on disk; --prefer is required for a non-tty source
+	# pick. The 16 colorN slots mirror matugenBase16 in ipc/matugen.go exactly, so
+	# the preview strip reads like the palette the daemon writes to colors.json.
+	cfg="${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/matugen.json"
+	mode="$(jq -r '.mode // "smart"' "$cfg" 2>/dev/null)"; case "$mode" in light) mode=light ;; *) mode=dark ;; esac
+	prefer="$(jq -r '.prefer // "saturation"' "$cfg" 2>/dev/null)"; case "$prefer" in "" | null) prefer=saturation ;; esac
+	matugen image "$img" --prefer "$prefer" --json hex --dry-run 2>/dev/null | jq -r --arg m "$mode" '
+		def bv($b): if $b == null then null elif (($b.color // "") != "") then $b.color elif (($b.hex // "") != "") then $b.hex else null end;
+		.colors as $c
+		| def role($r; $fb): (bv($c[$r][$m]) // bv($c[$r].default) // bv($c[$r].dark) // bv($c[$r].light) // $fb);
+		  (role("surface"; role("background"; "#121212"))) as $bg
+		| (role("on_surface"; role("on_background"; "#e6e6e6"))) as $fg
+		| (role("primary"; "#a8c7fa")) as $p
+		| (role("secondary"; "#7cacf8")) as $s
+		| (role("tertiary"; "#ffb4a9")) as $t
+		| (role("error"; "#ffb4ab")) as $e
+		| (role("outline"; "#8e918f")) as $o
+		| (role("on_primary_container"; $fg)) as $c15
+		| [$bg,$e,$p,$t,$s,$p,$t,$fg,$o,$e,$p,$t,$s,$p,$o,$c15]
+		| .[]'
 	;;
 moewalls-search)
 	# Anime / aesthetic live wallpapers from moewalls.com. No API, but it runs
@@ -632,7 +634,7 @@ caps)
 	jq -cn --argjson vk "$vk" --argjson up "$up" '{vulkan:$vk,upscaler:$up}'
 	;;
 *)
-	echo "usage: ryowalls search --query <q> --page <n> [--top-range <r>] [--ratios <r>] --json | download <id> <url> | palette <url> [flags] | adjust <src> <out> [--brightness N] [--contrast N] [--saturation N] [--warmth N] [--vignette] [--size W] | enhance <path> | moewalls-search [--query <q>] [--page <n>] --json | moewalls-download <id> <url> | extras-search [--query <q>] --json | extras-download <id> <url> | live-list | live-import <src> | local-list [--type <t>] [--query <q>] | local-remove <path>..." >&2
+	echo "usage: ryowalls search --query <q> --page <n> [--top-range <r>] [--ratios <r>] --json | download <id> <url> | palette <url> | adjust <src> <out> [--brightness N] [--contrast N] [--saturation N] [--warmth N] [--vignette] [--size W] | enhance <path> | moewalls-search [--query <q>] [--page <n>] --json | moewalls-download <id> <url> | extras-search [--query <q>] --json | extras-download <id> <url> | live-list | live-import <src> | local-list [--type <t>] [--query <q>] | local-remove <path>..." >&2
 	exit 2
 	;;
 esac

@@ -269,10 +269,10 @@ func isVideo(p string) bool {
 func liveWallDir() string { return filepath.Join(os.Getenv("HOME"), "Pictures", "livewalls") }
 
 // previewFrameOffset: seconds into a video wallpaper worth screenshotting,
-// from the same per-video wallust tune the shell samples its palette at, so
+// from the same per-video ryowalls tune the shell samples its palette at, so
 // the rice preview shows the frame the user actually tuned the look around.
 func previewFrameOffset(video string) string {
-	b, err := os.ReadFile(filepath.Join(stateHome(), "ryoku-wallust.json"))
+	b, err := os.ReadFile(filepath.Join(stateHome(), "ryoku-ryowalls.json"))
 	if err != nil {
 		return "1"
 	}
@@ -376,7 +376,7 @@ func rehydrateBrandAssets(riceDir, slug string, brand map[string]any) {
 
 // captureRice snapshots the live look (plus the requested behavior layers) into
 // a new user rice, bundling the wallpaper, launcher hero, and (for a locked
-// palette) the wallust colours. cursor and fonts travel by name.
+// palette) the cached colours. cursor and fonts travel by name.
 func captureRice(name string, layers []string) (Rice, error) {
 	slug := slugify(name)
 	if slug == "" {
@@ -460,7 +460,7 @@ func captureRice(name string, layers []string) (Rice, error) {
 		}
 	}
 	if r.Color.Mode == "fixed" {
-		if copyFile(filepath.Join(wallustCacheDir(), "colors.json"), filepath.Join(dir, "palette.json")) != nil {
+		if copyFile(filepath.Join(ryokuCacheDir(), "colors.json"), filepath.Join(dir, "palette.json")) != nil {
 			r.Color.Mode = "wallpaper" // no cached palette: follow the wallpaper instead
 			r.Color.Palette = ""
 		}
@@ -849,7 +849,7 @@ func riceTouches(r Rice, dir string) []riceTouch {
 	}
 	if r.Color.Mode == "fixed" {
 		touches = append(touches,
-			riceTouch{homeRel(filepath.Join(wallustCacheDir(), "colors.json")), "output", "refresh", "Colour palette (wallust cache)", true},
+			riceTouch{homeRel(filepath.Join(ryokuCacheDir(), "colors.json")), "output", "refresh", "Colour palette (ryoku cache)", true},
 			riceTouch{homeRel(kittyThemePath()), "output", "terminal", "kitty colours", true},
 		)
 	}

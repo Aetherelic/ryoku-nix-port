@@ -3,12 +3,12 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The live wallust palette, mirrored for the switcher the same way the pill,
+// The live palette, mirrored for the switcher the same way the pill,
 // launcher and overview mirror it (each qs config has its own singleton root).
-// Used only when Match wallpaper is on. wallust rewrites colors.json on every
+// Used only when Match wallpaper is on. The daemon rewrites colors.json on every
 // wallpaper change; this watches it so the switcher's fill and accent track
 // whatever is on screen. Defaults are the Ryoku brand so it looks right before
-// the first wallust run.
+// the first palette run.
 Singleton {
     readonly property color base:     shade(adapter.background)
     readonly property color elevated: tone(base, 0.05)
@@ -69,7 +69,7 @@ Singleton {
     }
 
     FileView {
-        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false

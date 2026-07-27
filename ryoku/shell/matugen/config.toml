@@ -14,7 +14,7 @@ output_path = "~/.config/kitty/current-theme.conf"
 
 [templates.hypr]
 input_path = "~/.config/matugen/templates/hypr-colors.lua"
-output_path = "~/.cache/wallust/hypr-colors.lua"
+output_path = "~/.cache/ryoku/hypr-colors.lua"
 
 [templates.btop]
 input_path = "~/.config/matugen/templates/btop.theme"

@@ -42,7 +42,7 @@ in the machine.
     lid close in every case, so `ryoku-clamshell` is the only thing that keeps a
     closed lid awake, and only on AC power with an external display.
 - `leds/`
-  - `ryoku-leds` Applies the current wallust accent color to OpenRGB-compatible
+  - `ryoku-leds` Applies the current palette accent color to OpenRGB-compatible
     keyboards and attached lighting devices. It is best-effort: missing OpenRGB,
     unsupported devices, or permission failures never block login or wallpaper
     changes.

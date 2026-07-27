@@ -28,8 +28,8 @@ func loadScheme(mode string) (map[string]string, error) {
 // Quickshell singleton reads) and hands that same palette to matugen, which
 // renders every external app config from it.
 func writePalette(pal map[string]string) {
-	_ = os.MkdirAll(wallustCacheDir(), 0o755)
-	_ = atomicWrite(filepath.Join(wallustCacheDir(), "colors.json"), mustJSON(pal), 0o644)
+	_ = os.MkdirAll(ryokuCacheDir(), 0o755)
+	_ = atomicWrite(filepath.Join(ryokuCacheDir(), "colors.json"), mustJSON(pal), 0o644)
 	renderApps(pal)
 }
 
@@ -139,7 +139,7 @@ func applyThemeApps(on bool) error {
 	st := loadThemeState()
 	st.ThemeApps = &on
 	saveThemeState(st)
-	if pal := readPalette(filepath.Join(wallustCacheDir(), "colors.json")); pal != nil {
+	if pal := readPalette(filepath.Join(ryokuCacheDir(), "colors.json")); pal != nil {
 		renderApps(pal)
 	} else if !on {
 		blankGtk()
@@ -194,12 +194,12 @@ func saveThemeState(s themeState) {
 	_ = atomicWrite(themeStatePath(), mustJSON(s), 0o644)
 }
 
-func wallustCacheDir() string {
+func ryokuCacheDir() string {
 	base := os.Getenv("XDG_CACHE_HOME")
 	if base == "" {
 		base = filepath.Join(os.Getenv("HOME"), ".cache")
 	}
-	return filepath.Join(base, "wallust")
+	return filepath.Join(base, "ryoku")
 }
 
 func kittyThemePath() string {

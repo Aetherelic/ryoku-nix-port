@@ -61,7 +61,7 @@ depends=(
   # cursor picker defaults to it). ships from [ryoku], not the AUR, so a fresh
   # install and `ryoku update` always carry it: the old AUR theme was skipped
   # offline and never revisited by `ryoku update`, leaving the pointer on a lone
-  # fallback bitmap. fixed upstream version, so unpinned like wallust / awww; see
+  # fallback bitmap. fixed upstream version, so unpinned like awww; see
   # release/packages/ryoku-cursors/PKGBUILD.
   'ryoku-cursors'
   # shell + apps configured here
@@ -268,10 +268,6 @@ package() {
   rm -f "$pkgdir/usr/lib/qt6/qml/Ryoku/Ui/install.sh" "$pkgdir"/usr/lib/qt6/qml/Ryoku/Ui/i18n-*.py
   rm -rf "$pkgdir/usr/lib/qt6/qml/Ryoku/Ui/__pycache__"
   chmod -R u=rwX,go=rX "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit"
-
-  # wallust palette gen (templates feed kitty, Hyprland, shell colors).
-  install -d "$cfg/wallust"
-  cp -a "$_repo/ryoku/shell/wallust/." "$cfg/wallust/"
 
   # matugen templates (colors.json + kitty + Hyprland from a palette).
   install -d "$cfg/matugen"
