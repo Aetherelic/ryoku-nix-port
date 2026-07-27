@@ -10,7 +10,6 @@ import (
 )
 
 type matugenConfig struct {
-	Engine           string          `json:"engine"`           // "wallust" or "matugen"
 	SchemeType       string          `json:"schemeType"`       // e.g. "scheme-tonal-spot"
 	Mode             string          `json:"mode"`             // "dark", "light", "smart"
 	Contrast         float64         `json:"contrast"`         // -1.0 to 1.0
@@ -66,13 +65,13 @@ func paletteCarrier(pal map[string]string) map[string]any {
 		put(k, v)
 		put(k+"_argb", "#ff"+strings.TrimPrefix(v, "#"))
 	}
-	// Wallust ships a base16 palette, but the app templates (discord, steam, zed,
+	// A palette may carry only the base16 slots (the light/dark/mono fixed schemes
+	// and rice-locked palettes), but the app templates (discord, steam, zed,
 	// ghostty, obs, telegram, heroic, micro, cava, papirus) speak Material 3 role
-	// names. Map base16 -> M3 roles so those templates resolve on the wallust
-	// engine too -- otherwise one unresolved role aborts the whole matugen render
-	// and every app (Hyprland borders, GTK/Nautilus, kitty, ...) freezes on the
-	// last theme. Only fill roles the palette did not already define, so a real
-	// matugen M3 palette is never overwritten.
+	// names. Map base16 -> M3 roles so those templates resolve -- otherwise one
+	// unresolved role aborts the whole render and every app (Hyprland borders,
+	// GTK/Nautilus, kitty, ...) freezes on the last theme. Only fill roles the
+	// palette did not already define, so a real M3 palette is never overwritten.
 	pick := func(keys ...string) string {
 		for _, k := range keys {
 			if v := pal[k]; v != "" {
@@ -127,7 +126,6 @@ func paletteCarrier(pal map[string]string) map[string]any {
 
 func defaultMatugenConfig() matugenConfig {
 	return matugenConfig{
-		Engine:           "wallust",
 		SchemeType:       "scheme-tonal-spot",
 		Mode:             "dark",
 		Contrast:         0.0,

@@ -389,19 +389,18 @@ func (d *daemon) scheduleTheme() {
 }
 
 // paintWorker: regen the palette for whatever is on screen, reload hypr
-// (config-only, monitors untouched), wake the LED worker. `wallust run` extracts
+// (config-only, monitors untouched), wake the LED worker. matugenApply extracts
 // the palette to ~/.cache/wallust/colors.json (the desktop visualiser live-
-// watches it, so its spectrum retunes too); renderApps then fans that one
-// palette into every app config through matugen. reads state every pass, so a
-// coalesced burst themes the final wallpaper. runs for the life of the daemon.
+// watches it, so its spectrum retunes too) and fans that one palette into every
+// app config. reads state every pass, so a coalesced burst themes the final
+// wallpaper. runs for the life of the daemon.
 func (d *daemon) paintWorker() {
 	for range d.paintSig {
-		// A fixed named theme (matugen engine) owns the palette: fan its curated
-		// palette into the same app templates the wallpaper path renders, then
-		// reload, so apps follow the shell rail's master instead of keeping the
-		// last wallpaper render (the shell-dark / apps-light split). No wallpaper
-		// is needed, so this runs before the wallpaper-file guard below.
-		if isMatugenEngine() && staticThemeActive() {
+		// A fixed named theme owns the palette: fan its curated palette into the
+		// same app templates the wallpaper path renders, then reload, so apps
+		// follow the shell rail's master instead of the last wallpaper render. No
+		// wallpaper is needed, so this runs before the wallpaper-file guard below.
+		if staticThemeActive() {
 			if name := staticThemeName(); name != "" {
 				if err := d.matugenApplyStatic(name); err != nil {
 					fmt.Fprintf(os.Stderr, "paintWorker matugen static: %v\n", err)
@@ -419,48 +418,27 @@ func (d *daemon) paintWorker() {
 		if pic == "" || !isFile(pic) {
 			continue
 		}
-		// The dynamic matugen pipeline owns the palette only while Match wallpaper
-		// is on and no fixed named theme is selected; otherwise it idles so it
-		// never fights the theme daemon's static palette. The wallust fallback
-		// keeps its own gate: a locked (non-following) palette is left untouched.
-		if isMatugenEngine() {
-			if !matugenFollows() {
-				continue
-			}
-		} else if themePaletteLocked() {
+		// The dynamic pipeline owns the palette only while Match wallpaper is on
+		// and no fixed named theme is selected; otherwise it idles so it never
+		// fights the theme daemon's static palette.
+		if !matugenFollows() {
 			continue
 		}
-		// matugen and wallust both read a still image, so a video is themed off
-		// one extracted frame.
+		// matugen reads a still image, so a video is themed off one extracted frame.
 		src := pic
 		if isVideo(pic) {
 			if src = liveFrame(pic); src == "" {
 				continue
 			}
 		}
-		if isMatugenEngine() {
-			if err := d.matugenApply(src); err != nil {
-				fmt.Fprintf(os.Stderr, "paintWorker matugen: %v\n", err)
-			}
-		} else {
-			_ = exec.Command("wallust", append([]string{"run", src}, tuneArgs()...)...).Run()
-			renderApps()
+		if err := d.matugenApply(src); err != nil {
+			fmt.Fprintf(os.Stderr, "paintWorker matugen: %v\n", err)
 		}
 		_ = exec.Command("hyprctl", "reload", "config-only").Run()
 		select {
 		case d.ledsSig <- struct{}{}:
 		default:
 		}
-	}
-}
-
-// renderApps templates the external app configs (kitty, Hyprland, GTK, Qt, btop)
-// from the freshly extracted ~/.cache/wallust/colors.json through matugen, the
-// same engine the fixed schemes drive, so follow-the-wallpaper mode retints the
-// whole suite and not just the shell, kitty, and borders.
-func renderApps() {
-	if out, err := exec.Command(findHubBin(), "hypr", "matugen", "render-apps").CombinedOutput(); err != nil {
-		fmt.Fprintf(os.Stderr, "renderApps matugen: %v: %s\n", err, out)
 	}
 }
 
@@ -484,23 +462,6 @@ func themeAppsEnabled() bool {
 	}
 	return *s.ThemeApps
 }
-func isMatugenEngine() bool {
-	base := os.Getenv("XDG_CONFIG_HOME")
-	if base == "" {
-		base = filepath.Join(os.Getenv("HOME"), ".config")
-	}
-	b, err := os.ReadFile(filepath.Join(base, "ryoku", "matugen.json"))
-	if err != nil {
-		return false
-	}
-	var s struct {
-		Engine string `json:"engine"`
-	}
-	if json.Unmarshal(b, &s) == nil && s.Engine == "matugen" {
-		return true
-	}
-	return false
-}
 
 // blankGtk drops the Ryoku palette from the generated GTK stylesheets, so GTK /
 // libadwaita apps fall back to their own stock colours when app theming is off.
@@ -513,89 +474,9 @@ func blankGtk(cfgBase string) {
 	}
 }
 
-// themePaletteLocked: does a Ryoku Settings theme own the colours (so a wallpaper
-// change keeps them). state at ~/.config/ryoku/theme.json; colours locked when
-// the source doesn't follow the wallpaper.
-func themePaletteLocked() bool {
-	base := os.Getenv("XDG_CONFIG_HOME")
-	if base == "" {
-		base = filepath.Join(os.Getenv("HOME"), ".config")
-	}
-	b, err := os.ReadFile(filepath.Join(base, "ryoku", "theme.json"))
-	if err != nil {
-		return false
-	}
-	// default true when absent (shipped behaviour = follow the wallpaper).
-	s := struct {
-		FollowWallpaper bool `json:"followWallpaper"`
-	}{FollowWallpaper: true}
-	return json.Unmarshal(b, &s) == nil && !s.FollowWallpaper
-}
-
-// wallustTune: the wallhaven app's saved look. when present, its fields append to
-// `wallust run` so a set wallpaper (and later Super+W cycles) match what the app
-// previewed. absent or empty fields fall back to the wallust config.
+// wallustTune: the ryowalls per-image tune (ryoku-wallust.json). frameOffset
+// reads the sampled frame second for a video wallpaper from it.
 func wallustTune() string { return filepath.Join(stateDir(), "ryoku-wallust.json") }
-
-func tuneArgs() []string {
-	b, err := os.ReadFile(wallustTune())
-	if err != nil {
-		return nil
-	}
-	var t struct {
-		Image      string `json:"image"`
-		Palette    string `json:"palette"`
-		Colorspace string `json:"colorspace"`
-		Backend    string `json:"backend"`
-		Saturation int    `json:"saturation"`
-		Threshold  int    `json:"threshold"`
-		Contrast   bool   `json:"contrast"`
-	}
-	if json.Unmarshal(b, &t) != nil {
-		return nil
-	}
-	// per-image: the tune only applies to the image it was set on. a plain
-	// wallpaper change (Super+W, a different image) no longer matches, so it
-	// falls back to default extraction. keyed by path, a stale tune can never
-	// bleed onto another wallpaper.
-	if t.Image == "" || t.Image != readState() {
-		return nil
-	}
-	var a []string
-	if isWallustName(t.Palette) {
-		a = append(a, "-p", t.Palette)
-	}
-	if isWallustName(t.Colorspace) {
-		a = append(a, "-c", t.Colorspace)
-	}
-	if isWallustName(t.Backend) {
-		a = append(a, "-b", t.Backend)
-	}
-	if t.Saturation >= 1 && t.Saturation <= 100 {
-		a = append(a, "--saturation", strconv.Itoa(t.Saturation))
-	}
-	if t.Threshold >= 1 && t.Threshold <= 100 {
-		a = append(a, "-t", strconv.Itoa(t.Threshold))
-	}
-	if t.Contrast {
-		a = append(a, "-k")
-	}
-	return a
-}
-
-// isWallustName: every wallust enum value is a short lowercase-alphanumeric token.
-// reject anything else so a stray tune file can't feed odd args to the process.
-func isWallustName(s string) bool {
-	if s == "" || len(s) > 32 {
-		return false
-	}
-	for _, r := range s {
-		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')) {
-			return false
-		}
-	}
-	return true
-}
 
 // ledsWorker: push accent to OpenRGB. detection is slow (seconds), so it lives on
 // its own coalescing worker and never touches the wallpaper hot path. runs for

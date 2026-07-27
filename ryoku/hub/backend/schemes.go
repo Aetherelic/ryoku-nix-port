@@ -163,8 +163,8 @@ func nudgeGtk() {
 	_ = exec.Command("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", name).Run()
 }
 
-// themeState persists the palette master: whether colours track the wallpaper
-// (wallust) and, when they don't, which curated scheme is locked. Lives at
+// themeState persists the palette master: whether colours follow the wallpaper
+// and, when they don't, which curated scheme is locked. Lives at
 // ~/.config/ryoku/theme.json.
 type themeState struct {
 	FollowWallpaper bool   `json:"followWallpaper"`
@@ -236,11 +236,11 @@ func applyRyokuTheme() error {
 	}
 	frameBars["style"] = "ryoku-frame"
 	mergeShellJSON(map[string]any{
-		"frameBars":    frameBars,
-		"roundness":    0,
-		"frameRadius":  0,
-		"osdRadius":    0,
-		"fontFamily":   "Space Grotesk",
+		"frameBars":   frameBars,
+		"roundness":   0,
+		"frameRadius": 0,
+		"osdRadius":   0,
+		"fontFamily":  "Space Grotesk",
 	})
 	// square window corners: pin the appearance override the daemon reads.
 	o := loadOverrides()
