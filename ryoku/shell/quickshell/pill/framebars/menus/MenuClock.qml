@@ -72,16 +72,8 @@ Item {
         width: root.width
         spacing: 10 * root.s
 
-        // --- date label (1 s tick) ---
-        Text {
-            width: parent.width
-            horizontalAlignment: Text.AlignHCenter
-            text: root.loc.toString(clock.date, "dddd") + "\n"
-                + root.loc.toString(clock.date, "MMMM d, yyyy")
-            color: Theme.onSurface
-            font.family: Theme.fontPrimary
-            font.pixelSize: Theme.fontXl * root.s
-        }
+        // The panel host (the sidebar) already shows the date in its header,
+        // so this surface starts straight at the calendar card.
 
         // --- calendar card ---
         Rectangle {
@@ -112,7 +104,7 @@ Item {
                         width: 18 * root.s
                         height: 18 * root.s
                         name: "chevron-left"
-                        color: prevArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                        color: Theme.inkOn(Theme.effectiveSurface, prevArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant, 3.0)
                         stroke: 1.8
                         MouseArea {
                             id: prevArea
@@ -126,7 +118,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: root.loc.standaloneMonthName(root.viewMonth, Locale.LongFormat) + " " + root.viewYear
-                        color: Theme.onSurface
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                         font.family: Theme.fontPrimary
                         font.pixelSize: Theme.fontMd * root.s
                         font.weight: Font.Bold
@@ -137,7 +129,7 @@ Item {
                         width: 18 * root.s
                         height: 18 * root.s
                         name: "chevron-right"
-                        color: nextArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                        color: Theme.inkOn(Theme.effectiveSurface, nextArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant, 3.0)
                         stroke: 1.8
                         MouseArea {
                             id: nextArea
@@ -163,7 +155,7 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: root.loc.standaloneDayName((root.weekStart + parent.index) % 7, Locale.NarrowFormat)
-                                color: Theme.onSurfaceVariant
+                                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                                 font.family: Theme.fontPrimary
                                 font.pixelSize: Theme.fontSm * root.s
                                 font.weight: Font.Medium
@@ -205,8 +197,9 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: cell.inMonth ? cell.dayNum : cell.ghostNum
-                                color: cell.current ? Theme.onPrimary
-                                    : cell.inMonth ? Theme.onSurface : Theme.onSurfaceVariant
+                                color: cell.current ? Theme.inkOn(Theme.primary, Theme.onPrimary, 3.0)
+                                    : cell.inMonth ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                                                   : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                                 opacity: cell.inMonth ? 1.0 : 0.4
                                 font.family: Theme.fontPrimary
                                 font.pixelSize: Theme.fontSm * root.s

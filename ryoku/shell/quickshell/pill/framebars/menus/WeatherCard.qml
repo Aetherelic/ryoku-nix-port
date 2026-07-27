@@ -37,7 +37,7 @@ Item {
 
             Text {
                 text: root.title
-                color: Theme.onSurface
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontLg * root.s
                 font.weight: Font.Bold

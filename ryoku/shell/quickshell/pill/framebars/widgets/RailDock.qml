@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Qt5Compat.GraphicalEffects
 import Quickshell
 import "../../Singletons"
 import "../.." as Pill
@@ -78,14 +77,13 @@ Item {
             width: root.horizontal ? Math.max(36 * root.scale, iconPx + 20 * root.scale) : root.cross
             height: root.horizontal ? root.cross : Math.max(36 * root.scale, iconPx + 20 * root.scale)
 
-            // The shell's own glyph set is the only icon source, exactly as the
-            // reference resolves app icons against its shell theme: a class with
-            // no glyph there falls back to the app-grid dots. No system icon
-            // themes, no coloured app icons (bar parity spec sec 4).
-            readonly property string themedGlyph: {
+            // Docker-style items: the real app icon, in colour, resolved from
+            // the desktop entry and the system icon themes (user decision). The
+            // app-grid glyph is only the last resort when nothing resolves.
+            readonly property string iconSource: {
                 const desktop = DesktopEntries.heuristicLookup(className);
-                const name = (desktop && desktop.icon) ? desktop.icon : className;
-                return name.toLowerCase();
+                const byEntry = (desktop && desktop.icon) ? Quickshell.iconPath(desktop.icon, true) : "";
+                return byEntry !== "" ? byEntry : Quickshell.iconPath(className.toLowerCase(), true);
             }
 
             Rectangle {
@@ -101,23 +99,17 @@ Item {
                 anchors.centerIn: parent
                 width: item.iconPx
                 height: item.iconPx
-                visible: false
-                source: Qt.resolvedUrl("../icons/" + item.themedGlyph + "-symbolic.svg")
+                visible: item.iconSource !== "" && status === Image.Ready
+                source: item.iconSource
                 sourceSize.width: width
                 sourceSize.height: height
                 smooth: true
-            }
-
-            ColorOverlay {
-                anchors.fill: dockIcon
-                visible: dockIcon.status === Image.Ready
-                source: dockIcon
-                color: item.fg
+                asynchronous: true
             }
 
             Pill.SymbolIcon {
                 anchors.centerIn: parent
-                visible: dockIcon.status !== Image.Ready
+                visible: !dockIcon.visible
                 name: "view-app-grid"
                 size: item.iconPx
                 color: item.fg

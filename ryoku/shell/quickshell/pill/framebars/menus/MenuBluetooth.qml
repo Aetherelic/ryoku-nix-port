@@ -34,10 +34,21 @@ Item {
 
     // Discovery is tied to the reveal edge (contract 06 sec 4). Closing the menu
     // collapses the panel and ends discovery; destruction releases ownership.
+    // Detail-page mode: the sidebar page arrives with the device list revealed
+    // and discovery running, exactly as if the drawer had been clicked.
+    property bool pageMode: false
+    function forceReveal() {
+        if (!row.revealed) {
+            row.revealed = true;
+            BluetoothDiscovery.setDiscovering(root, root.adapter, true);
+        }
+    }
     onOpenChanged: {
         if (!root.open) {
             row.revealed = false;
             BluetoothDiscovery.setDiscovering(root, root.adapter, false);
+        } else if (root.pageMode) {
+            root.forceReveal();
         }
     }
     Component.onDestruction: BluetoothDiscovery.setDiscovering(root, root.adapter, false)
@@ -153,7 +164,7 @@ Item {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     text: qsTr("Paired Devices")
-                    color: Theme.onSurfaceVariant
+                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontLg
                     font.weight: Font.Bold
@@ -163,7 +174,7 @@ Item {
                     visible: root.pairedDevices.length === 0
                     horizontalAlignment: Text.AlignHCenter
                     text: qsTr("No Paired Devices")
-                    color: Theme.onSurface
+                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontMd
                 }
@@ -181,7 +192,7 @@ Item {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     text: qsTr("Discovered Devices")
-                    color: Theme.onSurfaceVariant
+                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontLg
                     font.weight: Font.Bold
@@ -191,7 +202,7 @@ Item {
                     visible: root.discoveredDevices.length === 0
                     horizontalAlignment: Text.AlignHCenter
                     text: qsTr("No Devices Found")
-                    color: Theme.onSurface
+                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontMd
                 }

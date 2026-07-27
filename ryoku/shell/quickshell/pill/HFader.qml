@@ -56,7 +56,7 @@ Item {
             width: 17 * root.s
             height: 17 * root.s
             name: root.muted ? (root.icon === "mic" ? "mic-off" : "speaker-off") : root.icon
-            color: root.muted ? Theme.onSurfaceVariant : (root.lit ? Theme.onSurface : Theme.onSurfaceVariant)
+            color: Theme.inkOn(Theme.effectiveSurface, (root.muted || !root.lit) ? Theme.onSurfaceVariant : Theme.onSurface, 3.0)
             stroke: 1.7
         }
 
@@ -75,7 +75,7 @@ Item {
         width: 34 * root.s
         horizontalAlignment: Text.AlignRight
         text: root.valueLabel
-        color: root.muted ? Theme.onSurfaceVariant : (root.lit ? Theme.onSurface : Theme.onSurfaceVariant)
+        color: (root.muted || !root.lit) ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0) : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
         opacity: (root.lit || root.muted) ? 1 : 0.7
         font.family: Theme.fontPrimary
         font.pixelSize: 9.5 * root.s

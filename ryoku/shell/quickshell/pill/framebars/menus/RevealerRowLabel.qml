@@ -13,7 +13,7 @@ Text {
     elide: Text.ElideRight
     horizontalAlignment: Text.AlignLeft
     verticalAlignment: Text.AlignVCenter
-    color: Theme.onSurface
+    color: Theme.ink(Theme.effectiveSurface)
     font.family: Theme.fontPrimary
     font.pixelSize: Theme.fontMd
     font.weight: Font.Bold

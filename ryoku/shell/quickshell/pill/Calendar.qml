@@ -112,7 +112,7 @@ PillSurface {
                 id: monthTitle
                 text: root.loc.standaloneMonthName(root.viewMonth, Locale.LongFormat)
                     + " " + root.viewYear
-                color: Theme.onSurface
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                 font.family: Theme.display
                 font.pixelSize: 21 * root.s
                 font.weight: Font.DemiBold
@@ -144,7 +144,7 @@ PillSurface {
                         width: 16 * root.s
                         height: 16 * root.s
                         name: nav.modelData < 0 ? "chevron-left" : "chevron-right"
-                        color: navArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant
+                        color: Theme.inkOn(Theme.effectiveSurface, navArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant, 3.0)
                         stroke: 1.8
                     }
 
@@ -190,7 +190,7 @@ PillSurface {
                 Text {
                     anchors.centerIn: parent
                     text: root.loc.standaloneDayName((wd.index + 1) % 7, Locale.NarrowFormat)
-                    color: wd.weekend ? Theme.onSurfaceVariant : Theme.onSurfaceVariant
+                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                     font.family: Theme.fontPrimary
                     font.pixelSize: 9 * root.s
                     font.weight: Font.Medium
@@ -237,7 +237,7 @@ PillSurface {
                     height: 22 * root.s
                     radius: Theme.radiusWidget
                     color: cellArea.containsMouse && cell.inMonth && !cell.current
-                        ? Qt.rgba(0.94, 0.88, 0.84, 0.04) : "transparent"
+                        ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.04) : "transparent"
                 }
 
                 Rectangle {
@@ -266,10 +266,10 @@ PillSurface {
                     anchors.centerIn: parent
                     text: cell.inMonth ? cell.dayNum : cell.ghostNum
                     color: cell.inMonth
-                        ? (cell.current ? Theme.primary
-                            : (cell.weekend ? Theme.onSurfaceVariant : Theme.onSurface))
+                        ? (cell.current ? Theme.inkOn(Theme.effectiveSurface, Theme.primary, 3.0)
+                            : (cell.weekend ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                            : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)))
                         : Theme.ghost
-                    opacity: cell.inMonth && !cell.current && !cell.weekend ? 0.85 : 1.0
                     font.family: Theme.fontPrimary
                     font.pixelSize: 11 * root.s
                     font.weight: cell.current ? Font.DemiBold : Font.Normal
@@ -325,13 +325,13 @@ PillSurface {
                 width: 16 * root.s
                 height: 16 * root.s
                 name: Weather.glyph
-                color: Theme.onSurfaceVariant
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                 stroke: 1.7
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: Weather.temp
-                color: Theme.onSurface
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                 font.family: Theme.fontPrimary
                 font.pixelSize: 13 * root.s
                 font.weight: Font.DemiBold
@@ -342,7 +342,7 @@ PillSurface {
                 visible: Weather.daily.length > 0
                 text: Weather.daily.length > 0
                     ? "\u2191" + Weather.daily[0].hi + "\u00b0  \u2193" + Weather.daily[0].lo + "\u00b0" : ""
-                color: Theme.onSurfaceVariant
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                 font.family: Theme.fontPrimary
                 font.pixelSize: 10 * root.s
                 font.weight: Font.Medium
@@ -355,7 +355,7 @@ PillSurface {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 1 * root.s
             text: Weather.condition
-            color: Theme.onSurfaceVariant
+            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
             font.family: Theme.fontPrimary
             font.pixelSize: 10 * root.s
             font.weight: Font.Medium
@@ -384,7 +384,7 @@ PillSurface {
 
             Text {
                 text: root.prettyDate(root.selectedKey)
-                color: Theme.onSurfaceVariant
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                 font.family: Theme.fontPrimary
                 font.pixelSize: 10 * root.s
                 font.weight: Font.DemiBold
@@ -409,7 +409,7 @@ PillSurface {
                         text: evRow.modelData.time && evRow.modelData.time.length > 0
                             ? (evRow.hasRange ? evRow.modelData.time + "-" + evRow.modelData.endTime : evRow.modelData.time)
                             : "all"
-                        color: Theme.onSurfaceVariant
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                         font.family: Theme.fontPrimary
                         font.pixelSize: 10 * root.s
                         font.features: { "tnum": 1 }
@@ -420,7 +420,7 @@ PillSurface {
                         width: parent.width - (evRow.hasRange ? 72 : 36) * root.s - delBtn.width - 16 * root.s
                         text: evRow.modelData.text
                         elide: Text.ElideRight
-                        color: Theme.onSurface
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                         font.family: Theme.fontPrimary
                         font.pixelSize: 11 * root.s
                     }
@@ -436,7 +436,7 @@ PillSurface {
                         Text {
                             anchors.centerIn: parent
                             text: "\u00d7"
-                            color: delArea.containsMouse ? Theme.primary : Theme.onSurfaceVariant
+                            color: Theme.inkOn(Theme.effectiveSurface, delArea.containsMouse ? Theme.primary : Theme.onSurfaceVariant, 3.0)
                             font.family: Theme.fontPrimary
                             font.pixelSize: 14 * root.s
                         }
@@ -475,7 +475,7 @@ PillSurface {
                     width: parent.width
                     height: 26 * root.s
                     radius: Theme.radiusWidget
-                    color: addField.activeFocus ? Theme.frameBg : Qt.rgba(0.94, 0.88, 0.84, 0.03)
+                    color: addField.activeFocus ? Theme.frameBg : Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.03)
                     border.width: 1
                     border.color: addField.activeFocus ? Theme.frameBorder : Theme.outlineVariant
 
@@ -487,11 +487,11 @@ PillSurface {
                         verticalAlignment: TextInput.AlignVCenter
                         background: null
                         padding: 0
-                        color: Theme.onSurface
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                         font.family: Theme.fontPrimary
                         font.pixelSize: 11 * root.s
                         placeholderText: "Add for this day (e.g. 09:30 standup)"
-                        placeholderTextColor: Theme.onSurfaceVariant
+                        placeholderTextColor: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                         selectByMouse: true
                         selectionColor: Theme.primary
                         onAccepted: {

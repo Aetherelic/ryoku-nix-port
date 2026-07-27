@@ -13,6 +13,7 @@ Loader {
     property real scale: 1
     property bool open: false
     property int depth: 0
+    property real avail: 0
 
     signal requestClose()
     source: Qt.resolvedUrl("../../MenuWidgetHost.qml")
@@ -22,6 +23,7 @@ Loader {
         item.scale = Qt.binding(() => host.scale);
         item.open = Qt.binding(() => host.open);
         item.depth = Qt.binding(() => host.depth);
+        item.avail = Qt.binding(() => host.avail);
     }
 
     Connections {

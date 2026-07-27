@@ -187,7 +187,7 @@ Item {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: card.player ? (card.player.trackTitle || "") : ""
-                color: Theme.onSurfaceVariant
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm
                 font.weight: Font.Bold
@@ -197,7 +197,7 @@ Item {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: card.player ? Theme.joinArtists(card.player.trackArtists, card.player.trackArtist) : ""
-                color: Theme.onSurface
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm
                 font.weight: Font.Bold
@@ -214,7 +214,7 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.fmtTime(card.shownFrac * card.len)
-                    color: Theme.onSurface
+                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontSm
                 }
@@ -223,7 +223,7 @@ Item {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.fmtTime(card.len)
-                    color: Theme.onSurface
+                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontSm
                 }
@@ -294,7 +294,7 @@ Item {
                 anchors.rightMargin: Theme.paddingMd
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.player ? (root.player.identity.length > 0 ? root.player.identity : root.player.dbusName) : ""
-                color: Theme.onSurfaceVariant
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm
                 font.weight: Font.Bold

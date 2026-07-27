@@ -483,7 +483,7 @@ ShellRoot {
             // mid-drag; losing the region there kills the grab and the island
             // snaps home while the button is still held.
             mask: monFullscreen ? hiddenRegion
-                : ((surfaceModal || recHud.dragging) ? fullRegion : railRegion)
+                : ((frameMenus.anyOpen || recHud.dragging) ? fullRegion : railRegion)
 
             Region { id: hiddenRegion }
             Region {
@@ -527,8 +527,30 @@ ShellRoot {
                 Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
             }
 
-            // No outside-click dismissal: a menu closes only on its seven
-            // defined paths (contract 05 sec 4).
+            // Outside-click closes whatever is open (user decision, recorded as
+            // a divergence from contract 05): a press that reaches the backdrop,
+            // outside the bars and the open panel, dismisses. Presses on rails
+            // and content never reach here; they hit the items above.
+            MouseArea {
+                anchors.fill: parent
+                enabled: frameMenus.anyOpen
+                acceptedButtons: Qt.AllButtons
+                onPressed: mouse => {
+                    for (const a in frameMenus.masks) {
+                        const m = frameMenus.masks[a];
+                        if (!m) continue;
+                        if (m.tw > 0 && mouse.x >= m.tx && mouse.x < m.tx + m.tw
+                            && mouse.y >= m.ty && mouse.y < m.ty + m.th) return;
+                        if (m.bw > 0 && mouse.x >= m.bx && mouse.x < m.bx + m.bw
+                            && mouse.y >= m.by && mouse.y < m.by + m.bh) return;
+                    }
+                    if (mouse.x < root.edgeReserve("left") || mouse.y < root.edgeReserve("top")
+                        || mouse.x >= overlay.width - root.edgeReserve("right")
+                        || mouse.y >= overlay.height - root.edgeReserve("bottom"))
+                        return;
+                    frameMenus.closeAll();
+                }
+            }
 
             FocusScope {
                 id: focusScope

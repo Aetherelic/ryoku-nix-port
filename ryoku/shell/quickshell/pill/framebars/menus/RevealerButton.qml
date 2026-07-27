@@ -16,7 +16,7 @@ Item {
     property string iconName: ""
     property string label: ""
     property string secondaryIconName: ""
-    property color iconColor: Theme.onSurface
+    property color iconColor: Theme.ink(Theme.effectiveSurface)
 
     default property alias revealedContent: revealHold.data
 

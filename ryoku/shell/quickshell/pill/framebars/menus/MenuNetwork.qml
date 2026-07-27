@@ -30,10 +30,23 @@ Item {
 
     implicitHeight: row.implicitHeight
 
+    // Detail-page mode: hosted as a sidebar page, the list arrives already
+    // revealed and the scan starts as if the drawer had been clicked.
+    property bool pageMode: false
+    function forceReveal() {
+        if (!row.revealed) {
+            row.revealed = true;
+            root.scanning = true;
+            Network.refresh();
+            scanClear.restart();
+        }
+    }
     onOpenChanged: {
         Network.setVpnPolling(root, root.open);
         if (!root.open)
             row.revealed = false;
+        else if (root.pageMode)
+            root.forceReveal();
     }
     Component.onCompleted: Network.setVpnPolling(root, root.open)
     Component.onDestruction: Network.setVpnPolling(root, false)
@@ -108,7 +121,7 @@ Item {
     component SectionLabel: Text {
         width: parent ? parent.width : 0
         horizontalAlignment: Text.AlignHCenter
-        color: Theme.onSurfaceVariant
+        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
         font.family: Theme.fontPrimary
         font.pixelSize: Theme.fontLg
         font.weight: Font.Bold
@@ -118,7 +131,7 @@ Item {
     component EmptyLabel: Text {
         width: parent ? parent.width : 0
         horizontalAlignment: Text.AlignHCenter
-        color: Theme.onSurface
+        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
         font.family: Theme.fontPrimary
         font.pixelSize: Theme.fontMd
     }
@@ -239,7 +252,7 @@ Item {
                             anchors.leftMargin: Theme.paddingMd
                             anchors.rightMargin: Theme.paddingMd
                             anchors.verticalCenter: parent.verticalCenter
-                            color: Theme.onSurface
+                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                             font.family: Theme.fontPrimary
                             font.pixelSize: Theme.fontSm
                             clip: true
@@ -248,7 +261,7 @@ Item {
                                 anchors.fill: parent
                                 verticalAlignment: Text.AlignVCenter
                                 text: qsTr("Path to .conf")
-                                color: Theme.onSurfaceVariant
+                                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                                 font: wgPath.font
                                 visible: wgPath.text.length === 0 && !wgPath.activeFocus
                             }
@@ -396,7 +409,7 @@ Item {
                         anchors.leftMargin: Theme.paddingMd
                         anchors.rightMargin: Theme.paddingSm
                         anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.onSurface
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                         font.family: Theme.fontPrimary
                         font.pixelSize: Theme.fontSm
                         echoMode: apRow.showPassword ? TextInput.Normal : TextInput.Password
@@ -406,7 +419,7 @@ Item {
                             anchors.fill: parent
                             verticalAlignment: Text.AlignVCenter
                             text: qsTr("Password")
-                            color: Theme.onSurfaceVariant
+                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                             font: pwEntry.font
                             visible: pwEntry.text.length === 0 && !pwEntry.activeFocus
                         }
@@ -420,7 +433,7 @@ Item {
                         height: Theme.iconSm
                         font.pixelSize: Theme.iconSm
                         text: apRow.showPassword ? "visibility_off" : "visibility"
-                        color: Theme.onSurfaceVariant
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                         TapHandler { onTapped: apRow.showPassword = !apRow.showPassword }
                     }
                 }
@@ -435,7 +448,7 @@ Item {
                         id: errText
                         anchors.centerIn: parent
                         text: qsTr("Error Connecting")
-                        color: Theme.onError
+                        color: Theme.inkOn(Theme.error, Theme.onError)
                         font.family: Theme.fontPrimary
                         font.pixelSize: Theme.fontMd
                         font.weight: Font.Bold

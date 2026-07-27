@@ -46,7 +46,7 @@ hl.bind(K(mod .. " + L"),         hl.dsp.exec_cmd("ryoku-shell lock"))
 hl.bind(K(mod .. " + Escape"),    hl.dsp.exec_cmd("ryoku-shell menu quick-settings")) -- session actions live in quick settings
 hl.bind(K(mod .. " + W"),         hl.dsp.exec_cmd("ryoku-shell menu wallpaper"))      -- wallpaper and theme menu
 hl.bind(K(mod .. " + C"),         hl.dsp.exec_cmd("ryoku-shell wallpaper-switcher")) -- wallpaper switcher (unified images + live, colour-sorted)
-hl.bind(K(mod .. " + SHIFT + W"), hl.dsp.exec_cmd("ryoku-summon ryowalls flock -n -o /tmp/ryowalls.lock qs -c ryowalls")) -- ryowalls: summon to current workspace
+hl.bind(K(mod .. " + SHIFT + W"), hl.dsp.exec_cmd("ryoku-shell wallpaper random")) -- random wallpaper, random transition
 hl.bind(K(mod .. " + SHIFT + V"), hl.dsp.exec_cmd("ryoku-summon ryovm flock -n -o /tmp/ryovm.lock qs -c ryovm")) -- ryovm: summon to current workspace
 hl.bind(K(mod .. " + Tab"),       hl.dsp.exec_cmd("ryoku-shell overview")) -- workspace overview (expo: live previews, drag windows between workspaces, cycle)
 hl.bind(K(mod .. " + ALT + Tab"), hl.dsp.exec_cmd("ryoku-shell overview")) -- workspace overview, stepping desktops (Alt+Tab again inside cycles desktops)
@@ -54,9 +54,7 @@ hl.bind(K(mod .. " + M"),         hl.dsp.exec_cmd("ryoku-shell visualizer"))    
 hl.bind(K(mod .. " + SHIFT + M"), hl.dsp.exec_cmd("ryoku-shell visualizer-overlay")) -- raise the visualiser over windows (flip back to desktop)
 hl.bind(K(mod .. " + G"),         hl.dsp.exec_cmd("ryoku-shell ryolayer"))         -- ryolayer: the tool overlay (music + EQ, mic; drag, resize, pin over the desktop)
 hl.bind(K(mod .. " + grave"),     hl.dsp.exec_cmd("ryoku-shell voice"))             -- tap: Voxtype speech-to-text + mic wave (tap again to stop)
-hl.bind(K(mod .. " + comma"),     hl.dsp.exec_cmd("flock -n -o /tmp/ryoku-hub.lock qs -c hub"))     -- ryoku settings
-hl.bind(K(mod .. " + period"),    hl.dsp.exec_cmd("ryoku-hub config set section bar-studio; flock -n -o /tmp/ryoku-hub.lock qs -c hub"))
-hl.bind(K(mod .. " + K"),         hl.dsp.exec_cmd("ryoku-hub config set section keybinds; flock -n -o /tmp/ryoku-hub.lock qs -c hub")) -- keybind reference (the live shortcut legend)
+hl.bind(K(mod .. " + comma"),     hl.dsp.exec_cmd("ryoku-shell hub open"))     -- ryoku settings
 hl.bind(K(mod .. " + S"),         hl.dsp.exec_cmd("ryoku-shell menu screenshot"))    -- quick capture menu (no confirmation)
 hl.bind(K(mod .. " + SHIFT + S"), hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))  -- ryoshot: beautify and annotate
 hl.bind(K(mod .. " + SHIFT + C"), hl.dsp.exec_cmd("hyprpicker -a"))                 -- pick a color

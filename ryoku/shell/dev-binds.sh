@@ -1,29 +1,39 @@
 #!/usr/bin/env bash
 # add (on) or drop (off) the Ryoku shell keybinds on the live session so the
-# real bindings can be exercised. overrides yours until `hyprctl reload`.
+# real bindings can be exercised from a dev checkout. The compositor's Lua
+# runtime owns binds (plain `hyprctl keyword` is rejected there), and binding
+# a bound chord stacks a second handler, so every change is an explicit
+# unbind then bind through `hyprctl eval`. `off` re-registers nothing: reload
+# the config to restore the shipped bindings.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
 bin="$here/ipc/ryoku-shell"
 
-binds=(
-	"SUPER,Space,exec,$bin launcher"
-	"SUPER,L,exec,$bin lock"
-	"SUPER,Escape,exec,$bin menu quick-settings"
-	"SUPER,W,exec,$bin menu wallpaper"
-	"SUPER,S,exec,$bin menu screenshot"
-	"SUPER,C,exec,$bin wallpaper-switcher"
-	"SUPER,Tab,exec,$bin overview"
+chords=("SUPER + Space" "SUPER + L" "SUPER + Escape" "SUPER + W" "SUPER + S" "SUPER + C" "SUPER + Tab" "SUPER + comma")
+cmds=(
+	"$bin launcher"
+	"$bin lock"
+	"$bin menu quick-settings"
+	"$bin menu wallpaper"
+	"$bin menu screenshot"
+	"$bin wallpaper-switcher"
+	"$bin overview"
+	"$bin hub open"
 )
 
 case "${1:-on}" in
 on)
-	for b in "${binds[@]}"; do hyprctl keyword bind "$b" >/dev/null; done
+	for i in "${!chords[@]}"; do
+		hyprctl eval "hl.unbind(\"${chords[$i]}\"); hl.bind(\"${chords[$i]}\", hl.dsp.exec_cmd(\"${cmds[$i]}\"))" >/dev/null
+	done
 	echo "keybinds added. restore yours with: hyprctl reload"
 	;;
 off)
-	for b in "${binds[@]}"; do hyprctl keyword unbind "${b%%,exec,*}" >/dev/null; done
-	echo "keybinds removed"
+	for c in "${chords[@]}"; do
+		hyprctl eval "hl.unbind(\"$c\")" >/dev/null
+	done
+	echo "keybinds removed. restore the shipped ones with: hyprctl reload"
 	;;
 *)
 	echo "usage: dev-binds.sh [on|off]" >&2

@@ -25,9 +25,10 @@ Item {
     property real minH: 0
     // The content colour a child icon/label binds to, resolved through the
     // state so a caller never recomputes surface/primary/disabled tones.
-    readonly property color contentColor: root.selected ? Theme.onPrimary
-        : (!root.enabled && !root.keepEnabledLook) ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.38)
-        : Theme.onSurface
+    readonly property color restingInk: Theme.ink(Theme.effectiveSurface)
+    readonly property color contentColor: root.selected ? Theme.inkOn(Theme.primary, Theme.onPrimary)
+        : (!root.enabled && !root.keepEnabledLook) ? Qt.rgba(root.restingInk.r, root.restingInk.g, root.restingInk.b, 0.38)
+        : root.restingInk
 
     signal clicked()
 

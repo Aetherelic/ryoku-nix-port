@@ -44,6 +44,6 @@ Item {
         label: root.timeText()
         labelSize: 13
         labelLineHeight: 17.2
-        onClicked: root.menuRequested("clock", Qt.rect(0, 0, root.width, root.height))
+        onClicked: root.menuRequested("quick-settings", Qt.rect(0, 0, root.width, root.height))
     }
 }

@@ -60,7 +60,7 @@ Item {
             id: loadingLabel
             anchors.centerIn: parent
             text: qsTr("Weather loading\u2026")
-            color: Theme.onSurface
+            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.fontPrimary
             font.pixelSize: Theme.fontMd * root.s
@@ -80,7 +80,7 @@ Item {
         Text {
             width: parent.width
             text: Weather.errorText.length > 0 ? Weather.errorText : qsTr("Error loading weather.")
-            color: Theme.error
+            color: Theme.inkOn(Theme.effectiveSurface, Theme.error, 3.0)
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.fontPrimary
             font.pixelSize: Theme.fontMd * root.s
@@ -97,7 +97,7 @@ Item {
                 id: retryLabel
                 anchors.centerIn: parent
                 text: qsTr("Retry")
-                color: Theme.onSurface
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm * root.s
             }
@@ -126,7 +126,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: Weather.location
                 elide: Text.ElideRight
-                color: Theme.onSurfaceVariant
+                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm * root.s
                 font.weight: Font.Bold
@@ -208,13 +208,13 @@ Item {
                                     width: 48 * root.s
                                     height: 48 * root.s
                                     name: Weather.current ? Weather.current.icon : "wx-unknown"
-                                    color: Theme.onSurface
+                                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                     stroke: 1.6
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: Weather.current ? Weather.current.temperature : ""
-                                    color: Theme.onSurface
+                                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                     font.family: Theme.fontPrimary
                                     font.pixelSize: Theme.fontXl * root.s
                                     font.weight: Font.Bold
@@ -223,7 +223,7 @@ Item {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: qsTr("Feels like: ") + (Weather.current ? Weather.current.feelsLike : "")
-                                color: Theme.onSurface
+                                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                 font.family: Theme.fontPrimary
                                 font.pixelSize: Theme.fontSm * root.s
                             }
@@ -241,13 +241,13 @@ Item {
                                         width: 20 * root.s
                                         height: 20 * root.s
                                         name: modelData.icon
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                         stroke: 1.6
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: modelData.value
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                         font.weight: Font.Bold
@@ -255,7 +255,7 @@ Item {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: modelData.unit
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                     }
@@ -274,7 +274,7 @@ Item {
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: modelData.label
-                                    color: Theme.onSurface
+                                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                     font.family: Theme.fontPrimary
                                     font.pixelSize: Theme.fontSm * root.s
                                 }
@@ -286,13 +286,13 @@ Item {
                                         width: 20 * root.s
                                         height: 20 * root.s
                                         name: modelData.icon
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                         stroke: 1.6
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: modelData.value
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                         font.weight: Font.Bold
@@ -327,7 +327,7 @@ Item {
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: modelData.time
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                         font.weight: Font.Bold
@@ -337,13 +337,13 @@ Item {
                                         width: 20 * root.s
                                         height: 20 * root.s
                                         name: modelData.icon
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                         stroke: 1.6
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: modelData.temperature
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                         font.weight: Font.Bold
@@ -351,7 +351,7 @@ Item {
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: modelData.uv
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                         font.weight: Font.Bold
@@ -386,7 +386,7 @@ Item {
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: modelData.weekday
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                         font.weight: Font.Bold
@@ -396,13 +396,13 @@ Item {
                                         width: 20 * root.s
                                         height: 20 * root.s
                                         name: modelData.icon
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface, 3.0)
                                         stroke: 1.6
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: modelData.high
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                         font.weight: Font.Bold
@@ -410,7 +410,7 @@ Item {
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: modelData.low
-                                        color: Theme.onSurface
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                         font.family: Theme.fontPrimary
                                         font.pixelSize: Theme.fontSm * root.s
                                         font.weight: Font.Bold

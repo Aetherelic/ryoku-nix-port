@@ -14,7 +14,7 @@ Item {
     property string iconName: ""
     property string label: ""
     property string secondaryIconName: ""
-    property color iconColor: Theme.onSurface
+    property color iconColor: Theme.ink(Theme.effectiveSurface)
 
     implicitHeight: Math.max(Theme.iconSm, text.implicitHeight)
     implicitWidth: (root.iconName ? Theme.iconSm + 12 : 0) + text.implicitWidth

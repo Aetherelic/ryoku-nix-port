@@ -43,6 +43,9 @@ Item {
                     widget: modelData
                     scale: root.scale
                     open: root.open
+                    // A sole widget owns the whole band (the sidebar fills it);
+                    // stacked widgets keep natural heights.
+                    avail: root.widgets.length === 1 ? root.height - root.pad * 2 : 0
                     onRequestClose: root.requestClose()
                 }
             }

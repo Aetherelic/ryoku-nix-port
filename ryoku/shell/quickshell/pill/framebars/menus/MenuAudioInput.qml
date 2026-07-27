@@ -17,6 +17,10 @@ Item {
 
     implicitHeight: row.implicitHeight
 
+    // Detail-page mode: hosted as a sidebar page, the device list arrives open.
+    property bool pageMode: false
+    onOpenChanged: if (root.open && root.pageMode) row.revealed = true
+
     readonly property var source: Audio.source
     readonly property real vol: root.source && root.source.audio ? root.source.audio.volume : 0
     readonly property bool muted: root.source && root.source.audio ? root.source.audio.muted : false
