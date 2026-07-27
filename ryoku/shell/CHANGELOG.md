@@ -26,8 +26,35 @@
   migrate to this contract through `ryoku doctor`
   (`quickshell/pill/framebars/`, `hub/quickshell/barstudio/`, `ipc/`,
   `cli/internal/doctor/`).
+- **The notification, clipboard, and media panels moved into the quick settings
+  sidebar as slide-in pages.** Their standalone frame menus were mostly empty
+  surfaces; now the bar's bell and clipboard buttons open the sidebar straight
+  onto that page, media rides a Shelf row beside them, and each page loads on
+  first visit and stays cached so the first open stays light. The retired menu
+  records leave the catalog, the way the clock menu did
+  (`quickshell/pill/framebars/menus/`, `quickshell/pill/framebars/widgets/`,
+  `framebars/FrameBars.js`, `framebars/MenuCatalog.js`).
+- **Sidebar motion speaks one language.** A `push` token (420 ms on an OutQuint
+  settle) drives every page transition, and a global `speed` multiplier read
+  from performance.json scales the shell's animation in one place; the hover
+  bubbles and press dips draw from the same vocabulary
+  (`quickshell/pill/Singletons/Motion.qml`).
+- **Sidebar cards carry a sumi edge.** A single 1 px light line along the top of
+  the tiles, the media and calendar cards, and the docked footer band, like the
+  lit edge of layered paper (`quickshell/pill/SumiEdge.qml`).
+- **Today's calendar cell wears the 力 seal.** The brand mark sits faint behind
+  the day number, inside the primary-tinted ring
+  (`quickshell/pill/Calendar.qml`).
 
 ### Fixed
+- **The voice surface no longer records when dictation is off.** The Super+grave
+  tap with Voxtype absent opened a wave-mode surface that ran cava on the mic
+  and never closed, because the off flag set on the record never reached the
+  surface delegate, which read the static config record rather than the live
+  one. The live record's open-time fields now reach the delegate, so the surface
+  shows a quiet "Dictation off" note, spawns no capture, and auto-dismisses
+  (`quickshell/pill/FrameMenuManager.qml`, `quickshell/pill/FrameSurface.qml`,
+  `quickshell/pill/VoiceSurface.qml`).
 - **Frame surfaces open again, and stay open.** On a real session every menu,
   the power card and both sidebars vanished a few milliseconds after opening.
   A modal surface takes the overlay's exclusive keyboard focus, and the shell
