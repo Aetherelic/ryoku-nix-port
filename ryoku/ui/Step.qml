@@ -11,6 +11,16 @@ Row {
     property int stepBy: (to - from) > 60 ? 4 : 1
     signal modified(int v)
 
+    activeFocusOnTab: true
+    function activate(up) { bump(up) }
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Right || event.key === Qt.Key_Up || event.key === Qt.Key_Plus) {
+            bump(true); event.accepted = true;
+        } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Down || event.key === Qt.Key_Minus) {
+            bump(false); event.accepted = true;
+        }
+    }
+
     spacing: 0
 
     Repeater {

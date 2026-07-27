@@ -8,6 +8,17 @@ Flow {
     property string current: ""
     signal chose(string key)
 
+    activeFocusOnTab: true
+    function activate(i) { if (i >= 0 && i < options.length) chose(options[i]) }
+    Keys.onPressed: event => {
+        var i = options.indexOf(current);
+        if (event.key === Qt.Key_Right || event.key === Qt.Key_Down) {
+            activate(Math.min(options.length - 1, i + 1)); event.accepted = true;
+        } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Up) {
+            activate(Math.max(0, i - 1)); event.accepted = true;
+        }
+    }
+
     spacing: 5
 
     Repeater {

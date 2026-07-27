@@ -7,12 +7,21 @@ Rectangle {
     property bool on: false
     signal toggled(bool v)
 
+    activeFocusOnTab: true
+    function activate() { toggled(!on) }
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            activate();
+            event.accepted = true;
+        }
+    }
+
     implicitWidth: 54
     implicitHeight: 24
     radius: Tokens.radius
     color: "transparent"
     border.width: Tokens.border
-    border.color: hh.hovered ? Tokens.lineStrong : Tokens.line
+    border.color: activeFocus ? Tokens.bone : (hh.hovered ? Tokens.lineStrong : Tokens.line)
     antialiasing: false
     Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
 

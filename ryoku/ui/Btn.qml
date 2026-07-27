@@ -9,13 +9,22 @@ Rectangle {
     property bool compact: false
     signal act()
 
+    activeFocusOnTab: armed
+    function activate() { if (armed) act() }
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            activate();
+            event.accepted = true;
+        }
+    }
+
     implicitWidth: lab.width + (compact ? 20 : 30)
     implicitHeight: compact ? 24 : 32
     radius: Tokens.radius
     opacity: armed ? 1 : 0.3
     color: primary && armed ? Tokens.bone : (bh.hovered && armed ? Tokens.tint10 : "transparent")
     border.width: Tokens.border
-    border.color: primary && armed ? Tokens.bone : (bh.hovered && armed ? Tokens.lineStrong : Tokens.line)
+    border.color: activeFocus ? Tokens.bone : (primary && armed ? Tokens.bone : (bh.hovered && armed ? Tokens.lineStrong : Tokens.line))
     Behavior on color { ColorAnimation { duration: Tokens.snap } }
     Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
 
