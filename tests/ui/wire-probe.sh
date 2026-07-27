@@ -10,7 +10,6 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-repo="$here/../.."
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
