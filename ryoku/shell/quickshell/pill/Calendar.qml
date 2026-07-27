@@ -250,6 +250,15 @@ PillSurface {
                     border.width: 1
                     border.color: Qt.alpha(Theme.primary, 0.55)
                 }
+                // The 力 seal set faint behind today's number: the brand mark in
+                // one quiet place. The primary-tinted ring above stays as it was.
+                BrandMark {
+                    anchors.centerIn: parent
+                    visible: cell.current
+                    size: 18 * root.s
+                    color: Theme.primary
+                    opacity: 0.24
+                }
 
                 Rectangle {
                     anchors.centerIn: parent

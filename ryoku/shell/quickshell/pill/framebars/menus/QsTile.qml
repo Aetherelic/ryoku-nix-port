@@ -42,6 +42,7 @@ Item {
             ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.55)
             : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.30)
         Behavior on color { ColorAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
+        Pill.SumiEdge {}
     }
 
     MouseArea {
@@ -65,7 +66,7 @@ Item {
             id: iconDisc
             anchors.verticalCenter: parent.verticalCenter
             scale: face.pressed ? 0.86 : 1
-            Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
+            Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
             width: 34
             height: 34
             radius: 17
@@ -120,7 +121,7 @@ Item {
             ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.12)
             : "transparent"
         scale: pageTap.pressed ? 0.9 : 1
-        Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
+        Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
         Pill.MaterialIcon {
             anchors.centerIn: parent
             font.pixelSize: 16

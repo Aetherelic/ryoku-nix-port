@@ -83,6 +83,7 @@ Item {
         border.width: Theme.borderWidth
         border.color: Theme.outline
         implicitHeight: cardCol.implicitHeight + Theme.paddingMd * 2
+        Pill.SumiEdge {}
 
         readonly property real posn: card.player ? card.player.position : 0
         readonly property real len: (card.player && card.player.length > 0) ? card.player.length : 0

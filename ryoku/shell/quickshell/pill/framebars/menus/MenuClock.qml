@@ -83,6 +83,7 @@ Item {
             border.width: Theme.borderWidth
             border.color: Theme.outline
             implicitHeight: cal.implicitHeight + 2 * (10 * root.s)
+            Pill.SumiEdge {}
 
             Column {
                 id: cal
