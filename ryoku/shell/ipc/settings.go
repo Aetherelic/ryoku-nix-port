@@ -240,9 +240,9 @@ type notificationsSettings struct {
 }
 
 type wallpaperSettings struct {
-	WallpaperDir       string  `json:"wallpaper_dir"`
-	ContentFit         string  `json:"content_fit"`
-	ApplyThemeFilter   bool    `json:"apply_theme_filter"`
+	WallpaperDir        string  `json:"wallpaper_dir"`
+	ContentFit          string  `json:"content_fit"`
+	ApplyThemeFilter    bool    `json:"apply_theme_filter"`
 	ThemeFilterStrength float64 `json:"theme_filter_strength"`
 }
 
@@ -250,9 +250,9 @@ func ip(n int) *int { return &n }
 
 // mw builds a unit menu-widget; spc a spacer; qa a quick-actions group. Used only
 // to spell the default widget lists.
-func mw(kind string) menuWidget            { return menuWidget{Type: kind} }
-func spc(size int) menuWidget              { return menuWidget{Type: "Spacer", Size: ip(size)} }
-func qa(actions ...string) menuWidget      { return menuWidget{Type: "QuickActions", Actions: actions} }
+func mw(kind string) menuWidget       { return menuWidget{Type: kind} }
+func spc(size int) menuWidget         { return menuWidget{Type: "Spacer", Size: ip(size)} }
+func qa(actions ...string) menuWidget { return menuWidget{Type: "QuickActions", Actions: actions} }
 
 // defaultSettings is the shipped schema default, matching contract 14 section 8
 // value for value. Slices are non-nil so the frame is always a defined array,
@@ -277,9 +277,9 @@ func defaultSettings() *settings {
 			},
 		},
 		Bars: barsSettings{
-			Frame:   frameConfig{EnableFrame: true, MonitorFilter: []string{}},
-			Widgets: barWidgetsConfig{QuickSettings: quickSettingsWidget{Icon: "Arch"}},
-			TopBar:  horizontalBar{MinimumHeight: 0, RevealByDefault: true, LeftWidgets: []string{}, CenterWidgets: []string{}, RightWidgets: []string{}},
+			Frame:     frameConfig{EnableFrame: true, MonitorFilter: []string{}},
+			Widgets:   barWidgetsConfig{QuickSettings: quickSettingsWidget{Icon: "Arch"}},
+			TopBar:    horizontalBar{MinimumHeight: 0, RevealByDefault: true, LeftWidgets: []string{}, CenterWidgets: []string{}, RightWidgets: []string{}},
 			BottomBar: horizontalBar{MinimumHeight: 0, RevealByDefault: true, LeftWidgets: []string{}, CenterWidgets: []string{}, RightWidgets: []string{}},
 			LeftBar: verticalBar{
 				MinimumWidth:    0,
@@ -295,18 +295,18 @@ func defaultSettings() *settings {
 			RightBar: verticalBar{MinimumWidth: 0, RevealByDefault: true, TopWidgets: []string{}, CenterWidgets: []string{}, BottomWidgets: []string{}},
 		},
 		Menus: menusSettings{
-			ClockMenu:         menu("Left", 410, mw("Calendar"), spc(20), mw("Weather")),
-			ClipboardMenu:     menu("Left", 410, mw("Clipboard")),
+			ClockMenu:     menu("Left", 410, mw("Calendar"), spc(20), mw("Weather")),
+			ClipboardMenu: menu("Left", 410, mw("Clipboard")),
 			QuickSettingsMenu: menu("Left", 410,
 				mw("Clock"), mw("Network"), mw("Bluetooth"), mw("AudioOutput"), mw("AudioInput"),
 				mw("PowerProfiles"), mw("MediaPlayer"),
 				spc(20), qa("AirplaneMode", "NightLight", "ColorPicker", "Settings"),
 				spc(20), qa("Logout", "Lock", "Reboot", "Shutdown"),
 			),
-			NotificationMenu: menu("Left", 410, mw("Notifications")),
-			ScreenshotMenu:   menu("Left", 410, mw("Screenshots"), mw("Divider"), mw("ScreenRecording")),
-			WallpaperMenu:    menu("Bottom", 1200, mw("ThemePicker"), mw("Wallpaper")),
-			ScreenshareMenu:  screenshareMenuConfig{Position: "Left"},
+			NotificationMenu:       menu("Left", 410, mw("Notifications")),
+			ScreenshotMenu:         menu("Left", 410, mw("Screenshots"), mw("Divider"), mw("ScreenRecording")),
+			WallpaperMenu:          menu("Bottom", 1200, mw("ThemePicker"), mw("Wallpaper")),
+			ScreenshareMenu:        screenshareMenuConfig{Position: "Left"},
 			LeftMenuExpansionType:  "AlwaysExpanded",
 			RightMenuExpansionType: "AlwaysExpanded",
 		},
@@ -632,12 +632,16 @@ func writeContract(full map[string]any, ns *settings) {
 	}
 }
 
-// resolveThemePalette syncs the passthrough themePalette key to the active theme:
+// resolveThemePalette syncs the derived state of the active theme: the passthrough
+// themePalette key here, and theme.json's followWallpaper next door.
+//
 // the selected static theme's palette (role token -> hex) is copied in, or the key
 // is removed for the two dynamic variants (Default, Wallpaper), which have none.
 // Called wherever raw and its theme selection are rebuilt (load, patch, and reset
 // through patch), so the pill's Theme.namedScheme always tracks the chosen theme.
 func resolveThemePalette(full map[string]any, themeName string) {
+	// The live path is gated on theme.json, so the same selection has to reach it.
+	syncFollowWallpaper(themeName)
 	pal, ok := themePalettes[themeName]
 	if !ok {
 		delete(full, "themePalette")

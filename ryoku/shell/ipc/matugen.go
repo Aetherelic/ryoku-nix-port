@@ -24,8 +24,8 @@ import (
 // app suite. Match wallpaper off, or a fixed named theme active, leaves the
 // pipeline idle so it never fights the static palette the theme daemon owns.
 //
-// One knob store, one renderer: ~/.config/ryoku/matugen.json holds engine,
-// scheme, mode, contrast, prefer, per-app roster and the app-suite toggle. The
+// One knob store, one renderer: ~/.config/ryoku/matugen.json holds mode,
+// contrast, prefer, the per-app roster and the app-suite toggle. The
 // Hub appearance page writes that file; the daemon reads it and watches it, so a
 // knob save retints exactly as a wallpaper change does. There is no second knob
 // source and no second renderer.
@@ -33,7 +33,7 @@ import (
 // The installed matugen needs two passes:
 //
 //  1. Scheme generation:
-//     matugen image <img> -t <type> -m <mode> --contrast <c>
+//     matugen image <img> -t scheme-tonal-spot -m <mode> --contrast <c>
 //     --lightness-dark <ld> --lightness-light <ll> --source-color-index <i>
 //     --prefer <pref> --json hex --dry-run
 //     emits the Material 3 palette on stdout and touches nothing on disk.
@@ -51,7 +51,6 @@ import (
 // (~/.config/ryoku/matugen.json). The token values are matugen's own CLI
 // vocabulary, so the constructed argv passes them straight through.
 type matugenKnobs struct {
-	SchemeType       string          // e.g. "scheme-tonal-spot"
 	Mode             string          // "dark" | "light" | "smart"
 	Contrast         float64         // -1.0 .. 1.0
 	LightnessDark    float64         // affine lightness transform for dark schemes
@@ -64,23 +63,21 @@ type matugenKnobs struct {
 
 // The value sets matugen accepts. An out-of-schema knob fails the run loudly
 // rather than handing matugen a token it would reject.
-var (
-	matugenSchemeTypes = map[string]bool{
-		"scheme-content": true, "scheme-expressive": true, "scheme-fidelity": true,
-		"scheme-fruit-salad": true, "scheme-monochrome": true, "scheme-neutral": true,
-		"scheme-rainbow": true, "scheme-tonal-spot": true, "scheme-vibrant": true,
-	}
-	matugenPrefers = map[string]bool{
-		"darkness": true, "lightness": true, "saturation": true,
-		"less-saturation": true, "value": true, "closest-to-fallback": true,
-	}
-)
+var matugenPrefers = map[string]bool{
+	"darkness": true, "lightness": true, "saturation": true,
+	"less-saturation": true, "value": true, "closest-to-fallback": true,
+}
+
+// The one scheme Ryoku generates with. The picker that used to choose this was
+// removed: half its options (monochrome, neutral) drain the colour out of every
+// wallpaper, which reads as "live colours are broken" rather than as a choice,
+// and the remaining spread is not worth a control that can silently do that.
+const matugenSchemeType = "scheme-tonal-spot"
 
 // defaultMatugenKnobs backs a missing or partial matugen.json so a run still
 // produces a valid argv. They mirror the shipped matugen.json.
 func defaultMatugenKnobs() matugenKnobs {
 	return matugenKnobs{
-		SchemeType:     "scheme-tonal-spot",
 		Mode:           "smart",
 		Contrast:       0,
 		Prefer:         "saturation",
@@ -98,7 +95,6 @@ func readMatugenKnobs() matugenKnobs {
 		return k
 	}
 	var doc struct {
-		SchemeType       *string         `json:"schemeType"`
 		Mode             *string         `json:"mode"`
 		Contrast         *float64        `json:"contrast"`
 		LightnessDark    *float64        `json:"lightnessDark"`
@@ -110,9 +106,6 @@ func readMatugenKnobs() matugenKnobs {
 	}
 	if json.Unmarshal(b, &doc) != nil {
 		return k
-	}
-	if doc.SchemeType != nil && *doc.SchemeType != "" {
-		k.SchemeType = *doc.SchemeType
 	}
 	if doc.Mode != nil && *doc.Mode != "" {
 		k.Mode = *doc.Mode
@@ -144,9 +137,6 @@ func readMatugenKnobs() matugenKnobs {
 // bad knob fails loudly. --prefer is required: the installed matugen refuses to
 // pick a source colour non-interactively without it.
 func matugenArgs(img string, k matugenKnobs, mode string) ([]string, error) {
-	if !matugenSchemeTypes[k.SchemeType] {
-		return nil, fmt.Errorf("unknown schemeType %q", k.SchemeType)
-	}
 	if mode != "dark" && mode != "light" {
 		return nil, fmt.Errorf("unresolved mode %q (want dark|light)", mode)
 	}
@@ -162,7 +152,7 @@ func matugenArgs(img string, k matugenKnobs, mode string) ([]string, error) {
 	f := func(v float64) string { return strconv.FormatFloat(v, 'f', 2, 64) }
 	return []string{
 		"image", img,
-		"-t", k.SchemeType,
+		"-t", matugenSchemeType,
 		"-m", mode,
 		"--contrast", f(c),
 		"--lightness-dark", f(k.LightnessDark),
@@ -255,6 +245,32 @@ func ffmpegLuma(img string) (float64, bool) {
 	return (0.299*r + 0.587*g + 0.114*b) / 255, true
 }
 
+// syncFollowWallpaper makes theme.json's followWallpaper track the selected
+// scheme. Without it the two disagree: the Appearance page and the sidebar write
+// theme.theme, nothing writes followWallpaper, and the live path is gated on
+// followWallpaper alone -- so picking the live scheme after anything had turned
+// it off (a rice, a fixed palette) selected a scheme that never regenerated.
+// theme.theme is the master; this is its shadow. Other keys in the file
+// (themeApps) are preserved.
+func syncFollowWallpaper(themeName string) {
+	path := filepath.Join(ryokuConfigDir(), "theme.json")
+	doc := map[string]any{}
+	if b, err := os.ReadFile(path); err == nil {
+		_ = json.Unmarshal(b, &doc)
+	}
+	// Follow whenever no fixed palette is selected -- the same rule the pipeline
+	// itself gates on, so the two cannot drift again. Deliberately not "only the
+	// Wallpaper pick": that would redefine Default, which follows the wallpaper
+	// today. `ryoku-hub hypr scheme` still pins the key afterwards for the fixed
+	// light/dark/mono schemes, and it runs last.
+	follow := !staticName(themeName)
+	if cur, ok := doc["followWallpaper"].(bool); ok && cur == follow {
+		return
+	}
+	doc["followWallpaper"] = follow
+	_ = writeJSONFile(path, doc)
+}
+
 // matchWallpaperOn reports whether the colour master follows the wallpaper. The
 // key lives in theme.json (the single source the daemon, window borders and shell
 // chrome all read), defaulting off to match the shell's own Config default.
@@ -286,18 +302,26 @@ func staticThemeName() string {
 	if json.Unmarshal(b, &s) != nil {
 		return ""
 	}
-	switch s.Theme.Theme {
-	case "", "Default", "Wallpaper":
+	if !staticName(s.Theme.Theme) {
 		return ""
-	default:
-		return s.Theme.Theme
 	}
+	return s.Theme.Theme
 }
 
 // staticThemeActive reports whether a fixed named theme is selected. Its palette
 // is owned by the theme catalog, and the dynamic wallpaper pipeline stays idle so
 // it never fights that static palette; the static render path drives apps instead.
 func staticThemeActive() bool { return staticThemeName() != "" }
+
+// staticName reports whether a theme.theme value names a fixed palette, as
+// opposed to the two dynamic variants. The one place the distinction is made.
+func staticName(name string) bool {
+	switch name {
+	case "", "Default", "Wallpaper":
+		return false
+	}
+	return true
+}
 
 // matugenFollows reports whether the dynamic matugen pipeline owns the palette
 // now: Match wallpaper on and no fixed named theme selected.
@@ -739,11 +763,15 @@ func matugenRenderTemplates(shell map[string]string, k matugenKnobs) {
 		fmt.Fprintf(os.Stderr, "matugen carrier: %v\n", err)
 		return
 	}
+	// A roster key the user explicitly turned off stays off; a group ABSENT from
+	// their roster is one that shipped after they last saved it, and defaults on.
+	// Absent-means-off would have kept every app added from here on dark for
+	// everyone who had ever opened the appearance page.
 	enabled := func(group string) bool {
-		if k.Templates == nil {
-			return true
+		if v, ok := k.Templates[group]; ok {
+			return v
 		}
-		return k.Templates[group]
+		return true
 	}
 	matugenRenderFiltered(filepath.Join(dir, "config.toml"), carrierPath, enabled)
 	if k.ThemeRyokuApps {
@@ -926,6 +954,8 @@ func matugenEnsureDirs() {
 		filepath.Join(cfg, "zed", "themes"),
 		filepath.Join(cfg, "heroic", "store", "styles"),
 		filepath.Join(cfg, "cava"),
+		filepath.Join(cfg, "fish", "conf.d"),
+		filepath.Join(cfg, "yazi"),
 		filepath.Join(cfg, "ghostty"),
 		filepath.Join(cfg, "micro", "colorschemes"),
 		filepath.Join(data, "TelegramDesktop", "tdata"),

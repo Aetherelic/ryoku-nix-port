@@ -16,7 +16,8 @@ import (
 // TestMatugenArgs pins the argv the pipeline hands matugen for each knob
 // combination: the matugen.json tokens pass straight through, the resolved
 // light/dark mode is the -m value, lightness / source-index / prefer are wired
-// from the knobs, and contrast clamps to [-1, 1].
+// from the knobs, contrast clamps to [-1, 1], and -t is always the one scheme
+// Ryoku generates with (the picker that could set it was removed).
 func TestMatugenArgs(t *testing.T) {
 	cases := []struct {
 		name string
@@ -25,28 +26,28 @@ func TestMatugenArgs(t *testing.T) {
 		want []string
 	}{
 		{
-			"tonal-spot / dark / saturation / 0.2",
-			matugenKnobs{SchemeType: "scheme-tonal-spot", Prefer: "saturation", Contrast: 0.2},
+			"dark / saturation / 0.2",
+			matugenKnobs{Prefer: "saturation", Contrast: 0.2},
 			"dark",
 			[]string{"image", "/w.png", "-t", "scheme-tonal-spot", "-m", "dark", "--contrast", "0.20", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "saturation", "--json", "hex", "--dry-run"},
 		},
 		{
-			"vibrant / light / value / +0.5 / ld+0.3 / ll-0.2 / idx2",
-			matugenKnobs{SchemeType: "scheme-vibrant", Prefer: "value", Contrast: 0.5, LightnessDark: 0.3, LightnessLight: -0.2, SourceColorIndex: 2},
+			"light / value / +0.5 / ld+0.3 / ll-0.2 / idx2",
+			matugenKnobs{Prefer: "value", Contrast: 0.5, LightnessDark: 0.3, LightnessLight: -0.2, SourceColorIndex: 2},
 			"light",
-			[]string{"image", "/w.png", "-t", "scheme-vibrant", "-m", "light", "--contrast", "0.50", "--lightness-dark", "0.30", "--lightness-light", "-0.20", "--source-color-index", "2", "--prefer", "value", "--json", "hex", "--dry-run"},
+			[]string{"image", "/w.png", "-t", "scheme-tonal-spot", "-m", "light", "--contrast", "0.50", "--lightness-dark", "0.30", "--lightness-light", "-0.20", "--source-color-index", "2", "--prefer", "value", "--json", "hex", "--dry-run"},
 		},
 		{
-			"monochrome / contrast clamp high",
-			matugenKnobs{SchemeType: "scheme-monochrome", Prefer: "darkness", Contrast: 5},
+			"contrast clamp high",
+			matugenKnobs{Prefer: "darkness", Contrast: 5},
 			"dark",
-			[]string{"image", "/w.png", "-t", "scheme-monochrome", "-m", "dark", "--contrast", "1.00", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "darkness", "--json", "hex", "--dry-run"},
+			[]string{"image", "/w.png", "-t", "scheme-tonal-spot", "-m", "dark", "--contrast", "1.00", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "darkness", "--json", "hex", "--dry-run"},
 		},
 		{
-			"fruit-salad / contrast clamp low",
-			matugenKnobs{SchemeType: "scheme-fruit-salad", Prefer: "less-saturation", Contrast: -5},
+			"contrast clamp low",
+			matugenKnobs{Prefer: "less-saturation", Contrast: -5},
 			"light",
-			[]string{"image", "/w.png", "-t", "scheme-fruit-salad", "-m", "light", "--contrast", "-1.00", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "less-saturation", "--json", "hex", "--dry-run"},
+			[]string{"image", "/w.png", "-t", "scheme-tonal-spot", "-m", "light", "--contrast", "-1.00", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "less-saturation", "--json", "hex", "--dry-run"},
 		},
 	}
 	for _, c := range cases {
@@ -70,13 +71,35 @@ func TestMatugenArgsRejectsUnknown(t *testing.T) {
 		k    matugenKnobs
 		mode string
 	}{
-		{"unknown schemeType", matugenKnobs{SchemeType: "scheme-bogus", Prefer: "saturation"}, "dark"},
-		{"unresolved smart mode", matugenKnobs{SchemeType: "scheme-tonal-spot", Prefer: "saturation"}, "smart"},
-		{"unknown prefer", matugenKnobs{SchemeType: "scheme-tonal-spot", Prefer: "nope"}, "dark"},
+		{"unresolved smart mode", matugenKnobs{Prefer: "saturation"}, "smart"},
+		{"unknown prefer", matugenKnobs{Prefer: "nope"}, "dark"},
 	}
 	for _, c := range cases {
 		if _, err := matugenArgs("/w.png", c.k, c.mode); err == nil {
 			t.Errorf("%s: expected error, got nil", c.name)
+		}
+	}
+}
+
+// TestStoredSchemeTypeIsInert pins the removal: a matugen.json left over from the
+// retired picker must not reach the argv. scheme-monochrome drained every
+// wallpaper grey, which is what "live colours don't work" looked like.
+func TestStoredSchemeTypeIsInert(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	if err := os.MkdirAll(filepath.Join(home, ".config", "ryoku"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(home, ".config", "ryoku", "matugen.json"),
+		`{"schemeType":"scheme-monochrome","mode":"dark","prefer":"saturation"}`)
+	args, err := matugenArgs("/w.png", readMatugenKnobs(), "dark")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, a := range args {
+		if a == "-t" && args[i+1] != "scheme-tonal-spot" {
+			t.Fatalf("-t = %q, want scheme-tonal-spot (a stored schemeType must be inert)", args[i+1])
 		}
 	}
 }
@@ -96,7 +119,7 @@ func TestReadMatugenKnobs(t *testing.T) {
 
 	// Missing file -> defaults.
 	k := readMatugenKnobs()
-	if k.SchemeType != "scheme-tonal-spot" || k.Mode != "smart" || k.Prefer != "saturation" || !k.ThemeRyokuApps {
+	if k.Mode != "smart" || k.Prefer != "saturation" || !k.ThemeRyokuApps {
 		t.Errorf("defaults: got %+v", k)
 	}
 
@@ -106,7 +129,7 @@ func TestReadMatugenKnobs(t *testing.T) {
 			`"lightnessDark":0.1,"lightnessLight":-0.1,"prefer":"value","sourceColorIndex":3,`+
 			`"themeRyokuApps":false,"templates":{"kitty":true,"btop":false,"gtk":true}}`)
 	k = readMatugenKnobs()
-	if k.SchemeType != "scheme-vibrant" || k.Mode != "dark" ||
+	if k.Mode != "dark" ||
 		k.Contrast != 0.2 || k.LightnessDark != 0.1 || k.LightnessLight != -0.1 ||
 		k.Prefer != "value" || k.SourceColorIndex != 3 || k.ThemeRyokuApps {
 		t.Errorf("full file: got %+v", k)
@@ -404,24 +427,24 @@ esac`
 	colorsPath := filepath.Join(home, ".cache", "ryoku", "colors.json")
 
 	combos := []struct {
-		name, scheme, mode, prefer, img string
-		contrast                        float64
-		wantArgs                        string
-		wantSurface                     string // colors.json surface for the resolved bucket
+		name, mode, prefer, img string
+		contrast                float64
+		wantArgs                string
+		wantSurface             string // colors.json surface for the resolved bucket
 	}{
 		{
-			"smart + dark wallpaper resolves -m dark", "scheme-tonal-spot", "smart", "saturation", darkWall, 0,
+			"smart + dark wallpaper resolves -m dark", "smart", "saturation", darkWall, 0,
 			"image " + darkWall + " -t scheme-tonal-spot -m dark --contrast 0.00 --lightness-dark 0.00 --lightness-light 0.00 --source-color-index 0 --prefer saturation --json hex --dry-run",
 			"#0a0a0a",
 		},
 		{
-			"smart + light wallpaper resolves -m light", "scheme-tonal-spot", "smart", "saturation", lightWall, 0,
+			"smart + light wallpaper resolves -m light", "smart", "saturation", lightWall, 0,
 			"image " + lightWall + " -t scheme-tonal-spot -m light --contrast 0.00 --lightness-dark 0.00 --lightness-light 0.00 --source-color-index 0 --prefer saturation --json hex --dry-run",
 			"#f2f2f2",
 		},
 		{
-			"explicit light / vibrant / value / +0.5", "scheme-vibrant", "light", "value", darkWall, 0.5,
-			"image " + darkWall + " -t scheme-vibrant -m light --contrast 0.50 --lightness-dark 0.00 --lightness-light 0.00 --source-color-index 0 --prefer value --json hex --dry-run",
+			"explicit light / value / +0.5", "light", "value", darkWall, 0.5,
+			"image " + darkWall + " -t scheme-tonal-spot -m light --contrast 0.50 --lightness-dark 0.00 --lightness-light 0.00 --source-color-index 0 --prefer value --json hex --dry-run",
 			"#f2f2f2",
 		},
 	}
@@ -429,8 +452,8 @@ esac`
 		_ = os.Remove(logFile)
 		_ = os.Remove(colorsPath)
 		writeFile(t, filepath.Join(ryoku, "matugen.json"),
-			fmt.Sprintf(`{"engine":"matugen","schemeType":%q,"mode":%q,"prefer":%q,"contrast":%v,"themeRyokuApps":true}`,
-				c.scheme, c.mode, c.prefer, c.contrast))
+			fmt.Sprintf(`{"engine":"matugen","mode":%q,"prefer":%q,"contrast":%v,"themeRyokuApps":true}`,
+				c.mode, c.prefer, c.contrast))
 
 		if err := (&daemon{}).matugenApply(c.img); err != nil {
 			t.Fatalf("%s: matugenApply: %v", c.name, err)
@@ -676,5 +699,77 @@ func writePNG(t *testing.T, path string) {
 	defer f.Close()
 	if err := png.Encode(f, img); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestSyncFollowWallpaper pins theme.theme as the single colour master: leaving a
+// fixed palette has to turn theme.json's followWallpaper back on, since that key
+// alone gates the dynamic path and nothing else could turn it on -- APPLY RYOKU
+// THEME and a fixed rice both turned it off with no way back. Other keys in the
+// file are somebody else's and must survive.
+func TestSyncFollowWallpaper(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	ryoku := filepath.Join(home, ".config", "ryoku")
+	if err := os.MkdirAll(ryoku, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(ryoku, "theme.json")
+	writeFile(t, path, `{"followWallpaper":false,"themeApps":true}`)
+
+	read := func() map[string]any {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(b, &m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+
+	syncFollowWallpaper("Wallpaper")
+	got := read()
+	if got["followWallpaper"] != true {
+		t.Errorf("live scheme: followWallpaper = %v, want true", got["followWallpaper"])
+	}
+	if got["themeApps"] != true {
+		t.Errorf("themeApps was dropped: %v", got)
+	}
+
+	syncFollowWallpaper("Dracula")
+	if got := read(); got["followWallpaper"] != false {
+		t.Errorf("named theme: followWallpaper = %v, want false", got["followWallpaper"])
+	}
+
+	// Default is the other dynamic variant, so it follows too -- the rule is
+	// "no fixed palette selected", the same one the pipeline gates on.
+	syncFollowWallpaper("Default")
+	if got := read(); got["followWallpaper"] != true {
+		t.Errorf("Default: followWallpaper = %v, want true", got["followWallpaper"])
+	}
+}
+
+// TestRosterDefaultsNewAppsOn: a group missing from a saved roster is one that
+// shipped later, so it renders; only an explicit false keeps an app stock.
+func TestRosterDefaultsNewAppsOn(t *testing.T) {
+	toml := "[config]\n\n[templates.kitty]\ni = 1\n\n[templates.fish]\ni = 2\n\n[templates.btop]\ni = 3\n"
+	roster := map[string]bool{"kitty": true, "btop": false} // saved before fish existed
+	got := filterMatugenConfig(toml, func(g string) bool {
+		if v, ok := roster[g]; ok {
+			return v
+		}
+		return true
+	})
+	if !strings.Contains(got, "[templates.fish]") {
+		t.Error("a group absent from the roster must render; fish was dropped")
+	}
+	if !strings.Contains(got, "[templates.kitty]") {
+		t.Error("an enabled group must render")
+	}
+	if strings.Contains(got, "[templates.btop]") {
+		t.Error("an explicitly disabled group must not render")
 	}
 }
