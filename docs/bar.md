@@ -34,15 +34,14 @@ Bar Studio stages a complete immutable `frameBars` object through the normal Hub
 draft and Save flow, and its edits apply to the running desktop as you make them.
 Pick an edge to work on that rail. It edits only what changes the running frame:
 
-- the frame chrome the shell draws around the desktop: the draw toggle and the
-  window opacity;
+- the frame chrome the shell draws around the desktop: the draw toggle, the
+  opacity, the band thickness, and the corner radius;
 - each rail's own switches: on or off, and thickness;
 - the widgets in each rail's three zones: add a catalogued widget that fits the
   rail's axis and is not already on it, remove one, or reorder within a zone.
 
-The frame's corner radii, border width, and material are compiled into the
-shell's look (`Theme` and the palette), not user knobs, so they are not edited
-here; there is no second style to pick.
+The frame's material and colour come from the shell's look (`Theme` and the
+palette), not a user knob, and there is no second style to pick.
 
 Every change is live on the desktop at once. Save keeps it and rebaselines;
 Revert, or closing the window with unsaved edits, walks the desktop back to the
