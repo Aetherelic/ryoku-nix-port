@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Fixed
+- **Picking the live scheme turns wallpaper-following back on.** The colour master
+  was split in two: the Appearance page and the sidebar write `theme.theme`
+  (shell.json), while the dynamic pipeline is gated on `followWallpaper`
+  (theme.json) -- and nothing wrote that key except the rice system, which turns it
+  off. So once anything had turned it off, selecting the live scheme selected a
+  scheme that never regenerated. `theme.theme` is the master now and
+  `followWallpaper` is its shadow, synced wherever the theme selection is resolved
+  (`ipc/settings.go`, `ipc/matugen.go`).
+- **The wallpaper scheme-type knob is gone.** It could be set to
+  `scheme-monochrome` or `scheme-neutral`, which drain the colour out of any
+  wallpaper; that reads as broken colour generation rather than as a choice. The
+  pipeline always generates with `scheme-tonal-spot`, and a `schemeType` left in
+  matugen.json is inert and dropped on the next write (`ipc/matugen.go`).
 - **Desktop widget and visualiser colour is no longer stuck on black.** The
   per-shell colour singleton was briefly named `Palette`, which collides with
   QtQuick's own `Palette` value type; the module type wins over the directory
@@ -13,6 +26,16 @@
   (`quickshell/*/Singletons/`, `hub/quickshell/Singletons/`).
 
 ### Added
+- **fish, fzf and yazi follow the palette.** Three surfaces that stayed stock
+  while everything around them retinted: the shell you type in, the finder behind
+  Ctrl-R and Ctrl-T, and the file manager. fish needs no include line -- the
+  palette lands in `conf.d`, which fish sources itself -- and fzf rides the same
+  file, appending to `FZF_DEFAULT_OPTS` rather than replacing it. yazi gets a
+  `theme.toml`, a file Ryoku otherwise does not ship, so nothing of yours is
+  overwritten. A roster group ABSENT from a saved matugen.json now defaults ON;
+  absent-means-off would have kept every app added from here on stock for anyone
+  who had opened the appearance page once (`matugen/templates/colors.fish`,
+  `matugen/templates/yazi.toml`, `matugen/apps.toml`, `ipc/matugen.go`).
 - **Surfaces that float on the wallpaper pick their colour against the
   wallpaper.** A Material role is a tone chosen to read on a *panel*; the
   visualiser and a bare desktop widget have none, so consuming roles verbatim
