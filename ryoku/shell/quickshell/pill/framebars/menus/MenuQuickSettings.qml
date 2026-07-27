@@ -259,7 +259,7 @@ Item {
             QsSection { width: parent.width; label: qsTr("Sound & display") }
             Column {
                 width: parent.width
-                spacing: 2
+                spacing: 4
 
                 QsSlider {
                     width: parent.width
@@ -352,7 +352,7 @@ Item {
             id: bottomDock
             anchors.bottom: parent.bottom
             width: parent.width
-            spacing: 10
+            spacing: 8
 
             QsSection {
                 visible: PowerProfiles.available
@@ -551,7 +551,7 @@ Item {
                         sourceComponent: Component {
                             Column {
                                 width: parent.width
-                                spacing: 12
+                                spacing: 8
                                 MenuMedia {
                                     width: parent.width
                                     s: root.s
