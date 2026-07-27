@@ -46,7 +46,7 @@ function defaultConfig() {
         style: "slate-frame",
         rails: {
             top: { enabled: true, size: 32, reveal: true, start: [], center: [], end: [] },
-            left: { enabled: true, size: 48, reveal: true, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["recording", "tray", "screenshot", "wallpaper", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"] },
+            left: { enabled: true, size: 48, reveal: true, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["recording", "tray", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"] },
             bottom: { enabled: false, size: 32, reveal: true, start: [], center: [], end: [] },
             right: { enabled: false, size: 48, reveal: true, top: [], center: [], bottom: [] }
         },

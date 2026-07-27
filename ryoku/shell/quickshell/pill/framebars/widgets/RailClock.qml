@@ -3,20 +3,17 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 
-// The one timer-driven widget: a SystemClock ticks the readout (everything else
-// is event driven). Horizontal bars show HH:mm on one line, vertical bars stack
-// the hour and minute. Left click opens the clock menu. Contract 04 sec 3.2.
+// The one timer-driven widget: a SystemClock ticks the readout. Horizontal
+// bars show HH:mm on one line, vertical bars stack the hour and minute.
+// The clock is intentionally inert: no click, no hover affordance, plain cursor.
+// Contract 04 sec 3.2.
 Item {
     id: root
 
     required property string edge
     required property real scale
-    signal menuRequested(string id, rect ownerRect)
 
     readonly property bool horizontal: edge === "top" || edge === "bottom"
-    // Reference default is 12-hour (config general.clock_format_24_h defaults to
-    // false); Ryoku has no clock-format knob yet (the Go ClockConfig owns it in
-    // the settings phase), so it follows that reference default.
     property bool format24h: false
 
     implicitWidth: btn.implicitWidth
@@ -44,6 +41,6 @@ Item {
         label: root.timeText()
         labelSize: 13
         labelLineHeight: 17.2
-        onClicked: root.menuRequested("quick-settings", Qt.rect(0, 0, root.width, root.height))
+        interactive: false
     }
 }
