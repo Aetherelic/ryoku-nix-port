@@ -100,15 +100,9 @@ depends=(
   'pipewire'
   'jq'
   'imagemagick'
-  # wallpaper -> color palette generator. the shell runs `wallust run <image>`
-  # on every wallpaper change to retint kitty / Hyprland / the shell (the
-  # "match wallpaper" colors). ships from the [ryoku] repo -- not the AUR, whose
-  # pinned Codeberg-archive checksum drifts and breaks the build -- so it resolves
-  # as a hard depend and reaches every box on `ryoku update`.
-  'wallust'
-  # matugen. material-you / base16 templating engine from the official extra
-  # repo. templates the palette into colors.json, kitty, and Hyprland the same
-  # way wallust does, so the shell can drive either generator.
+  # matugen. material-you / base16 palette engine from the official extra repo.
+  # the daemon runs it on every wallpaper change to derive colors.json and
+  # retint kitty / Hyprland / the shell (the "match wallpaper" colors).
   'matugen'
   # animated wallpaper daemon the shell drives (`awww img` / `awww-daemon`).
   # ships from [ryoku], not the AUR, so a fresh install and `ryoku update` always
@@ -117,7 +111,7 @@ depends=(
   # release/packages/awww/PKGBUILD.
   'awww'
   # live (video) wallpapers: the daemon grabs one frame with ffmpeg to derive the
-  # wallust palette. official repo, so a hard depend reaches existing boxes.
+  # wallpaper palette. official repo, so a hard depend reaches existing boxes.
   'ffmpeg'
   # qt6-multimedia + qt6-declarative back the QML video surfaces: ryowalls' live
   # previews, the shell's video-wallpaper preview, and the qylock lockscreen.

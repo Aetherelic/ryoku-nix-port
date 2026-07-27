@@ -107,8 +107,8 @@ func TestUnitConversions(t *testing.T) {
 		t.Errorf("fmtTemp(20, celsius) = %q", got)
 	}
 	// mph = kmh * 0.621371
-	if got := windValue(100, "fahrenheit"); got != "62.1371" {
-		t.Errorf("windValue(100, mph) = %q, want 62.1371", got)
+	if got := windValue(100, "fahrenheit"); got != "62" {
+		t.Errorf("windValue(100, mph) = %q, want 62", got)
 	}
 	if got := windValue(10, "celsius"); got != "10" {
 		t.Errorf("windValue(10, kmh) = %q, want 10", got)

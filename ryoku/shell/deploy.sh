@@ -386,7 +386,6 @@ fi
 mv "$staging" "$cfg/hypr"
 
 # Palette generation, per-app config, and the user session target.
-mkdir -p "$cfg/wallust";   cp -a "$here/wallust/." "$cfg/wallust/"
 mkdir -p "$cfg/matugen"; cp -a "$here/matugen/." "$cfg/matugen/"
 cp -a "$here/../apps/fish/config.fish" "$cfg/fish/config.fish"
 mkdir -p "$cfg/fish/conf.d"; cp -a "$here/../apps/fish/conf.d/." "$cfg/fish/conf.d/"

@@ -422,7 +422,9 @@ type wxLocation struct {
 // country}", or "{lat}, {lon}" when the city is empty.
 func (l wxLocation) locationLine() string {
 	if l.city == "" {
-		return wxShort(l.lat) + ", " + wxShort(l.lon)
+		// Coordinates are an identity, not a reading: rounding them to whole
+		// degrees would move the named place, so they keep their precision.
+		return strconv.FormatFloat(l.lat, 'f', -1, 64) + ", " + strconv.FormatFloat(l.lon, 'f', -1, 64)
 	}
 	tail := l.region
 	if tail == "" {

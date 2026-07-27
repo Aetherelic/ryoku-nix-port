@@ -98,6 +98,6 @@ motion budget is spent on the window show/hide and the action-panel open
 
 Colors, spacing, and motion are tokens in `Singletons/{Theme,Metrics,Motion}.qml`;
 components read them, never hardcoded values. With Settings -> Shell -> Match
-wallpaper on, `Theme` resolves to the live wallust palette (the same `shell.json`
+wallpaper on, `Theme` resolves to the live wallpaper palette (the same `shell.json`
 flag and `colors.json` the rest of the shell uses), so the launcher recolors with
 the system theme.
