@@ -1,6 +1,6 @@
 singleton Theme Theme.qml
 singleton Motion Motion.qml
-singleton Palette Palette.qml
+singleton Scheme Scheme.qml
 singleton Config Config.qml
 singleton Colors Colors.qml
 singleton Walls Walls.qml

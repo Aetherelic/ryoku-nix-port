@@ -100,7 +100,7 @@ Item {
         return "";
     }
 
-    readonly property var paletteModel: SysInfo.sysPalette.length > 0 ? SysInfo.sysPalette.split(",") : Palette.ramp
+    readonly property var paletteModel: SysInfo.sysPalette.length > 0 ? SysInfo.sysPalette.split(",") : Scheme.ramp
     readonly property string barcodeText: "RYOKU-" + SysInfo.codename.toUpperCase() + "-" + (pg.installDate.length > 0 ? pg.installDate : "UNKNOWN")
 
     // customization: read from ProfileStore with the plate's built-in default, so

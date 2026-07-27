@@ -7,7 +7,7 @@ import Quickshell.Io
  * The live palette, for the Desktop Widgets previews. Reads the same
  * ~/.cache/ryoku/colors.json the desktop widgets read, so a preview shows the
  * real wallpaper colours rather than a stand-in ramp. Mirrors the widgets'
- * Palette singleton (each Quickshell config carries its own thin palette reader);
+ * Scheme singleton (each Quickshell config carries its own thin palette reader);
  * the defaults are the Ryoku brand palette.
  */
 Singleton {

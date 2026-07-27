@@ -20,7 +20,7 @@ import "Singletons"
  * Images and videos share one grid, grouped by colour the way skwd-wall does;
  * arrows/Tab move the pick, a colour swatch or the type row filters, Enter or a
  * click sets it, Esc dismisses. The card and accent mirror the shell chrome
- * through the local Palette singleton.
+ * through the local Scheme singleton.
  */
 ShellRoot {
     id: root

@@ -7,7 +7,7 @@ import "Singletons"
  * section, so the chosen face, date design, format and accent show at a glance
  * without leaning over the hub window to the wallpaper. It mirrors the live faces
  * in ryoku/shell/quickshell/widgets/clock; the accent follows your real
- * palette (Palette singleton), the rest is bright ink as on the wallpaper.
+ * palette (Scheme singleton), the rest is bright ink as on the wallpaper.
  */
 Item {
     id: preview
@@ -23,7 +23,7 @@ Item {
     readonly property color inkSoft: "#d2d7ef"
     readonly property color inkDim: "#9aa3c8"
     readonly property color accent: preview.accentChoice === "brand" ? "#F25623"
-        : preview.accentChoice === "mono" ? preview.ink : Palette.accent
+        : preview.accentChoice === "mono" ? preview.ink : Scheme.accent
 
     property var now: new Date()
     Timer { interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: preview.now = new Date() }
@@ -187,7 +187,7 @@ Item {
                     var radii = [r0 - 2 * gap, r0 - gap, r0];
                     var fr = [((preview.h % 12) + preview.mins / 60) / 12, (preview.mins + preview.secs / 60) / 60, preview.secs / 60];
                     var tints = preview.accentChoice === "palette"
-                        ? [Palette.colorAt(0.2), Palette.colorAt(0.5), Palette.colorAt(0.85)]
+                        ? [Scheme.colorAt(0.2), Scheme.colorAt(0.5), Scheme.colorAt(0.85)]
                         : [preview.accent, preview.accent, preview.accent];
                     for (var i = 0; i < 3; i++) {
                         ctx.beginPath(); ctx.lineWidth = lw; ctx.lineCap = "butt"; ctx.strokeStyle = rc.css(preview.ink, 0.12);
