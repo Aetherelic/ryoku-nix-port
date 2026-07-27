@@ -3,6 +3,24 @@
 ## Unreleased
 
 ### Changed
+- **Every desktop surface follows the daemon palette, and the window border
+  follows named themes too.** The audio visualiser, the desktop widgets and
+  their right-click menu, the plugin kit, and the `Ryoku.Ui` Tokens the Hub and
+  apps draw from each carried their own colour singletons that re-derived tints
+  from the raw terminal palette (vivid/shade/tone) or pinned a fixed vermillion
+  accent, so they drifted from the theme and, under a fixed named scheme, showed
+  a stale wallpaper palette (the desktop widgets reading orange instead of the
+  system colours, the Hub never retinting at all). They are now thin readers
+  that consume the daemon palette verbatim, resolved the pill's way (a named
+  scheme's themePalette wins, then the live wallpaper colors.json, then the
+  compiled default), so every surface retints on any scheme change, a named
+  theme or a wallpaper switch, and the widget menu paints its accent from the
+  palette. The compositor border follows the palette in both modes now:
+  `genConfig` omits the fixed `col.active_border` whenever a named theme is
+  active, not only when following the wallpaper, so `decoration.lua`'s
+  hypr-colors.lua border wins (`quickshell/visualizer/Singletons/Wallust.qml`,
+  `quickshell/widgets/Singletons/`, `quickshell/plugins/kit/Singletons/`,
+  `ui/Singletons/Tokens.qml`, `hub/backend/hypr.go`).
 - **Follow-the-wallpaper theming runs matugen natively in the daemon.** Match
   wallpaper on + the dynamic Wallpaper scheme -> setting a wallpaper (or a
   scheme knob patch) generates the Material 3 scheme with matugen using the
