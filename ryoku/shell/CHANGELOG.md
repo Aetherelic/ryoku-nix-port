@@ -3,15 +3,25 @@
 ## Unreleased
 
 ### Fixed
-- **A Bar Studio rail edit lands on the running desktop, not just at the next
-  restart.** The per-edge reveal baseline (`edgeRevealed`) was seeded once at
-  startup and by the `ryoku-shell bar` CLI, so toggling a rail's pin/auto-hide in
-  Bar Studio changed nothing until the shell relaunched; it now re-derives from
-  the live config whenever a rail's `reveal` changes, while a CLI or hover reveal
-  on an untouched edge is preserved. Turning a rail off also reclaims its edge at
-  once: `edgeReserve` collapses a disabled rail to the frame lip instead of
-  holding its full band, so a widget-laden rail no longer leaves an empty margin
-  when it is switched off (`quickshell/pill/shell.qml`).
+- **Turning a rail off reclaims its edge on the running desktop at once, and a
+  rail's reveal state applies live.** `edgeReserve` now collapses a disabled rail
+  to the frame lip instead of holding its full band, so switching a rail off in
+  Bar Studio frees its edge immediately instead of leaving an empty margin until
+  the next restart. The per-edge reveal baseline (`edgeRevealed`) also re-derives
+  from the live config when a rail's `reveal` changes, not only at startup, while
+  a CLI or hover reveal on an untouched edge is preserved
+  (`quickshell/pill/shell.qml`).
+- **Recordings land in one directory, and the deck lists the one they land in.**
+  The recorder resolved the directory properly (env override, then the Videos
+  dir), the deck's list hardcoded `$HOME/Videos/Recordings`, and the Hub's page
+  claimed a third answer in prose. On a box with a custom `XDG_VIDEOS_DIR` the
+  writer and the list parted company and the list showed nothing. All three now
+  resolve `Ryoku.Ui.Singletons.Paths.recordingsDir`, which reads the Hub's new
+  `directory` setting and falls back the way the recorder always did. The list
+  also stops filtering for our own filename shape, so a clip Ryoku Motion
+  recorded shows up beside the rest instead of being invisible
+  (`ui/Singletons/Paths.qml`, `quickshell/pill/DeckRecord.qml`,
+  `hyprland/scripts/ryoku-cmd-screenrecord`).
 - **Picking the live scheme turns wallpaper-following back on.** The colour master
   was split in two: the Appearance page and the sidebar write `theme.theme`
   (shell.json), while the dynamic pipeline is gated on `followWallpaper`
