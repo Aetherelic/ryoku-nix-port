@@ -201,6 +201,44 @@ Item {
                         onModified: value => page.fedit("frameOpacity", value)
                     }
                 }
+                Cell {
+                    width: frameSect.span(6)
+                    controlWidth: 58
+                    label: qsTr("Frame thickness")
+                    unit: "px"
+                    value: String(page.fnum("frameThickness", 2))
+                    def: page.fwas("frameThickness") === undefined ? "" : String(page.fwas("frameThickness"))
+                    changed: page.fwas("frameThickness") !== undefined && page.fnum("frameThickness", 2) !== Number(page.fwas("frameThickness"))
+                    desc: qsTr("How thick the frame band around the desktop is drawn.")
+                    source: "shell.json"
+                    Step {
+                        objectName: "frame-thickness"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0; to: 24
+                        value: page.fnum("frameThickness", 2)
+                        onModified: value => page.fedit("frameThickness", value)
+                    }
+                }
+                Cell {
+                    width: frameSect.span(6)
+                    controlWidth: 58
+                    label: qsTr("Corner radius")
+                    unit: "px"
+                    value: String(page.fnum("frameCorner", 8))
+                    def: page.fwas("frameCorner") === undefined ? "" : String(page.fwas("frameCorner"))
+                    changed: page.fwas("frameCorner") !== undefined && page.fnum("frameCorner", 8) !== Number(page.fwas("frameCorner"))
+                    desc: qsTr("How round the frame cuts the screen's corners.")
+                    source: "shell.json"
+                    Step {
+                        objectName: "frame-corner"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0; to: 40
+                        value: page.fnum("frameCorner", 8)
+                        onModified: value => page.fedit("frameCorner", value)
+                    }
+                }
             }
 
             // ── RAILS: pick an edge, then its own switches ───────────────────

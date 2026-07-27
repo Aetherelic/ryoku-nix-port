@@ -55,21 +55,21 @@
 - **Bar Studio edits only the essentials that provably change the running
   desktop.** Pick an edge from the four rail tabs to put that rail on the bench;
   every edit lands on the running desktop as you make it and rides the Hub's Save
-  and Revert. The controls are pruned to the ones with a runtime consumer: the
-  frame's draw toggle and opacity, and each rail's on/off and thickness, plus the
-  widgets in its three zones. Each zone is its own titled section with a numbered,
+  and Revert. The frame controls are the draw toggle, opacity, band thickness and
+  corner radius; each rail has its on/off and thickness; and each rail's three
+  zones hold its widgets. Every zone is its own titled section with a numbered,
   reorderable list and a per-zone drawer that offers the widgets that fit the rail
   and are not already on it; the controls use a plain click handler so a tap
   always lands inside the page scroll, which the old compact reorder buttons lost.
-  The retired chrome knobs (widget and window radius, border width) and the
-  two-look style switch had no effect on the live frame (the radii and border are
-  compiled `Theme` tokens that `ryoku doctor` strips, and the shell never read
-  `frameBars.style`), so they are gone. The per-rail auto-hide choice is dropped
-  too: a hover-hidden bar could not be brought back because the overlay input mask
-  does not widen on hover, so every rail stays pinned. The bounded menus and the
-  stash and system surfaces are still never dropped: every edit clones the whole
-  `frameBars` object, so an untouched subtree always survives
-  (`pages/BarStudioPage.qml`, `barstudio/ZoneEditor.qml`,
+  The widget-radius knob and the two-look style switch are gone (they had no live
+  consumer, and `ryoku doctor` strips the dead keys); the band thickness and
+  corner radius are wired to new keys the shell actually reads (`frameThickness`,
+  `frameCorner`), replacing the inert `frameBorder`/`frameRadius`. The per-rail
+  auto-hide choice is dropped too: a hover-hidden bar could not be brought back
+  because the overlay input mask does not widen on hover, so every rail stays
+  pinned. The bounded menus and the stash and system surfaces are still never
+  dropped: every edit clones the whole `frameBars` object, so an untouched subtree
+  always survives (`pages/BarStudioPage.qml`, `barstudio/ZoneEditor.qml`,
   `barstudio/BarStudioModel.js`, `barstudio/CatalogLabels.qml`,
   `barstudio/qmldir`, `Hub.qml`).
 - **Ryoku Settings now describes the Atoll-only shell instead of the retired

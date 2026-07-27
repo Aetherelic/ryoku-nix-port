@@ -326,6 +326,7 @@ Rectangle {
     readonly property var defs: ({
         "frameRadius": 9, "roundness": 10, "frameBorder": 59, "frameEnabled": true,
         "frameSmoothing": 8, "frameOpacity": 1, "shadowStrength": 0.63, "shadowSize": 12,
+        "frameThickness": 2, "frameCorner": 8,
         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
         "fontFamily": "Space Grotesk", "fontScale": 1.3,
         "frameBars": FrameBars.defaultConfig(),
@@ -396,7 +397,7 @@ Rectangle {
     // against liveBaseline: the state at open, re-snapshotted on every Save.
     // Quit and Revert walk the desktop back to that baseline through the same
     // channel, so an unsaved close leaves no residue.
-    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "fontFamily"]
+    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily"]
     property var liveBaseline: null
     property var livePending: ({})
     function captureLiveBaseline() {
