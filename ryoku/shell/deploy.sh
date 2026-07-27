@@ -241,7 +241,14 @@ if command -v makepkg >/dev/null 2>&1 && pkg-config --exists hyprland 2>/dev/nul
       for _pkg in "$_tmp"/*.pkg.tar.*; do
         [[ -e "$_pkg" ]] && bsdtar -xf "$_pkg" -C "$_tmp" usr/lib/hyprland/plugins 2>/dev/null || true
       done
-      cp -f "$_tmp"/usr/lib/hyprland/plugins/*.so "$hplugins/" 2>/dev/null && _built=1 || true
+      # Rename into place, never copy: cp -f truncates the existing inode,
+      # which corrupts the mapped image of a plugin the running compositor
+      # has dlopen'd and crashes it. mv gives the path a fresh inode while
+      # the loaded copy keeps its own until the next clean load.
+      for _so in "$_tmp"/usr/lib/hyprland/plugins/*.so; do
+        [[ -e "$_so" ]] || continue
+        mv -f "$_so" "$hplugins/$(basename "$_so")" && _built=1
+      done
     else
       say "  $_dir failed to build against Hyprland $_hv; skipping (its toggle stays off)"
     fi
