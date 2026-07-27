@@ -24,14 +24,15 @@ eq(reference.rails.bottom.start, [], "bottom start list defaults empty");
 eq(reference.rails.bottom.center, [], "bottom centre list defaults empty");
 eq(reference.rails.bottom.end, [], "bottom end list defaults empty");
 
-for (const id of ["quick-settings", "clock", "clipboard", "notifications", "screenshot", "recording", "theme", "weather", "media"]) {
+for (const id of ["quick-settings", "clipboard", "notifications", "screenshot", "recording", "theme", "weather", "media"]) {
     eq(reference.menus[id].widgets, [id], `default ${id} menu is configured`);
 }
 eq(reference.menus["app-launcher"], undefined, "the app launcher is Ryoku's own surface, not a frame menu");
-eq([reference.menus.clock.anchor, reference.menus.clipboard.anchor, reference.menus.notifications.anchor, reference.menus.screenshot.anchor], ["left", "left", "left", "left"], "the reference side menus all anchor left");
+eq([reference.menus.clipboard.anchor, reference.menus.notifications.anchor, reference.menus.screenshot.anchor], ["left", "left", "left"], "the reference side menus all anchor left");
 eq([reference.menus.wallpaper.anchor, reference.menus.wallpaper.minWidth], ["bottom-left", 1200], "wallpaper anchors bottom-left at 1200 wide");
 eq(reference.menus.wallpaper.widgets, ["theme", "wallpaper"], "wallpaper menu nests the theme picker above the grid");
 eq(reference.menus.launcher, undefined, "the retired launcher menu id is gone");
+eq(reference.menus.clock, undefined, "the retired clock menu is gone; the clock widget opens quick settings");
 eq(reference.menus.screenshare.widgets, [], "screenshare is placed with no config widgets");
 
 const normalized = normalize({
@@ -90,8 +91,15 @@ eq(setSurface(surfaceInput, "stash", { anchor: "bad" }, MenuCatalog).surfaces.st
 eq(surfaceInput, defaultConfig(), "setSurface leaves its input unchanged");
 
 const nestedInput = defaultConfig();
-nestedInput.menus.clock.widgets = ["clock", { id: "container", widgets: ["divider"] }];
-eq(normalize(nestedInput, BarCatalog, MenuCatalog).menus.clock.widgets, ["clock", { id: "container", widgets: ["divider"] }], "normalizer preserves bounded nested menu widgets");
+nestedInput.menus.notifications.widgets = ["clock", { id: "container", widgets: ["divider"] }];
+eq(normalize(nestedInput, BarCatalog, MenuCatalog).menus.notifications.widgets, ["clock", { id: "container", widgets: ["divider"] }], "normalizer preserves bounded nested menu widgets");
+
+// normalize completes a partial config: any absent top-level subtree is restored
+// from the schema default, so a reader that goes through normalize never sees a
+// missing menus/surfaces/dock and never perpetuates a dropped subtree.
+const completed = normalize({ rails: { left: { size: 64 } } }, BarCatalog, MenuCatalog);
+for (const key of ["version", "style", "rails", "menus", "surfaces", "dock"]) eq(completed[key] !== undefined, true, `normalize restores the ${key} subtree from a partial config`);
+eq(Object.keys(completed.menus).length > 0, true, "normalize restores the menus map from a config that omitted it");
 
 if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 console.log("\nAll tests PASSED");

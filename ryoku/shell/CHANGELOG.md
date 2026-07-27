@@ -3,12 +3,20 @@
 ## Unreleased
 
 ### Changed
+- **Follow-the-wallpaper theming runs matugen natively in the daemon.** Match
+  wallpaper on + the dynamic Wallpaper scheme -> setting a wallpaper (or a
+  scheme knob patch) generates the Material 3 scheme with matugen using the
+  configured mode/scheme type/contrast/preference; the daemon writes the shell
+  colors.json (base16 + 30 Material roles) and fans it into GTK 3/4 and the
+  app suite via the matugen templates, and sets the desktop color-scheme. A
+  fixed named theme or Match wallpaper off leaves it idle (`ipc/matugen.go`,
+  `ipc/wallpaper.go`, `ipc/settings.go`, `matugen/templates/`).
 - **The shell now uses configurable frame bars instead of an Atoll bar.**
   Each monitor owns one shared frame scene with independent top, bottom, left,
   and right rails. The stock profile keeps a compact clock at the top and the
   familiar quick settings, workspace, dock, tray, network, and clock flow on
-  the left; the other rails are ready to enable in Bar Studio. Super+Period
-  opens Bar Studio in Ryoku Settings, where bounded widgets, menus, and the
+  the left; the other rails are ready to enable in Bar Studio, a section of
+  Ryoku Hub (Super+comma), where bounded widgets, menus, and the
   preserved Stash and System surfaces can be arranged and saved through the
   normal configuration pipeline. `ok-frame` and `ryoku-frame` share this
   topology while changing only chrome and metrics. All frame menus, power,
