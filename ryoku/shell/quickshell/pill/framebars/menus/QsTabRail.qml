@@ -66,6 +66,18 @@ Item {
         spacing: 6
 
         RailIconBtn {
+            icon: "search"; tipText: qsTr("Lens search")
+            onClicked: { Quickshell.execDetached(["ryoku-cmd-google-lens"]); root.requestClose(); }
+        }
+        RailIconBtn {
+            icon: "document_scanner"; tipText: qsTr("Copy text on screen")
+            onClicked: { Quickshell.execDetached(["ryoku-cmd-ocr"]); root.requestClose(); }
+        }
+        RailIconBtn {
+            icon: "qr_code_scanner"; tipText: qsTr("Scan a QR code")
+            onClicked: { Quickshell.execDetached(["ryoku-cmd-qr-scan"]); root.requestClose(); }
+        }
+        RailIconBtn {
             icon: "settings"; tipText: qsTr("Ryoku Hub")
             onClicked: { Quickshell.execDetached(["ryoku-shell", "hub", "open"]); root.requestClose(); }
         }
