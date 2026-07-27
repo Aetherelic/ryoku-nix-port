@@ -325,32 +325,42 @@ Item {
                         font.pixelSize: Theme.fontSm * root.s
                         font.weight: Font.DemiBold
                     }
-                    Pill.MaterialIcon {
-                        id: dGlyph
+                    // Fixed-width glyph slot: 24px so dLow always starts at a
+                    // predictable x regardless of which symbol the font renders.
+                    Item {
+                        id: dGlyphSlot
                         anchors.left: dName.right
                         anchors.leftMargin: 6 * root.s
                         anchors.verticalCenter: parent.verticalCenter
-                        text: Wx.symbolFor(dayRow.d.code, true)
-                        font.pixelSize: 18 * root.s
-                        color: root.glyphInk
+                        width: 24 * root.s
+                        height: 22 * root.s
+                        Pill.MaterialIcon {
+                            id: dGlyph
+                            anchors.centerIn: parent
+                            text: Wx.symbolFor(dayRow.d.code, true)
+                            font.pixelSize: 18 * root.s
+                            color: root.glyphInk
+                        }
                     }
+                    // Low temp: 44px right-aligned — wide enough for "64.86°F".
                     Text {
                         id: dLow
-                        anchors.left: dGlyph.right
-                        anchors.leftMargin: 10 * root.s
+                        anchors.left: dGlyphSlot.right
+                        anchors.leftMargin: 6 * root.s
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 40 * root.s
+                        width: 44 * root.s
                         horizontalAlignment: Text.AlignRight
                         text: dayRow.d.low
                         color: root.inkVar
                         font.family: Theme.fontPrimary
                         font.pixelSize: Theme.fontSm * root.s
                     }
+                    // High temp: 44px right-aligned.
                     Text {
                         id: dHigh
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 40 * root.s
+                        width: 44 * root.s
                         horizontalAlignment: Text.AlignRight
                         text: dayRow.d.high
                         color: root.ink
@@ -358,12 +368,13 @@ Item {
                         font.pixelSize: Theme.fontSm * root.s
                         font.weight: Font.DemiBold
                     }
+                    // Range bar flexes in the space between low and high.
                     Item {
                         id: dBar
                         anchors.left: dLow.right
-                        anchors.leftMargin: 10 * root.s
+                        anchors.leftMargin: 8 * root.s
                         anchors.right: dHigh.left
-                        anchors.rightMargin: 10 * root.s
+                        anchors.rightMargin: 8 * root.s
                         anchors.verticalCenter: parent.verticalCenter
                         height: 4 * root.s
                         Rectangle {

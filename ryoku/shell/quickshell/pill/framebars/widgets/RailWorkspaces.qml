@@ -274,10 +274,10 @@ Item {
             Loader {
                 anchors.centerIn: parent
                 active: pill.hasIcons
-                sourceComponent: root.horizontal ? iconsColComp : iconsRowComp
+                sourceComponent: root.horizontal ? iconsRowComp : iconsColComp
             }
 
-            // For vertical bars: icons in a horizontal row inside the pill.
+            // For horizontal bars: icons in a horizontal row inside the pill.
             Component {
                 id: iconsRowComp
                 Row {
@@ -294,7 +294,7 @@ Item {
                 }
             }
 
-            // For horizontal bars: icons in a vertical column inside the pill.
+            // For vertical bars: icons in a vertical column inside the pill.
             Component {
                 id: iconsColComp
                 Column {

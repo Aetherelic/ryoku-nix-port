@@ -10,6 +10,10 @@ import "../../Singletons"
 // (iconPath file, else iconName theme lookup, else the generic fallback). Left
 // click asks the item to act, right click asks for its menu. Contract 04
 // sec 2.1, 3.2 (system_tray, system_tray_item).
+//
+// Design: 4px rhythm gaps between cells, hover wash (on-surface 8%),
+// press dip (scale 0.88 + opacity 0.72), smooth color behavior. The
+// reveal strip sits behind a sumi-edged container (frameBorder outline).
 Item {
     id: root
 
@@ -50,12 +54,32 @@ Item {
                 icon: "tray"
                 onClicked: root.revealed = !root.revealed
             }
+            // Sumi-edged reveal strip: clipped container with a subtle outline
+            // so the icon strip feels anchored against the bar edge.
             Item {
                 clip: true
                 height: root.cross
-                width: root.revealed ? strip.implicitWidth : 0
-                Behavior on width { NumberAnimation { duration: Motion.barReveal; easing.type: Motion.barRevealCurve } }
-                Row { id: strip; spacing: 0; Repeater { model: root.items; delegate: itemComp } }
+                width: root.revealed ? (strip.implicitWidth + 2) : 0
+                Behavior on width {
+                    NumberAnimation {
+                        duration: Motion.barReveal
+                        easing.type: Motion.barRevealCurve
+                    }
+                }
+                Rectangle {
+                    anchors.fill: strip
+                    anchors.margins: -2 * root.scale
+                    radius: Theme.radiusWidget
+                    color: "transparent"
+                    border.width: root.revealed ? 1 : 0
+                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.28)
+                }
+                Row {
+                    id: strip
+                    anchors.centerIn: parent
+                    spacing: 4 * root.scale
+                    Repeater { model: root.items; delegate: itemComp }
+                }
             }
         }
     }
@@ -69,12 +93,31 @@ Item {
                 icon: "tray"
                 onClicked: root.revealed = !root.revealed
             }
+            // Sumi-edged reveal strip (vertical).
             Item {
                 clip: true
                 width: root.cross
-                height: root.revealed ? strip.implicitHeight : 0
-                Behavior on height { NumberAnimation { duration: Motion.barReveal; easing.type: Motion.barRevealCurve } }
-                Column { id: strip; spacing: 0; Repeater { model: root.items; delegate: itemComp } }
+                height: root.revealed ? (strip.implicitHeight + 2) : 0
+                Behavior on height {
+                    NumberAnimation {
+                        duration: Motion.barReveal
+                        easing.type: Motion.barRevealCurve
+                    }
+                }
+                Rectangle {
+                    anchors.fill: strip
+                    anchors.margins: -2 * root.scale
+                    radius: Theme.radiusWidget
+                    color: "transparent"
+                    border.width: root.revealed ? 1 : 0
+                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.28)
+                }
+                Column {
+                    id: strip
+                    anchors.centerIn: parent
+                    spacing: 4 * root.scale
+                    Repeater { model: root.items; delegate: itemComp }
+                }
             }
         }
     }
@@ -84,27 +127,46 @@ Item {
         Item {
             id: cell
             required property var modelData
-            readonly property real along: Math.max(36 * root.scale, Theme.iconMd * root.scale + 20 * root.scale)
+
+            // Along-bar slot: minimum 36px; icon (iconSm=16) + 20px pad = 36px exact.
+            // Using iconSm keeps tray icons compact relative to dock/status icons.
+            readonly property real iconPx: Theme.iconSm * root.scale
+            readonly property real along: 36 * root.scale
             width: root.horizontal ? along : root.cross
             height: root.horizontal ? root.cross : along
 
+            // Smooth hover wash
             Rectangle {
                 anchors.fill: parent
+                anchors.margins: 2 * root.scale
                 radius: Theme.radiusWidget
                 color: area.containsMouse
-                    ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08)
+                    ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b,
+                              area.pressed ? 0.14 : 0.08)
                     : "transparent"
+                Behavior on color {
+                    ColorAnimation { duration: Motion.fast; easing.type: Motion.easeStandard }
+                }
             }
 
             Image {
                 anchors.centerIn: parent
-                width: Theme.iconMd * root.scale
-                height: Theme.iconMd * root.scale
+                width: cell.iconPx
+                height: cell.iconPx
                 sourceSize.width: width
                 sourceSize.height: height
                 smooth: true
                 asynchronous: true
                 source: root.itemSource(cell.modelData)
+                // Press dip: slight scale-down on click for tactile feel.
+                scale: area.pressed ? 0.82 : 1.0
+                Behavior on scale {
+                    NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                }
+                opacity: area.pressed ? 0.72 : 1.0
+                Behavior on opacity {
+                    NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                }
             }
 
             MouseArea {
@@ -112,6 +174,7 @@ Item {
                 anchors.fill: parent
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
                 onClicked: event => {
                     const svc = cell.modelData.service;
                     const g = cell.mapToGlobal(0, cell.height);
