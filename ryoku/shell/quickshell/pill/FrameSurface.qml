@@ -67,6 +67,10 @@ Popout {
 
     Loader {
         id: body
+        // Mount the body only while open (or melting closed), mirroring the
+        // reference-menu path: a closed surface does no work. This is what lets
+        // the voice popout's cava mic-capture stop when dictation is hidden.
+        active: root.effectiveOpen
         width: root.openW
         height: root.openH
         sourceComponent: root.kind === "power" ? powerBody

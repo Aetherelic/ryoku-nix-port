@@ -18,6 +18,11 @@ Item {
     property bool open: false
     signal closeRequested()
 
+    // Wake Session's uptime tick only while this panel is mounted (the gated
+    // FrameSurface body means we exist only when open or melting closed).
+    Component.onCompleted: Session.watchers += 1
+    Component.onDestruction: Session.watchers -= 1
+
     readonly property real cardW: 720 * root.s
     readonly property real heroH: 300 * root.s
     readonly property real stripH: 158 * root.s

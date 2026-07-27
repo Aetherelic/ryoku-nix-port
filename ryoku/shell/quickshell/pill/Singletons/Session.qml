@@ -12,6 +12,10 @@ import Quickshell.Io
 Singleton {
     id: s
 
+    // Bumped to 1 while the power panel is on screen (open or melting). The
+    // uptime tick below only runs while something is actually reading it.
+    property int watchers: 0
+
     readonly property string home: Quickshell.env("HOME") || ""
     readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (s.home + "/.local/state"))
 
@@ -77,10 +81,10 @@ Singleton {
         onLoaded: s.wallpaper = (wallFile.text() || "").trim()
     }
 
-    // keep uptime fresh while the popup lingers; cheap, one file read.
+    // keep uptime fresh while the popup is on screen; cheap, one file read.
     Timer {
         interval: 30000
-        running: true
+        running: s.watchers > 0
         repeat: true
         triggeredOnStart: true
         onTriggered: upFile.reload()
