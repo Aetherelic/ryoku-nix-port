@@ -646,7 +646,40 @@ func writeOverlayLua(name string, body []byte) error {
 // writeGeneratedLua renders settings.lua from the overrides (diffed against the
 // shipped defaults) into the user overlay, reflected live.
 func writeGeneratedLua(o Overrides) error {
-	return writeOverlayLua("settings.lua", []byte(genLua(o, loadThemeState().FollowWallpaper)))
+	return writeOverlayLua("settings.lua", []byte(genLua(o, paletteDriven())))
+}
+
+// staticThemeActive reports whether a fixed named colour scheme is selected in
+// shell.json (theme.theme names a catalog palette, not the two dynamic variants
+// Default and Wallpaper). Its palette drives the window border through
+// decoration.lua's hypr-colors.lua, so settings.lua must not pin a fixed
+// col.active_border over it.
+func staticThemeActive() bool {
+	b, err := os.ReadFile(shellStorePath())
+	if err != nil {
+		return false
+	}
+	var s struct {
+		Theme struct {
+			Theme string `json:"theme"`
+		} `json:"theme"`
+	}
+	if json.Unmarshal(b, &s) != nil {
+		return false
+	}
+	switch s.Theme.Theme {
+	case "", "Default", "Wallpaper":
+		return false
+	}
+	return true
+}
+
+// paletteDriven reports whether the window colours come from a live palette (the
+// wallpaper-follow master or a fixed named scheme) rather than the user's fixed
+// border choice. When true the generated config omits the solid col.active_border
+// so decoration.lua's palette border (hypr-colors.lua) wins in both modes.
+func paletteDriven() bool {
+	return loadThemeState().FollowWallpaper || staticThemeActive()
 }
 
 // writeRebindsLua renders the key-rebind table binds.lua's K() consults, one
@@ -1699,7 +1732,7 @@ func genAnimatedBorder(o Overrides, follow, full bool) string {
 // (appearance / input / cursor). rules, keybinds, env, autostart are not
 // previewed; they apply on Save via reload.
 func liveLua(o Overrides) string {
-	follow := loadThemeState().FollowWallpaper
+	follow := paletteDriven()
 	return fullConfigLua(o, follow) + genMotion(o, true) + genAnimatedBorder(o, follow, true) +
 		genAnimBlock(o) + genGesture(o) +
 		fmt.Sprintf("hl.exec_cmd(%s)\n", luaStr(fmt.Sprintf("hyprctl setcursor %s %d", o.Cursor.Theme, o.Cursor.Size)))

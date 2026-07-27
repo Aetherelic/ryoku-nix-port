@@ -113,6 +113,57 @@ func TestGenLuaBorderColours(t *testing.T) {
 	}
 }
 
+// A fixed named colour scheme (shell.json theme.theme) drives the window border
+// through decoration.lua's palette, so the generated config must omit the fixed
+// col.active_border even with follow-wallpaper off; the two dynamic variants
+// (Default, Wallpaper) with follow off keep the user's fixed border.
+func TestPaletteDrivenBorderOmitsNamedTheme(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	ryoku := filepath.Join(dir, "ryoku")
+	if err := os.MkdirAll(ryoku, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeState := func(follow bool, theme string) {
+		fw := "false"
+		if follow {
+			fw = "true"
+		}
+		if err := os.WriteFile(filepath.Join(ryoku, "theme.json"), []byte(`{"followWallpaper":`+fw+`}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(ryoku, "shell.json"), []byte(`{"theme":{"theme":"`+theme+`"}}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	o := defaultOverrides()
+	o.Appearance.ActiveBorder = "#ff6a3d"
+
+	// dynamic variant, follow off: the user's fixed border wins.
+	writeState(false, "Wallpaper")
+	if paletteDriven() {
+		t.Error("Wallpaper variant with follow off must not be palette driven")
+	}
+	if !strings.Contains(genLua(o, paletteDriven()), `["col.active_border"] = "rgb(ff6a3d)"`) {
+		t.Error("fixed border must be emitted for a dynamic variant with follow off")
+	}
+
+	// named theme, follow off: the palette drives the border, so it is omitted.
+	writeState(false, "Catppuccin Mocha")
+	if !paletteDriven() {
+		t.Error("a fixed named theme must be palette driven")
+	}
+	if strings.Contains(genLua(o, paletteDriven()), "col.active_border") {
+		t.Error("fixed border must be omitted for a named theme so the palette border wins")
+	}
+
+	// follow on always drives the border from the palette.
+	writeState(true, "Wallpaper")
+	if !paletteDriven() {
+		t.Error("follow wallpaper must be palette driven")
+	}
+}
+
 func TestGenLuaAnimationsToggle(t *testing.T) {
 	o := defaultOverrides()
 	o.Appearance.Animations = false
