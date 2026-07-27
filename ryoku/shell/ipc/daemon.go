@@ -269,11 +269,13 @@ func setupQmlImportPath() {
 	}
 }
 
-// bootstrap brings the shell up: the clipboard history and its selection
+// bootstrap brings the shell up: the settings store (sole writer of shell.json,
+// served over the settings topic), the clipboard history and its selection
 // watcher, the tray host, the keyring prompter, the theme workers, the in-shell
 // wallpaper surface and the first wallpaper, then the persistent Quickshell
 // components.
 func (d *daemon) bootstrap() {
+	d.startSettings()
 	d.startClipboard()
 	d.startTray()
 	d.startWeather()
