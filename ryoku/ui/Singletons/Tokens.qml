@@ -7,14 +7,42 @@ import Quickshell.Io
 // The one place Ryoku's look is defined. Everything that draws imports this;
 // nothing hardcodes a hex, a size or a duration.
 //
-// Dynamically watches theme.json and colors.json so when Matugen/wallust app
-// theming is enabled, Ryoku apps (Hub, Ryowalls, etc.) seamlessly adopt the palette.
+// Colour resolves live from the daemon palette the same way the pill's Theme
+// does: a fixed named colour scheme (shell.json themePalette) wins, then the
+// live wallpaper palette (~/.cache/wallust/colors.json Material roles), then the
+// compiled signature default. So every Ryoku app (the Hub, Ryowalls, ...)
+// retints on ANY scheme change, a named theme or a wallpaper switch, with no
+// colour math of its own. The kit's role names are kept; only their source moved
+// onto the Material roles.
 Singleton {
     id: t
 
-    readonly property bool matchWallpaper: themeAdapter.followWallpaper
+    // Follow-the-wallpaper master (theme.json), the static named scheme's palette
+    // (shell.json themePalette; null for the dynamic variants) and the live
+    // wallpaper roles (colors.json), each parsed straight from the file text: the
+    // "on" role names defeat JsonAdapter's signal-handler grammar, a removed
+    // themePalette key only reads as absent from raw text, and a bare adapter does
+    // not repopulate reliably for a lazily-created singleton.
+    property bool matchWallpaper: false
+    property var namedScheme: null
+    property var wall: ({})
 
-    // ── default signature constants ──────────────────────────────────────
+    // A palette value is only usable when it is a non-empty hex string; a null,
+    // missing or half-written role falls through to the next layer, so a partial
+    // colors.json (mid-write) or a scheme missing a role never paints black.
+    function usable(v) { return typeof v === "string" && v.length > 0; }
+
+    // Resolve one Material role through the layer chain: a named scheme wins,
+    // then the live wallpaper palette while Match wallpaper is on, then the base.
+    function role(key, base) {
+        if (namedScheme && usable(namedScheme[key]))
+            return namedScheme[key];
+        if (matchWallpaper && usable(wall[key]))
+            return wall[key];
+        return base;
+    }
+
+    // ── default signature constants (the base each role falls back to) ───────
     readonly property color defaultPaper: "#000000"
     readonly property color defaultPaperLift: "#0a0a0a"
     readonly property color defaultInk: "#cdc4ba"
@@ -23,22 +51,23 @@ Singleton {
     readonly property color defaultInkFaint: "#7a756e"
 
     // ── paper ────────────────────────────────────────────────────────────
-    readonly property color paper: matchWallpaper ? wallustAdapter.background : defaultPaper
-    readonly property color paperLift: matchWallpaper ? wallustAdapter.color0 : defaultPaperLift
+    readonly property color paper: role("surface", defaultPaper)
+    readonly property color paperLift: role("surfaceContainerLow", defaultPaperLift)
 
     // ── ink, on paper ────────────────────────────────────────────────────
-    readonly property color ink: matchWallpaper ? wallustAdapter.foreground : defaultInk
-    readonly property color inkDim: matchWallpaper ? wallustAdapter.color7 : defaultInkDim
-    readonly property color inkMuted: matchWallpaper ? wallustAdapter.color8 : defaultInkMuted
-    readonly property color inkFaint: matchWallpaper ? wallustAdapter.color8 : defaultInkFaint
+    readonly property color ink: role("onSurface", defaultInk)
+    readonly property color inkDim: role("onSurfaceVariant", defaultInkDim)
+    readonly property color inkMuted: role("outline", defaultInkMuted)
+    readonly property color inkFaint: role("outlineVariant", defaultInkFaint)
 
-    // ── bone stock (inverted) ────────────────────────────────────────────
-    readonly property color bone: matchWallpaper ? (wallustAdapter.color4.hsvValue > 0.01 ? wallustAdapter.color4 : t.ink) : t.ink
-    readonly property color inkOnBone: "#000000"                 // 12.0:1
-    readonly property color inkOnBoneDim: Qt.rgba(0, 0, 0, 0.62) //  5.4:1
-    readonly property color lineOnBone: Qt.rgba(0, 0, 0, 0.26)
+    // ── bone stock (inverted): the Material inverse-surface pair, so the light
+    // plate and its dark ink keep contrast on a light OR dark theme ───────────
+    readonly property color bone: role("inverseSurface", defaultInk)
+    readonly property color inkOnBone: role("inverseOnSurface", "#000000")
+    readonly property color inkOnBoneDim: Qt.rgba(inkOnBone.r, inkOnBone.g, inkOnBone.b, 0.62)
+    readonly property color lineOnBone: Qt.rgba(inkOnBone.r, inkOnBone.g, inkOnBone.b, 0.26)
 
-    // ── hairlines and tints ──────────────────────────────────────────────
+    // ── hairlines and tints (ink-derived, so they follow the resolved ink) ────
     readonly property color line: Qt.rgba(t.ink.r, t.ink.g, t.ink.b, 0.26)
     readonly property color lineSoft: Qt.rgba(t.ink.r, t.ink.g, t.ink.b, 0.13)
     readonly property color lineStrong: Qt.rgba(t.ink.r, t.ink.g, t.ink.b, 0.42)
@@ -46,11 +75,10 @@ Singleton {
     readonly property color tint10: Qt.rgba(t.ink.r, t.ink.g, t.ink.b, 0.10)  // control hover
     readonly property color tint16: Qt.rgba(t.ink.r, t.ink.g, t.ink.b, 0.16)  // pressed
 
-    // ── colour ───────────────────────────────────────────────────────────
-    readonly property color sun: matchWallpaper ? (wallustAdapter.color1.hsvValue > 0.01 ? wallustAdapter.color1 : "#e2342a") : "#e2342a"
-    readonly property color sunDeep: matchWallpaper ? (wallustAdapter.color9.hsvValue > 0.01 ? wallustAdapter.color9 : "#b81f19") : "#b81f19"
-    // a fixed attention red for badges (e.g. the update dot); unlike `sun` it
-    // never follows the wallpaper, so an alert always reads as an alert.
+    // ── colour: sun is the live accent (the palette primary); alert stays a
+    // fixed attention red so a badge always reads as an alert ─────────────────
+    readonly property color sun: role("primary", "#e2342a")
+    readonly property color sunDeep: Qt.darker(sun, 1.3)
     readonly property color alert: "#e2342a"
 
     // ── type ─────────────────────────────────────────────────────────────
@@ -99,7 +127,39 @@ Singleton {
     // ── grain ────────────────────────────────────────────────────────────
     readonly property real grainOpacity: 0.10
 
-    // ── Dynamic theme & wallust palette readers ──────────────────────────
+    // ── daemon palette readers ───────────────────────────────────────────────
+    function refreshWall() {
+        try {
+            const txt = wallustFile.text();
+            t.wall = txt && txt.length ? (JSON.parse(txt) || {}) : {};
+        } catch (e) {
+            t.wall = {};
+        }
+    }
+    function refreshNamed() {
+        var pal = null;
+        try {
+            const txt = shellFile.text();
+            if (txt) {
+                const o = JSON.parse(txt);
+                if (o && typeof o.themePalette === "object" && o.themePalette !== null)
+                    pal = o.themePalette;
+            }
+        } catch (e) {
+            pal = null;
+        }
+        t.namedScheme = pal;
+    }
+    function refreshMatch() {
+        try {
+            const txt = themeFile.text();
+            const o = txt ? JSON.parse(txt) : null;
+            t.matchWallpaper = !!(o && o.followWallpaper);
+        } catch (e) {
+            t.matchWallpaper = false;
+        }
+    }
+
     FileView {
         id: themeFile
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/theme.json"
@@ -107,13 +167,17 @@ Singleton {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-
-        JsonAdapter {
-            id: themeAdapter
-            property bool followWallpaper: false
-        }
+        onLoaded: t.refreshMatch()
     }
-
+    FileView {
+        id: shellFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: t.refreshNamed()
+    }
     FileView {
         id: wallustFile
         path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
@@ -121,24 +185,12 @@ Singleton {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
+        onLoaded: t.refreshWall()
+    }
 
-        JsonAdapter {
-            id: wallustAdapter
-            property color background: "#000000"
-            property color foreground: "#cdc4ba"
-            property color color0: "#0a0a0a"
-            property color color1: "#e2342a"
-            property color color2: "#7a756e"
-            property color color3: "#958f87"
-            property color color4: "#b0a9a0"
-            property color color5: "#8a857c"
-            property color color6: "#a89f95"
-            property color color7: "#b0a9a0"
-            property color color8: "#958f87"
-            property color color9: "#b81f19"
-            property color color10: "#b0a9a0"
-            property color color14: "#958f87"
-            property color color15: "#cdc4ba"
-        }
+    Component.onCompleted: {
+        refreshWall();
+        refreshNamed();
+        refreshMatch();
     }
 }
