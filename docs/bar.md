@@ -25,33 +25,28 @@ the rail: a start zone hugs the leading edge, a centre zone sits on the rail's
 midpoint, an end zone hugs the trailing edge. The runtime accepts only
 catalogued widgets that fit the target axis.
 
-## Styles
-
-`frameBars.style` accepts two shared-chrome styles:
-
-- `slate-frame`: subdued dark material, fine light outline, and a compact clock.
-- `ryoku-frame`: paper material, grain, Ryoku typography, and brand accents.
-
-Style changes materials and metrics only. It never selects a different rail,
-menu, or input-routing tree. Theme colours come from `Theme` and `Palette`;
-user configurations do not carry a second palette.
-
 ## Bar Studio
 
 Open **Bar Studio** with **Super+Period**. The shortcut records the Bar Studio
 section before opening the guarded Ryoku Settings process.
 
-Bar Studio edits the essentials, and keeps them few enough that every control
-works. It stages a complete immutable `frameBars` object through the normal Hub
-draft and Save flow, and its edits apply to the running desktop as you make
-them. It supports:
+Bar Studio is a direct-manipulation editor. A live schematic of the desktop
+frame and its four rails sits at the centre of the page: click an edge to put
+that rail on the bench, then edit it below. It stages a complete immutable
+`frameBars` object through the normal Hub draft and Save flow, and its edits
+apply to the running desktop as you make them. It edits only what changes the
+running frame:
 
-- the frame chrome the shell draws around the desktop: the draw toggle, the
-  widget and window corner radii, the border width, and the window opacity;
-- switching `slate-frame` and `ryoku-frame` without changing layout geometry;
-- each rail's own switches: enabled, hover reveal, and thickness;
+- the frame chrome the shell draws around the desktop: the draw toggle and the
+  window opacity;
+- each rail's own switches: on or off, visibility (pinned, or auto-hide that
+  slides in when the pointer touches that edge), and thickness;
 - the widgets in each rail's three zones: add a catalogued widget that fits the
   rail's axis and is not already on it, remove one, or reorder within a zone.
+
+The frame's corner radii, border width, and material are compiled into the
+shell's look (`Theme` and the palette), not user knobs, so they are not edited
+here; there is no second style to pick.
 
 Every change is live on the desktop at once. Save keeps it and rebaselines;
 Revert, or closing the window with unsaved edits, walks the desktop back to the
