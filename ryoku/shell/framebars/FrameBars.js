@@ -52,7 +52,6 @@ function defaultConfig() {
         },
         menus: {
             "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
-            clock: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock"] },
             clipboard: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["clipboard"] },
             notifications: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["notifications"] },
             screenshot: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },

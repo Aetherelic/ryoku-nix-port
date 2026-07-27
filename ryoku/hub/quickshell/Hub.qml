@@ -276,7 +276,7 @@ Rectangle {
         "windowrules": true, "appoverrides": true, "layerrules": true,
         "autostart": true, "environment": true
     })
-    readonly property var ledgerSet: ({ "bar-studio": true, "desktop": true, "appearance": true, "windows": true })
+    readonly property var ledgerSet: ({ "desktop": true, "appearance": true, "windows": true })
     // Which rail sections drive the Hyprland compositor (they write settings.lua:
     // input, window/layer rules, keybinds, animations, autostart, env, plus the
     // display and cursor hardware). Everything else configures the Ryoku shell.
@@ -368,6 +368,9 @@ Rectangle {
     function rebase() {
         hub.committed = snapshot();
         if (hub.pristine) hub.draft = JSON.parse(JSON.stringify(hub.committed));
+        // the first real daemon frame is the saved state Bar Studio's live
+        // edits are measured against (and walked back to on an unsaved close)
+        if (!hub.liveBaseline && Settings.ready) hub.captureLiveBaseline();
     }
     function val(k) { var v = draft[k]; return v === undefined ? committed[k] : v; }
     function edit(k, v) {
@@ -381,7 +384,74 @@ Rectangle {
             if (draft[k] === undefined || committed[k] === undefined) continue;
             if (JSON.stringify(draft[k]) !== JSON.stringify(committed[k])) n++;
         }
-        return n + hub.hyprChanges().length + (hub.pageDirty ? 1 : 0);
+        return n + hub.hyprChanges().length + (hub.pageDirty ? 1 : 0) + hub.liveChanges.length;
+    }
+
+    // ── Bar Studio live-apply ────────────────────────────────────────────
+    // The frame keys and frameBars are native settings-daemon keys, so a Bar
+    // Studio edit applies to the RUNNING desktop as it is staged: stageLive
+    // stages the draft like any edit and rides a coalesced settings.patch to
+    // the daemon, which repaints the pill live. The daemon's re-push rebases
+    // committed onto the patched value, so the unsaved distance is kept here
+    // against liveBaseline: the state at open, re-snapshotted on every Save.
+    // Quit and Revert walk the desktop back to that baseline through the same
+    // channel, so an unsaved close leaves no residue.
+    readonly property var liveKeys: ["frameBars", "frameEnabled", "roundness", "frameRadius", "frameBorder", "frameOpacity", "fontFamily"]
+    property var liveBaseline: null
+    property var livePending: ({})
+    function captureLiveBaseline() {
+        var b = {};
+        for (var i = 0; i < hub.liveKeys.length; i++) {
+            var k = hub.liveKeys[i];
+            var v = hub.val(k);
+            b[k] = JSON.parse(JSON.stringify(v === undefined ? hub.defs[k] : v));
+        }
+        hub.liveBaseline = b;
+    }
+    function stageLive(k, v) {
+        hub.edit(k, v);
+        var p = {};
+        for (var x in hub.livePending) p[x] = true;
+        p[k] = true;
+        hub.livePending = p;
+        liveFlush.restart();
+    }
+    Timer {
+        id: liveFlush
+        interval: 130
+        onTriggered: {
+            for (var k in hub.livePending) Settings.patch(k, hub.val(k));
+            hub.livePending = ({});
+        }
+    }
+    // the live-applied keys that have drifted from the saved baseline
+    readonly property var liveChanges: {
+        var out = [];
+        if (!hub.liveBaseline) return out;
+        for (var i = 0; i < hub.liveKeys.length; i++) {
+            var k = hub.liveKeys[i];
+            var v = hub.val(k);
+            if (v === undefined) continue;
+            if (JSON.stringify(v) !== JSON.stringify(hub.liveBaseline[k])) out.push(k);
+        }
+        return out;
+    }
+    // put the saved state back on the desktop; true if anything was patched
+    function restoreLiveUnsaved() {
+        liveFlush.stop();
+        hub.livePending = ({});
+        if (!hub.liveBaseline) return false;
+        var changed = hub.liveChanges;
+        if (!changed.length) return false;
+        var d = {};
+        for (var x in hub.draft) d[x] = hub.draft[x];
+        for (var i = 0; i < changed.length; i++) {
+            var k = changed[i];
+            Settings.patch(k, hub.liveBaseline[k]);
+            d[k] = JSON.parse(JSON.stringify(hub.liveBaseline[k]));
+        }
+        hub.draft = d;
+        return true;
     }
     function save() {
         var files = {};
@@ -405,10 +475,12 @@ Rectangle {
             hyprSave.running = true;
             hub.hyprCommitted = JSON.parse(JSON.stringify(hub.hyprDraft));
         }
+        hub.captureLiveBaseline();
         hub.savePage();
     }
     function revert() {
         hub.draft = JSON.parse(JSON.stringify(hub.committed));
+        hub.restoreLiveUnsaved();
         hub.hyprDraft = JSON.parse(JSON.stringify(hub.hyprCommitted));
         if (hub.hyprLoaded) { hyprRestore.command = ["ryoku-hub", "hypr", "restore"]; hyprRestore.running = true; }
         hub.revertPage();
@@ -571,14 +643,24 @@ Rectangle {
     Process { id: hyprPreview }
     Process { id: hyprRestore; onRunningChanged: if (!running && hub.quitting) Qt.quit() }
     function requestQuit() {
+        if (hub.quitting) return;
+        // Bar Studio edits are already live on the desktop: an unsaved quit
+        // puts the saved state back through the same channel before the Hub
+        // goes, whichever way it was closed.
+        var restored = hub.restoreLiveUnsaved();
         if (hub.hyprLoaded && hub.hyprChanges().length) {
             hub.quitting = true;
             hyprRestore.command = ["ryoku-hub", "hypr", "restore"];
             hyprRestore.running = true;
+        } else if (restored) {
+            // hold the door one beat so the control socket flushes the patches
+            hub.quitting = true;
+            quitFlush.restart();
         } else {
             Qt.quit();
         }
     }
+    Timer { id: quitFlush; interval: 120; onTriggered: Qt.quit() }
 
     function hyprVal(path) { return hub.pathGet(hub.hyprDraft, path); }
     function hyprCommittedVal(path) { return hub.pathGet(hub.hyprCommitted, path); }

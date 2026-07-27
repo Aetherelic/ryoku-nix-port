@@ -23,7 +23,6 @@ const widgets = {
 };
 const menus = {
     "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
-    clock: { id: "clock", anchor: "left", minWidth: 410, expansion: "always", widgets: ["clock"] },
     clipboard: { id: "clipboard", anchor: "left", minWidth: 410, expansion: "always", widgets: ["clipboard"] },
     notifications: { id: "notifications", anchor: "left", minWidth: 410, expansion: "always", widgets: ["notifications"] },
     screenshot: { id: "screenshot", anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },

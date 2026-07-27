@@ -3,6 +3,7 @@ import QtQuick
 QtObject {
     function item(id) {
         switch (id) {
+        case "app-launcher": return qsTr("App Launcher")
         case "audio-input": return qsTr("Audio Input")
         case "audio-output": return qsTr("Audio Output")
         case "battery": return qsTr("Battery")
@@ -25,6 +26,7 @@ QtObject {
         case "quick-settings": return qsTr("Quick Settings")
         case "reboot": return qsTr("Reboot")
         case "recording": return qsTr("Recording")
+        case "screenshare": return qsTr("Screen Share")
         case "screenshot": return qsTr("Screenshot")
         case "shutdown": return qsTr("Shut Down")
         case "spacer": return qsTr("Spacer")

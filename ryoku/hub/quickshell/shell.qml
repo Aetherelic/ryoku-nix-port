@@ -28,11 +28,13 @@ ShellRoot {
 
         // The launcher keybind (Super+,) guards against a second instance with
         // `flock` on /tmp/ryoku-hub.lock, held for the life of this process. The
-        // in-app dismissals (Escape, close button) call Qt.quit(), but closing
-        // the window through the compositor (Super+Q) only hides it while qs keeps
-        // running, which would pin the lock and make Super+, silently no-op until
-        // the orphan is killed. Quit on every close so the lock always releases.
-        onClosed: Qt.quit()
+        // in-app dismissals (Escape, close button) already route requestQuit();
+        // closing the window through the compositor (Super+Q) only hides it while
+        // qs keeps running, which would pin the lock and make Super+, silently
+        // no-op until the orphan is killed. Quit on every close so the lock
+        // always releases -- through requestQuit, so unsaved live Bar Studio
+        // edits are walked back off the desktop first.
+        onClosed: hubItem.requestQuit()
 
         Hub {
             id: hubItem
@@ -46,5 +48,13 @@ ShellRoot {
         target: "nav"
         function open(section: string): void { hubItem.section = section; }
         function section(): string { return hubItem.section; }
+    }
+
+    // the daemon's `hub close` verb: same exit as the in-app dismissals (the
+    // unsaved-restore then quit), so the flock releases and the next open
+    // starts clean.
+    IpcHandler {
+        target: "hub"
+        function close(): void { hubItem.requestQuit(); }
     }
 }

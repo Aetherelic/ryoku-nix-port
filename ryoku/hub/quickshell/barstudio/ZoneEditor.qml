@@ -1,12 +1,14 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "BarStudioModel.js" as Model
 
-ColumnLayout {
+// The selected rail's three zones and its add flow. Zone lists are surfaces,
+// so they sit as full-width blocks; the add flow is one cell whose chip
+// catalogue wraps inside the page column instead of clipping at its edge.
+Column {
     id: root
     required property var config
     required property string edge
@@ -15,6 +17,7 @@ ColumnLayout {
     property string addition: ""
 
     readonly property bool horizontal: root.edge === "top" || root.edge === "bottom"
+    readonly property var zoneIds: root.horizontal ? ["start", "center", "end"] : ["top", "center", "bottom"]
     readonly property var compatible: {
         const out = [];
         const axis = root.horizontal ? "horizontal" : "vertical";
@@ -25,37 +28,50 @@ ColumnLayout {
         return out;
     }
     readonly property var compatibleLabels: root.compatible.map(id => labels.item(id))
+
+    // a widget picked for one rail may not fit the next rail's axis
+    onEdgeChanged: root.addition = ""
+
     spacing: Tokens.s3
 
     CatalogLabels { id: labels }
 
-    RowLayout {
-        Layout.fillWidth: true
-        Text { text: qsTr("Add compatible widget") }
-        Chips {
-            objectName: "zone-addition"
-            Layout.fillWidth: true
-            options: root.compatibleLabels
-            current: labels.item(root.addition)
-            onChose: label => root.addition = root.compatible.find(id => labels.item(id) === label) || ""
-        }
-        Btn {
-            objectName: "zone-add"
-            text: qsTr("Add")
-            armed: root.addition.length > 0
-            onAct: root.staged(Model.addZoneItem(root.config, root.edge, root.horizontal ? "start" : "top", root.addition, root.catalog))
-        }
-    }
     Repeater {
-        model: root.horizontal ? ["start", "center", "end"] : ["top", "center", "bottom"]
+        model: root.zoneIds
         delegate: WidgetListEditor {
             required property string modelData
-            Layout.fillWidth: true
+            width: root.width
             config: root.config
             edge: root.edge
             zone: modelData
             catalog: root.catalog
             onStaged: next => root.staged(next)
+        }
+    }
+
+    Cell {
+        width: root.width
+        block: true
+        height: neededHeight
+        label: qsTr("Add a widget")
+        value: root.addition === "" ? "" : labels.item(root.addition)
+        desc: qsTr("Everything compatible with this rail. A new widget lands in the %1 zone; route it with Move.").arg(labels.zone(root.zoneIds[0]).toLowerCase())
+        Column {
+            width: parent.width
+            spacing: Tokens.s2
+            Chips {
+                objectName: "zone-addition"
+                width: parent.width
+                options: root.compatibleLabels
+                current: root.addition === "" ? "" : labels.item(root.addition)
+                onChose: label => root.addition = root.compatible.find(id => labels.item(id) === label) || ""
+            }
+            Btn {
+                objectName: "zone-add"
+                text: qsTr("ADD TO %1").arg(labels.zone(root.zoneIds[0]).toUpperCase())
+                armed: root.addition.length > 0
+                onAct: root.staged(Model.addZoneItem(root.config, root.edge, root.horizontal ? "start" : "top", root.addition, root.catalog))
+            }
         }
     }
 }

@@ -44,37 +44,50 @@ const rejected = Model.moveZoneItem(base, "left", "center", 0, "top", "start", 0
 fresh(base, rejected, "reject incompatible zone move");
 eq(rejected, base, "incompatible vertical-only widget move is a clean no-op");
 
-const menuCreated = Model.createMenu(base, "clock", MenuCatalog);
+const menuCreated = Model.createMenu(base, "notifications", MenuCatalog);
 fresh(base, menuCreated, "create menu");
-eq(menuCreated.menus.clock.widgets, ["clock"], "menu creation uses bounded catalogue record");
-const clockAnchorBefore = menuCreated.menus.clock.anchor;
-const menuAnchored = Model.setMenuAnchor(menuCreated, "clock", "bottom-right", MenuCatalog);
+eq(menuCreated.menus.notifications.widgets, ["notifications"], "menu creation uses bounded catalogue record");
+const anchorBefore = menuCreated.menus.notifications.anchor;
+const menuAnchored = Model.setMenuAnchor(menuCreated, "notifications", "bottom-right", MenuCatalog);
 fresh(menuCreated, menuAnchored, "set menu anchor");
-eq(menuCreated.menus.clock.anchor, clockAnchorBefore, "anchor update leaves source untouched");
-eq(menuAnchored.menus.clock.anchor, "bottom-right", "anchor update accepts catalogue anchor");
+eq(menuCreated.menus.notifications.anchor, anchorBefore, "anchor update leaves source untouched");
+eq(menuAnchored.menus.notifications.anchor, "bottom-right", "anchor update accepts catalogue anchor");
 
-const nestedMenu = Model.addMenuWidget(menuAnchored, "clock", [], "container", MenuCatalog);
-const nestedAdded = Model.addMenuWidget(nestedMenu, "clock", [1, "widgets"], "divider", MenuCatalog);
+const nestedMenu = Model.addMenuWidget(menuAnchored, "notifications", [], "container", MenuCatalog);
+const nestedAdded = Model.addMenuWidget(nestedMenu, "notifications", [1, "widgets"], "divider", MenuCatalog);
 fresh(nestedMenu, nestedAdded, "add nested menu widget");
-eq(nestedAdded.menus.clock.widgets, ["clock", { id: "container", widgets: ["divider"] }], "nested widget is added to bounded container");
-const nestedMoved = Model.moveMenuWidget(nestedAdded, "clock", [], 1, [], 0, MenuCatalog);
+eq(nestedAdded.menus.notifications.widgets, ["notifications", { id: "container", widgets: ["divider"] }], "nested widget is added to bounded container");
+const nestedMoved = Model.moveMenuWidget(nestedAdded, "notifications", [], 1, [], 0, MenuCatalog);
 fresh(nestedAdded, nestedMoved, "move nested menu widget");
-eq(nestedMoved.menus.clock.widgets, [{ id: "container", widgets: ["divider"] }, "clock"], "nested widget move reorders children");
-const nestedRemoved = Model.removeMenuWidget(nestedMoved, "clock", [0, "widgets"], 0, MenuCatalog);
+eq(nestedMoved.menus.notifications.widgets, [{ id: "container", widgets: ["divider"] }, "notifications"], "nested widget move reorders children");
+const nestedRemoved = Model.removeMenuWidget(nestedMoved, "notifications", [0, "widgets"], 0, MenuCatalog);
 fresh(nestedMoved, nestedRemoved, "remove nested menu widget");
-eq(nestedRemoved.menus.clock.widgets[0].widgets, [], "nested widget removal updates children");
-eq(nestedMenu.menus.clock.widgets, ["clock", { id: "container", widgets: [] }], "nested operations leave source menu unchanged");
+eq(nestedRemoved.menus.notifications.widgets[0].widgets, [], "nested widget removal updates children");
+eq(nestedMenu.menus.notifications.widgets, ["notifications", { id: "container", widgets: [] }], "nested operations leave source menu unchanged");
 
-const nestedMoveSource = Model.createMenu(base, "clock", MenuCatalog);
-nestedMoveSource.menus.clock.widgets = [{ id: "container", widgets: [{ id: "container", widgets: ["divider"] }] }];
-const directDescendantRejected = Model.moveMenuWidget(nestedMoveSource, "clock", [], 0, [0, "widgets"], 0, MenuCatalog);
+const nestedMoveSource = Model.createMenu(base, "notifications", MenuCatalog);
+nestedMoveSource.menus.notifications.widgets = [{ id: "container", widgets: [{ id: "container", widgets: ["divider"] }] }];
+const directDescendantRejected = Model.moveMenuWidget(nestedMoveSource, "notifications", [], 0, [0, "widgets"], 0, MenuCatalog);
 fresh(nestedMoveSource, directDescendantRejected, "reject direct descendant menu move");
 eq(directDescendantRejected, nestedMoveSource, "direct descendant move preserves the normalized root");
-eq(nestedMoveSource.menus.clock.widgets, [{ id: "container", widgets: [{ id: "container", widgets: ["divider"] }] }], "direct descendant move leaves source root intact");
-const deepDescendantRejected = Model.moveMenuWidget(nestedMoveSource, "clock", [], 0, [0, "widgets", 0, "widgets"], 0, MenuCatalog);
+eq(nestedMoveSource.menus.notifications.widgets, [{ id: "container", widgets: [{ id: "container", widgets: ["divider"] }] }], "direct descendant move leaves source root intact");
+const deepDescendantRejected = Model.moveMenuWidget(nestedMoveSource, "notifications", [], 0, [0, "widgets", 0, "widgets"], 0, MenuCatalog);
 fresh(nestedMoveSource, deepDescendantRejected, "reject deep descendant menu move");
 eq(deepDescendantRejected, nestedMoveSource, "deep descendant move preserves the normalized root");
-eq(nestedMoveSource.menus.clock.widgets[0].widgets[0].widgets, ["divider"], "deep descendant move leaves source descendants intact");
+eq(nestedMoveSource.menus.notifications.widgets[0].widgets[0].widgets, ["divider"], "deep descendant move leaves source descendants intact");
+
+// Subtree-preservation at the model layer: every mutation clones the whole
+// config, so a rail edit can never drop the menus/surfaces/dock subtrees and a
+// menu edit can never drop the rails subtree. This is the source-side half of
+// the invariant the daemon also enforces (ryoku/shell/ipc/settings.go).
+const subtrees = ["version", "style", "rails", "menus", "surfaces", "dock"];
+function preservesAll(cfg, label) {
+    for (const key of subtrees) ok(cfg[key] !== undefined, `${label} preserves the ${key} subtree`);
+}
+preservesAll(Model.setRail(base, "left", { size: 64 }), "a rail thickness edit");
+preservesAll(Model.setStyle(base, "ryoku-frame"), "a frame style edit");
+preservesAll(Model.setMenuAnchor(base, "wallpaper", "left", MenuCatalog), "a menu anchor edit");
+preservesAll(Model.addZoneItem(base, "left", "top", "vpn", BarCatalog), "a zone widget add");
 
 if (failed > 0) {
     console.error(`\n${failed} test(s) FAILED`);
