@@ -12,7 +12,7 @@ var rows = [
         "label": "Framerate",
         "desc": "Frames captured per second, higher is smoother but files are larger",
         "ctl": "step",
-        "src": "recording.json\")",
+        "src": "recording.json",
         "unit": "fps"
     },
     {
