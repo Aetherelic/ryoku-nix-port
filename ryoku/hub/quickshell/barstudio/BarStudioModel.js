@@ -74,10 +74,4 @@ function setRail(config, edge, changes) {
     return next;
 }
 
-function setStyle(config, style) {
-    const next = copy(config);
-    if (style === "slate-frame" || style === "ryoku-frame") next.style = style;
-    return next;
-}
-
-if (typeof module !== "undefined" && module.exports) module.exports = { zones, axisOf, railWidgets, addZoneItem, reorderZoneItem, removeZoneItem, setRail, setStyle };
+if (typeof module !== "undefined" && module.exports) module.exports = { zones, axisOf, railWidgets, addZoneItem, reorderZoneItem, removeZoneItem, setRail };

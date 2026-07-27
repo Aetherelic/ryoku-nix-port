@@ -396,7 +396,7 @@ Rectangle {
     // against liveBaseline: the state at open, re-snapshotted on every Save.
     // Quit and Revert walk the desktop back to that baseline through the same
     // channel, so an unsaved close leaves no residue.
-    readonly property var liveKeys: ["frameBars", "frameEnabled", "roundness", "frameRadius", "frameBorder", "frameOpacity", "fontFamily"]
+    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "fontFamily"]
     property var liveBaseline: null
     property var livePending: ({})
     function captureLiveBaseline() {

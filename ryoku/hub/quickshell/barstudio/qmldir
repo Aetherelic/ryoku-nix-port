@@ -1,4 +1,5 @@
 module barstudio
 CatalogLabels 1.0 CatalogLabels.qml
+FramePreview 1.0 FramePreview.qml
 StripHead 1.0 StripHead.qml
 ZoneEditor 1.0 ZoneEditor.qml

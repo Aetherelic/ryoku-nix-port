@@ -75,12 +75,6 @@ eq(thicker.rails.left.size, 64, "set rail applies a rounded size");
 eq(Model.setRail(base, "left", { enabled: false }).rails.left.enabled, false, "set rail toggles enabled");
 eq(Model.setRail(base, "left", { reveal: false }).rails.left.reveal, false, "set rail toggles reveal");
 
-// ── style ────────────────────────────────────────────────────────────────────
-const styled = Model.setStyle(base, "ryoku-frame");
-fresh(base, styled, "set style");
-eq(styled.style, "ryoku-frame", "set style accepts a known style");
-eq(Model.setStyle(base, "not-a-style"), base, "set style rejects an unknown style");
-
 // ── railWidgets helper ────────────────────────────────────────────────────────
 const packed = Model.addZoneItem(Model.addZoneItem(dockLeft, "left", "bottom", "clock", BarCatalog), "left", "bottom", "battery", BarCatalog);
 eq(Model.railWidgets(packed, "left"), ["dock", "clock", "battery"], "railWidgets concatenates a rail's zones in order");
@@ -95,7 +89,7 @@ function preservesAll(config, label) {
     for (const key of subtrees) ok(config[key] !== undefined, `${label} preserves the ${key} subtree`);
 }
 preservesAll(Model.setRail(shipped, "left", { size: 64 }), "a rail thickness edit");
-preservesAll(Model.setStyle(shipped, "ryoku-frame"), "a frame style edit");
+preservesAll(Model.setRail(shipped, "top", { reveal: false }), "a rail visibility edit");
 preservesAll(Model.addZoneItem(base, "left", "top", "vpn", BarCatalog), "a zone widget add");
 preservesAll(Model.removeZoneItem(dockLeft, "left", "top", 0), "a zone widget remove");
 preservesAll(Model.reorderZoneItem(two, "top", "start", 0, 1), "a zone widget reorder");

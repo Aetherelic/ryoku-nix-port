@@ -44,23 +44,23 @@
   projection of the daemon's theme table, cross-checked byte-for-byte against the
   sidebar's `MenuTheme.qml` (`pages/AppearancePage.qml`, `schema/ThemeCatalog.js`,
   `schema/AppearancePage.js`).
-- **Bar Studio is rebuilt around the essentials, so every control works.** The
-  page had grown a full catalogue (bounded-menu editing with nested widgets,
-  the stash and system surface editors, a read-only catalogue panel) on top of
-  the rail and frame controls, and the breadth was the problem: too much to
-  land reliably. It now carries only what the frame needs day to day, and each
-  piece is proven live end to end: the frame chrome (draw toggle, widget and
-  window radii, border, opacity), the two-look style switch, each rail's own
-  switches (enabled, hover reveal, thickness), and the widgets in each rail's
-  three zones (add a catalogued widget that fits the axis and is not already on
-  the rail, remove, reorder within a zone). Edits still apply to the running
-  desktop as you make them and ride the Hub's Save and Revert. The bounded
-  menus and the stash and system surfaces are no longer edited here but are
-  never dropped: every edit clones the whole `frameBars` object, so an untouched
-  subtree always survives. The menu, surface, catalogue and per-widget
-  cross-zone-move editors are removed, and the edit model is trimmed to the rail
-  and zone operations it still needs (`pages/BarStudioPage.qml`,
-  `barstudio/ZoneEditor.qml`, `barstudio/BarStudioModel.js`, `barstudio/qmldir`).
+- **Bar Studio is now a direct-manipulation editor, and every control provably
+  changes the running desktop.** A live schematic of the frame and its four
+  rails is the centre of the page: click an edge to put that rail on the bench,
+  and the diagram, and the desktop, repaint as you edit. The controls are pruned
+  to the ones with a runtime consumer: the frame's draw toggle and opacity, and
+  each rail's on/off, visibility and thickness, plus the widgets in its three
+  zones. The retired chrome knobs (widget and window radius, border width) and
+  the two-look style switch had no effect on the live frame (the radii and border
+  are compiled `Theme` tokens that `ryoku doctor` strips, and the shell never
+  read `frameBars.style`), so they are gone. The "hover reveal" switch was
+  mislabelled and applied only at the next restart; it is now a clear Pinned vs
+  Auto-hide choice that lands live. The bounded menus and the stash and system
+  surfaces are still never dropped: every edit clones the whole `frameBars`
+  object, so an untouched subtree always survives (`pages/BarStudioPage.qml`,
+  `barstudio/FramePreview.qml`, `barstudio/BarStudioModel.test.mjs`,
+  `barstudio/BarStudioModel.js`, `barstudio/CatalogLabels.qml`,
+  `barstudio/qmldir`, `Hub.qml`).
 - **Ryoku Settings now describes the Atoll-only shell instead of the retired
   style catalogue. The Bar page keeps the two-look Atoll control, live bar
   geometry and preserved sidebar-content controls, and drops style, island and

@@ -94,12 +94,4 @@ QtObject {
         default: return qsTr("Unknown")
         }
     }
-
-    function style(id) {
-        switch (id) {
-        case "slate-frame": return qsTr("Slate Frame")
-        case "ryoku-frame": return qsTr("Ryoku Frame")
-        default: return qsTr("Unknown")
-        }
-    }
 }
