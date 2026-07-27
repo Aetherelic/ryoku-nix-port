@@ -339,6 +339,13 @@ func (d *daemon) matugenApply(img string) error {
 		return fmt.Errorf("matugen colors.json: %w", err)
 	}
 
+	// And the tonal ramps behind those roles, from the same run.
+	if tones := parseMatugenTones(out); tones != nil {
+		if err := writeJSONFile(matugenTonesPath(), tones); err != nil {
+			fmt.Fprintf(os.Stderr, "matugen tones.json: %v\n", err)
+		}
+	}
+
 	// Fan the same palette into the app suite through matugen's templating pass,
 	// gated by the per-app roster and the app-suite toggle.
 	matugenRenderTemplates(matugenShellPalette(pal), k)
@@ -363,6 +370,9 @@ func (d *daemon) matugenApplyStatic(name string) error {
 	k := readMatugenKnobs()
 	matugenRenderTemplates(matugenShellPalette(shell), k)
 	matugenReload(staticPaletteMode(shell))
+	// A catalog theme has no ramps, so the last wallpaper's are now wrong. The
+	// file's absence is the gate: Ink re-lights the theme's own roles instead.
+	_ = os.Remove(matugenTonesPath())
 	return nil
 }
 
@@ -487,6 +497,50 @@ func parseMatugenPalette(out []byte, modeKey string) (map[string]string, error) 
 		return nil, fmt.Errorf("matugen output had no usable colors")
 	}
 	return pal, nil
+}
+
+// parseMatugenTones pulls the six tonal palettes out of the same --json output
+// the roles come from, as ramp -> tone -> hex. matugen computes them on every
+// run and the pipeline used to drop them. A role is one tone chosen to read on
+// a surface; a surface-less spectrum bar has to pick its own, and taking it off
+// the ramp keeps the chroma Material tuned for that tone.
+func parseMatugenTones(out []byte) map[string]map[string]string {
+	var doc struct {
+		Palettes map[string]map[string]struct {
+			Color string `json:"color"`
+			Hex   string `json:"hex"`
+		} `json:"palettes"`
+	}
+	if json.Unmarshal(out, &doc) != nil || len(doc.Palettes) == 0 {
+		return nil
+	}
+	ramps := make(map[string]map[string]string, len(doc.Palettes))
+	for name, tones := range doc.Palettes {
+		ramp := make(map[string]string, len(tones))
+		for tone, e := range tones {
+			switch {
+			case e.Color != "":
+				ramp[tone] = e.Color
+			case e.Hex != "":
+				ramp[tone] = e.Hex
+			}
+		}
+		if len(ramp) > 0 {
+			ramps[matugenRampName(name)] = ramp
+		}
+	}
+	if len(ramps) == 0 {
+		return nil
+	}
+	return ramps
+}
+
+// matugenRampName renders a ramp name in the camelCase the QML side reads.
+func matugenRampName(name string) string {
+	if name == "neutral_variant" {
+		return "neutralVariant"
+	}
+	return name
 }
 
 // matugenBase16 maps the Material 3 palette onto the sixteen-colour base16 keys
@@ -843,6 +897,12 @@ func matugenKnobsPath() string {
 // palette source the shell singletons watch.
 func matugenColorsPath() string {
 	return filepath.Join(matugenCacheHome(), "ryoku", "colors.json")
+}
+
+// matugenTonesPath is the tonal-ramp file beside it, for the surfaces that must
+// choose a tone rather than consume one. Absent under a fixed named theme.
+func matugenTonesPath() string {
+	return filepath.Join(matugenCacheHome(), "ryoku", "tones.json")
 }
 
 // matugenEnsureDirs pre-creates the template output directories so matugen's own

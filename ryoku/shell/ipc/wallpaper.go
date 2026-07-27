@@ -396,6 +396,9 @@ func (d *daemon) scheduleTheme() {
 // wallpaper. runs for the life of the daemon.
 func (d *daemon) paintWorker() {
 	for range d.paintSig {
+		// Before deciding who owns the palette: the surfaces floating on the
+		// picture need its luminance map either way, named theme or not.
+		writeWallpaperTone(readState())
 		// A fixed named theme owns the palette: fan its curated palette into the
 		// same app templates the wallpaper path renders, then reload, so apps
 		// follow the shell rail's master instead of the last wallpaper render. No
