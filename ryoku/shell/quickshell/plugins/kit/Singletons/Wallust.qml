@@ -3,94 +3,126 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// shell surface palette matched to the wallpaper's terminal background. when
-// Ryoku Settings -> Shell -> Match wallpaper is on (read here from
-// theme.json.FollowWallpaper, the single colour master shared with the daemon
-// and window borders), surfaces follow the live wallust palette
-// (~/.cache/wallust/colors.json), so the shell reads as the same colour as an
-// open terminal. `base` = the kitty background exactly; elevated/deep/line
-// shift its value to keep the depth hierarchy. defaults = the Ryoku brand
-// palette so things look right before the first wallust run.
+// Thin reader of the daemon palette for the plugin kit. The theme daemon is the
+// sole author of colour in Ryoku: a fixed named theme publishes its palette into
+// shell.json's themePalette key, and follow-the-wallpaper mode writes the live
+// palette to ~/.cache/wallust/colors.json. This resolves each role the pill's
+// way -- a named scheme wins, then the live wallpaper palette, then the compiled
+// default -- so a plugin's card, ink and accent retint on ANY scheme change
+// (static named theme or wallpaper-follow) with no colour math of its own.
+// base/elevated/deep/line map onto the palette's surface depth ramp; accent is
+// the primary role verbatim.
 Singleton {
-    readonly property bool  matchWallpaper: shellCfg.followWallpaper
-    readonly property color base:     shade(palette.background)
-    readonly property color elevated: tone(base, 0.05)
-    readonly property color deep:     tone(base, -0.03)
-    readonly property color line:     tone(base, 0.14)
-    readonly property color accent:   legible(vivid(palette.color4), elevated, 3.0)
+    id: root
 
-    // Tone-map the wallpaper background into the shell's dark band, hue kept:
-    // HSV value inside [0.08, 0.26] passes through, pure black lifts to a soft
-    // near-black, brighter compresses to just past the ceiling; saturation caps
-    // at 0.55 so a saturated wallpaper reads as a deep tint, never neon.
-    function shade(c) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        var s = Math.min(c.hsvSaturation, 0.55);
-        var v = c.hsvValue;
-        if (v < 0.08)      v = 0.08;
-        else if (v > 0.26) v = 0.26 + (v - 0.26) * 0.06;
-        return Qt.hsva(hue, s, v, 1);
+    // Follow-the-wallpaper master (theme.json), the static named scheme's palette
+    // (shell.json themePalette; null for the dynamic variants) and the live
+    // wallpaper roles (colors.json). All three are parsed straight from the file
+    // text: half the role names start with "on" (which JsonAdapter's
+    // signal-handler grammar rejects), a removed themePalette key only reads as
+    // absent from raw text, and a bare JsonAdapter does not repopulate reliably
+    // for a lazily-created singleton.
+    property bool matchWallpaper: false
+    property var namedScheme: null
+    property var wall: ({})
+
+    // A palette value is only usable when it is a non-empty hex string; a null,
+    // missing or half-written role falls through to the next layer, so a partial
+    // colors.json (mid-write) or a scheme missing a role never paints black.
+    function usable(v) { return typeof v === "string" && v.length > 0; }
+
+    // Resolve one role through the layer chain: a selected named scheme wins,
+    // then the live wallpaper palette while Match wallpaper is on, then the base.
+    function role(key, base) {
+        if (namedScheme && usable(namedScheme[key]))
+            return namedScheme[key];
+        if (matchWallpaper && usable(wall[key]))
+            return wall[key];
+        return base;
     }
 
-    // WCAG relative luminance / contrast, for the legible() guard below.
-    function relLum(c) {
-        function lin(u) { return u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4); }
-        return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
-    }
-    function contrast(a, b) {
-        var la = relLum(a), lb = relLum(b);
-        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-    }
+    // --- surface depth ramp (the plugin card sits on these) -------------------
+    readonly property color base:     role("surface", "#16110b")
+    readonly property color elevated: role("surfaceContainer", "#1b150e")
+    readonly property color deep:     role("surfaceContainerLowest", "#0f0c07")
+    readonly property color line:     role("outlineVariant", "#3d484d")
 
-    // Walk fg toward white until it clears `target` against bg; already-passing
-    // colors return unchanged.
-    function legible(fg, bg, target) {
-        var r = fg.r, g = fg.g, b = fg.b;
-        for (var i = 0; i < 8; i++) {
-            var c = Qt.rgba(r, g, b, 1);
-            if (contrast(c, bg) >= target) return c;
-            r += (1 - r) * 0.18;
-            g += (1 - g) * 0.18;
-            b += (1 - b) * 0.18;
+    // --- accent: the primary role, verbatim (the daemon curates it) -----------
+    readonly property color accent: role("primary", "#e2342a")
+
+    // --- ink, resolved from the palette so text reads on the themed card.
+    // Declared plain and set via Binding: QML's signal-handler grammar parses an
+    // inline `onSurface:` as a change-handler for the sibling `surface` property
+    // and silently drops the binding (the transparent-black trap), so a Binding
+    // element assigns the role by name instead. ---
+    property color onSurface
+    property color onSurfaceVariant
+    Binding { target: root; property: "onSurface";        value: root.role("onSurface", "#e6dccb") }
+    Binding { target: root; property: "onSurfaceVariant"; value: root.role("onSurfaceVariant", "#8f8770") }
+
+    function refreshWall() {
+        try {
+            const t = wallFile.text();
+            root.wall = t && t.length ? (JSON.parse(t) || {}) : {};
+        } catch (e) {
+            root.wall = {};
         }
-        return Qt.rgba(r, g, b, 1);
     }
-
-    // shift a colour's HSV value by dv (hue/sat kept), so a ramp from the
-    // wallpaper background sits at predictable depths.
-    function tone(c, dv) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        return Qt.hsva(hue, c.hsvSaturation, Math.max(0, Math.min(1, c.hsvValue + dv)), 1);
+    function refreshNamed() {
+        var pal = null;
+        try {
+            const t = shellFile.text();
+            if (t) {
+                const o = JSON.parse(t);
+                if (o && typeof o.themePalette === "object" && o.themePalette !== null)
+                    pal = o.themePalette;
+            }
+        } catch (e) {
+            pal = null;
+        }
+        root.namedScheme = pal;
     }
-    // lift sat, floor brightness, so an accent reads as colour not mud.
-    function vivid(c) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        var sat = c.hsvSaturation < 0.06 ? 0 : Math.min(1, c.hsvSaturation * 1.2 + 0.06);
-        return Qt.hsva(hue, sat, Math.max(c.hsvValue, 0.74), 1);
+    function refreshMatch() {
+        try {
+            const t = themeFile.text();
+            const o = t ? JSON.parse(t) : null;
+            root.matchWallpaper = !!(o && o.followWallpaper);
+        } catch (e) {
+            root.matchWallpaper = false;
+        }
     }
 
     FileView {
+        id: wallFile
         path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter {
-            id: palette
-            property color background: "#16110b"
-            property color color4: "#e2342a"
-        }
+        onLoaded: root.refreshWall()
     }
-
     FileView {
+        id: shellFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.refreshNamed()
+    }
+    FileView {
+        id: themeFile
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/theme.json"
         blockLoading: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter {
-            id: shellCfg
-            property bool followWallpaper: true
-        }
+        onLoaded: root.refreshMatch()
+    }
+
+    Component.onCompleted: {
+        refreshWall();
+        refreshNamed();
+        refreshMatch();
     }
 }
