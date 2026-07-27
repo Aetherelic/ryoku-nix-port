@@ -34,7 +34,7 @@ Item {
             id: card
             anchors.fill: parent
             radius: Math.round(face.ch * 0.16)
-            color: Qt.rgba(0, 0, 0, 0.55)
+            color: Theme.shadow
             border.width: Math.max(1, Math.round(face.s))
             border.color: Qt.rgba(face.accent.r, face.accent.g, face.accent.b, 0.24)
             antialiasing: true
@@ -61,7 +61,7 @@ Item {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 height: Math.max(1, Math.round(2 * face.s))
-                color: Qt.rgba(0, 0, 0, 0.4)
+                color: Qt.rgba(Theme.shadow.r, Theme.shadow.g, Theme.shadow.b, 0.4)
             }
         }
 

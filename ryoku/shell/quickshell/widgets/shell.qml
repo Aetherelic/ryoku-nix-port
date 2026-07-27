@@ -21,6 +21,16 @@ import "clock"
 ShellRoot {
     id: root
 
+    // Resolve the placement helper the way Registry resolves discover.sh: in a
+    // dev run RYOKU_SHELL_DIR points at the shell tree and the tool is NOT on
+    // PATH, so a bare "ryoku-plugins-place" Process silently no-ops and every
+    // drag / resize / lock / hide / settings write is lost. Packaged installs
+    // (no RYOKU_SHELL_DIR) ship it to /usr/bin, where the bare name resolves.
+    readonly property string _shellDir: Quickshell.env("RYOKU_SHELL_DIR")
+    readonly property string placeTool: (root._shellDir && root._shellDir.length > 0)
+        ? root._shellDir + "/quickshell/plugins/ryoku-plugins-place"
+        : "ryoku-plugins-place"
+
     // hand the keyboard back after a widget text field releases its grab. the
     // widget layer never unmaps, and dropping an exclusive grab on a mapped
     // layer strands the keyboard (the focused app can't type). this 1x1 helper
@@ -171,14 +181,14 @@ ShellRoot {
                     radius: slot.dw.radius || 26
 
                     onMoved: (x, y) => {
-                        persist.command = ["ryoku-plugins-place", slot.pid, "desktopWidget", "" + x, "" + y];
+                        persist.command = [root.placeTool, slot.pid, "desktopWidget", "" + x, "" + y];
                         persist.running = true;
                     }
                     onResized: (sc) => {
                         const x = (slot.dw.x !== undefined) ? slot.dw.x : Math.round(slot.x);
                         const y = (slot.dw.y !== undefined) ? slot.dw.y : Math.round(slot.y);
                         const lk = (slot.dw.locked === true);
-                        persist.command = ["ryoku-plugins-place", slot.pid, "desktopWidget",
+                        persist.command = [root.placeTool, slot.pid, "desktopWidget",
                             "" + x, "" + y, "" + sc, "" + lk];
                         persist.running = true;
                     }
@@ -230,7 +240,7 @@ ShellRoot {
             PluginWidgetMenu {
                 id: pluginMenu
                 onHideRequested: (id) => {
-                    hide.command = ["ryoku-plugins-place", id, "enabled", "false"];
+                    hide.command = [root.placeTool, id, "enabled", "false"];
                     hide.running = true;
                     pluginMenu.close();
                 }
@@ -240,14 +250,14 @@ ShellRoot {
                     const y = (dw.y !== undefined) ? dw.y : 80;
                     const sc = (dw.scale !== undefined) ? dw.scale : 1;
                     const lk = !(dw.locked === true);
-                    lockProc.command = ["ryoku-plugins-place", id, "desktopWidget",
+                    lockProc.command = [root.placeTool, id, "desktopWidget",
                         "" + x, "" + y, "" + sc, "" + lk];
                     lockProc.running = true;
                 }
                 onSettingChanged: (id, key, value) => {
                     var obj = {};
                     obj[key] = value;
-                    settingsProc.command = ["ryoku-plugins-place", id, "settings", JSON.stringify(obj)];
+                    settingsProc.command = [root.placeTool, id, "settings", JSON.stringify(obj)];
                     settingsProc.running = true;
                 }
             }

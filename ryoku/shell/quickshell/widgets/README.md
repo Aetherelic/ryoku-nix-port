@@ -13,6 +13,10 @@ surfaces. Run `ryoku-shell reload` after changing QML.
     shell.qml                monitor layers, clock slot, plugin slots, menus
     WidgetSlot.qml           clock placement, drag, resize, card
     WidgetGrid.qml           snap grid shown during a drag
+    DesktopMenu.qml          shared right-click chrome (card, masthead, scroll)
+    MenuRow.qml              one labelled action / value row
+    MenuSection.qml          a section eyebrow / hairline divider
+    MenuChip.qml             a selectable chip (choice, style, snap zone)
     WidgetMenu.qml           desktop and clock right-click actions
     PluginDesktopSlot.qml    one placed third-party widget
     PluginWidgetMenu.qml     third-party widget actions
@@ -41,8 +45,11 @@ for wallpaper input.
 - Read wallpaper-following colour from `Wallust`; use fixed brand colour only
   for a deliberate accent.
 - Keep one face or date treatment per file.
-- The right-click chrome uses the shell's carbon surface, hairlines, corner
-  ticks and vermilion hover mark rather than a generic context menu.
+- The right-click chrome is one shared component, `DesktopMenu`, in the
+  quick-settings sidebar idiom: a surface card with a masthead eyebrow, section
+  eyebrows, ink-washed rows and chips, and a press dip. `WidgetMenu` and
+  `PluginWidgetMenu` compose it, so no menu carries its own card or a second
+  copy of the row vocabulary.
 
 ## Adding a clock face
 
@@ -87,7 +94,8 @@ and then starts the guarded Hub process. There is no direct menu-to-Hub IPC.
 `Registry` filters enabled plugins whose placement host is `desktopWidget`.
 The host repeats a stable list of plugin IDs so a placement write updates the
 live entry without rebuilding its service or losing its internal state.
-Placement writes go through `ryoku-plugins-place`; plugin settings stay in the
+Placement writes go through `ryoku-plugins-place`, resolved from `RYOKU_SHELL_DIR`
+in a dev run (else the packaged `/usr/bin` name); plugin settings stay in the
 plugin store rather than `widgets.json`.
 
 ## Deliberate constraints

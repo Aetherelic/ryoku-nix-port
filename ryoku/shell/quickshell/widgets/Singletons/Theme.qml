@@ -28,6 +28,16 @@ Singleton {
     readonly property color faint:   Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.42)
     readonly property color lineStrong: Qt.rgba(236 / 255, 226 / 255, 205 / 255, 0.40)
 
+    // ── menu surface: the right-click chrome, in the sidebar design idiom ──
+    // an opaque lifted plate over the wallpaper (follows the wallust dark band
+    // when matching, else a cool near-black); rows and chips wash with
+    // ink-derived tints so hover and press read on any palette.
+    readonly property color surface:   Wallust.matchWallpaper ? Wallust.base : "#17161d"
+    readonly property color line:      Qt.rgba(ink.r, ink.g, ink.b, 0.16)
+    readonly property color tile:      Qt.rgba(ink.r, ink.g, ink.b, 0.06)
+    readonly property color tileHover: Qt.rgba(ink.r, ink.g, ink.b, 0.10)
+    readonly property color tilePress: Qt.rgba(ink.r, ink.g, ink.b, 0.16)
+
     readonly property string display: "Fraunces"
     readonly property string font:   "Space Grotesk"
     readonly property string fontJp: "Noto Sans CJK JP"
@@ -40,6 +50,10 @@ Singleton {
     readonly property bool markTint: Config.markTint
     readonly property string brandName: Config.brandName.length > 0 ? Config.brandName : "Ryoku"
     readonly property int radius: 0
+    // rounded corners for the menu card and its tiles (the sidebar radiusWidget
+    // idiom); the sharp `radius: 0` above stays the clock-face default.
+    readonly property int radiusWidget: 14
+    readonly property int radiusTile:   9
 
     // motion: short + smooth. OutExpo mirrors the shell's open curve.
     readonly property int quick:  140
