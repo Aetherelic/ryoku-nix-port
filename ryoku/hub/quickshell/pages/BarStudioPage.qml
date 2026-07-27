@@ -8,16 +8,15 @@ import "../barstudio"
 import Ryoku.FrameBars
 import "../barstudio/BarStudioModel.js" as Model
 
-// Bar Studio (DESKTOP), rebuilt as a direct-manipulation editor. The hero is a
-// live schematic of the desktop frame and its four rails; click an edge to put
-// that rail on the bench, then edit it in the inspector below. It edits only
-// the essentials that provably change the running desktop -- the frame's draw
-// toggle and opacity, and each rail's on/off, visibility and thickness, plus the
-// widgets in its three zones (add, remove, reorder). The retired chrome knobs
-// (widget/window radius, border, the two-look style) had no runtime consumer, so
-// they are gone; the bounded menus and the stash/system surfaces keep their
-// persisted values -- every edit clones the whole frameBars object, so no
-// subtree it does not touch is ever dropped -- but they are not edited here.
+// Bar Studio (DESKTOP). Pick an edge, then edit that rail. It edits only the
+// essentials that provably change the running desktop: the frame's draw toggle
+// and opacity, each rail's on/off and thickness, and the widgets in its three
+// zones (add via a per-zone drawer, remove, reorder). The retired chrome knobs
+// (widget/window radius, border, the two-look style) and the rail auto-hide had
+// no usable runtime effect, so they are gone; the bounded menus and the
+// stash/system surfaces keep their persisted values (every edit clones the whole
+// frameBars object, so no subtree it does not touch is ever dropped) but are not
+// edited here.
 //
 // Everything stages through the shared draft (hub.stageLive), which applies to
 // the RUNNING desktop as you work and rides the Hub's Save and Revert like every
@@ -47,7 +46,7 @@ Item {
         return c ? FrameBars.normalize(c, BarCatalog, MenuCatalog) : null;
     }
 
-    // the selected rail and its on-disk twin, for the inspector's changed marks
+    // the selected rail and its on-disk twin, for the rail cells' changed marks
     readonly property var rail: page.config.rails[page.edge]
     readonly property var railWas: page.committedBars && page.committedBars.rails ? page.committedBars.rails[page.edge] : null
     readonly property bool horizontal: page.edge === "top" || page.edge === "bottom"
@@ -83,10 +82,6 @@ Item {
     function fwas(key) {
         return page.hub && page.hub.committed ? page.hub.committed[key] : undefined;
     }
-
-    // preview height: capped so the inspector always keeps room, and never so
-    // small the diagram stops reading.
-    readonly property real previewH: Math.max(190, Math.min(330, page.height * 0.42))
 
     CatalogLabels { id: labels }
 
@@ -140,7 +135,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: qsTr("Your desktop frame and its four rails. Click an edge to work on that rail; every change lands live on the desktop, and Save keeps it.")
+            text: qsTr("The frame's chrome, its four rails, and the widgets on each. Pick an edge to work on that rail; every change lands live on the desktop, and Save keeps it.")
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: Tokens.fBody
@@ -148,86 +143,10 @@ Item {
         }
     }
 
-    // ── the stage: the live diagram and the two working frame knobs ──────────
-    Column {
-        id: stage
-        anchors { left: parent.left; right: parent.right; top: head.bottom; topMargin: Tokens.s5 }
-        spacing: Tokens.s3
-
-        FramePreview {
-            id: preview
-            width: parent.width
-            height: page.previewH
-            config: page.config
-            committedBars: page.committedBars
-            selected: page.edge
-            frameEnabled: !!page.fval("frameEnabled", true)
-            frameOpacity: page.fnum("frameOpacity", 1)
-            onSelectEdge: e => page.edge = e
-        }
-
-        // the frame's own two live controls, as a caption bound to the diagram
-        Item {
-            width: parent.width
-            height: 46
-            Rectangle {
-                anchors.fill: parent
-                radius: Tokens.radius
-                color: "transparent"
-                border.width: Tokens.border
-                border.color: Tokens.line
-            }
-            Row {
-                anchors { left: parent.left; leftMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
-                spacing: Tokens.s3
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("DRAW FRAME")
-                    color: Tokens.inkMuted
-                    font.family: Tokens.ui; font.pixelSize: 10
-                    font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
-                }
-                Sw {
-                    objectName: "frame-enabled"
-                    anchors.verticalCenter: parent.verticalCenter
-                    on: !!page.fval("frameEnabled", true)
-                    onToggled: value => page.fedit("frameEnabled", value)
-                }
-            }
-            Row {
-                anchors { right: parent.right; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
-                spacing: Tokens.s3
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("OPACITY")
-                    color: Tokens.inkMuted
-                    font.family: Tokens.ui; font.pixelSize: 10
-                    font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
-                }
-                Slid {
-                    objectName: "frame-opacity"
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 150
-                    from: 0.5; to: 1.0
-                    value: page.fnum("frameOpacity", 1)
-                    onModified: value => page.fedit("frameOpacity", value)
-                }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 34
-                    horizontalAlignment: Text.AlignRight
-                    text: Math.round(page.fnum("frameOpacity", 1) * 100) + "%"
-                    color: Tokens.ink
-                    font.family: Tokens.mono; font.pixelSize: Tokens.fSmall
-                }
-            }
-        }
-    }
-
-    // ── the inspector: the selected rail's switches and its widgets ──────────
+    // ── the sheet: FRAME, RAILS, WIDGETS in one scroll ───────────────────────
     Flickable {
         id: flick
-        anchors { left: parent.left; right: parent.right; top: stage.bottom; bottom: parent.bottom; topMargin: Tokens.s5 }
+        anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: parent.bottom; topMargin: Tokens.s5 }
         contentWidth: width
         contentHeight: col.height + Tokens.s5
         clip: true
@@ -239,10 +158,112 @@ Item {
             width: flick.width - 14
             spacing: Tokens.s5
 
+            // ── FRAME: the chrome the shell draws around the desktop ─────────
+            Section {
+                id: frameSect
+                width: col.width
+                title: qsTr("FRAME")
+
+                Cell {
+                    width: frameSect.span(6)
+                    controlWidth: 54
+                    label: qsTr("Draw frame")
+                    value: page.fval("frameEnabled", true) ? qsTr("ON") : qsTr("OFF")
+                    def: page.fwas("frameEnabled") === undefined ? "" : (page.fwas("frameEnabled") ? qsTr("ON") : qsTr("OFF"))
+                    changed: page.fwas("frameEnabled") !== undefined && !!page.fval("frameEnabled", true) !== !!page.fwas("frameEnabled")
+                    desc: qsTr("Draw the bounded frame around the desktop at all.")
+                    source: "shell.json"
+                    Sw {
+                        objectName: "frame-enabled"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: !!page.fval("frameEnabled", true)
+                        onToggled: value => page.fedit("frameEnabled", value)
+                    }
+                }
+                Cell {
+                    width: frameSect.span(6)
+                    controlWidth: 180
+                    label: qsTr("Opacity")
+                    unit: "%"
+                    value: String(Math.round(page.fnum("frameOpacity", 1) * 100))
+                    def: page.fwas("frameOpacity") === undefined ? "" : String(Math.round(Number(page.fwas("frameOpacity")) * 100))
+                    changed: page.fwas("frameOpacity") !== undefined && page.fnum("frameOpacity", 1) !== Number(page.fwas("frameOpacity"))
+                    desc: qsTr("How solid the frame draws.")
+                    source: "shell.json"
+                    Slid {
+                        objectName: "frame-opacity"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
+                        from: 0.5; to: 1.0
+                        value: page.fnum("frameOpacity", 1)
+                        onModified: value => page.fedit("frameOpacity", value)
+                    }
+                }
+            }
+
+            // ── RAILS: pick an edge, then its own switches ───────────────────
             Section {
                 id: railSect
                 width: col.width
-                title: qsTr("THE %1 RAIL").arg(labels.edge(page.edge).toUpperCase())
+                title: qsTr("RAILS")
+
+                Row {
+                    width: railSect.width
+                    spacing: Tokens.s2
+                    Repeater {
+                        model: ["top", "left", "bottom", "right"]
+                        delegate: Rectangle {
+                            id: plate
+                            required property string modelData
+                            readonly property var pRail: page.config.rails[plate.modelData]
+                            readonly property int count: {
+                                const zs = plate.modelData === "top" || plate.modelData === "bottom" ? ["start", "center", "end"] : ["top", "center", "bottom"];
+                                let n = 0;
+                                for (const zone of zs) n += (plate.pRail[zone] || []).length;
+                                return n;
+                            }
+                            readonly property bool on: page.edge === plate.modelData
+
+                            objectName: "rail-edge-" + plate.modelData
+                            width: (railSect.width - 3 * Tokens.s2) / 4
+                            height: 48
+                            radius: Tokens.radius
+                            color: plate.on ? Tokens.bone : (pma.containsMouse ? Tokens.tint5 : "transparent")
+                            border.width: Tokens.border
+                            border.color: plate.on ? Tokens.bone : Tokens.line
+                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+
+                            Column {
+                                anchors { left: parent.left; leftMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                                spacing: 2
+                                Text {
+                                    text: labels.edge(plate.modelData).toUpperCase()
+                                    color: plate.on ? Tokens.inkOnBone : Tokens.inkDim
+                                    font.family: Tokens.ui
+                                    font.pixelSize: 11
+                                    font.weight: Font.Medium
+                                    font.letterSpacing: Tokens.trackLabel
+                                }
+                                Text {
+                                    text: plate.pRail.enabled ? qsTr("on · %1").arg(plate.count) : qsTr("off")
+                                    color: plate.on ? Tokens.inkOnBoneDim : Tokens.inkFaint
+                                    font.family: Tokens.mono
+                                    font.pixelSize: Tokens.fTiny
+                                }
+                            }
+                            MouseArea {
+                                id: pma
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                preventStealing: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.edge = plate.modelData
+                            }
+                        }
+                    }
+                }
 
                 Cell {
                     width: railSect.span(4)
@@ -284,6 +305,7 @@ Item {
                 }
             }
 
+            // ── WIDGETS: the selected rail's three zones and its add drawers ──
             Section {
                 id: zoneSect
                 width: col.width
