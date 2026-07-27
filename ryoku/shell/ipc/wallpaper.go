@@ -283,7 +283,10 @@ func (d *daemon) showLiveWallpaper(pic string) error {
 		_ = d.wall.show(frame)
 	}
 	if _, err := exec.LookPath(liveDaemon); err != nil {
-		return nil // no livewall installed: the clip's still is the wallpaper
+		// Degrade gracefully to the clip's still, but say so: a missing binary
+		// otherwise reads as "live walls are broken" with nothing in the journal.
+		log.Printf("live wallpaper: %s not on PATH (build it with ryoku/shell/livewall/build.sh); showing the clip's still frame", liveDaemon)
+		return nil
 	}
 	// Transcode (cached) and launch off the hot path: the first encode of a clip
 	// takes a few seconds, during which the backdrop holds the still; cached clips
