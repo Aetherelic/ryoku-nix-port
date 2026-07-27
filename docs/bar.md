@@ -41,18 +41,27 @@ user configurations do not carry a second palette.
 Open **Bar Studio** with **Super+Period**. The shortcut records the Bar Studio
 section before opening the guarded Ryoku Settings process.
 
-Bar Studio stages a complete immutable `frameBars` object through the normal Hub
-draft and Save flow. It supports:
+Bar Studio edits the essentials, and keeps them few enough that every control
+works. It stages a complete immutable `frameBars` object through the normal Hub
+draft and Save flow, and its edits apply to the running desktop as you make
+them. It supports:
 
-- enabling rails and editing their zone contents;
-- adding, moving, and removing only compatible catalogued widgets;
-- creating and editing bounded menus, including nested menu widgets;
-- editing the registered `stash` and `system` frame surfaces, including their
-  anchors, widths, and preserved pane order;
-- switching `slate-frame` and `ryoku-frame` without changing layout geometry.
+- the frame chrome the shell draws around the desktop: the draw toggle, the
+  widget and window corner radii, the border width, and the window opacity;
+- switching `slate-frame` and `ryoku-frame` without changing layout geometry;
+- each rail's own switches: enabled, hover reveal, and thickness;
+- the widgets in each rail's three zones: add a catalogued widget that fits the
+  rail's axis and is not already on it, remove one, or reorder within a zone.
 
-Use Save to materialize the draft. Reset discards the draft through the same Hub
-pipeline; Bar Studio does not write configuration files directly.
+Every change is live on the desktop at once. Save keeps it and rebaselines;
+Revert, or closing the window with unsaved edits, walks the desktop back to the
+saved state through the same channel. Bar Studio never writes configuration
+files directly.
+
+The bounded menus and the `stash` and `system` frame surfaces keep whatever
+values are persisted: every Bar Studio edit clones the whole `frameBars` object,
+so a subtree it does not touch is never dropped. They are configured through
+their defaults and the catalogue, not edited on this page.
 
 ## Menus and surfaces
 

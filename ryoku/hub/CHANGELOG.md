@@ -3,6 +3,23 @@
 ## Unreleased
 
 ### Changed
+- **Bar Studio is rebuilt around the essentials, so every control works.** The
+  page had grown a full catalogue (bounded-menu editing with nested widgets,
+  the stash and system surface editors, a read-only catalogue panel) on top of
+  the rail and frame controls, and the breadth was the problem: too much to
+  land reliably. It now carries only what the frame needs day to day, and each
+  piece is proven live end to end: the frame chrome (draw toggle, widget and
+  window radii, border, opacity), the two-look style switch, each rail's own
+  switches (enabled, hover reveal, thickness), and the widgets in each rail's
+  three zones (add a catalogued widget that fits the axis and is not already on
+  the rail, remove, reorder within a zone). Edits still apply to the running
+  desktop as you make them and ride the Hub's Save and Revert. The bounded
+  menus and the stash and system surfaces are no longer edited here but are
+  never dropped: every edit clones the whole `frameBars` object, so an untouched
+  subtree always survives. The menu, surface, catalogue and per-widget
+  cross-zone-move editors are removed, and the edit model is trimmed to the rail
+  and zone operations it still needs (`pages/BarStudioPage.qml`,
+  `barstudio/ZoneEditor.qml`, `barstudio/BarStudioModel.js`, `barstudio/qmldir`).
 - **Ryoku Settings now describes the Atoll-only shell instead of the retired
   style catalogue. The Bar page keeps the two-look Atoll control, live bar
   geometry and preserved sidebar-content controls, and drops style, island and

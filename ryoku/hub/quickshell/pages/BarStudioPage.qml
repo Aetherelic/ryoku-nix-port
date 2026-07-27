@@ -8,13 +8,18 @@ import "../barstudio"
 import Ryoku.FrameBars
 import "../barstudio/BarStudioModel.js" as Model
 
-// Bar Studio (DESKTOP). The frame's own studio: the chrome keys the shell
-// reads from shell.json (draw toggle, radii, border, opacity, interface
-// font), the four bounded rails and their widget zones, the bounded menus,
-// the two preserved frame surfaces, and the catalogue that bounds what can be
-// saved. Everything stages through the shared draft (hub.edit); the shell's
-// ledger shows the pending write and its action bar owns Save and Revert,
-// like every other framed page.
+// Bar Studio (DESKTOP), rebuilt simple. The essentials, and only the
+// essentials: the frame chrome the shell reads from shell.json (draw toggle,
+// widget and window radii, border, opacity), the frame style, the four bounded
+// rails (on/off, hover reveal, thickness), and the widgets in each rail's three
+// zones (add, remove, reorder). The bounded menus and preserved surfaces keep
+// their persisted values -- every edit clones the whole frameBars object, so no
+// subtree it does not touch is ever dropped -- but they are not edited here:
+// fewer controls that all work beat the full catalogue half working.
+//
+// Everything stages through the shared draft (hub.stageLive), which applies to
+// the RUNNING desktop as you work and rides the Hub's Save and Revert like
+// every other framed page.
 Item {
     id: page
     property var hub
@@ -23,13 +28,12 @@ Item {
     property string edge: "left"
 
     // Always normalize what the editor reads. A stored value that lost a subtree
-    // (a legacy config, a hand edit, a partial write from any surface) would
-    // otherwise leave menus/surfaces undefined: the menu editor would throw, every
-    // menu edit would be a silent no-op, and a rail edit would clone the gap
-    // straight back to disk. Normalizing restores every subtree from the schema
-    // default, so the editor is always whole and the first staged edit heals the
-    // store. The probe harness's bare hub has no val(); normalize(null) still
-    // yields a complete default, so the page always loads.
+    // (a legacy config, a hand edit, a partial write) would otherwise leave the
+    // editor reading undefined and a rail edit cloning the gap straight back to
+    // disk. Normalizing restores every subtree from the schema default, so the
+    // editor is always whole and the first staged edit heals the store. The
+    // probe harness's bare hub has no val(); normalize(null) still yields a
+    // complete default, so the page always loads.
     readonly property var config: {
         const v = page.hub && page.hub.val ? page.hub.val("frameBars") : null;
         return FrameBars.normalize(v, BarCatalog, MenuCatalog);
@@ -40,6 +44,11 @@ Item {
         const c = page.hub && page.hub.committed ? page.hub.committed.frameBars : null;
         return c ? FrameBars.normalize(c, BarCatalog, MenuCatalog) : null;
     }
+
+    // the selected rail and its on-disk twin, for the rail cells' changed marks
+    readonly property var rail: page.config.rails[page.edge]
+    readonly property var railWas: page.committedBars && page.committedBars.rails ? page.committedBars.rails[page.edge] : null
+    readonly property bool horizontal: page.edge === "top" || page.edge === "bottom"
 
     // Stage AND apply: edits ride the shared draft like every page, and the
     // hub's stageLive coalesces a settings.patch to the daemon so the running
@@ -52,9 +61,9 @@ Item {
     }
 
     // The frame chrome keys live beside frameBars in shell.json: the running
-    // shell reads them for the frame's draw toggle, corner radii, border,
-    // window opacity and interface font, so they belong on the frame's own
-    // studio and stage through the same draft.
+    // shell reads them for the frame's draw toggle, corner radii, border and
+    // window opacity, so they belong on the frame's own studio and stage
+    // through the same live channel.
     function fval(key, fall) {
         if (!page.hub || !page.hub.val) return fall;
         const v = page.hub.val(key);
@@ -125,7 +134,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: qsTr("The frame's chrome, its four rails and their widget zones, the bounded menus, and the preserved surfaces.")
+            text: qsTr("The frame's chrome, its four rails, and the widgets on each. Every change lands live on the desktop; Save keeps it, Revert walks it back.")
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: Tokens.fBody
@@ -164,6 +173,7 @@ Item {
                     desc: qsTr("The construction the rails and menus are drawn in.")
                     source: "shell.json"
                     Seg {
+                        objectName: "frame-style"
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         options: [labels.style("slate-frame"), labels.style("ryoku-frame")]
@@ -181,6 +191,7 @@ Item {
                     desc: qsTr("Draw the bounded frame around the desktop at all.")
                     source: "shell.json"
                     Sw {
+                        objectName: "frame-enabled"
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         on: !!page.fval("frameEnabled", true)
@@ -198,6 +209,7 @@ Item {
                     desc: qsTr("Corner rounding for the frame's own widgets.")
                     source: "shell.json"
                     Step {
+                        objectName: "frame-roundness"
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         from: 0; to: 1000
@@ -216,6 +228,7 @@ Item {
                     desc: qsTr("How round the frame cuts the screen's corners.")
                     source: "shell.json"
                     Step {
+                        objectName: "frame-window-radius"
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         from: 0; to: 1000
@@ -224,7 +237,7 @@ Item {
                     }
                 }
                 Cell {
-                    width: frameSect.span(4)
+                    width: frameSect.span(6)
                     controlWidth: 58
                     label: qsTr("Border width")
                     unit: "px"
@@ -234,6 +247,7 @@ Item {
                     desc: qsTr("The frame band's thickness around the desktop.")
                     source: "shell.json"
                     Step {
+                        objectName: "frame-border"
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         from: 0; to: 200
@@ -242,7 +256,7 @@ Item {
                     }
                 }
                 Cell {
-                    width: frameSect.span(4)
+                    width: frameSect.span(6)
                     controlWidth: 100
                     label: qsTr("Opacity")
                     unit: "%"
@@ -252,6 +266,7 @@ Item {
                     desc: qsTr("How solid the frame draws.")
                     source: "shell.json"
                     Slid {
+                        objectName: "frame-opacity"
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
@@ -260,24 +275,9 @@ Item {
                         onModified: value => page.fedit("frameOpacity", value)
                     }
                 }
-                Cell {
-                    width: frameSect.span(4)
-                    height: neededHeight
-                    footH: 34
-                    label: qsTr("Interface font")
-                    value: ""
-                    desc: qsTr("The family the frame and shell set their text in.")
-                    source: "shell.json"
-                    Field {
-                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                        tabular: true
-                        text: String(page.fval("fontFamily", ""))
-                        onCommitted: value => page.fedit("fontFamily", value)
-                    }
-                }
             }
 
-            // ── RAILS: pick an edge, then its switches, zones and widgets ────
+            // ── RAILS: pick an edge, then its own switches ───────────────────
             Section {
                 id: railSect
                 width: col.width
@@ -291,11 +291,11 @@ Item {
                         delegate: Rectangle {
                             id: plate
                             required property string modelData
-                            readonly property var rail: page.config.rails[plate.modelData]
+                            readonly property var pRail: page.config.rails[plate.modelData]
                             readonly property int count: {
                                 const zoneIds = plate.modelData === "top" || plate.modelData === "bottom" ? ["start", "center", "end"] : ["top", "center", "bottom"];
                                 let n = 0;
-                                for (const zone of zoneIds) n += plate.rail[zone].length;
+                                for (const zone of zoneIds) n += plate.pRail[zone].length;
                                 return n;
                             }
                             readonly property bool on: page.edge === plate.modelData
@@ -321,7 +321,7 @@ Item {
                                     font.letterSpacing: Tokens.trackLabel
                                 }
                                 Text {
-                                    text: plate.rail.enabled ? qsTr("on · %1").arg(plate.count) : qsTr("off")
+                                    text: plate.pRail.enabled ? qsTr("on · %1").arg(plate.count) : qsTr("off")
                                     color: plate.on ? Tokens.inkOnBoneDim : Tokens.inkFaint
                                     font.family: Tokens.mono
                                     font.pixelSize: Tokens.fTiny
@@ -333,62 +333,74 @@ Item {
                     }
                 }
 
-                RailEditor {
-                    width: railSect.width
-                    config: page.config
-                    edge: page.edge
-                    committed: page.committedBars
-                    onStaged: next => page.stage(next)
+                Cell {
+                    width: railSect.span(4)
+                    controlWidth: 54
+                    label: qsTr("Show this rail")
+                    value: page.rail.enabled ? qsTr("ON") : qsTr("OFF")
+                    def: page.railWas ? (page.railWas.enabled ? qsTr("ON") : qsTr("OFF")) : ""
+                    changed: !!page.railWas && page.rail.enabled !== page.railWas.enabled
+                    desc: qsTr("Draw the %1 rail on the frame.").arg(labels.edge(page.edge).toLowerCase())
+                    source: "shell.json"
+                    Sw {
+                        objectName: "rail-enabled"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.rail.enabled
+                        onToggled: value => page.stage(Model.setRail(page.config, page.edge, { enabled: value }))
+                    }
                 }
+                Cell {
+                    width: railSect.span(4)
+                    controlWidth: 54
+                    label: qsTr("Reveal on hover")
+                    value: page.rail.reveal ? qsTr("ON") : qsTr("OFF")
+                    def: page.railWas ? (page.railWas.reveal ? qsTr("ON") : qsTr("OFF")) : ""
+                    changed: !!page.railWas && page.rail.reveal !== page.railWas.reveal
+                    desc: qsTr("Slide the rail in when the pointer touches this edge.")
+                    source: "shell.json"
+                    Sw {
+                        objectName: "rail-reveal"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.rail.reveal
+                        onToggled: value => page.stage(Model.setRail(page.config, page.edge, { reveal: value }))
+                    }
+                }
+                Cell {
+                    width: railSect.span(4)
+                    controlWidth: 58
+                    label: qsTr("Thickness")
+                    unit: "px"
+                    value: String(page.rail.size)
+                    def: page.railWas ? String(page.railWas.size) : ""
+                    changed: !!page.railWas && page.rail.size !== page.railWas.size
+                    desc: qsTr("How far the rail stands into the screen.")
+                    source: "shell.json"
+                    Step {
+                        objectName: "rail-thickness"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: page.horizontal ? 16 : 24
+                        to: page.horizontal ? 96 : 112
+                        value: page.rail.size
+                        onModified: value => page.stage(Model.setRail(page.config, page.edge, { size: value }))
+                    }
+                }
+            }
+
+            // ── WIDGETS: the selected rail's three zones and its add flow ─────
+            Section {
+                id: zoneSect
+                width: col.width
+                title: qsTr("WIDGETS ON THE %1 RAIL").arg(labels.edge(page.edge).toUpperCase())
+
                 ZoneEditor {
-                    width: railSect.width
+                    width: zoneSect.width
                     config: page.config
                     edge: page.edge
                     catalog: BarCatalog
                     onStaged: next => page.stage(next)
-                }
-            }
-
-            // ── MENUS: the bounded frame menus ───────────────────────────────
-            Section {
-                id: menuSect
-                width: col.width
-                title: qsTr("MENUS")
-
-                MenuEditor {
-                    width: menuSect.width
-                    config: page.config
-                    catalog: MenuCatalog
-                    committed: page.committedBars
-                    onStaged: next => page.stage(next)
-                }
-            }
-
-            // ── FRAME SURFACES: the preserved stash and system bodies ────────
-            Section {
-                id: surfaceSect
-                width: col.width
-                title: qsTr("FRAME SURFACES")
-
-                SurfaceEditor {
-                    width: surfaceSect.width
-                    config: page.config
-                    catalog: MenuCatalog
-                    committed: page.committedBars
-                    onStaged: next => page.stage(next)
-                }
-            }
-
-            // ── CATALOGUE: what can be saved ─────────────────────────────────
-            Section {
-                id: catalogSect
-                width: col.width
-                title: qsTr("CATALOGUE")
-
-                CatalogPanel {
-                    width: catalogSect.width
-                    barCatalog: BarCatalog
-                    menuCatalog: MenuCatalog
                 }
             }
         }

@@ -4,7 +4,6 @@ const require = createRequire(import.meta.url);
 const Model = require("./BarStudioModel.js");
 const FrameBars = require("../../../shell/framebars/FrameBars.js");
 const BarCatalog = require("../../../shell/framebars/BarCatalog.js");
-const MenuCatalog = require("../../../shell/framebars/MenuCatalog.js");
 
 let failed = 0;
 function ok(value, message) {
@@ -20,74 +19,89 @@ function fresh(before, after, message) {
     ok(before !== after, `${message} returns a fresh root`);
 }
 
-const base = FrameBars.defaultConfig();
+// A controlled fixture: the shipped config with every rail zone emptied, so the
+// zone assertions never couple to the default rail contents (which the shell's
+// FrameBars.js owns and may retune). defaultConfig still supplies the whole
+// shape, so the subtree checks stay honest.
+function cfg() {
+    const c = FrameBars.defaultConfig();
+    for (const e of ["top", "left", "bottom", "right"]) for (const z of Model.zones(e)) c.rails[e][z] = [];
+    return c;
+}
+
+// ── add ──────────────────────────────────────────────────────────────────
+const base = cfg();
 const added = Model.addZoneItem(base, "top", "start", "battery", BarCatalog);
 fresh(base, added, "add zone item");
 eq(base.rails.top.start, [], "add leaves source zone unchanged");
-eq(added.rails.top.start, ["battery"], "add places compatible widget in zone");
+eq(added.rails.top.start, ["battery"], "add places compatible widget in the named zone");
 
-const moved = Model.moveZoneItem(base, "left", "top", 0, "top", "end", 0, BarCatalog);
-fresh(base, moved, "move zone item");
-eq(base.rails.left.top[0], "quick-settings", "move leaves source draft untouched");
-eq(moved.rails.top.end[0], "quick-settings", "move transfers widget across zones");
+// add targets the named zone, not always the first
+const addedEnd = Model.addZoneItem(base, "top", "end", "battery", BarCatalog);
+eq(addedEnd.rails.top.end, ["battery"], "add honours the target zone");
+eq(addedEnd.rails.top.start, [], "add does not touch other zones");
 
-const lowered = Model.moveZoneItem(added, "top", "start", 0, "top", "start", 1, BarCatalog);
-fresh(added, lowered, "move within zone");
-eq(lowered.rails.top.start, ["battery"], "move limits preserve list boundaries");
+// an incompatible-axis widget is a clean no-op (dock is vertical-only)
+eq(Model.addZoneItem(base, "top", "start", "dock", BarCatalog), base, "add rejects a widget that does not fit the rail axis");
 
-const removed = Model.removeZoneItem(moved, "top", "end", 0);
-fresh(moved, removed, "remove zone item");
-eq(moved.rails.top.end, ["quick-settings"], "remove leaves source list unchanged");
-eq(removed.rails.top.end, [], "remove deletes selected item");
+// a widget already on the rail (any zone) cannot be added again to that rail
+const dockLeft = Model.addZoneItem(base, "left", "top", "dock", BarCatalog);
+eq(dockLeft.rails.left.top, ["dock"], "add places a vertical widget on a vertical rail");
+eq(Model.addZoneItem(dockLeft, "left", "bottom", "dock", BarCatalog), dockLeft, "add rejects a widget already present elsewhere on the same rail");
+eq(Model.addZoneItem(added, "top", "start", "battery", BarCatalog), added, "add rejects a duplicate within the same zone");
 
-const rejected = Model.moveZoneItem(base, "left", "center", 0, "top", "start", 0, BarCatalog);
-fresh(base, rejected, "reject incompatible zone move");
-eq(rejected, base, "incompatible vertical-only widget move is a clean no-op");
+// an unknown id is a clean no-op
+eq(Model.addZoneItem(base, "top", "start", "not-a-widget", BarCatalog), base, "add rejects an uncatalogued id");
 
-const menuCreated = Model.createMenu(base, "notifications", MenuCatalog);
-fresh(base, menuCreated, "create menu");
-eq(menuCreated.menus.notifications.widgets, ["notifications"], "menu creation uses bounded catalogue record");
-const anchorBefore = menuCreated.menus.notifications.anchor;
-const menuAnchored = Model.setMenuAnchor(menuCreated, "notifications", "bottom-right", MenuCatalog);
-fresh(menuCreated, menuAnchored, "set menu anchor");
-eq(menuCreated.menus.notifications.anchor, anchorBefore, "anchor update leaves source untouched");
-eq(menuAnchored.menus.notifications.anchor, "bottom-right", "anchor update accepts catalogue anchor");
+// ── reorder (within a zone) ────────────────────────────────────────────────
+const two = Model.addZoneItem(added, "top", "start", "clock", BarCatalog);
+eq(two.rails.top.start, ["battery", "clock"], "second add appends within the zone");
+const swapped = Model.reorderZoneItem(two, "top", "start", 0, 1);
+fresh(two, swapped, "reorder within zone");
+eq(two.rails.top.start, ["battery", "clock"], "reorder leaves source untouched");
+eq(swapped.rails.top.start, ["clock", "battery"], "reorder moves the item to the target index");
+eq(Model.reorderZoneItem(two, "top", "start", 5, 0), two, "reorder rejects an out-of-range index");
 
-const nestedMenu = Model.addMenuWidget(menuAnchored, "notifications", [], "container", MenuCatalog);
-const nestedAdded = Model.addMenuWidget(nestedMenu, "notifications", [1, "widgets"], "divider", MenuCatalog);
-fresh(nestedMenu, nestedAdded, "add nested menu widget");
-eq(nestedAdded.menus.notifications.widgets, ["notifications", { id: "container", widgets: ["divider"] }], "nested widget is added to bounded container");
-const nestedMoved = Model.moveMenuWidget(nestedAdded, "notifications", [], 1, [], 0, MenuCatalog);
-fresh(nestedAdded, nestedMoved, "move nested menu widget");
-eq(nestedMoved.menus.notifications.widgets, [{ id: "container", widgets: ["divider"] }, "notifications"], "nested widget move reorders children");
-const nestedRemoved = Model.removeMenuWidget(nestedMoved, "notifications", [0, "widgets"], 0, MenuCatalog);
-fresh(nestedMoved, nestedRemoved, "remove nested menu widget");
-eq(nestedRemoved.menus.notifications.widgets[0].widgets, [], "nested widget removal updates children");
-eq(nestedMenu.menus.notifications.widgets, ["notifications", { id: "container", widgets: [] }], "nested operations leave source menu unchanged");
+// ── remove ─────────────────────────────────────────────────────────────────
+const removed = Model.removeZoneItem(two, "top", "start", 0);
+fresh(two, removed, "remove zone item");
+eq(two.rails.top.start, ["battery", "clock"], "remove leaves source list unchanged");
+eq(removed.rails.top.start, ["clock"], "remove deletes the selected item");
 
-const nestedMoveSource = Model.createMenu(base, "notifications", MenuCatalog);
-nestedMoveSource.menus.notifications.widgets = [{ id: "container", widgets: [{ id: "container", widgets: ["divider"] }] }];
-const directDescendantRejected = Model.moveMenuWidget(nestedMoveSource, "notifications", [], 0, [0, "widgets"], 0, MenuCatalog);
-fresh(nestedMoveSource, directDescendantRejected, "reject direct descendant menu move");
-eq(directDescendantRejected, nestedMoveSource, "direct descendant move preserves the normalized root");
-eq(nestedMoveSource.menus.notifications.widgets, [{ id: "container", widgets: [{ id: "container", widgets: ["divider"] }] }], "direct descendant move leaves source root intact");
-const deepDescendantRejected = Model.moveMenuWidget(nestedMoveSource, "notifications", [], 0, [0, "widgets", 0, "widgets"], 0, MenuCatalog);
-fresh(nestedMoveSource, deepDescendantRejected, "reject deep descendant menu move");
-eq(deepDescendantRejected, nestedMoveSource, "deep descendant move preserves the normalized root");
-eq(nestedMoveSource.menus.notifications.widgets[0].widgets[0].widgets, ["divider"], "deep descendant move leaves source descendants intact");
+// ── rail settings ───────────────────────────────────────────────────────────
+const thicker = Model.setRail(base, "left", { size: 64 });
+fresh(base, thicker, "set rail size");
+eq(thicker.rails.left.size, 64, "set rail applies a rounded size");
+eq(Model.setRail(base, "left", { enabled: false }).rails.left.enabled, false, "set rail toggles enabled");
+eq(Model.setRail(base, "left", { reveal: false }).rails.left.reveal, false, "set rail toggles reveal");
 
-// Subtree-preservation at the model layer: every mutation clones the whole
-// config, so a rail edit can never drop the menus/surfaces/dock subtrees and a
-// menu edit can never drop the rails subtree. This is the source-side half of
-// the invariant the daemon also enforces (ryoku/shell/ipc/settings.go).
+// ── style ────────────────────────────────────────────────────────────────────
+const styled = Model.setStyle(base, "ryoku-frame");
+fresh(base, styled, "set style");
+eq(styled.style, "ryoku-frame", "set style accepts a known style");
+eq(Model.setStyle(base, "not-a-style"), base, "set style rejects an unknown style");
+
+// ── railWidgets helper ────────────────────────────────────────────────────────
+const packed = Model.addZoneItem(Model.addZoneItem(dockLeft, "left", "bottom", "clock", BarCatalog), "left", "bottom", "battery", BarCatalog);
+eq(Model.railWidgets(packed, "left"), ["dock", "clock", "battery"], "railWidgets concatenates a rail's zones in order");
+
+// ── subtree preservation ─────────────────────────────────────────────────────
+// every mutation clones the whole config, so an edit can never drop the
+// menus/surfaces/dock subtrees. This is the source-side half of the invariant
+// the daemon also enforces (ryoku/shell/ipc/settings.go).
+const shipped = FrameBars.defaultConfig();
 const subtrees = ["version", "style", "rails", "menus", "surfaces", "dock"];
-function preservesAll(cfg, label) {
-    for (const key of subtrees) ok(cfg[key] !== undefined, `${label} preserves the ${key} subtree`);
+function preservesAll(config, label) {
+    for (const key of subtrees) ok(config[key] !== undefined, `${label} preserves the ${key} subtree`);
 }
-preservesAll(Model.setRail(base, "left", { size: 64 }), "a rail thickness edit");
-preservesAll(Model.setStyle(base, "ryoku-frame"), "a frame style edit");
-preservesAll(Model.setMenuAnchor(base, "wallpaper", "left", MenuCatalog), "a menu anchor edit");
+preservesAll(Model.setRail(shipped, "left", { size: 64 }), "a rail thickness edit");
+preservesAll(Model.setStyle(shipped, "ryoku-frame"), "a frame style edit");
 preservesAll(Model.addZoneItem(base, "left", "top", "vpn", BarCatalog), "a zone widget add");
+preservesAll(Model.removeZoneItem(dockLeft, "left", "top", 0), "a zone widget remove");
+preservesAll(Model.reorderZoneItem(two, "top", "start", 0, 1), "a zone widget reorder");
+// the menus and surfaces the page no longer edits still ride through untouched
+eq(Model.setRail(shipped, "left", { size: 64 }).menus, shipped.menus, "a rail edit carries the menus subtree verbatim");
+eq(Model.addZoneItem(base, "top", "start", "battery", BarCatalog).surfaces, base.surfaces, "a zone add carries the surfaces subtree verbatim");
 
 if (failed > 0) {
     console.error(`\n${failed} test(s) FAILED`);

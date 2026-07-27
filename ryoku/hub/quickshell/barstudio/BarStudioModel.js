@@ -1,3 +1,13 @@
+// Bar Studio's frame-bar edits, as pure functions. Every function clones the
+// whole config and returns a fresh root, so an edit can never drop a subtree it
+// did not touch (menus, surfaces, dock) -- the source-side half of the
+// subtree-preservation invariant the daemon also enforces
+// (ryoku/shell/ipc/settings.go). The rebuilt Bar Studio edits only the
+// essentials: the four rails (on/off, reveal, thickness), the widgets in each
+// rail's three zones (add, remove, reorder), and the frame style. The bounded
+// menus and preserved surfaces keep their persisted values untouched, carried
+// through every clone.
+
 function copy(value) {
     return JSON.parse(JSON.stringify(value));
 }
@@ -6,45 +16,43 @@ function zones(edge) {
     return edge === "top" || edge === "bottom" ? ["start", "center", "end"] : ["top", "center", "bottom"];
 }
 
-function pathList(menu, path) {
-    let list = menu.widgets;
-    if (!Array.isArray(path)) return null;
-    for (let i = 0; i < path.length; i += 2) {
-        const index = path[i];
-        if (path[i + 1] !== "widgets" || !Number.isInteger(index) || !list[index] || !Array.isArray(list[index].widgets)) return null;
-        list = list[index].widgets;
-    }
-    return list;
+function axisOf(edge) {
+    return edge === "top" || edge === "bottom" ? "horizontal" : "vertical";
 }
 
-function menuRecord(config, id, catalog) {
-    return config.menus && config.menus[id] && catalog.menu(id) ? config.menus[id] : null;
+// Every widget currently placed anywhere on one rail, so the add flow can offer
+// only widgets not already on that rail (no rail ever holds one twice).
+function railWidgets(config, edge) {
+    const rail = config.rails && config.rails[edge];
+    if (!rail) return [];
+    const out = [];
+    for (const zone of zones(edge)) if (Array.isArray(rail[zone])) for (const id of rail[zone]) out.push(id);
+    return out;
 }
 
+// Add a catalogued widget to a zone. Rejected (clean no-op clone) if the id is
+// not catalogued, does not fit the rail's axis, or is already on the rail.
 function addZoneItem(config, edge, zone, id, catalog) {
     const next = copy(config);
     if (!next.rails || !next.rails[edge] || !zones(edge).includes(zone)) return next;
     const entry = catalog.entry(id);
-    const axis = edge === "top" || edge === "bottom" ? "horizontal" : "vertical";
     const list = next.rails[edge][zone];
-    if (!entry || !entry.axes.includes(axis) || !Array.isArray(list) || list.includes(id)) return next;
+    if (!entry || !entry.axes.includes(axisOf(edge)) || !Array.isArray(list)) return next;
+    if (railWidgets(next, edge).includes(id)) return next;
     list.push(id);
     return next;
 }
 
-function moveZoneItem(config, fromEdge, fromZone, index, toEdge, toZone, targetIndex, catalog) {
+// Move a widget within its zone (reorder). index and targetIndex are positions
+// in the same zone; out-of-range indices are a clean no-op.
+function reorderZoneItem(config, edge, zone, index, targetIndex) {
     const next = copy(config);
-    if (!next.rails || !next.rails[fromEdge] || !next.rails[toEdge] || !zones(fromEdge).includes(fromZone) || !zones(toEdge).includes(toZone)) return next;
-    const source = next.rails[fromEdge][fromZone];
-    const target = next.rails[toEdge][toZone];
-    if (!Array.isArray(source) || !Array.isArray(target) || !Number.isInteger(index) || index < 0 || index >= source.length) return next;
-    const id = source[index];
-    const entry = catalog.entry(id);
-    const axis = toEdge === "top" || toEdge === "bottom" ? "horizontal" : "vertical";
-    if (!entry || !entry.axes.includes(axis) || (source !== target && target.includes(id))) return next;
-    source.splice(index, 1);
-    const bounded = Math.max(0, Math.min(Number.isInteger(targetIndex) ? targetIndex : target.length, target.length));
-    target.splice(bounded, 0, id);
+    if (!next.rails || !next.rails[edge] || !zones(edge).includes(zone)) return next;
+    const list = next.rails[edge][zone];
+    if (!Array.isArray(list) || !Number.isInteger(index) || index < 0 || index >= list.length) return next;
+    const bounded = Math.max(0, Math.min(Number.isInteger(targetIndex) ? targetIndex : index, list.length - 1));
+    const [item] = list.splice(index, 1);
+    list.splice(bounded, 0, item);
     return next;
 }
 
@@ -53,67 +61,6 @@ function removeZoneItem(config, edge, zone, index) {
     if (!next.rails || !next.rails[edge] || !zones(edge).includes(zone)) return next;
     const list = next.rails[edge][zone];
     if (Array.isArray(list) && Number.isInteger(index) && index >= 0 && index < list.length) list.splice(index, 1);
-    return next;
-}
-
-function createMenu(config, id, catalog) {
-    const next = copy(config);
-    const record = catalog.menu(id);
-    if (!record || !next.menus) return next;
-    next.menus[id] = copy({ anchor: record.anchor, minWidth: record.minWidth, expansion: record.expansion, widgets: record.widgets });
-    return next;
-}
-
-function setMenuAnchor(config, id, anchor, catalog) {
-    const next = copy(config);
-    const menu = menuRecord(next, id, catalog);
-    if (menu && catalog.anchors().includes(anchor)) menu.anchor = anchor;
-    return next;
-}
-
-function setMenu(config, id, value, catalog) {
-    const next = copy(config);
-    const menu = menuRecord(next, id, catalog);
-    if (!menu || !value || typeof value !== "object") return next;
-    if (catalog.anchors().includes(value.anchor)) menu.anchor = value.anchor;
-    if (Number.isFinite(value.minWidth)) menu.minWidth = Math.max(1, Math.round(value.minWidth));
-    if (value.expansion === "always" || value.expansion === "never") menu.expansion = value.expansion;
-    return next;
-}
-
-function addMenuWidget(config, id, path, widgetId, catalog) {
-    const next = copy(config);
-    const menu = menuRecord(next, id, catalog);
-    const widget = catalog.widget(widgetId);
-    const list = menu ? pathList(menu, path) : null;
-    if (!widget || !list) return next;
-    list.push(widget.nested ? { id: widgetId, widgets: [] } : widgetId);
-    return next;
-}
-
-function moveMenuWidget(config, id, fromPath, index, toPath, targetIndex, catalog) {
-    const next = copy(config);
-    const menu = menuRecord(next, id, catalog);
-    const source = menu ? pathList(menu, fromPath) : null;
-    const target = menu ? pathList(menu, toPath) : null;
-    if (!source || !target || !Number.isInteger(index) || index < 0 || index >= source.length) return next;
-    const item = source[index];
-    const descendantPath = Array.isArray(toPath) && toPath.length >= fromPath.length + 2
-        && fromPath.every((part, pathIndex) => toPath[pathIndex] === part)
-        && toPath[fromPath.length] === index && toPath[fromPath.length + 1] === "widgets";
-    const widget = catalog.widget(typeof item === "string" ? item : item && item.id);
-    if (descendantPath || !widget || (source !== target && target.some(value => JSON.stringify(value) === JSON.stringify(item)))) return next;
-    source.splice(index, 1);
-    const bounded = Math.max(0, Math.min(Number.isInteger(targetIndex) ? targetIndex : target.length, target.length));
-    target.splice(bounded, 0, item);
-    return next;
-}
-
-function removeMenuWidget(config, id, path, index, catalog) {
-    const next = copy(config);
-    const menu = menuRecord(next, id, catalog);
-    const list = menu ? pathList(menu, path) : null;
-    if (list && Number.isInteger(index) && index >= 0 && index < list.length) list.splice(index, 1);
     return next;
 }
 
@@ -133,16 +80,4 @@ function setStyle(config, style) {
     return next;
 }
 
-function setSurface(config, id, value, catalog) {
-    const next = copy(config);
-    const fallback = catalog.surface(id);
-    if (!fallback || !next.surfaces || !value || typeof value !== "object") return next;
-    const surface = next.surfaces[id];
-    if (!surface) return next;
-    if (catalog.anchors().includes(value.anchor)) surface.anchor = value.anchor;
-    if (Number.isFinite(value.minWidth)) surface.minWidth = Math.max(1, Math.round(value.minWidth));
-    if (Array.isArray(value.panes)) surface.panes = value.panes.filter(pane => fallback.panes.includes(pane));
-    return next;
-}
-
-if (typeof module !== "undefined" && module.exports) module.exports = { addZoneItem, moveZoneItem, removeZoneItem, createMenu, setMenu, setMenuAnchor, addMenuWidget, moveMenuWidget, removeMenuWidget, setRail, setStyle, setSurface };
+if (typeof module !== "undefined" && module.exports) module.exports = { zones, axisOf, railWidgets, addZoneItem, reorderZoneItem, removeZoneItem, setRail, setStyle };

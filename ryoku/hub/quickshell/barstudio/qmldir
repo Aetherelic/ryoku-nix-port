@@ -1,10 +1,4 @@
 module barstudio
 CatalogLabels 1.0 CatalogLabels.qml
-CatalogPanel 1.0 CatalogPanel.qml
-MenuEditor 1.0 MenuEditor.qml
-MenuWidgetListEditor 1.0 MenuWidgetListEditor.qml
-RailEditor 1.0 RailEditor.qml
-SurfaceEditor 1.0 SurfaceEditor.qml
 StripHead 1.0 StripHead.qml
-WidgetListEditor 1.0 WidgetListEditor.qml
 ZoneEditor 1.0 ZoneEditor.qml
