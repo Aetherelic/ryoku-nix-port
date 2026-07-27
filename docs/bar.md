@@ -30,12 +30,9 @@ catalogued widgets that fit the target axis.
 Open **Bar Studio** with **Super+Period**. The shortcut records the Bar Studio
 section before opening the guarded Ryoku Settings process.
 
-Bar Studio is a direct-manipulation editor. A live schematic of the desktop
-frame and its four rails sits at the centre of the page: click an edge to put
-that rail on the bench, then edit it below. It stages a complete immutable
-`frameBars` object through the normal Hub draft and Save flow, and its edits
-apply to the running desktop as you make them. It edits only what changes the
-running frame:
+Bar Studio stages a complete immutable `frameBars` object through the normal Hub
+draft and Save flow, and its edits apply to the running desktop as you make them.
+Pick an edge to work on that rail. It edits only what changes the running frame:
 
 - the frame chrome the shell draws around the desktop: the draw toggle and the
   window opacity;
