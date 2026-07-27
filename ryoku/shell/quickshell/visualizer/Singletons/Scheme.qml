@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons as Ui
 
 // Thin reader of the daemon palette for the visualiser. The theme daemon is the
 // sole author of colour in Ryoku: a fixed named theme publishes its palette into
@@ -9,9 +10,12 @@ import Quickshell.Io
 // palette to ~/.cache/ryoku/colors.json. This reads both and resolves each
 // role exactly the way the pill's Theme does -- a named scheme wins, then the
 // live wallpaper palette, then the compiled default -- so the spectrum retints
-// on ANY scheme change, static named theme or wallpaper-follow, with no colour
-// math of its own. The compiled defaults (Everforest) only paint the first
-// frames before the daemon's first write.
+// on ANY scheme change, static named theme or wallpaper-follow. The compiled
+// defaults (Everforest) only paint the first frames before the daemon's first
+// write.
+//
+// The spectrum has no panel under it, so the resolved roles are seeds, not
+// paint: Ink turns them into tones that clear the wallpaper behind the bars.
 Singleton {
     id: root
 
@@ -43,36 +47,55 @@ Singleton {
         return base;
     }
 
-    // The accent leads: Material accent roles consumed verbatim (the daemon
-    // already curates them for contrast). accent is the lead the floor glow and
-    // oscilloscope trace paint with.
+    // Seed colours, not paint: a role is a tone chosen to read on a surface, and
+    // consumed as-is they collapse with the scheme -- a light high-contrast
+    // palette puts every accent near black, hence the black spectrum.
     readonly property color accent:    role("primary",   "#a7c080")
     readonly property color secondary: role("secondary", "#7fbbb3")
     readonly property color tertiary:  role("tertiary",  "#83c092")
     readonly property color err:       role("error",     "#e67e80")
 
-    // Ordered low->high sweep the bars sample with colorAt(t): the palette's
-    // accent roles laid end to end, so every band is a system colour and the
-    // whole spectrum re-tunes when the palette changes.
-    readonly property var stops: [accent, tertiary, secondary, err, tertiary, accent]
+    // So the sweep is ramp names: each band takes its tone off matugen's ramp,
+    // far enough from the picture behind it to stay lit. `seeds` are the
+    // matching roles, re-lit when no ramps are published.
+    readonly property var ramps: ["primary", "tertiary", "secondary", "error", "tertiary", "primary"]
+    readonly property var seeds: [accent, tertiary, secondary, err, tertiary, accent]
 
-    // linear-interp the ramp at t in [0,1].
-    function colorAt(t) {
-        var s = root.stops;
-        var n = s.length;
-        if (n === 0)
-            return root.accent;
-        if (n === 1)
-            return s[0];
+    // 45 L* (~3.7:1) reads as a lit bar; the 55 a run of text needs turns a band
+    // of saturated colour neon.
+    readonly property int barDelta:  45
+    readonly property int leadDelta: 55
+
+    // The lead accent: the floor glow, the oscilloscope filament, the polar ring.
+    function accentOn(bgL, dir) {
+        return Ui.Ink.accentOver("primary", root.accent, bgL, root.leadDelta, dir);
+    }
+
+    // The sweep at t in [0,1]: both neighbouring ramps sampled at the
+    // background's tone, then interpolated, so the blend cannot dip mid-band.
+    function colorAt(t, bgL, dir) {
+        var n = root.ramps.length;
         var x = Math.max(0, Math.min(0.999999, t)) * (n - 1);
         var i = Math.floor(x);
         var f = x - i;
-        var a = s[i];
-        var b = s[i + 1];
+        var a = root.stopAt(i, bgL, dir);
+        var b = root.stopAt(Math.min(n - 1, i + 1), bgL, dir);
         return Qt.rgba(a.r + (b.r - a.r) * f,
                        a.g + (b.g - a.g) * f,
                        a.b + (b.b - a.b) * f, 1);
     }
+
+    function stopAt(i, bgL, dir) {
+        return Ui.Ink.accentOver(root.ramps[i], root.seeds[i], bgL, root.barDelta, dir);
+    }
+
+    // Ink reaches the renderer through here. A file that imports the module
+    // loses the local Scheme singleton to QtQuick's own Scheme type, so this
+    // is the one place in the config that imports it.
+    readonly property var inkTones: Ui.Ink.tones
+    readonly property real wallLstar: Ui.Ink.wallLstar
+    function lstarAt(nx, ny, nw, nh) { return Ui.Ink.lstarAt(nx, ny, nw, nh); }
+    function side(bgL) { return Ui.Ink.side(bgL); }
 
     function refreshWall() {
         try {

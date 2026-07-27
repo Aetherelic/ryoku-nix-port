@@ -253,9 +253,52 @@ Item {
             root.circlePath = "";
     }
 
-    function bandColor(i) {
-        return Palette.colorAt(root.bands > 1 ? i / (root.bands - 1) : 0.5);
+    // --- the picture underneath ---------------------------------------------
+    // colours are chosen against the wallpaper, not a panel. the strip is the
+    // part of Ink's luminance map this layout covers; each band samples the
+    // cells behind itself, so a spectrum crossing a bright sky and a dark tree
+    // stays lit across its whole width.
+    readonly property real stripY: {
+        var h = Math.max(1, root.height);
+        if (root.polar)
+            return Math.max(0, (root.cy - root.ringR0 - root.ringMax) / h);
+        if (root.position === "top")
+            return 0;
+        if (root.position === "center")
+            return Math.max(0, (root.cy - root.maxBarH / 2) / h);
+        return Math.max(0, (root.baseBottom - root.maxBarH) / h);
     }
+    readonly property real stripH: {
+        var h = Math.max(1, root.height);
+        return root.polar ? Math.min(1, 2 * (root.ringR0 + root.ringMax) / h)
+                          : Math.min(1, root.maxBarH / h);
+    }
+
+    function lstarAtX(nx, nw) { return Scheme.lstarAt(nx, root.stripY, nw, root.stripH); }
+
+    // one tone for the elements that span the whole strip.
+    readonly property real fieldLstar: root.lstarAtX(0, 1)
+    // one direction for the whole spectrum: picking per band would flip
+    // neighbouring bars between near-white and near-black over a mid-tone
+    // picture, where either side is a coin toss.
+    readonly property int fieldSide: Scheme.side(root.fieldLstar)
+    readonly property color lead: Scheme.accentOn(root.fieldLstar, root.fieldSide)
+
+    // push a colour away from the wallpaper. lightening unconditionally washed
+    // out the bar tip on a pale picture, so the direction follows the picture.
+    function pop(c, amount) {
+        return root.fieldLstar >= 50 ? Qt.darker(c, amount) : Qt.lighter(c, amount);
+    }
+
+    function bandLstar(i) {
+        var w = Math.max(1, root.width);
+        return root.lstarAtX(i * root.slotW / w, root.slotW / w);
+    }
+    function bandColor(i) {
+        return Scheme.colorAt(root.bands > 1 ? i / (root.bands - 1) : 0.5, root.bandLstar(i), root.fieldSide);
+    }
+    // the sweep at normalised x, for gradients running across the field.
+    function sweepAt(t) { return Scheme.colorAt(t, root.lstarAtX(t, 0), root.fieldSide); }
     function lengthAt(i) {
         // min sliver fades with the spectrum when idle wave is off, so a
         // silent desktop clears fully instead of leaving a thin line.
@@ -287,7 +330,7 @@ Item {
         opacity: (root.wantIdleWave ? 0.08 : 0) + 0.34 * root.activity
         gradient: Gradient {
             GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 1.0; color: Qt.alpha(Palette.accent, 0.5) }
+            GradientStop { position: 1.0; color: Qt.alpha(root.lead, 0.5) }
         }
     }
 
@@ -361,7 +404,7 @@ Item {
                 radius: root.capR
                 antialiasing: true
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.lighter(c, 1.25) }
+                    GradientStop { position: 0.0; color: root.pop(c, 1.25) }
                     GradientStop { position: 0.55; color: c }
                     GradientStop { position: 1.0; color: Qt.alpha(c, 0.35) }
                 }
@@ -412,7 +455,7 @@ Item {
                 }
                 radius: Config.shape === "rounded" ? Math.min(height, root.barW) * 0.35 : 0
                 antialiasing: true
-                color: Qt.lighter(c, 1 + 0.5 * (lit > 1 ? cell / (lit - 1) : 0))
+                color: root.pop(c, 1 + 0.5 * (lit > 1 ? cell / (lit - 1) : 0))
             }
         }
 
@@ -429,13 +472,13 @@ Item {
                     y1: 0
                     x2: area.width
                     y2: 0
-                    GradientStop { position: 0; color: Qt.alpha(Palette.colorAt(0), 0.92) }
-                    GradientStop { position: 0.1667; color: Qt.alpha(Palette.colorAt(0.1667), 0.92) }
-                    GradientStop { position: 0.3333; color: Qt.alpha(Palette.colorAt(0.3333), 0.92) }
-                    GradientStop { position: 0.5; color: Qt.alpha(Palette.colorAt(0.5), 0.92) }
-                    GradientStop { position: 0.6667; color: Qt.alpha(Palette.colorAt(0.6667), 0.92) }
-                    GradientStop { position: 0.8333; color: Qt.alpha(Palette.colorAt(0.8333), 0.92) }
-                    GradientStop { position: 1; color: Qt.alpha(Palette.colorAt(1), 0.92) }
+                    GradientStop { position: 0; color: Qt.alpha(root.sweepAt(0), 0.92) }
+                    GradientStop { position: 0.1667; color: Qt.alpha(root.sweepAt(0.1667), 0.92) }
+                    GradientStop { position: 0.3333; color: Qt.alpha(root.sweepAt(0.3333), 0.92) }
+                    GradientStop { position: 0.5; color: Qt.alpha(root.sweepAt(0.5), 0.92) }
+                    GradientStop { position: 0.6667; color: Qt.alpha(root.sweepAt(0.6667), 0.92) }
+                    GradientStop { position: 0.8333; color: Qt.alpha(root.sweepAt(0.8333), 0.92) }
+                    GradientStop { position: 1; color: Qt.alpha(root.sweepAt(1), 0.92) }
                 }
                 PathSvg { path: root.fillPath }
             }
@@ -450,7 +493,7 @@ Item {
             width: root.width
             height: Math.max(1.5, 1.5 * root.ui)
             y: root.scopeBaseY - height / 2
-            color: Qt.alpha(Palette.accent, 0.20)
+            color: Qt.alpha(root.lead, 0.20)
             antialiasing: true
         }
         Shape {
@@ -458,7 +501,7 @@ Item {
             visible: root.effStyle === "line"
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
-                strokeColor: Qt.alpha(Qt.lighter(Palette.accent, 1.5), 0.20)
+                strokeColor: Qt.alpha(root.pop(root.lead, 1.5), 0.20)
                 strokeWidth: Math.max(8, 9 * root.ui)
                 capStyle: ShapePath.RoundCap
                 joinStyle: ShapePath.RoundJoin
@@ -471,7 +514,7 @@ Item {
             visible: root.effStyle === "line"
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
-                strokeColor: Qt.lighter(Palette.accent, 1.9)
+                strokeColor: root.lead
                 strokeWidth: Math.max(2, 2.4 * root.ui)
                 capStyle: ShapePath.RoundCap
                 joinStyle: ShapePath.RoundJoin
@@ -492,7 +535,7 @@ Item {
             y: root.cy - ring.rr
             color: "transparent"
             border.width: Math.max(1, 1.5 * root.ui)
-            border.color: Qt.alpha(Palette.accent, 0.4)
+            border.color: Qt.alpha(root.lead, 0.4)
             antialiasing: true
         }
         Repeater {
@@ -514,7 +557,7 @@ Item {
                     angle: spoke.index / Math.max(1, root.bands) * 360
                 }
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.lighter(spoke.c, 1.2) }
+                    GradientStop { position: 0.0; color: root.pop(spoke.c, 1.2) }
                     GradientStop { position: 1.0; color: Qt.alpha(spoke.c, 0.5) }
                 }
             }
@@ -528,7 +571,7 @@ Item {
             visible: root.effStyle === "circle"
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
-                strokeColor: Qt.lighter(Palette.accent, 1.5)
+                strokeColor: root.lead
                 strokeWidth: Math.max(2, 2.2 * root.ui)
                 capStyle: ShapePath.RoundCap
                 joinStyle: ShapePath.RoundJoin
@@ -537,9 +580,9 @@ Item {
                     y1: 0
                     x2: root.cx + root.ringR0 + root.ringMax
                     y2: 0
-                    GradientStop { position: 0; color: Qt.alpha(Palette.colorAt(0), 0.3) }
-                    GradientStop { position: 0.5; color: Qt.alpha(Palette.colorAt(0.5), 0.3) }
-                    GradientStop { position: 1; color: Qt.alpha(Palette.colorAt(1), 0.3) }
+                    GradientStop { position: 0; color: Qt.alpha(root.sweepAt(0), 0.3) }
+                    GradientStop { position: 0.5; color: Qt.alpha(root.sweepAt(0.5), 0.3) }
+                    GradientStop { position: 1; color: Qt.alpha(root.sweepAt(1), 0.3) }
                 }
                 PathSvg { path: root.circlePath }
             }
@@ -561,7 +604,7 @@ Item {
                 y: root.position === "top" ? plen : root.baseBottom - plen - capH
                 radius: Config.shape === "rounded" ? capH / 2 : 0
                 antialiasing: true
-                color: Qt.lighter(c, 1.5)
+                color: root.pop(c, 1.5)
             }
         }
     }

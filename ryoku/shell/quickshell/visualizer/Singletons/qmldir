@@ -1,4 +1,4 @@
-singleton Palette Palette.qml
+singleton Scheme Scheme.qml
 singleton Spectrum Spectrum.qml
 singleton Waveform Waveform.qml
 singleton Config Config.qml
