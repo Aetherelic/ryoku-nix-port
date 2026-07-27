@@ -17,6 +17,7 @@ Provider {
     defaultProvider: false
 
     property string activeCategory: "All"
+    onActiveCategoryChanged: Dispatcher.notifyAsync()
 
     // ryoku-cmd-* helpers are not on PATH; resolve them against scriptsDir. Other
     // binaries (ryoku-shell, hyprctl, playerctl, sh) are on PATH and pass through.
@@ -39,6 +40,7 @@ Provider {
             score: 0,
             category: entry.category,
             actions: [{
+                id: "run",
                 name: "Run",
                 icon: "",
                 execute: function () { Quickshell.execDetached(actions.resolveExec(entry.exec)); }

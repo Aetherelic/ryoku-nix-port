@@ -6,6 +6,7 @@ import "find"
 import "media/mpris"
 import "packages"
 import "radio"
+import "recent"
 import "script"
 import "snippets"
 import "web"
@@ -23,15 +24,18 @@ Item {
     Mpris {}
     Packages {}
     RadioTuner {}
+    Recent { id: recentProvider }
     Script {}
     Snippets {}
     Web { id: webProvider }
-    Windows {}
+    Windows { id: windowsProvider }
 
-    // exposed so the action-mode tabs can narrow the actions provider's list,
-    // the all-apps grid can read the full app list, and the launcher can read
-    // the web provider's async DDG instant answer for the AnswerPanel.
+    // exposed so mode bodies can read their provider-owned models directly:
+    // action tabs narrow Actions, ALL browses Apps, REC filters Recent, and the
+    // AnswerPanel reads Web's async DDG instant answer.
     property alias actions: actionsProvider
     property alias apps: appsProvider
+    property alias recent: recentProvider
     property alias web: webProvider
+    property alias windows: windowsProvider
 }

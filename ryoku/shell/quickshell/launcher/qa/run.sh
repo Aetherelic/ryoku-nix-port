@@ -17,6 +17,65 @@ mkdir -p "$OUT"
 
 sock() { (printf '%s\n' "$1"; sleep 0.35) | socat - UNIX-CONNECT:"$SOCK"; }
 
+if [[ ! -S "$SOCK" ]]; then
+    printf 'launcher socket is not available: %s\n' "$SOCK" >&2
+    exit 1
+fi
+
+export QA_FIXTURE_STATE="$OUT/fixtures"
+fixture_active=0
+record_pid=""
+record_label=""
+restore_fixtures() {
+    if [[ -n "$record_pid" ]]; then
+        kill -INT "$record_pid" 2>/dev/null || true
+        wait "$record_pid" 2>/dev/null || true
+        record_pid=""
+    fi
+    if [[ "$fixture_active" -eq 1 ]]; then
+        "$HERE/fixtures.sh" teardown >>"$OUT/fixtures.log" 2>&1 || true
+        fixture_active=0
+    fi
+}
+trap restore_fixtures EXIT
+
+"$HERE/fixtures.sh" setup >"$OUT/fixtures.log" 2>&1
+fixture_active=1
+sleep 1
+
+start_recording() {
+    local label="$1"
+    [[ "$label" =~ ^[A-Za-z0-9_-]+$ ]] || return 2
+    [[ -z "$record_pid" ]] || return 2
+    command -v wf-recorder >/dev/null 2>&1 || return 127
+    record_label="$label"
+    wf-recorder -y -D -r 120 -f "$dir/${label}.mkv" \
+        >"$dir/${label}.recorder.log" 2>&1 &
+    record_pid=$!
+    sleep 0.25
+}
+
+stop_recording() {
+    [[ -n "$record_pid" ]] || return 0
+    kill -INT "$record_pid" 2>/dev/null || true
+    wait "$record_pid" 2>/dev/null || true
+    record_pid=""
+    if [[ -s "$dir/${record_label}.mkv" ]] && command -v ffmpeg >/dev/null 2>&1; then
+        mkdir -p "$dir/${record_label}-frames"
+        ffmpeg -hide_banner -loglevel error -i "$dir/${record_label}.mkv" \
+            -vsync 0 "$dir/${record_label}-frames/%06d.png"
+    fi
+    record_label=""
+}
+
+capture_bounds() {
+    local label="$1"
+    [[ "$label" =~ ^[A-Za-z0-9_-]+$ ]] || return 2
+    sock state >"$dir/${label}.state.json"
+    hyprctl -j layers >"$dir/${label}.layers.json"
+    grim "$dir/${label}.png"
+}
+
 settle() { # wait for async providers to go quiet, max $1 seconds (default 8)
     local max="${1:-8}"
     for _ in $(seq $((max * 2))); do
@@ -37,6 +96,9 @@ run_step() {
     "sleep "*) sleep "${step#sleep }" ;;
     settle) settle ;;
     "settle "*) settle "${step#settle }" ;;
+    "record-start "*) start_recording "${step#record-start }" ;;
+    record-stop) stop_recording ;;
+    "bounds "*) capture_bounds "${step#bounds }" ;;
     "sh "*) bash -c "${step#sh }" ;;
     *) echo "unknown step: $step" >&2; return 1 ;;
     esac
@@ -63,6 +125,7 @@ while IFS= read -r sc; do
         run_step "$step" >>"$dir/steps.log" 2>&1 ||
             { verdict=FAIL reason="step failed: $step"; break; }
     done < <(jq -r '.steps[]' <<<"$sc")
+    stop_recording
 
     sock state >"$dir/state.json"
     grim "$dir/screen.png" 2>>"$dir/steps.log" || true
@@ -105,4 +168,9 @@ done < <(jq -c '.scenarios[]' "$SUITE")
 
 echo "----"
 echo "PASS $pass FAIL $fail BLOCKED $block  evidence: $OUT"
+if ! "$HERE/fixtures.sh" teardown >>"$OUT/fixtures.log" 2>&1; then
+    echo "FAIL fixture restore failed; inspect $OUT/fixtures.log" >&2
+    fail=$((fail + 1))
+fi
+fixture_active=0
 [ "$fail" -eq 0 ]

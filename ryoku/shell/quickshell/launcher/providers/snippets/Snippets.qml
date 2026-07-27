@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import "../../Singletons"
 import "../../lib/fuzzy.js" as Fuzzy
+import "../../lib/providerids.js" as ProviderIds
 import "placeholders.js" as Placeholders
 import ".."
 
@@ -18,6 +19,8 @@ Provider {
     readonly property string dir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku"
     property var snippetList: []
     property var quicklinkList: []
+    onSnippetListChanged: Dispatcher.notifyAsync()
+    onQuicklinkListChanged: Dispatcher.notifyAsync()
 
     FileView {
         id: snippetFile
@@ -27,6 +30,7 @@ Provider {
         printErrors: false
         onFileChanged: reload()
         onLoaded: snippets.snippetList = snippets.parseList(snippetFile.text())
+        onLoadFailed: snippets.snippetList = []
     }
     FileView {
         id: quicklinkFile
@@ -36,6 +40,7 @@ Provider {
         printErrors: false
         onFileChanged: reload()
         onLoaded: snippets.quicklinkList = snippets.parseList(quicklinkFile.text())
+        onLoadFailed: snippets.quicklinkList = []
     }
 
     function parseList(raw) {
@@ -53,13 +58,14 @@ Provider {
 
     function snippetRow(entry) {
         return {
-            id: "snippet:" + (entry.name || entry.keyword || entry.body),
+            id: ProviderIds.snippetRowId(entry),
             title: entry.name || entry.keyword || "Snippet",
             subtitle: "Snippet",
             icon: "",
             type: "Snippet",
             score: 40,
             actions: [{
+                id: "copy",
                 name: "Copy",
                 icon: "",
                 execute: function () {
@@ -71,13 +77,14 @@ Provider {
 
     function quicklinkRow(entry, text) {
         return {
-            id: "quicklink:" + (entry.name || entry.url),
+            id: ProviderIds.quicklinkRowId(entry),
             title: entry.name || entry.url,
             subtitle: "Quicklink",
             icon: "",
             type: "Quicklink",
             score: 40,
             actions: [{
+                id: "open",
                 name: "Open",
                 icon: "",
                 execute: function () {
@@ -113,7 +120,7 @@ Provider {
             if (Fuzzy.score(snippets.matchable(link), q) < 99)
                 rows.push(snippets.quicklinkRow(link, text));
         }
-        return rows;
+        return ProviderIds.dedupeRows(rows);
     }
 
     Component.onCompleted: Dispatcher.register(snippets);

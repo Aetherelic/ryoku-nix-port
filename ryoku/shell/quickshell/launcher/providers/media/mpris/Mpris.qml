@@ -1,4 +1,5 @@
 import QtQuick
+import QtQml.Models
 import Quickshell
 import Quickshell.Services.Mpris
 import "../../../Singletons"
@@ -13,6 +14,28 @@ Provider {
     id: mpris
 
     providerId: "mpris"
+
+    Connections {
+        target: Mpris.players
+        function onValuesChanged() { Dispatcher.notifyAsync(); }
+    }
+
+    Instantiator {
+        model: Mpris.players
+        delegate: Connections {
+            required property var modelData
+            target: modelData
+            function onPostTrackChanged() { Dispatcher.notifyAsync(); }
+            function onTrackTitleChanged() { Dispatcher.notifyAsync(); }
+            function onTrackArtistChanged() { Dispatcher.notifyAsync(); }
+            function onIdentityChanged() { Dispatcher.notifyAsync(); }
+            function onIsPlayingChanged() { Dispatcher.notifyAsync(); }
+            function onCanControlChanged() { Dispatcher.notifyAsync(); }
+            function onCanTogglePlayingChanged() { Dispatcher.notifyAsync(); }
+            function onCanGoNextChanged() { Dispatcher.notifyAsync(); }
+            function onCanGoPreviousChanged() { Dispatcher.notifyAsync(); }
+        }
+    }
 
     // Pick order mirrors the pill: playing > paused-with-track > controllable.
     readonly property var player: {
@@ -41,12 +64,18 @@ Provider {
         var p = mpris.player;
         var artist = Theme.joinArtists(p.trackArtists, p.trackArtist);
         var acts = [
-            { name: p.isPlaying ? "Pause" : "Play", icon: "", execute: function () { if (p.canTogglePlaying) p.togglePlaying(); } },
-            { name: "Next", icon: "", execute: function () { if (p.canGoNext) p.next(); } },
-            { name: "Previous", icon: "", execute: function () { if (p.canGoPrevious) p.previous(); } }
+            { id: "toggle", name: p.isPlaying ? "Pause" : "Play", icon: "",
+                enabled: p.canTogglePlaying,
+                execute: function () { p.togglePlaying(); } },
+            { id: "next", name: "Next", icon: "", enabled: p.canGoNext,
+                execute: function () { p.next(); } },
+            { id: "previous", name: "Previous", icon: "", enabled: p.canGoPrevious,
+                execute: function () { p.previous(); } }
         ];
         return {
-            id: "mpris:now",
+            // dbusName is constant for the lifetime of Quickshell's player
+            // object, unlike track metadata and labels which change in place.
+            id: "mpris:" + (p.dbusName || ("player-" + String(p.uniqueId))),
             title: p.trackTitle && p.trackTitle.length ? p.trackTitle : "Now playing",
             subtitle: artist.length ? artist : (p.identity || "Media"),
             icon: "",

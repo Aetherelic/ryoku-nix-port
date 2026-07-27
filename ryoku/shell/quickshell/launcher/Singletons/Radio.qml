@@ -5,12 +5,11 @@ import Quickshell.Io
 import Quickshell.Services.Mpris
 import "../lib/radio.js" as RadioLib
 
-// The live-radio state the "@" prefix and the now-playing card share, mirrored
-// from ryoku-cmd-radio (the launcher is resident, so this singleton is also the
-// radio's minder). Two jobs beyond mirroring:
+// Live-radio state for the "@" provider, mirrored from ryoku-cmd-radio. The
+// resident launcher also acts as the radio's minder. Two jobs beyond mirroring:
 //  - collision: the moment any real player that is not the radio (and not a
-//    live wallpaper — those are mpv too) starts playing, the radio steps aside
-//    (stop --aside) instead of talking over it; the aside chip offers resume.
+//    live wallpaper, those are mpv too) starts playing, the radio steps aside
+//    (stop --aside) instead of talking over it; the provider offers resume.
 //  - identity: isRadio(p) is how every surface tells the radio mpv apart, by
 //    its mpv D-Bus name plus the engine's forced "LIVE · " title.
 Singleton {
@@ -21,7 +20,6 @@ Singleton {
     property string label: ""
     property bool live: false          // primary (resolved) stream, not the direct fallback
     property bool fellBack: false
-    property string artUrl: ""         // the stream's own thumbnail / station cover
     property var aside: null           // {station,label} the collision watcher parked
     property bool busy: false          // a verb is in flight; poll answers will settle it
 
@@ -30,7 +28,7 @@ Singleton {
     }
 
     // is the radio's mpv actually on the players bus yet? Drives the tuning
-    // chip (the state says on air while yt-dlp still resolves — up to 25s of
+    // chip (the state says on air while yt-dlp still resolves, up to 25s of
     // honest silence) and arms the minder when the radio was started outside
     // this UI (a terminal, a keybind): a LIVE mpv appearing is evidence enough
     // to go ask the engine what's playing.
@@ -46,7 +44,7 @@ Singleton {
 
     // an explicit tune-in means the radio has the floor: pause whatever real
     // player is sounding (never a live wallpaper) instead of instantly losing
-    // to it — the collision watcher only referees music that starts LATER.
+    // to it, the collision watcher only referees music that starts LATER.
     // Whoever was sounding at tune-in is grandfathered: if its pause doesn't
     // take (canPause=false, or a stream that shrugs off MPRIS Pause), it still
     // never parks the radio the user explicitly chose over it.
@@ -101,7 +99,6 @@ Singleton {
                     root.label = s.label || "";
                     root.live = s.live === true;
                     root.fellBack = s.fellBack === true;
-                    root.artUrl = s.art || "";
                     root.aside = s.aside || null;
                     // an open "@" list re-pulls its rows on the bump, so a verb's
                     // outcome (stop becomes resume, on-air moves first) paints
@@ -112,7 +109,7 @@ Singleton {
         }
     }
     // cheap heartbeat only while there is something to track: a dead supervisor
-    // (stream gone for good) must read as off, and an aside chip must survive a
+    // (stream gone for good) must read as off, and an aside state must survive a
     // launcher reopen. One initial read covers a restart mid-broadcast.
     Timer {
         interval: 4000
@@ -122,7 +119,7 @@ Singleton {
             root.refresh();
             // grandfathering ends the moment the old music actually stops: a
             // later resume of the same player is fresh music and parks the
-            // radio like anything else. Pruned here, not in the binding —
+            // radio like anything else. Pruned here, not in the binding,
             // bindings must not mutate state.
             var g = root._grandfathered;
             var changed = false;
@@ -152,7 +149,7 @@ Singleton {
             if (!p || !p.isPlaying)
                 continue;
             // countsAsMusic drops the radio itself, wallpapers, URL titles and
-            // the titleless registration beat a fresh mpv goes through — the
+            // the titleless registration beat a fresh mpv goes through, the
             // radio's own player must never read as the rival that kills it.
             if (!RadioLib.countsAsMusic(p.trackTitle))
                 continue;

@@ -2,7 +2,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Ryoku.FrameBars
 
 // live shell appearance config. one source of truth for the look knobs Ryoku
 // Settings' Shell section edits, plus the shipped defaults the shell falls back
@@ -49,8 +48,10 @@ Singleton {
     property alias islandStyle:    adapter.islandStyle
     property alias islandAutohide: adapter.islandAutohide
 
-    property alias frameBars: adapter.frameBars
-    readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
+    // top bar = opt-in bar drawn on the frame's thickened top edge (Bar.qml),
+    // in place of the resting island. when on, the island never shows at rest
+    // (surfaces / keybinds still summon the pill). Settings -> Shell -> Bar.
+    property alias barEnabled: adapter.barEnabled
 
     // typography: UI font family (Theme.font reads this) + a scale that grows
     // or shrinks the whole pill (text and the island around it). keeps the
@@ -58,23 +59,15 @@ Singleton {
     property alias fontFamily: adapter.fontFamily
     property alias fontScale:  adapter.fontScale
 
+    // grain matte opacity, shared with the shell overlay (shell.json).
+    property alias grainStrength: adapter.grainStrength
+
     // matchWallpaper: when on, every shell surface (frame, island, popouts,
     // every surface, plus desktop widgets, plugin tiles, the window switcher)
     // follows the live wallust palette instead of the static Tokyo Night
     // tokens. sourced from theme.json (`FollowWallpaper`, the single colour
     // master shared with the daemon and window borders). on by default.
     property alias matchWallpaper: themeAdapter.followWallpaper
-
-    // brand: the desktop's mark + name, user-overridable from Ryoku Settings ->
-    // Shell -> Global. a small cross-cutting identity master (like theme.json).
-    // markText is the glyph/short-text seal (default 力); markImage an optional
-    // image path that wins over the text; markTint recolours a single-colour
-    // image to the accent; name is the wordmark ("Ryoku") shown in chrome copy.
-    // Ryoku's own apps (the Hub, ryo* apps) never read this and keep the 力 brand.
-    property alias markText:  brandAdapter.markText
-    property alias markImage: brandAdapter.markImage
-    property alias markTint:  brandAdapter.markTint
-    property alias brandName: brandAdapter.name
 
     FileView {
         id: file
@@ -103,9 +96,10 @@ Singleton {
             property real islandOpacity: 1
             property string islandStyle: "floating"
             property bool islandAutohide: true
+            property bool barEnabled: true
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
-            property var frameBars: FrameBars.defaultConfig()
+            property real grainStrength: 0.09
         }
     }
 
@@ -119,24 +113,6 @@ Singleton {
         printErrors: false
         onFileChanged: reload()
         JsonAdapter { id: themeAdapter; property bool followWallpaper: true }
-    }
-
-    // brand identity master (mark + name), shared with doctor and the
-    // Hub's Shell -> Global editor. read-only here; the always-on pill seeds it.
-    FileView {
-        id: brandFile
-        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/brand.json"
-        blockLoading: true
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        JsonAdapter {
-            id: brandAdapter
-            property string markText: "力"
-            property string markImage: ""
-            property bool markTint: true
-            property string name: "Ryoku"
-        }
     }
 
     // seed only on a genuine first run (nothing to load), so a slow or failed

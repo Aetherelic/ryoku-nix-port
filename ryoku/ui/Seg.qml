@@ -14,10 +14,6 @@ Item {
     property var options: []
     property string current: ""
     signal chose(string key)
-    function activate(index) {
-        if (index >= 0 && index < options.length) chose(options[index]);
-    }
-
 
     // a segment never drops below minSeg (a one-glyph mode still reads as a
     // button) and pads its label by padSeg either side.
@@ -60,15 +56,13 @@ Item {
             model: seg.options
             Rectangle {
                 required property string modelData
-                required property int index
-                activeFocusOnTab: true
                 readonly property bool on: seg.current === modelData
                 width: Math.max(seg.minSeg, lab.implicitWidth + seg.padSeg)
                 height: seg.segH
                 radius: Tokens.radius
-                color: on ? Tokens.bone : ((sh.hovered || activeFocus) ? Tokens.tint10 : "transparent")
+                color: on ? Tokens.bone : (sh.hovered ? Tokens.tint10 : "transparent")
                 border.width: Tokens.border
-                border.color: (sh.hovered || activeFocus) && !on ? Tokens.lineStrong : Tokens.line
+                border.color: sh.hovered && !on ? Tokens.lineStrong : Tokens.line
                 Behavior on color { ColorAnimation { duration: Tokens.snap } }
 
                 Text {
@@ -82,13 +76,7 @@ Item {
                     font.letterSpacing: 0.6
                 }
                 HoverHandler { id: sh; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: seg.activate(index) }
-                Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                        seg.activate(index)
-                        event.accepted = true
-                    }
-                }
+                TapHandler { onTapped: seg.chose(parent.modelData) }
             }
         }
     }

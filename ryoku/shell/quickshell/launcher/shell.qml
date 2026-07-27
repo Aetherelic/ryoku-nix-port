@@ -1,222 +1,417 @@
 //@ pragma UseQApplication
-//@ pragma DefaultEnv QSG_RENDER_LOOP = basic
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
-import Quickshell.Wayland
 import Quickshell.Hyprland
-import Quickshell.Services.Mpris
+import Quickshell.Io
 import "Singletons"
-import Ryoku.Ui
+import "providers"
+import "lib/lifecycle.js" as Lifecycle
 
-// The standalone Ryoku command palette: one centered layer-shell overlay, resident
-// and hidden at rest, shown on `ryoku-shell launcher`. Toggled over a command
-// socket (keybind hot path) with an IpcHandler fallback, mirroring the pill.
 ShellRoot {
     id: root
 
-    property string openMon: ""
-    readonly property bool open: openMon !== ""
+    property var lifecycleState: Lifecycle.initialState()
+    property bool openRequested: false
+    property string requestedMonitor: ""
+    property var activeLauncher: null
+    property var activeSurface: null
+    property var railSurfaces: ({})
+    property int railRevision: 0
+    property string recoveryTarget: ""
+    property bool pointerFocusForced: false
+    property bool pointerFocusKnown: false
+    property int savedFollowMouse: 2
+    property string pointerFocusPending: ""
 
-    // Report open/close to the shell daemon so its opt-in idle-park worker
-    // (unloadLauncherWhenIdle) can free this resident palette after a grace of
-    // being hidden and respawn it on the next open. A no-op when the flag is off;
-    // the daemon just records the state.
+    readonly property bool open: openRequested
+    readonly property string openMon: String(lifecycleState.monitor || "")
+
     onOpenChanged: {
-        Quickshell.execDetached(["ryoku-shell", "state", "launcher", open ? "1" : "0"]);
+        Quickshell.execDetached([
+            "ryoku-shell", "state", "launcher", open ? "1" : "0"
+        ]);
         if (open) {
-            blurRestoreDelay.stop();
-            root.applyBackdropBlur();
+            freezePointerFocus();
         } else {
-            // Hold the frost through the close morph. Restoring the global blur
-            // now, while the palette is still mapped and fading over the desktop
-            // for Motion.window, snaps the wallpaper sharp behind it -- the close
-            // flicker. Defer the restore until the palette has finished leaving.
-            blurRestoreDelay.restart();
+            restorePointerFocus();
         }
     }
 
-    // --- backdrop blur -----------------------------------------------------
-    // Frost the desktop behind the palette while it is open, to the strength the
-    // App Launcher page sets (LauncherConfig.bgBlur, px; 0 = off). Hyprland blur
-    // is a single global knob (no per-layer size), so this reads the live blur as
-    // the baseline on open, drives it to that strength, and restores the exact
-    // baseline on hide -- frosting even when blur is off globally. The low-power
-    // switch (weak GPUs) suppresses it. Runtime config goes through `hyprctl eval`.
-    //
-    // At bgBlur = 0 the window instead takes the "launcher-noblur" namespace,
-    // which the compositor's launcher blur rule does not match, so the backdrop
-    // is never frosted -- and never flashes the global baseline in for the frame
-    // between the layer mapping and the force landing. The global blur is left
-    // untouched (the overview still needs it). bgBlur > 0 uses the "launcher"
-    // namespace and the force/restore path below.
-    //
-    // All writes serialize through blurWriter: the force (open) and restore
-    // (close) were independent fire-and-forget evals with no ordering guarantee,
-    // so a slower compositor could apply them reversed and strand blur forced-on
-    // after close, flickering through the reorder. The baseline is read only from
-    // a drained compositor and only when well-formed, so a mid-transition or a
-    // failed read can never become a wrong, sticky baseline.
-    property bool blurForced: false
-    property bool blurKnown:  false
-    property bool savedBlurEnabled: false
-    property int  savedBlurSize: 0
+    Binding {
+        target: Weather
+        property: "unitOverride"
+        value: LauncherConfig.weatherUnit === "auto"
+            ? "" : LauncherConfig.weatherUnit
+    }
 
-    // serialized writer: one `hyprctl eval` at a time. A newer request while it
-    // runs replaces the pending one (only the final state matters) and fires when
-    // the current write exits, so writes reach the compositor strictly in order.
-    property string blurPending: ""
-    Process {
-        id: blurWriter
-        onRunningChanged: {
-            if (running || root.blurPending === "")
+    function focusedMonitor() {
+        var monitor = Hyprland.focusedMonitor;
+        if (monitor && monitor.name)
+            return monitor.name;
+        return Quickshell.screens.length > 0
+            ? Quickshell.screens[0].name : "";
+    }
+
+    function screenForName(name) {
+        var target = String(name || "");
+        for (var index = 0; index < Quickshell.screens.length; index++) {
+            var screen = Quickshell.screens[index];
+            if (screen && screen.name === target)
+                return screen;
+        }
+        return null;
+    }
+
+    function scaleForScreen(screen) {
+        return Math.min(1.2, (screen ? screen.height / 1080 : 1))
+            * Math.max(0.8, Math.min(1.4, Config.fontScale));
+    }
+
+    function budgetForScreen(screen) {
+        var scale = scaleForScreen(screen);
+        var topMargin = Math.round(Math.max(
+            24 * scale, (screen.height - 250 * scale) * 0.28));
+        return Lifecycle.surfaceBudget({
+            screenWidth: screen.width,
+            screenHeight: screen.height,
+            topMargin: topMargin,
+            shadowPadX: 52 * scale,
+            shadowPadTop: 54 * scale,
+            shadowPadBottom: 76 * scale,
+            bottomSafeMargin: 16 * scale,
+            compressedHeroHeight: 126 * scale
+        });
+    }
+
+    function availableMonitorNames() {
+        var names = [];
+        for (var index = 0; index < Quickshell.screens.length; index++) {
+            var screen = Quickshell.screens[index];
+            if (screen && screen.name)
+                names.push(String(screen.name));
+        }
+        return names;
+    }
+
+    function restHeightForScreen(screen) {
+        if (!screen)
+            return 0;
+        return Math.min(
+            250 * scaleForScreen(screen),
+            budgetForScreen(screen).maxCardHeight);
+    }
+
+    function frostEligible() {
+        return (LauncherConfig.bgBlur | 0) > 0
+            && !Motion.reduce
+            && !Performance.blurDisabled;
+    }
+
+    function dispatchLifecycle(event) {
+        lifecycleState = Lifecycle.reduce(lifecycleState, event);
+        if (lifecycleState.phase === Lifecycle.PHASES.CLOSED) {
+            activeSurface = null;
+            activeLauncher = null;
+        }
+    }
+
+    function recoveryMonitor() {
+        return Lifecycle.recoveryMonitor({
+            availableMonitors: availableMonitorNames(),
+            pendingMonitor: lifecycleState.pendingMonitor,
+            requestedMonitor: requestedMonitor,
+            focusedMonitor: focusedMonitor(),
+            currentMonitor: lifecycleState.monitor
+        });
+    }
+
+    function handleLifecycleEvent(event) {
+        var captured = event || {};
+        var replacement = "";
+        if (captured.type === "surfaceLost"
+                && Number(captured.generation) === lifecycleState.generation
+                && String(captured.monitor || "") === lifecycleState.monitor) {
+            replacement = openRequested ? recoveryMonitor() : "";
+            if (replacement)
+                requestedMonitor = replacement;
+        }
+        dispatchLifecycle(captured);
+        if (replacement && openRequested
+                && lifecycleState.phase === Lifecycle.PHASES.CLOSED) {
+            recoveryTarget = replacement;
+            recoveryDelay.generation = lifecycleState.generation;
+            recoveryDelay.restart();
+        }
+    }
+
+    function queueLifecycleEvent(event) {
+        var captured = {};
+        var source = event || {};
+        for (var key in source)
+            captured[key] = source[key];
+        Qt.callLater(function () {
+            root.handleLifecycleEvent(captured);
+        });
+    }
+
+    function requestClose(generation, monitor) {
+        var capturedGeneration = Number(generation);
+        var capturedMonitor = String(monitor || "");
+        Qt.callLater(function () {
+            if (capturedGeneration !== root.lifecycleState.generation
+                    || capturedMonitor !== root.lifecycleState.monitor)
                 return;
-            var next = root.blurPending;
-            root.blurPending = "";
+            root.hide();
+        });
+    }
+
+    function recoverScreens() {
+        var state = lifecycleState;
+        var currentValid = screenForName(state.monitor) !== null;
+
+        if (state.phase !== Lifecycle.PHASES.CLOSED && !currentValid) {
+            handleLifecycleEvent({
+                type: "surfaceLost",
+                generation: state.generation,
+                monitor: state.monitor
+            });
+            return;
+        }
+
+        if (state.pendingMonitor
+                && screenForName(state.pendingMonitor) === null) {
+            var fallback = recoveryMonitor();
+            if (!fallback) {
+                handleLifecycleEvent({
+                    type: "surfaceLost",
+                    generation: state.generation,
+                    monitor: state.monitor
+                });
+                return;
+            }
+            requestedMonitor = fallback;
+            dispatchLifecycle({
+                type: "show",
+                monitor: fallback,
+                height: restHeightForScreen(screenForName(fallback)),
+                frostEligible: frostEligible()
+            });
+            return;
+        }
+
+        if (openRequested
+                && state.phase === Lifecycle.PHASES.CLOSED
+                && !recoveryDelay.running) {
+            var target = recoveryMonitor();
+            if (target)
+                show(target);
+        }
+    }
+
+    function show(mon) {
+        recoveryDelay.stop();
+        recoveryTarget = "";
+        var target = String(mon || "");
+        if (!screenForName(target))
+            target = focusedMonitor();
+        var screen = screenForName(target);
+        if (!screen)
+            return;
+
+        requestedMonitor = target;
+        openRequested = true;
+        dispatchLifecycle({
+            type: "show",
+            monitor: target,
+            height: restHeightForScreen(screen),
+            frostEligible: frostEligible()
+        });
+    }
+
+    function hide() {
+        recoveryDelay.stop();
+        recoveryTarget = "";
+        openRequested = false;
+        requestedMonitor = "";
+        restorePointerFocus();
+        dispatchLifecycle({ type: "hide" });
+    }
+
+    function toggle(mon) {
+        if (openRequested)
+            hide();
+        else
+            show(mon);
+    }
+
+    function registerActive(surface, launcher) {
+        activeSurface = surface;
+        activeLauncher = launcher;
+        if (surface) {
+            surface.windowRail = railForMonitor(surface.surfaceMonitor);
+            surface.windowRailSurface = railSurfaceForMonitor(
+                surface.surfaceMonitor);
+        }
+    }
+
+    function registerRail(surface) {
+        if (!surface || !surface.surfaceMonitor)
+            return;
+        var next = {};
+        for (var name in railSurfaces)
+            next[name] = railSurfaces[name];
+        next[String(surface.surfaceMonitor)] = surface;
+        railSurfaces = next;
+        railRevision++;
+        if (activeSurface
+                && String(activeSurface.surfaceMonitor || "")
+                    === String(surface.surfaceMonitor)) {
+            activeSurface.windowRail = surface.rail;
+            activeSurface.windowRailSurface = surface;
+        }
+    }
+
+    function railForMonitor(monitor) {
+        var surface = railSurfaceForMonitor(monitor);
+        return surface ? surface.rail : null;
+    }
+
+    function railSurfaceForMonitor(monitor) {
+        return railSurfaces[String(monitor || "")] || null;
+    }
+
+    // The launcher has exclusive keyboard focus. Temporarily disabling
+    // pointer-driven refocus prevents a cursor outside its small surface from
+    // handing typed keys back to the window underneath. The user's exact
+    // follow_mouse setting is probed once and restored after the close morph.
+    Process {
+        id: pointerFocusWriter
+        onRunningChanged: {
+            if (running || root.pointerFocusPending === "")
+                return;
+            var next = root.pointerFocusPending;
+            root.pointerFocusPending = "";
             command = ["hyprctl", "eval", next];
             running = true;
         }
     }
 
-    // Deferred restore: fires once the close morph (Motion.window) has played
-    // out, so the frost holds for the palette's whole exit instead of being torn
-    // down at the first frame of the close (the flicker). Re-opening cancels it,
-    // and the still-forced blur simply stays.
-    Timer {
-        id: blurRestoreDelay
-        interval: Motion.window
-        onTriggered: root.restoreBackdropBlur()
-    }
-    function evalBlur(enabled, size) {
-        var cmd = "hl.config({ decoration = { blur = { enabled = " + (enabled ? "true" : "false")
-            + ", size = " + Math.max(1, size) + " } } })";
-        if (blurWriter.running) {
-            root.blurPending = cmd;
+    function evalFollowMouse(value) {
+        var next = Math.max(0, Math.min(3, Number(value) | 0));
+        var command = "hl.config({ input = { follow_mouse = " + next + " } })";
+        if (pointerFocusWriter.running) {
+            pointerFocusPending = command;
             return;
         }
-        blurWriter.command = ["hyprctl", "eval", cmd];
-        blurWriter.running = true;
+        pointerFocusWriter.command = ["hyprctl", "eval", command];
+        pointerFocusWriter.running = true;
     }
 
-    function forceBackdropBlur() {
-        root.blurForced = true;
-        var want = LauncherConfig.bgBlur | 0;
-        root.evalBlur(want > 0, want);
-    }
-    function applyBackdropBlur() {
-        if (Performance.blurDisabled || root.blurForced)
-            return;
-        // bgBlur = 0: no frost. The "launcher-noblur" namespace isn't matched by
-        // the blur rule, so there is nothing to force off (and nothing to flash);
-        // leave the global blur alone rather than driving it off and back.
-        if ((LauncherConfig.bgBlur | 0) <= 0)
-            return;
-        // Read the true baseline only once the writer has fully drained (the
-        // compositor now reflects the real blur); while a restore is still in
-        // flight, reuse the baseline the last clean read captured.
-        if (!blurWriter.running && root.blurPending === "")
-            blurProbe.running = true;
-        else if (root.blurKnown)
-            root.forceBackdropBlur();
-    }
-    function restoreBackdropBlur() {
-        if (!root.blurForced)
-            return;
-        root.blurForced = false;
-        root.evalBlur(root.savedBlurEnabled, root.savedBlurSize);
-    }
-
-    // Read the live compositor blur (the real baseline to put back), then push
-    // the launcher's strength. A closed palette or a malformed read leaves global
-    // blur untouched, so the launcher never strands a guessed value in the config.
     Process {
-        id: blurProbe
-        command: ["sh", "-c", "hyprctl getoption -j decoration:blur:enabled; hyprctl getoption -j decoration:blur:size"]
+        id: pointerFocusProbe
+        command: ["hyprctl", "getoption", "-j", "input:follow_mouse"]
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!root.open)
                     return;
-                var en, sz;
+                var option;
                 try {
-                    var lines = this.text.trim().split("\n");
-                    en = JSON.parse(lines[0]);
-                    sz = JSON.parse(lines[1]);
-                } catch (e) {
+                    option = JSON.parse(this.text);
+                } catch (error) {
                     return;
                 }
-                if (typeof en.bool !== "boolean" || typeof sz.int !== "number")
+                if (typeof option.int !== "number")
                     return;
-                root.savedBlurEnabled = en.bool;
-                root.savedBlurSize = sz.int;
-                root.blurKnown = true;
-                root.forceBackdropBlur();
+                root.savedFollowMouse = option.int;
+                root.pointerFocusKnown = true;
+                root.pointerFocusForced = true;
+                root.evalFollowMouse(0);
             }
         }
     }
 
-    // Any MPRIS player actively playing. Gates the now-playing wave backdrop's
-    // cava process (Spectrum) so it runs only while the launcher is open AND
-    // there is real audio, never on a hidden or silent palette.
-    readonly property bool anyPlaying: {
-        var list = Mpris.players.values;
-        if (!list)
-            return false;
-        for (var i = 0; i < list.length; i++)
-            if (list[i] && list[i].isPlaying)
-                return true;
-        return false;
+    function freezePointerFocus() {
+        if (pointerFocusForced) {
+            evalFollowMouse(0);
+            return;
+        }
+        if (!pointerFocusProbe.running)
+            pointerFocusProbe.running = true;
     }
 
-    Binding {
-        target: Spectrum
-        property: "active"
-        value: root.open && root.anyPlaying
+    function restorePointerFocus() {
+        if (!pointerFocusForced || !pointerFocusKnown)
+            return;
+        evalFollowMouse(savedFollowMouse);
+        pointerFocusForced = false;
     }
 
-    // launcher weather units from the config: "auto" follows the locale.
-    Binding {
-        target: Weather
-        property: "unitOverride"
-        value: LauncherConfig.weatherUnit === "auto" ? "" : LauncherConfig.weatherUnit
+    function stateDump() {
+        var dump = activeLauncher ? activeLauncher.stateDump() : {};
+        var mapped = activeSurface
+            && activeSurface.invocationSurface
+            && activeSurface.backingWindowVisible;
+
+        dump.open = openRequested;
+        dump.phase = String(lifecycleState.phase || Lifecycle.PHASES.CLOSED);
+        dump.monitor = String(lifecycleState.monitor || "");
+        dump.generation = Number(lifecycleState.generation || 0);
+        dump.capture = String(lifecycleState.capture || Lifecycle.CAPTURE.IDLE);
+        dump.preludeTicks = Number(lifecycleState.preludeTicks || 0);
+        dump.closeTicks = Number(lifecycleState.closeTicks || 0);
+        dump.mapped = Boolean(mapped);
+        dump.focusHeld = Boolean(lifecycleState.focusHeld);
+        dump.surfaceWidth = mapped ? Math.round(activeSurface.width) : 0;
+        dump.surfaceHeight = mapped ? Math.round(activeSurface.height) : 0;
+        dump.screenWidth = mapped
+            ? Math.round(activeSurface.modelData.width) : 0;
+        dump.screenHeight = mapped
+            ? Math.round(activeSurface.modelData.height) : 0;
+        dump.cardHeight = mapped
+            ? Math.round(activeSurface.presentedHeight) : 0;
+        dump.inputEnabled = Boolean(
+            mapped && activeSurface.inputEnabled);
+        dump.maskWidth = activeSurface && activeSurface.inputEnabled
+            ? Math.round(activeSurface.cardWidth
+                * activeSurface.visualScale) : 0;
+        dump.maskHeight = activeSurface && activeSurface.inputEnabled
+            ? Math.round(activeSurface.presentedHeight
+                * activeSurface.visualScale) : 0;
+        dump.visualOpacity = activeSurface
+            ? Number(activeSurface.visualOpacity) : 0;
+        dump.visualScale = activeSurface
+            ? Number(activeSurface.visualScale) : 0;
+        dump.visualOffsetY = activeSurface
+            ? Number(activeSurface.visualOffsetY) : 0;
+        dump.frostActive = Boolean(
+            activeSurface && activeSurface.frostActive);
+        dump.frostPresented = Boolean(
+            activeSurface && activeSurface.frostPresented);
+        dump.frostPresentationHeight = activeSurface
+            ? Math.round(activeSurface.frostPlan.drawerHeight || 0) : 0;
+        dump.frostPresentationOpacity = activeSurface
+            ? Number(activeSurface.frostPlan.opacity || 0) : 0;
+        dump.frameDriverActive = Boolean(
+            activeSurface && activeSurface.frameDriverActive);
+        dump.outerHeight = Math.round(lifecycleState.outerHeight || 0);
+        dump.btConnected = 0;
+        return dump;
     }
 
-    function focusedMonitor() {
-        var m = Hyprland.focusedMonitor;
-        return m && m.name ? m.name : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
-    }
+    readonly property string sockPath: (
+        Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
+        + "/ryoku-launcher.sock"
 
-    function show(mon) {
-        root.openMon = (mon && mon.length) ? mon : root.focusedMonitor();
-    }
-    function hide() {
-        root.openMon = "";
-    }
-    function toggle(mon) {
-        if (root.open)
-            root.hide();
-        else
-            root.show(mon);
-    }
-
-    readonly property string sockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-launcher.sock"
-
-    // the Launcher body on the monitor currently (or last) shown; lets the
-    // socket's `state` command snapshot what the palette is displaying.
-    property var activeLauncher: null
-    property var activeBt: null
-
-    // "<fn> [mon]" from the daemon's fast path; returns false on an unknown
-    // command so the daemon falls back to the qs ipc client.
     function runCommand(line) {
-        var parts = line.trim().split(" ");
+        var parts = String(line || "").trim().split(" ");
         var fn = parts[0];
         var mon = parts.length > 1 ? parts[1] : "";
         switch (fn) {
-        case "toggle": root.toggle(mon); return true;
-        case "show":   root.show(mon); return true;
-        case "hide":   root.hide(); return true;
-        default:       return false;
+        case "toggle": toggle(mon); return true;
+        case "show": show(mon); return true;
+        case "hide": hide(); return true;
+        default: return false;
         }
     }
 
@@ -234,97 +429,77 @@ ShellRoot {
             id: cmdSock
             parser: SplitParser {
                 onRead: line => {
-                    var l = line.trim();
-                    if (l === "state") {
-                        var dump = root.activeLauncher ? root.activeLauncher.stateDump() : {};
-                        dump.open = root.open;
-                        dump.monitor = root.openMon;
-                        dump.btConnected = root.activeBt ? root.activeBt.connected.length : 0;
-                        cmdSock.write(JSON.stringify(dump) + "\n");
+                    var command = String(line || "").trim();
+                    if (command === "state") {
+                        cmdSock.write(
+                            JSON.stringify(root.stateDump()) + "\n");
                     } else {
-                        cmdSock.write((root.runCommand(l) ? "ok" : "err") + "\n");
+                        cmdSock.write(
+                            (root.runCommand(command) ? "ok" : "err") + "\n");
                     }
                 }
             }
         }
     }
 
+    Providers {
+        id: sharedProviders
+    }
+
+    Timer {
+        id: recoveryDelay
+        property int generation: 0
+        interval: 50
+        repeat: false
+        onTriggered: {
+            var target = root.recoveryTarget;
+            root.recoveryTarget = "";
+            if (!root.openRequested
+                    || root.lifecycleState.phase
+                        !== Lifecycle.PHASES.CLOSED
+                    || root.lifecycleState.generation !== generation
+                    || root.screenForName(target) === null)
+                return;
+            root.show(target);
+        }
+    }
+
+    Connections {
+        target: Quickshell
+        function onScreensChanged() {
+            root.recoverScreens();
+        }
+    }
+
     Variants {
         model: Quickshell.screens
 
-        PanelWindow {
-            id: win
-            required property var modelData
-            // cap the monitor-derived scale so a tall display doesn't balloon the
-            // palette; 1.0 at 1080p, at most 1.2 on bigger screens, times fontScale.
-            readonly property real s: Math.min(1.2, (modelData ? modelData.height / 1080 : 1)) * Math.max(0.8, Math.min(1.4, Config.fontScale))
-            readonly property bool shown: root.openMon === modelData.name
-
-            screen: modelData
-            visible: shown || closing.running
-            color: "transparent"
-            exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.namespace: (LauncherConfig.bgBlur | 0) > 0 ? "launcher" : "launcher-noblur"
-            WlrLayershell.layer: WlrLayer.Overlay
-            // hold the grab until the window unmaps (end of the close morph).
-            // dropping it while still mapped strands the keyboard on the dead
-            // layer: the app looks focused but can't type until a real focus
-            // change. unmapping with the grab held hands the keyboard back.
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-
-            anchors { top: true; bottom: true; left: true; right: true }
-
-            // a brief grace so the close morph can play before the window drops.
-            Timer { id: closing; interval: Motion.window; repeat: false }
-            onShownChanged: {
-                if (shown) {
-                    root.activeLauncher = launcher;
-                    root.activeBt = btBubbles;
-                } else {
-                    closing.restart();
-                }
+        LauncherSurface {
+            providerSet: sharedProviders
+            lifecycleState: root.lifecycleState
+            windowRail: {
+                void root.railRevision;
+                return root.railForMonitor(modelData.name);
             }
-
-            // dim + click-out scrim.
-            Rectangle {
-                anchors.fill: parent
-                color: Qt.rgba(0, 0, 0, 0.35)
-                opacity: win.shown ? 1 : 0
-                visible: opacity > 0.001
-                Behavior on opacity { NumberAnimation { duration: Motion.window; easing.type: Easing.OutCubic } }
-                MouseArea { anchors.fill: parent; onClicked: root.hide() }
+            windowRailSurface: {
+                void root.railRevision;
+                return root.railSurfaceForMonitor(modelData.name);
             }
+            onLifecycleEvent: event => root.queueLifecycleEvent(event)
+            onRequestClose: (generation, monitor) =>
+                root.requestClose(generation, monitor)
+            onBecameActive: (surface, launcher) =>
+                root.registerActive(surface, launcher)
+        }
+    }
 
-            Launcher {
-                id: launcher
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                // off resting height, not the live one, so growing results push the
-                // body down while the search row holds its position.
-                anchors.topMargin: Math.round((parent.height - launcher.restingHeight) * 0.32)
-                s: win.s
-                shown: win.shown
-                onRequestClose: root.hide()
-            }
+    Variants {
+        model: Quickshell.screens
 
-            // Detached Bluetooth bubbles under the palette: one square card
-            // per connected device (BtConnections renders nothing otherwise),
-            // riding the same open/close morph as the card above.
-            BtConnections {
-                id: btBubbles
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: launcher.bottom
-                anchors.topMargin: 10 * win.s
-                width: launcher.width
-                s: win.s
-                transformOrigin: Item.Top
-                opacity: win.shown ? 1 : 0
-                scale: win.shown ? 1 : 0.92
-                Behavior on opacity { NumberAnimation { duration: Motion.window; easing.type: Easing.OutCubic } }
-                Behavior on scale {
-                    NumberAnimation { duration: Motion.window; easing.type: Motion.easeMorph; easing.bezierCurve: Motion.morphCurve }
-                }
-            }
+        WindowRailSurface {
+            launcher: root.activeLauncher
+            launcherSurface: root.activeSurface
+            onReady: surface => root.registerRail(surface)
         }
     }
 }

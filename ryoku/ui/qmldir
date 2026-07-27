@@ -1,6 +1,7 @@
 module Ryoku.Ui
 Cell 1.0 Cell.qml
 Section 1.0 Section.qml
+Grain 1.0 Grain.qml
 Btn 1.0 Btn.qml
 ActionBar 1.0 ActionBar.qml
 Preview 1.0 Preview.qml
@@ -30,5 +31,6 @@ DitherField 1.0 DitherField.qml
 Decor 1.0 Decor.qml
 Placard 1.0 Placard.qml
 DitherImage 1.0 DitherImage.qml
+HeroCrop 1.0 HeroCrop.qml
 PickFile 1.0 PickFile.qml
 AppPicker 1.0 AppPicker.qml

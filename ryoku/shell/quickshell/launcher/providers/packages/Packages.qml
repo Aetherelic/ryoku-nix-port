@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import "../../Singletons"
 import "gpk.js" as Gpk
+import "../requeststate.js" as RequestState
 import ".."
 
 // Package provider backed by GPK (`gpk search --json`), which spans every package
@@ -18,11 +19,119 @@ Provider {
     defaultProvider: false
 
     property bool available: false
+    onAvailableChanged: {
+        packages.cachedQuery = "";
+        packages.cachedRows = [];
+        packages.fullFor = "";
+        packages.clearRequest();
+        Dispatcher.notifyAsync();
+    }
     property string cachedQuery: ""
     property var cachedRows: []
     property string pendingQuery: ""
+    property int pendingGeneration: 0
+    property bool debounceReady: false
+    property var requestState: RequestState.initial()
+    property bool fastFinished: false
+    property bool fullFinished: false
+    property bool fullSucceeded: false
 
     readonly property string terminal: "kitty"
+
+    function setRequestState(next) {
+        if (next === packages.requestState)
+            return false;
+        var wasBusy = RequestState.isBusy(packages.requestState);
+        var nowBusy = RequestState.isBusy(next);
+        packages.requestState = next;
+        if (wasBusy !== nowBusy)
+            Dispatcher.setBusy("packages", nowBusy);
+        return true;
+    }
+
+    function cancelProcesses() {
+        if (fastProc.inFlight)
+            fastProc.running = false;
+        if (searchProc.inFlight)
+            searchProc.running = false;
+    }
+
+    function clearRequest() {
+        var next = RequestState.clear(packages.requestState);
+        if (next === packages.requestState)
+            return;
+        packages.setRequestState(next);
+        debounce.stop();
+        packages.debounceReady = false;
+        packages.cancelProcesses();
+    }
+
+    function invalidateSearch() {
+        packages.cachedQuery = "";
+        packages.cachedRows = [];
+        packages.fullFor = "";
+        packages.clearRequest();
+    }
+
+    function adoptCached(key) {
+        var next = RequestState.adoptSettled(
+            packages.requestState, key);
+        if (next === packages.requestState)
+            return;
+        packages.setRequestState(next);
+        debounce.stop();
+        packages.debounceReady = false;
+        packages.cancelProcesses();
+    }
+
+    function schedule(key) {
+        var next = RequestState.begin(packages.requestState, key);
+        if (next === packages.requestState)
+            return;
+        packages.setRequestState(next);
+        packages.pendingQuery = key;
+        packages.pendingGeneration = next.generation;
+        packages.debounceReady = false;
+        debounce.restart();
+        packages.cancelProcesses();
+    }
+
+    function startPending() {
+        if (!packages.debounceReady
+                || fastProc.inFlight || searchProc.inFlight)
+            return;
+        var next = RequestState.markRunning(
+            packages.requestState, packages.pendingQuery,
+            packages.pendingGeneration);
+        if (next === packages.requestState)
+            return;
+        packages.debounceReady = false;
+        packages.setRequestState(next);
+        packages.fullFor = "";
+        packages.fastFinished = false;
+        packages.fullFinished = false;
+        packages.fullSucceeded = false;
+
+        fastProc.term = packages.pendingQuery;
+        fastProc.requestGeneration = packages.pendingGeneration;
+        fastProc.out = "";
+        fastProc.inFlight = true;
+        fastProc.didStart = false;
+        searchProc.term = packages.pendingQuery;
+        searchProc.requestGeneration = packages.pendingGeneration;
+        searchProc.out = "";
+        searchProc.inFlight = true;
+        searchProc.didStart = false;
+        fastProc.running = true;
+        searchProc.running = true;
+    }
+
+    function finishRequest(key, generation) {
+        if (!packages.fastFinished || !packages.fullFinished)
+            return;
+        packages.setRequestState(RequestState.settle(
+            packages.requestState, key, generation));
+    }
 
     // text after ">": "search x" / "install x" / "remove x", or a bare query that
     // defaults to search. So ">yay" searches, ">install yay" installs.
@@ -48,6 +157,7 @@ Provider {
             type: "Package",
             score: 0,
             actions: [{
+                id: op === "remove" ? "remove" : "install",
                 name: verb,
                 icon: "",
                 execute: function () {
@@ -55,23 +165,27 @@ Provider {
                     Quickshell.execDetached([packages.terminal, "-e", "gpk", gpkOp, pkg.name]);
                     // the install/remove will change what a re-search should
                     // show; drop the cached rows so the next query refetches.
-                    packages.cachedQuery = "";
-                    packages.fullFor = "";
+                    packages.invalidateSearch();
                 }
             }]
         };
     }
 
     function query(text) {
-        if (!packages.available)
+        if (!packages.available) {
+            packages.clearRequest();
             return [];
+        }
         var p = parseOp(text);
-        if (!p || p.term.length < 2)
+        if (!p || p.term.length < 2) {
+            packages.clearRequest();
             return [];
-        if (p.term === packages.cachedQuery)
+        }
+        if (p.term === packages.cachedQuery) {
+            packages.adoptCached(p.term);
             return packages.cachedRows.map(function (pkg) { return packages.rowFor(pkg, p.op); });
-        packages.pendingQuery = p.term;
-        debounce.restart();
+        }
+        packages.schedule(p.term);
         return [];
     }
 
@@ -80,13 +194,8 @@ Provider {
         interval: 120
         repeat: false
         onTriggered: {
-            packages.fullFor = "";
-            searchProc.term = packages.pendingQuery;
-            searchProc.running = false;
-            searchProc.running = true;
-            fastProc.term = packages.pendingQuery;
-            fastProc.running = false;
-            fastProc.running = true;
+            packages.debounceReady = true;
+            packages.startPending();
         }
     }
 
@@ -100,21 +209,48 @@ Provider {
     Process {
         id: fastProc
         property string term: ""
+        property int requestGeneration: 0
+        property bool inFlight: false
+        property bool didStart: false
         property string out: ""
         command: ["gpk", "search", term, "--json", "--limit", "30", "--manager", "pacman,aur"]
         stdout: SplitParser {
             onRead: data => fastProc.out += data + "\n"
         }
-        onStarted: fastProc.out = ""
+        onStarted: fastProc.didStart = true
+        onRunningChanged: {
+            if (!running && fastProc.inFlight && !fastProc.didStart) {
+                var key = fastProc.term;
+                var generation = fastProc.requestGeneration;
+                fastProc.inFlight = false;
+                if (packages.requestState.phase === "running"
+                        && RequestState.isCurrent(
+                            packages.requestState, key, generation)) {
+                    packages.fastFinished = true;
+                    packages.finishRequest(key, generation);
+                }
+                packages.startPending();
+            }
+        }
         onExited: (code, status) => {
-            // gpk: 0 = results, 2 = clean no-results, 1 = error.
-            if (status !== 0 || code === 1)
-                return;
-            if (packages.fullFor === fastProc.term)
-                return;
-            packages.cachedQuery = fastProc.term;
-            packages.cachedRows = Gpk.parse(fastProc.out);
-            Dispatcher.notifyAsync();
+            var key = fastProc.term;
+            var generation = fastProc.requestGeneration;
+            fastProc.inFlight = false;
+            var current = packages.requestState.phase === "running"
+                && RequestState.isCurrent(
+                    packages.requestState, key, generation);
+            if (current) {
+                packages.fastFinished = true;
+                var succeeded = status === 0 && code !== 1;
+                if (succeeded && !packages.fullSucceeded
+                        && packages.fullFor !== key) {
+                    packages.cachedQuery = key;
+                    packages.cachedRows = Gpk.parse(fastProc.out);
+                    Dispatcher.notifyAsync();
+                }
+                packages.finishRequest(key, generation);
+            }
+            packages.startPending();
         }
     }
 
@@ -126,24 +262,51 @@ Provider {
 
     Process {
         id: searchProc
-        onRunningChanged: Dispatcher.setBusy("packages", running)
         property string term: ""
+        property int requestGeneration: 0
+        property bool inFlight: false
+        property bool didStart: false
         property string out: ""
         command: ["gpk", "search", term, "--json", "--limit", "30"]
         stdout: SplitParser {
             onRead: data => searchProc.out += data + "\n"
         }
-        onStarted: searchProc.out = ""
+        onStarted: searchProc.didStart = true
+        onRunningChanged: {
+            if (!running && searchProc.inFlight
+                    && !searchProc.didStart) {
+                var key = searchProc.term;
+                var generation = searchProc.requestGeneration;
+                searchProc.inFlight = false;
+                if (packages.requestState.phase === "running"
+                        && RequestState.isCurrent(
+                            packages.requestState, key, generation)) {
+                    packages.fullFinished = true;
+                    packages.fullSucceeded = false;
+                    packages.finishRequest(key, generation);
+                }
+                packages.startPending();
+            }
+        }
         onExited: (code, status) => {
-            // killed = superseded; exit 1 = gpk failure. Cache neither, so a
-            // transient failure does not pin stale rows to a term. Exit 2 is
-            // a clean no-results run and caches like a hit.
-            if (status !== 0 || code === 1)
-                return;
-            packages.fullFor = searchProc.term;
-            packages.cachedQuery = searchProc.term;
-            packages.cachedRows = Gpk.parse(searchProc.out);
-            Dispatcher.notifyAsync();
+            var key = searchProc.term;
+            var generation = searchProc.requestGeneration;
+            searchProc.inFlight = false;
+            var current = packages.requestState.phase === "running"
+                && RequestState.isCurrent(
+                    packages.requestState, key, generation);
+            if (current) {
+                packages.fullFinished = true;
+                packages.fullSucceeded = status === 0 && code !== 1;
+                if (packages.fullSucceeded) {
+                    packages.fullFor = key;
+                    packages.cachedQuery = key;
+                    packages.cachedRows = Gpk.parse(searchProc.out);
+                    Dispatcher.notifyAsync();
+                }
+                packages.finishRequest(key, generation);
+            }
+            packages.startPending();
         }
     }
 

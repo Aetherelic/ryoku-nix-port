@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../../Singletons"
+import "../requeststate.js" as RequestState
 import ".."
 
 // Scoped file finder, reached only by an explicit command so a plain search is
@@ -20,12 +21,91 @@ Provider {
     prefixes: ["/file", "/folder", "/image", "/video"]
 
     property bool available: false
+    onAvailableChanged: {
+        find.cachedKey = "";
+        find.cachedRows = [];
+        find.clearRequest();
+        Dispatcher.notifyAsync();
+    }
     property string cachedKey: ""
     property var cachedRows: []
     property string pendingMode: ""
     property string pendingQuery: ""
+    property string pendingKey: ""
+    property int pendingGeneration: 0
+    property bool debounceReady: false
+    property var requestState: RequestState.initial()
 
     readonly property string home: Quickshell.env("HOME") || "."
+
+    function setRequestState(next) {
+        if (next === find.requestState)
+            return false;
+        var wasBusy = RequestState.isBusy(find.requestState);
+        var nowBusy = RequestState.isBusy(next);
+        find.requestState = next;
+        if (wasBusy !== nowBusy)
+            Dispatcher.setBusy("find", nowBusy);
+        return true;
+    }
+
+    function cancelProcess() {
+        if (findProc.inFlight)
+            findProc.running = false;
+    }
+
+    function clearRequest() {
+        var next = RequestState.clear(find.requestState);
+        if (next === find.requestState)
+            return;
+        find.setRequestState(next);
+        debounce.stop();
+        find.debounceReady = false;
+        find.cancelProcess();
+    }
+
+    function adoptCached(key) {
+        var next = RequestState.adoptSettled(find.requestState, key);
+        if (next === find.requestState)
+            return;
+        find.setRequestState(next);
+        debounce.stop();
+        find.debounceReady = false;
+        find.cancelProcess();
+    }
+
+    function schedule(mode, text, key) {
+        var next = RequestState.begin(find.requestState, key);
+        if (next === find.requestState)
+            return;
+        find.setRequestState(next);
+        find.pendingMode = mode;
+        find.pendingQuery = text;
+        find.pendingKey = key;
+        find.pendingGeneration = next.generation;
+        find.debounceReady = false;
+        debounce.restart();
+        find.cancelProcess();
+    }
+
+    function startPending() {
+        if (!find.debounceReady || findProc.inFlight)
+            return;
+        var next = RequestState.markRunning(
+            find.requestState, find.pendingKey, find.pendingGeneration);
+        if (next === find.requestState)
+            return;
+        find.debounceReady = false;
+        find.setRequestState(next);
+        findProc.cacheKey = find.pendingKey;
+        findProc.requestGeneration = find.pendingGeneration;
+        findProc.command = find.fdArgs(
+            find.pendingMode, find.pendingQuery);
+        findProc.hits = [];
+        findProc.inFlight = true;
+        findProc.didStart = false;
+        findProc.running = true;
+    }
 
     function modeFor(prefix) {
         if (prefix === "/folder") return "folder";
@@ -67,6 +147,10 @@ Provider {
         return p.indexOf(find.home) === 0 ? "~" + p.slice(find.home.length) : p;
     }
 
+    function fileUrl(path) {
+        return "file://" + encodeURIComponent(String(path)).replace(/%2F/g, "/");
+    }
+
     // Section label per mode, so folder results read FOLDER, not FILE.
     function kindFor(mode) {
         if (mode === "folder") return "Folder";
@@ -84,30 +168,34 @@ Provider {
             title: baseName(path),
             subtitle: shortPath(path.replace(/\/[^/]*$/, "")),
             icon: "",
+            preview: kind === "Image" ? fileUrl(path) : "",
             type: kind || "File",
             score: 0,
             actions: [
-                { name: "Open", icon: "", execute: function () { Quickshell.execDetached(["xdg-open", path]); } },
-                { name: "Reveal", icon: "", execute: function () { Quickshell.execDetached(["xdg-open", path.replace(/\/[^/]*$/, "")]); } }
+                { id: "open", name: "Open", icon: "", execute: function () { Quickshell.execDetached(["xdg-open", path]); } },
+                { id: "reveal", name: "Reveal", icon: "", execute: function () { Quickshell.execDetached(["xdg-open", path.replace(/\/[^/]*$/, "")]); } }
             ]
         };
     }
 
     function query(text, prefix) {
-        if (!find.available)
+        if (!find.available) {
+            find.clearRequest();
             return [];
+        }
         var mode = modeFor(prefix);
         var t = (text || "").trim();
-        if (t.length < 1)
+        if (t.length < 1) {
+            find.clearRequest();
             return [];
+        }
         var key = mode + "\u0000" + t;
         if (key === find.cachedKey) {
+            find.adoptCached(key);
             var kind = find.kindFor(mode);
             return find.cachedRows.map(function (p) { return find.rowFor(p, kind); });
         }
-        find.pendingMode = mode;
-        find.pendingQuery = t;
-        debounce.restart();
+        find.schedule(mode, t, key);
         return [];
     }
 
@@ -116,10 +204,8 @@ Provider {
         interval: 130
         repeat: false
         onTriggered: {
-            findProc.cacheKey = find.pendingMode + "\u0000" + find.pendingQuery;
-            findProc.command = find.fdArgs(find.pendingMode, find.pendingQuery);
-            findProc.running = false;
-            findProc.running = true;
+            find.debounceReady = true;
+            find.startPending();
         }
     }
 
@@ -131,21 +217,48 @@ Provider {
 
     Process {
         id: findProc
-        onRunningChanged: Dispatcher.setBusy("find", running)
         property string cacheKey: ""
+        property int requestGeneration: 0
+        property bool inFlight: false
+        property bool didStart: false
         property var hits: []
         stdout: SplitParser {
             onRead: line => { if (line.trim().length) findProc.hits.push(line.trim()); }
         }
-        onStarted: findProc.hits = []
+        onStarted: findProc.didStart = true
+        onRunningChanged: {
+            if (!running && findProc.inFlight && !findProc.didStart) {
+                var key = findProc.cacheKey;
+                var generation = findProc.requestGeneration;
+                findProc.inFlight = false;
+                if (find.requestState.phase === "running"
+                        && RequestState.isCurrent(
+                            find.requestState, key, generation)) {
+                    find.setRequestState(RequestState.settle(
+                        find.requestState, key, generation));
+                }
+                find.startPending();
+            }
+        }
         onExited: (code, status) => {
-            // killed (superseded) or fd error: skip the cache write. fd exits
-            // 1 for a clean zero-match run, which is a real, cacheable result.
-            if (status !== 0 || code > 1)
-                return;
-            find.cachedKey = findProc.cacheKey;
-            find.cachedRows = findProc.hits.slice();
-            Dispatcher.notifyAsync();
+            var key = findProc.cacheKey;
+            var generation = findProc.requestGeneration;
+            findProc.inFlight = false;
+            var current = find.requestState.phase === "running"
+                && RequestState.isCurrent(
+                    find.requestState, key, generation);
+            if (current) {
+                var succeeded = status === 0 && code <= 1;
+                if (succeeded) {
+                    find.cachedKey = key;
+                    find.cachedRows = findProc.hits.slice();
+                }
+                find.setRequestState(RequestState.settle(
+                    find.requestState, key, generation));
+                if (succeeded)
+                    Dispatcher.notifyAsync();
+            }
+            find.startPending();
         }
     }
 
