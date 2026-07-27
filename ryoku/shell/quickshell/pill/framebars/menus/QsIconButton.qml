@@ -10,6 +10,8 @@ Rectangle {
     property string icon: "circle"
     property string tip: ""
     property bool danger: false
+    // Top-edge controls open their bubble downward so it never leaves the panel.
+    property bool tipBelow: false
 
     signal clicked()
 
@@ -46,6 +48,7 @@ Rectangle {
 
     QsTip {
         text: root.tip
+        below: root.tipBelow
         hovered: tap.containsMouse && !tap.pressed
     }
 }

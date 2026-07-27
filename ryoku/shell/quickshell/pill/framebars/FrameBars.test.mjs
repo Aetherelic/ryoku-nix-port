@@ -17,7 +17,7 @@ eq(reference.rails.top.center, [], "reference top bar is empty");
 eq(reference.rails.left.top, ["quick-settings", "workspaces"], "reference left top zone is quick settings then workspaces");
 eq(reference.rails.left.center, ["dock"], "reference dock is left-centre");
 eq(reference.rails.bottom.enabled, false, "bottom rail starts disabled");
-eq(reference.rails.left.bottom, ["recording", "tray", "screenshot", "wallpaper", "clipboard", "notifications", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"], "reference status stack is the thirteen left-bottom entries");
+eq(reference.rails.left.bottom, ["recording", "tray", "screenshot", "wallpaper", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"], "reference status stack is the eleven left-bottom entries (notifications and clipboard migrated to the sidebar tab rail)");
 eq(reference.rails.right.top, [], "disabled right rail retains vertical zones");
 eq(Object.keys(reference.rails.bottom).sort(), ["center", "enabled", "end", "reveal", "size", "start"], "bottom rail has horizontal zones");
 eq(reference.rails.bottom.start, [], "bottom start list defaults empty");
@@ -77,8 +77,8 @@ eq(moved.rails.top.end, ["quick-settings"], "widget moves across compatible rail
 eq(moved.rails.left.top, ["workspaces"], "successful move removes only the source widget");
 eq(moveInput, defaultConfig(), "move leaves its input unchanged");
 const clockDup = addWidget(reference, "left", "top", "clock", BarCatalog);
-eq(moveWidget(clockDup, "left", "bottom", 10, "left", "top", 0, BarCatalog), clockDup, "move rejects an existing target-zone widget");
-eq(moveWidget(reference, "left", "bottom", 0, "left", "bottom", 2, BarCatalog).rails.left.bottom, ["tray", "screenshot", "recording", "wallpaper", "clipboard", "notifications", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"], "same-zone move honors target index");
+eq(moveWidget(clockDup, "left", "bottom", 8, "left", "top", 0, BarCatalog), clockDup, "move rejects an existing target-zone widget");
+eq(moveWidget(reference, "left", "bottom", 0, "left", "bottom", 2, BarCatalog).rails.left.bottom, ["tray", "screenshot", "recording", "wallpaper", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"], "same-zone move honors target index");
 eq(moveWidget(reference, "left", "center", 0, "top", "end", 0, BarCatalog).rails.left.center, ["dock"], "cross-axis move leaves config unchanged");
 
 const removeInput = defaultConfig();

@@ -48,6 +48,7 @@ hl.bind(K(mod .. " + W"),         hl.dsp.exec_cmd("ryoku-shell menu wallpaper"))
 hl.bind(K(mod .. " + C"),         hl.dsp.exec_cmd("ryoku-shell wallpaper-switcher")) -- wallpaper switcher (unified images + live, colour-sorted)
 hl.bind(K(mod .. " + SHIFT + W"), hl.dsp.exec_cmd("ryoku-shell wallpaper random")) -- random wallpaper, random transition
 hl.bind(K(mod .. " + SHIFT + V"), hl.dsp.exec_cmd("ryoku-summon ryovm flock -n -o /tmp/ryovm.lock qs -c ryovm")) -- ryovm: summon to current workspace
+hl.bind(K(mod .. " + V"),         hl.dsp.exec_cmd("ryoku-shell menu quick-settings#clipboard")) -- clipboard (sidebar deep link)
 hl.bind(K(mod .. " + Tab"),       hl.dsp.exec_cmd("ryoku-shell overview")) -- workspace overview (expo: live previews, drag windows between workspaces, cycle)
 hl.bind(K(mod .. " + ALT + Tab"), hl.dsp.exec_cmd("ryoku-shell overview")) -- workspace overview, stepping desktops (Alt+Tab again inside cycles desktops)
 hl.bind(K(mod .. " + M"),         hl.dsp.exec_cmd("ryoku-shell visualizer"))        -- toggle the desktop audio visualiser

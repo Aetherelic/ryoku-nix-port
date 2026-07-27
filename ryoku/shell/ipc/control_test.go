@@ -76,7 +76,11 @@ func TestMenuID(t *testing.T) {
 	if id, ok := menuID("menu clipboard"); !ok || id != "clipboard" {
 		t.Errorf("menuID(menu clipboard) = (%q,%v), want (clipboard,true)", id, ok)
 	}
-	for _, cmd := range []string{"menu", "menu bogus", "menu clock extra", "bar clock", "clipboard"} {
+	// #page suffix: the full id (base#page) is returned for QML's deep-link.
+	if id, ok := menuID("menu quick-settings#clipboard"); !ok || id != "quick-settings#clipboard" {
+		t.Errorf("menuID(menu quick-settings#clipboard) = (%q,%v), want (quick-settings#clipboard,true)", id, ok)
+	}
+	for _, cmd := range []string{"menu", "menu bogus", "menu clock extra", "bar clock", "clipboard", "menu bogus#page"} {
 		if _, ok := menuID(cmd); ok {
 			t.Errorf("menuID(%q) accepted, want rejection", cmd)
 		}

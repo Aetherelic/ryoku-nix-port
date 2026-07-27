@@ -1,15 +1,19 @@
 import QtQuick
 import "../../Singletons"
 
-// Hover bubble: names an icon-only control. Shows above the control after a
-// short hover dwell, with a soft rise-and-fade; never takes input.
+// Hover bubble: names an icon-only control. Shows above (default), below, or
+// to the RIGHT (side: true) after a short hover dwell. `side: true` is used
+// on the left tab rail so the bubble never clips against the panel left edge.
+// Never takes input.
 Item {
     id: root
 
     property string text: ""
     property bool hovered: false
-    // Bubble rises above by default; set below for controls at the top edge.
     property bool below: false
+    // side: true  => bubble appears to the RIGHT, vertically centred.
+    // Takes precedence over `below`.
+    property bool side: false
 
     readonly property bool showing: root.hovered && root.text.length > 0 && dwell.done
     anchors.fill: parent
@@ -25,10 +29,27 @@ Item {
 
     Rectangle {
         id: bubble
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: root.below
-            ? parent.height + (root.showing ? 8 : 4)
-            : -height - (root.showing ? 8 : 4)
+
+        // z:1000 guarantees the bubble paints above every sibling subtree
+        // inside the panel. QsTabRail is hoisted to z:10 in mainBand so its
+        // entire rendering subtree (including this bubble) is above contentPane.
+        z: 1000
+
+        // Explicit positioning. No anchors on x-axis so side-mode x doesn't
+        // conflict. For non-side mode we compute center manually; the binding
+        // re-evaluates whenever `width` changes so it stays centred.
+        readonly property real gap: root.showing ? 8 : 4
+
+        x: root.side
+            ? parent.width + gap          // to the RIGHT of the icon button
+            : (parent.width - width) / 2  // horizontally centred above/below
+
+        y: root.side
+            ? (parent.height - height) / 2  // vertically centred alongside icon
+            : root.below
+                ? parent.height + gap
+                : -height - gap
+
         width: cap.implicitWidth + 16
         height: cap.implicitHeight + 10
         radius: height / 2
@@ -38,11 +59,11 @@ Item {
         opacity: root.showing ? 1 : 0
         scale: root.showing ? 1 : 0.92
         visible: opacity > 0.004
-        z: 100
 
+        Behavior on x { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
+        Behavior on y { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
         Behavior on opacity { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
         Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-        Behavior on y { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
 
         Text {
             id: cap

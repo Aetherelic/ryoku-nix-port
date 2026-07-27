@@ -25,10 +25,20 @@ var frameBarMenuIDs = map[string]bool{
 
 func menuID(cmd string) (string, bool) {
 	fields := strings.Fields(cmd)
-	if len(fields) != 2 || fields[0] != "menu" || !frameBarMenuIDs[fields[1]] {
+	if len(fields) != 2 || fields[0] != "menu" {
 		return "", false
 	}
-	return fields[1], true
+	id := fields[1]
+	// Strip any "#page" suffix before checking the catalog; the full id
+	// (including the suffix) is returned so QML receives the deep-link page.
+	baseID := id
+	if h := strings.IndexByte(id, '#'); h >= 0 {
+		baseID = id[:h]
+	}
+	if !frameBarMenuIDs[baseID] {
+		return "", false
+	}
+	return id, true
 }
 
 // qsSelect: qs config selector for a component. by repo path in dev, by config

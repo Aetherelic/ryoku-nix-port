@@ -1,224 +1,34 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
 import "../.." as Pill
 import "../../Singletons"
 
-// The clock menu (contract 08): the calendar above a 20 px spacer above the
-// weather widget, in a Left menu 410 wide. The calendar reproduces the reference
-// calendar chrome with tokens only: a surface card with a 2 px outline and
-// radius-widget corners, the locale's first day of week, a bold two-line date
-// label driven by a 1 s tick, today marked in the primary colour, and month
-// navigation. The weather widget owns its own loading/error/loaded rendering.
+// The clock menu: calendar above weather. Composes QsCalendarEmbed (the
+// calendar grid) and MenuWeather in a vertical column, matching the original
+// layout. MenuWidgetHost hosts this as the "clock" widget; the Calendar and
+// Weather quick-settings tabs embed those components directly instead.
 Item {
     id: root
 
     property real s: 1
     property bool open: false
 
-    readonly property var loc: Qt.locale()
-    // Qt reports the first day as Monday=1..Sunday=7; map to JS getDay (Sunday=0).
-    readonly property int weekStart: root.loc.firstDayOfWeek % 7
-
     implicitHeight: column.implicitHeight
-
-    SystemClock {
-        id: clock
-        precision: SystemClock.Seconds
-        enabled: root.open
-    }
-
-    // today updates every second; the calendar view snaps back to it only when
-    // the day actually rolls over, never while the user browses months.
-    readonly property date today: clock.date
-    property int viewYear: today.getFullYear()
-    property int viewMonth: today.getMonth()
-    property int rollKey: -1
-    onTodayChanged: {
-        const k = root.today.getFullYear() * 10000 + root.today.getMonth() * 100 + root.today.getDate();
-        if (k !== root.rollKey) {
-            root.rollKey = k;
-            root.viewYear = root.today.getFullYear();
-            root.viewMonth = root.today.getMonth();
-        }
-    }
-
-    readonly property int offset: {
-        const firstDow = new Date(root.viewYear, root.viewMonth, 1).getDay();
-        return (firstDow - root.weekStart + 7) % 7;
-    }
-    readonly property int monthLen: new Date(root.viewYear, root.viewMonth + 1, 0).getDate()
-    readonly property int prevMonthLen: new Date(root.viewYear, root.viewMonth, 0).getDate()
-    readonly property int rows: Math.ceil((offset + monthLen) / 7)
-
-    function shiftMonth(delta) {
-        let m = root.viewMonth + delta;
-        let y = root.viewYear;
-        while (m < 0) { m += 12; y -= 1; }
-        while (m > 11) { m -= 12; y += 1; }
-        root.viewMonth = m;
-        root.viewYear = y;
-    }
-
-    function isToday(day) {
-        return day === root.today.getDate()
-            && root.viewMonth === root.today.getMonth()
-            && root.viewYear === root.today.getFullYear();
-    }
 
     Column {
         id: column
         width: root.width
         spacing: 10 * root.s
 
-        // The panel host (the sidebar) already shows the date in its header,
-        // so this surface starts straight at the calendar card.
-
-        // --- calendar card ---
-        Rectangle {
+        QsCalendarEmbed {
             width: parent.width
-            radius: Theme.radiusWidget
-            color: Theme.surface
-            border.width: Theme.borderWidth
-            border.color: Theme.outline
-            implicitHeight: cal.implicitHeight + 2 * (10 * root.s)
-            Pill.SumiEdge {}
-
-            Column {
-                id: cal
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: 10 * root.s
-                spacing: 6 * root.s
-
-                // header: prev, month year, next
-                Item {
-                    width: parent.width
-                    height: 28 * root.s
-
-                    Pill.GlyphIcon {
-                        id: prevNav
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 18 * root.s
-                        height: 18 * root.s
-                        name: "chevron-left"
-                        color: Theme.inkOn(Theme.effectiveSurface, prevArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant, 3.0)
-                        stroke: 1.8
-                        MouseArea {
-                            id: prevArea
-                            anchors.fill: parent
-                            anchors.margins: -6 * root.s
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.shiftMonth(-1)
-                        }
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.loc.standaloneMonthName(root.viewMonth, Locale.LongFormat) + " " + root.viewYear
-                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
-                        font.family: Theme.fontPrimary
-                        font.pixelSize: Theme.fontMd * root.s
-                        font.weight: Font.Bold
-                    }
-                    Pill.GlyphIcon {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 18 * root.s
-                        height: 18 * root.s
-                        name: "chevron-right"
-                        color: Theme.inkOn(Theme.effectiveSurface, nextArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant, 3.0)
-                        stroke: 1.8
-                        MouseArea {
-                            id: nextArea
-                            anchors.fill: parent
-                            anchors.margins: -6 * root.s
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.shiftMonth(1)
-                        }
-                    }
-                }
-
-                // weekday header row
-                Row {
-                    id: weekdays
-                    width: parent.width
-                    Repeater {
-                        model: 7
-                        delegate: Item {
-                            required property int index
-                            width: weekdays.width / 7
-                            height: 18 * root.s
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.loc.standaloneDayName((root.weekStart + parent.index) % 7, Locale.NarrowFormat)
-                                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
-                                font.family: Theme.fontPrimary
-                                font.pixelSize: Theme.fontSm * root.s
-                                font.weight: Font.Medium
-                            }
-                        }
-                    }
-                }
-
-                // day grid
-                Grid {
-                    id: grid
-                    width: parent.width
-                    columns: 7
-                    rowSpacing: 2 * root.s
-                    columnSpacing: 0
-
-                    Repeater {
-                        model: root.rows * 7
-                        delegate: Item {
-                            id: cell
-                            required property int index
-                            readonly property int dayNum: index - root.offset + 1
-                            readonly property bool inMonth: dayNum >= 1 && dayNum <= root.monthLen
-                            readonly property bool current: inMonth && root.isToday(dayNum)
-                            readonly property int ghostNum: dayNum < 1
-                                ? root.prevMonthLen + dayNum
-                                : dayNum - root.monthLen
-                            width: grid.width / 7
-                            height: 26 * root.s
-
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 24 * root.s
-                                height: 24 * root.s
-                                radius: Theme.radiusWidget
-                                visible: cell.current
-                                color: Theme.primary
-                            }
-                            Text {
-                                anchors.centerIn: parent
-                                text: cell.inMonth ? cell.dayNum : cell.ghostNum
-                                color: cell.current ? Theme.inkOn(Theme.primary, Theme.onPrimary, 3.0)
-                                    : cell.inMonth ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
-                                                   : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
-                                opacity: cell.inMonth ? 1.0 : 0.4
-                                font.family: Theme.fontPrimary
-                                font.pixelSize: Theme.fontSm * root.s
-                                font.weight: cell.current ? Font.Bold : Font.Normal
-                            }
-                        }
-                    }
-                }
-            }
+            s: root.s
+            open: root.open
         }
 
-        // --- 20 px spacer ---
-        Item {
-            width: parent.width
-            height: 20 * root.s
-        }
+        Item { width: parent.width; height: 10 * root.s }
 
-        // --- weather ---
         MenuWeather {
             width: parent.width
             s: root.s
