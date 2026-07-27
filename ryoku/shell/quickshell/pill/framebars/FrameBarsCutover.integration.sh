@@ -42,8 +42,8 @@ EOF
     local line=""
     while IFS= read -r line; do
         case "$line" in
-            *FRAME-BARS-CUTOVER-GEOMETRY*) geometry["$key"]="${line#*FRAME-BARS-CUTOVER-GEOMETRY $layout }" ;;
-            *FRAME-BARS-CUTOVER-MATERIAL*) material["$key"]="${line#*FRAME-BARS-CUTOVER-MATERIAL $style }" ;;
+            *FRAME-BARS-CUTOVER-GEOMETRY*) geometry["$key"]="${line#*FRAME-BARS-CUTOVER-GEOMETRY "$layout" }" ;;
+            *FRAME-BARS-CUTOVER-MATERIAL*) material["$key"]="${line#*FRAME-BARS-CUTOVER-MATERIAL "$style" }" ;;
         esac
     done <"$log"
     [[ -n "${geometry[$key]:-}" ]] || { echo "FAIL: missing $key preview geometry"; exit 1; }
