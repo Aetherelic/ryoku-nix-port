@@ -2,18 +2,45 @@
 
 ## Unreleased
 
+### Fixed
+- **Desktop widget and visualiser colour is no longer stuck on black.** The
+  per-shell colour singleton was briefly named `Palette`, which collides with
+  QtQuick's own `Palette` value type; the module type wins over the directory
+  import, so every `Palette.<role>` read in eight configs resolved to `undefined`
+  and each ink and accent fell back to opaque black. That is why the clock read
+  as flat black text and the spectrum drew black bars whatever the wallpaper.
+  The singleton is `Scheme` now, a name QtQuick does not own
+  (`quickshell/*/Singletons/`, `hub/quickshell/Singletons/`).
+
+### Added
+- **Surfaces that float on the wallpaper pick their colour against the
+  wallpaper.** A Material role is a tone chosen to read on a *panel*; the
+  visualiser and a bare desktop widget have none, so consuming roles verbatim
+  put near-black accents on a light scheme. matugen already computes the tonal
+  ramps behind those roles and the daemon discarded them, so it now publishes
+  them to `~/.cache/ryoku/tones.json` alongside a coarse CIE L* map of the
+  wallpaper (`wallpaper-tone.json`, written on every wallpaper change whichever
+  engine owns the palette). The new `Ryoku.Ui` `Ink` singleton samples the map
+  under a surface's own rect and picks a ramp tone far enough from it to read:
+  spectrum bands light against the picture behind them, and clock ink that goes
+  white over a dark corner and black over a bright one. Accents are held to the
+  tones where the ramps still carry chroma, and the light/dark direction is
+  fixed once per field so neighbouring bars cannot flip (`ipc/walltone.go`,
+  `ipc/matugen.go`, `ui/Singletons/Ink.qml`, `quickshell/visualizer/`,
+  `quickshell/widgets/`).
+
 ### Changed
 - **The live palette moved to `~/.cache/ryoku/colors.json`, and the per-shell
-  palette singleton is now `Palette`.** The daemon authored the wallpaper palette
+  palette singleton is now `Scheme`.** The daemon authored the wallpaper palette
   (and `hypr-colors.lua`) under the retired wallust engine's cache dir; it now
   writes both under `~/.cache/ryoku/`, and every thin reader (pill, widgets,
   visualiser, plugin kit, launcher, overview, wallpaper, and `Ryoku.Ui`'s Tokens)
   plus `decoration.lua`'s border source follow the new path. The `Wallust`
-  singleton is renamed `Palette` (file and qmldir) across every shell, the
+  singleton is renamed `Scheme` (file and qmldir) across every shell, the
   daemon's dead engine knob is dropped, and the ryowalls tune state file is
-  `ryoku-ryowalls.json`. No behaviour changes; the last wallust artifact name is
-  retired (`ipc/matugen.go`, `ipc/wallpaper.go`, `quickshell/*/Singletons/`,
-  `ui/Singletons/Tokens.qml`, `matugen/config.toml`, `hyprland/modules/decoration.lua`).
+  `ryoku-ryowalls.json` (`ipc/matugen.go`, `ipc/wallpaper.go`,
+  `quickshell/*/Singletons/`, `ui/Singletons/Tokens.qml`, `matugen/config.toml`,
+  `hyprland/modules/decoration.lua`).
 - **Every desktop surface follows the daemon palette, and the window border
   follows named themes too.** The audio visualiser, the desktop widgets and
   their right-click menu, the plugin kit, and the `Ryoku.Ui` Tokens the Hub and
@@ -29,7 +56,7 @@
   palette. The compositor border follows the palette in both modes now:
   `genConfig` omits the fixed `col.active_border` whenever a named theme is
   active, not only when following the wallpaper, so `decoration.lua`'s
-  hypr-colors.lua border wins (`quickshell/visualizer/Singletons/Wallust.qml`,
+  hypr-colors.lua border wins (`quickshell/visualizer/Singletons/`,
   `quickshell/widgets/Singletons/`, `quickshell/plugins/kit/Singletons/`,
   `ui/Singletons/Tokens.qml`, `hub/backend/hypr.go`).
 - **Follow-the-wallpaper theming runs matugen natively in the daemon.** Match
