@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Changed
+- **Appearance > Theme now picks the colour scheme from the daemon's named
+  catalog, the same settings seam the shell sidebar theme picker uses.** The old
+  Follow / Light / Dark / Mono segmented control -- which drove the hub's own
+  `theme.json` scheme through `ryoku-hub hypr scheme` -- is replaced by a
+  swatch-card picker over `theme.theme`, written through the settings daemon
+  (`Settings.patch`): Follow Wallpaper and the shipped Default as first-class
+  cards, then the 57 named palettes each as their own surface, name and
+  two-by-three swatch grid, so the Hub and the sidebar read and write one truth.
+  A card applies instantly (like the sidebar): the daemon resolves the palette
+  into `themePalette` and fans it into the shell and every app, so the scheme
+  sits outside the page's staged Save -- the Material You (Matugen) engine and
+  knobs and Theme Apps still ride Save. The card catalog is a generated preview
+  projection of the daemon's theme table, cross-checked byte-for-byte against the
+  sidebar's `MenuTheme.qml` (`pages/AppearancePage.qml`, `schema/ThemeCatalog.js`,
+  `schema/AppearancePage.js`).
 - **Bar Studio is rebuilt around the essentials, so every control works.** The
   page had grown a full catalogue (bounded-menu editing with nested widgets,
   the stash and system surface editors, a read-only catalogue panel) on top of

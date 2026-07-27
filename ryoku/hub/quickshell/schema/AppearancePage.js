@@ -6,18 +6,16 @@
 
 var rows = [{
         "tab": "Theme",
-        "group": "THEME PALETTE",
-        "key": "scheme (+ followWallpaper)",
-        "label": "Colours",
-        "desc": "Mono is the Ryoku default; Follow retints per wallpaper, Light or Dark lock a palette",
+        "group": "COLOUR SCHEME",
+        "key": "theme.theme",
+        "label": "Colour scheme",
+        "desc": "Follow the wallpaper, keep the Ryoku default, or lock one of the 57 named palettes \u2014 the same key the sidebar theme picker reads and writes",
         "ctl": "seg",
-        "src": "current-theme.conf, regen of settings.lua, hyprctl reload, pkill -USR1 kitty",
+        "src": "shell.json theme.theme (daemon settings seam); the daemon resolves themePalette and fans it into the shell and every app",
         "opts": [
-            "follow",
-            "mono",
-            "light",
-            "dark",
-            "custom"
+            "Follow Wallpaper",
+            "Default",
+            "named palette"
         ]
     },{
         "tab": "Theme",

@@ -8,6 +8,8 @@ import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import ".."
+import "../Singletons"
+import "../schema/ThemeCatalog.js" as ThemeCatalog
 
 // Appearance (DESIGN.md, DESKTOP). The system look and feel, ported to the
 // beta18 monochrome instrument. Look/Borders/Cursor are the live Hyprland draft
@@ -44,18 +46,21 @@ Item {
     // Revert drops the staged edits -- the shared action bar drives it through
     // hub.pageDirty / savePage / revertPage, exactly like the rest of the Hub.
     // ════════════════════════════════════════════════════════════════════════
-    property string scheme: "follow"
-    property string schemeCommitted: "follow"
-    function setScheme(k) { pg.scheme = k; }
-    Process {
-        id: schemeQueryProc
-        command: ["ryoku-hub", "hypr", "scheme"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: { try { var s = JSON.parse(this.text).scheme || "follow"; pg.schemeCommitted = s; pg.scheme = s; } catch (e) {} }
-        }
+    // Colour scheme: Follow Wallpaper / Default (the two dynamic variants) or one
+    // of the 57 named catalog palettes. Written straight through the daemon
+    // settings seam (theme.theme) -- the SAME key the sidebar theme picker reads
+    // and writes, so the two are one truth. The daemon resolves the selected
+    // palette into shell.json themePalette and fans it into the shell and every
+    // app. This applies instantly (like the sidebar), so it sits outside the
+    // staged Save the Material You knobs and Theme Apps ride.
+    readonly property string scheme: { Settings.revision; return Settings.get("theme.theme") || ""; }
+    function setScheme(k) { if (k) Settings.patch("theme.theme", k); }
+    function schemeName(id) {
+        for (var i = 0; i < ThemeCatalog.schemes.length; i++)
+            if (ThemeCatalog.schemes[i].id === id)
+                return ThemeCatalog.schemes[i].label;
+        return id === "" ? I18n.tr("Loading") : id;
     }
-    Process { id: schemeApplyProc }
 
     // Theme apps: extend the palette to GTK / GUI apps (theme.json themeApps).
     property bool themeApps: true
@@ -73,8 +78,8 @@ Item {
 
     // Ryoku default: reset the whole desktop to the shipped signature in one
     // click, via `ryoku-hub hypr ryoku-theme`. A distinct one-shot reset.
-    function applyRyokuTheme() { ryokuThemeProc.running = true; }
-    Process { id: ryokuThemeProc; command: ["ryoku-hub", "hypr", "ryoku-theme"]; stdout: StdioCollector { onStreamFinished: { schemeQueryProc.running = true; themeAppsQueryProc.running = true; pg.refreshMatugen(); } } }
+    function applyRyokuTheme() { Settings.patch("theme.theme", "Default"); ryokuThemeProc.running = true; }
+    Process { id: ryokuThemeProc; command: ["ryoku-hub", "hypr", "ryoku-theme"]; stdout: StdioCollector { onStreamFinished: { themeAppsQueryProc.running = true; pg.refreshMatugen(); } } }
 
     // ════════════════════════════════════════════════════════════════════════
     // Matugen Material 3 config, staged like the scheme above.
@@ -98,8 +103,7 @@ Item {
     property var matugenCommitted: ({})
     property bool themeLoaded: false
     readonly property bool themeDirty: pg.themeLoaded && (
-           pg.scheme !== pg.schemeCommitted
-        || pg.themeApps !== pg.themeAppsCommitted
+           pg.themeApps !== pg.themeAppsCommitted
         || JSON.stringify(pg.matugenCfg) !== JSON.stringify(pg.matugenCommitted))
     onThemeDirtyChanged: if (pg.hub) pg.hub.pageDirty = pg.themeDirty
     Connections {
@@ -120,11 +124,6 @@ Item {
             matugenSetProc.running = true;
             pg.matugenCommitted = JSON.parse(JSON.stringify(pg.matugenCfg));
         }
-        if (pg.scheme !== pg.schemeCommitted) {
-            schemeApplyProc.command = ["ryoku-hub", "hypr", "scheme", pg.scheme];
-            schemeApplyProc.running = true;
-            pg.schemeCommitted = pg.scheme;
-        }
         if (pg.themeApps !== pg.themeAppsCommitted) {
             themeAppsApplyProc.command = ["ryoku-hub", "hypr", "theme-apps", pg.themeApps ? "on" : "off"];
             themeAppsApplyProc.running = true;
@@ -134,7 +133,6 @@ Item {
     // Drop staged edits (the shared Revert calls this via hub.revertPage).
     function revertTheme() {
         pg.matugenCfg = JSON.parse(JSON.stringify(pg.matugenCommitted));
-        pg.scheme = pg.schemeCommitted;
         pg.themeApps = pg.themeAppsCommitted;
     }
 
@@ -432,6 +430,92 @@ Item {
             height: 1
             color: Tokens.lineSoft
         }
+    }
+
+    // a colour-scheme card: the sidebar's swatch-card picker in the Hub's ink
+    // vocabulary. A named palette shows its own surface, name and a two-by-three
+    // swatch grid (the swatches are data, the one sanctioned chroma); the two
+    // dynamic variants (Follow, Default) show a tracked word instead. One tap
+    // writes theme.theme through the settings seam; the selected card is ringed.
+    component SchemeCard: Rectangle {
+        id: scard
+        property var scheme: ({})
+        readonly property bool dyn: scard.scheme.dynamic === true
+        readonly property var sw: scard.dyn ? [] : (scard.scheme.sw || [])
+        readonly property bool sel: pg.scheme === scard.scheme.id
+
+        width: 104
+        height: 128
+        radius: Tokens.radius
+        color: "transparent"
+        border.width: scard.sel ? 2 : Tokens.border
+        border.color: scard.sel ? Tokens.ink : (scHov.hovered ? Tokens.lineStrong : Tokens.line)
+        Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+
+        Rectangle {
+            id: scPrev
+            anchors.fill: parent
+            anchors.margins: scard.sel ? 2 : Tokens.border
+            radius: Tokens.radius - 1
+            color: scard.dyn || scard.sw.length === 0 ? "transparent" : scard.sw[0]
+            clip: true
+
+            Text {
+                anchors { top: parent.top; left: parent.left; right: parent.right; margins: Tokens.s2 }
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+                text: scard.scheme.label || ""
+                color: scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink)
+                font.family: Tokens.ui
+                font.pixelSize: Tokens.fTiny
+            }
+
+            Text {
+                visible: scard.dyn
+                anchors.centerIn: parent
+                text: scard.scheme.id === "Wallpaper" ? I18n.tr("LIVE") : I18n.tr("MONO")
+                color: Tokens.inkMuted
+                font.family: Tokens.mono
+                font.pixelSize: Tokens.fMicro
+                font.letterSpacing: Tokens.trackMark
+            }
+
+            Column {
+                visible: !scard.dyn
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 22
+                spacing: 6
+                Row {
+                    spacing: 6
+                    Repeater {
+                        model: scard.dyn ? [] : [scard.sw[1], scard.sw[2], scard.sw[3]]
+                        delegate: Rectangle { required property color modelData; width: 14; height: 14; color: modelData }
+                    }
+                }
+                Row {
+                    spacing: 6
+                    Repeater {
+                        model: scard.dyn ? [] : [scard.sw[4], scard.sw[5], scard.sw[6]]
+                        delegate: Rectangle { required property color modelData; width: 14; height: 14; color: modelData }
+                    }
+                }
+            }
+
+            Rectangle {
+                visible: scard.sel
+                anchors { left: parent.left; bottom: parent.bottom; leftMargin: Tokens.s2; bottomMargin: Tokens.s2 }
+                width: 8
+                height: 8
+                radius: 4
+                color: scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink)
+            }
+        }
+
+        HoverHandler { id: scHov; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: pg.setScheme(scard.scheme.id) }
     }
 
     // a rice as a storefront tile: monochrome chrome around a colour preview
@@ -963,32 +1047,38 @@ Item {
                 width: wallView.width - Tokens.s3
                 spacing: Tokens.s5
 
-                // ── THEME PALETTE (Wallust): follow the wallpaper, or lock light/dark ──
+                // ── COLOUR SCHEME: Follow Wallpaper, the shipped Default, or one of
+                // the 57 named palettes. Applies instantly through the daemon settings
+                // seam (theme.theme) -- the same key the sidebar theme picker writes, so
+                // the two stay one truth; the daemon resolves the palette and fans it out.
                 Column {
-                    visible: (pg.matugenCfg.engine || "wallust") !== "matugen"
                     width: parent.width
                     spacing: Tokens.s3
-                    SectionHead { width: parent.width; title: I18n.tr("THEME PALETTE") }
-                    Row {
-                        spacing: Tokens.s3
-                        Column {
-                            spacing: Tokens.s1
-                            Text { text: I18n.tr("COLOURS"); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel }
-                            Text { text: pg.scheme === "custom" ? I18n.tr("Custom") : (pg.scheme.charAt(0).toUpperCase() + pg.scheme.slice(1)); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fValue; font.weight: Font.Light }
-                        }
-                        Seg { anchors.verticalCenter: parent.verticalCenter; options: ["FOLLOW", "LIGHT", "DARK", "MONO"]; current: pg.scheme.toUpperCase(); onChose: (k) => pg.setScheme(k.toLowerCase()) }
+                    SectionHead { width: parent.width; title: I18n.tr("COLOUR SCHEME") }
+                    Column {
+                        spacing: Tokens.s1
+                        Text { text: I18n.tr("SCHEME"); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel }
+                        Text { text: pg.schemeName(pg.scheme); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fValue; font.weight: Font.Light }
                     }
                     Text {
                         width: Math.min(parent.width, 620)
                         wrapMode: Text.WordWrap
-                        text: pg.scheme === "light" || pg.scheme === "dark" || pg.scheme === "mono" ? I18n.tr("A fixed ") + pg.scheme + I18n.tr(" palette, kept across wallpaper changes.") : pg.scheme === "custom" ? I18n.tr("A fixed palette is set. Pick Follow, Light, Dark, or Mono to change it.") : I18n.tr("Colours are derived from your wallpaper and update when it changes; Follow also tints the window frame.")
+                        text: I18n.tr("Follow the wallpaper for live colours, keep the Ryoku default, or lock one of the named palettes. The same picker as the sidebar; the daemon retints the shell and every app to match.")
                         color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                    }
+                    Flow {
+                        width: parent.width
+                        spacing: Tokens.s3
+                        Repeater {
+                            model: ThemeCatalog.schemes
+                            delegate: SchemeCard { required property var modelData; scheme: modelData }
+                        }
                     }
                 }
 
                 // ── BORDER COLOURS: a fixed (non-follow) wallust palette only ──
                 Column {
-                    visible: (pg.matugenCfg.engine || "wallust") !== "matugen" && pg.scheme !== "follow"
+                    visible: (pg.matugenCfg.engine || "wallust") !== "matugen" && pg.scheme !== "Wallpaper" && pg.scheme !== ""
                     width: parent.width
                     spacing: Tokens.s3
                     SectionHead { width: parent.width; title: I18n.tr("BORDER COLOURS") }

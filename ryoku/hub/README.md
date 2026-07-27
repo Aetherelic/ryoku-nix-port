@@ -66,9 +66,12 @@ changing a page's look.
   (including wobbly windows for a spring in the drag, and the window open/close
   style), border colours (follow the wallpaper palette or fix them) with an
   optional rotating gradient border, and the cursor: theme, size, and
-  hide-on-idle/typing. A **Wallpaper** tab retheme the desktop (the wallust
-  palette follows the pick, via `ryoku-shell wallpaper`), and a **Comfort** tab
-  controls backlight and the night light.
+  hide-on-idle/typing. Its **Theme** tab picks the colour scheme -- Follow
+  Wallpaper, the shipped Default, or one of the daemon's 57 named palettes as
+  swatch cards writing `theme.theme` through the settings daemon (the same key
+  the shell's sidebar theme picker reads and writes), plus the Material You
+  (Matugen) engine and per-app theming; a **Comfort** tab controls backlight and
+  the night light, and a **Rices** tab saves and applies whole-desktop looks.
 - **Lockscreen** the full qylock theme catalogue as a bento grid, fetched live from
   upstream so new and fixed skins appear without a Ryoku release. Each tile previews
   the real lockscreen (a local gif for the two vendored clockwork skins, the upstream
