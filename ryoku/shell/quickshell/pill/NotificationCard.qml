@@ -16,6 +16,32 @@ Rectangle {
     // ignores it (contract 07 sec 4.3).
     signal actionInvoked()
 
+    // Only real actions get a button: the freedesktop "default" action (invoked
+    // by clicking the notification, not a button) and any action with no label
+    // are dropped, so a bare default no longer draws an empty pill.
+    readonly property var visibleActions: {
+        const all = card.notif.actions || [];
+        const out = [];
+        for (let i = 0; i < all.length; i++)
+            if (all[i] && all[i].identifier !== "default" && (all[i].text || "").length > 0)
+                out.push(all[i]);
+        return out;
+    }
+
+    // Countdown frame (popups only): a border that traces the card and drains
+    // over the popup's lifespan, so a glance shows how long is left. The history
+    // panel and persistent popups pass 0 and draw no frame.
+    property int lifespanMs: 0
+    readonly property bool countingDown: card.lifespanMs > 0
+    property real remaining: 1
+    NumberAnimation on remaining {
+        running: card.countingDown
+        from: 1
+        to: 0
+        duration: Math.max(1, card.lifespanMs)
+        easing.type: Easing.Linear
+    }
+
     radius: Theme.radiusWidget
     border.width: Theme.borderWidth
     border.color: Theme.outline
@@ -45,7 +71,7 @@ Rectangle {
                 color: Theme.onSurfaceVariant
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm
-                font.weight: Font.Bold
+                font.weight: Font.Medium
                 elide: Text.ElideRight
             }
 
@@ -114,10 +140,10 @@ Rectangle {
         Column {
             width: parent.width
             spacing: Theme.paddingSm
-            visible: card.notif.actions && card.notif.actions.length > 0
+            visible: card.visibleActions.length > 0
 
             Repeater {
-                model: card.notif.actions
+                model: card.visibleActions
 
                 delegate: Rectangle {
                     id: actionBtn
@@ -156,5 +182,51 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // The draining countdown, stroked over the card's own border: the accent
+    // traces the whole rounded rect at full life and recedes clockwise from the
+    // top as the lifespan runs out, uncovering the plain outline underneath.
+    Canvas {
+        id: timerFrame
+        anchors.fill: parent
+        visible: card.countingDown
+        renderStrategy: Canvas.Cooperative
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.reset();
+            if (!card.countingDown)
+                return;
+            const sw = Theme.borderWidth + 1;
+            const o = sw / 2;
+            const w = width - sw;
+            const h = height - sw;
+            const rad = Math.max(0, Math.min(card.radius, w / 2, h / 2));
+            const perim = 2 * (w - 2 * rad) + 2 * (h - 2 * rad) + 2 * Math.PI * rad;
+            const drawn = Math.max(0, Math.min(perim, card.remaining * perim));
+            ctx.beginPath();
+            ctx.moveTo(o + w / 2, o);
+            ctx.lineTo(o + w - rad, o);
+            ctx.arcTo(o + w, o, o + w, o + rad, rad);
+            ctx.lineTo(o + w, o + h - rad);
+            ctx.arcTo(o + w, o + h, o + w - rad, o + h, rad);
+            ctx.lineTo(o + rad, o + h);
+            ctx.arcTo(o, o + h, o, o + h - rad, rad);
+            ctx.lineTo(o, o + rad);
+            ctx.arcTo(o, o, o + rad, o, rad);
+            ctx.lineTo(o + w / 2, o);
+            ctx.lineWidth = sw;
+            ctx.strokeStyle = Theme.flameGlow;
+            ctx.lineCap = "butt";
+            ctx.setLineDash([drawn, perim + 1]);
+            ctx.stroke();
+        }
+        Connections {
+            target: card
+            function onRemainingChanged() { timerFrame.requestPaint(); }
+        }
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onVisibleChanged: requestPaint()
     }
 }

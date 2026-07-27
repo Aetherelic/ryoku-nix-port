@@ -3,6 +3,23 @@
 ## Unreleased
 
 ### Fixed
+- **A notification popup shows its time left as a draining frame, and no longer
+  flashes as it leaves.** Each popup traces a warm accent border that starts
+  around the whole card and recedes from the top as its display timer runs down
+  (the frame is off for the persistent popups and the history panel). The popup
+  surface now resizes with the card slide instead of snapping, so a leaving card
+  is not clipped as the surface shrinks under it (`quickshell/pill/NotificationCard.qml`,
+  `quickshell/pill/NotificationPopups.qml`).
+- **Shell text uses its own sans face instead of a monospace fallback.**
+  `Theme.fontPrimary` was empty, so every pill surface (the bar, menus, OSD and
+  notifications) fell back to the platform default, which renders monospace here;
+  it is now Space Grotesk, the shell's design UI font that the Hub already uses
+  (`quickshell/pill/Singletons/Theme.qml`).
+- **Notification cards drop the empty action button and lead with the message.**
+  A bare freedesktop "default" action (invoked by clicking the notification, not
+  a button) drew an empty pill; the card now shows a button only for an action
+  with a label, and the app name is a quiet label so the summary reads first
+  (`quickshell/pill/NotificationCard.qml`).
 - **Turning a rail off reclaims its edge on the running desktop at once, and a
   rail's reveal state applies live.** `edgeReserve` now collapses a disabled rail
   to the frame lip instead of holding its full band, so switching a rail off in

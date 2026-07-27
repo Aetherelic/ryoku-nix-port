@@ -58,6 +58,9 @@ PanelWindow {
 
     implicitWidth: 400
     implicitHeight: Math.max(1, list.contentHeight)
+    // Resize with the card add/remove slide instead of snapping, so a leaving
+    // card is not clipped by the surface shrinking under it (the dismiss flash).
+    Behavior on implicitHeight { NumberAnimation { duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve } }
 
     // Newest-first card view, reconciled from Notifs.popups by id.
     ListModel { id: cards }
@@ -143,6 +146,9 @@ PanelWindow {
             required property var entry
             width: ListView.view ? ListView.view.width : implicitWidth
             notif: entry
+            // The popup drains its countdown frame over its own display lifespan;
+            // a persistent popup (ttl -1) passes 0 and draws no frame.
+            lifespanMs: { const t = Notifs.popupTtl(entry); return t < 0 ? 0 : t; }
             // The popup has no menu to close, so it ignores actionInvoked.
         }
     }
