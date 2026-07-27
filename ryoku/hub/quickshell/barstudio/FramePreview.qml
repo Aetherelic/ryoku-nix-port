@@ -63,9 +63,8 @@ Item {
     function stateLine(edge) {
         const rail = fp.config.rails[edge];
         if (!rail || !rail.enabled) return qsTr("off");
-        const vis = rail.reveal ? qsTr("pinned") : qsTr("auto-hide");
         const n = fp.countOf(edge);
-        return n === 0 ? qsTr("on · empty · %1").arg(vis) : qsTr("on · %1 · %2").arg(n).arg(vis);
+        return n === 0 ? qsTr("on · empty") : qsTr("on · %1").arg(n);
     }
 
     // the largest 16:10 screen that fits, centred, so the page can hand this any

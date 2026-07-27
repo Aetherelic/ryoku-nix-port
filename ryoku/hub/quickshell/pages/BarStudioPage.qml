@@ -263,25 +263,7 @@ Item {
                 }
                 Cell {
                     width: railSect.span(8)
-                    controlWidth: 172
-                    label: qsTr("Visibility")
-                    value: page.rail.reveal ? qsTr("Pinned") : qsTr("Auto-hide")
-                    def: page.railWas ? (page.railWas.reveal ? qsTr("Pinned") : qsTr("Auto-hide")) : ""
-                    changed: !!page.railWas && page.rail.reveal !== page.railWas.reveal
-                    desc: qsTr("Pinned keeps the rail on screen. Auto-hide tucks it away and slides it in when the pointer touches this edge.")
-                    source: "shell.json"
-                    Seg {
-                        objectName: "rail-visibility"
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        options: [qsTr("Pinned"), qsTr("Auto-hide")]
-                        current: page.rail.reveal ? qsTr("Pinned") : qsTr("Auto-hide")
-                        onChose: label => page.stage(Model.setRail(page.config, page.edge, { reveal: label === qsTr("Pinned") }))
-                    }
-                }
-                Cell {
-                    width: railSect.span(12)
-                    controlWidth: 240
+                    controlWidth: 180
                     label: qsTr("Thickness")
                     unit: "px"
                     value: String(page.rail.size)

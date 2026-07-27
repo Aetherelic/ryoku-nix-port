@@ -14,6 +14,14 @@
   the colour out of every wallpaper -- indistinguishable from live colours being
   broken -- so it is gone (`backend/matugen.go`, `quickshell/pages/AppearancePage.qml`).
 
+### Added
+- **Recording has a Save recordings to setting.** The output directory was the
+  one recording knob no UI could reach: the recorder read it from the
+  environment, the deck hardcoded it, and this page only described it. It is a
+  key in recording.json now like every other setting on the page, and everything
+  that writes or lists a recording resolves it. Empty keeps following your
+  Videos folder (`quickshell/pages/RecordingPage.qml`).
+
 ### Changed
 - **The Theme tab leads with colour generation, and the 57 named palettes sit in
   a drawer.** Mode and contrast are what the live scheme is made of, so they come
@@ -49,16 +57,20 @@
   rails is the centre of the page: click an edge to put that rail on the bench,
   and the diagram, and the desktop, repaint as you edit. The controls are pruned
   to the ones with a runtime consumer: the frame's draw toggle and opacity, and
-  each rail's on/off, visibility and thickness, plus the widgets in its three
-  zones. The retired chrome knobs (widget and window radius, border width) and
-  the two-look style switch had no effect on the live frame (the radii and border
-  are compiled `Theme` tokens that `ryoku doctor` strips, and the shell never
-  read `frameBars.style`), so they are gone. The "hover reveal" switch was
-  mislabelled and applied only at the next restart; it is now a clear Pinned vs
-  Auto-hide choice that lands live. The bounded menus and the stash and system
-  surfaces are still never dropped: every edit clones the whole `frameBars`
-  object, so an untouched subtree always survives (`pages/BarStudioPage.qml`,
-  `barstudio/FramePreview.qml`, `barstudio/BarStudioModel.test.mjs`,
+  each rail's on/off and thickness, plus the widgets in its three zones. Each
+  zone is its own titled section with a numbered, reorderable list and a per-zone
+  drawer that offers the widgets that fit the rail and are not already on it; the
+  controls use a plain click handler so a tap always lands inside the page
+  scroll, which the old compact reorder buttons lost. The retired chrome knobs
+  (widget and window radius, border width) and the two-look style switch had no
+  effect on the live frame (the radii and border are compiled `Theme` tokens that
+  `ryoku doctor` strips, and the shell never read `frameBars.style`), so they are
+  gone. The per-rail auto-hide choice is dropped too: a hover-hidden bar could
+  not be brought back because the overlay input mask does not widen on hover, so
+  every rail stays pinned. The bounded menus and the stash and system surfaces
+  are still never dropped: every edit clones the whole `frameBars` object, so an
+  untouched subtree always survives (`pages/BarStudioPage.qml`,
+  `barstudio/FramePreview.qml`, `barstudio/ZoneEditor.qml`,
   `barstudio/BarStudioModel.js`, `barstudio/CatalogLabels.qml`,
   `barstudio/qmldir`, `Hub.qml`).
 - **Ryoku Settings now describes the Atoll-only shell instead of the retired

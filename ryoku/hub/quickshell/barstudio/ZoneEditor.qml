@@ -5,12 +5,13 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "BarStudioModel.js" as Model
 
-// The selected rail's three zones and its add flow, rebuilt simple. Each zone
-// is a labelled list of its widgets; a widget carries Up, Down and Remove.
-// One add block picks a target zone, then offers every widget that fits this
-// rail's axis and is not already on the rail. There is no cross-zone move and
-// no per-widget destination picker: a widget lands in the zone you point at,
-// and a misplaced one is a Remove and an Add. Fewer controls, all of them live.
+// The selected rail's three zones, each a clear titled section: its widgets as
+// a numbered, reorderable list (move up, move down, remove), and a per-zone
+// drawer that opens the palette of widgets that fit this rail and are not
+// already on it. A widget lands in the zone whose drawer you opened; there is no
+// cross-zone move (a misplaced widget is a remove and an add). Controls use a
+// MouseArea with preventStealing, so a tap always lands even inside the page's
+// scroll view (the old compact TapHandler buttons lost taps to the Flickable).
 Column {
     id: root
     required property var config
@@ -20,10 +21,13 @@ Column {
 
     readonly property bool horizontal: root.edge === "top" || root.edge === "bottom"
     readonly property var zoneIds: root.horizontal ? ["start", "center", "end"] : ["top", "center", "bottom"]
-    property string addZone: root.zoneIds[0]
 
-    // every widget that fits this rail's axis and is not already on the rail
-    readonly property var available: {
+    // the zone whose add-drawer is open ("" = none); a rail change closes it
+    property string openZone: ""
+    onEdgeChanged: root.openZone = ""
+
+    // widgets that fit this rail's axis and are not already anywhere on the rail
+    function available() {
         const axis = root.horizontal ? "horizontal" : "vertical";
         const onRail = Model.railWidgets(root.config, root.edge);
         const out = [];
@@ -33,14 +37,52 @@ Column {
         }
         return out;
     }
-    readonly property var availableLabels: root.available.map(id => labels.item(id))
-    readonly property var zoneLabels: root.zoneIds.map(id => labels.zone(id))
 
-    // a different rail is a different axis; keep the add target a valid zone
-    onEdgeChanged: root.addZone = root.zoneIds[0]
-
-    spacing: Tokens.s3
+    spacing: Tokens.s4
     CatalogLabels { id: labels }
+
+    // A clickable whose tap always lands inside the page scroll: a plain
+    // MouseArea with preventStealing, not a TapHandler the Flickable can grab.
+    // Carries a glyph (square icon) or a text label (a chip), and an armed and
+    // active state.
+    component Tap: Rectangle {
+        id: tp
+        property string glyph: ""
+        property string label: ""
+        property bool armed: true
+        property bool active: false
+        signal act()
+
+        implicitWidth: tp.label !== "" ? tlab.implicitWidth + 20 : 28
+        implicitHeight: 28
+        radius: Tokens.radius
+        opacity: tp.armed ? 1 : 0.3
+        color: tp.active ? Tokens.bone : (ma.containsMouse && tp.armed ? Tokens.tint10 : "transparent")
+        border.width: Tokens.border
+        border.color: tp.active ? Tokens.bone : (ma.containsMouse && tp.armed ? Tokens.lineStrong : Tokens.line)
+        Behavior on color { ColorAnimation { duration: Tokens.snap } }
+        Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+
+        Text {
+            id: tlab
+            anchors.centerIn: parent
+            text: tp.glyph !== "" ? tp.glyph : tp.label
+            color: tp.active ? Tokens.inkOnBone : Tokens.inkDim
+            font.family: Tokens.ui
+            font.pixelSize: tp.glyph !== "" ? 14 : 10
+            font.weight: Font.Medium
+            font.letterSpacing: tp.label !== "" ? Tokens.trackLabel : 0
+        }
+        MouseArea {
+            id: ma
+            anchors.fill: parent
+            enabled: tp.armed
+            hoverEnabled: true
+            preventStealing: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: tp.act()
+        }
+    }
 
     Repeater {
         model: root.zoneIds
@@ -48,102 +90,145 @@ Column {
             id: zone
             required property string modelData
             readonly property var items: root.config.rails[root.edge][zone.modelData]
+            readonly property bool open: root.openZone === zone.modelData
             width: root.width
             spacing: Tokens.s1
 
-            StripHead { width: parent.width; label: labels.zone(zone.modelData).toUpperCase(); count: String(zone.items.length) }
+            // header: // ZONE_  count ........ [+ ADD]
+            Item {
+                width: parent.width
+                height: 28
+                Row {
+                    id: zhead
+                    spacing: Tokens.s2
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    Text { text: "//"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: labels.zone(zone.modelData).toUpperCase(); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel; anchors.verticalCenter: parent.verticalCenter }
+                    Text { visible: zone.items.length > 0; text: String(zone.items.length); color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny; anchors.verticalCenter: parent.verticalCenter }
+                }
+                Rectangle {
+                    anchors { left: zhead.right; right: addBtn.left; leftMargin: Tokens.s3; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                    height: 1
+                    color: Tokens.lineSoft
+                }
+                Tap {
+                    id: addBtn
+                    objectName: "zone-add-" + zone.modelData
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    label: zone.open ? qsTr("CLOSE") : qsTr("+ ADD")
+                    active: zone.open
+                    armed: zone.open || root.available().length > 0
+                    onAct: root.openZone = zone.open ? "" : zone.modelData
+                }
+            }
 
+            // the widgets in this zone, numbered, each with move and remove
             Repeater {
                 model: zone.items
                 delegate: Rectangle {
-                    id: strip
+                    id: wrow
                     required property string modelData
                     required property int index
-                    objectName: "widget-" + root.edge + "-" + zone.modelData + "-" + strip.index
+                    objectName: "widget-" + root.edge + "-" + zone.modelData + "-" + wrow.index
                     width: zone.width
-                    height: 36
+                    height: 42
                     radius: Tokens.radius
-                    color: "transparent"
+                    color: rh.hovered ? Tokens.tint5 : "transparent"
                     border.width: Tokens.border
-                    border.color: Tokens.lineSoft
+                    border.color: rh.hovered ? Tokens.line : Tokens.lineSoft
+                    Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+                    HoverHandler { id: rh }
 
-                    Text {
+                    Row {
                         anchors { left: parent.left; leftMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
-                        text: labels.item(strip.modelData)
-                        color: Tokens.ink
-                        font.family: Tokens.ui
-                        font.pixelSize: Tokens.fBody
+                        spacing: Tokens.s3
+                        Text {
+                            text: String(wrow.index + 1)
+                            color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: labels.item(wrow.modelData)
+                            color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fBody
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
                     Row {
                         anchors { right: parent.right; rightMargin: Tokens.s2; verticalCenter: parent.verticalCenter }
                         spacing: Tokens.s1
-                        Btn {
-                            objectName: "widget-up-" + strip.index
-                            compact: true; anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("UP"); armed: strip.index > 0
-                            onAct: root.staged(Model.reorderZoneItem(root.config, root.edge, zone.modelData, strip.index, strip.index - 1))
+                        Tap {
+                            objectName: "widget-up-" + wrow.index
+                            glyph: "\u2191"
+                            armed: wrow.index > 0
+                            onAct: root.staged(Model.reorderZoneItem(root.config, root.edge, zone.modelData, wrow.index, wrow.index - 1))
                         }
-                        Btn {
-                            objectName: "widget-down-" + strip.index
-                            compact: true; anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("DOWN"); armed: strip.index < zone.items.length - 1
-                            onAct: root.staged(Model.reorderZoneItem(root.config, root.edge, zone.modelData, strip.index, strip.index + 1))
+                        Tap {
+                            objectName: "widget-down-" + wrow.index
+                            glyph: "\u2193"
+                            armed: wrow.index < zone.items.length - 1
+                            onAct: root.staged(Model.reorderZoneItem(root.config, root.edge, zone.modelData, wrow.index, wrow.index + 1))
                         }
-                        Btn {
-                            objectName: "widget-remove-" + strip.index
-                            compact: true; anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("REMOVE")
-                            onAct: root.staged(Model.removeZoneItem(root.config, root.edge, zone.modelData, strip.index))
+                        Tap {
+                            objectName: "widget-remove-" + wrow.index
+                            glyph: "\u00d7"
+                            onAct: root.staged(Model.removeZoneItem(root.config, root.edge, zone.modelData, wrow.index))
                         }
                     }
                 }
             }
 
+            // an empty zone reads as empty until you open its drawer
             Rectangle {
-                visible: zone.items.length === 0
+                visible: zone.items.length === 0 && !zone.open
                 width: parent.width
-                height: 28
+                height: 32
                 radius: Tokens.radius
                 color: "transparent"
                 border.width: Tokens.border
                 border.color: Tokens.lineSoft
                 Text {
                     anchors { left: parent.left; leftMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
-                    text: qsTr("// EMPTY_")
-                    color: Tokens.inkFaint
-                    font.family: Tokens.mono
-                    font.pixelSize: Tokens.fTiny
-                    font.letterSpacing: Tokens.trackLabel
+                    text: qsTr("// EMPTY")
+                    color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny; font.letterSpacing: Tokens.trackLabel
                 }
             }
-        }
-    }
 
-    // add: one block, a zone target and the widgets that fit and are free
-    Cell {
-        width: root.width
-        block: true
-        height: neededHeight
-        label: qsTr("Add a widget")
-        value: root.available.length === 0 ? qsTr("rail is full") : ""
-        desc: qsTr("Everything that fits this rail and is not already on it. Pick a zone, then a widget; reorder within a zone with Up and Down.")
-        Column {
-            width: parent.width
-            spacing: Tokens.s2
-            Seg {
-                objectName: "zone-target"
-                options: root.zoneLabels
-                current: labels.zone(root.addZone)
-                onChose: label => root.addZone = root.zoneIds.find(id => labels.zone(id) === label) || root.addZone
-            }
-            Chips {
-                objectName: "zone-add"
+            // the drawer: tap a widget to add it to this zone
+            Rectangle {
+                id: drawer
+                visible: zone.open
                 width: parent.width
-                options: root.availableLabels
-                current: ""
-                onChose: label => {
-                    const id = root.available.find(w => labels.item(w) === label);
-                    if (id) root.staged(Model.addZoneItem(root.config, root.edge, root.addZone, id, root.catalog));
+                height: visible ? dcol.implicitHeight + Tokens.s3 * 2 : 0
+                radius: Tokens.radius
+                color: Tokens.tint5
+                border.width: Tokens.border
+                border.color: Tokens.line
+                Column {
+                    id: dcol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s3 }
+                    spacing: Tokens.s2
+                    Text {
+                        width: parent.width
+                        text: root.available().length > 0
+                            ? qsTr("ADD TO %1").arg(labels.zone(zone.modelData).toUpperCase())
+                            : qsTr("EVERY WIDGET THAT FITS IS ALREADY ON THIS RAIL")
+                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+                        font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+                        wrapMode: Text.WordWrap
+                    }
+                    Flow {
+                        width: parent.width
+                        spacing: Tokens.s1
+                        visible: root.available().length > 0
+                        Repeater {
+                            model: root.available()
+                            delegate: Tap {
+                                required property string modelData
+                                label: labels.item(modelData)
+                                onAct: root.staged(Model.addZoneItem(root.config, root.edge, zone.modelData, modelData, root.catalog))
+                            }
+                        }
+                    }
                 }
             }
         }
