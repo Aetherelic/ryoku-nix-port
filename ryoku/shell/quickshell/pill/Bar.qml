@@ -27,7 +27,10 @@ Item {
             delegate: Component {
                 BarWidgetHost {
                     edge: modelData
-                    scale: bar.railScale
+                    // Fit the widget to the rail's band: a rail thinner than the
+                    // 48px parity size scales its widgets down so the button and
+                    // its hover highlight never overflow a small bar.
+                    scale: bar.railScale * Math.min(1, bar.frameBars.rails[modelData].size / 48)
                     onMenuRequested: (id, ownerRect) => bar.menuRequested(id, ownerRect)
                     onActionRequested: id => bar.actionRequested(id)
                 }

@@ -83,7 +83,7 @@ ShellRoot {
     // (its widgets' fixed band, or a 1px collapsed strip when the bar is empty)
     // plus the frame border. A hidden bar reserves nothing and releases its
     // edge; hover reveals a hidden bar inside the frame without re-reserving.
-    readonly property real frameBorderPx: Theme.borderWidth
+    readonly property real frameBorderPx: Config.frameThickness
     property var edgeRevealed: ({ top: false, bottom: false, left: false, right: false })
     // The reveal baseline (config `reveal` per edge) is applied live after
     // startup: a Bar Studio pin/auto-hide edit retargets edgeRevealed for the
@@ -634,7 +634,7 @@ ShellRoot {
                     reserveBottom: root.edgeReserve("bottom")
                     reserveLeft: root.edgeReserve("left")
                     reserveRight: root.edgeReserve("right")
-                    holeRadius: Theme.radiusWindow
+                    holeRadius: Config.frameCorner
                     surface: Theme.surface
                     outline: Theme.outline
                     strokeWidth: Theme.borderWidth

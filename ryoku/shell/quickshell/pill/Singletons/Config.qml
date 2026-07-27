@@ -16,10 +16,12 @@ import Ryoku.FrameBars
 Singleton {
     id: root
 
-    // frame = the painted border band; its geometry is the edge reserve, its
-    // corner radius the Theme sizing token, so only enable and opacity remain.
+    // frame = the painted border band. Its enable, opacity, band thickness and
+    // corner radius are live knobs; the rail geometry lives in frameBars.
     property alias frameEnabled:   adapter.frameEnabled
     property alias frameOpacity:   adapter.frameOpacity
+    property alias frameThickness: adapter.frameThickness
+    property alias frameCorner:    adapter.frameCorner
 
     // osd = the volume/brightness flash and notification toasts: small edge
     // windows that share the frame surface. osdRadius rounds their corners,
@@ -93,6 +95,8 @@ Singleton {
             id: adapter
             property bool frameEnabled: true
             property real frameOpacity: 1
+            property real frameThickness: 2
+            property real frameCorner: 8
             property real osdRadius: 0
             property real osdOpacity: 1
             property real fontScale: 1.3

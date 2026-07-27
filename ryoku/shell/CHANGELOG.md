@@ -11,6 +11,20 @@
   from the live config when a rail's `reveal` changes, not only at startup, while
   a CLI or hover reveal on an untouched edge is preserved
   (`quickshell/pill/shell.qml`).
+- **The frame's band thickness and corner radius are adjustable again.** The old
+  `frameBorder`/`frameRadius` keys had no runtime consumer (the shell drew from
+  compiled tokens); the shell now reads `frameThickness` (the band width, and the
+  edge reserve) and `frameCorner` (the desktop hole radius) live, so Bar Studio's
+  frame controls change the running frame (`quickshell/pill/shell.qml`,
+  `quickshell/pill/Singletons/Config.qml`).
+- **Power Profile on the bar opens the power-profile menu.** The rail indicator
+  was a static glyph with no click; it now opens `MenuPowerProfile` on left
+  click, the way the layout switcher opens its menu, so the profile can be
+  changed from the bar (`quickshell/pill/framebars/widgets/RailPowerProfile.qml`).
+- **A rail thinner than its widgets no longer overflows.** A bar widget kept its
+  48px parity size whatever the rail's thickness, so shrinking a rail left the
+  buttons and their hover highlight spilling past the band; each widget now scales
+  to the rail's thickness, so a small bar stays clean (`quickshell/pill/Bar.qml`).
 - **Recordings land in one directory, and the deck lists the one they land in.**
   The recorder resolved the directory properly (env override, then the Videos
   dir), the deck's list hardcoded `$HOME/Videos/Recordings`, and the Hub's page
