@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons as Ui
 
 // Thin reader of the daemon palette for the desktop widgets. The theme daemon is
 // the sole author of colour in Ryoku: a fixed named theme publishes its palette
@@ -65,28 +66,46 @@ Singleton {
     readonly property color tertiary:  role("tertiary", "#83c092")
     readonly property color err:       role("error", "#e67e80")
 
-    // Ordered sweep the ring clock and gradients sample with colorAt(t): the
-    // palette's accent roles laid end to end, so the sweep re-tunes with the
-    // theme.
-    readonly property var stops: [accent, tertiary, accent2, err, tertiary, accent]
+    // The sweep the ring clock samples, held as ramp names: it is drawn on the
+    // wallpaper, so each stop takes its tone off matugen's ramp against the
+    // picture under the widget. `seeds` are the matching roles, re-lit when no
+    // ramps are published.
+    readonly property var ramps: ["primary", "tertiary", "secondary", "error", "tertiary", "primary"]
+    readonly property var seeds: [accent, tertiary, accent2, err, tertiary, accent]
 
-    // linear-interp the ramp at t in [0,1].
-    function colorAt(t) {
-        var s = root.stops;
-        var n = s.length;
-        if (n === 0)
-            return root.accent;
-        if (n === 1)
-            return s[0];
+    // The sweep at t in [0,1] over a background of L* `bgL`.
+    function colorAt(t, bgL) {
+        var n = root.ramps.length;
         var x = Math.max(0, Math.min(0.999999, t)) * (n - 1);
         var i = Math.floor(x);
         var f = x - i;
-        var a = s[i];
-        var b = s[i + 1];
+        var a = root.stopAt(i, bgL);
+        var b = root.stopAt(Math.min(n - 1, i + 1), bgL);
         return Qt.rgba(a.r + (b.r - a.r) * f,
                        a.g + (b.g - a.g) * f,
                        a.b + (b.b - a.b) * f, 1);
     }
+
+    function stopAt(i, bgL) {
+        return Ui.Ink.accentOver(root.ramps[i], root.seeds[i], bgL, 55, Ui.Ink.side(bgL));
+    }
+
+    // Ink for a widget with no card under it: it sits on the wallpaper, where
+    // on-surface means nothing -- it tracks a panel that is not there and goes
+    // near-black under a light scheme. `l` is the widget's own patch of picture,
+    // measured by WidgetSlot. 62 L* clears 5.5:1 for a run of text.
+    function inkOn(l)     { return Ui.Ink.inkOver("neutral", root.onSurface, l, 62); }
+    function inkDimOn(l)  { return Ui.Ink.inkOver("neutral", root.onSurfaceVariant, l, 45); }
+    function inkSoftOn(l) { return Ui.Ink.inkOver("neutral", root.onSurface, l, 53); }
+    function accentOn(l)  { return Ui.Ink.accentOver("primary", root.accent, l, 55, Ui.Ink.side(l)); }
+
+    // Ink reaches the rest of the config through here. A file that imports the
+    // module loses this singleton to QtQuick's own Scheme type, so this is the
+    // one place in the config that imports it.
+    readonly property var inkTones: Ui.Ink.tones
+    readonly property real wallLstar: Ui.Ink.wallLstar
+    function lstarAt(nx, ny, nw, nh) { return Ui.Ink.lstarAt(nx, ny, nw, nh); }
+    function overLstar(bgL, plate) { return Ui.Ink.overLstar(bgL, plate); }
 
     function refreshWall() {
         try {

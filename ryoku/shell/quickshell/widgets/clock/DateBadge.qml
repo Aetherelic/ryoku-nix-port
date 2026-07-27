@@ -8,8 +8,15 @@ import "lib/clock.js" as Clk
 Item {
     id: date
 
+    // the widget floats on the wallpaper, so its ink is picked against the patch
+    // of picture under it. WidgetSlot measures it and pushes it in.
+    property real underL: Scheme.wallLstar
+    readonly property color ink:     Theme.inkOn(date.underL)
+    readonly property color inkDim:  Theme.inkDimOn(date.underL)
+    readonly property color inkSoft: Theme.inkSoftOn(date.underL)
+
     readonly property var dp: Clk.dateParts(Now.date)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Palette.accent, Theme.brand, Theme.ink)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(date.underL), Theme.brand, date.ink)
     readonly property real s: Config.clockScale
 
     implicitWidth: chip.implicitWidth
@@ -32,7 +39,7 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: date.dp.dom
-                color: Theme.ink
+                color: date.ink
                 font.family: Theme.mono
                 font.pixelSize: Math.round(40 * date.s)
                 font.weight: Font.Bold
@@ -52,7 +59,7 @@ Item {
                 }
                 Text {
                     text: date.dp.month
-                    color: Theme.inkSoft
+                    color: date.inkSoft
                     font.family: Theme.font
                     font.pixelSize: Math.round(15 * date.s)
                     font.weight: Font.Medium

@@ -1,5 +1,5 @@
 singleton Config Config.qml
-singleton Palette Palette.qml
+singleton Scheme Scheme.qml
 singleton Now Now.qml
 singleton Theme Theme.qml
 singleton Registry Registry.qml

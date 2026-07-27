@@ -85,6 +85,24 @@ Item {
 
     Timer { id: guard; interval: 90 }
 
+    // the tone the hosted widget's ink actually sits on: the wallpaper under
+    // this slot, or the backing plate composited over it. pushed into the
+    // widget, which has no way to find out where on the screen it landed.
+    readonly property real underL: {
+        const pw = slot.parent ? slot.parent.width : 0;
+        const ph = slot.parent ? slot.parent.height : 0;
+        if (pw <= 0 || ph <= 0)
+            return Scheme.wallLstar;
+        const l = Scheme.lstarAt(slot.x / pw, slot.y / ph, slot.width / pw, slot.height / ph);
+        return slot.bg === "none" ? l : Scheme.overLstar(l, backing.color);
+    }
+    Binding {
+        target: slot.item
+        property: "underL"
+        value: slot.underL
+        when: slot.item !== null && slot.item.underL !== undefined
+    }
+
     // soft lift off the wallpaper for the backed styles.
     MultiEffect {
         source: backing

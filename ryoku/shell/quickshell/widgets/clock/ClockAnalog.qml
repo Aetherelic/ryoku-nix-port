@@ -10,8 +10,15 @@ import "lib/clock.js" as Clk
 Item {
     id: face
 
+    // the widget floats on the wallpaper, so its ink is picked against the patch
+    // of picture under it. WidgetSlot measures it and pushes it in.
+    property real underL: Scheme.wallLstar
+    readonly property color ink:     Theme.inkOn(face.underL)
+    readonly property color inkDim:  Theme.inkDimOn(face.underL)
+    readonly property color inkSoft: Theme.inkSoftOn(face.underL)
+
     readonly property var t: Clk.parts(Now.date, Config.clock24h)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Palette.accent, Theme.brand, Theme.ink)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(face.underL), Theme.brand, face.ink)
     readonly property real dia: Math.round(220 * Config.clockScale)
     readonly property real s: Config.clockScale
 
@@ -28,7 +35,7 @@ Item {
             radius: width / 2
             color: "transparent"
             border.width: Math.max(1, face.s)
-            border.color: Qt.rgba(Theme.ink.r, Theme.ink.g, Theme.ink.b, 0.14)
+            border.color: Qt.rgba(face.ink.r, face.ink.g, face.ink.b, 0.14)
         }
 
         // ticks: each wrapper is dial-sized + centred, rotating it sweeps its
@@ -46,7 +53,7 @@ Item {
                     width: parent.major ? Math.round(4 * face.s) : Math.round(2 * face.s)
                     height: parent.major ? Math.round(15 * face.s) : Math.round(8 * face.s)
                     radius: width / 2
-                    color: parent.major ? Theme.ink : Theme.inkDim
+                    color: parent.major ? face.ink : face.inkDim
                 }
             }
         }
@@ -58,7 +65,7 @@ Item {
             width: Math.round(8 * face.s)
             height: dial.height * 0.28
             radius: width / 2
-            color: Theme.ink
+            color: face.ink
             antialiasing: true
             transformOrigin: Item.Bottom
             rotation: face.t.hourAngle
@@ -71,7 +78,7 @@ Item {
             width: Math.round(6 * face.s)
             height: dial.height * 0.40
             radius: width / 2
-            color: Theme.ink
+            color: face.ink
             antialiasing: true
             transformOrigin: Item.Bottom
             rotation: face.t.minuteAngle
@@ -98,7 +105,7 @@ Item {
             radius: width / 2
             color: face.accent
             border.width: Math.max(1, Math.round(2 * face.s))
-            border.color: Theme.ink
+            border.color: face.ink
         }
     }
 }

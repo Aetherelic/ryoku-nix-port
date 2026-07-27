@@ -9,8 +9,15 @@ import "lib/clock.js" as Clk
 Item {
     id: face
 
+    // the widget floats on the wallpaper, so its ink is picked against the patch
+    // of picture under it. WidgetSlot measures it and pushes it in.
+    property real underL: Scheme.wallLstar
+    readonly property color ink:     Theme.inkOn(face.underL)
+    readonly property color inkDim:  Theme.inkDimOn(face.underL)
+    readonly property color inkSoft: Theme.inkSoftOn(face.underL)
+
     readonly property var t: Clk.parts(Now.date, Config.clock24h)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Palette.accent, Theme.brand, Theme.ink)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(face.underL), Theme.brand, face.ink)
     readonly property real px: Math.round(82 * Config.clockScale)
     readonly property string caption: (Config.clockSeconds ? face.t.ss : "")
         + (Config.clockSeconds && !Config.clock24h ? "  " : "")
@@ -26,7 +33,7 @@ Item {
         Text {
             id: time
             text: face.t.hh + ":" + face.t.mm
-            color: Theme.ink
+            color: face.ink
             font.family: Theme.font
             font.pixelSize: face.px
             font.weight: Font.Light
@@ -43,7 +50,7 @@ Item {
         Text {
             visible: face.caption.length > 0
             text: face.caption
-            color: Theme.inkDim
+            color: face.inkDim
             font.family: Theme.font
             font.pixelSize: Math.round(face.px * 0.22)
             font.weight: Font.Medium

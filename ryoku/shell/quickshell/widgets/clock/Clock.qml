@@ -10,6 +10,10 @@ import "../Singletons"
 Item {
     id: clock
 
+    // pushed in by WidgetSlot, forwarded to the face and date strip so both pick
+    // their ink against the same patch of wallpaper.
+    property real underL: Scheme.wallLstar
+
     readonly property var faceItem: faceLoader.item
     readonly property var dateItem: dateLoader.item
     readonly property real fw: faceItem ? faceItem.implicitWidth : 0
@@ -55,13 +59,13 @@ Item {
         }
     }
 
-    Component { id: digitalComp; ClockDigital {} }
-    Component { id: minimalComp; ClockMinimal {} }
-    Component { id: analogComp;  ClockAnalog {} }
-    Component { id: flipComp;    ClockFlip {} }
-    Component { id: ringsComp;   ClockRings {} }
+    Component { id: digitalComp; ClockDigital { underL: clock.underL } }
+    Component { id: minimalComp; ClockMinimal { underL: clock.underL } }
+    Component { id: analogComp;  ClockAnalog { underL: clock.underL } }
+    Component { id: flipComp;    ClockFlip { underL: clock.underL } }
+    Component { id: ringsComp;   ClockRings { underL: clock.underL } }
 
-    Component { id: dateInlineComp;  DateInline {} }
-    Component { id: dateBadgeComp;   DateBadge {} }
-    Component { id: dateStackedComp; DateStacked {} }
+    Component { id: dateInlineComp;  DateInline { underL: clock.underL } }
+    Component { id: dateBadgeComp;   DateBadge { underL: clock.underL } }
+    Component { id: dateStackedComp; DateStacked { underL: clock.underL } }
 }

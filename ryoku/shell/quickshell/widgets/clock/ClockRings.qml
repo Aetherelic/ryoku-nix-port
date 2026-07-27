@@ -11,6 +11,13 @@ import "lib/clock.js" as Clk
 Item {
     id: face
 
+    // the widget floats on the wallpaper, so its ink is picked against the patch
+    // of picture under it. WidgetSlot measures it and pushes it in.
+    property real underL: Scheme.wallLstar
+    readonly property color ink:     Theme.inkOn(face.underL)
+    readonly property color inkDim:  Theme.inkDimOn(face.underL)
+    readonly property color inkSoft: Theme.inkSoftOn(face.underL)
+
     readonly property var t: Clk.parts(Now.date, Config.clock24h)
     readonly property real s: Config.clockScale
     readonly property real dia: Math.round(232 * s)
@@ -19,7 +26,8 @@ Item {
     implicitHeight: dia
 
     // repaint when time, palette, accent or size changes.
-    readonly property var repaintKey: [Now.date, Config.clockAccent, Palette.accent, face.dia, Config.clock24h]
+    readonly property var repaintKey: [Now.date, Config.clockAccent, Scheme.accent, face.dia,
+        Config.clock24h, face.underL, Scheme.inkTones]
     onRepaintKeyChanged: canvas.requestPaint()
 
     function css(c, a) {
@@ -28,10 +36,10 @@ Item {
     function ringColor(i) {
         var f = [0.2, 0.5, 0.85][i];
         if (Config.clockAccent === "palette")
-            return face.css(Palette.colorAt(f), 1);
+            return face.css(Scheme.colorAt(f, face.underL), 1);
         if (Config.clockAccent === "brand")
             return face.css(Qt.lighter(Theme.brand, 0.85 + i * 0.28), 1);
-        return face.css(Theme.ink, 0.55 + i * 0.22);
+        return face.css(face.ink, 0.55 + i * 0.22);
     }
 
     Canvas {
@@ -58,7 +66,7 @@ Item {
                 ctx.beginPath();
                 ctx.lineWidth = lineW;
                 ctx.lineCap = "butt";
-                ctx.strokeStyle = face.css(Theme.ink, 0.12);
+                ctx.strokeStyle = face.css(face.ink, 0.12);
                 ctx.arc(cx, cy, radii[i], 0, 2 * Math.PI, false);
                 ctx.stroke();
                 // progress.
@@ -81,7 +89,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: face.t.hh + ":" + face.t.mm
-            color: Theme.ink
+            color: face.ink
             font.family: Theme.mono
             font.pixelSize: Math.round(face.dia * 0.16)
             font.weight: Font.Bold
@@ -90,7 +98,7 @@ Item {
             visible: !Config.clock24h
             anchors.horizontalCenter: parent.horizontalCenter
             text: face.t.ampm
-            color: Theme.inkDim
+            color: face.inkDim
             font.family: Theme.mono
             font.pixelSize: Math.round(face.dia * 0.066)
             font.weight: Font.DemiBold
