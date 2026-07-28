@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed
+- **"Never ask" reaches its fix when the keyring is still encrypted.** `keyring
+  init` records never-ask on a box whose keyring is password-protected and leaves
+  the file intact, so the mode reads as chosen while every login still prompts.
+  Picking the mode that was already selected returned early, which left the
+  convert and start-fresh controls unreachable and the option looking dead. The
+  Lockscreen page now opens that row as soon as it sees never-ask against an
+  encrypted keyring, and picking never-ask again offers it too
+  (`quickshell/pages/LockscreenPage.qml`).
+
+
 ### Added
 - **Bar Studio lists the Music widget.** The rail's music spectrum widget joins
   the catalogue picker as "Music" (`quickshell/barstudio/CatalogLabels.qml`).

@@ -100,15 +100,22 @@ Item {
     // pick a mode. never-ask on an encrypted keyring reveals the convert/reset
     // row instead of failing; anything else applies straight away.
     function kchoose(mode) {
-        if (mode === pg.kmode || pg.kpending !== "")
+        if (pg.kpending !== "")
             return;
         pg.kerror = "";
-        pg.kconvertFor = "";
         pg.kconfirmReset = false;
+        // Tested before the "already selected" guard on purpose. `keyring init`
+        // records never-ask on a box whose keyring is still encrypted, so the
+        // mode reads as active while nothing about it has taken effect. Bailing
+        // out because the mode already matched made the row that actually fixes
+        // it unreachable: the option looked chosen and the prompts kept coming.
         if (mode === "never-ask" && pg.kNeverAskBlocked) {
             pg.kconvertFor = "never-ask";
             return;
         }
+        pg.kconvertFor = "";
+        if (mode === pg.kmode)
+            return;
         pg.kstdin = "";
         pg.kpending = mode;
         ksetProc.command = ["ryoku", "keyring", "set", mode];
@@ -297,6 +304,11 @@ Item {
                             def = ks[i];
                     pg.kdefName = def ? def.name : "";
                     pg.kdefFormat = def ? def.format : "";
+                    // never-ask on paper, encrypted on disk: the mode cannot take
+                    // effect, so open the convert/reset row without waiting for a
+                    // click on an option that already looks selected.
+                    if (pg.kmode === "never-ask" && pg.kdefFormat === "encrypted" && pg.kpending === "")
+                        pg.kconvertFor = "never-ask";
                 } catch (e) {
                     pg.kerror = "Couldn't read the keyring status.";
                 }
