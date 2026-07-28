@@ -12,7 +12,7 @@ function eq(actual, expected, msg) {
 function ok(condition, msg) { eq(!!condition, true, msg); }
 
 const requiredBars = ["app-launcher", "audio-input", "audio-output", "battery", "bluetooth", "clipboard", "clock",
-    "dock", "layout-switcher", "workspaces", "color-picker", "lock", "logout", "network",
+    "dock", "layout-switcher", "workspaces", "color-picker", "lock", "logout", "music", "network",
     "notifications", "power-profile", "quick-settings", "reboot", "recording", "screenshot",
     "shutdown", "tray", "vpn", "wallpaper"];
 eq(BarCatalog.ids().sort(), requiredBars.sort(), "all approved bar widgets are catalogued");

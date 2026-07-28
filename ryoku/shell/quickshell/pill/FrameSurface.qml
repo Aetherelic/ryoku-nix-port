@@ -52,6 +52,9 @@ Popout {
     openW: Math.max(root.minWidth * root.s, body.item ? body.item.implicitWidth : 0)
     openH: root.fullSpan ? root.height : (body.item ? body.item.implicitHeight : 0)
 
+    // the music card floats slightly off the frame lip; the others abut it.
+    edgeGap: root.kind === "music" ? 10 * root.s : 0
+
     readonly property bool sideMenu: root.edge === "left" || root.edge === "right"
 
     // Reveal envelope: side surfaces slide (menuSlide, 250 ms ease-out-cubic),
@@ -80,6 +83,7 @@ Popout {
         sourceComponent: root.kind === "power" ? powerBody
             : root.kind === "voice" ? voiceBody
             : root.kind === "keyring" ? keyringBody
+            : root.kind === "music" ? musicBody
             : root.kind === "stash" ? stashBody
             : systemBody
     }
@@ -108,6 +112,13 @@ Popout {
             s: root.s
             open: root.effectiveOpen
             onCloseRequested: root.requestClose()
+        }
+    }
+    Component {
+        id: musicBody
+        MusicPopout {
+            s: root.s
+            open: root.effectiveOpen
         }
     }
     Component {

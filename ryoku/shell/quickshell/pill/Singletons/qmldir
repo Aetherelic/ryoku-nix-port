@@ -10,6 +10,7 @@ singleton Recorder Recorder.qml
 singleton Camera Camera.qml
 singleton Audio Audio.qml
 singleton VoiceBars VoiceBars.qml
+singleton AudioBars AudioBars.qml
 singleton Weather Weather.qml
 singleton Stash Stash.qml
 singleton Keyring Keyring.qml

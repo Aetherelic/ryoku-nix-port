@@ -38,6 +38,9 @@ Item {
     property real edgeInsetOverride: -1
     property real openW: 220
     property real openH: 200
+    // Perpendicular gap from the growing edge to the body, so a surface can
+    // float slightly off the frame lip instead of abutting it. 0 = flush.
+    property real edgeGap: 0
     // full-height sidebar: the body fills the frame top-to-bottom and fuses into
     // the top AND bottom borders (not only the edge it grows from), so it reads
     // as the whole side of the frame swelling open, no gap at either end. only
@@ -155,14 +158,16 @@ Item {
     readonly property real curW: vertical ? Math.max(0, bodyOpenW * prog)
                                  : (dipHost && !heldOpen) ? Math.max(0, bodyOpenW * prog) : bodyOpenW
     readonly property real curH: vertical ? ((dipHost && !heldOpen) ? Math.max(0, bodyOpenH * prog) : bodyOpenH) : Math.max(0, bodyOpenH * prog)
-    readonly property real bodyX: atLeft ? frameThickness
-                                 : atRight ? (width - frameThickness - curW)
+    // the gap holds the open body off the frame lip but drains with prog, so the
+    // close melt retracts fully into the frame edge instead of stranding a gap.
+    readonly property real bodyX: atLeft ? frameThickness + edgeGap * prog
+                                 : atRight ? (width - frameThickness - curW - edgeGap * prog)
                                  : hugRight ? (width - curW)
                                  : hugLeft ? 0
                                  : alongX + (dipHost && !heldOpen ? (bodyOpenW - curW) / 2 : 0)
     readonly property real bodyY: spanning ? 0
-                                 : atTop ? frameThickness
-                                 : atBottom ? (height - frameThickness - curH)
+                                 : atTop ? frameThickness + edgeGap * prog
+                                 : atBottom ? (height - frameThickness - curH - edgeGap * prog)
                                  : alongY + (dipHost && !heldOpen ? (bodyOpenH - curH) / 2 : 0)
     readonly property real bodyW: curW
     readonly property real bodyH: spanning ? height : curH
@@ -186,14 +191,14 @@ Item {
     // starts. prog never appears here, so a melt tick cannot recommit the
     // wayland input region 60 times a second (the close-time frame drops), and
     // a melting body stops eating clicks the instant it is dismissed.
-    readonly property real maskX: atLeft ? frameThickness
-                                : atRight ? (width - frameThickness - bodyOpenW)
+    readonly property real maskX: atLeft ? frameThickness + edgeGap
+                                : atRight ? (width - frameThickness - bodyOpenW - edgeGap)
                                 : hugRight ? (width - bodyOpenW)
                                 : hugLeft ? 0
                                 : alongX
     readonly property real maskY: spanning ? 0
-                                : atTop ? frameThickness
-                                : atBottom ? (height - frameThickness - bodyOpenH)
+                                : atTop ? frameThickness + edgeGap
+                                : atBottom ? (height - frameThickness - bodyOpenH - edgeGap)
                                 : alongY
     readonly property real maskW: heldOpen ? bodyOpenW : 0
     readonly property real maskH: heldOpen ? bodyOpenH : 0

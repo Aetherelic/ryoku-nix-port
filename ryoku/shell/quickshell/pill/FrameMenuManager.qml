@@ -48,7 +48,10 @@ Item {
         out.push(
             { id: "power", kind: "power", anchor: "top", minWidth: 480 },
             { id: "voice", kind: "voice", anchor: "top", minWidth: 420 },
-            { id: "keyring", kind: "keyring", anchor: "top", minWidth: 420 }
+            { id: "keyring", kind: "keyring", anchor: "top", minWidth: 420 },
+            // the rail spectrum's music card: a pointer-only popout, so it
+            // joins the surfaces without taking the keyboard.
+            { id: "music", kind: "music", anchor: "left", minWidth: 320 }
         );
         return out;
     }
@@ -77,7 +80,7 @@ Item {
         const mon = menuState[monitorName];
         if (!mon) return false;
         for (const anchor in mon)
-            if (mon[anchor] && mon[anchor].kind && mon[anchor].kind !== "menu" && mon[anchor].id !== "voice") return true;
+            if (mon[anchor] && mon[anchor].kind && mon[anchor].kind !== "menu" && mon[anchor].id !== "voice" && mon[anchor].id !== "music") return true;
         return false;
     }
     // Keyboard focus the frame raises while something is open (contract 05 sec
@@ -92,7 +95,7 @@ Item {
             if (!rec) continue;
             if (rec.id === "screenshare") return "exclusive";
             if (rec.id === "wallpaper") return "ondemand";
-            if (rec.kind && rec.kind !== "menu" && rec.id !== "voice") return "exclusive";
+            if (rec.kind && rec.kind !== "menu" && rec.id !== "voice" && rec.id !== "music") return "exclusive";
         }
         return "none";
     }

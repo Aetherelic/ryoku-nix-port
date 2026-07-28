@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+- **A music widget on the rail opens a now-playing card.** A vertical spectrum
+  strip, fed by a shared cava playback feed, rides a rail zone and self-hides
+  until a player reports a track; a left click grows a now-playing card off the
+  frame edge, and the close melt retracts it fully into that edge. The card
+  carries the sleeve (its dominant tone lifted to a vivid accent that tints the
+  transport, the progress line and the card's wide spectrum sweep), the title,
+  the artist and previous/play/next. The spectrum spreads its bars evenly across
+  whatever width or height it is given, and cava is claimed only while a music
+  surface is shown, so a playerless desktop never runs the analyser
+  (`quickshell/pill/framebars/widgets/RailMusic.qml`,
+  `quickshell/pill/popouts/MusicPopout.qml`, `quickshell/pill/MusicBars.qml`,
+  `quickshell/pill/Singletons/AudioBars.qml`).
+
 ### Fixed
 - **A notification fired twice no longer stacks two identical popups.** With one
   server and id-based dedup, a duplicate could only come from an app posting the

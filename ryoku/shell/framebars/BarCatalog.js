@@ -12,6 +12,7 @@ const entries = [
     ["color-picker", "Color Picker", ["horizontal", "vertical"], "quick-action", "color"],
     ["lock", "Lock", ["horizontal", "vertical"], "quick-action", "lock"],
     ["logout", "Log Out", ["horizontal", "vertical"], "quick-action", "logout"],
+    ["music", "Music", ["horizontal", "vertical"], "widget", null],
     ["network", "Network", ["horizontal", "vertical"], "widget", null],
     ["notifications", "Notifications", ["horizontal", "vertical"], "widget", null],
     ["power-profile", "Power Profile", ["horizontal", "vertical"], "widget", null],
