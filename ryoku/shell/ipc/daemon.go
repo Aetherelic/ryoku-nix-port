@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -311,10 +312,47 @@ func (d *daemon) bootstrap() {
 // frame (the boot-contention burst iNiR calls out).
 const startupStagger = 250 * time.Millisecond
 
+// reapStrays kills quickshell components left behind by a previous daemon. A
+// daemon that was killed rather than asked to quit leaves its children running:
+// they outlive it, and the replacement starts a second set on top, so the pill
+// and the visualiser end up drawn twice. Anything matching a component we own
+// is stray at this point, since our own are not started yet.
+func (d *daemon) reapStrays() {
+	self := os.Getpid()
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return
+	}
+	want := map[string]bool{}
+	for _, c := range components {
+		want[strings.Join(qsSelect(c.name), " ")] = true
+	}
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil || pid == self {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join("/proc", e.Name(), "cmdline"))
+		if err != nil {
+			continue
+		}
+		fields := strings.Split(strings.TrimRight(string(raw), "\x00"), "\x00")
+		if len(fields) < 3 || filepath.Base(fields[0]) != "qs" {
+			continue
+		}
+		if want[strings.Join(fields[1:], " ")] {
+			if p, err := os.FindProcess(pid); err == nil {
+				_ = p.Signal(syscall.SIGTERM)
+			}
+		}
+	}
+}
+
 // startComponents brings the persistent components up one at a time, pill first,
 // leaving startupStagger between each. ensure is idempotent, so a keybind that
 // needs a component before its turn still starts it at once.
 func (d *daemon) startComponents() {
+	d.reapStrays()
 	for _, c := range components {
 		if !startsAtBoot(c) {
 			continue

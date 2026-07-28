@@ -1,0 +1,24 @@
+[Unit]
+# The daemon supervises every surface, so its death takes the whole desktop
+# with it and Hyprland's autostart only ran it once. systemd brings it back.
+Description=Ryoku shell daemon
+PartOf=hyprland-session.target
+After=hyprland-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+# the dev deploy rewrites this to ~/.local/bin; the package ships /usr/bin.
+# set here, not only via the session env: an import that does not land would
+# silently drop the polkit agent back to the stock one.
+Environment=RYOKU_POLKIT_AGENT=1
+ExecStart=/usr/bin/ryoku-shell daemon
+Restart=always
+RestartSec=2
+# a config that cannot load would otherwise restart forever; stop and let
+# doctor report it instead.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+Slice=session.slice
+
+[Install]
+WantedBy=hyprland-session.target

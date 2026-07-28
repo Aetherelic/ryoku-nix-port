@@ -15,7 +15,7 @@ hl.on("hyprland.start", function()
     -- D-Bus activation environment BEFORE the session target starts, so a user
     -- service gated on that env (ConditionEnvironment=WAYLAND_DISPLAY) starts
     -- instead of coming up failed.
-    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE XDG_SESSION_TYPE")
+    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE XDG_SESSION_TYPE RYOKU_POLKIT_AGENT")
     hl.exec_cmd("systemctl --user start hyprland-session.target")
     -- Polkit authentication is answered by the shell's own agent (the island
     -- that matches the rest of the desktop), so the stock Qt agent must not
@@ -29,7 +29,9 @@ hl.on("hyprland.start", function()
     -- effort: an old ryoku without the subcommand just fails silently here.
     hl.exec_cmd("command -v ryoku >/dev/null 2>&1 && ryoku keyring init")
     hl.exec_cmd("command -v ryoku-gpu >/dev/null 2>&1 && ryoku-gpu persist")
-    hl.exec_cmd("ryoku-shell daemon")
+    -- under systemd, not bare exec: the daemon supervises every surface, so a
+    -- crash used to take the desktop until the next login.
+    hl.exec_cmd("systemctl --user start ryoku-shell")
     hl.exec_cmd("command -v ryoku-idle >/dev/null 2>&1 && ryoku-idle start")
     hl.exec_cmd("command -v ryoku-clamshell >/dev/null 2>&1 && ryoku-clamshell daemon")
     hl.exec_cmd("command -v ryoku-leds >/dev/null 2>&1 && ryoku-leds apply")

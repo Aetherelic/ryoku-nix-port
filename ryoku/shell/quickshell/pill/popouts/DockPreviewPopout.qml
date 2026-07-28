@@ -182,10 +182,18 @@ Popout {
                             HoverHandler { id: closeHov; cursorShape: Qt.PointingHandCursor }
                             MouseArea {
                                 anchors.fill: parent
+                                // Terminate the process, not a polite request.
+                                // wayland.close() only ASKS, so an Electron app
+                                // declines it and the X looked dead; it was also
+                                // gated on a thumbnail existing, so a tile with
+                                // no capture did nothing at all.
                                 onClicked: {
-                                    if (tile.hasCapture)
+                                    const o = tile.tl ? tile.tl.lastIpcObject : null;
+                                    const pid = o && o.pid ? Number(o.pid) : 0;
+                                    if (pid > 0)
+                                        Quickshell.execDetached(["kill", "-9", String(pid)]);
+                                    else if (tile.hasCapture)
                                         tile.tl.wayland.close();
-                                    Hyprland.refreshToplevels();
                                 }
                             }
                         }

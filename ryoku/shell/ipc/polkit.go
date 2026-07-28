@@ -427,6 +427,9 @@ func polkitPickUser(identities []polkitIdentity) (string, bool) {
 func polkitSessionSubject(conn *dbus.Conn) (polkitSubject, error) {
 	id := os.Getenv("XDG_SESSION_ID")
 	if id == "" {
+		id = seatSessionForUser(conn)
+	}
+	if id == "" {
 		var path dbus.ObjectPath
 		err := conn.Object("org.freedesktop.login1", "/org/freedesktop/login1").Call(
 			"org.freedesktop.login1.Manager.GetSessionByPID", 0, uint32(os.Getpid())).Store(&path)
@@ -505,4 +508,30 @@ func unescapeGStr(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// seatSessionForUser finds this user's seated session. Under the systemd user
+// manager the daemon sits outside the login session, so GetSessionByPID finds
+// nothing and the agent would register for no one; logind still knows which
+// session has the seat.
+func seatSessionForUser(conn *dbus.Conn) string {
+	var sessions []struct {
+		ID   string
+		UID  uint32
+		User string
+		Seat string
+		Path dbus.ObjectPath
+	}
+	err := conn.Object("org.freedesktop.login1", "/org/freedesktop/login1").Call(
+		"org.freedesktop.login1.Manager.ListSessions", 0).Store(&sessions)
+	if err != nil {
+		return ""
+	}
+	uid := uint32(os.Getuid())
+	for _, s := range sessions {
+		if s.UID == uid && s.Seat != "" {
+			return s.ID
+		}
+	}
+	return ""
 }
