@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Changed
+- **Administrator passwords are asked for on a Ryoku island.** The shell daemon
+  now registers as the PolicyKit1 authentication agent, so a privileged action
+  prompts on the same island the keyring prompt uses instead of the stock Qt
+  agent's grey dialog, and `hyprpolkitagent` is no longer started
+  (`hyprland/modules/env.lua`, `hyprland/modules/autostart.lua`).
+
+### Changed
 - **Super+W opens the wallpaper + theme menu bottom-centre; Super+C is freed.**
   The keybind now grows the frame's wallpaper menu from the bottom-centre edge
   (`ryoku-shell menu wallpaper`) instead of the old bottom-left menu, and the

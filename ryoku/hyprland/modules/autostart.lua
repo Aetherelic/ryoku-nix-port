@@ -12,14 +12,16 @@ hl.on("hyprland.start", function()
     -- selects it. Rebuilt on every palette change by the shell's matugen hook.
     hl.exec_cmd("command -v ryoku-cmd-folders >/dev/null 2>&1 && ryoku-cmd-folders")
     -- Import the Wayland/session env into the systemd --user manager and the
-    -- D-Bus activation environment BEFORE the session target starts. Without
-    -- it, a user service gated on that env fails: hyprpolkitagent declares
-    -- ConditionEnvironment=WAYLAND_DISPLAY, so a bare `systemctl --user start`
-    -- never satisfied the condition and the polkit agent came up failed (the
-    -- doctor "hyprpolkitagent.service failed" out of the box).
+    -- D-Bus activation environment BEFORE the session target starts, so a user
+    -- service gated on that env (ConditionEnvironment=WAYLAND_DISPLAY) starts
+    -- instead of coming up failed.
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE XDG_SESSION_TYPE")
     hl.exec_cmd("systemctl --user start hyprland-session.target")
-    hl.exec_cmd("systemctl --user start hyprpolkitagent")
+    -- Polkit authentication is answered by the shell's own agent (the island
+    -- that matches the rest of the desktop), so the stock Qt agent must not
+    -- take the session's single agent slot. Stopping it is idempotent and
+    -- harmless when it was never started.
+    hl.exec_cmd("systemctl --user stop hyprpolkitagent 2>/dev/null || true")
     hl.exec_cmd("command -v ryoku-monitor >/dev/null 2>&1 && ryoku-monitor autoscale")
     -- Keyring default: no app ever prompts for a keyring password out of the box.
     -- `keyring init` records the mode once and seeds a blank passwordless default
