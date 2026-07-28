@@ -5,9 +5,17 @@ import "Singletons"
 
 // One notification card, shared by the history panel and the popup surface
 // (contract 07 sec 2.3). A bordered surface tile with a header (app name, time,
-// close), a bold summary, an optional body, and one primary button per action.
-// No app icon and no image are drawn, matching the reference widget exactly.
-// The card fills the width its host gives it and is sized entirely from tokens.
+// and an open/expand/close cluster), a bold summary, an optional body, and one
+// primary button per action. No app icon and no image are drawn, matching the
+// reference widget. The card fills the width its host gives it and is sized
+// entirely from tokens.
+//
+// Popups pass `compact: true`: the body clamps to two lines and the actions
+// hide, so the toast stays a tidy glance; the expand chevron slides the card
+// open to the full body and its action buttons (Motion.rowReveal). The open
+// button surfaces the freedesktop "default" action, which is otherwise
+// unreachable from a toast. The history panel leaves `compact` false, so it is
+// unchanged bar the open button appearing when an app sent a default action.
 Rectangle {
     id: card
 
@@ -16,9 +24,20 @@ Rectangle {
     // ignores it (contract 07 sec 4.3).
     signal actionInvoked()
 
-    // Only real actions get a button: the freedesktop "default" action (invoked
-    // by clicking the notification, not a button) and any action with no label
-    // are dropped, so a bare default no longer draws an empty pill.
+    // Popups start compact and expand on demand; the history panel is always
+    // full (compact stays false).
+    property bool compact: false
+    property bool expanded: false
+
+    // The height Behavior below must not animate the card's initial layout: a
+    // fresh toast would otherwise grow tall as it arrives and churn the stack.
+    // Armed after creation, it eases only the user-driven expand/collapse.
+    property bool ready: false
+    Component.onCompleted: card.ready = true
+
+    // Only real actions get a button: the freedesktop "default" action (surfaced
+    // as the open button, not a row button) and any action with no label are
+    // dropped, so a bare default no longer draws an empty pill.
     readonly property var visibleActions: {
         const all = card.notif.actions || [];
         const out = [];
@@ -27,6 +46,24 @@ Rectangle {
                 out.push(all[i]);
         return out;
     }
+
+    // The freedesktop default action ("click the notification to open"): surfaced
+    // as the open button instead of a click target. null when the app sent none.
+    readonly property var defaultAction: {
+        const all = card.notif.actions || [];
+        for (let i = 0; i < all.length; i++)
+            if (all[i] && all[i].identifier === "default")
+                return all[i];
+        return null;
+    }
+
+    // Compact clamps the body to two lines; the chevron shows only when expand
+    // actually reveals something (a longer body or any action). `bodyOverflows`
+    // is measured off a hidden unclamped copy so it stays true once expanded.
+    readonly property int compactLines: 2
+    readonly property bool showFull: !card.compact || card.expanded
+    readonly property bool bodyOverflows: bodyMeasure.lineCount > card.compactLines
+    readonly property bool expandable: card.compact && (card.visibleActions.length > 0 || card.bodyOverflows)
 
     // Countdown frame (popups only): a border that traces the card and drains
     // over the popup's lifespan, so a glance shows how long is left. The history
@@ -47,6 +84,57 @@ Rectangle {
     border.color: Theme.outline
     color: Theme.surface
     implicitHeight: body.implicitHeight + Theme.paddingMd * 2
+    // Ease the expand/collapse: the body clamp and the actions toggle change the
+    // content height in a step, and this glides the card (and the stack it sits
+    // in) between the two heights instead of snapping.
+    Behavior on implicitHeight { enabled: card.ready; NumberAnimation { duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve } }
+
+    // A hidden, unclamped copy of the body, used only to learn whether the real
+    // body would overflow the compact clamp (so the chevron appears only when it
+    // has something to show). Never painted.
+    Text {
+        id: bodyMeasure
+        visible: false
+        width: card.width - Theme.paddingMd * 2
+        text: card.notif.body || ""
+        font.family: Theme.fontPrimary
+        font.pixelSize: Theme.fontSm
+        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+    }
+
+    // One header affordance: a hover-tinted square icon button. Open, expand and
+    // close share it so the cluster reads as one control set.
+    component HeaderButton: Rectangle {
+        id: hb
+        property string glyph: ""
+        property color activeColor: Theme.onSurface
+        property real iconRotation: 0
+        signal clicked()
+
+        width: Theme.iconSm + Theme.paddingSm * 2
+        height: width
+        radius: Theme.radiusWidget
+        color: hbHov.hovered
+            ? Qt.tint(Theme.surface, Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08))
+            : "transparent"
+
+        MaterialIcon {
+            anchors.centerIn: parent
+            text: hb.glyph
+            font.pixelSize: Theme.iconSm
+            color: hbHov.hovered ? hb.activeColor : Theme.onSurfaceVariant
+            rotation: hb.iconRotation
+            Behavior on rotation { NumberAnimation { duration: Motion.chevronRotate; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve } }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: hb.clicked()
+            HoverHandler { id: hbHov }
+        }
+    }
 
     Column {
         id: body
@@ -56,10 +144,10 @@ Rectangle {
         anchors.margins: Theme.paddingMd
         spacing: Theme.paddingMd
 
-        // Header: app name (fills), arrival time, close button.
+        // Header: app name (fills), arrival time, and the open/expand/close cluster.
         Item {
             width: parent.width
-            height: Math.max(appName.implicitHeight, timeLabel.implicitHeight, closeBtn.height)
+            height: Math.max(appName.implicitHeight, timeLabel.implicitHeight, btnRow.height)
 
             Text {
                 id: appName
@@ -77,7 +165,7 @@ Rectangle {
 
             Text {
                 id: timeLabel
-                anchors.right: closeBtn.left
+                anchors.right: btnRow.left
                 anchors.rightMargin: Theme.paddingSm
                 anchors.verticalCenter: parent.verticalCenter
                 text: Notifs.timeLabel(card.notif)
@@ -86,30 +174,36 @@ Rectangle {
                 font.pixelSize: Theme.fontSm
             }
 
-            Rectangle {
-                id: closeBtn
+            Row {
+                id: btnRow
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                width: Theme.iconSm + Theme.paddingSm * 2
-                height: width
-                radius: Theme.radiusWidget
-                color: closeHov.hovered
-                    ? Qt.tint(Theme.surface, Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08))
-                    : "transparent"
+                spacing: 0
 
-                MaterialIcon {
-                    anchors.centerIn: parent
-                    text: "close"
-                    font.pixelSize: Theme.iconSm
-                    color: closeHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant
+                // Open: invoke the freedesktop default action; shown only when the
+                // app sent one.
+                HeaderButton {
+                    glyph: "open_in_new"
+                    visible: card.defaultAction !== null
+                    onClicked: {
+                        if (card.defaultAction)
+                            card.defaultAction.invoke();
+                        card.actionInvoked();
+                    }
                 }
 
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
+                // Expand: reveal the full body and the action buttons; the chevron
+                // turns over as it opens.
+                HeaderButton {
+                    glyph: "expand_more"
+                    visible: card.expandable
+                    iconRotation: card.expanded ? 180 : 0
+                    onClicked: card.expanded = !card.expanded
+                }
+
+                HeaderButton {
+                    glyph: "close"
                     onClicked: Notifs.dismiss(card.notif)
-                    HoverHandler { id: closeHov }
                 }
             }
         }
@@ -125,7 +219,8 @@ Rectangle {
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         }
 
-        // Body: only when present.
+        // Body: present when non-empty; clamped to two lines while a popup is
+        // compact and collapsed, full once expanded (or in the history panel).
         Text {
             width: parent.width
             visible: (card.notif.body || "").length > 0
@@ -134,13 +229,19 @@ Rectangle {
             font.family: Theme.fontPrimary
             font.pixelSize: Theme.fontSm
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+            maximumLineCount: card.showFull ? 9999 : card.compactLines
+            elide: card.showFull ? Text.ElideNone : Text.ElideRight
         }
 
-        // Actions: one primary button per action, full width (contract 07 sec 2.3).
+        // Actions: one primary button per action, full width (contract 07 sec
+        // 2.3). Hidden while a popup is compact and collapsed; the expand chevron
+        // brings them in, fading up as the card grows.
         Column {
             width: parent.width
             spacing: Theme.paddingSm
-            visible: card.visibleActions.length > 0
+            visible: card.visibleActions.length > 0 && card.showFull
+            opacity: card.showFull ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Motion.rowFade; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve } }
 
             Repeater {
                 model: card.visibleActions

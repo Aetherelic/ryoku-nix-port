@@ -96,9 +96,19 @@ Singleton {
     // value resets it. A dwell timer, not motion, so reduce does not gate it.
     readonly property int osdHide: 1000
 
+    // Notification popup entrance/exit (contract 12 sec 5, eye-candy pass): a
+    // toast grows out of the anchored top corner (scale 0.9->1 + fade) and
+    // recedes back into it (scale ->0.9 + fade). The card sets transformOrigin to
+    // that corner, so the grow reads as "from the corner"; the scale never
+    // exceeds 1, so an overshoot can never clip against the surface edge.
+    readonly property int notifIn: root.dur(220)
+    readonly property int notifOut: root.dur(180)
+    readonly property var notifInCurve: root.effectsCurve
+    readonly property int notifOutCurve: Easing.InCubic
+
     // Notification container unmap delay: 260 ms after the popup list empties, so
-    // the last card slide-out (rowReveal) finishes before the surface drops
-    // (contract 12 sec 5). A scheduling timer, not motion.
+    // the last card exit (notifOut) finishes before the surface drops (contract
+    // 12 sec 5). A scheduling timer, not motion.
     readonly property int notifHide: 260
 
     // Bars auto-reveal once, 1000 ms after startup (contract 02 sec 5). A one-shot

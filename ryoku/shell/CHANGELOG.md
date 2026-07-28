@@ -27,6 +27,17 @@
   `quickshell/overview/DesktopStrip.qml`).
 
 ### Changed
+- **The notification toasts grow from the corner, expand, and open.** The popups
+  faded straight in, flat-spaced and flush to the corner; they now float 16 px off
+  it, sit 14 px apart, and each card grows out of the anchored top corner on
+  arrival and recedes into it on close (Motion.notifIn / notifOut, scaled about
+  that corner so the grow never clips). Each toast is compact: the body clamps to
+  two lines and the actions tuck away behind an expand chevron that slides the
+  card open to the full body and its buttons; an open button fires the
+  notification's default action, the click-to-open a toast could not reach
+  before. The history panel is unchanged bar the open button appearing when an
+  app sent a default action (`quickshell/pill/NotificationPopups.qml`,
+  `quickshell/pill/NotificationCard.qml`, `Singletons/Motion.qml`).
 - **The volume, mic and brightness OSDs read out their percentage.** The
   bottom-centre OSD showed only an icon and a value bar; it now carries the exact
   value beside the bar as a right-aligned mono percentage, reusing the same

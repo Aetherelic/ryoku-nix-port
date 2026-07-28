@@ -9,10 +9,11 @@ import "Singletons"
 // A per-monitor overlay layer surface anchored to the top edge, on the left or
 // right (or centred) per the position setting, reserving nothing (exclusive
 // zone 0) and never taking keyboard focus. It holds the flat, newest-first popup
-// list (newest at index 0) at a fixed 400 px content width with 10 px between
-// cards. Each card slides in/out over 200 ms (Motion.rowReveal, the reference
-// GtkRevealer SlideDown). When the list empties the surface unmaps 260 ms later
-// (Motion.notifHide), letting the last slide finish first; a popup arriving in
+// list (newest at index 0) at a fixed 400 px content width with 14 px between
+// cards, floating 16 px off the corner. Each card grows out of the anchored top
+// corner (scale + fade, Motion.notifIn) and recedes back into it on close
+// (Motion.notifOut). When the list empties the surface unmaps 260 ms later
+// (Motion.notifHide), letting the last exit finish first; a popup arriving in
 // that wait cancels the unmap.
 //
 // `Notifs.popups` is reassigned as a whole array on every change, which resets a
@@ -23,9 +24,9 @@ PanelWindow {
     id: win
 
     required property var modelData
-    // Fixed logical px: content width 400, inter-card spacing 10. The reference
-    // container is a fixed-size window that does not grow with monitor or font
-    // scale, so no scale term.
+    // Fixed logical px: content width 400, inter-card spacing 14, corner float
+    // 16. The reference container is a fixed-size window that does not grow with
+    // monitor or font scale, so no scale term.
 
     // Popup anchoring (contract 07 sec 7): Left -> top+left, Right (default) ->
     // top+right, Center -> top only (horizontally centred). The live setting is
@@ -34,6 +35,10 @@ PanelWindow {
     property string position: "Right"
     // popup_window_margins (contract 07 sec 8), default 0.
     property real margin: 0
+
+    // Base breathing room off the screen corner, on top of the configurable
+    // popup margin, so the toast column floats instead of sitting flush.
+    readonly property real inset: 16
 
     readonly property var popups: Notifs.popups
     property bool mapped: false
@@ -52,9 +57,9 @@ PanelWindow {
     anchors.top: true
     anchors.left: position === "Left"
     anchors.right: position === "Right"
-    margins.top: margin
-    margins.left: margin
-    margins.right: margin
+    margins.top: inset + margin
+    margins.left: inset + margin
+    margins.right: inset + margin
 
     implicitWidth: 400
     implicitHeight: Math.max(1, list.contentHeight)
@@ -121,31 +126,42 @@ PanelWindow {
         anchors.right: parent.right
         anchors.top: parent.top
         height: contentHeight
-        spacing: 10
+        spacing: 14
         interactive: false
         model: cards
 
-        // Card slide (contract 12 sec 5): 200 ms OutCubic in and out, siblings
-        // sliding to fill. The 260 ms unmap delay outlasts this so the last slide
-        // completes before the surface drops.
+        // Corner grow (contract 12 sec 5, eye-candy pass): a new card fades and
+        // scales up from the anchored corner (transformOrigin set on the card);
+        // siblings slide down to fill. A leaving card fades and scales back into
+        // the corner. displaced restores opacity and scale, so a card interrupted
+        // mid-arrival by a newer one still settles solid and in place, never left
+        // half-faded or overlapping. The 260 ms unmap delay outlasts the exit.
         add: Transition {
-            NumberAnimation { properties: "opacity"; from: 0; to: 1; duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve }
-            NumberAnimation { properties: "y"; duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve }
+            NumberAnimation { properties: "opacity"; from: 0; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { properties: "scale"; from: 0.9; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
         displaced: Transition {
-            NumberAnimation { properties: "y"; duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve }
+            NumberAnimation { properties: "y"; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { properties: "opacity,scale"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
         remove: Transition {
-            NumberAnimation { properties: "opacity"; to: 0; duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve }
+            NumberAnimation { properties: "opacity"; to: 0; duration: Motion.notifOut; easing.type: Motion.notifOutCurve }
+            NumberAnimation { properties: "scale"; to: 0.9; duration: Motion.notifOut; easing.type: Motion.notifOutCurve }
         }
         removeDisplaced: Transition {
-            NumberAnimation { properties: "y"; duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve }
+            NumberAnimation { properties: "y"; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { properties: "opacity,scale"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
 
         delegate: NotificationCard {
             required property var entry
             width: ListView.view ? ListView.view.width : implicitWidth
             notif: entry
+            // Popups are compact and expand on demand; the grow/collapse scales
+            // about the anchored corner (top-right, top-left or top-centre).
+            compact: true
+            transformOrigin: win.position === "Left" ? Item.TopLeft
+                : win.position === "Center" ? Item.Top : Item.TopRight
             // The popup drains its countdown frame over its own display lifespan;
             // a persistent popup (ttl -1) passes 0 and draws no frame.
             lifespanMs: { const t = Notifs.popupTtl(entry); return t < 0 ? 0 : t; }
