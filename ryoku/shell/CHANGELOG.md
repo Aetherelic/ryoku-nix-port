@@ -27,6 +27,14 @@
   `quickshell/overview/DesktopStrip.qml`).
 
 ### Changed
+- **The notification toasts slide in from their edge.** A toast used to open by
+  the surface growing from nothing underneath it, which wiped the card into view
+  top-down instead of animating it, and the compositor animated the layer on top
+  of that so the column flickered on a workspace switch. Each card now slides in
+  from the edge it is anchored to and fades with it, the surface only eases its
+  height once cards are already up, and the layer is marked no_anim like the
+  launcher (`quickshell/pill/NotificationPopups.qml`,
+  `hyprland/modules/decoration.lua`).
 - **The notification toasts grow from the corner, expand, and open.** The popups
   faded straight in, flat-spaced and flush to the corner; they now float 16 px off
   it, sit 14 px apart, and each card grows out of the anchored top corner on

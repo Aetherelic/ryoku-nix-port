@@ -73,6 +73,15 @@ hl.layer_rule({
   match   = { namespace = "^launcher" },
   no_anim = true,
 })
+-- The toasts animate themselves (slide + fade per card), so the compositor's
+-- own layer animation runs on top of that and fights it: the column jumps on
+-- open and flickers away on a workspace switch, when the layer re-animates for
+-- a surface that never left.
+hl.layer_rule({
+  name    = "notifications-noanim",
+  match   = { namespace = "^ryoku-notifications$" },
+  no_anim = true,
+})
 -- ignore_alpha keeps the frost inside the card: the launcher's surface reserves
 -- margin for its shadow and a gap between the search row and the list, and
 -- without this the compositor blurs that whole transparent rectangle, which

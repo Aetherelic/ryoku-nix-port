@@ -40,6 +40,11 @@ PanelWindow {
     // popup margin, so the toast column floats instead of sitting flush.
     readonly property real inset: 16
 
+    // How far off its own edge a card starts and leaves. Centred popups have no
+    // edge to come from, so they only fade.
+    readonly property real slideFrom: position === "Left" ? -implicitWidth
+        : position === "Center" ? 0 : implicitWidth
+
     readonly property var popups: Notifs.popups
     property bool mapped: false
 
@@ -63,9 +68,14 @@ PanelWindow {
 
     implicitWidth: 400
     implicitHeight: Math.max(1, list.contentHeight)
-    // Resize with the card add/remove slide instead of snapping, so a leaving
-    // card is not clipped by the surface shrinking under it (the dismiss flash).
-    Behavior on implicitHeight { NumberAnimation { duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve } }
+    // Only follow the height once cards are already up: growing from nothing
+    // wiped the first toast open top-down, which read as the card unrolling
+    // rather than arriving. With cards present the ease still keeps a leaving
+    // one from being clipped by the surface shrinking under it.
+    Behavior on implicitHeight {
+        enabled: cards.count > 1
+        NumberAnimation { duration: Motion.rowReveal; easing.type: Motion.rowRevealCurve }
+    }
 
     // Newest-first card view, reconciled from Notifs.popups by id.
     ListModel { id: cards }
@@ -100,14 +110,21 @@ PanelWindow {
 
     // Map immediately on the first popup; unmap 260 ms after the list empties,
     // re-checking emptiness so a popup arriving during the wait cancels it.
+    // Map before the first card lands. A ListView does not animate its initial
+    // population, so syncing in the same frame the surface maps skipped the
+    // arrival entirely and left the window resize as the only motion.
     onPopupsChanged: {
-        sync();
         if (popups.length > 0) {
             unmapTimer.stop();
-            mapped = true;
+            if (!mapped) {
+                mapped = true;
+                Qt.callLater(win.sync);
+                return;
+            }
         } else {
             unmapTimer.restart();
         }
+        sync();
     }
     Component.onCompleted: {
         sync();
@@ -138,19 +155,21 @@ PanelWindow {
         // half-faded or overlapping. The 260 ms unmap delay outlasts the exit.
         add: Transition {
             NumberAnimation { properties: "opacity"; from: 0; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
-            NumberAnimation { properties: "scale"; from: 0.9; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { property: "x"; from: win.slideFrom; to: 0; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
         displaced: Transition {
             NumberAnimation { properties: "y"; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
-            NumberAnimation { properties: "opacity,scale"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { properties: "opacity"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { property: "x"; to: 0; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
         remove: Transition {
             NumberAnimation { properties: "opacity"; to: 0; duration: Motion.notifOut; easing.type: Motion.notifOutCurve }
-            NumberAnimation { properties: "scale"; to: 0.9; duration: Motion.notifOut; easing.type: Motion.notifOutCurve }
+            NumberAnimation { property: "x"; to: win.slideFrom; duration: Motion.notifOut; easing.type: Motion.notifOutCurve }
         }
         removeDisplaced: Transition {
             NumberAnimation { properties: "y"; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
-            NumberAnimation { properties: "opacity,scale"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { properties: "opacity"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { property: "x"; to: 0; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
 
         delegate: NotificationCard {
