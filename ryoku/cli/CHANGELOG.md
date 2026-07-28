@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed
+- **`ryoku doctor` follows the trimmed frame-bar catalogue.** Its `frameBars`
+  normalizer mirrors the shell's catalogue, which dropped App Launcher,
+  Clipboard, Layout Switcher, Color Picker, Power Profile, Reboot, Screenshot and
+  Wallpaper as bar widgets: doctor now strips any of the eight from a saved rail
+  and drops `reboot` from the legacy-migration default, while `music` -- a bar
+  widget the allowlist had never carried -- is preserved instead of being
+  silently stripped (`internal/doctor/doctor.go`).
+
 ### Fixed
 - **`ryoku doctor` heals a shell daemon left on a dead Hyprland instance.** A
   daemon that outlived its compositor (a relogin or crash brings up a new

@@ -1137,7 +1137,7 @@ func defaultFrameBarsFromLegacy(_ map[string]any) map[string]any {
 		"style":   "slate-frame",
 		"rails": map[string]any{
 			"top":    frameRail(true, 32, map[string][]any{"start": {}, "center": {}, "end": {}}),
-			"left":   frameRail(true, 48, map[string][]any{"top": {"quick-settings", "workspaces"}, "center": {"dock"}, "bottom": {"recording", "tray", "screenshot", "wallpaper", "clipboard", "notifications", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"}}),
+			"left":   frameRail(true, 48, map[string][]any{"top": {"quick-settings", "workspaces"}, "center": {"dock"}, "bottom": {"recording", "tray", "notifications", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery"}}),
 			"bottom": frameRail(false, 32, map[string][]any{"start": {}, "center": {}, "end": {}}),
 			"right":  frameRail(false, 48, map[string][]any{"top": {}, "center": {}, "bottom": {}}),
 		},
@@ -1152,19 +1152,19 @@ func defaultFrameBarsFromLegacy(_ map[string]any) map[string]any {
 	}
 }
 
+// frameBarAxes mirrors ryoku/shell/framebars/BarCatalog.js: the bar widgets the
+// frame renders, with the rail axes each one fits. An id absent here is stripped
+// from any rail on normalize, so this list stays in step with the QML catalogue.
 var frameBarAxes = map[string][]string{
 	"audio-input": {"horizontal", "vertical"}, "audio-output": {"horizontal", "vertical"},
 	"battery": {"horizontal", "vertical"}, "bluetooth": {"horizontal", "vertical"},
-	"clipboard": {"horizontal", "vertical"}, "clock": {"horizontal", "vertical"},
-	"dock": {"vertical"}, "layout-switcher": {"horizontal", "vertical"},
-	"workspaces": {"horizontal", "vertical"}, "color-picker": {"horizontal", "vertical"},
-	"lock": {"horizontal", "vertical"}, "logout": {"horizontal", "vertical"},
+	"clock": {"horizontal", "vertical"}, "dock": {"vertical"},
+	"workspaces": {"horizontal", "vertical"}, "lock": {"horizontal", "vertical"},
+	"logout": {"horizontal", "vertical"}, "music": {"horizontal", "vertical"},
 	"network": {"horizontal", "vertical"}, "notifications": {"horizontal", "vertical"},
-	"power-profile": {"horizontal", "vertical"}, "quick-settings": {"horizontal", "vertical"},
-	"reboot": {"horizontal", "vertical"}, "recording": {"horizontal", "vertical"},
-	"screenshot": {"horizontal", "vertical"}, "shutdown": {"horizontal", "vertical"},
-	"tray": {"horizontal", "vertical"}, "vpn": {"horizontal", "vertical"},
-	"wallpaper": {"horizontal", "vertical"},
+	"quick-settings": {"horizontal", "vertical"}, "recording": {"horizontal", "vertical"},
+	"shutdown": {"horizontal", "vertical"}, "tray": {"horizontal", "vertical"},
+	"vpn": {"horizontal", "vertical"},
 }
 
 var frameMenuWidgets = map[string]bool{
