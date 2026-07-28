@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 	"os/user"
-	"strconv"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/godbus/dbus/v5"
@@ -14,13 +14,13 @@ import (
 // as bytes, and must leave plain messages (the common case) untouched.
 func TestUnescapeGStr(t *testing.T) {
 	cases := map[string]string{
-		"Password: ":         "Password: ",
-		`line1\nline2`:       "line1\nline2",
-		`tab\there`:          "tab\there",
-		`back\\slash`:        `back\slash`,
-		`quote\"q`:           `quote"q`,
-		`octal\101`:          "octalA", // \101 == 'A'
-		`plain no escapes`:   "plain no escapes",
+		"Password: ":       "Password: ",
+		`line1\nline2`:     "line1\nline2",
+		`tab\there`:        "tab\there",
+		`back\\slash`:      `back\slash`,
+		`quote\"q`:         `quote"q`,
+		`octal\101`:        "octalA", // \101 == 'A'
+		`plain no escapes`: "plain no escapes",
 	}
 	for in, want := range cases {
 		if got := unescapeGStr(in); got != want {
@@ -42,7 +42,15 @@ func useFakeHelper(t *testing.T, path string) {
 	t.Helper()
 	old := polkitHelperPath
 	polkitHelperPath = path
-	t.Cleanup(func() { polkitHelperPath = old })
+	// Point the socket at nothing: a box running polkit 126+ has a live
+	// agent-helper socket, and openPolkitHelper prefers it, so without this the
+	// fake helper is never reached and the test talks to the real one.
+	oldSock := polkitHelperSocket
+	polkitHelperSocket = filepath.Join(t.TempDir(), "absent.socket")
+	t.Cleanup(func() {
+		polkitHelperPath = old
+		polkitHelperSocket = oldSock
+	})
 }
 
 // A non-setuid helper takes --socket-activated and reads username then cookie on

@@ -296,7 +296,22 @@ ShellRoot {
     FrameSurfaceLifecycle {
         id: surfaceLifecycle
         keyring: Keyring
+        polkit: Polkit
         onFocusRestored: root.restoreFocus()
+    }
+
+    // The polkit agent streams its prompt on a topic rather than pushing a
+    // surface, so raise and drop the island from the state itself. A retry
+    // re-publishes with the island already up, which is a no-op here: the
+    // surface stays put and PolkitSurface clears its field on `refreshed`.
+    Connections {
+        target: Polkit
+        function onActiveChanged() {
+            if (Polkit.active)
+                root.requestSurface("polkit", "");
+            else
+                root.surfaceCloseRequested("polkit", "");
+        }
     }
 
 

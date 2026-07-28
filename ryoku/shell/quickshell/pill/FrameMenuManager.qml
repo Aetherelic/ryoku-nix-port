@@ -56,6 +56,9 @@ Item {
             { id: "power", kind: "power", anchor: "top", minWidth: 480 },
             { id: "voice", kind: "voice", anchor: "bottom", minWidth: 380 },
             { id: "keyring", kind: "keyring", anchor: "top", minWidth: 420 },
+            // polkit asks for an administrator password: same island as the
+            // keyring prompt, and modal for the same reason.
+            { id: "polkit", kind: "polkit", anchor: "top", minWidth: 420 },
             // the rail spectrum's music card: a pointer-only popout, so it
             // joins the surfaces without taking the keyboard.
             { id: "music", kind: "music", anchor: "left", minWidth: 264 },

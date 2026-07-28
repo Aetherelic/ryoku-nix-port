@@ -83,6 +83,7 @@ Popout {
         sourceComponent: root.kind === "power" ? powerBody
             : root.kind === "voice" ? voiceBody
             : root.kind === "keyring" ? keyringBody
+            : root.kind === "polkit" ? polkitBody
             : root.kind === "music" ? musicBody
             : root.kind === "bluetooth" ? bluetoothBody
             : root.kind === "battery" ? batteryBody
@@ -108,6 +109,14 @@ Popout {
             s: root.s
             off: root.off
             capture: root.menuOpen && !root.off
+            open: root.effectiveOpen
+            onCloseRequested: root.requestClose()
+        }
+    }
+    Component {
+        id: polkitBody
+        PolkitPopout {
+            s: root.s
             open: root.effectiveOpen
             onCloseRequested: root.requestClose()
         }

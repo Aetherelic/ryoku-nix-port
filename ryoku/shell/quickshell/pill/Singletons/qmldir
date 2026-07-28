@@ -15,6 +15,7 @@ singleton Sysinfo Sysinfo.qml
 singleton Weather Weather.qml
 singleton Stash Stash.qml
 singleton Keyring Keyring.qml
+singleton Polkit Polkit.qml
 singleton Events Events.qml
 singleton Network Network.qml
 singleton PowerProfiles PowerProfiles.qml

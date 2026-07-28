@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -58,6 +59,57 @@ const (
 // polkitHelperPath is the setuid helper; a package var so tests can substitute a
 // fake. The real path is fixed by the polkit install.
 var polkitHelperPath = "/usr/lib/polkit-1/polkit-agent-helper-1"
+
+// polkitHelperSocket is where systemd listens for polkit 126 and newer, which
+// dropped setuid from the helper. Connecting spawns a privileged instance with
+// that connection as its stdio (polkit-agent-helper.socket, Accept=yes). Running
+// the binary ourselves with --socket-activated instead only produces an
+// unprivileged helper that fails PAM before it can ask anything, so the socket
+// has to be dialled when it is there. A package var so tests can point it away.
+var polkitHelperSocket = "/run/polkit/agent-helper.socket"
+
+// polkitHelperIO is one helper conversation, whichever way it was opened: the
+// same line protocol either way, so converse does not care which it got.
+type polkitHelperIO struct {
+	w    io.WriteCloser
+	r    io.Reader
+	stop func()
+}
+
+// openPolkitHelper dials the socket when systemd is listening, else runs the
+// setuid binary over pipes. Returns the transport and the first line to send.
+func openPolkitHelper(username, cookie string) (*polkitHelperIO, string, error) {
+	if _, err := os.Stat(polkitHelperSocket); err == nil {
+		conn, err := net.Dial("unix", polkitHelperSocket)
+		if err == nil {
+			return &polkitHelperIO{w: conn, r: conn, stop: func() { _ = conn.Close() }},
+				username + "\n" + cookie + "\n", nil
+		}
+		// Fall through: a listening socket we cannot reach is no better than none.
+	}
+	// No socket: run the binary. Setuid it can authenticate on its own; without
+	// either it still gets the pre-126 argv, which is all an old install offers.
+	argv, initial := polkitHelperCommand(username, cookie)
+	cmd := exec.Command(argv[0], argv[1:]...)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, "", err
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, "", err
+	}
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return nil, "", err
+	}
+	return &polkitHelperIO{w: stdin, r: stdout, stop: func() {
+		_ = stdin.Close()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}}, initial, nil
+}
 
 // polkitIdentity is one entry of the a(sa{sv}) identities array polkitd sends.
 type polkitIdentity struct {
@@ -214,47 +266,32 @@ func (a *polkitAgent) CancelAuthentication(cookie string) *dbus.Error {
 
 // converse runs one helper attempt. Returns (gained, cancelled, err).
 func (a *polkitAgent) converse(username, cookie string, p *polkitPrompt) (bool, bool, error) {
-	argv, initial := polkitHelperCommand(username, cookie)
-	cmd := exec.Command(argv[0], argv[1:]...)
-	stdin, err := cmd.StdinPipe()
+	h, initial, err := openPolkitHelper(username, cookie)
 	if err != nil {
 		return false, false, err
 	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return false, false, err
-	}
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	if err := cmd.Start(); err != nil {
-		return false, false, err
-	}
+	stdin := h.w
 	if _, err := io.WriteString(stdin, initial); err != nil {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		h.stop()
 		return false, false, err
 	}
 
 	gained := false
-	sc := bufio.NewScanner(stdout)
+	sc := bufio.NewScanner(h.r)
 	for sc.Scan() {
 		line := sc.Text()
 		switch {
 		case strings.HasPrefix(line, "PAM_PROMPT_ECHO_OFF "):
 			resp, ok := a.awaitResponse(p, unescapeGStr(strings.TrimPrefix(line, "PAM_PROMPT_ECHO_OFF ")), false)
 			if !ok {
-				_ = stdin.Close()
-				_ = cmd.Process.Kill()
-				_ = cmd.Wait()
+				h.stop()
 				return false, true, nil
 			}
 			_, _ = io.WriteString(stdin, resp+"\n")
 		case strings.HasPrefix(line, "PAM_PROMPT_ECHO_ON "):
 			resp, ok := a.awaitResponse(p, unescapeGStr(strings.TrimPrefix(line, "PAM_PROMPT_ECHO_ON ")), true)
 			if !ok {
-				_ = stdin.Close()
-				_ = cmd.Process.Kill()
-				_ = cmd.Wait()
+				h.stop()
 				return false, true, nil
 			}
 			_, _ = io.WriteString(stdin, resp+"\n")
@@ -273,8 +310,7 @@ func (a *polkitAgent) converse(username, cookie string, p *polkitPrompt) (bool, 
 			a.setInfo(unescapeGStr(line))
 		}
 	}
-	_ = stdin.Close()
-	_ = cmd.Wait()
+	h.stop()
 	if serr := sc.Err(); serr != nil {
 		return gained, false, serr
 	}
