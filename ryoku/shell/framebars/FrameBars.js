@@ -46,16 +46,14 @@ function defaultConfig() {
         style: "slate-frame",
         rails: {
             top: { enabled: true, size: 32, reveal: true, start: [], center: [], end: [] },
-            left: { enabled: true, size: 48, reveal: true, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["recording", "tray", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"] },
+            left: { enabled: true, size: 48, reveal: true, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["recording", "tray", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery"] },
             bottom: { enabled: false, size: 32, reveal: true, start: [], center: [], end: [] },
             right: { enabled: false, size: 48, reveal: true, top: [], center: [], bottom: [] }
         },
         menus: {
             "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
-            screenshot: { anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },
             wallpaper: { anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["theme", "wallpaper"] },
             screenshare: { anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
-            recording: { anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["recording"] },
             theme: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
             weather: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
         },

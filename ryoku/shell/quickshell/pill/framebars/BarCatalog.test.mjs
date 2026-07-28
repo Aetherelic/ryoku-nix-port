@@ -11,10 +11,9 @@ function eq(actual, expected, msg) {
 }
 function ok(condition, msg) { eq(!!condition, true, msg); }
 
-const requiredBars = ["app-launcher", "audio-input", "audio-output", "battery", "bluetooth", "clipboard", "clock",
-    "dock", "layout-switcher", "workspaces", "color-picker", "lock", "logout", "music", "network",
-    "notifications", "power-profile", "quick-settings", "reboot", "recording", "screenshot",
-    "shutdown", "tray", "vpn", "wallpaper"];
+const requiredBars = ["audio-input", "audio-output", "battery", "bluetooth", "clock",
+    "dock", "workspaces", "lock", "logout", "music", "network",
+    "notifications", "quick-settings", "recording", "shutdown", "tray", "vpn"];
 eq(BarCatalog.ids().sort(), requiredBars.sort(), "all approved bar widgets are catalogued");
 ok(BarCatalog.entry("clock").axes.includes("horizontal"), "clock fits top rail");
 ok(BarCatalog.entry("dock").axes.includes("vertical"), "dock fits left rail");

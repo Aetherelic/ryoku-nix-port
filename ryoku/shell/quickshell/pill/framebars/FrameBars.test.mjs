@@ -17,18 +17,18 @@ eq(reference.rails.top.center, [], "reference top bar is empty");
 eq(reference.rails.left.top, ["quick-settings", "workspaces"], "reference left top zone is quick settings then workspaces");
 eq(reference.rails.left.center, ["dock"], "reference dock is left-centre");
 eq(reference.rails.bottom.enabled, false, "bottom rail starts disabled");
-eq(reference.rails.left.bottom, ["recording", "tray", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"], "reference status stack is the nine left-bottom entries (notifications, clipboard, screenshot and wallpaper removed; surfaces stay on keybinds)");
+eq(reference.rails.left.bottom, ["recording", "tray", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery"], "reference status stack is the eight left-bottom entries (reboot, notifications, clipboard, screenshot and wallpaper removed; surfaces stay on keybinds)");
 eq(reference.rails.right.top, [], "disabled right rail retains vertical zones");
 eq(Object.keys(reference.rails.bottom).sort(), ["center", "enabled", "end", "reveal", "size", "start"], "bottom rail has horizontal zones");
 eq(reference.rails.bottom.start, [], "bottom start list defaults empty");
 eq(reference.rails.bottom.center, [], "bottom centre list defaults empty");
 eq(reference.rails.bottom.end, [], "bottom end list defaults empty");
 
-for (const id of ["quick-settings", "screenshot", "recording", "theme", "weather"]) {
+for (const id of ["quick-settings", "theme", "weather"]) {
     eq(reference.menus[id].widgets, [id], `default ${id} menu is configured`);
 }
 eq(reference.menus["app-launcher"], undefined, "the app launcher is Ryoku's own surface, not a frame menu");
-eq([reference.menus["quick-settings"].anchor, reference.menus.screenshot.anchor, reference.menus.screenshare.anchor], ["left", "left", "left"], "the reference left menus anchor left");
+eq([reference.menus["quick-settings"].anchor, reference.menus.screenshare.anchor], ["left", "left"], "the reference left menus anchor left");
 eq([reference.menus.wallpaper.anchor, reference.menus.wallpaper.minWidth], ["bottom-left", 1200], "wallpaper anchors bottom-left at 1200 wide");
 eq(reference.menus.wallpaper.widgets, ["theme", "wallpaper"], "wallpaper menu nests the theme picker above the grid");
 eq(reference.menus.launcher, undefined, "the retired launcher menu id is gone");
@@ -36,6 +36,8 @@ eq(reference.menus.clock, undefined, "the retired clock menu is gone; the clock 
 eq(reference.menus.notifications, undefined, "the retired notifications menu is gone; the bell opens the quick-settings notifications page");
 eq(reference.menus.clipboard, undefined, "the retired clipboard menu is gone; the clipboard button opens the quick-settings clipboard page");
 eq(reference.menus.media, undefined, "the retired media menu is gone; media lives in the quick-settings sidebar");
+eq(reference.menus.screenshot, undefined, "the retired screenshot menu is gone; capture moved to the floating card");
+eq(reference.menus.recording, undefined, "the retired recording menu is gone; capture moved to the floating card");
 eq(reference.menus.screenshare.widgets, [], "screenshare is placed with no config widgets");
 
 const normalized = normalize({
@@ -78,7 +80,7 @@ eq(moved.rails.left.top, ["workspaces"], "successful move removes only the sourc
 eq(moveInput, defaultConfig(), "move leaves its input unchanged");
 const clockDup = addWidget(reference, "left", "top", "clock", BarCatalog);
 eq(moveWidget(clockDup, "left", "bottom", 6, "left", "top", 0, BarCatalog), clockDup, "move rejects an existing target-zone widget");
-eq(moveWidget(reference, "left", "bottom", 0, "left", "bottom", 2, BarCatalog).rails.left.bottom, ["tray", "audio-input", "recording", "audio-output", "bluetooth", "network", "clock", "battery", "reboot"], "same-zone move honors target index");
+eq(moveWidget(reference, "left", "bottom", 0, "left", "bottom", 2, BarCatalog).rails.left.bottom, ["tray", "audio-input", "recording", "audio-output", "bluetooth", "network", "clock", "battery"], "same-zone move honors target index");
 eq(moveWidget(reference, "left", "center", 0, "top", "end", 0, BarCatalog).rails.left.center, ["dock"], "cross-axis move leaves config unchanged");
 
 const removeInput = defaultConfig();

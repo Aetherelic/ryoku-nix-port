@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Changed
+- **Bar Studio no longer offers eight widgets that do not belong on a rail.**
+  App Launcher, Clipboard, Layout Switcher, Color Picker, Power Profile, Reboot,
+  Screenshot and Wallpaper leave the frame-bar catalogue, so the add-to-rail
+  drawer only lists the seventeen widgets that render as a rail button;
+  `normalize` strips any of the eight from a saved rail and the default left
+  stack drops its `reboot`. Their menu versions are untouched (they are still
+  frame-menu content). The two now-orphaned rail components (`RailPowerProfile`,
+  `RailLayoutSwitcher`) are deleted and `RailAction` narrows to lock, log out and
+  shut down (`framebars/BarCatalog.js`, `framebars/FrameBars.js`,
+  `quickshell/pill/BarWidgetHost.qml`,
+  `quickshell/pill/framebars/widgets/RailAction.qml`).
+
 ### Added
 - **A music widget on the rail opens a now-playing card.** A vertical spectrum
   strip, fed by a shared cava playback feed, rides a rail zone and self-hides

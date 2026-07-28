@@ -18,9 +18,9 @@ Singleton {
     property var profiles: []
     readonly property bool available: root.profiles.length > 0
 
-    // active ownership is retained for the rail/menu lifecycle (RailPowerProfile
-    // and MenuPowerProfile claim it on reveal); the topic streams regardless, so
-    // this now only tracks owners for that contract.
+    // active ownership is retained for the menu lifecycle (MenuPowerProfile
+    // claims it on reveal); the topic streams regardless, so this now only
+    // tracks owners for that contract.
     property bool active: false
     property var activeOwners: []
     function setActive(owner, enabled) {

@@ -35,9 +35,7 @@ Item {
         case "tray": return trayComponent;
         case "quick-settings": return quickSettingsComponent;
         case "dock": return dockComponent;
-        case "layout-switcher": return layoutSwitcherComponent;
         case "music": return musicComponent;
-        case "power-profile": return powerProfileComponent;
         case "vpn": return vpnComponent;
         case "recording": return recordingComponent;
         case "audio-input":
@@ -46,15 +44,9 @@ Item {
         case "bluetooth":
         case "network":
         case "notifications": return statusComponent;
-        case "app-launcher":
-        case "clipboard":
-        case "color-picker":
         case "lock":
         case "logout":
-        case "reboot":
-        case "screenshot":
-        case "shutdown":
-        case "wallpaper": return actionComponent;
+        case "shutdown": return actionComponent;
         default:
             if (BarCatalog.entry(id)) console.error("frame bars: no host component for " + id);
             return null;
@@ -124,15 +116,6 @@ Item {
         anchors.centerIn: parent
         sourceComponent: root.componentFor(root.widgetId)
     }
-    Timer {
-        interval: 2000; running: true; repeat: false
-        onTriggered: {
-            if (root.edge === "left" && root.visible) {
-                var g = root.mapToGlobal(0, 0);
-                console.log("HOST " + root.widgetId + " gy=" + Math.round(g.y) + " h=" + Math.round(root.height) + " ih=" + Math.round(root.implicitHeight));
-            }
-        }
-    }
     Connections {
         target: widgetLoader.item
         ignoreUnknownSignals: true
@@ -161,9 +144,7 @@ Item {
         }
     }
     Component { id: statusComponent; RailStatus { edge: root.edge; scale: root.scale; statusId: root.widgetId } }
-    Component { id: layoutSwitcherComponent; RailLayoutSwitcher { edge: root.edge; scale: root.scale; active: true } }
     Component { id: musicComponent; RailMusic { edge: root.edge; scale: root.scale } }
-    Component { id: powerProfileComponent; RailPowerProfile { edge: root.edge; scale: root.scale; active: true } }
     Component { id: vpnComponent; RailVpn { edge: root.edge; scale: root.scale; active: true } }
     Component { id: recordingComponent; RailRecording { edge: root.edge; scale: root.scale } }
     Component { id: actionComponent; RailAction { edge: root.edge; scale: root.scale; actionId: root.widgetId } }
