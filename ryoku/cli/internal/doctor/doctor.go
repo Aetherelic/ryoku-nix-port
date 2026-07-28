@@ -119,6 +119,7 @@ func reconcilers() []reconciler {
 		{"shell config schema", reconcileShellConfig},
 		{"shell style knobs", reconcileLegacyStyleKnobs},
 		{"shell screenshot menu", reconcileCaptureMenu},
+		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
 		{"user edits overlay", reconcileUserEditsAdopt},
 		{"keyring unlock policy", reconcileKeyring},
 		{"SDDM greeter theme", reconcileGreeterTheme},

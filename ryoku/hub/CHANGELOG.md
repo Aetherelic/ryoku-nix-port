@@ -93,6 +93,24 @@
   `backend/schemes.go`).
 
 ### Fixed
+- **Backdrop frost now says what it affects.** The launcher editor calls the
+  control **Backdrop frost** and explains that it blurs the captured desktop
+  seen through the result drawer; zero keeps the drawer solid
+  (`quickshell/pages/LauncherPage.qml`).
+- **The App Launcher preview now shows the launcher, at its true scale.** The
+  old full-width mock only repeated the hero art, so it made the shutter look
+  larger and structurally different from the real palette. The specimen now
+  keeps the live 720 x 250 hero ratio, search line, scope keys and compact
+  centered physical size. The page also exposes **Type settle** (120-700 ms),
+  which controls when a completed typed-result deck is released
+  (`quickshell/pages/LauncherPage.qml`, `schema/LauncherPage.js`).
+- **The App Launcher editor and live launcher now share the same hero crop.**
+  The page calls the image a hero instead of a home-card backdrop, keeps the
+  image picker and direct drag-to-frame interaction, and renders through the
+  same `Ryoku.Ui.HeroCrop` cover/focal-point math as the live shutter. Wide,
+  portrait, fallback, and off-centre images therefore land in the launcher
+  exactly where the saved preview put them
+  (`quickshell/pages/LauncherPage.qml`, `Ryoku.Ui/HeroCrop.qml`).
 - **Switching the engine back to Wallust actually reverts now.** Turning the
   Material You toggle off only re-fanned the Matugen colours still sitting in
   `colors.json`, so the desktop stayed on the M3 palette -- the switch looked
