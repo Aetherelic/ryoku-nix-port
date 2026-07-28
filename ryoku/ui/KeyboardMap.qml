@@ -33,13 +33,25 @@ Item {
         "dvorak":  ["'\u002c.PYFGCRL", "AOEUIDHTNS", ";QJKXBMWVZ"],
         "colemak": ["QWFPGJLUY;", "ARSTDHNEIO", "ZXCVBKM"]
     })
+    // Which family a layout code belongs to. The variant decides first, because
+    // a French Dvorak is a Dvorak; only then does the country code speak.
+    // ch is split: its default is QWERTZ but ch(fr) is AZERTY, and the same
+    // holds for be and lu variants, so the variant is checked for a French
+    // marker before the code is trusted.
+    readonly property var azertyCodes: ["fr", "be", "lu", "ma", "cm", "cd", "cf", "ci", "sn", "tg", "bj", "ml", "ne", "bf"]
+    readonly property var qwertzCodes: ["de", "at", "ch", "cz", "sk", "hu", "si", "hr", "rs", "ba", "me", "mk", "al", "li"]
     readonly property string family: {
         var v = kmap.styleName.toLowerCase();
         if (v.indexOf("dvorak") >= 0) return "dvorak";
         if (v.indexOf("colemak") >= 0) return "colemak";
+        if (v.indexOf("azerty") >= 0) return "azerty";
+        if (v.indexOf("qwertz") >= 0) return "qwertz";
         var c = kmap.layoutCode.toLowerCase();
-        if (c === "fr" || c === "be") return "azerty";
-        if (c === "de" || c === "at" || c === "ch") return "qwertz";
+        // a French variant of an otherwise QWERTZ country (ch, be, lu) is AZERTY
+        if (v.indexOf("french") >= 0 || v.indexOf("fr") === 0)
+            return "azerty";
+        if (kmap.azertyCodes.indexOf(c) >= 0) return "azerty";
+        if (kmap.qwertzCodes.indexOf(c) >= 0) return "qwertz";
         return "qwerty";
     }
     readonly property var rows: kmap.legends[kmap.family] || kmap.legends["qwerty"]
