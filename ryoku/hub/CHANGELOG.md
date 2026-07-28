@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- **Bar Studio lists the Music widget.** The rail's music spectrum widget joins
+  the catalogue picker as "Music" (`quickshell/barstudio/CatalogLabels.qml`).
+
 ### Fixed
 - **Appearance's colour controls apply when you set them, and the live scheme
   regenerates again.** Three faults stacked. The mode and contrast knobs staged

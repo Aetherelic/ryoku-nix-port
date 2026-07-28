@@ -19,6 +19,7 @@ QtObject {
         case "lock": return qsTr("Lock")
         case "logout": return qsTr("Log Out")
         case "media": return qsTr("Media")
+        case "music": return qsTr("Music")
         case "network": return qsTr("Network")
         case "notifications": return qsTr("Notifications")
         case "power-profile": return qsTr("Power Profile")
