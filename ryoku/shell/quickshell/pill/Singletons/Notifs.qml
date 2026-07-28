@@ -66,10 +66,20 @@ Singleton {
         return Math.min(root.popupDuration, et);
     }
 
-    // Add a popup: dedup-then-insert-front (a re-posted id moves to the top, not
-    // duplicated), then arm its timer unless it is persistent.
+    // Two popups are the same alert when their app, summary and body match; a
+    // resend (new id, same content) or two apps firing the same one would else
+    // stack identical cards.
+    function sameContent(a, b) {
+        return (a.appName || "") === (b.appName || "")
+            && (a.summary || "") === (b.summary || "")
+            && (a.body || "") === (b.body || "");
+    }
+
+    // Add a popup: dedup-then-insert-front. A re-posted id, or a distinct id with
+    // the same content, replaces the live card (moved to the top with a fresh
+    // timer) rather than adding a twin; then arm its timer unless it is persistent.
     function addPopup(n) {
-        var list = root.popups.filter(function(p) { return p.id !== n.id; });
+        var list = root.popups.filter(function(p) { return p.id !== n.id && !root.sameContent(p, n); });
         list.unshift(n);
         root.popups = list;
         var ttl = root.popupTtl(n);

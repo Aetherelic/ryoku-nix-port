@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- **A notification fired twice no longer stacks two identical popups.** With one
+  server and id-based dedup, a duplicate could only come from an app posting the
+  same alert twice (or two apps posting the same one), each a distinct id; a new
+  popup whose app, summary and body match a live one now replaces it with a fresh
+  timer instead of adding a twin (`quickshell/pill/Singletons/Notifs.qml`).
 - **A notification popup shows its time left as a draining frame, and no longer
   flashes as it leaves.** Each popup traces a warm accent border that starts
   around the whole card and recedes from the top as its display timer runs down
@@ -76,6 +81,21 @@
   (`quickshell/*/Singletons/`, `hub/quickshell/Singletons/`).
 
 ### Added
+- **The bar has a music spectrum, and it opens a music card.** A new `music`
+  rail widget draws a mini vertical spectrum fed by a shared cava playback feed
+  (`AudioBars`, owner-refcounted so the analyser runs only while a music surface
+  is showing); it appears once a player reports a track, dances while playing
+  and falls to dim slivers on pause. Clicking it grows the `music` card out of
+  the frame edge: the sleeve art with a soft black plate-shadow and hairline
+  rim, title and artist, a wide spectrum strip, a progress hairline with mono
+  timestamps, and a previous / play-pause / next transport. The card is
+  pointer-only like the voice toast (no keyboard grab) and dismisses on an
+  outside click (`quickshell/pill/Singletons/AudioBars.qml`,
+  `quickshell/pill/MusicBars.qml`,
+  `quickshell/pill/framebars/widgets/RailMusic.qml`,
+  `quickshell/pill/popouts/MusicPopout.qml`,
+  `quickshell/pill/FrameSurface.qml`,
+  `quickshell/pill/FrameMenuManager.qml`, `framebars/BarCatalog.js`).
 - **fish, fzf and yazi follow the palette.** Three surfaces that stayed stock
   while everything around them retinted: the shell you type in, the finder behind
   Ctrl-R and Ctrl-T, and the file manager. fish needs no include line -- the
