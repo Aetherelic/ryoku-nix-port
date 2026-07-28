@@ -11,12 +11,12 @@ import "../Singletons"
 // at top-centre. shell.qml unions `triggerX/Y/W/H` and `bodyX/Y/W/H` into the
 // overlay input mask.
 //
-// opening = a curtain: body grows inward from the border (a clip widens), so
-// the fixed-size content reveals edge-first without ever resizing. close eases
-// cleanly into the border with no overshoot, so the body never re-grows under
-// a pointer that just left and pins it open. blob body + neck into the border
-// + reveal all live here; each popup file only supplies its content. `align`
-// slides the body along the edge (start/center/end).
+// opening = the card scales out of its trigger point on the frame edge: both
+// dimensions grow from the edge, centred on `alongCenter` (where the widget was
+// clicked), so the card swells out of the widget and melts straight back into
+// it on close. blob body + neck into the border + reveal all live here; each
+// popup file supplies only its content. `align` places the body along the edge
+// (start/center/end) when no `alongCenter` is given.
 //
 //   Popout { group: blobGroup; frameThickness: 16; radius: Theme.radiusWidget
 //            edge: "left"; openW: 220; openH: 200 }
@@ -46,9 +46,12 @@ Item {
     // as the whole side of the frame swelling open, no gap at either end. only
     // meaningful for a left/right edge.
     property bool fullSpan: false
-    // Size changes melt rather than snap.
-    Behavior on openW { NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
-    Behavior on openH { NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
+    // Size melts only while settled open (content resize / detail expand). During
+    // the open/close transition the size snaps so the reveal is purely the prog
+    // curtain -- otherwise a low widget whose card is clamped to fit slides
+    // vertically as the animating openH trips the edge clamp (the battery flicker).
+    Behavior on openW { enabled: root.heldOpen && root.prog > 0.98; NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
+    Behavior on openH { enabled: root.heldOpen && root.prog > 0.98; NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
     property real hoverW: 0                // hover-band span along the edge (0 = match body)
     property real hoverH: 0                // hover-band depth from the edge (0 = frameThickness)
     property real s: 1
@@ -64,10 +67,10 @@ Item {
     // the trigger (hover) or the popout is pinned (a click); held otherwise so
     // the close animation retracts at the icon, not a re-derived centre.
     property real heldAlong: -1
-    onAlongCenterChanged: if (triggerHovered || pinned) heldAlong = alongCenter
-    onTriggerHoveredChanged: if (triggerHovered) heldAlong = alongCenter
+    onAlongCenterChanged: if ((triggerHovered || pinned) && alongCenter >= 0) heldAlong = alongCenter
+    onTriggerHoveredChanged: if (triggerHovered && alongCenter >= 0) heldAlong = alongCenter
     onPinnedChanged: {
-        if (pinned) { heldAlong = alongCenter; return; }
+        if (pinned) { if (alongCenter >= 0) heldAlong = alongCenter; return; }
         // a deliberate unpin (keybind re-toggle, tap, close button, Escape) shuts
         // at once: the closeDelay grace only debounces a hover-leave across the
         // blob rim, so a pin release skips it -- even under the pointer, an
@@ -75,7 +78,13 @@ Item {
         // hover gesture still holds it, so a clickless open is unaffected.
         if (!triggerHovered) { closeGrace.stop(); heldOpen = false; }
     }
-    readonly property real effectiveAlong: (triggerHovered || pinned) ? alongCenter : heldAlong
+    // during a close the manager drops alongCenter to -1 the same frame it clears
+    // menuOpen; a stale live -1 must not fall back to the centre, so hold the last
+    // real centre. a genuinely trigger-less surface keeps heldAlong -1 (-> centre).
+    readonly property real effectiveAlong: {
+        const live = (triggerHovered || pinned) ? alongCenter : heldAlong;
+        return live >= 0 ? live : heldAlong;
+    }
 
     // hold the size for the whole close the same way heldAlong holds the
     // centre: content tears down at prog 0.5 and its implicit size collapses,
@@ -155,20 +164,19 @@ Item {
     readonly property bool hugRight: !noWeld && !vertical && width > 0 && bodyOpenW > 0 && alongX >= width - bodyOpenW - edgeInset - 0.5
 
     // body geometry in window coords; grows inward from the border.
-    readonly property real curW: vertical ? Math.max(0, bodyOpenW * prog)
-                                 : (dipHost && !heldOpen) ? Math.max(0, bodyOpenW * prog) : bodyOpenW
-    readonly property real curH: vertical ? ((dipHost && !heldOpen) ? Math.max(0, bodyOpenH * prog) : bodyOpenH) : Math.max(0, bodyOpenH * prog)
+    readonly property real curW: Math.max(0, bodyOpenW * prog)
+    readonly property real curH: Math.max(0, bodyOpenH * prog)
     // the gap holds the open body off the frame lip but drains with prog, so the
     // close melt retracts fully into the frame edge instead of stranding a gap.
     readonly property real bodyX: atLeft ? frameThickness + edgeGap * prog
                                  : atRight ? (width - frameThickness - curW - edgeGap * prog)
                                  : hugRight ? (width - curW)
                                  : hugLeft ? 0
-                                 : alongX + (dipHost && !heldOpen ? (bodyOpenW - curW) / 2 : 0)
+                                 : alongX + (bodyOpenW - curW) / 2
     readonly property real bodyY: spanning ? 0
                                  : atTop ? frameThickness + edgeGap * prog
                                  : atBottom ? (height - frameThickness - curH - edgeGap * prog)
-                                 : alongY + (dipHost && !heldOpen ? (bodyOpenH - curH) / 2 : 0)
+                                 : alongY + (bodyOpenH - curH) / 2
     readonly property real bodyW: curW
     readonly property real bodyH: spanning ? height : curH
 
@@ -244,10 +252,8 @@ Item {
     // the fillet residual is already zero when the shape drops out.
     readonly property real burial: (1 - Math.max(0, Math.min(1, prog))) * smoothing
 
-    // Horizontal frame surfaces narrow toward their trigger icon
-    // and never grow a welding neck into the border. Retained vertical sidebar
-    // bodies keep their normal full-span geometry while disabled.
-    readonly property bool dipHost: !vertical
+    // These surfaces never grow a welding neck into the border and never fuse
+    // edge-first; they scale from their trigger point (curW/curH above).
     readonly property bool noWeld: true
 
     BlobRect {
