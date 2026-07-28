@@ -68,6 +68,9 @@ animation curves are adapted from Caelestia.
 
 One motion language across every surface, retinted live from your wallpaper.
 
+Click a status widget on the bar and its controls grow out of the rail as a
+popout card, then melt back when you are done.
+
 <table>
   <tr>
     <td width="50%">

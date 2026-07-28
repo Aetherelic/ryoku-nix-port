@@ -216,11 +216,14 @@ Each surface is its own directory under `quickshell/`, each component its own
 - **frame** the rounded screen border and the popouts that melt into it; the
   desktop's signature surface. See `docs/frame.md`.
 - **pill** the historical shell surface directory (`quickshell/pill/`): the
-  four-edge frame-bar system, shared frame scene, and service surfaces.
+  four-edge frame-bar system, the shared frame scene, and the service surfaces.
   Configurable rails carry the clock, quick settings, workspaces, dock, tray,
-  connectivity, and status widgets. The monitor-local menu manager owns
-  bounded frame menus and preserved Stash/System surfaces. See `docs/bar.md`
-  and `docs/frame.md`.
+  and the status widgets. Clicking a status widget (network, Bluetooth, battery,
+  audio, system monitor, recording, music) grows a popout card out of the rail
+  with the live controls for it, all wearing one skin from the card kit under
+  `pill/popouts/`. The monitor-local menu manager owns those cards, the bounded
+  frame menus, and the preserved Stash/System surfaces. See `docs/bar.md` and
+  `docs/frame.md`.
 - **launcher** the Super-triggered app launcher and command palette, with a
   zero-query rest card (the solar-arc clock and weather). See `docs/launcher.md`.
 - **switcher** the full-screen Alt-Tab window switcher.

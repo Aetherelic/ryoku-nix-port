@@ -12,6 +12,22 @@ It lives in `ryoku/shell/quickshell/launcher/`, a Quickshell component supervise
 by the `ryoku-shell` daemon (a peer of `pill`/`ryoshot`), kept warm so it opens
 instantly and toggles with `ryoku-shell launcher`.
 
+## Right now: the OkShell stand-in
+
+The launcher below is the design this document was written for, and every part of
+it is still in `ryoku/shell/quickshell/launcher/`. What `shell.qml` currently
+draws is not it: a stand-in modelled on the OkShell app launcher while the real
+redesign is settled. Search icon, a bare entry, an eye that reveals the entries
+marked `NoDisplay`, and a scrolling list of icon + name; the selected row slides
+its content right by 30px, which is OkShell's whole selection cue. It slides in
+from the top edge on the sidebar's push (420ms `OutQuint`), and its colour is the
+live matugen palette.
+
+It searches **applications only**. The `Dispatcher`, the twelve providers, the
+action panel and the AI ask are on disk and unwired; pointing the list at
+`Dispatcher` instead of its `DesktopEntries` filter is what brings them back.
+`git log` has the previous card if the whole thing is wanted again.
+
 ## Anatomy
 
 - `shell.qml` the layer-shell overlay window (namespace `launcher`), resident and

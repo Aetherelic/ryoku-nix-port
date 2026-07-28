@@ -53,29 +53,33 @@ values are persisted: every Bar Studio edit clones the whole `frameBars` object,
 so a subtree it does not touch is never dropped. They are configured through
 their defaults and the catalogue, not edited on this page.
 
-## Menus and surfaces
+## Menus and popout cards
 
-A rail widget reports its owner rectangle to the monitor-local
-`FrameMenuManager`. That manager owns one active surface per anchor and monitor,
-combines the trigger and body mask regions, and closes a surface on Escape,
-backdrop click, focus loss, or fullscreen.
+A rail widget reports its own rectangle to the monitor-local
+`FrameMenuManager`, which owns one open surface per anchor per monitor. It
+combines the widget and body mask regions so input lands where it should, and it
+closes on Escape, a click outside, focus loss, or fullscreen.
 
-`ryoku-shell bar <id>` opens a bounded catalogue entry on the active monitor.
-The catalogued IDs are `quick-settings`, `clock`, `launcher`, `clipboard`,
-`screenshot`, `recording`, `theme`, `wallpaper`, `weather`, `media`, `stash`,
-and `system`. Unknown IDs are rejected before they reach Quickshell.
+Most status widgets open a popout card. Click the network, Bluetooth, battery,
+audio, system-monitor, recording, or music widget and a card grows out of the
+rail from the point you clicked, then melts back the same way when it closes.
+The cards are not read-outs, they are the controls: audio is a full mixer
+(output, input, per-app volume, and the Bluetooth codec), Bluetooth pairs and
+connects devices and shows their battery, battery carries the gauge, the power
+profiles, and a detail panel, network runs Wi-Fi, and the rest follow suit. They
+share one skin from a card kit (`pill/popouts/PopoutCard.qml` and its siblings),
+so every card opens, reads, and dismisses the same way.
 
-Asking for the surface that already owns an anchor closes it, so a rail button
-and its command both read as one toggle. A different surface at the same anchor
-replaces it safely. Escape and a click outside dismiss whatever is open; the
-keyring prompt and the voice surface are daemon-owned and replace rather than
-toggle.
+`ryoku-shell bar <id>` opens a catalogued surface on the active monitor;
+`MenuCatalog.js` holds the valid IDs, and anything else is rejected before it
+reaches Quickshell. Asking for the surface that already owns an anchor closes it,
+so a rail button and its command read as one toggle, and a different surface at
+the same anchor replaces it safely. The keyring prompt and the voice toast are
+daemon-owned, so they replace rather than toggle.
 
-A surface clears the rail it grows from, and it draws above the rails, so a
-body never hides under rail chrome.
-
-`ryoku-shell power`, `ryoku-shell voice`, and enabled plugin commands retain
-their existing entry points and share this same manager scene.
+A card clears the rail it grows from and draws above the rails, so its body
+never hides under rail chrome. `ryoku-shell power`, `ryoku-shell voice`, and
+enabled plugin commands share this same manager scene.
 
 ## Extending frame bars
 
