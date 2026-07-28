@@ -96,6 +96,10 @@ Item {
     function commit() {
         view.aFront = !view.aFront;
         reveal.progress = 0;
+        // Drop the outgoing image: it was only needed for the reveal, and held
+        // a second full decode of the wallpaper for the rest of the session.
+        const stale = view.aFront ? imgB : imgA;
+        stale.source = "";
     }
 
     function commitInstant() {
