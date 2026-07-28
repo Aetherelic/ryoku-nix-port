@@ -206,13 +206,13 @@ Item {
                                     icon: "lock"; tip: qsTr("Lock"); tipBelow: true
                                     onClicked: { Quickshell.execDetached(["ryoku-shell", "lock"]); root.requestClose(); }
                                 }
-                                QsIconButton {
-                                    icon: "restart_alt"; danger: true; tip: qsTr("Reboot"); tipBelow: true
-                                    onClicked: Quickshell.execDetached(["systemctl", "reboot"])
+                                QsHoldButton {
+                                    icon: "restart_alt"; tip: qsTr("Hold to reboot"); tipBelow: true; tipAlign: "right"
+                                    onActivated: Quickshell.execDetached(["systemctl", "reboot"])
                                 }
-                                QsIconButton {
-                                    icon: "power_settings_new"; danger: true; tip: qsTr("Shut down"); tipBelow: true
-                                    onClicked: Quickshell.execDetached(["systemctl", "poweroff"])
+                                QsHoldButton {
+                                    icon: "power_settings_new"; tip: qsTr("Hold to shut down"); tipBelow: true; tipAlign: "right"
+                                    onActivated: Quickshell.execDetached(["systemctl", "poweroff"])
                                 }
                             }
                         }

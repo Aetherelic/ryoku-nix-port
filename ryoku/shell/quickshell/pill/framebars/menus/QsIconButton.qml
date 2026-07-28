@@ -12,6 +12,8 @@ Rectangle {
     property bool danger: false
     // Top-edge controls open their bubble downward so it never leaves the panel.
     property bool tipBelow: false
+    // Bubble edge to pin to: "center" (default), "left" or "right".
+    property string tipAlign: "center"
 
     signal clicked()
 
@@ -49,6 +51,7 @@ Rectangle {
     QsTip {
         text: root.tip
         below: root.tipBelow
+        align: root.tipAlign
         hovered: tap.containsMouse && !tap.pressed
     }
 }

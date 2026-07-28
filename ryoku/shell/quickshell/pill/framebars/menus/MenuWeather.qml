@@ -216,6 +216,7 @@ Item {
                     icon: "refresh"
                     tip: qsTr("Refresh")
                     tipBelow: true
+                    tipAlign: "right"
                     onClicked: Weather.retry()
                 }
             }

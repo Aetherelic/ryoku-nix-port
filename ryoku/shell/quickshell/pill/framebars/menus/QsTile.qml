@@ -137,6 +137,7 @@ Item {
         }
         QsTip {
             text: root.pageTip
+            align: "right"
             hovered: pageTap.containsMouse && !pageTap.pressed
         }
     }

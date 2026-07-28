@@ -1,19 +1,20 @@
 import QtQuick
 import "../../Singletons"
 
-// Hover bubble: names an icon-only control. Shows above (default), below, or
-// to the RIGHT (side: true) after a short hover dwell. `side: true` is used
-// on the left tab rail so the bubble never clips against the panel left edge.
-// Never takes input.
+// Hover bubble naming an icon-only control. Shows above (default), below
+// (below: true), or to the RIGHT (side: true) after a short dwell. `align`
+// pins the bubble to the button's "left"/"right" edge so an edge button opens
+// its bubble inward instead of overflowing the panel. Never takes input.
 Item {
     id: root
 
     property string text: ""
     property bool hovered: false
     property bool below: false
-    // side: true  => bubble appears to the RIGHT, vertically centred.
-    // Takes precedence over `below`.
+    // side: true opens the bubble to the RIGHT, vertically centred; wins over below.
     property bool side: false
+    // "center" (default), "left" or "right": the button edge the bubble pins to.
+    property string align: "center"
 
     readonly property bool showing: root.hovered && root.text.length > 0 && dwell.done
     anchors.fill: parent
@@ -30,22 +31,18 @@ Item {
     Rectangle {
         id: bubble
 
-        // z:1000 guarantees the bubble paints above every sibling subtree
-        // inside the panel. QsTabRail is hoisted to z:10 in mainBand so its
-        // entire rendering subtree (including this bubble) is above contentPane.
+        // Above every sibling subtree in the panel (QsTabRail is z:10 in mainBand).
         z: 1000
 
-        // Explicit positioning. No anchors on x-axis so side-mode x doesn't
-        // conflict. For non-side mode we compute center manually; the binding
-        // re-evaluates whenever `width` changes so it stays centred.
         readonly property real gap: root.showing ? 8 : 4
 
-        x: root.side
-            ? parent.width + gap          // to the RIGHT of the icon button
-            : (parent.width - width) / 2  // horizontally centred above/below
+        x: root.side ? parent.width + gap
+            : root.align === "right" ? parent.width - width
+            : root.align === "left" ? 0
+            : (parent.width - width) / 2
 
         y: root.side
-            ? (parent.height - height) / 2  // vertically centred alongside icon
+            ? (parent.height - height) / 2
             : root.below
                 ? parent.height + gap
                 : -height - gap
