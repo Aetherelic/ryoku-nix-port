@@ -72,7 +72,11 @@ Item {
             readonly property string className: modelData
             readonly property int count: root.counts[className] || 0
             readonly property color fg: Theme.onSurface
-            readonly property real iconPx: Theme.iconMd * root.scale
+            // Same rule the rail glyphs follow: the tile scales with the band,
+            // the app icon inside it only shrinks once the band is too thin to
+            // hold it, so a 32px dock does not render visibly smaller icons than
+            // a 48px one.
+            readonly property real iconPx: Math.min(Theme.iconMd, root.cross - 8)
 
             width: root.horizontal ? Math.max(36 * root.scale, iconPx + 20 * root.scale) : root.cross
             height: root.horizontal ? root.cross : Math.max(36 * root.scale, iconPx + 20 * root.scale)

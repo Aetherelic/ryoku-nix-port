@@ -82,13 +82,29 @@ Item {
     // vertical scroll taking any overflow.
     readonly property real contentH: menuBody.item ? menuBody.item.implicitHeight : 0
 
+    // A sole "always" widget IS the band: MenuColumn hands it the whole height
+    // (avail) and it reports that back as its implicitHeight. Sizing such a menu
+    // to content therefore feeds restH into its own input -- the height settled
+    // wherever the loop happened to break, so one anchor drew a full-height panel
+    // and another a stunted one with the calendar scrolled out of reach. Filling
+    // the band is a definite height, so every anchor resolves the same.
+    readonly property string expansion: root.record && root.record.expansion ? root.record.expansion : "never"
+    readonly property bool fillsBand: root.widgetIds.length === 1 && root.expansion === "always"
+
     // Resting panel rect in window coords (contract 05 sec 7). Width is exactly
     // minimumWidth. FrameChrome animates the reveal from this rect.
     readonly property real restW: root.minWidth
-    readonly property real restH: root.sideMenu ? root.bandH : Math.min(root.contentH, root.bandH)
+    readonly property real restH: (root.sideMenu || root.fillsBand) ? root.bandH : Math.min(root.contentH, root.bandH)
+    // A top/bottom menu opens over the widget that summoned it, clamped inside
+    // the side rails, instead of always jumping to the centre of the screen --
+    // the same "grows out of its trigger" reading the side rails already give.
+    function alongX(w) {
+        if (root.triggerAlong < 0) return (root.clL + root.width - root.clR) / 2 - w / 2;
+        return Math.max(root.clL, Math.min(root.width - root.clR - w, root.triggerAlong - w / 2));
+    }
     readonly property real restX: root.atLeft ? root.clL
         : root.atRight ? (root.width - root.clR - root.restW)
-        : ((root.clL + root.width - root.clR) / 2 - root.restW / 2)
+        : root.alongX(root.restW)
     readonly property real restY: root.atBottom ? (root.height - root.clB - root.restH) : root.clT
 
     // The animated band from FrameChrome (shared, single-open). The active
@@ -109,11 +125,14 @@ Item {
         const h = root.restH;
         const x = root.atLeft ? root.clL
             : root.atRight ? (root.width - root.clR - w)
-            : ((root.clL + root.width - root.clR) / 2 - w / 2);
+            : root.alongX(w);
         const y = root.atBottom ? (root.height - root.clB - h) : root.clT;
         root.manager.setChromeSource(root.anchor, x, y, w, h, root.sideMenu);
     }
     onMenuOpenChanged: root.pushChrome()
+    // -1 is the manager clearing the trigger as the record closes, not a move to
+    // the centre of the bar; pushing that would re-open the band on its way out.
+    onTriggerAlongChanged: if (root.triggerAlong >= 0) root.pushChrome()
     onRestXChanged: root.pushChrome()
     onRestYChanged: root.pushChrome()
     onRestWChanged: root.pushChrome()

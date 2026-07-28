@@ -135,13 +135,15 @@ Item {
     // 04 sec 3.2, bar parity spec sec 4). The bell itself stays an outline glyph.
     Rectangle {
         visible: root.statusId === "notifications" && root.hasNotifs
-        width: 5 * root.scale
-        height: 5 * root.scale
+        width: 5 * btn.glyphScale
+        height: 5 * btn.glyphScale
         radius: width / 2
         color: Theme.error
         anchors.horizontalCenter: btn.horizontalCenter
         anchors.verticalCenter: btn.verticalCenter
-        anchors.horizontalCenterOffset: 5 * root.scale
-        anchors.verticalCenterOffset: -5 * root.scale
+        // Tracks the glyph so the badge stays pinned to the bell's corner rather
+        // than drifting inward once the glyph stops shrinking with the band.
+        anchors.horizontalCenterOffset: 5 * btn.glyphScale
+        anchors.verticalCenterOffset: -5 * btn.glyphScale
     }
 }

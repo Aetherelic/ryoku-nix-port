@@ -24,8 +24,10 @@ Item {
         onClicked: root.menuRequested("sysmon", Qt.rect(btn.x, btn.y, btn.width, btn.height))
 
         GlyphIcon {
-            width: 17 * root.scale
-            height: 17 * root.scale
+            // glyphScale, not scale: this gauge sits in a row of Material glyphs
+            // and has to hold the same size they now do on a thin rail.
+            width: 17 * btn.glyphScale
+            height: 17 * btn.glyphScale
             name: "cpu"
             color: btn.iconColor
             stroke: 1.8

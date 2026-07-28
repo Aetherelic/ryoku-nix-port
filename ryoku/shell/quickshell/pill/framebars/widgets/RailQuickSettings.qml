@@ -25,12 +25,14 @@ Item {
         scale: root.scale
         onClicked: root.menuRequested("quick-settings", Qt.rect(0, 0, root.width, root.height))
 
+        // Sized off the button's glyph box, so the brand mark tracks every other
+        // rail icon instead of shrinking with a thin bar on its own.
         Item {
-            width: Theme.iconSm * root.scale
-            height: Theme.iconSm * root.scale
+            width: btn.glyphPx
+            height: btn.glyphPx
             Pill.BrandMark {
                 anchors.centerIn: parent
-                size: 15 * root.scale
+                size: btn.glyphPx * (15 / Theme.iconSm)
                 color: Theme.onSurface
             }
         }

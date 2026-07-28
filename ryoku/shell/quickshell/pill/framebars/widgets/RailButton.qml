@@ -28,6 +28,16 @@ Item {
     property bool scrollable: false       // audio only: hover-gated vertical wheel
 
     readonly property bool horizontal: edge === "top" || edge === "bottom"
+    // The button BOX scales to fit its band, but the glyph must not ride that
+    // scale down with it: a 16px icon still clears a 32px rail with 8px of
+    // padding either side, and shrinking it to 10.7px there is what made the
+    // same widget read as a different size on every bar. Only a genuinely tight
+    // band (under ~24px) claws it back, and only as far as the padding allows.
+    readonly property real glyphPx: Math.min(root.iconSize, 48 * root.scale - 8)
+    // Text follows the glyph, not the box, for the same reason: a clock set in
+    // 8px on a 32px rail beside a 12px one on a 48px rail is the difference that
+    // reads as "every bar is a different size".
+    readonly property real glyphScale: root.iconSize > 0 ? root.glyphPx / root.iconSize : root.scale
     readonly property color foreground: active ? Theme.onPrimary : Theme.onSurface
     // widgets that recolour their glyph (recording -> error) override this.
     property color iconColor: root.foreground
@@ -66,7 +76,7 @@ Item {
             // the nominal icon box and flattened to the widget's colour.
             visible: root.icon.length > 0
             name: root.icon
-            size: root.iconSize * root.scale
+            size: root.glyphPx
             color: root.iconColor
         }
 
@@ -76,10 +86,10 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             color: root.iconColor
             lineHeightMode: root.labelLineHeight > 0 ? Text.FixedHeight : Text.ProportionalHeight
-            lineHeight: root.labelLineHeight > 0 ? root.labelLineHeight * root.scale : 1
+            lineHeight: root.labelLineHeight > 0 ? root.labelLineHeight * root.glyphScale : 1
             font {
                 family: Theme.fontPrimary
-                pixelSize: root.labelSize * root.scale
+                pixelSize: root.labelSize * root.glyphScale
                 weight: Font.DemiBold
                 features: ({ "tnum": 1 })
             }

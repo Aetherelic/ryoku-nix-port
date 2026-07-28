@@ -274,13 +274,19 @@ Item {
     // the very bottom, which edgeNearest would mis-assign to the bottom edge and
     // melt with the wrong (dipping, centre-narrowing) geometry. Only edges that
     // carry a live rail (clearance > 0) qualify; otherwise fall back to nearest.
+    // Corner ownership decides the order. A horizontal rail spans the full width
+    // and owns both shared corners (Bar.qml gives it leadInset 0); a vertical one
+    // is inset to fit BETWEEN them. So a point in a shared corner belongs to the
+    // horizontal rail, and top/bottom must be tested first -- testing left first
+    // stole every top/bottom widget sitting within a side rail's depth and opened
+    // its menu welded to the wrong edge.
     function edgeForTrigger(x, y) {
         const c = root.railClearances || ({});
         const cl = c.left || 0, cr = c.right || 0, ct = c.top || 0, cb = c.bottom || 0;
-        if (cl > 0 && x <= cl) return "left";
-        if (cr > 0 && root.width - x <= cr) return "right";
         if (ct > 0 && y <= ct) return "top";
         if (cb > 0 && root.height - y <= cb) return "bottom";
+        if (cl > 0 && x <= cl) return "left";
+        if (cr > 0 && root.width - x <= cr) return "right";
         return root.edgeNearest(x, y);
     }
 
@@ -423,7 +429,16 @@ Item {
             // rail widget pins to its own edge; the config anchor is only the
             // resting fallback while the record is closed.
             readonly property string liveAnchor: root.liveAnchorFor(modelData.id)
-            readonly property string effectiveAnchor: liveAnchor !== "" ? liveAnchor : modelData.anchor
+            // Latched through the close, the same way the manager holds
+            // chromeRest and Popout holds heldAlong. Snapping straight back to
+            // the config anchor moved the resting rect mid-close, and that moved
+            // rect re-entered pushChrome and drove the reveal back to 1 -- the
+            // band stranded open as an empty panel on the config anchor's edge,
+            // long after the menu it belonged to was gone.
+            property string heldAnchor: ""
+            onLiveAnchorChanged: if (liveAnchor !== "") heldAnchor = liveAnchor
+            readonly property string effectiveAnchor: liveAnchor !== "" ? liveAnchor
+                : (heldAnchor !== "" ? heldAnchor : modelData.anchor)
             group: root.group
             frameThickness: root.clearanceFor(effectiveAnchor)
             clearances: root.railClearances

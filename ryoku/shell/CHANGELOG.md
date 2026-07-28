@@ -110,6 +110,30 @@
   `quickshell/pill/Singletons/AudioBars.qml`).
 
 ### Fixed
+- **Bar menus and popout cards now open on the bar you clicked.** A rail widget
+  welded its card to whichever screen edge the click landed nearest, and the side
+  edges were tested first, so any widget on the top or bottom bar sitting within a
+  side rail's depth opened its card on the left instead. Horizontal rails own the
+  shared corners, so the edge test follows that order now and every popout (audio,
+  battery, Bluetooth, network, system monitor, music, quick settings) grows out of
+  its own bar (`quickshell/pill/FrameMenuManager.qml`).
+- **Quick settings keeps its whole panel on the top, bottom, and right bars.** A
+  band-filling menu reported its own height back as its content height, so the
+  height it settled on depended on which binding resolved first: the same menu drew
+  full height on one edge and a stunted panel on another, with the calendar and
+  system sections scrolled out of reach. A menu whose sole widget fills the band
+  takes the band height outright on every anchor now, and a top or bottom menu
+  opens over the widget that summoned it instead of jumping to screen centre
+  (`quickshell/pill/FrameMenu.qml`).
+- **Closing a menu no longer strands an empty panel on the frame.** On close the
+  menu snapped back to its configured anchor, which moved its resting rect and
+  drove the reveal open again on that edge, leaving a blank sidebar behind. The
+  anchor is held through the close now (`quickshell/pill/FrameMenuManager.qml`).
+- **Bar icons hold one size across bars of different thickness.** Icons scaled with
+  the band, so a 32px bar drew them at two thirds the size of a 48px one. The
+  button still fits its band, but the glyph, its label, the sysmon gauge, the
+  notification badge, and the dock icons only shrink once the band is too thin to
+  hold them (`quickshell/pill/framebars/widgets/*`).
 - **The app launcher follows a fixed named theme, not just the wallpaper.** The
   launcher read only `~/.cache/ryoku/colors.json` (the live wallpaper palette),
   so selecting a coded preset -- whose palette the daemon publishes as
