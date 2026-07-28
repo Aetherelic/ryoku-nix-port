@@ -19,6 +19,14 @@ sudo pacman -S --needed --noconfirm git go cmake ninja qt6-shadertools wayland b
 
 say "Fetching the Ryoku source on unstable-dev into $REPO"
 if [[ -d $REPO/.git ]]; then
+  # Never hijack an unrelated repo that happens to sit at ~/ryoku-arch: the
+  # tracker reset below is destructive, so bail unless origin already points at
+  # a ryoku-arch remote (an official clone or a fork).
+  cur=$(git -C "$REPO" remote get-url origin 2>/dev/null || true)
+  case "$cur" in
+    *ryoku-arch*) ;;
+    *) echo "ryoku-track: $REPO is a git repo but its origin ($cur) is not ryoku-arch; move it aside and re-run." >&2; exit 1 ;;
+  esac
   git -C "$REPO" remote set-url origin "$REPO_URL" 2>/dev/null || true
   git -C "$REPO" fetch origin unstable-dev
   git -C "$REPO" checkout unstable-dev
