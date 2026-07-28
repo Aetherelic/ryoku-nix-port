@@ -37,9 +37,24 @@ Singleton {
         return !!(n && n.isStream && n.audio && root.typeOf(n).indexOf("In") < 0 && n.name !== "ryoku.eq.out");
     }
 
+    // an application capturing from the graph -- a screen recorder, a call, a
+    // browser tab on the mic. per-app input, surfaced to streamers. shell and
+    // plumbing capture is filtered by node.name (a constant, so this never
+    // deadlocks on untracked properties): our own VU peak monitors ("quickshell"),
+    // the cava visualisers, Bluetooth's internal capture leg, and the EQ input.
+    function isCaptureStream(n) {
+        if (!(n && n.isStream && n.audio && root.typeOf(n).indexOf("In") >= 0))
+            return false;
+        var nm = (n.name + "");
+        return nm !== "quickshell" && nm !== "cava"
+            && nm.indexOf("bluez_capture_internal") !== 0
+            && nm.indexOf("ryoku.eq") !== 0;
+    }
+
     readonly property var outputs: root.nodes.filter(root.isOutput)
     readonly property var inputs: root.nodes.filter(root.isInput)
     readonly property var streams: root.nodes.filter(root.isPlayStream)
+    readonly property var captureStreams: root.nodes.filter(root.isCaptureStream)
 
     function setOutput(n) { if (n) Pipewire.preferredDefaultAudioSink = n; }
     function setInput(n) { if (n) Pipewire.preferredDefaultAudioSource = n; }
@@ -49,7 +64,7 @@ Singleton {
     // node's constant flags, so this never deadlocks on untracked properties.
     PwObjectTracker {
         objects: [root.sink, root.source].filter(Boolean)
-            .concat(root.outputs).concat(root.inputs).concat(root.streams)
+            .concat(root.outputs).concat(root.inputs).concat(root.streams).concat(root.captureStreams)
     }
 
     // --- device presentation ------------------------------------------------
@@ -65,6 +80,10 @@ Singleton {
     function nodeIcon(n) {
         if (!n)
             return "speaker";
+        // an input device is a microphone -- a built-in jack, a USB mic, or a
+        // bluetooth headset in its HSP/HFP mode -- so it always reads as a mic.
+        if (!n.isSink)
+            return "mic";
         if (isBluez(n))
             return "headphones";
         var p = n.properties || ({});
@@ -73,8 +92,6 @@ Singleton {
             return "headphones";
         if (hint.indexOf("hdmi") >= 0 || hint.indexOf("displayport") >= 0 || hint.indexOf("dp-") >= 0)
             return "monitor";
-        if (!n.isSink)
-            return "mic";
         return "speaker";
     }
 

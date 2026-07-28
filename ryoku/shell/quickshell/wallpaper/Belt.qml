@@ -1,11 +1,12 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 
-// A row of tiles on an endless belt. It idle-drifts (dir +1 rightwards, -1
-// leftwards), eases to a stop while the pointer is over the rows so a pick sits
-// still, and a scroll adds a boost that decays back. Tiles stay alive and just
-// slide (no per-tile create/destroy), so a fast scroll never churns; off-screen
-// ones drop their thumbnail. A short set is repeated so the belt always fills.
+// A row of tiles on an endless belt, carrying either wallpaper or theme cells
+// (kind). It idle-drifts (dir +1 rightwards, -1 leftwards), eases to a stop
+// while the pointer is over the rows so a pick sits still, and a scroll adds a
+// boost that decays back. Tiles stay alive and just slide (no per-tile
+// create/destroy), so a fast scroll never churns; off-screen ones drop their
+// content. A short set is repeated so the belt always fills.
 Item {
     id: row
     clip: true
@@ -18,10 +19,13 @@ Item {
     required property int gap
     required property color bg
     required property bool topRow
-    property string highlightKey: ""
+    property string kind: "wall"      // "wall" | "theme": which cell the slots load
+    property string highlightKey: ""  // hovered identity (path for walls, id for themes)
+    property string activeKey: ""     // applied identity (theme belt on-air badge)
+    property bool frozen: false       // theme belt inert while following the wallpaper
     property bool running: true
     property bool hovering: false
-    property bool scrollHold: false  // switcher just took a wheel tick; hold video off
+    property bool scrollHold: false   // switcher just took a wheel tick; hold video off
 
     signal entered(var entry)
     signal chosen(var entry)
@@ -89,17 +93,39 @@ Item {
             x: raw < row.width ? raw : (raw > row.setW - 2 * row.cellW ? raw - row.setW : raw)
             visible: x + width > -1 && x < row.width + 1
 
-            WallCell {
+            // one visual per slot: the belt carries wallpapers or themes, never
+            // both, so only the matching cell is loaded.
+            Loader {
                 anchors.fill: parent
-                s: row.s
-                item: slot.modelData
-                bg: row.bg
-                topRow: row.topRow
-                live: slot.visible
-                beltMoving: row.moving || row.scrollHold
-                selected: !!slot.modelData && slot.modelData.path === row.highlightKey
-                onEntered: row.entered(slot.modelData)
-                onChosen: row.chosen(slot.modelData)
+                sourceComponent: row.kind === "theme" ? themeComp : wallComp
+            }
+            Component {
+                id: wallComp
+                WallCell {
+                    s: row.s
+                    item: slot.modelData
+                    bg: row.bg
+                    topRow: row.topRow
+                    live: slot.visible
+                    beltMoving: row.moving || row.scrollHold
+                    selected: !!slot.modelData && slot.modelData.path === row.highlightKey
+                    onEntered: row.entered(slot.modelData)
+                    onChosen: row.chosen(slot.modelData)
+                }
+            }
+            Component {
+                id: themeComp
+                ThemeCell {
+                    s: row.s
+                    item: slot.modelData
+                    bg: row.bg
+                    topRow: row.topRow
+                    interactive: !row.frozen
+                    active: !!slot.modelData && slot.modelData.id === row.activeKey
+                    selected: !!slot.modelData && slot.modelData.id === row.highlightKey
+                    onEntered: row.entered(slot.modelData)
+                    onChosen: row.chosen(slot.modelData)
+                }
             }
         }
     }

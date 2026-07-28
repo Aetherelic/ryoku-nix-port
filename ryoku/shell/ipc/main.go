@@ -43,6 +43,13 @@ func main() {
 		runClipIngest()
 		return
 	}
+	if args[0] == "theme" && len(args) == 2 && args[1] == "catalog" {
+		// The colour-scheme catalog is static (compiled in) and larger than the
+		// daemon's 8192-byte socket reply, so print it here without a round trip;
+		// `theme <name>` still forwards to the daemon to apply.
+		fmt.Println(themeCatalogJSON())
+		return
+	}
 	if err := sendCommand(strings.Join(args, " ")); err != nil {
 		fmt.Fprintln(os.Stderr, "ryoku-shell:", err)
 		os.Exit(1)
@@ -82,6 +89,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-shell <visualizer|visualizer-overlay>")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell lock")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell wallpaper [next|init|set <path>]")
+	fmt.Fprintln(os.Stderr, "  ryoku-shell theme [<scheme>|catalog]")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell voice")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell <reload|status|ping|quit>")
 }

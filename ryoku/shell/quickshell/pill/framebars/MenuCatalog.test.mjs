@@ -14,7 +14,7 @@ function ok(condition, msg) { eq(!!condition, true, msg); }
 const requiredMenuWidgets = [
     "audio-input", "audio-output", "bluetooth", "clipboard", "clock",
     "container", "divider", "spacer", "network", "notifications", "power-profile",
-    "quick-settings", "screenshot", "recording", "theme", "wallpaper", "weather", "media",
+    "quick-settings", "theme", "wallpaper", "weather", "media",
     "layout-switcher", "quick-actions"
 ];
 eq(MenuCatalog.widgetIds().sort(), requiredMenuWidgets.sort(), "all approved menu widgets are catalogued");
@@ -25,6 +25,8 @@ eq(MenuCatalog.menu("clock"), null, "the clock menu is retired; the clock widget
 eq(MenuCatalog.menu("notifications"), null, "the notifications menu is retired; the bell opens the quick-settings notifications page");
 eq(MenuCatalog.menu("clipboard"), null, "the clipboard menu is retired; the clipboard button opens the quick-settings clipboard page");
 eq(MenuCatalog.menu("media"), null, "the media menu is retired; media lives in the quick-settings sidebar");
+eq(MenuCatalog.menu("screenshot"), null, "the screenshot menu is retired; capture moved to the floating card");
+eq(MenuCatalog.menu("recording"), null, "the recording menu is retired; capture moved to the floating card");
 ok(MenuCatalog.widget("container").nested, "container accepts child widget lists");
 ok(MenuCatalog.quickAction("lock").action === "lock", "quick action routes are fixed identifiers");
 eq(MenuCatalog.quickActionIds().sort(), ["lock", "logout", "reboot", "shutdown", "lens", "color", "ocr", "qr", "mirror", "clipboard", "wifi", "bluetooth", "microphone", "do-not-disturb", "night-light", "keep-awake", "game-mode"].sort(), "all source control centre actions are fixed");

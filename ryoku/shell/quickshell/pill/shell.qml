@@ -709,11 +709,11 @@ ShellRoot {
 
                 RecordHud {
                     id: recHud
-                    group: blobGroup
                     s: overlay.s
-                    smoothing: 0
-                    barEdge: overlay.railEnabled("top") ? "top" : ""
-                    barBand: overlay.railEnabled("top") ? overlay.railThickness("top") : 0
+                    clearanceTop: overlay.railClearance("top")
+                    clearanceBottom: overlay.railClearance("bottom")
+                    clearanceLeft: overlay.railClearance("left")
+                    clearanceRight: overlay.railClearance("right")
                 }
 
             }

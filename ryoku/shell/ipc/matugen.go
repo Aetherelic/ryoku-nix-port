@@ -391,6 +391,12 @@ func (d *daemon) matugenApplyStatic(name string) error {
 		return fmt.Errorf("no palette for static theme %q", name)
 	}
 	shell := staticThemePalette(pal)
+	// Author the shell palette too, so every colors.json reader (the launcher and
+	// the desktop surfaces) tracks a fixed named theme, not only the wallpaper
+	// path: the control plane owns colors.json for both palette sources.
+	if err := writeJSONFile(matugenColorsPath(), matugenColorsJSON(shell)); err != nil {
+		return fmt.Errorf("matugen colors.json (static): %w", err)
+	}
 	k := readMatugenKnobs()
 	matugenRenderTemplates(matugenShellPalette(shell), k)
 	matugenReload(staticPaletteMode(shell))

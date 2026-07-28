@@ -4,3 +4,4 @@ singleton Scheme Scheme.qml
 singleton Config Config.qml
 singleton Colors Colors.qml
 singleton Walls Walls.qml
+singleton Themes Themes.qml

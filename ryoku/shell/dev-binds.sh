@@ -10,14 +10,13 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 bin="$here/ipc/ryoku-shell"
 
-chords=("SUPER + Space" "SUPER + L" "SUPER + Escape" "SUPER + W" "SUPER + S" "SUPER + C" "SUPER + Tab" "SUPER + comma")
+chords=("SUPER + Space" "SUPER + L" "SUPER + Escape" "SUPER + W" "SUPER + S" "SUPER + Tab" "SUPER + comma")
 cmds=(
 	"$bin launcher"
 	"$bin lock"
 	"$bin menu quick-settings"
-	"$bin menu wallpaper"
-	"$bin menu screenshot"
 	"$bin wallpaper-switcher"
+	"$bin menu screenshot"
 	"$bin overview"
 	"$bin hub open"
 )

@@ -30,10 +30,10 @@ Item {
     readonly property bool seekable: root.present && !Media.radio
         && root.player !== null && root.player.length > 0
 
-    readonly property real pad: 18 * root.s
-    readonly property real artSize: 208 * root.s
+    readonly property real pad: 14 * root.s
+    readonly property real artSize: 160 * root.s
 
-    implicitWidth: 320 * root.s
+    implicitWidth: 264 * root.s
     implicitHeight: (root.present ? cardCol.implicitHeight : emptyCol.implicitHeight) + root.pad * 2
 
     Component.onCompleted: AudioBars.setActive(root, true)
@@ -74,18 +74,8 @@ Item {
     readonly property color accentLo: Qt.darker(root.artAccent, 1.35)
     readonly property color accentHi: Qt.lighter(root.artAccent, 1.25)
 
-    // consume clicks on the body so they don't fall through to the backdrop and
-    // dismiss the card; the card's own controls sit on top.
-    MouseArea { anchors.fill: parent }
-
-    // ── the framed tile ─────────────────────────────────────────────────────
-    Rectangle {
-        anchors.fill: parent
-        radius: Theme.radiusWindow
-        color: Theme.surface
-        border.width: Theme.borderWidth
-        border.color: Theme.outline
-    }
+    // the framed card skin + click-swallow, shared with every frame-edge card.
+    PopoutCard { anchors.fill: parent }
 
     // "{h}:{mm}:{ss}" past an hour, else "{m}:{ss}".
     function fmtTime(sec) {
@@ -145,7 +135,7 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: root.pad
-        spacing: 12 * root.s
+        spacing: 10 * root.s
 
         // sleeve art: a square plate centred in the card, glowing in its own
         // dominant colour, seated with a hairline dark rim like a record sleeve.
@@ -222,7 +212,7 @@ Item {
             text: root.player ? (root.player.trackTitle || "") : ""
             color: Theme.ink(Theme.effectiveSurface)
             font.family: Theme.display
-            font.pixelSize: 21 * root.s
+            font.pixelSize: 18 * root.s
             font.weight: Font.DemiBold
             lineHeight: 0.95
             wrapMode: Text.WordWrap
@@ -243,7 +233,7 @@ Item {
         // the wide sweep: the shared feed at card resolution, tinted to the art.
         MusicBars {
             width: parent.width
-            height: 48 * root.s
+            height: 40 * root.s
             bands: 24
             s: root.s
             orient: "vertical"

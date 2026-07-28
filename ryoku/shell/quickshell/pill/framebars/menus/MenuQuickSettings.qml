@@ -326,7 +326,7 @@ Item {
                                 valueLabel: !Audio.sink ? "" : (Audio.sink.audio.muted ? qsTr("off") : Math.round(Audio.sink.audio.volume * 100) + "%")
                                 peakNode: Audio.sink
                                 peakEnabled: root.open && root.page === "" && root.activeTab === 0 && !!Audio.sink
-                                hasPage: true; pageTip: qsTr("Output devices")
+                                hasPage: true
                                 onMoved: v => { if (Audio.sink) Audio.sink.audio.volume = v; }
                                 onIconTapped: { if (Audio.sink) Audio.sink.audio.muted = !Audio.sink.audio.muted; }
                                 onPageRequested: root.page = "audio-out"
@@ -339,7 +339,7 @@ Item {
                                 valueLabel: !Audio.source || !Audio.source.audio ? "" : (Audio.source.audio.muted ? qsTr("off") : Math.round(Audio.source.audio.volume * 100) + "%")
                                 peakNode: Audio.source
                                 peakEnabled: root.open && root.page === "" && root.activeTab === 0 && !!Audio.source
-                                hasPage: true; pageTip: qsTr("Input devices")
+                                hasPage: true
                                 onMoved: v => { if (Audio.source && Audio.source.audio) Audio.source.audio.volume = v; }
                                 onIconTapped: { if (Audio.source && Audio.source.audio) Audio.source.audio.muted = !Audio.source.audio.muted; }
                                 onPageRequested: root.page = "audio-in"
@@ -361,6 +361,13 @@ Item {
                         QsCalendarEmbed {
                             width: parent.width; s: 1
                             open: root.open && root.activeTab === 0
+                        }
+
+                        // System monitor — computer stats below the calendar
+                        QsSection { width: parent.width; label: qsTr("System") }
+                        Pill.SysMonitor {
+                            width: parent.width; s: 1
+                            active: root.open && root.activeTab === 0 && root.page === ""
                         }
                     }
                 }

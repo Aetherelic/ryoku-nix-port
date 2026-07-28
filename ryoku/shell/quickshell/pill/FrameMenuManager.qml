@@ -38,7 +38,14 @@ Item {
     readonly property var menus: {
         const src = Config.normalizedFrameBars.menus || ({});
         const out = [];
-        for (const id in src) out.push(Object.assign({ id: id, kind: "menu" }, src[id]));
+        for (const id in src) {
+            // "screenshot" migrated from an in-band menu to the Super+S capture
+            // card (a surface). Ignore any lingering screenshot_menu in a config
+            // the doctor has not yet reconciled, so the surface -- not the retired
+            // menu -- answers `menu screenshot`.
+            if (id === "screenshot") continue;
+            out.push(Object.assign({ id: id, kind: "menu" }, src[id]));
+        }
         return out;
     }
     readonly property var surfaces: {
@@ -47,11 +54,29 @@ Item {
         for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: true }, src[id]));
         out.push(
             { id: "power", kind: "power", anchor: "top", minWidth: 480 },
-            { id: "voice", kind: "voice", anchor: "top", minWidth: 420 },
+            { id: "voice", kind: "voice", anchor: "bottom", minWidth: 380 },
             { id: "keyring", kind: "keyring", anchor: "top", minWidth: 420 },
             // the rail spectrum's music card: a pointer-only popout, so it
             // joins the surfaces without taking the keyboard.
-            { id: "music", kind: "music", anchor: "left", minWidth: 320 }
+            { id: "music", kind: "music", anchor: "left", minWidth: 264 },
+            // the rail bluetooth widget's device card: a left-anchored sliding
+            // card, opening and dismissing exactly like the music card.
+            { id: "bluetooth", kind: "bluetooth", anchor: "left", minWidth: 272 },
+            // the rail battery + network widgets' cards: left-anchored sliding
+            // cards like the others; network takes on-demand keyboard for a
+            // Wi-Fi password, battery is pointer-only.
+            { id: "battery", kind: "battery", anchor: "left", minWidth: 244 },
+            { id: "network", kind: "network", anchor: "left", minWidth: 250 },
+            // the rail system-monitor widget's card: CPU / memory / temp gauges
+            // on a left-anchored sliding card like the others.
+            { id: "sysmon", kind: "sysmon", anchor: "left", minWidth: 260 },
+            // the rail speaker/mic widgets' card: the audio mixer -- output,
+            // input, per-app playback and capture -- on a left-anchored
+            // sliding card like the others, pointer-only (faders, no keys).
+            { id: "audio", kind: "audio", anchor: "left", minWidth: 300 },
+            // the Super+S capture card: a left-anchored sliding card like the
+            // other rail cards, opened by the screenshot keybind / IPC. Pointer-only.
+            { id: "screenshot", kind: "screenshot", anchor: "left", minWidth: 300 }
         );
         return out;
     }
@@ -80,7 +105,7 @@ Item {
         const mon = menuState[monitorName];
         if (!mon) return false;
         for (const anchor in mon)
-            if (mon[anchor] && mon[anchor].kind && mon[anchor].kind !== "menu" && mon[anchor].id !== "voice" && mon[anchor].id !== "music") return true;
+            if (mon[anchor] && mon[anchor].kind && mon[anchor].kind !== "menu" && mon[anchor].id !== "voice" && mon[anchor].id !== "music" && mon[anchor].id !== "bluetooth" && mon[anchor].id !== "battery" && mon[anchor].id !== "network" && mon[anchor].id !== "sysmon" && mon[anchor].id !== "audio" && mon[anchor].id !== "screenshot") return true;
         return false;
     }
     // Keyboard focus the frame raises while something is open (contract 05 sec
@@ -95,7 +120,8 @@ Item {
             if (!rec) continue;
             if (rec.id === "screenshare") return "exclusive";
             if (rec.id === "wallpaper") return "ondemand";
-            if (rec.kind && rec.kind !== "menu" && rec.id !== "voice" && rec.id !== "music") return "exclusive";
+            if (rec.id === "network") return "ondemand";
+            if (rec.kind && rec.kind !== "menu" && rec.id !== "voice" && rec.id !== "music" && rec.id !== "bluetooth" && rec.id !== "battery" && rec.id !== "network" && rec.id !== "sysmon" && rec.id !== "audio" && rec.id !== "screenshot") return "exclusive";
         }
         return "none";
     }
@@ -224,6 +250,40 @@ Item {
         return rec && rec.id === id ? rec : null;
     }
 
+    // The anchor where a record id is currently open on this monitor, or "" if
+    // it is closed. A record's live anchor can differ from its config anchor
+    // because a rail widget opens its popout on the rail's own edge.
+    function liveAnchorFor(id) {
+        const mon = root.menuState[root.monitorName];
+        if (!mon) return "";
+        for (const anchor in mon) if (mon[anchor] && mon[anchor].id === id) return anchor;
+        return "";
+    }
+    // The screen edge (top/bottom/left/right) nearest a point, so a popout welds
+    // to the rail edge its trigger widget hugs.
+    function edgeNearest(x, y) {
+        const d = { top: y, bottom: root.height - y, left: x, right: root.width - x };
+        let best = "top";
+        for (const e in d) if (d[e] < d[best]) best = e;
+        return best;
+    }
+
+    // The rail edge a trigger widget sits ON. A rail is a thin strip along one
+    // screen edge (railClearances is its inside depth), so a widget within a
+    // rail's depth welds its popout to THAT rail -- even a left-rail widget at
+    // the very bottom, which edgeNearest would mis-assign to the bottom edge and
+    // melt with the wrong (dipping, centre-narrowing) geometry. Only edges that
+    // carry a live rail (clearance > 0) qualify; otherwise fall back to nearest.
+    function edgeForTrigger(x, y) {
+        const c = root.railClearances || ({});
+        const cl = c.left || 0, cr = c.right || 0, ct = c.top || 0, cb = c.bottom || 0;
+        if (cl > 0 && x <= cl) return "left";
+        if (cr > 0 && root.width - x <= cr) return "right";
+        if (ct > 0 && y <= ct) return "top";
+        if (cb > 0 && root.height - y <= cb) return "bottom";
+        return root.edgeNearest(x, y);
+    }
+
     // Single-open invariant (contract 05 sec 4): before revealing a menu or
     // surface, close every other open one on this monitor, so at most one is
     // ever shown per frame. Daemon-lifecycle toasts (voice, keyring) are exempt
@@ -261,16 +321,19 @@ Item {
         // voice are daemon lifecycle surfaces, not user toggles: a fresh prompt
         // or a re-show must replace the live record, never dismiss it.
         const daemonOwned = surfaceID === "keyring" || surfaceID === "voice";
-        if (!daemonOwned && root.activeIdAt(rec.anchor) === surfaceID) {
-            // Re-asking with a different page switches to it in place; re-asking
-            // for the page already shown (or with no page) toggles the surface
-            // shut, so a bar button and its command still read as one toggle.
-            const cur = MenuState.activeAt(root.menuState, root.monitorName, rec.anchor);
+        // Where this surface is currently open. Its live anchor may differ from
+        // the config anchor: a rail widget welds its popout to its own edge, so
+        // the toggle must find it wherever it lives. Re-asking closes it; a new
+        // page switches in place, so a bar button and its command read as one
+        // toggle.
+        const openAnchor = root.liveAnchorFor(surfaceID);
+        if (!daemonOwned && openAnchor !== "") {
+            const cur = MenuState.activeAt(root.menuState, root.monitorName, openAnchor);
             if (page !== "" && cur && cur.page !== page) {
                 root.menuState = MenuState.open(root.menuState, root.monitorName, Object.assign({}, cur, { page: page }));
                 return;
             }
-            root.closeAt(rec.anchor);
+            root.closeAt(openAnchor);
             return;
         }
         let local;
@@ -281,13 +344,21 @@ Item {
             local = { x: root.width / 2, y: root.height / 2 };
             ownerRect = { width: 1, height: 1 };
         }
-        const horiz = rec.anchor.indexOf("top") === 0 || rec.anchor.indexOf("bottom") === 0;
-        const along = horiz ? local.x + ownerRect.width / 2 : local.y + ownerRect.height / 2;
+        // A surface opened from a rail widget grows out of THAT rail's edge, so
+        // the popout stays welded to its trigger wherever the user placed the
+        // rail. The edge is the screen side the trigger hugs; a corner config
+        // anchor (wallpaper, recording) collapses to that edge. A command or IPC
+        // open carries no widget rect, so it keeps the record's config anchor.
+        const cx = local.x + ownerRect.width / 2;
+        const cy = local.y + ownerRect.height / 2;
+        const realTrigger = ownerRect.width > 1 || ownerRect.height > 1;
+        const anchor = realTrigger ? root.edgeForTrigger(cx, cy) : rec.anchor;
+        const horiz = anchor.indexOf("top") === 0 || anchor.indexOf("bottom") === 0;
+        const along = horiz ? cx : cy;
         const trigger = { x: local.x, y: local.y, width: ownerRect.width, height: ownerRect.height };
-        const daemon = surfaceID === "keyring" || surfaceID === "voice";
-        const base = daemon ? root.menuState : root.closeOtherUsers(root.menuState, surfaceID);
+        const base = daemonOwned ? root.menuState : root.closeOtherUsers(root.menuState, surfaceID);
         root.menuState = MenuState.open(base, root.monitorName,
-            Object.assign({}, rec, { id: surfaceID, anchor: rec.anchor, along: along, trigger: trigger,
+            Object.assign({}, rec, { id: surfaceID, anchor: anchor, along: along, trigger: trigger,
                 off: voiceOff, page: page, promptId: surfaceID === "keyring" && context ? context.promptId : undefined }));
     }
     function openMenu(id, ownerRect) {
@@ -332,8 +403,8 @@ Item {
         root.menuState = MenuState.closeAt(root.menuState, root.monitorName, anchor);
     }
     function closeMenu(id) {
-        const rec = MenuState.recordFor(root.records, id);
-        if (rec && root.activeIdAt(rec.anchor) === id) root.closeAt(rec.anchor);
+        const anchor = root.liveAnchorFor(id);
+        if (anchor !== "") root.closeAt(anchor);
     }
     function closeAll() {
         const mon = root.menuState[root.monitorName];
@@ -348,8 +419,13 @@ Item {
         model: root.records
         delegate: FrameMenu {
             required property var modelData
+            // A record renders wherever it is open (its live anchor), which a
+            // rail widget pins to its own edge; the config anchor is only the
+            // resting fallback while the record is closed.
+            readonly property string liveAnchor: root.liveAnchorFor(modelData.id)
+            readonly property string effectiveAnchor: liveAnchor !== "" ? liveAnchor : modelData.anchor
             group: root.group
-            frameThickness: root.clearanceFor(modelData.anchor)
+            frameThickness: root.clearanceFor(effectiveAnchor)
             clearances: root.railClearances
             radius: Theme.radiusWindow
             smoothing: 0
@@ -357,10 +433,10 @@ Item {
             active: root.active
             manager: root
             record: modelData
-            anchor: modelData.anchor
-            menuOpen: root.active && root.activeIdAt(modelData.anchor) === modelData.id
-            openRecord: root.openRecordAt(modelData.anchor, modelData.id)
-            triggerAlong: root.alongAt(modelData.anchor)
+            anchor: effectiveAnchor
+            menuOpen: root.active && liveAnchor !== ""
+            openRecord: liveAnchor !== "" ? root.openRecordAt(liveAnchor, modelData.id) : null
+            triggerAlong: liveAnchor !== "" ? root.alongAt(liveAnchor) : -1
             onRequestClose: root.closeMenu(modelData.id)
         }
     }

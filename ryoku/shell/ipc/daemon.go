@@ -109,6 +109,7 @@ type daemon struct {
 	wall           *wallSurface             // in-shell desktop wallpaper (nil until started)
 	lastTransition int                      // previous wallpaper transition preset index (-1 = none); guarded by wallMu
 	polkit         *polkitAgent             // PolicyKit1 authentication agent (nil until started)
+	settings       *settingsStore           // shell.json store (nil until startSettings); theme apply patches through it
 }
 
 func runDaemon() error {
@@ -696,6 +697,23 @@ func (d *daemon) dispatch(line string) string {
 		d.wallMu.Unlock()
 		if err != nil {
 			return "err wallpaper: " + err.Error()
+		}
+		return "ok"
+	case "theme":
+		// Apply a colour scheme by writing theme.theme through the settings store
+		// (the sole writer of shell.json), which validates the name, persists,
+		// broadcasts, and schedules the retheme. `theme catalog` is served
+		// client-side in main.go, so it never reaches here. Join the args so a
+		// name with spaces ("Tokyo Night") survives the command split.
+		if len(args) == 0 {
+			return "err theme: expected a scheme name (or `catalog`)"
+		}
+		if d.settings == nil {
+			return "err theme: settings not ready"
+		}
+		name, _ := json.Marshal(strings.Join(args, " "))
+		if err := d.settings.patch("theme.theme", name); err != nil {
+			return "err theme: " + err.Error()
 		}
 		return "ok"
 	case "reload":

@@ -12,8 +12,6 @@ const widgets = {
     "notifications": { id: "notifications", nested: false },
     "power-profile": { id: "power-profile", nested: false },
     "quick-settings": { id: "quick-settings", nested: false },
-    "screenshot": { id: "screenshot", nested: false },
-    "recording": { id: "recording", nested: false },
     "theme": { id: "theme", nested: false },
     "wallpaper": { id: "wallpaper", nested: false },
     "weather": { id: "weather", nested: false },
@@ -23,10 +21,8 @@ const widgets = {
 };
 const menus = {
     "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
-    screenshot: { id: "screenshot", anchor: "left", minWidth: 410, expansion: "always", widgets: ["screenshot"] },
     wallpaper: { id: "wallpaper", anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["theme", "wallpaper"] },
     screenshare: { id: "screenshare", anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
-    recording: { id: "recording", anchor: "top-right", minWidth: 320, expansion: "never", widgets: ["recording"] },
     theme: { id: "theme", anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
     weather: { id: "weather", anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
 };

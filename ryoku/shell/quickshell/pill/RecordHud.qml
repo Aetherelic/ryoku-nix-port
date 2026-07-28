@@ -2,26 +2,26 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Ryoku.Blobs
 import "Singletons"
 
-// Draggable recording control that lives in the frame's blob field. At rest it
-// is fused to a frame edge; grab the 6-dot handle to pull it into a floating
-// island. As it nears an edge, the island and a matching frame bump reach for
-// each other and merge like two drops; let go and it drifts slowly to the
-// nearest edge. On a side edge it turns vertical while held. Hide tucks it to a
-// small nub that hovering pops back out. It melts into the frame when recording
-// ends, leaving no mark. Nothing snaps.
+// Draggable recording control that lives just inside the frame. At rest it is a
+// crisp card fused near a frame edge -- the frame's own surface + 2px outline,
+// matching FrameChrome and the frame-edge cards (music / bluetooth) rather than
+// the old liquid blob. Grab it to pull it into a floating island; let go and it
+// drifts to the nearest edge and docks. On a side edge it turns vertical while
+// held. Hide slides it off to a pulsing nub that hovering the edge pops back out.
+// It melts (slides + fades) into the frame when recording ends, leaving no mark.
 Item {
     id: hud
 
-    required property var group
     property real s: 1
-    property real radius: 17 * s
-    property real smoothing: 30
-    // the bar thickens the edge it sits on, so that edge's border is deeper.
-    property string barEdge: ""
-    property real barBand: 0
+    property real radius: Theme.radiusWindow
+    // the frame reserve (bar band + border) per edge, so the card docks just
+    // inside the frame on whichever edge it lands, clearing any bar there.
+    property real clearanceTop: 0
+    property real clearanceBottom: 0
+    property real clearanceLeft: 0
+    property real clearanceRight: 0
 
     readonly property int moveDur: 560
     readonly property int meltDur: 620
@@ -29,8 +29,14 @@ Item {
 
     anchors.fill: parent
 
-    readonly property real baseLip: 0
-    function lipFor(e) { return hud.baseLip + (e === hud.barEdge ? hud.barBand : 0); }
+    // the card floats a small gap off the frame reserve, like the other frame-edge
+    // cards (FrameSurface edgeGap), so it never clips the border or a bar.
+    readonly property real edgeGap: 10 * hud.s
+    function lipFor(e) {
+        var c = e === "top" ? hud.clearanceTop : e === "bottom" ? hud.clearanceBottom
+            : e === "left" ? hud.clearanceLeft : hud.clearanceRight;
+        return c + hud.edgeGap;
+    }
     readonly property real lipT: hud.lipFor("top")
     readonly property real lipB: hud.lipFor("bottom")
     readonly property real lipL: hud.lipFor("left")
@@ -53,7 +59,8 @@ Item {
         hud.placed = true;
     }
 
-    // --- reveal + melt: 0 in the border, 1 fully out, a small nub when hidden.
+    // --- reveal + melt: 0 tucked behind the edge, 1 fully out, a small nub cue
+    // when hidden.
     property bool revealHeld: false
     readonly property bool revealed: bodyHov.hovered || edgeHov.hovered
     // tucked = hidden and not currently being revealed by a hover.
@@ -64,7 +71,7 @@ Item {
     }
     Timer { id: revealGrace; interval: 260; onTriggered: hud.revealHeld = false }
 
-    readonly property real nubProg: 0.14
+    readonly property real nubProg: 0.1
     readonly property real wantProg: {
         if (Recorder.anyActive) return (!hud.hidden || hud.revealHeld) ? 1 : hud.nubProg;
         return (Recorder.chooserOpen || hud.starting) ? 1 : 0;
@@ -74,33 +81,21 @@ Item {
     readonly property bool live: hud.prog > 0.002
     visible: hud.live
 
-    // chooser state: the sidebar Record button opens the island in a pre-record
+    // chooser state: the deck's Record button opens the island in a pre-record
     // chooser (Recorder.chooserOpen). Quick records via gsr; Studio and Edit hand
     // off to ryomotion. `starting` holds the island up through the short beat
     // between closing the chooser and gsr coming up, so it never blinks out.
     property bool starting: false
-    property bool optDesktopAudio: false
-    property bool optMic: true
-    function recordArgs() {
-        var a = [];
-        if (hud.optDesktopAudio) a.push("--with-desktop-audio");
-        if (hud.optMic) a.push("--with-microphone-audio");
-        return a;
-    }
     function startQuick() {
         Recorder.chooserOpen = false;
-        Recorder.pendingDiscord = Recorder.discordMode;
         if (Recorder.regionGeom !== "") {
-            var a = ["--region", "--geometry", Recorder.regionGeom];
-            if (hud.optDesktopAudio) a.push("--with-desktop-audio");
-            if (hud.optMic) a.push("--with-microphone-audio");
-            Recorder.start(a);
+            Recorder.start(["--region", "--geometry", Recorder.regionGeom].concat(Recorder.recordArgs()));
         } else {
             hud.starting = true;
             quickTimer.restart();
         }
     }
-    Timer { id: quickTimer; interval: 420; onTriggered: { Recorder.start(hud.recordArgs()); hud.starting = false; } }
+    Timer { id: quickTimer; interval: 420; onTriggered: { Recorder.start(Recorder.recordArgs()); hud.starting = false; } }
     // Edit opens ryomotion straight to its import screen (--edit) so you pick a
     // clip to edit; notify-send keeps a click from silently doing nothing before
     // the app is installed.
@@ -114,7 +109,7 @@ Item {
     function startStudio() {
         Recorder.chooserOpen = false;
         Recorder.pendingDiscord = false;
-        Recorder.startStudio(hud.optDesktopAudio, hud.optMic, Recorder.regionGeom);
+        Recorder.startStudio(Recorder.optDesktopAudio, Recorder.optMic, Recorder.regionGeom);
     }
 
     // labelled action tile for the chooser (icon + short caption).
@@ -233,6 +228,8 @@ Item {
     readonly property real trigW: (hud.dockEdge === "left" || hud.dockEdge === "right") ? hud.trigDepth : (hud.bodyW + 2 * hud.trigPad)
     readonly property real trigH: (hud.dockEdge === "top" || hud.dockEdge === "bottom") ? hud.trigDepth : (hud.bodyH + 2 * hud.trigPad)
 
+    // nearest edge = where the island docks on release; the gap to each lip also
+    // feeds the orientation flip. (No more liquid merge-reach: the card is crisp.)
     readonly property real gapT: hud.py - hud.lipT
     readonly property real gapB: (hud.height - hud.lipB) - (hud.py + hud.bodyH)
     readonly property real gapL: hud.px - hud.lipL
@@ -251,91 +248,39 @@ Item {
         if (hud.gapOf(hud.rawNearEdge) < hud.gapOf(hud.nearEdge) - 30 * hud.s)
             hud.nearEdge = hud.rawNearEdge;
     }
-    readonly property real nearGap: Math.max(0, hud.gapOf(hud.nearEdge))
-    readonly property real nearLip: hud.lipFor(hud.nearEdge)
-    readonly property real threshold: 90 * hud.s
-    readonly property real approach: Math.max(0, Math.min(1, 1 - hud.nearGap / hud.threshold))
-    readonly property real pull: hud.approach * hud.approach
-    // both surfaces reach for each other: the island covers half the gap plus its
-    // weld into the border, the frame bump covers the other half.
-    readonly property real islandReach: (hud.nearGap / 2 + hud.nearLip + hud.smoothing) * hud.pull
-    readonly property real bumpReach: (hud.nearGap / 2 + hud.smoothing) * hud.pull
-    readonly property real extT: hud.nearEdge === "top" ? hud.islandReach : 0
-    readonly property real extB: hud.nearEdge === "bottom" ? hud.islandReach : 0
-    readonly property real extL: hud.nearEdge === "left" ? hud.islandReach : 0
-    readonly property real extR: hud.nearEdge === "right" ? hud.islandReach : 0
 
-    readonly property bool vDock: hud.dockEdge === "left" || hud.dockEdge === "right"
-    readonly property real faceW: hud.vDock ? hud.bodyW * hud.prog : hud.bodyW
-    readonly property real faceH: hud.vDock ? hud.bodyH : hud.bodyH * hud.prog
-    readonly property real faceX: hud.dockEdge === "right" ? (hud.px + hud.bodyW - hud.faceW) : hud.px
-    readonly property real faceY: hud.dockEdge === "bottom" ? (hud.py + hud.bodyH - hud.faceH) : hud.py
+    // crisp reveal: the card slides in from its docked edge and fades. at prog 0
+    // it is tucked fully behind that edge (off-screen); at prog 1 it rests at
+    // (px, py). the nub state (hidden mid-record) leaves it mostly tucked with
+    // the pulsing dot below as the "tucked here" cue.
+    readonly property real revealX: hud.dockEdge === "left" ? -(1 - hud.prog) * (hud.bodyW + hud.lipL)
+        : hud.dockEdge === "right" ? (1 - hud.prog) * (hud.bodyW + hud.lipR) : 0
+    readonly property real revealY: hud.dockEdge === "top" ? -(1 - hud.prog) * (hud.bodyH + hud.lipT)
+        : hud.dockEdge === "bottom" ? (1 - hud.prog) * (hud.bodyH + hud.lipB) : 0
+    readonly property real cardOpacity: Math.max(0, Math.min(1, (hud.prog - 0.04) / 0.5))
 
-    readonly property bool bumpVert: hud.nearEdge === "top" || hud.nearEdge === "bottom"
-    readonly property real bumpLen: hud.bumpReach + hud.nearLip + hud.smoothing
-    readonly property real bumpX: hud.nearEdge === "right" ? (hud.width - hud.lipR - hud.bumpReach)
-        : hud.nearEdge === "left" ? -hud.smoothing
-        : hud.px
-    readonly property real bumpY: hud.nearEdge === "bottom" ? (hud.height - hud.lipB - hud.bumpReach)
-        : hud.nearEdge === "top" ? -hud.smoothing
-        : hud.py
-
-    BlobRect {
-        id: bodyBlob
-        group: hud.live ? hud.group : null
-        stiffness: 110
-        damping: 15
-        deformScale: 0.00003
-        x: hud.faceX - hud.extL
-        y: hud.faceY - hud.extT
-        implicitWidth: hud.faceW + hud.extL + hud.extR
-        implicitHeight: hud.faceH + hud.extT + hud.extB
-        topLeftRadius: (hud.extT > 0 || hud.extL > 0) ? 0 : hud.radius
-        topRightRadius: (hud.extT > 0 || hud.extR > 0) ? 0 : hud.radius
-        bottomLeftRadius: (hud.extB > 0 || hud.extL > 0) ? 0 : hud.radius
-        bottomRightRadius: (hud.extB > 0 || hud.extR > 0) ? 0 : hud.radius
-    }
-
-    BlobRect {
-        id: frameBump
-        group: (hud.live && hud.nearGap > 2 && hud.bumpReach > 0.5) ? hud.group : null
-        stiffness: 110
-        damping: 15
-        deformScale: 0.00003
-        x: hud.bumpX
-        y: hud.bumpY
-        implicitWidth: hud.bumpVert ? hud.bodyW : hud.bumpLen
-        implicitHeight: hud.bumpVert ? hud.bumpLen : hud.bodyH
-        topLeftRadius: (hud.nearEdge === "top" || hud.nearEdge === "left") ? 0 : hud.radius
-        topRightRadius: (hud.nearEdge === "top" || hud.nearEdge === "right") ? 0 : hud.radius
-        bottomLeftRadius: (hud.nearEdge === "bottom" || hud.nearEdge === "left") ? 0 : hud.radius
-        bottomRightRadius: (hud.nearEdge === "bottom" || hud.nearEdge === "right") ? 0 : hud.radius
-    }
-
-    // edge strip: hovering here pops a hidden nub back out.
-    Item {
-        x: hud.trigX
-        y: hud.trigY
-        width: hud.trigW
-        height: hud.trigH
-        HoverHandler { id: edgeHov }
-    }
-
-    Item {
-        id: content
-        x: hud.px
-        y: hud.py
+    // the crisp card: the frame's surface, a 2px outline and rounded corners,
+    // matching FrameChrome and the frame-edge cards. clips its content so the
+    // slide-in reveals it edge-first.
+    Rectangle {
+        id: card
+        x: hud.px + hud.revealX
+        y: hud.py + hud.revealY
         width: hud.bodyW
         height: hud.bodyH
-        // content only fades in once the island is past the nub, so tucked shows
-        // a clean blob with just the pulsing dot, not a ghost of the controls.
-        opacity: hud.reorientFade * Math.max(0, Math.min(1, (hud.prog - 0.25) / 0.5))
-        transform: Matrix4x4 { matrix: bodyBlob.deformMatrix }
+        radius: hud.radius
+        color: Theme.surface
+        border.width: Theme.borderWidth
+        border.color: Theme.outline
+        opacity: hud.cardOpacity
+        clip: true
+
+        // hover keeps the card revealed (nub un-tuck grace).
         HoverHandler { id: bodyHov; cursorShape: Qt.SizeAllCursor }
-        // the whole island is the drag surface, not the reflowing 6-dot grip:
-        // when it turns vertical the grip moves under the pointer, and a handler
-        // riding it would lose the grab mid-drag and hang the island floating.
-        // buttons keep their taps since a drag has to clear the threshold first.
+        // the whole card is the drag surface, not the reflowing 6-dot grip: when
+        // it turns vertical the grip moves under the pointer, and a handler riding
+        // it would lose the grab mid-drag and hang the island floating. buttons
+        // keep their taps since a drag has to clear the threshold first.
         DragHandler {
             id: dragH
             target: null
@@ -369,132 +314,151 @@ Item {
             }
         }
 
-        Grid {
-            id: grid
-            visible: Recorder.anyActive || hud.starting
-            anchors.centerIn: parent
-            columns: hud.layoutVertical ? 1 : 99
-            rowSpacing: 7 * hud.s
-            columnSpacing: 8 * hud.s
-            horizontalItemAlignment: Grid.AlignHCenter
-            verticalItemAlignment: Grid.AlignVCenter
+        // content: fades out and back across the orientation flip.
+        Item {
+            anchors.fill: parent
+            opacity: hud.reorientFade
 
-            Item {
-                width: 16 * hud.s
-                height: 20 * hud.s
-                Grid {
-                    anchors.centerIn: parent
-                    columns: 2
-                    rowSpacing: 3 * hud.s
-                    columnSpacing: 3 * hud.s
-                    Repeater {
-                        model: 6
-                        Rectangle {
-                            width: 3 * hud.s
-                            height: 3 * hud.s
-                            radius: width / 2
-                            color: gripHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant
+            Grid {
+                id: grid
+                visible: Recorder.anyActive || hud.starting
+                anchors.centerIn: parent
+                columns: hud.layoutVertical ? 1 : 99
+                rowSpacing: 7 * hud.s
+                columnSpacing: 8 * hud.s
+                horizontalItemAlignment: Grid.AlignHCenter
+                verticalItemAlignment: Grid.AlignVCenter
+
+                Item {
+                    width: 16 * hud.s
+                    height: 20 * hud.s
+                    Grid {
+                        anchors.centerIn: parent
+                        columns: 2
+                        rowSpacing: 3 * hud.s
+                        columnSpacing: 3 * hud.s
+                        Repeater {
+                            model: 6
+                            Rectangle {
+                                width: 3 * hud.s
+                                height: 3 * hud.s
+                                radius: width / 2
+                                color: gripHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant
+                            }
                         }
                     }
+                    HoverHandler { id: gripHov; cursorShape: Qt.SizeAllCursor }
                 }
-                HoverHandler { id: gripHov; cursorShape: Qt.SizeAllCursor }
+
+                Rectangle {
+                    width: 9 * hud.s
+                    height: 9 * hud.s
+                    radius: width / 2
+                    color: Recorder.paused ? Theme.onSurfaceVariant : Theme.vermLit
+                    opacity: Recorder.paused ? 1 : Recorder.pulse
+                }
+
+                Text {
+                    text: Recorder.elapsedText
+                    color: Theme.onSurface
+                    font.family: Theme.fontPrimary
+                    font.pixelSize: 13 * hud.s
+                    font.features: { "tnum": 1 }
+                }
+
+                RecordButton {
+                    visible: Recorder.canPause
+                    s: hud.s
+                    glyph: Recorder.paused ? "play" : "pause"
+                    tint: Theme.onSurface
+                    onTapped: Recorder.togglePause()
+                }
+                RecordButton {
+                    s: hud.s
+                    glyph: "stop"
+                    tint: Theme.vermLit
+                    onTapped: Recorder.studioActive ? Recorder.stopStudio() : Recorder.stop()
+                }
+                RecordButton {
+                    s: hud.s
+                    glyph: hud.sinkMuted ? "speaker-off" : "speaker"
+                    tint: hud.sinkMuted ? Theme.onSurfaceVariant : Theme.onSurface
+                    onTapped: hud.toggleSink()
+                }
+                RecordButton {
+                    s: hud.s
+                    glyph: hud.micMuted ? "mic-off" : "mic"
+                    tint: hud.micMuted ? Theme.onSurfaceVariant : Theme.onSurface
+                    onTapped: hud.toggleMic()
+                }
+                RecordButton {
+                    s: hud.s
+                    glyph: "compress"
+                    tint: Theme.onSurfaceVariant
+                    onTapped: hud.hidden = !hud.hidden
+                }
             }
 
-            Rectangle {
-                width: 9 * hud.s
-                height: 9 * hud.s
-                radius: width / 2
-                color: Recorder.paused ? Theme.onSurfaceVariant : Theme.vermLit
-                opacity: Recorder.paused ? 1 : Recorder.pulse
-            }
+            // pre-record chooser: capture toggles, then Quick (gsr) / Studio / Edit
+            // (both open ryomotion). Same icon-tile idiom and orientation flip as the
+            // live control bar, so it reads as one island in two states.
+            Grid {
+                id: chooserGrid
+                anchors.centerIn: parent
+                visible: Recorder.chooserOpen && !Recorder.anyActive && !hud.starting
+                columns: hud.layoutVertical ? 1 : 99
+                rowSpacing: 7 * hud.s
+                columnSpacing: 6 * hud.s
+                horizontalItemAlignment: Grid.AlignHCenter
+                verticalItemAlignment: Grid.AlignVCenter
 
-            Text {
-                text: Recorder.elapsedText
-                color: Theme.onSurface
-                font.family: Theme.fontPrimary
-                font.pixelSize: 13 * hud.s
-                font.features: { "tnum": 1 }
-            }
+                RecordButton { s: hud.s; glyph: Recorder.regionGeom !== "" ? "region" : "monitor"; tint: Recorder.regionGeom !== "" ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: { if (Recorder.regionGeom !== "") Recorder.regionGeom = ""; else Recorder.pickRegion(); } }
+                RecordButton { s: hud.s; glyph: Recorder.optDesktopAudio ? "speaker" : "speaker-off"; tint: Recorder.optDesktopAudio ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: Recorder.optDesktopAudio = !Recorder.optDesktopAudio }
+                RecordButton { s: hud.s; glyph: Recorder.optMic ? "mic" : "mic-off"; tint: Recorder.optMic ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: Recorder.optMic = !Recorder.optMic }
+                RecordButton { s: hud.s; glyph: "webcam"; tint: Camera.active ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: Camera.toggle() }
 
-            RecordButton {
-                visible: Recorder.canPause
-                s: hud.s
-                glyph: Recorder.paused ? "play" : "pause"
-                tint: Theme.onSurface
-                onTapped: Recorder.togglePause()
-            }
-            RecordButton {
-                s: hud.s
-                glyph: "stop"
-                tint: Theme.vermLit
-                onTapped: Recorder.studioActive ? Recorder.stopStudio() : Recorder.stop()
-            }
-            RecordButton {
-                s: hud.s
-                glyph: hud.sinkMuted ? "speaker-off" : "speaker"
-                tint: hud.sinkMuted ? Theme.onSurfaceVariant : Theme.onSurface
-                onTapped: hud.toggleSink()
-            }
-            RecordButton {
-                s: hud.s
-                glyph: hud.micMuted ? "mic-off" : "mic"
-                tint: hud.micMuted ? Theme.onSurfaceVariant : Theme.onSurface
-                onTapped: hud.toggleMic()
-            }
-            RecordButton {
-                s: hud.s
-                glyph: "compress"
-                tint: Theme.onSurfaceVariant
-                onTapped: hud.hidden = !hud.hidden
-            }
-        }
+                Rectangle {
+                    width: (hud.layoutVertical ? 18 : 1) * hud.s
+                    height: (hud.layoutVertical ? 1 : 18) * hud.s
+                    radius: 0.5 * hud.s
+                    color: Theme.onSurfaceVariant
+                    opacity: 0.35
+                }
 
-        // pre-record chooser: capture toggles, then Quick (gsr) / Studio / Edit
-        // (both open ryomotion). Same icon-tile idiom and orientation flip as the
-        // live control bar, so it reads as one island in two states.
-        Grid {
-            id: chooserGrid
-            anchors.centerIn: parent
-            visible: Recorder.chooserOpen && !Recorder.anyActive && !hud.starting
-            columns: hud.layoutVertical ? 1 : 99
-            rowSpacing: 7 * hud.s
-            columnSpacing: 6 * hud.s
-            horizontalItemAlignment: Grid.AlignHCenter
-            verticalItemAlignment: Grid.AlignVCenter
+                Action { s: hud.s; glyph: "record"; label: "Quick"; tint: Theme.vermLit; primary: true; onTapped: hud.startQuick() }
+                Action { s: hud.s; glyph: "film"; label: "Studio"; onTapped: hud.startStudio() }
+                Action { s: hud.s; glyph: "folder"; label: "Edit"; onTapped: hud.launchRyomotion() }
 
-            RecordButton { s: hud.s; glyph: Recorder.regionGeom !== "" ? "region" : "monitor"; tint: Recorder.regionGeom !== "" ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: { if (Recorder.regionGeom !== "") Recorder.regionGeom = ""; else Recorder.pickRegion(); } }
-            RecordButton { s: hud.s; glyph: hud.optDesktopAudio ? "speaker" : "speaker-off"; tint: hud.optDesktopAudio ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: hud.optDesktopAudio = !hud.optDesktopAudio }
-            RecordButton { s: hud.s; glyph: hud.optMic ? "mic" : "mic-off"; tint: hud.optMic ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: hud.optMic = !hud.optMic }
-            RecordButton { s: hud.s; glyph: "webcam"; tint: Camera.active ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: Camera.toggle() }
-
-            Rectangle {
-                width: (hud.layoutVertical ? 18 : 1) * hud.s
-                height: (hud.layoutVertical ? 1 : 18) * hud.s
-                radius: 0.5 * hud.s
-                color: Theme.onSurfaceVariant
-                opacity: 0.35
+                RecordButton { s: hud.s; glyph: "close"; tint: Theme.onSurfaceVariant; onTapped: Recorder.chooserOpen = false }
             }
-
-            Action { s: hud.s; glyph: "record"; label: "Quick"; tint: Theme.vermLit; primary: true; onTapped: hud.startQuick() }
-            Action { s: hud.s; glyph: "film"; label: "Studio"; onTapped: hud.startStudio() }
-            Action { s: hud.s; glyph: "folder"; label: "Edit"; onTapped: hud.launchRyomotion() }
-
-            RecordButton { s: hud.s; glyph: "close"; tint: Theme.onSurfaceVariant; onTapped: Recorder.chooserOpen = false }
         }
     }
 
-    // tucked cue: a record dot pulses on the nub so a hidden island still reads
-    // as "recording, tucked here" rather than gone. it fades out as it reveals.
+    // edge strip: hovering here pops a hidden nub back out.
+    Item {
+        x: hud.trigX
+        y: hud.trigY
+        width: hud.trigW
+        height: hud.trigH
+        HoverHandler { id: edgeHov }
+    }
+
+    // tucked cue: a record dot pulses at the docked edge so a hidden island still
+    // reads as "recording, tucked here" rather than gone. it fades out as the card
+    // reveals.
     Rectangle {
-        readonly property real cx: hud.faceX + hud.faceW / 2
-        readonly property real cy: hud.faceY + hud.faceH / 2
-        width: 8 * hud.s
-        height: 8 * hud.s
-        radius: width / 2
-        x: cx - width / 2
-        y: cy - height / 2
+        readonly property real dot: 8 * hud.s
+        width: dot
+        height: dot
+        radius: dot / 2
+        x: hud.dockEdge === "left" ? (hud.lipL + dot * 0.5)
+            : hud.dockEdge === "right" ? (hud.width - hud.lipR - dot * 1.5)
+            : (hud.px + hud.bodyW / 2 - dot / 2)
+        y: hud.dockEdge === "top" ? (hud.lipT + dot * 0.5)
+            : hud.dockEdge === "bottom" ? (hud.height - hud.lipB - dot * 1.5)
+            : (hud.py + hud.bodyH / 2 - dot / 2)
         color: Recorder.paused ? Theme.onSurfaceVariant : Theme.vermLit
-        opacity: Recorder.anyActive ? Math.max(0, 1 - hud.prog / 0.5) * (Recorder.paused ? 0.9 : Recorder.pulse) : 0
+        opacity: Recorder.anyActive ? Math.max(0, 1 - hud.prog / 0.4) * (Recorder.paused ? 0.9 : Recorder.pulse) : 0
         visible: opacity > 0.01
     }
 

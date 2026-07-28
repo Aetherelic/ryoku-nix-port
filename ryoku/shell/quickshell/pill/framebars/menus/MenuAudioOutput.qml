@@ -4,68 +4,86 @@ import QtQuick
 import "../.." as Pill
 import "../../Singletons"
 
-// Audio output entry (contract 06 sec 2.8): a RevealerRow whose action button
-// mutes the default sink and whose middle is an inline, un-debounced volume
-// slider; the reveal opens the service-ordered output device list, each row
-// selecting a default and marking the current one with a check. Volume/mute
-// come live from the default Pipewire sink; the device list from Audio.outputs.
+// Audio output mixer (contract 06 sec 2.8): the default sink's volume + mute on
+// a fader, a device switcher that lists the output devices with a check on the
+// current default, and a per-app row for every playback stream so each app's
+// volume and mute ride their own fader. Volume/mute read live from Pipewire; the
+// device list from Audio.outputs and the app streams from Audio.streams. cava-
+// style VU shimmer rides each fader from its node's live peak while open.
 Item {
     id: root
 
     property real s: 1
     property bool open: false
-
-    implicitHeight: row.implicitHeight
-
-    // Detail-page mode: hosted as a sidebar page, the device list arrives open.
+    // Detail-page mode (quick-settings host): the device list arrives expanded.
     property bool pageMode: false
-    onOpenChanged: if (root.open && root.pageMode) row.revealed = true
+
+    implicitHeight: col.implicitHeight
 
     readonly property var sink: Audio.sink
-    readonly property real vol: root.sink && root.sink.audio ? root.sink.audio.volume : 0
-    readonly property bool muted: root.sink && root.sink.audio ? root.sink.audio.muted : false
+    readonly property bool haveSink: !!(root.sink && root.sink.audio)
 
-    function muteIcon() {
-        if (!root.sink || root.muted)
-            return "volume_off";
-        const p = root.vol * 100;
-        return p > 66 ? "volume_up" : p > 33 ? "volume_down" : p > 0 ? "volume_mute" : "volume_off";
-    }
+    property bool devicesOpen: root.pageMode
+    onOpenChanged: if (root.open && root.pageMode) root.devicesOpen = true
 
-    RevealerRow {
-        id: row
+    Column {
+        id: col
         width: root.width
-        actionIconName: root.muteIcon()
-        actionSensitive: true
-        onActionClicked: if (root.sink && root.sink.audio) root.sink.audio.muted = !root.sink.audio.muted
+        spacing: 8 * root.s
 
-        middle: RevealerRowSlider {
-            anchors.fill: parent
-            value: root.vol
-            onMoved: v => { if (root.sink && root.sink.audio) root.sink.audio.volume = v; }
+        // ── output device fader ──────────────────────────────────────────────
+        Pill.HFader {
+            width: parent.width
+            s: root.s
+            icon: root.sink ? Audio.nodeIcon(root.sink) : "speaker"
+            lit: root.open
+            value: root.haveSink ? root.sink.audio.volume : 0
+            muted: root.haveSink ? root.sink.audio.muted : false
+            valueLabel: !root.haveSink ? "" : (root.sink.audio.muted ? qsTr("off") : Math.round(root.sink.audio.volume * 100) + "%")
+            peakNode: root.sink
+            peakEnabled: root.open && !!root.sink
+            onMoved: v => { if (root.haveSink) root.sink.audio.volume = v; }
+            onIconTapped: { if (root.haveSink) root.sink.audio.muted = !root.sink.audio.muted; }
         }
 
-        Column {
+        // ── device switcher ──────────────────────────────────────────────────
+        AudioDevicePicker {
             width: parent.width
-            spacing: 0
+            s: root.s
+            current: root.sink
+            devices: Audio.outputs
+            listOpen: root.devicesOpen
+            fallbackIcon: "speaker"
+            emptyLabel: qsTr("No output device")
+            onToggled: root.devicesOpen = !root.devicesOpen
+            onPicked: node => Audio.setOutput(node)
+        }
 
-            Repeater {
-                model: root.open ? Audio.outputs : []
-                delegate: MenuButton {
-                    id: drow
-                    required property var modelData
-                    readonly property bool isDefault: root.sink && drow.modelData && drow.modelData.name === root.sink.name
-                    width: parent.width
-                    minH: dlabel.implicitHeight + drow.pad * 2
-                    onClicked: Audio.setOutput(drow.modelData)
-                    RevealerIconLabel {
-                        id: dlabel
-                        anchors.fill: parent
-                        iconName: drow.isDefault ? "check_circle" : ""
-                        label: Audio.nodeLabel(drow.modelData)
-                    }
-                }
+        // ── per-app mixer ─────────────────────────────────────────────────────
+        Pill.MicroLabel {
+            label: qsTr("Apps")
+            s: root.s
+            visible: root.open && Audio.streams.length > 0
+        }
+        Repeater {
+            model: root.open ? Audio.streams : []
+            delegate: Pill.AudioAppRow {
+                required property var modelData
+                s: root.s
+                open: root.open
+                stream: modelData
+                width: col.width
             }
+        }
+        Text {
+            visible: root.open && Audio.streams.length === 0
+            width: parent.width
+            topPadding: 2 * root.s
+            text: qsTr("Nothing playing")
+            horizontalAlignment: Text.AlignHCenter
+            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+            font.family: Theme.fontPrimary
+            font.pixelSize: 10 * root.s
         }
     }
 }

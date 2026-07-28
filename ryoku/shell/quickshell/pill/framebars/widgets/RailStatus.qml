@@ -6,10 +6,10 @@ import Quickshell.Bluetooth
 import "../../Singletons"
 
 // One renderer parameterised by statusId, exactly as the reference treats each
-// status widget as its own type. Box-shape indicators (battery/network/bluetooth)
-// carry no click; button-shape widgets (audio-output/audio-input/notifications)
-// click, and the two audio widgets take a hover-gated vertical wheel. Icon rules
-// and self-hide are the reference literals (contract 04 sec 3.2).
+// status widget as its own type. The battery, network, bluetooth and the speaker
+// open their popout card; notifications opens quick-settings; the mic mutes on
+// click; both audio widgets take a hover wheel for volume. Icon rules and
+// self-hide are the reference literals (contract 04 sec 3.2).
 Item {
     id: root
 
@@ -18,7 +18,6 @@ Item {
     required property string statusId
     signal menuRequested(string id, rect ownerRect)
 
-    readonly property bool box: statusId === "battery" || statusId === "network" || statusId === "bluetooth"
     readonly property bool audioOut: statusId === "audio-output"
     readonly property bool audioIn: statusId === "audio-input"
 
@@ -93,12 +92,18 @@ Item {
 
     function primary() {
         if (audioOut) {
-            Quickshell.execDetached(["ryoku-shell", "audio", "mute"]);
+            root.menuRequested("audio", Qt.rect(btn.x, btn.y, btn.width, btn.height));
         } else if (audioIn) {
             if (Audio.source && Audio.source.audio)
                 Audio.source.audio.muted = !Audio.source.audio.muted;
         } else if (statusId === "notifications") {
             root.menuRequested("quick-settings#notifications", Qt.rect(0, 0, root.width, root.height));
+        } else if (statusId === "bluetooth") {
+            root.menuRequested("bluetooth", Qt.rect(btn.x, btn.y, btn.width, btn.height));
+        } else if (statusId === "battery") {
+            root.menuRequested("battery", Qt.rect(btn.x, btn.y, btn.width, btn.height));
+        } else if (statusId === "network") {
+            root.menuRequested("network", Qt.rect(btn.x, btn.y, btn.width, btn.height));
         }
     }
 
@@ -120,7 +125,7 @@ Item {
         edge: root.edge
         scale: root.scale
         icon: root.glyph
-        interactive: !root.box
+        interactive: true
         scrollable: root.audioOut || root.audioIn
         onClicked: root.primary()
         onScrolled: steps => root.scrollBy(steps)

@@ -1,418 +1,167 @@
 //@ pragma UseQApplication
 
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
-import Quickshell.Hyprland
+import Quickshell.Wayland
+import Quickshell.Widgets
 import Quickshell.Io
-import "Singletons"
-import "providers"
-import "lib/lifecycle.js" as Lifecycle
 
+// The OkShell app launcher, in Ryoku's dress. A stand-in until the real one is
+// designed: search icon, a bare entry, an eye that reveals the hidden entries,
+// and a scrolling list of icon + name. The selected row slides its content right
+// by 30px on 200ms, which is OkShell's whole selection cue
+// (okshell-style/scss/04-components/_app_launcher.scss).
+//
+// Ryoku supplies the surface: radiusWidget corners, a 1px outline at 0.30, a
+// sumi edge, and the active-tile dress for the selection. Colour is the live
+// matugen palette, so it retints with the wallpaper.
+//
+// SCOPE: apps only. The dispatcher, the twelve providers, the action panel and
+// the AI ask still live in this directory, unwired. Restore the old card with
+// `git checkout ryoku/shell/quickshell/launcher/shell.qml`.
 ShellRoot {
     id: root
 
-    property var lifecycleState: Lifecycle.initialState()
-    property bool openRequested: false
-    property string requestedMonitor: ""
-    property var activeLauncher: null
-    property var activeSurface: null
-    property var railSurfaces: ({})
-    property int railRevision: 0
-    property string recoveryTarget: ""
-    property bool pointerFocusForced: false
-    property bool pointerFocusKnown: false
-    property int savedFollowMouse: 2
-    property string pointerFocusPending: ""
-
-    readonly property bool open: openRequested
-    readonly property string openMon: String(lifecycleState.monitor || "")
-
-    onOpenChanged: {
-        Quickshell.execDetached([
-            "ryoku-shell", "state", "launcher", open ? "1" : "0"
-        ]);
-        if (open) {
-            freezePointerFocus();
-        } else {
-            restorePointerFocus();
-        }
+    // ── palette: the live matugen roles ─────────────────────────────────────
+    property var pal: ({})       // colors.json: the live wallpaper palette
+    property var named: null     // shell.json themePalette: the active coded theme
+    // Resolve like the pill's Theme: a selected coded theme wins, then the live
+    // wallpaper palette, then the compiled default. Without the coded-theme layer
+    // the launcher only tracked the wallpaper and ignored the fixed presets.
+    function role(k, d) {
+        if (root.named && typeof root.named[k] === "string" && root.named[k].length > 0)
+            return root.named[k];
+        const v = root.pal[k];
+        return (typeof v === "string" && v.length > 0) ? v : d;
     }
+    readonly property color cSurface: role("surface", "#16110b")
+    readonly property color cOnSurface: role("onSurface", "#e8e0d4")
+    readonly property color cOnSurfaceVar: role("onSurfaceVariant", "#b9b0a4")
+    readonly property color cPrimary: role("primary", "#e2342a")
+    readonly property color cOutline: role("outline", "#8a8178")
 
-    Binding {
-        target: Weather
-        property: "unitOverride"
-        value: LauncherConfig.weatherUnit === "auto"
-            ? "" : LauncherConfig.weatherUnit
-    }
-
-    function focusedMonitor() {
-        var monitor = Hyprland.focusedMonitor;
-        if (monitor && monitor.name)
-            return monitor.name;
-        return Quickshell.screens.length > 0
-            ? Quickshell.screens[0].name : "";
-    }
-
-    function screenForName(name) {
-        var target = String(name || "");
-        for (var index = 0; index < Quickshell.screens.length; index++) {
-            var screen = Quickshell.screens[index];
-            if (screen && screen.name === target)
-                return screen;
-        }
-        return null;
-    }
-
-    function scaleForScreen(screen) {
-        return Math.min(1.2, (screen ? screen.height / 1080 : 1))
-            * Math.max(0.8, Math.min(1.4, Config.fontScale));
-    }
-
-    function budgetForScreen(screen) {
-        var scale = scaleForScreen(screen);
-        var topMargin = Math.round(Math.max(
-            24 * scale, (screen.height - 250 * scale) * 0.28));
-        return Lifecycle.surfaceBudget({
-            screenWidth: screen.width,
-            screenHeight: screen.height,
-            topMargin: topMargin,
-            shadowPadX: 52 * scale,
-            shadowPadTop: 54 * scale,
-            shadowPadBottom: 76 * scale,
-            bottomSafeMargin: 16 * scale,
-            compressedHeroHeight: 126 * scale
-        });
-    }
-
-    function availableMonitorNames() {
-        var names = [];
-        for (var index = 0; index < Quickshell.screens.length; index++) {
-            var screen = Quickshell.screens[index];
-            if (screen && screen.name)
-                names.push(String(screen.name));
-        }
-        return names;
-    }
-
-    function restHeightForScreen(screen) {
-        if (!screen)
-            return 0;
-        return Math.min(
-            250 * scaleForScreen(screen),
-            budgetForScreen(screen).maxCardHeight);
-    }
-
-    function frostEligible() {
-        return (LauncherConfig.bgBlur | 0) > 0
-            && !Motion.reduce
-            && !Performance.blurDisabled;
-    }
-
-    function dispatchLifecycle(event) {
-        lifecycleState = Lifecycle.reduce(lifecycleState, event);
-        if (lifecycleState.phase === Lifecycle.PHASES.CLOSED) {
-            activeSurface = null;
-            activeLauncher = null;
-        }
-    }
-
-    function recoveryMonitor() {
-        return Lifecycle.recoveryMonitor({
-            availableMonitors: availableMonitorNames(),
-            pendingMonitor: lifecycleState.pendingMonitor,
-            requestedMonitor: requestedMonitor,
-            focusedMonitor: focusedMonitor(),
-            currentMonitor: lifecycleState.monitor
-        });
-    }
-
-    function handleLifecycleEvent(event) {
-        var captured = event || {};
-        var replacement = "";
-        if (captured.type === "surfaceLost"
-                && Number(captured.generation) === lifecycleState.generation
-                && String(captured.monitor || "") === lifecycleState.monitor) {
-            replacement = openRequested ? recoveryMonitor() : "";
-            if (replacement)
-                requestedMonitor = replacement;
-        }
-        dispatchLifecycle(captured);
-        if (replacement && openRequested
-                && lifecycleState.phase === Lifecycle.PHASES.CLOSED) {
-            recoveryTarget = replacement;
-            recoveryDelay.generation = lifecycleState.generation;
-            recoveryDelay.restart();
-        }
-    }
-
-    function queueLifecycleEvent(event) {
-        var captured = {};
-        var source = event || {};
-        for (var key in source)
-            captured[key] = source[key];
-        Qt.callLater(function () {
-            root.handleLifecycleEvent(captured);
-        });
-    }
-
-    function requestClose(generation, monitor) {
-        var capturedGeneration = Number(generation);
-        var capturedMonitor = String(monitor || "");
-        Qt.callLater(function () {
-            if (capturedGeneration !== root.lifecycleState.generation
-                    || capturedMonitor !== root.lifecycleState.monitor)
-                return;
-            root.hide();
-        });
-    }
-
-    function recoverScreens() {
-        var state = lifecycleState;
-        var currentValid = screenForName(state.monitor) !== null;
-
-        if (state.phase !== Lifecycle.PHASES.CLOSED && !currentValid) {
-            handleLifecycleEvent({
-                type: "surfaceLost",
-                generation: state.generation,
-                monitor: state.monitor
-            });
-            return;
-        }
-
-        if (state.pendingMonitor
-                && screenForName(state.pendingMonitor) === null) {
-            var fallback = recoveryMonitor();
-            if (!fallback) {
-                handleLifecycleEvent({
-                    type: "surfaceLost",
-                    generation: state.generation,
-                    monitor: state.monitor
-                });
-                return;
+    FileView {
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const t = text();
+                root.pal = t && t.length ? (JSON.parse(t) || {}) : {};
+            } catch (e) {
+                root.pal = {};
             }
-            requestedMonitor = fallback;
-            dispatchLifecycle({
-                type: "show",
-                monitor: fallback,
-                height: restHeightForScreen(screenForName(fallback)),
-                frostEligible: frostEligible()
-            });
-            return;
-        }
-
-        if (openRequested
-                && state.phase === Lifecycle.PHASES.CLOSED
-                && !recoveryDelay.running) {
-            var target = recoveryMonitor();
-            if (target)
-                show(target);
         }
     }
 
+    // the active coded theme's palette, resolved by the daemon into shell.json's
+    // top-level themePalette key (absent for the dynamic Wallpaper/Default variants).
+    FileView {
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const o = JSON.parse(text());
+                root.named = (o && typeof o.themePalette === "object" && o.themePalette !== null)
+                    ? o.themePalette : null;
+            } catch (e) {
+                root.named = null;
+            }
+        }
+    }
+
+    // ── tokens ──────────────────────────────────────────────────────────────
+    // the sidebar's push: a clean positional slide, no spring and no scale.
+    // Mirrors Motion.push / Motion.pushCurve in the pill's Singletons.
+    readonly property int pushMs: 420
+    readonly property int pushCurve: Easing.OutQuint
+    readonly property var spring: [0.38, 1.21, 0.22, 1, 1, 1]
+
+    readonly property int rad: 8
+    readonly property int fontSm: 14
+    readonly property int fontMd: 16
+    readonly property int panelW: 560
+    readonly property int barH: 52
+    readonly property int rowH: 44
+    readonly property int pad: 10
+    readonly property int elev: 0
+    readonly property int listMax: 420
+    readonly property int maxPanelH: root.listMax + root.pad * 2
+    readonly property int restY: 24
+    readonly property int slideIn: 30      // OkShell's selected padding-left
+
+    readonly property color cardBg: Qt.rgba(cOnSurface.r, cOnSurface.g, cOnSurface.b, 0.06)
+    readonly property color onBg: Qt.rgba(cPrimary.r, cPrimary.g, cPrimary.b, 0.20)
+    readonly property color lineC: Qt.rgba(cOutline.r, cOutline.g, cOutline.b, 0.30)
+    readonly property color onLine: Qt.rgba(cPrimary.r, cPrimary.g, cPrimary.b, 0.55)
+    readonly property color dimInk: Qt.rgba(cOnSurfaceVar.r, cOnSurfaceVar.g, cOnSurfaceVar.b, 0.85)
+
+    // ── state ───────────────────────────────────────────────────────────────
+    property bool shown: false
+    property string query: ""
+    property int sel: 0
+    property bool showHidden: false
+    property string monitor: ""
+    // true for a beat after the query changes, so selection animations do not
+    // fire on delegates the model just recycled underneath them
+    property bool settling: false
+    onQueryChanged: { root.settling = true; settleT.restart(); }
+    Timer { id: settleT; interval: 90; onTriggered: root.settling = false }
+
+    // sorted once per catalogue/visibility change, not per keystroke
+    readonly property var catalogue: {
+        const all = DesktopEntries.applications.values
+            .filter(a => root.showHidden || !a.noDisplay);
+        all.sort((a, b) => (a.name || "").toLowerCase()
+            .localeCompare((b.name || "").toLowerCase()));
+        return all;
+    }
+    readonly property var rows: {
+        const all = root.catalogue;
+        const q = root.query.trim().toLowerCase();
+        const hit = q.length === 0
+            ? all.slice()
+            : all.filter(a => (a.name || "").toLowerCase().includes(q));
+        hit.sort((a, b) => {
+            const an = (a.name || "").toLowerCase(), bn = (b.name || "").toLowerCase();
+            if (q.length > 0) {
+                const ap = an.startsWith(q) ? 0 : 1, bp = bn.startsWith(q) ? 0 : 1;
+                if (ap !== bp)
+                    return ap - bp;
+            }
+            return an.localeCompare(bn);
+        });
+        return hit;
+    }
+    readonly property int listH: Math.min(root.listMax, root.rows.length * root.rowH)
+    readonly property int panelH: root.rows.length > 0 ? root.listH + root.pad * 2 : 0
+
+    // ── lifecycle ───────────────────────────────────────────────────────────
     function show(mon) {
-        recoveryDelay.stop();
-        recoveryTarget = "";
-        var target = String(mon || "");
-        if (!screenForName(target))
-            target = focusedMonitor();
-        var screen = screenForName(target);
-        if (!screen)
+        root.monitor = mon || "";
+        root.query = "";
+        root.sel = 0;
+        root.shown = true;
+    }
+    function hide() { root.shown = false; }
+    function toggle(mon) { root.shown ? root.hide() : root.show(mon); }
+    function step(d) {
+        if (root.rows.length === 0)
             return;
-
-        requestedMonitor = target;
-        openRequested = true;
-        dispatchLifecycle({
-            type: "show",
-            monitor: target,
-            height: restHeightForScreen(screen),
-            frostEligible: frostEligible()
-        });
+        root.sel = Math.max(0, Math.min(root.rows.length - 1, root.sel + d));
     }
-
-    function hide() {
-        recoveryDelay.stop();
-        recoveryTarget = "";
-        openRequested = false;
-        requestedMonitor = "";
-        restorePointerFocus();
-        dispatchLifecycle({ type: "hide" });
-    }
-
-    function toggle(mon) {
-        if (openRequested)
-            hide();
-        else
-            show(mon);
-    }
-
-    function registerActive(surface, launcher) {
-        activeSurface = surface;
-        activeLauncher = launcher;
-        if (surface) {
-            surface.windowRail = railForMonitor(surface.surfaceMonitor);
-            surface.windowRailSurface = railSurfaceForMonitor(
-                surface.surfaceMonitor);
-        }
-    }
-
-    function registerRail(surface) {
-        if (!surface || !surface.surfaceMonitor)
+    function run() {
+        const e = root.rows[root.sel];
+        if (!e)
             return;
-        var next = {};
-        for (var name in railSurfaces)
-            next[name] = railSurfaces[name];
-        next[String(surface.surfaceMonitor)] = surface;
-        railSurfaces = next;
-        railRevision++;
-        if (activeSurface
-                && String(activeSurface.surfaceMonitor || "")
-                    === String(surface.surfaceMonitor)) {
-            activeSurface.windowRail = surface.rail;
-            activeSurface.windowRailSurface = surface;
-        }
-    }
-
-    function railForMonitor(monitor) {
-        var surface = railSurfaceForMonitor(monitor);
-        return surface ? surface.rail : null;
-    }
-
-    function railSurfaceForMonitor(monitor) {
-        return railSurfaces[String(monitor || "")] || null;
-    }
-
-    // The launcher has exclusive keyboard focus. Temporarily disabling
-    // pointer-driven refocus prevents a cursor outside its small surface from
-    // handing typed keys back to the window underneath. The user's exact
-    // follow_mouse setting is probed once and restored after the close morph.
-    Process {
-        id: pointerFocusWriter
-        onRunningChanged: {
-            if (running || root.pointerFocusPending === "")
-                return;
-            var next = root.pointerFocusPending;
-            root.pointerFocusPending = "";
-            command = ["hyprctl", "eval", next];
-            running = true;
-        }
-    }
-
-    function evalFollowMouse(value) {
-        var next = Math.max(0, Math.min(3, Number(value) | 0));
-        var command = "hl.config({ input = { follow_mouse = " + next + " } })";
-        if (pointerFocusWriter.running) {
-            pointerFocusPending = command;
-            return;
-        }
-        pointerFocusWriter.command = ["hyprctl", "eval", command];
-        pointerFocusWriter.running = true;
-    }
-
-    Process {
-        id: pointerFocusProbe
-        command: ["hyprctl", "getoption", "-j", "input:follow_mouse"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (!root.open)
-                    return;
-                var option;
-                try {
-                    option = JSON.parse(this.text);
-                } catch (error) {
-                    return;
-                }
-                if (typeof option.int !== "number")
-                    return;
-                root.savedFollowMouse = option.int;
-                root.pointerFocusKnown = true;
-                root.pointerFocusForced = true;
-                root.evalFollowMouse(0);
-            }
-        }
-    }
-
-    function freezePointerFocus() {
-        if (pointerFocusForced) {
-            evalFollowMouse(0);
-            return;
-        }
-        if (!pointerFocusProbe.running)
-            pointerFocusProbe.running = true;
-    }
-
-    function restorePointerFocus() {
-        if (!pointerFocusForced || !pointerFocusKnown)
-            return;
-        evalFollowMouse(savedFollowMouse);
-        pointerFocusForced = false;
-    }
-
-    function stateDump() {
-        var dump = activeLauncher ? activeLauncher.stateDump() : {};
-        var mapped = activeSurface
-            && activeSurface.invocationSurface
-            && activeSurface.backingWindowVisible;
-
-        dump.open = openRequested;
-        dump.phase = String(lifecycleState.phase || Lifecycle.PHASES.CLOSED);
-        dump.monitor = String(lifecycleState.monitor || "");
-        dump.generation = Number(lifecycleState.generation || 0);
-        dump.capture = String(lifecycleState.capture || Lifecycle.CAPTURE.IDLE);
-        dump.preludeTicks = Number(lifecycleState.preludeTicks || 0);
-        dump.closeTicks = Number(lifecycleState.closeTicks || 0);
-        dump.mapped = Boolean(mapped);
-        dump.focusHeld = Boolean(lifecycleState.focusHeld);
-        dump.surfaceWidth = mapped ? Math.round(activeSurface.width) : 0;
-        dump.surfaceHeight = mapped ? Math.round(activeSurface.height) : 0;
-        dump.screenWidth = mapped
-            ? Math.round(activeSurface.modelData.width) : 0;
-        dump.screenHeight = mapped
-            ? Math.round(activeSurface.modelData.height) : 0;
-        dump.cardHeight = mapped
-            ? Math.round(activeSurface.presentedHeight) : 0;
-        dump.inputEnabled = Boolean(
-            mapped && activeSurface.inputEnabled);
-        dump.maskWidth = activeSurface && activeSurface.inputEnabled
-            ? Math.round(activeSurface.cardWidth
-                * activeSurface.visualScale) : 0;
-        dump.maskHeight = activeSurface && activeSurface.inputEnabled
-            ? Math.round(activeSurface.presentedHeight
-                * activeSurface.visualScale) : 0;
-        dump.visualOpacity = activeSurface
-            ? Number(activeSurface.visualOpacity) : 0;
-        dump.visualScale = activeSurface
-            ? Number(activeSurface.visualScale) : 0;
-        dump.visualOffsetY = activeSurface
-            ? Number(activeSurface.visualOffsetY) : 0;
-        dump.frostActive = Boolean(
-            activeSurface && activeSurface.frostActive);
-        dump.frostPresented = Boolean(
-            activeSurface && activeSurface.frostPresented);
-        dump.frostPresentationHeight = activeSurface
-            ? Math.round(activeSurface.frostPlan.drawerHeight || 0) : 0;
-        dump.frostPresentationOpacity = activeSurface
-            ? Number(activeSurface.frostPlan.opacity || 0) : 0;
-        dump.frameDriverActive = Boolean(
-            activeSurface && activeSurface.frameDriverActive);
-        dump.outerHeight = Math.round(lifecycleState.outerHeight || 0);
-        dump.btConnected = 0;
-        return dump;
-    }
-
-    readonly property string sockPath: (
-        Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
-        + "/ryoku-launcher.sock"
-
-    function runCommand(line) {
-        var parts = String(line || "").trim().split(" ");
-        var fn = parts[0];
-        var mon = parts.length > 1 ? parts[1] : "";
-        switch (fn) {
-        case "toggle": toggle(mon); return true;
-        case "show": show(mon); return true;
-        case "hide": hide(); return true;
-        default: return false;
-        }
+        root.hide();
+        e.execute();
     }
 
     IpcHandler {
@@ -422,84 +171,245 @@ ShellRoot {
         function hide(): void { root.hide(); }
     }
 
-    SocketServer {
-        active: true
-        path: root.sockPath
-        handler: Socket {
-            id: cmdSock
-            parser: SplitParser {
-                onRead: line => {
-                    var command = String(line || "").trim();
-                    if (command === "state") {
-                        cmdSock.write(
-                            JSON.stringify(root.stateDump()) + "\n");
-                    } else {
-                        cmdSock.write(
-                            (root.runCommand(command) ? "ok" : "err") + "\n");
+    // a 1px lit line along a card's top edge, inset by the radius
+    component Sumi: Rectangle {
+        property real r: root.rad
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: r
+        anchors.rightMargin: r
+        height: 1
+        color: Qt.rgba(root.cOnSurface.r, root.cOnSurface.g, root.cOnSurface.b, 0.10)
+    }
+
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            id: win
+            required property var modelData
+            screen: modelData
+            // stays mapped until the slide-out finishes, or the exit never plays
+            visible: (root.shown || win.p > 0.001)
+                && (root.monitor.length === 0 || root.monitor === String(modelData.name))
+            color: "transparent"
+            exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.namespace: "launcher"
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+            anchors { top: true }
+            // the surface slides off the top edge; nothing is left behind to frost
+            margins.top: root.shown ? root.restY : -(win.implicitHeight + 8)
+            Behavior on margins.top {
+                NumberAnimation { duration: root.pushMs; easing.type: root.pushCurve }
+            }
+            implicitWidth: root.panelW
+            implicitHeight: root.barH + 10 + root.maxPanelH
+
+            // keeps the surface mapped for the length of the slide-out
+            property real p: root.shown ? 1 : 0
+            Behavior on p {
+                NumberAnimation { duration: root.pushMs; easing.type: root.pushCurve }
+            }
+
+            Item {
+                anchors.fill: parent
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.hide()
+                }
+
+                // ── search row ──────────────────────────────────────────────
+                Item {
+                    id: barWrap
+                    width: root.panelW
+                    height: root.barH
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: root.elev
+
+                    Rectangle {
+                        id: bar
+                        anchors.fill: parent
+                        radius: root.rad
+                        color: Qt.rgba(root.cSurface.r, root.cSurface.g, root.cSurface.b, 0.88)
+                        border.width: 1
+                        border.color: root.lineC
+                        Sumi {}
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 9
+                            spacing: 10
+
+                            Text {
+                                text: "search"
+                                font.family: "Material Symbols Rounded"
+                                font.pixelSize: 20
+                                color: root.cOnSurface
+                            }
+                            TextInput {
+                                id: field
+                                Layout.fillWidth: true
+                                focus: win.visible
+                                color: root.cOnSurface
+                                font.pixelSize: root.fontMd
+                                selectByMouse: true
+                                onTextChanged: { root.query = text; root.sel = 0; }
+                                Connections {
+                                    target: root
+                                    function onShownChanged() {
+                                        if (root.shown) { field.text = ""; field.forceActiveFocus(); }
+                                    }
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: field.text.length === 0
+                                    text: "Search"
+                                    color: root.dimInk
+                                    font: field.font
+                                }
+                                Keys.onEscapePressed: root.hide()
+                                Keys.onReturnPressed: root.run()
+                                Keys.onEnterPressed: root.run()
+                                Keys.onDownPressed: root.step(1)
+                                Keys.onUpPressed: root.step(-1)
+                                Keys.onPressed: (e) => {
+                                    if (e.key === Qt.Key_PageDown) { root.step(8); e.accepted = true; }
+                                    else if (e.key === Qt.Key_PageUp) { root.step(-8); e.accepted = true; }
+                                }
+                            }
+                            // OkShell's eye: reveal the entries marked NoDisplay
+                            Rectangle {
+                                Layout.preferredWidth: 34
+                                Layout.preferredHeight: 34
+                                radius: root.rad - 4
+                                color: root.showHidden ? root.onBg : root.cardBg
+                                border.width: 1
+                                border.color: root.showHidden ? root.onLine : root.lineC
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: root.showHidden ? "visibility" : "visibility_off"
+                                    font.family: "Material Symbols Rounded"
+                                    font.pixelSize: 18
+                                    color: root.cOnSurface
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: { root.showHidden = !root.showHidden; root.sel = 0; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── the list ────────────────────────────────────────────────
+                Item {
+                    id: panelWrap
+                    width: root.panelW
+                    height: root.panelH
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: root.elev + root.barH + 10
+                    visible: root.panelH > 1
+                    Behavior on height {
+                        NumberAnimation {
+                            duration: 280
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: root.spring
+                        }
+                    }
+
+
+                    Rectangle {
+                        id: panel
+                        anchors.fill: parent
+                        radius: root.rad
+                        color: Qt.rgba(root.cSurface.r, root.cSurface.g, root.cSurface.b, 0.88)
+                        border.width: 1
+                        border.color: root.lineC
+                        clip: true
+                        Sumi {}
+
+                        ListView {
+                            id: list
+                            anchors.fill: parent
+                            anchors.margins: root.pad
+                            model: ScriptModel { values: root.rows }
+                            currentIndex: root.sel
+                            highlightFollowsCurrentItem: true
+                            preferredHighlightBegin: 0
+                            preferredHighlightEnd: height
+                            highlightRangeMode: ListView.ApplyRange
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            cacheBuffer: root.rowH * 8
+
+                            // the plate slides between rows rather than fading
+                            highlight: Rectangle {
+                                radius: root.rad
+                                color: root.onBg
+                                border.width: 1
+                                border.color: root.onLine
+                                Sumi {}
+                            }
+                            highlightMoveDuration: root.settling ? 0 : 260
+                            highlightResizeDuration: 0
+
+                            delegate: Item {
+                                id: li
+                                required property int index
+                                required property var modelData
+                                width: ListView.view.width
+                                height: root.rowH
+                                readonly property bool on: index === root.sel
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: { root.sel = li.index; root.run(); }
+                                }
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    // OkShell's cue: the selected row's content
+                                    // slides right, 200ms ease-in-out.
+                                    anchors.leftMargin: 12 + (li.on ? root.slideIn : 0)
+                                    anchors.rightMargin: 14
+                                    spacing: 12
+                                    Behavior on anchors.leftMargin {
+                                        enabled: !root.settling
+                                        NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+                                    }
+
+                                    IconImage {
+                                        implicitSize: 24
+                                        source: Quickshell.iconPath((li.modelData && li.modelData.icon) || "application-x-executable", true)
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: li.modelData ? li.modelData.name : ""
+                                        color: root.cOnSurface
+                                        font.pixelSize: root.fontSm
+                                        font.weight: Font.DemiBold
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        visible: li.on
+                                        text: "Run"
+                                        color: root.dimInk
+                                        font.pixelSize: root.fontSm - 2
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
-
-    Providers {
-        id: sharedProviders
-    }
-
-    Timer {
-        id: recoveryDelay
-        property int generation: 0
-        interval: 50
-        repeat: false
-        onTriggered: {
-            var target = root.recoveryTarget;
-            root.recoveryTarget = "";
-            if (!root.openRequested
-                    || root.lifecycleState.phase
-                        !== Lifecycle.PHASES.CLOSED
-                    || root.lifecycleState.generation !== generation
-                    || root.screenForName(target) === null)
-                return;
-            root.show(target);
-        }
-    }
-
-    Connections {
-        target: Quickshell
-        function onScreensChanged() {
-            root.recoverScreens();
-        }
-    }
-
-    Variants {
-        model: Quickshell.screens
-
-        LauncherSurface {
-            providerSet: sharedProviders
-            lifecycleState: root.lifecycleState
-            windowRail: {
-                void root.railRevision;
-                return root.railForMonitor(modelData.name);
-            }
-            windowRailSurface: {
-                void root.railRevision;
-                return root.railSurfaceForMonitor(modelData.name);
-            }
-            onLifecycleEvent: event => root.queueLifecycleEvent(event)
-            onRequestClose: (generation, monitor) =>
-                root.requestClose(generation, monitor)
-            onBecameActive: (surface, launcher) =>
-                root.registerActive(surface, launcher)
-        }
-    }
-
-    Variants {
-        model: Quickshell.screens
-
-        WindowRailSurface {
-            launcher: root.activeLauncher
-            launcherSurface: root.activeSurface
-            onReady: surface => root.registerRail(surface)
         }
     }
 }

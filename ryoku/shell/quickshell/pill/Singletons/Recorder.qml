@@ -89,7 +89,51 @@ Singleton {
     onDiscordModeChanged: Quickshell.execDetached(["sh", "-c",
         "mkdir -p \"${1%/*}\"; printf '%s' \"$2\" > \"$1\"", "sh", root.discordFile, root.discordMode ? "1" : "0"])
 
+    // Remembered capture options the record island's chooser and the capture card
+    // both read, persisted to record.json: the desktop-audio / mic toggles and
+    // "edit after" -- when a Quick recording ends it opens the clip in ryomotion.
+    // Studio always routes through ryomotion, so it ignores editMode. Shape
+    // mirrors Flags: watch for outside edits, write back on change, seed once.
+    property alias optDesktopAudio: recPrefs.desktopAudio
+    property alias optMic: recPrefs.mic
+    property alias editMode: recPrefs.edit
+    FileView {
+        id: recPrefsFile
+        path: (Quickshell.env("RYOKU_STATE_PATH") || (Quickshell.env("HOME") + "/.local/state/ryoku")) + "/record.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        atomicWrites: true
+        onFileChanged: reload()
+        onAdapterUpdated: writeAdapter()
+        JsonAdapter {
+            id: recPrefs
+            property bool desktopAudio: false
+            property bool mic: true
+            property bool edit: false
+        }
+    }
+    Component.onCompleted: if (!recPrefsFile.text()) recPrefsFile.writeAdapter();
+
+    // desktop-audio + mic flags -> ryoku-cmd-screenrecord args, shared by the card
+    // and the island so the two never build the argument list differently.
+    function recordArgs() {
+        var a = [];
+        if (root.optDesktopAudio) a.push("--with-desktop-audio");
+        if (root.optMic) a.push("--with-microphone-audio");
+        return a;
+    }
+
+    // edit-after: when a Quick recording ends, hand the clip to ryomotion. Latched
+    // at start so a mid-capture toggle can't retarget it; Studio never uses it.
+    readonly property string editScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-edit-recording"
+    property bool pendingEdit: false
+
     function start(extraArgs) {
+        // latch the persisted post-capture actions so a mid-capture toggle can't
+        // retarget the just-finished Quick clip.
+        root.pendingDiscord = root.discordMode;
+        root.pendingEdit = root.editMode;
         Quickshell.execDetached([root.script, ...(extraArgs || [])]);
         root.paused = false;
         root.active = true;
@@ -107,6 +151,12 @@ Singleton {
         if (root.pendingDiscord) {
             Quickshell.execDetached([root.discordScript]);
             root.pendingDiscord = false;
+        }
+        // edit-after: open the just-finished Quick clip in ryomotion; the script
+        // waits for the mp4 to finalise before launching the editor.
+        if (root.pendingEdit) {
+            Quickshell.execDetached([root.editScript]);
+            root.pendingEdit = false;
         }
     }
 

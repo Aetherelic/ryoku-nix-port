@@ -45,11 +45,33 @@ ShellRoot {
 
     readonly property bool testRect: Quickshell.env("RYOSHOT_TESTRECT") === "1"
     readonly property string mode: Quickshell.env("RYOSHOT_MODE") === "monitor" ? "monitor" : "region"
+    // RYOSHOT_OPEN=<path>: skip selection and open that image straight in the
+    // beautify editor (the capture card's "Beautify after" hands the saved shot
+    // here). fromFile makes Escape / close quit, since there is no live capture
+    // to fall back to an editing phase over.
+    readonly property string openPath: Quickshell.env("RYOSHOT_OPEN") || ""
+    property bool fromFile: false
     readonly property string homeDir: Quickshell.env("HOME")
     readonly property string shotsDir: homeDir + "/Pictures/Screenshots"
     readonly property string ryoshotLuaPath: homeDir + "/.config/hypr/modules/ryoshot.lua"
 
     readonly property color vermilion: "#e2342a"
+
+    // open an existing image straight into beautify (RYOSHOT_OPEN). anchorOverlay
+    // needs a globalSel to pick which monitor shows the editor, so seed it to the
+    // first screen; beautify itself sizes from the file, not the selection.
+    function openForBeautify(path) {
+        var scr = Quickshell.screens;
+        if (scr.length > 0)
+            globalSel = { x: scr[0].x, y: scr[0].y, w: scr[0].width, h: scr[0].height };
+        fromFile = true;
+        composeActive = false;
+        composeMode = "";
+        beautifyBgImage = "";
+        beautifySrc = path;
+        phase = "beautify";
+    }
+    Component.onCompleted: if (openPath.length > 0) openForBeautify(openPath);
 
     function beginSelection(gx, gy) {
         pressPoint = { x: gx, y: gy };
@@ -620,7 +642,7 @@ ShellRoot {
                     if (root.textEditing) root.cancelText();
                     else if (root.settingsOpen) root.settingsOpen = false;
                     else if (root.selectedIndex !== null) root.clearSelection();
-                    else if (root.phase === "beautify") root.phase = "editing";
+                    else if (root.phase === "beautify") { if (root.fromFile) Qt.quit(); else root.phase = "editing"; }
                     else Qt.quit();
                 }
                 Keys.onPressed: (e) => {
@@ -726,7 +748,7 @@ ShellRoot {
                     onCopyRequested: (p) => copyProc.run(p)
                     onSaveRequested: (p) => { root.savedAuto = p; root.dialogMode = true; saveDialog.open(); }
                     onPickImageRequested: { root.dialogMode = true; bgDialog.open(); }
-                    onCloseRequested: { root.composeActive = false; root.phase = "editing"; }
+                    onCloseRequested: { root.composeActive = false; if (root.fromFile) Qt.quit(); else root.phase = "editing"; }
                 }
             }
 

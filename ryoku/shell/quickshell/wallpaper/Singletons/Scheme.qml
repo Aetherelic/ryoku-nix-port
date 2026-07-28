@@ -3,81 +3,103 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The live palette, mirrored for the switcher the same way the pill,
-// launcher and overview mirror it (each qs config has its own singleton root).
-// Used only when Match wallpaper is on. The daemon rewrites colors.json on every
-// wallpaper change; this watches it so the switcher's fill and accent track
-// whatever is on screen. Defaults are the Ryoku brand so it looks right before
-// the first palette run.
+/**
+ * The live wallpaper palette, mirrored for the switcher the same way the pill,
+ * launcher and overview mirror it (each qs config has its own singleton root).
+ * Active while Match wallpaper is on. The theme daemon writes the full Material
+ * role set (camelCase keys) to ~/.cache/ryoku/colors.json on every wallpaper
+ * change, already contrast-corrected; this is a thin reader that consumes every
+ * role verbatim so the switcher can never disagree with the rest of the shell.
+ *
+ * The compiled constants below (Everforest Dark) only paint the first frames of
+ * a fresh install, before the daemon's first write.
+ */
 Singleton {
-    readonly property color base:     shade(adapter.background)
-    readonly property color elevated: tone(base, 0.05)
-    readonly property color deep:     tone(base, -0.03)
-    readonly property color line:     tone(base, 0.14)
-    readonly property color accent:   legible(vivid(adapter.color4), elevated, 3.0)
+    id: w
 
-    // Tone-map the wallpaper background into the shell's dark band, hue kept:
-    // HSV value inside [0.08, 0.26] passes through, pure black lifts to a soft
-    // near-black, brighter compresses to just past the ceiling; saturation caps
-    // at 0.55 so a saturated wallpaper reads as a deep tint, never neon.
-    function shade(c) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        var s = Math.min(c.hsvSaturation, 0.55);
-        var v = c.hsvValue;
-        if (v < 0.08)      v = 0.08;
-        else if (v > 0.26) v = 0.26 + (v - 0.26) * 0.06;
-        return Qt.hsva(hue, s, v, 1);
-    }
-
-    // WCAG relative luminance / contrast, for the legible() guard below.
-    function relLum(c) {
-        function lin(u) { return u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4); }
-        return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
-    }
-    function contrast(a, b) {
-        var la = relLum(a), lb = relLum(b);
-        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-    }
-
-    // Walk fg toward white until it clears `target` against bg; already-passing
-    // colors return unchanged.
-    function legible(fg, bg, target) {
-        var r = fg.r, g = fg.g, b = fg.b;
-        for (var i = 0; i < 8; i++) {
-            var c = Qt.rgba(r, g, b, 1);
-            if (contrast(c, bg) >= target) return c;
-            r += (1 - r) * 0.18;
-            g += (1 - g) * 0.18;
-            b += (1 - b) * 0.18;
+    // The daemon's palette, parsed straight from the file text. JsonAdapter
+    // cannot carry it: half the role names start with "on", which QML's
+    // signal-handler grammar rejects as adapter property names.
+    property var roles: ({})
+    function refreshRoles() {
+        try {
+            const t = file.text();
+            roles = t && t.length ? (JSON.parse(t) || {}) : {};
+        } catch (e) {
+            roles = {};
         }
-        return Qt.rgba(r, g, b, 1);
     }
 
-    // Shift a colour's HSV value by dv (hue + saturation kept), so a ramp from
-    // the wallpaper background sits at predictable depths.
-    function tone(c, dv) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        return Qt.hsva(hue, c.hsvSaturation, Math.max(0, Math.min(1, c.hsvValue + dv)), 1);
+    // Verbatim role when present, compiled default before the first write.
+    function pick(role, fallback) {
+        return (role && role.length > 0) ? role : fallback;
     }
 
-    // Lift saturation and floor brightness so the accent reads as colour, not
-    // mud, however desaturated the wallpaper is. Greys are only brightened.
-    function vivid(c) {
-        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
-        var sat = c.hsvSaturation < 0.06 ? 0 : Math.min(1, c.hsvSaturation * 1.2 + 0.06);
-        return Qt.hsva(hue, sat, Math.max(c.hsvValue, 0.74), 1);
-    }
+    readonly property color surface:                 pick(roles.surface, "#1e2326")
+    readonly property color surfaceVariant:          pick(roles.surfaceVariant, "#232a2e")
+    readonly property color surfaceContainerLowest:  pick(roles.surfaceContainerLowest, "#1e2326")
+    readonly property color surfaceContainerLow:     pick(roles.surfaceContainerLow, "#232a2e")
+    readonly property color surfaceContainer:        pick(roles.surfaceContainer, "#272e33")
+    readonly property color surfaceContainerHigh:    pick(roles.surfaceContainerHigh, "#2e383c")
+    readonly property color surfaceContainerHighest: pick(roles.surfaceContainerHighest, "#374145")
+    readonly property color surfaceTint:             pick(roles.surfaceTint, "#a7c080")
+    readonly property color inverseSurface:          pick(roles.inverseSurface, "#d3c6aa")
+    readonly property color inverseOnSurface:        pick(roles.inverseOnSurface, "#1e2326")
+
+    // The raw wallpaper tone (the colour that bleeds through a translucent
+    // panel); Theme composites the surface over it for effective-ink checks.
+    readonly property color wallpaperTone: pick(roles.background, "#1e2326")
+
+    // The "on" roles: declared plain and bound via Binding elements. QML's
+    // signal-handler grammar eats an inline `onSurface: <expr>` (see the same
+    // note in Theme.qml), so Binding sidesteps the grab.
+    property color onSurface
+    property color onSurfaceVariant
+    property color onPrimary
+    property color onPrimaryContainer
+    property color onSecondary
+    property color onSecondaryContainer
+    property color onTertiary
+    property color onTertiaryContainer
+    property color onError
+    property color onErrorContainer
+
+    Binding { target: w; property: "onSurface"; value: w.pick(w.roles.onSurface, "#d3c6aa") }
+    Binding { target: w; property: "onSurfaceVariant"; value: w.pick(w.roles.onSurfaceVariant, "#9da9a0") }
+    Binding { target: w; property: "onPrimary"; value: w.pick(w.roles.onPrimary, "#1e2326") }
+    Binding { target: w; property: "onPrimaryContainer"; value: w.pick(w.roles.onPrimaryContainer, "#d3c6aa") }
+    Binding { target: w; property: "onSecondary"; value: w.pick(w.roles.onSecondary, "#1e2326") }
+    Binding { target: w; property: "onSecondaryContainer"; value: w.pick(w.roles.onSecondaryContainer, "#d3c6aa") }
+    Binding { target: w; property: "onTertiary"; value: w.pick(w.roles.onTertiary, "#1e2326") }
+    Binding { target: w; property: "onTertiaryContainer"; value: w.pick(w.roles.onTertiaryContainer, "#d3c6aa") }
+    Binding { target: w; property: "onError"; value: w.pick(w.roles.onError, "#1e2326") }
+    Binding { target: w; property: "onErrorContainer"; value: w.pick(w.roles.onErrorContainer, "#d3c6aa") }
+
+    readonly property color primary:              pick(roles.primary, "#a7c080")
+    readonly property color primaryContainer:     pick(roles.primaryContainer, "#3c4841")
+    readonly property color secondary:            pick(roles.secondary, "#7fbbb3")
+    readonly property color secondaryContainer:   pick(roles.secondaryContainer, "#324a49")
+    readonly property color tertiary:             pick(roles.tertiary, "#83c092")
+    readonly property color tertiaryContainer:    pick(roles.tertiaryContainer, "#3a4d44")
+    readonly property color error:                pick(roles.error, "#e67e80")
+    readonly property color errorContainer:       pick(roles.errorContainer, "#514045")
+
+    readonly property color outline:        pick(roles.outline, "#565d60")
+    readonly property color outlineVariant: pick(roles.outlineVariant, "#3d484d")
+
+    // Shadow and scrim are always near-black regardless of the wallpaper.
+    readonly property color shadow: "#000000"
+    readonly property color scrim:  "#000000"
 
     FileView {
+        id: file
         path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
         blockLoading: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter {
-            id: adapter
-            property color background: "#16110b"
-            property color color4: "#e2342a"
-        }
+        onLoaded: w.refreshRoles()
     }
+
+    Component.onCompleted: refreshRoles()
 }

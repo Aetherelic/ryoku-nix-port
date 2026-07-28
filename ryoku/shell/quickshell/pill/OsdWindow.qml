@@ -7,29 +7,28 @@ import Quickshell.Hyprland
 import "Singletons"
 
 // One OSD window (contract 12 sec 1/2): a small overlay layer surface anchored
-// to the bottom edge, pushed up a fixed 200 px, shown on every monitor. `kind`
-// selects volume-out, mic-in, or brightness; three of these are mapped per
-// screen. Exclusive zone 0 (reserves nothing, respects other layers), never
-// takes focus, click-through. It maps only while the OSD flashes; there is no
-// show or hide animation.
+// to the bottom centre, shown on every monitor. `kind` selects volume-out,
+// mic-in, or brightness; three of these are mapped per screen. Exclusive zone 0
+// (reserves nothing, respects other layers), never takes focus, click-through.
 //
-// Placement: the surface is anchored left+right+bottom with exclusive zone 0, so
-// the compositor clamps it to the desktop HOLE between the frame's bar reserves
-// (spanning reserveLeft .. output-reserveRight). The box is then simply centred
-// in that surface, which lands it on the hole centre the reference OSD uses
-// (measured y=997 bottom edge, hole-centred, on the 1200 reference), with no
-// manual reserve arithmetic.
+// It reads as a smooth bottom-centre popup: a compact panel fades in and slides
+// up as the OSD flashes, holds, then eases back down and fades out. The window
+// stays mapped through the ease-out (visible tracks the eased `prog`, not the
+// raw flash), so the panel never blinks off mid-animation.
 //
-// Size is FIXED logical px (icon 48, padding 20, inner box 300, margin 200),
-// scaled only by the accessibility font scale -- never by monitor height. The
-// reference OSD is a fixed-size window that does not grow with the output, so a
-// monitor-proportional scale would oversize it.
+// The surface spans the desktop hole (compositor clamps it between the frame's
+// bar reserves) and the panel is centred in it and pinned a small gap off the
+// bottom, so it lands bottom-centre with no manual reserve arithmetic. Size is
+// fixed logical px, scaled only by the accessibility font scale.
 PanelWindow {
     id: win
 
     required property var modelData
     required property string kind
-    readonly property real pad: 20
+    readonly property real pad: 16
+    // slide travel, and the headroom the surface keeps above the panel's rest
+    // spot so the slide-up is never clipped by the surface edge.
+    readonly property real slide: 18
 
     // This monitor's visible workspace holds a fullscreen window: the whole
     // shell hides then, so the OSD stays down too. Shares the hyprctl-backed
@@ -42,8 +41,13 @@ PanelWindow {
         return false;
     }
 
+    // Eased reveal: prog 0 hidden, 1 shown. A dwell-then-hide flash retargets it
+    // and the Behavior carries the panel in and out.
+    property real prog: (osd.flashing && !win.monFullscreen) ? 1 : 0
+    Behavior on prog { NumberAnimation { duration: Motion.effects; easing.type: Easing.OutCubic } }
+
     screen: modelData
-    visible: osd.flashing
+    visible: win.prog > 0.01 || osd.flashing
     color: "transparent"
     // Exclusive zone 0: reserve nothing, but respect other layers' zones
     // (contract 12 sec 1). ExclusionMode.Ignore would request -1 instead.
@@ -53,29 +57,29 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     WlrLayershell.namespace: "ryoku-osd"
 
-    // Span the desktop hole (compositor clamps to it), pinned 200 px up.
+    // Span the desktop hole (compositor clamps to it), a small gap off the bottom.
     anchors.bottom: true
     anchors.left: true
     anchors.right: true
-    margins.bottom: 200
+    margins.bottom: 24
 
-    implicitHeight: osd.implicitHeight + win.pad * 2
+    implicitHeight: box.height + win.slide
 
-    // The surface material: warm surface fill + hairline border, rounded like a
-    // small panel, centred on the desktop hole. Static opacity, never animated
-    // (contract 12 sec 5).
+    // The panel: warm surface fill + hairline border, rounded like the sidebar
+    // surfaces (radiusWindow). Opacity and a slide offset ride the eased `prog`.
     Rectangle {
         id: box
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 0
+        anchors.bottom: parent.bottom
         width: osd.implicitWidth + win.pad * 2
-        height: parent.height
+        height: osd.implicitHeight + win.pad * 2
         radius: Theme.radiusWindow
         color: Theme.surface
-        opacity: Theme.windowOpacity
+        opacity: Theme.windowOpacity * win.prog
         border.width: Theme.borderWidth
         border.color: Theme.outline
         antialiasing: true
+        transform: Translate { y: -win.prog * win.slide }
 
         Osd {
             id: osd

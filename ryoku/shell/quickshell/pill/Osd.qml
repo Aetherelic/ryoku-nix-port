@@ -4,17 +4,17 @@ import QtQuick
 import Quickshell.Services.Pipewire
 import "Singletons"
 
-// One OSD: an icon and a value bar, for volume-out, mic-in, or brightness. There
-// is deliberately NO show or hide animation (contract 12 sec 5) -- the hosting
-// window maps the instant `flashing` turns true and unmaps the instant the
-// 1000 ms hold elapses; a re-trigger just restarts that hold. Volume and mic
-// read PipeWire; brightness reads the daemon `osd` feed.
+// One OSD: an icon and a value bar, for volume-out, mic-in, or brightness. The
+// content itself does not animate; the hosting window fades and slides the whole
+// pill up as `flashing` turns true, holds it for 1000 ms, then eases it back
+// down. A re-trigger restarts that hold. Volume and mic read PipeWire;
+// brightness reads the daemon `osd` feed.
 //
-// Startup gate (contract 12 sec 4): the reference swallows the first two Show
-// events per OSD (the device-enumeration watcher firings at login) and renders
-// from the third onward, so a fresh shell never flashes for initial state syncs.
-// `shownCount` reproduces that count gate exactly (it never resets, so every
-// trigger after the first two shows the OSD).
+// Startup grace (contract 12 sec 4): a fresh shell reads its initial volume,
+// mic and brightness as it connects, firing change signals that are not user
+// actions. The OSD arms a short settle once its source first appears and
+// swallows every flash until then, so it never pops for those login syncs while
+// the first real change after arming shows at once.
 Item {
     id: root
 
@@ -54,21 +54,23 @@ Item {
             : "audio-volume-low";
     }
 
-    // --- flash state machine (no animation) --------------------------------
-    property int shownCount: 0
+    // --- flash state machine ------------------------------------------------
     property bool flashing: false
 
+    // Startup grace: swallow flashes until a short settle after the source first
+    // appears (see the note above). A fixed count gate ate real presses whenever
+    // the login sync count came up short.
+    property bool armed: false
+    readonly property var gateSource: root.isBrightness ? OsdFeed : root.audio
+    onGateSourceChanged: if (root.gateSource && !root.armed && !armTimer.running) armTimer.restart()
+    Component.onCompleted: if (root.gateSource && !armTimer.running) armTimer.restart()
+    Timer { id: armTimer; interval: 700; onTriggered: root.armed = true }
+
     function flash() {
-        if (suppressed)
+        if (suppressed || !root.armed)
             return;
-        // Swallow the first two shows (startup device enumeration), render from
-        // the third onward, mirroring the reference shown_count gate.
-        if (shownCount > 1) {
-            flashing = true;
-            hideTimer.restart();
-        } else {
-            shownCount += 1;
-        }
+        flashing = true;
+        hideTimer.restart();
     }
 
     onSuppressedChanged: if (suppressed) {
@@ -97,18 +99,18 @@ Item {
     }
 
     // --- content: icon + value bar (contract 12 sec 2) ---------------------
-    // Fixed logical px, matching the reference exactly: inner box width 300,
-    // spacing 20, icon 48, bar min-height 8. No monitor or font scaling -- the
-    // reference OSD is a fixed-size readout.
-    implicitWidth: 300
-    implicitHeight: 48
+    // Fixed logical px: inner box width 210, spacing 16, icon 40, bar height 6.
+    // No monitor or font scaling; the OSD is a fixed-size readout the hosting
+    // window animates as one pill.
+    implicitWidth: 210
+    implicitHeight: 40
 
     SymbolIcon {
         id: glyph
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         name: root.iconName
-        size: 48
+        size: 40
         color: Theme.onSurface
     }
 
@@ -118,10 +120,10 @@ Item {
     Rectangle {
         id: trough
         anchors.left: glyph.right
-        anchors.leftMargin: 20
+        anchors.leftMargin: 16
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        height: 8
+        height: 6
         radius: Theme.radiusWidget
         color: Theme.surfaceContainerLow
 

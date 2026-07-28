@@ -2,44 +2,108 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// Wallpaper switcher palette + geometry, a focused twin of the shell Theme
-// (docs/ui-ux.md tokens). Accent follows the wallpaper when Match wallpaper is
-// on; the fixed fallback is the Ryoku brand vermillion. Brutalist geometry:
-// radius 0, hairline borders.
+/**
+ * Switcher style tokens, a focused twin of the shell Theme so the surface reads
+ * like the rest of the desktop. Every colour resolves through the same
+ * three-layer fallback, highest priority first:
+ *
+ *   named scheme  ->  live wallpaper  ->  compiled default
+ *
+ * - compiled default: the Solitude Dark base palette, shown when no dynamic
+ *   theme is active.
+ * - live wallpaper: the Scheme singleton, active while Config.matchWallpaper is
+ *   on; a wallpaper change retunes every role live.
+ * - named scheme: the active static preset's palette (Config.themePalette,
+ *   resolved by the Go theme daemon into shell.json); null while a dynamic
+ *   variant is selected.
+ *
+ * The Material "on" roles are declared plain and bound through Binding elements:
+ * QML parses an inline `onSurface:` as a change-handler for the sibling
+ * `surface` property and drops the binding, so naming the property in a Binding
+ * sidesteps that grab.
+ */
 Singleton {
-    readonly property color brand:    Config.matchWallpaper ? Scheme.accent : "#e2342a"
-    readonly property color vermLit:  Config.matchWallpaper ? Qt.lighter(Scheme.accent, 1.22) : "#e83b30"
-    readonly property color vermDeep: Config.matchWallpaper ? Qt.darker(Scheme.accent, 1.3) : "#b81f19"
+    id: root
 
-    // warm-white text ramp (website --ink).
-    readonly property color bright:   "#f3ede1"
-    readonly property color cream:    "#e6dccb"
-    readonly property color subtle:   "#c7bfae"
-    readonly property color dim:      "#8f8770"
-    readonly property color faint:    "#5c5249"
+    readonly property bool matchWallpaper: Config.matchWallpaper
+    property var namedScheme: Config.themePalette
 
-    // near-black canvas (website --paper), or the palette surfaces when matching.
-    readonly property color cardTop:  Config.matchWallpaper ? Scheme.base     : "#16110b"
-    readonly property color cardBot:  Config.matchWallpaper ? Scheme.deep     : "#0f0c07"
-    readonly property color tileBg:   Config.matchWallpaper ? Scheme.elevated : "#1b150e"
-    readonly property color border:   Config.matchWallpaper ? Scheme.line     : Qt.rgba(243/255, 237/255, 225/255, 0.14)
-    readonly property color hair:     Qt.rgba(243/255, 237/255, 225/255, 0.12)
-    readonly property color sheen:    Qt.rgba(243/255, 237/255, 225/255, 0.06)
+    function role(key, base) {
+        if (namedScheme && namedScheme[key] !== undefined)
+            return namedScheme[key];
+        if (matchWallpaper)
+            return Scheme[key];
+        return base;
+    }
 
-    // accent tints for selected fills / active chips.
-    readonly property color frameBg:  Qt.rgba(226/255, 52/255, 42/255, 0.14)
+    // --- 30 Material colour roles (compiled defaults: Solitude Dark) ----------
+    readonly property color surface:                 role("surface", "#101315")
+    readonly property color surfaceVariant:          role("surfaceVariant", "#1a1d1f")
+    readonly property color surfaceContainerLowest:  role("surfaceContainerLowest", "#101315")
+    readonly property color surfaceContainerLow:     role("surfaceContainerLow", "#1a1d1f")
+    readonly property color surfaceContainer:        role("surfaceContainer", "#2c2f32")
+    readonly property color surfaceContainerHigh:    role("surfaceContainerHigh", "#3d4144")
+    readonly property color surfaceContainerHighest: role("surfaceContainerHighest", "#4b4e55")
+    readonly property color inverseSurface:          role("inverseSurface", "#cacccc")
+    readonly property color inverseOnSurface:        role("inverseOnSurface", "#101315")
+    readonly property color surfaceTint:             role("surfaceTint", "#798186")
+    readonly property color primary:                 role("primary", "#798186")
+    readonly property color primaryContainer:        role("primaryContainer", "#1a1d1f")
+    readonly property color secondary:               role("secondary", "#a8adb0")
+    readonly property color secondaryContainer:      role("secondaryContainer", "#1a1d1f")
+    readonly property color tertiary:                role("tertiary", "#de6145")
+    readonly property color tertiaryContainer:       role("tertiaryContainer", "#1a1d1f")
+    readonly property color error:                   role("error", "#de6145")
+    readonly property color errorContainer:          role("errorContainer", "#1a1d1f")
+    readonly property color outline:                 role("outline", "#565d60")
+    readonly property color outlineVariant:          role("outlineVariant", "#343d41")
 
-    // type stack + brutalist geometry (website language).
-    readonly property string font:    Config.fontFamily.length > 0 ? Config.fontFamily : "Space Grotesk"
+    property color onSurface
+    property color onSurfaceVariant
+    property color onPrimary
+    property color onPrimaryContainer
+    property color onSecondary
+    property color onSecondaryContainer
+    property color onTertiary
+    property color onTertiaryContainer
+    property color onError
+    property color onErrorContainer
+    Binding { target: root; property: "onSurface";            value: root.role("onSurface", "#cacccc") }
+    Binding { target: root; property: "onSurfaceVariant";     value: root.role("onSurfaceVariant", "#a8adb0") }
+    Binding { target: root; property: "onPrimary";            value: root.role("onPrimary", "#101315") }
+    Binding { target: root; property: "onPrimaryContainer";   value: root.role("onPrimaryContainer", "#a8adb0") }
+    Binding { target: root; property: "onSecondary";          value: root.role("onSecondary", "#101315") }
+    Binding { target: root; property: "onSecondaryContainer"; value: root.role("onSecondaryContainer", "#a8adb0") }
+    Binding { target: root; property: "onTertiary";           value: root.role("onTertiary", "#101315") }
+    Binding { target: root; property: "onTertiaryContainer";  value: root.role("onTertiaryContainer", "#de6145") }
+    Binding { target: root; property: "onError";              value: root.role("onError", "#101315") }
+    Binding { target: root; property: "onErrorContainer";     value: root.role("onErrorContainer", "#de6145") }
+
+    readonly property color shadow: role("shadow", "#000000")
+    readonly property color scrim:  role("scrim", "#000000")
+
+    // --- overlay tints (selection / hover fills over the surface) -------------
+    readonly property color frameBg:     Qt.rgba(primary.r, primary.g, primary.b, 0.12)
+    readonly property color frameBorder: Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.18)
+
+    // --- sizing (compiled defaults) -------------------------------------------
+    readonly property int  radiusWidget: 8
+    readonly property int  radiusWindow: 8
+    readonly property int  borderWidth: 2
+    readonly property int  paddingSm: 4
+    readonly property int  paddingMd: 8
+    readonly property int  paddingLg: 16
+
+    // --- fonts ----------------------------------------------------------------
+    readonly property string fontPrimary: "Space Grotesk"
+    readonly property int fontSm: 14
+    readonly property int fontMd: 16
+    readonly property int fontLg: 18
+    readonly property int fontXl: 26
     readonly property string display: "Fraunces"
-    readonly property string fontJp:  "Noto Sans CJK JP"
     readonly property string mono:    "JetBrainsMono Nerd Font"
-    // brand mark + name, user-overridable via ~/.config/ryoku/brand.json (Shell ->
-    // Global). defaults to the 力 seal / "Ryoku". BrandMark renders `mark`, or
-    // `markSource` (an image) when set. Ryoku's own apps never read these.
+    readonly property string fontJp:  "Noto Sans CJK JP"
+
+    // brand mark, user-overridable via ~/.config/ryoku/brand.json.
     readonly property string mark: Config.markText.length > 0 ? Config.markText : "\u529b"
-    readonly property string markSource: Config.markImage
-    readonly property bool markTint: Config.markTint
-    readonly property string brandName: Config.brandName.length > 0 ? Config.brandName : "Ryoku"
-    readonly property int    radius:  0
 }

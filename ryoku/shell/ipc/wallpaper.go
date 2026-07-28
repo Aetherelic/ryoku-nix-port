@@ -149,7 +149,7 @@ const liveDaemon = "ryoku-livewall"
 // logical width (physical / fractional scale), so a video wallpaper renders near
 // 1:1 with its surface instead of the old fixed 1280 upscaled to a blur. Software
 // decode scales with resolution, so the width is clamped to 2560 to hold
-// livewall's PSS under the 100 MB budget (~57 MB at 2048, ~78 MB at 2560); a
+// livewall's PSS under the 100 MB budget (~47 MB at 2048, ~59 MB at 2560); a
 // wider panel plays at 2560 rather than blow it. "1920" when hyprctl is absent.
 func liveCapWidth() string {
 	const floor, ceil = 1280, 2560
@@ -338,11 +338,50 @@ func frameOffset(video string) string {
 	return "1"
 }
 
+// liveEncRev marks the transcode flags a cached clip was produced with. Bump it
+// whenever they change, so old clips are re-encoded instead of being replayed
+// with settings livewall no longer expects.
+const liveEncRev = "2"
+
+// liveFps: the rate a clip is transcoded to, and so the rate livewall decodes it
+// at (the daemon paces off the stream's own frame rate). 30 keeps software decode
+// affordable on any machine; the Performance page's 60fps switch roughly doubles
+// that cost for hardware with the headroom. A source that cannot supply 60 stays
+// at 30 rather than being padded with duplicate frames livewall would decode for
+// nothing.
+func liveFps(pic string) string {
+	if !perfFlag("liveWallpaper60") {
+		return "30"
+	}
+	out, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0",
+		"-show_entries", "stream=r_frame_rate", "-of", "default=nw=1:nk=1", pic).Output()
+	if err != nil {
+		return "30"
+	}
+	// r_frame_rate is a rational: "60/1", or "60000/1001" for NTSC rates.
+	num, den, _ := strings.Cut(strings.TrimSpace(string(out)), "/")
+	n, err := strconv.ParseFloat(num, 64)
+	if err != nil {
+		return "30"
+	}
+	d, err := strconv.ParseFloat(den, 64)
+	if err != nil || d <= 0 {
+		d = 1
+	}
+	if n/d < 50 {
+		return "30"
+	}
+	return "60"
+}
+
 // livewallSource: the cached H.264 that livewall decodes, transcoded once per
-// clip + cap width (keyed by path, mtime and cap). Software-decoding the 4K
-// source directly would blow the RAM budget; downscaling to the screen's width
-// keeps livewall bounded while matching the panel, so the video is not upscaled
-// to a blur. "" if ffmpeg fails, so the caller keeps the clip's still frame.
+// clip + cap width (keyed by path, mtime, cap, fps and encoder rev). Software-decoding
+// the 4K source directly would blow the RAM budget; downscaling to the screen's
+// width keeps livewall bounded while matching the panel, so the video is not
+// upscaled to a blur. B-frames are off: they buy compression this cache does not
+// need, and each one the decoder holds for reordering is a full frame of RAM
+// (~3.5 MB at 2048x1152) charged against livewall's budget for the clip's life.
+// "" if ffmpeg fails, so the caller keeps the clip's still frame.
 func livewallSource(pic, capW string) string {
 	st, err := os.Stat(pic)
 	if err != nil {
@@ -354,7 +393,8 @@ func livewallSource(pic, capW string) string {
 	}
 	dir := filepath.Join(base, "ryoku", "livewall")
 	name := strings.TrimSuffix(filepath.Base(pic), filepath.Ext(pic))
-	out := filepath.Join(dir, name+"-"+strconv.FormatInt(st.ModTime().Unix(), 10)+"-"+capW+".mp4")
+	fps := liveFps(pic)
+	out := filepath.Join(dir, name+"-"+strconv.FormatInt(st.ModTime().Unix(), 10)+"-"+capW+"-"+fps+"-r"+liveEncRev+".mp4")
 	if isFile(out) {
 		return out
 	}
@@ -366,8 +406,8 @@ func livewallSource(pic, capW string) string {
 	// would interleave both writers into a corrupt cached video.
 	tmp := out + ".tmp." + strconv.Itoa(os.Getpid()) + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".mp4"
 	err = exec.Command("ffmpeg", "-y", "-i", pic,
-		"-vf", "scale='min("+capW+",iw)':-2:flags=bicubic", "-r", "30",
-		"-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", tmp).Run()
+		"-vf", "scale='min("+capW+",iw)':-2:flags=bicubic", "-r", fps,
+		"-c:v", "libx264", "-preset", "veryfast", "-bf", "0", "-pix_fmt", "yuv420p", "-an", tmp).Run()
 	if err != nil || !isFile(tmp) {
 		_ = os.Remove(tmp)
 		return ""

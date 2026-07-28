@@ -75,3 +75,17 @@ footer = { fg = "{{colors.on_surface.default.hex}}", bg = "{{colors.surface_cont
 title_info = { fg = "{{colors.primary.default.hex}}" }
 title_warn = { fg = "{{colors.tertiary.default.hex}}" }
 title_error = { fg = "{{colors.error.default.hex}}" }
+
+# the file list itself: dirs and file kinds carry the palette so yazi matches
+# kitty's ANSI colours (base16), not yazi's built-in defaults. First match wins,
+# so the "*" fallback stays last.
+[filetype]
+rules = [
+	{ mime = "image/*", fg = "{{colors.color6.default.hex}}" },
+	{ mime = "{audio,video}/*", fg = "{{colors.color5.default.hex}}" },
+	{ mime = "application/{zip,gzip,x-tar,x-bzip2,x-7z-compressed,x-rar,vnd.rar,x-xz,zstd}", fg = "{{colors.color2.default.hex}}" },
+	{ url = "*", is = "orphan", fg = "{{colors.color1.default.hex}}" },
+	{ url = "*", is = "exec", fg = "{{colors.color3.default.hex}}" },
+	{ url = "*/", fg = "{{colors.color4.default.hex}}", bold = true },
+	{ url = "*", fg = "{{colors.color7.default.hex}}" },
+]

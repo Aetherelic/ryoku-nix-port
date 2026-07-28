@@ -1,11 +1,10 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Shapes
 import "Singletons"
 
-// Colour categories as sliced swatches echoing the tiles: one muted swatch per
-// group, sharp with a cut corner, dark hairline by default and a vermillion
-// frame plus a small lift on the pick. A leading mono ALL clears the filter.
+// Colour filter: one rounded swatch per hue group present, led by an ALL chip
+// that clears the filter. The pick wears a primary ring; hover lightens; the
+// rest dim while a filter is active.
 Item {
     id: strip
 
@@ -14,74 +13,49 @@ Item {
     required property int selected
     signal picked(int g)
 
-    readonly property int swW: Math.round(22 * s)
-    readonly property int cut: Math.round(6 * s)
+    readonly property int chip: Math.round(22 * s)
 
     Row {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Math.round(5 * strip.s)
+        spacing: Math.round(7 * strip.s)
 
-        Item {
+        Rectangle {
             id: all
             readonly property bool on: strip.selected === -1
-            width: allTxt.implicitWidth + Math.round(16 * strip.s)
-            height: strip.height
-
+            width: allTxt.implicitWidth + Math.round(18 * strip.s)
+            height: strip.chip
+            radius: Math.round(6 * strip.s)
+            color: all.on ? Theme.frameBg : "transparent"
+            border.width: Theme.borderWidth
+            border.color: all.on ? Theme.primary : Theme.outline
             Text {
                 id: allTxt
                 anchors.centerIn: parent
-                text: "ALL"
-                color: all.on ? Theme.brand : Theme.dim
-                font.family: Theme.mono
-                font.pixelSize: Math.round(9.5 * strip.s)
-                font.weight: Font.DemiBold
-                font.letterSpacing: 2 * strip.s
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                width: Math.round(18 * strip.s)
-                height: Math.max(1, Math.round(2 * strip.s))
-                color: Theme.brand
-                visible: all.on
+                text: "All"
+                color: all.on ? Theme.primary : Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
+                font.pixelSize: Math.round(11 * strip.s)
+                font.weight: all.on ? Font.DemiBold : Font.Medium
             }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: strip.picked(-1) }
         }
 
         Repeater {
             model: strip.groups
-            delegate: Item {
+            delegate: Rectangle {
                 id: sw
                 required property var modelData
                 readonly property bool on: strip.selected === sw.modelData
                 readonly property bool dimmed: strip.selected !== -1 && !sw.on
-                width: strip.swW
-                height: strip.height
-
-                Shape {
-                    id: shp
-                    anchors.fill: parent
-                    y: sw.on ? -Math.round(2 * strip.s) : 0
-                    opacity: sw.dimmed ? 0.4 : 1
-                    preferredRendererType: Shape.CurveRenderer
-                    Behavior on opacity { NumberAnimation { duration: Motion.fast } }
-                    Behavior on y { NumberAnimation { duration: Motion.highlight; easing.type: Motion.easeStandard } }
-
-                    ShapePath {
-                        fillColor: hh.hovered ? Qt.lighter(Colors.swatch(sw.modelData), 1.15) : Colors.swatch(sw.modelData)
-                        strokeColor: sw.on ? Theme.brand : Qt.rgba(0, 0, 0, 0.4)
-                        strokeWidth: sw.on ? Math.max(1, Math.round(1.6 * strip.s)) : 1
-                        startX: strip.cut
-                        startY: 0
-                        PathLine { x: sw.width; y: 0 }
-                        PathLine { x: sw.width; y: sw.height }
-                        PathLine { x: 0; y: sw.height }
-                        PathLine { x: 0; y: strip.cut }
-                        PathLine { x: strip.cut; y: 0 }
-                    }
-                }
-
+                width: strip.chip
+                height: strip.chip
+                radius: Math.round(6 * strip.s)
+                color: hh.hovered ? Qt.lighter(Colors.swatch(sw.modelData), 1.15) : Colors.swatch(sw.modelData)
+                opacity: sw.dimmed ? 0.45 : 1
+                border.width: sw.on ? Math.max(2, Theme.borderWidth) : 1
+                border.color: sw.on ? Theme.primary : Qt.rgba(0, 0, 0, 0.35)
+                Behavior on opacity { NumberAnimation { duration: Motion.fast } }
                 HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: strip.picked(sw.modelData) }
             }

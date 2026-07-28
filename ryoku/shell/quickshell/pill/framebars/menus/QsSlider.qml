@@ -17,7 +17,6 @@ Item {
     property alias peakEnabled: fader.peakEnabled
     property bool lit: false
     property bool hasPage: false
-    property string pageTip: ""
 
     signal moved(real v)
     signal iconTapped()
@@ -59,10 +58,6 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.pageRequested()
-        }
-        QsTip {
-            text: root.pageTip
-            hovered: pageTap.containsMouse && !pageTap.pressed
         }
         scale: pageTap.pressed ? 0.9 : 1
         Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }

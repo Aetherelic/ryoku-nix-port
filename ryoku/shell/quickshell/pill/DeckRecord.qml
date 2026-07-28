@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons as Ui
 import "Singletons"
 
 /**
@@ -26,7 +27,10 @@ Item {
 
     implicitHeight: content.implicitHeight
 
-    readonly property string recDir: (Quickshell.env("HOME") || "") + "/Videos/Recordings"
+    // one resolution, shared with ryoku-cmd-screenrecord and the Hub's Recording
+    // page. hardcoding $HOME/Videos/Recordings here made the list miss every
+    // recording on a box with a custom XDG_VIDEOS_DIR.
+    readonly property string recDir: Ui.Paths.recordingsDir
 
     // ── recordings model ──────────────────────────────────────────────────
     ListModel { id: recModel }
@@ -37,7 +41,10 @@ Item {
 
     Process {
         id: recProc
-        command: ["sh", "-c", "find \"$1\" -maxdepth 1 -type f -name 'recording_*.mp4' -printf '%T@\\t%s\\t%p\\n' 2>/dev/null | sort -rn", "_", root.recDir]
+        // any video in the one directory, not just our own naming: Ryoku Motion
+        // records and exports here too, and its clips are recordings like any
+        // other. its .session.json / .cursor.json sidecars do not match.
+        command: ["sh", "-c", "find \"$1\" -maxdepth 1 -type f \\( -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' \\) -printf '%T@\\t%s\\t%p\\n' 2>/dev/null | sort -rn", "_", root.recDir]
         stdout: StdioCollector {
             onStreamFinished: {
                 recModel.clear();

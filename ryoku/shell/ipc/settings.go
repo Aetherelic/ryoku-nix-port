@@ -73,13 +73,13 @@ var (
 		"Reboot", "RecordingIndicator", "Screenshot", "Shutdown", "Tray", "VpnIndicator",
 		"Wallpaper",
 	}
-	// 19 menu widgets. AppLauncher is deliberately absent: Ryoku's launcher is its
+	// 17 menu widgets. AppLauncher is deliberately absent: Ryoku's launcher is its
 	// own standalone surface, not an in-frame menu widget, so it has no renderer
 	// here (user correction).
 	menuWidgetValues = []string{
 		"AudioInput", "AudioOutput", "Bluetooth", "Calendar", "Clipboard", "Clock",
 		"Container", "Divider", "MediaPlayer", "Network", "Notifications", "PowerProfiles",
-		"QuickActions", "Screenshots", "ScreenRecording", "Spacer", "ThemePicker",
+		"QuickActions", "Spacer", "ThemePicker",
 		"Wallpaper", "Weather",
 	}
 	// 10 quick actions.
@@ -200,7 +200,6 @@ type menusSettings struct {
 	ClipboardMenu          menuConfig            `json:"clipboard_menu"`
 	QuickSettingsMenu      menuConfig            `json:"quick_settings_menu"`
 	NotificationMenu       menuConfig            `json:"notification_menu"`
-	ScreenshotMenu         menuConfig            `json:"screenshot_menu"`
 	WallpaperMenu          menuConfig            `json:"wallpaper_menu"`
 	ScreenshareMenu        screenshareMenuConfig `json:"screenshare_menu"`
 	LeftMenuExpansionType  string                `json:"left_menu_expansion_type"`
@@ -304,7 +303,6 @@ func defaultSettings() *settings {
 				spc(20), qa("Logout", "Lock", "Reboot", "Shutdown"),
 			),
 			NotificationMenu:       menu("Left", 410, mw("Notifications")),
-			ScreenshotMenu:         menu("Left", 410, mw("Screenshots"), mw("Divider"), mw("ScreenRecording")),
 			WallpaperMenu:          menu("Bottom", 1200, mw("ThemePicker"), mw("Wallpaper")),
 			ScreenshareMenu:        screenshareMenuConfig{Position: "Left"},
 			LeftMenuExpansionType:  "AlwaysExpanded",
@@ -441,7 +439,6 @@ func (m *menusSettings) normalize(v *validator) {
 	m.ClipboardMenu.normalize(v, "menus.clipboard_menu")
 	m.QuickSettingsMenu.normalize(v, "menus.quick_settings_menu")
 	m.NotificationMenu.normalize(v, "menus.notification_menu")
-	m.ScreenshotMenu.normalize(v, "menus.screenshot_menu")
 	m.WallpaperMenu.normalize(v, "menus.wallpaper_menu")
 	v.enum("menus.screenshare_menu.position", m.ScreenshareMenu.Position, positionValues)
 	v.enum("menus.left_menu_expansion_type", m.LeftMenuExpansionType, menuExpansionValues)
@@ -907,6 +904,7 @@ func (s *settingsStore) watch(quit <-chan struct{}) {
 // every patch, reset, or external edit.
 func (d *daemon) startSettings() {
 	store := newSettingsStore(filepath.Join(ryokuConfigDir(), "shell.json"))
+	d.settings = store
 	t := d.registerTopic("settings")
 
 	store.mu.Lock()

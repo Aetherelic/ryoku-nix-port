@@ -11,6 +11,7 @@ singleton Camera Camera.qml
 singleton Audio Audio.qml
 singleton VoiceBars VoiceBars.qml
 singleton AudioBars AudioBars.qml
+singleton Sysinfo Sysinfo.qml
 singleton Weather Weather.qml
 singleton Stash Stash.qml
 singleton Keyring Keyring.qml
@@ -18,6 +19,7 @@ singleton Events Events.qml
 singleton Network Network.qml
 singleton PowerProfiles PowerProfiles.qml
 singleton BluetoothDiscovery BluetoothDiscovery.qml
+singleton BtLink BtLink.qml
 singleton Media Media.qml
 singleton Fullscreen Fullscreen.qml
 singleton Toggles Toggles.qml

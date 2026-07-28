@@ -13,7 +13,7 @@ function ok(condition, msg) { eq(!!condition, true, msg); }
 
 const requiredBars = ["audio-input", "audio-output", "battery", "bluetooth", "clock",
     "dock", "workspaces", "lock", "logout", "music", "network",
-    "notifications", "quick-settings", "recording", "shutdown", "tray", "vpn"];
+    "notifications", "quick-settings", "recording", "sysmon", "shutdown", "tray", "vpn"];
 eq(BarCatalog.ids().sort(), requiredBars.sort(), "all approved bar widgets are catalogued");
 ok(BarCatalog.entry("clock").axes.includes("horizontal"), "clock fits top rail");
 ok(BarCatalog.entry("dock").axes.includes("vertical"), "dock fits left rail");

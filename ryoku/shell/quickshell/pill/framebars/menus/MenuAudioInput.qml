@@ -4,61 +4,55 @@ import QtQuick
 import "../.." as Pill
 import "../../Singletons"
 
-// Audio input entry (contract 06 sec 2.8): structurally identical to the output
-// entry, differing only in the microphone icon family and the source
-// accessors. The action button mutes the default source, the middle is an
-// un-debounced volume slider, and the reveal lists the input devices in service
-// order with a check on the current default.
+// Audio input control (contract 06 sec 2.8): the default source's volume + mute
+// on a fader, and a device switcher listing the input devices with a check on
+// the current default. Volume/mute read live from the default Pipewire source;
+// the device list from Audio.inputs.
 Item {
     id: root
 
     property real s: 1
     property bool open: false
-
-    implicitHeight: row.implicitHeight
-
-    // Detail-page mode: hosted as a sidebar page, the device list arrives open.
+    // Detail-page mode (quick-settings host): the device list arrives expanded.
     property bool pageMode: false
-    onOpenChanged: if (root.open && root.pageMode) row.revealed = true
+
+    implicitHeight: col.implicitHeight
 
     readonly property var source: Audio.source
-    readonly property real vol: root.source && root.source.audio ? root.source.audio.volume : 0
-    readonly property bool muted: root.source && root.source.audio ? root.source.audio.muted : false
+    readonly property bool haveSource: !!(root.source && root.source.audio)
 
-    RevealerRow {
-        id: row
+    property bool devicesOpen: root.pageMode
+    onOpenChanged: if (root.open && root.pageMode) root.devicesOpen = true
+
+    Column {
+        id: col
         width: root.width
-        actionIconName: (!root.source || root.muted) ? "mic_off" : "mic"
-        actionSensitive: true
-        onActionClicked: if (root.source && root.source.audio) root.source.audio.muted = !root.source.audio.muted
+        spacing: 8 * root.s
 
-        middle: RevealerRowSlider {
-            anchors.fill: parent
-            value: root.vol
-            onMoved: v => { if (root.source && root.source.audio) root.source.audio.volume = v; }
+        Pill.HFader {
+            width: parent.width
+            s: root.s
+            icon: "mic"
+            lit: root.open
+            value: root.haveSource ? root.source.audio.volume : 0
+            muted: root.haveSource ? root.source.audio.muted : false
+            valueLabel: !root.haveSource ? "" : (root.source.audio.muted ? qsTr("off") : Math.round(root.source.audio.volume * 100) + "%")
+            peakNode: root.source
+            peakEnabled: root.open && !!root.source
+            onMoved: v => { if (root.haveSource) root.source.audio.volume = v; }
+            onIconTapped: { if (root.haveSource) root.source.audio.muted = !root.source.audio.muted; }
         }
 
-        Column {
+        AudioDevicePicker {
             width: parent.width
-            spacing: 0
-
-            Repeater {
-                model: root.open ? Audio.inputs : []
-                delegate: MenuButton {
-                    id: drow
-                    required property var modelData
-                    readonly property bool isDefault: root.source && drow.modelData && drow.modelData.name === root.source.name
-                    width: parent.width
-                    minH: dlabel.implicitHeight + drow.pad * 2
-                    onClicked: Audio.setInput(drow.modelData)
-                    RevealerIconLabel {
-                        id: dlabel
-                        anchors.fill: parent
-                        iconName: drow.isDefault ? "check_circle" : ""
-                        label: Audio.nodeLabel(drow.modelData)
-                    }
-                }
-            }
+            s: root.s
+            current: root.source
+            devices: Audio.inputs
+            listOpen: root.devicesOpen
+            fallbackIcon: "mic"
+            emptyLabel: qsTr("No input device")
+            onToggled: root.devicesOpen = !root.devicesOpen
+            onPicked: node => Audio.setInput(node)
         }
     }
 }

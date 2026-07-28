@@ -36,6 +36,7 @@ Item {
         case "quick-settings": return quickSettingsComponent;
         case "dock": return dockComponent;
         case "music": return musicComponent;
+        case "sysmon": return sysmonComponent;
         case "vpn": return vpnComponent;
         case "recording": return recordingComponent;
         case "audio-input":
@@ -145,6 +146,7 @@ Item {
     }
     Component { id: statusComponent; RailStatus { edge: root.edge; scale: root.scale; statusId: root.widgetId } }
     Component { id: musicComponent; RailMusic { edge: root.edge; scale: root.scale } }
+    Component { id: sysmonComponent; RailSysmon { edge: root.edge; scale: root.scale } }
     Component { id: vpnComponent; RailVpn { edge: root.edge; scale: root.scale; active: true } }
     Component { id: recordingComponent; RailRecording { edge: root.edge; scale: root.scale } }
     Component { id: actionComponent; RailAction { edge: root.edge; scale: root.scale; actionId: root.widgetId } }

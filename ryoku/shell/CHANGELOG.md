@@ -3,6 +3,48 @@
 ## Unreleased
 
 ### Changed
+- **The bar's status widgets open popout cards.** Clicking the network,
+  Bluetooth, battery, audio, or system-monitor widget grows a frame-edge card
+  out of the rail at the point you clicked and melts it back on close, all from a
+  shared card kit (`quickshell/pill/popouts/PopoutCard.qml` and its siblings) so
+  every card opens and dismisses the same way. The cards carry the controls, not
+  just read-outs: audio is a full mixer (output, input, per-app volume, and the
+  Bluetooth codec and profile), Bluetooth pairs and connects devices and shows
+  their battery and codec, battery carries the gauge, the power profiles, and a
+  detail panel, network runs Wi-Fi, and system monitor charts CPU, memory, and
+  temperature. The speaker opens the mixer instead of muting, the mic still mutes
+  on click, and both keep the scroll wheel for quick volume
+  (`quickshell/pill/popouts/*`, `quickshell/pill/SysMonitor.qml`,
+  `quickshell/pill/framebars/widgets/RailStatus.qml`, `Singletons/BtLink.qml`,
+  `Singletons/Sysinfo.qml`, `Singletons/Audio.qml`).
+- **Super+W is the unified wallpaper and colour-scheme switcher now.** The basic
+  bottom-left wallpaper menu is replaced on Super+W by the animated switcher
+  (formerly Super+C, now freed), reskinned into the shell's Material style and
+  anchored bottom-centre: two belts of cached image and live-video tiles drift in
+  opposite directions with a colour filter, and a Color-scheme mode flows the 57
+  themes through the same belts, with a Follow-wallpaper toggle and a Default
+  button in the corner. The theme catalog is served by the daemon
+  (`ryoku-shell theme catalog`, derived from `themePalettes`) and applied through
+  a new `ryoku-shell theme <scheme>` verb; the old brutalist chrome (chamfers,
+  vermillion, Fraunces) gives way to the shell's rounded Material tokens
+  (`quickshell/wallpaper/*`, `ipc/themecatalog.go`, `ipc/daemon.go`,
+  `ipc/main.go`, `ipc/settings.go`, `dev-binds.sh`).
+- **The recording island matches the frame now.** The floating record island was
+  rebuilt from the retired liquid blob into a crisp card (the frame surface, a 2px
+  outline and rounded corners, like `FrameChrome` and the frame-edge cards): it
+  slides in from its docked edge and melts back on stop, still draggable, still
+  docking to the nearest edge, flipping vertical on a side edge, and tucking to a
+  pulsing nub when hidden. The old drop-merge physics and blob body are gone, and
+  it clears any bar on the edge it lands on (`quickshell/pill/RecordHud.qml`,
+  `quickshell/pill/shell.qml`).
+- **The screenshot menu became the capture card (clean cutover).** The in-band
+  `screenshot_menu` and its `Screenshots` / `ScreenRecording` menu-widgets are
+  retired for the surface card; `MenuCapture.qml` is deleted, a doctor reconciler
+  strips a lingering `menus.screenshot_menu` from a saved store, and
+  `FrameMenuManager` ignores any leftover so `menu screenshot` always answers the
+  card (`ipc/settings.go`, `quickshell/pill/MenuWidgetHost.qml`,
+  `framebars/MenuCatalog.js`, `framebars/FrameBars.js`,
+  `cli/internal/doctor/reconcile_screenshot_menu.go`).
 - **Bar Studio no longer offers eight widgets that do not belong on a rail.**
   App Launcher, Clipboard, Layout Switcher, Color Picker, Power Profile, Reboot,
   Screenshot and Wallpaper leave the frame-bar catalogue, so the add-to-rail
@@ -16,6 +58,25 @@
   `quickshell/pill/framebars/widgets/RailAction.qml`).
 
 ### Added
+- **Super+S opens a capture card, not a full-width menu.** The screenshot keybind
+  now grows a compact frame-edge card (the shared `PopoutCard` skin, like the
+  music and bluetooth cards) instead of the old in-band menu with its oversized
+  buttons. Screenshot is the quick path: a delay chip (0/1/3/5/10s), a save-target
+  chip (Screenshots folder, clipboard, or both), and four one-tap modes (All,
+  Screen, Window, Region). A "Beautify after" switch hands the saved shot to
+  Ryoshot; Record carries desktop/mic toggles and Screen/Region starts (the
+  floating island takes over the live controls) plus an "Edit in Ryomotion when
+  done" switch; a footer notes that Super+Shift+S opens Ryoshot. The delay, save,
+  beautify, audio and edit choices persist (`capture.json`, `record.json`) and the
+  terse chips carry hover bubbles. New `quickshell/pill/popouts/CapturePopout.qml`,
+  registered as a left surface (`quickshell/pill/FrameMenuManager.qml`,
+  `quickshell/pill/FrameSurface.qml`); `Singletons/Capture.qml` and
+  `Singletons/Recorder.qml` gain the persisted options and hand-offs.
+- **Beautify a shot and edit a recording straight from the card.** With "Beautify
+  after" on, a finished screenshot opens in Ryoshot's beautify editor
+  (`RYOSHOT_OPEN` loads the file into the compose phase). With "Edit in Ryomotion
+  when done" on, a finished Quick recording opens in Ryoku Motion once the clip
+  finalises (`hyprland/scripts/ryoku-cmd-edit-recording`).
 - **The dock previews an app's windows on hover.** Hovering a dock icon that has
   open windows grows a strip off the rail, welded to the icon, with a live
   thumbnail of each window (a `ScreencopyView` of the toplevel), its title, and a
@@ -40,6 +101,55 @@
   `quickshell/pill/Singletons/AudioBars.qml`).
 
 ### Fixed
+- **The app launcher follows a fixed named theme, not just the wallpaper.** The
+  launcher read only `~/.cache/ryoku/colors.json` (the live wallpaper palette),
+  so selecting a coded preset -- whose palette the daemon publishes as
+  `shell.json`'s `themePalette`, not into `colors.json` -- left the launcher on
+  the last wallpaper's colours. It now resolves colour through the same
+  three-layer chain the pill uses (named preset -> wallpaper -> compiled default),
+  so both a preset and a wallpaper retint it live (`quickshell/launcher/shell.qml`).
+  The daemon also authors `colors.json` on a static-theme apply now, so every
+  reader of that file tracks a preset, not only the wallpaper path
+  (`ipc/matugen.go`).
+- **yazi's file list carries the palette, not just its chrome.** The theme tinted
+  tabs, mode and borders but had no `[filetype]` block, so the list itself --
+  directories and file kinds -- fell back to yazi's built-in flavour and never
+  tracked the wallpaper. A `[filetype]` block now colours directories,
+  executables, media, archives and orphans from the base16 ramp (`url`-matched,
+  yazi 26's key), so the list matches kitty's ANSI colours
+  (`matugen/templates/yazi.toml`).
+- **Rail widgets share the whole bar instead of clamping into thirds.** Each
+  rail's three zones now pack across its full length -- start from the leading
+  edge, centre on the midpoint, end from the trailing edge -- so a heavy zone
+  (the default left rail's status stack) uses the whole bar and never clips off
+  the far end, and each widget carries a band-scaled gap so buttons read as
+  separate instead of butting together. The hidden orientation no longer
+  instantiates the centre zone's widgets a second time
+  (`quickshell/pill/FrameRail.qml`).
+- **A rail widget's popup opens on that rail's edge.** A menu or card opened from
+  a bar widget now grows out of the edge its trigger sits on rather than the
+  record's configured edge, so a widget on the top rail drops its popup straight
+  down from the top instead of stranding it on the left; a command or IPC open
+  with no widget rect still uses the configured anchor
+  (`quickshell/pill/FrameMenuManager.qml`).
+- **Adjacent rails no longer overlap at the corners.** A top or bottom rail spans
+  the full width and a side rail the full height, so their corner widgets landed
+  on top of each other -- the top rail's first icon sat over the left rail's
+  brand seal. Horizontal rails now own the corners and each side rail insets
+  between the top and bottom bands, fitting between them instead of colliding
+  (`quickshell/pill/FrameRail.qml`, `quickshell/pill/Bar.qml`).
+- **The active workspace pill sizes to its own apps, not a fixed three-slot
+  width.** It reserved room for three icons even while showing one, so it read as
+  a wide near-empty oval beside the compact inactive pills; it now sizes to its
+  icons like they do, set apart by its highlight
+  (`quickshell/pill/framebars/widgets/RailWorkspaces.qml`).
+- **The active workspace pill no longer bulges over its neighbours on a top
+  rail.** Its highlight anchored to both the top (as the pill's outer edge) and
+  the bottom (as any horizontal rail), so on a top rail the two anchors stretched
+  the thin line into a tall bright capsule that overran the pill and reached into
+  the pills beside it. The bottom-edge anchor now belongs to the bottom rail
+  alone, so the highlight stays the thin edge line it is meant to be on all four
+  edges (`quickshell/pill/framebars/widgets/RailWorkspaces.qml`).
 - **A notification fired twice no longer stacks two identical popups.** With one
   server and id-based dedup, a duplicate could only come from an app posting the
   same alert twice (or two apps posting the same one), each a distinct id; a new
@@ -76,10 +186,6 @@
   edge reserve) and `frameCorner` (the desktop hole radius) live, so Bar Studio's
   frame controls change the running frame (`quickshell/pill/shell.qml`,
   `quickshell/pill/Singletons/Config.qml`).
-- **Power Profile on the bar opens the power-profile menu.** The rail indicator
-  was a static glyph with no click; it now opens `MenuPowerProfile` on left
-  click, the way the layout switcher opens its menu, so the profile can be
-  changed from the bar (`quickshell/pill/framebars/widgets/RailPowerProfile.qml`).
 - **A rail thinner than its widgets no longer overflows.** A bar widget kept its
   48px parity size whatever the rail's thickness, so shrinking a rail left the
   buttons and their hover highlight spilling past the band; each widget now scales
@@ -160,6 +266,19 @@
   `quickshell/widgets/`).
 
 ### Changed
+- **The launcher is an OkShell-style app launcher for now.** The Raycast-class
+  card grew into something that did not fit the shell: a 1109x630 slab leading
+  with a clock, weather and a photograph, and rendering its top hit twice. It is
+  replaced by a stand-in modelled on OkShell's app launcher, dressed as the
+  quick-settings sidebar -- radiusWidget corners, a 1px outline, a sumi edge, the
+  active-tile plate for the selection -- and it slides in from the top edge on the
+  sidebar's own push (420ms OutQuint), surface and all, so nothing is left behind
+  to frost. The selected row slides its content right by 30px, OkShell's cue. The
+  eye reveals the entries marked NoDisplay. It searches applications ONLY: the
+  dispatcher, the twelve providers, the action panel and the AI ask are still in
+  the directory, unwired, and the launcher doc says so
+  (`quickshell/launcher/shell.qml`, `hyprland/modules/decoration.lua`).
+
 - **The live palette moved to `~/.cache/ryoku/colors.json`, and the per-shell
   palette singleton is now `Scheme`.** The daemon authored the wallpaper palette
   (and `hypr-colors.lua`) under the retired wallust engine's cache dir; it now

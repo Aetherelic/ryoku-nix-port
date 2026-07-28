@@ -40,8 +40,6 @@ Item {
         case "quick-actions": return quickActionsComponent;
         case "layout-switcher": return layoutSwitcherComponent;
         case "clipboard": return clipboardComponent;
-        case "screenshot":
-        case "recording": return captureComponent;
         case "theme": return themeComponent;
         case "wallpaper": return wallpaperComponent;
         case "weather": return weatherComponent;
@@ -88,7 +86,6 @@ Item {
     Component { id: quickActionsComponent; MenuQuickActions { width: root.width; s: root.scale; open: root.open } }
     Component { id: layoutSwitcherComponent; MenuLayoutSwitcher { width: root.width; s: root.scale; open: root.open } }
     Component { id: clipboardComponent; MenuClipboard { width: root.width; s: root.scale; open: root.open } }
-    Component { id: captureComponent; MenuCapture { width: root.width; s: root.scale; open: root.open } }
     Component { id: themeComponent; MenuTheme { width: root.width; s: root.scale; open: root.open } }
     Component { id: wallpaperComponent; MenuWallpaper { width: root.width; s: root.scale; open: root.open } }
     Component { id: weatherComponent; MenuWeather { width: root.width; s: root.scale; open: root.open } }

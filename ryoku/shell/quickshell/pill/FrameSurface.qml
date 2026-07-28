@@ -52,8 +52,8 @@ Popout {
     openW: Math.max(root.minWidth * root.s, body.item ? body.item.implicitWidth : 0)
     openH: root.fullSpan ? root.height : (body.item ? body.item.implicitHeight : 0)
 
-    // the music card floats slightly off the frame lip; the others abut it.
-    edgeGap: root.kind === "music" ? 10 * root.s : 0
+    // the card popouts float off the frame lip; the sidebars/menus abut.
+    edgeGap: (root.kind === "music" || root.kind === "bluetooth" || root.kind === "battery" || root.kind === "network" || root.kind === "voice" || root.kind === "sysmon" || root.kind === "audio" || root.kind === "screenshot") ? 10 * root.s : 0
 
     readonly property bool sideMenu: root.edge === "left" || root.edge === "right"
 
@@ -84,6 +84,12 @@ Popout {
             : root.kind === "voice" ? voiceBody
             : root.kind === "keyring" ? keyringBody
             : root.kind === "music" ? musicBody
+            : root.kind === "bluetooth" ? bluetoothBody
+            : root.kind === "battery" ? batteryBody
+            : root.kind === "network" ? networkBody
+            : root.kind === "sysmon" ? sysmonBody
+            : root.kind === "audio" ? audioBody
+            : root.kind === "screenshot" ? captureBody
             : root.kind === "stash" ? stashBody
             : systemBody
     }
@@ -119,6 +125,49 @@ Popout {
         MusicPopout {
             s: root.s
             open: root.effectiveOpen
+        }
+    }
+    Component {
+        id: bluetoothBody
+        BluetoothPopout {
+            s: root.s
+            open: root.effectiveOpen
+        }
+    }
+    Component {
+        id: batteryBody
+        BatteryPopout {
+            s: root.s
+            open: root.effectiveOpen
+        }
+    }
+    Component {
+        id: networkBody
+        NetworkPopout {
+            s: root.s
+            open: root.effectiveOpen
+        }
+    }
+    Component {
+        id: sysmonBody
+        SysMonitorPopout {
+            s: root.s
+            open: root.effectiveOpen
+        }
+    }
+    Component {
+        id: audioBody
+        AudioPopout {
+            s: root.s
+            open: root.effectiveOpen
+        }
+    }
+    Component {
+        id: captureBody
+        CapturePopout {
+            s: root.s
+            open: root.effectiveOpen
+            onRequestClose: root.requestClose()
         }
     }
     Component {
