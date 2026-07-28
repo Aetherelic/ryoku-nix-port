@@ -38,8 +38,18 @@ Item {
         "quality": "very_high",
         "codec": "h264",
         "encoder": "gpu",
-        "cursor": true
+        "cursor": true,
+        "directory": ""
     })
+
+    // What an empty `directory` resolves to, so the field can show the real path
+    // rather than an empty box. Mirrors Paths.recordingsDir and the recorder's
+    // recordings_dir().
+    readonly property string defaultDir: {
+        const xdg = Quickshell.env("XDG_VIDEOS_DIR");
+        const vids = (xdg && xdg.length > 0) ? xdg : (Quickshell.env("HOME") || "") + "/Videos";
+        return vids + "/Recordings";
+    }
 
     // committed = what is on disk; draft = the live, previewed edit; dirty = they
     // differ. Both are plain maps, reassigned wholesale so the cells re-render.
@@ -154,6 +164,10 @@ Item {
             property string codec: "h264"
             property string encoder: "gpu"
             property bool cursor: true
+            // where every recording lands. empty means the default, so a box with
+            // a custom XDG_VIDEOS_DIR keeps following it; the recorder script and
+            // the deck's list resolve this same key.
+            property string directory: ""
         }
 
         Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
@@ -208,7 +222,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("Ryoku records with gpu-screen-recorder, hardware-encoded on your GPU (it falls back to wf-recorder on multi-GPU machines). Start and stop from the bar's screen-capture Tools; these settings shape every recording. Files land in ~/Videos/Recordings.")
+            text: I18n.tr("Ryoku records with gpu-screen-recorder, hardware-encoded on your GPU (it falls back to wf-recorder on multi-GPU machines). Start and stop from the bar's screen-capture Tools; these settings shape every recording, including where it lands.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -409,6 +423,28 @@ Item {
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                             on: pg.draft ? !!pg.draft.cursor : false
                             onToggled: (v) => pg.edit("cursor", v)
+                        }
+                    }
+                    // Where every recording lands. One directory: the deck's list
+                    // reads this key, the recorder writes into it, and Ryoku Motion
+                    // is pointed at it too. Empty follows XDG_VIDEOS_DIR.
+                    Cell {
+                        width: parent.width
+                        height: Tokens.cellH
+                        controlWidth: Math.min(420, width * 0.5)
+                        label: I18n.tr("Save recordings to")
+                        desc: I18n.tr("Every recording lands here, the editor included. Leave it empty to follow your Videos folder.")
+                        source: "recording.json"
+                        value: pg.draft ? (String(pg.draft.directory) || pg.defaultDir) : ""
+                        def: pg.committed ? (String(pg.committed.directory) || pg.defaultDir) : ""
+                        changed: pg.draft && pg.committed ? pg.draft.directory !== pg.committed.directory : false
+                        Field {
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            width: Math.min(420, parent.width * 0.5)
+                            tabular: true
+                            placeholder: pg.defaultDir
+                            text: pg.draft ? String(pg.draft.directory) : ""
+                            onCommitted: (v) => pg.edit("directory", v.trim())
                         }
                     }
                 }

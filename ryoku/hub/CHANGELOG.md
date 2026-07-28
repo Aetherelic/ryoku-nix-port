@@ -7,6 +7,12 @@
   the catalogue picker as "Music" (`quickshell/barstudio/CatalogLabels.qml`).
 
 ### Fixed
+- **Adding a widget to a rail turns that rail on.** The bottom and right rails
+  ship off, so dropping a widget onto one in Bar Studio changed the config but
+  left nothing on the desktop -- the add read as fully broken. Every add now
+  enables the rail it lands on, so "I added a widget, show it" always holds; a
+  rail is hidden again with its own Show-this-rail switch, after the fact
+  (`quickshell/barstudio/BarStudioModel.js`).
 - **Appearance's colour controls apply when you set them, and the live scheme
   regenerates again.** Three faults stacked. The mode and contrast knobs staged
   behind the shared Save, so setting them appeared to do nothing until you found

@@ -31,6 +31,7 @@ QtObject {
         case "screenshot": return qsTr("Screenshot")
         case "shutdown": return qsTr("Shut Down")
         case "spacer": return qsTr("Spacer")
+        case "sysmon": return qsTr("System Monitor")
         case "theme": return qsTr("Theme")
         case "tray": return qsTr("Tray")
         case "vpn": return qsTr("VPN")

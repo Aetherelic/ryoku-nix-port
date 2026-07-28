@@ -27,8 +27,9 @@ import Ryoku.Ui.Singletons
 //
 // Blur, shadows and low-power are the only keys the compositor reads
 // (decoration.lua parses performance.json at Hyprland parse time), so a Save
-// that changes one of those three -- and only those -- fires `hyprctl reload` to
-// re-read it live. Shell singletons watch the file themselves and need no reload.
+// that changes one of those three -- and only those -- fires `hyprctl reload`,
+// once the write has landed, to re-read it live. Shell singletons watch the file
+// themselves and need no reload.
 Item {
     id: pg
 
@@ -42,6 +43,7 @@ Item {
         "reduceMotion": false,
         "disableBlur": false,
         "disableShadows": false,
+        "liveWallpaper60": false,
         "freezeVisualizerWhenIdle": true,
         "freezePillWhenIdle": false,
         "unloadVisualizerWhenSilent": true,
@@ -53,6 +55,9 @@ Item {
 
     // the keys the compositor reads; a Save touching one of these reloads Hyprland.
     readonly property var compositorKeys: ["lowPowerMode", "disableBlur", "disableShadows"]
+
+    // set by save(), consumed by the FileView's onSaved once the file is written.
+    property bool reloadPending: false
 
     // committed = what is on disk; draft = the live, previewed edit; dirty = they
     // differ. Both are plain maps, reassigned wholesale so the schema re-renders.
@@ -90,6 +95,7 @@ Item {
             "reduceMotion": cfgA.reduceMotion,
             "disableBlur": cfgA.disableBlur,
             "disableShadows": cfgA.disableShadows,
+            "liveWallpaper60": cfgA.liveWallpaper60,
             "freezeVisualizerWhenIdle": cfgA.freezeVisualizerWhenIdle,
             "freezePillWhenIdle": cfgA.freezePillWhenIdle,
             "unloadVisualizerWhenSilent": cfgA.unloadVisualizerWhenSilent,
@@ -137,6 +143,7 @@ Item {
         cfgA.reduceMotion = pg.draft.reduceMotion;
         cfgA.disableBlur = pg.draft.disableBlur;
         cfgA.disableShadows = pg.draft.disableShadows;
+        cfgA.liveWallpaper60 = pg.draft.liveWallpaper60;
         cfgA.freezeVisualizerWhenIdle = pg.draft.freezeVisualizerWhenIdle;
         cfgA.freezePillWhenIdle = pg.draft.freezePillWhenIdle;
         cfgA.unloadVisualizerWhenSilent = pg.draft.unloadVisualizerWhenSilent;
@@ -146,8 +153,11 @@ Item {
         cfgA.unloadRyolayerWhenIdle = pg.draft.unloadRyolayerWhenIdle;
         cfg.writeAdapter();
         pg.committed = pg.clone(pg.draft);
-        if (needsReload)
-            Quickshell.execDetached(["hyprctl", "reload"]);
+        // reload once the write is on disk, not here: writeAdapter() completes
+        // asynchronously, so reloading straight away made Hyprland re-parse the
+        // PREVIOUS performance.json. A compositor toggle then landed one save
+        // late, which reads exactly like the switch being inverted.
+        pg.reloadPending = needsReload;
     }
 
     Component.onCompleted: pg.adopt()
@@ -164,6 +174,12 @@ Item {
         printErrors: false
         onFileChanged: reload()
         onLoaded: pg.adopt()
+        onSaved: {
+            if (!pg.reloadPending)
+                return;
+            pg.reloadPending = false;
+            Quickshell.execDetached(["hyprctl", "reload"]);
+        }
 
         JsonAdapter {
             id: cfgA
@@ -171,6 +187,7 @@ Item {
             property bool reduceMotion: false
             property bool disableBlur: false
             property bool disableShadows: false
+            property bool liveWallpaper60: false
             property bool freezeVisualizerWhenIdle: true
             property bool freezePillWhenIdle: false
             property bool unloadVisualizerWhenSilent: true
@@ -183,7 +200,7 @@ Item {
         Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
     }
 
-    // ── the schema: ten switches, regrouped by what you trade away ──
+    // ── the schema, regrouped by what you trade away ──
     // EYE CANDY (visual effects), IDLE (animation that stops when nothing moves),
     // MEMORY (surfaces unloaded to reclaim RAM). Labels are short; the cost of
     // each tweak lives in its description, the cell's slot for explanatory prose.
@@ -200,6 +217,9 @@ Item {
         { "tab": "", "group": "EYE CANDY", "key": "disableShadows", "ctl": "sw", "src": "performance",
           "label": "Disable shadows",
           "desc": "Each shadow is its own GPU blur pass, so flat surfaces draw much cheaper." },
+        { "tab": "", "group": "EYE CANDY", "key": "liveWallpaper60", "ctl": "sw", "src": "performance",
+          "label": "60fps live wallpaper",
+          "desc": "Doubles video wallpaper decode for smoother motion; the one switch here that spends instead of saves. Applies to the next wallpaper you set, and clips that cannot supply 60 stay at 30." },
 
         { "tab": "", "group": "IDLE", "key": "freezePillWhenIdle", "ctl": "sw", "src": "performance",
           "label": "Freeze the bar",
