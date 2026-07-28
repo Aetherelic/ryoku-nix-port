@@ -138,46 +138,34 @@ Singleton {
     function _run() {
         if (!root._pending)
             return;
-        // beautify needs a real file to hand to ryoshot, so a clipboard-only shot
-        // still writes one when beautify is on; otherwise clipboard streams direct.
-        var needFile = root._save !== "clipboard" || root._beautify;
-        root._outPath = needFile ? (root.shotsDir + "/" + root._stamp() + "_screenshot.png") : "";
-        // grim capture, then clipboard and/or PNG save, the shutter cue and the
-        // result toast, all gated on grim succeeding. A failed capture is silent,
-        // matching the reference. $1 flag, $2 value, $3 save mode, $4 out path
-        // ("" means clipboard-only, no file on disk).
+        // Save to the Screenshots folder for file / both, or whenever beautify
+        // needs a real file to hand off; a pure clipboard shot writes a throwaway.
+        var saveToFolder = root._save !== "clipboard" || root._beautify;
+        root._outPath = saveToFolder
+            ? (root.shotsDir + "/" + root._stamp() + "_screenshot.png")
+            : "/tmp/ryoku-shot-clipboard.png";
+        // Detached so wl-copy's clipboard daemon outlives this call: a managed
+        // Process reaps its child tree on exit, which kills that daemon and the
+        // selection vanishes even though grim's file is written. grim, the
+        // clipboard write, the shutter cue, the toast and the beautify hand-off all
+        // run in one detached shell. A failed grim is silent (matches the
+        // reference). $1 flag, $2 value, $3 out, $4 mode, $5 clip, $6 beautify.
         var script = [
-            "set -e",
-            'FLAG="$1"; VAL="$2"; MODE="$3"; OUT="$4"',
-            'cue() { ryoku-shell sound shutter >/dev/null 2>&1 || true; }',
-            'note() { notify-send -a ryoku "$@" >/dev/null 2>&1 || true; }',
-            'shoot() { if [ -n "$FLAG" ]; then grim "$FLAG" "$VAL" "$1"; else grim "$1"; fi; }',
-            '[ -n "$OUT" ] && mkdir -p "$(dirname "$OUT")"',
+            'FLAG="$1"; VAL="$2"; OUT="$3"; MODE="$4"; CLIP="$5"; BEAUTIFY="$6"',
+            'mkdir -p "$(dirname "$OUT")" 2>/dev/null || true',
+            'if [ -n "$FLAG" ]; then grim "$FLAG" "$VAL" "$OUT"; else grim "$OUT"; fi || exit 0',
+            '[ -n "$CLIP" ] && wl-copy --type image/png < "$OUT"',
+            'ryoku-shell sound shutter >/dev/null 2>&1 || true',
             'case "$MODE" in',
-            'clipboard)',
-            '  if [ -n "$OUT" ]; then shoot "$OUT"; wl-copy --type image/png < "$OUT";',
-            '  else if [ -n "$FLAG" ]; then grim "$FLAG" "$VAL" -; else grim -; fi | wl-copy --type image/png; fi',
-            '  cue; note "Screenshot copied to clipboard" ;;',
-            'file) shoot "$OUT"; cue; note "Screenshot saved" "Saved to $OUT" ;;',
-            '*) shoot "$OUT"; wl-copy --type image/png < "$OUT"; cue; note "Screenshot saved & copied" "Saved to $OUT" ;;',
-            'esac'
+            'clipboard) notify-send -a ryoku "Screenshot copied to clipboard" >/dev/null 2>&1 || true ;;',
+            'file) notify-send -a ryoku "Screenshot saved" "Saved to $OUT" >/dev/null 2>&1 || true ;;',
+            '*) notify-send -a ryoku "Screenshot saved & copied" "Saved to $OUT" >/dev/null 2>&1 || true ;;',
+            'esac',
+            '[ -n "$BEAUTIFY" ] && RYOSHOT_OPEN="$OUT" flock -n -o /tmp/ryoshot.lock qs -c ryoshot >/dev/null 2>&1 || true'
         ].join("\n");
-        proc.command = ["sh", "-c", script, "sh", root._pending.flag, root._pending.val, root._save, root._outPath];
-        proc.running = true;
-    }
-
-    Process {
-        id: proc
-        onExited: code => {
-            if (code !== 0) {
-                console.warn("capture: grim pipeline exited " + code);
-                return;
-            }
-            // beautify: hand the saved shot to ryoshot's editor. flock guards a
-            // second instance; RYOSHOT_OPEN loads the file straight into beautify.
-            if (root._beautify && root._outPath.length > 0)
-                Quickshell.execDetached(["sh", "-c",
-                    'RYOSHOT_OPEN="$1" flock -n -o /tmp/ryoshot.lock qs -c ryoshot', "sh", root._outPath]);
-        }
+        Quickshell.execDetached(["sh", "-c", script, "sh",
+            root._pending.flag, root._pending.val, root._outPath, root._save,
+            (root._save === "both" || root._save === "clipboard") ? "1" : "",
+            root._beautify ? "1" : ""]);
     }
 }
