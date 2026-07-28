@@ -102,14 +102,22 @@ signal_recorder() {
   pkill "$signal" -f "$pattern" >/dev/null 2>&1 || true
 }
 
-# must match Ryoku.Paths.recsdir (shell/utils/Paths.qml): RYOKU_SHELL_RECORDINGS_DIR
-# or ${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings. the shell's recordings list only
+# must match Ryoku.Ui.Singletons.Paths.recordingsDir, which the deck's recordings
+# list and the Hub's Recording page both read: the env override, then the Hub's
+# `directory` setting, then ${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings. the list
 # watches that one dir, so any other resolution (e.g. `xdg-user-dir VIDEOS`,
 # which returns $HOME when there's no Videos dir) would hide every saved
 # recording.
 recordings_dir() {
+  local configured
   if [[ -n ${RYOKU_SHELL_RECORDINGS_DIR:-} ]]; then
     printf '%s\n' "$RYOKU_SHELL_RECORDINGS_DIR"
+    return
+  fi
+
+  configured="$(cfg_get '.directory' '')"
+  if [[ -n $configured ]]; then
+    printf '%s\n' "${configured/#\~/$HOME}"
     return
   fi
 

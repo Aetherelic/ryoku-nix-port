@@ -73,10 +73,15 @@ hl.layer_rule({
   match   = { namespace = "^launcher" },
   no_anim = true,
 })
+-- ignore_alpha keeps the frost inside the card: the launcher's surface reserves
+-- margin for its shadow and a gap between the search row and the list, and
+-- without this the compositor blurs that whole transparent rectangle, which
+-- reads as a frosted square floating around the launcher.
 hl.layer_rule({
-  name    = "launcher-blur",
-  match   = { namespace = "^launcher$" },
-  blur    = not no_blur,
+  name         = "launcher-blur",
+  match        = { namespace = "^launcher$" },
+  blur         = not no_blur,
+  ignore_alpha = 0.05,
 })
 
 -- the workspace overview (qs -c overview, Super+Tab) is a full-screen layer-shell

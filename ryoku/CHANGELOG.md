@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- **Super+W opens the wallpaper and colour-scheme switcher; Super+C is freed.**
+  The keybind launches the unified bottom-centre switcher
+  (`ryoku-shell wallpaper-switcher`) instead of the old wallpaper-and-theme menu,
+  and the former Super+C binding is removed (`hyprland/modules/binds.lua`).
 - **The desktop shell now has one Atoll bar and one bar-owned popup.** The
   ilyamiro and Ryoku Atoll looks remain, with their weather, media, connectivity,
   volume, battery and notification readouts left visible but inert. Power still
