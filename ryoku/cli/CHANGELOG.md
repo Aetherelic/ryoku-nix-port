@@ -11,6 +11,16 @@
   widget the allowlist had never carried -- is preserved instead of being
   silently stripped (`internal/doctor/doctor.go`).
 
+### Added
+- **doctor keeps every recording in one directory.** Clips were landing in three
+  places: the shell's own, Ryoku Motion's Electron userData directory, and an
+  empty `~/Videos/Ryoku Motion` a deleted prototype left behind. Ryoku Motion
+  hardcodes its path with nothing to redirect it, so its directory becomes a link
+  into the real one and whatever it already recorded moves across, never
+  overwriting a file already there. gpu-screen-recorder's own default is reported
+  with the command to merge it, not migrated, since it may be running
+  deliberately (`internal/doctor/reconcile_recordings.go`).
+
 ### Fixed
 - **`ryoku doctor` heals a shell daemon left on a dead Hyprland instance.** A
   daemon that outlived its compositor (a relogin or crash brings up a new
