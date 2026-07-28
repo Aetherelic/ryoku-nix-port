@@ -4,11 +4,11 @@ import QtQuick
 import Quickshell.Services.Pipewire
 import "Singletons"
 
-// One OSD: an icon and a value bar, for volume-out, mic-in, or brightness. The
-// content itself does not animate; the hosting window fades and slides the whole
-// pill up as `flashing` turns true, holds it for 1000 ms, then eases it back
-// down. A re-trigger restarts that hold. Volume and mic read PipeWire;
-// brightness reads the daemon `osd` feed.
+// One OSD: an icon, a value bar and a percentage, for volume-out, mic-in, or
+// brightness. The content itself does not animate; the hosting window fades and
+// slides the whole pill up as `flashing` turns true, holds it for 1000 ms, then
+// eases it back down. A re-trigger restarts that hold. Volume and mic read
+// PipeWire; brightness reads the daemon `osd` feed.
 //
 // Startup grace (contract 12 sec 4): a fresh shell reads its initial volume,
 // mic and brightness as it connects, firing change signals that are not user
@@ -98,11 +98,11 @@ Item {
         function onBrightnessSeqChanged() { root.flash(); }
     }
 
-    // --- content: icon + value bar (contract 12 sec 2) ---------------------
-    // Fixed logical px: inner box width 210, spacing 16, icon 40, bar height 6.
-    // No monitor or font scaling; the OSD is a fixed-size readout the hosting
-    // window animates as one pill.
-    implicitWidth: 210
+    // --- content: icon + value bar + percentage (contract 12 sec 2) ---------
+    // Fixed logical px: inner box width 250, spacing 16, icon 40, bar height 6,
+    // percentage readout 46. No monitor or font scaling; the OSD is a
+    // fixed-size readout the hosting window animates as one pill.
+    implicitWidth: 250
     implicitHeight: 40
 
     SymbolIcon {
@@ -121,7 +121,8 @@ Item {
         id: trough
         anchors.left: glyph.right
         anchors.leftMargin: 16
-        anchors.right: parent.right
+        anchors.right: pct.left
+        anchors.rightMargin: 16
         anchors.verticalCenter: parent.verticalCenter
         height: 6
         radius: Theme.radiusWidget
@@ -136,5 +137,21 @@ Item {
             color: Theme.secondary
             visible: width > 0
         }
+    }
+
+    // Percentage readout (mono, the pill's data face): the same clamped 0..1
+    // `value` the bar fills to, so the number and the bar never disagree. Fixed
+    // width, right-aligned, so the bar edge holds still as the digit count
+    // changes (5% -> 100%). Volume is capped at 100% upstream (wpctl -l 1).
+    Text {
+        id: pct
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        width: 46
+        horizontalAlignment: Text.AlignRight
+        text: Math.round(root.value * 100) + "%"
+        color: Theme.onSurface
+        font.family: Theme.mono
+        font.pixelSize: Theme.fontMd
     }
 }
