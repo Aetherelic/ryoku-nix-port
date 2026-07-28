@@ -113,7 +113,14 @@ Row {
                     cursorShape: Qt.PointingHandCursor
                     onEntered: dcard.hovered = true
                     onExited: dcard.hovered = false
-                    onClicked: if (strip.ov) strip.ov.switchToDesktop(dcard.deskIdx)
+                    onClicked: {
+                        if (!strip.ov)
+                            return;
+                        if (dcard.isNew)
+                            strip.ov.createDesktop();
+                        else
+                            strip.ov.switchToDesktop(dcard.deskIdx);
+                    }
                 }
             }
         }

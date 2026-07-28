@@ -88,10 +88,18 @@ Item {
         return Math.max(m, root.activeDesktop);
     }
     readonly property int newDesktopIdx: root.maxOccDesk + 1
+    // Only desktops that actually hold workspaces, then ONE trailing "add
+    // desktop" card. Empty desktops in between are never shown, so the strip
+    // stays short (no wall of blank "NEW" cards).
     readonly property var deskList: {
         var out = [];
-        for (var d = 0; d <= root.newDesktopIdx; d++)
-            out.push(d);
+        var seen = ({});
+        for (var i = 0; i < root.allWsIds.length; i++)
+            seen[root.deskOf(root.allWsIds[i])] = true;
+        seen[root.activeDesktop] = true;
+        for (var d = 0; d <= root.maxOccDesk; d++)
+            if (seen[d]) out.push(d);
+        out.push(root.newDesktopIdx);
         return out;
     }
     property int viewedDesktop: 0
@@ -114,6 +122,12 @@ Item {
     function switchToDesktop(d) {
         root.viewedDesktop = d;
         root.selected = 0;
+    }
+    // "Add desktop": create AND move to a brand-new desktop's first workspace,
+    // then close. Unlike switchToDesktop (which only previews in the grid), this
+    // actually takes you to the new desktop.
+    function createDesktop() {
+        root.switchWs(root.newDesktopIdx * root.perDesktop + 1);
     }
 
     // ---- the viewed desktop's block + its occupancy ---------------------------
@@ -138,20 +152,18 @@ Item {
         var nx = root.blockBase + root.maxPos + 1;
         return nx > root.blockBase + root.perDesktop ? root.blockBase + root.perDesktop : nx;
     }
-    // FILMSTRIP model: positions 1..maxPos (full if windowed, else thin slat),
-    // then a trailing thin "+" add slot. An empty desktop shows one big "+".
+    // The viewed desktop's occupied workspaces as full live cells, then ONE
+    // full-size "+" add cell. Empty / gap positions are not shown, and the add
+    // cell is always a full-size target (never a thin slat), so it is easy to
+    // hit and clicking it opens the next free workspace.
     readonly property var slotModel: {
         var out = [];
-        if (root.maxPos === 0) {
-            out.push({ pos: 1, wsId: -1, add: true, full: true });
-            return out;
+        for (var i = 0; i < root.wsList.length; i++) {
+            var id = root.wsList[i];
+            if (root.wsHasWindows(id) || id === root.activeWsId)
+                out.push({ pos: id - root.blockBase, wsId: id, add: false, full: true });
         }
-        for (var p = 1; p <= root.maxPos; p++) {
-            var id = root.blockBase + p;
-            out.push({ pos: p, wsId: id, add: false, full: root.wsHasWindows(id) });
-        }
-        if (root.maxPos < root.perDesktop)
-            out.push({ pos: root.maxPos + 1, wsId: -1, add: true, full: false });
+        out.push({ pos: out.length + 1, wsId: -1, add: true, full: true });
         return out;
     }
     readonly property int slotCount: root.slotModel.length
@@ -275,16 +287,41 @@ Item {
 
     // ---- actions (lua-config hyprland: dispatch via the hl.dsp API) -----------
     function normAddr(a) { return (a && a.indexOf("0x") === 0) ? a : "0x" + a; }
-    function switchWs(id) {
-        Hyprland.dispatch('hl.dsp.focus({ workspace = ' + id + ' })');
+    // Compositor actions that dismiss the overview are DEFERRED until after it
+    // closes. The overlay holds an exclusive keyboard grab; releasing it on
+    // close makes Hyprland refocus the previously active window, which would
+    // undo a workspace/window switch dispatched while the overlay was still up
+    // (you would land back on the workspace you started from). So: close first,
+    // then run the switch once the grab has been released.
+    property var pendingCommit: null
+    Timer {
+        id: commitTimer
+        interval: 150
+        repeat: false
+        onTriggered: {
+            var fn = root.pendingCommit;
+            root.pendingCommit = null;
+            if (fn)
+                fn();
+        }
+    }
+    function commitOnClose(fn) {
+        root.pendingCommit = fn;
         root.requestClose();
+        commitTimer.restart();
+    }
+    function switchWs(id) {
+        root.commitOnClose(function () {
+            Hyprland.dispatch('hl.dsp.focus({ workspace = ' + id + ' })');
+        });
     }
     function focusWindow(tl, addr) {
-        if (tl && tl.wayland)
-            tl.wayland.activate();
-        else if (addr)
-            Hyprland.dispatch('hl.dsp.focus({ window = "address:' + root.normAddr(addr) + '" })');
-        root.requestClose();
+        root.commitOnClose(function () {
+            if (tl && tl.wayland)
+                tl.wayland.activate();
+            else if (addr)
+                Hyprland.dispatch('hl.dsp.focus({ window = "address:' + root.normAddr(addr) + '" })');
+        });
     }
     function moveWindow(addr, wsId) {
         if (!addr) return;
