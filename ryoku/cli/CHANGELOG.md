@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **Doctor adopts the keyboard the installer was told about.** A keyboard cannot
+  report the legends printed on its keys, so a box installed with an AZERTY
+  keymap still came up on QWERTY. The layout is now read back from what the
+  system already records, strongest source first: the X11 keymap, then
+  /etc/vconsole.conf, then the locale's country. It is adopted only while the
+  desktop is on the untouched shipped default, once, and a marker keeps a later
+  deliberate pick from being undone (`internal/doctor/keyboard_detect.go`,
+  `internal/doctor/reconcile_keymap.go`).
+
 ### Changed
 - **`ryoku doctor` follows the trimmed frame-bar catalogue.** Its `frameBars`
   normalizer mirrors the shell's catalogue, which dropped App Launcher,
