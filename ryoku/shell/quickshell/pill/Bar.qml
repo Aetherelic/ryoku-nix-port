@@ -15,6 +15,18 @@ Item {
     signal surfaceRequested(string id, rect ownerRect)
     signal actionRequested(string id)
 
+    // A rail's drawn band thickness: its size when it is on and holds widgets,
+    // else 0. Side rails inset by the top and bottom bands so they clear those
+    // bands at the shared corners instead of overlapping their widgets.
+    function bandOf(edge) {
+        const r = bar.frameBars.rails[edge];
+        if (!r || r.enabled !== true) return 0;
+        const zs = edge === "top" || edge === "bottom" ? ["start", "center", "end"] : ["top", "center", "bottom"];
+        let n = 0;
+        for (const z of zs) n += (r[z] || []).length;
+        return n > 0 ? r.size : 0;
+    }
+
     Repeater {
         model: ["top", "left", "bottom", "right"]
 
@@ -24,6 +36,9 @@ Item {
             revealed: bar.revealState ? bar.revealState[modelData] === true : false
             rail: bar.frameBars.rails[modelData]
             style: bar.style
+            readonly property bool horiz: modelData === "top" || modelData === "bottom"
+            leadInset: horiz ? 0 : bar.bandOf("top")
+            tailInset: horiz ? 0 : bar.bandOf("bottom")
             delegate: Component {
                 BarWidgetHost {
                     edge: modelData

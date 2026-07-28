@@ -180,17 +180,16 @@ Item {
             readonly property real iconColHeight: classes.length * root.iconPx
                 + Math.max(0, classes.length - 1) * gap
 
-            // Extent = the dimension that animates (height on vertical, width on horizontal).
-            // Active: reserve room for maxIcons even if fewer are present (stable width).
-            readonly property real activeExtent: root.horizontal
-                ? (root.maxIcons * root.iconPx + (root.maxIcons - 1) * gap + 2 * padH)
-                : (root.maxIcons * root.iconPx + (root.maxIcons - 1) * gap + 2 * padV)
+            // Extent = the along-bar dimension. Every occupied pill sizes to its
+            // own app icons, so the active pill matches an inactive one with the
+            // same apps and is set apart by its highlight, not by a fixed
+            // reserved width that left it a wide near-empty oval beside the
+            // compact inactive pills.
             readonly property real occupiedExtent: root.horizontal
                 ? (iconRowWidth + 2 * padH)
                 : (iconColHeight + 2 * padV)
             readonly property real emptyExtent: dotSize + 2 * (root.horizontal ? padH : padV)
-            readonly property real extent: !hasIcons ? emptyExtent
-                : isActive ? activeExtent : occupiedExtent
+            readonly property real extent: !hasIcons ? emptyExtent : occupiedExtent
 
             // Cross = the dimension fixed to the rail width.
             readonly property real pillCross: 32 * root.scale
@@ -260,8 +259,8 @@ Item {
                 // Placed on the outer edge of the bar.
                 anchors.horizontalCenter: root.horizontal ? parent.horizontalCenter : undefined
                 anchors.verticalCenter: !root.horizontal ? parent.verticalCenter : undefined
-                anchors.bottom: root.horizontal ? parent.bottom : undefined
-                anchors.bottomMargin: root.horizontal ? 3 * root.scale : 0
+                anchors.bottom: root.edge === "bottom" ? parent.bottom : undefined
+                anchors.bottomMargin: root.edge === "bottom" ? 3 * root.scale : 0
                 anchors.right: root.edge === "right" ? parent.right : undefined
                 anchors.rightMargin: root.edge === "right" ? 3 * root.scale : 0
                 anchors.left: root.edge === "left" ? parent.left : undefined
