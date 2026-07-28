@@ -155,10 +155,6 @@ Rectangle {
             else if (e.key === Qt.Key_Right) { app.walk(1); e.accepted = true; }
             else if (e.key === Qt.Key_Up) { app.walk(-grid.cols); e.accepted = true; }
             else if (e.key === Qt.Key_Down) { app.walk(grid.cols); e.accepted = true; }
-            else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
-                if (Wallhaven.selected && !Wallhaven.busy) Wallhaven.apply();
-                e.accepted = true;
-            }
         }
     }
 
@@ -578,14 +574,14 @@ Rectangle {
         z: 40
         open: app.sourceOpen
         builtins: app.builtins
-        onDismissed: app.sourceOpen = false
+        onDismissed: { app.sourceOpen = false; app.forceActiveFocus(); }
     }
 
     SettingsPanel {
         anchors.fill: parent
         z: 40
         open: app.settingsOpen
-        onClosed: app.settingsOpen = false
+        onClosed: { app.settingsOpen = false; app.forceActiveFocus(); }
     }
 
     // destructive confirm: a bone plate with a 2px border and an unambiguous

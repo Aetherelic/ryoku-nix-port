@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Changed
+- `nvim/`: **the editor follows the live wallpaper palette.** `ryoku.lua` pinned
+  `tokyonight-night` flat, so the editor ignored the theme while kitty and the
+  shell tracked it. It now reads the daemon's `~/.cache/ryoku/colors.json` (the
+  same base16 set kitty reads) into tokyonight's `on_colors`, so nvim's
+  background and syntax match the terminal; habamax stays the fallback, and a
+  `FocusGained` hook re-tints a running editor when the palette changes
+  (`nvim/lua/plugins/ryoku.lua`).
 - `ryowalls/`: **the palette preview runs through matugen, and the per-image
   scheme tune is gone.** The `palette` verb dropped its wallust invocation and
   now derives the 16-slot preview strip from `matugen image --json hex
@@ -44,6 +51,50 @@
   (`ui/Btn.qml`, `FleetTile.qml`).
 
 ### Fixed
+- `ryowalls/`: **adding a wallpaper library now lives in Settings, and its fields
+  actually take typing.** The source drawer and the settings panel never claimed
+  keyboard focus (they lacked `focus: open`, so the app root held it and its key
+  map ate every keystroke), and their scrim and card caught clicks with a
+  `TapHandler` that let a field click fall through and dismiss the overlay -- so
+  the drawer's `owner/repo@branch` field could not be typed into at all. Both
+  overlays now take focus while open and use `MouseArea`s for click-safety (the
+  ryovm connection-sheet pattern), the drawer focuses its filter on open, and the
+  app regains focus when an overlay closes. Adding and removing libraries moved
+  out of the drawer into ryowalls Settings (the gear -> Wallpaper libraries),
+  where the field reliably takes input; the drawer is now a pure source picker
+  (`SourcePicker.qml`, `SettingsPanel.qml`, `App.qml`).
+- `ryowalls/`: **pressing Enter in the search box no longer sets the wallpaper.**
+  The browse-lane key map applied the current pick on Return, and a single-line
+  `TextInput` does not consume Return, so hitting Enter to run a search also
+  silently set the highlighted wallpaper. Enter now only searches; SET WALLPAPER
+  is the one way to apply (`App.qml`).
+- `ryowalls/`: **a user-added library grid loads in seconds, not half a minute.**
+  A GitHub folder-tree library used each wallpaper's full-resolution file as its
+  grid thumbnail, so one page pulled 30-50 MB of originals before anything drew.
+  The grid now requests a 480px WebP thumbnail through the wsrv.nl image proxy
+  (~15 KB each), while the preview, palette and Set still use the full file, kept
+  as a new `large` field (`bin/ryowalls`).
+- `ryowalls/`: **Enhance runs on the discrete GPU first.** The last-good-GPU hint
+  had settled on the integrated Radeon, which shares memory with the compositor,
+  so enhancing dragged the whole desktop. The engine now detects the discrete GPU
+  from waifu2x's own device list (cached) and tries it first, and the enhance
+  process runs at idle IO and the lowest CPU priority so the extract/encode do not
+  fight the desktop for cores (`bin/ryowalls`).
+- `ryowalls/`: **a closed or interrupted enhance no longer keeps churning
+  invisibly.** The video enhance ran waifu2x and ffmpeg as untracked children, so
+  closing the window (Quickshell sends SIGTERM) orphaned them onto the GPU with
+  nothing on screen and leaked a multi-GB frame dump in `/tmp`. The heavy steps
+  now run backgrounded and a trap reaps the worker and the workdir on
+  TERM / INT / HUP / exit (`bin/ryowalls`).
+- `ryowalls/`: **Enhance shows progress while it extracts a clip's frames.** The
+  bar only moved during the upscale pass, so a long clip sat on a blinking dot
+  through the whole extract. Extract now reports frames-done against an estimated
+  total, so the bar climbs from the first phase (`bin/ryowalls`).
+- `ryowalls/`: **MoeWalls warns that its previews are low-resolution.** MoeWalls
+  only serves ~720p preview loops (soft on a large screen) and the exact size
+  varies per clip, so the browse view now carries one honest note -- a bone plate,
+  black ink, no red -- pointing at Enhance, instead of a misleading per-tile
+  number (`WallGrid.qml`).
 - `ryovm/`: **a saved password now works for health probes and connect, not just
   in theory.** A keyless host with a saved password read as a dead box: the probe
   ran under `BatchMode`, which blocks password auth, and the CONNECT button went

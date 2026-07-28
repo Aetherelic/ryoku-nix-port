@@ -14,9 +14,13 @@ Item {
     readonly property int gap: Tokens.s2
     readonly property int cols: Math.max(2, Math.floor(width / 200))
 
+    // MoeWalls serves only its low-res preview loops, so the browse view says so.
+    readonly property bool showMoeNote: Wallhaven.source === "moewalls"
+
     GridView {
         id: grid
         anchors.fill: parent
+        anchors.topMargin: g.showMoeNote ? moeNote.height + Tokens.s2 : 0
         visible: Wallhaven.results.length > 0
         clip: true
         cellWidth: Math.floor(g.width / g.cols)
@@ -67,5 +71,34 @@ Item {
         seal: "壁"
         art: "aurelius.png"
         seed: 3
+    }
+
+    // MoeWalls only serves its ~720p preview loops (soft on a large screen), and
+    // the exact size varies per clip, so instead of a per-tile number (a hardcoded
+    // one made Enhance read as broken) the source carries one honest note, in the
+    // house emphasis grammar — a bone plate, black ink, no red — pointing at the
+    // Enhance that upscales the pick.
+    Rectangle {
+        id: moeNote
+        visible: g.showMoeNote
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: visible ? moeText.implicitHeight + Tokens.s3 * 2 : 0
+        radius: Tokens.radius
+        color: Tokens.bone
+        Text {
+            id: moeText
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Tokens.s3
+            anchors.rightMargin: Tokens.s3
+            anchors.verticalCenter: parent.verticalCenter
+            wrapMode: Text.WordWrap
+            text: "MoeWalls shows ~720p preview loops — soft on a large screen. Pick one and use Enhance (GRADE tab) to upscale it on the GPU."
+            color: Tokens.inkOnBone
+            font.family: Tokens.ui
+            font.pixelSize: 11
+        }
     }
 }

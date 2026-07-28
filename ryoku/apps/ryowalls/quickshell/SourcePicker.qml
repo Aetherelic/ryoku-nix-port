@@ -9,8 +9,8 @@ import "Singletons"
 // The source is the page's identity, so choosing it is a catalogue overlay, not
 // a toolbar toggle. Built on the module Picker grammar (paperLift, lineStrong,
 // radius 2, a filter field, rows that invert under the pointer, the current row
-// dotted) with the two things a font list never needs: a remove affordance on
-// library rows and an add-library field in the footer.
+// dotted) plus a remove affordance on library rows. Adding a library lives in
+// ryowalls Settings now, where a modal text field reliably takes focus.
 Item {
     id: picker
     property bool open: false
@@ -21,10 +21,13 @@ Item {
 
     visible: opacity > 0
     opacity: open ? 1 : 0
+    // claim keyboard focus while open (the app root holds it otherwise, and its
+    // key map would eat what you type into the filter) — the ryovm sheet pattern.
+    focus: open
     Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
 
     onOpenChanged: {
-        if (open) { picker.filter = ""; filterField.clear(); filterField.grabFocus(); }
+        if (open) { picker.filter = ""; filterField.clear(); Qt.callLater(filterField.grabFocus); }
     }
 
     function allRows() {
@@ -57,7 +60,10 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.78)
-        TapHandler { onTapped: picker.dismissed() }
+        // only an outside click dismisses: a MouseArea (not a TapHandler) so a
+        // click that lands on the card's fields is consumed by the card below and
+        // never read as an outside tap that closes the drawer mid-type.
+        MouseArea { anchors.fill: parent; onClicked: picker.dismissed() }
     }
 
     // a drawer genuinely floats over the page, so it earns a shadow (the one
@@ -84,8 +90,10 @@ Item {
         color: Tokens.paperLift
         border.width: Tokens.border
         border.color: Tokens.lineStrong
-        // swallow taps so a click inside the card does not dismiss it.
-        TapHandler {}
+        // a click inside the card is consumed here (a MouseArea, not a bare
+        // TapHandler) so it never falls through to the scrim and dismisses the
+        // drawer while you click into and type in a field.
+        MouseArea { anchors.fill: parent }
 
         Column {
             anchors.fill: parent
@@ -123,7 +131,7 @@ Item {
 
             Flickable {
                 width: parent.width
-                height: parent.height - 118
+                height: parent.height - 60
                 contentHeight: rows.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -199,16 +207,6 @@ Item {
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: Tokens.lineSoft }
-
-            // footer: add any GitHub repo of wallpapers. mono, it is file truth.
-            Field {
-                id: addField
-                width: parent.width
-                tabular: true
-                placeholder: "owner/repo@branch"
-                onCommitted: (v) => { if (v.trim().length > 0) { Wallhaven.addLibrary(v); addField.clear(); picker.dismissed(); } }
-            }
         }
     }
 }
