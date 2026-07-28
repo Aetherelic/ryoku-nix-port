@@ -32,6 +32,10 @@ function railWidgets(config, edge) {
 
 // Add a catalogued widget to a zone. Rejected (clean no-op clone) if the id is
 // not catalogued, does not fit the rail's axis, or is already on the rail.
+// Adding a widget also turns the rail ON: the bottom and right rails ship off,
+// so dropping a widget onto one used to land on a hidden rail and read as fully
+// broken. Enabling on every add keeps "I added a widget, so show it" always
+// true; a rail is hidden again with its own switch, after the fact.
 function addZoneItem(config, edge, zone, id, catalog) {
     const next = copy(config);
     if (!next.rails || !next.rails[edge] || !zones(edge).includes(zone)) return next;
@@ -39,6 +43,7 @@ function addZoneItem(config, edge, zone, id, catalog) {
     const list = next.rails[edge][zone];
     if (!entry || !entry.axes.includes(axisOf(edge)) || !Array.isArray(list)) return next;
     if (railWidgets(next, edge).includes(id)) return next;
+    next.rails[edge].enabled = true;
     list.push(id);
     return next;
 }
