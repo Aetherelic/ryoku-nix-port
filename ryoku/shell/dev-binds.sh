@@ -15,7 +15,7 @@ cmds=(
 	"$bin launcher"
 	"$bin lock"
 	"$bin menu quick-settings"
-	"$bin wallpaper-switcher"
+	"$bin menu wallpaper"
 	"$bin menu screenshot"
 	"$bin overview"
 	"$bin hub open"

@@ -1,21 +1,19 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Qt.labs.folderlistmodel
 import Quickshell
+import Quickshell.Io
 import "../../Singletons"
+import "WallColors.js" as WallColors
 
-// The wallpaper grid (contract 08 sec 2.1 / 4.1): a three-lane, horizontally
-// scrolling strip of 180x120 thumbnails inside a fixed 384px band, feathered by
-// a surface-coloured 32px fade on each end. The source directory is scanned and
-// watched natively through FolderListModel, so a wallpaper dropped into the
-// folder appears without a poll and a removed one drops out. A single click
-// applies a wallpaper through the daemon (`ryoku-shell wallpaper set`), the same
-// intent path Super+W and the standalone switcher use, so the pick shares the
-// transition, palette and state and never dismisses the menu.
-//
-// Thumbnails always render Cover (PreserveAspectCrop) regardless of the desktop
-// content-fit setting: that setting scales the desktop surface, not the previews.
+// The wallpaper section of the frame blob menu: two endless belts of cached
+// image + live-video thumbnails that idle-drift in opposite directions (the top
+// rightwards, the bottom leftwards) and speed up on a scroll, with a colour
+// filter above. The source is index.sh (one cached thumbnail, dominant-hue
+// reading and muted preview loop per wallpaper, images and videos alike), the
+// same index the standalone switcher reads, so a pick shares the transition,
+// palette and state. A single click applies through the daemon and never
+// dismisses the menu (single-click activate).
 Item {
     id: root
 
@@ -23,59 +21,121 @@ Item {
     property bool open: false
     signal requestClose()
 
-    // Ryoku keeps its wallpapers in ~/Pictures/Wallpapers, the same folder the
-    // Super+W keybind, the daemon pool and the standalone switcher read.
-    readonly property string wallDir: (Quickshell.env("HOME") || "") + "/Pictures/Wallpapers"
+    // index.sh path = RYOKU_SHELL_DIR in dev, else the installed quickshell tree.
+    readonly property string shellDir: Quickshell.env("RYOKU_SHELL_DIR")
+    readonly property string script: (shellDir && shellDir.length > 0)
+        ? shellDir + "/quickshell/wallpaper/index.sh"
+        : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/wallpaper/index.sh"
 
-    // Reference thumbnail geometry: a 180x120 tile with a 4px cell margin and a
-    // 2px border, so a cell is 188x128 and three lanes stack to the 384px band
-    // (contract 08 sec 2.1).
-    readonly property int thumbW: 180
-    readonly property int thumbH: 120
-    readonly property int cellMargin: 4
-    readonly property int cellW: thumbW + cellMargin * 2
-    readonly property int cellH: thumbH + cellMargin * 2
-    readonly property int bandH: cellH * 3
-    // The grid content is inset 32px from each end (contract 08 sec 2.1),
-    // and the fade sits over that inset.
-    readonly property int edgeFade: 32
+    property var entries: []
+    property bool loading: false
+    property int colorFilter: -1        // -1 = every colour, else a WallColors group id
+    property var hoverEntry: null
 
-    implicitHeight: header.implicitHeight + 16 + bandH
+    // entries under the current colour filter (already colour-sorted by index).
+    readonly property var shown: {
+        var out = [];
+        for (var i = 0; i < entries.length; i++)
+            if (colorFilter === -1 || entries[i].group === colorFilter)
+                out.push(entries[i]);
+        return out;
+    }
+    readonly property var topCells: shown.filter((e, i) => i % 2 === 0)
+    readonly property var bottomCells: shown.filter((e, i) => i % 2 === 1)
+    readonly property bool hasLive: {
+        for (var i = 0; i < entries.length; i++)
+            if (entries[i].type === "live")
+                return true;
+        return false;
+    }
+    // colour groups present, in rainbow order (neutral last).
+    readonly property var groups: {
+        var seen = ({});
+        for (var i = 0; i < entries.length; i++)
+            seen[entries[i].group] = true;
+        var out = [];
+        for (var g = 0; g < WallColors.order.length; g++)
+            if (seen[WallColors.order[g]])
+                out.push(WallColors.order[g]);
+        return out;
+    }
 
-    // Apply a wallpaper. The daemon verb takes a filesystem path, so decode the
-    // model's file URL back to one. A single click applies immediately and does
-    // not close the menu (single-click activate, contract 08 sec 4.1).
-    function apply(fileUrl) {
-        const path = decodeURIComponent(("" + fileUrl).replace(/^file:\/\//, ""));
-        if (path.length > 0)
+    function refresh() {
+        if (indexProc.running)
+            return;
+        root.loading = true;
+        indexProc.running = true;
+    }
+    onOpenChanged: if (root.open) root.refresh()
+    Component.onCompleted: root.refresh()
+
+    Process {
+        id: indexProc
+        command: ["sh", root.script]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var out = [];
+                var lines = this.text.split("\n");
+                for (var i = 0; i < lines.length; i++) {
+                    var p = lines[i].split("\t");
+                    if (p.length < 6)
+                        continue;
+                    var hue = parseFloat(p[4]) || 0;
+                    var sat = parseFloat(p[5]) || 0;
+                    var path = p[2];
+                    out.push({
+                        type: p[0],
+                        mtime: parseFloat(p[1]) || 0,
+                        path: path,
+                        name: path.substring(path.lastIndexOf("/") + 1),
+                        thumb: p[3],
+                        preview: p.length > 6 ? p[6] : "",
+                        hue: hue,
+                        sat: sat,
+                        group: WallColors.bucket(hue, sat)
+                    });
+                }
+                out.sort(function (a, b) {
+                    var ga = a.group === 99 ? 100 : a.group;
+                    var gb = b.group === 99 ? 100 : b.group;
+                    if (ga !== gb)
+                        return ga - gb;
+                    return b.sat - a.sat;
+                });
+                root.entries = out;
+                root.loading = false;
+            }
+        }
+    }
+
+    // the wallpaper on screen (on-air dot), watched so a pick lights its tile.
+    readonly property string current: stateView.text().trim()
+    FileView {
+        id: stateView
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku-wallpaper"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+    }
+
+    function apply(path) {
+        if (path && path.length > 0)
             Quickshell.execDetached(["ryoku-shell", "wallpaper", "set", path]);
     }
 
-    FolderListModel {
-        id: folder
-        folder: "file://" + root.wallDir
-        showDirs: false
-        showHidden: false
-        showOnlyReadable: true
-        sortField: FolderListModel.Name
-        // Case-insensitive match of the eight image extensions the reference
-        // enumerator accepts (png, jpg, jpeg, webp, bmp, svg, tiff, tif).
-        caseSensitive: false
-        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.svg", "*.tiff", "*.tif"]
-    }
+    implicitHeight: col.implicitHeight
 
     Column {
+        id: col
         width: parent.width
-        spacing: 16
+        spacing: 14
 
-        // Header: the section title and the directory being shown (contract 08
-        // sec 2.1 header).
-        Column {
-            id: header
-            width: parent.width
-            spacing: 2
-
+        // header: title + count.
+        Row {
+            spacing: 10
             Text {
+                id: title
                 text: qsTr("Wallpaper")
                 color: Theme.onSurface
                 font.family: Theme.fontPrimary
@@ -83,129 +143,143 @@ Item {
                 font.weight: Font.Bold
             }
             Text {
-                width: parent.width
-                text: root.wallDir.replace(Quickshell.env("HOME") || "\u0000", "~")
-                color: Theme.onSurface
+                anchors.baseline: title.baseline
+                text: root.shown.length + (root.hasLive ? qsTr(" images + live") : qsTr(" images"))
+                color: Theme.onSurfaceVariant
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm
-                elide: Text.ElideMiddle
             }
         }
 
-        // The fixed 384px band: the three-lane grid, its edge fades, and the
-        // empty message. The grid is hidden while the folder is empty.
+        // colour filter: an ALL chip then one rounded swatch per hue group present.
+        Row {
+            spacing: 7
+            visible: root.groups.length > 0
+
+            Rectangle {
+                id: allChip
+                readonly property bool on: root.colorFilter === -1
+                width: allTxt.implicitWidth + 18
+                height: 26
+                radius: 6
+                color: allChip.on ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+                border.width: Theme.borderWidth
+                border.color: allChip.on ? Theme.primary : Theme.outline
+                Text {
+                    id: allTxt
+                    anchors.centerIn: parent
+                    text: qsTr("All")
+                    color: allChip.on ? Theme.primary : Theme.onSurfaceVariant
+                    font.family: Theme.fontPrimary
+                    font.pixelSize: 12
+                    font.weight: allChip.on ? Font.DemiBold : Font.Medium
+                }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.colorFilter = -1 }
+            }
+
+            Repeater {
+                model: root.groups
+                delegate: Rectangle {
+                    id: sw
+                    required property var modelData
+                    readonly property bool on: root.colorFilter === sw.modelData
+                    readonly property var hsl: WallColors.swatchHsl(sw.modelData)
+                    width: 26
+                    height: 26
+                    radius: 6
+                    color: hh.hovered ? Qt.hsla(sw.hsl[0], sw.hsl[1], Math.min(1, sw.hsl[2] + 0.08), 1)
+                        : Qt.hsla(sw.hsl[0], sw.hsl[1], sw.hsl[2], 1)
+                    opacity: (root.colorFilter !== -1 && !sw.on) ? 0.45 : 1
+                    border.width: sw.on ? 2 : 1
+                    border.color: sw.on ? Theme.primary : Qt.rgba(0, 0, 0, 0.35)
+                    Behavior on opacity { NumberAnimation { duration: Motion.thumbHover } }
+                    HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: root.colorFilter = (root.colorFilter === sw.modelData ? -1 : sw.modelData) }
+                }
+            }
+        }
+
+        // the two opposite-drifting belts.
         Item {
-            id: band
+            id: belts
             width: parent.width
-            height: root.bandH
+            readonly property int rowGap: 16
+            readonly property real rowH: 150
+            readonly property real cH: rowH - 6
+            readonly property real cW: Math.round(cH * 1.55)
+            readonly property int cGap: 14
+            height: root.shown.length > 0 ? (rowH * 2 + rowGap) : 0
+            visible: root.shown.length > 0
+            property bool scrolling: false
 
-            GridView {
-                id: grid
-                anchors.fill: parent
-                visible: folder.count > 0
-                clip: true
-                model: folder
-
-                // Three lanes on the cross axis, scrolling horizontally: fill a
-                // column of three top-to-bottom, then step right.
-                flow: GridView.FlowTopToBottom
-                cellWidth: root.cellW
-                cellHeight: root.cellH
-                leftMargin: root.edgeFade
-                rightMargin: root.edgeFade
-                cacheBuffer: root.cellW * 8
-                boundsBehavior: Flickable.StopAtBounds
-                // Only steal a drag when the strip actually overflows its band.
-                interactive: contentWidth > width
-
-                delegate: Item {
-                    id: cell
-                    required property url fileUrl
-                    width: root.cellW
-                    height: root.cellH
-
-                    Rectangle {
-                        id: tile
-                        anchors.centerIn: parent
-                        width: root.thumbW
-                        height: root.thumbH
-                        radius: Theme.radiusWidget
-                        color: "transparent"
-                        border.width: Theme.borderWidth
-                        // Outline at rest, on-surface on hover (contract 08 sec 5).
-                        border.color: hov.hovered ? Theme.onSurface : Theme.outline
-                        clip: true
-                        // The 1.02 lift and border tint share Motion.thumbHover (150ms).
-                        scale: hov.hovered ? 1.02 : 1.0
-                        Behavior on scale {
-                            NumberAnimation { duration: Motion.thumbHover; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve }
-                        }
-                        Behavior on border.color {
-                            ColorAnimation { duration: Motion.thumbHover; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve }
-                        }
-
-                        Image {
-                            anchors.fill: parent
-                            anchors.margins: Theme.borderWidth
-                            asynchronous: true
-                            cache: true
-                            fillMode: Image.PreserveAspectCrop
-                            sourceSize: Qt.size(root.thumbW * 2, root.thumbH * 2)
-                            source: cell.fileUrl
-                        }
-
-                        HoverHandler { id: hov; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: root.apply(cell.fileUrl) }
-                    }
-                }
-
-                // Vertical wheel drives horizontal scroll, 64px per notch
-                // (contract 08 sec 2.1); a wheel notch is 120 angle units.
-                WheelHandler {
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: event => {
-                        const step = (event.angleDelta.y / 120) * 64;
-                        const max = Math.max(0, grid.contentWidth + grid.leftMargin + grid.rightMargin - grid.width);
-                        grid.contentX = Math.max(0, Math.min(max, grid.contentX - step));
-                    }
-                }
+            WallBelt {
+                id: topRow
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                height: belts.rowH
+                s: root.s
+                dir: 1
+                cells: root.topCells
+                cellW: belts.cW
+                cellH: belts.cH
+                gap: belts.cGap
+                bg: Theme.surface
+                current: root.current
+                running: root.open
+                hovering: beltsHover.hovered
+                scrollHold: belts.scrolling
+                highlightKey: root.hoverEntry ? root.hoverEntry.path : ""
+                onEntered: (e) => root.hoverEntry = e
+                onChosen: (e) => root.apply(e.path)
+            }
+            WallBelt {
+                id: bottomRow
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: belts.rowH
+                s: root.s
+                dir: -1
+                cells: root.bottomCells
+                cellW: belts.cW
+                cellH: belts.cH
+                gap: belts.cGap
+                bg: Theme.surface
+                current: root.current
+                running: root.open
+                hovering: beltsHover.hovered
+                scrollHold: belts.scrolling
+                highlightKey: root.hoverEntry ? root.hoverEntry.path : ""
+                onEntered: (e) => root.hoverEntry = e
+                onChosen: (e) => root.apply(e.path)
             }
 
-            // Inset edge fade (contract 08 sec 2.5): 32px surface gradients over
-            // the strip ends. Plain rectangles with no handlers, so tile hover
-            // and click pass straight through (non-interactive).
-            Rectangle {
-                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                width: root.edgeFade
-                visible: grid.visible
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: Theme.surface }
-                    GradientStop { position: 1.0; color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0) }
+            // scroll pushes both belts faster (they ease back to the idle drift).
+            WheelHandler {
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                onWheel: (e) => {
+                    var f = e.angleDelta.y * 3.2;
+                    topRow.boostBy(f);
+                    bottomRow.boostBy(-f);
+                    belts.scrolling = true;
+                    scrollCool.restart();
                 }
             }
-            Rectangle {
-                anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
-                width: root.edgeFade
-                visible: grid.visible
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0) }
-                    GradientStop { position: 1.0; color: Theme.surface }
-                }
+            Timer { id: scrollCool; interval: 450; onTriggered: belts.scrolling = false }
+            HoverHandler {
+                id: beltsHover
+                onHoveredChanged: if (!hovered) root.hoverEntry = null
             }
+        }
 
-            // Empty / not-a-directory state (contract 08 sec 6): the grid is
-            // hidden and this bold message stands in.
-            Text {
-                anchors.centerIn: parent
-                visible: folder.count === 0
-                text: qsTr("No wallpapers available")
-                color: Theme.onSurface
-                font.family: Theme.fontPrimary
-                font.pixelSize: Theme.fontMd
-                font.weight: Font.Bold
-            }
+        // empty / loading state.
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            visible: root.shown.length === 0
+            text: root.loading ? qsTr("Reading wallpapers")
+                : (root.colorFilter !== -1 ? qsTr("Nothing in this colour")
+                : qsTr("No wallpapers available"))
+            color: Theme.onSurfaceVariant
+            font.family: Theme.fontPrimary
+            font.pixelSize: Theme.fontMd
         }
     }
 }

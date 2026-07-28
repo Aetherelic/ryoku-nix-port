@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Changed
+- **The wallpaper menu's grid became a scrolling belt.** Super+W's frame menu now
+  shows its wallpapers as two endless belts that drift in opposite directions (the
+  top rightwards, the bottom leftwards) and speed up on a scroll, with a colour
+  filter above. The belt reads cached image and live-video thumbnails from the
+  shared `index.sh` (the standalone switcher's engine), so a click applies live
+  through the daemon and never dismisses the menu; the menu is anchored
+  bottom-centre at 1400 wide (`quickshell/pill/framebars/menus/MenuWallpaper.qml`,
+  `WallBelt.qml`, `WallTile.qml`, `WallVideo.qml`, `WallColors.js`,
+  `framebars/MenuCatalog.js`, `framebars/FrameBars.js`).
 - **The bar's status widgets open popout cards.** Clicking the network,
   Bluetooth, battery, audio, or system-monitor widget grows a frame-edge card
   out of the rail at the point you clicked and melts it back on close, all from a

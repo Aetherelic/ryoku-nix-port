@@ -29,7 +29,7 @@ for (const id of ["quick-settings", "theme", "weather"]) {
 }
 eq(reference.menus["app-launcher"], undefined, "the app launcher is Ryoku's own surface, not a frame menu");
 eq([reference.menus["quick-settings"].anchor, reference.menus.screenshare.anchor], ["left", "left"], "the reference left menus anchor left");
-eq([reference.menus.wallpaper.anchor, reference.menus.wallpaper.minWidth], ["bottom-left", 1200], "wallpaper anchors bottom-left at 1200 wide");
+eq([reference.menus.wallpaper.anchor, reference.menus.wallpaper.minWidth], ["bottom", 1400], "wallpaper anchors bottom-centre at 1400 wide");
 eq(reference.menus.wallpaper.widgets, ["theme", "wallpaper"], "wallpaper menu nests the theme picker above the grid");
 eq(reference.menus.launcher, undefined, "the retired launcher menu id is gone");
 eq(reference.menus.clock, undefined, "the retired clock menu is gone; the clock widget opens quick settings");

@@ -44,7 +44,7 @@ hl.bind(K(mod .. " + ALT + E"),   hl.dsp.exec_cmd("kitty -e yazi"))             
 hl.bind(K(mod .. " + Space"),     hl.dsp.exec_cmd("ryoku-shell launcher"))
 hl.bind(K(mod .. " + L"),         hl.dsp.exec_cmd("ryoku-shell lock"))
 hl.bind(K(mod .. " + Escape"),    hl.dsp.exec_cmd("ryoku-shell menu quick-settings")) -- session actions live in quick settings
-hl.bind(K(mod .. " + W"),         hl.dsp.exec_cmd("ryoku-shell wallpaper-switcher")) -- wallpaper + colour-scheme switcher (bottom centre: images/live scroll, colour filter, themes)
+hl.bind(K(mod .. " + W"),         hl.dsp.exec_cmd("ryoku-shell menu wallpaper"))      -- wallpaper + theme menu (bottom-centre frame blob: scrolling images/live, colour filter, themes)
 hl.bind(K(mod .. " + SHIFT + W"), hl.dsp.exec_cmd("ryoku-shell wallpaper random")) -- random wallpaper, random transition
 hl.bind(K(mod .. " + SHIFT + V"), hl.dsp.exec_cmd("ryoku-summon ryovm flock -n -o /tmp/ryovm.lock qs -c ryovm")) -- ryovm: summon to current workspace
 hl.bind(K(mod .. " + V"),         hl.dsp.exec_cmd("ryoku-shell menu quick-settings#clipboard")) -- clipboard (sidebar deep link)

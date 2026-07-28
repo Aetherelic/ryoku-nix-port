@@ -52,7 +52,7 @@ function defaultConfig() {
         },
         menus: {
             "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
-            wallpaper: { anchor: "bottom-left", minWidth: 1200, expansion: "always", widgets: ["theme", "wallpaper"] },
+            wallpaper: { anchor: "bottom", minWidth: 1400, expansion: "always", widgets: ["theme", "wallpaper"] },
             screenshare: { anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
             theme: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
             weather: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
