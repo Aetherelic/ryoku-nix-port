@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **`ryoku keyboard`: the layout on every screen that asks for one.** `status`
+  shows what the desktop, greeter, console and boot image each use and whether
+  they agree, `detect` reports the layout this system records and where it came
+  from, and `apply` puts one on the greeter and the console AND rebuilds the
+  boot image, which localectl alone cannot do (`internal/keyboard/`).
 - **Doctor adopts the keyboard the installer was told about.** A keyboard cannot
   report the legends printed on its keys, so a box installed with an AZERTY
   keymap still came up on QWERTY. The layout is now read back from what the

@@ -24,6 +24,7 @@ import (
 	"os"
 
 	"ryoku-cli/internal/doctor"
+	"ryoku-cli/internal/keyboard"
 	"ryoku-cli/internal/keyring"
 	"ryoku-cli/internal/sys"
 	"ryoku-cli/internal/updater"
@@ -60,6 +61,8 @@ func main() {
 		err = doctor.Run(os.Args[2:])
 	case "keyring":
 		err = keyring.Run(os.Args[2:])
+	case "keyboard":
+		err = keyboard.Run(os.Args[2:])
 	case "-h", "--help", "help", "":
 		usage()
 	default:

@@ -21,14 +21,15 @@ import Ryoku.Ui.Singletons
 //     lose nothing. grpIds carries grp:caps_toggle deliberately (so it is
 //     stripped from Extra options) while the Switch seg never offers it: that
 //     asymmetry is load-bearing and reproduced here on purpose.
-//   * Apply system-wide is an out-of-band, privileged localectl write covering
-//     the login screen and TTY; it has no draft, no revert, no dirty state, and
-//     is gated on the keyboard keys already being saved.
+//   * Apply system-wide is an out-of-band, privileged `ryoku keyboard apply`
+//     covering the login screen, the TTYs and the disk passphrase prompt; it
+//     has no draft, no revert, no dirty state, and is gated on the keyboard
+//     keys already being saved.
 //
 // The layout/variant catalogues are scanned at runtime (xkb rules), so they are
 // filtered picks, not enums. Everything else reads hub.hyprVal / writes
 // hub.hyprEdit; the shell owns the rail, side panel, action bar, live preview
-// and restore. Nothing here writes a file except the localectl button.
+// and restore. Nothing here writes a file except Apply system-wide.
 Item {
     id: pg
 
@@ -238,18 +239,21 @@ Item {
         return code;
     }
 
-    // ── localectl: login screen + TTY keymap (out of band, privileged) ──────
-    // localectl converts the X11 keymap to the nearest console keymap too, so a
-    // single call covers the SDDM greeter AND the TTY. It writes to /etc, not
-    // the draft, and prompts through polkit.
+    // ── system-wide keymap: greeter, TTY, and the boot prompt (privileged) ──
+    // Out of band: this writes to /etc and rebuilds the boot image, not the
+    // draft, and escalates through polkit.
     property string sysApplyState: ""
     function applyLayoutArg() { return String(pg.hv("input.kbLayout") || "us"); }
     function applyVariantArg() { return String(pg.hv("input.kbVariant") || ""); }
     function applyOptionsArg() { return String(pg.hv("input.kbOptions") || ""); }
+    // `ryoku keyboard apply` owns all four layers: it sets the greeter and the
+    // console through localectl AND rebuilds the boot image, which localectl
+    // alone cannot do. mkinitcpio bakes a copy of /etc/vconsole.conf into the
+    // image at build time, so without that rebuild the disk passphrase prompt
+    // keeps the keymap it was built with however correct /etc looks.
     Process {
         id: sysApplyProc
-        command: ["localectl", "set-x11-keymap",
-            pg.applyLayoutArg(), "", pg.applyVariantArg(), pg.applyOptionsArg()]
+        command: ["ryoku", "keyboard", "apply", pg.applyLayoutArg()]
         onExited: (code, status) => {
             pg.sysApplyState = code === 0 ? "ok" : "err";
             sysApplyClear.restart();
@@ -762,7 +766,7 @@ Item {
                     controlWidth: 84
                     source: "vconsole"
                     label: I18n.tr("Apply system-wide")
-                    desc: I18n.tr("Also set the login screen and TTY keymap via localectl.")
+                    desc: I18n.tr("Also set the login screen, the TTYs, and the disk passphrase prompt.")
                     value: ""
                     changed: false
 
@@ -781,10 +785,10 @@ Item {
                     height: Tokens.cellH
                     controlWidth: 0
                     source: "vconsole"
-                    label: I18n.tr("Login screen and TTY")
+                    label: I18n.tr("Login screen, TTY, and boot")
                     value: pg.sysApplyState === "ok" ? "APPLIED"
                         : pg.sysApplyState === "err" ? "FAILED" : "READY"
-                    desc: pg.sysApplyState === "ok" ? I18n.tr("Applied to the login screen and console.")
+                    desc: pg.sysApplyState === "ok" ? I18n.tr("Applied to the login screen, console, and boot prompt.")
                         : pg.sysApplyState === "err" ? I18n.tr("Not applied. Cancelled or failed.")
                         : I18n.tr("They keep their own keymap until you apply.")
                     changed: false
