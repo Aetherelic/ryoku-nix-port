@@ -177,6 +177,11 @@ ShellRoot {
         // desktop already sits in its normal config when game mode is off.
         if (Flags.gameMode)
             root.syncGameMode("start");
+        // Prewarm the wallpaper index so Super+W opens with its tiles already in
+        // hand. The menu is lazy and the index takes ~0.4s, so without this the
+        // first open would run it fresh and the theme cards would beat the images
+        // onto the screen; a resident touch here runs it once, off the hot path.
+        WallIndex.refresh();
     }
 
     Binding {

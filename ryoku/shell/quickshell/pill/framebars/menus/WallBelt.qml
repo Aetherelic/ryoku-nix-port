@@ -88,16 +88,32 @@ Item {
             readonly property real raw: (((index * row.step + row.pos) % row.setW) + row.setW) % row.setW
             x: raw < row.width ? raw : (raw > row.setW - 2 * row.cellW ? raw - row.setW : raw)
             visible: x + width > -1 && x < row.width + 1
+            // Active window: the on-screen tiles plus a one-cell buffer each side.
+            // Only these build a tile and decode a thumbnail; the rest of the belt
+            // (the far-off wrap tiles) stay empty, so the selector holds ~a dozen
+            // decodes at a time instead of the whole folder.
+            readonly property bool near: x + width > -row.cellW && x < row.width + row.cellW
 
-            WallTile {
+            // A tile incubates off the main thread as it enters the window and
+            // tears down as it leaves, so opening never freezes building the belt
+            // and an entering tile is decoded before it drifts into view (no pop).
+            Loader {
                 anchors.fill: parent
-                item: slot.modelData
-                current: row.current
-                live: slot.visible
-                beltMoving: row.moving || row.scrollHold
-                selected: !!slot.modelData && slot.modelData.path === row.highlightKey
-                onEntered: row.entered(slot.modelData)
-                onChosen: row.chosen(slot.modelData)
+                active: slot.near
+                asynchronous: true
+                sourceComponent: tileComp
+            }
+            Component {
+                id: tileComp
+                WallTile {
+                    item: slot.modelData
+                    current: row.current
+                    live: slot.near
+                    beltMoving: row.moving || row.scrollHold
+                    selected: !!slot.modelData && slot.modelData.path === row.highlightKey
+                    onEntered: row.entered(slot.modelData)
+                    onChosen: row.chosen(slot.modelData)
+                }
             }
         }
     }

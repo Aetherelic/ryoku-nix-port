@@ -1,15 +1,13 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
-import Quickshell.Io
 import "../../Singletons"
 import "WallColors.js" as WallColors
 
 // The wallpaper section of the frame blob menu: two endless belts of cached
 // image + live-video thumbnails that idle-drift in opposite directions (the top
-// rightwards, the bottom leftwards) and speed up on a scroll, with a colour
-// filter above. The source is index.sh (one cached thumbnail, dominant-hue
+// rightwards, the bottom leftwards) and speed up on a scroll, with type (images
+// / live) and colour filters above. The source is index.sh (one cached thumbnail, dominant-hue
 // reading and muted preview loop per wallpaper, images and videos alike), the
 // same index the standalone switcher reads, so a pick shares the transition,
 // palette and state. A single click applies through the daemon and never
@@ -21,23 +19,25 @@ Item {
     property bool open: false
     signal requestClose()
 
-    // index.sh path = RYOKU_SHELL_DIR in dev, else the installed quickshell tree.
-    readonly property string shellDir: Quickshell.env("RYOKU_SHELL_DIR")
-    readonly property string script: (shellDir && shellDir.length > 0)
-        ? shellDir + "/quickshell/wallpaper/index.sh"
-        : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/wallpaper/index.sh"
-
-    property var entries: []
-    property bool loading: false
+    // Reading + caching is the resident WallIndex's job; these mirror its state
+    // so the menu opens with tiles already in hand instead of a fresh index pass.
+    readonly property var entries: WallIndex.entries
+    readonly property bool loading: WallIndex.loading
     property int colorFilter: -1        // -1 = every colour, else a WallColors group id
+    property string typeFilter: "all"   // all | image | live
     property var hoverEntry: null
 
-    // entries under the current colour filter (already colour-sorted by index).
+    // entries under the current type + colour filter (already colour-sorted).
     readonly property var shown: {
         var out = [];
-        for (var i = 0; i < entries.length; i++)
-            if (colorFilter === -1 || entries[i].group === colorFilter)
-                out.push(entries[i]);
+        for (var i = 0; i < entries.length; i++) {
+            var e = entries[i];
+            if (root.typeFilter !== "all" && e.type !== root.typeFilter)
+                continue;
+            if (root.colorFilter !== -1 && e.group !== root.colorFilter)
+                continue;
+            out.push(e);
+        }
         return out;
     }
     readonly property var topCells: shown.filter((e, i) => i % 2 === 0)
@@ -48,11 +48,14 @@ Item {
                 return true;
         return false;
     }
-    // colour groups present, in rainbow order (neutral last).
+    // colour groups present under the current type filter, in rainbow order.
     readonly property var groups: {
         var seen = ({});
-        for (var i = 0; i < entries.length; i++)
+        for (var i = 0; i < entries.length; i++) {
+            if (root.typeFilter !== "all" && entries[i].type !== root.typeFilter)
+                continue;
             seen[entries[i].group] = true;
+        }
         var out = [];
         for (var g = 0; g < WallColors.order.length; g++)
             if (seen[WallColors.order[g]])
@@ -60,68 +63,25 @@ Item {
         return out;
     }
 
-    function refresh() {
-        if (indexProc.running)
+    // A menu open nudges the resident index to pick up any wallpaper added since
+    // it last ran; it is a no-op when the set is unchanged, so a reopen never
+    // churns the belts.
+    onOpenChanged: if (root.open) WallIndex.refresh()
+    Component.onCompleted: WallIndex.refresh()
+
+    // the wallpaper on screen (on-air dot), from the resident index.
+    readonly property string current: WallIndex.current
+
+    function apply(path) { WallIndex.apply(path); }
+
+    // switching type clears the colour pick, so the swatch strip re-reads for the
+    // newly shown set instead of stranding a colour that type no longer has.
+    function setType(t) {
+        if (root.typeFilter === t)
             return;
-        root.loading = true;
-        indexProc.running = true;
-    }
-    onOpenChanged: if (root.open) root.refresh()
-    Component.onCompleted: root.refresh()
-
-    Process {
-        id: indexProc
-        command: ["sh", root.script]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var out = [];
-                var lines = this.text.split("\n");
-                for (var i = 0; i < lines.length; i++) {
-                    var p = lines[i].split("\t");
-                    if (p.length < 6)
-                        continue;
-                    var hue = parseFloat(p[4]) || 0;
-                    var sat = parseFloat(p[5]) || 0;
-                    var path = p[2];
-                    out.push({
-                        type: p[0],
-                        mtime: parseFloat(p[1]) || 0,
-                        path: path,
-                        name: path.substring(path.lastIndexOf("/") + 1),
-                        thumb: p[3],
-                        preview: p.length > 6 ? p[6] : "",
-                        hue: hue,
-                        sat: sat,
-                        group: WallColors.bucket(hue, sat)
-                    });
-                }
-                out.sort(function (a, b) {
-                    var ga = a.group === 99 ? 100 : a.group;
-                    var gb = b.group === 99 ? 100 : b.group;
-                    if (ga !== gb)
-                        return ga - gb;
-                    return b.sat - a.sat;
-                });
-                root.entries = out;
-                root.loading = false;
-            }
-        }
-    }
-
-    // the wallpaper on screen (on-air dot), watched so a pick lights its tile.
-    readonly property string current: stateView.text().trim()
-    FileView {
-        id: stateView
-        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku-wallpaper"
-        blockLoading: true
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-    }
-
-    function apply(path) {
-        if (path && path.length > 0)
-            Quickshell.execDetached(["ryoku-shell", "wallpaper", "set", path]);
+        root.typeFilter = t;
+        root.colorFilter = -1;
+        root.hoverEntry = null;
     }
 
     implicitHeight: col.implicitHeight
@@ -144,10 +104,40 @@ Item {
             }
             Text {
                 anchors.baseline: title.baseline
-                text: root.shown.length + (root.hasLive ? qsTr(" images + live") : qsTr(" images"))
+                text: root.shown.length + " " + (root.typeFilter === "live" ? qsTr("live") : root.typeFilter === "image" ? qsTr("images") : root.hasLive ? qsTr("images + live") : qsTr("images"))
                 color: Theme.onSurfaceVariant
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm
+            }
+        }
+
+        // type filter: All / Images / Live, shown only when live walls exist.
+        Row {
+            spacing: 7
+            visible: root.hasLive
+            Repeater {
+                model: [{ k: "all", t: qsTr("All") }, { k: "image", t: qsTr("Images") }, { k: "live", t: qsTr("Live") }]
+                delegate: Rectangle {
+                    id: tc
+                    required property var modelData
+                    readonly property bool on: root.typeFilter === tc.modelData.k
+                    width: tcTxt.implicitWidth + 18
+                    height: 26
+                    radius: 6
+                    color: tc.on ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+                    border.width: Theme.borderWidth
+                    border.color: tc.on ? Theme.primary : Theme.outline
+                    Text {
+                        id: tcTxt
+                        anchors.centerIn: parent
+                        text: tc.modelData.t
+                        color: tc.on ? Theme.primary : Theme.onSurfaceVariant
+                        font.family: Theme.fontPrimary
+                        font.pixelSize: 12
+                        font.weight: tc.on ? Font.DemiBold : Font.Medium
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.setType(tc.modelData.k) }
+                }
             }
         }
 
@@ -275,7 +265,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             visible: root.shown.length === 0
             text: root.loading ? qsTr("Reading wallpapers")
-                : (root.colorFilter !== -1 ? qsTr("Nothing in this colour")
+                : ((root.colorFilter !== -1 || root.typeFilter !== "all") ? qsTr("Nothing in this filter")
                 : qsTr("No wallpapers available"))
             color: Theme.onSurfaceVariant
             font.family: Theme.fontPrimary

@@ -3,6 +3,35 @@
 ## Unreleased
 
 ### Changed
+- **The volume, mic and brightness OSDs read out their percentage.** The
+  bottom-centre OSD showed only an icon and a value bar; it now carries the exact
+  value beside the bar as a right-aligned mono percentage, reusing the same
+  clamped 0..1 the bar fills to so the number and the bar never disagree. Output
+  volume is capped at 100% upstream by `wpctl -l 1`, so the readout tops out with
+  the bar (`quickshell/pill/Osd.qml`).
+- **The wallpaper menu opens with its images already in hand, and stays light on
+  memory.** Super+W re-ran `index.sh` (a ~0.4s thumbnail and dominant-hue pass) on
+  every open, so the colour-scheme cards painted a beat before the wallpaper tiles
+  and the belt glitched as thumbnails popped in; it also built a tile for every
+  wallpaper in the folder though only a handful are ever on screen. A resident
+  `WallIndex` singleton now owns the index pass (prewarmed once at pill start,
+  refreshed only in the background on open, and a no-op when the set is unchanged
+  so a re-open never churns the belts), and each belt builds only the on-screen
+  tiles plus a one-cell buffer, incubated off the main thread and decoded just
+  before they drift into view. Opening no longer freezes, and the selector holds
+  ~a dozen thumbnails at a time instead of the whole folder
+  (`quickshell/pill/Singletons/WallIndex.qml`, `Singletons/qmldir`,
+  `framebars/menus/MenuWallpaper.qml`, `framebars/menus/WallBelt.qml`,
+  `quickshell/pill/shell.qml`).
+- **The wallpaper menu filters by images or live.** A type row (All / Images /
+  Live) sits above the colour swatches, shown when the folder holds any live
+  wallpapers; picking a type resets the colour pick and re-reads the swatch strip
+  for that set (`framebars/menus/MenuWallpaper.qml`).
+- **The quick-settings sidebar opens without a hitch.** Super+Esc built its whole
+  control-centre body (connectivity toggles, sliders, month calendar, system
+  gauges, power profiles) synchronously on the first frame of the reveal, stalling
+  the slide. A band-filling menu is fixed-size, so its body now incubates off the
+  main thread and the reveal stays smooth (`quickshell/pill/FrameMenu.qml`).
 - **The wallpaper menu's grid became a scrolling belt.** Super+W's frame menu now
   shows its wallpapers as two endless belts that drift in opposite directions (the
   top rightwards, the bottom leftwards) and speed up on a scroll, with a colour

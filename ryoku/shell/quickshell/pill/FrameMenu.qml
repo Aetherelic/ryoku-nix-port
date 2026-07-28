@@ -160,6 +160,12 @@ Item {
         Loader {
             id: menuBody
             active: root.isMenu && root.effectiveOpen
+            // A band-filling menu (the quick-settings sidebar) is fixed-size: it
+            // spans the whole band and sits at its minimum width, so its heavy
+            // body incubates off the main thread and the reveal never stalls
+            // building every control in one frame. Content-sized menus stay
+            // synchronous so the band has a measured height to grow to.
+            asynchronous: root.fillsBand
             width: root.restW
             height: root.restH
             // Aligned to the edge/corner the band grows from, so the widening
