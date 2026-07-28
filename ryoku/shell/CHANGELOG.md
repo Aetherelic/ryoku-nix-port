@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Added
+- **A video wallpaper stops while a window is fullscreen.** The player kept
+  decoding behind a window covering every pixel of it, holding its buffers and
+  burning CPU for nothing. The new Performance switch stops it on fullscreen and
+  restarts it on the way out; the backdrop keeps painting the clip's still frame
+  underneath, so nothing changes on screen. Fullscreen, not the widget layer's
+  "covered", which reports covered when a workspace merely holds a window
+  (`ipc/livewatch.go`, `hub/quickshell/pages/PerformancePage.qml`).
+
+### Fixed
+- **The overview's workspace and desktop switches no longer bounce you straight
+  back.** Clicking a workspace cell, the "+", or a window dispatched the Hyprland
+  focus and then closed the expo in the same breath; releasing the overlay's
+  exclusive keyboard grab made Hyprland refocus the previously active window, so
+  the switch was immediately undone and you landed back on the workspace you
+  started from. Switches now defer their dispatch until after the expo has closed
+  and released the grab, so they stick. Alongside it: the "+" add-workspace tile
+  is a full-size target instead of a thin slat that was easy to miss; the "add
+  desktop" card creates and moves you to a brand-new desktop instead of only
+  previewing an empty one; and the grid and strip no longer render empty
+  workspace slats or blank desktop cards, so nothing shows a slot that holds
+  nothing (`quickshell/overview/Overview.qml`,
+  `quickshell/overview/DesktopStrip.qml`).
+
 ### Changed
 - **The volume, mic and brightness OSDs read out their percentage.** The
   bottom-centre OSD showed only an icon and a value bar; it now carries the exact

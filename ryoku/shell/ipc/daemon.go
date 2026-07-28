@@ -87,6 +87,7 @@ type daemon struct {
 	paintSig       chan struct{}        // coalescing wake for the palette/border worker
 	ledsSig        chan struct{}        // coalescing wake for the OpenRGB worker
 	widgetSig      chan struct{}        // coalescing wake for the widget-occupancy gate
+	liveSig        chan struct{}        // coalescing wake for the live-wallpaper fullscreen gate
 	quit           chan struct{}
 	closed         bool
 	ln             net.Listener
@@ -152,6 +153,7 @@ func runDaemon() error {
 		paintSig:       make(chan struct{}, 1),
 		ledsSig:        make(chan struct{}, 1),
 		widgetSig:      make(chan struct{}, 1),
+		liveSig:        make(chan struct{}, 1),
 		quit:           make(chan struct{}),
 		gateWant:       map[string]bool{},
 		gateWake:       map[string]chan struct{}{},
@@ -305,6 +307,7 @@ func (d *daemon) bootstrap() {
 		d.wallInit()
 	}()
 	go d.startComponents()
+	go d.liveGateWorker()
 }
 
 // startupStagger spaces the persistent components' cold starts at login so a

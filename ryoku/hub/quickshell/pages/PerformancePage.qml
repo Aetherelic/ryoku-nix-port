@@ -44,6 +44,7 @@ Item {
         "disableBlur": false,
         "disableShadows": false,
         "liveWallpaper60": false,
+        "pauseLiveWallpaperWhenFullscreen": true,
         "freezeVisualizerWhenIdle": true,
         "freezePillWhenIdle": false,
         "unloadVisualizerWhenSilent": true,
@@ -96,6 +97,7 @@ Item {
             "disableBlur": cfgA.disableBlur,
             "disableShadows": cfgA.disableShadows,
             "liveWallpaper60": cfgA.liveWallpaper60,
+            "pauseLiveWallpaperWhenFullscreen": cfgA.pauseLiveWallpaperWhenFullscreen,
             "freezeVisualizerWhenIdle": cfgA.freezeVisualizerWhenIdle,
             "freezePillWhenIdle": cfgA.freezePillWhenIdle,
             "unloadVisualizerWhenSilent": cfgA.unloadVisualizerWhenSilent,
@@ -144,6 +146,7 @@ Item {
         cfgA.disableBlur = pg.draft.disableBlur;
         cfgA.disableShadows = pg.draft.disableShadows;
         cfgA.liveWallpaper60 = pg.draft.liveWallpaper60;
+        cfgA.pauseLiveWallpaperWhenFullscreen = pg.draft.pauseLiveWallpaperWhenFullscreen;
         cfgA.freezeVisualizerWhenIdle = pg.draft.freezeVisualizerWhenIdle;
         cfgA.freezePillWhenIdle = pg.draft.freezePillWhenIdle;
         cfgA.unloadVisualizerWhenSilent = pg.draft.unloadVisualizerWhenSilent;
@@ -188,6 +191,7 @@ Item {
             property bool disableBlur: false
             property bool disableShadows: false
             property bool liveWallpaper60: false
+            property bool pauseLiveWallpaperWhenFullscreen: true
             property bool freezeVisualizerWhenIdle: true
             property bool freezePillWhenIdle: false
             property bool unloadVisualizerWhenSilent: true
@@ -221,6 +225,9 @@ Item {
           "label": "60fps live wallpaper",
           "desc": "Doubles video wallpaper decode for smoother motion; the one switch here that spends instead of saves. Applies to the next wallpaper you set, and clips that cannot supply 60 stay at 30." },
 
+        { "tab": "", "group": "IDLE", "key": "pauseLiveWallpaperWhenFullscreen", "ctl": "sw", "src": "performance",
+          "label": "Pause video wallpaper",
+          "desc": "Stops a video wallpaper while a window is fullscreen; its still frame stays underneath, so nothing changes on screen." },
         { "tab": "", "group": "IDLE", "key": "freezePillWhenIdle", "ctl": "sw", "src": "performance",
           "label": "Freeze the bar",
           "desc": "Stops the glowing bead and drops its live blur, so an idle bar costs no GPU frames." },
