@@ -13,6 +13,19 @@
   (`quickshell/pages/LockscreenPage.qml`).
 
 
+### Fixed
+- **Adaptive sync stopped switching itself back off.** `hyprctl` reports vrr as a
+  bool of whether the link is doing adaptive sync right now, not the mode that
+  was set, so On read back as Off whenever nothing was driving it and Fullscreen
+  read back as Off outside fullscreen. The Displays page took that reading as the
+  current value and saved it over the choice. The mode now comes from the last
+  applied layout (`system/hardware/display/ryoku-monitor`).
+- **SDR brightness reaches past 2x.** The stepper stopped at 2.0, which is a
+  Ryoku limit and not a Hyprland one (it accepts well beyond that), so SDR
+  content stayed dim in HDR on a bright panel with the control already at its
+  end. The ladder now runs to 6.0, fine to 2.0 and coarser above
+  (`quickshell/pages/DisplaysPage.qml`).
+
 ### Added
 - **Bar Studio lists the Music widget.** The rail's music spectrum widget joins
   the catalogue picker as "Music" (`quickshell/barstudio/CatalogLabels.qml`).

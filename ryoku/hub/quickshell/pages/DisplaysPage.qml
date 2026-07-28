@@ -409,7 +409,11 @@ Item {
     function cmLabel(v) { var i = pg.cmKeys.indexOf(v); return i < 0 ? "sRGB" : pg.cmLabels[i]; }
     function cmKey(label) { var i = pg.cmLabels.indexOf(label); return i < 0 ? "srgb" : pg.cmKeys[i]; }
     // SDR content brightness in HDR: 1.0x-2.0x, the Hyprland-typical range.
-    readonly property var sdrLadder: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
+    // Fine steps through the usual range, then coarser to the top: a bright
+    // panel (miniLED, high-nit OLED) needs well past 2 before SDR content stops
+    // looking dim in HDR, and the old ladder stopped there.
+    readonly property var sdrLadder: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+        2.25, 2.5, 2.75, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0]
     function labelForKey(opts, key) {
         for (var i = 0; i < opts.length; i++)
             if (opts[i].key === key)

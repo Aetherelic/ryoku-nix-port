@@ -435,11 +435,23 @@ cmd_toggle() {
 cmd_list() {
   require_hyprctl
   require_jq
-  monitors_json | jq -c "$jq_scale_lib"'[ .[] | {
+  # hyprctl reports vrr as a bool of whether the link is currently doing
+  # adaptive sync, not the configured mode, so "on" reads back false whenever
+  # nothing is driving it and "fullscreen" reads false outside fullscreen. The
+  # UI would then show Off and save that back over the choice. Take the mode
+  # from the last applied layout when there is one.
+  local vrrmap='{}'
+  if [[ -f $applied_layout ]]; then
+    vrrmap="$(jq -c '[ .monitors[] | select(.output) | { key: .output, value: (.vrr // 0) } ] | from_entries' \
+      "$applied_layout" 2>/dev/null || echo '{}')"
+    [[ -n $vrrmap ]] || vrrmap='{}'
+  fi
+  monitors_json | jq -c --argjson vrrmap "$vrrmap" "$jq_scale_lib"'[ .[] | {
     name, description, make, model, serial,
     id: ((.make // "") + "|" + (.model // "") + "|" + (.serial // "")),
     width, height, refresh: (.refreshRate | round),
-    x, y, scale, transform, vrr, disabled, focused,
+    x, y, scale, transform, disabled, focused,
+    vrr: ($vrrmap[.name] // (if .vrr then 1 else 0 end)),
     mirror: (.mirrorOf // "none"),
     cm: (
       (.colorManagementPreset // "srgb") as $p

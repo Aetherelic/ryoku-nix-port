@@ -105,7 +105,7 @@ var rows = [
         "ctl": "step",
         "src": "<name>.json (Save)",
         "lo": 1.0,
-        "hi": 2.0
+        "hi": 6.0
     },
     {
         "tab": "",
