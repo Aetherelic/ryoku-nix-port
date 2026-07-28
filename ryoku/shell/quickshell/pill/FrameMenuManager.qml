@@ -199,6 +199,12 @@ Item {
             out[plugin.edge].bw = plugin.maskW;
             out[plugin.edge].bh = plugin.maskH;
         }
+        if (dockPreviewHost.maskW > 0 && dockPreviewHost.maskH > 0 && out[dockPreviewHost.edge]) {
+            out[dockPreviewHost.edge].bx = dockPreviewHost.maskX;
+            out[dockPreviewHost.edge].by = dockPreviewHost.maskY;
+            out[dockPreviewHost.edge].bw = dockPreviewHost.maskW;
+            out[dockPreviewHost.edge].bh = dockPreviewHost.maskH;
+        }
         return out;
     }
 
@@ -372,6 +378,18 @@ Item {
             return id.indexOf("plugin:") === 0 ? id.substring(7) : "";
         }
         onUnpinRequested: pluginId => root.pluginUnpinRequested(pluginId)
+    }
+
+    // The dock's hover window-preview strip: one self-hovering Popout per
+    // monitor, driven by the DockPreview singleton the dock writes on icon
+    // hover. Not a menu-state surface; its body mask is unioned above so the
+    // live tiles are clickable over the desktop hole.
+    DockPreviewPopout {
+        id: dockPreviewHost
+        group: root.group
+        s: root.scale
+        active: root.active
+        frameThickness: root.clearanceFor(DockPreview.edge)
     }
     onPluginUnpinRequested: pluginId => root.closeSurface("plugin:" + pluginId, root.monitorName)
 }

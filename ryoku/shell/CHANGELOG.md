@@ -16,6 +16,16 @@
   `quickshell/pill/framebars/widgets/RailAction.qml`).
 
 ### Added
+- **The dock previews an app's windows on hover.** Hovering a dock icon that has
+  open windows grows a strip off the rail, welded to the icon, with a live
+  thumbnail of each window (a `ScreencopyView` of the toplevel), its title, and a
+  close cross; a click focuses that window, the cross closes it. The strip glides
+  along the rail as you move between icons and melts shut when you leave it. It
+  rides the shared frame-bar popout blob and a small hover-latched singleton, so
+  it never enters the menu state and its tiles stay clickable over the desktop
+  (`quickshell/pill/popouts/DockPreviewPopout.qml`,
+  `quickshell/pill/Singletons/DockPreview.qml`,
+  `quickshell/pill/framebars/widgets/RailDock.qml`, `quickshell/pill/FrameMenuManager.qml`).
 - **A music widget on the rail opens a now-playing card.** A vertical spectrum
   strip, fed by a shared cava playback feed, rides a rail zone and self-hides
   until a player reports a track; a left click grows a now-playing card off the

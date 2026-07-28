@@ -29,3 +29,4 @@ singleton Clipboard Clipboard.qml
 singleton Screenshare Screenshare.qml
 singleton Capture Capture.qml
 singleton OsdFeed OsdFeed.qml
+singleton DockPreview DockPreview.qml
