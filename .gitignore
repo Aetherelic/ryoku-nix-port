@@ -13,6 +13,7 @@
 /ryoku/apps/ryovm/fetch/ryovm-fetch
 /ryoku/apps/ryovm/remote/ryossh
 /ryoku/apps/ryovm/mon/ryovm-mon
+/ryoku/apps/ryostore/backend/ryostore
 /ryoku/shell/plugin/build/
 /ryoku/shell/plugin/dist/
 /release/repo/out/
