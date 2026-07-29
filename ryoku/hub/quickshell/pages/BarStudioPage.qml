@@ -56,7 +56,7 @@ Item {
     readonly property var barStyles: [
         { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink." },
         { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces." },
-        { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands beneath a hairline edge." }
+        { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands joined to the desktop frame." }
     ]
 
     // The Obi bar's widgets, for the per-widget show/hide toggles below. Mirrors

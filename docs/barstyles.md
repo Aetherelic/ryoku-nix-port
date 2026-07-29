@@ -32,7 +32,7 @@ registry, `pill/barstyles/registry.js`. Each row is a style:
 var STYLES = [
     { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink.", scene: "" },
     { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces.", scene: "barstyles/obi/Scene.qml" },
-    { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands beneath a hairline edge.", scene: "barstyles/nacre/Scene.qml" }
+    { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands joined to the desktop frame.", scene: "barstyles/nacre/Scene.qml" }
 ];
 ```
 
@@ -125,8 +125,8 @@ barstyles/
 Obi and Nacre keep separate compact widget faces. Their hover cards use the
 same components under `barstyles/shared/`, so controls and fixes do not drift.
 Nacre's `nacre` object in `shell.json` stores the three widget arrays, height,
-opacity, padding, spacing, island gap, and workspace filter. Bar Studio edits
-that object live with drag-and-drop and Save/Revert.
+opacity, padding, spacing, island gap, desktop-frame toggle, and workspace
+filter. Bar Studio edits that object live with drag-and-drop and Save/Revert.
 
 `Scene.qml` is a `PanelWindow`, one instance per monitor. It takes the screen
 through `modelData`, anchors itself to an edge, reserves its band with an

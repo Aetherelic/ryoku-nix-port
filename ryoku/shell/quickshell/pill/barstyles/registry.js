@@ -8,7 +8,7 @@
 var STYLES = [
     { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink.", scene: "" },
     { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces.", scene: "barstyles/obi/Scene.qml" },
-    { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands beneath a hairline edge.", scene: "barstyles/nacre/Scene.qml" }
+    { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands joined to the desktop frame.", scene: "barstyles/nacre/Scene.qml" }
 ];
 
 function list() { return STYLES; }

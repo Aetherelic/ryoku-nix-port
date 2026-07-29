@@ -26,10 +26,12 @@
 
 ### Added
 - **Nacre is a configurable folder bar style.** Its three frosted top islands
-  keep the hollow workspace rings and compact resource readout. Bar Studio can
-  drag widgets within and between islands or back to the unused palette, and
-  edits its height, opacity, padding, spacing, gap and workspace filter live.
-  Nacre and Obi now share popup components.
+  keep the hollow workspace rings and icon-led resource readout. Populated
+  islands retain a visible capsule under width pressure. Bar Studio can drag
+  widgets within and between auto-growing lanes or back to the unused palette
+  without corrupting layout positions, and edits height, opacity, padding,
+  spacing, gap, workspace filter and the shared Sumi frame live. Nacre and Obi
+  share popup components.
 - **Stash is the floating "Features" sidebar: right edge, tall card, Super+T.**
   The Stash board moved off the full-span left sidebar into a floating card that
   slides open from the right edge (the music/Bluetooth popout envelope), centred
