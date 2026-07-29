@@ -29,6 +29,14 @@ Item {
     readonly property bool horizontal: edge === "top" || edge === "bottom"
     readonly property real cross: 48 * scale
     readonly property var classes: Dock.resolve(pinned, clients)
+    // space the zone can give the dock; -1 = unbounded. When the natural strip
+    // would not fit, every item shrinks together, macOS style.
+    // ponytail: floored at 0.55 (a 24px tile); past that the strip overlaps
+    // its neighbour zones and the zone's z-order keeps the dock on top.
+    property real maxExtent: -1
+    readonly property real itemNatural: Math.max(36 * scale, Math.min(Theme.iconMd, cross - 8) + 20 * scale)
+    readonly property real fit: maxExtent > 0 && classes.length > 0
+        ? Math.max(0.55, Math.min(1, maxExtent / (classes.length * itemNatural))) : 1
     readonly property var counts: {
         const c = {};
         const list = Array.isArray(clients) ? clients : [];
@@ -76,10 +84,10 @@ Item {
             // the app icon inside it only shrinks once the band is too thin to
             // hold it, so a 32px dock does not render visibly smaller icons than
             // a 48px one.
-            readonly property real iconPx: Math.min(Theme.iconMd, root.cross - 8)
+            readonly property real iconPx: Math.min(Theme.iconMd, root.cross - 8) * root.fit
 
-            width: root.horizontal ? Math.max(36 * root.scale, iconPx + 20 * root.scale) : root.cross
-            height: root.horizontal ? root.cross : Math.max(36 * root.scale, iconPx + 20 * root.scale)
+            width: root.horizontal ? root.itemNatural * root.fit : root.cross
+            height: root.horizontal ? root.cross : root.itemNatural * root.fit
 
             // Docker-style items: the real app icon, in colour, resolved from
             // the desktop entry and the system icon themes (user decision). The

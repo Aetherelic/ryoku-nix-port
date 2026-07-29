@@ -16,6 +16,9 @@ Item {
     property string widgetId: ""
     required property string edge
     required property real scale
+    // space the zone leaves this widget's group (RailZone pushes the binding);
+    // only the dock consumes it, to shrink on rails too short for every zone.
+    property real zoneAvail: -1
     signal menuRequested(string id, rect ownerRect)
     signal actionRequested(string id)
 
@@ -73,6 +76,17 @@ Item {
     function activeClass() {
         const active = Hyprland.activeToplevel && Hyprland.activeToplevel.lastIpcObject;
         return active ? (active.class || active.initialClass || "") : "";
+    }
+
+    // A dock with nothing pinned and nothing running renders nothing, which on
+    // a fresh boot reads as "the dock is gone". Fall back to the stock role
+    // apps (the ones the shipped binds launch) that resolve to an installed
+    // desktop entry.
+    function starterPins() {
+        const out = [];
+        for (const className of ["kitty", "chromium", "nautilus"])
+            if (DesktopEntries.heuristicLookup(className)) out.push(className);
+        return out;
     }
 
     function updatePinned(className, add) {
@@ -136,9 +150,11 @@ Item {
         RailDock {
             edge: root.edge
             scale: root.scale
-            pinned: Config.normalizedFrameBars.dock.pinned
+            pinned: Config.normalizedFrameBars.dock.pinned.length > 0
+                ? Config.normalizedFrameBars.dock.pinned : root.starterPins()
             clients: root.clients()
             activeClass: root.activeClass()
+            maxExtent: root.zoneAvail
             onActivate: className => root.activate(className)
             onPin: className => root.updatePinned(className, true)
             onUnpin: className => root.updatePinned(className, false)

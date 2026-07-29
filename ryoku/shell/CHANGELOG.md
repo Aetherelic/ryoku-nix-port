@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Fixed
+- **The dock no longer disappears on fresh boots or short rails.** A dock with
+  nothing pinned and nothing running rendered zero items, so on a freshly booted
+  desktop it read as "the dock is gone" even with the widget enabled in Bar
+  Studio; it now falls back to the stock role apps (terminal, browser, files)
+  that resolve to an installed desktop entry, shown as launchers until real pins
+  or clients replace them. On screens too short for the left rail's three zones,
+  the dock was painted underneath the status/tray group; the centre zone now
+  sits above its neighbours and the dock shrinks its tiles (macOS style, down
+  to a floor) to fit the space the other zones leave it
+  (`quickshell/pill/RailZone.qml`, `quickshell/pill/FrameRail.qml`,
+  `quickshell/pill/BarWidgetHost.qml`, `framebars/widgets/RailDock.qml`).
+
 ### Added
 - **Stash is the floating "Features" sidebar: right edge, tall card, Super+T.**
   The Stash board moved off the full-span left sidebar into a floating card that

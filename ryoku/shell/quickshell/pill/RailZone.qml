@@ -27,6 +27,10 @@ Item {
     property real leadExtent: 0
     property real tailExtent: 0
     readonly property bool centred: !root.atStart && !root.atEnd
+    // space the neighbour zones leave this one; widgets that can shrink to
+    // fit (the dock) read it through their host's zoneAvail.
+    readonly property real availExtent: (root.horizontal ? root.width : root.height)
+        - root.leadExtent - root.tailExtent - 2 * root.spacing
     function centreShift(span, size) {
         const ideal = (span - size) / 2;
         const lo = root.leadExtent + root.spacing;
@@ -67,7 +71,10 @@ Item {
                     active: root.delegate !== null
                     sourceComponent: root.delegate
 
-                    onLoaded: if (item) item.widgetId = modelData
+                    onLoaded: if (item) {
+                        item.widgetId = modelData;
+                        if ("zoneAvail" in item) item.zoneAvail = Qt.binding(() => root.availExtent);
+                    }
                 }
             }
         }
@@ -89,7 +96,10 @@ Item {
                     active: root.delegate !== null
                     sourceComponent: root.delegate
 
-                    onLoaded: if (item) item.widgetId = modelData
+                    onLoaded: if (item) {
+                        item.widgetId = modelData;
+                        if ("zoneAvail" in item) item.zoneAvail = Qt.binding(() => root.availExtent);
+                    }
                 }
             }
         }

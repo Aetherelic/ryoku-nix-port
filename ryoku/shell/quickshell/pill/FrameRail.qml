@@ -88,6 +88,9 @@ Item {
                 anchors.fill: parent; ids: root.horizontal ? root.rail.center : []; horizontal: true; align: "center"; spacing: root.gap; delegate: root.delegate
                 leadExtent: hStart.implicitWidth
                 tailExtent: hEnd.implicitWidth
+                // above the end zones: on a rail too short for all three, the
+                // dock overlaps its neighbours instead of hiding under them.
+                z: 1
             }
             RailZone { id: hEnd; anchors.fill: parent; ids: root.rail.end; horizontal: true; align: "end"; spacing: root.gap; delegate: root.delegate }
         }
@@ -103,6 +106,7 @@ Item {
                 anchors.fill: parent; ids: root.horizontal ? [] : root.rail.center; horizontal: false; align: "center"; spacing: root.gap; delegate: root.delegate
                 leadExtent: vTop.implicitHeight
                 tailExtent: vBottom.implicitHeight
+                z: 1
             }
             RailZone { id: vBottom; anchors.fill: parent; ids: root.rail.bottom; horizontal: false; align: "end"; spacing: root.gap; delegate: root.delegate }
         }
