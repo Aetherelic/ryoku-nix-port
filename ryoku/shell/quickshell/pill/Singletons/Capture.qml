@@ -154,7 +154,7 @@ Singleton {
             'FLAG="$1"; VAL="$2"; OUT="$3"; MODE="$4"; CLIP="$5"; BEAUTIFY="$6"',
             'mkdir -p "$(dirname "$OUT")" 2>/dev/null || true',
             'if [ -n "$FLAG" ]; then grim "$FLAG" "$VAL" "$OUT"; else grim "$OUT"; fi || exit 0',
-            '[ -n "$CLIP" ] && wl-copy --type image/png < "$OUT"',
+            '[ -n "$CLIP" ] && ryoku-shell clip-copy image/png "$OUT"',
             'ryoku-shell sound shutter >/dev/null 2>&1 || true',
             'case "$MODE" in',
             'clipboard) notify-send -a ryoku "Screenshot copied to clipboard" >/dev/null 2>&1 || true ;;',

@@ -31,7 +31,6 @@ ShellRoot {
     property var hoverWindow: null
     property var windowRects: []
     property bool dialogMode: false
-    property string savedAuto: ""
     property string beautifySrc: ""
     property string beautifyBgImage: ""
     property bool composeActive: false
@@ -52,7 +51,7 @@ ShellRoot {
     readonly property string openPath: Quickshell.env("RYOSHOT_OPEN") || ""
     property bool fromFile: false
     readonly property string homeDir: Quickshell.env("HOME")
-    readonly property string shotsDir: homeDir + "/Pictures/Screenshots"
+    readonly property string shotsDir: (Quickshell.env("XDG_PICTURES_DIR") || (homeDir + "/Pictures")) + "/Screenshots"
     readonly property string ryoshotLuaPath: homeDir + "/.config/hypr/modules/ryoshot.lua"
 
     readonly property color vermilion: "#e2342a"
@@ -352,11 +351,13 @@ ShellRoot {
         else endDraw();
     }
 
+    // Match Capture.qml's pattern exactly so both capture paths drop identically
+    // named files in the same folder: a UTC stamp + "_screenshot.png".
     function timestampName() {
         var d = new Date();
         function p(n) { return (n < 10 ? "0" : "") + n; }
-        return "shot-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate())
-            + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + ".png";
+        return d.getUTCFullYear() + "_" + p(d.getUTCMonth() + 1) + "_" + p(d.getUTCDate())
+            + "_" + p(d.getUTCHours()) + "_" + p(d.getUTCMinutes()) + "_" + p(d.getUTCSeconds()) + "_screenshot.png";
     }
     readonly property string defaultPath: shotsDir + "/" + timestampName()
 
@@ -430,10 +431,54 @@ ShellRoot {
     // capture asks it to play rather than shipping an asset in this config.
     function shutter() { Quickshell.execDetached(["ryoku-shell", "sound", "shutter"]); }
 
+    Timer { id: quitTimer; interval: 250; onTriggered: Qt.quit() }
+    function quitSoon() { quitTimer.restart(); }
+
+    function notifySend(title, body) {
+        Quickshell.execDetached(body && body.length > 0
+            ? ["notify-send", "-a", "ryoku", title, body]
+            : ["notify-send", "-a", "ryoku", title]);
+    }
+
+    // Export exactly once per session. The beautify compose can emit copy/save
+    // more than once as overlays settle; without this guard each emission spawns
+    // another clip-copy, and the racing wl-copy owners cancel out so the live
+    // selection ends up empty (or replaced). The first grab wins; the rest no-op.
+    property bool exported: false
+
+    // Hand the copy to the persistent ryoku-shell daemon: it owns the Wayland
+    // selection (so it survives ryoshot quitting) and ingests the entry into
+    // clipboard history directly. A wl-copy run from ryoshot itself would die
+    // with the app and never reach history.
+    function copyImageAndQuit(file) {
+        if (root.exported) return;
+        root.exported = true;
+        Quickshell.execDetached(["ryoku-shell", "clip-copy", "image/png", file]);
+        root.quitSoon();
+        root.notifySend(qsTr("Screenshot copied to clipboard"), "");
+    }
+    function copyTextAndQuit(text) {
+        if (root.exported) return;
+        root.exported = true;
+        Quickshell.execDetached(["sh", "-c",
+            "f=$(mktemp); printf %s \"$1\" > \"$f\"; ryoku-shell clip-copy text/plain \"$f\"; rm -f \"$f\"", "sh", text]);
+        root.quitSoon();
+    }
+    // Save straight to the Screenshots folder (no dialog), matching Super+S. A
+    // beautify render arrives as a temp file and is copied in.
+    function saveToScreenshots(src) {
+        if (root.exported) return;
+        root.exported = true;
+        Quickshell.execDetached(["sh", "-c",
+            "mkdir -p \"$(dirname \"$2\")\"; [ \"$1\" = \"$2\" ] || cp -- \"$1\" \"$2\"", "sh", src, root.defaultPath]);
+        root.notifySend(qsTr("Screenshot saved"), root.defaultPath);
+        root.quitSoon();
+    }
+
     function doCopy() {
         var auto = defaultPath;
         grabTo(auto, function (ok) {
-            if (ok) { root.shutter(); copyProc.run(auto); }
+            if (ok) { root.shutter(); root.copyImageAndQuit(auto); }
             else Qt.quit();
         });
     }
@@ -443,9 +488,8 @@ ShellRoot {
         grabTo(auto, function (ok) {
             if (!ok) { Qt.quit(); return; }
             root.shutter();
-            root.savedAuto = auto;
-            root.dialogMode = true;
-            saveDialog.open();
+            root.notifySend(qsTr("Screenshot saved"), auto);
+            root.quitSoon();
         });
     }
 
@@ -492,28 +536,6 @@ ShellRoot {
     }
 
     Process {
-        id: saveDialog
-        stdout: StdioCollector { id: saveOut }
-        function open() {
-            command = ["sh", "-c",
-                "zenity --file-selection --save --filename=\"$1\" --file-filter='PNG | *.png' 2>/dev/null"
-                + " || kdialog --getsavefilename \"$1\" '*.png' 2>/dev/null",
-                "_", root.savedAuto];
-            running = true;
-        }
-        onExited: (code) => {
-            var chosen = saveOut.text.trim();
-            console.log("ryoshot: save-dialog exit " + code + " path=" + JSON.stringify(chosen));
-            if (code === 0 && chosen.length > 0) {
-                if (chosen !== root.savedAuto) copyFileProc.run(root.savedAuto, chosen);
-                else Qt.quit();
-            } else {
-                root.dialogMode = false;
-            }
-        }
-    }
-
-    Process {
         id: bgDialog
         stdout: StdioCollector { id: bgOut }
         function open() {
@@ -531,21 +553,6 @@ ShellRoot {
     }
 
     Process {
-        id: copyFileProc
-        function run(src, dst) { command = ["cp", "--", src, dst]; running = true; }
-        onExited: () => Qt.quit()
-    }
-
-    Process {
-        id: copyProc
-        function run(file) {
-            command = ["sh", "-c", "wl-copy --type image/png < \"$1\"", "_", file];
-            running = true;
-        }
-        onExited: (code) => { console.log("ryoshot: wl-copy exit " + code); Qt.quit(); }
-    }
-
-    Process {
         id: uploadProc
         stdout: StdioCollector { id: uploadOut }
         function run(file) {
@@ -557,18 +564,9 @@ ShellRoot {
         onExited: (code) => {
             var url = uploadOut.text.trim();
             console.log("ryoshot: upload exit " + code + " url=" + JSON.stringify(url));
-            if (code === 0 && url.indexOf("http") === 0) urlCopyProc.run(url);
+            if (code === 0 && url.indexOf("http") === 0) root.copyTextAndQuit(url);
             else Qt.quit();
         }
-    }
-
-    Process {
-        id: urlCopyProc
-        function run(url) {
-            command = ["sh", "-c", "printf %s \"$1\" | wl-copy", "sh", url];
-            running = true;
-        }
-        onExited: () => Qt.quit()
     }
 
     Process {
@@ -745,8 +743,8 @@ ShellRoot {
                     bgImagePath: root.beautifyBgImage
                     composeOnly: root.composeActive
                     composeMode: root.composeMode
-                    onCopyRequested: (p) => copyProc.run(p)
-                    onSaveRequested: (p) => { root.savedAuto = p; root.dialogMode = true; saveDialog.open(); }
+                    onCopyRequested: (p) => root.copyImageAndQuit(p)
+                    onSaveRequested: (p) => root.saveToScreenshots(p)
                     onPickImageRequested: { root.dialogMode = true; bgDialog.open(); }
                     onCloseRequested: { root.composeActive = false; if (root.fromFile) Qt.quit(); else root.phase = "editing"; }
                 }
