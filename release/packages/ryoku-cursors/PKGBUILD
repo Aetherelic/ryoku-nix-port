@@ -26,8 +26,15 @@
 # holding the previous db.
 pkgname=ryoku-cursors
 pkgver=2.0.7
-pkgrel=1
+pkgrel=2
 pkgdesc="Bibata XCursor set (the Ryoku desktop's configured cursor theme)"
+# The theme used to arrive as the AUR bibata-cursor-theme-bin, and this package
+# ships the same files. Without these relations pacman refused the file
+# conflicts and the whole -Syu died, so no user with the old AUR package could
+# update at all; replaces swaps it out unattended.
+provides=('bibata-cursor-theme')
+conflicts=('bibata-cursor-theme' 'bibata-cursor-theme-bin')
+replaces=('bibata-cursor-theme' 'bibata-cursor-theme-bin')
 # XCursor themes are architecture-independent image/config data.
 arch=('any')
 url="https://github.com/ful1e5/Bibata_Cursor"
