@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed
+- **The shell daemon's systemd unit reaches package installs.** The shipped
+  autostart now starts the unit, but only the dev deploy laid it down:
+  ryoku-desktop shipped the session target alone, so a package user's next
+  login had no unit to start and no shell. The package ships the whole
+  systemd/user tree now, and the updater, doctor, and deploy all stop and
+  start the daemon through the unit where it exists (with a daemon-reload so
+  a just-delivered unit is found), falling back to the bare start where it
+  does not (`release/packages/ryoku-desktop/PKGBUILD`,
+  `internal/updater/update.go`, `internal/doctor/doctor.go`).
+
 ### Added
 - **`ryoku keyboard`: the layout on every screen that asks for one.** `status`
   shows what the desktop, greeter, console and boot image each use and whether

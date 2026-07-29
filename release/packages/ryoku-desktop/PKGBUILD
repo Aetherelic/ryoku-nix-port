@@ -310,9 +310,12 @@ package() {
     "$pkgdir/usr/share/applications/ryoku-nvim.desktop"
   install -Dm644 "$_repo/ryoku/apps/mimeapps.list" "$cfg/mimeapps.list"
 
-  # user session target
-  install -Dm644 "$_repo/ryoku/shell/systemd/user/hyprland-session.target" \
-    "$cfg/systemd/user/hyprland-session.target"
+  # user session units: the target, and the shell daemon service the autostart
+  # now starts (systemctl --user start ryoku-shell). Ship the whole dir so a
+  # unit added to the tree cannot be forgotten here again; ExecStart already
+  # points at /usr/bin, the packaged path.
+  install -dm755 "$cfg/systemd/user"
+  cp -a "$_repo/ryoku/shell/systemd/user/." "$cfg/systemd/user/"
 
   # the decor art the Decor/Placard components render. shipped here so `ryoku
   # doctor` can seed it into ~/Pictures/ryodecors on a user box (beside

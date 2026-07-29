@@ -50,6 +50,7 @@ restart_shell() {
   local log="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-shell.log"
 
   [[ -x $shell ]] || return 0
+  systemctl --user stop ryoku-shell 2>/dev/null || true
   "$shell" quit >/dev/null 2>&1 || true
   for _ in {1..20}; do
     "$shell" ping >/dev/null 2>&1 || break
@@ -71,12 +72,18 @@ restart_shell() {
   sleep 0.2
 
   mkdir -p "$(dirname -- "$log")"
-  if command -v setsid >/dev/null 2>&1; then
-    setsid "$shell" daemon >"$log" 2>&1 < /dev/null &
+  # under systemd when the unit is installed, so the daemon stays supervised;
+  # bare start otherwise (first deploy on a fresh checkout).
+  if systemctl --user daemon-reload 2>/dev/null && systemctl --user restart ryoku-shell 2>/dev/null; then
+    say "restarted ryoku-shell daemon (systemd unit)"
   else
-    nohup "$shell" daemon >"$log" 2>&1 < /dev/null &
+    if command -v setsid >/dev/null 2>&1; then
+      setsid "$shell" daemon >"$log" 2>&1 < /dev/null &
+    else
+      nohup "$shell" daemon >"$log" 2>&1 < /dev/null &
+    fi
+    say "restarted ryoku-shell daemon -> $log"
   fi
-  say "restarted ryoku-shell daemon -> $log"
 }
 
 hypr_live=0
