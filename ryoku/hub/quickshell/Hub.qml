@@ -29,6 +29,7 @@ import "schema/AutostartPage.js" as AutostartSchema
 import "schema/EnvironmentPage.js" as EnvironmentSchema
 import "schema/PerformancePage.js" as PerformanceSchema
 import "schema/UpdatesPage.js" as UpdatesSchema
+import "../../shell/quickshell/pill/barstyles/nacre/NacreConfig.js" as NacreConfig
 import Ryoku.FrameBars
 
 // Ryoku Settings, assembled. The rail owns navigation and global search; the
@@ -340,7 +341,7 @@ Rectangle {
         "position": "bottom", "mirror": false, "segments": 10, "fps": 30,
         "adaptive": true, "smoothing": 0.5, "gain": 1.0, "peaks": false,
         "markText": "力", "markImage": "", "markTint": true, "name": "Ryoku",
-        "language": "Auto", "barStyle": "sumi", "obi": {}
+        "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig()
     })
 
     // key -> source file, derived from the schema so it cannot drift.
@@ -397,7 +398,7 @@ Rectangle {
     // against liveBaseline: the state at open, re-snapshotted on every Save.
     // Quit and Revert walk the desktop back to that baseline through the same
     // channel, so an unsaved close leaves no residue.
-    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "barStyle", "obi"]
+    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "barStyle", "obi", "nacre"]
     property var liveBaseline: null
     property var livePending: ({})
     function captureLiveBaseline() {

@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Ryoku.FrameBars
+import "../barstyles/nacre/NacreConfig.js" as NacreConfig
 
 // live shell appearance config. one source of truth for the look knobs Ryoku
 // Settings' Shell section edits, plus the shipped defaults the shell falls back
@@ -42,6 +43,8 @@ Singleton {
     // full by default and only an explicit false hides a widget. Each folder
     // style gets its own key here, the extensible per-style settings store.
     property alias obi: adapter.obi
+    property alias nacre: adapter.nacre
+    readonly property var normalizedNacre: NacreConfig.normalize(nacre)
 
     // typography: a scale that grows or shrinks the whole shell (the bar text
     // and the surfaces around it), keeping the readout legible without overflow.
@@ -116,6 +119,7 @@ Singleton {
             property var frameBars: FrameBars.defaultConfig()
             property string barStyle: "sumi"
             property var obi: ({})
+            property var nacre: NacreConfig.defaultConfig()
         }
     }
 
