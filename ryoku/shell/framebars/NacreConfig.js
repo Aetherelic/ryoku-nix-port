@@ -42,6 +42,7 @@ function defaultConfig() {
         padding: 12,
         spacing: 8,
         islandGap: 14,
+        frame: true,
         occupiedWorkspaces: true
     };
 }
@@ -74,6 +75,7 @@ function normalize(raw) {
 
     for (const key of Object.keys(ranges))
         output[key] = number(source[key], key, base[key]);
+    output.frame = typeof source.frame === "boolean" ? source.frame : base.frame;
     output.occupiedWorkspaces = typeof source.occupiedWorkspaces === "boolean"
         ? source.occupiedWorkspaces : base.occupiedWorkspaces;
     return output;
@@ -121,7 +123,7 @@ function setValue(config, key, value) {
     const output = normalize(config);
     if (ranges[key])
         output[key] = value;
-    else if (key === "occupiedWorkspaces")
+    else if (key === "occupiedWorkspaces" || key === "frame")
         output[key] = value;
     else
         return output;

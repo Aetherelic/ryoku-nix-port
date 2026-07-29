@@ -77,6 +77,9 @@ ShellRoot {
             const scene = nacreScene.createObject(root);
             if (!scene || scene.status !== Loader.Ready)
                 throw new Error("NACRE-SCENE-PROBE-FAIL");
+            if (!scene.item || scene.item.frameInset <= 0
+                    || scene.item.implicitHeight !== scene.item.settings.height + scene.item.frameInset)
+                throw new Error("NACRE-FRAME-INSET-PROBE-FAIL");
             scene.destroy();
             const connectivityUrl = nacreConnectivityUrl.createObject(root);
             if (!connectivityUrl || connectivityUrl.status !== Loader.Ready)

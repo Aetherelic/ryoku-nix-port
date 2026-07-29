@@ -75,6 +75,22 @@ Grid {
         width: (root.width - Tokens.s2) / 2
         height: implicitHeight
         controlWidth: 54
+        label: qsTr("Desktop frame")
+        value: root.config.frame ? qsTr("ON") : qsTr("OFF")
+        source: "shell.json"
+
+        Sw {
+            objectName: "nacre-frame"
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            on: root.config.frame
+            onToggled: value => root.changed("frame", value)
+        }
+    }
+    Cell {
+        width: (root.width - Tokens.s2) / 2
+        height: implicitHeight
+        controlWidth: 54
         label: qsTr("Occupied workspaces")
         value: root.config.occupiedWorkspaces ? qsTr("ON") : qsTr("OFF")
         source: "shell.json"

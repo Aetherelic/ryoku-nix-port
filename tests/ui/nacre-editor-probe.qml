@@ -100,6 +100,10 @@ ShellRoot {
             editor.config = root.staged;
             editor.setAppearance("height", 48);
             require(root.staged.height === 48, "appearance stages");
+            editor.config = root.staged;
+            editor.setAppearance("frame", false);
+            require(root.staged.frame === false, "frame stages");
+            require(root.findObject(editor, "nacre-frame"), "frame control");
             console.log("NACRE-EDITOR-PROBE-PASS");
             Qt.quit();
         }

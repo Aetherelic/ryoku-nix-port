@@ -20,6 +20,7 @@ function eq(actual, expected, message) {
 
 const defaults = Nacre.defaultConfig();
 eq(Nacre.normalize(null), defaults, "missing config restores defaults");
+eq(defaults.frame, true, "frame defaults on");
 eq(Nacre.entry("workspaces"), { id: "workspaces", label: "Workspaces", file: "Workspaces.qml" }, "catalog resolves widget metadata");
 eq(BarStyles.entry("nacre").scene, "barstyles/nacre/Scene.qml", "bar registry resolves the Nacre scene");
 
@@ -34,6 +35,7 @@ const normalized = Nacre.normalize({
     padding: 2,
     spacing: 40,
     islandGap: -2,
+    frame: false,
     occupiedWorkspaces: false
 });
 eq(normalized.islands.left, ["brand", "media"], "normalization removes unknown and duplicate ids");
@@ -45,6 +47,7 @@ eq(
     "normalization clamps appearance values"
 );
 eq(normalized.occupiedWorkspaces, false, "normalization preserves a boolean workspace mode");
+eq(normalized.frame, false, "normalization preserves the frame toggle");
 
 const partial = Nacre.normalize({
     islands: { left: ["weather"] },
@@ -83,6 +86,7 @@ eq(Nacre.move(defaults, "brand", "left", "bogus", 0), defaults, "move rejects an
 const resized = Nacre.setValue(defaults, "height", 47.8);
 eq(resized.height, 48, "integer appearance values are rounded");
 eq(Nacre.setValue(defaults, "occupiedWorkspaces", false).occupiedWorkspaces, false, "workspace mode can be changed");
+eq(Nacre.setValue(defaults, "frame", false).frame, false, "frame can be changed");
 eq(Nacre.setValue(defaults, "unknown", 4), defaults, "unknown appearance keys are ignored");
 
 if (failed > 0) {

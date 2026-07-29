@@ -87,9 +87,10 @@ ShellRoot {
     readonly property real frameBorderPx: Config.frameThickness
 
     // Active bar style: the built-in Sumi frame scene draws only while the
-    // active style is the built-in one; a folder style releases the edge
-    // reserves, hides the frame + rails, and loads its own Scene below instead.
+    // active style is the built-in one; Nacre can reuse its frame without rails.
     readonly property bool sumiActive: BarStyles.sceneUrl(Config.barStyle) === ""
+    readonly property bool nacreFrameActive: Config.barStyle === "nacre"
+        && Config.normalizedNacre.frame
     property var edgeRevealed: ({ top: false, bottom: false, left: false, right: false })
     // The reveal baseline (config `reveal` per edge) is applied live after
     // startup: a Bar Studio pin/auto-hide edit retargets edgeRevealed for the
@@ -683,10 +684,10 @@ ShellRoot {
                     // wider -- one silhouette, no field morphing (contract 01
                     // sec 2b, menu parity spec).
                     anchors.fill: parent
-                    reserveTop: root.edgeReserve("top")
-                    reserveBottom: root.edgeReserve("bottom")
-                    reserveLeft: root.edgeReserve("left")
-                    reserveRight: root.edgeReserve("right")
+                    reserveTop: root.sumiActive ? root.edgeReserve("top") : root.frameBorderPx
+                    reserveBottom: root.sumiActive ? root.edgeReserve("bottom") : root.frameBorderPx
+                    reserveLeft: root.sumiActive ? root.edgeReserve("left") : root.frameBorderPx
+                    reserveRight: root.sumiActive ? root.edgeReserve("right") : root.frameBorderPx
                     holeRadius: Config.frameCorner
                     surface: Theme.surface
                     outline: Theme.outline
@@ -697,7 +698,8 @@ ShellRoot {
                     panelW: frameMenus.chromePanel.w
                     panelH: frameMenus.chromePanel.h
                     opacity: Theme.windowOpacity
-                    visible: !overlay.monFullscreen && Config.frameEnabled && root.sumiActive
+                    visible: !overlay.monFullscreen
+                        && ((Config.frameEnabled && root.sumiActive) || root.nacreFrameActive)
                 }
 
 

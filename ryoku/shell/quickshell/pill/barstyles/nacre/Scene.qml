@@ -11,16 +11,17 @@ PanelWindow {
 
     property var modelData
     readonly property var settings: Config.normalizedNacre
+    readonly property real frameInset: root.settings.frame ? Config.frameThickness : 0
 
     screen: root.modelData
     color: "transparent"
     exclusionMode: ExclusionMode.Normal
-    exclusiveZone: root.settings.height + 1
+    exclusiveZone: root.settings.height + root.frameInset
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     WlrLayershell.namespace: "ryoku-nacre"
     anchors { top: true; left: true; right: true }
-    implicitHeight: root.settings.height + 1
+    implicitHeight: root.settings.height + root.frameInset
 
     mask: Region {
         Region { item: leftIsland }
@@ -28,15 +29,10 @@ PanelWindow {
         Region { item: rightIsland }
     }
 
-    Rectangle {
-        anchors { top: parent.top; left: parent.left; right: parent.right }
-        height: 1
-        color: Theme.outline
-    }
-
     Components.Island {
         id: centerIsland
         anchors.top: parent.top
+        anchors.topMargin: root.frameInset
         anchors.horizontalCenter: parent.horizontalCenter
         edge: "center"
         widgetIds: root.settings.islands.center
@@ -50,6 +46,7 @@ PanelWindow {
     Components.Island {
         id: leftIsland
         anchors.top: parent.top
+        anchors.topMargin: root.frameInset
         anchors.left: parent.left
         edge: "left"
         widgetIds: root.settings.islands.left
@@ -63,6 +60,7 @@ PanelWindow {
     Components.Island {
         id: rightIsland
         anchors.top: parent.top
+        anchors.topMargin: root.frameInset
         anchors.right: parent.right
         edge: "right"
         widgetIds: root.settings.islands.right
