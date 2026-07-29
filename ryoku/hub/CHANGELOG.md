@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- **Bar Studio picks the bar style and tunes it.** The Desktop page leads with a
+  style picker, Sumi (the left rail) or Obi (the floating top bar), that swaps the
+  running bar live. For Sumi it edits the frame and the left rail as before; for
+  Obi it shows a per-widget show/hide panel, so the workspaces, media, audio,
+  connections, battery, tray and weather chips turn on and off, saved per style in
+  shell.json (`quickshell/pages/BarStudioPage.qml`, `quickshell/Hub.qml`).
+
 ### Fixed
 - **"Never ask" reaches its fix when the keyring is still encrypted.** `keyring
   init` records never-ask on a box whose keyring is password-protected and leaves

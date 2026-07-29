@@ -51,6 +51,36 @@ Item {
     readonly property var railWas: page.committedBars && page.committedBars.rails ? page.committedBars.rails[page.edge] : null
     readonly property bool horizontal: page.edge === "top" || page.edge === "bottom"
 
+    // Mirror of shell/quickshell/pill/barstyles/registry.js. The Hub runs as a
+    // separate process, so the style list is duplicated here; keep it in step.
+    readonly property var barStyles: [
+        { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink." },
+        { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces." }
+    ]
+
+    // The Obi bar's widgets, for the per-widget show/hide toggles below. Mirrors
+    // barstyles/obi/Scene.qml; Workspaces is the bar's identity and has no toggle.
+    readonly property var obiWidgets: [
+        { id: "activeWindow", label: qsTr("Active window"), desc: qsTr("The focused window's title, far left.") },
+        { id: "resources", label: qsTr("Resources"), desc: qsTr("CPU and memory rings.") },
+        { id: "media", label: qsTr("Media"), desc: qsTr("Now playing with a music visualizer.") },
+        { id: "audio", label: qsTr("Audio"), desc: qsTr("Output and input volume, with a mixer.") },
+        { id: "clock", label: qsTr("Clock"), desc: qsTr("Time and date.") },
+        { id: "connectivity", label: qsTr("Connections"), desc: qsTr("Wi-Fi and Bluetooth.") },
+        { id: "battery", label: qsTr("Battery"), desc: qsTr("Charge and power profile.") },
+        { id: "tray", label: qsTr("Tray"), desc: qsTr("System tray icons.") },
+        { id: "weather", label: qsTr("Weather"), desc: qsTr("Current conditions.") }
+    ]
+    // The running bar style, default the built-in frame style. The frame, rails
+    // and zone editors below are Sumi's; a folder style owns its own layout.
+    readonly property string activeStyle: page.fval("barStyle", "sumi")
+    readonly property bool sumiActive: page.activeStyle === "sumi"
+    readonly property string activeName: {
+        for (let i = 0; i < page.barStyles.length; i++)
+            if (page.barStyles[i].id === page.activeStyle) return page.barStyles[i].name;
+        return page.activeStyle;
+    }
+
     // Stage AND apply: edits ride the shared draft like every page, and the
     // hub's stageLive coalesces a settings.patch to the daemon so the running
     // desktop repaints as you work. The probe harness's bare hub has neither;
@@ -81,6 +111,18 @@ Item {
     }
     function fwas(key) {
         return page.hub && page.hub.committed ? page.hub.committed[key] : undefined;
+    }
+
+    // Obi's per-widget visibility lives in the `obi` map in shell.json (an absent
+    // key reads as shown). Toggling stages the whole map live like every edit.
+    function obiShown(id) {
+        const o = page.fval("obi", ({}));
+        return !o || o[id] !== false;
+    }
+    function obiSet(id, on) {
+        const o = Object.assign({}, page.fval("obi", ({})));
+        o[id] = on;
+        page.fedit("obi", o);
     }
 
     CatalogLabels { id: labels }
@@ -135,7 +177,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: qsTr("The frame's chrome, its four rails, and the widgets on each. Pick an edge to work on that rail; every change lands live on the desktop, and Save keeps it.")
+            text: qsTr("The frame's chrome, its left rail, and the widgets on it. Every change lands live on the desktop, and Save keeps it.")
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: Tokens.fBody
@@ -158,11 +200,120 @@ Item {
             width: flick.width - 14
             spacing: Tokens.s5
 
+            // ── BAR STYLE: which bar the desktop draws ───────────────────────
+            Section {
+                id: styleSect
+                width: col.width
+                title: qsTr("BAR STYLE")
+
+                Row {
+                    width: styleSect.width
+                    spacing: Tokens.s2
+                    Repeater {
+                        model: page.barStyles
+                        delegate: Rectangle {
+                            id: styleCard
+                            required property var modelData
+                            readonly property bool on: page.activeStyle === styleCard.modelData.id
+
+                            objectName: "bar-style-" + styleCard.modelData.id
+                            width: (styleSect.width - (page.barStyles.length - 1) * Tokens.s2) / page.barStyles.length
+                            height: 64
+                            radius: Tokens.radius
+                            color: styleCard.on ? Tokens.bone : (sma.containsMouse ? Tokens.tint5 : "transparent")
+                            border.width: Tokens.border
+                            border.color: styleCard.on ? Tokens.bone : Tokens.line
+                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+
+                            Column {
+                                anchors { left: parent.left; right: parent.right; margins: Tokens.s3; verticalCenter: parent.verticalCenter }
+                                spacing: 3
+                                Text {
+                                    text: styleCard.modelData.name.toUpperCase()
+                                    color: styleCard.on ? Tokens.inkOnBone : Tokens.inkDim
+                                    font.family: Tokens.ui
+                                    font.pixelSize: 12
+                                    font.weight: Font.Medium
+                                    font.letterSpacing: Tokens.trackLabel
+                                }
+                                Text {
+                                    width: parent.width
+                                    text: styleCard.modelData.desc
+                                    color: styleCard.on ? Tokens.inkOnBoneDim : Tokens.inkFaint
+                                    font.family: Tokens.ui
+                                    font.pixelSize: Tokens.fTiny
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            MouseArea {
+                                id: sma
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                preventStealing: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.fedit("barStyle", styleCard.modelData.id)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // A folder style owns its own frame, rails and widgets inside its
+            // barstyles/<id>/ folder, so the Sumi editors below stand down.
+            Section {
+                id: folderNote
+                width: col.width
+                visible: !page.sumiActive
+                title: qsTr("LAYOUT")
+
+                Text {
+                    width: folderNote.width
+                    text: qsTr("The %1 style manages its own layout in barstyles/%2. Toggle its widgets below.").arg(page.activeName).arg(page.activeStyle)
+                    color: Tokens.inkMuted
+                    font.family: Tokens.ui
+                    font.pixelSize: Tokens.fBody
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            // OBI WIDGETS: show or hide each widget on the Obi bar.
+            Section {
+                id: obiSect
+                width: col.width
+                visible: page.activeStyle === "obi"
+                title: qsTr("OBI WIDGETS")
+
+                Column {
+                    width: obiSect.width
+                    spacing: Tokens.s2
+                    Repeater {
+                        model: page.obiWidgets
+                        delegate: Cell {
+                            required property var modelData
+                            width: obiSect.width
+                            controlWidth: 54
+                            label: modelData.label
+                            value: page.obiShown(modelData.id) ? qsTr("ON") : qsTr("OFF")
+                            desc: modelData.desc
+                            source: "shell.json"
+                            Sw {
+                                objectName: "obi-" + modelData.id
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                on: page.obiShown(modelData.id)
+                                onToggled: value => page.obiSet(modelData.id, value)
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── FRAME: the chrome the shell draws around the desktop ─────────
             Section {
                 id: frameSect
                 width: col.width
                 title: qsTr("FRAME")
+                visible: page.sumiActive
 
                 Cell {
                     width: frameSect.span(6)
@@ -246,12 +397,13 @@ Item {
                 id: railSect
                 width: col.width
                 title: qsTr("RAILS")
+                visible: page.sumiActive
 
                 Row {
                     width: railSect.width
                     spacing: Tokens.s2
                     Repeater {
-                        model: ["top", "left", "bottom", "right"]
+                        model: ["left"]
                         delegate: Rectangle {
                             id: plate
                             required property string modelData
@@ -348,6 +500,7 @@ Item {
                 id: zoneSect
                 width: col.width
                 title: qsTr("WIDGETS ON THE %1 RAIL").arg(labels.edge(page.edge).toUpperCase())
+                visible: page.sumiActive
 
                 ZoneEditor {
                     width: zoneSect.width
