@@ -139,6 +139,7 @@ the same default and includes `nacre` in its live keys:
   "padding": 12,
   "spacing": 8,
   "islandGap": 14,
+  "frame": true,
   "occupiedWorkspaces": true
 }
 ```
@@ -150,6 +151,7 @@ The first release supports these live controls:
 - `padding`: horizontal inset inside each island.
 - `spacing`: distance between widgets in an island.
 - `islandGap`: minimum gap between the center island and either side island.
+- `frame`: draw the shared Sumi frame around the desktop.
 - `occupiedWorkspaces`: show only occupied workspaces plus the active one.
 
 The widget registry defines the complete set of valid IDs. Normalization:
@@ -171,10 +173,12 @@ The center island remains screen-centered. Left and right islands anchor to
 their respective screen edges. Their maximum widths stop before the center
 island plus `islandGap`.
 
-The top hairline is the frame. Each populated island grows down from that frame
-and hugs its visible widgets at intrinsic width. An island with no visible
-widgets has zero size, no border or surface, and no input-mask region. Empty
-space is never represented by a placeholder capsule.
+When `frame` is enabled, the existing shell-wide Sumi `FrameChrome` draws the
+desktop frame without enabling Sumi rails. Nacre's islands meet the top frame
+band and share its surface and outline roles. When disabled, neither the frame
+nor a replacement hairline is drawn. Each populated island hugs its visible
+widgets at intrinsic width. An island with no visible widgets has zero size, no
+border or surface, and no input-mask region.
 
 When a side island would exceed its available width:
 
@@ -204,8 +208,12 @@ The editor contains:
 
 Each lane and the unused palette grows with its wrapping content. Widget chips
 use compact typography and a capped width; labels that exceed the cap elide.
-Dragging raises only the active chip and must not overlap neighboring editor
-sections after the drop completes.
+Each chip keeps a fixed Flow-owned slot and moves a visual child during a drag.
+The drop cannot modify the slot's `x` or `y`, so chips cannot overlap after the
+gesture completes.
+
+The Nacre resources face uses CPU, memory, and temperature icons beside compact
+numeric readings. The expanded resources popup retains its labels and controls.
 
 A drag carries `{widgetId, sourceIsland, sourceIndex}`. Dropping into an island
 removes the source occurrence and inserts the ID at the resolved target index
