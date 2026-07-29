@@ -528,8 +528,18 @@ ShellRoot {
 
             // drag-to-stash: a file dragged to the right screen edge opens the
             // stash; works on any bar style, so it is not gated on the sumi frame.
+            // The strip is in the input mask, and input regions decide who gets
+            // both clicks AND drags, so a resident 64px strip was a dead zone
+            // over every window on that edge (the old left-edge bug again).
+            // Idle it is a 2px edge sliver, the same trick the hidden bar's
+            // hover reveal uses; a drag entering the sliver widens it to a
+            // comfortable target until the drag leaves or drops. A right rail
+            // already owns its band's input, so the sliver only exists where
+            // the rail does not.
             readonly property bool rightDropOn: !overlay.monFullscreen
-            readonly property real rightDropW: Math.max(root.edgeReserve("right"), 64)
+            readonly property real rightDropW: rightEdgeDrop.containsDrag
+                ? Math.max(root.edgeReserve("right"), 64)
+                : Math.max(root.edgeReserve("right"), 2)
 
             // true when this monitor's visible workspace holds a fullscreen
             // window. Fullscreen owns the id -> fullscreen map (hyprctl-backed,
