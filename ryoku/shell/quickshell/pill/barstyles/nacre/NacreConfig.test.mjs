@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const Nacre = require("./NacreConfig.js");
+const Registry = require("./widgets/registry.js");
 
 let failed = 0;
 
@@ -19,6 +20,7 @@ function eq(actual, expected, message) {
 
 const defaults = Nacre.defaultConfig();
 eq(Nacre.normalize(null), defaults, "missing config restores defaults");
+eq(Registry.list().map(item => item.id), Nacre.widgetIds(), "widget registry matches the settings model");
 
 const normalized = Nacre.normalize({
     islands: {

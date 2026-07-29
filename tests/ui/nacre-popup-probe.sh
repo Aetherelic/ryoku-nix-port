@@ -15,4 +15,5 @@ cp "$here/nacre-popup-probe.qml" "$work/pill/probe.qml"
 QML2_IMPORT_PATH="$work:${QML2_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \
     timeout 20 qs -p "$work/pill/probe.qml" >"$work/log" 2>&1 || true
 grep -q NACRE-POPUP-PROBE-PASS "$work/log" || { sed -n '1,100p' "$work/log"; exit 1; }
+grep -Eq ' ERROR|TypeError|ReferenceError' "$work/log" && { sed -n '1,100p' "$work/log"; exit 1; }
 echo "nacre-popup-probe: shared popup components load"
