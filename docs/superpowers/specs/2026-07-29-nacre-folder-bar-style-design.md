@@ -173,12 +173,15 @@ The center island remains screen-centered. Left and right islands anchor to
 their respective screen edges. Their maximum widths stop before the center
 island plus `islandGap`.
 
-When `frame` is enabled, the existing shell-wide Sumi `FrameChrome` draws the
-desktop frame without enabling Sumi rails. Nacre's islands meet the top frame
-band and share its surface and outline roles. When disabled, neither the frame
-nor a replacement hairline is drawn. Each populated island hugs its visible
-widgets at intrinsic width. An island with no visible widgets has zero size, no
-border or surface, and no input-mask region.
+When `frame` is enabled, the existing shell-wide Sumi `FrameChrome` draws one
+silhouette whose top hole boundary wraps around the three live island
+rectangles. The islands then paint content only: their surface and border come
+from that shared silhouette. A runtime-only `NacreGeometry` singleton connects
+each monitor's Nacre scene to its matching frame overlay without persisting
+geometry. When disabled, `FrameChrome` stands down and each island paints its
+own detached capsule. Each populated island hugs its visible widgets at
+intrinsic width. An island with no visible widgets has zero size, no border or
+surface, and no input-mask region.
 
 When a side island would exceed its available width:
 
@@ -214,6 +217,11 @@ gesture completes.
 
 The Nacre resources face uses CPU, memory, and temperature icons beside compact
 numeric readings. The expanded resources popup retains its labels and controls.
+
+A configured media widget remains visible when no MPRIS player is available.
+Its compact face shows the music icon and `No media`; transport stays inactive
+until a player appears. The user hides it only by moving it to the unused
+palette.
 
 A drag carries `{widgetId, sourceIsland, sourceIndex}`. Dropping into an island
 removes the source occurrence and inserts the ID at the resolved target index
