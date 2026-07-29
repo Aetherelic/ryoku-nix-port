@@ -554,8 +554,11 @@ ShellRoot {
             // clamps at the frame lips, so the pointer can slide off its rect
             // mid-drag; losing the region there kills the grab and the island
             // snaps home while the button is still held.
-            mask: (monFullscreen || (!root.sumiActive && !frameMenus.anyOpen)) ? hiddenRegion
-                : ((frameMenus.anyOpen || recHud.dragging) ? fullRegion : railRegion)
+            mask: monFullscreen ? hiddenRegion
+                : (frameMenus.anyOpen || recHud.dragging) ? fullRegion
+                : root.sumiActive ? railRegion
+                : (Recorder.anyActive || Recorder.chooserOpen) ? recRegion
+                : hiddenRegion
 
             Region { id: hiddenRegion }
             Region {
@@ -595,6 +598,13 @@ ShellRoot {
                 Region { x: frameMenus.masks["bottom-left"].bx; y: frameMenus.masks["bottom-left"].by; width: frameMenus.masks["bottom-left"].bw; height: frameMenus.masks["bottom-left"].bh }
                 Region { x: frameMenus.masks["bottom-right"].tx; y: frameMenus.masks["bottom-right"].ty; width: frameMenus.masks["bottom-right"].tw; height: frameMenus.masks["bottom-right"].th }
                 Region { x: frameMenus.masks["bottom-right"].bx; y: frameMenus.masks["bottom-right"].by; width: frameMenus.masks["bottom-right"].bw; height: frameMenus.masks["bottom-right"].bh }
+                Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
+                Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
+            }
+
+            // Record island only, for a folder bar style (sumi frame + rails off).
+            Region {
+                id: recRegion
                 Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
                 Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
             }

@@ -326,6 +326,12 @@ Item {
                 spacing: 5 * root.s
                 visible: !Recorder.anyActive
                 IconToggle {
+                    glyph: "webcam"
+                    tip: qsTr("Webcam mirror (place it before recording)")
+                    on: Camera.active
+                    onToggled: Camera.toggle()
+                }
+                IconToggle {
                     glyph: Recorder.optDesktopAudio ? "speaker" : "speaker-off"
                     tip: qsTr("Record desktop audio")
                     on: Recorder.optDesktopAudio
