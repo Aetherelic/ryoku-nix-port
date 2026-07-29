@@ -225,10 +225,17 @@ func setLockSkin(slug string) error {
 	if !fileExists(filepath.Join(dir, slug, "Main.qml")) {
 		return fmt.Errorf("unknown lock skin: %s", slug)
 	}
-	if err := escalateGreeter(slug); err != nil {
+	// The session lock is the user's own file and needs no privilege, so it is
+	// written first. Escalating first meant a cancelled admin prompt threw the
+	// whole pick away: the page snapped back to the old skin even though the
+	// in-session half could always have honoured it.
+	if err := setLockSkinIn(dir, qylockThemePref(), slug); err != nil {
 		return err
 	}
-	return setLockSkinIn(dir, qylockThemePref(), slug)
+	if err := escalateGreeter(slug); err != nil {
+		return fmt.Errorf("lock skin set for this session; the sign-in screen keeps its old one: %w", err)
+	}
+	return nil
 }
 
 // setLockSkinIn writes slug to the active-lock pref file. an unknown slug is

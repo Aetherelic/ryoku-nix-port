@@ -115,6 +115,7 @@ func reconcilers() []reconciler {
 		{"audio playback routing", reconcileAudioRouting},
 		{"keyboard layout", reconcileKeymap},
 		{"keyboard layout detection", reconcileKeyboardSeed},
+		{"in-session lockscreen", reconcileLockscreen},
 		{"cursor theme", reconcileCursorTheme},
 		{"Material Symbols icon font", reconcileIconFont},
 		{"frame bar style name", reconcileFrameBarsStyle},

@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- **Doctor installs the missing in-session lockscreen.** Only the ISO installer
+  ever laid down the qylock lock, so a box that predates the step (or where it
+  failed) had a dead lock button and suspended without locking, silently:
+  hypridle's before_sleep runs the same command. ryoku-desktop ships the bundle
+  now and doctor heals the user-side install, never touching the greeter half or
+  a theme the user picked (`internal/doctor/reconcile_lockscreen.go`,
+  `release/packages/ryoku-desktop/PKGBUILD`, `ryoku/lockscreen/install-qylock`).
 - **The shell daemon's systemd unit reaches package installs.** The shipped
   autostart now starts the unit, but only the dev deploy laid it down:
   ryoku-desktop shipped the session target alone, so a package user's next

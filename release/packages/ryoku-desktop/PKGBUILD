@@ -310,6 +310,14 @@ package() {
     "$pkgdir/usr/share/applications/ryoku-nvim.desktop"
   install -Dm644 "$_repo/ryoku/apps/mimeapps.list" "$cfg/mimeapps.list"
 
+  # the qylock lockscreen bundle + its installer, so doctor can install or
+  # repair the in-session lock on a box the ISO step missed (or that predates
+  # it): a missing locker is a dead lock button AND suspend without a lock.
+  mkdir -p "$pkgdir/usr/share/ryoku/lockscreen"
+  cp -a "$_repo/ryoku/lockscreen/qylock" "$pkgdir/usr/share/ryoku/lockscreen/qylock"
+  install -Dm755 "$_repo/ryoku/lockscreen/install-qylock" \
+    "$pkgdir/usr/share/ryoku/lockscreen/install-qylock"
+
   # user session units: the target, and the shell daemon service the autostart
   # now starts (systemctl --user start ryoku-shell). Ship the whole dir so a
   # unit added to the tree cannot be forgotten here again; ExecStart already

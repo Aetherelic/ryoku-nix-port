@@ -122,20 +122,26 @@ LOCK_DIR="$TARGET_HOME/.local/share/quickshell-lockscreen"
 
 echo "Installing qylock clockwork/orbital greeter for $TARGET_USER"
 
-# --- 1. SDDM greeter theme (system). The fixed "ryoku" name is the one the Hub's
-# lock picker overwrites (ryoku-hub lock apply-greeter) when the user changes skins.
-echo "  greeter theme -> /usr/share/sddm/themes/ryoku"
-priv mkdir -p /usr/share/sddm/themes
-priv rm -rf /usr/share/sddm/themes/ryoku
-priv cp -a "$BUNDLE/themes/clockwork/orbital" /usr/share/sddm/themes/ryoku
+# RYOKU_QYLOCK_USER_ONLY=1 skips the root half (SDDM greeter + its conf):
+# doctor heals the in-session lock from a user session and must not stop on a
+# sudo prompt. The greeter was set at install time and is unaffected.
+if [[ ${RYOKU_QYLOCK_USER_ONLY:-0} != 1 ]]; then
+  # --- 1. SDDM greeter theme (system). The fixed "ryoku" name is the one the Hub's
+  # lock picker overwrites (ryoku-hub lock apply-greeter) when the user changes skins.
+  echo "  greeter theme -> /usr/share/sddm/themes/ryoku"
+  priv mkdir -p /usr/share/sddm/themes
+  priv rm -rf /usr/share/sddm/themes/ryoku
+  priv cp -a "$BUNDLE/themes/clockwork/orbital" /usr/share/sddm/themes/ryoku
 
-# --- 2. point SDDM at it (system) --------------------------------------------
-echo "  greeter selection -> /etc/sddm.conf.d/99-ryoku.conf"
-priv mkdir -p /etc/sddm.conf.d
-write_root /etc/sddm.conf.d/99-ryoku.conf <<'EOF'
-[Theme]
-Current=ryoku
-EOF
+  # --- 2. point SDDM at it (system) --------------------------------------------
+  echo "  greeter selection -> /etc/sddm.conf.d/99-ryoku.conf"
+  priv mkdir -p /etc/sddm.conf.d
+  write_root /etc/sddm.conf.d/99-ryoku.conf <<'EOF'
+  [Theme]
+  Current=ryoku
+  EOF
+
+fi
 
 # --- 3. in-session lock (user) -----------------------------------------------
 echo "  quickshell lockscreen -> $LOCK_DIR"
@@ -147,15 +153,27 @@ user chmod +x "$LOCK_DIR/lock.sh"
 # --- 4. themes the lock reads, plus the themes_link the lock resolves ---------
 echo "  lock themes -> $QYLOCK_DIR/themes"
 user mkdir -p "$QYLOCK_DIR"
-user rm -rf "$QYLOCK_DIR/themes"
-user cp -a "$BUNDLE/themes" "$QYLOCK_DIR/themes"
+# refresh the SHIPPED themes only: a wholesale rm -rf here deleted every theme
+# the user had installed from the catalog alongside them.
+user mkdir -p "$QYLOCK_DIR/themes"
+for _t in "$BUNDLE/themes/"*; do
+  [[ -d $_t ]] || continue
+  user rm -rf "$QYLOCK_DIR/themes/$(basename "$_t")"
+  user cp -a "$_t" "$QYLOCK_DIR/themes/$(basename "$_t")"
+done
 user ln -sfn "$QYLOCK_DIR/themes" "$LOCK_DIR/themes_link"
 
-# --- 5. active lock theme (user) ---------------------------------------------
-echo "  lock theme preference -> $TARGET_HOME/.config/qylock/theme"
-user mkdir -p "$TARGET_HOME/.config/qylock"
-write_user "$TARGET_HOME/.config/qylock/theme" <<'EOF'
+# --- 5. active lock theme (user, seed once) -----------------------------------
+# only when absent: rerunning the installer (or doctor healing a missing
+# locker) must not reset a theme the user picked in Ryoku Settings.
+if [[ ! -s $TARGET_HOME/.config/qylock/theme ]]; then
+  echo "  lock theme preference -> $TARGET_HOME/.config/qylock/theme"
+  user mkdir -p "$TARGET_HOME/.config/qylock"
+  write_user "$TARGET_HOME/.config/qylock/theme" <<'EOF'
 clockwork/orbital
 EOF
+else
+  echo "  lock theme preference kept ($(cat "$TARGET_HOME/.config/qylock/theme" 2>/dev/null))"
+fi
 
 echo "qylock clockwork/orbital installed."
