@@ -58,7 +58,7 @@ function defaultConfig() {
             weather: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
         },
         surfaces: {
-            stash: { anchor: "left", minWidth: 340, panes: ["stash"] },
+            stash: { anchor: "right", minWidth: 340, panes: ["stash"] },
             system: { anchor: "right", minWidth: 340, panes: ["notifications", "calendar", "media", "weather", "recording"] }
         },
         dock: { pinned: [] }

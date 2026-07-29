@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **Doctor moves a persisted Stash sidebar to the right.** The Stash board is now
+  the floating Features page on the right, but a box that persisted frameBars
+  still carried `surfaces.stash.anchor: "left"` (the old full-span default), which
+  normalize keeps, so the page would grow from the wrong edge. Doctor flips that
+  one leaf to `right` in place, leaving every other key untouched
+  (`internal/doctor/reconcile_stash_sidebar.go`, `internal/doctor/doctor.go`).
 - **Doctor installs the missing in-session lockscreen.** Only the ISO installer
   ever laid down the qylock lock, so a box that predates the step (or where it
   failed) had a dead lock button and suspended without locking, silently:

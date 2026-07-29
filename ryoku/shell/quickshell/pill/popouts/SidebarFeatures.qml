@@ -35,7 +35,7 @@ Item {
     readonly property bool dragActive: deckStash.dragActive && root.effectivePane === "stash"
 
     anchors.fill: parent
-    implicitWidth: 340 * s
+    implicitWidth: 360 * s
 
     // the feature catalog: every pane this side knows how to show, keyed. tabs
     // are the enabled `panes` mapped over it -- unknown keys dropped, order kept.

@@ -526,6 +526,11 @@ ShellRoot {
 
             readonly property bool surfaceModal: frameMenus.surfaceModal
 
+            // drag-to-stash: a file dragged to the right screen edge opens the
+            // stash; works on any bar style, so it is not gated on the sumi frame.
+            readonly property bool rightDropOn: !overlay.monFullscreen
+            readonly property real rightDropW: Math.max(root.edgeReserve("right"), 64)
+
             // true when this monitor's visible workspace holds a fullscreen
             // window. Fullscreen owns the id -> fullscreen map (hyprctl-backed,
             // fork-proof); the monitor -> active workspace hop stays event-driven.
@@ -558,7 +563,7 @@ ShellRoot {
                 : (frameMenus.anyOpen || recHud.dragging) ? fullRegion
                 : root.sumiActive ? railRegion
                 : (Recorder.anyActive || Recorder.chooserOpen) ? recRegion
-                : hiddenRegion
+                : dragRegion
 
             Region { id: hiddenRegion }
             Region {
@@ -600,6 +605,8 @@ ShellRoot {
                 Region { x: frameMenus.masks["bottom-right"].bx; y: frameMenus.masks["bottom-right"].by; width: frameMenus.masks["bottom-right"].bw; height: frameMenus.masks["bottom-right"].bh }
                 Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
                 Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
+                // right edge stays masked so a file drag lands on the DropArea below.
+                Region { x: overlay.width - overlay.rightDropW; y: 0; width: overlay.rightDropOn ? overlay.rightDropW : 0; height: overlay.rightDropOn ? overlay.height : 0 }
             }
 
             // Record island only, for a folder bar style (sumi frame + rails off).
@@ -607,6 +614,13 @@ ShellRoot {
                 id: recRegion
                 Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
                 Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
+            }
+
+            // folder bar styles (obi) have no rail mask, so carry the stash drop
+            // strip on its own region for the idle-desktop case.
+            Region {
+                id: dragRegion
+                Region { x: overlay.width - overlay.rightDropW; y: 0; width: overlay.rightDropOn ? overlay.rightDropW : 0; height: overlay.rightDropOn ? overlay.height : 0 }
             }
 
             // Outside-click closes whatever is open (user decision, recorded as
@@ -732,6 +746,28 @@ ShellRoot {
                         function onSurfaceCloseRequested(id, mon) { frameMenus.closeSurface(id, mon); }
                         function onBarMenuRequested(mon, id) { frameMenus.openSurface(id, null, mon); }
                         function onKeyringPromptChanged(promptId) { frameMenus.retireKeyringPrompt(promptId); }
+                    }
+                }
+
+                // drag-to-stash: dragging a file onto the right edge opens the stash
+                // page right there; a drop stashes it. z above the rails wins the drag.
+                DropArea {
+                    id: rightEdgeDrop
+                    z: 3
+                    x: overlay.width - overlay.rightDropW
+                    y: 0
+                    width: overlay.rightDropOn ? overlay.rightDropW : 0
+                    height: overlay.rightDropOn ? overlay.height : 0
+                    onEntered: {
+                        if (frameMenus.liveAnchorFor("stash") === "") {
+                            frameMenus.stashPane = "stash";
+                            frameMenus.openSurface("stash", null, overlay.modelData.name);
+                        }
+                    }
+                    onDropped: drop => {
+                        for (var i = 0; i < drop.urls.length; i++)
+                            Stash.addUrl(drop.urls[i]);
+                        drop.accept();
                     }
                 }
 

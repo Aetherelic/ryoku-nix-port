@@ -65,7 +65,8 @@ Item {
     readonly property var surfaces: {
         const src = Config.normalizedFrameBars.surfaces || ({});
         const out = [];
-        for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: true }, src[id]));
+        // stash is the floating Features page (non-span); other surfaces stay full-span.
+        for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: id !== "stash" }, src[id]));
         out.push(
             { id: "power", kind: "power", anchor: "top", minWidth: 480 },
             { id: "voice", kind: "voice", anchor: "bottom", minWidth: 380 },

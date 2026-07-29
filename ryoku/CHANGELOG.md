@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- **Super+T opens the Stash Features sidebar.** The floating Features page (the
+  Stash board, with room for more panes) now has a keybind, growing from the
+  right edge (`ryoku-shell menu stash`); Super+Shift+T (terminal) is unchanged
+  (`hyprland/modules/binds.lua`).
 - **Administrator passwords are asked for on a Ryoku island.** The shell daemon
   now registers as the PolicyKit1 authentication agent, so a privileged action
   prompts on the same island the keyring prompt uses instead of the stock Qt

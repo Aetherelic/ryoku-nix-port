@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Stash is the floating "Features" sidebar: right edge, tall card, Super+T.**
+  The Stash board moved off the full-span left sidebar into a floating card that
+  slides open from the right edge (the music/Bluetooth popout envelope), centred
+  and tall, with room for more feature panes. Super+T toggles it; dragging a file
+  onto the right edge opens it too, and a drop there stashes straight into
+  ~/Downloads/Stash. The `stash` surface is non-full-span, default anchor `right`;
+  the system sidebar stays full-span (`quickshell/pill/FrameSurface.qml`,
+  `quickshell/pill/FrameMenuManager.qml`, `quickshell/pill/popouts/SidebarFeatures.qml`,
+  `quickshell/pill/shell.qml`, `framebars/FrameBars.js`).
 - **The bar is a pluggable style you pick, and a first alternate ships: Obi.**
   The four-rail frame bar is now one of several drop-in bar styles. A `barStyle`
   key in shell.json selects the active one; each style is a self-contained folder
@@ -42,6 +51,35 @@
   (`quickshell/pill/framebars/menus/MenuQuickSettings.qml`).
 
 ### Fixed
+- **A shell reload no longer kills the apps you launched, or your clipboard.**
+  The daemon's unit tore down its whole control group on stop, so every reload
+  took down apps started from the shell (Discord and the like) and the wl-copy
+  holding the last copy, leaving Discord gone and a just-copied screenshot
+  un-pasteable. The unit kills only the daemon now (KillMode=process); it already
+  reaps its own surfaces, so launched apps and the live selection survive. The
+  start-rate keys also move to [Unit], where systemd actually reads them
+  (`systemd/user/ryoku-shell.service`).
+- **Recordings capture a live (video) wallpaper again.** gpu-screen-recorder's
+  KMS capture drops ryoku-livewall's background layer, so a live wall recorded as
+  a frozen still. A full-screen capture over a live wallpaper now goes through the
+  ScreenCast portal (Ryoku's own in-frame picker, kept by a restore token), which
+  records the full composite. Where the portal yields no stream (a hybrid-GPU
+  DMA-BUF quirk in xdg-desktop-portal-hyprland) it falls back to wf-recorder and
+  remembers that per GPU topology, so the dead-end picker is skipped next time.
+  Region captures stay on the KMS path (`hyprland/scripts/ryoku-cmd-screenrecord`).
+- **The recording island is clickable again under a folder bar style.** With a
+  non-sumi style active (e.g. Obi) the frame overlay's input region collapsed to
+  click-through whenever no menu was open, so the floating island rendered but ate
+  no clicks mid-capture: pause, stop, the mutes and dragging all fell through, and
+  only opening a menu (Super+S) revived it. The overlay now exposes the island's
+  own rect while a capture runs or its chooser is open, whatever the bar style
+  (`quickshell/pill/shell.qml`).
+- **The Super+S capture card can arm the webcam mirror before recording.** The
+  mirror (webcam self-view) toggled only from the record island's pre-record
+  chooser, which is gone once a capture runs, so there was no way to set it up
+  from the Super+S menu. The card's Record row now carries a webcam toggle beside
+  the audio ones, so you activate and place the bubble before you start
+  (`quickshell/pill/popouts/CapturePopout.qml`).
 - **The overview's workspace and desktop switches no longer bounce you straight
   back.** Clicking a workspace cell, the "+", or a window dispatched the Hyprland
   focus and then closed the expo in the same breath; releasing the overlay's

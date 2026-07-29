@@ -53,10 +53,13 @@ Popout {
     // Surfaces size to their content at the monitor UI scale (unlike the fixed
     // reference-pixel menus). A full-span sidebar fills the frame top-to-bottom.
     openW: Math.max(root.minWidth * root.s, body.item ? body.item.implicitWidth : 0)
-    openH: root.fullSpan ? root.height : (body.item ? body.item.implicitHeight : 0)
+    // stash is a tall floating card; other non-span surfaces size to content.
+    openH: root.fullSpan ? root.height
+        : root.kind === "stash" ? Math.round(root.height * 0.8)
+        : (body.item ? body.item.implicitHeight : 0)
 
-    // the card popouts float off the frame lip; the sidebars/menus abut.
-    edgeGap: (root.kind === "music" || root.kind === "bluetooth" || root.kind === "battery" || root.kind === "network" || root.kind === "voice" || root.kind === "sysmon" || root.kind === "audio" || root.kind === "screenshot") ? 10 * root.s : 0
+    // card popouts and the floating stash page float off the frame lip; sidebars abut.
+    edgeGap: (root.kind === "music" || root.kind === "bluetooth" || root.kind === "battery" || root.kind === "network" || root.kind === "voice" || root.kind === "sysmon" || root.kind === "audio" || root.kind === "screenshot" || root.kind === "stash") ? 10 * root.s : 0
 
     readonly property bool sideMenu: root.edge === "left" || root.edge === "right"
 
@@ -186,8 +189,9 @@ Popout {
         id: stashBody
         SidebarFeatures {
             s: root.s
-            topInset: root.manager ? root.manager.sidebarTopInset : 0
-            botInset: root.manager ? root.manager.sidebarBottomInset : 0
+            // a floating card, not a welded sidebar: plain padding.
+            topInset: 20 * root.s
+            botInset: 20 * root.s
             open: root.effectiveOpen
             panes: root.record ? root.record.panes : []
             pane: root.manager ? root.manager.stashPane : ""

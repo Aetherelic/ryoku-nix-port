@@ -63,7 +63,7 @@ const renamed = normalize({ menus: { launcher: { anchor: "right", minWidth: 999 
 eq(renamed.menus.launcher, undefined, "normalize drops the retired launcher menu id from a stale config");
 eq(renamed.menus["app-launcher"], undefined, "normalize drops the retired app-launcher menu id from a stale config");
 eq(renamed.menus.notifications, undefined, "the retired notifications menu never returns from normalize");
-eq(normalized.surfaces.stash.anchor, "left", "normalizer normalizes invalid surface anchor");
+eq(normalized.surfaces.stash.anchor, "right", "normalizer normalizes invalid surface anchor");
 eq(normalized.arbitrary, undefined, "normalizer drops arbitrary keys");
 
 const addInput = defaultConfig();
@@ -92,7 +92,7 @@ const menuInput = defaultConfig();
 eq(setMenu(menuInput, "quick-settings", { anchor: "top-right", widgets: ["clock"] }, MenuCatalog).menus["quick-settings"].anchor, "top-right", "menu updates normalize anchors");
 eq(menuInput, defaultConfig(), "setMenu leaves its input unchanged");
 const surfaceInput = defaultConfig();
-eq(setSurface(surfaceInput, "stash", { anchor: "bad" }, MenuCatalog).surfaces.stash.anchor, "left", "surface updates normalize anchors");
+eq(setSurface(surfaceInput, "stash", { anchor: "bad" }, MenuCatalog).surfaces.stash.anchor, "right", "surface updates normalize anchors");
 eq(surfaceInput, defaultConfig(), "setSurface leaves its input unchanged");
 
 const nestedInput = defaultConfig();

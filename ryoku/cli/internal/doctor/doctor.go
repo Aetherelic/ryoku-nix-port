@@ -123,6 +123,7 @@ func reconcilers() []reconciler {
 		{"shell style knobs", reconcileLegacyStyleKnobs},
 		{"sumi bar simplification", reconcileSumiBar},
 		{"shell screenshot menu", reconcileCaptureMenu},
+		{"stash features sidebar anchor", reconcileStashSidebar},
 		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
 		{"user edits overlay", reconcileUserEditsAdopt},
 		{"keyring unlock policy", reconcileKeyring},
