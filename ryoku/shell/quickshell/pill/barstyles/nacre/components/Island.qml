@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../../../Singletons"
+import "." as Components
 
 Rectangle {
     id: root
@@ -34,7 +35,7 @@ Rectangle {
 
         Repeater {
             model: root.widgetIds
-            delegate: WidgetHost {
+            delegate: Components.WidgetHost {
                 required property string modelData
                 widgetId: modelData
                 barHeight: root.barHeight

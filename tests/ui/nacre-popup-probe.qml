@@ -3,7 +3,6 @@ import Quickshell
 import "barstyles/shared" as Shared
 import "barstyles/shared/popouts" as Popouts
 import "barstyles/obi/widgets" as Obi
-import "barstyles/nacre" as Nacre
 import "barstyles/nacre/widgets" as NacreWidgets
 
 ShellRoot {
@@ -25,7 +24,13 @@ ShellRoot {
     Component { id: obiMedia; Obi.Media {} }
     Component { id: obiResources; Obi.Resources {} }
     Component { id: obiWeather; Obi.Weather {} }
-    Component { id: nacreScene; Nacre.Scene { modelData: Quickshell.screens[0] } }
+    Component {
+        id: nacreScene
+        Loader {
+            source: "barstyles/nacre/Scene.qml"
+            onLoaded: item.modelData = Quickshell.screens[0]
+        }
+    }
     Component { id: nacreActiveWindow; NacreWidgets.ActiveWindow {} }
     Component { id: nacreAudio; NacreWidgets.Audio {} }
     Component { id: nacreBattery; NacreWidgets.Battery {} }
@@ -46,7 +51,7 @@ ShellRoot {
             const components = [
                 audio, battery, calendar, connectivity, media, resources, weather,
                 obiAudio, obiBattery, obiClock, obiConnectivity, obiMedia, obiResources, obiWeather,
-                nacreScene, nacreActiveWindow, nacreAudio, nacreBattery, nacreBrand, nacreClock,
+                nacreActiveWindow, nacreAudio, nacreBattery, nacreBrand, nacreClock,
                 nacreConnectivity, nacreMedia, nacreResources, nacreTray, nacreUtils, nacreWeather,
                 nacreWorkspaces
             ];
@@ -56,6 +61,10 @@ ShellRoot {
                     throw new Error("NACRE-POPUP-PROBE-FAIL");
                 item.destroy();
             }
+            const scene = nacreScene.createObject(root);
+            if (!scene || scene.status !== Loader.Ready)
+                throw new Error("NACRE-SCENE-PROBE-FAIL");
+            scene.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");
             Qt.quit();
         }

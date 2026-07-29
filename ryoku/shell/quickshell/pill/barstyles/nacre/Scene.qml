@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import "../../Singletons"
-import "components"
+import "components" as Components
 
 PanelWindow {
     id: root
@@ -34,7 +34,7 @@ PanelWindow {
         color: Theme.outline
     }
 
-    Island {
+    Components.Island {
         id: centerIsland
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
@@ -47,7 +47,7 @@ PanelWindow {
         maxWidth: root.width - root.settings.islandGap * 2
     }
 
-    Island {
+    Components.Island {
         id: leftIsland
         anchors.top: parent.top
         anchors.left: parent.left
@@ -60,7 +60,7 @@ PanelWindow {
         maxWidth: Math.max(0, centerIsland.x - root.settings.islandGap)
     }
 
-    Island {
+    Components.Island {
         id: rightIsland
         anchors.top: parent.top
         anchors.right: parent.right
