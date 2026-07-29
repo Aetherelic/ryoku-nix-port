@@ -5,6 +5,10 @@ monitor's frame scene. `ryoku/shell/quickshell/pill/Bar.qml` creates a
 `FrameRail` for each edge and reads the normalized `frameBars` object from
 `~/.config/ryoku/shell.json`.
 
+The frame bars described here are Ryoku's built-in **Sumi** bar style. A
+different bar can be loaded from a self-contained folder under
+`pill/barstyles/`; to build one, see `docs/barstyles.md`.
+
 A rail is a thin interactive strip, not a second panel process. The monitor
 overlay owns its input region and the corresponding exclusive-zone reserve, so
 tiled windows clear exactly the enabled edge rails.
