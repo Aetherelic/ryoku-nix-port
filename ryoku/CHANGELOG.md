@@ -25,6 +25,14 @@
   `shell.json` keys without touching preserved sidebar state.
 
 ### Fixed
+- **Steam Big Picture and launched games render native and stay awake.** Steam is
+  an XWayland app, so Big Picture and the client (class `steam`), launched games
+  (`steam_app_*`) and `gamescope` inherited the desktop blur and shadow (per-frame
+  GPU cost and a floating-card look) and the 0.94 inactive opacity, which turned a
+  game translucent the moment focus left it; `hypridle` also had no fullscreen
+  exception, so controller-only play dimmed at 5 min and locked at 10. A window
+  rule now strips blur and shadow, forces them opaque, and inhibits idle while
+  fullscreen (`hyprland/modules/window_rules.lua`).
 - **Multi-monitor: switching to a workspace on another monitor no longer drags
   its windows to the focused monitor.** `scripts/ryoku-workspace` dropped the
   `workspace.move({ monitor = "current" })` that pulled the target workspace onto

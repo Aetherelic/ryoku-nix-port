@@ -138,3 +138,19 @@ hl.window_rule({
     size   = { 1180, 760 },
     center = true,
 })
+
+-- Steam is an XWayland app: Big Picture and the client (both class "steam"),
+-- launched games (steam_app_<id>) and gamescope otherwise inherit the desktop's
+-- blur and shadow (per-frame GPU cost, a floating-card look) and the 0.94
+-- inactive opacity, which turns a game translucent the moment focus leaves it.
+-- Strip that chrome and force them opaque so they read like a native fullscreen
+-- app, and inhibit idle while fullscreen so controller-only play never dims or
+-- locks (hypridle has no fullscreen exception). steamwebhelper stays untouched.
+hl.window_rule({
+    name         = "steam-native",
+    match        = { class = "^(steam|steam_app_.*|gamescope)$" },
+    no_blur      = true,
+    no_shadow    = true,
+    opaque       = true,
+    idle_inhibit = "fullscreen",
+})
