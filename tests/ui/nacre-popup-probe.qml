@@ -9,6 +9,30 @@ import "barstyles/nacre/widgets" as NacreWidgets
 ShellRoot {
     id: root
 
+    function findObject(item, name) {
+        if (!item)
+            return null;
+        if (item.objectName === name)
+            return item;
+        const children = item.children || [];
+        for (const child of children) {
+            const found = root.findObject(child, name);
+            if (found)
+                return found;
+        }
+        return null;
+    }
+
+    function visibleText(item) {
+        if (!item)
+            return [];
+        let values = item.visible && typeof item.text === "string" ? [item.text] : [];
+        const children = item.children || [];
+        for (const child of children)
+            values = values.concat(root.visibleText(child));
+        return values;
+    }
+
     Shared.Popout {}
 
     Component { id: audio; Popouts.AudioPopout {} }
@@ -99,6 +123,16 @@ ShellRoot {
             populatedIsland.widgetIds = [];
             populatedIsland.destroy();
             emptyIsland.destroy();
+            const resourcesFace = nacreResources.createObject(root);
+            if (!resourcesFace
+                    || !root.findObject(resourcesFace, "nacre-health-cpu")
+                    || !root.findObject(resourcesFace, "nacre-health-memory")
+                    || !root.findObject(resourcesFace, "nacre-health-temperature"))
+                throw new Error("NACRE-HEALTH-ICONS-PROBE-FAIL");
+            const healthText = root.visibleText(resourcesFace);
+            if (healthText.some(value => value.startsWith("CPU ") || value.startsWith("RAM ")))
+                throw new Error("NACRE-HEALTH-WORDS-PROBE-FAIL");
+            resourcesFace.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");
             Qt.quit();
         }

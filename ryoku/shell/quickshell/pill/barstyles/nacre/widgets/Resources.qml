@@ -16,29 +16,51 @@ Item {
     Component.onDestruction: Sysinfo.setActive(root, false)
     HoverHandler { id: hover }
 
+    component HealthValue: Row {
+        required property string glyph
+        required property string value
+        property color valueColor: Theme.onSurfaceVariant
+
+        spacing: 3
+
+        Pill.MaterialIcon {
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.glyph
+            color: parent.valueColor
+            font.pixelSize: Theme.iconSm
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.value
+            color: parent.valueColor
+            font.family: Theme.mono
+            font.pixelSize: Theme.fontSm
+        }
+    }
+
     Row {
         id: content
         anchors.centerIn: parent
         spacing: 8
 
-        Text {
-            text: "CPU " + Math.round(Sysinfo.cpu * 100) + "%"
-            color: Sysinfo.cpu > 0.85 ? Theme.error : Theme.onSurfaceVariant
-            font.family: Theme.mono
-            font.pixelSize: Theme.fontSm
+        HealthValue {
+            objectName: "nacre-health-cpu"
+            glyph: "memory"
+            value: Math.round(Sysinfo.cpu * 100) + "%"
+            valueColor: Sysinfo.cpu > 0.85 ? Theme.error : Theme.onSurfaceVariant
         }
-        Text {
-            text: "RAM " + Math.round(Sysinfo.mem * 100) + "%"
-            color: Sysinfo.mem > 0.9 ? Theme.error : Theme.onSurfaceVariant
-            font.family: Theme.mono
-            font.pixelSize: Theme.fontSm
+        HealthValue {
+            objectName: "nacre-health-memory"
+            glyph: "memory_alt"
+            value: Math.round(Sysinfo.mem * 100) + "%"
+            valueColor: Sysinfo.mem > 0.9 ? Theme.error : Theme.onSurfaceVariant
         }
-        Text {
+        HealthValue {
+            objectName: "nacre-health-temperature"
             visible: Sysinfo.hasTemp
-            text: Math.round(Sysinfo.tempC) + "°"
-            color: Sysinfo.tempC > 80 ? Theme.error : Theme.onSurfaceVariant
-            font.family: Theme.mono
-            font.pixelSize: Theme.fontSm
+            glyph: "thermostat"
+            value: Math.round(Sysinfo.tempC) + "°"
+            valueColor: Sysinfo.tempC > 80 ? Theme.error : Theme.onSurfaceVariant
         }
     }
 
