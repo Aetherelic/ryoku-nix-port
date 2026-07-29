@@ -3,7 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import "../../../Singletons"
-import "../components" as C
+import "../../shared" as Shared
+import "../../shared/popouts" as Popouts
 
 // Obi clock: time in mono, a middot, then the short date. Hovering opens a
 // popout with the full date.
@@ -38,46 +39,15 @@ Item {
         }
     }
 
-    C.Popout {
+    Shared.Popout {
         target: root
         targetHovered: hh.hovered
+        namespace: "ryoku-obi-popout"
         content: popContent
     }
 
     Component {
         id: popContent
-        Item {
-            implicitWidth: col.implicitWidth + 40
-            implicitHeight: col.implicitHeight + 36
-
-            Column {
-                id: col
-                anchors.centerIn: parent
-                spacing: 4
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: Qt.formatDateTime(clock.date, "HH:mm")
-                    color: Theme.onSurface
-                    font.family: Theme.mono
-                    font.pixelSize: Theme.fontXxl
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: Qt.formatDateTime(clock.date, "dddd")
-                    color: Theme.onSurface
-                    font.family: Theme.fontPrimary
-                    font.pixelSize: Theme.fontLg
-                    font.weight: Font.Bold
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: Qt.formatDateTime(clock.date, "d MMMM yyyy")
-                    color: Theme.onSurfaceVariant
-                    font.family: Theme.fontPrimary
-                    font.pixelSize: Theme.fontSm
-                }
-            }
-        }
+        Popouts.CalendarPopout {}
     }
 }

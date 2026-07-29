@@ -4,7 +4,8 @@ import QtQuick
 import QtQuick.Shapes
 import "../../../Singletons"
 import "../../.." as Pill
-import "../components" as C
+import "../../shared" as Shared
+import "../../shared/popouts" as Popouts
 
 // Obi resources: twin compact ring gauges (CPU then RAM) bound live to Sysinfo,
 // each a subtle track with a monochrome fill and a tiny glyph in the centre.
@@ -91,92 +92,15 @@ Item {
         RingGauge { value: Sysinfo.mem; glyph: "memory_alt" }
     }
 
-    C.Popout {
+    Shared.Popout {
         target: root
         targetHovered: hh.hovered
+        namespace: "ryoku-obi-popout"
         content: popContent
     }
 
     Component {
         id: popContent
-        Item {
-            implicitWidth: 280
-            implicitHeight: col.implicitHeight + 36
-
-            component ResBar: Column {
-                id: rb
-                property string label: ""
-                property real frac: 0
-                property string value: ""
-                width: parent.width
-                spacing: 4
-
-                Item {
-                    width: parent.width
-                    height: lbl.implicitHeight
-
-                    Text {
-                        id: lbl
-                        anchors.left: parent.left
-                        text: rb.label
-                        color: Theme.onSurfaceVariant
-                        font.family: Theme.fontPrimary
-                        font.pixelSize: Theme.fontSm
-                    }
-                    Text {
-                        anchors.right: parent.right
-                        text: rb.value
-                        color: Theme.onSurface
-                        font.family: Theme.mono
-                        font.pixelSize: Theme.fontSm
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 4
-                    radius: 2
-                    color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.15)
-                    Rectangle {
-                        width: parent.width * Math.max(0, Math.min(1, rb.frac))
-                        height: parent.height
-                        radius: parent.radius
-                        color: Theme.onSurface
-                    }
-                }
-            }
-
-            Column {
-                id: col
-                anchors.centerIn: parent
-                width: 240
-                spacing: 12
-
-                Text {
-                    text: "Resources"
-                    color: Theme.onSurface
-                    font.family: Theme.fontPrimary
-                    font.pixelSize: Theme.fontMd
-                    font.weight: Font.Bold
-                }
-
-                ResBar {
-                    label: "CPU"
-                    frac: Sysinfo.cpu
-                    value: Math.round(Sysinfo.cpu * 100) + "%"
-                }
-                ResBar {
-                    label: "Memory"
-                    frac: Sysinfo.mem
-                    value: Sysinfo.memUsedGiB.toFixed(1) + " / " + Sysinfo.memTotalGiB.toFixed(1) + " GiB"
-                }
-                ResBar {
-                    visible: Sysinfo.hasTemp
-                    label: "Temperature"
-                    frac: Math.min(1, Sysinfo.tempC / 100)
-                    value: Math.round(Sysinfo.tempC) + "°C"
-                }
-            }
-        }
+        Popouts.ResourcesPopout {}
     }
 }
