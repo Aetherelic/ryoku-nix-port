@@ -35,6 +35,20 @@ Item {
     }
     property bool active: true
 
+    // A folder bar style (topBar) is a top sash with no side or bottom rails, so
+    // the frame menus drop from the top edge: side and bottom anchors fold up to
+    // the matching top edge or corner (so Super+S lands top-left).
+    property bool topBar: false
+    function mapAnchor(a) {
+        if (!root.topBar || !a) return a;
+        if (a === "left") return "top-left";
+        if (a === "right") return "top-right";
+        if (a === "bottom") return "top";
+        if (a === "bottom-left") return "top-left";
+        if (a === "bottom-right") return "top-right";
+        return a;
+    }
+
     readonly property var menus: {
         const src = Config.normalizedFrameBars.menus || ({});
         const out = [];
@@ -83,7 +97,10 @@ Item {
         );
         return out;
     }
-    readonly property var records: menus.concat(surfaces)
+    readonly property var records: {
+        const all = root.menus.concat(root.surfaces);
+        return root.topBar ? all.map(r => Object.assign({}, r, { anchor: root.mapAnchor(r.anchor) })) : all;
+    }
     property string stashPane: ""
     property string systemPane: ""
     property real sidebarTopInset: 0

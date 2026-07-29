@@ -32,6 +32,17 @@ Singleton {
     property alias frameBars: adapter.frameBars
     readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
+    // barStyle: which bar design renders. "sumi" is the built-in left rail; any
+    // other id is a self-contained folder under pill/barstyles/<id>, registered
+    // in BarStyles, that owns its own bar, popouts and settings. Default sumi.
+    property alias barStyle: adapter.barStyle
+
+    // obi: per-widget visibility for the Obi bar style, edited in Bar Studio.
+    // A map of widgetId -> bool; an absent key reads as shown, so the bar is
+    // full by default and only an explicit false hides a widget. Each folder
+    // style gets its own key here, the extensible per-style settings store.
+    property alias obi: adapter.obi
+
     // typography: a scale that grows or shrinks the whole shell (the bar text
     // and the surfaces around it), keeping the readout legible without overflow.
     property alias fontScale:  adapter.fontScale
@@ -103,6 +114,8 @@ Singleton {
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property var frameBars: FrameBars.defaultConfig()
+            property string barStyle: "sumi"
+            property var obi: ({})
         }
     }
 

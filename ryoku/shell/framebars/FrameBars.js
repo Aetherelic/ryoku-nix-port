@@ -45,7 +45,7 @@ function defaultConfig() {
         version: 1,
         style: "slate-frame",
         rails: {
-            top: { enabled: true, size: 32, reveal: true, start: [], center: [], end: [] },
+            top: { enabled: false, size: 32, reveal: true, start: [], center: [], end: [] },
             left: { enabled: true, size: 48, reveal: true, top: ["quick-settings", "workspaces"], center: ["dock"], bottom: ["recording", "tray", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery"] },
             bottom: { enabled: false, size: 32, reveal: true, start: [], center: [], end: [] },
             right: { enabled: false, size: 48, reveal: true, top: [], center: [], bottom: [] }

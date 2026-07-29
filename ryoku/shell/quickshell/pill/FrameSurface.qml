@@ -45,7 +45,10 @@ Popout {
     fullSpan: record && record.fullSpan === true
     hoverOpen: false
     pinned: root.menuOpen
-    alongCenter: root.triggerAlong
+    // A keybind open centres the surface on the screen midpoint (triggerAlong).
+    // A folder style remaps side anchors to top corners, where align (start/end)
+    // must win so the surface hugs that corner instead of the centre.
+    alongCenter: root.align === "center" ? root.triggerAlong : -1
 
     // Surfaces size to their content at the monitor UI scale (unlike the fixed
     // reference-pixel menus). A full-span sidebar fills the frame top-to-bottom.

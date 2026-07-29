@@ -18,6 +18,7 @@ import Ryoku.Blobs
 import Ryoku.Ui
 import "Singletons"
 import "framebars/RailGeometry.js" as RailGeometry
+import "barstyles/registry.js" as BarStyles
 
 // Per monitor the shell maps exclusive-zone frame rails, a
 // full-screen transparent overlay for the frame and retained surfaces, and the
@@ -84,6 +85,11 @@ ShellRoot {
     // plus the frame border. A hidden bar reserves nothing and releases its
     // edge; hover reveals a hidden bar inside the frame without re-reserving.
     readonly property real frameBorderPx: Config.frameThickness
+
+    // Active bar style: the built-in Sumi frame scene draws only while the
+    // active style is the built-in one; a folder style releases the edge
+    // reserves, hides the frame + rails, and loads its own Scene below instead.
+    readonly property bool sumiActive: BarStyles.sceneUrl(Config.barStyle) === ""
     property var edgeRevealed: ({ top: false, bottom: false, left: false, right: false })
     // The reveal baseline (config `reveal` per edge) is applied live after
     // startup: a Bar Studio pin/auto-hide edit retargets edgeRevealed for the
@@ -459,7 +465,7 @@ ShellRoot {
             required property var modelData
             edge: "top"
             screen: modelData
-            reserve: root.edgeReserve("top")
+            reserve: root.sumiActive ? root.edgeReserve("top") : 0
         }
     }
     Variants {
@@ -468,7 +474,7 @@ ShellRoot {
             required property var modelData
             edge: "bottom"
             screen: modelData
-            reserve: root.edgeReserve("bottom")
+            reserve: root.sumiActive ? root.edgeReserve("bottom") : 0
         }
     }
     Variants {
@@ -477,7 +483,7 @@ ShellRoot {
             required property var modelData
             edge: "left"
             screen: modelData
-            reserve: root.edgeReserve("left")
+            reserve: root.sumiActive ? root.edgeReserve("left") : 0
         }
     }
     Variants {
@@ -486,7 +492,7 @@ ShellRoot {
             required property var modelData
             edge: "right"
             screen: modelData
-            reserve: root.edgeReserve("right")
+            reserve: root.sumiActive ? root.edgeReserve("right") : 0
         }
     }
 
@@ -548,7 +554,7 @@ ShellRoot {
             // clamps at the frame lips, so the pointer can slide off its rect
             // mid-drag; losing the region there kills the grab and the island
             // snaps home while the button is still held.
-            mask: monFullscreen ? hiddenRegion
+            mask: (monFullscreen || (!root.sumiActive && !frameMenus.anyOpen)) ? hiddenRegion
                 : ((frameMenus.anyOpen || recHud.dragging) ? fullRegion : railRegion)
 
             Region { id: hiddenRegion }
@@ -664,7 +670,7 @@ ShellRoot {
                     panelW: frameMenus.chromePanel.w
                     panelH: frameMenus.chromePanel.h
                     opacity: Theme.windowOpacity
-                    visible: !overlay.monFullscreen && Config.frameEnabled
+                    visible: !overlay.monFullscreen && Config.frameEnabled && root.sumiActive
                 }
 
 
@@ -672,7 +678,7 @@ ShellRoot {
                     id: frameRails
                     anchors.fill: parent
                     z: 1
-                    visible: !overlay.monFullscreen
+                    visible: !overlay.monFullscreen && root.sumiActive
                     // Fixed reference px: the frame does not scale with the
                     // monitor or fontScale, so the bar band matches the reserve.
                     railScale: 1
@@ -696,12 +702,13 @@ ShellRoot {
                     monitorName: overlay.modelData.name
                     scale: overlay.s
                     group: blobGroup
-                    railClearances: ({
+                    topBar: !root.sumiActive
+                    railClearances: root.sumiActive ? ({
                         top: overlay.railClearance("top"),
                         left: overlay.railClearance("left"),
                         bottom: overlay.railClearance("bottom"),
                         right: overlay.railClearance("right")
-                    })
+                    }) : ({ top: 52, left: 0, bottom: 0, right: 0 })
                     active: !overlay.monFullscreen
                     sidebarTopInset: overlay.sidebarTopGap
                     sidebarBottomInset: overlay.sidebarBotGap
@@ -737,6 +744,21 @@ ShellRoot {
                 }
 
             }
+        }
+    }
+
+    // Folder bar styles: a per-monitor Loader hosting the active style's own
+    // Scene (its bar surfaces + popouts) from pill/barstyles/<id>. Sumi is the
+    // built-in frame scene above; any other style loads here. The shell-wide
+    // surfaces below (OSD, notifications, session dialog) stay style-agnostic.
+    Variants {
+        model: Quickshell.screens
+        Loader {
+            required property var modelData
+            active: !root.sumiActive
+            source: BarStyles.sceneUrl(Config.barStyle)
+            onLoaded: if (item) item.modelData = modelData
+            onModelDataChanged: if (item) item.modelData = modelData
         }
     }
 

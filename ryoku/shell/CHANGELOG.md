@@ -3,6 +3,30 @@
 ## Unreleased
 
 ### Added
+- **The bar is a pluggable style you pick, and a first alternate ships: Obi.**
+  The four-rail frame bar is now one of several drop-in bar styles. A `barStyle`
+  key in shell.json selects the active one; each style is a self-contained folder
+  under `quickshell/pill/barstyles/<id>` holding its own Scene, widgets, popouts
+  and settings, listed in `barstyles/registry.js`. shell.qml draws the built-in
+  frame scene for "sumi" (the default, now the left rail only: top, bottom and
+  right are retired) and loads any other style's Scene per monitor. **Sumi** is
+  that left rail; **Obi** is a new floating top bar mirroring the iNiR shell:
+  kanji workspaces centred, CPU/RAM rings, a media chip with a live cava music
+  visualizer, a clock, audio output and input controls (scroll to set, click to
+  mute, a full mixer on hover), a battery, a Wi-Fi and Bluetooth connections chip
+  (network list and device list on hover), a tray and weather, each with its own
+  hover popout. Bar Studio becomes a style picker; for Sumi it edits the left
+  rail, and for Obi it shows a per-widget show/hide panel, stored per style in an
+  `obi` map in shell.json so a folder style owns its own settings. The shell's
+  global menus (wallpaper on Super+W, quick settings on Super+Esc, the capture
+  card on Super+S) adapt to a top-bar style: they drop from the top edge with
+  their own card, and the capture card lands top-left. `ryoku doctor` retires
+  top/bottom/right on existing installs. A guide to building your own style (with
+  the shell's IPC, cava, MPRIS and service singletons) is `docs/barstyles.md`
+  (`quickshell/pill/barstyles/`, `quickshell/pill/shell.qml`, `FrameMenuManager.qml`,
+  `FrameMenu.qml`, `FrameSurface.qml`, `Singletons/Config.qml`,
+  `hub/quickshell/pages/BarStudioPage.qml`, `hub/quickshell/Hub.qml`,
+  `cli/internal/doctor/doctor.go`, `docs/barstyles.md`).
 - **A video wallpaper stops while a window is fullscreen.** The player kept
   decoding behind a window covering every pixel of it, holding its buffers and
   burning CPU for nothing. The new Performance switch stops it on fullscreen and

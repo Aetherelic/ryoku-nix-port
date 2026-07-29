@@ -157,6 +157,21 @@ Item {
         width: root.panel ? root.panel.w : 0
         height: root.panel ? root.panel.h : 0
 
+        // A folder bar style hides the frame band, so a menu that would ride it
+        // paints its own card here instead, in the same rect the band would fill.
+        Rectangle {
+            visible: !!(root.manager && root.manager.topBar)
+            x: menuBody.x
+            y: menuBody.y
+            width: root.restW
+            height: root.restH
+            radius: root.radius
+            color: Theme.surface
+            border.width: Theme.borderWidth
+            border.color: Theme.outline
+            opacity: Theme.windowOpacity
+        }
+
         Loader {
             id: menuBody
             active: root.isMenu && root.effectiveOpen
