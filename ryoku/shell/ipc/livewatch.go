@@ -6,15 +6,9 @@ import (
 	"time"
 )
 
-// A video wallpaper keeps decoding behind a fullscreen window that hides every
-// pixel of it: the player holds its decode buffers and burns CPU for nothing.
-// This stops it while a window is genuinely fullscreen and brings it back on the
-// way out. The backdrop keeps painting the clip's own still frame underneath, so
-// there is nothing to redraw when it returns.
-//
-// Fullscreen, not the widget layer's "covered": that one reports covered when a
-// workspace merely holds a window, which would stop the wallpaper with the
-// desktop still in view.
+// Stops the video wallpaper while a window is fullscreen (the backdrop's still
+// frame stays underneath). Keyed on real fullscreen, not the widget layer's
+// "covered", which trips on any workspace that merely holds a window.
 
 func pauseLiveWallpaperWhenFullscreen() bool {
 	return perfFlagDefault("pauseLiveWallpaperWhenFullscreen", true)

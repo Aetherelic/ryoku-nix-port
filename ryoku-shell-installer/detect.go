@@ -78,9 +78,8 @@ var rivalShellPkgs = []string{
 var conflictBlockerPkgs = []string{
 	"pulseaudio", "pulseaudio-alsa", "pulseaudio-bluetooth",
 	"quickshell-git", "quickshell-bin",
-	// the AUR Bibata themes ship the same files as ryoku-cursors (its old
-	// delivery path, and what omarchy installs); left in place they file-
-	// conflict the whole desktop transaction to death.
+	// ship the same files as ryoku-cursors; left in place they file-conflict
+	// the whole desktop transaction to death
 	"bibata-cursor-theme", "bibata-cursor-theme-bin",
 }
 

@@ -196,6 +196,15 @@ func (d *daemon) startTray() {
 		}
 		return nil, t.menuEvent(a.Service, a.Item)
 	})
+	d.registerCall("tray.aboutToShow", func(raw json.RawMessage) (any, error) {
+		var a struct {
+			Service string `json:"service"`
+		}
+		if err := json.Unmarshal(raw, &a); err != nil {
+			return nil, err
+		}
+		return nil, t.aboutToShow(a.Service)
+	})
 
 	t.publish()
 }
@@ -522,6 +531,28 @@ func (t *trayState) menuEvent(service string, id int) error {
 	}
 	return t.conn.Object(bus, mp).Call(menuIface+".Event", dbus.FlagNoReplyExpected,
 		int32(id), "clicked", dbus.MakeVariant(int32(0)), uint32(time.Now().Unix())).Err
+}
+
+// aboutToShow asks the item's dbusmenu to populate itself before the shell draws
+// it, then re-reads the layout so a lazily-built menu (submenus filled only on
+// demand) is current. The AboutToShow error is ignored: menus that never
+// implement it still refresh from the last GetLayout.
+func (t *trayState) aboutToShow(service string) error {
+	t.mu.Lock()
+	it := t.items[service]
+	var bus string
+	var mp dbus.ObjectPath
+	if it != nil {
+		bus, mp = it.busName, it.menuPath
+	}
+	t.mu.Unlock()
+	if it == nil || mp == "" {
+		return fmt.Errorf("no menu for %s", service)
+	}
+	var needUpdate bool
+	_ = t.conn.Object(bus, mp).Call(menuIface+".AboutToShow", 0, int32(0)).Store(&needUpdate)
+	t.refreshMenu(it)
+	return nil
 }
 
 func (t *trayState) publish() {

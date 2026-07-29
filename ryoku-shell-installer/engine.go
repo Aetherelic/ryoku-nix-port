@@ -776,11 +776,9 @@ func stepPackages(e *engine) error {
 	return e.sudo(append([]string{"pacman", "-Syu", "--needed", "--noconfirm"}, pkgs...)...)
 }
 
-// dropSatisfied removes packages an installed provider already satisfies.
-// `pacman -T` prints only the unmet names, so a box with qt6ct-kde (an AUR
-// fork that conflicts with and provides qt6ct) keeps its fork instead of the
-// install dying on the conflict: --noconfirm answers the "remove it?" prompt
-// with no. Errors fall back to the full list; -T needs no root or network.
+// dropSatisfied keeps only what no installed provider satisfies (pacman -T
+// prints the unmet names), so a provides-conflict like qt6ct-kde cannot
+// abort the install under --noconfirm.
 func (e *engine) dropSatisfied(pkgs []string) []string {
 	if e.dry || len(pkgs) == 0 {
 		return pkgs

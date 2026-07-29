@@ -27,14 +27,19 @@ Singleton {
         }
     }
 
-    // Click intents: the reference opens the item's context menu on both buttons.
-    // The daemon owns the SNI Activate/SecondaryActivate/ContextMenu/Scroll
-    // methods; the in-shell dbusmenu popup is the transient-popup host's job (a
-    // separate surface slice), so left click asks the item to act and right click
-    // asks it to raise its own menu.
+    // Click intents. Left click asks the item to act (SNI Activate). Right click
+    // shows the item's menu: the shell renders the item's own dbusmenu tree (the
+    // published `menu`) in-shell and drives it through menuEvent, because the SNI
+    // ContextMenu method asks the app to raise its menu at a screen point, which a
+    // Wayland client cannot honour (it lands anywhere, or the app has no menu and
+    // raises its window instead). contextMenu stays only as the fallback for an
+    // item that exposes no dbusmenu. aboutToShow lets the item populate a lazily
+    // built menu before it is drawn; menuEvent clicks a menu entry by id.
     function activate(service, x, y) { root.send("tray.activate", { service: service, x: x, y: y }); }
     function contextMenu(service, x, y) { root.send("tray.contextMenu", { service: service, x: x, y: y }); }
     function scroll(service, delta, orientation) { root.send("tray.scroll", { service: service, delta: delta, orientation: orientation }); }
+    function aboutToShow(service) { root.send("tray.aboutToShow", { service: service }); }
+    function menuEvent(service, id) { root.send("tray.menuEvent", { service: service, item: id }); }
 
     function send(method, args) {
         ctl.queued += "call " + method + " " + JSON.stringify(args) + "\n";

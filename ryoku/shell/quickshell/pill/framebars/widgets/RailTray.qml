@@ -3,12 +3,14 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import "../../Singletons"
+import "../.." as Pill
 
 // System tray. State comes from the daemon `tray` topic (Tray singleton), never
 // D-Bus directly. The root self-hides while there are no items; a toggle button
 // reveals/collapses the item strip, and each item shows the server-resolved icon
 // (iconPath file, else iconName theme lookup, else the generic fallback). Left
-// click asks the item to act, right click asks for its menu. Contract 04
+// click asks the item to act; right click opens the item's own dbusmenu in-shell
+// (Pill.TrayMenu), flying out from the rail under the icon. Contract 04
 // sec 2.1, 3.2 (system_tray, system_tray_item).
 //
 // Design: 4px rhythm gaps between cells, hover wash (on-surface 8%),
@@ -176,14 +178,23 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: event => {
-                    const svc = cell.modelData.service;
-                    const g = cell.mapToGlobal(0, cell.height);
-                    if (event.button === Qt.LeftButton)
-                        Tray.activate(svc, Math.round(g.x), Math.round(g.y));
-                    else
-                        Tray.contextMenu(svc, Math.round(g.x), Math.round(g.y));
+                    const it = cell.modelData;
+                    if (event.button === Qt.LeftButton) {
+                        const g = cell.mapToGlobal(0, cell.height);
+                        Tray.activate(it.service, Math.round(g.x), Math.round(g.y));
+                    } else if (it.menu) {
+                        trayMenu.openFor(it, cell);
+                    } else {
+                        const g = cell.mapToGlobal(0, cell.height);
+                        Tray.contextMenu(it.service, Math.round(g.x), Math.round(g.y));
+                    }
                 }
             }
         }
+    }
+    Pill.TrayMenu {
+        id: trayMenu
+        edge: root.edge
+        scale: root.scale
     }
 }

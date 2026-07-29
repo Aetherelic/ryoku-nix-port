@@ -159,13 +159,8 @@ fi
 # boot, and the card only shows up on some boots (the wonky-detection bug).
 # PreserveVideoMemoryAllocations = session survives suspend.
 #
-# EVERYTHING here is gated on the nvidia module actually being present. The
-# blacklist used to be written whenever a card was detected, so a driver
-# install that failed (tolerated above so the install can finish) left the
-# box with no nvidia module AND no nouveau: a desktop with only the NVIDIA
-# card had no working driver at all, Hyprland died in eglQueryDevicesEXT
-# (EGL_BAD_ALLOC) on every login, and SDDM looped forever. A laptop survived
-# on its iGPU, which is why this only ever bit desktops.
+# All gated on the module existing: blacklisting nouveau without a working
+# nvidia module leaves an NVIDIA-only desktop with no driver at all.
 if nvidia_module_present; then
   echo "nvidia.sh: writing modeset + nouveau blacklist"
   write_root /etc/modprobe.d/nvidia.conf <<'EOF'

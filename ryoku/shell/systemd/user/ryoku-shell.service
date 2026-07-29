@@ -1,6 +1,5 @@
 [Unit]
-# The daemon supervises every surface, so its death takes the whole desktop
-# with it and Hyprland's autostart only ran it once. systemd brings it back.
+# the daemon supervises every surface, so it must itself be supervised
 Description=Ryoku shell daemon
 PartOf=hyprland-session.target
 After=hyprland-session.target

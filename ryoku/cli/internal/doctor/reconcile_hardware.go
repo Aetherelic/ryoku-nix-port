@@ -178,12 +178,9 @@ func reconcileNvidiaModeset(checkOnly bool) recResult {
 	if !nvidiaDriverActive() {
 		return okRes("no proprietary NVIDIA driver in use")
 	}
-	// The stranded box: an NVIDIA card, nouveau blacklisted by the installer,
-	// but no loadable nvidia module (the driver install failed, or the kernel
-	// moved past a prebuilt module). No driver can bind the card, Hyprland
-	// dies in EGL on every login, and SDDM loops; on a desktop there is no
-	// iGPU to fall back to. Unblacklist nouveau and rebuild, so the next boot
-	// has a display; installing the matching driver is then an ordinary fix.
+	// nouveau blacklisted with no loadable nvidia module = no driver can bind
+	// the card (the SDDM login loop). Restore nouveau so the next boot has a
+	// display; installing the matching driver is then an ordinary fix.
 	blacklist := strings.Contains(readFileSafe("/etc/modprobe.d/nvidia.conf"), "blacklist nouveau")
 	if blacklist && !nvidiaModuleOnDisk() {
 		if checkOnly {

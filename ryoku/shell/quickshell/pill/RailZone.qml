@@ -21,13 +21,9 @@ Item {
     implicitWidth: content.implicitWidth
     implicitHeight: content.implicitHeight
 
-    // How much of the rail the start and end zones occupy, fed by FrameRail to
-    // the CENTRE zone only. The zones are overlays with nothing else keeping
-    // them apart, so a grown end group (a tray full of apps) marched straight
-    // through the centred dock. The centre stays centred while there is room
-    // and slides just far enough to clear the neighbours when there is not;
-    // with more content than rail it hugs the start side, which at least keeps
-    // one boundary honest instead of stacking icons on icons.
+    // start/end zone extents (FrameRail feeds the centre zone only): the centre
+    // slides off-middle just enough to clear a grown neighbour, hugging the
+    // start side once content exceeds the rail.
     property real leadExtent: 0
     property real tailExtent: 0
     readonly property bool centred: !root.atStart && !root.atEnd
