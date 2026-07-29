@@ -158,26 +158,29 @@ fi
 # it can't also bind the card: with both modules eligible they race at
 # boot, and the card only shows up on some boots (the wonky-detection bug).
 # PreserveVideoMemoryAllocations = session survives suspend.
-# detection-gated, applied whenever an NVIDIA GPU is present.
-echo "nvidia.sh: writing modeset + nouveau blacklist"
-write_root /etc/modprobe.d/nvidia.conf <<'EOF'
+#
+# EVERYTHING here is gated on the nvidia module actually being present. The
+# blacklist used to be written whenever a card was detected, so a driver
+# install that failed (tolerated above so the install can finish) left the
+# box with no nvidia module AND no nouveau: a desktop with only the NVIDIA
+# card had no working driver at all, Hyprland died in eglQueryDevicesEXT
+# (EGL_BAD_ALLOC) on every login, and SDDM looped forever. A laptop survived
+# on its iGPU, which is why this only ever bit desktops.
+if nvidia_module_present; then
+  echo "nvidia.sh: writing modeset + nouveau blacklist"
+  write_root /etc/modprobe.d/nvidia.conf <<'EOF'
 options nvidia_drm modeset=1 fbdev=1
 options nvidia NVreg_PreserveVideoMemoryAllocations=1
 blacklist nouveau
 options nouveau modeset=0
 EOF
-# early KMS (nvidia in the initramfs) ONLY when the module actually landed. a
-# forced MODULES=(nvidia...) with a missing module makes mkinitcpio ERROR and
-# ship a broken initramfs -- the classic hybrid-laptop install break. without
-# the module we skip it and warn; the iGPU still drives the display.
-if nvidia_module_present; then
   echo "nvidia.sh: nvidia module present, writing initramfs early-KMS config"
   write_root /etc/mkinitcpio.conf.d/nvidia.conf <<'EOF'
 MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
 EOF
 else
-  echo "nvidia.sh: WARNING: nvidia kernel module not found for the installed kernel(s); skipping the mkinitcpio MODULES drop-in so the initramfs still builds. Boot runs on the integrated GPU; install a matching nvidia driver/kernel and run 'mkinitcpio -P' to enable it."
-  run "${PRIV[@]}" rm -f /etc/mkinitcpio.conf.d/nvidia.conf
+  echo "nvidia.sh: WARNING: nvidia kernel module not found for the installed kernel(s); leaving nouveau available and skipping the mkinitcpio MODULES drop-in so the machine still gets a display. Install a matching nvidia driver/kernel and run 'ryoku doctor' (or 'mkinitcpio -P') to enable the proper driver."
+  run "${PRIV[@]}" rm -f /etc/mkinitcpio.conf.d/nvidia.conf /etc/modprobe.d/nvidia.conf
 fi
 
 # suspend/resume: NVIDIA has to save + restore VRAM across sleep or the
