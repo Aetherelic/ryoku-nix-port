@@ -41,8 +41,9 @@ __pycache__/
 .prowl/
 
 # Local development plans and specs: kept local (or under ~/Work), never committed.
-/docs/superpowers/plans/
-/docs/superpowers/specs/
+/docs/superpowers/
+/.superpowers/
+/.beta18/
 
 # Developer scratch: local reports and working notes, never part of Ryoku.
 /local/
