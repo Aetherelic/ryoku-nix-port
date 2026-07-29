@@ -12,16 +12,19 @@ Rectangle {
     signal moved(string widgetId, string sourceIsland, string targetIsland, int targetIndex)
 
     objectName: "nacre-island-" + root.islandId
-    height: 92
+    height: Math.max(72, 34 + content.implicitHeight + Tokens.s2)
     radius: Tokens.radius
     color: drop.containsDrag ? Tokens.tint10 : "transparent"
     border.width: Tokens.border
     border.color: drop.containsDrag ? Tokens.lineStrong : Tokens.line
 
-    function insertionIndex(position) {
+    function insertionIndex(x, y) {
+        const localX = x - content.x;
+        const localY = y - content.y;
         for (let index = 0; index < chips.count; index++) {
             const chip = chips.itemAt(index);
-            if (chip && position < chip.x + chip.width / 2)
+            if (chip && (localY < chip.y + chip.height / 2
+                    || (localY <= chip.y + chip.height && localX < chip.x + chip.width / 2)))
                 return index;
         }
         return root.items.length;
@@ -37,6 +40,7 @@ Rectangle {
     }
 
     Flow {
+        id: content
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s2; topMargin: 34 }
         spacing: Tokens.s1
 
@@ -62,7 +66,7 @@ Rectangle {
             event.source.widgetId,
             event.source.sourceIsland,
             root.islandId,
-            root.insertionIndex(event.x)
+            root.insertionIndex(event.x, event.y)
         )
     }
 }

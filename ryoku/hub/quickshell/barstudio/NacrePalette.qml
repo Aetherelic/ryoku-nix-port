@@ -11,26 +11,26 @@ Rectangle {
     signal removed(string widgetId)
 
     objectName: "nacre-palette"
-    height: Math.max(54, content.implicitHeight + Tokens.s4)
+    height: Math.max(72, 34 + content.implicitHeight + Tokens.s2)
     radius: Tokens.radius
     color: drop.containsDrag ? Tokens.tint10 : "transparent"
     border.width: Tokens.border
     border.color: drop.containsDrag ? Tokens.lineStrong : Tokens.line
 
+    Text {
+        anchors { top: parent.top; left: parent.left; margins: Tokens.s2 }
+        text: qsTr("UNUSED")
+        color: Tokens.inkFaint
+        font.family: Tokens.mono
+        font.pixelSize: Tokens.fTiny
+        font.letterSpacing: Tokens.trackLabel
+    }
+
     Flow {
         id: content
-        anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s2 }
+        anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s2; topMargin: 34 }
         spacing: Tokens.s1
 
-        Text {
-            text: qsTr("UNUSED")
-            color: Tokens.inkFaint
-            font.family: Tokens.mono
-            font.pixelSize: Tokens.fTiny
-            font.letterSpacing: Tokens.trackLabel
-            height: 32
-            verticalAlignment: Text.AlignVCenter
-        }
         Repeater {
             model: root.items
             delegate: NacreWidgetChip {

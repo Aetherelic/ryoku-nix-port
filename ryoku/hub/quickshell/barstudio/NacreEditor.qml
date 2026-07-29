@@ -35,7 +35,7 @@ Column {
         root.staged(NacreConfig.setValue(root.normalized, key, value));
     }
 
-    Row {
+    Column {
         width: parent.width
         spacing: Tokens.s2
 
@@ -46,7 +46,7 @@ Column {
                 islandId: modelData
                 items: root.normalized.islands[modelData]
                 labelFor: root.label
-                width: (parent.width - parent.spacing * 2) / 3
+                width: parent.width
                 onMoved: (widgetId, sourceIsland, targetIsland, targetIndex) =>
                     root.moveWidget(widgetId, sourceIsland, targetIsland, targetIndex)
             }

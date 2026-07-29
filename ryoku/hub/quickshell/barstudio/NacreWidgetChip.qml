@@ -10,7 +10,7 @@ Rectangle {
     required property int sourceIndex
     property bool dragging: false
 
-    width: text.implicitWidth + 20
+    width: Math.min(144, text.implicitWidth + 20)
     height: 32
     radius: Tokens.radius
     color: drag.active ? Tokens.bone : hover.hovered ? Tokens.tint10 : "transparent"
@@ -26,13 +26,15 @@ Rectangle {
 
     Text {
         id: text
-        anchors.centerIn: parent
+        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 10 }
         text: root.label.toUpperCase()
         color: root.Drag.active ? Tokens.inkOnBone : Tokens.inkDim
         font.family: Tokens.ui
         font.pixelSize: 10
         font.weight: Font.Medium
         font.letterSpacing: Tokens.trackLabel
+        elide: Text.ElideRight
+        horizontalAlignment: Text.AlignHCenter
     }
 
     HoverHandler { id: hover; cursorShape: Qt.OpenHandCursor }
