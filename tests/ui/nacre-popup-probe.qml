@@ -43,6 +43,14 @@ ShellRoot {
     Component { id: nacreUtils; NacreWidgets.Utils {} }
     Component { id: nacreWeather; NacreWidgets.Weather {} }
     Component { id: nacreWorkspaces; NacreWidgets.Workspaces {} }
+    Component {
+        id: nacreConnectivityUrl
+        Loader { source: "barstyles/nacre/widgets/Connectivity.qml" }
+    }
+    Component {
+        id: connectivityPopupUrl
+        Loader { source: "barstyles/shared/popouts/ConnectivityPopout.qml" }
+    }
 
     Timer {
         interval: 0
@@ -65,6 +73,14 @@ ShellRoot {
             if (!scene || scene.status !== Loader.Ready)
                 throw new Error("NACRE-SCENE-PROBE-FAIL");
             scene.destroy();
+            const connectivityUrl = nacreConnectivityUrl.createObject(root);
+            if (!connectivityUrl || connectivityUrl.status !== Loader.Ready)
+                throw new Error("NACRE-CONNECTIVITY-PROBE-FAIL");
+            connectivityUrl.destroy();
+            const connectivityPopup = connectivityPopupUrl.createObject(root);
+            if (!connectivityPopup || connectivityPopup.status !== Loader.Ready)
+                throw new Error("CONNECTIVITY-POPUP-PROBE-FAIL");
+            connectivityPopup.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");
             Qt.quit();
         }

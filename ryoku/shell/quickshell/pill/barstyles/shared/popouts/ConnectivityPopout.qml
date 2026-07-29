@@ -1,5 +1,6 @@
 import QtQuick
 import "../../../Singletons"
+import "." as Sections
 
 Item {
     id: root
@@ -15,7 +16,7 @@ Item {
         anchors.margins: 12
         spacing: 12
 
-        NetworkSection {
+        Sections.NetworkSection {
             width: parent.width
             open: root.open
         }
@@ -24,7 +25,7 @@ Item {
             height: Theme.borderWidth
             color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.12)
         }
-        BluetoothSection {
+        Sections.BluetoothSection {
             width: parent.width
             open: root.open
         }
