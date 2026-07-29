@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import "." as Pill
 import "barstyles/shared" as Shared
 import "barstyles/shared/popouts" as Popouts
 import "barstyles/obi/widgets" as Obi
@@ -34,6 +35,11 @@ ShellRoot {
     }
 
     Shared.Popout {}
+
+    Component {
+        id: frameChrome
+        Pill.FrameChrome { width: 1000; height: 800 }
+    }
 
     Component { id: audio; Popouts.AudioPopout {} }
     Component { id: battery; Popouts.BatteryPopout {} }
@@ -139,6 +145,15 @@ ShellRoot {
             if (healthText.some(value => value.startsWith("CPU ") || value.startsWith("RAM ")))
                 throw new Error("NACRE-HEALTH-WORDS-PROBE-FAIL");
             resourcesFace.destroy();
+            const frame = frameChrome.createObject(root);
+            const points = frame.holePoints(2, 2, 998, 798, [
+                { x: 2, y: 0, width: 180, height: 42, visible: true },
+                { x: 430, y: 0, width: 140, height: 42, visible: true },
+                { x: 820, y: 0, width: 178, height: 42, visible: true }
+            ]);
+            if (!points.some(point => point.y === 42) || points.length <= 4)
+                throw new Error("NACRE-FRAME-LOBES-PROBE-FAIL");
+            frame.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");
             Qt.quit();
         }

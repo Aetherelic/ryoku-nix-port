@@ -30,6 +30,7 @@ Canvas {
     property real panelW: 0
     property real panelH: 0
     property string panelAnchor: ""
+    property var topLobes: []
 
     renderStrategy: Canvas.Cooperative
 
@@ -47,6 +48,44 @@ Canvas {
     onPanelWChanged: requestPaint()
     onPanelHChanged: requestPaint()
     onPanelAnchorChanged: requestPaint()
+    onTopLobesChanged: requestPaint()
+
+    function normalizedTopLobes(lx, ty, rx, lobes) {
+        const source = Array.isArray(lobes) ? lobes : [];
+        const output = [];
+        for (const lobe of source) {
+            if (!lobe || lobe.visible === false)
+                continue;
+            const left = Math.max(lx, Math.min(rx, Number(lobe.x) || 0));
+            const right = Math.max(lx, Math.min(rx,
+                (Number(lobe.x) || 0) + (Number(lobe.width) || 0)));
+            const bottom = Math.max(ty,
+                (Number(lobe.y) || 0) + (Number(lobe.height) || 0));
+            if (right > left && bottom > ty)
+                output.push({ left, right, bottom });
+        }
+        output.sort((a, b) => a.left - b.left);
+        return output;
+    }
+
+    function topHolePoints(lx, ty, rx, by, lobes) {
+        const points = [{ x: lx, y: ty }];
+        let cursor = lx;
+        for (const lobe of lobes) {
+            if (lobe.left > cursor)
+                points.push({ x: lobe.left, y: ty });
+            points.push(
+                { x: lobe.left, y: lobe.bottom },
+                { x: lobe.right, y: lobe.bottom },
+                { x: lobe.right, y: ty }
+            );
+            cursor = Math.max(cursor, lobe.right);
+        }
+        if (cursor < rx)
+            points.push({ x: rx, y: ty });
+        points.push({ x: rx, y: by }, { x: lx, y: by });
+        return points;
+    }
 
     // The rectilinear hole silhouette as a clockwise point list: the inner
     // desktop rect [lx,ty]-[rx,by] with the open panel carved out of the edge
@@ -55,8 +94,11 @@ Canvas {
     // full band height, so the hole stays a rounded rect with one edge moved;
     // edge panels (top/bottom) notch the centre of that edge; corner panels
     // bite the corner, leaving one concave inside corner.
-    function holePoints(lx, ty, rx, by) {
+    function holePoints(lx, ty, rx, by, lobes) {
         const a = panelAnchor;
+        const top = normalizedTopLobes(lx, ty, rx, lobes);
+        if (a === "" && top.length > 0)
+            return topHolePoints(lx, ty, rx, by, top);
         const px = panelX, py = panelY, pr = panelX + panelW, pb = panelY + panelH;
         if (a === "" || panelW <= 0 || panelH <= 0)
             return [ {x: lx, y: ty}, {x: rx, y: ty}, {x: rx, y: by}, {x: lx, y: by} ];
@@ -114,7 +156,7 @@ Canvas {
             ctx.fillRect(0, 0, width, height);
             return;
         }
-        const pts = holePoints(lx, ty, rx, by);
+        const pts = holePoints(lx, ty, rx, by, topLobes);
 
         // The whole frame is surface; the hole is punched back out below.
         ctx.fillStyle = surface;

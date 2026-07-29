@@ -15,6 +15,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Ryoku.Blobs
+import Ryoku.FrameBars
 import Ryoku.Ui
 import "Singletons"
 import "framebars/RailGeometry.js" as RailGeometry
@@ -697,6 +698,8 @@ ShellRoot {
                     panelY: frameMenus.chromePanel.y
                     panelW: frameMenus.chromePanel.w
                     panelH: frameMenus.chromePanel.h
+                    topLobes: root.nacreFrameActive
+                        ? NacreGeometry.islands(overlay.modelData.name) : []
                     opacity: Theme.windowOpacity
                     visible: !overlay.monFullscreen
                         && ((Config.frameEnabled && root.sumiActive) || root.nacreFrameActive)
