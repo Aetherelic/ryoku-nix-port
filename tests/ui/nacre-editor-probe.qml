@@ -88,6 +88,12 @@ ShellRoot {
             require(left.y < center.y && center.y < right.y, "stacked lanes");
             require(crowdedLane.height > sparseLane.height, "wrapped lane grows");
             require(longChip.width <= 144, "long chip capped");
+            const dragVisual = root.findObject(longChip, "nacre-widget-visual-activeWindow");
+            require(dragVisual, "separate drag visual");
+            const slotX = longChip.x;
+            dragVisual.x = 80;
+            require(longChip.x === slotX, "drag visual preserves flow slot");
+            dragVisual.x = 0;
             editor.moveWidget("brand", "left", "right", 1);
             require(root.staged.islands.left.length === 2, "drag removes source");
             require(root.staged.islands.right[1] === "brand", "drag inserts target");
