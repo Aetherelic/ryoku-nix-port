@@ -125,7 +125,7 @@ echo "Installing qylock clockwork/orbital greeter for $TARGET_USER"
 # RYOKU_QYLOCK_USER_ONLY=1 skips the root half (SDDM greeter + its conf):
 # doctor heals the in-session lock from a user session and must not stop on a
 # sudo prompt. The greeter was set at install time and is unaffected.
-if [[ ${RYOKU_QYLOCK_USER_ONLY:-0} != 1 ]]; then
+install_greeter() {
   # --- 1. SDDM greeter theme (system). The fixed "ryoku" name is the one the Hub's
   # lock picker overwrites (ryoku-hub lock apply-greeter) when the user changes skins.
   echo "  greeter theme -> /usr/share/sddm/themes/ryoku"
@@ -137,10 +137,13 @@ if [[ ${RYOKU_QYLOCK_USER_ONLY:-0} != 1 ]]; then
   echo "  greeter selection -> /etc/sddm.conf.d/99-ryoku.conf"
   priv mkdir -p /etc/sddm.conf.d
   write_root /etc/sddm.conf.d/99-ryoku.conf <<'EOF'
-  [Theme]
-  Current=ryoku
-  EOF
+[Theme]
+Current=ryoku
+EOF
+}
 
+if [[ ${RYOKU_QYLOCK_USER_ONLY:-0} != 1 ]]; then
+  install_greeter
 fi
 
 # --- 3. in-session lock (user) -----------------------------------------------
