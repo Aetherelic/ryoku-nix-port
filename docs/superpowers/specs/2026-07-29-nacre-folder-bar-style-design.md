@@ -7,10 +7,10 @@
 ## Goal
 
 Move Nacre out of the legacy monolithic bar implementation and make it a
-first-class folder bar style under `pill/barstyles/`. Preserve Nacre's three
-edge-attached islands and visual dialect, add live customization in Bar Studio,
-and share popup implementations with Obi instead of maintaining a second popup
-stack.
+first-class folder bar style under `pill/barstyles/`. Port the frame, islands,
+popouts, and notification behavior from main revision `69ca0b25` into that
+folder without changing the main worktree. Add live customization in Bar
+Studio without changing the reference default.
 
 The finished style must be selectable as `nacre`, work on every active monitor,
 survive malformed or partial persisted settings, and apply live through the
@@ -18,8 +18,8 @@ existing Hub Save/Revert flow.
 
 ## User Experience
 
-Nacre renders as a transparent top-layer window with a hairline across the top
-edge and three frosted islands attached beneath it:
+Nacre renders one full-screen blob field with a rounded desktop frame and three
+lobes grown from its top edge:
 
 - Left defaults to brand, media, and active window.
 - Center defaults to clock, hollow-ring workspaces, and resource statistics.
@@ -27,10 +27,9 @@ edge and three frosted islands attached beneath it:
 
 Weather and utilities begin in the unused widget palette. Every widget can be
 reordered inside its island, moved to another island, or hidden by returning it
-to the palette. A hidden dynamic widget keeps its configured position. A
-configured media, battery, weather, or tray widget temporarily collapses when
-its backing service has nothing to display and returns to the same position
-when data becomes available.
+to the palette. A hidden dynamic widget keeps its configured position. Battery,
+weather, and tray collapse while unavailable and return to the same configured
+position. Media remains present and reads `No media` while idle.
 
 The layout is shared across monitors. Each monitor owns a Nacre scene and popup
 windows anchored to widgets on that monitor.
@@ -72,11 +71,12 @@ ryoku/shell/quickshell/pill/barstyles/nacre/
     └── registry.js
 ```
 
-`Scene.qml` owns the top-layer window, exclusive zone, input mask, hairline,
-island placement, configured widget loaders, and monitor binding. `Island.qml`
-owns only the frosted capsule treatment. `WidgetHost.qml` resolves a widget ID
-to one Nacre widget component and collapses unavailable widgets without
-changing configuration.
+`Scene.qml` owns the exclusive-zone reserve, full-screen overlay, input mask,
+shared blob group, frame, island placement, configured widget loaders, popout
+state, and monitor binding. `Island.qml` owns content geometry while the frame
+is enabled and a detached capsule when it is disabled. `WidgetHost.qml`
+resolves a widget ID to one Nacre widget component and collapses unavailable
+widgets without changing configuration.
 
 Nacre widgets own the compact face shown in the bar. They may use existing
 singletons and small neutral primitives from the shell, but they do not import
@@ -89,38 +89,45 @@ layout operations stay in JavaScript, and existing primitives are reused.
 Comments explain only non-obvious constraints or reasons; they do not narrate
 the code, repeat the design document, or add filler.
 
-## Shared Popup Architecture
+## Nacre Popup Architecture
 
-Obi's current widgets combine two concerns: the compact Obi face and the popup
-card/content. The reusable portions move to:
+The main implementation's frame-grown popup machinery is copied into Nacre:
 
 ```text
-ryoku/shell/quickshell/pill/barstyles/shared/
-├── Popout.qml
+ryoku/shell/quickshell/pill/barstyles/nacre/
+├── components/
+│   └── Popout.qml
 └── popouts/
     ├── AudioPopout.qml
     ├── BatteryPopout.qml
     ├── CalendarPopout.qml
     ├── ConnectivityPopout.qml
+    ├── InboxPopout.qml
     ├── MediaPopout.qml
+    ├── NotificationToast.qml
     ├── ResourcesPopout.qml
     └── WeatherPopout.qml
 ```
 
-`shared/Popout.qml` retains the existing hover-open, delayed close, monitor
-selection, screen-edge clamping, overlay layer, and click-through mask
-behavior. It accepts the target item, hover state, bar offset, namespace, and a
-content component.
+`components/Popout.qml` is the main branch's `BlobRect` curtain and neck
+geometry, adapted only for Nacre's local settings and current shared services.
+Every popup joins the same `BlobGroup` as the desktop frame and resting lobes.
+Opening grows the frame inward at the triggering widget; closing melts back
+into the same lobe.
 
-Each shared popup content component owns only the expanded card's controls and
-readouts. Obi widgets are changed to invoke these shared components without
-altering their compact faces or behavior. Nacre widgets invoke those exact same
-components from their own faces.
+Nacre owns its popup contents. Obi remains unchanged. Compact widgets report a
+popup ID and their screen-space center to `Scene.qml`; they do not create
+independent `PanelWindow` cards.
 
 Tray menus remain provided by Quickshell's tray items and are not converted
-into a shared hover card. The brand launcher and utilities actions also remain
+into a frame popup. The brand launcher and utilities actions also remain
 direct actions rather than popups unless an existing Obi utility already owns
 one.
+
+Notification popups use the same mechanism as main. A live notification opens
+the toast popup at the bell's lobe, and clicking the bell opens the inbox in the
+same place. Cards paint content only; the shared blob is their only surface and
+outline.
 
 ## Nacre Configuration
 
@@ -151,7 +158,7 @@ The first release supports these live controls:
 - `padding`: horizontal inset inside each island.
 - `spacing`: distance between widgets in an island.
 - `islandGap`: minimum gap between the center island and either side island.
-- `frame`: draw the shared Sumi frame around the desktop.
+- `frame`: draw Nacre's outer desktop frame.
 - `occupiedWorkspaces`: show only occupied workspaces plus the active one.
 
 The widget registry defines the complete set of valid IDs. Normalization:
@@ -173,15 +180,13 @@ The center island remains screen-centered. Left and right islands anchor to
 their respective screen edges. Their maximum widths stop before the center
 island plus `islandGap`.
 
-When `frame` is enabled, the existing shell-wide Sumi `FrameChrome` draws one
-silhouette whose top hole boundary wraps around the three live island
-rectangles. The islands then paint content only: their surface and border come
-from that shared silhouette. A runtime-only `NacreGeometry` singleton connects
-each monitor's Nacre scene to its matching frame overlay without persisting
-geometry. When disabled, `FrameChrome` stands down and each island paints its
-own detached capsule. Each populated island hugs its visible widgets at
-intrinsic width. An island with no visible widgets has zero size, no border or
-surface, and no input-mask region.
+When `frame` is enabled, Nacre's `Ryoku.Blobs` group owns one
+`BlobInvertedRect`, three resting `BlobRect` lobes, and every open popup. The
+islands paint content only. The frame toggle removes only the outer desktop
+ring; the three top lobes remain because they are the bar surface. When
+disabled, each lobe still hugs its content at the screen edge without a second
+painted capsule. An island with no visible widgets contributes no lobe, border,
+surface, or input-mask region.
 
 When a side island would exceed its available width:
 
@@ -191,9 +196,8 @@ When a side island would exceed its available width:
 4. The island clips only as a final guard against an invalid or extremely
    narrow monitor configuration.
 
-The scene input mask includes only the three islands, so the transparent area
-between them remains click-through. Each popup window owns a separate mask
-covering only its visible card.
+The scene input mask includes the three islands and every open popup body, so
+the desktop and gaps remain click-through.
 
 ## Bar Studio Editor
 
@@ -250,9 +254,10 @@ No live configuration is copied from the main worktree. Nacre receives the
 default layout when `shell.json` has no `nacre` key. Existing Sumi `frameBars`
 and Obi settings remain untouched.
 
-The old Nacre implementation is used as a visual and behavioral reference only.
-Its folder-style replacement must not depend on the old global popout requests
-or monolithic `Bar.qml` skin branches.
+The main worktree at revision `69ca0b25` is the canonical visual and behavioral
+reference. Source copied from it is placed below `barstyles/nacre/` and adapted
+to the unstable branch's configuration and service interfaces. Nacre must not
+depend on main at runtime or modify that worktree.
 
 If the legacy Nacre branch is still present in this target after the folder
 style works, it is removed in the same change so there is one Nacre
@@ -279,15 +284,18 @@ Implementation is complete only after:
 2. Existing Bar Studio model tests still pass.
 3. QML probing/smoke checks load Nacre, Obi, and Bar Studio without component
    errors.
-4. Obi popup behavior is unchanged after extraction.
+4. Obi popup behavior remains unchanged.
 5. Registry, Config, and Hub defaults agree.
 6. Project doctor, changed-impact, and relevant delivery checks pass.
 7. The `unstable-dev` worktree deploys through the repository's documented
    deploy path.
 8. The live shell reports no QML or Hyprland configuration errors.
-9. A live style switch to Nacre shows all three islands, drag edits apply
-   immediately, Save/Revert behave correctly, and at least media, resources,
-   audio, connectivity, and calendar popups open on the correct monitor.
+9. A live style switch to Nacre shows the same frame, lobe shapes, popup melt,
+   notification toast, and default module placement as main.
+10. Drag edits apply immediately, Save/Revert behave correctly, music remains
+    visible while idle, and media, resources, audio, connectivity, calendar,
+    notification inbox, and notification toast surfaces open on the correct
+    monitor.
 
 ## Deployment
 
