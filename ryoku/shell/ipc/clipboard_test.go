@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -155,5 +157,34 @@ func TestTruncateRunes(t *testing.T) {
 	}
 	if got := truncateRunes("hi", 5); got != "hi" {
 		t.Errorf("truncateRunes(hi, 5) = %q, want hi", got)
+	}
+}
+
+// The history survives a daemon restart: ingested entries are written to the
+// state dir and a fresh clipState.load() restores them, order, bytes and nextID.
+func TestClipPersistence(t *testing.T) {
+	dir := t.TempDir()
+	dataDir := filepath.Join(dir, "data")
+	if err := os.MkdirAll(dataDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cache := t.TempDir()
+	s := &clipState{stateDir: dir, dataDir: dataDir, cacheDir: cache}
+	s.ingest("text/plain", []byte("hello"))
+	s.ingest("text/plain", []byte("world"))
+
+	s2 := &clipState{stateDir: dir, dataDir: dataDir, cacheDir: cache}
+	s2.load()
+	if len(s2.entries) != 2 {
+		t.Fatalf("reloaded %d entries, want 2", len(s2.entries))
+	}
+	if s2.entries[0].Preview != "world" {
+		t.Errorf("front after reload = %q, want %q", s2.entries[0].Preview, "world")
+	}
+	if !bytes.Equal(s2.entries[0].data, []byte("world")) {
+		t.Errorf("reloaded front bytes = %q, want %q", s2.entries[0].data, "world")
+	}
+	if s2.nextID != s.nextID {
+		t.Errorf("reloaded nextID = %d, want %d", s2.nextID, s.nextID)
 	}
 }

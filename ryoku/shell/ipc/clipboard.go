@@ -60,15 +60,21 @@ type clipState struct {
 	entries  []*clipEntry // newest at front
 	nextID   uint64
 	topic    *stateTopic
-	cacheDir string
+	cacheDir string // on-disk image thumbnails (cache)
+	stateDir string // persisted history dir; "" disables on-disk persistence (tests)
+	dataDir  string // persisted entry bytes (stateDir/data)
 }
 
 // startClipboard registers the clipboard topic and control calls, publishes an
 // empty snapshot, and starts the selection watcher.
 func (d *daemon) startClipboard() {
-	dir := clipCacheDir()
-	_ = os.MkdirAll(dir, 0o700)
-	s := &clipState{topic: d.registerTopic("clipboard"), cacheDir: dir}
+	cache := clipCacheDir()
+	_ = os.MkdirAll(cache, 0o700)
+	state := clipStateDir()
+	data := filepath.Join(state, "data")
+	_ = os.MkdirAll(data, 0o700)
+	s := &clipState{topic: d.registerTopic("clipboard"), cacheDir: cache, stateDir: state, dataDir: data}
+	s.load()
 	d.clip = s
 	s.publish()
 
@@ -107,6 +113,137 @@ func clipCacheDir() string {
 		base = filepath.Join(os.Getenv("HOME"), ".cache")
 	}
 	return filepath.Join(base, "ryoku", "clipboard")
+}
+
+// clipStateDir holds the persisted history: the entry index and one file of
+// bytes per entry, so the clipboard survives a daemon restart (an in-memory-only
+// history lost everything on relaunch).
+func clipStateDir() string {
+	base := os.Getenv("XDG_STATE_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".local", "state")
+	}
+	return filepath.Join(base, "ryoku", "clipboard")
+}
+
+func (s *clipState) indexPath() string { return filepath.Join(s.stateDir, "index.json") }
+func (s *clipState) dataPath(hash uint64) string {
+	return filepath.Join(s.dataDir, fmt.Sprintf("%016x.bin", hash))
+}
+
+// persistedClip is the on-disk history: entry metadata plus the next id. Each
+// entry's bytes live beside it in dataDir keyed by hash and its thumbnail stays
+// in the cache dir, so the index stays small and one entry never rewrites another.
+type persistedClip struct {
+	NextID  uint64           `json:"nextID"`
+	Entries []persistedEntry `json:"entries"`
+}
+
+type persistedEntry struct {
+	ID        uint64 `json:"id"`
+	Kind      string `json:"kind"`
+	Mime      string `json:"mime"`
+	Size      int    `json:"size"`
+	Preview   string `json:"preview,omitempty"`
+	ThumbPath string `json:"thumb,omitempty"`
+	ThumbW    int    `json:"thumbW,omitempty"`
+	ThumbH    int    `json:"thumbH,omitempty"`
+	Hash      uint64 `json:"hash"`
+	TS        int64  `json:"ts"`
+}
+
+// writeData persists one entry's bytes once, keyed by content hash. Skipped when
+// persistence is off (dataDir empty, as in tests).
+func (s *clipState) writeData(hash uint64, data []byte) {
+	if s.dataDir == "" {
+		return
+	}
+	p := s.dataPath(hash)
+	if _, err := os.Stat(p); err == nil {
+		return
+	}
+	tmp := p + ".tmp"
+	if os.WriteFile(tmp, data, 0o600) == nil {
+		_ = os.Rename(tmp, p)
+	}
+}
+
+// persistLocked writes the entry index atomically. The caller holds s.mu.
+func (s *clipState) persistLocked() {
+	if s.stateDir == "" {
+		return
+	}
+	p := persistedClip{NextID: s.nextID, Entries: make([]persistedEntry, 0, len(s.entries))}
+	for _, e := range s.entries {
+		p.Entries = append(p.Entries, persistedEntry{
+			ID: e.ID, Kind: e.Kind, Mime: e.Mime, Size: e.Size, Preview: e.Preview,
+			ThumbPath: e.ThumbPath, ThumbW: e.ThumbW, ThumbH: e.ThumbH, Hash: e.hash, TS: e.ts.UnixNano(),
+		})
+	}
+	raw, err := json.Marshal(p)
+	if err != nil {
+		return
+	}
+	tmp := s.indexPath() + ".tmp"
+	if os.WriteFile(tmp, raw, 0o600) == nil {
+		_ = os.Rename(tmp, s.indexPath())
+	}
+}
+
+// load restores the history from disk on startup: the index in order, each
+// entry's bytes from dataDir, and a thumbnail reference only when its file still
+// exists. Orphan data files a crash may have stranded are swept.
+func (s *clipState) load() {
+	if s.stateDir == "" {
+		return
+	}
+	raw, err := os.ReadFile(s.indexPath())
+	if err != nil {
+		return
+	}
+	var p persistedClip
+	if json.Unmarshal(raw, &p) != nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.nextID = p.NextID
+	keep := make(map[uint64]bool, len(p.Entries))
+	for _, pe := range p.Entries {
+		data, err := os.ReadFile(s.dataPath(pe.Hash))
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		e := &clipEntry{
+			ID: pe.ID, Kind: pe.Kind, Mime: pe.Mime, Size: pe.Size, Preview: pe.Preview,
+			ThumbPath: pe.ThumbPath, ThumbW: pe.ThumbW, ThumbH: pe.ThumbH,
+			hash: pe.Hash, ts: time.Unix(0, pe.TS), data: data,
+		}
+		if e.ThumbPath != "" {
+			if _, err := os.Stat(e.ThumbPath); err != nil {
+				e.ThumbPath = ""
+				if e.Kind == "image" {
+					e.Kind = "binary"
+				}
+			}
+		}
+		if e.ID > s.nextID {
+			s.nextID = e.ID
+		}
+		s.entries = append(s.entries, e)
+		keep[pe.Hash] = true
+	}
+	if files, err := os.ReadDir(s.dataDir); err == nil {
+		for _, f := range files {
+			name := f.Name()
+			if !strings.HasSuffix(name, ".bin") {
+				continue
+			}
+			if h, err := strconv.ParseUint(strings.TrimSuffix(name, ".bin"), 16, 64); err == nil && !keep[h] {
+				_ = os.Remove(filepath.Join(s.dataDir, name))
+			}
+		}
+	}
 }
 
 // clipHash keys dedup. The algorithm only needs to be stable within a run, so
@@ -245,6 +382,9 @@ func (s *clipState) pushLocked(e *clipEntry) {
 		if old.ThumbPath != "" {
 			_ = os.Remove(old.ThumbPath)
 		}
+		if s.dataDir != "" {
+			_ = os.Remove(s.dataPath(old.hash))
+		}
 	}
 }
 
@@ -272,8 +412,10 @@ func (s *clipState) ingest(mime string, data []byte) {
 		data = data[:clipMaxEntryBytes]
 	}
 	e := s.buildEntry(mime, data)
+	s.writeData(e.hash, data)
 	s.mu.Lock()
 	s.pushLocked(e)
+	s.persistLocked()
 	s.mu.Unlock()
 	s.publish()
 }
@@ -289,6 +431,7 @@ func (s *clipState) copy(id uint64) error {
 	var mime string
 	if e != nil {
 		data, mime = e.data, e.Mime
+		s.persistLocked()
 	}
 	s.mu.Unlock()
 	if e == nil {
@@ -300,6 +443,30 @@ func (s *clipState) copy(id uint64) error {
 	return cmd.Run()
 }
 
+// copyFile sets the live Wayland selection from a file and stores the same bytes
+// in history. Run by the persistent daemon (not an ephemeral capture app), so
+// wl-copy's background server outlives the caller and the selection sticks.
+func (s *clipState) copyFile(mime, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if len(data) == 0 {
+		return fmt.Errorf("clip-copy: empty file %s", path)
+	}
+	if len(data) > clipMaxEntryBytes {
+		data = data[:clipMaxEntryBytes]
+	}
+	cmd := exec.Command("wl-copy", "--type", mime)
+	cmd.Stdin = bytes.NewReader(data)
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	// Ingest directly so the entry lands even if the watcher misses the change.
+	s.ingest(mime, data)
+	return nil
+}
+
 func (s *clipState) del(id uint64) {
 	s.mu.Lock()
 	for i, e := range s.entries {
@@ -307,10 +474,14 @@ func (s *clipState) del(id uint64) {
 			if e.ThumbPath != "" {
 				_ = os.Remove(e.ThumbPath)
 			}
+			if s.dataDir != "" {
+				_ = os.Remove(s.dataPath(e.hash))
+			}
 			s.entries = append(s.entries[:i], s.entries[i+1:]...)
 			break
 		}
 	}
+	s.persistLocked()
 	s.mu.Unlock()
 	s.publish()
 }
@@ -321,8 +492,12 @@ func (s *clipState) clear() {
 		if e.ThumbPath != "" {
 			_ = os.Remove(e.ThumbPath)
 		}
+		if s.dataDir != "" {
+			_ = os.Remove(s.dataPath(e.hash))
+		}
 	}
 	s.entries = nil
+	s.persistLocked()
 	s.mu.Unlock()
 	s.publish()
 }
@@ -444,5 +619,23 @@ func (d *daemon) clipIngest(cmd string, r *bufio.Reader) string {
 		return "err clip-ingest: short read"
 	}
 	d.clip.ingest(fields[1], buf)
+	return "ok"
+}
+
+// clipCopy is the `clip-copy <mime> <path>` control verb: the daemon reads the
+// file, sets the selection, and stores it in history. Capture and ryoshot call
+// it so the copy is owned by the persistent daemon, not a short-lived app whose
+// exit would clear the selection.
+func (d *daemon) clipCopy(cmd string) string {
+	if d.clip == nil {
+		return "err clipboard not running"
+	}
+	fields := strings.SplitN(cmd, " ", 3)
+	if len(fields) != 3 || fields[1] == "" || fields[2] == "" {
+		return "err clip-copy: usage clip-copy <mime> <path>"
+	}
+	if err := d.clip.copyFile(fields[1], fields[2]); err != nil {
+		return "err clip-copy: " + err.Error()
+	}
 	return "ok"
 }

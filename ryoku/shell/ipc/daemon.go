@@ -591,6 +591,10 @@ func (d *daemon) handle(conn net.Conn) {
 		fmt.Fprintln(conn, d.clipIngest(cmd, r))
 		return
 	}
+	if strings.HasPrefix(cmd, "clip-copy ") {
+		fmt.Fprintln(conn, d.clipCopy(cmd))
+		return
+	}
 	fmt.Fprintln(conn, d.dispatch(cmd))
 }
 
