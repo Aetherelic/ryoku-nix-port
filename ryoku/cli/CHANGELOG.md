@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- **Doctor restarts a shell daemon left running on a replaced binary.** Updaters
+  before beta-17 swapped the packages without quiescing the shell, so the old
+  daemon kept serving surfaces that hot-reload QML newer than it can host
+  ("module Ryoku.FrameBars is not installed" after updating to beta-18). Doctor
+  now spots a daemon whose /proc exe link reads deleted and restarts it on the
+  installed binary, making `ryoku doctor` the one-command cure
+  (`internal/doctor/doctor.go`).
 - **Doctor can revive a shell skipped by a missing session env.** The
   ryoku-shell unit is gated on `ConditionEnvironment=WAYLAND_DISPLAY`; when
   login's env import never reached the systemd user manager, `systemctl

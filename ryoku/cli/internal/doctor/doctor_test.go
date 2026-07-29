@@ -199,6 +199,25 @@ func TestDaemonIsStale(t *testing.T) {
 	}
 }
 
+func TestDaemonBinaryReplaced(t *testing.T) {
+	cases := []struct {
+		name, cmdline, exe string
+		want               bool
+	}{
+		{"packaged daemon on deleted binary", "/usr/bin/ryoku-shell\x00daemon\x00", "/usr/bin/ryoku-shell (deleted)", true},
+		{"bare name on deleted binary", "ryoku-shell\x00daemon\x00", "/home/u/.local/bin/ryoku-shell (deleted)", true},
+		{"daemon on live binary", "/usr/bin/ryoku-shell\x00daemon\x00", "/usr/bin/ryoku-shell", false},
+		{"other subcommand", "/usr/bin/ryoku-shell\x00quit\x00", "/usr/bin/ryoku-shell (deleted)", false},
+		{"other binary", "/usr/bin/other-shell\x00daemon\x00", "/usr/bin/other-shell (deleted)", false},
+		{"doctor's own grep-alike shell", "bash\x00-c\x00ryoku-shell daemon\x00", "/usr/bin/bash", false},
+	}
+	for _, c := range cases {
+		if got := daemonBinaryReplaced(c.cmdline, c.exe); got != c.want {
+			t.Errorf("%s: daemonBinaryReplaced = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 // A reachable daemon pinned to a previous Hyprland instance must be flagged for a
 // restart, not passed as healthy -- the frozen-workspaces / dead-power bug.
 func TestReconcileShellDaemonStale(t *testing.T) {

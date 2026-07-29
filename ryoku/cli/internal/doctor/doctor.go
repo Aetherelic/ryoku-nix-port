@@ -2190,7 +2190,27 @@ func reconcileShellDaemon(checkOnly bool) recResult {
 		// daemon's instance to this live session and restart a mismatch.
 		sig, ok := shellDaemonSignature()
 		if !daemonIsStale(os.Getenv("HYPRLAND_INSTANCE_SIGNATURE"), sig, ok) {
-			return okRes("shell daemon reachable")
+			// Same instance, but the binary under it may be gone: an update
+			// that replaced /usr/bin/ryoku-shell without quiescing the shell
+			// (updaters before beta-17 did) leaves the old daemon serving
+			// surfaces that hot-reload QML newer than it can host -- the
+			// "module Ryoku.FrameBars is not installed" class of breakage.
+			if !shellDaemonOutdated() {
+				return okRes("shell daemon reachable")
+			}
+			if checkOnly {
+				return wouldRes("shell daemon is running a replaced binary; its surfaces load config newer than it").
+					withFix("ryoku doctor restarts the daemon on the installed binary")
+			}
+			if err := restartShellDaemon(); err != nil {
+				return failRes("shell daemon runs a replaced binary and could not be restarted: %v", err).
+					withFix("`ryoku-shell quit`, then `ryoku-shell daemon` in a terminal")
+			}
+			if waitDaemonReachable(5 * time.Second) {
+				return fixedRes("shell daemon was running a replaced binary; restarted it on the installed one")
+			}
+			return failRes("restarted the outdated shell daemon but it did not come back").
+				withFix("run `ryoku-shell daemon` in a terminal to see why it exits")
 		}
 		if checkOnly {
 			return wouldRes("shell daemon is bound to a previous Hyprland instance; workspaces and the power menu are dead").
@@ -2327,6 +2347,42 @@ func shellDaemonSignature() (sig string, ok bool) {
 // so doctor never restarts a daemon it could not identify.
 func daemonIsStale(live, sig string, ok bool) bool {
 	return ok && sig != live
+}
+
+// shellDaemonOutdated: is the running daemon's binary gone from disk? pacman
+// replacing /usr/bin/ryoku-shell (or a deploy replacing the home build) turns
+// the daemon's /proc exe link into "... (deleted)". Matches by exact cmdline,
+// never pgrep -f, so doctor's own shell can't shadow the answer.
+func shellDaemonOutdated() bool {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		pid := e.Name()
+		if pid[0] < '0' || pid[0] > '9' {
+			continue
+		}
+		cmd, err := os.ReadFile("/proc/" + pid + "/cmdline")
+		if err != nil {
+			continue
+		}
+		exe, _ := os.Readlink("/proc/" + pid + "/exe")
+		if daemonBinaryReplaced(string(cmd), exe) {
+			return true
+		}
+	}
+	return false
+}
+
+// daemonBinaryReplaced decides from a /proc cmdline and exe link whether this
+// process is the shell daemon left running on a deleted binary.
+func daemonBinaryReplaced(cmdline, exeLink string) bool {
+	fields := strings.Split(cmdline, "\x00")
+	if len(fields) < 2 || fields[1] != "daemon" || filepath.Base(fields[0]) != "ryoku-shell" {
+		return false
+	}
+	return strings.HasSuffix(exeLink, " (deleted)")
 }
 
 // restartShellDaemon replaces a stale daemon with one bound to the live session:
