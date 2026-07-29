@@ -11,6 +11,12 @@
   shell.json (`quickshell/pages/BarStudioPage.qml`, `quickshell/Hub.qml`).
 
 ### Fixed
+- **The tiling-layout preview animates again.** Windows -> Layout declares a
+  `layoutdemo` row for the looping dwindle/master/scrolling diagram, but
+  `SettingsSheet` had no renderer for that control, so it fell through to the
+  text field and drew an empty card. It now renders as a full-width band: the
+  `art/tiling-<layout>.gif` diagram beside the layout name and blurb, swapped
+  live as the picker changes (`quickshell/SettingsSheet.qml`).
 - **"Never ask" reaches its fix when the keyring is still encrypted.** `keyring
   init` records never-ask on a box whose keyring is password-protected and leaves
   the file intact, so the mode reads as chosen while every login still prompts.

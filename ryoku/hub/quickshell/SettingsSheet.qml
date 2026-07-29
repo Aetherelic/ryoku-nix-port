@@ -101,7 +101,7 @@ Item {
                         return Spans.cols;
                     }
                     readonly property var packed: Spans.pack(
-                        groupRows.map(function (r) { return (r.ctl === "seg" && (r.opts || []).length >= 3) ? Spans.cols : Spans.of(r.ctl, (r.opts || []).length); }),
+                        groupRows.map(function (r) { return ((r.ctl === "seg" && (r.opts || []).length >= 3) || r.ctl === "layoutdemo") ? Spans.cols : Spans.of(r.ctl, (r.opts || []).length); }),
                         minSpan)
 
                     Repeater {
@@ -115,7 +115,7 @@ Item {
 
                             width: sect.span(sect.packed[index] || 4)
                             height: neededHeight
-                            block: Spans.isBlock(r.ctl) || (r.ctl === "seg" && cell.optCount >= 3)
+                            block: Spans.isBlock(r.ctl) || (r.ctl === "seg" && cell.optCount >= 3) || r.ctl === "layoutdemo"
                             footH: (r.ctl === "pick" || r.ctl === "text" || r.ctl === "image" || r.ctl === "location" || r.ctl === "color" || r.ctl === "action") ? 34 : 0
                             controlWidth: Spans.inlineWidth(r.ctl, optCount, width)
 
@@ -143,6 +143,7 @@ Item {
                                     case "location": return locationC;
                                     case "color": return colorC;
                                     case "action": return actionC;
+                                    case "layoutdemo": return layoutDemoC;
                                     default: return textC;
                                     }
                                 }
@@ -159,6 +160,65 @@ Item {
                                         if (cell.r.key === "i18nGenerate")
                                             Quickshell.execDetached(["kitty", "--class", "ryoku-i18n", "-e", "sh", "-c",
                                                 "ryoku-i18n llm " + I18n.lang + "; echo; read -n1 -rsp 'Done. Press any key to close…'; echo"]);
+                                    }
+                                }
+                            }
+                            // the tiling-layout preview: a looping diagram of the
+                            // drafted layout (dwindle / master / scrolling), swapped
+                            // live as the picker above changes. Fills the block band;
+                            // the gifs ship in art/.
+                            Component {
+                                id: layoutDemoC
+                                Item {
+                                    id: demo
+                                    anchors.fill: parent
+                                    implicitHeight: 168
+                                    readonly property string layout: {
+                                        var v = sheet.draft ? sheet.draft["appearance.layout"] : "";
+                                        return (v === "master" || v === "scrolling") ? v : "dwindle";
+                                    }
+                                    readonly property var blurbs: ({
+                                        "dwindle": "Each new window splits the focused frame in two, so the layout spirals into smaller and smaller frames.",
+                                        "master": "One big master frame keeps the focus; every other window stacks down the side beside it.",
+                                        "scrolling": "Windows line up in one endless horizontal row; the strip pans sideways to keep the focused column in view."
+                                    })
+                                    Rectangle {
+                                        id: demoScreen
+                                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                                        width: Math.min(360, demo.width * 0.5)
+                                        color: "transparent"
+                                        radius: Tokens.radius
+                                        border.width: Tokens.border
+                                        border.color: Tokens.line
+                                        AnimatedImage {
+                                            anchors.fill: parent
+                                            anchors.margins: Tokens.s3
+                                            source: Qt.resolvedUrl("art/tiling-" + demo.layout + ".gif")
+                                            fillMode: Image.PreserveAspectFit
+                                            playing: true
+                                            cache: false
+                                            asynchronous: true
+                                            onStatusChanged: if (status === Image.Ready) playing = true
+                                        }
+                                    }
+                                    Column {
+                                        anchors { left: demoScreen.right; leftMargin: Tokens.s5; right: parent.right; verticalCenter: demoScreen.verticalCenter }
+                                        spacing: Tokens.s2
+                                        Text {
+                                            text: demo.layout.toUpperCase()
+                                            color: Tokens.ink
+                                            font.family: Tokens.ui
+                                            font.pixelSize: Tokens.fValue
+                                            font.weight: Font.Light
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            text: demo.blurbs[demo.layout]
+                                            color: Tokens.inkMuted
+                                            font.family: Tokens.ui
+                                            font.pixelSize: 12
+                                            wrapMode: Text.WordWrap
+                                        }
                                     }
                                 }
                             }
