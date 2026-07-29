@@ -3,6 +3,7 @@ import Quickshell
 import "barstyles/shared" as Shared
 import "barstyles/shared/popouts" as Popouts
 import "barstyles/obi/widgets" as Obi
+import "barstyles/nacre/components" as NacreComponents
 import "barstyles/nacre/widgets" as NacreWidgets
 
 ShellRoot {
@@ -44,6 +45,10 @@ ShellRoot {
     Component { id: nacreWeather; NacreWidgets.Weather {} }
     Component { id: nacreWorkspaces; NacreWidgets.Workspaces {} }
     Component {
+        id: nacreIsland
+        NacreComponents.Island {}
+    }
+    Component {
         id: nacreConnectivityUrl
         Loader { source: "barstyles/nacre/widgets/Connectivity.qml" }
     }
@@ -81,6 +86,16 @@ ShellRoot {
             if (!connectivityPopup || connectivityPopup.status !== Loader.Ready)
                 throw new Error("CONNECTIVITY-POPUP-PROBE-FAIL");
             connectivityPopup.destroy();
+            const emptyIsland = nacreIsland.createObject(root, { widgetIds: [] });
+            if (!emptyIsland || emptyIsland.visible || emptyIsland.width !== 0 || emptyIsland.height !== 0)
+                throw new Error("NACRE-EMPTY-ISLAND-PROBE-FAIL");
+            const populatedIsland = nacreIsland.createObject(root, { widgetIds: ["brand"] });
+            if (!populatedIsland || !populatedIsland.visible || !populatedIsland.hasWidgets
+                    || populatedIsland.naturalWidth <= 0 || populatedIsland.height <= 0)
+                throw new Error("NACRE-POPULATED-ISLAND-PROBE-FAIL");
+            populatedIsland.widgetIds = [];
+            populatedIsland.destroy();
+            emptyIsland.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");
             Qt.quit();
         }

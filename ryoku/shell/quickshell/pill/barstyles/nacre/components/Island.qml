@@ -15,10 +15,13 @@ Rectangle {
     property real horizontalPadding: 12
     property real widgetSpacing: 8
 
-    readonly property real naturalWidth: content.implicitWidth + root.horizontalPadding * 2
+    readonly property bool hasWidgets: root.widgetIds.length > 0
+    readonly property real naturalWidth: root.hasWidgets
+        ? content.implicitWidth + root.horizontalPadding * 2 : 0
 
     width: Math.min(root.naturalWidth, root.maxWidth)
-    height: root.barHeight
+    height: root.hasWidgets ? root.barHeight : 0
+    visible: root.hasWidgets
     clip: true
     color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, root.surfaceOpacity)
     border.width: Theme.borderWidth
@@ -39,7 +42,7 @@ Rectangle {
                 required property string modelData
                 widgetId: modelData
                 barHeight: root.barHeight
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenter: content.verticalCenter
             }
         }
     }
