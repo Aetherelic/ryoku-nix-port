@@ -1,5 +1,3 @@
-.pragma library
-
 // Registry of bar styles. Each style is a self-contained folder under
 // pill/barstyles/<id>/ holding its own Scene.qml (the per-monitor bar), its
 // widgets, its popouts and its settings. `scene` is the QML shell.qml loads
@@ -9,7 +7,8 @@
 // Adding a style: drop its folder under barstyles/, then add one row here.
 var STYLES = [
     { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink.", scene: "" },
-    { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces.", scene: "barstyles/obi/Scene.qml" }
+    { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces.", scene: "barstyles/obi/Scene.qml" },
+    { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands beneath a hairline edge.", scene: "barstyles/nacre/Scene.qml" }
 ];
 
 function list() { return STYLES; }
@@ -21,3 +20,6 @@ function entry(id) {
 }
 function sceneUrl(id) { return entry(id).scene; }
 function isBuiltin(id) { return sceneUrl(id) === ""; }
+
+if (typeof module !== "undefined" && module.exports)
+    module.exports = { list, ids, entry, sceneUrl, isBuiltin };

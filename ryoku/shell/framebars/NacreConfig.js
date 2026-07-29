@@ -1,8 +1,19 @@
 const islands = ["left", "center", "right"];
-const widgets = [
-    "brand", "media", "activeWindow", "clock", "workspaces", "resources",
-    "connectivity", "audio", "battery", "tray", "weather", "utils"
+const catalog = [
+    { id: "brand", label: "Brand", file: "Brand.qml" },
+    { id: "media", label: "Media", file: "Media.qml" },
+    { id: "activeWindow", label: "Active window", file: "ActiveWindow.qml" },
+    { id: "clock", label: "Clock", file: "Clock.qml" },
+    { id: "workspaces", label: "Workspaces", file: "Workspaces.qml" },
+    { id: "resources", label: "Resources", file: "Resources.qml" },
+    { id: "connectivity", label: "Connections", file: "Connectivity.qml" },
+    { id: "audio", label: "Audio", file: "Audio.qml" },
+    { id: "battery", label: "Battery", file: "Battery.qml" },
+    { id: "tray", label: "Tray", file: "Tray.qml" },
+    { id: "weather", label: "Weather", file: "Weather.qml" },
+    { id: "utils", label: "Recording", file: "Utils.qml" }
 ];
+const widgets = catalog.map(item => item.id);
 const ranges = {
     height: [32, 56],
     opacity: [0.45, 1],
@@ -121,10 +132,17 @@ function widgetIds() {
     return widgets.slice();
 }
 
+function entry(id) {
+    for (const item of catalog)
+        if (item.id === id)
+            return clone(item);
+    return null;
+}
+
 function unused(config) {
     const output = normalize(config);
     return widgets.filter(id => locate(output, id) === null);
 }
 
 if (typeof module !== "undefined" && module.exports)
-    module.exports = { defaultConfig, normalize, move, remove, setValue, widgetIds, unused };
+    module.exports = { defaultConfig, normalize, move, remove, setValue, widgetIds, entry, unused };

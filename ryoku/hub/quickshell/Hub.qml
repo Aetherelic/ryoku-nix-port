@@ -29,7 +29,6 @@ import "schema/AutostartPage.js" as AutostartSchema
 import "schema/EnvironmentPage.js" as EnvironmentSchema
 import "schema/PerformancePage.js" as PerformanceSchema
 import "schema/UpdatesPage.js" as UpdatesSchema
-import "../../shell/quickshell/pill/barstyles/nacre/NacreConfig.js" as NacreConfig
 import Ryoku.FrameBars
 
 // Ryoku Settings, assembled. The rail owns navigation and global search; the

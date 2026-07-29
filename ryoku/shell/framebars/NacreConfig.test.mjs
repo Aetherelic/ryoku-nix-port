@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const Nacre = require("./NacreConfig.js");
-const Registry = require("./widgets/registry.js");
+const BarStyles = require("../quickshell/pill/barstyles/registry.js");
 
 let failed = 0;
 
@@ -20,7 +20,8 @@ function eq(actual, expected, message) {
 
 const defaults = Nacre.defaultConfig();
 eq(Nacre.normalize(null), defaults, "missing config restores defaults");
-eq(Registry.list().map(item => item.id), Nacre.widgetIds(), "widget registry matches the settings model");
+eq(Nacre.entry("workspaces"), { id: "workspaces", label: "Workspaces", file: "Workspaces.qml" }, "catalog resolves widget metadata");
+eq(BarStyles.entry("nacre").scene, "barstyles/nacre/Scene.qml", "bar registry resolves the Nacre scene");
 
 const normalized = Nacre.normalize({
     islands: {
@@ -62,6 +63,7 @@ eq(
     "cross-island move inserts at the target"
 );
 eq(defaults.islands.left, ["brand", "media", "activeWindow"], "move leaves its input unchanged");
+eq(moved.opacity, 0.82, "move preserves appearance settings");
 
 const reordered = Nacre.move(defaults, "brand", "left", "left", 3);
 eq(reordered.islands.left, ["media", "activeWindow", "brand"], "same-island move adjusts its target after removal");

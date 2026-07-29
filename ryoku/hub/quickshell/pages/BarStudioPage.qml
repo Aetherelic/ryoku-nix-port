@@ -55,7 +55,8 @@ Item {
     // separate process, so the style list is duplicated here; keep it in step.
     readonly property var barStyles: [
         { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink." },
-        { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces." }
+        { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces." },
+        { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands beneath a hairline edge." }
     ]
 
     // The Obi bar's widgets, for the per-widget show/hide toggles below. Mirrors
@@ -268,7 +269,7 @@ Item {
 
                 Text {
                     width: folderNote.width
-                    text: qsTr("The %1 style manages its own layout in barstyles/%2. Toggle its widgets below.").arg(page.activeName).arg(page.activeStyle)
+                    text: qsTr("The %1 style manages its own layout in barstyles/%2. Its controls are below.").arg(page.activeName).arg(page.activeStyle)
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: Tokens.fBody
@@ -305,6 +306,19 @@ Item {
                             }
                         }
                     }
+                }
+            }
+
+            Section {
+                id: nacreSect
+                width: col.width
+                visible: page.activeStyle === "nacre"
+                title: qsTr("NACRE LAYOUT")
+
+                NacreEditor {
+                    width: nacreSect.width
+                    config: page.fval("nacre", ({}))
+                    onStaged: value => page.fedit("nacre", value)
                 }
             }
 
