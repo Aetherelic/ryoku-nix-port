@@ -1,7 +1,7 @@
 # Nacre Folder Bar Style Design
 
 **Date:** 2026-07-29
-**Status:** Approved direction, pending written-spec review
+**Status:** Approved
 **Target:** `unstable-dev`
 
 ## Goal
@@ -171,6 +171,11 @@ The center island remains screen-centered. Left and right islands anchor to
 their respective screen edges. Their maximum widths stop before the center
 island plus `islandGap`.
 
+The top hairline is the frame. Each populated island grows down from that frame
+and hugs its visible widgets at intrinsic width. An island with no visible
+widgets has zero size, no border or surface, and no input-mask region. Empty
+space is never represented by a placeholder capsule.
+
 When a side island would exceed its available width:
 
 1. Active-window text elides first.
@@ -190,12 +195,17 @@ Obi editors stand down and a Nacre-specific section appears.
 
 The editor contains:
 
-- A compact horizontal representation of the left, center, and right islands.
+- Full-width Left, Center, and Right lanes stacked vertically.
 - A draggable card for every placed widget.
 - Insertion targets before, between, and after existing cards.
 - An unused-widget palette below the islands.
 - Live controls for height, opacity, padding, spacing, island gap, and
   occupied-only workspaces.
+
+Each lane and the unused palette grows with its wrapping content. Widget chips
+use compact typography and a capped width; labels that exceed the cap elide.
+Dragging raises only the active chip and must not overlap neighboring editor
+sections after the drop completes.
 
 A drag carries `{widgetId, sourceIsland, sourceIndex}`. Dropping into an island
 removes the source occurrence and inserts the ID at the resolved target index
