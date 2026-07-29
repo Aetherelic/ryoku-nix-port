@@ -1,13 +1,12 @@
 # Bar styles
 
-Ryoku draws its bar one of two ways, and a single key decides which. The default
-is **Sumi**, the built-in left rail (paper and ink, the ink spine down the side
-of the screen). Sumi is not a folder: the shell draws it itself from the frame
-scene in `shell.qml`. Every other style is a self-contained folder under
-`ryoku/shell/quickshell/pill/barstyles/<id>/` that ships its own bar, its own
-widgets, and its own popouts, and the shell loads it per monitor. **Obi**, a
-floating top bar with kanji workspaces, is the worked example this doc reads
-from; use it as the template for a new one.
+Ryoku ships three bar styles, and a single key decides which one runs. The
+default is **Sumi**, the built-in left rail. Sumi is not a folder: the shell
+draws it from the frame scene in `shell.qml`. Each other style lives under
+`ryoku/shell/quickshell/pill/barstyles/<id>/`, ships its own bar, widgets and
+settings, and loads once per monitor. **Obi** is a
+floating sash with kanji workspaces. **Nacre** is three frosted top islands with
+a configurable widget layout.
 
 A bar style owns the bar and nothing else. The frame border, the menus, the
 service surfaces, and the tokens stay where they are; a style just decides what
@@ -32,7 +31,8 @@ registry, `pill/barstyles/registry.js`. Each row is a style:
 ```js
 var STYLES = [
     { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink.", scene: "" },
-    { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces.", scene: "barstyles/obi/Scene.qml" }
+    { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces.", scene: "barstyles/obi/Scene.qml" },
+    { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands beneath a hairline edge.", scene: "barstyles/nacre/Scene.qml" }
 ];
 ```
 
@@ -105,23 +105,28 @@ how edits land:
 
 ## The shape of a style
 
-Obi is laid out like this:
+Folder styles and their shared popups are laid out like this:
 
 ```
-barstyles/obi/
-  Scene.qml            the per-monitor bar window
-  components/
-    BarPill.qml        the rounded surface group a zone sits in
-    Popout.qml         the hover card every widget reuses
-  widgets/
-    Workspaces.qml     ActiveWindow.qml  Clock.qml  Media.qml
-    Resources.qml      Battery.qml       Weather.qml
-    Tray.qml           Utils.qml
+barstyles/
+  shared/
+    Popout.qml
+    popouts/
+  obi/
+    Scene.qml
+    components/BarPill.qml
+    widgets/
+  nacre/
+    Scene.qml
+    components/
+    widgets/
 ```
 
-There is no separate `popouts/` directory. Each widget owns its own popout as a
-`Component` inside its file and wires it with `components/Popout.qml`, so a
-style's cards live entirely inside the style's folder.
+Obi and Nacre keep separate compact widget faces. Their hover cards use the
+same components under `barstyles/shared/`, so controls and fixes do not drift.
+Nacre's `nacre` object in `shell.json` stores the three widget arrays, height,
+opacity, padding, spacing, island gap, and workspace filter. Bar Studio edits
+that object live with drag-and-drop and Save/Revert.
 
 `Scene.qml` is a `PanelWindow`, one instance per monitor. It takes the screen
 through `modelData`, anchors itself to an edge, reserves its band with an
