@@ -81,11 +81,15 @@ Item {
             width: parent.width - root.leadInset - root.tailInset - 3
             height: parent.height
 
-            RailZone { anchors.fill: parent; ids: root.rail.start; horizontal: true; align: "start"; spacing: root.gap; delegate: root.delegate }
+            RailZone { id: hStart; anchors.fill: parent; ids: root.rail.start; horizontal: true; align: "start"; spacing: root.gap; delegate: root.delegate }
             // `center` is the one zone key both orientations read, so gate it to
             // this one; the hidden orientation must instantiate no widgets.
-            RailZone { anchors.fill: parent; ids: root.horizontal ? root.rail.center : []; horizontal: true; align: "center"; spacing: root.gap; delegate: root.delegate }
-            RailZone { anchors.fill: parent; ids: root.rail.end; horizontal: true; align: "end"; spacing: root.gap; delegate: root.delegate }
+            RailZone {
+                anchors.fill: parent; ids: root.horizontal ? root.rail.center : []; horizontal: true; align: "center"; spacing: root.gap; delegate: root.delegate
+                leadExtent: hStart.implicitWidth
+                tailExtent: hEnd.implicitWidth
+            }
+            RailZone { id: hEnd; anchors.fill: parent; ids: root.rail.end; horizontal: true; align: "end"; spacing: root.gap; delegate: root.delegate }
         }
 
         Item {
@@ -94,9 +98,13 @@ Item {
             width: parent.width
             height: parent.height - root.leadInset - root.tailInset - 3
 
-            RailZone { anchors.fill: parent; ids: root.rail.top; horizontal: false; align: "start"; spacing: root.gap; delegate: root.delegate }
-            RailZone { anchors.fill: parent; ids: root.horizontal ? [] : root.rail.center; horizontal: false; align: "center"; spacing: root.gap; delegate: root.delegate }
-            RailZone { anchors.fill: parent; ids: root.rail.bottom; horizontal: false; align: "end"; spacing: root.gap; delegate: root.delegate }
+            RailZone { id: vTop; anchors.fill: parent; ids: root.rail.top; horizontal: false; align: "start"; spacing: root.gap; delegate: root.delegate }
+            RailZone {
+                anchors.fill: parent; ids: root.horizontal ? [] : root.rail.center; horizontal: false; align: "center"; spacing: root.gap; delegate: root.delegate
+                leadExtent: vTop.implicitHeight
+                tailExtent: vBottom.implicitHeight
+            }
+            RailZone { id: vBottom; anchors.fill: parent; ids: root.rail.bottom; horizontal: false; align: "end"; spacing: root.gap; delegate: root.delegate }
         }
     }
 }
