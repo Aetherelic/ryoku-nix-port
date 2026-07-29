@@ -493,7 +493,23 @@ func stepPayload(e *engine) error {
 			return err
 		}
 	}
-	return e.cmd(e.payload, nil, "git", append([]string{"sparse-checkout", "set"}, sparsePaths...)...)
+	if err := e.cmd(e.payload, nil, "git", append([]string{"sparse-checkout", "set"}, sparsePaths...)...); err != nil {
+		return err
+	}
+	// a cache from an older installer can come out of the update missing paths
+	// the current engine needs; a broken cache is worth less than a fresh clone.
+	if _, err := os.Stat(filepath.Join(e.payload, "system/packages/base.packages")); err != nil && !e.dry {
+		e.say("payload cache is incomplete; recloning it fresh")
+		if err := os.RemoveAll(e.payload); err != nil {
+			return err
+		}
+		if err := e.cmd("", nil, "git", "clone", "--depth=1", "--filter=blob:none", "--sparse",
+			"--branch", e.ref, repoURL, e.payload); err != nil {
+			return err
+		}
+		return e.cmd(e.payload, nil, "git", append([]string{"sparse-checkout", "set"}, sparsePaths...)...)
+	}
+	return nil
 }
 
 // paths under $HOME that materialize or the seeds will touch. hypr, quickshell
@@ -749,6 +765,7 @@ func stepPackages(e *engine) error {
 	if e.p.devtools {
 		pkgs = append(pkgs, devPkgs...)
 	}
+	pkgs = e.dropSatisfied(pkgs)
 	// a .part resumed against a mirror whose bytes moved on trips pacman's
 	// size cap on every retry; dropping resume state just costs a re-download.
 	if err := e.sudoSh(`rm -f /var/cache/pacman/pkg/*.part`); err != nil {
@@ -757,6 +774,45 @@ func stepPackages(e *engine) error {
 	// -Syu, not -S: a resumed run holds the db its first attempt synced, and
 	// a publish in between replaces or prunes the files that db points at.
 	return e.sudo(append([]string{"pacman", "-Syu", "--needed", "--noconfirm"}, pkgs...)...)
+}
+
+// dropSatisfied removes packages an installed provider already satisfies.
+// `pacman -T` prints only the unmet names, so a box with qt6ct-kde (an AUR
+// fork that conflicts with and provides qt6ct) keeps its fork instead of the
+// install dying on the conflict: --noconfirm answers the "remove it?" prompt
+// with no. Errors fall back to the full list; -T needs no root or network.
+func (e *engine) dropSatisfied(pkgs []string) []string {
+	if e.dry || len(pkgs) == 0 {
+		return pkgs
+	}
+	out, err := exec.Command("pacman", append([]string{"-T"}, pkgs...)...).Output()
+	// exit 127 aside, pacman -T exits 1 when any target is unmet; the list on
+	// stdout is the answer either way, so only a total failure falls back.
+	if len(out) == 0 && err != nil {
+		return pkgs
+	}
+	keep := filterByUnmet(pkgs, string(out))
+	if len(keep) < len(pkgs) {
+		e.say(fmt.Sprintf("%d of %d packages already satisfied by installed providers", len(pkgs)-len(keep), len(pkgs)))
+	}
+	return keep
+}
+
+// filterByUnmet keeps only the names pacman -T reported as unmet.
+func filterByUnmet(pkgs []string, unmetOut string) []string {
+	unmet := map[string]bool{}
+	for _, ln := range strings.Split(strings.TrimSpace(unmetOut), "\n") {
+		if ln != "" {
+			unmet[ln] = true
+		}
+	}
+	var keep []string
+	for _, p := range pkgs {
+		if unmet[p] {
+			keep = append(keep, p)
+		}
+	}
+	return keep
 }
 
 func stepDrivers(e *engine) error {
