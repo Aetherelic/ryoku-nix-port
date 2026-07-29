@@ -40,7 +40,8 @@ PanelWindow {
         surfaceOpacity: root.settings.opacity
         horizontalPadding: root.settings.padding
         widgetSpacing: root.settings.spacing
-        maxWidth: root.width - root.settings.islandGap * 2
+        maxWidth: Math.max(root.settings.height,
+            root.width - (root.settings.height + root.settings.islandGap) * 2)
     }
 
     Components.Island {
@@ -54,7 +55,8 @@ PanelWindow {
         surfaceOpacity: root.settings.opacity
         horizontalPadding: root.settings.padding
         widgetSpacing: root.settings.spacing
-        maxWidth: Math.max(0, centerIsland.x - root.settings.islandGap)
+        maxWidth: Math.max(root.settings.height,
+            centerIsland.x - root.settings.islandGap)
     }
 
     Components.Island {
@@ -68,6 +70,7 @@ PanelWindow {
         surfaceOpacity: root.settings.opacity
         horizontalPadding: root.settings.padding
         widgetSpacing: root.settings.spacing
-        maxWidth: Math.max(0, root.width - centerIsland.x - centerIsland.width - root.settings.islandGap)
+        maxWidth: Math.max(root.settings.height,
+            root.width - centerIsland.x - centerIsland.width - root.settings.islandGap)
     }
 }

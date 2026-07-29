@@ -18,8 +18,10 @@ Rectangle {
     readonly property bool hasWidgets: root.widgetIds.length > 0
     readonly property real naturalWidth: root.hasWidgets
         ? content.implicitWidth + root.horizontalPadding * 2 : 0
+    readonly property real minimumWidth: root.hasWidgets
+        ? Math.min(root.naturalWidth, root.barHeight) : 0
 
-    width: Math.min(root.naturalWidth, root.maxWidth)
+    width: Math.max(root.minimumWidth, Math.min(root.naturalWidth, root.maxWidth))
     height: root.hasWidgets ? root.barHeight : 0
     visible: root.hasWidgets
     clip: true

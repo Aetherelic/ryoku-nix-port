@@ -120,8 +120,14 @@ ShellRoot {
             if (!populatedIsland || !populatedIsland.visible || !populatedIsland.hasWidgets
                     || populatedIsland.naturalWidth <= 0 || populatedIsland.height <= 0)
                 throw new Error("NACRE-POPULATED-ISLAND-PROBE-FAIL");
+            const constrainedIsland = nacreIsland.createObject(root, {
+                widgetIds: ["brand"], maxWidth: 0
+            });
+            if (!constrainedIsland || constrainedIsland.width <= 0)
+                throw new Error("NACRE-CONSTRAINED-ISLAND-PROBE-FAIL");
             populatedIsland.widgetIds = [];
             populatedIsland.destroy();
+            constrainedIsland.destroy();
             emptyIsland.destroy();
             const resourcesFace = nacreResources.createObject(root);
             if (!resourcesFace
