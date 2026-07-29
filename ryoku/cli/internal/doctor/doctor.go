@@ -120,6 +120,7 @@ func reconcilers() []reconciler {
 		{"frame bar style name", reconcileFrameBarsStyle},
 		{"shell config schema", reconcileShellConfig},
 		{"shell style knobs", reconcileLegacyStyleKnobs},
+		{"sumi bar simplification", reconcileSumiBar},
 		{"shell screenshot menu", reconcileCaptureMenu},
 		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
 		{"user edits overlay", reconcileUserEditsAdopt},
@@ -1117,6 +1118,124 @@ func stripLegacyStyleKnobs(raw []byte) ([]byte, bool, error) {
 		if _, ok := top[key]; ok {
 			delete(top, key)
 			changed = true
+		}
+	}
+	if !changed {
+		return nil, false, nil
+	}
+	out, err := json.MarshalIndent(top, "", "  ")
+	if err != nil {
+		return nil, false, err
+	}
+	return append(out, '\n'), true, nil
+}
+
+// ---- reconciler: sumi bar simplification -------------------------------------
+
+// reconcileSumiBar converges a persisted shell.json onto the simplified bar:
+// the top-level barStyle key (absent on installs older than the pluggable
+// bar-style system, which then render nothing until it defaults) set to "sumi",
+// and the Sumi frame reduced to its left rail (the top/bottom/right rails, on by
+// default in the old profile, now ship disabled). Surgical and idempotent: only
+// barStyle and the three rails' enabled flags move, every zone widget array and
+// other key survives untouched, and a store already simplified is left alone.
+func reconcileSumiBar(checkOnly bool) recResult {
+	path := filepath.Join(sys.ConfigHome(), "ryoku", "shell.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return okRes("no shell.json yet (seeded on first shell run)")
+	}
+	migrated, changed, err := migrateSumiBar(raw)
+	if err != nil {
+		return warnRes("shell.json does not parse (%v); the shell falls back to defaults", err).
+			withFix("delete %s to re-seed it", path)
+	}
+	if !changed {
+		return okRes("barStyle set and the Sumi frame is left-only")
+	}
+	if checkOnly {
+		return wouldRes("shell.json predates the simplified bar (missing barStyle or extra Sumi rails enabled)").
+			withFix("ryoku doctor converges it in place")
+	}
+	tmp := path + ".ryoku-tmp"
+	if err := os.WriteFile(tmp, migrated, 0o644); err != nil {
+		return failRes("could not write %s: %v", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return failRes("could not replace %s: %v", path, err)
+	}
+	return fixedRes("set barStyle and reduced the Sumi frame to left-only")
+}
+
+// migrateSumiBar rewrites a shell store onto the simplified bar: add barStyle
+// "sumi" when it is absent, and disable the Sumi frame's top/bottom/right rails
+// when any is still on. The left rail, every zone widget array, and all other
+// keys are preserved as their own raw bytes, so a store already simplified (or
+// with no frameBars) comes back unchanged.
+func migrateSumiBar(raw []byte) ([]byte, bool, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil {
+		return nil, false, err
+	}
+	changed := false
+	if _, ok := top["barStyle"]; !ok {
+		next, err := json.Marshal("sumi")
+		if err != nil {
+			return nil, false, err
+		}
+		top["barStyle"] = next
+		changed = true
+	}
+	if frameRaw, ok := top["frameBars"]; ok {
+		var frame map[string]json.RawMessage
+		if err := json.Unmarshal(frameRaw, &frame); err != nil {
+			return nil, false, err
+		}
+		if railsRaw, ok := frame["rails"]; ok {
+			var rails map[string]json.RawMessage
+			if err := json.Unmarshal(railsRaw, &rails); err != nil {
+				return nil, false, err
+			}
+			railsChanged := false
+			for _, side := range []string{"top", "bottom", "right"} {
+				railRaw, ok := rails[side]
+				if !ok {
+					continue
+				}
+				var rail map[string]json.RawMessage
+				if err := json.Unmarshal(railRaw, &rail); err != nil {
+					return nil, false, err
+				}
+				var enabled bool
+				if err := json.Unmarshal(rail["enabled"], &enabled); err != nil || !enabled {
+					continue
+				}
+				off, err := json.Marshal(false)
+				if err != nil {
+					return nil, false, err
+				}
+				rail["enabled"] = off
+				railBytes, err := json.Marshal(rail)
+				if err != nil {
+					return nil, false, err
+				}
+				rails[side] = railBytes
+				railsChanged = true
+			}
+			if railsChanged {
+				railsBytes, err := json.Marshal(rails)
+				if err != nil {
+					return nil, false, err
+				}
+				frame["rails"] = railsBytes
+				frameBytes, err := json.Marshal(frame)
+				if err != nil {
+					return nil, false, err
+				}
+				top["frameBars"] = frameBytes
+				changed = true
+			}
 		}
 	}
 	if !changed {
