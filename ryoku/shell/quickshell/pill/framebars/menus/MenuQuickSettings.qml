@@ -72,6 +72,22 @@ Item {
         return "";
     }
 
+    // "" while off; " for 3d" / " for 5h" / " for 12m" once keep-awake has an
+    // age worth seeing.
+    function awakeFor() {
+        const since = Flags.keepAwakeSince;
+        if (!since || since <= 0)
+            return "";
+        const mins = Math.floor((Date.now() - since) / 60000);
+        if (mins < 1)
+            return "";
+        if (mins < 60)
+            return " " + qsTr("for %1m").arg(mins);
+        if (mins < 1440)
+            return " " + qsTr("for %1h").arg(Math.floor(mins / 60));
+        return " " + qsTr("for %1d").arg(Math.floor(mins / 1440));
+    }
+
     SystemClock {
         id: clock
         precision: SystemClock.Minutes
@@ -312,6 +328,20 @@ Item {
                                 icon: "bedtime"; label: qsTr("Night light")
                                 sub: Toggles.nightOn ? qsTr("On") : qsTr("Off")
                                 on: Toggles.nightOn; onToggled: Toggles.toggleNight()
+                            }
+                            QsTile {
+                                width: tileGrid.tileW
+                                icon: "coffee"; label: qsTr("Keep awake")
+                                // the duration is the warning: an inhibitor left
+                                // on for days silently blocks every suspend.
+                                sub: Toggles.keepAwake ? qsTr("On") + root.awakeFor() : qsTr("Off")
+                                on: Toggles.keepAwake; onToggled: Toggles.toggleCaffeine()
+                            }
+                            QsTile {
+                                width: tileGrid.tileW
+                                icon: "dnd"; label: qsTr("Do not disturb")
+                                sub: Toggles.dnd ? qsTr("On") : qsTr("Off")
+                                on: Toggles.dnd; onToggled: Toggles.toggleDnd()
                             }
                         }
 

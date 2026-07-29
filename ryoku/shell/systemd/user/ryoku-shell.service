@@ -11,6 +11,9 @@ ConditionEnvironment=WAYLAND_DISPLAY
 # set here, not only via the session env: an import that does not land would
 # silently drop the polkit agent back to the stock one.
 Environment=RYOKU_POLKIT_AGENT=1
+# a stray unsupervised daemon (an old deploy, a crashed update) holds the
+# socket and would wedge the unit into its start limit; ask it to quit first.
+ExecStartPre=-/usr/bin/ryoku-shell quit
 ExecStart=/usr/bin/ryoku-shell daemon
 Restart=always
 RestartSec=2

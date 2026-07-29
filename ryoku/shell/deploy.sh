@@ -401,7 +401,8 @@ mkdir -p "$cfg/btop"; cp -a "$here/../apps/btop/btop.conf" "$cfg/btop/btop.conf"
 mkdir -p "$cfg/pipewire"; cp -a "$here/../apps/pipewire/." "$cfg/pipewire/"
 mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
 # dev deploy runs the daemon from ~/.local/bin; the package ships /usr/bin.
-sed -i "s|^ExecStart=.*|ExecStart=$bindir/ryoku-shell daemon|" "$cfg/systemd/user/ryoku-shell.service"
+sed -i -e "s|^ExecStart=.*|ExecStart=$bindir/ryoku-shell daemon|" \
+  -e "s|^ExecStartPre=.*|ExecStartPre=-$bindir/ryoku-shell quit|" "$cfg/systemd/user/ryoku-shell.service"
 systemctl --user daemon-reload 2>/dev/null || true
 # pip (PEP 668 --user) + the default-app map: Ryoku-owned, so a dev box tracks
 # them the way the package materializes them for an installed one.

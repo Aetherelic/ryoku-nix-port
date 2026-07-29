@@ -35,6 +35,12 @@
   "covered", which reports covered when a workspace merely holds a window
   (`ipc/livewatch.go`, `hub/quickshell/pages/PerformancePage.qml`).
 
+- **Keep Awake and Do Not Disturb live in quick settings.** Both toggles existed
+  only on the retired deck, so Super+Esc had no way to hold the machine awake or
+  silence toasts. Keep Awake also shows how long it has been on ("On for 3d"):
+  a forgotten inhibitor blocks every suspend, and the age is the tell
+  (`quickshell/pill/framebars/menus/MenuQuickSettings.qml`).
+
 ### Fixed
 - **The overview's workspace and desktop switches no longer bounce you straight
   back.** Clicking a workspace cell, the "+", or a window dispatched the Hyprland
