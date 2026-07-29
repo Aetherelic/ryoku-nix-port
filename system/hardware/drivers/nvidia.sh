@@ -159,10 +159,10 @@ fi
 # boot, and the card only shows up on some boots (the wonky-detection bug).
 # PreserveVideoMemoryAllocations = session survives suspend.
 #
-# All gated on the module existing: blacklisting nouveau without a working
+# All gated on the module existing: denylisting nouveau without a working
 # nvidia module leaves an NVIDIA-only desktop with no driver at all.
 if nvidia_module_present; then
-  echo "nvidia.sh: writing modeset + nouveau blacklist"
+  echo "nvidia.sh: writing modeset + nouveau denylist"
   write_root /etc/modprobe.d/nvidia.conf <<'EOF'
 options nvidia_drm modeset=1 fbdev=1
 options nvidia NVreg_PreserveVideoMemoryAllocations=1

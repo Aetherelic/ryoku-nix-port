@@ -1,6 +1,8 @@
 # woke config. defaults apply. paths below are skipped: vendored upstream,
 # binary blobs, or verbatim license text we didn't write.
 ignore_files:
+  # writes /etc/modprobe.d files: "blacklist <module>" is modprobe syntax
+  - system/hardware/drivers/nvidia.sh
   - ryoku/lockscreen/qylock/**
   - ryoku/assets/**
   - LICENSE
