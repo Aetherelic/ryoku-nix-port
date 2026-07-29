@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **Doctor can revive a shell skipped by a missing session env.** The
+  ryoku-shell unit is gated on `ConditionEnvironment=WAYLAND_DISPLAY`; when
+  login's env import never reached the systemd user manager, `systemctl
+  restart` reported success while starting nothing, so doctor's shell-daemon
+  reconciler pushed a restart into a void. It now imports the live session's
+  env into the user manager first (`internal/doctor/doctor.go`).
 - **Doctor moves a persisted Stash sidebar to the right.** The Stash board is now
   the floating Features page on the right, but a box that persisted frameBars
   still carried `surfaces.stash.anchor: "left"` (the old full-span default), which

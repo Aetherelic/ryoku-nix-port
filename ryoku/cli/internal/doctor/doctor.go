@@ -2250,7 +2250,13 @@ func shellDaemonReachable() bool {
 func startShellDaemon() error {
 	// Prefer the unit so a recovered daemon stays supervised; the reload lets a
 	// freshly delivered unit be found. Falls through to a bare start where the
-	// unit does not exist, so recovery never depends on it.
+	// unit does not exist, so recovery never depends on it. The env push first:
+	// if login's import never reached the user manager, the unit's
+	// ConditionEnvironment=WAYLAND_DISPLAY skips it and restart "succeeds"
+	// while starting nothing.
+	_ = exec.Command("dbus-update-activation-environment", "--systemd",
+		"WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "HYPRLAND_INSTANCE_SIGNATURE",
+		"XDG_SESSION_TYPE", "RYOKU_POLKIT_AGENT").Run()
 	_ = exec.Command("systemctl", "--user", "daemon-reload").Run()
 	if exec.Command("systemctl", "--user", "restart", "ryoku-shell").Run() == nil {
 		return nil

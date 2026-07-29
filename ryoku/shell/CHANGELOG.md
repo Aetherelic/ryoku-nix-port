@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Fixed
+- **Fresh installs no longer land on a black desktop.** Hyprland's autostart
+  spawned the session env import and `systemctl --user start ryoku-shell` as
+  separate fire-and-forget commands, so on a cold first boot the shell start
+  could run before `WAYLAND_DISPLAY` reached the systemd user manager; the
+  unit's ConditionEnvironment then skipped it silently, leaving keybinds alive
+  but no bar, no wallpaper, no shell. The import, session target and shell
+  start are now one chained command (`hyprland/modules/autostart.lua`), and
+  doctor pushes the session env into the user manager before restarting the
+  unit so it can heal a bitten session too.
 - **The dock no longer disappears on fresh boots or short rails.** A dock with
   nothing pinned and nothing running rendered zero items, so on a freshly booted
   desktop it read as "the dock is gone" even with the widget enabled in Bar

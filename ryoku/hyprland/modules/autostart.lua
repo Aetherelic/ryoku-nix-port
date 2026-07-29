@@ -11,12 +11,11 @@ hl.on("hyprland.start", function()
     -- Papirus-Dark overlay under ~/.local/share/icons tinted to the palette and
     -- selects it. Rebuilt on every palette change by the shell's matugen hook.
     hl.exec_cmd("command -v ryoku-cmd-folders >/dev/null 2>&1 && ryoku-cmd-folders")
-    -- Import the Wayland/session env into the systemd --user manager and the
-    -- D-Bus activation environment BEFORE the session target starts, so a user
-    -- service gated on that env (ConditionEnvironment=WAYLAND_DISPLAY) starts
-    -- instead of coming up failed.
-    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE XDG_SESSION_TYPE RYOKU_POLKIT_AGENT")
-    hl.exec_cmd("systemctl --user start hyprland-session.target")
+    -- Env import, session target, then the shell, as ONE chained command.
+    -- exec is fire-and-forget: as separate lines the shell start races the
+    -- env import, and losing means ConditionEnvironment=WAYLAND_DISPLAY
+    -- silently skips the unit -- a black desktop on cold first boots.
+    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE XDG_SESSION_TYPE RYOKU_POLKIT_AGENT; systemctl --user start hyprland-session.target; systemctl --user start ryoku-shell")
     -- Polkit authentication is answered by the shell's own agent (the island
     -- that matches the rest of the desktop), so the stock Qt agent must not
     -- take the session's single agent slot. Stopping it is idempotent and
@@ -29,9 +28,6 @@ hl.on("hyprland.start", function()
     -- effort: an old ryoku without the subcommand just fails silently here.
     hl.exec_cmd("command -v ryoku >/dev/null 2>&1 && ryoku keyring init")
     hl.exec_cmd("command -v ryoku-gpu >/dev/null 2>&1 && ryoku-gpu persist")
-    -- under systemd, not bare exec: the daemon supervises every surface, so a
-    -- crash used to take the desktop until the next login.
-    hl.exec_cmd("systemctl --user start ryoku-shell")
     hl.exec_cmd("command -v ryoku-idle >/dev/null 2>&1 && ryoku-idle start")
     hl.exec_cmd("command -v ryoku-clamshell >/dev/null 2>&1 && ryoku-clamshell daemon")
     hl.exec_cmd("command -v ryoku-leds >/dev/null 2>&1 && ryoku-leds apply")
