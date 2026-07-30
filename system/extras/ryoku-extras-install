@@ -44,7 +44,7 @@ bundle_file() {
   cache=$(cache_dir) || die "could not resolve the extras cache (is ryostore installed?)"
   reg="$cache/bundles/registry.json"
   [[ -f $reg ]] || die "bundle catalogue is not cached"
-  rel=$(jq -er --arg id "$id" '.bundles[] | select(.id == $id) | (.path // ("bundles/" + $id))' "$reg") \
+  rel=$(jq -er --arg id "$id" '.bundles[] | select(.id == $id) | (.path // "") as $path | if $path == "" then ("bundles/" + $id) else $path end' "$reg") \
     || die "unknown bundle '$id' (not in the catalogue)"
   [[ -n $rel && $rel != /* && $rel != */ && $rel != "." && $rel != ".." ]] \
     || die "bundle '$id' has an unsafe catalogue path"

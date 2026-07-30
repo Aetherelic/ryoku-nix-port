@@ -399,3 +399,92 @@ func TestEnsurePluginRestoresPriorInstallOnPublishFailure(t *testing.T) {
 		t.Fatalf("prior install was not restored: data=%q err=%v", b, err)
 	}
 }
+
+func TestRemovePluginRejectsDotID(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	root := filepath.Join(dataHome(), "ryoku", "plugins")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(root, "keep")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := removePlugin("."); err == nil {
+		t.Fatal("dot plugin id accepted")
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("dot id removed plugin root: %v", err)
+	}
+}
+
+func TestEnsurePluginUpdatePreservesEnabledPlacement(t *testing.T) {
+	data := t.TempDir()
+	config := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("XDG_CONFIG_HOME", config)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	srv, _ := fixtureServer(t)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	helper, err := filepath.Abs(filepath.Join("..", "..", "..", "shell", "quickshell", "plugins", "ryoku-plugins-place"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	if err := os.Symlink(helper, filepath.Join(bin, "ryoku-plugins-place")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	dst := pluginDataDir("market")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dst, "manifest.json"), []byte(`{"version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(config, "ryoku", "plugins.json")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte(`{"market":{"enabled":true,"host":"sidebarLeft"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ensurePlugin("market"); err != nil {
+		t.Fatalf("ensurePlugin update: %v", err)
+	}
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var placements map[string]pluginPlacement
+	if err := json.Unmarshal(raw, &placements); err != nil {
+		t.Fatal(err)
+	}
+	if !placements["market"].Enabled {
+		t.Fatal("updating an installed plugin deactivated it")
+	}
+}
+
+func TestRecoverTreeRestoresInterruptedReplacement(t *testing.T) {
+	parent := t.TempDir()
+	dst := filepath.Join(parent, "market")
+	backup := backupTreePath(dst)
+	if err := os.MkdirAll(backup, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(backup, "manifest.json"), []byte("known-good"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := recoverTree(dst); err != nil {
+		t.Fatalf("recoverTree: %v", err)
+	}
+	if b, err := os.ReadFile(filepath.Join(dst, "manifest.json")); err != nil || string(b) != "known-good" {
+		t.Fatalf("interrupted replacement was not recovered: data=%q err=%v", b, err)
+	}
+	if _, err := os.Lstat(backup); !os.IsNotExist(err) {
+		t.Fatalf("backup journal survived recovery: %v", err)
+	}
+}

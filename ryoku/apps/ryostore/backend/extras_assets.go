@@ -22,7 +22,7 @@ import (
 var renamePath = os.Rename
 
 func validComponent(name string) bool {
-	return name != "" && filepath.IsLocal(name) && filepath.Clean(name) == name && filepath.Base(name) == name
+	return name != "" && name != "." && !strings.HasPrefix(name, ".ryostore-") && filepath.IsLocal(name) && filepath.Clean(name) == name && filepath.Base(name) == name
 }
 
 func validLocalPath(name string) bool {
@@ -47,28 +47,44 @@ func rejectSymlinkPath(root, rel string) error {
 	return nil
 }
 
-func replaceTree(stage, dst string, finalize func() error) error {
-	parent := filepath.Dir(dst)
-	backup := ""
+func backupTreePath(dst string) string {
+	return filepath.Join(filepath.Dir(dst), ".ryostore-backup-"+filepath.Base(dst))
+}
+
+func recoverTree(dst string) error {
+	backup := backupTreePath(dst)
+	if _, err := os.Lstat(backup); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
 	if _, err := os.Lstat(dst); err == nil {
-		var err error
-		backup, err = os.MkdirTemp(parent, ".backup-*")
-		if err != nil {
-			return err
-		}
-		if err := os.Remove(backup); err != nil {
-			return err
-		}
+		return os.RemoveAll(backup)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return renamePath(backup, dst)
+}
+
+func replaceTree(stage, dst string, finalize func() error) error {
+	if err := recoverTree(dst); err != nil {
+		return fmt.Errorf("recover prior install: %w", err)
+	}
+	backup := backupTreePath(dst)
+	hadPrior := false
+	if _, err := os.Lstat(dst); err == nil {
 		if err := renamePath(dst, backup); err != nil {
 			return err
 		}
+		hadPrior = true
 	} else if !os.IsNotExist(err) {
 		return err
 	}
 
 	restore := func(cause error) error {
 		_ = os.RemoveAll(dst)
-		if backup != "" {
+		if hadPrior {
 			if err := renamePath(backup, dst); err != nil {
 				return fmt.Errorf("%w; restore prior install: %v", cause, err)
 			}
@@ -83,7 +99,7 @@ func replaceTree(stage, dst string, finalize func() error) error {
 			return restore(err)
 		}
 	}
-	if backup != "" {
+	if hadPrior {
 		return os.RemoveAll(backup)
 	}
 	return nil
@@ -201,6 +217,14 @@ func ensurePlugin(id string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return "", err
 	}
+	if err := recoverTree(dst); err != nil {
+		return "", fmt.Errorf("recover plugin %q: %w", id, err)
+	}
+	_, priorErr := os.Lstat(dst)
+	priorInstalled := priorErr == nil
+	if priorErr != nil && !os.IsNotExist(priorErr) {
+		return "", priorErr
+	}
 	stage, err := os.MkdirTemp(filepath.Dir(dst), ".stage-*")
 	if err != nil {
 		return "", err
@@ -227,8 +251,10 @@ func ensurePlugin(id string) (string, error) {
 		return "", err
 	}
 
-	if err := exec.Command("ryoku-plugins-place", id, "enabled", "false").Run(); err != nil {
-		return "", fmt.Errorf("disable plugin placement before install: %w", err)
+	if !priorInstalled {
+		if err := exec.Command("ryoku-plugins-place", id, "enabled", "false").Run(); err != nil {
+			return "", fmt.Errorf("disable plugin placement before install: %w", err)
+		}
 	}
 	if err := replaceTree(stage, dst, func() error {
 		if err := exec.Command("ryoku-plugins-place", id, "seed").Run(); err != nil {
@@ -353,6 +379,20 @@ func ensureNautilusPack(id string) (string, error) {
 	if !validLocalPath(subdir) {
 		return "", fmt.Errorf("nautilus pack %q has invalid subdir %q", id, subdir)
 	}
+	track := nautilusTrackDir(id)
+	if oldRaw, err := os.ReadFile(filepath.Join(track, "manifest.json")); err == nil {
+		var old struct {
+			Subdir string `json:"subdir"`
+		}
+		if err := json.Unmarshal(oldRaw, &old); err != nil {
+			return "", fmt.Errorf("nautilus tracking manifest: %w", err)
+		}
+		if old.Subdir != subdir {
+			return "", fmt.Errorf("nautilus pack %q cannot change subdir from %q to %q", id, old.Subdir, subdir)
+		}
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
 	for _, script := range man.Scripts {
 		if !validLocalPath(script) {
 			return "", fmt.Errorf("nautilus pack %q has invalid script path %q", id, script)
@@ -386,7 +426,8 @@ func ensureNautilusPack(id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	track := nautilusTrackDir(id)
+	// The tracking tree is prepared before publication; its manifest is renamed
+	// last by the replace transaction below.
 	if fi, err := os.Lstat(track); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 		return "", fmt.Errorf("%s is a symlink", track)
 	} else if err != nil && !os.IsNotExist(err) {

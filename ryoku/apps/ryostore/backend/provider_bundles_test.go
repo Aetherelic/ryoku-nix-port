@@ -411,3 +411,58 @@ func TestRemoveNautilusPackRejectsEscapingTrackingRecord(t *testing.T) {
 		t.Fatalf("escaping removal deleted outside data: %v", err)
 	}
 }
+
+func TestEnsureNautilusPackRejectsSubdirChange(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	fixture := &nautilusFixture{subdir: "Old", scripts: []string{"script"}, bodies: map[string]string{"script": "old"}}
+	srv := serveNautilusFixture(t, fixture)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	if _, err := ensureNautilusPack("pack"); err != nil {
+		t.Fatalf("initial install: %v", err)
+	}
+	fixture.subdir = "New"
+	fixture.bodies["script"] = "new"
+	if _, err := ensureNautilusPack("pack"); err == nil {
+		t.Fatal("Nautilus subdir change was accepted")
+	}
+	if b, err := os.ReadFile(filepath.Join(nautilusScriptsDir(), "Old", "script")); err != nil || string(b) != "old" {
+		t.Fatalf("old subdir was not preserved: data=%q err=%v", b, err)
+	}
+	if _, err := os.Lstat(filepath.Join(nautilusScriptsDir(), "New")); !os.IsNotExist(err) {
+		t.Fatalf("new subdir was published: %v", err)
+	}
+}
+
+func TestComponentBoundariesRejectDotID(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	if _, err := ensureInstaller("."); err == nil {
+		t.Fatal("dot installer name accepted")
+	}
+	if _, err := ensureNautilusPack("."); err == nil {
+		t.Fatal("dot Nautilus id accepted")
+	}
+}
+
+func TestBundleProviderRejectsDotID(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/bundles/registry.json" {
+			w.Write([]byte(`{"bundles":[{"id":".","path":"bundles/dot"}]}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+	prov := bundleProvider{
+		cache:  newCache(),
+		status: func(context.Context) map[string]map[string]bool { return nil },
+		launch: func(string) error { return nil },
+	}
+	if _, _, err := prov.Load(context.Background(), false); err == nil {
+		t.Fatal("dot bundle id accepted")
+	}
+}

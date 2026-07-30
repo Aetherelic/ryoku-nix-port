@@ -14,10 +14,10 @@ trap 'rm -rf "$tmp"' EXIT
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
 bin="$tmp/.local/bin"
-mkdir -p "$bin" "$tmp/cache/bundles" "$tmp/cache/collections/demo" "$tmp/data" "$tmp/run"
+mkdir -p "$bin" "$tmp/cache/bundles/default" "$tmp/cache/collections/demo" "$tmp/data" "$tmp/run"
 
 cat >"$tmp/cache/bundles/registry.json" <<'EOF'
-{ "bundles": [ { "id": "demo", "path": "collections/demo" } ] }
+{ "bundles": [ { "id": "demo", "path": "collections/demo" }, { "id": "default", "path": "" } ] }
 EOF
 cat >"$tmp/cache/collections/demo/bundle.json" <<'EOF'
 { "id": "demo", "requires": ["gpu-lib32"], "items": [
@@ -25,6 +25,10 @@ cat >"$tmp/cache/collections/demo/bundle.json" <<'EOF'
   { "type": "package", "name": "optpkg", "tier": "optional" },
   { "type": "nautilus-pack", "name": "video-reformat" },
   { "type": "plugin", "name": "creator-deck" } ] }
+EOF
+cat >"$tmp/cache/bundles/default/bundle.json" <<'EOF'
+{ "id": "default", "items": [
+  { "type": "package", "name": "defaultpkg", "tier": "core" } ] }
 EOF
 
 # fake ryostore: the cache dir, and the internal guest primitives the actuator
@@ -62,6 +66,8 @@ export HOME="$tmp" XDG_DATA_HOME="$tmp/data" XDG_RUNTIME_DIR="$tmp/run" PATH="$b
 out="$(bash "$act" status bundle demo)"
 grep -q '"type": *"nautilus-pack"' <<<"$out" || fail "nautilus-pack missing from status"
 grep -q '"type": *"plugin"' <<<"$out" || fail "plugin missing from status"
+out="$(bash "$act" status bundle default)"
+grep -q '"name": *"defaultpkg"' <<<"$out" || fail "empty registry path did not use canonical bundle path"
 
 # --- whole-bundle DRYRUN install: core planned, optional skipped --------------
 out="$(RYOKU_EXTRAS_DRYRUN=1 bash "$act" install bundle demo 2>&1)"
