@@ -38,6 +38,10 @@
   `quickshell/pill/BarWidgetHost.qml`, `framebars/widgets/RailDock.qml`).
 
 ### Added
+- **Nacre workspaces can be dots, numbers, or Obi's Japanese numerals.**
+  Bar Studio switches the face live while preserving occupied-only filtering.
+  Its island editor now marks the exact insertion point, labels empty drop
+  targets, and makes the unused palette's removal state explicit.
 - **Nacre is a configurable folder bar style.** Its three frosted top islands
   keep the hollow workspace rings and icon-led resource readout. Populated
   islands retain a visible capsule under width pressure. Bar Studio can drag
