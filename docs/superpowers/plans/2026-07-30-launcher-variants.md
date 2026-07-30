@@ -300,6 +300,8 @@ ShellRoot {
     property string requestedId: LauncherConfig.variant
     property string pendingId: ""
     property bool fallbackTried: false
+    readonly property bool variantReady:
+        variantLoader.status === Loader.Ready && variantLoader.item !== null
 
     function selectEntry(id) {
         return catalog ? Catalog.entry(catalog, id) : null;
@@ -316,7 +318,7 @@ ShellRoot {
         var next = selectEntry(id);
         if (!next || next.id === activeId) return;
         pendingId = next.id;
-        if (variantLoader.item && variantLoader.item.shown)
+        if (variantReady && variantLoader.item.shown)
             variantLoader.item.hide();
         else
             finishSwitch();
@@ -331,17 +333,17 @@ ShellRoot {
     }
 
     function show(mon) {
-        if (variantLoader.item) variantLoader.item.show(mon);
+        if (variantReady) variantLoader.item.show(mon);
     }
     function hide() {
-        if (variantLoader.item) variantLoader.item.hide();
+        if (variantReady) variantLoader.item.hide();
     }
     function toggle(mon) {
-        if (variantLoader.item) variantLoader.item.toggle(mon);
+        if (variantReady) variantLoader.item.toggle(mon);
     }
 
     function stateDump() {
-        var state = variantLoader.item ? variantLoader.item.stateDump() : {};
+        var state = variantReady ? variantLoader.item.stateDump() : {};
         state.variant = activeId;
         state.requestedVariant = requestedId;
         state.availableVariants = catalog
@@ -377,7 +379,7 @@ ShellRoot {
     }
 
     Connections {
-        target: variantLoader.item
+        target: root.variantReady ? variantLoader.item : null
         function onShownChanged() {
             if (!target.shown) root.finishSwitch();
         }
