@@ -220,7 +220,7 @@ func ensurePlugin(id string) (string, error) {
 	if err := recoverTree(dst); err != nil {
 		return "", fmt.Errorf("recover plugin %q: %w", id, err)
 	}
-	_, priorErr := os.Lstat(dst)
+	_, priorErr := os.ReadFile(filepath.Join(dst, "manifest.json"))
 	priorInstalled := priorErr == nil
 	if priorErr != nil && !os.IsNotExist(priorErr) {
 		return "", priorErr

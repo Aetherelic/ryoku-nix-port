@@ -265,6 +265,9 @@ func TestEnsurePluginForcesStalePlacementDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if err := os.MkdirAll(pluginDataDir("market"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	configPath := filepath.Join(config, "ryoku", "plugins.json")
 	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
