@@ -7,6 +7,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../../shared/Singletons"
+import "../../shared/providers" as SharedProviders
 import "." as MainVariant
 
 // Main's compact command palette: a separate search row over an image-backed
@@ -118,12 +119,16 @@ Scope {
 
     function stateDump() {
         var dump = root.activeLauncher ? root.activeLauncher.stateDump()
-            : { query: "", resultCount: 0, selectedIndex: 0 };
+            : { query: "", resultCount: 0, selectedIndex: -1 };
         dump.open = root.shown;
         dump.monitor = root.openMon;
         dump.btConnected = root.activeBt ? root.activeBt.connected.length : 0;
         return dump;
     }
+    SharedProviders.Providers {
+        id: sharedProviders
+    }
+
 
     Variants {
         model: Quickshell.screens
@@ -179,6 +184,7 @@ Scope {
 
             MainVariant.Launcher {
                 id: launcher
+                providerSet: sharedProviders
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 // off resting height, not the live one, so growing results push the

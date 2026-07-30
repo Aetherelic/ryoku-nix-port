@@ -168,7 +168,7 @@ Item {
                 spacing: 6 * root.s
                 MainVariant.BrandMark {
                     anchors.verticalCenter: parent.verticalCenter
-                    size: MainMetrics.fontEyebrow * root.s
+                    size: Metrics.fontEyebrow * root.s
                     color: Theme.vermLit
                 }
                 // the radio's tally lamp: a slow pulse that says "broadcast",
@@ -194,7 +194,7 @@ Item {
                     text: root.radio ? "ON AIR · LIVE RADIO" : " NOW PLAYING"
                     color: Theme.vermLit
                     font.family: Theme.font
-                    font.pixelSize: MainMetrics.fontEyebrow * root.s
+                    font.pixelSize: Metrics.fontEyebrow * root.s
                     font.letterSpacing: 1.5
                 }
             }
@@ -203,7 +203,7 @@ Item {
                 text: root.title
                 color: Theme.bright
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontTitle * root.s
+                font.pixelSize: Metrics.fontTitle * root.s
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -212,7 +212,7 @@ Item {
                 text: root.artist
                 color: Theme.subtle
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontSubtitle * root.s
+                font.pixelSize: Metrics.fontSubtitle * root.s
                 elide: Text.ElideRight
                 visible: root.artist.length > 0
             }
@@ -238,9 +238,9 @@ Item {
             anchors.bottomMargin: 12 * root.s
             spacing: 2 * root.s
 
-            TransportBtn { s: root.s; glyph: "prev"; active: root.canPrev; onTap: root.player.previous() }
-            TransportBtn { s: root.s; glyph: root.playing ? "pause" : "play"; active: root.canPlay; onTap: root.player.togglePlaying() }
-            TransportBtn { s: root.s; glyph: "next"; active: root.canNext; onTap: root.player.next() }
+            MainVariant.TransportButton { s: root.s; glyph: "prev"; active: root.canPrev; onTapped: root.player.previous() }
+            MainVariant.TransportButton { s: root.s; glyph: root.playing ? "pause" : "play"; active: root.canPlay; onTapped: root.player.togglePlaying() }
+            MainVariant.TransportButton { s: root.s; glyph: "next"; active: root.canNext; onTapped: root.player.next() }
         }
 
         Text {
@@ -253,7 +253,7 @@ Item {
             text: root.radio ? "● LIVE" : root.fmt(root.scrubbing ? root.scrubFrac * root.lengthSec : root.positionSec)
             color: root.radio ? Theme.vermLit : Theme.faint
             font.family: Theme.mono
-            font.pixelSize: MainMetrics.fontEyebrow * root.s
+            font.pixelSize: Metrics.fontEyebrow * root.s
             font.features: { "tnum": 1 }
             SequentialAnimation on opacity {
                 running: root.radio && root.visible && root.playing
@@ -273,7 +273,7 @@ Item {
             text: root.radio ? "24/7" : root.fmt(root.lengthSec)
             color: Theme.faint
             font.family: Theme.mono
-            font.pixelSize: MainMetrics.fontEyebrow * root.s
+            font.pixelSize: Metrics.fontEyebrow * root.s
             font.features: { "tnum": 1 }
         }
 
@@ -373,68 +373,4 @@ Item {
         }
     }
 
-    // Compact transport button: a 24-unit vector glyph in a hoverable pill.
-    // Fill paths mirror the pill's play/pause/next/prev (see pill/GlyphIcon.qml)
-    // so the visual language matches. Dimmed when the player disallows the step.
-    component TransportBtn: Item {
-        id: btn
-        property real s: 1
-        property string glyph: ""
-        property bool active: true
-        // lit = a persistent on-state (shuffle enabled), drawn in the accent so
-        // the toggle reads as engaged, distinct from the momentary hover halo.
-        property bool lit: false
-        signal tap()
-
-        implicitWidth: 26 * s
-        implicitHeight: 26 * s
-        opacity: active ? 1 : 0.35
-
-        readonly property var paths: ({
-            "play":  "M8 5l11 7-11 7z",
-            "pause": "M8 5h3v14H8z M13 5h3v14h-3z",
-            "next":  "M6 5l9 7-9 7z M16 5h2v14h-2z",
-            "prev":  "M18 5l-9 7 9 7z M6 5h2v14H6z",
-            "shuffle": "M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
-        })
-
-        Rectangle {
-            anchors.fill: parent
-            radius: width / 2
-            color: hover.containsMouse && btn.active ? Theme.hair : "transparent"
-        }
-
-        // Inner 16*s frame scales the 24-unit glyph down with a bit of padding
-        // around it so the hover halo reads as a button, not a raw icon.
-        Item {
-            anchors.centerIn: parent
-            width: 16 * btn.s
-            height: 16 * btn.s
-
-            Shape {
-                width: 24
-                height: 24
-                scale: parent.width / 24
-                transformOrigin: Item.TopLeft
-                antialiasing: true
-                preferredRendererType: Shape.CurveRenderer
-
-                ShapePath {
-                    strokeColor: "transparent"
-                    fillColor: btn.lit ? Theme.vermLit : Theme.bright
-                    capStyle: ShapePath.RoundCap
-                    joinStyle: ShapePath.RoundJoin
-                    PathSvg { path: btn.paths[btn.glyph] || "" }
-                }
-            }
-        }
-
-        MouseArea {
-            id: hover
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: btn.active ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: if (btn.active) btn.tap()
-        }
-    }
 }

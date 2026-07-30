@@ -58,7 +58,7 @@ Item {
                 text: "Actions"
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontEyebrow * root.s
+                font.pixelSize: Metrics.fontEyebrow * root.s
                 leftPadding: 8 * root.s
                 bottomPadding: 2 * root.s
             }
@@ -80,7 +80,7 @@ Item {
                         text: root.actions[index] ? root.actions[index].name : ""
                         color: parent.sel ? Theme.bright : Theme.cream
                         font.family: Theme.font
-                        font.pixelSize: MainMetrics.fontSubtitle * root.s
+                        font.pixelSize: Metrics.fontSubtitle * root.s
                     }
 
                     MouseArea {

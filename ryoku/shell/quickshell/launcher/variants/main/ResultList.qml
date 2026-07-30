@@ -3,6 +3,7 @@ import Quickshell
 import "../../shared/Singletons"
 import "metrics.js" as MainMetrics
 import "../../shared/lib/fuzzy.js" as Fuzzy
+import "../../shared/lib/results.js" as Results
 
 // The result list: ranked rows from the dispatcher. A row is a mono icon, a
 // category eyebrow, the title with the matched chars highlighted, a subtitle, and
@@ -15,17 +16,40 @@ ListView {
     property var results: []
     property string query: ""
     property int selectedIndex: 0
+    property string selectedResultKey: ""
+    property bool selectionSyncing: false
 
     // window-position of the last hover allowed to move the selection, so rows
     // sliding under a still cursor during keyboard scroll don't steal it.
     property point lastPointer: Qt.point(-1, -1)
 
     signal activated(bool closeRequested)
+    signal selectionLost()
 
     spacing: MainMetrics.gapRow * s
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     model: results.length
+
+    function applySelection(key, index) {
+        selectionSyncing = true;
+        selectedResultKey = key;
+        selectedIndex = index;
+        selectionSyncing = false;
+    }
+
+    function resetSelection() {
+        applySelection("", 0);
+    }
+
+    function reconcileSelection() {
+        var previousKey = selectedResultKey;
+        var next = Results.reconcileSelection(
+            results, previousKey, selectedIndex);
+        applySelection(next.key, next.index);
+        if (previousKey.length > 0 && previousKey !== next.key)
+            selectionLost();
+    }
 
     function move(delta) {
         if (results.length === 0)
@@ -46,7 +70,14 @@ ListView {
         list.activated(action.closeOnExecute !== false);
     }
 
-    onResultsChanged: if (selectedIndex >= results.length) selectedIndex = 0;
+    onResultsChanged: reconcileSelection()
+    onSelectedIndexChanged: {
+        if (selectionSyncing)
+            return;
+        var row = selectedIndex >= 0 && selectedIndex < results.length
+            ? results[selectedIndex] : null;
+        selectedResultKey = row ? String(row.resultKey || "") : "";
+    }
 
     delegate: Item {
         id: row
@@ -86,7 +117,7 @@ ListView {
                 text: row.typeLabel.toUpperCase()
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontEyebrow * list.s
+                font.pixelSize: Metrics.fontEyebrow * list.s
                 font.letterSpacing: 1
             }
             Rectangle {
@@ -165,7 +196,7 @@ ListView {
                     text: row.entry ? list.markup(row.entry.title, row.spans) : ""
                     color: row.selected ? Theme.bright : Theme.cream
                     font.family: Theme.font
-                    font.pixelSize: MainMetrics.fontTitle * list.s
+                    font.pixelSize: Metrics.fontTitle * list.s
                     font.weight: row.selected ? Font.DemiBold : Font.Normal
                     elide: Text.ElideRight
                 }
@@ -175,7 +206,7 @@ ListView {
                     text: row.entry ? row.entry.subtitle : ""
                     color: row.selected ? Theme.iconDim : Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: MainMetrics.fontSubtitle * list.s
+                    font.pixelSize: Metrics.fontSubtitle * list.s
                     elide: Text.ElideRight
                 }
             }

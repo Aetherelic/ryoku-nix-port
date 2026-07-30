@@ -122,7 +122,7 @@ Column {
                 }
                 color: Theme.cream
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontSubtitle * root.s
+                font.pixelSize: Metrics.fontSubtitle * root.s
                 elide: Text.ElideRight
             }
 

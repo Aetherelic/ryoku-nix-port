@@ -236,7 +236,7 @@ Item {
                 text: root.greeting
                 color: Theme.subtle
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontEyebrow * root.s
+                font.pixelSize: Metrics.fontEyebrow * root.s
                 font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: 1.6 * root.s
@@ -330,7 +330,7 @@ Item {
                 text: Weather.condition + (Weather.city.length ? "  \u00b7  " + Weather.city : "")
                 color: Theme.subtle
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontSubtitle * root.s
+                font.pixelSize: Metrics.fontSubtitle * root.s
             }
 
             Text {
@@ -339,7 +339,7 @@ Item {
                 text: root.date
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontEyebrow * root.s
+                font.pixelSize: Metrics.fontEyebrow * root.s
             }
         }
     }

@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import "../../shared/Singletons"
 import "metrics.js" as MainMetrics
+import "../../shared/lib/results.js" as Results
 
 // All-apps grid: every desktop entry in alphabetical sections (A, B, C...), each
 // a row of icon tiles with two-line labels, the inir all-apps view. Shown from
@@ -15,8 +16,11 @@ Flickable {
     // Entries are current app-provider rows with a primary action at actions[0].
     property var entries: []
     property int selectedIndex: 0
+    property string selectedResultKey: ""
+    property bool selectionSyncing: false
 
     signal activated(bool closeRequested)
+    signal selectionLost()
 
     readonly property int columns: MainMetrics.gridColumns
     readonly property real tile: MainMetrics.tileSize * s
@@ -44,6 +48,28 @@ Flickable {
         return groups;
     }
 
+    function applySelection(key, index) {
+        selectionSyncing = true;
+        selectedResultKey = key;
+        selectedIndex = index;
+        selectionSyncing = false;
+    }
+
+    function resetSelection() {
+        var row = entries.length > 0 ? entries[0] : null;
+        applySelection(row ? String(row.resultKey || "") : "",
+            row ? 0 : -1);
+    }
+
+    function reconcileSelection() {
+        var previousKey = selectedResultKey;
+        var next = Results.reconcileSelection(
+            entries, previousKey, selectedIndex);
+        applySelection(next.key, next.index);
+        if (previousKey.length > 0 && previousKey !== next.key)
+            selectionLost();
+    }
+
     function move(delta) {
         if (grid.entries.length === 0)
             return;
@@ -59,8 +85,17 @@ Flickable {
             grid.contentY = Math.min(Math.max(0, grid.contentHeight - grid.height), y + grid.tile - grid.height + 8 * grid.s);
     }
 
+    onEntriesChanged: reconcileSelection()
+    onSelectedIndexChanged: {
+        if (selectionSyncing)
+            return;
+        var row = selectedIndex >= 0 && selectedIndex < entries.length
+            ? entries[selectedIndex] : null;
+        selectedResultKey = row ? String(row.resultKey || "") : "";
+    }
+
     // Fresh view every time the grid is summoned.
-    onVisibleChanged: if (visible) { selectedIndex = 0; contentY = 0; }
+    onVisibleChanged: if (visible) { resetSelection(); contentY = 0; }
 
     function activate() {
         grid.launch(grid.entries[grid.selectedIndex]);
@@ -127,7 +162,7 @@ Flickable {
                     text: "Alphabetical index"
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: MainMetrics.fontEyebrow * grid.s
+                    font.pixelSize: Metrics.fontEyebrow * grid.s
                 }
             }
             Text {
@@ -137,7 +172,7 @@ Flickable {
                 text: grid.entries.length + " apps"
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: MainMetrics.fontEyebrow * grid.s
+                font.pixelSize: Metrics.fontEyebrow * grid.s
                 font.features: { "tnum": 1 }
             }
         }
@@ -203,7 +238,7 @@ Flickable {
                                     text: tile.entry ? tile.entry.title : ""
                                     color: Theme.cream
                                     font.family: Theme.font
-                                    font.pixelSize: MainMetrics.fontEyebrow * grid.s
+                                    font.pixelSize: Metrics.fontEyebrow * grid.s
                                     elide: Text.ElideRight
                                     maximumLineCount: 2
                                     wrapMode: Text.Wrap

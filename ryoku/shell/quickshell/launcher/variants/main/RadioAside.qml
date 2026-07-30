@@ -53,7 +53,7 @@ Rectangle {
             : chip.label + "  <font color=\"" + Theme.faint + "\">·  set aside for your music</font>"
         color: Theme.cream
         font.family: Theme.font
-        font.pixelSize: MainMetrics.fontSubtitle * chip.s
+        font.pixelSize: Metrics.fontSubtitle * chip.s
         elide: Text.ElideRight
     }
 

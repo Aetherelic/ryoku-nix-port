@@ -3,7 +3,6 @@ import Quickshell
 import Quickshell.Services.Mpris
 import "../../shared/Singletons"
 import "metrics.js" as MainMetrics
-import "../../shared/providers" as SharedProviders
 import "../../shared" as Shared
 import "." as MainVariant
 
@@ -21,9 +20,11 @@ Item {
     property bool allApps: false
     property bool help: false
 
+    required property Item providerSet
     signal requestClose()
 
     property var results: []
+    property var appEntries: []
     property int totalCount: 0
     property bool evaluationQueued: false
     readonly property bool resting: query.length === 0
@@ -75,11 +76,10 @@ Item {
     }
     readonly property bool actionMode: routed.provider === "actions"
     // "?" prefix with a non-empty query and an available DDG answer: the
-    // AnswerPanel takes the body above the Search fallback row. Guarded on
-    // providers.web because the alias resolves after Providers instantiates.
+    // AnswerPanel takes the body above the Search fallback row.
     readonly property bool answerMode: routed.prefix === "?"
         && routed.query.length > 0
-        && providers.web && providers.web.answer && providers.web.answer.available
+        && providerSet.web && providerSet.web.answer && providerSet.web.answer.available
     // tabs + hint row are browsing aids: show them only for a bare "/" (the
     // action catalog), not once the user types "/play"; then the results take
     // the space and nothing clips.
@@ -91,9 +91,12 @@ Item {
     // an async provider is resolving the current query and nothing has come back
     // yet: show a spinner, not a premature "No matches".
     readonly property bool searching: shown && !resting && Dispatcher.busy && results.length === 0
+    readonly property var selectedResult: root.gridMode
+        ? root.appEntries[appGrid.selectedIndex]
+        : root.results[list.selectedIndex]
     readonly property var selectedActions: {
-        var r = root.results[list.selectedIndex];
-        return r && r.actions ? r.actions.slice(1) : [];
+        var actions = root.selectedResult && root.selectedResult.actions;
+        return actions ? actions.slice(1) : [];
     }
 
     // Provider queries may start asynchronous work, so evaluate them outside
@@ -109,11 +112,13 @@ Item {
         root.evaluationQueued = false;
         if (!root.shown) {
             root.results = [];
+            root.appEntries = [];
             root.totalCount = 0;
             return;
         }
-        root.results = Dispatcher.results(root.query, MainMetrics.maxResults);
-        root.totalCount = providers.apps ? providers.apps.allRows().length : 0;
+        root.results = Dispatcher.results(root.query, Metrics.maxResults);
+        root.appEntries = Dispatcher.resultsFor("apps", "", "", 0);
+        root.totalCount = root.appEntries.length;
     }
 
     // Machine-readable snapshot consumed by the stable selector.
@@ -147,7 +152,8 @@ Item {
             resultCount: results.length,
             totalCount: totalCount,
             busyIds: Object.keys(Dispatcher.busyProviders),
-            selectedIndex: list.selectedIndex,
+            selectedIndex: gridMode ? appGrid.selectedIndex
+                : (!resting && !help && !askMode ? list.selectedIndex : -1),
             panelOpen: panel.open,
             selectedActions: acts,
             hasMedia: hasMedia,
@@ -213,7 +219,6 @@ Item {
         NumberAnimation { duration: Motion.open; easing.type: Motion.easeMorph; easing.bezierCurve: Motion.morphCurve }
     }
 
-    SharedProviders.Providers { id: providers }
 
     Connections {
         target: Dispatcher
@@ -224,7 +229,7 @@ Item {
 
 
     Binding {
-        target: providers.actions
+        target: providerSet.actions
         property: "activeCategory"
         value: tabs.activeCategory
         when: root.actionMode
@@ -236,7 +241,7 @@ Item {
             root.allApps = false;
             root.help = false;
             search.clear();
-            list.selectedIndex = 0;
+            list.resetSelection();
             panel.open = false;
             // a category picked last session must not silently narrow "/"
             tabs.activeIndex = 0;
@@ -249,6 +254,7 @@ Item {
         if (query.length > 0) { root.allApps = false; root.help = false; }
         // leaving ask mode drops any in-flight or finished ask
         if (query.length === 0 || query[0] !== "\\") askPanel.reset();
+        list.resetSelection();
         root.scheduleEvaluation();
     }
 
@@ -283,7 +289,7 @@ Item {
         modeLabel: root.modeLabel
         gridActive: root.gridMode
         helpActive: root.help
-        onTextChanged: { root.query = text; list.selectedIndex = 0; }
+        onTextChanged: root.query = text
         onMoved: (d) => { if (root.askMode && (askPanel.chips.length > 0 || askPanel.resumeMode)) askPanel.move(d); else if (panel.open) panel.move(d); else if (root.gridMode) appGrid.move(d * root.gridColumnsForMove); else list.move(d); }
         onAccepted: { if (root.askMode) { if (askPanel.resumeMode || askPanel.busy || askPanel.answerCurrent || askPanel.permPending) askPanel.activate(); else askPanel.run(); } else if (panel.open) panel.run(); else if (root.gridMode) appGrid.activate(); else list.activate(); }
         onDismissed: { if (root.askMode && askPanel.busy) { askPanel.cancel(); root.requestClose(); } else if (root.askMode && askPanel.resumeMode) { askPanel.reset(); root.query = ""; search.clear(); } else if (panel.open) panel.open = false; else if (root.help) root.help = false; else if (root.allApps) root.allApps = false; else root.requestClose(); }
@@ -382,7 +388,7 @@ Item {
         anchors.leftMargin: MainMetrics.padOuter * root.s
         anchors.rightMargin: MainMetrics.padOuter * root.s
         s: root.s
-        answer: providers.web ? providers.web.answer : ({ available: false })
+        answer: providerSet.web ? providerSet.web.answer : ({ available: false })
     }
 
     Shared.AskPanel {
@@ -458,11 +464,12 @@ Item {
         anchors.rightMargin: MainMetrics.padOuter * root.s
         height: root.gridH - MainMetrics.padRow * root.s
         s: root.s
-        entries: root.gridMode ? providers.apps.allRows() : []
+        entries: root.appEntries
         onActivated: closeRequested => {
             if (closeRequested)
                 root.requestClose();
         }
+        onSelectionLost: panel.open = false
     }
 
     MainVariant.ResultList {
@@ -482,6 +489,7 @@ Item {
             if (closeRequested)
                 root.requestClose();
         }
+        onSelectionLost: panel.open = false
     }
 
     Row {
