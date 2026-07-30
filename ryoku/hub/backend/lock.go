@@ -11,18 +11,13 @@ import (
 	"strings"
 )
 
-// ryoku-hub lock = the qylock skin picker behind Ryoku Settings. picking a skin
-// swaps the whole lockscreen: the in-session lock pref at ~/.config/qylock/theme
-// (lock.sh reads it) plus the SDDM greeter theme under /usr/share/sddm/themes.
-// the greeter sits on a system path so that half goes through pkexec
-// (apply-greeter); auth itself stays untouched.
+// ryoku-hub lock manages installed qylock skins behind Ryoku Settings. Picking
+// one swaps the in-session lock preference plus the SDDM greeter theme. Ryostore
+// owns upstream browsing and install-only downloads; Hub owns activation.
 //
-//	ryoku-hub lock catalog        full upstream theme set (+ installed/active), as JSON
-//	ryoku-hub lock list           installed skins + active one, as JSON
-//	ryoku-hub lock set <slug>     make an installed skin the lock + greeter (pkexec for greeter)
-//	ryoku-hub lock install <slug> pull a theme's files, then activate it
-//	ryoku-hub lock cache          warm the preview-gif cache (--refresh re-pulls all)
-//	ryoku-hub lock apply-greeter  install <slug> as SDDM greeter (privileged; pkexec runs this)
+//	ryoku-hub lock list                  installed skins + active one, as JSON
+//	ryoku-hub lock set <slug>            activate an installed skin
+//	ryoku-hub lock apply-greeter <slug>  install it as the SDDM greeter
 //
 // a skin = any folder under the themes dir with a Main.qml. slug = its path
 // under that dir (e.g. "clockwork/orbital"), exactly what lock.sh resolves
@@ -84,12 +79,9 @@ func qylockThemePref() string {
 // runLock = `ryoku-hub lock <sub> [arg]` dispatch.
 func runLock(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("lock needs catalog|list|set|install|cache")
+		return fmt.Errorf("lock needs list|set|apply-greeter")
 	}
 	switch args[0] {
-	case "catalog":
-		refresh := len(args) > 1 && args[1] == "--refresh"
-		return printJSON(lockCatalogRefresh(refresh))
 	case "list":
 		return printJSON(listLockSkins())
 	case "set":
@@ -97,21 +89,13 @@ func runLock(args []string) error {
 			return fmt.Errorf("lock set needs a slug")
 		}
 		return setLockSkin(args[1])
-	case "install":
-		if len(args) < 2 {
-			return fmt.Errorf("lock install needs a slug")
-		}
-		return lockInstall(args[1])
-	case "cache":
-		refresh := len(args) > 1 && args[1] == "--refresh"
-		return printJSON(lockCache(refresh))
 	case "apply-greeter":
 		if len(args) < 2 {
 			return fmt.Errorf("lock apply-greeter needs a slug")
 		}
 		return applyGreeter(args[1])
 	default:
-		return fmt.Errorf("lock needs catalog|list|set|install|cache")
+		return fmt.Errorf("lock needs list|set|apply-greeter")
 	}
 }
 

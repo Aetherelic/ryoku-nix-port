@@ -24,6 +24,7 @@ func providers() []Provider {
 	return []Provider{
 		pluginProvider{cache: c},
 		bundleProvider{cache: c, status: defaultBundleStatus, launch: launchBundleInstall},
+		newLockProvider(),
 	}
 }
 

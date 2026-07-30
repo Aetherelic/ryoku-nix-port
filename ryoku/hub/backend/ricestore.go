@@ -3,15 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// the ryoku-extras rice store: browse a catalogue, install a rice locally, and
-// publish a local rice into the store structure ready to commit. reuses
-// extras.go's fetch / fetchOrCache and lockcatalog.go's downloadFile, so the
-// rice store shares the extras store's offline-cache and CDN-busting behaviour.
+// The ryoku-extras rice store browses, installs, and publishes rices. Catalogue
+// and install ownership moves to Ryostore in the next migration; authoring stays
+// here until that cutover.
 
 // riceStoreEntry mirrors one entry in ryoku-extras/rices/registry.json. text
 // (manifest, poster, palette, screenshots) is raw in-repo; the wallpaper and
@@ -145,10 +146,43 @@ func installRice(id string) error {
 		}
 	}
 	if e.Wallpaper != "" && r.Assets.Wallpaper != "" {
-		_ = downloadFile(rawURL(e.Wallpaper), filepath.Join(dir, r.Assets.Wallpaper))
+		_ = downloadRiceFile(rawURL(e.Wallpaper), filepath.Join(dir, r.Assets.Wallpaper))
 	}
 	if e.Hero != "" && r.Assets.Hero != "" {
-		_ = downloadFile(rawURL(e.Hero), filepath.Join(dir, r.Assets.Hero))
+		_ = downloadRiceFile(rawURL(e.Hero), filepath.Join(dir, r.Assets.Hero))
+	}
+	return nil
+}
+
+func downloadRiceFile(url, dst string) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := extrasClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s: %s", url, resp.Status)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	f, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(f, resp.Body)
+	closeErr := f.Close()
+	if copyErr != nil {
+		_ = os.Remove(dst)
+		return copyErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(dst)
+		return closeErr
 	}
 	return nil
 }
