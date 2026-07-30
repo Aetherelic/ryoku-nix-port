@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import "." as Pill
+import "Singletons" as PillSingletons
 import "barstyles/shared" as Shared
 import "barstyles/nacre/popouts" as Popouts
 import "barstyles/obi/widgets" as Obi
@@ -196,6 +197,12 @@ ShellRoot {
             const mediaHarness = nacreIsland.createObject(root, {
                 widgetIds: ["brand"]
             });
+            if (typeof PillSingletons.Media.pick !== "function")
+                throw new Error("MEDIA-PLAYER-PICKER-PROBE-FAIL");
+            const blankPlayer = { isPlaying: false, trackTitle: "" };
+            const pausedPlayer = { isPlaying: false, trackTitle: "Paused track" };
+            if (PillSingletons.Media.pick([blankPlayer, pausedPlayer]) !== pausedPlayer)
+                throw new Error("MEDIA-PAUSED-PLAYER-PROBE-FAIL");
             const mediaFace = nacreMedia.createObject(mediaHarness);
             if (!mediaFace || mediaFace.visible
                     || root.visibleText(mediaFace).includes("No music"))

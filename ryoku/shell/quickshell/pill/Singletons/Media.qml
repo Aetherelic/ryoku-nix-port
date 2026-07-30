@@ -21,13 +21,17 @@ Singleton {
             && String(p.trackTitle || "").indexOf("LIVE · ") === 0;
     }
 
-    readonly property var player: {
-        var l = Mpris.players.values.filter(function(p) { return p && !root.isWallpaper(p); });
-        for (var i = 0; i < l.length; i++)
-            if (l[i].isPlaying)
-                return l[i];
-        return l.length > 0 ? l[0] : null;
+    function pick(players) {
+        var list = players.filter(function(p) { return p && !root.isWallpaper(p); });
+        for (var i = 0; i < list.length; i++)
+            if (list[i].isPlaying)
+                return list[i];
+        for (var j = 0; j < list.length; j++)
+            if ((list[j].trackTitle || "").length > 0)
+                return list[j];
+        return list.length > 0 ? list[0] : null;
     }
+    readonly property var player: root.pick(Mpris.players.values)
     readonly property bool playing: player !== null && player.isPlaying
     readonly property bool present: player !== null && (player.trackTitle || "").length > 0
     readonly property bool radio: player !== null && isRadio(player)
