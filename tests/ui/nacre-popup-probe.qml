@@ -222,6 +222,19 @@ ShellRoot {
                     || !dormantMediaHost.visible || dormantMediaHost.width !== 0)
                 throw new Error("NACRE-DORMANT-WIDGET-HOST-PROBE-FAIL");
             dormantMediaIsland.destroy();
+            const seekPlayer = {
+                position: 10,
+                length: 100,
+                canSeek: true
+            };
+            const seekPopup = media.createObject(root);
+            if (!seekPopup || typeof seekPopup.seekToFraction !== "function"
+                    || seekPopup.mediaService === undefined)
+                throw new Error("NACRE-MEDIA-SEEK-API-PROBE-FAIL");
+            seekPopup.mediaService = { player: seekPlayer };
+            if (!seekPopup.seekToFraction(0.75) || seekPlayer.position !== 75)
+                throw new Error("NACRE-MEDIA-SEEK-PROBE-FAIL");
+            seekPopup.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");
             Qt.quit();
         }

@@ -6,8 +6,22 @@ import "../../.." as Pill
 import "../Format.js" as Format
 
 Item {
+    id: root
+
+    property var mediaService: Media
+    property bool scrubbing: false
+    property real scrubFraction: 0
+
     implicitWidth: 300
     implicitHeight: content.implicitHeight + 32
+
+    function seekToFraction(value) {
+        const player = root.mediaService.player;
+        if (!player || !player.canSeek || !(player.length > 0))
+            return false;
+        player.position = Math.max(0, Math.min(1, value)) * player.length;
+        return true;
+    }
 
     component TransportButton: Item {
         id: button
@@ -48,8 +62,8 @@ Item {
     Timer {
         interval: 500
         repeat: true
-        running: Media.player !== null && Media.playing
-        onTriggered: Media.player.positionChanged()
+        running: root.mediaService.player !== null && root.mediaService.playing
+        onTriggered: root.mediaService.player.positionChanged()
     }
 
     Column {
@@ -63,8 +77,8 @@ Item {
             height: 28
             orient: "vertical"
             bands: 28
-            running: Media.playing
-            opacity: Media.playing ? 1 : 0.55
+            running: root.mediaService.playing
+            opacity: root.mediaService.playing ? 1 : 0.55
             Behavior on opacity {
                 NumberAnimation { duration: Motion.standard; easing.type: Motion.easeStandard }
             }
@@ -85,7 +99,8 @@ Item {
                 Image {
                     id: artImage
                     anchors.fill: parent
-                    source: Media.player ? (Media.player.trackArtUrl || "") : ""
+                    source: root.mediaService.player
+                        ? (root.mediaService.player.trackArtUrl || "") : ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                 }
@@ -105,7 +120,8 @@ Item {
 
                 Text {
                     width: parent.width
-                    text: Media.player ? (Media.player.trackTitle || "") : ""
+                    text: root.mediaService.player
+                        ? (root.mediaService.player.trackTitle || "") : ""
                     elide: Text.ElideRight
                     color: Theme.onSurface
                     font.family: Theme.fontPrimary
@@ -114,7 +130,9 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: Media.player ? Theme.joinArtists(Media.player.trackArtists, Media.player.trackArtist) : ""
+                    text: root.mediaService.player
+                        ? Theme.joinArtists(root.mediaService.player.trackArtists,
+                            root.mediaService.player.trackArtist) : ""
                     elide: Text.ElideRight
                     color: Theme.onSurfaceVariant
                     font.family: Theme.fontPrimary
@@ -128,15 +146,29 @@ Item {
             width: parent.width
             height: 16
 
-            readonly property real length: Media.player && Media.player.length > 0 ? Media.player.length : 0
+            readonly property real length: root.mediaService.player
+                && root.mediaService.player.length > 0
+                ? root.mediaService.player.length : 0
+            readonly property bool canSeek: root.mediaService.player
+                ? root.mediaService.player.canSeek && seek.length > 0 : false
             readonly property real fraction: seek.length > 0
-                ? Math.max(0, Math.min(1, Media.player.position / seek.length)) : 0
+                ? root.scrubbing ? root.scrubFraction
+                    : Math.max(0, Math.min(1,
+                        root.mediaService.player.position / seek.length))
+                : 0
+
+            function fractionAt(x) {
+                return Math.max(0, Math.min(1,
+                    (x - progressTrack.x) / progressTrack.width));
+            }
 
             Text {
                 id: elapsed
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: Format.duration(Media.player ? Media.player.position : 0)
+                text: Format.duration(root.scrubbing
+                    ? root.scrubFraction * seek.length
+                    : root.mediaService.player ? root.mediaService.player.position : 0)
                 color: Theme.onSurfaceVariant
                 font.family: Theme.mono
                 font.pixelSize: Theme.fontSm - 2
@@ -151,6 +183,7 @@ Item {
                 font.pixelSize: Theme.fontSm - 2
             }
             Rectangle {
+                id: progressTrack
                 anchors.left: elapsed.right
                 anchors.leftMargin: 6
                 anchors.right: total.left
@@ -167,6 +200,26 @@ Item {
                     color: Theme.primary
                 }
             }
+            MouseArea {
+                anchors.fill: parent
+                enabled: seek.canSeek
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                preventStealing: true
+                onPressed: (mouse) => {
+                    root.scrubbing = true;
+                    root.scrubFraction = seek.fractionAt(mouse.x);
+                }
+                onPositionChanged: (mouse) => {
+                    if (root.scrubbing)
+                        root.scrubFraction = seek.fractionAt(mouse.x);
+                }
+                onReleased: (mouse) => {
+                    root.scrubFraction = seek.fractionAt(mouse.x);
+                    root.seekToFraction(root.scrubFraction);
+                    root.scrubbing = false;
+                }
+                onCanceled: root.scrubbing = false
+            }
         }
 
         Row {
@@ -175,19 +228,24 @@ Item {
 
             TransportButton {
                 icon: "skip_previous"
-                enabled: Media.player ? Media.player.canGoPrevious : false
-                onClicked: if (Media.player) Media.player.previous()
+                enabled: root.mediaService.player
+                    ? root.mediaService.player.canGoPrevious : false
+                onClicked: if (root.mediaService.player)
+                    root.mediaService.player.previous()
             }
             TransportButton {
-                icon: Media.playing ? "pause" : "play_arrow"
+                icon: root.mediaService.playing ? "pause" : "play_arrow"
                 primary: true
-                enabled: Media.player ? Media.player.canTogglePlaying : false
-                onClicked: Media.toggle()
+                enabled: root.mediaService.player
+                    ? root.mediaService.player.canTogglePlaying : false
+                onClicked: root.mediaService.toggle()
             }
             TransportButton {
                 icon: "skip_next"
-                enabled: Media.player ? Media.player.canGoNext : false
-                onClicked: if (Media.player) Media.player.next()
+                enabled: root.mediaService.player
+                    ? root.mediaService.player.canGoNext : false
+                onClicked: if (root.mediaService.player)
+                    root.mediaService.player.next()
             }
         }
     }
