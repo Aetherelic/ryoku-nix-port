@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 var renamePath = os.Rename
@@ -26,7 +27,15 @@ func validComponent(name string) bool {
 }
 
 func validLocalPath(name string) bool {
-	return name != "" && name != "." && filepath.IsLocal(name) && filepath.Clean(name) == name
+	if name == "" || name == "." || !filepath.IsLocal(name) || filepath.Clean(name) != name {
+		return false
+	}
+	for _, part := range strings.Split(name, string(filepath.Separator)) {
+		if part == "" || part == "." || strings.HasPrefix(part, ".ryostore-") {
+			return false
+		}
+	}
+	return true
 }
 
 func rejectSymlinkPath(root, rel string) error {
@@ -47,24 +56,68 @@ func rejectSymlinkPath(root, rel string) error {
 	return nil
 }
 
+func lockTree(dst string) (func(), error) {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return nil, err
+	}
+	path := filepath.Join(filepath.Dir(dst), ".ryostore-lock-"+filepath.Base(dst))
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		file.Close()
+		return nil, err
+	}
+	return func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+		_ = file.Close()
+	}, nil
+}
+
 func backupTreePath(dst string) string {
 	return filepath.Join(filepath.Dir(dst), ".ryostore-backup-"+filepath.Base(dst))
 }
 
+func journalTreePath(dst string) string {
+	return backupTreePath(dst) + ".journal"
+}
+
 func recoverTree(dst string) error {
 	backup := backupTreePath(dst)
-	if _, err := os.Lstat(backup); err != nil {
-		if os.IsNotExist(err) {
-			return nil
+	journal := journalTreePath(dst)
+	_, backupErr := os.Lstat(backup)
+	_, journalErr := os.Lstat(journal)
+	if os.IsNotExist(backupErr) {
+		if journalErr == nil {
+			return os.Remove(journal)
 		}
-		return err
+		if journalErr != nil && !os.IsNotExist(journalErr) {
+			return journalErr
+		}
+		return nil
+	}
+	if backupErr != nil {
+		return backupErr
+	}
+	if journalErr != nil {
+		if os.IsNotExist(journalErr) {
+			return fmt.Errorf("reserved backup path %s is not a Ryostore journal", backup)
+		}
+		return journalErr
 	}
 	if _, err := os.Lstat(dst); err == nil {
-		return os.RemoveAll(backup)
+		if err := os.RemoveAll(backup); err != nil {
+			return err
+		}
+		return os.Remove(journal)
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	return renamePath(backup, dst)
+	if err := renamePath(backup, dst); err != nil {
+		return err
+	}
+	return os.Remove(journal)
 }
 
 func replaceTree(stage, dst string, finalize func() error) error {
@@ -72,9 +125,14 @@ func replaceTree(stage, dst string, finalize func() error) error {
 		return fmt.Errorf("recover prior install: %w", err)
 	}
 	backup := backupTreePath(dst)
+	journal := journalTreePath(dst)
 	hadPrior := false
 	if _, err := os.Lstat(dst); err == nil {
+		if err := atomicWrite(journal, []byte(filepath.Base(dst)), 0o600); err != nil {
+			return err
+		}
 		if err := renamePath(dst, backup); err != nil {
+			_ = os.Remove(journal)
 			return err
 		}
 		hadPrior = true
@@ -88,6 +146,7 @@ func replaceTree(stage, dst string, finalize func() error) error {
 			if err := renamePath(backup, dst); err != nil {
 				return fmt.Errorf("%w; restore prior install: %v", cause, err)
 			}
+			_ = os.Remove(journal)
 		}
 		return cause
 	}
@@ -100,7 +159,10 @@ func replaceTree(stage, dst string, finalize func() error) error {
 		}
 	}
 	if hadPrior {
-		return os.RemoveAll(backup)
+		if err := os.RemoveAll(backup); err != nil {
+			return err
+		}
+		return os.Remove(journal)
 	}
 	return nil
 }
@@ -184,6 +246,20 @@ func ensurePlugin(id string) (string, error) {
 	if !validComponent(id) {
 		return "", fmt.Errorf("invalid plugin id %q", id)
 	}
+	dst := pluginDataDir(id)
+	unlock, err := lockTree(dst)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
+	if err := recoverTree(dst); err != nil {
+		return "", fmt.Errorf("recover plugin %q: %w", id, err)
+	}
+	_, priorErr := os.ReadFile(filepath.Join(dst, "manifest.json"))
+	priorInstalled := priorErr == nil
+	if priorErr != nil && !os.IsNotExist(priorErr) {
+		return "", priorErr
+	}
 	c := newCache()
 	ctx := context.Background()
 	rel := "plugins/" + id
@@ -213,18 +289,6 @@ func ensurePlugin(id string) (string, error) {
 		}
 	}
 
-	dst := pluginDataDir(id)
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return "", err
-	}
-	if err := recoverTree(dst); err != nil {
-		return "", fmt.Errorf("recover plugin %q: %w", id, err)
-	}
-	_, priorErr := os.ReadFile(filepath.Join(dst, "manifest.json"))
-	priorInstalled := priorErr == nil
-	if priorErr != nil && !os.IsNotExist(priorErr) {
-		return "", priorErr
-	}
 	stage, err := os.MkdirTemp(filepath.Dir(dst), ".stage-*")
 	if err != nil {
 		return "", err
@@ -328,6 +392,38 @@ func ensureNautilusPack(id string) (string, error) {
 	if !validComponent(id) {
 		return "", fmt.Errorf("invalid nautilus pack id %q", id)
 	}
+	track := nautilusTrackDir(id)
+	if fi, err := os.Lstat(track); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("%s is a symlink", track)
+	} else if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+	oldSubdir := ""
+	var unlock func()
+	if oldRaw, err := os.ReadFile(filepath.Join(track, "manifest.json")); err == nil {
+		var old struct {
+			Subdir string `json:"subdir"`
+		}
+		if err := json.Unmarshal(oldRaw, &old); err != nil {
+			return "", fmt.Errorf("nautilus tracking manifest: %w", err)
+		}
+		if !validLocalPath(old.Subdir) {
+			return "", fmt.Errorf("invalid tracked nautilus subdir %q", old.Subdir)
+		}
+		oldSubdir = old.Subdir
+		oldRoot := filepath.Join(nautilusScriptsDir(), oldSubdir)
+		var err error
+		unlock, err = lockTree(oldRoot)
+		if err != nil {
+			return "", err
+		}
+		defer unlock()
+		if err := recoverTree(oldRoot); err != nil {
+			return "", fmt.Errorf("recover nautilus pack %q: %w", id, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
 	c := newCache()
 	ctx := context.Background()
 	raw, err := c.get(ctx, "nautilus/registry.json")
@@ -379,20 +475,6 @@ func ensureNautilusPack(id string) (string, error) {
 	if !validLocalPath(subdir) {
 		return "", fmt.Errorf("nautilus pack %q has invalid subdir %q", id, subdir)
 	}
-	track := nautilusTrackDir(id)
-	if oldRaw, err := os.ReadFile(filepath.Join(track, "manifest.json")); err == nil {
-		var old struct {
-			Subdir string `json:"subdir"`
-		}
-		if err := json.Unmarshal(oldRaw, &old); err != nil {
-			return "", fmt.Errorf("nautilus tracking manifest: %w", err)
-		}
-		if old.Subdir != subdir {
-			return "", fmt.Errorf("nautilus pack %q cannot change subdir from %q to %q", id, old.Subdir, subdir)
-		}
-	} else if !os.IsNotExist(err) {
-		return "", err
-	}
 	for _, script := range man.Scripts {
 		if !validLocalPath(script) {
 			return "", fmt.Errorf("nautilus pack %q has invalid script path %q", id, script)
@@ -404,6 +486,20 @@ func ensureNautilusPack(id string) (string, error) {
 		return "", err
 	}
 	root := filepath.Join(scriptsRoot, subdir)
+	if oldSubdir != "" && oldSubdir != subdir {
+		return "", fmt.Errorf("nautilus pack %q cannot change subdir from %q to %q", id, oldSubdir, subdir)
+	}
+	if unlock == nil {
+		var err error
+		unlock, err = lockTree(root)
+		if err != nil {
+			return "", err
+		}
+		defer unlock()
+		if err := recoverTree(root); err != nil {
+			return "", fmt.Errorf("recover nautilus pack %q: %w", id, err)
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
 		return "", err
 	}

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fixtureServer serves the local extras fixture tree so a provider fetches a
@@ -478,6 +479,9 @@ func TestRecoverTreeRestoresInterruptedReplacement(t *testing.T) {
 	if err := os.MkdirAll(backup, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(journalTreePath(dst), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(backup, "manifest.json"), []byte("known-good"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -489,5 +493,32 @@ func TestRecoverTreeRestoresInterruptedReplacement(t *testing.T) {
 	}
 	if _, err := os.Lstat(backup); !os.IsNotExist(err) {
 		t.Fatalf("backup journal survived recovery: %v", err)
+	}
+}
+
+func TestTreeLockSerializesConcurrentInstallers(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "market")
+	unlockFirst, err := lockTree(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	acquired := make(chan struct{})
+	go func() {
+		unlockSecond, err := lockTree(dst)
+		if err == nil {
+			close(acquired)
+			unlockSecond()
+		}
+	}()
+	select {
+	case <-acquired:
+		t.Fatal("second installer acquired destination lock concurrently")
+	case <-time.After(50 * time.Millisecond):
+	}
+	unlockFirst()
+	select {
+	case <-acquired:
+	case <-time.After(time.Second):
+		t.Fatal("second installer did not acquire released destination lock")
 	}
 }

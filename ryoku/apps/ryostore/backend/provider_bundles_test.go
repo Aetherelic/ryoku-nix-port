@@ -466,3 +466,57 @@ func TestBundleProviderRejectsDotID(t *testing.T) {
 		t.Fatal("dot bundle id accepted")
 	}
 }
+
+func TestEnsureNautilusPackRejectsJournalNamespaceCollision(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	fixture := &nautilusFixture{subdir: "Pack", scripts: []string{"script"}, bodies: map[string]string{"script": "new"}}
+	srv := serveNautilusFixture(t, fixture)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	root := filepath.Join(nautilusScriptsDir(), "Pack")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	collision := backupTreePath(root)
+	if err := os.MkdirAll(collision, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(collision, "owned-by-another-pack")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ensureNautilusPack("pack"); err == nil {
+		t.Fatal("journal namespace collision was accepted")
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("colliding live tree was deleted: %v", err)
+	}
+}
+
+func TestEnsureNautilusPackRecoversBeforeNetworkFetch(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	fixture := &nautilusFixture{subdir: "Pack", scripts: []string{"script"}, bodies: map[string]string{"script": "known-good"}}
+	srv := serveNautilusFixture(t, fixture)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+	if _, err := ensureNautilusPack("pack"); err != nil {
+		t.Fatalf("initial install: %v", err)
+	}
+
+	root := filepath.Join(nautilusScriptsDir(), "Pack")
+	backup := backupTreePath(root)
+	if err := os.Rename(root, backup); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(journalTreePath(root), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	srv.Close()
+	if _, err := ensureNautilusPack("pack"); err == nil {
+		t.Fatal("offline retry unexpectedly succeeded")
+	}
+	if b, err := os.ReadFile(filepath.Join(root, "script")); err != nil || string(b) != "known-good" {
+		t.Fatalf("known-good pack stayed hidden in journal: data=%q err=%v", b, err)
+	}
+}
