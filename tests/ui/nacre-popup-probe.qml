@@ -123,6 +123,15 @@ ShellRoot {
                     || scene.item.barSpan !== scene.item.settings.height
                         * scene.item.settings.islandScale + scene.item.frameInset)
                 throw new Error("NACRE-FRAME-INSET-PROBE-FAIL");
+            if (scene.item.mediaPresent === undefined
+                    || scene.item.mediaPopupEnabled === undefined)
+                throw new Error("NACRE-MEDIA-POPUP-PRESENCE-PROBE-FAIL");
+            scene.item.mediaPresent = false;
+            if (scene.item.mediaPopupEnabled)
+                throw new Error("NACRE-IDLE-MEDIA-POPUP-PROBE-FAIL");
+            scene.item.mediaPresent = true;
+            if (!scene.item.mediaPopupEnabled)
+                throw new Error("NACRE-PRESENT-MEDIA-POPUP-PROBE-FAIL");
             if (scene.item.overlayKeyboardMode !== WlrKeyboardFocus.None)
                 throw new Error("NACRE-CLOSED-KEYBOARD-PROBE-FAIL");
             scene.item.selectedCenter = 900;

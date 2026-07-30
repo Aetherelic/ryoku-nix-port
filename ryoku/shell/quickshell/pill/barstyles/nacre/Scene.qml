@@ -24,6 +24,8 @@ Scope {
     property string hoverPopup: ""
     property real selectedCenter: 0
     property real hoverCenter: 0
+    property bool mediaPresent: Media.present
+    readonly property bool mediaPopupEnabled: selectedPopup === "" && mediaPresent
     readonly property bool popupBackdropActive: selectedPopup !== ""
     readonly property int overlayKeyboardMode: selectedPopup === "connectivity"
         ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -366,7 +368,7 @@ Scope {
                 scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("media")
                 triggerHovered: root.hoverPopup === "media" && root.selectedPopup === ""
-                active: root.selectedPopup === ""
+                active: root.mediaPopupEnabled
                 closeDelay: 140
                 openWidth: 300
                 openHeight: 180
