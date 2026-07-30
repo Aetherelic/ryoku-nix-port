@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,12 +19,24 @@ func extrasBase() string {
 	return defaultExtrasBase
 }
 
-// extrasCacheDir is where fetched registries and assets are cached so the
-// catalogue still renders offline: ${XDG_CACHE_HOME:-~/.cache}/ryoku/extras.
-func extrasCacheDir() string {
-	base := os.Getenv("XDG_CACHE_HOME")
-	if base == "" {
-		base = filepath.Join(os.Getenv("HOME"), ".cache")
+func xdgCacheHome() string {
+	if b := os.Getenv("XDG_CACHE_HOME"); b != "" {
+		return b
 	}
-	return filepath.Join(base, "ryoku", "extras")
+	return filepath.Join(os.Getenv("HOME"), ".cache")
+}
+
+// extrasCacheDir is where fetched registries and assets are cached so the
+// catalogue still renders offline. The default source keeps the legacy
+// ${XDG_CACHE_HOME:-~/.cache}/ryoku/extras location for upgrade and offline
+// continuity; an explicit RYOKU_EXTRAS_BASE override caches under a stable
+// per-source subdirectory so a fork or local tree never serves its bytes as the
+// default source's archive.
+func extrasCacheDir() string {
+	root := filepath.Join(xdgCacheHome(), "ryoku", "extras")
+	if os.Getenv("RYOKU_EXTRAS_BASE") == "" {
+		return root
+	}
+	sum := sha256.Sum256([]byte(extrasBase()))
+	return filepath.Join(root, "sources", hex.EncodeToString(sum[:8]))
 }

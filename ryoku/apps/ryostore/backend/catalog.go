@@ -78,26 +78,13 @@ func BuildCatalog(ctx context.Context, provs []Provider, refresh bool) Catalog {
 	return cat
 }
 
-// filterCategory narrows a catalogue to one category and its items for the
-// `catalog --category <id>` view. ok is false when no such category exists, so
-// the caller can report an unknown category.
-func filterCategory(cat Catalog, id string) (Catalog, bool) {
-	for _, c := range cat.Categories {
-		if c.ID != id {
-			continue
+// providerFor returns the provider owning category id, or ok=false when none
+// does, so an unknown category is rejected before any source loads.
+func providerFor(provs []Provider, id string) (Provider, bool) {
+	for _, p := range provs {
+		if p.Category().ID == id {
+			return p, true
 		}
-		out := Catalog{
-			GeneratedAt: cat.GeneratedAt,
-			Offline:     c.Offline || c.Error != "",
-			Categories:  []Category{c},
-			Items:       []Item{},
-		}
-		for _, it := range cat.Items {
-			if it.Category == id {
-				out.Items = append(out.Items, it)
-			}
-		}
-		return out, true
 	}
-	return cat, false
+	return nil, false
 }

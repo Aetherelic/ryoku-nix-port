@@ -15,65 +15,99 @@ import (
 // Cache is the shared fetch every provider uses to pull a relative path from the
 // extras base. It answers a repeated path from an in-process memo, writes each
 // live result to disk atomically, and falls back to the last disk copy (flagged
-// Offline, with the cache's timestamp) when the network is gone, so a dead
-// source degrades to its archive instead of blanking the catalogue.
+// Offline, with the cache's timestamp) when the fetch fails, so a dead source
+// degrades to its archive instead of blanking the catalogue.
 type Cache struct {
 	client *http.Client
 	base   string
 	dir    string
 	mu     sync.Mutex
-	memo   map[string][]byte
+	memo   map[string]memoEntry
 }
 
-// cacheTimeout bounds a single fetch so one slow source cannot stall a probe.
-const cacheTimeout = 12 * time.Second
+// memoEntry is a path's answer for this process: the bytes plus the source state
+// they were served with, so a repeated fetch reports the same online/offline
+// verdict instead of silently reverting to online after a known outage.
+type memoEntry struct {
+	data  []byte
+	state SourceState
+}
+
+const (
+	// cacheTimeout bounds a single fetch so one slow source cannot stall a probe.
+	cacheTimeout = 12 * time.Second
+	// maxBody caps a response so a runaway or misrouted URL can neither exhaust
+	// memory nor truncate a registry into the cache as a false success.
+	maxBody = 4 << 20
+)
 
 func newCache() *Cache {
 	return &Cache{
 		client: &http.Client{Timeout: cacheTimeout},
 		base:   extrasBase(),
 		dir:    extrasCacheDir(),
-		memo:   map[string][]byte{},
+		memo:   map[string]memoEntry{},
 	}
 }
 
-// Fetch returns the bytes at rel. Without refresh a path already pulled this
-// process answers from memory; otherwise it goes to the network, caches the
-// result to disk, and memoizes it. On a network failure it serves the disk
-// cache with Offline set and the cache file's timestamp. refresh always bypasses
-// the memo to pull a fresh copy and replace the disk cache, still degrading to
-// disk when offline.
+// Fetch returns the bytes at rel. rel must be a clean, relative, in-tree path;
+// an empty, dotted, absolute, or traversing key is refused before any memo,
+// network, or disk use so a registry-derived path cannot escape the cache.
+// Without refresh a path already pulled this process answers from the memo with
+// its recorded state. Otherwise it fetches live, caches the result atomically,
+// and memoizes it online. A failed fetch serves the disk archive with Offline
+// set and memoizes that offline state; with no archive it returns the original
+// fetch error so a caller can classify the failure. refresh bypasses the memo.
 func (c *Cache) Fetch(ctx context.Context, rel string, refresh bool) ([]byte, SourceState, error) {
+	if rel == "" || rel == "." || !filepath.IsLocal(rel) || filepath.Clean(rel) != rel {
+		return nil, SourceState{}, fmt.Errorf("invalid cache key %q", rel)
+	}
 	if !refresh {
 		c.mu.Lock()
-		b, ok := c.memo[rel]
+		e, ok := c.memo[rel]
 		c.mu.Unlock()
 		if ok {
-			return b, SourceState{}, nil
+			return e.data, e.state, nil
 		}
 	}
-	if b, err := c.get(ctx, rel); err == nil {
+	b, ferr := c.get(ctx, rel)
+	if ferr == nil {
 		c.writeDisk(rel, b)
-		c.mu.Lock()
-		c.memo[rel] = b
-		c.mu.Unlock()
+		c.setMemo(rel, b, SourceState{})
 		return b, SourceState{}, nil
 	}
-	p := filepath.Join(c.dir, rel)
-	if b, err := os.ReadFile(p); err == nil {
-		state := SourceState{Offline: true}
-		if fi, err := os.Stat(p); err == nil {
-			state.CachedAt = fi.ModTime().UTC().Format(time.RFC3339)
-		}
-		return b, state, nil
+	if disk, state, ok := c.readDisk(rel); ok {
+		c.setMemo(rel, disk, state)
+		return disk, state, nil
 	}
-	return nil, SourceState{}, fmt.Errorf("cannot fetch or find cached %s", rel)
+	return nil, SourceState{}, ferr
+}
+
+func (c *Cache) setMemo(rel string, data []byte, state SourceState) {
+	c.mu.Lock()
+	c.memo[rel] = memoEntry{data: data, state: state}
+	c.mu.Unlock()
+}
+
+// readDisk returns the cached copy of rel and its Offline state, timestamped
+// from the cache file, or ok=false when nothing is cached for rel.
+func (c *Cache) readDisk(rel string) ([]byte, SourceState, bool) {
+	p := filepath.Join(c.dir, rel)
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return nil, SourceState{}, false
+	}
+	state := SourceState{Offline: true}
+	if fi, err := os.Stat(p); err == nil {
+		state.CachedAt = fi.ModTime().UTC().Format(time.RFC3339)
+	}
+	return b, state, true
 }
 
 // get pulls rel live. A unique query parameter and a no-cache header defeat the
 // raw GitHub (Fastly) CDN, which otherwise keeps serving a pre-push copy for
-// minutes and makes a refresh look broken. The body is capped so a runaway
-// response cannot exhaust memory.
+// minutes and makes a refresh look broken. A body past maxBody is an error, not
+// a truncated success, so it never replaces a valid cache.
 func (c *Cache) get(ctx context.Context, rel string) ([]byte, error) {
 	url := c.base + "/" + rel
 	sep := "?"
@@ -91,9 +125,28 @@ func (c *Cache) get(ctx context.Context, rel string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s: %s", url, resp.Status)
+		return nil, &HTTPStatusError{URL: url, Status: resp.StatusCode}
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	b, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > maxBody {
+		return nil, fmt.Errorf("%s: response exceeds %d bytes", url, maxBody)
+	}
+	return b, nil
+}
+
+// HTTPStatusError is a non-OK HTTP response from a live fetch, kept typed so a
+// provider can tell an uncached 404 (an honest empty category) from a network
+// failure via errors.As.
+type HTTPStatusError struct {
+	URL    string
+	Status int
+}
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("%s: HTTP %d", e.URL, e.Status)
 }
 
 // writeDisk caches data at rel via a same-directory temp file and rename, so a

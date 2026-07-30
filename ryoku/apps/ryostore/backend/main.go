@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -31,9 +32,9 @@ func dispatch(args []string) error {
 	}
 	switch args[0] {
 	case "catalog":
-		return runCatalog(args[1:])
+		return runCatalog(os.Stdout, providers(), args[1:])
 	case "install":
-		return runInstall(args[1:])
+		return runInstall(providers(), args[1:])
 	case "internal":
 		return runInternal(args[1:])
 	default:
@@ -41,9 +42,10 @@ func dispatch(args []string) error {
 	}
 }
 
-func runCatalog(args []string) error {
+func runCatalog(w io.Writer, provs []Provider, args []string) error {
 	refresh := false
 	category := ""
+	haveCategory := false
 	rest := args
 	for len(rest) > 0 {
 		switch rest[0] {
@@ -55,38 +57,36 @@ func runCatalog(args []string) error {
 				return fmt.Errorf("--category needs a category id")
 			}
 			category = rest[1]
+			haveCategory = true
 			rest = rest[2:]
 		default:
 			return fmt.Errorf("unknown catalog flag %q", rest[0])
 		}
 	}
-	cat := BuildCatalog(context.Background(), providers(), refresh)
-	if category != "" {
-		var ok bool
-		if cat, ok = filterCategory(cat, category); !ok {
+	if haveCategory {
+		if category == "" {
+			return fmt.Errorf("--category needs a non-empty id")
+		}
+		p, ok := providerFor(provs, category)
+		if !ok {
 			return fmt.Errorf("unknown category %q", category)
 		}
+		provs = []Provider{p}
 	}
-	b, err := json.Marshal(cat)
-	if err != nil {
-		return err
-	}
-	os.Stdout.Write(b)
-	fmt.Println()
-	return nil
+	cat := BuildCatalog(context.Background(), provs, refresh)
+	return json.NewEncoder(w).Encode(cat)
 }
 
-func runInstall(args []string) error {
+func runInstall(provs []Provider, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("install needs <category> <id>")
 	}
 	category, id := args[0], args[1]
-	for _, p := range providers() {
-		if p.Category().ID == category {
-			return p.Install(context.Background(), id)
-		}
+	p, ok := providerFor(provs, category)
+	if !ok {
+		return fmt.Errorf("unknown category %q", category)
 	}
-	return fmt.Errorf("unknown category %q", category)
+	return p.Install(context.Background(), id)
 }
 
 // runInternal namespaces commands the extras actuator and Settings call
