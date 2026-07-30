@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func lockTreeFixture(t *testing.T) ([]byte, map[string][]byte) {
@@ -74,6 +75,7 @@ func testLockProvider(t *testing.T, srv *httptest.Server) lockProvider {
 		cacheDir:       filepath.Join(t.TempDir(), "cache"),
 		themesDir:      filepath.Join(t.TempDir(), "themes"),
 		prefPath:       filepath.Join(t.TempDir(), "qylock", "theme"),
+		warmTimeout:    time.Second,
 	}
 }
 
@@ -260,5 +262,30 @@ func TestLockscreenCategoryLeadsWearProviders(t *testing.T) {
 	}
 	if provs[0].Category().Group != "wear" {
 		t.Fatalf("lockscreen group = %q, want wear", provs[0].Category().Group)
+	}
+}
+
+func TestLockProviderBoundsPreviewWarmLatency(t *testing.T) {
+	tree, _ := lockTreeFixture(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/git/trees/") {
+			_, _ = w.Write(tree)
+			return
+		}
+		<-r.Context().Done()
+	}))
+	t.Cleanup(srv.Close)
+	p := testLockProvider(t, srv)
+	p.warmTimeout = 50 * time.Millisecond
+	start := time.Now()
+	items, _, err := p.Load(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Fatalf("preview warming delayed catalogue by %s", elapsed)
+	}
+	if len(items) != 2 {
+		t.Fatalf("catalogue was lost when preview warming timed out: %+v", items)
 	}
 }

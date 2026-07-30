@@ -29,6 +29,7 @@ const (
 	lockGifWorkers     = 6
 	lockMaxPreviewFile = 64 << 20
 	lockMaxFile        = 512 << 20
+	lockWarmBudget     = 2 * time.Second
 )
 
 var lockGifAlias = map[string]string{
@@ -62,6 +63,7 @@ type lockProvider struct {
 	cacheDir       string
 	themesDir      string
 	prefPath       string
+	warmTimeout    time.Duration
 }
 
 func newLockProvider() lockProvider {
@@ -83,6 +85,7 @@ func newLockProvider() lockProvider {
 		cacheDir:       lockCacheDir(apiBase, rawBase),
 		themesDir:      filepath.Join(dataHome(), "qylock", "themes"),
 		prefPath:       filepath.Join(configHome(), "qylock", "theme"),
+		warmTimeout:    lockWarmBudget,
 	}
 }
 
@@ -419,7 +422,13 @@ func (p lockProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceSta
 		local := p.normalize(qylockTree{Gifs: map[string]bool{}, Bytes: map[string]int{}})
 		return local, state, nil
 	}
-	p.warmPreviews(ctx, tree, refresh)
+	warmTimeout := p.warmTimeout
+	if warmTimeout <= 0 {
+		warmTimeout = lockWarmBudget
+	}
+	warmCtx, cancel := context.WithTimeout(ctx, warmTimeout)
+	defer cancel()
+	p.warmPreviews(warmCtx, tree, refresh)
 	return p.normalize(tree), state, nil
 }
 
