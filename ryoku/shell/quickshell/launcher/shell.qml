@@ -62,7 +62,7 @@ ShellRoot {
     }
 
     function show(mon) {
-        if (variantReady)
+        if (!pendingId && variantReady)
             variantLoader.item.show(mon);
     }
 
@@ -72,7 +72,7 @@ ShellRoot {
     }
 
     function toggle(mon) {
-        if (variantReady)
+        if (!pendingId && variantReady)
             variantLoader.item.toggle(mon);
     }
 
