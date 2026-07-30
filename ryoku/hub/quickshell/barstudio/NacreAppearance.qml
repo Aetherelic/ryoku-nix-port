@@ -144,4 +144,21 @@ Grid {
             onToggled: value => root.changed("occupiedWorkspaces", value)
         }
     }
+    Cell {
+        width: (root.width - Tokens.s2) / 2
+        height: implicitHeight
+        controlWidth: 174
+        label: qsTr("Workspace style")
+        value: root.config.workspaceStyle.toUpperCase()
+        source: "shell.json"
+
+        Seg {
+            objectName: "nacre-workspace-style"
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            options: ["DOTS", "NUMBERS", "KANJI"]
+            current: root.config.workspaceStyle.toUpperCase()
+            onChose: key => root.changed("workspaceStyle", key.toLowerCase())
+        }
+    }
 }

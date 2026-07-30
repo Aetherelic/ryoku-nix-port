@@ -30,7 +30,8 @@ ShellRoot {
             islandScale: 1,
             osdScale: 1,
             frame: true,
-            occupiedWorkspaces: true
+            occupiedWorkspaces: true,
+            workspaceStyle: "dots"
         })
         onStaged: value => root.staged = value
     }
@@ -130,6 +131,10 @@ ShellRoot {
             require(root.staged.osdScale === 0.75, "OSD size stages");
             require(root.findObject(editor, "nacre-island-size"), "island size control");
             require(root.findObject(editor, "nacre-osd-size"), "OSD size control");
+            require(root.findObject(editor, "nacre-workspace-style"), "workspace style control");
+            editor.config = root.staged;
+            editor.setAppearance("workspaceStyle", "kanji");
+            require(root.staged.workspaceStyle === "kanji", "workspace style stages");
             console.log("NACRE-EDITOR-PROBE-PASS");
             Qt.quit();
         }
