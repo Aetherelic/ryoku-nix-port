@@ -20,6 +20,22 @@ function eq(actual, expected, message) {
 
 const defaults = Nacre.defaultConfig();
 eq(Nacre.normalize(null), defaults, "missing config restores defaults");
+eq(defaults.workspaceStyle, "dots", "workspace style defaults to dots");
+eq(
+    Nacre.normalize({ workspaceStyle: "numbers" }).workspaceStyle,
+    "numbers",
+    "number workspaces survive normalization"
+);
+eq(
+    Nacre.normalize({ workspaceStyle: "kanji" }).workspaceStyle,
+    "kanji",
+    "kanji workspaces survive normalization"
+);
+eq(
+    Nacre.normalize({ workspaceStyle: "letters" }).workspaceStyle,
+    "dots",
+    "unknown workspace styles restore dots"
+);
 eq(defaults.frame, true, "frame defaults on");
 eq(defaults.frameSize, 9, "frame size matches main");
 eq(defaults.frameRoundness, 9, "frame roundness matches main");
@@ -106,6 +122,7 @@ eq(Nacre.setValue(defaults, "edgeMelt", 20).edgeMelt, 20, "edge melt can be chan
 eq(Nacre.setValue(defaults, "islandScale", 0.8).islandScale, 0.8, "island size can be changed");
 eq(Nacre.setValue(defaults, "osdScale", 0.75).osdScale, 0.75, "OSD size can be changed");
 eq(Nacre.setValue(defaults, "occupiedWorkspaces", false).occupiedWorkspaces, false, "workspace mode can be changed");
+eq(Nacre.setValue(defaults, "workspaceStyle", "kanji").workspaceStyle, "kanji", "workspace style can be staged");
 eq(Nacre.setValue(defaults, "frame", false).frame, false, "frame can be changed");
 eq(Nacre.setValue(defaults, "unknown", 4), defaults, "unknown appearance keys are ignored");
 

@@ -1,4 +1,5 @@
 const islands = ["left", "center", "right"];
+const workspaceStyles = ["dots", "numbers", "kanji"];
 const catalog = [
     { id: "brand", label: "Brand", file: "Brand.qml" },
     { id: "media", label: "Media", file: "Media.qml" },
@@ -54,7 +55,8 @@ function defaultConfig() {
         islandScale: 1,
         osdScale: 1,
         frame: true,
-        occupiedWorkspaces: true
+        occupiedWorkspaces: true,
+        workspaceStyle: "dots"
     };
 }
 
@@ -90,6 +92,8 @@ function normalize(raw) {
     output.frame = typeof source.frame === "boolean" ? source.frame : base.frame;
     output.occupiedWorkspaces = typeof source.occupiedWorkspaces === "boolean"
         ? source.occupiedWorkspaces : base.occupiedWorkspaces;
+    output.workspaceStyle = workspaceStyles.includes(source.workspaceStyle)
+        ? source.workspaceStyle : base.workspaceStyle;
     return output;
 }
 
@@ -135,7 +139,7 @@ function setValue(config, key, value) {
     const output = normalize(config);
     if (ranges[key])
         output[key] = value;
-    else if (key === "occupiedWorkspaces" || key === "frame")
+    else if (key === "occupiedWorkspaces" || key === "frame" || key === "workspaceStyle")
         output[key] = value;
     else
         return output;
