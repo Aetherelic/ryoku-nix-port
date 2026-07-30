@@ -7,7 +7,7 @@ Item {
     property bool open: false
     signal closeRequested()
 
-    implicitWidth: 430
+    implicitWidth: 340
     implicitHeight: 520
 
     Flickable {

@@ -37,7 +37,7 @@ Item {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             width: 150
-            text: Media.line.length > 0 ? Media.line : qsTr("No media")
+            text: Media.line.length > 0 ? Media.line : qsTr("No music")
             elide: Text.ElideRight
             color: Theme.onSurface
             font.family: Theme.fontPrimary

@@ -105,28 +105,31 @@ how edits land:
 
 ## The shape of a style
 
-Folder styles and their shared popups are laid out like this:
+Folder styles and their popup ownership are laid out like this:
 
 ```
 barstyles/
   shared/
     Popout.qml
-    popouts/
   obi/
     Scene.qml
     components/BarPill.qml
     widgets/
   nacre/
     Scene.qml
+    Format.js
     components/
+    popouts/
     widgets/
 ```
 
-Obi and Nacre keep separate compact widget faces. Their hover cards use the
-same components under `barstyles/shared/`, so controls and fixes do not drift.
+Obi and Nacre keep separate compact widget faces. Nacre owns the popup contents,
+and Obi reuses them so controls and fixes do not drift. Obi's standalone popup
+window remains the neutral component under `barstyles/shared/`.
 Nacre's `nacre` object in `shell.json` stores the three widget arrays, height,
-opacity, padding, spacing, island gap, desktop-frame toggle, and workspace
-filter. Bar Studio edits that object live with drag-and-drop and Save/Revert.
+opacity, padding, spacing, island gap, frame roundness, edge melt, island and
+OSD scale, desktop-frame toggle, and workspace filter. Bar Studio edits that
+object live with drag-and-drop and Save/Revert.
 
 `Scene.qml` is a `PanelWindow`, one instance per monitor. It takes the screen
 through `modelData`, anchors itself to an edge, reserves its band with an

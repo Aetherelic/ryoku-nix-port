@@ -5,7 +5,7 @@ import Quickshell.Bluetooth
 import Quickshell.Io
 import "../../../Singletons"
 import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
+import "../../nacre/popouts" as Popouts
 import "../../.." as Pill
 
 // Obi connectivity: a Wi-Fi (or ethernet) glyph and a Bluetooth glyph in the bar,

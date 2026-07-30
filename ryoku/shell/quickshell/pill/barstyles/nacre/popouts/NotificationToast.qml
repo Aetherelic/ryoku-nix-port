@@ -9,8 +9,8 @@ Item {
 
     signal openInbox()
 
-    implicitWidth: 400
-    implicitHeight: cardLoader.item ? cardLoader.item.implicitHeight + 24 : 112
+    implicitWidth: 342
+    implicitHeight: cardLoader.item ? cardLoader.item.implicitHeight + 24 : 100
 
     Loader {
         id: cardLoader
@@ -20,11 +20,11 @@ Item {
 
         sourceComponent: Pill.NotificationCard {
             width: cardLoader.width
-            notif: Notifs.popups[0]
+            notif: Notifs.popups[Notifs.popups.length - 1]
             compact: true
             unifiedFrame: true
             lifespanMs: {
-                const ttl = Notifs.popupTtl(Notifs.popups[0]);
+                const ttl = Notifs.popupTtl(Notifs.popups[Notifs.popups.length - 1]);
                 return ttl < 0 ? 0 : ttl;
             }
             TapHandler { onTapped: root.openInbox() }

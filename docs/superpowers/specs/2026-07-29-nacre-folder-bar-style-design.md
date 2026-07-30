@@ -29,7 +29,7 @@ Weather and utilities begin in the unused widget palette. Every widget can be
 reordered inside its island, moved to another island, or hidden by returning it
 to the palette. A hidden dynamic widget keeps its configured position. Battery,
 weather, and tray collapse while unavailable and return to the same configured
-position. Media remains present and reads `No media` while idle.
+position. Media remains present and reads `No music` while idle.
 
 The layout is shared across monitors. Each monitor owns a Nacre scene and popup
 windows anchored to widgets on that monitor.
@@ -115,9 +115,10 @@ Every popup joins the same `BlobGroup` as the desktop frame and resting lobes.
 Opening grows the frame inward at the triggering widget; closing melts back
 into the same lobe.
 
-Nacre owns its popup contents. Obi remains unchanged. Compact widgets report a
-popup ID and their screen-space center to `Scene.qml`; they do not create
-independent `PanelWindow` cards.
+Nacre owns its popup contents, and Obi reuses those content components with its
+own standalone window. Compact Nacre widgets report a popup ID and their
+screen-space center to `Scene.qml`; they do not create independent
+`PanelWindow` cards.
 
 Tray menus remain provided by Quickshell's tray items and are not converted
 into a frame popup. The brand launcher and utilities actions also remain
@@ -146,6 +147,10 @@ the same default and includes `nacre` in its live keys:
   "padding": 12,
   "spacing": 8,
   "islandGap": 14,
+  "frameRoundness": 9,
+  "edgeMelt": 8,
+  "islandScale": 1,
+  "osdScale": 1,
   "frame": true,
   "occupiedWorkspaces": true
 }
@@ -158,6 +163,10 @@ The first release supports these live controls:
 - `padding`: horizontal inset inside each island.
 - `spacing`: distance between widgets in an island.
 - `islandGap`: minimum gap between the center island and either side island.
+- `frameRoundness`: radius shared by the frame and resting lobes.
+- `edgeMelt`: blend depth between Nacre blob shapes.
+- `islandScale`: size of the islands and their widget faces.
+- `osdScale`: size of Nacre popups and the shell OSD.
 - `frame`: draw Nacre's outer desktop frame.
 - `occupiedWorkspaces`: show only occupied workspaces plus the active one.
 
@@ -210,8 +219,8 @@ The editor contains:
 - A draggable card for every placed widget.
 - Insertion targets before, between, and after existing cards.
 - An unused-widget palette below the islands.
-- Live controls for height, opacity, padding, spacing, island gap, and
-  occupied-only workspaces.
+- Live controls for height, opacity, padding, spacing, island gap, frame
+  roundness, edge melt, island size, OSD size, and occupied-only workspaces.
 
 Each lane and the unused palette grows with its wrapping content. Widget chips
 use compact typography and a capped width; labels that exceed the cap elide.
@@ -223,7 +232,7 @@ The Nacre resources face uses CPU, memory, and temperature icons beside compact
 numeric readings. The expanded resources popup retains its labels and controls.
 
 A configured media widget remains visible when no MPRIS player is available.
-Its compact face shows the music icon and `No media`; transport stays inactive
+Its compact face shows the music icon and `No music`; transport stays inactive
 until a player appears. The user hides it only by moving it to the unused
 palette.
 

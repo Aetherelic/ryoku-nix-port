@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../../../Singletons"
 import "../../shared" as Shared
-import "../../shared/popouts" as SharedPopouts
+import "../../nacre/popouts" as NacrePopouts
 import "../../.." as Pill
 
 // Obi audio: compact output and input controls in the bar (scroll to set volume,
@@ -93,6 +93,6 @@ Item {
 
     Component {
         id: popContent
-        SharedPopouts.AudioPopout { open: root.open }
+        NacrePopouts.AudioPopout { open: root.open }
     }
 }

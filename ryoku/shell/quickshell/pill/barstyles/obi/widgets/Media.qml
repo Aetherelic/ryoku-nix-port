@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../../../Singletons"
 import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
+import "../../nacre/popouts" as Popouts
 import "../../.." as Pill
 
 // Obi media chip: a small rounded album thumbnail and an elided "title · artist"

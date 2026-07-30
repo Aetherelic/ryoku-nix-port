@@ -20,7 +20,11 @@ const ranges = {
     opacity: [0.45, 1],
     padding: [6, 24],
     spacing: [2, 18],
-    islandGap: [6, 32]
+    islandGap: [6, 32],
+    frameRoundness: [0, 32],
+    edgeMelt: [1, 32],
+    islandScale: [0.65, 1.25],
+    osdScale: [0.65, 1.25]
 };
 
 function clone(value) {
@@ -43,6 +47,10 @@ function defaultConfig() {
         padding: 12,
         spacing: 8,
         islandGap: 14,
+        frameRoundness: 9,
+        edgeMelt: 8,
+        islandScale: 1,
+        osdScale: 1,
         frame: true,
         occupiedWorkspaces: true
     };
@@ -53,7 +61,8 @@ function number(value, key, fallback) {
         return fallback;
     const range = ranges[key];
     const clamped = Math.max(range[0], Math.min(range[1], value));
-    return key === "opacity" ? clamped : Math.round(clamped);
+    return ["opacity", "islandScale", "osdScale"].includes(key)
+        ? Math.round(clamped * 100) / 100 : Math.round(clamped);
 }
 
 function normalize(raw) {

@@ -4,8 +4,8 @@ import QtQuick
 import "../../../Singletons"
 import "../../.." as Pill
 import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
-import "../../shared/Format.js" as Format
+import "../../nacre/popouts" as Popouts
+import "../../nacre/Format.js" as Format
 
 // Obi battery: freedesktop battery-level glyph (charging variant on AC) plus the
 // percentage in mono. Self-hides without a battery; goes error-red when low.

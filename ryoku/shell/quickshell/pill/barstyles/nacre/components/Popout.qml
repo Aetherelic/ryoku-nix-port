@@ -30,10 +30,12 @@ Item {
 
     readonly property bool hovered: triggerHovered || bodyHover.hovered
     readonly property bool shouldOpen: active && (pinned || hovered)
-    readonly property real liveWidth: contentLoader.item
-        && contentLoader.item.implicitWidth > 0 ? contentLoader.item.implicitWidth : openWidth
-    readonly property real liveHeight: contentLoader.item
-        && contentLoader.item.implicitHeight > 0 ? contentLoader.item.implicitHeight : openHeight
+    readonly property real liveWidth: (contentLoader.item
+        && contentLoader.item.implicitWidth > 0 ? contentLoader.item.implicitWidth : openWidth)
+        * scaleFactor
+    readonly property real liveHeight: (contentLoader.item
+        && contentLoader.item.implicitHeight > 0 ? contentLoader.item.implicitHeight : openHeight)
+        * scaleFactor
     readonly property real bodyWidth: heldOpen ? liveWidth : heldWidth
     readonly property real bodyHeight: heldOpen ? liveHeight : heldHeight
     readonly property real center: (triggerHovered || pinned) ? alongCenter : heldCenter
@@ -41,7 +43,10 @@ Item {
     readonly property real bodyX: Math.max(edgeInset,
         Math.min(width - bodyWidth - edgeInset, center - bodyWidth / 2))
     readonly property real bodyY: frameThickness
+    readonly property real currentWidth: heldOpen ? bodyWidth
+        : Math.max(0, bodyWidth * progress)
     readonly property real currentHeight: Math.max(0, bodyHeight * progress)
+    readonly property real currentX: bodyX + (bodyWidth - currentWidth) / 2
     readonly property real maskX: bodyX
     readonly property real maskY: bodyY
     readonly property real maskWidth: heldOpen ? bodyWidth : 0
@@ -122,9 +127,10 @@ Item {
         readonly property real reach: root.frameThickness + root.smoothing
 
         group: root.group
-        x: root.bodyX
+        id: bodyBlob
+        x: root.currentX
         y: root.bodyY - reach
-        implicitWidth: root.bodyWidth
+        implicitWidth: root.currentWidth
         implicitHeight: root.currentHeight > 0
             ? Math.max(0, root.currentHeight + reach - root.burial) : 0
         topLeftRadius: 0
@@ -137,21 +143,35 @@ Item {
 
     Item {
         id: reveal
-        x: root.bodyX
+        x: root.currentX
         y: root.bodyY
-        width: root.bodyWidth
+        width: root.currentWidth
         height: root.currentHeight
         clip: true
+        visible: root.progress > 0.004
+        opacity: root.heldOpen ? 1 : 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Motion.effects
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.effectsCurve
+            }
+        }
 
         HoverHandler { id: bodyHover }
 
         Loader {
             id: contentLoader
-            anchors.top: parent.top
-            width: root.bodyWidth
-            height: root.bodyHeight
+            x: (reveal.width - root.bodyWidth) / 2
+            y: 0
+            width: root.bodyWidth / root.scaleFactor
+            height: root.bodyHeight / root.scaleFactor
+            scale: root.scaleFactor
+            transformOrigin: Item.TopLeft
             active: root.content !== null
             sourceComponent: root.content
+            transform: Matrix4x4 { matrix: bodyBlob.deformMatrix }
         }
     }
 }

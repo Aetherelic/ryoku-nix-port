@@ -7,7 +7,6 @@ import Quickshell.Wayland
 import Ryoku.Blobs
 import "../../Singletons"
 import "components" as Components
-import "../shared/popouts" as SharedPopouts
 import "popouts" as NacrePopouts
 
 Scope {
@@ -18,9 +17,9 @@ Scope {
     readonly property var settings: Config.normalizedNacre
     readonly property real frameLip: 9
     readonly property real frameInset: frameLip
-    readonly property real smoothing: 8
-    readonly property real frameRadius: 9
-    readonly property real barSpan: settings.height + frameLip
+    readonly property real smoothing: settings.edgeMelt
+    readonly property real frameRadius: settings.frameRoundness
+    readonly property real barSpan: settings.height * settings.islandScale + frameLip
     property string selectedPopup: ""
     property string hoverPopup: ""
     property real selectedCenter: 0
@@ -145,7 +144,7 @@ Scope {
                 topLeftRadius: 0
                 topRightRadius: 0
                 bottomLeftRadius: 0
-                bottomRightRadius: Math.min(16, root.settings.height / 2)
+                bottomRightRadius: Math.min(root.frameRadius, root.settings.height / 2)
                 deformScale: 0.000015
                 sinks: false
             }
@@ -160,8 +159,8 @@ Scope {
                 implicitHeight: root.barSpan
                 topLeftRadius: 0
                 topRightRadius: 0
-                bottomLeftRadius: Math.min(16, root.settings.height / 2)
-                bottomRightRadius: Math.min(16, root.settings.height / 2)
+                bottomLeftRadius: Math.min(root.frameRadius, root.settings.height / 2)
+                bottomRightRadius: Math.min(root.frameRadius, root.settings.height / 2)
                 deformScale: 0.000015
                 sinks: false
             }
@@ -176,7 +175,7 @@ Scope {
                 implicitHeight: root.barSpan
                 topLeftRadius: 0
                 topRightRadius: 0
-                bottomLeftRadius: Math.min(16, root.settings.height / 2)
+                bottomLeftRadius: Math.min(root.frameRadius, root.settings.height / 2)
                 bottomRightRadius: 0
                 deformScale: 0.000015
                 sinks: false
@@ -192,6 +191,7 @@ Scope {
                 unifiedFrame: true
                 widgetIds: root.settings.islands.center
                 barHeight: root.settings.height
+                islandScale: root.settings.islandScale
                 surfaceOpacity: root.settings.opacity
                 horizontalPadding: root.settings.padding
                 widgetSpacing: root.settings.spacing
@@ -211,6 +211,7 @@ Scope {
                 unifiedFrame: true
                 widgetIds: root.settings.islands.left
                 barHeight: root.settings.height
+                islandScale: root.settings.islandScale
                 surfaceOpacity: root.settings.opacity
                 horizontalPadding: root.settings.padding
                 widgetSpacing: root.settings.spacing
@@ -230,6 +231,7 @@ Scope {
                 unifiedFrame: true
                 widgetIds: root.settings.islands.right
                 barHeight: root.settings.height
+                islandScale: root.settings.islandScale
                 surfaceOpacity: root.settings.opacity
                 horizontalPadding: root.settings.padding
                 widgetSpacing: root.settings.spacing
@@ -246,12 +248,13 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("audio")
                 pinned: root.selectedPopup === "audio"
                 openWidth: 300
                 openHeight: 420
                 content: Component {
-                    SharedPopouts.AudioPopout { open: audioPop.progress > 0.5 }
+                    NacrePopouts.AudioPopout { open: audioPop.progress > 0.5 }
                 }
             }
 
@@ -262,11 +265,12 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("battery")
                 pinned: root.selectedPopup === "battery"
                 openWidth: 300
                 openHeight: 280
-                content: Component { SharedPopouts.BatteryPopout {} }
+                content: Component { NacrePopouts.BatteryPopout {} }
             }
 
             Components.Popout {
@@ -276,11 +280,12 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("calendar")
                 pinned: root.selectedPopup === "calendar"
                 openWidth: 220
                 openHeight: 130
-                content: Component { SharedPopouts.CalendarPopout {} }
+                content: Component { NacrePopouts.CalendarPopout {} }
             }
 
             Components.Popout {
@@ -290,12 +295,13 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("connectivity")
                 pinned: root.selectedPopup === "connectivity"
                 openWidth: 330
                 openHeight: 520
                 content: Component {
-                    SharedPopouts.ConnectivityPopout { open: connectivityPop.progress > 0.5 }
+                    NacrePopouts.ConnectivityPopout { open: connectivityPop.progress > 0.5 }
                 }
             }
 
@@ -306,13 +312,14 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("media")
                 triggerHovered: root.hoverPopup === "media" && root.selectedPopup === ""
                 active: root.selectedPopup === ""
                 closeDelay: 140
                 openWidth: 300
                 openHeight: 180
-                content: Component { SharedPopouts.MediaPopout {} }
+                content: Component { NacrePopouts.MediaPopout {} }
             }
 
             Components.Popout {
@@ -322,11 +329,12 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("resources")
                 pinned: root.selectedPopup === "resources"
                 openWidth: 280
                 openHeight: 360
-                content: Component { SharedPopouts.ResourcesPopout {} }
+                content: Component { NacrePopouts.ResourcesPopout {} }
             }
 
             Components.Popout {
@@ -336,11 +344,12 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("weather")
                 pinned: root.selectedPopup === "weather"
                 openWidth: 320
                 openHeight: 240
-                content: Component { SharedPopouts.WeatherPopout {} }
+                content: Component { NacrePopouts.WeatherPopout {} }
             }
 
             Components.Popout {
@@ -350,9 +359,10 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: root.centerFor("notifications")
                 pinned: root.selectedPopup === "notifications"
-                openWidth: 430
+                openWidth: 340
                 openHeight: 520
                 content: Component {
                     NacrePopouts.NotificationInbox {
@@ -369,11 +379,12 @@ Scope {
                 frameLip: root.frameLip
                 radius: root.frameRadius
                 smoothing: root.smoothing
+                scaleFactor: root.settings.osdScale
                 alongCenter: overlay.toastCenter
                 pinned: Notifs.popups.length > 0 && root.selectedPopup === ""
                 active: root.selectedPopup === ""
-                openWidth: 400
-                openHeight: 120
+                openWidth: 342
+                openHeight: 100
                 content: Component {
                     NacrePopouts.NotificationToast {
                         onOpenInbox: {

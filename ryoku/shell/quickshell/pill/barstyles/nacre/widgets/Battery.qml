@@ -1,7 +1,7 @@
 import QtQuick
 import "../../../Singletons"
 import "../../.." as Pill
-import "../../shared/Format.js" as Format
+import "../Format.js" as Format
 
 Item {
     id: root

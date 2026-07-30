@@ -5,7 +5,7 @@ import QtQuick.Shapes
 import "../../../Singletons"
 import "../../.." as Pill
 import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
+import "../../nacre/popouts" as Popouts
 
 // Obi resources: twin compact ring gauges (CPU then RAM) bound live to Sysinfo,
 // each a subtle track with a monochrome fill and a tiny glyph in the centre.

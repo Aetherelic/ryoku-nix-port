@@ -17,4 +17,4 @@ QML2_IMPORT_PATH="$work:${QML2_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \
 grep -q NACRE-POPUP-PROBE-PASS "$work/log" || { sed -n '1,100p' "$work/log"; exit 1; }
 grep -Eq ' ERROR|TypeError|ReferenceError|Nacre widget failed|is not a type|Type .* unavailable' "$work/log" \
     && { sed -n '1,100p' "$work/log"; exit 1; }
-echo "nacre-popup-probe: shared popup components load"
+echo "nacre-popup-probe: Nacre popup components load"

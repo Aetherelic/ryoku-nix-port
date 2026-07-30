@@ -19,12 +19,13 @@ Grid {
         property real maximum: 100
         property real setting: 0
         property string key: ""
+        readonly property bool ratio: ["opacity", "islandScale", "osdScale"].includes(cell.key)
 
         width: (root.width - Tokens.s2) / 2
         height: implicitHeight
         controlWidth: 160
-        value: String(cell.key === "opacity" ? Math.round(cell.setting * 100) : cell.setting)
-        unit: cell.key === "opacity" ? "%" : "px"
+        value: String(cell.ratio ? Math.round(cell.setting * 100) : cell.setting)
+        unit: cell.ratio ? "%" : "px"
         source: "shell.json"
 
         Slid {
@@ -70,6 +71,38 @@ Grid {
         minimum: 6
         maximum: 32
         setting: root.config.islandGap
+    }
+    SliderCell {
+        objectName: "nacre-frame-roundness"
+        label: qsTr("Frame roundness")
+        key: "frameRoundness"
+        minimum: 0
+        maximum: 32
+        setting: root.config.frameRoundness
+    }
+    SliderCell {
+        objectName: "nacre-edge-melt"
+        label: qsTr("Edge melt")
+        key: "edgeMelt"
+        minimum: 1
+        maximum: 32
+        setting: root.config.edgeMelt
+    }
+    SliderCell {
+        objectName: "nacre-island-size"
+        label: qsTr("Island size")
+        key: "islandScale"
+        minimum: 0.65
+        maximum: 1.25
+        setting: root.config.islandScale
+    }
+    SliderCell {
+        objectName: "nacre-osd-size"
+        label: qsTr("OSD / popup size")
+        key: "osdScale"
+        minimum: 0.65
+        maximum: 1.25
+        setting: root.config.osdScale
     }
     Cell {
         width: (root.width - Tokens.s2) / 2

@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 import "." as Pill
 import "barstyles/shared" as Shared
-import "barstyles/shared/popouts" as Popouts
+import "barstyles/nacre/popouts" as Popouts
 import "barstyles/obi/widgets" as Obi
 import "barstyles/nacre/components" as NacreComponents
 import "barstyles/nacre/widgets" as NacreWidgets
@@ -80,7 +80,7 @@ ShellRoot {
     }
     Component {
         id: connectivityPopupUrl
-        Loader { source: "barstyles/shared/popouts/ConnectivityPopout.qml" }
+        Loader { source: "barstyles/nacre/popouts/ConnectivityPopout.qml" }
     }
 
     Timer {
@@ -132,10 +132,17 @@ ShellRoot {
             });
             if (!unifiedIsland || unifiedIsland.border.width !== 0 || unifiedIsland.color.a !== 0)
                 throw new Error("NACRE-UNIFIED-ISLAND-PROBE-FAIL");
+            const scaledIsland = nacreIsland.createObject(root, {
+                widgetIds: ["brand"], islandScale: 0.75
+            });
+            if (!scaledIsland || scaledIsland.width >= populatedIsland.width
+                    || scaledIsland.height >= populatedIsland.height)
+                throw new Error("NACRE-ISLAND-SCALE-PROBE-FAIL");
             populatedIsland.widgetIds = [];
             populatedIsland.destroy();
             constrainedIsland.destroy();
             unifiedIsland.destroy();
+            scaledIsland.destroy();
             emptyIsland.destroy();
             const resourcesFace = nacreResources.createObject(root);
             if (!resourcesFace
@@ -149,7 +156,7 @@ ShellRoot {
             resourcesFace.destroy();
             const mediaFace = nacreMedia.createObject(root);
             if (!mediaFace || !mediaFace.visible
-                    || !root.visibleText(mediaFace).includes("No media"))
+                    || !root.visibleText(mediaFace).includes("No music"))
                 throw new Error("NACRE-IDLE-MEDIA-PROBE-FAIL");
             mediaFace.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");

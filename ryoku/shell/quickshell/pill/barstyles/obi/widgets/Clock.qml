@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import "../../../Singletons"
 import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
+import "../../nacre/popouts" as Popouts
 
 // Obi clock: time in mono, a middot, then the short date. Hovering opens a
 // popout with the full date.

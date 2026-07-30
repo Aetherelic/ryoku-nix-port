@@ -26,6 +26,8 @@ PanelWindow {
     required property var modelData
     required property string kind
     readonly property real pad: 16
+    readonly property real osdScale: Config.barStyle === "nacre"
+        ? Config.normalizedNacre.osdScale : 1
     // slide travel, and the headroom the surface keeps above the panel's rest
     // spot so the slide-up is never clipped by the surface edge.
     readonly property real slide: 18
@@ -61,9 +63,9 @@ PanelWindow {
     anchors.bottom: true
     anchors.left: true
     anchors.right: true
-    margins.bottom: 24
+    margins.bottom: 24 * win.osdScale
 
-    implicitHeight: box.height + win.slide
+    implicitHeight: box.height * win.osdScale + win.slide * win.osdScale
 
     // The panel: warm surface fill + hairline border, rounded like the sidebar
     // surfaces (radiusWindow). Opacity and a slide offset ride the eased `prog`.
@@ -79,7 +81,9 @@ PanelWindow {
         border.width: Theme.borderWidth
         border.color: Theme.outline
         antialiasing: true
-        transform: Translate { y: -win.prog * win.slide }
+        scale: win.osdScale
+        transformOrigin: Item.Bottom
+        transform: Translate { y: -win.prog * win.slide * win.osdScale }
 
         Osd {
             id: osd

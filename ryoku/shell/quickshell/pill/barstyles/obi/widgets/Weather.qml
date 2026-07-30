@@ -4,8 +4,8 @@ import QtQuick
 import "../../../Singletons"
 import "../../.." as Pill
 import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
-import "../../shared/Format.js" as Format
+import "../../nacre/popouts" as Popouts
+import "../../nacre/Format.js" as Format
 
 // Obi weather: the current condition glyph and temperature, mirroring iNiR's
 // bar readout against Ryoku's daemon-fed Weather singleton. Hidden until a

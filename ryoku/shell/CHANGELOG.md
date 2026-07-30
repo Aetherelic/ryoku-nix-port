@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- **Nacre popouts now melt cleanly back into their island.** Closing content
+  fades while the blob narrows toward its trigger, avoiding clipped text and
+  full-width edge snaps. Bar Studio also exposes frame roundness and edge melt,
+  and the idle media face reads "No music."
 - **Fresh installs no longer land on a black desktop.** Hyprland's autostart
   spawned the session env import and `systemctl --user start ryoku-shell` as
   separate fire-and-forget commands, so on a cold first boot the shell start
@@ -30,8 +34,9 @@
   islands retain a visible capsule under width pressure. Bar Studio can drag
   widgets within and between auto-growing lanes or back to the unused palette
   without corrupting layout positions, and edits height, opacity, padding,
-  spacing, gap, workspace filter and the shared Sumi frame live. Nacre and Obi
-  share popup components.
+  spacing, gap, frame roundness, edge melt, island/OSD scale, workspace filter
+  and the unified desktop frame live. Nacre owns the popup contents; Obi reuses
+  them.
 - **Stash is the floating "Features" sidebar: right edge, tall card, Super+T.**
   The Stash board moved off the full-span left sidebar into a floating card that
   slides open from the right edge (the music/Bluetooth popout envelope), centred

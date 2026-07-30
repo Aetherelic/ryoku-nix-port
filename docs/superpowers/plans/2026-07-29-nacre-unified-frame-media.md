@@ -50,7 +50,7 @@ matches main.
 
 - Keep the left, center, and right arrays as the content source.
 - Make the default arrangement and dimensions match main.
-- Keep media mounted with `No media` when no MPRIS player exists.
+- Keep media mounted with `No music` when no MPRIS player exists.
 - Keep system health icon-led and retain connections, audio, battery, tray,
   weather, recording, and all other registry options.
 

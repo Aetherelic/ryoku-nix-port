@@ -24,6 +24,11 @@ ShellRoot {
             padding: 12,
             spacing: 8,
             islandGap: 14,
+            frameRoundness: 9,
+            edgeMelt: 8,
+            islandScale: 1,
+            osdScale: 1,
+            frame: true,
             occupiedWorkspaces: true
         })
         onStaged: value => root.staged = value
@@ -104,6 +109,22 @@ ShellRoot {
             editor.setAppearance("frame", false);
             require(root.staged.frame === false, "frame stages");
             require(root.findObject(editor, "nacre-frame"), "frame control");
+            editor.config = root.staged;
+            editor.setAppearance("frameRoundness", 18);
+            require(root.staged.frameRoundness === 18, "frame roundness stages");
+            editor.config = root.staged;
+            editor.setAppearance("edgeMelt", 20);
+            require(root.staged.edgeMelt === 20, "edge melt stages");
+            require(root.findObject(editor, "nacre-frame-roundness"), "frame roundness control");
+            require(root.findObject(editor, "nacre-edge-melt"), "edge melt control");
+            editor.config = root.staged;
+            editor.setAppearance("islandScale", 0.8);
+            require(root.staged.islandScale === 0.8, "island size stages");
+            editor.config = root.staged;
+            editor.setAppearance("osdScale", 0.75);
+            require(root.staged.osdScale === 0.75, "OSD size stages");
+            require(root.findObject(editor, "nacre-island-size"), "island size control");
+            require(root.findObject(editor, "nacre-osd-size"), "OSD size control");
             console.log("NACRE-EDITOR-PROBE-PASS");
             Qt.quit();
         }
