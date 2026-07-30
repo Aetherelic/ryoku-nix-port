@@ -24,6 +24,7 @@ Scope {
     property bool pointerFocusKnown: false
     property int savedFollowMouse: 2
     property string pointerFocusPending: ""
+    property var lifetime: ({ alive: true })
 
     readonly property bool open: openRequested
     readonly property bool shown:
@@ -153,15 +154,20 @@ Scope {
         var source = event || {};
         for (var key in source)
             captured[key] = source[key];
+        var lifetime = root.lifetime;
         Qt.callLater(function () {
-            root.handleLifecycleEvent(captured);
+            if (lifetime.alive)
+                root.handleLifecycleEvent(captured);
         });
     }
 
     function requestClose(generation, monitor) {
         var capturedGeneration = Number(generation);
         var capturedMonitor = String(monitor || "");
+        var lifetime = root.lifetime;
         Qt.callLater(function () {
+            if (!lifetime.alive)
+                return;
             if (capturedGeneration !== root.lifecycleState.generation
                     || capturedMonitor !== root.lifecycleState.monitor)
                 return;
@@ -402,6 +408,8 @@ Scope {
         return dump;
     }
 
+
+    Component.onDestruction: root.lifetime.alive = false
 
     SharedProviders.Providers {
         id: sharedProviders

@@ -15,6 +15,7 @@ ShellRoot {
     property string requestedId: LauncherConfig.variant
     property string pendingId: ""
     property bool fallbackTried: false
+    property bool switchQueued: false
     readonly property bool variantReady:
         variantLoader.status === Loader.Ready && variantLoader.item !== null
 
@@ -46,12 +47,18 @@ ShellRoot {
     }
 
     function finishSwitch() {
-        if (!pendingId)
+        if (!pendingId || switchQueued)
             return;
-        var next = pendingId;
-        pendingId = "";
-        fallbackTried = false;
-        activate(next);
+        switchQueued = true;
+        Qt.callLater(function () {
+            root.switchQueued = false;
+            if (!root.pendingId)
+                return;
+            var next = root.pendingId;
+            root.pendingId = "";
+            root.fallbackTried = false;
+            root.activate(next);
+        });
     }
 
     function show(mon) {
