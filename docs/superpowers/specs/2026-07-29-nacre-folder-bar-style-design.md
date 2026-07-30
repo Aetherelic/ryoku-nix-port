@@ -120,6 +120,10 @@ own standalone window. Compact Nacre widgets report a popup ID and their
 screen-space center to `Scene.qml`; they do not create independent
 `PanelWindow` cards.
 
+While a pinned popup is selected, the scene catches the first press outside
+its body, closes it, and consumes that press. Presses inside the popup retain
+their normal controls, and hover-only popups keep their pointer-leave behavior.
+
 Tray menus remain provided by Quickshell's tray items and are not converted
 into a frame popup. The brand launcher and utilities actions also remain
 direct actions rather than popups unless an existing Obi utility already owns
