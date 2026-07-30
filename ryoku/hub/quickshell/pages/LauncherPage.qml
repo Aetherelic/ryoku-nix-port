@@ -27,8 +27,8 @@ Item {
     readonly property url shippedHero: {
         var shellDir = String(Quickshell.env("RYOKU_SHELL_DIR") || "");
         return shellDir.length > 0
-            ? "file://" + shellDir + "/quickshell/launcher/art/hands-adam.png"
-            : Qt.resolvedUrl("../../launcher/art/hands-adam.png");
+            ? "file://" + shellDir + "/quickshell/launcher/shared/art/hands-adam.png"
+            : Qt.resolvedUrl("../../launcher/shared/art/hands-adam.png");
     }
 
     property var draft: pg.clone(pg.factory)

@@ -147,8 +147,8 @@ Scope {
     function hide() {
         if (!root.openRequested)
             return;
-        root.openRequested = false;
         closeSettler.restart();
+        root.openRequested = false;
     }
     function toggle(mon) {
         root.openRequested ? root.hide() : root.show(mon);
