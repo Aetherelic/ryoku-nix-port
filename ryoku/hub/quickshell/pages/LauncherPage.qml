@@ -52,9 +52,9 @@ Item {
         for (var i = 0; i < variants.length; i++)
             if (String(variants[i].id || "") === requested)
                 return variants[i];
-        var fallback = String(pg.catalog && pg.catalog.fallback || "");
+        var defaultId = String(pg.catalog && pg.catalog.default || "");
         for (var j = 0; j < variants.length; j++)
-            if (String(variants[j].id || "") === fallback)
+            if (String(variants[j].id || "") === defaultId)
                 return variants[j];
         return variants.length > 0 ? variants[0]
             : ({ id: "", name: "", description: "", preview: "", capabilities: [] });
