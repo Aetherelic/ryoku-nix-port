@@ -24,6 +24,7 @@ ShellRoot {
             padding: 12,
             spacing: 8,
             islandGap: 14,
+            frameSize: 9,
             frameRoundness: 9,
             edgeMelt: 8,
             islandScale: 1,
@@ -113,9 +114,13 @@ ShellRoot {
             editor.setAppearance("frameRoundness", 18);
             require(root.staged.frameRoundness === 18, "frame roundness stages");
             editor.config = root.staged;
+            editor.setAppearance("frameSize", 14);
+            require(root.staged.frameSize === 14, "frame size stages");
+            editor.config = root.staged;
             editor.setAppearance("edgeMelt", 20);
             require(root.staged.edgeMelt === 20, "edge melt stages");
             require(root.findObject(editor, "nacre-frame-roundness"), "frame roundness control");
+            require(root.findObject(editor, "nacre-frame-size"), "frame size control");
             require(root.findObject(editor, "nacre-edge-melt"), "edge melt control");
             editor.config = root.staged;
             editor.setAppearance("islandScale", 0.8);

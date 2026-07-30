@@ -24,7 +24,7 @@ matches main.
 
 - Record main revision `69ca0b25` as the source.
 - Add QML probes for shared blob ownership, content-only islands, popup body
-  geometry, persistent idle media, and notification toast wiring.
+  geometry, collapsing idle media, and notification toast wiring.
 - Confirm the probes fail against the Canvas and standalone-popup
   implementation.
 
@@ -50,7 +50,7 @@ matches main.
 
 - Keep the left, center, and right arrays as the content source.
 - Make the default arrangement and dimensions match main.
-- Keep media mounted with `No music` when no MPRIS player exists.
+- Collapse media when no MPRIS player is playing.
 - Keep system health icon-led and retain connections, audio, battery, tray,
   weather, recording, and all other registry options.
 

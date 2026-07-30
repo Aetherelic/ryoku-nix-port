@@ -28,8 +28,8 @@ lobes grown from its top edge:
 Weather and utilities begin in the unused widget palette. Every widget can be
 reordered inside its island, moved to another island, or hidden by returning it
 to the palette. A hidden dynamic widget keeps its configured position. Battery,
-weather, and tray collapse while unavailable and return to the same configured
-position. Media remains present and reads `No music` while idle.
+weather, tray, and media collapse while unavailable and return to the same
+configured position.
 
 The layout is shared across monitors. Each monitor owns a Nacre scene and popup
 windows anchored to widgets on that monitor.
@@ -147,6 +147,7 @@ the same default and includes `nacre` in its live keys:
   "padding": 12,
   "spacing": 8,
   "islandGap": 14,
+  "frameSize": 9,
   "frameRoundness": 9,
   "edgeMelt": 8,
   "islandScale": 1,
@@ -163,6 +164,7 @@ The first release supports these live controls:
 - `padding`: horizontal inset inside each island.
 - `spacing`: distance between widgets in an island.
 - `islandGap`: minimum gap between the center island and either side island.
+- `frameSize`: thickness of the outer desktop frame.
 - `frameRoundness`: radius shared by the frame and resting lobes.
 - `edgeMelt`: blend depth between Nacre blob shapes.
 - `islandScale`: size of the islands and their widget faces.
@@ -219,8 +221,9 @@ The editor contains:
 - A draggable card for every placed widget.
 - Insertion targets before, between, and after existing cards.
 - An unused-widget palette below the islands.
-- Live controls for height, opacity, padding, spacing, island gap, frame
-  roundness, edge melt, island size, OSD size, and occupied-only workspaces.
+- Live controls for height, opacity, padding, spacing, island gap, frame size,
+  frame roundness, edge melt, island size, OSD size, and occupied-only
+  workspaces.
 
 Each lane and the unused palette grows with its wrapping content. Widget chips
 use compact typography and a capped width; labels that exceed the cap elide.
@@ -231,10 +234,8 @@ gesture completes.
 The Nacre resources face uses CPU, memory, and temperature icons beside compact
 numeric readings. The expanded resources popup retains its labels and controls.
 
-A configured media widget remains visible when no MPRIS player is available.
-Its compact face shows the music icon and `No music`; transport stays inactive
-until a player appears. The user hides it only by moving it to the unused
-palette.
+A configured media widget collapses when no MPRIS player is playing and returns
+to its configured position when playback starts.
 
 A drag carries `{widgetId, sourceIsland, sourceIndex}`. Dropping into an island
 removes the source occurrence and inserts the ID at the resolved target index
@@ -301,8 +302,8 @@ Implementation is complete only after:
 8. The live shell reports no QML or Hyprland configuration errors.
 9. A live style switch to Nacre shows the same frame, lobe shapes, popup melt,
    notification toast, and default module placement as main.
-10. Drag edits apply immediately, Save/Revert behave correctly, music remains
-    visible while idle, and media, resources, audio, connectivity, calendar,
+10. Drag edits apply immediately, Save/Revert behave correctly, music collapses
+    while idle, and media, resources, audio, connectivity, calendar,
     notification inbox, and notification toast surfaces open on the correct
     monitor.
 

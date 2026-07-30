@@ -10,7 +10,7 @@ Item {
 
     implicitWidth: content.implicitWidth
     implicitHeight: 26
-    visible: true
+    visible: Media.playing
 
     onVisibleChanged: AudioBars.setActive(root, visible)
     Component.onCompleted: AudioBars.setActive(root, visible)
@@ -30,14 +30,14 @@ Item {
 
         Pill.MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter
-            text: Media.playing ? "music_note" : "music_off"
+            text: "music_note"
             font.pixelSize: Theme.iconSm
             color: Theme.onSurfaceVariant
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             width: 150
-            text: Media.line.length > 0 ? Media.line : qsTr("No music")
+            text: Media.line
             elide: Text.ElideRight
             color: Theme.onSurface
             font.family: Theme.fontPrimary

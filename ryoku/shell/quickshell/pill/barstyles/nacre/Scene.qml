@@ -15,7 +15,7 @@ Scope {
     readonly property bool unifiedBlobFrame: true
     property var modelData
     readonly property var settings: Config.normalizedNacre
-    readonly property real frameLip: 9
+    readonly property real frameLip: settings.frameSize
     readonly property real frameInset: frameLip
     readonly property real smoothing: settings.edgeMelt
     readonly property real frameRadius: settings.frameRoundness
@@ -24,6 +24,8 @@ Scope {
     property string hoverPopup: ""
     property real selectedCenter: 0
     property real hoverCenter: 0
+    readonly property int overlayKeyboardMode: selectedPopup === "connectivity"
+        ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     function handlePopup(name, center, active, pinned) {
         if (pinned) {
@@ -37,7 +39,11 @@ Scope {
     }
 
     function centerFor(name) {
-        return selectedPopup === name ? selectedCenter : hoverCenter;
+        if (selectedPopup === name)
+            return selectedCenter;
+        if (hoverPopup === name)
+            return hoverCenter;
+        return selectedCenter;
     }
 
     PanelWindow {
@@ -56,6 +62,7 @@ Scope {
 
     PanelWindow {
         id: overlay
+        objectName: "nacre-overlay"
 
         readonly property bool monFullscreen: {
             if (!root.modelData)
@@ -81,7 +88,7 @@ Scope {
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+        WlrLayershell.keyboardFocus: root.overlayKeyboardMode
         WlrLayershell.namespace: "ryoku-nacre"
         anchors { top: true; left: true; right: true; bottom: true }
 

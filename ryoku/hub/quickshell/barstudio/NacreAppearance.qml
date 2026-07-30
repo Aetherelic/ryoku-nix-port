@@ -73,6 +73,14 @@ Grid {
         setting: root.config.islandGap
     }
     SliderCell {
+        objectName: "nacre-frame-size"
+        label: qsTr("Frame size")
+        key: "frameSize"
+        minimum: 2
+        maximum: 24
+        setting: root.config.frameSize
+    }
+    SliderCell {
         objectName: "nacre-frame-roundness"
         label: qsTr("Frame roundness")
         key: "frameRoundness"

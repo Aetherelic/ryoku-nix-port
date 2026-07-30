@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import "." as Pill
 import "barstyles/shared" as Shared
 import "barstyles/nacre/popouts" as Popouts
@@ -107,6 +108,17 @@ ShellRoot {
                     || scene.item.barSpan !== scene.item.settings.height
                         * scene.item.settings.islandScale + scene.item.frameInset)
                 throw new Error("NACRE-FRAME-INSET-PROBE-FAIL");
+            if (scene.item.overlayKeyboardMode !== WlrKeyboardFocus.None)
+                throw new Error("NACRE-CLOSED-KEYBOARD-PROBE-FAIL");
+            scene.item.selectedCenter = 900;
+            scene.item.selectedPopup = "connectivity";
+            if (scene.item.centerFor("connectivity") !== 900
+                    || scene.item.overlayKeyboardMode !== WlrKeyboardFocus.OnDemand)
+                throw new Error("NACRE-OPEN-POPUP-STATE-PROBE-FAIL");
+            scene.item.selectedPopup = "";
+            if (scene.item.centerFor("connectivity") !== 900
+                    || scene.item.overlayKeyboardMode !== WlrKeyboardFocus.None)
+                throw new Error("NACRE-CLOSE-ANCHOR-PROBE-FAIL");
             scene.destroy();
             const connectivityUrl = nacreConnectivityUrl.createObject(root);
             if (!connectivityUrl || connectivityUrl.status !== Loader.Ready)
@@ -156,8 +168,8 @@ ShellRoot {
                 throw new Error("NACRE-HEALTH-WORDS-PROBE-FAIL");
             resourcesFace.destroy();
             const mediaFace = nacreMedia.createObject(root);
-            if (!mediaFace || !mediaFace.visible
-                    || !root.visibleText(mediaFace).includes("No music"))
+            if (!mediaFace || mediaFace.visible
+                    || root.visibleText(mediaFace).includes("No music"))
                 throw new Error("NACRE-IDLE-MEDIA-PROBE-FAIL");
             mediaFace.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");

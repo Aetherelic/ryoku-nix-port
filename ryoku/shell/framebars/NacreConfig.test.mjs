@@ -21,6 +21,7 @@ function eq(actual, expected, message) {
 const defaults = Nacre.defaultConfig();
 eq(Nacre.normalize(null), defaults, "missing config restores defaults");
 eq(defaults.frame, true, "frame defaults on");
+eq(defaults.frameSize, 9, "frame size matches main");
 eq(defaults.frameRoundness, 9, "frame roundness matches main");
 eq(defaults.edgeMelt, 8, "edge melt matches main");
 eq(defaults.islandScale, 1, "island size defaults to full scale");
@@ -39,6 +40,7 @@ const normalized = Nacre.normalize({
     padding: 2,
     spacing: 40,
     islandGap: -2,
+    frameSize: 80,
     frameRoundness: 80,
     edgeMelt: -4,
     islandScale: 0.1,
@@ -53,10 +55,10 @@ eq(
     [
         normalized.height, normalized.opacity, normalized.padding,
         normalized.spacing, normalized.islandGap,
-        normalized.frameRoundness, normalized.edgeMelt,
+        normalized.frameSize, normalized.frameRoundness, normalized.edgeMelt,
         normalized.islandScale, normalized.osdScale
     ],
-    [56, 0.45, 6, 18, 6, 32, 1, 0.65, 1.25],
+    [56, 0.45, 6, 18, 6, 24, 32, 1, 0.65, 1.25],
     "normalization clamps appearance values"
 );
 eq(normalized.occupiedWorkspaces, false, "normalization preserves a boolean workspace mode");
@@ -98,6 +100,7 @@ eq(Nacre.move(defaults, "brand", "left", "bogus", 0), defaults, "move rejects an
 
 const resized = Nacre.setValue(defaults, "height", 47.8);
 eq(resized.height, 48, "integer appearance values are rounded");
+eq(Nacre.setValue(defaults, "frameSize", 14).frameSize, 14, "frame size can be changed");
 eq(Nacre.setValue(defaults, "frameRoundness", 18).frameRoundness, 18, "frame roundness can be changed");
 eq(Nacre.setValue(defaults, "edgeMelt", 20).edgeMelt, 20, "edge melt can be changed");
 eq(Nacre.setValue(defaults, "islandScale", 0.8).islandScale, 0.8, "island size can be changed");
