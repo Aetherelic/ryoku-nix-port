@@ -8,8 +8,18 @@ Item {
     id: root
 
     property real barHeight: 40
+    property string workspaceStyle: Config.normalizedNacre.workspaceStyle
+    readonly property var kanji: ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
     readonly property int activeId: Workspaces.activeId
     readonly property int base: Math.floor((root.activeId - 1) / 10) * 10
+
+    function label(id) {
+        if (root.workspaceStyle === "dots")
+            return "";
+        if (root.workspaceStyle === "kanji" && id >= 1 && id <= 10)
+            return root.kanji[id];
+        return String(id);
+    }
 
     function occupied(id) {
         const toplevels = Hyprland.toplevels ? Hyprland.toplevels.values : [];
@@ -54,7 +64,7 @@ Item {
     Row {
         id: content
         anchors.centerIn: parent
-        spacing: 5
+        spacing: root.workspaceStyle === "dots" ? 5 : 3
 
         Repeater {
             model: root.entries
@@ -63,21 +73,39 @@ Item {
 
                 required property int modelData
                 readonly property bool active: ring.modelData === root.activeId
+                readonly property bool occupied: root.occupied(ring.modelData)
+                readonly property bool dotMode: root.workspaceStyle === "dots"
 
                 anchors.verticalCenter: parent.verticalCenter
-                width: ring.active ? 10 : 7
+                width: ring.dotMode ? (ring.active ? 10 : 7) : 26
                 height: width
                 radius: width / 2
-                color: "transparent"
-                border.width: ring.active ? 2 : 1
+                color: ring.dotMode ? "transparent"
+                    : ring.active ? Theme.primary
+                    : ring.occupied
+                        ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.10)
+                        : "transparent"
+                border.width: ring.dotMode ? (ring.active ? 2 : 1) : 0
                 border.color: ring.active ? Theme.primary
-                    : root.occupied(ring.modelData) ? Theme.onSurface : Theme.onSurfaceVariant
+                    : ring.occupied ? Theme.onSurface : Theme.onSurfaceVariant
 
                 Behavior on width {
                     NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard }
                 }
+                Behavior on color {
+                    ColorAnimation { duration: Motion.fast }
+                }
                 Behavior on border.color {
                     ColorAnimation { duration: Motion.fast }
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: !ring.dotMode
+                    text: root.label(ring.modelData)
+                    color: ring.active ? Theme.onPrimary
+                        : ring.occupied ? Theme.onSurface : Theme.onSurfaceVariant
+                    font.family: root.workspaceStyle === "kanji" ? Theme.fontJp : Theme.mono
+                    font.pixelSize: root.workspaceStyle === "kanji" ? 15 : Theme.fontSm
                 }
                 MouseArea {
                     anchors.fill: parent

@@ -116,6 +116,18 @@ ShellRoot {
                     throw new Error("NACRE-POPUP-PROBE-FAIL");
                 item.destroy();
             }
+            const workspaceFace = nacreWorkspaces.createObject(root, {
+                workspaceStyle: "dots"
+            });
+            if (!workspaceFace || workspaceFace.label(1) !== "")
+                throw new Error("NACRE-WORKSPACE-DOTS-PROBE-FAIL");
+            workspaceFace.workspaceStyle = "numbers";
+            if (workspaceFace.label(3) !== "3")
+                throw new Error("NACRE-WORKSPACE-NUMBERS-PROBE-FAIL");
+            workspaceFace.workspaceStyle = "kanji";
+            if (workspaceFace.label(3) !== "三" || workspaceFace.label(11) !== "11")
+                throw new Error("NACRE-WORKSPACE-KANJI-PROBE-FAIL");
+            workspaceFace.destroy();
             const scene = nacreScene.createObject(root);
             if (!scene || scene.status !== Loader.Ready)
                 throw new Error("NACRE-SCENE-PROBE-FAIL");
