@@ -6,6 +6,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
+    property alias variant:      adapter.variant
     property alias radius:       adapter.radius
     property alias bgBlur:      adapter.bgBlur
     property alias weatherUnit:  adapter.weatherUnit
@@ -28,6 +29,7 @@ Singleton {
 
         JsonAdapter {
             id: adapter
+            property string variant: "hero"
             property real radius: 16
             property int bgBlur: 2
             property string weatherUnit: "auto"
