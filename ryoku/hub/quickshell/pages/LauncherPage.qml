@@ -15,21 +15,22 @@ Item {
     readonly property bool fullBleed: true
 
     readonly property var keys: [
-        "radius", "bgBlur", "weatherUnit", "heroImage",
+        "variant", "radius", "bgBlur", "weatherUnit", "heroImage",
         "heroStrength", "heroPosX", "heroPosY", "showWeather", "showGreeting",
         "resultSettleMs"
     ]
     readonly property var factory: ({
-            "radius": 16, "bgBlur": 2, "weatherUnit": "auto", "heroImage": "",
+            "variant": "hero", "radius": 16, "bgBlur": 2, "weatherUnit": "auto", "heroImage": "",
             "heroStrength": 0.6, "heroPosX": 0.5, "heroPosY": 0.5,
             "showWeather": true, "showGreeting": true, "resultSettleMs": 360
         })
-    readonly property url shippedHero: {
+    readonly property string launcherRoot: {
         var shellDir = String(Quickshell.env("RYOKU_SHELL_DIR") || "");
         return shellDir.length > 0
-            ? "file://" + shellDir + "/quickshell/launcher/shared/art/hands-adam.png"
-            : Qt.resolvedUrl("../../launcher/shared/art/hands-adam.png");
+            ? shellDir + "/quickshell/launcher"
+            : String(Qt.resolvedUrl("../../launcher")).replace(/^file:\/\//, "");
     }
+    property var catalog: ({ version: 0, fallback: "", variants: [] })
 
     property var draft: pg.clone(pg.factory)
     property var committed: pg.clone(pg.factory)
@@ -41,13 +42,45 @@ Item {
             r[k] = o[k];
         return r;
     }
-    function same(a, b) { return String(a) === String(b); }
-    function finiteOr(v, fallback) {
-        var number = Number(v);
-        return isFinite(number) ? number : fallback;
+    function catalogVariants() {
+        return pg.catalog && Array.isArray(pg.catalog.variants)
+            ? pg.catalog.variants : [];
     }
+    function variantEntry(id) {
+        var variants = pg.catalogVariants();
+        var requested = String(id || "");
+        for (var i = 0; i < variants.length; i++)
+            if (String(variants[i].id || "") === requested)
+                return variants[i];
+        var fallback = String(pg.catalog && pg.catalog.fallback || "");
+        for (var j = 0; j < variants.length; j++)
+            if (String(variants[j].id || "") === fallback)
+                return variants[j];
+        return variants.length > 0 ? variants[0]
+            : ({ id: "", name: "", description: "", preview: "", capabilities: [] });
+    }
+    function variantNames() {
+        return pg.catalogVariants().map(function (entry) {
+            return String(entry.name || "");
+        });
+    }
+    function idForVariantName(name) {
+        var variants = pg.catalogVariants();
+        var requested = String(name || "");
+        for (var i = 0; i < variants.length; i++)
+            if (String(variants[i].name || "") === requested)
+                return String(variants[i].id || "");
+        return String(pg.draft.variant || "");
+    }
+    function activeCapabilities() {
+        var capabilities = pg.variantEntry(pg.draft.variant).capabilities;
+        return Array.isArray(capabilities) ? capabilities : [];
+    }
+    function supports(capability) {
+        return pg.activeCapabilities().indexOf(capability) !== -1;
+    }
+    function same(a, b) { return String(a) === String(b); }
     function basename(p) { return ("" + p).replace(/^.*\//, ""); }
-    function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
     readonly property int dirtyCount: {
         if (!pg.loaded)
@@ -102,12 +135,14 @@ Item {
     function unitLabel(k) { return k === "C" ? "\u00b0C" : k === "F" ? "\u00b0F" : "Auto"; }
     function unitKey(l) { return l === "\u00b0C" ? "C" : l === "\u00b0F" ? "F" : "auto"; }
 
-    function localeUnit() {
-        var l = String(Quickshell.env("LC_MEASUREMENT") || Quickshell.env("LANG") || "");
-        return /(^|[_.@-])(US|LR|MM)([_.@-]|$)/.test(l) ? "F" : "C";
+
+    FileView {
+        id: catalogFile
+        path: pg.launcherRoot + "/catalog.json"
+        blockLoading: true
+        printErrors: true
+        onLoaded: pg.catalog = JSON.parse(text())
     }
-    readonly property string effUnit: pg.draft.weatherUnit === "auto"
-        ? pg.localeUnit() : (String(pg.draft.weatherUnit) || "C")
 
     FileView {
         id: cfg
@@ -122,6 +157,7 @@ Item {
 
         JsonAdapter {
             id: cfgA
+            property string variant: "hero"
             property real radius: 16
             property int bgBlur: 2
             property string weatherUnit: "auto"
@@ -135,14 +171,6 @@ Item {
         }
     }
 
-    property var now: new Date()
-    Timer { interval: 10000; running: true; repeat: true; onTriggered: pg.now = new Date(); }
-    readonly property string clockStr: pg.pad2(pg.now.getHours()) + ":" + pg.pad2(pg.now.getMinutes())
-    readonly property string dateStr: Qt.locale("en_US").toString(pg.now, "dddd, MMM d")
-    readonly property string greeting: {
-        var h = pg.now.getHours();
-        return h < 5 ? "GOOD NIGHT" : h < 12 ? "GOOD MORNING" : h < 18 ? "GOOD AFTERNOON" : "GOOD EVENING";
-    }
 
     Column {
         id: head
@@ -190,178 +218,40 @@ Item {
         anchors { left: parent.left; right: parent.right; top: head.bottom }
         anchors.leftMargin: Tokens.s6; anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s5
         height: 226
-        label: I18n.tr("RESTING HERO")
-        tag: "720 × 250"
+        label: {
+            var name = String(pg.variantEntry(pg.draft.variant).name || "Launcher");
+            return name.toUpperCase() + " " + I18n.tr("PREVIEW");
+        }
+        tag: variantPreview.item
+            ? (variantPreview.item.implicitWidth + " × " + variantPreview.item.implicitHeight)
+            : ""
         live: true
 
         Item {
             id: previewStage
             anchors.fill: parent
+            clip: true
 
-            Item {
-                id: card
+            Loader {
+                id: variantPreview
                 anchors.centerIn: parent
-                width: 720
-                height: 250
-                scale: Math.min(0.72, Math.min((previewStage.width - 24) / width,
-                    (previewStage.height - 12) / height))
-                transformOrigin: Item.Center
-                clip: true
-
-                HeroCrop {
-                    id: heroCrop
-                    anchors.fill: parent
-                    source: pg.draft.heroImage !== undefined ? pg.draft.heroImage : ""
-                    fallbackSource: pg.shippedHero
-                    focalX: pg.finiteOr(pg.draft.heroPosX, 0.5)
-                    focalY: pg.finiteOr(pg.draft.heroPosY, 0.5)
-                    strength: pg.finiteOr(pg.draft.heroStrength, 0)
+                width: item ? item.implicitWidth : 0
+                height: item ? item.implicitHeight : 0
+                scale: item && item.implicitWidth > 0 && item.implicitHeight > 0
+                    ? Math.min(0.72, Math.min(
+                        (previewStage.width - 24) / item.implicitWidth,
+                        (previewStage.height - 12) / item.implicitHeight))
+                    : 1
+                source: {
+                    var file = String(pg.variantEntry(pg.draft.variant).preview || "");
+                    return file.length > 0
+                        ? "file://" + pg.launcherRoot + "/" + file : "";
                 }
-
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0; color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.52) }
-                        GradientStop { position: 0.34; color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.06) }
-                        GradientStop { position: 0.68; color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.10) }
-                        GradientStop { position: 1; color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.64) }
-                    }
-                }
-
-                Column {
-                    x: 16; y: 12; spacing: 1
-
-                    Text {
-                        visible: !!pg.draft.showGreeting
-                        text: pg.greeting; color: Tokens.ink
-                        font.family: Tokens.mono; font.pixelSize: 9
-                        font.weight: Font.DemiBold; font.letterSpacing: 1.5
-                    }
-                    Text {
-                        text: pg.clockStr; color: Tokens.ink
-                        font.family: Tokens.ui; font.pixelSize: 28
-                        font.weight: Font.Light; font.features: ({ "tnum": 1 })
-                    }
-                }
-
-                Column {
-                    anchors.right: parent.right
-                    y: 12
-                    anchors.rightMargin: 16
-                    spacing: 1
-
-                    Text {
-                        anchors.right: parent.right
-                        visible: !!pg.draft.showWeather
-                        text: (pg.effUnit === "F" ? "70" : "21")
-                            + (pg.effUnit === "F" ? I18n.tr("\u00b0F") : I18n.tr("\u00b0C"))
-                        color: Tokens.ink; font.family: Tokens.ui
-                        font.pixelSize: 19; font.weight: Font.Medium
-                        font.features: ({ "tnum": 1 })
-                    }
-                    Text {
-                        anchors.right: parent.right
-                        visible: !!pg.draft.showWeather
-                        text: I18n.tr("Clear sky")
-                        color: Tokens.inkMuted
-                        font.family: Tokens.ui; font.pixelSize: 10
-                    }
-                    Text {
-                        anchors.right: parent.right
-                        text: pg.dateStr
-                        color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: 9
-                        font.letterSpacing: 0.6
-                    }
-                }
-
-                Item {
-                    x: 145; y: 105; width: 430; height: 30
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "⌕"
-                        color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 25
-                    }
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: 26
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: I18n.tr("TYPE TO SEARCH")
-                        color: Tokens.inkMuted
-                        font.family: Tokens.mono; font.pixelSize: 11
-                        font.weight: Font.Medium; font.letterSpacing: 1.3
-                    }
-                    Rectangle {
-                        anchors.left: parent.left; anchors.right: parent.right
-                        anchors.bottom: parent.bottom; height: 1; color: Tokens.ink
-                    }
-                }
-
-                Row {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: 154; spacing: 7
-                    Repeater {
-                        model: ["ALL", "IMG", "FILE", "REC"]
-                        delegate: Rectangle {
-                            required property string modelData
-                            width: label.implicitWidth + 16; height: 19
-                            radius: 2
-                            color: "transparent"
-                            border.width: Tokens.border; border.color: Tokens.inkMuted
-                            Text {
-                                id: label
-                                anchors.centerIn: parent
-                                text: modelData; color: Tokens.ink
-                                font.family: Tokens.mono; font.pixelSize: 8
-                                font.weight: Font.DemiBold; font.letterSpacing: 0.7
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.bottom: parent.bottom; height: 1
-                    color: Tokens.lineStrong
-                }
-
-                DragHandler {
-                    id: dragH
-                    target: null
-                    enabled: heroCrop.ready && (heroCrop.overflowX > 1 || heroCrop.overflowY > 1)
-                    cursorShape: Qt.SizeAllCursor
-                    property real ox: 0.5
-                    property real oy: 0.5
-                    onActiveChanged: if (dragH.active) {
-                        dragH.ox = pg.finiteOr(pg.draft.heroPosX, 0.5);
-                        dragH.oy = pg.finiteOr(pg.draft.heroPosY, 0.5);
-                    }
-                    onActiveTranslationChanged: {
-                        if (!dragH.active)
-                            return;
-                        if (heroCrop.overflowX > 1)
-                            pg.edit("heroPosX", heroCrop.dragFocal(dragH.ox,
-                                dragH.activeTranslation.x / card.scale, heroCrop.overflowX));
-                        if (heroCrop.overflowY > 1)
-                            pg.edit("heroPosY", heroCrop.dragFocal(dragH.oy,
-                                dragH.activeTranslation.y / card.scale, heroCrop.overflowY));
-                    }
-                }
-                HoverHandler { id: dragHov; enabled: dragH.enabled; cursorShape: Qt.SizeAllCursor }
-
-                Rectangle {
-                    visible: dragH.enabled && dragHov.hovered
-                    anchors { left: parent.left; bottom: parent.bottom; margins: 8 }
-                    width: dragHint.implicitWidth + 16; height: 22; radius: 2
-                    color: Qt.rgba(Tokens.paper.r, Tokens.paper.g, Tokens.paper.b, 0.72)
-                    Text {
-                        id: dragHint
-                        anchors.centerIn: parent
-                        text: I18n.tr("DRAG TO REPOSITION")
-                        color: Tokens.ink; font.family: Tokens.mono
-                        font.pixelSize: 8; font.weight: Font.DemiBold; font.letterSpacing: 0.8
-                    }
+                onLoaded: {
+                    item.settings = Qt.binding(function () { return pg.draft; });
+                    item.editRequested.connect(function (key, value) {
+                        pg.edit(key, value);
+                    });
                 }
             }
         }
@@ -387,11 +277,39 @@ Item {
             spacing: Tokens.s5
 
             Section {
+                id: launcherSect
+                width: col.width
+                title: I18n.tr("LAUNCHER")
+
+                Cell {
+                    width: launcherSect.span(Spans.cols)
+                    height: Tokens.cellH
+                    controlWidth: Spans.inlineWidth("seg", pg.variantNames().length, width)
+                    label: I18n.tr("Style")
+                    desc: String(pg.variantEntry(pg.draft.variant).description || "")
+                    value: String(pg.variantEntry(pg.draft.variant).name || "")
+                    def: String(pg.variantEntry(pg.committed.variant).name || "")
+                    changed: !pg.same(pg.draft.variant, pg.committed.variant)
+                    source: "launcher.json"
+
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: pg.variantNames()
+                        current: String(pg.variantEntry(pg.draft.variant).name || "")
+                        onChose: name => pg.edit("variant", pg.idForVariantName(name))
+                    }
+                }
+            }
+
+            Section {
                 id: palSect
                 width: col.width
                 title: I18n.tr("PALETTE")
+                visible: pg.supports("shape") || pg.supports("background")
 
                 Cell {
+                    visible: pg.supports("shape")
                     width: palSect.span(6)
                     height: Tokens.cellH
                     controlWidth: Spans.inlineWidth("step", 0, width)
@@ -411,6 +329,7 @@ Item {
                     }
                 }
                 Cell {
+                    visible: pg.supports("background")
                     width: palSect.span(6)
                     height: Tokens.cellH
                     controlWidth: Spans.inlineWidth("step", 0, width)
@@ -435,6 +354,7 @@ Item {
                 id: motionSect
                 width: col.width
                 title: I18n.tr("RESULT MOTION")
+                visible: pg.supports("results")
 
                 Cell {
                     width: motionSect.span(Spans.cols)
@@ -461,6 +381,7 @@ Item {
                 id: hcSect
                 width: col.width
                 title: I18n.tr("HERO")
+                visible: pg.supports("hero")
 
                 Cell {
                     width: hcSect.span(4)
@@ -520,6 +441,7 @@ Item {
                 id: bdSect
                 width: col.width
                 title: I18n.tr("HERO IMAGE")
+                visible: pg.supports("hero")
 
                 Item {
                     id: heroCell

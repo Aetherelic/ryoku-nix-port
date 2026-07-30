@@ -7,6 +7,15 @@
 var rows = [
     {
         "tab": "",
+        "group": "LAUNCHER",
+        "key": "variant",
+        "label": "Style",
+        "desc": "Selects Main, Hero, or OkShell for Super+Space",
+        "ctl": "seg",
+        "src": "launcher.json"
+    },
+    {
+        "tab": "",
         "group": "SHAPE",
         "key": "radius",
         "label": "Corner radius",
