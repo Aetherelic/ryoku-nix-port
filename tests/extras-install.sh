@@ -14,12 +14,12 @@ trap 'rm -rf "$tmp"' EXIT
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
 bin="$tmp/.local/bin"
-mkdir -p "$bin" "$tmp/cache/bundles/demo" "$tmp/data" "$tmp/run"
+mkdir -p "$bin" "$tmp/cache/bundles" "$tmp/cache/collections/demo" "$tmp/data" "$tmp/run"
 
 cat >"$tmp/cache/bundles/registry.json" <<'EOF'
-{ "bundles": [ { "id": "demo" } ] }
+{ "bundles": [ { "id": "demo", "path": "collections/demo" } ] }
 EOF
-cat >"$tmp/cache/bundles/demo/bundle.json" <<'EOF'
+cat >"$tmp/cache/collections/demo/bundle.json" <<'EOF'
 { "id": "demo", "requires": ["gpu-lib32"], "items": [
   { "type": "package", "name": "corepkg", "tier": "core" },
   { "type": "package", "name": "optpkg", "tier": "optional" },

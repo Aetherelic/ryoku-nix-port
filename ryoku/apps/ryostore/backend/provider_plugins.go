@@ -103,7 +103,7 @@ func (p pluginProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceS
 
 		installedVer, installed := localPluginVersion(e.ID)
 		pl, placed := placements[e.ID]
-		enabled := placed && pl.Enabled
+		enabled := installed && placed && pl.Enabled
 		update := installed && version != "" && installedVer != "" && semverNewer(version, installedVer)
 
 		md := map[string]any{}

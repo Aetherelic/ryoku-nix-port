@@ -86,44 +86,61 @@ func (p bundleProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceS
 	}
 	out := make([]built, 0, len(reg.Bundles))
 	for _, e := range reg.Bundles {
+		if !validComponent(e.ID) {
+			return nil, state, fmt.Errorf("bundle has invalid id %q", e.ID)
+		}
 		path := e.Path
 		if path == "" {
 			path = "bundles/" + e.ID
 		}
+		if !validLocalPath(path) {
+			return nil, state, fmt.Errorf("bundle %q has invalid path %q", e.ID, path)
+		}
 		name, desc := e.Name, e.Description
 		icon, accent, preview := e.Icon, e.Accent, e.Preview
 		screenshots := e.Screenshots
-		var items []bundleItem
-		// merge bundle.json, filling only what the registry omitted.
-		if b, st, err := p.cache.Fetch(ctx, path+"/bundle.json", refresh); err == nil {
-			state = combineOffline(state, st)
-			var def bundleDef
-			if json.Unmarshal(b, &def) == nil {
-				items = def.Items
-				if name == "" {
-					name = def.Name
-				}
-				if desc == "" {
-					desc = def.Description
-				}
-				if icon == "" {
-					icon = def.Icon
-				}
-				if accent == "" {
-					accent = def.Accent
-				}
-				if preview == "" {
-					preview = def.Preview
-				}
-				if len(screenshots) == 0 {
-					screenshots = def.Screenshots
-				}
-			}
+		b, st, err := p.cache.Fetch(ctx, path+"/bundle.json", refresh)
+		state = combineOffline(state, st)
+		if err != nil {
+			return nil, state, fmt.Errorf("bundle %q definition: %w", e.ID, err)
 		}
-		// warm each script item's installer so the actuator can run offline.
+		var def bundleDef
+		if err := json.Unmarshal(b, &def); err != nil {
+			return nil, state, fmt.Errorf("bundle %q definition: %w", e.ID, err)
+		}
+		if def.ID != "" && def.ID != e.ID {
+			return nil, state, fmt.Errorf("bundle %q definition id is %q", e.ID, def.ID)
+		}
+		if len(def.Items) == 0 {
+			return nil, state, fmt.Errorf("bundle %q definition has no items", e.ID)
+		}
+		items := def.Items
+		if name == "" {
+			name = def.Name
+		}
+		if desc == "" {
+			desc = def.Description
+		}
+		if icon == "" {
+			icon = def.Icon
+		}
+		if accent == "" {
+			accent = def.Accent
+		}
+		if preview == "" {
+			preview = def.Preview
+		}
+		if len(screenshots) == 0 {
+			screenshots = def.Screenshots
+		}
 		for _, it := range items {
 			if it.Type == "script" {
-				_, _, _ = p.cache.Fetch(ctx, "installers/"+it.Name+".sh", refresh)
+				if !validComponent(it.Name) {
+					return nil, state, fmt.Errorf("bundle %q has invalid installer name %q", e.ID, it.Name)
+				}
+				if _, _, err := p.cache.Fetch(ctx, "installers/"+it.Name+".sh", refresh); err != nil {
+					return nil, state, fmt.Errorf("bundle %q installer %q: %w", e.ID, it.Name, err)
+				}
 			}
 		}
 

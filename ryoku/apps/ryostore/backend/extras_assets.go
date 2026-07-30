@@ -19,6 +19,76 @@ import (
 	"strings"
 )
 
+var renamePath = os.Rename
+
+func validComponent(name string) bool {
+	return name != "" && filepath.IsLocal(name) && filepath.Clean(name) == name && filepath.Base(name) == name
+}
+
+func validLocalPath(name string) bool {
+	return name != "" && name != "." && filepath.IsLocal(name) && filepath.Clean(name) == name
+}
+
+func rejectSymlinkPath(root, rel string) error {
+	current := root
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		current = filepath.Join(current, part)
+		fi, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%s is a symlink", current)
+		}
+	}
+	return nil
+}
+
+func replaceTree(stage, dst string, finalize func() error) error {
+	parent := filepath.Dir(dst)
+	backup := ""
+	if _, err := os.Lstat(dst); err == nil {
+		var err error
+		backup, err = os.MkdirTemp(parent, ".backup-*")
+		if err != nil {
+			return err
+		}
+		if err := os.Remove(backup); err != nil {
+			return err
+		}
+		if err := renamePath(dst, backup); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	restore := func(cause error) error {
+		_ = os.RemoveAll(dst)
+		if backup != "" {
+			if err := renamePath(backup, dst); err != nil {
+				return fmt.Errorf("%w; restore prior install: %v", cause, err)
+			}
+		}
+		return cause
+	}
+	if err := renamePath(stage, dst); err != nil {
+		return restore(err)
+	}
+	if finalize != nil {
+		if err := finalize(); err != nil {
+			return restore(err)
+		}
+	}
+	if backup != "" {
+		return os.RemoveAll(backup)
+	}
+	return nil
+}
+
 func dataHome() string {
 	if b := os.Getenv("XDG_DATA_HOME"); b != "" {
 		return b
@@ -95,8 +165,8 @@ func pluginDataDir(id string) string {
 // are cosmetic and skip on a miss. It seeds the plugin's preset block into
 // plugins.json but never enables it: installing must not activate placement.
 func ensurePlugin(id string) (string, error) {
-	if id == "" {
-		return "", fmt.Errorf("plugin id required")
+	if !validComponent(id) {
+		return "", fmt.Errorf("invalid plugin id %q", id)
 	}
 	c := newCache()
 	ctx := context.Background()
@@ -114,21 +184,6 @@ func ensurePlugin(id string) (string, error) {
 		return "", fmt.Errorf("plugin %q manifest: %w", id, err)
 	}
 
-	dst := pluginDataDir(id)
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return "", err
-	}
-	// stage a sibling temp tree; discarded on any failure, renamed into place
-	// only once complete so an aborted fetch never looks installed.
-	stage, err := os.MkdirTemp(filepath.Dir(dst), ".stage-*")
-	if err != nil {
-		return "", err
-	}
-	defer os.RemoveAll(stage)
-
-	write := func(name string, data []byte, mode os.FileMode) error {
-		return atomicWrite(filepath.Join(stage, filepath.Clean(name)), data, mode)
-	}
 	optional := map[string]bool{"README.md": true, "assets/preview.gif": true}
 	files := []string{"README.md", "assets/preview.gif"}
 	for _, f := range man.EntryPoints {
@@ -136,6 +191,22 @@ func ensurePlugin(id string) (string, error) {
 	}
 	files = append(files, man.Commands...)
 	files = append(files, man.Files...)
+	for _, f := range files {
+		if !validLocalPath(f) {
+			return "", fmt.Errorf("plugin %q has invalid file path %q", id, f)
+		}
+	}
+
+	dst := pluginDataDir(id)
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return "", err
+	}
+	stage, err := os.MkdirTemp(filepath.Dir(dst), ".stage-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(stage)
+
 	for _, f := range files {
 		b, err := c.get(ctx, rel+"/"+f)
 		if err != nil {
@@ -148,44 +219,35 @@ func ensurePlugin(id string) (string, error) {
 		if strings.HasPrefix(f, "bin/") {
 			mode = 0o755
 		}
-		if err := write(f, b, mode); err != nil {
+		if err := atomicWrite(filepath.Join(stage, f), b, mode); err != nil {
 			return "", err
 		}
 	}
-	// manifest last inside the stage, then swap the whole tree into place.
-	if err := write("manifest.json", manRaw, 0o644); err != nil {
+	if err := atomicWrite(filepath.Join(stage, "manifest.json"), manRaw, 0o644); err != nil {
 		return "", err
 	}
-	// replace any prior install atomically; symlink-safe so a dev plugin's
-	// symlinked source tree is unlinked, never clobbered through the link.
-	if fi, err := os.Lstat(dst); err == nil {
-		if fi.Mode()&os.ModeSymlink != 0 {
-			if err := os.Remove(dst); err != nil {
-				return "", err
-			}
-		} else if err := os.RemoveAll(dst); err != nil {
-			return "", err
+
+	if err := exec.Command("ryoku-plugins-place", id, "enabled", "false").Run(); err != nil {
+		return "", fmt.Errorf("disable plugin placement before install: %w", err)
+	}
+	if err := replaceTree(stage, dst, func() error {
+		if err := exec.Command("ryoku-plugins-place", id, "seed").Run(); err != nil {
+			return fmt.Errorf("seed plugin settings: %w", err)
 		}
-	}
-	if err := os.Rename(stage, dst); err != nil {
+		return nil
+	}); err != nil {
 		return "", err
 	}
-	// seed the plugin's preset block into plugins.json so its settings exist in
-	// the right place the moment it lands (forgotten again on uninstall). This
-	// never sets enabled: install places, it does not activate.
-	_ = exec.Command("ryoku-plugins-place", id, "seed").Run()
 	return dst, nil
 }
 
-// removePlugin nukes an installed plugin from the data dir and drops its
-// plugins.json entry (placement + settings) so its config disappears with it.
-// Symlink-safe: a dev plugin is often a symlink into a checkout, so the symlink
-// itself is unlinked, never recursed into; a real install gets RemoveAll.
+// removePlugin removes only the installed source tree. Placement and settings
+// survive bundle removal; Settings explicitly forgets them for a full uninstall.
+// Symlink-safe: a dev source link is unlinked, never traversed.
 func removePlugin(id string) error {
-	if id == "" {
-		return fmt.Errorf("plugin id required")
+	if !validComponent(id) {
+		return fmt.Errorf("invalid plugin id %q", id)
 	}
-	_ = exec.Command("ryoku-plugins-place", id, "forget").Run()
 	dir := pluginDataDir(id)
 	fi, err := os.Lstat(dir)
 	if err != nil {
@@ -203,6 +265,9 @@ func removePlugin(id string) error {
 // ensureInstaller pulls a fresh copy of installers/<name>.sh into the cache and
 // returns its path, falling back to the cached copy when the source is offline.
 func ensureInstaller(name string) (string, error) {
+	if !validComponent(name) {
+		return "", fmt.Errorf("invalid installer name %q", name)
+	}
 	rel := "installers/" + name + ".sh"
 	if _, _, err := newCache().Fetch(context.Background(), rel, true); err != nil {
 		return "", fmt.Errorf("installer %q not found in the catalogue: %w", name, err)
@@ -234,8 +299,8 @@ func nautilusTrackDir(id string) string {
 // removal. The scripts ARE the pack, so a failed fetch aborts rather than
 // landing a pack with missing right-click actions that still reports installed.
 func ensureNautilusPack(id string) (string, error) {
-	if id == "" {
-		return "", fmt.Errorf("nautilus pack id required")
+	if !validComponent(id) {
+		return "", fmt.Errorf("invalid nautilus pack id %q", id)
 	}
 	c := newCache()
 	ctx := context.Background()
@@ -261,6 +326,9 @@ func ensureNautilusPack(id string) (string, error) {
 	if path == "" {
 		path = "nautilus/" + id
 	}
+	if !validLocalPath(path) {
+		return "", fmt.Errorf("nautilus pack %q has invalid source path %q", id, path)
+	}
 	manRaw, err := c.get(ctx, path+"/manifest.json")
 	if err != nil {
 		return "", fmt.Errorf("nautilus pack %q manifest: %w", id, err)
@@ -282,35 +350,89 @@ func ensureNautilusPack(id string) (string, error) {
 	if subdir == "" {
 		subdir = id
 	}
-	root := filepath.Join(nautilusScriptsDir(), subdir)
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if !validLocalPath(subdir) {
+		return "", fmt.Errorf("nautilus pack %q has invalid subdir %q", id, subdir)
+	}
+	for _, script := range man.Scripts {
+		if !validLocalPath(script) {
+			return "", fmt.Errorf("nautilus pack %q has invalid script path %q", id, script)
+		}
+	}
+
+	scriptsRoot := nautilusScriptsDir()
+	if err := rejectSymlinkPath(scriptsRoot, subdir); err != nil {
 		return "", err
 	}
-	for _, s := range man.Scripts {
-		b, err := c.get(ctx, path+"/scripts/"+s)
+	root := filepath.Join(scriptsRoot, subdir)
+	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
+		return "", err
+	}
+	stage, err := os.MkdirTemp(filepath.Dir(root), ".stage-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(stage)
+	for _, script := range man.Scripts {
+		b, err := c.get(ctx, path+"/scripts/"+script)
 		if err != nil {
-			return "", fmt.Errorf("nautilus pack %q: could not fetch %s: %w", id, s, err)
+			return "", fmt.Errorf("nautilus pack %q: could not fetch %s: %w", id, script, err)
 		}
-		if err := atomicWrite(filepath.Join(root, filepath.Clean(s)), b, 0o755); err != nil {
+		if err := atomicWrite(filepath.Join(stage, script), b, 0o755); err != nil {
 			return "", err
 		}
 	}
+
+	rec, err := json.Marshal(map[string]any{"id": id, "subdir": subdir, "scripts": man.Scripts})
+	if err != nil {
+		return "", err
+	}
 	track := nautilusTrackDir(id)
+	if fi, err := os.Lstat(track); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("%s is a symlink", track)
+	} else if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
 	if err := os.MkdirAll(track, 0o755); err != nil {
 		return "", err
 	}
-	rec, _ := json.Marshal(map[string]any{"id": id, "subdir": subdir, "scripts": man.Scripts})
-	_ = os.WriteFile(filepath.Join(track, "manifest.json"), rec, 0o644)
+	pending, err := os.CreateTemp(track, ".manifest-*")
+	if err != nil {
+		return "", err
+	}
+	pendingName := pending.Name()
+	defer os.Remove(pendingName)
+	if _, err := pending.Write(rec); err != nil {
+		pending.Close()
+		return "", err
+	}
+	if err := pending.Chmod(0o644); err != nil {
+		pending.Close()
+		return "", err
+	}
+	if err := pending.Close(); err != nil {
+		return "", err
+	}
+
+	if err := replaceTree(stage, root, func() error {
+		return renamePath(pendingName, filepath.Join(track, "manifest.json"))
+	}); err != nil {
+		return "", err
+	}
 	return root, nil
 }
 
 // removeNautilusPack deletes a pack's installed scripts (its whole subdir) and
 // the tracking record. No-op if never installed.
 func removeNautilusPack(id string) error {
-	if id == "" {
-		return fmt.Errorf("nautilus pack id required")
+	if !validComponent(id) {
+		return fmt.Errorf("invalid nautilus pack id %q", id)
 	}
 	track := nautilusTrackDir(id)
+	if fi, err := os.Lstat(track); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("%s is a symlink", track)
+	} else if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	b, err := os.ReadFile(filepath.Join(track, "manifest.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -321,9 +443,17 @@ func removeNautilusPack(id string) error {
 	var rec struct {
 		Subdir string `json:"subdir"`
 	}
-	_ = json.Unmarshal(b, &rec)
-	if rec.Subdir != "" {
-		_ = os.RemoveAll(filepath.Join(nautilusScriptsDir(), rec.Subdir))
+	if err := json.Unmarshal(b, &rec); err != nil {
+		return fmt.Errorf("nautilus tracking manifest: %w", err)
+	}
+	if !validLocalPath(rec.Subdir) {
+		return fmt.Errorf("invalid tracked nautilus subdir %q", rec.Subdir)
+	}
+	if err := rejectSymlinkPath(nautilusScriptsDir(), rec.Subdir); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(filepath.Join(nautilusScriptsDir(), rec.Subdir)); err != nil {
+		return err
 	}
 	return os.RemoveAll(track)
 }

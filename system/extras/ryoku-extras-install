@@ -40,10 +40,19 @@ cache_dir() {
 
 # Path to a bundle's definition in the cache Ryostore warmed while browsing.
 bundle_file() {
-  local id=$1 cache f
+  local id=$1 cache reg rel f
   cache=$(cache_dir) || die "could not resolve the extras cache (is ryostore installed?)"
-  f="$cache/bundles/$id/bundle.json"
-  [[ -f $f ]] || die "unknown bundle '$id' (not in the catalogue)"
+  reg="$cache/bundles/registry.json"
+  [[ -f $reg ]] || die "bundle catalogue is not cached"
+  rel=$(jq -er --arg id "$id" '.bundles[] | select(.id == $id) | (.path // ("bundles/" + $id))' "$reg") \
+    || die "unknown bundle '$id' (not in the catalogue)"
+  [[ -n $rel && $rel != /* && $rel != */ && $rel != "." && $rel != ".." ]] \
+    || die "bundle '$id' has an unsafe catalogue path"
+  case "/$rel/" in
+    *"/../"*|*"/./"*|*"//"*) die "bundle '$id' has an unsafe catalogue path" ;;
+  esac
+  f="$cache/$rel/bundle.json"
+  [[ -f $f ]] || die "bundle '$id' definition is not cached"
   printf '%s\n' "$f"
 }
 

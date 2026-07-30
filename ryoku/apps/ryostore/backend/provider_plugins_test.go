@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -77,7 +78,7 @@ func TestPluginProviderNormalization(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(pj), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(pj, []byte(`{"market":{"enabled":true,"host":"sidebarLeft"}}`), 0o644); err != nil {
+	if err := os.WriteFile(pj, []byte(`{"market":{"enabled":true,"host":"sidebarLeft"},"clock":{"enabled":true,"host":"sidebarLeft"}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -198,7 +199,7 @@ func TestEnsurePluginDiscardsPartialStage(t *testing.T) {
 // is unlinked on removal, never recursed into, so the source tree survives.
 func TestRemovePluginUnlinksSymlink(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	stubPlaceTool(t)
+	log := stubPlaceTool(t)
 
 	src := t.TempDir()
 	if err := os.WriteFile(filepath.Join(src, "manifest.json"), []byte(`{}`), 0o644); err != nil {
@@ -220,6 +221,13 @@ func TestRemovePluginUnlinksSymlink(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(src, "manifest.json")); err != nil {
 		t.Errorf("symlink target eaten by removal: %v", err)
 	}
+	b, err := os.ReadFile(log)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "forget") {
+		t.Fatalf("file-only removal forgot preserved placement: %q", b)
+	}
 }
 
 // TestPluginProviderInstallPlaces proves the provider's Install surface places
@@ -236,5 +244,158 @@ func TestPluginProviderInstallPlaces(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(pluginDataDir("market"), "manifest.json")); err != nil {
 		t.Fatalf("provider install did not place the plugin: %v", err)
+	}
+}
+
+func TestEnsurePluginForcesStalePlacementDisabled(t *testing.T) {
+	data := t.TempDir()
+	config := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("XDG_CONFIG_HOME", config)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	srv, _ := fixtureServer(t)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	helper, err := filepath.Abs(filepath.Join("..", "..", "..", "shell", "quickshell", "plugins", "ryoku-plugins-place"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	if err := os.Symlink(helper, filepath.Join(bin, "ryoku-plugins-place")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	configPath := filepath.Join(config, "ryoku", "plugins.json")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte(`{"market":{"enabled":true,"host":"sidebarLeft","settings":{"kept":"yes"}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ensurePlugin("market"); err != nil {
+		t.Fatalf("ensurePlugin: %v", err)
+	}
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var placements map[string]struct {
+		Enabled bool           `json:"enabled"`
+		Host    string         `json:"host"`
+		Settings map[string]any `json:"settings"`
+	}
+	if err := json.Unmarshal(raw, &placements); err != nil {
+		t.Fatal(err)
+	}
+	got := placements["market"]
+	if got.Enabled {
+		t.Fatal("install re-enabled stale placement")
+	}
+
+	if got.Host != "sidebarLeft" || got.Settings["kept"] != "yes" {
+		t.Fatalf("install discarded placement state: %#v", got)
+	}
+}
+
+func TestEnsurePluginRejectsAbsoluteManifestPath(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/manifest.json") {
+			w.Write([]byte(`{"files":["/absolute.js"]}`))
+			return
+		}
+		w.Write([]byte("payload"))
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+	stubPlaceTool(t)
+
+	if _, err := ensurePlugin("safe"); err == nil {
+		t.Fatal("absolute manifest path accepted")
+	}
+	if _, err := os.Lstat(filepath.Join(data, "absolute.js")); !os.IsNotExist(err) {
+		t.Fatalf("absolute manifest path wrote outside stage: %v", err)
+	}
+}
+
+func TestEnsurePluginRejectsEscapingPaths(t *testing.T) {
+	t.Run("id", func(t *testing.T) {
+		data := t.TempDir()
+		t.Setenv("XDG_DATA_HOME", data)
+		t.Setenv("XDG_CACHE_HOME", t.TempDir())
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Write([]byte(`{}`))
+		}))
+		t.Cleanup(srv.Close)
+		t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+		stubPlaceTool(t)
+
+		if _, err := ensurePlugin("../../escape"); err == nil {
+			t.Fatal("escaping plugin id accepted")
+		}
+		if _, err := os.Lstat(filepath.Join(data, "escape")); !os.IsNotExist(err) {
+			t.Fatalf("escaping id mutated outside plugin root: %v", err)
+		}
+	})
+
+	t.Run("manifest file", func(t *testing.T) {
+		data := t.TempDir()
+		t.Setenv("XDG_DATA_HOME", data)
+		t.Setenv("XDG_CACHE_HOME", t.TempDir())
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/manifest.json") {
+				w.Write([]byte(`{"files":["../../escape.js"]}`))
+				return
+			}
+			w.Write([]byte("payload"))
+		}))
+		t.Cleanup(srv.Close)
+		t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+		stubPlaceTool(t)
+
+		if _, err := ensurePlugin("safe"); err == nil {
+			t.Fatal("escaping manifest path accepted")
+		}
+		if _, err := os.Lstat(filepath.Join(data, "ryoku", "escape.js")); !os.IsNotExist(err) {
+			t.Fatalf("manifest path wrote outside stage: %v", err)
+		}
+	})
+}
+
+func TestEnsurePluginRestoresPriorInstallOnPublishFailure(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	srv, _ := fixtureServer(t)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+	stubPlaceTool(t)
+
+	dst := pluginDataDir("market")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	old := filepath.Join(dst, "old.txt")
+	if err := os.WriteFile(old, []byte("known-good"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	realRename := renamePath
+	renamePath = func(from, to string) error {
+		if to == dst && strings.Contains(filepath.Base(from), ".stage-") {
+			return os.ErrPermission
+		}
+		return realRename(from, to)
+	}
+	t.Cleanup(func() { renamePath = realRename })
+
+	if _, err := ensurePlugin("market"); err == nil {
+		t.Fatal("expected publish failure")
+	}
+	b, err := os.ReadFile(old)
+	if err != nil || string(b) != "known-good" {
+		t.Fatalf("prior install was not restored: data=%q err=%v", b, err)
 	}
 }

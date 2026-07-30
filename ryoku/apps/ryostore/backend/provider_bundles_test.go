@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -197,5 +199,215 @@ func TestAssetFetchBustsCDN(t *testing.T) {
 	}
 	if q1 == q2 {
 		t.Fatalf("two fetches reused query %q; a CDN could serve a stale hit", q1)
+	}
+}
+
+func TestBundleProviderRejectsMalformedDefinition(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/bundles/registry.json":
+			w.Write([]byte(`{"bundles":[{"id":"broken","path":"collections/broken"}]}`))
+		case "/collections/broken/bundle.json":
+			w.Write([]byte(`{"items":`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	prov := bundleProvider{
+		cache:  newCache(),
+		status: func(context.Context) map[string]map[string]bool { return nil },
+		launch: func(string) error { return nil },
+	}
+	if _, _, err := prov.Load(context.Background(), false); err == nil {
+		t.Fatal("malformed required bundle definition was accepted")
+	}
+}
+
+func TestBundleProviderRejectsMissingDefinition(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/bundles/registry.json" {
+			w.Write([]byte(`{"bundles":[{"id":"missing","path":"collections/missing"}]}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	prov := bundleProvider{
+		cache:  newCache(),
+		status: func(context.Context) map[string]map[string]bool { return nil },
+		launch: func(string) error { return nil },
+	}
+	if _, _, err := prov.Load(context.Background(), false); err == nil {
+		t.Fatal("missing required bundle definition was accepted")
+	}
+}
+
+type nautilusFixture struct {
+	subdir  string
+	scripts []string
+	bodies  map[string]string
+}
+
+func serveNautilusFixture(t *testing.T, fixture *nautilusFixture) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/nautilus/registry.json":
+			w.Write([]byte(`{"packs":[{"id":"pack","name":"Pack","path":"nautilus/pack"}]}`))
+		case "/nautilus/pack/manifest.json":
+			raw, err := json.Marshal(map[string]any{"subdir": fixture.subdir, "scripts": fixture.scripts})
+			if err != nil {
+				t.Error(err)
+				http.Error(w, "marshal", http.StatusInternalServerError)
+				return
+			}
+			w.Write(raw)
+		default:
+			const prefix = "/nautilus/pack/scripts/"
+			if !strings.HasPrefix(r.URL.Path, prefix) {
+				http.NotFound(w, r)
+				return
+			}
+			name := strings.TrimPrefix(r.URL.Path, prefix)
+			body, ok := fixture.bodies[name]
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			w.Write([]byte(body))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestEnsureNautilusPackRejectsEscapesAndSymlinks(t *testing.T) {
+	t.Run("traversing subdir", func(t *testing.T) {
+		data := t.TempDir()
+		t.Setenv("XDG_DATA_HOME", data)
+		t.Setenv("XDG_CACHE_HOME", t.TempDir())
+		fixture := &nautilusFixture{subdir: "../../outside", scripts: []string{"safe"}, bodies: map[string]string{"safe": "payload"}}
+		srv := serveNautilusFixture(t, fixture)
+		t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+		if _, err := ensureNautilusPack("pack"); err == nil {
+			t.Fatal("traversing Nautilus subdir accepted")
+		}
+		if _, err := os.Lstat(filepath.Join(data, "outside")); !os.IsNotExist(err) {
+			t.Fatalf("pack escaped scripts root: %v", err)
+		}
+	})
+
+	t.Run("traversing script", func(t *testing.T) {
+		data := t.TempDir()
+		t.Setenv("XDG_DATA_HOME", data)
+		t.Setenv("XDG_CACHE_HOME", t.TempDir())
+		fixture := &nautilusFixture{subdir: "Pack", scripts: []string{"../escape"}, bodies: map[string]string{"../escape": "payload"}}
+		srv := serveNautilusFixture(t, fixture)
+		t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+		if _, err := ensureNautilusPack("pack"); err == nil {
+			t.Fatal("traversing Nautilus script accepted")
+		}
+		if _, err := os.Lstat(filepath.Join(nautilusScriptsDir(), "escape")); !os.IsNotExist(err) {
+			t.Fatalf("script escaped pack root: %v", err)
+		}
+	})
+
+	t.Run("symlink destination", func(t *testing.T) {
+		data := t.TempDir()
+		t.Setenv("XDG_DATA_HOME", data)
+		t.Setenv("XDG_CACHE_HOME", t.TempDir())
+		fixture := &nautilusFixture{subdir: "Pack", scripts: []string{"safe"}, bodies: map[string]string{"safe": "payload"}}
+		srv := serveNautilusFixture(t, fixture)
+		t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+		external := t.TempDir()
+		root := filepath.Join(nautilusScriptsDir(), "Pack")
+		if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(external, root); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ensureNautilusPack("pack"); err == nil {
+			t.Fatal("symlinked Nautilus destination accepted")
+		}
+		if _, err := os.Lstat(filepath.Join(external, "safe")); !os.IsNotExist(err) {
+			t.Fatalf("pack wrote through destination symlink: %v", err)
+		}
+	})
+}
+
+func TestEnsureNautilusPackPublishesWholeReplacement(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	fixture := &nautilusFixture{subdir: "Pack", scripts: []string{"old"}, bodies: map[string]string{"old": "known-good"}}
+	srv := serveNautilusFixture(t, fixture)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	if _, err := ensureNautilusPack("pack"); err != nil {
+		t.Fatalf("initial install: %v", err)
+	}
+	root := filepath.Join(nautilusScriptsDir(), "Pack")
+
+	fixture.scripts = []string{"old", "missing"}
+	fixture.bodies["old"] = "changed"
+	if _, err := ensureNautilusPack("pack"); err == nil {
+		t.Fatal("incomplete replacement succeeded")
+	}
+	old, err := os.ReadFile(filepath.Join(root, "old"))
+	if err != nil || string(old) != "known-good" {
+		t.Fatalf("failed replacement changed known-good pack: data=%q err=%v", old, err)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "missing")); !os.IsNotExist(err) {
+		t.Fatalf("failed replacement exposed partial script: %v", err)
+	}
+
+	fixture.scripts = []string{"new"}
+	fixture.bodies = map[string]string{"new": "replacement"}
+	if _, err := ensureNautilusPack("pack"); err != nil {
+		t.Fatalf("complete replacement: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "old")); !os.IsNotExist(err) {
+		t.Fatalf("renamed stale script survived replacement: %v", err)
+	}
+	if b, err := os.ReadFile(filepath.Join(root, "new")); err != nil || string(b) != "replacement" {
+		t.Fatalf("replacement script missing: data=%q err=%v", b, err)
+	}
+}
+
+func TestRemoveNautilusPackRejectsEscapingTrackingRecord(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	track := nautilusTrackDir("pack")
+	if err := os.MkdirAll(track, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(track, "manifest.json"), []byte(`{"subdir":"../../outside"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(data, "outside")
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(outside, "keep")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := removeNautilusPack("pack"); err == nil {
+		t.Fatal("escaping tracking record accepted")
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("escaping removal deleted outside data: %v", err)
 	}
 }
