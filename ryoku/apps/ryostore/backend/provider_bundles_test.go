@@ -520,3 +520,38 @@ func TestEnsureNautilusPackRecoversBeforeNetworkFetch(t *testing.T) {
 		t.Fatalf("known-good pack stayed hidden in journal: data=%q err=%v", b, err)
 	}
 }
+
+func TestRemoveNautilusPackWaitsForPublicationLock(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	track := nautilusTrackDir("pack")
+	root := filepath.Join(nautilusScriptsDir(), "Pack")
+	if err := os.MkdirAll(track, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(track, "manifest.json"), []byte(`{"subdir":"Pack"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	unlock, err := lockTree(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- removeNautilusPack("pack") }()
+	select {
+	case err := <-done:
+		t.Fatalf("Nautilus removal raced publication lock: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	unlock()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Nautilus removal did not resume after publication lock")
+	}
+}

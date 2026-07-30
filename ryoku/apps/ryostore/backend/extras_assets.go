@@ -339,6 +339,14 @@ func removePlugin(id string) error {
 		return fmt.Errorf("invalid plugin id %q", id)
 	}
 	dir := pluginDataDir(id)
+	unlock, err := lockTree(dir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	if err := recoverTree(dir); err != nil {
+		return fmt.Errorf("recover plugin %q: %w", id, err)
+	}
 	fi, err := os.Lstat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -393,6 +401,11 @@ func ensureNautilusPack(id string) (string, error) {
 		return "", fmt.Errorf("invalid nautilus pack id %q", id)
 	}
 	track := nautilusTrackDir(id)
+	idUnlock, err := lockTree(track)
+	if err != nil {
+		return "", err
+	}
+	defer idUnlock()
 	if fi, err := os.Lstat(track); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 		return "", fmt.Errorf("%s is a symlink", track)
 	} else if err != nil && !os.IsNotExist(err) {
@@ -565,31 +578,60 @@ func removeNautilusPack(id string) error {
 		return fmt.Errorf("invalid nautilus pack id %q", id)
 	}
 	track := nautilusTrackDir(id)
+	idUnlock, err := lockTree(track)
+	if err != nil {
+		return err
+	}
+	defer idUnlock()
 	if fi, err := os.Lstat(track); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 		return fmt.Errorf("%s is a symlink", track)
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	b, err := os.ReadFile(filepath.Join(track, "manifest.json"))
+	readSubdir := func() (string, error) {
+		b, err := os.ReadFile(filepath.Join(track, "manifest.json"))
+		if err != nil {
+			return "", err
+		}
+		var rec struct {
+			Subdir string `json:"subdir"`
+		}
+		if err := json.Unmarshal(b, &rec); err != nil {
+			return "", fmt.Errorf("nautilus tracking manifest: %w", err)
+		}
+		if !validLocalPath(rec.Subdir) {
+			return "", fmt.Errorf("invalid tracked nautilus subdir %q", rec.Subdir)
+		}
+		return rec.Subdir, nil
+	}
+	subdir, err := readSubdir()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return err
 	}
-	var rec struct {
-		Subdir string `json:"subdir"`
-	}
-	if err := json.Unmarshal(b, &rec); err != nil {
-		return fmt.Errorf("nautilus tracking manifest: %w", err)
-	}
-	if !validLocalPath(rec.Subdir) {
-		return fmt.Errorf("invalid tracked nautilus subdir %q", rec.Subdir)
-	}
-	if err := rejectSymlinkPath(nautilusScriptsDir(), rec.Subdir); err != nil {
+	root := filepath.Join(nautilusScriptsDir(), subdir)
+	rootUnlock, err := lockTree(root)
+	if err != nil {
 		return err
 	}
-	if err := os.RemoveAll(filepath.Join(nautilusScriptsDir(), rec.Subdir)); err != nil {
+	defer rootUnlock()
+	if err := recoverTree(root); err != nil {
+		return fmt.Errorf("recover nautilus pack %q: %w", id, err)
+	}
+	subdir, err = readSubdir()
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	root = filepath.Join(nautilusScriptsDir(), subdir)
+	if err := rejectSymlinkPath(nautilusScriptsDir(), subdir); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(root); err != nil {
 		return err
 	}
 	return os.RemoveAll(track)

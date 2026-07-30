@@ -522,3 +522,34 @@ func TestTreeLockSerializesConcurrentInstallers(t *testing.T) {
 		t.Fatal("second installer did not acquire released destination lock")
 	}
 }
+
+func TestRemovePluginWaitsForPublicationLock(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	dst := pluginDataDir("market")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dst, "manifest.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	unlock, err := lockTree(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- removePlugin("market") }()
+	select {
+	case err := <-done:
+		t.Fatalf("removal raced publication lock: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	unlock()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("removal did not resume after publication lock")
+	}
+}
