@@ -14,6 +14,28 @@ ONLY="${2:-}"
 RUN="run-$(date +%Y%m%d-%H%M%S)"
 OUT="${QA_OUT:-/tmp/launcher-qa}/$RUN"
 mkdir -p "$OUT"
+CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
+LAUNCHER_CONFIG="$CONFIG_HOME/ryoku/launcher.json"
+
+set_variant() {
+    local variant="$1"
+    local config_dir temporary
+    [[ "$variant" =~ ^[a-z0-9-]+$ ]] || return 2
+    config_dir="$(dirname "$LAUNCHER_CONFIG")"
+    mkdir -p "$config_dir"
+    temporary="$(mktemp "$config_dir/.launcher.json.qa.XXXXXX")" || return
+    if [[ -s "$LAUNCHER_CONFIG" ]] &&
+        jq -e 'type == "object"' "$LAUNCHER_CONFIG" >/dev/null 2>&1; then
+        jq --arg variant "$variant" '.variant = $variant' \
+            "$LAUNCHER_CONFIG" >"$temporary" ||
+            { rm -f -- "$temporary"; return 1; }
+    else
+        jq -n --arg variant "$variant" '{variant: $variant}' >"$temporary" ||
+            { rm -f -- "$temporary"; return 1; }
+    fi
+    mv -- "$temporary" "$LAUNCHER_CONFIG"
+}
+
 
 sock() { (printf '%s\n' "$1"; sleep 0.35) | socat - UNIX-CONNECT:"$SOCK"; }
 
@@ -42,6 +64,8 @@ trap restore_fixtures EXIT
 "$HERE/fixtures.sh" setup >"$OUT/fixtures.log" 2>&1
 fixture_active=1
 sleep 1
+set_variant hero || exit 1
+sleep 0.5
 
 start_recording() {
     local label="$1"
@@ -90,6 +114,7 @@ run_step() {
     case "$step" in
     show) sock show >/dev/null; sleep 0.6 ;;
     hide) sock hide >/dev/null; sleep 0.4 ;;
+    "variant "*) set_variant "${step#variant }" || return; sleep 0.5 ;;
     "type "*) wtype -- "${step#type }"; sleep 0.45 ;;
     "key "*) local k; for k in ${step#key }; do wtype -k "$k"; sleep 0.2; done ;;
     "ctrl "*) wtype -M ctrl -k "${step#ctrl }" -m ctrl; sleep 0.3 ;;
@@ -139,7 +164,7 @@ while IFS= read -r sc; do
     fi
     if [ "$verdict" = PASS ]; then
         while IFS= read -r a; do
-            out=$(bash -c "$a" 2>&1) ||
+            out=$(bash -c "$a" _ "$dir" 2>&1) ||
                 { verdict=FAIL reason="shell assert: $a => $out"; break; }
         done < <(jq -r '.shell_asserts[]?' <<<"$sc")
     fi

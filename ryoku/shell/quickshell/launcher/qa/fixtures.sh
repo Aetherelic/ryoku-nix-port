@@ -89,6 +89,7 @@ setup() {
     stash_file "$launcher_config_dir/launcher-quicklinks.json" "launcher-quicklinks.json"
     stash_file "$launcher_config_dir/launcher-scripts.json" "launcher-scripts.json"
     stash_file "$launcher_state_dir/launcher-usage.json" "launcher-usage.json"
+    stash_file "$launcher_config_dir/launcher.json" "launcher.json"
     : >"$recent_path"
     {
         printf '<?xml version="1.0"?>\n'
@@ -120,6 +121,7 @@ teardown() {
     restore_file "$launcher_config_dir/launcher-quicklinks.json" "launcher-quicklinks.json"
     restore_file "$launcher_config_dir/launcher-scripts.json" "launcher-scripts.json"
     restore_file "$launcher_state_dir/launcher-usage.json" "launcher-usage.json"
+    restore_file "$launcher_config_dir/launcher.json" "launcher.json"
     rm -f -- "$recent_path"
     rm -f -- /tmp/ryoku-launcher-qa-option-*
 

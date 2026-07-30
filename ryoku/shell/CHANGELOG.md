@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Fixed
+- **Quick settings now grows directly out of the Ryoku frame without freezing.**
+  Its retained full-height body stays at fixed geometry while the frame chrome
+  widens around it, then the content crossfades into the opened panel. Opening
+  uses the 400 ms sidebar settle and closing uses the 200 ms acceleration, so
+  interrupted toggles reverse cleanly without rebuilding a full-height blob.
+  Long device and history lists are virtualized, media artwork is bounded and
+  lazy, and monitor probes stop when the last sidebar closes. Cross-edge menu
+  switches retract before transferring the frame, and Do Not Disturb uses the
+  standard minus-circle glyph.
+- **Dev deploys now receive and activate the Bluetooth audio policy.** The
+  checkout deploy path previously omitted `apps/wireplumber`, so it diverged
+  from packaged systems. It now lays the fragment under the user config and
+  restarts WirePlumber only when the effective file changed (`deploy.sh`).
 - **Nacre media now follows player presence without getting stuck hidden.**
   Pausing keeps the transport available, while a playerless widget collapses
   without disabling its host, so later MPRIS and tray changes reappear live.
@@ -38,6 +51,9 @@
   `quickshell/pill/BarWidgetHost.qml`, `framebars/widgets/RailDock.qml`).
 
 ### Added
+- **App Launcher now offers Main, Hero, and OkShell styles in Ryoku Settings.**
+  Hero is restored as the default, and the selected style persists across shell
+  restarts.
 - **Nacre workspaces can be dots, numbers, or Obi's Japanese numerals.**
   Bar Studio switches the face live while preserving occupied-only filtering.
   Its island editor now marks the exact insertion point, labels empty drop
@@ -142,6 +158,18 @@
   `quickshell/overview/DesktopStrip.qml`).
 
 ### Changed
+- **Super+Escape is now Ryoku's only full-height control sidebar.** Its existing
+  home controls, notification history, and weather view are independent,
+  catalogued modules selected from the fixed icon rail; media is registered as
+  an optional module for future configuration. The retired system sidebar,
+  illustrated power card, and recording deck are removed, while logout, lock,
+  restart, shutdown, and the performance profiles remain in Super+Escape.
+  Discord compaction now lives beside the Quick recording controls in the
+  Super+S capture card. Doctor removes the retired system surface without
+  touching sibling frame settings and preserves configured module ids across
+  schema normalization (`framebars/MenuCatalog.js`,
+  `quickshell/pill/framebars/menus/MenuQuickSettings.qml`,
+  `quickshell/pill/popouts/CapturePopout.qml`, `cli/internal/doctor`).
 - **The notification toasts slide in from their edge.** A toast used to open by
   the surface growing from nothing underneath it, which wiped the card into view
   top-down instead of animating it, and the compositor animated the layer on top

@@ -33,6 +33,14 @@ surface with two Prelude ticks and a terminal capture state. Hiding must finish
 `closed`, unmapped, and without focus. Asynchronous providers settle only when
 their provider-owned busy state is false.
 
+## Launcher variants
+
+Suite setup atomically selects Hero so a saved user preference cannot change
+the target of the existing Hero scenarios. Focused scenarios then exercise
+Main, Hero, OkShell, open-surface switching, and unknown-ID resolution. The
+`variant <id>` step changes only `launcher.json.variant`; fixture teardown
+restores the complete original launcher configuration.
+
 ## Expanded app options
 
 The suite installs temporary `.desktop` fixtures with zero through eight real
@@ -130,8 +138,12 @@ without changing opening timing.
 - `run.sh [suite] [only-ids]`: driver and evidence collector.
 - `fixtures.sh`: reversible Desktop Action and recent-file fixtures used by
   the scenarios.
+- `variant <id>` atomically selects a catalog entry through
+  `launcher.json.variant`.
 
-The step DSL is `show`, `hide`, `type <text>`, `key <keysym…>`, `ctrl <key>`,
-`sleep <seconds>`, `settle [seconds]`, `bounds <label>`, `record-start <label>`,
-`record-stop`, and `sh <command>`. A recording is forced to 120 fps with damage
-tracking disabled; stopping it extracts every encoded frame beside the clip.
+The remaining step DSL is `show`, `hide`, `type <text>`, `key <keysym…>`,
+`ctrl <key>`, `sleep <seconds>`, `settle [seconds]`, `bounds <label>`,
+`record-start <label>`, `record-stop`, and `sh <command>`. Shell assertions
+receive the scenario evidence directory as `$1`. A recording is forced to
+120 fps with damage tracking disabled; stopping it extracts every encoded
+frame beside the clip.

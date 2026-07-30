@@ -1229,6 +1229,94 @@
       "teardown": [
         "kill $(cat /tmp/launcher-qa-fixtures/mpv.pid 2>/dev/null) 2>/dev/null || true"
       ]
+    },
+    {
+      "id": "variant-hero-rest",
+      "name": "Hero selection opens the image-backed resting face",
+      "covers": "catalog selection + Hero rest contract",
+      "steps": [
+        "variant hero",
+        "show",
+        "sleep 1.2"
+      ],
+      "asserts": [
+        ".variant == \"hero\"",
+        ".open == true",
+        ".resting == true",
+        ".activeMode == \"rest\""
+      ],
+      "screenshot": true
+    },
+    {
+      "id": "variant-main-provider",
+      "name": "Main selection returns shared provider results",
+      "covers": "catalog selection + Main shared providers",
+      "steps": [
+        "variant main",
+        "show",
+        "type Ryoku QA Options 1",
+        "settle"
+      ],
+      "asserts": [
+        ".variant == \"main\"",
+        ".open == true",
+        ".resultCount >= 1",
+        "[.results[] | select(.title == \"Ryoku QA Options 1\" and .type == \"App\")] | length == 1"
+      ],
+      "screenshot": true
+    },
+    {
+      "id": "variant-okshell-apps",
+      "name": "OkShell selection opens its application rows",
+      "covers": "catalog selection + OkShell application model",
+      "steps": [
+        "variant okshell",
+        "show",
+        "sleep 0.8"
+      ],
+      "asserts": [
+        ".variant == \"okshell\"",
+        ".open == true",
+        ".resultCount >= 1"
+      ],
+      "screenshot": true
+    },
+    {
+      "id": "variant-main-to-hero",
+      "name": "Switching from open Main closes it before Hero activates",
+      "covers": "selector close-before-swap lifecycle",
+      "steps": [
+        "variant main",
+        "show",
+        "bounds main-open",
+        "variant hero",
+        "settle"
+      ],
+      "asserts": [
+        ".variant == \"hero\"",
+        ".open == false",
+        ".pendingVariant == \"\""
+      ],
+      "shell_asserts": [
+        "jq -e '.variant == \"main\" and .open == true' \"$1/main-open.state.json\" >/dev/null"
+      ],
+      "screenshot": true
+    },
+    {
+      "id": "variant-unknown-default",
+      "name": "Unknown launcher selection resolves to Hero",
+      "covers": "catalog unknown-ID default resolution",
+      "steps": [
+        "variant does-not-exist",
+        "show",
+        "sleep 0.8"
+      ],
+      "asserts": [
+        ".requestedVariant == \"does-not-exist\"",
+        ".variant == \"hero\"",
+        ".open == true"
+      ],
+      "screenshot": true
     }
   ]
 }
