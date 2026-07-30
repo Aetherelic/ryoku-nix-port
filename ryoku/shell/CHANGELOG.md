@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **Nacre media now follows player presence without getting stuck hidden.**
+  Pausing keeps the transport available, while a playerless widget collapses
+  without disabling its host, so later MPRIS and tray changes reappear live.
+- **Clicking outside a pinned Nacre popup now closes it.** The first outside
+  press is consumed by a temporary backdrop, while popup controls, bar widgets,
+  and hover-only popouts retain their existing input behavior.
 - **Nacre popouts now melt cleanly back into their island.** Closing content
   fades while the blob narrows toward its trigger, avoiding clipped text and
   full-width edge snaps. Closing also releases keyboard focus instead of

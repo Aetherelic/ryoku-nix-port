@@ -24,6 +24,7 @@ Scope {
     property string hoverPopup: ""
     property real selectedCenter: 0
     property real hoverCenter: 0
+    readonly property bool popupBackdropActive: selectedPopup !== ""
     readonly property int overlayKeyboardMode: selectedPopup === "connectivity"
         ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
@@ -44,6 +45,36 @@ Scope {
         if (hoverPopup === name)
             return hoverCenter;
         return selectedCenter;
+    }
+
+    function popupFor(name) {
+        switch (name) {
+        case "audio": return audioPop;
+        case "battery": return batteryPop;
+        case "calendar": return calendarPop;
+        case "connectivity": return connectivityPop;
+        case "resources": return resourcesPop;
+        case "weather": return weatherPop;
+        case "notifications": return inboxPop;
+        default: return null;
+        }
+    }
+
+    function selectedPopupBounds() {
+        const popup = popupFor(selectedPopup);
+        return popup ? Qt.rect(popup.bodyX, popup.bodyY,
+            popup.bodyWidth, popup.bodyHeight) : Qt.rect(0, 0, 0, 0);
+    }
+
+    function dismissPopupAt(x, y) {
+        if (!popupBackdropActive)
+            return false;
+        const bounds = selectedPopupBounds();
+        if (x >= bounds.x && x < bounds.x + bounds.width
+                && y >= bounds.y && y < bounds.y + bounds.height)
+            return false;
+        selectedPopup = "";
+        return true;
     }
 
     PanelWindow {
@@ -92,9 +123,15 @@ Scope {
         WlrLayershell.namespace: "ryoku-nacre"
         anchors { top: true; left: true; right: true; bottom: true }
 
-        mask: overlay.monFullscreen ? hiddenRegion : activeRegion
+        mask: overlay.monFullscreen ? hiddenRegion
+            : root.popupBackdropActive ? fullRegion : activeRegion
 
         Region { id: hiddenRegion }
+        Region {
+            id: fullRegion
+            width: overlay.width
+            height: overlay.height
+        }
         Region {
             id: activeRegion
             Region { item: leftIsland }
@@ -109,6 +146,13 @@ Scope {
             Region { x: weatherPop.maskX; y: weatherPop.maskY; width: weatherPop.maskWidth; height: weatherPop.maskHeight }
             Region { x: inboxPop.maskX; y: inboxPop.maskY; width: inboxPop.maskWidth; height: inboxPop.maskHeight }
             Region { x: toastPop.maskX; y: toastPop.maskY; width: toastPop.maskWidth; height: toastPop.maskHeight }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            enabled: root.popupBackdropActive
+            acceptedButtons: Qt.AllButtons
+            onPressed: (mouse) => root.dismissPopupAt(mouse.x, mouse.y)
         }
 
         FocusScope {

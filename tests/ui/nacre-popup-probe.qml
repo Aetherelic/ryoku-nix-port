@@ -35,6 +35,20 @@ ShellRoot {
         return values;
     }
 
+    function findWidgetHost(item, widgetId) {
+        if (!item)
+            return null;
+        if (item.widgetId === widgetId && item.status !== undefined)
+            return item;
+        const children = item.children || [];
+        for (const child of children) {
+            const found = root.findWidgetHost(child, widgetId);
+            if (found)
+                return found;
+        }
+        return null;
+    }
+
     Shared.Popout {}
 
     Component { id: audio; Popouts.AudioPopout {} }
@@ -115,7 +129,19 @@ ShellRoot {
             if (scene.item.centerFor("connectivity") !== 900
                     || scene.item.overlayKeyboardMode !== WlrKeyboardFocus.OnDemand)
                 throw new Error("NACRE-OPEN-POPUP-STATE-PROBE-FAIL");
-            scene.item.selectedPopup = "";
+            const popupBounds = scene.item.selectedPopupBounds();
+            if (!scene.item.popupBackdropActive
+                    || popupBounds.width <= 0 || popupBounds.height <= 0)
+                throw new Error("NACRE-POPUP-BACKDROP-PROBE-FAIL");
+            if (scene.item.dismissPopupAt(
+                    popupBounds.x + popupBounds.width / 2,
+                    popupBounds.y + popupBounds.height / 2)
+                    || scene.item.selectedPopup !== "connectivity")
+                throw new Error("NACRE-POPUP-INSIDE-PRESS-PROBE-FAIL");
+            if (!scene.item.dismissPopupAt(0, scene.item.barSpan + 100)
+                    || scene.item.selectedPopup !== ""
+                    || scene.item.popupBackdropActive)
+                throw new Error("NACRE-POPUP-OUTSIDE-PRESS-PROBE-FAIL");
             if (scene.item.centerFor("connectivity") !== 900
                     || scene.item.overlayKeyboardMode !== WlrKeyboardFocus.None)
                 throw new Error("NACRE-CLOSE-ANCHOR-PROBE-FAIL");
@@ -167,11 +193,28 @@ ShellRoot {
             if (healthText.some(value => value.startsWith("CPU ") || value.startsWith("RAM ")))
                 throw new Error("NACRE-HEALTH-WORDS-PROBE-FAIL");
             resourcesFace.destroy();
-            const mediaFace = nacreMedia.createObject(root);
+            const mediaHarness = nacreIsland.createObject(root, {
+                widgetIds: ["brand"]
+            });
+            const mediaFace = nacreMedia.createObject(mediaHarness);
             if (!mediaFace || mediaFace.visible
                     || root.visibleText(mediaFace).includes("No music"))
                 throw new Error("NACRE-IDLE-MEDIA-PROBE-FAIL");
+            if (mediaFace.mediaPresent === undefined)
+                throw new Error("NACRE-MEDIA-PRESENCE-STATE-PROBE-FAIL");
+            mediaFace.mediaPresent = true;
+            if (!mediaFace.visible)
+                throw new Error("NACRE-PAUSED-MEDIA-PROBE-FAIL");
             mediaFace.destroy();
+            mediaHarness.destroy();
+            const dormantMediaIsland = nacreIsland.createObject(root, {
+                widgetIds: ["media"]
+            });
+            const dormantMediaHost = root.findWidgetHost(dormantMediaIsland, "media");
+            if (!dormantMediaHost || dormantMediaHost.status !== Loader.Ready
+                    || !dormantMediaHost.visible || dormantMediaHost.width !== 0)
+                throw new Error("NACRE-DORMANT-WIDGET-HOST-PROBE-FAIL");
+            dormantMediaIsland.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");
             Qt.quit();
         }

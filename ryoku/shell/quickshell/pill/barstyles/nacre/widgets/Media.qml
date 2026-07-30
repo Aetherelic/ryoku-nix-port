@@ -6,11 +6,12 @@ Item {
     id: root
 
     property real barHeight: 40
+    property bool mediaPresent: Media.present
     signal popupRequested(string name, real center, bool active, bool pinned)
 
     implicitWidth: content.implicitWidth
     implicitHeight: 26
-    visible: Media.playing
+    visible: root.mediaPresent
 
     onVisibleChanged: AudioBars.setActive(root, visible)
     Component.onCompleted: AudioBars.setActive(root, visible)

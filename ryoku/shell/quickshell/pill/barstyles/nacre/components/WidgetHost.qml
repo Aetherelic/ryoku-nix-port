@@ -13,8 +13,9 @@ Loader {
         const item = NacreConfig.entry(root.widgetId);
         return item ? "../widgets/" + item.file : "";
     }
-    visible: root.item ? root.item.visible : root.status !== Loader.Error
-    width: root.visible && root.item ? root.item.implicitWidth : 0
+    readonly property bool contentVisible: root.item
+        ? root.item.visible : root.status !== Loader.Error
+    width: root.contentVisible && root.item ? root.item.implicitWidth : 0
     height: root.item ? root.item.implicitHeight : 0
 
     onLoaded: {
