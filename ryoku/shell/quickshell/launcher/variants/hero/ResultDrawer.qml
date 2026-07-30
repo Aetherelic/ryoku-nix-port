@@ -1,9 +1,11 @@
 import QtQuick
 import Ryoku.Ui
 import Ryoku.Ui.Singletons as Ui
-import "Singletons"
-import "lib/results.js" as Results
-import "lib/lifecycle.js" as Lifecycle
+import "../../shared/Singletons"
+import "../../shared/lib/results.js" as Results
+import "../../shared/lib/lifecycle.js" as Lifecycle
+import "../../shared" as Shared
+import "." as HeroVariant
 
 Item {
     id: root
@@ -167,7 +169,7 @@ Item {
             anchors.top: parent.top
             spacing: 8 * root.s
 
-            CategoryTabs {
+            Shared.CategoryTabs {
                 id: tabs
                 width: prefixStack.width
                 height: visible ? implicitHeight : 0
@@ -175,7 +177,7 @@ Item {
                 s: root.s
             }
 
-            AnswerPanel {
+            Shared.AnswerPanel {
                 width: prefixStack.width
                 height: visible ? implicitHeight : 0
                 visible: root.answerMode && !root.helpMode && !root.askMode
@@ -197,7 +199,7 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             interactive: contentHeight > height
 
-            HelpPanel {
+            Shared.HelpPanel {
                 id: helpPanel
                 width: helpViewport.width
                 s: root.s
@@ -217,7 +219,7 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             interactive: contentHeight > height
 
-            AskPanel {
+            Shared.AskPanel {
                 id: askPanel
                 width: askViewport.width
                 s: root.s
@@ -274,7 +276,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 5 * root.s
 
-                        Spinner {
+                        Shared.Spinner {
                             anchors.verticalCenter: parent.verticalCenter
                             size: 10 * root.s
                             thickness: Math.max(1, root.s)
@@ -293,7 +295,7 @@ Item {
                     }
                 }
 
-                LeadResult {
+                HeroVariant.LeadResult {
                     id: lead
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -308,7 +310,7 @@ Item {
                     onActivated: root.leadActivated()
                 }
 
-                ActionShelf {
+                HeroVariant.ActionShelf {
                     id: actionShelf
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -323,7 +325,7 @@ Item {
                     onExecuteRequested: actionId => root.actionExecuteRequested(actionId)
                 }
 
-                ResultLedger {
+                HeroVariant.ResultLedger {
                     id: ledger
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -346,7 +348,7 @@ Item {
                 spacing: 8 * root.s
                 visible: !root.hasResults
 
-                Spinner {
+                Shared.Spinner {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: root.searching
                     size: 14 * root.s

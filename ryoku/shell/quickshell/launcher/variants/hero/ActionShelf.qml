@@ -1,8 +1,8 @@
 import QtQuick
 import Ryoku.Ui
 import Ryoku.Ui.Singletons as Ui
-import "Singletons"
-import "lib/results.js" as Results
+import "../../shared/Singletons"
+import "../../shared/lib/results.js" as Results
 
 Flickable {
     id: root

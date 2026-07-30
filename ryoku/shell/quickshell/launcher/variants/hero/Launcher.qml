@@ -5,10 +5,11 @@ import Quickshell
 import Quickshell.Services.Mpris
 import Ryoku.Ui
 import Ryoku.Ui.Singletons as Ui
-import "Singletons"
-import "providers"
-import "lib/results.js" as Results
-import "lib/launcherstate.js" as LauncherState
+import "../../shared/Singletons"
+import "../../shared/providers"
+import "../../shared/lib/results.js" as Results
+import "../../shared/lib/launcherstate.js" as LauncherState
+import "." as HeroVariant
 
 Item {
     id: root
@@ -977,7 +978,7 @@ Item {
         }
     }
 
-    HeroShutter {
+    HeroVariant.HeroShutter {
         id: hero
         anchors.left: parent.left
         anchors.right: parent.right
@@ -1015,7 +1016,7 @@ Item {
         }
     }
 
-    ResultDrawer {
+    HeroVariant.ResultDrawer {
         id: drawer
         anchors.left: parent.left
         anchors.right: parent.right

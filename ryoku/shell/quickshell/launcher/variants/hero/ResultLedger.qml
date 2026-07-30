@@ -1,7 +1,7 @@
 import QtQuick
 import Ryoku.Ui
 import Ryoku.Ui.Singletons as Ui
-import "Singletons"
+import "../../shared/Singletons"
 
 GridView {
     id: root

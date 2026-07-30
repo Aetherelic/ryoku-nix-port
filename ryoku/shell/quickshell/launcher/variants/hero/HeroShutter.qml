@@ -2,9 +2,11 @@ import QtQuick
 import Quickshell
 import Ryoku.Ui
 import Ryoku.Ui.Singletons as Ui
-import "Singletons"
-import "lib/launcherstate.js" as LauncherState
-import "lib/weather.js" as WeatherMath
+import "../../shared/Singletons"
+import "../../shared/lib/launcherstate.js" as LauncherState
+import "../../shared/lib/weather.js" as WeatherMath
+import "../../shared" as Shared
+import "." as HeroVariant
 
 Item {
     id: root
@@ -73,7 +75,7 @@ Item {
     HeroCrop {
         anchors.fill: parent
         source: LauncherConfig.heroImage
-        fallbackSource: Qt.resolvedUrl("art/hands-adam.png")
+        fallbackSource: Qt.resolvedUrl("../../shared/art/hands-adam.png")
         focalX: LauncherConfig.heroPosX
         focalY: LauncherConfig.heroPosY
         strength: LauncherConfig.heroStrength
@@ -212,7 +214,7 @@ Item {
             spacing: 5 * root.s
             visible: LauncherConfig.showWeather && Weather.available
 
-            WeatherGlyph {
+            Shared.WeatherGlyph {
                 anchors.verticalCenter: parent.verticalCenter
                 width: (root.compressed ? 14 : 18) * root.s
                 height: width
@@ -390,25 +392,25 @@ Item {
         y: (root.compressed ? 83 : 154) * root.s
         spacing: 7 * root.s
 
-        ModeKey {
+        HeroVariant.ModeKey {
             s: root.s
             label: "ALL"
             active: root.activeMode === "all"
             onActivated: root.modeRequested("all")
         }
-        ModeKey {
+        HeroVariant.ModeKey {
             s: root.s
             label: "IMG"
             active: root.activeMode === "image"
             onActivated: root.modeRequested("image")
         }
-        ModeKey {
+        HeroVariant.ModeKey {
             s: root.s
             label: "FILE"
             active: root.activeMode === "file"
             onActivated: root.modeRequested("file")
         }
-        ModeKey {
+        HeroVariant.ModeKey {
             s: root.s
             label: "REC"
             active: root.activeMode === "recent"

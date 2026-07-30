@@ -4,7 +4,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
-import "Singletons"
+import "../../shared/Singletons"
+import "." as HeroVariant
 
 // The open-window rail owns a second, deliberately small layer surface. It is
 // not part of the launcher card: its transparent envelope has its own input
@@ -67,7 +68,7 @@ PanelWindow {
         width: win.cardWidth
         height: windowRail.targetHeight
 
-        WindowRail {
+        HeroVariant.WindowRail {
             id: windowRail
             anchors.fill: parent
             s: win.s

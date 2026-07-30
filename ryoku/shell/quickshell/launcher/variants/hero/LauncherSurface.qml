@@ -7,8 +7,9 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Ryoku.Ui
-import "Singletons"
-import "lib/lifecycle.js" as Lifecycle
+import "../../shared/Singletons"
+import "../../shared/lib/lifecycle.js" as Lifecycle
+import "." as HeroVariant
 
 PanelWindow {
     id: win
@@ -422,7 +423,7 @@ PanelWindow {
         asynchronous: false
 
         sourceComponent: Component {
-            LocalFrost {
+            HeroVariant.LocalFrost {
                 captureScreen: win.modelData
                 generation: win.lifecycleState.generation
                 screenWidth: win.modelData.width
@@ -519,7 +520,7 @@ PanelWindow {
                 asynchronous: false
 
                 sourceComponent: Component {
-                    FrostLayer {
+                    HeroVariant.FrostLayer {
                         sourceItem: frostLoader.item
                             ? frostLoader.item.textureItem : null
                         sourceRect: frostLoader.item
@@ -545,7 +546,7 @@ PanelWindow {
                 }
             }
 
-            Launcher {
+            HeroVariant.Launcher {
                 id: launcher
                 anchors.left: parent.left
                 anchors.right: parent.right

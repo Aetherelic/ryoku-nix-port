@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Widgets
-import "Singletons"
+import "../../shared/Singletons"
 
 Item {
     id: root
