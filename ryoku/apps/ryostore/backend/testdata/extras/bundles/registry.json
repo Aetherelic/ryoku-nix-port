@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "bundles": [
+    {
+      "id": "demo",
+      "name": "Demo",
+      "description": "A demo bundle.",
+      "sources": "pacman / script",
+      "preview": "assets/hero.png",
+      "screenshots": ["assets/a.png", "https://cdn.example/b.png"],
+      "path": "bundles/demo"
+    }
+  ]
+}

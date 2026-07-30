@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "market",
+      "name": "Market",
+      "tagline": "Browse and install",
+      "description": "A market plugin.",
+      "author": "ryoku",
+      "official": true,
+      "tags": ["shop"],
+      "preview": "assets/preview.gif",
+      "screenshots": ["assets/a.png", "https://cdn.example/b.png"],
+      "hosts": ["sidebarLeft"],
+      "version": "2.0.0"
+    },
+    {
+      "id": "clock",
+      "path": "plugins/clock"
+    }
+  ]
+}

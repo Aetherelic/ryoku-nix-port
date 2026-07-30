@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # hermetic test for ryoku-extras-install: the tsv parser carries tier+interactive,
-# nautilus-pack items install/detect, optional-tier items are skipped in a
-# whole-bundle install, and a sidebarLeft plugin is auto-enabled on install.
+# nautilus-pack and plugin items install/detect through Ryostore's internal guest
+# commands, optional-tier items are skipped in a whole-bundle install, and a
+# plugin install places the plugin without enabling it (install never activates).
 # The actuator prepends $HOME/.local/bin to PATH, so the fakes live there and
-# HOME is a temp dir; no network, no pacman, no real shell.
+# HOME is a temp dir; no network, no pacman, no real shell, no real ryostore.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$here/.."
@@ -26,20 +27,25 @@ cat >"$tmp/cache/bundles/demo/bundle.json" <<'EOF'
   { "type": "plugin", "name": "creator-deck" } ] }
 EOF
 
-# fake ryoku-hub: cache dir, nautilus install/remove (writes/deletes the tracking
-# manifest the actuator detects), plugin install (drops a sidebarLeft manifest).
-cat >"$bin/ryoku-hub" <<EOF
+# fake ryostore: the cache dir, and the internal guest primitives the actuator
+# calls. install-guest drops the tracking/plugin manifest the actuator detects;
+# remove-guest deletes it. Nothing here enables a plugin: install only places.
+cat >"$bin/ryostore" <<EOF
 #!/usr/bin/env bash
-if [ "\$1 \$2" = "extras cache" ]; then echo "$tmp/cache"; exit 0; fi
-if [ "\$1 \$2" = "extras nautilus" ]; then
-  d="$tmp/data/ryoku/nautilus/\$3"; mkdir -p "\$d"; echo '{"subdir":"Ryoku Creator"}' >"\$d/manifest.json"; exit 0
-fi
-if [ "\$1 \$2" = "extras nautilusremove" ]; then
-  rm -rf "$tmp/data/ryoku/nautilus/\$3"; exit 0
-fi
-if [ "\$1 \$2" = "extras plugin" ]; then
-  d="$tmp/data/ryoku/plugins/\$3"; mkdir -p "\$d"; echo '{"defaults":{"host":"sidebarLeft"}}' >"\$d/manifest.json"; exit 0
-fi
+case "\$1 \$2" in
+  "internal cache") echo "$tmp/cache"; exit 0 ;;
+  "internal installer") echo "$tmp/cache/installers/\$3.sh"; exit 0 ;;
+  "internal install-guest")
+    case "\$3" in
+      plugins)  d="$tmp/data/ryoku/plugins/\$4";  mkdir -p "\$d"; echo '{"defaults":{"host":"sidebarLeft"}}' >"\$d/manifest.json"; exit 0 ;;
+      nautilus) d="$tmp/data/ryoku/nautilus/\$4"; mkdir -p "\$d"; echo '{"subdir":"Ryoku Creator"}'         >"\$d/manifest.json"; exit 0 ;;
+    esac ;;
+  "internal remove-guest")
+    case "\$3" in
+      plugins)  rm -rf "$tmp/data/ryoku/plugins/\$4";  exit 0 ;;
+      nautilus) rm -rf "$tmp/data/ryoku/nautilus/\$4"; exit 0 ;;
+    esac ;;
+esac
 exit 0
 EOF
 
@@ -47,13 +53,6 @@ EOF
 cat >"$bin/pacman" <<'EOF'
 #!/usr/bin/env bash
 exit 1
-EOF
-
-# fake ryoku-plugins-place: log every call so we can assert the auto-enable.
-cat >"$bin/ryoku-plugins-place" <<EOF
-#!/usr/bin/env bash
-echo "\$*" >>"$tmp/place.log"
-exit 0
 EOF
 
 chmod +x "$bin"/*
@@ -76,10 +75,13 @@ grep -q 'DRYRUN: ensure the 32-bit' <<<"$out" || fail "gpu-lib32 requirement not
 out="$(RYOKU_EXTRAS_DRYRUN=1 bash "$act" install item demo optpkg 2>&1)"
 grep -q 'optpkg' <<<"$out" || fail "optional package not installed at item scope"
 
-# --- real (non-dryrun) plugin install auto-enables a sidebarLeft guest ---------
-: >"$tmp/place.log"
+# --- real (non-dryrun) plugin install places the plugin, install-only ---------
 bash "$act" install item demo creator-deck >/dev/null 2>&1 || true
-grep -q 'creator-deck enabled true' "$tmp/place.log" || fail "sidebarLeft guest not auto-enabled"
+[ -f "$tmp/data/ryoku/plugins/creator-deck/manifest.json" ] || fail "plugin not placed on install"
+
+# --- plugin install + removal round-trips through the internal guest commands --
+bash "$act" remove item demo creator-deck >/dev/null 2>&1 || true
+[ -f "$tmp/data/ryoku/plugins/creator-deck/manifest.json" ] && fail "plugin not removed"
 
 # --- nautilus pack install + removal round-trips ------------------------------
 bash "$act" install item demo video-reformat >/dev/null 2>&1 || true

@@ -17,9 +17,15 @@ type Provider interface {
 }
 
 // providers is the ordered catalogue registry in rail order. Each later task
-// appends its provider here; BuildCatalog preserves this order. It is empty
-// until the first provider lands.
-func providers() []Provider { return nil }
+// appends its provider here; BuildCatalog preserves this order. All providers
+// share one cache so a single probe fetches each source once.
+func providers() []Provider {
+	c := newCache()
+	return []Provider{
+		pluginProvider{cache: c},
+		bundleProvider{cache: c, status: defaultBundleStatus, launch: launchBundleInstall},
+	}
+}
 
 // owned reports whether the item is present on the machine: fully installed, or
 // a partially installed bundle. A category's InstalledCount tallies its owned

@@ -90,11 +90,37 @@ func runInstall(provs []Provider, args []string) error {
 }
 
 // runInternal namespaces commands the extras actuator and Settings call
-// directly. Later tasks add cache, installer, and guest subcommands before the
-// final unknown-command error.
+// directly: the browse cache directory, an on-demand script installer path, and
+// the guest install/remove primitives. These are not public UI commands.
 func runInternal(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("internal needs a subcommand")
 	}
-	return fmt.Errorf("unknown internal command %q", args[0])
+	switch args[0] {
+	case "cache":
+		fmt.Println(extrasCacheDir())
+		return nil
+	case "installer":
+		if len(args) < 2 {
+			return fmt.Errorf("internal installer needs a name")
+		}
+		p, err := ensureInstaller(args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Println(p)
+		return nil
+	case "install-guest":
+		if len(args) < 3 {
+			return fmt.Errorf("internal install-guest needs <kind> <id>")
+		}
+		return installGuest(args[1], args[2])
+	case "remove-guest":
+		if len(args) < 3 {
+			return fmt.Errorf("internal remove-guest needs <kind> <id>")
+		}
+		return removeGuest(args[1], args[2])
+	default:
+		return fmt.Errorf("unknown internal command %q", args[0])
+	}
 }

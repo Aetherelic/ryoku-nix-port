@@ -13,12 +13,12 @@
 #   ryoku-extras-install remove bundle <id>     remove the bundle's package items
 #   ryoku-extras-install remove item <id> <n>   remove one package item
 #
-# ryoku-hub owns the network and the cache; this just reads the catalogue
-# under `ryoku-hub extras cache` and asks for an installer path on demand, so
-# fetching lives in one place. Package installs need a TTY for the sudo
-# prompt, so the Hub launches install/remove in a floating terminal; status is
-# a silent query the UI calls inline. RYOKU_EXTRAS_DRYRUN=1 prints the planned
-# actions without touching the system.
+# Ryostore owns the network and the cache; this reads the cached catalogue under
+# `ryostore internal cache` and asks Ryostore for an installer path or a guest
+# install/removal on demand, so fetching lives in one place. Package installs
+# need a TTY for the sudo prompt, so the store launches install/remove in a
+# floating terminal; status is a silent query the UI calls inline.
+# RYOKU_EXTRAS_DRYRUN=1 prints the planned actions without touching the system.
 
 set -uo pipefail
 
@@ -35,17 +35,14 @@ die() {
 }
 
 cache_dir() {
-  ryoku-hub extras cache 2>/dev/null
+  ryostore internal cache 2>/dev/null
 }
 
-# Path to a bundle's definition, fetching the catalogue once if not cached.
+# Path to a bundle's definition in the cache Ryostore warmed while browsing.
 bundle_file() {
   local id=$1 cache f
-  cache=$(cache_dir) || die "could not resolve the extras cache (is ryoku-hub installed?)"
+  cache=$(cache_dir) || die "could not resolve the extras cache (is ryostore installed?)"
   f="$cache/bundles/$id/bundle.json"
-  if [[ ! -f $f ]]; then
-    ryoku-hub extras catalog >/dev/null 2>&1 || true
-  fi
   [[ -f $f ]] || die "unknown bundle '$id' (not in the catalogue)"
   printf '%s\n' "$f"
 }
@@ -54,7 +51,6 @@ registry_ids() {
   local cache reg
   cache=$(cache_dir) || return 1
   reg="$cache/bundles/registry.json"
-  [[ -f $reg ]] || ryoku-hub extras catalog >/dev/null 2>&1 || true
   [[ -f $reg ]] || return 1
   jq -r '.bundles[].id' "$reg"
 }
@@ -177,38 +173,38 @@ run_script() {
     echo "DRYRUN: run installer $name"
     return 0
   fi
-  path=$(ryoku-hub extras installer "$name" 2>/dev/null) || return 1
+  path=$(ryostore internal installer "$name" 2>/dev/null) || return 1
   [[ -f $path ]] || return 1
   bash "$path"
 }
 
-# Drop the plugin's source tree into the data dir the runtime + Settings
-# read. ryoku-hub owns the network, we just trigger it.
+# Drop the plugin's source tree into the data dir the runtime + Settings read.
+# Ryostore owns the network and staging; we just trigger it. Install places the
+# plugin; it never enables it (enable lives in Settings).
 run_plugin_install() {
   local name=$1
   if [[ -n $DRYRUN ]]; then
     echo "DRYRUN: install plugin $name"
     return 0
   fi
-  ryoku-hub extras plugin "$name" >/dev/null 2>&1
+  ryostore internal install-guest plugins "$name" >/dev/null 2>&1
 }
 
 run_nautilus_install() {
   local name=$1
   if [[ -n $DRYRUN ]]; then echo "DRYRUN: install nautilus pack $name"; return 0; fi
-  ryoku-hub extras nautilus "$name" >/dev/null 2>&1
+  ryostore internal install-guest nautilus "$name" >/dev/null 2>&1
 }
 
-# Remove the plugin's source tree. The placement in plugins.json is left
-# alone, so re-installing drops it back where the user had it.
+# Remove the plugin's source tree through Ryostore, which is symlink-safe and
+# clears the plugin's plugins.json entry with it.
 run_plugin_remove() {
-  local name=$1 dir
-  dir=$(plugin_dir "$name")
+  local name=$1
   if [[ -n $DRYRUN ]]; then
-    echo "DRYRUN: remove plugin dir $dir"
+    echo "DRYRUN: remove plugin $name"
     return 0
   fi
-  rm -rf "$dir"
+  ryostore internal remove-guest plugins "$name" >/dev/null 2>&1
 }
 
 # Run a bundle's declared prerequisites before any package is routed, so a
@@ -420,7 +416,7 @@ remove_set() {
         if nautilus_installed "$name"; then
           if [[ -n $DRYRUN ]]; then
             echo "DRYRUN: remove nautilus pack $name"; set_state "$name" removed
-          elif ryoku-hub extras nautilusremove "$name" >/dev/null 2>&1 && ! nautilus_installed "$name"; then
+          elif ryostore internal remove-guest nautilus "$name" >/dev/null 2>&1 && ! nautilus_installed "$name"; then
             set_state "$name" removed
           else
             set_state "$name" failed "could not remove the scripts"
