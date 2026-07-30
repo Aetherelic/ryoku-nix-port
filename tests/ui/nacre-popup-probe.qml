@@ -104,7 +104,8 @@ ShellRoot {
             if (!scene || scene.status !== Loader.Ready)
                 throw new Error("NACRE-SCENE-PROBE-FAIL");
             if (!scene.item || !scene.item.unifiedBlobFrame || scene.item.frameInset <= 0
-                    || scene.item.barSpan !== scene.item.settings.height + scene.item.frameInset)
+                    || scene.item.barSpan !== scene.item.settings.height
+                        * scene.item.settings.islandScale + scene.item.frameInset)
                 throw new Error("NACRE-FRAME-INSET-PROBE-FAIL");
             scene.destroy();
             const connectivityUrl = nacreConnectivityUrl.createObject(root);
