@@ -22,9 +22,9 @@ type Provider interface {
 func providers() []Provider {
 	c := newCache()
 	return []Provider{
+		newLockProvider(),
 		pluginProvider{cache: c},
 		bundleProvider{cache: c, status: defaultBundleStatus, launch: launchBundleInstall},
-		newLockProvider(),
 	}
 }
 

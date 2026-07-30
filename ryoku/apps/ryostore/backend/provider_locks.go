@@ -5,6 +5,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,14 +15,20 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
-	qylockOwnerRepo = "Darkkal44/qylock"
-	qylockBranch    = "main"
-	lockTreeTTL     = 6 * time.Hour
-	lockMaxFile     = 512 << 20
+	qylockOwnerRepo    = "Darkkal44/qylock"
+	qylockBranch       = "main"
+	defaultQylockAPI   = "https://api.github.com"
+	defaultQylockRaw   = "https://raw.githubusercontent.com"
+	lockTreeTTL        = 6 * time.Hour
+	lockGifTTL         = 7 * 24 * time.Hour
+	lockGifWorkers     = 6
+	lockMaxPreviewFile = 64 << 20
+	lockMaxFile        = 512 << 20
 )
 
 var lockGifAlias = map[string]string{
@@ -47,38 +55,51 @@ type qylockTree struct {
 }
 
 type lockProvider struct {
-	client    *http.Client
-	apiBase   string
-	rawBase   string
-	cacheDir  string
-	themesDir string
-	prefPath  string
+	client         *http.Client
+	downloadClient *http.Client
+	apiBase        string
+	rawBase        string
+	cacheDir       string
+	themesDir      string
+	prefPath       string
 }
 
 func newLockProvider() lockProvider {
 	apiBase := os.Getenv("RYOKU_QYLOCK_API")
 	if apiBase == "" {
-		apiBase = "https://api.github.com"
+		apiBase = defaultQylockAPI
 	}
 	rawBase := os.Getenv("RYOKU_QYLOCK_RAW")
 	if rawBase == "" {
-		rawBase = "https://raw.githubusercontent.com"
+		rawBase = defaultQylockRaw
 	}
+	apiBase = strings.TrimRight(apiBase, "/")
+	rawBase = strings.TrimRight(rawBase, "/")
 	return lockProvider{
-		client:    &http.Client{Timeout: 25 * time.Second},
-		apiBase:   strings.TrimRight(apiBase, "/"),
-		rawBase:   strings.TrimRight(rawBase, "/"),
-		cacheDir:  filepath.Join(xdgCacheHome(), "ryoku"),
-		themesDir: filepath.Join(dataHome(), "qylock", "themes"),
-		prefPath:  filepath.Join(configHome(), "qylock", "theme"),
+		client:         &http.Client{Timeout: 25 * time.Second},
+		downloadClient: &http.Client{Timeout: 5 * time.Minute},
+		apiBase:        apiBase,
+		rawBase:        rawBase,
+		cacheDir:       lockCacheDir(apiBase, rawBase),
+		themesDir:      filepath.Join(dataHome(), "qylock", "themes"),
+		prefPath:       filepath.Join(configHome(), "qylock", "theme"),
 	}
+}
+
+func lockCacheDir(apiBase, rawBase string) string {
+	root := filepath.Join(xdgCacheHome(), "ryoku")
+	if apiBase == defaultQylockAPI && rawBase == defaultQylockRaw {
+		return root
+	}
+	sum := sha256.Sum256([]byte(apiBase + "\n" + rawBase))
+	return filepath.Join(root, "lock-sources", hex.EncodeToString(sum[:8]))
 }
 
 func (lockProvider) Category() Category {
 	return Category{
 		ID:          "lockscreens",
 		Name:        "Lockscreens",
-		Group:       "MAKE IT YOURS",
+		Group:       "wear",
 		Description: "Complete qylock scenes for the session lock and sign-in screen.",
 	}
 }
@@ -198,13 +219,83 @@ func (p lockProvider) fetch(ctx context.Context, url string, limit int64) ([]byt
 	return b, nil
 }
 
+func (p lockProvider) downloadTo(ctx context.Context, url, dst string, limit int64) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "ryostore")
+	resp, err := p.downloadClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s: HTTP %d", url, resp.StatusCode)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".download-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	n, copyErr := io.CopyN(tmp, resp.Body, limit+1)
+	if copyErr != nil && copyErr != io.EOF {
+		tmp.Close()
+		return copyErr
+	}
+	if n > limit {
+		tmp.Close()
+		return fmt.Errorf("%s: response exceeds %d bytes", url, limit)
+	}
+	if err := tmp.Chmod(0o644); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, dst)
+}
+
+func (p lockProvider) warmPreviews(ctx context.Context, tree qylockTree, refresh bool) {
+	wanted := map[string]bool{}
+	for _, slug := range tree.Themes {
+		if gif, ok := mapThemeGif(slug, tree.Gifs); ok {
+			wanted[gif] = true
+		}
+	}
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, lockGifWorkers)
+	for gif := range wanted {
+		dst := p.previewCachePath(gif)
+		if !refresh {
+			if fi, err := os.Stat(dst); err == nil && time.Since(fi.ModTime()) < lockGifTTL {
+				continue
+			}
+		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			_ = p.downloadTo(ctx, p.rawURL("Assets/"+gif+".gif"), dst, lockMaxPreviewFile)
+		}()
+	}
+	wg.Wait()
+}
+
 func (p lockProvider) loadTree(ctx context.Context, refresh bool) (qylockTree, SourceState, error) {
 	cache := p.treeCachePath()
 	if !refresh {
 		if fi, err := os.Stat(cache); err == nil && time.Since(fi.ModTime()) < lockTreeTTL {
 			if b, err := os.ReadFile(cache); err == nil {
-				tree, err := parseQylockTree(b)
-				return tree, SourceState{}, err
+				if tree, err := parseQylockTree(b); err == nil {
+					return tree, SourceState{}, nil
+				}
 			}
 		}
 	}
@@ -328,6 +419,7 @@ func (p lockProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceSta
 		local := p.normalize(qylockTree{Gifs: map[string]bool{}, Bytes: map[string]int{}})
 		return local, state, nil
 	}
+	p.warmPreviews(ctx, tree, refresh)
 	return p.normalize(tree), state, nil
 }
 
@@ -344,6 +436,9 @@ func (p lockProvider) Install(ctx context.Context, slug string) error {
 		return fmt.Errorf("unknown lockscreen %q", slug)
 	}
 	dst := filepath.Join(p.themesDir, slug)
+	if err := rejectSymlinkPath(p.themesDir, slug); err != nil {
+		return err
+	}
 	unlock, err := lockTree(dst)
 	if err != nil {
 		return err
@@ -358,12 +453,8 @@ func (p lockProvider) Install(ctx context.Context, slug string) error {
 	}
 	defer os.RemoveAll(stage)
 	for _, rel := range files {
-		b, err := p.fetch(ctx, p.rawURL("themes/"+slug+"/"+rel), lockMaxFile)
-		if err != nil {
+		if err := p.downloadTo(ctx, p.rawURL("themes/"+slug+"/"+rel), filepath.Join(stage, rel), lockMaxFile); err != nil {
 			return fmt.Errorf("download %s: %w", rel, err)
-		}
-		if err := atomicWrite(filepath.Join(stage, rel), b, 0o644); err != nil {
-			return err
 		}
 	}
 	if !lockFileExists(filepath.Join(stage, "Main.qml")) {

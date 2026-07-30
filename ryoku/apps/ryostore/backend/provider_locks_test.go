@@ -14,6 +14,8 @@ import (
 func lockTreeFixture(t *testing.T) ([]byte, map[string][]byte) {
 	t.Helper()
 	files := map[string][]byte{
+		"Assets/clockwork.gif":                 []byte("clockwork-gif"),
+		"Assets/pixel_coffee.gif":              []byte("pixel-gif"),
 		"themes/clockwork/orbital/Main.qml":    []byte("orbital-main"),
 		"themes/clockwork/orbital/preview.gif": []byte("orbital-preview"),
 		"themes/pixel-coffee/Main.qml":         []byte("pixel-main"),
@@ -65,12 +67,13 @@ func lockFixtureServer(t *testing.T) (*httptest.Server, *bool) {
 func testLockProvider(t *testing.T, srv *httptest.Server) lockProvider {
 	t.Helper()
 	return lockProvider{
-		client:    srv.Client(),
-		apiBase:   srv.URL,
-		rawBase:   srv.URL,
-		cacheDir:  filepath.Join(t.TempDir(), "cache"),
-		themesDir: filepath.Join(t.TempDir(), "themes"),
-		prefPath:  filepath.Join(t.TempDir(), "qylock", "theme"),
+		client:         srv.Client(),
+		downloadClient: srv.Client(),
+		apiBase:        srv.URL,
+		rawBase:        srv.URL,
+		cacheDir:       filepath.Join(t.TempDir(), "cache"),
+		themesDir:      filepath.Join(t.TempDir(), "themes"),
+		prefPath:       filepath.Join(t.TempDir(), "qylock", "theme"),
 	}
 }
 
@@ -157,6 +160,11 @@ func TestLockProviderRefreshesThenFallsBackOffline(t *testing.T) {
 	if !state.Offline || state.CachedAt == "" || len(second) != 2 {
 		t.Fatalf("offline fallback: items=%d state=%+v", len(second), state)
 	}
+	for _, item := range second {
+		if item.Art == "" || !strings.HasPrefix(item.Art, "file://") {
+			t.Fatalf("offline preview was not archived: %+v", item)
+		}
+	}
 }
 
 func TestLockInstallDoesNotChangePreference(t *testing.T) {
@@ -185,5 +193,72 @@ func TestLockInstallDoesNotChangePreference(t *testing.T) {
 	asset, err := os.ReadFile(filepath.Join(p.themesDir, "pixel-coffee", "asset.bin"))
 	if err != nil || string(asset) != "123456" {
 		t.Fatalf("installed asset = %q, err=%v", asset, err)
+	}
+}
+
+func TestLockProviderRepairsMalformedFreshCache(t *testing.T) {
+	srv, _ := lockFixtureServer(t)
+	p := testLockProvider(t, srv)
+	if err := os.MkdirAll(p.cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p.treeCachePath(), []byte("{broken"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	items, state, err := p.Load(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Offline || len(items) != 2 {
+		t.Fatalf("fresh malformed cache was not repaired: state=%+v items=%+v", state, items)
+	}
+}
+
+func TestLockInstallRejectsIntermediateSymlink(t *testing.T) {
+	srv, _ := lockFixtureServer(t)
+	p := testLockProvider(t, srv)
+	if err := os.MkdirAll(p.themesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	external := t.TempDir()
+	marker := filepath.Join(external, "keep")
+	if err := os.WriteFile(marker, []byte("safe"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(p.themesDir, "clockwork")); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Install(context.Background(), "clockwork/orbital"); err == nil {
+		t.Fatal("install accepted a symlinked theme family")
+	}
+	if got, err := os.ReadFile(marker); err != nil || string(got) != "safe" {
+		t.Fatalf("external tree changed: data=%q err=%v", got, err)
+	}
+}
+
+func TestLockCacheNamespaceFollowsSourceOverrides(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("RYOKU_QYLOCK_API", "https://fork-one.test/api")
+	t.Setenv("RYOKU_QYLOCK_RAW", "https://fork-one.test/raw")
+	one := newLockProvider().cacheDir
+	t.Setenv("RYOKU_QYLOCK_API", "https://fork-two.test/api")
+	t.Setenv("RYOKU_QYLOCK_RAW", "https://fork-two.test/raw")
+	two := newLockProvider().cacheDir
+	if one == two {
+		t.Fatalf("source overrides shared cache directory %q", one)
+	}
+}
+
+func TestLockscreenCategoryLeadsWearProviders(t *testing.T) {
+	provs := providers()
+	if len(provs) < 3 || provs[0].Category().ID != "lockscreens" {
+		t.Fatalf("provider order = %v, want lockscreens first", []string{
+			provs[0].Category().ID,
+			provs[1].Category().ID,
+			provs[2].Category().ID,
+		})
+	}
+	if provs[0].Category().Group != "wear" {
+		t.Fatalf("lockscreen group = %q, want wear", provs[0].Category().Group)
 	}
 }

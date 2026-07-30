@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // The ryoku-extras rice store browses, installs, and publishes rices. Catalogue
@@ -100,6 +101,8 @@ func catalogRices() ([]riceCatalogItem, error) {
 // installRice downloads a store rice (manifest + palette + wallpaper + hero)
 // into ~/.config/ryoku/rices/<id>/, ready to apply or fork. install and apply
 // are separate so a rice can be previewed and forked before it changes anything.
+var riceDownloadClient = &http.Client{Timeout: 5 * time.Minute}
+
 func installRice(id string) error {
 	if !validRiceSlug(id) {
 		return fmt.Errorf("bad rice id %q", id)
@@ -146,10 +149,14 @@ func installRice(id string) error {
 		}
 	}
 	if e.Wallpaper != "" && r.Assets.Wallpaper != "" {
-		_ = downloadRiceFile(rawURL(e.Wallpaper), filepath.Join(dir, r.Assets.Wallpaper))
+		if err := downloadRiceFile(rawURL(e.Wallpaper), filepath.Join(dir, r.Assets.Wallpaper)); err != nil {
+			return fmt.Errorf("download wallpaper: %w", err)
+		}
 	}
 	if e.Hero != "" && r.Assets.Hero != "" {
-		_ = downloadRiceFile(rawURL(e.Hero), filepath.Join(dir, r.Assets.Hero))
+		if err := downloadRiceFile(rawURL(e.Hero), filepath.Join(dir, r.Assets.Hero)); err != nil {
+			return fmt.Errorf("download hero: %w", err)
+		}
 	}
 	return nil
 }
@@ -159,7 +166,7 @@ func downloadRiceFile(url, dst string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := extrasClient.Do(req)
+	resp, err := riceDownloadClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -170,21 +177,21 @@ func downloadRiceFile(url, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	f, err := os.Create(dst)
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".download-*")
 	if err != nil {
 		return err
 	}
-	_, copyErr := io.Copy(f, resp.Body)
-	closeErr := f.Close()
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	_, copyErr := io.Copy(tmp, resp.Body)
 	if copyErr != nil {
-		_ = os.Remove(dst)
+		tmp.Close()
 		return copyErr
 	}
-	if closeErr != nil {
-		_ = os.Remove(dst)
-		return closeErr
+	if err := tmp.Close(); err != nil {
+		return err
 	}
-	return nil
+	return os.Rename(tmpName, dst)
 }
 
 func extrasReleaseURL(asset string) string {
