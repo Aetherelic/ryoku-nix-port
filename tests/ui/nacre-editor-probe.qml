@@ -52,6 +52,14 @@ ShellRoot {
         labelFor: root.labelFor
     }
 
+    BarStudio.NacreIslandLane {
+        id: emptyLane
+        width: 260
+        islandId: "center"
+        items: []
+        labelFor: root.labelFor
+    }
+
     BarStudio.NacreWidgetChip {
         id: longChip
         widgetId: "activeWindow"
@@ -94,6 +102,19 @@ ShellRoot {
                 && right.width === editor.width, "full width lanes");
             require(left.y < center.y && center.y < right.y, "stacked lanes");
             require(crowdedLane.height > sparseLane.height, "wrapped lane grows");
+            require(root.findObject(emptyLane, "nacre-empty-drop-center"), "empty lane drop affordance");
+            crowdedLane.showDropPreview(12, 44);
+            require(crowdedLane.dragPreview && crowdedLane.dropIndex >= 0, "lane tracks insertion preview");
+            const marker = root.findObject(crowdedLane, "nacre-drop-marker-right");
+            require(marker && marker.visible && marker.x >= 0
+                && marker.x <= crowdedLane.width && marker.color.a > 0,
+                "insertion marker stays inside lane");
+            crowdedLane.hideDropPreview();
+            require(!crowdedLane.dragPreview && crowdedLane.dropIndex === -1, "lane clears insertion preview");
+            const palette = root.findObject(editor, "nacre-palette");
+            palette.showRemovalPreview();
+            require(palette.removalPreview, "palette exposes removal preview");
+            palette.hideRemovalPreview();
             require(longChip.width <= 144, "long chip capped");
             const dragVisual = root.findObject(longChip, "nacre-widget-visual-activeWindow");
             require(dragVisual, "separate drag visual");

@@ -8,18 +8,27 @@ Rectangle {
 
     required property var items
     required property var labelFor
+    property bool removalPreview: false
     signal removed(string widgetId)
 
     objectName: "nacre-palette"
     height: Math.max(72, 34 + content.implicitHeight + Tokens.s2)
     radius: Tokens.radius
-    color: drop.containsDrag ? Tokens.tint10 : "transparent"
+    color: root.removalPreview ? Tokens.tint10 : "transparent"
     border.width: Tokens.border
-    border.color: drop.containsDrag ? Tokens.lineStrong : Tokens.line
+    border.color: root.removalPreview ? Tokens.lineStrong : Tokens.line
+
+    function showRemovalPreview() {
+        root.removalPreview = true;
+    }
+
+    function hideRemovalPreview() {
+        root.removalPreview = false;
+    }
 
     Text {
         anchors { top: parent.top; left: parent.left; margins: Tokens.s2 }
-        text: qsTr("UNUSED")
+        text: root.removalPreview ? qsTr("REMOVE WIDGET") : qsTr("UNUSED")
         color: Tokens.inkFaint
         font.family: Tokens.mono
         font.pixelSize: Tokens.fTiny
@@ -44,10 +53,25 @@ Rectangle {
         }
     }
 
+    Text {
+        anchors.centerIn: parent
+        visible: root.items.length === 0
+        text: qsTr("ALL WIDGETS PLACED")
+        color: Tokens.inkFaint
+        font.family: Tokens.mono
+        font.pixelSize: Tokens.fTiny
+        font.letterSpacing: Tokens.trackLabel
+    }
+
     DropArea {
         id: drop
         anchors.fill: parent
         keys: ["nacre-widget"]
-        onDropped: event => root.removed(event.source.widgetId)
+        onEntered: root.showRemovalPreview()
+        onExited: root.hideRemovalPreview()
+        onDropped: event => {
+            root.hideRemovalPreview();
+            root.removed(event.source.widgetId);
+        }
     }
 }
