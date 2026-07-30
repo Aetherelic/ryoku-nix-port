@@ -17,7 +17,7 @@ ShellRoot {
             islands: {
                 left: ["brand", "media", "activeWindow"],
                 center: ["clock", "workspaces", "resources"],
-                right: ["connectivity", "audio", "battery", "tray"]
+                right: ["connectivity", "audio", "battery", "notifications", "tray"]
             },
             height: 40,
             opacity: 0.82,
@@ -77,7 +77,7 @@ ShellRoot {
         running: true
         onTriggered: {
             require(editor.islandIds.length === 3, "three islands");
-            require(editor.placedCount === 10, "default placed widgets");
+            require(editor.placedCount === 11, "default placed widgets");
             require(editor.unusedCount === 2, "default unused widgets");
             const left = root.findObject(editor, "nacre-island-left");
             const center = root.findObject(editor, "nacre-island-center");

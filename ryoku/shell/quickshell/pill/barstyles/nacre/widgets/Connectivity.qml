@@ -2,14 +2,12 @@ import QtQuick
 import Quickshell.Bluetooth
 import "../../../Singletons"
 import "../../.." as Pill
-import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
 
 Item {
     id: root
 
     property real barHeight: 40
-    property bool open: popupHost.shown
+    signal popupRequested(string name, real center, bool active, bool pinned)
     readonly property bool wired: Network.kind === "ethernet"
     readonly property bool wifiConnected: Network.wifiConnectivity === "Connected"
     readonly property var adapter: Bluetooth.defaultAdapter
@@ -35,7 +33,10 @@ Item {
         return "signal_wifi_0_bar";
     }
 
-    HoverHandler { id: hover }
+    TapHandler {
+        onTapped: root.popupRequested("connectivity",
+            root.mapToItem(null, root.width / 2, root.height / 2).x, true, true)
+    }
 
     Row {
         id: content
@@ -57,16 +58,4 @@ Item {
         }
     }
 
-    Shared.Popout {
-        id: popupHost
-        target: root
-        targetHovered: hover.hovered
-        barHeight: root.barHeight
-        namespace: "ryoku-nacre-popout"
-        content: popup
-    }
-    Component {
-        id: popup
-        Popouts.ConnectivityPopout { open: root.open }
-    }
 }

@@ -1,23 +1,26 @@
 import QtQuick
 import "../../../Singletons"
 import "../../.." as Pill
-import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
 
 Item {
     id: root
 
     property real barHeight: 40
+    signal popupRequested(string name, real center, bool active, bool pinned)
 
     implicitWidth: content.implicitWidth
     implicitHeight: 26
-    visible: Media.present
+    visible: true
 
     onVisibleChanged: AudioBars.setActive(root, visible)
     Component.onCompleted: AudioBars.setActive(root, visible)
     Component.onDestruction: AudioBars.setActive(root, false)
 
-    HoverHandler { id: hover }
+    HoverHandler {
+        id: hover
+        onHoveredChanged: root.popupRequested("media",
+            root.mapToItem(null, root.width / 2, root.height / 2).x, hovered, false)
+    }
     TapHandler { onTapped: Media.toggle() }
 
     Row {
@@ -34,7 +37,7 @@ Item {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             width: 150
-            text: Media.line
+            text: Media.line.length > 0 ? Media.line : qsTr("No media")
             elide: Text.ElideRight
             color: Theme.onSurface
             font.family: Theme.fontPrimary
@@ -50,15 +53,4 @@ Item {
         }
     }
 
-    Shared.Popout {
-        target: root
-        targetHovered: hover.hovered
-        barHeight: root.barHeight
-        namespace: "ryoku-nacre-popout"
-        content: popup
-    }
-    Component {
-        id: popup
-        Popouts.MediaPopout {}
-    }
 }

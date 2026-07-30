@@ -14,6 +14,9 @@ Rectangle {
     property real surfaceOpacity: 0.82
     property real horizontalPadding: 12
     property real widgetSpacing: 8
+    property bool unifiedFrame: false
+
+    signal popupRequested(string name, real center, bool active, bool pinned)
 
     readonly property bool hasWidgets: root.widgetIds.length > 0
     readonly property real naturalWidth: root.hasWidgets
@@ -25,8 +28,9 @@ Rectangle {
     height: root.hasWidgets ? root.barHeight : 0
     visible: root.hasWidgets
     clip: true
-    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, root.surfaceOpacity)
-    border.width: Theme.borderWidth
+    color: root.unifiedFrame ? "transparent"
+        : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, root.surfaceOpacity)
+    border.width: root.unifiedFrame ? 0 : Theme.borderWidth
     border.color: Theme.outline
     topLeftRadius: 0
     topRightRadius: 0
@@ -45,6 +49,8 @@ Rectangle {
                 widgetId: modelData
                 barHeight: root.barHeight
                 anchors.verticalCenter: content.verticalCenter
+                onPopupRequested: (name, center, active, pinned) =>
+                    root.popupRequested(name, center, active, pinned)
             }
         }
     }

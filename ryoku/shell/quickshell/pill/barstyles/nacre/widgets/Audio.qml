@@ -1,14 +1,12 @@
 import QtQuick
 import "../../../Singletons"
 import "../../.." as Pill
-import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
 
 Item {
     id: root
 
     property real barHeight: 40
-    property bool open: popupHost.shown
+    signal popupRequested(string name, real center, bool active, bool pinned)
     readonly property var sink: Audio.sink
     readonly property bool available: !!(root.sink && root.sink.audio)
     readonly property bool muted: root.available && root.sink.audio.muted
@@ -21,9 +19,11 @@ Item {
             root.sink.audio.volume = Math.max(0, Math.min(1, root.sink.audio.volume + (up ? 0.02 : -0.02)));
     }
 
-    HoverHandler { id: hover }
     WheelHandler { onWheel: event => root.step(event.angleDelta.y > 0) }
-    TapHandler { onTapped: if (root.available) root.sink.audio.muted = !root.sink.audio.muted }
+    TapHandler {
+        onTapped: root.popupRequested("audio",
+            root.mapToItem(null, root.width / 2, root.height / 2).x, true, true)
+    }
 
     Row {
         id: content
@@ -45,16 +45,4 @@ Item {
         }
     }
 
-    Shared.Popout {
-        id: popupHost
-        target: root
-        targetHovered: hover.hovered
-        barHeight: root.barHeight
-        namespace: "ryoku-nacre-popout"
-        content: popup
-    }
-    Component {
-        id: popup
-        Popouts.AudioPopout { open: root.open }
-    }
 }

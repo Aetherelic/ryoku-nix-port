@@ -62,7 +62,7 @@ const moved = Nacre.move(defaults, "brand", "left", "right", 1);
 eq(moved.islands.left, ["media", "activeWindow"], "cross-island move removes the source");
 eq(
     moved.islands.right,
-    ["connectivity", "brand", "audio", "battery", "tray"],
+    ["connectivity", "brand", "audio", "battery", "notifications", "tray"],
     "cross-island move inserts at the target"
 );
 eq(defaults.islands.left, ["brand", "media", "activeWindow"], "move leaves its input unchanged");

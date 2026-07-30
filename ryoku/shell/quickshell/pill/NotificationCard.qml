@@ -28,6 +28,7 @@ Rectangle {
     // full (compact stays false).
     property bool compact: false
     property bool expanded: false
+    property bool unifiedFrame: false
 
     // The height Behavior below must not animate the card's initial layout: a
     // fresh toast would otherwise grow tall as it arrives and churn the stack.
@@ -69,7 +70,7 @@ Rectangle {
     // over the popup's lifespan, so a glance shows how long is left. The history
     // panel and persistent popups pass 0 and draw no frame.
     property int lifespanMs: 0
-    readonly property bool countingDown: card.lifespanMs > 0
+    readonly property bool countingDown: card.lifespanMs > 0 && !card.unifiedFrame
     property real remaining: 1
     NumberAnimation on remaining {
         running: card.countingDown
@@ -79,10 +80,10 @@ Rectangle {
         easing.type: Easing.Linear
     }
 
-    radius: Theme.radiusWidget
-    border.width: Theme.borderWidth
+    radius: card.unifiedFrame ? 0 : Theme.radiusWidget
+    border.width: card.unifiedFrame ? 0 : Theme.borderWidth
     border.color: Theme.outline
-    color: Theme.surface
+    color: card.unifiedFrame ? "transparent" : Theme.surface
     implicitHeight: body.implicitHeight + Theme.paddingMd * 2
     // Ease the expand/collapse: the body clamp and the actions toggle change the
     // content height in a step, and this glides the card (and the stack it sits

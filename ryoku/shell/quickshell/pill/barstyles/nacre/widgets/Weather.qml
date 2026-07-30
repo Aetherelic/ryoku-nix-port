@@ -1,21 +1,23 @@
 import QtQuick
 import "../../../Singletons"
 import "../../.." as Pill
-import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
 import "../../shared/Format.js" as Format
 
 Item {
     id: root
 
     property real barHeight: 40
+    signal popupRequested(string name, real center, bool active, bool pinned)
     readonly property var current: Weather.current
 
     implicitWidth: content.implicitWidth
     implicitHeight: 26
     visible: Weather.available && Weather.temp.length > 0
 
-    HoverHandler { id: hover }
+    TapHandler {
+        onTapped: root.popupRequested("weather",
+            root.mapToItem(null, root.width / 2, root.height / 2).x, true, true)
+    }
 
     Row {
         id: content
@@ -37,15 +39,4 @@ Item {
         }
     }
 
-    Shared.Popout {
-        target: root
-        targetHovered: hover.hovered
-        barHeight: root.barHeight
-        namespace: "ryoku-nacre-popout"
-        content: popup
-    }
-    Component {
-        id: popup
-        Popouts.WeatherPopout {}
-    }
 }

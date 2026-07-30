@@ -90,8 +90,6 @@ ShellRoot {
     // Active bar style: the built-in Sumi frame scene draws only while the
     // active style is the built-in one; Nacre can reuse its frame without rails.
     readonly property bool sumiActive: BarStyles.sceneUrl(Config.barStyle) === ""
-    readonly property bool nacreFrameActive: Config.barStyle === "nacre"
-        && Config.normalizedNacre.frame
     property var edgeRevealed: ({ top: false, bottom: false, left: false, right: false })
     // The reveal baseline (config `reveal` per edge) is applied live after
     // startup: a Bar Studio pin/auto-hide edit retargets edgeRevealed for the
@@ -698,11 +696,9 @@ ShellRoot {
                     panelY: frameMenus.chromePanel.y
                     panelW: frameMenus.chromePanel.w
                     panelH: frameMenus.chromePanel.h
-                    topLobes: root.nacreFrameActive
-                        ? NacreGeometry.islands(overlay.modelData.name) : []
                     opacity: Theme.windowOpacity
                     visible: !overlay.monFullscreen
-                        && ((Config.frameEnabled && root.sumiActive) || root.nacreFrameActive)
+                        && Config.frameEnabled && root.sumiActive
                 }
 
 

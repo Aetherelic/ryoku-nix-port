@@ -7,6 +7,8 @@ Loader {
     required property string widgetId
     property real barHeight: 40
 
+    signal popupRequested(string name, real center, bool active, bool pinned)
+
     source: {
         const item = NacreConfig.entry(root.widgetId);
         return item ? "../widgets/" + item.file : "";
@@ -22,5 +24,13 @@ Loader {
     onStatusChanged: {
         if (root.status === Loader.Error)
             console.warn("Nacre widget failed:", root.widgetId);
+    }
+
+    Connections {
+        target: root.item
+        ignoreUnknownSignals: true
+        function onPopupRequested(name, center, active, pinned) {
+            root.popupRequested(name, center, active, pinned);
+        }
     }
 }

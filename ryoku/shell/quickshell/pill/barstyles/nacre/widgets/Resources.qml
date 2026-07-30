@@ -1,20 +1,22 @@
 import QtQuick
 import "../../../Singletons"
 import "../../.." as Pill
-import "../../shared" as Shared
-import "../../shared/popouts" as Popouts
 
 Item {
     id: root
 
     property real barHeight: 40
+    signal popupRequested(string name, real center, bool active, bool pinned)
 
     implicitWidth: content.implicitWidth
     implicitHeight: 26
 
     Component.onCompleted: Sysinfo.setActive(root, true)
     Component.onDestruction: Sysinfo.setActive(root, false)
-    HoverHandler { id: hover }
+    TapHandler {
+        onTapped: root.popupRequested("resources",
+            root.mapToItem(null, root.width / 2, root.height / 2).x, true, true)
+    }
 
     component HealthValue: Row {
         required property string glyph
@@ -64,15 +66,4 @@ Item {
         }
     }
 
-    Shared.Popout {
-        target: root
-        targetHovered: hover.hovered
-        barHeight: root.barHeight
-        namespace: "ryoku-nacre-popout"
-        content: popup
-    }
-    Component {
-        id: popup
-        Popouts.ResourcesPopout {}
-    }
 }

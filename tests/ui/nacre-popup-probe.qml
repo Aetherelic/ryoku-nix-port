@@ -36,11 +36,6 @@ ShellRoot {
 
     Shared.Popout {}
 
-    Component {
-        id: frameChrome
-        Pill.FrameChrome { width: 1000; height: 800 }
-    }
-
     Component { id: audio; Popouts.AudioPopout {} }
     Component { id: battery; Popouts.BatteryPopout {} }
     Component { id: calendar; Popouts.CalendarPopout {} }
@@ -69,6 +64,7 @@ ShellRoot {
     Component { id: nacreClock; NacreWidgets.Clock {} }
     Component { id: nacreConnectivity; NacreWidgets.Connectivity {} }
     Component { id: nacreMedia; NacreWidgets.Media {} }
+    Component { id: nacreNotifications; NacreWidgets.Notifications {} }
     Component { id: nacreResources; NacreWidgets.Resources {} }
     Component { id: nacreTray; NacreWidgets.Tray {} }
     Component { id: nacreUtils; NacreWidgets.Utils {} }
@@ -95,7 +91,7 @@ ShellRoot {
                 audio, battery, calendar, connectivity, media, resources, weather,
                 obiAudio, obiBattery, obiClock, obiConnectivity, obiMedia, obiResources, obiWeather,
                 nacreActiveWindow, nacreAudio, nacreBattery, nacreBrand, nacreClock,
-                nacreConnectivity, nacreMedia, nacreResources, nacreTray, nacreUtils, nacreWeather,
+                nacreConnectivity, nacreMedia, nacreNotifications, nacreResources, nacreTray, nacreUtils, nacreWeather,
                 nacreWorkspaces
             ];
             for (const component of components) {
@@ -107,8 +103,8 @@ ShellRoot {
             const scene = nacreScene.createObject(root);
             if (!scene || scene.status !== Loader.Ready)
                 throw new Error("NACRE-SCENE-PROBE-FAIL");
-            if (!scene.item || scene.item.frameInset <= 0
-                    || scene.item.implicitHeight !== scene.item.settings.height + scene.item.frameInset)
+            if (!scene.item || !scene.item.unifiedBlobFrame || scene.item.frameInset <= 0
+                    || scene.item.barSpan !== scene.item.settings.height + scene.item.frameInset)
                 throw new Error("NACRE-FRAME-INSET-PROBE-FAIL");
             scene.destroy();
             const connectivityUrl = nacreConnectivityUrl.createObject(root);
@@ -131,9 +127,15 @@ ShellRoot {
             });
             if (!constrainedIsland || constrainedIsland.width <= 0)
                 throw new Error("NACRE-CONSTRAINED-ISLAND-PROBE-FAIL");
+            const unifiedIsland = nacreIsland.createObject(root, {
+                widgetIds: ["brand"], unifiedFrame: true
+            });
+            if (!unifiedIsland || unifiedIsland.border.width !== 0 || unifiedIsland.color.a !== 0)
+                throw new Error("NACRE-UNIFIED-ISLAND-PROBE-FAIL");
             populatedIsland.widgetIds = [];
             populatedIsland.destroy();
             constrainedIsland.destroy();
+            unifiedIsland.destroy();
             emptyIsland.destroy();
             const resourcesFace = nacreResources.createObject(root);
             if (!resourcesFace
@@ -145,15 +147,11 @@ ShellRoot {
             if (healthText.some(value => value.startsWith("CPU ") || value.startsWith("RAM ")))
                 throw new Error("NACRE-HEALTH-WORDS-PROBE-FAIL");
             resourcesFace.destroy();
-            const frame = frameChrome.createObject(root);
-            const points = frame.holePoints(2, 2, 998, 798, [
-                { x: 2, y: 0, width: 180, height: 42, visible: true },
-                { x: 430, y: 0, width: 140, height: 42, visible: true },
-                { x: 820, y: 0, width: 178, height: 42, visible: true }
-            ]);
-            if (!points.some(point => point.y === 42) || points.length <= 4)
-                throw new Error("NACRE-FRAME-LOBES-PROBE-FAIL");
-            frame.destroy();
+            const mediaFace = nacreMedia.createObject(root);
+            if (!mediaFace || !mediaFace.visible
+                    || !root.visibleText(mediaFace).includes("No media"))
+                throw new Error("NACRE-IDLE-MEDIA-PROBE-FAIL");
+            mediaFace.destroy();
             console.log("NACRE-POPUP-PROBE-PASS");
             Qt.quit();
         }

@@ -9,6 +9,7 @@ const catalog = [
     { id: "connectivity", label: "Connections", file: "Connectivity.qml" },
     { id: "audio", label: "Audio", file: "Audio.qml" },
     { id: "battery", label: "Battery", file: "Battery.qml" },
+    { id: "notifications", label: "Notifications", file: "Notifications.qml" },
     { id: "tray", label: "Tray", file: "Tray.qml" },
     { id: "weather", label: "Weather", file: "Weather.qml" },
     { id: "utils", label: "Recording", file: "Utils.qml" }
@@ -35,7 +36,7 @@ function defaultConfig() {
         islands: {
             left: ["brand", "media", "activeWindow"],
             center: ["clock", "workspaces", "resources"],
-            right: ["connectivity", "audio", "battery", "tray"]
+            right: ["connectivity", "audio", "battery", "notifications", "tray"]
         },
         height: 40,
         opacity: 0.82,
