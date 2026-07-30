@@ -309,3 +309,51 @@ func TestBuildCatalogRunsProvidersConcurrently(t *testing.T) {
 		}
 	}
 }
+
+// TestCatalogJSONZeroStateContract proves the required state scalars serialize
+// even at their zero value, so a consumer always sees an explicit false/0 rather
+// than a missing key, while genuinely optional fields stay omitted. A stray
+// omitempty on a required field would drop its key here even though the
+// non-zero contract test stays green.
+func TestCatalogJSONZeroStateContract(t *testing.T) {
+	top, err := json.Marshal(Catalog{Categories: []Category{}, Items: []Item{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tm map[string]any
+	if err := json.Unmarshal(top, &tm); err != nil {
+		t.Fatal(err)
+	}
+	assertKeys(t, tm, "catalog", "generatedAt", "offline", "categories", "items")
+
+	item, err := json.Marshal(Item{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var im map[string]any
+	if err := json.Unmarshal(item, &im); err != nil {
+		t.Fatal(err)
+	}
+	assertKeys(t, im, "item", "id", "category", "name",
+		"installed", "active", "enabled", "updateAvailable", "installedCount", "totalCount")
+	for _, k := range []string{"summary", "description", "art", "author", "version", "compatibility", "screenshots", "tags", "metadata"} {
+		if _, ok := im[k]; ok {
+			t.Fatalf("optional item key %q must be omitted at zero value, got %s", k, item)
+		}
+	}
+
+	cat, err := json.Marshal(Category{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cm map[string]any
+	if err := json.Unmarshal(cat, &cm); err != nil {
+		t.Fatal(err)
+	}
+	assertKeys(t, cm, "category", "id", "name", "group", "description", "count", "installedCount")
+	for _, k := range []string{"offline", "cachedAt", "error"} {
+		if _, ok := cm[k]; ok {
+			t.Fatalf("optional category key %q must be omitted at zero value, got %s", k, cat)
+		}
+	}
+}

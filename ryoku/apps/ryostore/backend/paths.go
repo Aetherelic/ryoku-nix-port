@@ -34,7 +34,7 @@ func xdgCacheHome() string {
 // default source's archive.
 func extrasCacheDir() string {
 	root := filepath.Join(xdgCacheHome(), "ryoku", "extras")
-	if os.Getenv("RYOKU_EXTRAS_BASE") == "" {
+	if extrasBase() == defaultExtrasBase {
 		return root
 	}
 	sum := sha256.Sum256([]byte(extrasBase()))

@@ -263,6 +263,13 @@ func TestCacheIsolatesPerSourceBase(t *testing.T) {
 	if got := extrasCacheDir(); got != root {
 		t.Fatalf("default cache dir = %q, want %q for upgrade/offline continuity", got, root)
 	}
+
+	// Explicitly setting the default URL (even with a trailing slash) is the
+	// same effective source and must keep the legacy root for archive continuity.
+	t.Setenv("RYOKU_EXTRAS_BASE", defaultExtrasBase+"/")
+	if got := extrasCacheDir(); got != root {
+		t.Fatalf("explicit default base cache dir = %q, want legacy %q", got, root)
+	}
 }
 
 // TestCachePreservesLiveErrorWithoutDisk proves an uncached failure surfaces its
