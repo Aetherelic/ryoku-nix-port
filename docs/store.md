@@ -1,9 +1,10 @@
 # The store
 
-Ryoku's extras are delivered through a **store**: a browsable catalogue of
-bundles and plugins that install into the running desktop with no setup, and
-remove just as cleanly. The catalogue is a separate repo (`ryoku-extras`); the
-store UI lives in the Hub; the shell hosts whatever a bundle brings.
+Ryoku's extras are delivered through **RyoStore**: a browsable catalogue of
+rices, lockscreens, bar styles, fastfetch styles, plugins, and bundles that
+install into the running desktop without activating themselves. Remote
+catalogues live in `ryoku-extras`; RyoStore owns discovery and installation;
+Ryoku Settings manages what is already present.
 
 ## How it works today
 
@@ -13,10 +14,11 @@ store UI lives in the Hub; the shell hosts whatever a bundle brings.
   the repo at runtime (`RYOKU_EXTRAS_BASE`, default the GitHub `main` raw tree)
   and caches it under `~/.cache/ryoku/extras`, so the catalogue still renders
   offline.
-- **Store UI = the Hub.** Ryoku Settings has an **Add-ons -> Store** section
-  with **Plugins** and **Bundles** tabs: image-rich cards (hero, install badge,
-  source and count chips), a detail view, and one install action. Managing
-  what is already installed lives on the Add-ons page.
+- **Store UI = RyoStore.** The standalone Quickshell app presents every
+  category through one artwork-led showroom with global search, Library state,
+  reversible details, explicit local status, and install-only actions. Ryoku
+  Settings remains the destination for activation, configuration, updates,
+  placement, and removal.
 - **Install = the actuator.** `ryoku-extras-install` routes each bundle item by
   type: `package` through `pacman -Syu` / the AUR helper (one package at a time,
   so one failure never strands the rest), `script` through `installers/<name>.sh`,
@@ -54,37 +56,29 @@ an honest empty plate. It never receives fake specimens.
 
 ## Product shape
 
-Ryostore is a standalone Quickshell app in the same family as Ryoport and
-ryowalls. Its ideal window is 1180 by 760, clamped to the available screen.
-Below the ideal width, poster plates reflow rather than shrinking type or hiding
-actions.
+RyoStore is a standalone Quickshell app in the same family as Ryoport and
+Ryowalls. Its ideal window is 1180 by 760, clamped to the available screen.
+The header remains usable at smaller sizes: Discover, Search, and Library stay
+visible while category labels occupy a clipped horizontal strip that scrolls
+the focused category into view.
 
-The persistent rail is organized by user intent:
+The first view is a living showroom, not a dashboard. A full-bleed stage gives
+the committed product's artwork, title, state, and actions visual priority. A
+horizontal filmstrip below it browses the current collection with pointer,
+touchpad, wheel, and keyboard input. Hover may preview only artwork and title;
+status and actions always belong to the committed selection.
+
+The fixed header exposes one semantic route order:
 
 ```text
-FIND
-  Today
-  Installed
-
-WEAR
-  Rices
-  Lockscreens
-  Bar styles
-  Fastfetch
-
-EXTEND
-  Plugins
-  Bundles
+Discover
+Rices · Lockscreens · Bar styles · Fastfetch · Plugins · Bundles
+Search
+Library
 ```
 
-**Today** combines an editorial archive with a poster wall. Large category
-plates carry useful facts such as `4 INSTALLED`, `1 ACTIVE`, or `2 UPDATES`.
-They sit beside a permanent **On this machine** shelf, one curated feature, and
-a small set of recent specimens. There is no recommendation engine, account,
-rating system, or endless feed.
-
-**Installed** is a first-class cross-category collection, not a filter hidden in
-each catalogue. Every item writes its state explicitly:
+**Library** is a first-class cross-category collection. Every item writes its
+state explicitly:
 
 - `ACTIVE` for the rice, lockscreen, bar, or fastfetch style currently worn;
 - `ENABLED` for a running plugin;
@@ -92,36 +86,36 @@ each catalogue. Every item writes its state explicitly:
 - `<installed> / <total> INSTALLED` for a partial bundle;
 - `UPDATE` when a newer store-managed version is available.
 
-A category page has global search, a small set of meaningful filters, and a
-responsive specimen grid. Opening a specimen produces a split dossier: real
-preview art and screenshots on one side, then author, source, version,
-compatibility, exact local state, description, and actions on the other.
-
-Actual preview art may keep its color because it is the item being evaluated.
-The app chrome remains paper and ink. Poster ornaments occupy dead space and
-never overlap controls.
+Opening a product expands its selected cover into a reversible dossier with
+real preview art and screenshots, then author, source, version, compatibility,
+exact local state, description, and actions. Closing the dossier returns to the
+same collection, selection, filmstrip offset, and focus. Actual preview art may
+keep its color because it is the item being evaluated; app chrome remains paper
+and ink, with no permanent rail, inspector panel, grain, or dashboard cards.
 
 ## Interaction contract
 
-Navigation follows a peel-back model:
+Navigation preserves context rather than replacing pages:
 
-- `/` and `Ctrl+K` focus global search from anywhere;
-- `Esc` closes a detail, clears search, then returns to Today, and never quits;
-- arrow keys move the current specimen and `Enter` opens it;
-- `Ctrl+1` opens Today and `Ctrl+2` opens Installed;
-- returning from a detail restores the category, filters, scroll position, and
-  focused card;
+- `/` and `Ctrl+K` open and focus global search from anywhere;
+- `Esc` closes detail, then search, restoring the exact collection frame at
+  each layer; it never silently quits;
+- Left/Right move the pending filmstrip selection, Home/End reach its bounds,
+  and Enter commits the pending product;
+- wheel and drag gestures settle to one committed cover;
+- Tab follows Discover, categories, Search, then Library;
 - quitting during an active installation requires a second quit action.
 
 Search is global and grouped by category. Results retain state, so a query such
-as `installed clock` can find installed lockscreen and fastfetch specimens
-without navigating to either category.
+as `installed clock` can find an installed lockscreen without navigating to its
+category. Returning from search restores the previous route, category,
+selection, visible filmstrip offset, and focused control.
 
 Installation feedback stays in the detail:
 
 1. The primary action locks immediately and reads `INSTALLING`.
-2. A thin ledger reports the real stage: fetching, verifying, installing, or
-   complete.
+2. The detail reports the real fetching, verifying, installing, or complete
+   stage.
 3. The backend is re-probed after completion and whenever the window regains
    focus.
 4. Success becomes `INSTALLED` with `OPEN IN SETTINGS`.
@@ -130,14 +124,14 @@ Installation feedback stays in the detail:
 
 Bundles retain the existing floating terminal because package authorization and
 long-running output belong there. The dossier lists every component and current
-count before the user starts `INSTALL <n> ITEMS`. Ryostore watches the existing
-report file so the app reflects live progress while the terminal owns the
-privileged operation.
+count before the user starts `INSTALL <n> ITEMS`; live report state keeps the
+showroom synchronized while the terminal owns privileged work.
 
-Motion uses the shared tokens: short hover and press feedback, a standard page
-cross-fade, and a spatial detail transition. Hidden and idle surfaces do no
-work. Focus is always visible, all text uses the contrast-solved ink tiers, and
-every mouse action has a keyboard equivalent.
+Motion uses the shared tokens for short hover, selection, stage, and detail
+transitions. Reduced motion removes scale, parallax, kinetic travel, and
+shared-element movement rather than merely shortening them. Focus is always
+visible, text uses the contrast-solved ink tiers, and every pointer action has a
+keyboard equivalent.
 
 ## Unified subsystem
 
@@ -198,13 +192,14 @@ The public command surface is deliberately small:
 ```text
 ryostore catalog [--refresh]
 ryostore install <category> <id>
+ryostore open <discover|library|category>
 ryostore settings <category> [id]
 ```
 
 QML invokes this contract instead of maintaining six bespoke process and state
 models. Adding a specimen changes only its upstream registry or owning local
-manifest. Adding a category adds one provider and one category registration;
-the generic rail, search, Installed page, grid, and detail view need no new QML
+manifest. Adding a category adds one provider and one header entry; the generic
+stage, filmstrip, search, Library projection, and detail surface need no new QML
 page.
 
 Runtime implementations remain with their owning subsystem. A bar style still
@@ -277,8 +272,8 @@ precedence, and restored browse state. `qmllint` checks all new and touched QML.
 The live app is deployed from the checkout and exercised with `ydotool` and
 `grim`:
 
-- Today, each category, a detail, and the return path;
-- global search and Installed;
+- Discover, every category, a detail, and exact return restoration;
+- global search and Library;
 - keyboard-only navigation;
 - successful fixture install and retryable fixture failure;
 - Open in Settings deep links;

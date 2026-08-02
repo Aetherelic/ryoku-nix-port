@@ -198,9 +198,14 @@ func (p bundleProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceS
 	for i, b := range out {
 		it := b.item
 		present := status[it.ID]
-		for _, comp := range b.items {
-			if present[comp.Name] {
+		components, _ := it.Metadata["items"].([]map[string]any)
+		for j, comp := range b.items {
+			installed := present[comp.Name]
+			if installed {
 				it.InstalledCount++
+			}
+			if j < len(components) {
+				components[j]["installed"] = installed
 			}
 		}
 		it.Installed = it.TotalCount > 0 && it.InstalledCount == it.TotalCount

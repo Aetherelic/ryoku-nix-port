@@ -28,17 +28,21 @@ func main() {
 // the caller reports one useful line and exits nonzero.
 func dispatch(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("no command; expected catalog, install, or internal")
+		return fmt.Errorf("no command; expected catalog, install, open, settings, or internal")
 	}
 	switch args[0] {
 	case "catalog":
 		return runCatalog(os.Stdout, providers(), args[1:])
 	case "install":
 		return runInstall(providers(), args[1:])
+	case "open":
+		return runOpen(args[1:])
+	case "settings":
+		return runSettings(args[1:])
 	case "internal":
 		return runInternal(args[1:])
 	default:
-		return fmt.Errorf("unknown command %q; expected catalog, install, or internal", args[0])
+		return fmt.Errorf("unknown command %q; expected catalog, install, open, settings, or internal", args[0])
 	}
 }
 

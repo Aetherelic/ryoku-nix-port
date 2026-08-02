@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestSettingsSectionRoutesStoreCategories(t *testing.T) {
 	cases := map[string]string{
@@ -32,5 +36,25 @@ func TestStoreSectionIncludesShowroomRoutesAndEveryCategory(t *testing.T) {
 		if storeSection(section) {
 			t.Fatalf("storeSection(%q) = true", section)
 		}
+	}
+}
+
+func TestDispatchRoutesHandoffCommands(t *testing.T) {
+	dir := t.TempDir()
+	qs := filepath.Join(dir, "qs")
+	if err := os.WriteFile(qs, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	for name, args := range map[string][]string{
+		"open":     {"open", "library"},
+		"settings": {"settings", "rices"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := dispatch(args); err != nil {
+				t.Fatalf("dispatch(%q): %v", args, err)
+			}
+		})
 	}
 }

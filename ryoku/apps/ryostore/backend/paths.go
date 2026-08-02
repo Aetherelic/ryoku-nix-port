@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -39,4 +40,12 @@ func extrasCacheDir() string {
 	}
 	sum := sha256.Sum256([]byte(extrasBase()))
 	return filepath.Join(root, "sources", hex.EncodeToString(sum[:8]))
+}
+
+func currentRyokuVersion() string {
+	out, err := exec.Command("ryoku", "version").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimPrefix(strings.TrimSpace(string(out)), "v")
 }
