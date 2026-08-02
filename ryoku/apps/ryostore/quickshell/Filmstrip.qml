@@ -175,6 +175,7 @@ FocusScope {
                         border.width: Tokens.border * 2
                         border.color: Tokens.bone
                         visible: strip.activeFocus
+                                && StoreLogic.itemKey(product.modelData) === strip.pendingKey
                     }
 
                     HoverHandler {
