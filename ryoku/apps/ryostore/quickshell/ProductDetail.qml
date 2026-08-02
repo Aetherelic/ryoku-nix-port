@@ -3,7 +3,7 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "lib/store.js" as StoreLogic
 
-Item {
+FocusScope {
     id: detail
 
     property var item: null
@@ -15,6 +15,10 @@ Item {
     property string installError: ""
     property bool reducedMotion: false
     property real transitionProgress: open ? 1 : 0
+
+    function focusInitialAction() {
+        closeButton.forceActiveFocus(Qt.OtherFocusReason);
+    }
 
     signal closeRequested()
     signal installRequested(var item)
@@ -43,6 +47,7 @@ Item {
             : Qt.rect(targetX, targetY, targetWidth, targetHeight)
 
     visible: open || transitionProgress > 0
+    focus: open
     clip: true
 
     function valueText(value) {
@@ -212,7 +217,9 @@ Item {
             }
 
             Btn {
+                id: closeButton
                 objectName: "ryostore-detail-close"
+                focus: detail.open
                 text: "BACK"
                 Accessible.role: Accessible.Button
                 Accessible.name: text

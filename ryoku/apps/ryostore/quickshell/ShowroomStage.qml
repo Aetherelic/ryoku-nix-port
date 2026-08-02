@@ -121,6 +121,7 @@ Item {
         anchors { left: parent.left; bottom: parent.bottom; margins: Tokens.s6 }
         width: Math.min(stage.width * 0.48, 520)
         spacing: Tokens.s3
+        visible: stage.hasActionItem
 
         Text {
             width: parent.width

@@ -10,12 +10,14 @@ Item {
     property bool selected: false
 
     readonly property bool hasArtwork: String(item && item.art || "") !== ""
+    readonly property bool hasIdentity: Boolean(item && (item.id || item.name))
     readonly property string coverTitle: String(item && (item.name || item.id) || "Untitled")
     readonly property color coverSurface: item && item.surface ? item.surface : Tokens.paperLift
     readonly property color coverAccent: item && item.accent ? item.accent : Tokens.inkDim
 
     clip: true
     Accessible.role: Accessible.Graphic
+    Accessible.ignored: !cover.hasIdentity
     Accessible.name: [
         coverTitle,
         String(item && (item.categoryName || item.category) || ""),
@@ -43,7 +45,12 @@ Item {
         }
 
         Column {
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: cover.stage ? Tokens.s6 : Tokens.s3 }
+            objectName: "ryostore-cover-metadata"
+            visible: cover.hasIdentity && !cover.stage
+            x: Tokens.s3
+            width: parent.width - Tokens.s3 * 2
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Tokens.s3
             spacing: Tokens.s1
 
             Text {
@@ -51,7 +58,7 @@ Item {
                 text: cover.coverTitle
                 color: Tokens.ink
                 font.family: Tokens.display
-                font.pixelSize: cover.stage ? Tokens.fHero : Tokens.fRow
+                font.pixelSize: Tokens.fRow
                 font.weight: Font.Medium
                 elide: Text.ElideRight
             }

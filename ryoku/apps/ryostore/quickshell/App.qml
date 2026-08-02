@@ -160,6 +160,7 @@ Rectangle {
         detailItem = selectedItem;
         detailOpen = true;
         previewItem = null;
+        Qt.callLater(function() { productDetail.focusInitialAction(); });
     }
 
     function closeDetail() {

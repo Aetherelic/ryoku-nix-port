@@ -10,7 +10,15 @@ ShellRoot {
     property real savedOffset: 0
     property int attempts: 0
 
-    Ryo.App { id: app; width: 1180; height: 760 }
+    FloatingWindow {
+        implicitWidth: 1180
+        implicitHeight: 760
+
+        Ryo.App {
+            id: app
+            anchors.fill: parent
+        }
+    }
 
     function require(condition, label) {
         if (!condition)
@@ -83,30 +91,55 @@ ShellRoot {
                 const strip = root.findObject(app, "ryostore-filmstrip");
                 if (!strip)
                     return;
+                if (!strip.activeFocus) {
+                    strip.forceActiveFocus();
+                    return;
+                }
                 strip.restoreOffset(140);
                 root.savedOffset = strip.contentOffset;
                 root.require(root.savedOffset > 0, "fixture starts from a nonzero filmstrip offset");
                 app.openSearch();
                 app.setQuery("installed clock");
-                root.require(app.collection.length === 1, "showroom search projection");
-                root.require(app.selectedKey === "lockscreens:clock", "search retained matching selection");
-                app.openSelectedDetail();
                 root.phase = 4;
                 return;
             }
 
             if (root.phase === 4) {
-                if (!app.detailOpen)
+                const searchField = root.findObject(app, "ryostore-search-field");
+                if (!app.searchOpen || !searchField || !searchField.activeFocus)
                     return;
-                app.escapeLayer();
-                root.require(app.searchOpen && app.query === "installed clock", "detail returns to search layer");
-                app.escapeLayer();
+                root.require(app.collection.length === 1, "showroom search projection");
+                root.require(app.selectedKey === "lockscreens:clock", "search retained matching selection");
+                app.openSelectedDetail();
                 root.phase = 5;
                 return;
             }
 
+            if (root.phase === 5) {
+                const detail = root.findObject(app, "ryostore-detail");
+                const detailClose = root.findObject(detail, "ryostore-detail-close");
+                if (!app.detailOpen || !detail || !detailClose || !detailClose.activeFocus)
+                    return;
+                root.require(detail.activeFocus, "detail focus scope owns keyboard focus");
+                root.require(detailClose.visible, "detail exposes a visible close action");
+                app.escapeLayer();
+                root.phase = 6;
+                return;
+            }
+
+            if (root.phase === 6) {
+                const searchField = root.findObject(app, "ryostore-search-field");
+                if (!app.searchOpen || !searchField || !searchField.activeFocus)
+                    return;
+                root.require(app.query === "installed clock",
+                             "detail restores query and search keyboard focus");
+                app.escapeLayer();
+                root.phase = 7;
+                return;
+            }
+
             const restoredStrip = root.findObject(app, "ryostore-filmstrip");
-            if (app.searchOpen || !restoredStrip
+            if (app.searchOpen || !restoredStrip || !restoredStrip.activeFocus
                     || Math.abs(restoredStrip.contentOffset - root.savedOffset) >= 0.5)
                 return;
             root.require(app.categoryID === "lockscreens" && app.selectedKey === "lockscreens:clock",

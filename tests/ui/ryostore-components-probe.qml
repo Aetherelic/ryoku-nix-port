@@ -407,6 +407,19 @@ ShellRoot {
             root.require(stageArtwork.item.name === "Preview B", "preview owns cover title");
             root.require(stageArtwork.item.category === "rices", "cover category remains committed");
             root.require(stageArtwork.item.installed === false, "cover state remains committed");
+            const previewItem = stage.previewItem;
+            stage.previewItem = null;
+            const stageMetadata = root.findObject(stageArtwork, "ryostore-cover-metadata");
+            root.require(stageMetadata && !stageMetadata.visible,
+                         "stage story owns missing-art product identity");
+            const committedItem = stage.item;
+            stage.item = null;
+            root.require(!stageMetadata.visible, "empty stage hides fallback identity");
+            root.require(stageArtwork.Accessible.ignored,
+                    "empty stage cover leaves the accessibility tree");
+            root.require(!stageDetails.visible, "empty stage hides product actions");
+            stage.item = committedItem;
+            stage.previewItem = previewItem;
             stage.triggerInstall();
             root.require(root.installedKey === "rices:a", "install targets committed selection");
             root.installedKey = "";
