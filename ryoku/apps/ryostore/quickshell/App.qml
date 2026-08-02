@@ -206,7 +206,9 @@ Rectangle {
     }
 
     function escapeLayer() {
-        if (detailOpen)
+        if (detailOpen && productDetail.lightboxOpen)
+            productDetail.closeLightbox();
+        else if (detailOpen)
             closeDetail();
         else if (searchOpen)
             closeSearch();

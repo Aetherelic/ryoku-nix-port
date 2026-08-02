@@ -15,6 +15,9 @@ FocusScope {
     property string installError: ""
     property bool reducedMotion: false
     property real transitionProgress: open ? 1 : 0
+    property int lightboxIndex: -1
+    readonly property bool lightboxOpen: lightboxIndex >= 0 && lightboxIndex < screenshotCount
+    onOpenChanged: if (!open) lightboxIndex = -1
 
     function focusInitialAction() {
         closeButton.forceActiveFocus(Qt.OtherFocusReason);
@@ -77,6 +80,18 @@ FocusScope {
     function triggerSettings() {
         if (item && StoreLogic.secondaryAction(actionItem) !== "")
             settingsRequested(actionItem);
+    }
+
+    function openLightbox(i) {
+        if (i >= 0 && i < screenshotCount)
+            lightboxIndex = i;
+    }
+    function closeLightbox() {
+        lightboxIndex = -1;
+    }
+    function stepLightbox(delta) {
+        if (screenshotCount > 0)
+            lightboxIndex = (lightboxIndex + delta + screenshotCount) % screenshotCount;
     }
 
     Behavior on transitionProgress {
@@ -276,7 +291,7 @@ FocusScope {
         Flickable {
             objectName: "ryostore-detail-screenshots"
             width: parent.width
-            height: detail.screenshotCount > 0 ? 120 : 0
+            height: detail.screenshotCount > 0 ? 200 : 0
             visible: detail.screenshotCount > 0
             clip: true
             contentWidth: screenshotRow.width
@@ -293,16 +308,18 @@ FocusScope {
                     model: detail.screenshots
 
                     delegate: Item {
+                        id: thumb
                         required property var modelData
                         required property int index
-                        width: 204
+                        width: Math.round(screenshotRow.height * 16 / 9)
                         height: screenshotRow.height
-                        Accessible.role: Accessible.Graphic
+                        Accessible.role: Accessible.Button
                         Accessible.name: "Screenshot " + String(index + 1) + " of " + detail.screenshotCount
+                        Accessible.onPressAction: detail.openLightbox(thumb.index)
 
                         ProductMedia {
                             anchors.fill: parent
-                            source: parent.modelData
+                            source: thumb.modelData
                             mode: "cover"
                             active: detail.open
                         }
@@ -310,12 +327,73 @@ FocusScope {
                         Rectangle {
                             anchors.fill: parent
                             color: "transparent"
-                            border.width: Tokens.border
-                            border.color: "#28ffffff"
+                            border.width: thumbHover.hovered ? Tokens.border * 2 : Tokens.border
+                            border.color: thumbHover.hovered
+                                    ? Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.9)
+                                    : "#28ffffff"
                         }
+
+                        HoverHandler { id: thumbHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: detail.openLightbox(thumb.index) }
                     }
                 }
             }
+        }
+    }
+
+    // Lightbox: a tapped screenshot fills the dossier so it can actually be
+    // read, with a shot counter and prev/next; a tap on the backdrop or Escape
+    // (via the app) closes it. Declared last so it sits above the dossier.
+    Item {
+        objectName: "ryostore-detail-lightbox"
+        anchors.fill: parent
+        visible: detail.lightboxOpen
+        z: 5
+
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0, 0, 0.92)
+            TapHandler { onTapped: detail.closeLightbox() }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
+        }
+
+        ProductMedia {
+            anchors.fill: parent
+            anchors.margins: Tokens.s7
+            source: detail.lightboxOpen ? detail.screenshots[detail.lightboxIndex] : ""
+            mode: "plate"
+            active: detail.lightboxOpen
+        }
+
+        Text {
+            anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: Tokens.s5 }
+            text: String(detail.lightboxIndex + 1) + " / " + String(detail.screenshotCount)
+            color: Tokens.ink
+            font.family: Tokens.mono
+            font.pixelSize: Tokens.fMicro
+            font.letterSpacing: Tokens.trackLabel
+        }
+
+        Btn {
+            anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: Tokens.s4 }
+            text: "PREV"
+            visible: detail.screenshotCount > 1
+            armed: visible
+            onAct: detail.stepLightbox(-1)
+            Accessible.role: Accessible.Button
+            Accessible.name: "Previous screenshot"
+            Accessible.onPressAction: detail.stepLightbox(-1)
+        }
+
+        Btn {
+            anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Tokens.s4 }
+            text: "NEXT"
+            visible: detail.screenshotCount > 1
+            armed: visible
+            onAct: detail.stepLightbox(1)
+            Accessible.role: Accessible.Button
+            Accessible.name: "Next screenshot"
+            Accessible.onPressAction: detail.stepLightbox(1)
         }
     }
 }
