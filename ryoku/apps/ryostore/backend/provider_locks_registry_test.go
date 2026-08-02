@@ -33,6 +33,7 @@ func newLockRegistryFixture(t *testing.T) *lockRegistryFixture {
 
 	fixture := &lockRegistryFixture{mainQML: []byte("import QtQuick\nItem {}\n")}
 	preview := []byte("animated-preview")
+	detail := []byte("detail-image")
 	file := func(source, destination string, body []byte, install bool) ProductFile {
 		digest := sha256.Sum256(body)
 		return ProductFile{
@@ -46,6 +47,7 @@ func newLockRegistryFixture(t *testing.T) *lockRegistryFixture {
 		Files: []ProductFile{
 			file("content/Main.qml", "Main.qml", fixture.mainQML, true),
 			file("assets/preview.gif", "assets/preview.gif", preview, false),
+			file("assets/detail.png", "assets/detail.png", detail, false),
 		},
 	}
 	manifestRaw, err := json.Marshal(manifest)
@@ -59,7 +61,7 @@ func newLockRegistryFixture(t *testing.T) *lockRegistryFixture {
 		Path: "lockscreens/clockwork-tape", Author: "Darkkal44",
 		Summary: "Clockwork on magnetic tape.", Description: "A complete qylock scene.",
 		Tags: []string{"clockwork", "retro"}, Accent: "#d7a45f", Surface: "#101010",
-		Preview: "assets/preview.gif", Screenshots: []string{}, Manifest: "manifest.json",
+		Preview: "assets/preview.gif", Screenshots: []string{"assets/detail.png"}, Manifest: "manifest.json",
 		ManifestSHA256: fmt.Sprintf("%x", manifestDigest),
 	}
 	registryRaw, err := json.Marshal(map[string]any{
@@ -82,6 +84,8 @@ func newLockRegistryFixture(t *testing.T) *lockRegistryFixture {
 			_, _ = w.Write(fixture.mainQML)
 		case "/lockscreens/clockwork-tape/assets/preview.gif":
 			_, _ = w.Write(preview)
+		case "/lockscreens/clockwork-tape/assets/detail.png":
+			_, _ = w.Write(detail)
 		default:
 			http.NotFound(w, r)
 		}
@@ -142,6 +146,10 @@ func TestLockProviderBrowsesRegistryOnlyAndJoinsOwnedState(t *testing.T) {
 	if item.Art != fixture.server.URL+"/lockscreens/clockwork-tape/assets/preview.gif" {
 		t.Fatalf("art = %q", item.Art)
 	}
+	if len(item.Screenshots) != 1 ||
+		item.Screenshots[0] != fixture.server.URL+"/lockscreens/clockwork-tape/assets/detail.png" {
+		t.Fatalf("screenshots = %#v", item.Screenshots)
+	}
 	if got := strings.Join(fixture.requestPaths(), ","); got != "/lockscreens/registry.json" {
 		t.Fatalf("browse requests = %q", got)
 	}
@@ -180,14 +188,24 @@ func TestLockProviderInstallsAndRemovesWithoutTouchingCoreFallback(t *testing.T)
 }
 
 func TestLockProviderRejectsMalformedRegistry(t *testing.T) {
-	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"schema":1,"lockscreens":null}`))
-	}))
-	defer srv.Close()
-	cache := &Cache{client: srv.Client(), base: srv.URL, dir: t.TempDir(), memo: map[string]memoEntry{}}
-	if _, _, err := (lockProvider{cache: cache}).Load(context.Background(), false); err == nil {
-		t.Fatal("Load accepted a null lockscreen registry")
+	for name, payload := range map[string]string{
+		"null catalogue":     `{"schema":1,"lockscreens":null}`,
+		"unsupported schema": `{"schema":2,"lockscreens":[]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("XDG_CACHE_HOME", t.TempDir())
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(payload))
+			}))
+			defer srv.Close()
+			cache := &Cache{
+				client: srv.Client(), base: srv.URL,
+				dir: t.TempDir(), memo: map[string]memoEntry{},
+			}
+			if _, _, err := (lockProvider{cache: cache}).Load(context.Background(), false); err == nil {
+				t.Fatalf("Load accepted %s", name)
+			}
+		})
 	}
 }
 

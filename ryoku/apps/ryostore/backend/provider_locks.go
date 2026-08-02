@@ -37,6 +37,9 @@ func (lockProvider) Category() Category {
 }
 
 func (p lockProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceState, error) {
+	if err := adoptLegacyTape(); err != nil {
+		return nil, SourceState{}, fmt.Errorf("lockscreens: adopt legacy Tape: %w", err)
+	}
 	entries, state, err := loadProductRegistry(ctx, p.cache, "lockscreens", refresh)
 	if err != nil {
 		return nil, state, err

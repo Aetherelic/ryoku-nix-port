@@ -8,14 +8,9 @@ import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
-// Lockscreen (DESIGN.md section 8, DESKTOP). Choose the skin the lock and
-// sign-in screens wear, from the qylock themes installed on disk. This is not a
-// settings sheet: the one "key" is a visual choice among tiles, so it is a
-// gallery, drawn bespoke. Data is fetched live from `ryoku-hub lock list` so a
-// hand-dropped skin shows up without a Ryoku release; picking one applies
-// immediately via `ryoku-hub lock set <slug>` (which also reskins the SDDM
-// greeter, so it prompts for the password through pkexec). There is no draft
-// and no Save, so the shell hides its side panel and action bar; this full-bleed
+// Lockscreen management. RyoStore owns discovery and installation; this page
+// lists installed qylock themes and keeps activation, live preview, and greeter
+// application in Settings.
 // page owns the whole content region and draws its own head, states and grid.
 // The pick only swaps the look, never the login. Every value is a Token; the
 // live skin thumbnail is the one permitted specimen of colour (a lock preview),
@@ -35,12 +30,6 @@ Item {
     property bool loadFailed: false
     property string pendingSlug: ""   // "" idle, else the slug being applied
     property string error: ""
-    property bool online: true
-    property bool refreshing: false     // the Refresh button is fetching
-    property string status: ""          // transient cue under the title
-    property bool cacheWarmed: false    // the background preview warm ran this session
-    property bool pendingInstall: false // the in-flight apply is a download+install
-    property string listMode: ""        // "" normal · "refresh" button · "silent" post-warm
 
     // the in-session lock preview script; running it locks the screen with the
     // named skin so the user sees the real thing (an action, not a pane).
@@ -140,37 +129,21 @@ Item {
         ksetProc.running = true;
     }
 
+    function browseStore() {
+        Quickshell.execDetached(["ryostore", "open", "lockscreens"]);
+    }
     function reload() {
-        pg.listMode = "";
-        pg.loading = pg.skins.length === 0; // full spinner only when nothing is shown yet
+        pg.loading = pg.skins.length === 0;
         pg.loadFailed = false;
-        listProc.command = ["ryoku-hub", "lock", "catalog"];
+        listProc.command = ["ryoku-hub", "lock", "list"];
         listProc.running = true;
     }
-    // the Refresh button: pull a fresh upstream tree (new/removed designs) with a
-    // visible cue; the grid stays put and a short status reports the delta.
-    function refresh() {
-        if (pg.refreshing || pg.pendingSlug !== "")
-            return;
-        pg.error = "";
-        pg.listMode = "refresh";
-        pg.refreshing = true;
-        pg.status = "Fetching designs\u2026";
-        listProc.command = ["ryoku-hub", "lock", "catalog", "--refresh"];
-        listProc.running = true;
-    }
-    // fire-and-apply: a no-op if the tile is active or an apply is in flight. an
-    // uninstalled catalogue skin installs (downloads) then activates; an installed
-    // one just activates. no draft, no Save.
     function select(skin) {
         if (skin.slug === pg.active || pg.pendingSlug !== "")
             return;
         pg.error = "";
         pg.pendingSlug = skin.slug;
-        pg.pendingInstall = !skin.installed;
-        actProc.command = skin.installed
-            ? ["ryoku-hub", "lock", "set", skin.slug]
-            : ["ryoku-hub", "lock", "install", skin.slug];
+        actProc.command = ["ryoku-hub", "lock", "set", skin.slug];
         actProc.running = true;
     }
     function preview(slug) {
@@ -211,80 +184,46 @@ Item {
     }
     readonly property var grouped: pg.buildColumns(pg.shown, pg.cols)
 
-    // ── data load (backend unchanged) ───────────────────────────────────────
+    // ── installed themes from Ryoku Hub ─────────────────────────────────────
     Process {
         id: listProc
-        command: ["ryoku-hub", "lock", "catalog"]
+        command: ["ryoku-hub", "lock", "list"]
         stdout: StdioCollector {
             onStreamFinished: {
-                var prev = pg.skins.length;
                 try {
-                    var o = JSON.parse(this.text);
-                    var ss = o.skins || [];
-                    for (var i = 0; i < ss.length; i++)
-                        ss[i].ordinal = i + 1;
-                    pg.skins = ss;
-                    pg.active = o.active || "";
-                    pg.online = o.online !== false;
-                    pg.loadFailed = ss.length === 0;
+                    const response = JSON.parse(this.text || "{}");
+                    pg.skins = (response.skins || []).map((skin, index) => ({
+                        slug: skin.slug,
+                        name: skin.name || skin.slug,
+                        theme: skin.theme || "",
+                        preview: skin.preview || "",
+                        summary: skin.summary || "",
+                        blurb: skin.blurb || "",
+                        tags: skin.tags || [],
+                        active: skin.active === true,
+                        installed: true,
+                        ordinal: index + 1
+                    }));
+                    pg.active = response.active || "";
+                    pg.loadFailed = false;
                 } catch (e) {
                     pg.skins = [];
                     pg.loadFailed = true;
-                    pg.online = false;
                 }
                 pg.loading = false;
-                if (pg.listMode === "refresh") {
-                    var delta = pg.skins.length - prev;
-                    pg.status = pg.loadFailed ? "Couldn't reach qylock"
-                        : (delta > 0 ? ("+" + delta + " new design" + (delta === 1 ? "" : "s"))
-                        : (pg.online ? "Up to date" : "Offline \u2014 showing installed skins"));
-                    pg.refreshing = false;
-                    statusClear.restart();
-                }
-                // warm the preview cache after a fresh listing, but not after the
-                // silent re-list the warm itself triggers (that would loop).
-                if (pg.listMode !== "silent") {
-                    cacheProc.command = ["ryoku-hub", "lock", "cache"];
-                    cacheProc.running = true;
-                }
-                pg.listMode = "";
             }
         }
     }
     Process {
         id: actProc
         stderr: StdioCollector { id: actErr }
-        onExited: (code) => {
+        onExited: code => {
             if (code !== 0)
-                pg.error = (pg.pendingInstall ? "Couldn't install skin: " : "Couldn't switch skin: ") + (actErr.text.trim() || ("exit " + code));
+                pg.error = "Couldn't switch skin: " + (actErr.text.trim() || ("exit " + code));
             pg.pendingSlug = "";
-            pg.pendingInstall = false;
-            // re-list to pick up the new active + installed skin; no loading flash.
-            pg.listMode = "";
-            listProc.command = ["ryoku-hub", "lock", "catalog"];
-            listProc.running = true;
+            pg.reload();
         }
     }
-    // warm the preview cache after a listing (missing + stale gifs). the Hub runs
-    // it in the background so previews cache on first open and refresh over time;
-    // the first warm silently re-lists so cached paths replace the remote URLs.
-    Process {
-        id: cacheProc
-        stdout: StdioCollector { id: cacheOut }
-        onExited: (code) => {
-            var fetched = 0;
-            try { fetched = (JSON.parse(cacheOut.text).fetched) || 0; } catch (e) {}
-            if (fetched > 0 && !pg.cacheWarmed) {
-                pg.cacheWarmed = true;
-                pg.listMode = "silent";
-                listProc.command = ["ryoku-hub", "lock", "catalog"];
-                listProc.running = true;
-            } else {
-                pg.cacheWarmed = true;
-            }
-        }
-    }
-    Timer { id: statusClear; interval: 3500; onTriggered: pg.status = "" }
 
     // ── sign-in keyring backend ─────────────────────────────────────────────
     Process {
@@ -368,36 +307,18 @@ Item {
             height: title.height
             Text {
                 id: title
-                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                text: I18n.tr("Lockscreen"); color: Tokens.ink
-                font.family: Tokens.display; font.pixelSize: Tokens.fTitle
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: I18n.tr("Lockscreen")
+                color: Tokens.ink
+                font.family: Tokens.display
+                font.pixelSize: Tokens.fTitle
             }
-            Row {
-                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                spacing: Tokens.s2
-                // transient cue: what the last refresh did ("+N new", "Up to date").
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: pg.status !== ""
-                    text: pg.status
-                    color: Tokens.inkMuted; font.family: Tokens.ui
-                    font.pixelSize: Tokens.fSmall; font.weight: Font.Medium
-                }
-                // spins only while a fetch is genuinely in flight.
-                Glyph {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: pg.refreshing
-                    path: pg.pRefresh; size: 15; weight: 2; tint: Tokens.inkMuted
-                    RotationAnimator on rotation {
-                        from: 0; to: 360; duration: 900; loops: Animation.Infinite; running: pg.refreshing
-                    }
-                }
-                Btn {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: pg.refreshing ? I18n.tr("FETCHING\u2026") : I18n.tr("REFRESH")
-                    armed: pg.pendingSlug === "" && !pg.refreshing
-                    onAct: pg.refresh()
-                }
+            Btn {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                text: I18n.tr("BROWSE RYOSTORE")
+                onAct: pg.browseStore()
             }
         }
 
@@ -647,9 +568,7 @@ Item {
                             skin: modelData
                             ordinal: modelData.ordinal || 0
                             active: modelData.slug === pg.active
-                            installed: modelData.installed === true
                             busy: pg.pendingSlug === modelData.slug
-                            installing: pg.pendingInstall && pg.pendingSlug === modelData.slug
                             onApplied: pg.select(modelData)
                             onPreviewed: pg.preview(modelData.slug)
                         }
@@ -737,8 +656,6 @@ Item {
         property int ordinal: 0
         property bool active: false
         property bool busy: false      // an apply is in flight for this skin
-        property bool installed: false  // on disk already (catalogue skins install on pick)
-        property bool installing: false // the in-flight apply is a download+install
         property Flickable viewport: null
         signal applied()
         signal previewed()
@@ -810,15 +727,13 @@ Item {
                     path: pg.pLock; size: 34; tint: Tokens.inkMuted
                 }
 
-                // live-preview chip: locks the screen with this skin so the user
-                // sees the real thing. only for an installed skin (the lock needs
-                // its files on disk); a catalogue skin installs first, on pick.
+                // Installed themes can always be previewed with the real lock.
                 Rectangle {
                     anchors { left: parent.left; bottom: parent.bottom; margins: Tokens.s2 }
                     width: pvRow.implicitWidth + Tokens.s4
                     height: Tokens.ctlH
                     radius: Tokens.radius
-                    visible: !tile.busy && tile.installed
+                    visible: !tile.busy
                     // a scrim over a colour specimen to seat the label, not an
                     // app-surface fill.
                     color: Qt.rgba(0, 0, 0, 0.55)
@@ -869,7 +784,7 @@ Item {
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: tile.installing ? I18n.tr("Installing\u2026") : I18n.tr("Applying\u2026"); color: Tokens.ink
+                            text: I18n.tr("Applying\u2026"); color: Tokens.ink
                             font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.Medium
                         }
                     }
@@ -892,19 +807,6 @@ Item {
                     font.family: Tokens.mono; font.pixelSize: Tokens.fValue
                     Behavior on color { ColorAnimation { duration: Tokens.snap } }
                 }
-                // catalogue skin not yet on disk: picking it downloads then applies.
-                Text {
-                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                    visible: !tile.installed && !tile.busy && !tile.active
-                    text: I18n.tr("INSTALL") + (tile.skin.sizeKB > 0
-                        ? "  \u00b7  " + (tile.skin.sizeKB >= 1024
-                            ? (Math.round(tile.skin.sizeKB / 102.4) / 10 + I18n.tr(" MB"))
-                            : (tile.skin.sizeKB + I18n.tr(" KB")))
-                        : "")
-                    color: Tokens.inkFaint
-                    font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
-                    font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
-                }
 
                 Row {
                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
@@ -916,7 +818,7 @@ Item {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: tile.busy ? (tile.installing ? I18n.tr("INSTALLING") : I18n.tr("APPLYING")) : I18n.tr("ACTIVE")
+                        text: tile.busy ? I18n.tr("APPLYING") : I18n.tr("ACTIVE")
                         color: Tokens.ink
                         font.family: Tokens.ui; font.pixelSize: 10
                         font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel

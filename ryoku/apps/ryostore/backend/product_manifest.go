@@ -19,8 +19,9 @@ const (
 )
 
 var (
-	productIDPattern   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-	productHashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	productIDPattern    = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	productHashPattern  = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	productColorPattern = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
 )
 
 // ProductEntry is the common registry envelope shared by every extras category.
@@ -149,6 +150,19 @@ func validateProductEntry(category string, entry ProductEntry) error {
 		"path": entry.Path, "preview": entry.Preview, "manifest": entry.Manifest,
 	} {
 		if !validProductPath(value) {
+			return fmt.Errorf("%s: invalid %s %q", label, name, value)
+		}
+	}
+	if entry.Tags == nil {
+		return fmt.Errorf("%s: missing tags", label)
+	}
+	if entry.Screenshots == nil {
+		return fmt.Errorf("%s: missing screenshots", label)
+	}
+	for name, value := range map[string]string{
+		"accent": entry.Accent, "surface": entry.Surface,
+	} {
+		if !productColorPattern.MatchString(value) {
 			return fmt.Errorf("%s: invalid %s %q", label, name, value)
 		}
 	}

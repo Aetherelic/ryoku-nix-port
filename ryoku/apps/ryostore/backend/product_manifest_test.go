@@ -122,6 +122,25 @@ func TestProductManifestValid(t *testing.T) {
 	}
 }
 
+func TestProductEntryRequiresCompleteVisualContract(t *testing.T) {
+	tests := map[string]func(*ProductEntry){
+		"tags":        func(entry *ProductEntry) { entry.Tags = nil },
+		"screenshots": func(entry *ProductEntry) { entry.Screenshots = nil },
+		"accent":      func(entry *ProductEntry) { entry.Accent = "red" },
+		"surface":     func(entry *ProductEntry) { entry.Surface = "#12345" },
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			entry, _ := productManifestContract()
+			entry.ManifestSHA256 = strings.Repeat("a", 64)
+			mutate(&entry)
+			if err := validateProductEntry("rices", entry); err == nil {
+				t.Fatalf("validateProductEntry() accepted invalid %s", name)
+			}
+		})
+	}
+}
+
 func TestProductManifestHashMismatch(t *testing.T) {
 	entry, _ := productManifestContract()
 	raw := []byte("{")

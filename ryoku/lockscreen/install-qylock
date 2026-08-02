@@ -117,6 +117,18 @@ write_user() {
   printf '%s\n' "$content" | "${USER_RUN[@]}" tee "$path" >/dev/null
 }
 
+legacy_tape_matches() {
+  local dir="$1"
+  [[ -d $dir && ! -L $dir ]] || return 1
+  [[ -z $(find "$dir" -type l -print -quit) ]] || return 1
+  [[ $(find "$dir" -type f -print | wc -l) -eq 5 ]] || return 1
+  [[ $(sha256sum "$dir/Main.qml" | cut -d' ' -f1) == 106fee628bb634e2b7ee87a4851532a42cbe635ae745d385fc5296e9098dc015 ]]
+  [[ $(sha256sum "$dir/font/Outfit-Black.ttf" | cut -d' ' -f1) == f240e6128c31a75aa3f456ea1ff3b0fda382176681788ae3d244d08e3fa7d6cd ]]
+  [[ $(sha256sum "$dir/metadata.desktop" | cut -d' ' -f1) == 37615671bab45ab45979cc9938c0bb8892f58760bd865a5286f58c342dacdf97 ]]
+  [[ $(sha256sum "$dir/theme.conf" | cut -d' ' -f1) == 002c24b024b3e0788052f178acd7c6cec25f08e2486b4bfb123c7c8b1b8a4475 ]]
+  [[ $(sha256sum "$dir/preview.gif" | cut -d' ' -f1) == 93237dfb00b51b9fcd0bc153e076a03a7315b490052f16756d9fd020057b1a02 ]]
+}
+
 QYLOCK_DIR="$TARGET_HOME/.local/share/qylock"
 LOCK_DIR="$TARGET_HOME/.local/share/quickshell-lockscreen"
 
@@ -155,7 +167,37 @@ user chmod +x "$LOCK_DIR/lock.sh"
 
 # --- 4. themes the lock reads, plus the themes_link the lock resolves ---------
 echo "  lock themes -> $QYLOCK_DIR/themes"
+for parent in "$QYLOCK_DIR" "$QYLOCK_DIR/themes" "$QYLOCK_DIR/themes/clockwork"; do
+  if [[ -L $parent ]]; then
+    echo "install-qylock: refusing symlinked lock theme parent: $parent" >&2
+    exit 1
+  fi
+done
 user mkdir -p "$QYLOCK_DIR"
+legacy_tape="$QYLOCK_DIR/themes/clockwork/tape"
+product_tape="$QYLOCK_DIR/themes/clockwork-tape"
+if [[ ! -e $product_tape ]] && legacy_tape_matches "$legacy_tape"; then
+  echo "  migrate clockwork/tape -> clockwork-tape"
+  user mv "$legacy_tape" "$product_tape"
+  user rm "$product_tape/preview.gif"
+  user cp "$BUNDLE/LICENSE" "$product_tape/LICENSE"
+  write_user "$product_tape/PROVENANCE.txt" <<'EOF'
+Clockwork Tape qylock theme
+
+Upstream: https://github.com/Darkkal44/qylock
+Vendored from commit: cde4d11e9e3d385620becdc877a0521e40a55e47
+Author: Darkkal44 and qylock contributors
+License: GNU General Public License version 3; see LICENSE
+
+Ryoku adds assets/preview.gif as catalogue media rendered from the theme. The preview is not installed with the runtime payload.
+EOF
+  preference="$TARGET_HOME/.config/qylock/theme"
+  if [[ ! -L $preference && -f $preference && $(<"$preference") == "clockwork/tape" ]]; then
+    write_user "$preference" <<'EOF'
+clockwork-tape
+EOF
+  fi
+fi
 # Refresh only the core fallback. Optional themes are receipt-owned RyoStore
 # products, and legacy user themes must survive installer/doctor reruns.
 user mkdir -p "$QYLOCK_DIR/themes/clockwork"
