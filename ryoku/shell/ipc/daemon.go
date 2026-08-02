@@ -244,34 +244,33 @@ func quitStaleDaemon(path string) {
 	}
 }
 
-// setupQmlImportPath puts the home-installed Ryoku QML modules (the Ryoku.Blobs
-// plugin behind the frame) on the import path the supervised quickshell
-// processes inherit. deploy.sh installs the modules under ~/.local/lib/qt6/qml,
-// which is not a default Qt import path.
-//
-// Only a home-deployed daemon (a dev checkout or a recovery run, itself living
-// in ~/.local/bin) prefers that dir; a packaged /usr/bin daemon sticks to the
-// packaged modules under /usr/lib/qt6/qml. Whoever owns the daemon owns the
-// QML: without this, one old deploy leaves a frozen plugin that silently
-// shadows every future pacman update of ryoku-blobs.
+// setupQmlImportPath puts the active shell config root and home-installed
+// Ryoku plugins on the import path inherited by supervised Quickshell
+// processes. External Store scenes import stable modules from the config root;
+// dev sessions point at the checkout instead of a materialized copy.
 func setupQmlImportPath() {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return
 	}
-	exe, _ := os.Executable()
-	if !strings.HasPrefix(exe, home+string(os.PathSeparator)) {
-		if _, err := os.Stat("/usr/lib/qt6/qml/Ryoku/Blobs/qmldir"); err == nil {
-			return
-		}
+	shellRoot := filepath.Join(home, ".config", "quickshell")
+	if shellDir != "" {
+		shellRoot = filepath.Join(shellDir, "quickshell")
 	}
-	dir := filepath.Join(home, ".local", "lib", "qt6", "qml")
-	for _, v := range []string{"QML2_IMPORT_PATH", "QML_IMPORT_PATH"} {
-		if cur := os.Getenv(v); cur != "" {
-			_ = os.Setenv(v, dir+string(os.PathListSeparator)+cur)
-		} else {
-			_ = os.Setenv(v, dir)
+	dirs := []string{shellRoot}
+	exe, _ := os.Executable()
+	if strings.HasPrefix(exe, home+string(os.PathSeparator)) {
+		dirs = append(dirs, filepath.Join(home, ".local", "lib", "qt6", "qml"))
+	} else if _, err := os.Stat("/usr/lib/qt6/qml/Ryoku/Blobs/qmldir"); err != nil {
+		dirs = append(dirs, filepath.Join(home, ".local", "lib", "qt6", "qml"))
+	}
+	prefix := strings.Join(dirs, string(os.PathListSeparator))
+	for _, name := range []string{"QML2_IMPORT_PATH", "QML_IMPORT_PATH"} {
+		value := prefix
+		if current := os.Getenv(name); current != "" {
+			value += string(os.PathListSeparator) + current
 		}
+		_ = os.Setenv(name, value)
 	}
 }
 

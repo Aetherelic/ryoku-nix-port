@@ -2,7 +2,6 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const Nacre = require("./NacreConfig.js");
-const BarStyles = require("../quickshell/pill/barstyles/registry.js");
 
 let failed = 0;
 
@@ -43,7 +42,6 @@ eq(defaults.edgeMelt, 8, "edge melt matches main");
 eq(defaults.islandScale, 1, "island size defaults to full scale");
 eq(defaults.osdScale, 1, "OSD size defaults to full scale");
 eq(Nacre.entry("workspaces"), { id: "workspaces", label: "Workspaces", file: "Workspaces.qml" }, "catalog resolves widget metadata");
-eq(BarStyles.entry("nacre").scene, "barstyles/nacre/Scene.qml", "bar registry resolves the Nacre scene");
 
 const normalized = Nacre.normalize({
     islands: {

@@ -1,3 +1,4 @@
+module pill.Singletons
 singleton Theme Theme.qml
 singleton Config Config.qml
 singleton Scheme Scheme.qml
@@ -34,3 +35,4 @@ singleton Capture Capture.qml
 singleton OsdFeed OsdFeed.qml
 singleton DockPreview DockPreview.qml
 singleton WallIndex WallIndex.qml
+singleton BarProducts BarProducts.qml

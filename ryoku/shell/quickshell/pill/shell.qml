@@ -19,7 +19,6 @@ import Ryoku.FrameBars
 import Ryoku.Ui
 import "Singletons"
 import "framebars/RailGeometry.js" as RailGeometry
-import "barstyles/registry.js" as BarStyles
 
 // Per monitor the shell maps exclusive-zone frame rails, a
 // full-screen transparent overlay for the frame and retained surfaces, and the
@@ -89,7 +88,7 @@ ShellRoot {
 
     // Active bar style: the built-in Sumi frame scene draws only while the
     // active style is the built-in one; Nacre can reuse its frame without rails.
-    readonly property bool sumiActive: BarStyles.sceneUrl(Config.barStyle) === ""
+    readonly property bool sumiActive: BarProducts.sceneUrl(Config.barStyle) === ""
     property var edgeRevealed: ({ top: false, bottom: false, left: false, right: false })
     // The reveal baseline (config `reveal` per edge) is applied live after
     // startup: a Bar Studio pin/auto-hide edit retargets edgeRevealed for the
@@ -797,16 +796,15 @@ ShellRoot {
         }
     }
 
-    // Folder bar styles: a per-monitor Loader hosting the active style's own
-    // Scene (its bar surfaces + popouts) from pill/barstyles/<id>. Sumi is the
-    // built-in frame scene above; any other style loads here. The shell-wide
-    // surfaces below (OSD, notifications, session dialog) stay style-agnostic.
+    // Store bar styles: a per-monitor Loader hosts an installed product's
+    // versioned Scene URL. Sumi is the built-in frame scene above; shell-wide
+    // surfaces below stay style-agnostic.
     Variants {
         model: Quickshell.screens
         Loader {
             required property var modelData
             active: !root.sumiActive
-            source: BarStyles.sceneUrl(Config.barStyle)
+            source: BarProducts.sceneUrl(Config.barStyle)
             onLoaded: if (item) item.modelData = modelData
             onModelDataChanged: if (item) item.modelData = modelData
         }

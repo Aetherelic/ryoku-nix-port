@@ -847,10 +847,6 @@ func (riceProvider) Remove(ctx context.Context, id string) error {
 	return removeProduct(ctx, "rices", id)
 }
 
-func (barProvider) Remove(ctx context.Context, id string) error {
-	return removeProduct(ctx, "barstyles", id)
-}
-
 func (fastfetchProvider) Remove(ctx context.Context, id string) error {
 	return removeProduct(ctx, "fastfetch", id)
 }

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Changed
+- `ryostore/`: **Nacre and Obi are installable Store products instead of
+  bundled shell payloads.** Their complete QML scenes now live in the external
+  catalogue with generated previews and strict manifests. RyoStore owns their
+  install receipts, publishes a derived installed-style index, and the shell
+  reloads a changed product in place from its versioned URL; removing the active
+  product falls back to built-in Sumi without restarting the shell.
 - `nvim/`: **the editor follows the live wallpaper palette.** `ryoku.lua` pinned
   `tokyonight-night` flat, so the editor ignored the theme while kitty and the
   shell tracked it. It now reads the daemon's `~/.cache/ryoku/colors.json` (the

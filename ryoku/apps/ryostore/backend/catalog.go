@@ -25,7 +25,7 @@ func providers() []Provider {
 	return []Provider{
 		newLockProvider(c),
 		newRiceProvider(c),
-		newBarProvider(),
+		newBarProvider(c),
 		newFastfetchProvider(c),
 		pluginProvider{cache: c},
 		bundleProvider{cache: c, status: defaultBundleStatus, launch: launchBundleInstall},

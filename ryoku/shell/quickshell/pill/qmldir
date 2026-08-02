@@ -1,0 +1,10 @@
+module pill
+HFader 1.0 HFader.qml
+AudioAppRow 1.0 AudioAppRow.qml
+SymbolIcon 1.0 SymbolIcon.qml
+GlyphIcon 1.0 GlyphIcon.qml
+MaterialIcon 1.0 MaterialIcon.qml
+MusicBars 1.0 MusicBars.qml
+NotificationCard 1.0 NotificationCard.qml
+BrandMark 1.0 BrandMark.qml
+TrayMenu 1.0 TrayMenu.qml
