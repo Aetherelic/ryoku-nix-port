@@ -104,10 +104,14 @@ Rectangle {
         filmstripOffset = context.filmstripOffset;
         Qt.callLater(function() {
             app.reconcileSelection(0);
-            if (context.focusObject && context.focusObject.forceActiveFocus)
-                context.focusObject.forceActiveFocus();
-            else
-                filmstrip.forceActiveFocus();
+            Qt.callLater(function() {
+                filmstrip.restoreOffset(context.filmstripOffset);
+                app.filmstripOffset = filmstrip.contentOffset;
+                if (context.focusObject && context.focusObject.forceActiveFocus)
+                    context.focusObject.forceActiveFocus();
+                else
+                    filmstrip.forceActiveFocus();
+            });
         });
     }
 

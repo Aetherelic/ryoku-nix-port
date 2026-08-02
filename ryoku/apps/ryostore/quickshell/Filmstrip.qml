@@ -10,6 +10,7 @@ FocusScope {
     property bool reducedMotion: false
     property string pendingKey: selectedKey
     property bool wheelDirty: false
+    property bool restoringOffset: false
 
     signal previewRequested(var item)
     signal selectionRequested(var item)
@@ -21,6 +22,13 @@ FocusScope {
     readonly property bool kineticEnabled: !reducedMotion
 
     activeFocusOnTab: true
+
+    function restoreOffset(offset) {
+        const maximum = Math.max(0, flick.contentWidth - flick.width);
+        restoringOffset = true;
+        flick.contentX = Math.max(0, Math.min(maximum, Number(offset) || 0));
+        restoringOffset = false;
+    }
 
     function positionFor(key) {
         for (var i = 0; i < items.length; i++)
@@ -133,7 +141,7 @@ FocusScope {
         }
 
         Behavior on contentX {
-            enabled: !strip.reducedMotion && !flick.dragging && !flick.flicking
+            enabled: !strip.reducedMotion && !strip.restoringOffset && !flick.dragging && !flick.flicking
             NumberAnimation { duration: Tokens.move; easing.type: Tokens.ease }
         }
 
@@ -141,6 +149,8 @@ FocusScope {
 
         Row {
             id: products
+            width: Math.max(0, strip.items.length * strip.cardWidth
+                            + Math.max(0, strip.items.length - 1) * spacing)
             height: parent.height
             spacing: Tokens.s3
 

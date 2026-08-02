@@ -75,30 +75,46 @@ ShellRoot {
                 root.require(app.detailItem.installed === true, "detail refreshed from backend");
                 app.closeDetail();
                 root.require(app.selectedKey === "lockscreens:clock", "detail restored selection");
-                root.savedOffset = app.filmstripOffset;
-                app.openSearch();
-                app.setQuery("installed clock");
-                root.require(app.collection.length === 1, "showroom search projection");
-                root.require(app.selectedKey === "lockscreens:clock", "search retained matching selection");
-                app.openSelectedDetail();
                 root.phase = 3;
                 return;
             }
 
             if (root.phase === 3) {
+                const strip = root.findObject(app, "ryostore-filmstrip");
+                if (!strip)
+                    return;
+                strip.restoreOffset(140);
+                root.savedOffset = strip.contentOffset;
+                root.require(root.savedOffset > 0, "fixture starts from a nonzero filmstrip offset");
+                app.openSearch();
+                app.setQuery("installed clock");
+                root.require(app.collection.length === 1, "showroom search projection");
+                root.require(app.selectedKey === "lockscreens:clock", "search retained matching selection");
+                app.openSelectedDetail();
+                root.phase = 4;
+                return;
+            }
+
+            if (root.phase === 4) {
                 if (!app.detailOpen)
                     return;
                 app.escapeLayer();
                 root.require(app.searchOpen && app.query === "installed clock", "detail returns to search layer");
                 app.escapeLayer();
-                root.require(!app.searchOpen, "search layer closed");
-                root.require(app.categoryID === "lockscreens" && app.selectedKey === "lockscreens:clock",
-                             "search restored exact context");
-                root.require(Math.abs(app.filmstripOffset - root.savedOffset) < 0.5,
-                             "search restored filmstrip offset");
-                console.log("RYOSTORE-FLOW-PROBE-PASS");
-                Qt.quit();
+                root.phase = 5;
+                return;
             }
+
+            const restoredStrip = root.findObject(app, "ryostore-filmstrip");
+            if (app.searchOpen || !restoredStrip
+                    || Math.abs(restoredStrip.contentOffset - root.savedOffset) >= 0.5)
+                return;
+            root.require(app.categoryID === "lockscreens" && app.selectedKey === "lockscreens:clock",
+                         "search restored exact context");
+            root.require(Math.abs(app.filmstripOffset - root.savedOffset) < 0.5,
+                         "coordinator mirrors restored filmstrip offset");
+            console.log("RYOSTORE-FLOW-PROBE-PASS");
+            Qt.quit();
         }
     }
 }
