@@ -138,6 +138,11 @@ func runInternal(args []string) error {
 			return fmt.Errorf("internal remove-guest needs <kind> <id>")
 		}
 		return removeGuest(args[1], args[2])
+	case "apply-fastfetch":
+		if len(args) != 2 {
+			return fmt.Errorf("internal apply-fastfetch needs <id>")
+		}
+		return applyFastfetchStyle(args[1])
 	default:
 		return fmt.Errorf("unknown internal command %q", args[0])
 	}

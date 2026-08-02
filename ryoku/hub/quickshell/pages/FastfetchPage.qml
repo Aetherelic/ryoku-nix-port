@@ -37,6 +37,24 @@ Item {
     property int rev: 0
     // which overlay is open: the "add a row" catalogue.
     property bool addOpen: false
+    property var installedStoreStyles: []
+    property bool storeStyleOpen: false
+    property string storeStyleError: ""
+
+    function storeStyleLabels() {
+        return pg.installedStoreStyles.map(function (item) { return item.name; });
+    }
+    function applyStoreStyle(label) {
+        for (var i = 0; i < pg.installedStoreStyles.length; i++) {
+            var item = pg.installedStoreStyles[i];
+            if (item.name === label) {
+                pg.storeStyleError = "";
+                applyStoreStyleProc.command = ["ryostore", "internal", "apply-fastfetch", item.id];
+                applyStoreStyleProc.running = true;
+                return;
+            }
+        }
+    }
 
     readonly property bool dirty: {
         void pg.rev;
@@ -46,6 +64,9 @@ Item {
     // fastfetch's own config path; the head's EDIT CONFIG opens it raw, the same
     // file the Hub writes on Save so hand-edits and the GUI share one source.
     readonly property string configPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/fastfetch/config.jsonc"
+    function browseFastfetch() {
+        Quickshell.execDetached(["ryostore", "open", "fastfetch"]);
+    }
 
     // info modules the Add menu offers, beyond the brand lines already present.
     readonly property var catalog: [
@@ -95,6 +116,33 @@ Item {
         }
     }
 
+    Process {
+        id: storeStylesProc
+        command: ["ryostore", "catalog", "--category", "fastfetch"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    var catalogue = JSON.parse(this.text);
+                    pg.installedStoreStyles = catalogue.items.filter(function (item) { return item.installed; });
+                } catch (e) {
+                    pg.installedStoreStyles = [];
+                }
+            }
+        }
+    }
+    Process {
+        id: applyStoreStyleProc
+        stderr: StdioCollector { id: applyStoreStyleError }
+        onExited: function (code) {
+            if (code !== 0) {
+                pg.storeStyleError = applyStoreStyleError.text.trim() || I18n.tr("Couldn't apply the Store style.");
+                return;
+            }
+            getProc.running = true;
+            storeStylesProc.running = true;
+        }
+    }
     // ---- edit helpers (reassign model so bindings + dirty re-evaluate) -------
     function clone() { return JSON.parse(JSON.stringify(pg.model)); }
     function commitModel(m) { pg.model = m; pg.rev++; pg.queuePreview(); }
@@ -480,29 +528,35 @@ Item {
                 text: I18n.tr("Fastfetch"); color: Tokens.ink
                 font.family: Tokens.display; font.pixelSize: Tokens.fTitle
             }
-            // the page's one utility action (section 8): open the raw config the
-            // Hub also writes on Save, so hand-edits and the GUI share one file.
-            Btn {
-                id: editBtn
-                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                text: I18n.tr("EDIT CONFIG")
-                onAct: pg.openConfig()
+            Row {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Tokens.s2
+                Btn {
+                    text: I18n.tr("BROWSE RYOSTORE")
+                    onAct: pg.browseFastfetch()
+                }
+                Btn {
+                    id: editBtn
+                    text: I18n.tr("EDIT CONFIG")
+                    onAct: pg.openConfig()
 
-                HoverHandler { id: editHov; cursorShape: Qt.PointingHandCursor }
-                ToolTip {
-                    id: editTip
-                    visible: editHov.hovered
-                    delay: 300
-                    text: I18n.tr("Opens the fastfetch readout config (config.jsonc) directly. Yours; the Hub writes your changes here too.")
-                    contentItem: Text {
-                        width: 260
-                        text: editTip.text
-                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                        wrapMode: Text.WordWrap
-                    }
-                    background: Rectangle {
-                        color: Tokens.paperLift; radius: Tokens.radius
-                        border.width: Tokens.border; border.color: Tokens.lineStrong
+                    HoverHandler { id: editHov; cursorShape: Qt.PointingHandCursor }
+                    ToolTip {
+                        id: editTip
+                        visible: editHov.hovered
+                        delay: 300
+                        text: I18n.tr("Opens the fastfetch readout config (config.jsonc) directly. Yours; the Hub writes your changes here too.")
+                        contentItem: Text {
+                            width: 260
+                            text: editTip.text
+                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+                        background: Rectangle {
+                            color: Tokens.paperLift; radius: Tokens.radius
+                            border.width: Tokens.border; border.color: Tokens.lineStrong
+                        }
                     }
                 }
             }
@@ -513,6 +567,30 @@ Item {
             text: I18n.tr("The branded terminal readout: pick the emblem (an image, ASCII art, or a built-in), choose what shows, reorder and rename the rows, and edit the tagline, with a live preview.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
+        }
+        Row {
+            visible: pg.installedStoreStyles.length > 0
+            spacing: Tokens.s3
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: I18n.tr("STORE LIBRARY") + " · " + pg.installedStoreStyles.length
+                color: Tokens.inkMuted
+                font.family: Tokens.ui
+                font.pixelSize: Tokens.fTiny
+                font.weight: Font.Medium
+                font.letterSpacing: Tokens.trackMark
+            }
+            Btn {
+                text: I18n.tr("APPLY INSTALLED STYLE")
+                onAct: pg.storeStyleOpen = true
+            }
+        }
+        Text {
+            visible: pg.storeStyleError !== ""
+            text: pg.storeStyleError
+            color: Tokens.ink
+            font.family: Tokens.ui
+            font.pixelSize: Tokens.fSmall
         }
     }
 
@@ -1092,6 +1170,29 @@ Item {
 
             // absorb clicks inside the card so the scrim does not treat a
             // header/padding tap as an outside dismiss.
+            MouseArea { anchors.fill: parent; z: -1 }
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        visible: pg.storeStyleOpen
+        z: 100
+        onClicked: pg.storeStyleOpen = false
+        onVisibleChanged: if (visible) storeStylePicker.open()
+
+        Picker {
+            id: storeStylePicker
+            anchors.centerIn: parent
+            title: I18n.tr("Apply a Store style")
+            options: pg.storeStyleLabels()
+            current: ""
+            onChose: (label) => {
+                pg.applyStoreStyle(label);
+                pg.storeStyleOpen = false;
+            }
+            onDismissed: pg.storeStyleOpen = false
+
             MouseArea { anchors.fill: parent; z: -1 }
         }
     }

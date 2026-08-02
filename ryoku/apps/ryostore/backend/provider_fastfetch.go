@@ -1,35 +1,14 @@
-// The Fastfetch provider keeps the future category honest: an uncached 404 is
-// an empty catalogue, while a real registry is normalized without relabelling
-// the current editable readout as a downloadable style.
 package main
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 )
 
-type fastfetchRegistryEntry struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Summary     string   `json:"summary,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Preview     string   `json:"preview,omitempty"`
-	Author      string   `json:"author,omitempty"`
-	Version     string   `json:"version,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-}
-
-type fastfetchRegistry struct {
-	Version int                      `json:"version"`
-	Styles  []fastfetchRegistryEntry `json:"styles"`
-}
+const fastfetchConfig = "config.jsonc"
 
 type fastfetchProvider struct {
 	cache      *Cache
@@ -39,7 +18,7 @@ type fastfetchProvider struct {
 func newFastfetchProvider(cache *Cache) fastfetchProvider {
 	return fastfetchProvider{
 		cache:      cache,
-		configPath: filepath.Join(configHome(), "fastfetch", "config.jsonc"),
+		configPath: filepath.Join(configHome(), "fastfetch", fastfetchConfig),
 	}
 }
 
@@ -48,68 +27,95 @@ func (fastfetchProvider) Category() Category {
 		ID:          "fastfetch",
 		Name:        "Fastfetch",
 		Group:       "wear",
-		Description: "Downloadable terminal dossiers will appear here when their registry opens.",
+		Description: "Install terminal readout styles, then apply one explicitly in Ryoku Settings.",
 	}
 }
 
 func (p fastfetchProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceState, error) {
-	raw, state, err := p.cache.Fetch(ctx, "fastfetch/registry.json", refresh)
+	entries, state, err := loadProductRegistry(ctx, p.cache, "fastfetch", refresh)
 	if err != nil {
-		var status *HTTPStatusError
-		if errors.As(err, &status) && status.Status == http.StatusNotFound {
-			return []Item{}, SourceState{}, nil
-		}
 		return nil, state, err
 	}
-	var registry fastfetchRegistry
-	if err := json.Unmarshal(raw, &registry); err != nil {
-		return nil, state, fmt.Errorf("parse fastfetch registry: %w", err)
+	current, currentErr := os.ReadFile(p.configPath)
+	if currentErr != nil && !os.IsNotExist(currentErr) {
+		return nil, state, currentErr
 	}
-	active := p.activeStyle()
-	items := make([]Item, 0, len(registry.Styles))
-	for _, entry := range registry.Styles {
-		if !validComponent(entry.ID) {
-			return nil, state, fmt.Errorf("invalid fastfetch style id %q", entry.ID)
+	items := make([]Item, 0, len(entries))
+	for _, entry := range entries {
+		item, err := productEntryItem(p.cache.base, "fastfetch", entry)
+		if err != nil {
+			return nil, state, err
 		}
-		installed := active != "" && entry.ID == active
-		items = append(items, Item{
-			ID:          entry.ID,
-			Category:    "fastfetch",
-			Name:        entry.Name,
-			Summary:     entry.Summary,
-			Description: entry.Description,
-			Art:         fastfetchAssetURL(p.cache.base, entry.Preview),
-			Author:      entry.Author,
-			Version:     entry.Version,
-			Tags:        entry.Tags,
-			Installed:   installed,
-			Active:      installed,
-		})
+		if item.Installed && currentErr == nil {
+			active, err := fastfetchStyleMatchesCurrent(entry.ID, current)
+			if err != nil {
+				return nil, state, err
+			}
+			item.Active = active
+		}
+		items = append(items, item)
 	}
 	return items, state, nil
 }
 
-func fastfetchAssetURL(base, path string) string {
-	if path == "" {
-		return ""
-	}
-	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(path, "/")
-}
-
-func (fastfetchProvider) Install(context.Context, string) error {
-	return fmt.Errorf("Fastfetch style installation is unavailable until the catalogue opens")
-}
-
-var fastfetchStylePattern = regexp.MustCompile(`(?m)"style"\s*:\s*"([^"\\]+)"`)
-
-func (p fastfetchProvider) activeStyle() string {
-	raw, err := os.ReadFile(p.configPath)
+func (p fastfetchProvider) Install(ctx context.Context, id string) error {
+	entries, _, err := loadProductRegistry(ctx, p.cache, "fastfetch", false)
 	if err != nil {
-		return ""
+		return err
 	}
-	match := fastfetchStylePattern.FindSubmatch(raw)
-	if len(match) != 2 {
-		return ""
+	entry, err := findProductEntry(entries, id)
+	if err != nil {
+		return err
 	}
-	return string(match[1])
+	return installProduct(ctx, p.cache, "fastfetch", entry)
+}
+
+func fastfetchStyleMatchesCurrent(id string, current []byte) (bool, error) {
+	dst, _, err := productDestination("fastfetch", id)
+	if err != nil {
+		return false, err
+	}
+	receipt, err := readReceipt("fastfetch", id)
+	if err != nil {
+		return false, err
+	}
+	if !receiptOwnsFile(receipt, fastfetchConfig) {
+		return false, fmt.Errorf("fastfetch/%s: receipt does not own %s", id, fastfetchConfig)
+	}
+	if err := verifyInstalledReceipt(dst, receipt); err != nil {
+		return false, err
+	}
+	installed, err := os.ReadFile(filepath.Join(dst, fastfetchConfig))
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(current, installed), nil
+}
+
+func applyFastfetchStyle(id string) error {
+	if !productIDPattern.MatchString(id) {
+		return fmt.Errorf("invalid fastfetch product id %q", id)
+	}
+	dst, expectedDestination, err := productDestination("fastfetch", id)
+	if err != nil {
+		return err
+	}
+	receipt, err := readReceipt("fastfetch", id)
+	if err != nil {
+		return fmt.Errorf("fastfetch/%s is not installed: %w", id, err)
+	}
+	if receipt.Destination != expectedDestination {
+		return fmt.Errorf("fastfetch/%s: receipt destination mismatch", id)
+	}
+	if !receiptOwnsFile(receipt, fastfetchConfig) {
+		return fmt.Errorf("fastfetch/%s: receipt does not own %s", id, fastfetchConfig)
+	}
+	if err := verifyInstalledReceipt(dst, receipt); err != nil {
+		return err
+	}
+	raw, err := os.ReadFile(filepath.Join(dst, fastfetchConfig))
+	if err != nil {
+		return err
+	}
+	return atomicWrite(filepath.Join(configHome(), "fastfetch", fastfetchConfig), raw, 0o644)
 }
