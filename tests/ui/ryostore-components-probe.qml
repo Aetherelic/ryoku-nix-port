@@ -187,20 +187,72 @@ ShellRoot {
             root.require(progress.labels.indexOf("DOWNLOADING") !== -1, "matching progress explicit");
             root.require(offline.labels.indexOf("OFFLINE") !== -1, "offline state explicit");
             root.require(failed.labels.indexOf("fixture install failed") !== -1, "exact failure preserved");
+            const stageTitle = root.findObject(stage, "ryostore-stage-title");
+            const stageStatus = root.findObject(stage, "ryostore-stage-status");
+            const stagePrimary = root.findObject(stage, "ryostore-stage-primary");
+            const stageArtwork = root.findObject(stage, "ryostore-stage-artwork");
+            const stageScrim = root.findObject(stage, "ryostore-stage-scrim");
+            const stagePosition = root.findObject(stage, "ryostore-stage-position");
+            const stageDetails = root.findObject(stage, "ryostore-stage-details");
+            const stageSettings = root.findObject(stage, "ryostore-stage-settings");
             root.require(stage.displayItem.id === "b", "preview owns stage artwork");
             root.require(stage.actionItem.id === "a", "preview cannot retarget action");
+            root.require(stageArtwork.item.name === "Preview B", "preview owns cover title");
+            root.require(stageArtwork.item.category === "rices", "cover category remains committed");
+            root.require(stageArtwork.item.installed === false, "cover state remains committed");
             stage.triggerInstall();
             root.require(root.installedKey === "rices:a", "install targets committed selection");
+            root.installedKey = "";
+            stagePrimary.Accessible.pressAction();
+            root.require(root.installedKey === "rices:a", "accessible install targets committed selection");
+            stageDetails.Accessible.pressAction();
+            root.require(root.detailsKey === "rices:a", "details targets committed selection");
+            stage.triggerSettings();
+            root.require(root.settingsKey === "", "settings unavailable before install");
+            root.installedKey = "";
+            stage.busyKey = "plugins:other";
+            stage.triggerInstall();
+            root.require(root.installedKey === "", "global busy state suppresses install");
+            stage.busyKey = "";
+            stage.item = ({
+                id: "a",
+                category: "rices",
+                categoryName: "Rices",
+                name: "Committed A",
+                summary: "Committed product copy remains attached to its actions.",
+                art: "",
+                accent: "#b23a48",
+                surface: "#171113",
+                installed: true
+            });
+            stage.triggerInstall();
+            root.require(root.installedKey === "", "installed state suppresses install");
+            stageSettings.Accessible.pressAction();
+            root.require(root.settingsKey === "rices:a", "settings targets committed selection");
+            stage.busyKey = "rices:a";
+            stage.installStage = "VERIFYING";
+            stage.offline = true;
+            stage.installErrorKey = "rices:a";
+            stage.installError = "fixture install failed";
+            root.require(stageStatus.labels.indexOf("VERIFYING") !== -1, "stage shows matching progress");
+            root.require(stageStatus.labels.indexOf("OFFLINE") !== -1, "stage shows offline state");
+            root.require(stageStatus.labels.indexOf("fixture install failed") !== -1, "stage preserves exact error");
             stage.previewItem = null;
             root.require(stage.displayItem.id === "a", "preview clears to committed selection");
             stage.reducedMotion = true;
             root.require(stage.motionDuration === 0, "reduced motion disables stage travel");
-            const stageTitle = root.findObject(stage, "ryostore-stage-title");
-            const stageStatus = root.findObject(stage, "ryostore-stage-status");
-            const stagePrimary = root.findObject(stage, "ryostore-stage-primary");
-            root.require(root.inside(stageTitle, stage), "stage title remains visible at cramped size");
-            root.require(root.inside(stageStatus, stage), "stage status remains visible at cramped size");
-            root.require(root.inside(stagePrimary, stage), "stage primary action remains visible at cramped size");
+            root.require(stageArtwork.width === stage.width && stageArtwork.height === stage.height, "stage artwork is full bleed");
+            root.require(stageScrim.height === stage.height, "stage scrim covers artwork height");
+            root.require(root.inside(stagePosition, stage), "stage position remains visible");
+            root.require(stageDetails.visible, "details action remains visible");
+            root.require(stageSettings.visible, "settings action visible when installed");
+            root.require(stagePrimary.Accessible.role === Accessible.Button, "primary action exposes button role");
+            root.require(stagePrimary.Accessible.name !== "", "primary action exposes accessible name");
+            root.require(root.inside(stageTitle, stage), "stage title remains visible at responsive size");
+            root.require(root.inside(stageStatus, stage), "stage status remains visible at responsive size");
+            root.require(root.inside(stagePrimary, stage), "stage primary action remains visible at responsive size");
+            root.require(root.inside(stageDetails, stage), "stage details action remains visible at responsive size");
+            root.require(root.inside(stageSettings, stage), "stage settings action remains visible at responsive size");
             strip.previewAt(1);
             root.require(root.lastPreview === "rices:b", "hover preview signal");
             root.require(root.selectionCount === 0, "preview does not select");

@@ -30,6 +30,21 @@ Item {
             : StoreLogic.primaryAction(actionItem)
     readonly property string secondaryLabel: StoreLogic.secondaryAction(actionItem)
     readonly property bool hasActionItem: item !== null && item !== undefined
+    readonly property var coverItem: ({
+        id: displayItem.id,
+        name: displayItem.name || displayItem.id,
+        art: displayItem.art || "",
+        category: actionItem.category,
+        categoryName: actionItem.categoryName,
+        accent: actionItem.accent,
+        surface: actionItem.surface,
+        installed: actionItem.installed,
+        active: actionItem.active,
+        enabled: actionItem.enabled,
+        installedCount: actionItem.installedCount,
+        totalCount: actionItem.totalCount,
+        updateAvailable: actionItem.updateAvailable
+    })
 
     clip: true
 
@@ -67,7 +82,7 @@ Item {
         id: artwork
         objectName: "ryostore-stage-artwork"
         anchors.fill: parent
-        item: stage.displayItem
+        item: stage.coverItem
         stage: true
         opacity: 0.45 + stage.artworkReveal * 0.55
         scale: 0.985 + stage.artworkReveal * 0.015
@@ -83,6 +98,7 @@ Item {
     }
 
     Rectangle {
+        objectName: "ryostore-stage-scrim"
         anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
         width: Math.min(stage.width * 0.58, 600)
         color: Tokens.paper
@@ -90,6 +106,7 @@ Item {
     }
 
     Text {
+        objectName: "ryostore-stage-position"
         anchors { top: parent.top; right: parent.right; margins: Tokens.s5 }
         text: stage.positionText
         visible: text !== ""
@@ -163,23 +180,28 @@ Item {
                 Accessible.role: Accessible.Button
                 Accessible.name: text
                 onAct: stage.triggerInstall()
+                Accessible.onPressAction: stage.triggerInstall()
             }
 
             Btn {
+                objectName: "ryostore-stage-details"
                 text: "VIEW DETAILS"
                 armed: stage.hasActionItem
                 Accessible.role: Accessible.Button
                 Accessible.name: text
                 onAct: stage.triggerDetails()
+                Accessible.onPressAction: stage.triggerDetails()
             }
 
             Btn {
+                objectName: "ryostore-stage-settings"
                 text: stage.secondaryLabel
                 visible: text !== ""
                 armed: visible && stage.hasActionItem
                 Accessible.role: Accessible.Button
                 Accessible.name: text
                 onAct: stage.triggerSettings()
+                Accessible.onPressAction: stage.triggerSettings()
             }
         }
     }
