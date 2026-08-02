@@ -11,6 +11,11 @@ ShellRoot {
     property string installedKey: ""
     property string detailsKey: ""
     property string settingsKey: ""
+    property string routeView: ""
+    property string routeCategory: ""
+    property bool searchOpened: false
+    property bool searchClosed: false
+    property string editedQuery: ""
     property var probeDimensions: String(Quickshell.env("RYOSTORE_PROBE_SIZE") || "980x640").split("x")
     readonly property int probeWidth: Number(probeDimensions[0]) || 980
     readonly property int probeHeight: Number(probeDimensions[1]) || 640
@@ -116,6 +121,45 @@ ShellRoot {
         maximumSize: minimumSize
         color: "#080a0d"
 
+        Ryo.StoreHeader {
+            id: header
+            z: 10
+            width: parent.width
+            height: 64
+            view: "discover"
+            categoryID: ""
+            categories: [
+                { id: "rices", name: "Rices" },
+                { id: "lockscreens", name: "Locks" },
+                { id: "plugins", name: "Plugins" },
+                { id: "barstyles", name: "Bar Styles" },
+                { id: "fastfetch", name: "Fastfetch" },
+                { id: "bundles", name: "Bundles" }
+            ]
+            query: ""
+            libraryCount: 3
+            updateCount: 1
+            offline: false
+            onRouteRequested: (view, categoryID) => {
+                root.routeView = view;
+                root.routeCategory = categoryID;
+            }
+            onSearchRequested: root.searchOpened = true
+        }
+
+        Ryo.SearchLayer {
+            id: search
+            z: 11
+            y: header.height
+            width: parent.width
+            height: 64
+            open: false
+            query: "seed"
+            resultCount: 4
+            onQueryEdited: value => root.editedQuery = value
+            onCloseRequested: root.searchClosed = true
+        }
+
         Ryo.ShowroomStage {
             id: stage
             objectName: "showroom-stage"
@@ -187,6 +231,35 @@ ShellRoot {
             root.require(progress.labels.indexOf("DOWNLOADING") !== -1, "matching progress explicit");
             root.require(offline.labels.indexOf("OFFLINE") !== -1, "offline state explicit");
             root.require(failed.labels.indexOf("fixture install failed") !== -1, "exact failure preserved");
+            header.activateCategory("rices");
+            root.require(root.routeView === "discover" && root.routeCategory === "rices", "category route");
+            header.activateLibrary();
+            root.require(root.routeView === "library" && root.routeCategory === "", "library route");
+            header.activateSearch();
+            root.require(root.searchOpened, "header delegates search opening");
+            search.open = true;
+            search.focusField();
+            root.require(search.fieldActive, "search takes focus");
+            const queryBeforeClose = search.query;
+            search.requestClose();
+            root.require(root.searchClosed, "search delegates restoration");
+            root.require(search.query === queryBeforeClose, "search close preserves query");
+            const headerDiscover = root.findObject(header, "ryostore-header-discover");
+            const headerCategories = root.findObject(header, "ryostore-header-categories");
+            const headerSearch = root.findObject(header, "ryostore-header-search");
+            const headerLibrary = root.findObject(header, "ryostore-header-library");
+            root.require(headerDiscover.x < headerCategories.x
+                    && headerCategories.x < headerSearch.x
+                    && headerSearch.x < headerLibrary.x, "header keeps semantic navigation order");
+            root.require(root.inside(headerSearch, header), "search stays visible at responsive size");
+            root.require(root.inside(headerLibrary, header), "library stays visible at responsive size");
+            root.require(headerCategories.width > 0, "categories retain scroll region");
+            if (root.probeWidth <= 980)
+                root.require(headerCategories.contentWidth > headerCategories.width, "category labels scroll at cramped size");
+            root.require(headerLibrary.Accessible.name.indexOf("3") !== -1
+                    && headerLibrary.Accessible.name.indexOf("1 UPDATE") !== -1, "library counts remain explicit");
+            header.offline = true;
+            root.require(headerSearch.Accessible.name.indexOf("OFFLINE") !== -1, "header exposes offline state");
             const stageTitle = root.findObject(stage, "ryostore-stage-title");
             const stageStatus = root.findObject(stage, "ryostore-stage-status");
             const stagePrimary = root.findObject(stage, "ryostore-stage-primary");
