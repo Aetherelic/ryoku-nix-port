@@ -70,6 +70,9 @@ ShellRoot {
             if (root.phase === 1) {
                 if (!root.findObject(app, "ryostore-detail") || !app.detailItem)
                     return;
+                const openGrid = root.findObject(app, "ryostore-grid");
+                root.require(openGrid && openGrid.enabled === false,
+                             "browse grid is inert while the detail is open");
                 RyoState.Store.install(app.detailItem);
                 root.phase = 2;
                 return;

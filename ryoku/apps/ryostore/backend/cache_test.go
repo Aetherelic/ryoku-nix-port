@@ -231,6 +231,7 @@ func TestCacheMemoStaysOfflineAfterFailedRefresh(t *testing.T) {
 func TestCacheIsolatesPerSourceBase(t *testing.T) {
 	cacheHome := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	root := filepath.Join(cacheHome, "ryoku", "extras")
 	ctx := context.Background()
 

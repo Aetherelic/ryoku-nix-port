@@ -292,6 +292,7 @@ Rectangle {
         anchors { left: parent.left; top: header.bottom; right: parent.right }
         height: app.showHero ? Math.round((app.height - header.height) * 0.42) : 0
         visible: app.showHero
+        enabled: !app.detailOpen
         item: app.selectedItem
         previewItem: app.previewItem
         busyKey: Store.busyKey
@@ -313,6 +314,7 @@ Rectangle {
         items: app.collection
         selectedKey: app.selectedKey
         reducedMotion: app.reducedMotion
+        enabled: !app.detailOpen
         onPreviewRequested: item => app.previewItem = item
         onSelectionRequested: item => app.selectKey(StoreLogic.itemKey(item))
         onActivated: item => {

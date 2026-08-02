@@ -17,7 +17,22 @@ func extrasBase() string {
 	if b := os.Getenv("RYOKU_EXTRAS_BASE"); b != "" {
 		return strings.TrimRight(b, "/")
 	}
+	if b := configuredExtrasBase(); b != "" {
+		return strings.TrimRight(b, "/")
+	}
 	return defaultExtrasBase
+}
+
+// configuredExtrasBase reads a persistent source override from
+// ${XDG_CONFIG_HOME:-~/.config}/ryoku/ryostore-base (one line: a base URL or a
+// file:// path). It lets a dev checkout, fork, or mirror be selected without a
+// session env var, which a long-running compositor may never have inherited.
+func configuredExtrasBase() string {
+	b, err := os.ReadFile(filepath.Join(configHome(), "ryoku", "ryostore-base"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // localBase reports whether the extras base is a local tree (file:// URL) and

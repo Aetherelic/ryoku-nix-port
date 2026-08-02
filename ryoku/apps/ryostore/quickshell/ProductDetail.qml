@@ -84,6 +84,18 @@ FocusScope {
         NumberAnimation { duration: Tokens.swap; easing.type: Tokens.ease }
     }
 
+    // Modal input sink: swallow every pointer event that misses an interactive
+    // child so the browse grid behind the open dossier never reacts to a click,
+    // hover, or scroll. Declared first so the cover and dossier stay on top.
+    MouseArea {
+        anchors.fill: parent
+        enabled: detail.open
+        hoverEnabled: true
+        acceptedButtons: Qt.AllButtons
+        onPressed: mouse => mouse.accepted = true
+        onWheel: wheel => wheel.accepted = true
+    }
+
     Rectangle {
         anchors.fill: parent
         color: detail.actionItem.surface || Tokens.paper
