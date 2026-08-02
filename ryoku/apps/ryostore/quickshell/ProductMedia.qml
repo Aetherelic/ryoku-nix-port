@@ -3,7 +3,7 @@ import QtQuick.Effects
 import Ryoku.Ui.Singletons
 
 // Product artwork with three deliberate presentations:
-//   cover  a crop-filled tile (filmstrip, thumbnails)
+//   cover  a crop-filled tile (the browse grid, thumbnails)
 //   hero   a cinematic full-bleed frame that fades into the surface
 //   plate  the whole preview shown as a framed gallery plate, its own colour
 //          bled through a dark blur behind it so the art never floats as a

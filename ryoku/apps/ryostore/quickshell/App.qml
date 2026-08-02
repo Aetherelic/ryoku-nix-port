@@ -23,7 +23,7 @@ Rectangle {
     property var previewItem: null
     property var detailItem: null
     property bool detailOpen: false
-    property real filmstripOffset: 0
+    property real gridOffset: 0
     property var searchContext: null
     property var detailContext: null
     property rect detailOriginRect: Qt.rect(0, 0, 0, 0)
@@ -54,6 +54,7 @@ Rectangle {
     readonly property string positionText: collection.length > 0 && selectedIndex >= 0
             ? String(selectedIndex + 1) + " / " + String(collection.length)
             : ""
+    readonly property bool showHero: view === "discover" && categoryID === "" && !searchOpen && collection.length > 0
 
     function itemForKey(key, items) {
         const source = Array.isArray(items) ? items : [];
@@ -91,7 +92,7 @@ Rectangle {
             categoryID: categoryID,
             query: query,
             selectedKey: selectedKey,
-            filmstripOffset: filmstripOffset,
+            gridOffset: productGrid.contentY,
             focusObject: currentFocusObject()
         };
     }
@@ -103,16 +104,16 @@ Rectangle {
         categoryID = context.categoryID;
         query = context.query;
         selectedKey = context.selectedKey;
-        filmstripOffset = context.filmstripOffset;
+        gridOffset = context.gridOffset;
         Qt.callLater(function() {
             app.reconcileSelection(0);
             Qt.callLater(function() {
-                filmstrip.restoreOffset(context.filmstripOffset);
-                app.filmstripOffset = filmstrip.contentOffset;
+                productGrid.restoreOffset(context.gridOffset);
+                app.gridOffset = productGrid.contentY;
                 if (context.focusObject && context.focusObject.forceActiveFocus)
                     context.focusObject.forceActiveFocus();
                 else
-                    filmstrip.forceActiveFocus();
+                    productGrid.forceActiveFocus();
             });
         });
     }
@@ -136,7 +137,7 @@ Rectangle {
             categoryID = route;
         }
         reconcileSelection(0);
-        Qt.callLater(function() { filmstrip.forceActiveFocus(); });
+        Qt.callLater(function() { productGrid.forceActiveFocus(); });
     }
 
     function selectKey(key) {
@@ -145,12 +146,11 @@ Rectangle {
     }
 
     function selectedCoverRect() {
-        const index = filmstrip.positionFor(selectedKey);
-        if (index < 0)
+        const rect = productGrid.cellRectFor(selectedKey);
+        if (rect.width === 0)
             return Qt.rect(0, 0, 0, 0);
-        const localX = index * filmstrip.step - filmstrip.contentOffset;
-        const point = filmstrip.mapToItem(productDetail, localX, 0);
-        return Qt.rect(point.x, point.y, filmstrip.cardWidth, filmstrip.height);
+        const point = productGrid.mapToItem(productDetail, rect.x, rect.y);
+        return Qt.rect(point.x, point.y, rect.width, rect.height);
     }
 
     function openSelectedDetail() {
@@ -228,6 +228,7 @@ Rectangle {
         if (detailItem)
             detailItem = itemForKey(StoreLogic.itemKey(detailItem), searchableItems) || detailItem;
     }
+    Component.onCompleted: Qt.callLater(function() { productGrid.forceActiveFocus(); })
 
     Keys.onEscapePressed: event => {
         escapeLayer();
@@ -236,18 +237,6 @@ Rectangle {
     Keys.onPressed: event => {
         if (event.text === "/" && event.modifiers === Qt.NoModifier) {
             openSearch();
-        } else if (!detailOpen && !searchOpen && event.key === Qt.Key_Left) {
-            filmstrip.move(-1);
-            filmstrip.commitPending();
-        } else if (!detailOpen && !searchOpen && event.key === Qt.Key_Right) {
-            filmstrip.move(1);
-            filmstrip.commitPending();
-        } else if (!detailOpen && !searchOpen && event.key === Qt.Key_Home) {
-            filmstrip.moveBoundary(false);
-            filmstrip.commitPending();
-        } else if (!detailOpen && !searchOpen && event.key === Qt.Key_End) {
-            filmstrip.moveBoundary(true);
-            filmstrip.commitPending();
         } else if (!detailOpen && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
             openSelectedDetail();
         } else {
@@ -291,14 +280,18 @@ Rectangle {
         libraryCount: app.libraryCount
         updateCount: app.updateCount
         offline: Store.offline
+        refreshing: Store.refreshing
         onRouteRequested: (routeView, routeCategory) => app.openRoute(routeCategory || routeView)
         onSearchRequested: app.openSearch()
+        onRefreshRequested: Store.refresh(true)
     }
 
     ShowroomStage {
         id: stage
         objectName: "ryostore-stage"
-        anchors { left: parent.left; top: header.bottom; right: parent.right; bottom: filmstrip.top }
+        anchors { left: parent.left; top: header.bottom; right: parent.right }
+        height: app.showHero ? Math.round((app.height - header.height) * 0.42) : 0
+        visible: app.showHero
         item: app.selectedItem
         previewItem: app.previewItem
         busyKey: Store.busyKey
@@ -313,24 +306,26 @@ Rectangle {
         onSettingsRequested: item => Store.openSettings(item)
     }
 
-    Filmstrip {
-        id: filmstrip
-        objectName: "ryostore-filmstrip"
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Tokens.s5 }
-        height: Math.max(160, Math.min(220, (app.height - header.height) * 0.31))
+    ProductGrid {
+        id: productGrid
+        objectName: "ryostore-grid"
+        anchors { left: parent.left; top: stage.bottom; right: parent.right; bottom: parent.bottom }
         items: app.collection
         selectedKey: app.selectedKey
         reducedMotion: app.reducedMotion
-        onContentOffsetChanged: app.filmstripOffset = contentOffset
         onPreviewRequested: item => app.previewItem = item
         onSelectionRequested: item => app.selectKey(StoreLogic.itemKey(item))
+        onActivated: item => {
+            app.selectKey(StoreLogic.itemKey(item));
+            app.openSelectedDetail();
+        }
     }
 
     // initial catalogue fetch: show progress, never the empty plate, so a slow
     // network never reads as "there is nothing here".
     Column {
         id: loadingState
-        anchors.centerIn: stage
+        anchors.centerIn: productGrid
         spacing: Tokens.s4
         visible: app.catalogLoading
         z: 2
@@ -370,7 +365,7 @@ Rectangle {
 
     // catalogue source failed with nothing cached to fall back on.
     Column {
-        anchors.centerIn: stage
+        anchors.centerIn: productGrid
         spacing: Tokens.s3
         visible: app.catalogError
         z: 2
@@ -386,7 +381,7 @@ Rectangle {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.min(stage.width - Tokens.s7 * 2, 420)
+            width: Math.min(productGrid.width - Tokens.s7 * 2, 420)
             text: Store.error
             visible: text !== ""
             horizontalAlignment: Text.AlignHCenter
@@ -410,7 +405,7 @@ Rectangle {
     }
 
     Column {
-        anchors.centerIn: stage
+        anchors.centerIn: productGrid
         spacing: Tokens.s3
         visible: app.collection.length === 0 && !app.catalogLoading && !app.catalogError
         z: 2

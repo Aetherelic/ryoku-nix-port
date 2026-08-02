@@ -6,6 +6,9 @@
 //	ryostore install <category> <id>                 install-only, no activation
 //	ryostore remove <category> <id>                  receipt-owned removal
 //
+// A full catalog answers from a disk snapshot so every launch after the first is
+// instant; --refresh rebuilds it live. --category always probes live.
+//
 // The internal namespace holds calls the extras actuator and Settings make
 // directly; later tasks register those subcommands under it.
 package main
@@ -16,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 func main() {
@@ -78,10 +82,32 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 		if !ok {
 			return fmt.Errorf("unknown category %q", category)
 		}
-		provs = []Provider{p}
+		// A single-category probe is a subset of the store, never the snapshot.
+		cat := BuildCatalog(context.Background(), []Provider{p}, refresh)
+		return json.NewEncoder(w).Encode(cat)
+	}
+	// The full catalogue is snapshotted so a launch is instant and works offline;
+	// the store's refresh button (--refresh) rebuilds it live and rewrites it.
+	snapshot := filepath.Join(extrasCacheDir(), "catalog.json")
+	if !refresh {
+		if data, err := os.ReadFile(snapshot); err == nil && len(data) > 0 {
+			_, err := w.Write(data)
+			return err
+		}
 	}
 	cat := BuildCatalog(context.Background(), provs, refresh)
-	return json.NewEncoder(w).Encode(cat)
+	data, err := json.Marshal(cat)
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	// Only snapshot a catalogue that produced items, so a failed first fetch is
+	// retried live next launch instead of caching an empty store.
+	if len(cat.Items) > 0 {
+		_ = atomicWrite(snapshot, data, 0o644)
+	}
+	_, err = w.Write(data)
+	return err
 }
 
 func runInstall(provs []Provider, args []string) error {

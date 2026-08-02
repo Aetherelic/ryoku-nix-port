@@ -88,16 +88,16 @@ ShellRoot {
             }
 
             if (root.phase === 3) {
-                const strip = root.findObject(app, "ryostore-filmstrip");
-                if (!strip)
+                const grid = root.findObject(app, "ryostore-grid");
+                if (!grid)
                     return;
-                if (!strip.activeFocus) {
-                    strip.forceActiveFocus();
+                if (!grid.activeFocus) {
+                    grid.forceActiveFocus();
                     return;
                 }
-                strip.restoreOffset(140);
-                root.savedOffset = strip.contentOffset;
-                root.require(root.savedOffset > 0, "fixture starts from a nonzero filmstrip offset");
+                grid.restoreOffset(140);
+                root.savedOffset = grid.contentY;
+                root.require(root.savedOffset > 0, "fixture starts from a nonzero grid offset");
                 app.openSearch();
                 app.setQuery("installed clock");
                 root.phase = 4;
@@ -138,14 +138,14 @@ ShellRoot {
                 return;
             }
 
-            const restoredStrip = root.findObject(app, "ryostore-filmstrip");
-            if (app.searchOpen || !restoredStrip || !restoredStrip.activeFocus
-                    || Math.abs(restoredStrip.contentOffset - root.savedOffset) >= 0.5)
+            const restoredGrid = root.findObject(app, "ryostore-grid");
+            if (app.searchOpen || !restoredGrid || !restoredGrid.activeFocus
+                    || Math.abs(restoredGrid.contentY - root.savedOffset) >= 0.5)
                 return;
             root.require(app.categoryID === "lockscreens" && app.selectedKey === "lockscreens:clock",
                          "search restored exact context");
-            root.require(Math.abs(app.filmstripOffset - root.savedOffset) < 0.5,
-                         "coordinator mirrors restored filmstrip offset");
+            root.require(Math.abs(app.gridOffset - root.savedOffset) < 0.5,
+                         "coordinator mirrors restored grid offset");
             console.log("RYOSTORE-FLOW-PROBE-PASS");
             Qt.quit();
         }

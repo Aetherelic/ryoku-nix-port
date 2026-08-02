@@ -101,6 +101,7 @@ func (failWriter) Write([]byte) (int, error) { return 0, errors.New("write faile
 // provider, an unknown or empty category loads none and errors, and no filter
 // loads all.
 func TestRunCatalogCategoryResolvesBeforeLoad(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	var pluginLoads, riceLoads int32
 	provs := []Provider{
 		countingProvider{fakeProvider{category: Category{ID: "plugins", Name: "Plugins"}, items: []Item{{ID: "market", Category: "plugins"}}}, &pluginLoads},
@@ -152,8 +153,66 @@ func TestRunCatalogCategoryResolvesBeforeLoad(t *testing.T) {
 // TestRunCatalogPropagatesWriteError proves a failed JSON write is surfaced
 // rather than swallowed into a successful exit.
 func TestRunCatalogPropagatesWriteError(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	if err := runCatalog(failWriter{}, nil, nil); err == nil || !strings.Contains(err.Error(), "write failed") {
 		t.Fatalf("runCatalog write error = %v, want it propagated", err)
+	}
+}
+
+// TestRunCatalogSnapshotServesThenRefresh proves the full catalogue is
+// snapshotted: the first launch builds and caches it, a later launch answers
+// from the snapshot without touching any provider, and --refresh rebuilds live.
+func TestRunCatalogSnapshotServesThenRefresh(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	var loads int32
+	provs := []Provider{
+		countingProvider{fakeProvider{category: Category{ID: "rices", Name: "Rices"}, items: []Item{{ID: "nord", Category: "rices"}}}, &loads},
+	}
+
+	var first bytes.Buffer
+	if err := runCatalog(&first, provs, nil); err != nil {
+		t.Fatalf("first launch: %v", err)
+	}
+	if got := atomic.LoadInt32(&loads); got != 1 {
+		t.Fatalf("first launch loads = %d, want 1", got)
+	}
+
+	var second bytes.Buffer
+	if err := runCatalog(&second, provs, nil); err != nil {
+		t.Fatalf("cached launch: %v", err)
+	}
+	if got := atomic.LoadInt32(&loads); got != 1 {
+		t.Fatalf("cached launch must not load providers: loads = %d, want 1", got)
+	}
+	if second.String() != first.String() {
+		t.Fatalf("cached launch output drifted from the snapshot")
+	}
+
+	if err := runCatalog(io.Discard, provs, []string{"--refresh"}); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if got := atomic.LoadInt32(&loads); got != 2 {
+		t.Fatalf("refresh must rebuild live: loads = %d, want 2", got)
+	}
+}
+
+// TestRunCatalogDoesNotSnapshotEmpty proves a catalogue with no items is never
+// cached, so a launch after a failed fetch probes live again instead of pinning
+// an empty store.
+func TestRunCatalogDoesNotSnapshotEmpty(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	var loads int32
+	provs := []Provider{
+		countingProvider{fakeProvider{category: Category{ID: "rices", Name: "Rices"}, err: errors.New("offline")}, &loads},
+	}
+	if err := runCatalog(io.Discard, provs, nil); err != nil {
+		t.Fatalf("first: %v", err)
+	}
+	if err := runCatalog(io.Discard, provs, nil); err != nil {
+		t.Fatalf("second: %v", err)
+	}
+	if got := atomic.LoadInt32(&loads); got != 2 {
+		t.Fatalf("empty catalogue must not be cached: loads = %d, want 2", got)
 	}
 }
 

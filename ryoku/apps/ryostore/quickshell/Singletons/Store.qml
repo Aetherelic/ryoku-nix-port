@@ -11,6 +11,8 @@ Singleton {
     property var items: []
     property bool loading: false
     property bool offline: false
+    property string generatedAt: ""
+    readonly property bool refreshing: loading && items.length > 0
     property string error: ""
     property string busyKey: ""
     property string installStage: ""
@@ -98,6 +100,7 @@ Singleton {
                 root.categories = next.categories.slice();
                 root.items = next.items.slice();
                 root.offline = next.offline === true;
+                root.generatedAt = String(next.generatedAt || "");
                 root.error = "";
                 if (root._clearBusyAfterRefresh) {
                     root._clearBusyAfterRefresh = false;
@@ -128,7 +131,7 @@ Singleton {
             }
             root.installStage = "VERIFYING";
             root._clearBusyAfterRefresh = true;
-            root.refresh(false);
+            root.refresh(true);
         }
     }
 }

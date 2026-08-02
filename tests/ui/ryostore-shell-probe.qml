@@ -57,9 +57,9 @@ ShellRoot {
 
             const header = root.findObject(app, "ryostore-header");
             const stage = root.findObject(app, "ryostore-stage");
-            const filmstrip = root.findObject(app, "ryostore-filmstrip");
+            const grid = root.findObject(app, "ryostore-grid");
             if (root.phase === 0) {
-                if (RyoState.Store.categories.length !== 6 || !header || !stage || !filmstrip)
+                if (RyoState.Store.categories.length !== 6 || !header || !stage || !grid)
                     return;
                 root.require(!root.findObject(app, "ryostore-rail"), "legacy rail removed");
                 root.require(app.view === "discover" && app.categoryID === "", "Discover route");
@@ -71,8 +71,8 @@ ShellRoot {
                 root.require(root.findObject(app, "ryostore-status-ACTIVE"), "active status");
                 root.require(root.inside(header, app), "header fits responsive window");
                 root.require(root.inside(stage, app), "stage fits responsive window");
-                root.require(root.inside(filmstrip, app), "filmstrip fits responsive window");
-                root.require(stage.y + stage.height <= filmstrip.y + 1, "stage does not clip beneath filmstrip");
+                root.require(root.inside(grid, app), "grid fits responsive window");
+                root.require(stage.y + stage.height <= grid.y + 1, "hero sits above the grid");
                 app.selectKey("plugins:market");
                 root.phase = 1;
                 return;

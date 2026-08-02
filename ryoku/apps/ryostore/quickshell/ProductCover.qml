@@ -79,7 +79,7 @@ Item {
         active: cover.active
     }
 
-    // ── tile chrome (filmstrip only) ────────────────────────────────────────
+    // ── tile chrome (grid tiles only) ──────────────────────────────────────
     Rectangle {
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         height: Math.min(parent.height * 0.6, 132)

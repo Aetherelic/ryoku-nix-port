@@ -18,6 +18,7 @@ ShellRoot {
     property bool searchClosed: false
     property string editedQuery: ""
     property string retryKey: ""
+    property string activatedKey: ""
     property int closeCount: 0
     property bool sawVerifying: false
     property var probeDimensions: String(Quickshell.env("RYOSTORE_PROBE_SIZE") || "980x640").split("x")
@@ -196,13 +197,13 @@ ShellRoot {
             onSettingsRequested: item => root.settingsKey = item.category + ":" + item.id
         }
 
-        Ryo.Filmstrip {
-            id: strip
-            objectName: "filmstrip"
+        Ryo.ProductGrid {
+            id: grid
+            objectName: "product-grid"
             x: 0
             y: stage.height + 20
             width: parent.width
-            height: 200
+            height: 260
             selectedKey: "rices:b"
             items: [
                 { id: "a", category: "rices", name: "A", art: "", accent: "#b23a48", surface: "#171113" },
@@ -217,7 +218,10 @@ ShellRoot {
             onSelectionRequested: item => {
                 root.selectionCount++;
                 root.lastSelected = item ? item.category + ":" + item.id : "";
-                strip.selectedKey = root.lastSelected;
+                grid.selectedKey = root.lastSelected;
+            }
+            onActivated: item => {
+                root.activatedKey = item ? item.category + ":" + item.id : "";
             }
         }
         Ryo.ProductDetail {
@@ -473,38 +477,27 @@ ShellRoot {
             root.require(root.inside(stagePrimary, stage), "stage primary action remains visible at responsive size");
             root.require(root.inside(stageDetails, stage), "stage details action remains visible at responsive size");
             root.require(root.inside(stageSettings, stage), "stage settings action remains visible at responsive size");
-            strip.previewAt(1);
-            root.require(root.lastPreview === "rices:b", "hover preview signal");
-            root.require(root.selectionCount === 0, "preview does not select");
-            strip.forceActiveFocus();
-            root.require(strip.focusVisible, "filmstrip keyboard focus visible");
-            const focusRing = root.findObject(strip, "ryostore-filmstrip-focus");
-            root.require(focusRing && focusRing.visible, "pending cover draws focus ring");
-            strip.move(-10);
-            root.require(strip.pendingKey === "rices:a", "left boundary clamps");
-            strip.moveBoundary(true);
-            root.require(strip.pendingKey === "rices:d", "End reaches final item");
-            strip.move(1);
-            root.require(strip.pendingKey === "rices:d", "right boundary clamps");
-            strip.moveBoundary(false);
-            const flick = root.findObject(strip, "ryostore-filmstrip-flick");
-            root.require(flick !== null, "filmstrip flick surface exposed");
-            strip.reducedMotion = true;
-            flick.contentX = Math.max(0, flick.contentWidth - flick.width);
-            strip.settleMovement();
-            root.require(root.lastSelected === "rices:d", "right-edge settle commits final item");
-            root.require(strip.contentOffset > 0, "filmstrip exposes changed offset");
-            strip.selectedKey = "rices:b";
-            const beforeWheelCommit = root.selectionCount;
-            strip.queueWheel(-1);
-            root.require(strip.pendingKey === "rices:c", "wheel advances pending item");
-            root.require(root.selectionCount === beforeWheelCommit, "wheel waits for gesture end");
-            strip.settleWheel();
-            root.require(root.lastSelected === "rices:c", "settled wheel commits pending item");
-            root.require(root.selectionCount === beforeWheelCommit + 1, "wheel commits once");
-            root.require(strip.kineticEnabled === false, "reduced motion disables kinetic travel");
-            flick.flick(-1200, 0);
-            root.require(flick.flicking === false, "reduced motion cancels flick immediately");
+            grid.forceActiveFocus();
+            root.require(grid.activeFocus, "grid takes keyboard focus");
+            root.require(grid.positionFor("rices:c") === 2, "positionFor maps key to index");
+            root.selectionCount = 0;
+            root.lastSelected = "";
+            grid.moveBy(-10);
+            root.require(root.lastSelected === "rices:a", "boundary clamps to first item");
+            grid.select(99);
+            root.require(root.lastSelected === "rices:d", "select clamps to last item");
+            grid.selectedKey = "rices:a";
+            grid.moveBy(1);
+            root.require(root.lastSelected === "rices:b", "moveBy advances the selection");
+            root.require(root.selectionCount >= 3, "each move emits one selection");
+            root.activatedKey = "";
+            grid.activated(grid.items[2]);
+            root.require(root.activatedKey === "rices:c", "activation targets the chosen item");
+            grid.selectedKey = "rices:b";
+            const cell = grid.cellRectFor("rices:b");
+            root.require(cell.width > 0 && cell.height > 0, "cellRectFor returns the selected tile bounds");
+            grid.restoreOffset(0);
+            root.require(grid.contentY === 0, "restoreOffset sets the scroll position");
             finishTimer.start();
         }
 

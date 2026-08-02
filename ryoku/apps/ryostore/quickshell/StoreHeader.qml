@@ -11,9 +11,11 @@ Item {
     property int libraryCount: 0
     property int updateCount: 0
     property bool offline: false
+    property bool refreshing: false
 
     signal routeRequested(string view, string categoryID)
     signal searchRequested()
+    signal refreshRequested()
 
     readonly property string libraryLabel: "LIBRARY " + libraryCount
             + (updateCount > 0 ? " / " + updateCount + " UPDATE" + (updateCount === 1 ? "" : "S") : "")
@@ -156,9 +158,19 @@ Item {
     NavAction {
         id: libraryAction
         objectName: "ryostore-header-library"
-        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+        anchors { right: refreshAction.left; top: parent.top; bottom: parent.bottom }
         label: header.libraryLabel
         current: header.view === "library"
         onTriggered: header.activateLibrary()
+    }
+
+    NavAction {
+        id: refreshAction
+        objectName: "ryostore-header-refresh"
+        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+        label: header.refreshing ? "SYNCING" : "REFRESH"
+        description: "Refresh the catalogue from the extras repository"
+        current: header.refreshing
+        onTriggered: header.refreshRequested()
     }
 }
