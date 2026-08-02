@@ -123,13 +123,30 @@ func TestProductManifestValid(t *testing.T) {
 }
 
 func TestProductManifestHashMismatch(t *testing.T) {
-	entry, manifest := productManifestContract()
-	raw := manifestBytes(manifest)
+	entry, _ := productManifestContract()
+	raw := []byte("{")
 	entry.ManifestSHA256 = strings.Repeat("0", 64)
 	cache, _ := manifestCache(t, raw)
 
 	if _, err := loadProductManifest(context.Background(), cache, "rices", entry); err == nil || !strings.Contains(err.Error(), "hash") {
 		t.Fatalf("loadProductManifest() error = %v, want hash mismatch", err)
+	}
+}
+func TestProductManifestRejectsNullScalars(t *testing.T) {
+	tests := map[string]func(string) string{
+		"size":    func(raw string) string { return strings.Replace(raw, `"size":21`, `"size":null`, 1) },
+		"install": func(raw string) string { return strings.Replace(raw, `"install":true`, `"install":null`, 1) },
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			entry, manifest := productManifestContract()
+			raw := []byte(mutate(string(manifestBytes(manifest))))
+			entry.ManifestSHA256 = manifestDigest(raw)
+			cache, _ := manifestCache(t, raw)
+			if _, err := loadProductManifest(context.Background(), cache, "rices", entry); err == nil {
+				t.Fatalf("loadProductManifest() accepted null %s", name)
+			}
+		})
 	}
 }
 
@@ -211,6 +228,40 @@ func TestProductManifestSizeLimits(t *testing.T) {
 		})
 	}
 }
+func TestProductManifestLimitBoundaries(t *testing.T) {
+	entry, manifest := productManifestContract()
+	makeFiles := func(count int, size int64) []ProductFile {
+		files := make([]ProductFile, count)
+		for index := range files {
+			name := fmt.Sprintf("content/file-%04d", index)
+			files[index] = ProductFile{
+				Source:      name,
+				Destination: name,
+				Mode:        "0644",
+				Size:        size,
+				SHA256:      strings.Repeat("a", 64),
+			}
+		}
+		return files
+	}
+
+	manifest.Files = makeFiles(2048, 0)
+	if err := validateProductManifest("rices", entry, manifest); err != nil {
+		t.Fatalf("2,048 files rejected: %v", err)
+	}
+	manifest.Files = makeFiles(2049, 0)
+	if err := validateProductManifest("rices", entry, manifest); err == nil {
+		t.Fatal("2,049 files accepted")
+	}
+	manifest.Files = makeFiles(1, 256<<20)
+	if err := validateProductManifest("rices", entry, manifest); err != nil {
+		t.Fatalf("256 MiB file rejected: %v", err)
+	}
+	manifest.Files = makeFiles(2, 256<<20)
+	if err := validateProductManifest("rices", entry, manifest); err != nil {
+		t.Fatalf("512 MiB product rejected: %v", err)
+	}
+}
 
 func TestProductManifestEntryPath(t *testing.T) {
 	entry, manifest := productManifestContract()
@@ -229,6 +280,9 @@ func TestProductVersion(t *testing.T) {
 	}
 	if !productUpdateAvailable("1.2.3", "1.2.4") {
 		t.Fatal("different exact versions did not report an update")
+	}
+	if !productUpdateAvailable("2.0.0", "1.0.0") {
+		t.Fatal("different older available version did not report an update")
 	}
 	if productUpdateAvailable("", "1.2.4") {
 		t.Fatal("missing installed receipt version reported an update")

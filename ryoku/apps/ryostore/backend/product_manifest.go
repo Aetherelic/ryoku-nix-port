@@ -76,8 +76,12 @@ func (file *ProductFile) UnmarshalJSON(data []byte) error {
 		}
 	}
 	for name := range allowed {
-		if _, ok := fields[name]; !ok {
+		value, ok := fields[name]
+		if !ok {
 			return fmt.Errorf("missing field %q", name)
+		}
+		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return fmt.Errorf("field %q must not be null", name)
 		}
 	}
 	type plainProductFile ProductFile
