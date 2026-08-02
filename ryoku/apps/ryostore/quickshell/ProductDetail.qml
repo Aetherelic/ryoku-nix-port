@@ -84,7 +84,7 @@ FocusScope {
 
     Rectangle {
         anchors.fill: parent
-        color: Tokens.paper
+        color: detail.actionItem.surface || Tokens.paper
         opacity: detail.transitionProgress
     }
 
@@ -247,17 +247,27 @@ FocusScope {
                 Repeater {
                     model: detail.screenshots
 
-                    delegate: Image {
+                    delegate: Item {
                         required property var modelData
                         required property int index
-                        width: 184
+                        width: 204
                         height: screenshotRow.height
-                        source: modelData
-                        sourceSize: Qt.size(width, height)
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
                         Accessible.role: Accessible.Graphic
                         Accessible.name: "Screenshot " + String(index + 1) + " of " + detail.screenshotCount
+
+                        ProductMedia {
+                            anchors.fill: parent
+                            source: parent.modelData
+                            immersive: true
+                            active: detail.open
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: "transparent"
+                            border.width: Tokens.border
+                            border.color: "#28ffffff"
+                        }
                     }
                 }
             }

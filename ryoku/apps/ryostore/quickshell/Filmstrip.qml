@@ -126,15 +126,19 @@ FocusScope {
         event.accepted = true;
     }
 
-    Flickable {
+    ListView {
         id: flick
         objectName: "ryostore-filmstrip-flick"
         anchors.fill: parent
         clip: true
-        contentWidth: products.width
-        contentHeight: height
+        orientation: ListView.Horizontal
+        model: strip.items
+        spacing: Tokens.s3
+        cacheBuffer: Math.ceil(strip.cardWidth * 2)
+        reuseItems: true
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
+
         onFlickStarted: {
             if (strip.reducedMotion)
                 cancelFlick();
@@ -147,59 +151,50 @@ FocusScope {
 
         onMovementEnded: strip.settleMovement()
 
-        Row {
-            id: products
-            width: Math.max(0, strip.items.length * strip.cardWidth
-                            + Math.max(0, strip.items.length - 1) * spacing)
-            height: parent.height
-            spacing: Tokens.s3
+        delegate: Item {
+            id: product
+            required property var modelData
+            required property int index
+            width: strip.cardWidth
+            height: flick.height
+            scale: StoreLogic.itemKey(modelData) === strip.pendingKey ? 1 : 0.92
+            readonly property bool mediaActive: x + width >= flick.contentX - width
+                    && x <= flick.contentX + flick.width + width
 
-            Repeater {
-                model: strip.items
+            Behavior on scale {
+                enabled: !strip.reducedMotion
+                NumberAnimation { duration: Tokens.snap; easing.type: Tokens.easeSnap }
+            }
 
-                delegate: Item {
-                    id: product
-                    required property var modelData
-                    required property int index
-                    width: strip.cardWidth
-                    height: products.height
-                    scale: StoreLogic.itemKey(modelData) === strip.pendingKey ? 1 : 0.92
+            ProductCover {
+                anchors.fill: parent
+                item: product.modelData
+                selected: StoreLogic.itemKey(product.modelData) === strip.pendingKey
+                active: product.mediaActive
+            }
 
-                    Behavior on scale {
-                        enabled: !strip.reducedMotion
-                        NumberAnimation { duration: Tokens.snap; easing.type: Tokens.easeSnap }
-                    }
+            Rectangle {
+                objectName: StoreLogic.itemKey(product.modelData) === strip.pendingKey
+                        ? "ryostore-filmstrip-focus"
+                        : ""
+                anchors.fill: parent
+                color: "transparent"
+                border.width: Tokens.border * 2
+                border.color: Tokens.bone
+                visible: strip.activeFocus
+                        && StoreLogic.itemKey(product.modelData) === strip.pendingKey
+            }
 
-                    ProductCover {
-                        anchors.fill: parent
-                        item: product.modelData
-                        selected: StoreLogic.itemKey(product.modelData) === strip.pendingKey
-                    }
+            HoverHandler {
+                id: hover
+                cursorShape: Qt.PointingHandCursor
+                onHoveredChanged: strip.previewRequested(hover.hovered ? product.modelData : null)
+            }
 
-                    Rectangle {
-                        objectName: StoreLogic.itemKey(product.modelData) === strip.pendingKey
-                                ? "ryostore-filmstrip-focus"
-                                : ""
-                        anchors.fill: parent
-                        color: "transparent"
-                        border.width: Tokens.border * 2
-                        border.color: Tokens.bone
-                        visible: strip.activeFocus
-                                && StoreLogic.itemKey(product.modelData) === strip.pendingKey
-                    }
-
-                    HoverHandler {
-                        id: hover
-                        cursorShape: Qt.PointingHandCursor
-                        onHoveredChanged: strip.previewRequested(hover.hovered ? product.modelData : null)
-                    }
-
-                    TapHandler {
-                        onTapped: {
-                            strip.setPending(product.index);
-                            strip.commitPending();
-                        }
-                    }
+            TapHandler {
+                onTapped: {
+                    strip.setPending(product.index);
+                    strip.commitPending();
                 }
             }
         }

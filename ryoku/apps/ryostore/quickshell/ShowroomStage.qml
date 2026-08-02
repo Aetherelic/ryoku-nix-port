@@ -30,6 +30,7 @@ Item {
             : StoreLogic.primaryAction(actionItem)
     readonly property string secondaryLabel: StoreLogic.secondaryAction(actionItem)
     readonly property bool hasActionItem: item !== null && item !== undefined
+    readonly property color stageSurface: actionItem.surface || Tokens.paper
     readonly property var coverItem: ({
         id: displayItem.id,
         name: displayItem.name || displayItem.id,
@@ -99,10 +100,26 @@ Item {
 
     Rectangle {
         objectName: "ryostore-stage-scrim"
-        anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
-        width: Math.min(stage.width * 0.58, 600)
-        color: Tokens.paper
-        opacity: 0.9
+        anchors.fill: parent
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop {
+                position: 0
+                color: Qt.rgba(stage.stageSurface.r, stage.stageSurface.g,
+                               stage.stageSurface.b, 0.96)
+            }
+            GradientStop {
+                position: 0.38
+                color: Qt.rgba(stage.stageSurface.r, stage.stageSurface.g,
+                               stage.stageSurface.b, 0.76)
+            }
+            GradientStop {
+                position: 0.68
+                color: Qt.rgba(stage.stageSurface.r, stage.stageSurface.g,
+                               stage.stageSurface.b, 0.18)
+            }
+            GradientStop { position: 1; color: "#08000000" }
+        }
     }
 
     Text {
