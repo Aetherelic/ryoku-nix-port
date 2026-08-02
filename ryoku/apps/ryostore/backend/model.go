@@ -36,24 +36,27 @@ type Category struct {
 // newer store-managed version exists. Metadata carries category-specific facts
 // and stays nil for a provider that has none.
 type Item struct {
-	ID              string         `json:"id"`
-	Category        string         `json:"category"`
-	Name            string         `json:"name"`
-	Summary         string         `json:"summary,omitempty"`
-	Description     string         `json:"description,omitempty"`
-	Art             string         `json:"art,omitempty"`
-	Author          string         `json:"author,omitempty"`
-	Version         string         `json:"version,omitempty"`
-	Compatibility   string         `json:"compatibility,omitempty"`
-	Screenshots     []string       `json:"screenshots,omitempty"`
-	Tags            []string       `json:"tags,omitempty"`
-	Installed       bool           `json:"installed"`
-	Active          bool           `json:"active"`
-	Enabled         bool           `json:"enabled"`
-	InstalledCount  int            `json:"installedCount"`
-	TotalCount      int            `json:"totalCount"`
-	UpdateAvailable bool           `json:"updateAvailable"`
-	Metadata        map[string]any `json:"metadata,omitempty"`
+	ID               string         `json:"id"`
+	Category         string         `json:"category"`
+	Name             string         `json:"name"`
+	Summary          string         `json:"summary,omitempty"`
+	Description      string         `json:"description,omitempty"`
+	Art              string         `json:"art,omitempty"`
+	Author           string         `json:"author,omitempty"`
+	Version          string         `json:"version,omitempty"`
+	Manifest         string         `json:"manifest,omitempty"`
+	ManifestSHA256   string         `json:"manifestSha256,omitempty"`
+	InstalledVersion string         `json:"installedVersion,omitempty"`
+	Compatibility    string         `json:"compatibility,omitempty"`
+	Screenshots      []string       `json:"screenshots,omitempty"`
+	Tags             []string       `json:"tags,omitempty"`
+	Installed        bool           `json:"installed"`
+	Active           bool           `json:"active"`
+	Enabled          bool           `json:"enabled"`
+	InstalledCount   int            `json:"installedCount"`
+	TotalCount       int            `json:"totalCount"`
+	UpdateAvailable  bool           `json:"updateAvailable"`
+	Metadata         map[string]any `json:"metadata,omitempty"`
 }
 
 // SourceState is a provider's fetch outcome: whether it fell back to cached data
