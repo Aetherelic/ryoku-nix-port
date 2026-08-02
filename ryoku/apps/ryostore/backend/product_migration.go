@@ -34,9 +34,17 @@ func adoptLegacyTape() error {
 }
 
 func adoptExactReceipt(dst string, receipt Receipt) error {
+	if err := validateReceipt(receipt.Category, receipt.ID, receipt); err != nil {
+		return err
+	}
 	if _, err := readReceipt(receipt.Category, receipt.ID); err == nil {
 		return nil
 	} else if !os.IsNotExist(err) {
+		return err
+	}
+	root := productDestinationRoot(receipt.Category)
+	relative := filepath.FromSlash(receipt.Destination)
+	if err := rejectSymlinkPath(root, relative); err != nil {
 		return err
 	}
 
@@ -45,6 +53,9 @@ func adoptExactReceipt(dst string, receipt Receipt) error {
 		return err
 	}
 	defer unlockGlobal()
+	if err := rejectSymlinkPath(root, relative); err != nil {
+		return err
+	}
 	unlockProduct, err := lockTree(dst)
 	if err != nil {
 		return err
