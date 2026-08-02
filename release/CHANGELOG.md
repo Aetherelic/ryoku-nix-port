@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- **`ryoku-desktop` delivers the WirePlumber policy through materialize.** The
+  Bluetooth fragment moved from the package-only `/etc` drop-in into
+  `/usr/share/ryoku/config/wireplumber`, so package updates and checkout deploys
+  produce the same user configuration and user overlays remain authoritative.
 - **Desktop feature tools now reach every box, not just the ISO.** `ddcutil`,
   `gpu-screen-recorder`, `wf-recorder`, `hyprsunset`, `wtype`, `tesseract`,
   `tesseract-data-eng`, `zbar`, `songrec`, `libqalculate`, `openrgb` and `upower`
@@ -15,6 +19,7 @@
   official-repo feature tool must be a hard depend) so the drift cannot recur.
 
 ### Added
+- RyoStore now opens as an artwork-led living showroom with filmstrip browsing, reversible product details, Library state, and accessible reduced-motion navigation.
 - **`ryoku-desktop` ships DDC/CI i2c access and the `ryoku-i18n` tool.** The
   `system/hardware/ddc/` module-load (`/etc/modules-load.d/ryoku-i2c.conf`, loads
   `i2c-dev`) and udev rule (`/usr/lib/udev/rules.d/60-ryoku-i2c.rules`, `uaccess`)

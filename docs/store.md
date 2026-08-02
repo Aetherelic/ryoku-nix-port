@@ -159,13 +159,15 @@ ryoku/apps/ryostore/
   quickshell/
     shell.qml
     App.qml
-    Rail.qml
-    TodayPage.qml
-    InstalledPage.qml
-    CategoryPage.qml
-    DetailView.qml
-    StoreCard.qml
-    StatusPlate.qml
+    StoreHeader.qml
+    ShowroomStage.qml
+    Filmstrip.qml
+    SearchLayer.qml
+    ProductDetail.qml
+    ProductCover.qml
+    StatusReadout.qml
+    lib/
+      store.js
     Singletons/
       Store.qml
       qmldir
