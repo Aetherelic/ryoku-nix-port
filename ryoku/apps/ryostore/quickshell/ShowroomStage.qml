@@ -84,7 +84,7 @@ Item {
         objectName: "ryostore-stage-artwork"
         anchors.fill: parent
         item: stage.coverItem
-        stage: true
+        mode: "hero"
         opacity: 0.45 + stage.artworkReveal * 0.55
         scale: 0.985 + stage.artworkReveal * 0.015
 
@@ -106,19 +106,57 @@ Item {
             GradientStop {
                 position: 0
                 color: Qt.rgba(stage.stageSurface.r, stage.stageSurface.g,
-                               stage.stageSurface.b, 0.96)
+                               stage.stageSurface.b, 0.94)
             }
             GradientStop {
-                position: 0.38
+                position: 0.34
                 color: Qt.rgba(stage.stageSurface.r, stage.stageSurface.g,
-                               stage.stageSurface.b, 0.76)
+                               stage.stageSurface.b, 0.6)
             }
             GradientStop {
-                position: 0.68
+                position: 0.64
                 color: Qt.rgba(stage.stageSurface.r, stage.stageSurface.g,
-                               stage.stageSurface.b, 0.18)
+                               stage.stageSurface.b, 0.1)
             }
-            GradientStop { position: 1; color: "#08000000" }
+            GradientStop { position: 1; color: "#00000000" }
+        }
+    }
+
+    // seat the stage in the surface at the bottom so the filmstrip reads as one
+    // continuous shelf, not a seam
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#00000000" }
+            GradientStop { position: 0.7; color: "#00000000" }
+            GradientStop {
+                position: 1
+                color: Qt.rgba(stage.stageSurface.r, stage.stageSurface.g,
+                               stage.stageSurface.b, 0.85)
+            }
+        }
+    }
+
+    // a low wash of the product's own accent under the story text, so each
+    // hero carries a hint of the product's colour
+    Rectangle {
+        anchors.fill: parent
+        visible: stage.hasActionItem
+        opacity: 0.5 * stage.artworkReveal
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop {
+                position: 0
+                color: Qt.rgba((stage.actionItem.accent ? Qt.color(stage.actionItem.accent) : Tokens.sun).r,
+                               (stage.actionItem.accent ? Qt.color(stage.actionItem.accent) : Tokens.sun).g,
+                               (stage.actionItem.accent ? Qt.color(stage.actionItem.accent) : Tokens.sun).b, 0.16)
+            }
+            GradientStop { position: 0.5; color: "#00000000" }
+            GradientStop { position: 1; color: "#00000000" }
+        }
+        Behavior on opacity {
+            enabled: !stage.reducedMotion
+            NumberAnimation { duration: stage.motionDuration; easing.type: Tokens.ease }
         }
     }
 

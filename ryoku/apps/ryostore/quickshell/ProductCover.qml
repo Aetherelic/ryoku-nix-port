@@ -6,15 +6,19 @@ Item {
     id: cover
 
     required property var item
-    property bool stage: false
+    property string mode: "cover"       // cover | hero | plate
     property bool selected: false
     property bool active: true
 
+    readonly property bool tile: mode === "cover"
     readonly property bool hasArtwork: String(item && item.art || "") !== ""
     readonly property bool hasIdentity: Boolean(item && (item.id || item.name))
     readonly property string coverTitle: String(item && (item.name || item.id) || "Untitled")
     readonly property color coverSurface: item && item.surface ? item.surface : Tokens.paperLift
     readonly property color coverAccent: item && item.accent ? item.accent : Tokens.inkDim
+    readonly property var status: StoreLogic.statusLabels(item)
+    readonly property string statusTag: (status.length > 0 && status[0] !== "AVAILABLE") ? status[0] : ""
+    readonly property bool flagged: statusTag === "UPDATE" || statusTag === "ACTIVE" || statusTag === "ENABLED"
 
     clip: true
     Accessible.role: Accessible.Graphic
@@ -22,7 +26,7 @@ Item {
     Accessible.name: [
         coverTitle,
         String(item && (item.categoryName || item.category) || ""),
-        StoreLogic.statusLabels(item).join(", ")
+        cover.status.join(", ")
     ].filter(Boolean).join(", ")
 
     Rectangle {
@@ -70,24 +74,56 @@ Item {
     ProductMedia {
         anchors.fill: parent
         source: cover.hasArtwork ? cover.item.art : ""
-        immersive: cover.stage
+        mode: cover.mode
+        surface: cover.coverSurface
         active: cover.active
     }
 
+    // ── tile chrome (filmstrip only) ────────────────────────────────────────
     Rectangle {
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-        height: Math.min(parent.height * 0.56, 124)
-        visible: cover.hasIdentity && !cover.stage
+        height: Math.min(parent.height * 0.6, 132)
+        visible: cover.tile && cover.hasIdentity
         gradient: Gradient {
             GradientStop { position: 0; color: "transparent" }
-            GradientStop { position: 0.62; color: "#b8000000" }
-            GradientStop { position: 1; color: "#ed000000" }
+            GradientStop { position: 0.58; color: "#b0000000" }
+            GradientStop { position: 1; color: "#ec000000" }
+        }
+    }
+
+    // status tag, accent-tinted for a live product, so a glance finds the
+    // active rice or an available update in the strip
+    Row {
+        visible: cover.tile && cover.statusTag !== ""
+        anchors { top: parent.top; left: parent.left; margins: Tokens.s2 }
+        spacing: Tokens.s1
+
+        Rectangle {
+            width: tagText.implicitWidth + Tokens.s2 * 2
+            height: tagText.implicitHeight + Tokens.s1 * 2
+            radius: Tokens.radius
+            color: cover.flagged
+                    ? Qt.rgba(cover.coverAccent.r, cover.coverAccent.g, cover.coverAccent.b, 0.9)
+                    : "#b3000000"
+            border.width: Tokens.border
+            border.color: cover.flagged ? "transparent" : "#33ffffff"
+
+            Text {
+                id: tagText
+                anchors.centerIn: parent
+                text: cover.statusTag
+                color: cover.flagged ? Qt.rgba(0, 0, 0, 0.86) : "#e8ffffff"
+                font.family: Tokens.mono
+                font.pixelSize: Tokens.fTiny
+                font.weight: Font.Medium
+                font.letterSpacing: Tokens.trackLabel
+            }
         }
     }
 
     Column {
         objectName: "ryostore-cover-metadata"
-        visible: cover.hasIdentity && !cover.stage
+        visible: cover.tile && cover.hasIdentity
         x: Tokens.s3
         width: parent.width - Tokens.s3 * 2
         anchors.bottom: parent.bottom
@@ -115,10 +151,22 @@ Item {
         }
     }
 
+    // selection: an accent seam along the bottom plus a frame, so the focused
+    // tile carries the product's own colour
+    Rectangle {
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: Tokens.border * 3
+        visible: cover.tile && cover.selected
+        color: cover.coverAccent
+    }
+
     Rectangle {
         anchors.fill: parent
+        visible: cover.tile
         color: "transparent"
-        border.width: cover.selected ? Tokens.border * 2 : (cover.stage ? 0 : Tokens.border)
-        border.color: cover.selected ? Tokens.ink : "#24ffffff"
+        border.width: cover.selected ? Tokens.border * 2 : Tokens.border
+        border.color: cover.selected
+                ? Qt.rgba(cover.coverAccent.r, cover.coverAccent.g, cover.coverAccent.b, 0.9)
+                : "#22ffffff"
     }
 }

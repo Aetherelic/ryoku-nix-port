@@ -29,6 +29,8 @@ FocusScope {
     readonly property string actionKey: StoreLogic.itemKey(actionItem)
     readonly property var screenshots: Array.isArray(actionItem.screenshots) ? actionItem.screenshots : []
     readonly property int screenshotCount: screenshots.length
+    readonly property var tags: Array.isArray(actionItem.tags) ? actionItem.tags : []
+    readonly property color accentColor: actionItem.accent ? Qt.color(actionItem.accent) : Tokens.sun
     readonly property string errorText: installErrorKey === actionKey ? installError : ""
     readonly property string transitionMode: reducedMotion ? "immediate" : "shared"
     readonly property string metadataText: [
@@ -96,7 +98,7 @@ FocusScope {
         width: detail.mix(detail.effectiveOrigin.width, detail.targetWidth)
         height: detail.mix(detail.effectiveOrigin.height, detail.targetHeight)
         item: detail.actionItem
-        stage: true
+        mode: "plate"
     }
 
     Column {
@@ -142,6 +144,37 @@ FocusScope {
             wrapMode: Text.Wrap
             maximumLineCount: 4
             elide: Text.ElideRight
+        }
+
+        Flow {
+            objectName: "ryostore-detail-tags"
+            width: parent.width
+            spacing: Tokens.s2
+            visible: detail.tags.length > 0
+
+            Repeater {
+                model: detail.tags
+
+                delegate: Rectangle {
+                    required property string modelData
+                    width: tagLabel.implicitWidth + Tokens.s3 * 2
+                    height: tagLabel.implicitHeight + Tokens.s2
+                    radius: Tokens.radius
+                    color: Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.12)
+                    border.width: Tokens.border
+                    border.color: Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.4)
+
+                    Text {
+                        id: tagLabel
+                        anchors.centerIn: parent
+                        text: parent.modelData.toUpperCase()
+                        color: Tokens.ink
+                        font.family: Tokens.mono
+                        font.pixelSize: Tokens.fMicro
+                        font.letterSpacing: Tokens.trackLabel
+                    }
+                }
+            }
         }
 
         Text {
@@ -258,7 +291,7 @@ FocusScope {
                         ProductMedia {
                             anchors.fill: parent
                             source: parent.modelData
-                            immersive: true
+                            mode: "cover"
                             active: detail.open
                         }
 
