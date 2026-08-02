@@ -10,7 +10,7 @@ Ryoku Settings manages what is already present.
 
 - **Catalogue = `ryoku-extras`.** Each kind of thing (bundles, plugins,
   nautilus packs, livewalls, colorschemes) is a folder with a `registry.json`.
-  An item is invisible to the shell until it is listed there. The Hub fetches
+  An item is invisible to RyoStore until it is listed there. RyoStore fetches
   the repo at runtime (`RYOKU_EXTRAS_BASE`, default the GitHub `main` raw tree)
   and caches it under `~/.cache/ryoku/extras`, so the catalogue still renders
   offline.
@@ -72,7 +72,7 @@ The fixed header exposes one semantic route order:
 
 ```text
 Discover
-Rices · Lockscreens · Bar styles · Fastfetch · Plugins · Bundles
+Lockscreens · Rices · Bar styles · Fastfetch · Plugins · Bundles
 Search
 Library
 ```
@@ -229,9 +229,10 @@ and installation, not a second runtime copy.
   style registry exists, the category renders its honest upcoming plate.
   Fastfetch editing remains in Settings.
 
-Each provider can fail independently. Cached catalogue data and all local state
-still render offline under an `OFFLINE · ARCHIVE FROM <date>` running head. A
-failed lockscreen source cannot blank plugins, bundles, or the Installed view.
+Each provider can fail independently. Cached catalogue data and local state
+remain visible while the header marks the degraded source as `SEARCH / OFFLINE`.
+A failed lockscreen source cannot blank plugins, bundles, or the Library
+collection.
 
 ## Migration
 
