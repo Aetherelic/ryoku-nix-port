@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "ryostore" as Ryo
+import "ryostore/Singletons" as RyoState
 
 ShellRoot {
     id: root
@@ -16,6 +17,8 @@ ShellRoot {
     property bool searchOpened: false
     property bool searchClosed: false
     property string editedQuery: ""
+    property string retryKey: ""
+    property int closeCount: 0
     property var probeDimensions: String(Quickshell.env("RYOSTORE_PROBE_SIZE") || "980x640").split("x")
     readonly property int probeWidth: Number(probeDimensions[0]) || 980
     readonly property int probeHeight: Number(probeDimensions[1]) || 640
@@ -216,6 +219,43 @@ ShellRoot {
                 strip.selectedKey = root.lastSelected;
             }
         }
+        Ryo.ProductDetail {
+            id: detail
+            z: 20
+            anchors.fill: parent
+            open: true
+            originRect: Qt.rect(60, 420, 220, 180)
+            item: ({
+                id: "broken",
+                category: "lockscreens",
+                categoryName: "Locks",
+                name: "Broken Clock",
+                description: "A lockscreen fixture with exact failure feedback.",
+                art: "",
+                screenshots: [Qt.resolvedUrl("ryostore/logo.svg")],
+                compatibility: ["Hyprland 0.50+", "Ryoku"],
+                contents: ["lockscreen QML", "wallpaper"],
+                author: "Fixture Author",
+                version: "1.2.3",
+                size: "4 MiB",
+                accent: "#d75f5f",
+                surface: "#101010",
+                installed: false
+            })
+            busyKey: ""
+            installStage: "FAILED"
+            installErrorKey: "lockscreens:broken"
+            installError: "fixture install failed"
+            reducedMotion: false
+            onRetryRequested: item => {
+                root.retryKey = item.category + ":" + item.id;
+                RyoState.Store.retryInstall(item);
+            }
+            onCloseRequested: root.closeCount++
+            onInstallRequested: item => root.installedKey = item.category + ":" + item.id
+            onSettingsRequested: item => root.settingsKey = item.category + ":" + item.id
+        }
+
     }
 
     Timer {
@@ -231,6 +271,25 @@ ShellRoot {
             root.require(progress.labels.indexOf("DOWNLOADING") !== -1, "matching progress explicit");
             root.require(offline.labels.indexOf("OFFLINE") !== -1, "offline state explicit");
             root.require(failed.labels.indexOf("fixture install failed") !== -1, "exact failure preserved");
+            root.require(detail.open && detail.item.id === "broken", "failure keeps dossier open");
+            root.require(detail.errorText.indexOf("fixture install failed") !== -1, "exact failure shown");
+            root.require(detail.screenshotCount === 1, "detail exposes real screenshots");
+            root.require(detail.metadataText.indexOf("Fixture Author") !== -1
+                    && detail.metadataText.indexOf("1.2.3") !== -1
+                    && detail.metadataText.indexOf("Hyprland 0.50+") !== -1,
+                    "detail exposes product metadata");
+            RyoState.Store.installErrorKey = "lockscreens:broken";
+            RyoState.Store.installError = "fixture install failed";
+            RyoState.Store.installStage = "FAILED";
+            detail.triggerRetry();
+            root.require(root.retryKey === "lockscreens:broken", "retry targets selected item");
+            root.require(RyoState.Store.installError === ""
+                    && RyoState.Store.installErrorKey === "", "retry clears matching error");
+            detail.reducedMotion = true;
+            root.require(detail.transitionMode === "immediate", "reduced motion removes shared-element travel");
+            detail.triggerClose();
+            root.require(root.closeCount === 1, "detail delegates reversible close");
+            root.require(detail.open && detail.item.id === "broken", "close does not mutate detail state");
             const headerDiscover = root.findObject(header, "ryostore-header-discover");
             const headerCategories = root.findObject(header, "ryostore-header-categories");
             const headerSearch = root.findObject(header, "ryostore-header-search");
@@ -389,6 +448,15 @@ ShellRoot {
             root.require(strip.kineticEnabled === false, "reduced motion disables kinetic travel");
             flick.flick(-1200, 0);
             root.require(flick.flicking === false, "reduced motion cancels flick immediately");
+            finishTimer.start();
+        }
+
+    }
+
+    Timer {
+        id: finishTimer
+        interval: 150
+        onTriggered: {
             console.log("RYOSTORE-COMPONENTS-PROBE-PASS");
             Qt.quit();
         }
