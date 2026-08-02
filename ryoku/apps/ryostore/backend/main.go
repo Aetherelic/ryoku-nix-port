@@ -4,6 +4,7 @@
 //
 //	ryostore catalog [--refresh] [--category <id>]   normalized catalogue, JSON
 //	ryostore install <category> <id>                 install-only, no activation
+//	ryostore remove <category> <id>                  receipt-owned removal
 //
 // The internal namespace holds calls the extras actuator and Settings make
 // directly; later tasks register those subcommands under it.
@@ -28,13 +29,15 @@ func main() {
 // the caller reports one useful line and exits nonzero.
 func dispatch(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("no command; expected catalog, install, open, settings, or internal")
+		return fmt.Errorf("no command; expected catalog, install, remove, open, settings, or internal")
 	}
 	switch args[0] {
 	case "catalog":
 		return runCatalog(os.Stdout, providers(), args[1:])
 	case "install":
 		return runInstall(providers(), args[1:])
+	case "remove":
+		return runRemove(providers(), args[1:])
 	case "open":
 		return runOpen(args[1:])
 	case "settings":
@@ -42,7 +45,7 @@ func dispatch(args []string) error {
 	case "internal":
 		return runInternal(args[1:])
 	default:
-		return fmt.Errorf("unknown command %q; expected catalog, install, open, settings, or internal", args[0])
+		return fmt.Errorf("unknown command %q; expected catalog, install, remove, open, settings, or internal", args[0])
 	}
 }
 
@@ -91,6 +94,17 @@ func runInstall(provs []Provider, args []string) error {
 		return fmt.Errorf("unknown category %q", category)
 	}
 	return p.Install(context.Background(), id)
+}
+func runRemove(provs []Provider, args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("remove needs <category> <id>")
+	}
+	category, id := args[0], args[1]
+	p, ok := providerFor(provs, category)
+	if !ok {
+		return fmt.Errorf("unknown category %q", category)
+	}
+	return p.Remove(context.Background(), id)
 }
 
 // runInternal namespaces commands the extras actuator and Settings call

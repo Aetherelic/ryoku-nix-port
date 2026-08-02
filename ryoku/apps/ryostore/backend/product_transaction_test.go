@@ -1,0 +1,252 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+type transactionFixture struct {
+	cache   *Cache
+	entry   ProductEntry
+	content []byte
+}
+
+func newTransactionFixture(t *testing.T, version string, declared, served []byte) transactionFixture {
+	t.Helper()
+	fileHash := fmt.Sprintf("%x", sha256.Sum256(declared))
+	manifest := ProductManifest{
+		Schema:      1,
+		ID:          "demo",
+		Category:    "plugins",
+		Version:     version,
+		Destination: "ryoku/plugins/demo",
+		Files: []ProductFile{
+			{
+				Source:      "content/Plugin.qml",
+				Destination: "content/Plugin.qml",
+				Mode:        "0644",
+				Size:        int64(len(declared)),
+				SHA256:      fileHash,
+				Install:     true,
+			},
+			{
+				Source:      "assets/preview.png",
+				Destination: "assets/preview.png",
+				Mode:        "0644",
+				Size:        7,
+				SHA256:      strings.Repeat("0", 64),
+				Install:     false,
+			},
+		},
+	}
+	manifestRaw, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := ProductEntry{
+		ID:             "demo",
+		Name:           "Demo",
+		Version:        version,
+		Path:           "plugins/demo",
+		Author:         "Ryoku Team",
+		Summary:        "Transaction fixture",
+		Description:    "Transaction fixture product.",
+		Preview:        "assets/preview.png",
+		Manifest:       "manifest.json",
+		ManifestSHA256: fmt.Sprintf("%x", sha256.Sum256(manifestRaw)),
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/plugins/demo/manifest.json":
+			_, _ = w.Write(manifestRaw)
+		case "/plugins/demo/content/Plugin.qml":
+			_, _ = w.Write(served)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	return transactionFixture{
+		cache: &Cache{
+			client: server.Client(),
+			base:   server.URL,
+			dir:    t.TempDir(),
+			memo:   map[string]memoEntry{},
+		},
+		entry:   entry,
+		content: declared,
+	}
+}
+
+func installedPluginPath() string {
+	return filepath.Join(dataHome(), "ryoku", "plugins", "demo")
+}
+
+func TestProductTransactionLifecycle(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+
+	first := newTransactionFixture(t, "1.0.0", []byte("version one\n"), []byte("version one\n"))
+	staleStage := filepath.Join(filepath.Dir(installedPluginPath()), ".ryostore-stage-demo-interrupted")
+	if err := os.MkdirAll(staleStage, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := installProduct(ctx, first.cache, "plugins", first.entry); err != nil {
+		t.Fatalf("initial install: %v", err)
+	}
+	if _, err := os.Stat(staleStage); !os.IsNotExist(err) {
+		t.Fatalf("interrupted stage remains: %v", err)
+	}
+	installedFile := filepath.Join(installedPluginPath(), "content", "Plugin.qml")
+	if raw, err := os.ReadFile(installedFile); err != nil || string(raw) != "version one\n" {
+		t.Fatalf("installed file = %q, err=%v", raw, err)
+	}
+	if mode, err := os.Stat(installedFile); err != nil || mode.Mode().Perm() != 0o644 {
+		t.Fatalf("installed mode = %v, err=%v", mode, err)
+	}
+	receipt, err := readReceipt("plugins", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Version != "1.0.0" || len(receipt.Files) != 1 || receipt.Files[0].Destination != "content/Plugin.qml" {
+		t.Fatalf("initial receipt = %#v", receipt)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 1 || revision.Operation != "install" {
+		t.Fatalf("initial revision = %#v", revision)
+	}
+
+	reinstall := newTransactionFixture(t, "1.0.0", []byte("replacement\n"), []byte("replacement\n"))
+	if err := installProduct(ctx, reinstall.cache, "plugins", reinstall.entry); err != nil {
+		t.Fatalf("identical-version replacement: %v", err)
+	}
+	if raw, _ := os.ReadFile(installedFile); string(raw) != "replacement\n" {
+		t.Fatalf("replacement file = %q", raw)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 2 || revision.Operation != "update" || revision.Version != "1.0.0" {
+		t.Fatalf("replacement revision = %#v", revision)
+	}
+
+	update := newTransactionFixture(t, "2.0.0", []byte("version two\n"), []byte("version two\n"))
+	if err := installProduct(ctx, update.cache, "plugins", update.entry); err != nil {
+		t.Fatalf("version update: %v", err)
+	}
+	if raw, _ := os.ReadFile(installedFile); string(raw) != "version two\n" {
+		t.Fatalf("updated file = %q", raw)
+	}
+	if receipt, err = readReceipt("plugins", "demo"); err != nil || receipt.Version != "2.0.0" {
+		t.Fatalf("updated receipt = %#v, err=%v", receipt, err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 3 || revision.Operation != "update" || revision.Version != "2.0.0" {
+		t.Fatalf("update revision = %#v", revision)
+	}
+
+	unrelated := filepath.Join(installedPluginPath(), "notes.txt")
+	if err := os.WriteFile(unrelated, []byte("keep\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeProduct(ctx, "plugins", "demo"); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if _, err := os.Stat(installedFile); !os.IsNotExist(err) {
+		t.Fatalf("owned file remains: %v", err)
+	}
+	if raw, err := os.ReadFile(unrelated); err != nil || string(raw) != "keep\n" {
+		t.Fatalf("unrelated file = %q, err=%v", raw, err)
+	}
+	if _, err := readReceipt("plugins", "demo"); !os.IsNotExist(err) {
+		t.Fatalf("receipt remains: %v", err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 4 || revision.Operation != "remove" || revision.Version != "2.0.0" {
+		t.Fatalf("remove revision = %#v", revision)
+	}
+}
+
+func TestProductTransactionHashFailureRollsBack(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	first := newTransactionFixture(t, "1.0.0", []byte("known good!!\n"), []byte("known good!!\n"))
+	if err := installProduct(ctx, first.cache, "plugins", first.entry); err != nil {
+		t.Fatal(err)
+	}
+	bad := newTransactionFixture(t, "2.0.0", []byte("version two!\n"), []byte("tampered two\n"))
+	if err := installProduct(ctx, bad.cache, "plugins", bad.entry); err == nil || !strings.Contains(err.Error(), "hash") {
+		t.Fatalf("bad update error = %v, want hash failure", err)
+	}
+	installedFile := filepath.Join(installedPluginPath(), "content", "Plugin.qml")
+	if raw, err := os.ReadFile(installedFile); err != nil || string(raw) != "known good!!\n" {
+		t.Fatalf("prior file after failed update = %q, err=%v", raw, err)
+	}
+	receipt, err := readReceipt("plugins", "demo")
+	if err != nil || receipt.Version != "1.0.0" {
+		t.Fatalf("receipt after failed update = %#v, err=%v", receipt, err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 1 || revision.Operation != "install" {
+		t.Fatalf("revision advanced after failed update: %#v", revision)
+	}
+}
+
+func TestProductTransactionRefusesUntrackedDestination(t *testing.T) {
+	setTransactionXDG(t)
+	if err := os.MkdirAll(installedPluginPath(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(context.Background(), fixture.cache, "plugins", fixture.entry); err == nil || !strings.Contains(err.Error(), "untracked") {
+		t.Fatalf("install error = %v, want untracked destination refusal", err)
+	}
+}
+
+func TestProductTransactionRefusesSymlink(t *testing.T) {
+	setTransactionXDG(t)
+	if err := os.MkdirAll(filepath.Dir(installedPluginPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := t.TempDir()
+	if err := os.Symlink(target, installedPluginPath()); err != nil {
+		t.Fatal(err)
+	}
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(context.Background(), fixture.cache, "plugins", fixture.entry); err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("install error = %v, want symlink refusal", err)
+	}
+}
+
+type removeDispatchProvider struct {
+	removed string
+}
+
+func (removeDispatchProvider) Category() Category {
+	return Category{ID: "plugins"}
+}
+func (removeDispatchProvider) Load(context.Context, bool) ([]Item, SourceState, error) {
+	return nil, SourceState{}, nil
+}
+func (removeDispatchProvider) Install(context.Context, string) error { return nil }
+func (provider *removeDispatchProvider) Remove(_ context.Context, id string) error {
+	provider.removed = id
+	return nil
+}
+
+func TestRemoveDispatch(t *testing.T) {
+	provider := &removeDispatchProvider{}
+	if err := runRemove([]Provider{provider}, []string{"plugins", "demo"}); err != nil {
+		t.Fatal(err)
+	}
+	if provider.removed != "demo" {
+		t.Fatalf("removed id = %q", provider.removed)
+	}
+	if err := runRemove([]Provider{provider}, []string{"unknown", "demo"}); err == nil {
+		t.Fatal("runRemove accepted unknown category")
+	}
+	if err := runRemove([]Provider{provider}, []string{"plugins"}); err == nil {
+		t.Fatal("runRemove accepted missing id")
+	}
+}

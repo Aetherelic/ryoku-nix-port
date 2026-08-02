@@ -8,12 +8,13 @@ import (
 
 // Provider is one product catalogue. Load fetches and normalizes the category's
 // items, reporting its source state or an error that stays isolated to that
-// category. Install fetches an item onto the machine without activating it.
+// category. Install and Remove change an item without activating or applying it.
 // refresh bypasses any fresh in-process cache.
 type Provider interface {
 	Category() Category
 	Load(ctx context.Context, refresh bool) ([]Item, SourceState, error)
 	Install(ctx context.Context, id string) error
+	Remove(ctx context.Context, id string) error
 }
 
 // providers is the ordered catalogue registry in rail order. Each later task
