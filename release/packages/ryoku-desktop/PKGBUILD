@@ -44,6 +44,12 @@ depends=(
   'qt6-wayland'
   'qt6-5compat'
   'qt6-svg'
+  # WebP/AVIF/etc image decoders (libqwebp.so and friends). qt6-base ships only
+  # PNG/JPEG/GIF, but RyoStore and the ryoku-extras catalogue deliver product
+  # previews and screenshots as WebP; without this every rice, bundle, bar-style
+  # and Fastfetch cover renders blank. A hard depend so the art shows on the ISO
+  # and on existing boxes after `ryoku update`.
+  'qt6-imageformats'
   'hyprpolkitagent'
   'xdg-desktop-portal-hyprland'
   'xdg-desktop-portal-gtk'
@@ -289,10 +295,10 @@ package() {
   # pipewire: audio follows a newly connected device (BT headset, USB DAC)
   install -d "$cfg/pipewire"
   cp -a "$_repo/ryoku/apps/pipewire/." "$cfg/pipewire/"
-  # wireplumber: Bluetooth codec policy (mSBC calls, hi-fi A2DP); system drop-in,
-  # user-overridable from ~/.config/wireplumber/wireplumber.conf.d/.
-  install -Dm644 "$_repo/ryoku/apps/wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf" \
-    "$pkgdir/etc/wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf"
+  # wireplumber: Bluetooth codec and profile policy, materialized like every
+  # other per-user app config so package installs and dev deploys converge.
+  install -d "$cfg/wireplumber"
+  cp -a "$_repo/ryoku/apps/wireplumber/." "$cfg/wireplumber/"
   install -Dm644 "$_repo/ryoku/apps/yazi/yazi.toml"         "$cfg/yazi/yazi.toml"
   install -d "$cfg/kitty"
   cp -a "$_repo/ryoku/apps/kitty/." "$cfg/kitty/"
