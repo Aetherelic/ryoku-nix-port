@@ -44,6 +44,7 @@ Flow {
             Text {
                 objectName: "ryostore-status-" + labelRow.modelData
                 text: labelRow.modelData
+                textFormat: Text.PlainText
                 color: Tokens.inkDim
                 font.family: Tokens.mono
                 font.pixelSize: Tokens.fMicro

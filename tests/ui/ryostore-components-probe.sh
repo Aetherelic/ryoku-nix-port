@@ -17,7 +17,7 @@ if ! grep -q RYOSTORE-COMPONENTS-PROBE-PASS "$work/log"; then
     sed -n '1,160p' "$work/log"
     exit 1
 fi
-if grep -Eq ' ERROR|TypeError|ReferenceError' "$work/log"; then
+if grep -Eq '(^|[[:space:]])ERROR|TypeError|ReferenceError' "$work/log"; then
     sed -n '1,160p' "$work/log"
     exit 1
 fi
