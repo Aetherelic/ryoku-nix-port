@@ -48,6 +48,8 @@ type Item struct {
 	ManifestSHA256   string         `json:"manifestSha256,omitempty"`
 	InstalledVersion string         `json:"installedVersion,omitempty"`
 	Compatibility    string         `json:"compatibility,omitempty"`
+	Accent           string         `json:"accent,omitempty"`
+	Surface          string         `json:"surface,omitempty"`
 	Screenshots      []string       `json:"screenshots,omitempty"`
 	Tags             []string       `json:"tags,omitempty"`
 	Installed        bool           `json:"installed"`

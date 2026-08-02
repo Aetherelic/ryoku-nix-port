@@ -843,10 +843,6 @@ func pruneEmptyProductDirs(dst string, files []ReceiptFile) {
 	_ = os.Remove(dst)
 }
 
-func (lockProvider) Remove(ctx context.Context, id string) error {
-	return removeProduct(ctx, "lockscreens", id)
-}
-
 func (riceProvider) Remove(ctx context.Context, id string) error {
 	return removeProduct(ctx, "rices", id)
 }

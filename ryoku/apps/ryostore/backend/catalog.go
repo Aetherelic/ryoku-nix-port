@@ -23,7 +23,7 @@ type Provider interface {
 func providers() []Provider {
 	c := newCache()
 	return []Provider{
-		newLockProvider(),
+		newLockProvider(c),
 		newRiceProvider(c),
 		newBarProvider(),
 		newFastfetchProvider(c),

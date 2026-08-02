@@ -156,14 +156,11 @@ user chmod +x "$LOCK_DIR/lock.sh"
 # --- 4. themes the lock reads, plus the themes_link the lock resolves ---------
 echo "  lock themes -> $QYLOCK_DIR/themes"
 user mkdir -p "$QYLOCK_DIR"
-# refresh the SHIPPED themes only: a wholesale rm -rf here deleted every theme
-# the user had installed from the catalog alongside them.
-user mkdir -p "$QYLOCK_DIR/themes"
-for _t in "$BUNDLE/themes/"*; do
-  [[ -d $_t ]] || continue
-  user rm -rf "$QYLOCK_DIR/themes/$(basename "$_t")"
-  user cp -a "$_t" "$QYLOCK_DIR/themes/$(basename "$_t")"
-done
+# Refresh only the core fallback. Optional themes are receipt-owned RyoStore
+# products, and legacy user themes must survive installer/doctor reruns.
+user mkdir -p "$QYLOCK_DIR/themes/clockwork"
+user rm -rf "$QYLOCK_DIR/themes/clockwork/orbital"
+user cp -a "$BUNDLE/themes/clockwork/orbital" "$QYLOCK_DIR/themes/clockwork/orbital"
 user ln -sfn "$QYLOCK_DIR/themes" "$LOCK_DIR/themes_link"
 
 # --- 5. active lock theme (user, seed once) -----------------------------------
