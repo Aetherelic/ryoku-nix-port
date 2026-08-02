@@ -25,6 +25,12 @@ Item {
         closeRequested();
     }
 
+    function handleEscape(event) {
+        requestClose();
+        if (event)
+            event.accepted = true;
+    }
+
     onOpenChanged: {
         if (open)
             Qt.callLater(focusField);
@@ -62,10 +68,7 @@ Item {
         Accessible.name: "Search RyoStore"
         Accessible.description: "Type to filter the current showroom collection"
         onTextEdited: layer.queryEdited(text)
-        Keys.onEscapePressed: event => {
-            layer.requestClose();
-            event.accepted = true;
-        }
+        Keys.onEscapePressed: event => layer.handleEscape(event)
 
         Text {
             anchors.fill: parent

@@ -97,25 +97,6 @@ Item {
         onTriggered: header.activateDiscover()
     }
 
-    NavAction {
-        id: libraryAction
-        objectName: "ryostore-header-library"
-        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
-        label: header.libraryLabel
-        current: header.view === "library"
-        onTriggered: header.activateLibrary()
-    }
-
-    NavAction {
-        id: searchAction
-        objectName: "ryostore-header-search"
-        anchors { right: libraryAction.left; top: parent.top; bottom: parent.bottom }
-        label: header.offline ? "SEARCH / OFFLINE" : "SEARCH"
-        description: header.query === "" ? "Search the Store" : "Search query: " + header.query
-        current: header.query !== ""
-        onTriggered: header.activateSearch()
-    }
-
     Flickable {
         id: categoryScroll
         objectName: "ryostore-header-categories"
@@ -131,6 +112,14 @@ Item {
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
 
+        function reveal(itemX, itemWidth) {
+            const maximum = Math.max(0, contentWidth - width);
+            if (itemX < contentX)
+                contentX = Math.max(0, itemX);
+            else if (itemX + itemWidth > contentX + width)
+                contentX = Math.min(maximum, itemX + itemWidth - width);
+        }
+
         Row {
             id: categoryRow
             height: parent.height
@@ -140,11 +129,36 @@ Item {
 
                 delegate: NavAction {
                     required property var modelData
+                    required property int index
+                    objectName: "ryostore-header-category-" + String(modelData.id || "")
                     label: String(modelData.name || modelData.id || "").toUpperCase()
                     current: header.view === "discover" && header.categoryID === String(modelData.id || "")
                     onTriggered: header.activateCategory(String(modelData.id || ""))
+                    onActiveFocusChanged: {
+                        if (activeFocus)
+                            categoryScroll.reveal(x, width);
+                    }
                 }
             }
         }
+    }
+
+    NavAction {
+        id: searchAction
+        objectName: "ryostore-header-search"
+        anchors { right: libraryAction.left; top: parent.top; bottom: parent.bottom }
+        label: header.offline ? "SEARCH / OFFLINE" : "SEARCH"
+        description: header.query === "" ? "Search the Store" : "Search query: " + header.query
+        current: header.query !== ""
+        onTriggered: header.activateSearch()
+    }
+
+    NavAction {
+        id: libraryAction
+        objectName: "ryostore-header-library"
+        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+        label: header.libraryLabel
+        current: header.view === "library"
+        onTriggered: header.activateLibrary()
     }
 }

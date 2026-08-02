@@ -231,23 +231,33 @@ ShellRoot {
             root.require(progress.labels.indexOf("DOWNLOADING") !== -1, "matching progress explicit");
             root.require(offline.labels.indexOf("OFFLINE") !== -1, "offline state explicit");
             root.require(failed.labels.indexOf("fixture install failed") !== -1, "exact failure preserved");
-            header.activateCategory("rices");
-            root.require(root.routeView === "discover" && root.routeCategory === "rices", "category route");
-            header.activateLibrary();
-            root.require(root.routeView === "library" && root.routeCategory === "", "library route");
-            header.activateSearch();
-            root.require(root.searchOpened, "header delegates search opening");
-            search.open = true;
-            search.focusField();
-            root.require(search.fieldActive, "search takes focus");
-            const queryBeforeClose = search.query;
-            search.requestClose();
-            root.require(root.searchClosed, "search delegates restoration");
-            root.require(search.query === queryBeforeClose, "search close preserves query");
             const headerDiscover = root.findObject(header, "ryostore-header-discover");
             const headerCategories = root.findObject(header, "ryostore-header-categories");
             const headerSearch = root.findObject(header, "ryostore-header-search");
             const headerLibrary = root.findObject(header, "ryostore-header-library");
+            const firstCategory = root.findObject(header, "ryostore-header-category-rices");
+            const lastCategory = root.findObject(header, "ryostore-header-category-bundles");
+            firstCategory.Accessible.pressAction();
+            root.require(root.routeView === "discover" && root.routeCategory === "rices", "accessible category route");
+            headerLibrary.Accessible.pressAction();
+            root.require(root.routeView === "library" && root.routeCategory === "", "accessible library route");
+            headerSearch.Accessible.pressAction();
+            root.require(root.searchOpened, "accessible header search opens layer");
+            headerDiscover.Accessible.pressAction();
+            root.require(root.routeView === "discover" && root.routeCategory === "", "accessible Discover route");
+            search.open = true;
+            search.focusField();
+            root.require(search.fieldActive, "search takes focus");
+            const searchField = root.findObject(search, "ryostore-search-field");
+            searchField.text = "rice";
+            searchField.textEdited();
+            root.require(root.editedQuery === "rice", "search edit delegates query");
+            const queryBeforeClose = search.query;
+            root.searchClosed = false;
+            const escapeEvent = ({ accepted: false });
+            search.handleEscape(escapeEvent);
+            root.require(root.searchClosed && escapeEvent.accepted, "Escape delegates restoration");
+            root.require(search.query === queryBeforeClose, "search Escape preserves query");
             root.require(headerDiscover.x < headerCategories.x
                     && headerCategories.x < headerSearch.x
                     && headerSearch.x < headerLibrary.x, "header keeps semantic navigation order");
@@ -256,6 +266,27 @@ ShellRoot {
             root.require(headerCategories.width > 0, "categories retain scroll region");
             if (root.probeWidth <= 980)
                 root.require(headerCategories.contentWidth > headerCategories.width, "category labels scroll at cramped size");
+            const focusOrder = [
+                "ryostore-header-category-rices",
+                "ryostore-header-category-lockscreens",
+                "ryostore-header-category-plugins",
+                "ryostore-header-category-barstyles",
+                "ryostore-header-category-fastfetch",
+                "ryostore-header-category-bundles",
+                "ryostore-header-search",
+                "ryostore-header-library"
+            ];
+            var focusItem = headerDiscover;
+            for (const expectedName of focusOrder) {
+                focusItem = focusItem.nextItemInFocusChain(true);
+                root.require(focusItem.objectName === expectedName, "semantic tab order reaches " + expectedName);
+            }
+            headerCategories.contentX = 0;
+            lastCategory.forceActiveFocus(Qt.TabFocusReason);
+            root.require(lastCategory.activeFocus, "overflow category takes keyboard focus");
+            root.require(lastCategory.x >= headerCategories.contentX
+                    && lastCategory.x + lastCategory.width <= headerCategories.contentX + headerCategories.width,
+                    "focused category scrolls into view");
             root.require(headerLibrary.Accessible.name.indexOf("3") !== -1
                     && headerLibrary.Accessible.name.indexOf("1 UPDATE") !== -1, "library counts remain explicit");
             header.offline = true;
