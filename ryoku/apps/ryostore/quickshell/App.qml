@@ -39,6 +39,7 @@ Rectangle {
         return copy;
     })
     readonly property var navigationCategories: StoreLogic.sortCategories(Store.categories)
+            .filter(category => Number(category.count || 0) > 0)
     readonly property var collection: StoreLogic.collection(searchableItems, {
         view: view,
         categoryID: categoryID,
@@ -78,8 +79,9 @@ Rectangle {
     }
 
     function validRoute(route) {
-        return ["discover", "library", "rices", "lockscreens", "barstyles",
-                "fastfetch", "plugins", "bundles"].indexOf(route) !== -1;
+        if (route === "discover" || route === "library")
+            return true;
+        return Store.categories.some(category => category.id === route);
     }
 
     function currentFocusObject() {
