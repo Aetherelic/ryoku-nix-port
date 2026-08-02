@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,12 +16,33 @@ import (
 	"time"
 )
 
+var (
+	errProductTransactionInterrupted = errors.New("product transaction interrupted")
+	productTransactionCheckpoint     = func(string) error { return nil }
+	removeProductArtifact            = os.RemoveAll
+	writeProductRevision             = writeStoreRevision
+)
+
+type productTransactionJournal struct {
+	Schema         int      `json:"schema"`
+	Category       string   `json:"category"`
+	ID             string   `json:"id"`
+	Version        string   `json:"version"`
+	Operation      string   `json:"operation"`
+	Phase          string   `json:"phase"`
+	HadDestination bool     `json:"hadDestination,omitempty"`
+	PriorReceipt   *Receipt `json:"priorReceipt,omitempty"`
+}
+
 func installProduct(ctx context.Context, cache *Cache, category string, entry ProductEntry) error {
-	manifest, err := loadProductManifest(ctx, cache, category, entry)
+	dst, expectedDestination, err := productDestination(category, entry.ID)
 	if err != nil {
 		return err
 	}
-	dst, expectedDestination, err := productDestination(category, entry.ID)
+	if err := rejectSymlinkPath(productDestinationRoot(category), filepath.FromSlash(expectedDestination)); err != nil {
+		return err
+	}
+	manifest, err := loadProductManifest(ctx, cache, category, entry)
 	if err != nil {
 		return err
 	}
@@ -27,18 +50,23 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 		return fmt.Errorf("%s/%s: destination %q is outside the category allowlist", category, entry.ID, manifest.Destination)
 	}
 
+	globalUnlock, err := lockTree(storeTransactionLockPath())
+	if err != nil {
+		return err
+	}
+	defer globalUnlock()
+	if err := recoverStoreTransactions(); err != nil {
+		return err
+	}
+	if err := rejectSymlinkPath(productDestinationRoot(category), filepath.FromSlash(expectedDestination)); err != nil {
+		return err
+	}
 	unlock, err := lockTree(dst)
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	if err := recoverTree(dst); err != nil {
-		return fmt.Errorf("recover %s/%s: %w", category, entry.ID, err)
-	}
 	if err := cleanupProductStages(filepath.Dir(dst), entry.ID); err != nil {
-		return err
-	}
-	if err := rejectSymlinkPath(productDestinationRoot(category), expectedDestination); err != nil {
 		return err
 	}
 
@@ -66,6 +94,12 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 	if hadReceipt && prior.Destination != expectedDestination {
 		return fmt.Errorf("receipt destination %q is outside the category allowlist", prior.Destination)
 	}
+	backup := productInstallBackupPath(dst)
+	if _, err := os.Lstat(backup); err == nil {
+		return fmt.Errorf("reserved transaction backup exists: %s", backup)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
 
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
@@ -82,15 +116,9 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 			continue
 		}
 		rel := path.Join(entry.Path, file.Source)
-		data, err := fetchProductFile(ctx, cache, rel, file.Size)
+		data, err := fetchProductFile(ctx, cache, rel, file.Size, file.SHA256)
 		if err != nil {
 			return fmt.Errorf("%s/%s: files[%d] %s: %w", category, entry.ID, index, file.Source, err)
-		}
-		if int64(len(data)) != file.Size {
-			return fmt.Errorf("%s/%s: size mismatch for %s", category, entry.ID, file.Source)
-		}
-		if fmt.Sprintf("%x", sha256.Sum256(data)) != file.SHA256 {
-			return fmt.Errorf("%s/%s: hash mismatch for %s", category, entry.ID, file.Source)
 		}
 		target := filepath.Join(stage, filepath.FromSlash(file.Destination))
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
@@ -114,6 +142,9 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 			Size:        file.Size,
 		})
 	}
+	if len(receiptFiles) == 0 {
+		return fmt.Errorf("%s/%s: manifest has no installable files", category, entry.ID)
+	}
 
 	receipt := Receipt{
 		Category:    category,
@@ -126,36 +157,69 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 	if hadReceipt {
 		operation = "update"
 	}
-	restoreReceipt := func() error {
-		if hadReceipt {
-			return writeReceipt(prior)
-		}
-		err := os.Remove(receiptPath(category, entry.ID))
-		if os.IsNotExist(err) {
-			return nil
-		}
+	journal := productTransactionJournal{
+		Schema:         1,
+		Category:       category,
+		ID:             entry.ID,
+		Version:        entry.Version,
+		Operation:      operation,
+		Phase:          "install-prepared",
+		HadDestination: hadDestination,
+	}
+	if hadReceipt {
+		priorCopy := prior
+		journal.PriorReceipt = &priorCopy
+	}
+	if err := writeProductJournal(journal); err != nil {
 		return err
 	}
-	finalize := func() error {
-		if err := writeReceipt(receipt); err != nil {
-			return err
+
+	rollback := func(cause error) error {
+		if errors.Is(cause, errProductTransactionInterrupted) {
+			return cause
 		}
-		if err := verifyInstalledReceipt(dst, receipt); err != nil {
-			if restoreErr := restoreReceipt(); restoreErr != nil {
-				return fmt.Errorf("%w; restore receipt: %v", err, restoreErr)
-			}
-			return err
+		if rollbackErr := rollbackProductJournal(journal); rollbackErr != nil {
+			return fmt.Errorf("%w; rollback: %v", cause, rollbackErr)
 		}
-		change := StoreRevision{Category: category, ID: entry.ID, Version: entry.Version, Operation: operation}
-		if err := writeStoreRevision(change); err != nil {
-			if restoreErr := restoreReceipt(); restoreErr != nil {
-				return fmt.Errorf("%w; restore receipt: %v", err, restoreErr)
-			}
-			return err
-		}
-		return nil
+		return cause
 	}
-	return replaceTree(stage, dst, finalize)
+	if hadDestination {
+		if err := os.Rename(dst, backup); err != nil {
+			return rollback(err)
+		}
+	}
+	if err := os.Rename(stage, dst); err != nil {
+		return rollback(err)
+	}
+	journal.Phase = "install-published"
+	if err := writeProductJournal(journal); err != nil {
+		return rollback(err)
+	}
+	if err := productTransactionCheckpoint(journal.Phase); err != nil {
+		return rollback(err)
+	}
+	if err := writeReceipt(receipt); err != nil {
+		return rollback(err)
+	}
+	journal.Phase = "install-receipt"
+	if err := writeProductJournal(journal); err != nil {
+		return rollback(err)
+	}
+	if err := productTransactionCheckpoint(journal.Phase); err != nil {
+		return rollback(err)
+	}
+	if err := verifyInstalledReceipt(dst, receipt); err != nil {
+		return rollback(err)
+	}
+	journal.Phase = "ready"
+	if err := writeProductJournal(journal); err != nil {
+		return rollback(err)
+	}
+	if err := writeProductRevision(journalRevision(journal)); err != nil {
+		return rollbackProductJournalWithCause(journal, err)
+	}
+	_ = cleanupCommittedProductJournal(journal)
+	return nil
 }
 
 func removeProduct(_ context.Context, category, id string) error {
@@ -163,14 +227,26 @@ func removeProduct(_ context.Context, category, id string) error {
 	if err != nil {
 		return err
 	}
+	if err := rejectSymlinkPath(productDestinationRoot(category), filepath.FromSlash(expectedDestination)); err != nil {
+		return err
+	}
+	globalUnlock, err := lockTree(storeTransactionLockPath())
+	if err != nil {
+		return err
+	}
+	defer globalUnlock()
+	if err := recoverStoreTransactions(); err != nil {
+		return err
+	}
+	if err := rejectSymlinkPath(productDestinationRoot(category), filepath.FromSlash(expectedDestination)); err != nil {
+		return err
+	}
 	unlock, err := lockTree(dst)
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	if err := recoverTree(dst); err != nil {
-		return err
-	}
+
 	receipt, err := readReceipt(category, id)
 	if err != nil {
 		return err
@@ -178,15 +254,6 @@ func removeProduct(_ context.Context, category, id string) error {
 	if receipt.Destination != expectedDestination {
 		return fmt.Errorf("receipt destination %q is outside the category allowlist", receipt.Destination)
 	}
-	if err := rejectSymlinkPath(productDestinationRoot(category), expectedDestination); err != nil {
-		return err
-	}
-
-	type ownedFile struct {
-		source string
-		hold   string
-	}
-	existing := make([]ownedFile, 0, len(receipt.Files))
 	for _, file := range receipt.Files {
 		source := filepath.Join(dst, filepath.FromSlash(file.Destination))
 		if err := rejectSymlinkPath(dst, filepath.FromSlash(file.Destination)); err != nil {
@@ -205,76 +272,323 @@ func removeProduct(_ context.Context, category, id string) error {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("owned path %s is not a regular file", source)
 		}
-		existing = append(existing, ownedFile{source: source})
 	}
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	hold := productRemovalHoldPath(dst)
+	if _, err := os.Lstat(hold); err == nil {
+		return fmt.Errorf("reserved removal hold exists: %s", hold)
+	} else if !os.IsNotExist(err) {
 		return err
 	}
-	hold, err := os.MkdirTemp(filepath.Dir(dst), ".ryostore-remove-"+id+"-*")
-	if err != nil {
+	journal := productTransactionJournal{
+		Schema:       1,
+		Category:     category,
+		ID:           id,
+		Version:      receipt.Version,
+		Operation:    "remove",
+		Phase:        "remove-prepared",
+		PriorReceipt: &receipt,
+	}
+	if err := writeProductJournal(journal); err != nil {
 		return err
 	}
-	defer os.RemoveAll(hold)
-	moved := make([]ownedFile, 0, len(existing))
-	rollbackFiles := func() error {
-		for index := len(moved) - 1; index >= 0; index-- {
-			file := moved[index]
-			if err := os.MkdirAll(filepath.Dir(file.source), 0o755); err != nil {
-				return err
-			}
-			if err := os.Rename(file.hold, file.source); err != nil {
-				return err
-			}
+	rollback := func(cause error) error {
+		if errors.Is(cause, errProductTransactionInterrupted) {
+			return cause
 		}
-		return nil
+		return rollbackProductJournalWithCause(journal, cause)
 	}
-	for _, file := range existing {
-		rel, err := filepath.Rel(dst, file.source)
-		if err != nil {
-			_ = rollbackFiles()
-			return err
+	if err := os.MkdirAll(hold, 0o700); err != nil {
+		return rollback(err)
+	}
+	for _, file := range receipt.Files {
+		source := filepath.Join(dst, filepath.FromSlash(file.Destination))
+		if _, err := os.Lstat(source); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return rollback(err)
 		}
-		file.hold = filepath.Join(hold, rel)
-		if err := os.MkdirAll(filepath.Dir(file.hold), 0o755); err != nil {
-			_ = rollbackFiles()
-			return err
+		target := filepath.Join(hold, filepath.FromSlash(file.Destination))
+		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+			return rollback(err)
 		}
-		if err := os.Rename(file.source, file.hold); err != nil {
-			_ = rollbackFiles()
-			return err
+		if err := os.Rename(source, target); err != nil {
+			return rollback(err)
 		}
-		moved = append(moved, file)
 	}
 	pruneEmptyProductDirs(dst, receipt.Files)
+	journal.Phase = "remove-files-moved"
+	if err := writeProductJournal(journal); err != nil {
+		return rollback(err)
+	}
+	if err := productTransactionCheckpoint(journal.Phase); err != nil {
+		return rollback(err)
+	}
+	if err := os.Remove(receiptPath(category, id)); err != nil {
+		return rollback(err)
+	}
+	journal.Phase = "remove-receipt"
+	if err := writeProductJournal(journal); err != nil {
+		return rollback(err)
+	}
+	if err := productTransactionCheckpoint(journal.Phase); err != nil {
+		return rollback(err)
+	}
+	journal.Phase = "ready"
+	if err := writeProductJournal(journal); err != nil {
+		return rollback(err)
+	}
+	if err := writeProductRevision(journalRevision(journal)); err != nil {
+		return rollbackProductJournalWithCause(journal, err)
+	}
+	_ = cleanupCommittedProductJournal(journal)
+	return nil
+}
 
-	receiptFile := receiptPath(category, id)
-	receiptBackup, err := reserveRenamePath(filepath.Dir(receiptFile), ".receipt-remove-*")
-	if err != nil {
-		_ = rollbackFiles()
-		return err
-	}
-	defer os.Remove(receiptBackup)
-	if err := os.Rename(receiptFile, receiptBackup); err != nil {
-		_ = rollbackFiles()
-		return err
-	}
-	restore := func(cause error) error {
-		receiptErr := os.Rename(receiptBackup, receiptFile)
-		filesErr := rollbackFiles()
-		if receiptErr != nil || filesErr != nil {
-			return fmt.Errorf("%w; restore receipt: %v; restore files: %v", cause, receiptErr, filesErr)
+func recoverStoreTransactions() error {
+	root := storeTransactionsDir()
+	for _, category := range []string{"rices", "lockscreens", "barstyles", "fastfetch", "plugins", "bundles"} {
+		directory := filepath.Join(root, category)
+		entries, err := os.ReadDir(directory)
+		if os.IsNotExist(err) {
+			continue
 		}
-		return cause
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if entry.Type()&os.ModeSymlink != 0 || entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+				return fmt.Errorf("invalid Store transaction journal %s", filepath.Join(directory, entry.Name()))
+			}
+			raw, err := os.ReadFile(filepath.Join(directory, entry.Name()))
+			if err != nil {
+				return err
+			}
+			var journal productTransactionJournal
+			if err := decodeOneJSON(raw, &journal); err != nil {
+				return fmt.Errorf("Store transaction journal: %w", err)
+			}
+			if err := validateProductJournal(journal); err != nil {
+				return err
+			}
+			if entry.Name() != journal.ID+".json" || journal.Category != category {
+				return fmt.Errorf("Store transaction journal path does not match %s/%s", journal.Category, journal.ID)
+			}
+			if err := recoverProductJournal(journal); err != nil {
+				return err
+			}
+		}
 	}
-	change := StoreRevision{Category: category, ID: id, Version: receipt.Version, Operation: "remove"}
-	if err := writeStoreRevision(change); err != nil {
-		return restore(err)
-	}
-	if err := os.Remove(receiptBackup); err != nil {
+	return nil
+}
+
+func recoverProductJournal(journal productTransactionJournal) error {
+	dst, expected, err := productDestination(journal.Category, journal.ID)
+	if err != nil {
 		return err
 	}
-	return os.RemoveAll(hold)
+	if err := rejectSymlinkPath(productDestinationRoot(journal.Category), filepath.FromSlash(expected)); err != nil {
+		return err
+	}
+	unlock, err := lockTree(dst)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	if journal.Phase == "ready" {
+		matches, err := storeRevisionMatches(journalRevision(journal))
+		if err != nil {
+			return err
+		}
+		if !matches {
+			if err := writeProductRevision(journalRevision(journal)); err != nil {
+				return err
+			}
+		}
+		return cleanupCommittedProductJournal(journal)
+	}
+	return rollbackProductJournal(journal)
+}
+
+func rollbackProductJournalWithCause(journal productTransactionJournal, cause error) error {
+	if err := rollbackProductJournal(journal); err != nil {
+		return fmt.Errorf("%w; rollback: %v", cause, err)
+	}
+	return cause
+}
+
+func rollbackProductJournal(journal productTransactionJournal) error {
+	dst, _, err := productDestination(journal.Category, journal.ID)
+	if err != nil {
+		return err
+	}
+	switch journal.Operation {
+	case "install", "update":
+		backup := productInstallBackupPath(dst)
+		_, backupErr := os.Lstat(backup)
+		if backupErr == nil {
+			if err := os.RemoveAll(dst); err != nil {
+				return err
+			}
+			if err := os.Rename(backup, dst); err != nil {
+				return err
+			}
+		} else if !os.IsNotExist(backupErr) {
+			return backupErr
+		} else if !journal.HadDestination {
+			if err := os.RemoveAll(dst); err != nil {
+				return err
+			}
+		}
+		if journal.PriorReceipt != nil {
+			if err := writeReceipt(*journal.PriorReceipt); err != nil {
+				return err
+			}
+		} else if err := os.Remove(receiptPath(journal.Category, journal.ID)); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	case "remove":
+		if journal.PriorReceipt == nil {
+			return fmt.Errorf("removal journal has no prior receipt")
+		}
+		hold := productRemovalHoldPath(dst)
+		for _, file := range journal.PriorReceipt.Files {
+			source := filepath.Join(hold, filepath.FromSlash(file.Destination))
+			if _, err := os.Lstat(source); os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return err
+			}
+			target := filepath.Join(dst, filepath.FromSlash(file.Destination))
+			if _, err := os.Lstat(target); err == nil {
+				return fmt.Errorf("cannot restore owned path over %s", target)
+			} else if !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			if err := os.Rename(source, target); err != nil {
+				return err
+			}
+		}
+		if err := writeReceipt(*journal.PriorReceipt); err != nil {
+			return err
+		}
+		if err := os.RemoveAll(hold); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("invalid transaction operation %q", journal.Operation)
+	}
+	if err := cleanupProductStages(filepath.Dir(dst), journal.ID); err != nil {
+		return err
+	}
+	if err := os.Remove(productJournalPath(journal.Category, journal.ID)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func cleanupCommittedProductJournal(journal productTransactionJournal) error {
+	dst, _, err := productDestination(journal.Category, journal.ID)
+	if err != nil {
+		return err
+	}
+	artifact := productInstallBackupPath(dst)
+	if journal.Operation == "remove" {
+		artifact = productRemovalHoldPath(dst)
+	}
+	if err := removeProductArtifact(artifact); err != nil {
+		return err
+	}
+	if err := cleanupProductStages(filepath.Dir(dst), journal.ID); err != nil {
+		return err
+	}
+	return os.Remove(productJournalPath(journal.Category, journal.ID))
+}
+
+func writeProductJournal(journal productTransactionJournal) error {
+	if err := validateProductJournal(journal); err != nil {
+		return err
+	}
+	raw, err := json.Marshal(journal)
+	if err != nil {
+		return err
+	}
+	return atomicWrite(productJournalPath(journal.Category, journal.ID), append(raw, '\n'), 0o600)
+}
+
+func validateProductJournal(journal productTransactionJournal) error {
+	if journal.Schema != 1 || !validProductCategory(journal.Category) || !productIDPattern.MatchString(journal.ID) || journal.Version == "" {
+		return fmt.Errorf("invalid product transaction journal identity")
+	}
+	if journal.PriorReceipt != nil {
+		if err := validateReceipt(journal.Category, journal.ID, *journal.PriorReceipt); err != nil {
+			return fmt.Errorf("invalid prior receipt: %w", err)
+		}
+	}
+	switch journal.Operation {
+	case "install":
+		if journal.PriorReceipt != nil || journal.HadDestination {
+			return fmt.Errorf("install journal unexpectedly owns prior state")
+		}
+		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "ready" {
+			return fmt.Errorf("invalid install transaction phase %q", journal.Phase)
+		}
+	case "update":
+		if journal.PriorReceipt == nil {
+			return fmt.Errorf("update journal has no prior receipt")
+		}
+		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "ready" {
+			return fmt.Errorf("invalid install transaction phase %q", journal.Phase)
+		}
+	case "remove":
+		if journal.PriorReceipt == nil || journal.PriorReceipt.Version != journal.Version {
+			return fmt.Errorf("removal journal has no matching prior receipt")
+		}
+		if journal.Phase != "remove-prepared" && journal.Phase != "remove-files-moved" && journal.Phase != "remove-receipt" && journal.Phase != "ready" {
+			return fmt.Errorf("invalid removal transaction phase %q", journal.Phase)
+		}
+	default:
+		return fmt.Errorf("invalid transaction operation %q", journal.Operation)
+	}
+	return nil
+}
+
+func journalRevision(journal productTransactionJournal) StoreRevision {
+	return StoreRevision{Category: journal.Category, ID: journal.ID, Version: journal.Version, Operation: journal.Operation}
+}
+
+func storeRevisionMatches(change StoreRevision) (bool, error) {
+	current, err := readStoreRevision()
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return current.Category == change.Category && current.ID == change.ID && current.Version == change.Version && current.Operation == change.Operation, nil
+}
+
+func storeTransactionsDir() string {
+	return filepath.Join(storeStateDir(), "transactions")
+}
+
+func storeTransactionLockPath() string {
+	return filepath.Join(storeStateDir(), "transactions.lock")
+}
+
+func productJournalPath(category, id string) string {
+	return filepath.Join(storeTransactionsDir(), category, id+".json")
+}
+
+func productInstallBackupPath(dst string) string {
+	return filepath.Join(filepath.Dir(dst), ".ryostore-product-backup-"+filepath.Base(dst))
+}
+
+func productRemovalHoldPath(dst string) string {
+	return filepath.Join(filepath.Dir(dst), ".ryostore-product-remove-"+filepath.Base(dst))
 }
 
 func productDestination(category, id string) (string, string, error) {
@@ -301,23 +615,29 @@ func productDestinationRoot(category string) string {
 	return dataHome()
 }
 
-func fetchProductFile(ctx context.Context, cache *Cache, rel string, limit int64) ([]byte, error) {
-	if cache == nil || cache.client == nil || !validProductPath(rel) || limit < 0 || limit > maxProductFileSize {
+func fetchProductFile(ctx context.Context, cache *Cache, rel string, size int64, expectedHash string) ([]byte, error) {
+	if cache == nil || cache.client == nil || !validProductPath(rel) || size < 0 || size > maxProductFileSize || !productHashPattern.MatchString(expectedHash) {
 		return nil, fmt.Errorf("invalid product fetch %q", rel)
 	}
-	data, fetchErr := fetchProductFileLive(ctx, cache, rel, limit)
+	data, fetchErr := fetchProductFileLive(ctx, cache, rel, size)
 	if fetchErr == nil {
+		if err := validateProductPayload(data, size, expectedHash); err != nil {
+			return nil, err
+		}
 		cache.writeDisk(rel, data)
 		return data, nil
 	}
 	cached := filepath.Join(cache.dir, filepath.FromSlash(rel))
 	info, err := os.Lstat(cached)
-	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() > limit {
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() > size {
 		return nil, fetchErr
 	}
 	data, err = os.ReadFile(cached)
 	if err != nil {
 		return nil, fetchErr
+	}
+	if err := validateProductPayload(data, size, expectedHash); err != nil {
+		return nil, fmt.Errorf("%w; cached payload: %v", fetchErr, err)
 	}
 	return data, nil
 }
@@ -351,6 +671,16 @@ func fetchProductFileLive(ctx context.Context, cache *Cache, rel string, limit i
 	return data, nil
 }
 
+func validateProductPayload(data []byte, size int64, expectedHash string) error {
+	if int64(len(data)) != size {
+		return fmt.Errorf("payload size mismatch")
+	}
+	if fmt.Sprintf("%x", sha256.Sum256(data)) != expectedHash {
+		return fmt.Errorf("payload hash mismatch")
+	}
+	return nil
+}
+
 func verifyInstalledReceipt(dst string, receipt Receipt) error {
 	stored, err := readReceipt(receipt.Category, receipt.ID)
 	if err != nil {
@@ -380,20 +710,18 @@ func cleanupProductStages(parent, id string) error {
 	if err != nil {
 		return err
 	}
-	prefixes := []string{".ryostore-stage-" + id + "-", ".ryostore-remove-" + id + "-"}
+	prefix := ".ryostore-stage-" + id + "-"
 	for _, entry := range entries {
-		for _, prefix := range prefixes {
-			if strings.HasPrefix(entry.Name(), prefix) {
-				candidate := filepath.Join(parent, entry.Name())
-				if entry.Type()&os.ModeSymlink != 0 {
-					if err := os.Remove(candidate); err != nil {
-						return err
-					}
-				} else if err := os.RemoveAll(candidate); err != nil {
-					return err
-				}
-				break
+		if !strings.HasPrefix(entry.Name(), prefix) {
+			continue
+		}
+		candidate := filepath.Join(parent, entry.Name())
+		if entry.Type()&os.ModeSymlink != 0 {
+			if err := os.Remove(candidate); err != nil {
+				return err
 			}
+		} else if err := os.RemoveAll(candidate); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -417,22 +745,6 @@ func pruneEmptyProductDirs(dst string, files []ReceiptFile) {
 		_ = os.Remove(directory)
 	}
 	_ = os.Remove(dst)
-}
-
-func reserveRenamePath(directory, pattern string) (string, error) {
-	file, err := os.CreateTemp(directory, pattern)
-	if err != nil {
-		return "", err
-	}
-	name := file.Name()
-	if err := file.Close(); err != nil {
-		os.Remove(name)
-		return "", err
-	}
-	if err := os.Remove(name); err != nil {
-		return "", err
-	}
-	return name, nil
 }
 
 func (lockProvider) Remove(ctx context.Context, id string) error {

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -64,7 +66,10 @@ func TestReceiptAtomicity(t *testing.T) {
 	}
 
 	stop := make(chan struct{})
+	ready := make(chan struct{})
 	errors := make(chan error, 1)
+	var observations atomic.Int64
+	var readyOnce sync.Once
 	var readers sync.WaitGroup
 	readers.Add(1)
 	go func() {
@@ -91,20 +96,39 @@ func TestReceiptAtomicity(t *testing.T) {
 				}
 				return
 			}
+			observations.Add(1)
+			readyOnce.Do(func() { close(ready) })
 		}
 	}()
+	defer func() {
+		close(stop)
+		readers.Wait()
+	}()
 
+	select {
+	case <-ready:
+	case err := <-errors:
+		t.Fatalf("receipt reader failed before writes: %v", err)
+	}
 	for revision := 1; revision <= 100; revision++ {
+		before := observations.Load()
 		receipt := initial
 		receipt.Version = string(rune('a' + revision%26))
 		if err := writeReceipt(receipt); err != nil {
-			close(stop)
-			readers.Wait()
 			t.Fatal(err)
 		}
+		for observations.Load() == before {
+			select {
+			case err := <-errors:
+				t.Fatalf("reader observed a partial receipt: %v", err)
+			default:
+				runtime.Gosched()
+			}
+		}
 	}
-	close(stop)
-	readers.Wait()
+	if observations.Load() < 101 {
+		t.Fatalf("receipt reader made only %d observations", observations.Load())
+	}
 	select {
 	case err := <-errors:
 		t.Fatalf("reader observed a partial receipt: %v", err)

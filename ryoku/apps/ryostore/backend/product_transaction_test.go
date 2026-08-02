@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -177,6 +178,13 @@ func TestProductTransactionHashFailureRollsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	bad := newTransactionFixture(t, "2.0.0", []byte("version two!\n"), []byte("tampered two\n"))
+	cachedPayload := filepath.Join(bad.cache.dir, "plugins", "demo", "content", "Plugin.qml")
+	if err := os.MkdirAll(filepath.Dir(cachedPayload), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cachedPayload, []byte("version two!\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := installProduct(ctx, bad.cache, "plugins", bad.entry); err == nil || !strings.Contains(err.Error(), "hash") {
 		t.Fatalf("bad update error = %v, want hash failure", err)
 	}
@@ -190,6 +198,194 @@ func TestProductTransactionHashFailureRollsBack(t *testing.T) {
 	}
 	if revision := readRevisionForTest(t); revision.Revision != 1 || revision.Operation != "install" {
 		t.Fatalf("revision advanced after failed update: %#v", revision)
+	}
+	if raw, err := os.ReadFile(cachedPayload); err != nil || string(raw) != "version two!\n" {
+		t.Fatalf("valid payload cache was replaced by rejected bytes: %q, err=%v", raw, err)
+	}
+}
+
+func TestProductTransactionRollsBackAfterPublication(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	first := newTransactionFixture(t, "1.0.0", []byte("version one\n"), []byte("version one\n"))
+	if err := installProduct(ctx, first.cache, "plugins", first.entry); err != nil {
+		t.Fatal(err)
+	}
+	previousCheckpoint := productTransactionCheckpoint
+	productTransactionCheckpoint = func(phase string) error {
+		if phase == "install-published" {
+			return errors.New("injected publication failure")
+		}
+		return nil
+	}
+	defer func() { productTransactionCheckpoint = previousCheckpoint }()
+	update := newTransactionFixture(t, "2.0.0", []byte("version two\n"), []byte("version two\n"))
+	if err := installProduct(ctx, update.cache, "plugins", update.entry); err == nil {
+		t.Fatal("installProduct accepted injected post-publication failure")
+	}
+	installed := filepath.Join(installedPluginPath(), "content", "Plugin.qml")
+	if raw, err := os.ReadFile(installed); err != nil || string(raw) != "version one\n" {
+		t.Fatalf("published failure did not restore prior file: %q, err=%v", raw, err)
+	}
+	receipt, err := readReceipt("plugins", "demo")
+	if err != nil || receipt.Version != "1.0.0" {
+		t.Fatalf("published failure did not restore receipt: %#v, err=%v", receipt, err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 1 {
+		t.Fatalf("published failure advanced revision: %#v", revision)
+	}
+}
+func TestProductTransactionRollsBackAfterReceiptPublication(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	first := newTransactionFixture(t, "1.0.0", []byte("version one\n"), []byte("version one\n"))
+	if err := installProduct(ctx, first.cache, "plugins", first.entry); err != nil {
+		t.Fatal(err)
+	}
+	previousCheckpoint := productTransactionCheckpoint
+	productTransactionCheckpoint = func(phase string) error {
+		if phase == "install-receipt" {
+			return errors.New("injected receipt publication failure")
+		}
+		return nil
+	}
+	defer func() { productTransactionCheckpoint = previousCheckpoint }()
+	update := newTransactionFixture(t, "2.0.0", []byte("version two\n"), []byte("version two\n"))
+	if err := installProduct(ctx, update.cache, "plugins", update.entry); err == nil {
+		t.Fatal("installProduct accepted injected post-receipt failure")
+	}
+	installed := filepath.Join(installedPluginPath(), "content", "Plugin.qml")
+	if raw, err := os.ReadFile(installed); err != nil || string(raw) != "version one\n" {
+		t.Fatalf("receipt failure did not restore prior file: %q, err=%v", raw, err)
+	}
+	receipt, err := readReceipt("plugins", "demo")
+	if err != nil || receipt.Version != "1.0.0" {
+		t.Fatalf("receipt failure did not restore prior receipt: %#v, err=%v", receipt, err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 1 {
+		t.Fatalf("receipt failure advanced revision: %#v", revision)
+	}
+}
+
+func TestProductTransactionRollsBackRevisionFailure(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	first := newTransactionFixture(t, "1.0.0", []byte("version one\n"), []byte("version one\n"))
+	if err := installProduct(ctx, first.cache, "plugins", first.entry); err != nil {
+		t.Fatal(err)
+	}
+	previousWriter := writeProductRevision
+	writeProductRevision = func(StoreRevision) error { return errors.New("injected revision failure") }
+	defer func() { writeProductRevision = previousWriter }()
+	update := newTransactionFixture(t, "2.0.0", []byte("version two\n"), []byte("version two\n"))
+	if err := installProduct(ctx, update.cache, "plugins", update.entry); err == nil {
+		t.Fatal("installProduct accepted revision failure")
+	}
+	installed := filepath.Join(installedPluginPath(), "content", "Plugin.qml")
+	if raw, err := os.ReadFile(installed); err != nil || string(raw) != "version one\n" {
+		t.Fatalf("revision failure did not restore prior file: %q, err=%v", raw, err)
+	}
+	receipt, err := readReceipt("plugins", "demo")
+	if err != nil || receipt.Version != "1.0.0" {
+		t.Fatalf("revision failure did not restore prior receipt: %#v, err=%v", receipt, err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 1 {
+		t.Fatalf("revision failure advanced revision: %#v", revision)
+	}
+}
+
+func TestProductTransactionRecoversInterruptedPublication(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	previousCheckpoint := productTransactionCheckpoint
+	interrupted := true
+	productTransactionCheckpoint = func(phase string) error {
+		if interrupted && phase == "install-published" {
+			interrupted = false
+			return errProductTransactionInterrupted
+		}
+		return nil
+	}
+	if err := installProduct(ctx, fixture.cache, "plugins", fixture.entry); !errors.Is(err, errProductTransactionInterrupted) {
+		t.Fatalf("interrupted install error = %v", err)
+	}
+	productTransactionCheckpoint = previousCheckpoint
+	defer func() { productTransactionCheckpoint = previousCheckpoint }()
+	retry := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(ctx, retry.cache, "plugins", retry.entry); err != nil {
+		t.Fatalf("retry after interruption: %v", err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 1 || revision.Operation != "install" {
+		t.Fatalf("interrupted install committed more than once: %#v", revision)
+	}
+}
+
+func TestProductTransactionRecoversInterruptedRemoval(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(ctx, fixture.cache, "plugins", fixture.entry); err != nil {
+		t.Fatal(err)
+	}
+	previousCheckpoint := productTransactionCheckpoint
+	productTransactionCheckpoint = func(phase string) error {
+		if phase == "remove-files-moved" {
+			return errProductTransactionInterrupted
+		}
+		return nil
+	}
+	if err := removeProduct(ctx, "plugins", "demo"); !errors.Is(err, errProductTransactionInterrupted) {
+		t.Fatalf("interrupted removal error = %v", err)
+	}
+	productTransactionCheckpoint = previousCheckpoint
+	defer func() { productTransactionCheckpoint = previousCheckpoint }()
+	if err := removeProduct(ctx, "plugins", "demo"); err != nil {
+		t.Fatalf("retry after interrupted removal: %v", err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 2 || revision.Operation != "remove" {
+		t.Fatalf("interrupted removal committed incorrectly: %#v", revision)
+	}
+}
+
+func TestProductTransactionIgnoresPostCommitCleanupFailure(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(ctx, fixture.cache, "plugins", fixture.entry); err != nil {
+		t.Fatal(err)
+	}
+	previousCleanup := removeProductArtifact
+	removeProductArtifact = func(string) error { return errors.New("injected cleanup failure") }
+	defer func() { removeProductArtifact = previousCleanup }()
+	if err := removeProduct(ctx, "plugins", "demo"); err != nil {
+		t.Fatalf("committed removal reported cleanup failure: %v", err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 2 || revision.Operation != "remove" {
+		t.Fatalf("cleanup failure prevented committed revision: %#v", revision)
+	}
+}
+
+func TestProductTransactionRejectsSymlinkAncestorBeforeCleanup(t *testing.T) {
+	setTransactionXDG(t)
+	target := t.TempDir()
+	ancestor := filepath.Join(dataHome(), "ryoku", "plugins")
+	if err := os.MkdirAll(filepath.Dir(ancestor), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, ancestor); err != nil {
+		t.Fatal(err)
+	}
+	trap := filepath.Join(target, ".ryostore-stage-demo-trap")
+	if err := os.MkdirAll(trap, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(context.Background(), fixture.cache, "plugins", fixture.entry); err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("install error = %v, want symlink ancestor refusal", err)
+	}
+	if _, err := os.Stat(trap); err != nil {
+		t.Fatalf("symlink target was mutated before refusal: %v", err)
 	}
 }
 

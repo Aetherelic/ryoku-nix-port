@@ -71,6 +71,13 @@ func readReceipt(category, id string) (Receipt, error) {
 	if !validProductCategory(category) || !productIDPattern.MatchString(id) {
 		return Receipt{}, fmt.Errorf("invalid receipt identity %s/%s", category, id)
 	}
+	info, err := os.Lstat(receiptPath(category, id))
+	if err != nil {
+		return Receipt{}, err
+	}
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return Receipt{}, fmt.Errorf("receipt %s/%s is not a regular file", category, id)
+	}
 	raw, err := os.ReadFile(receiptPath(category, id))
 	if err != nil {
 		return Receipt{}, err
@@ -145,24 +152,41 @@ func writeStoreRevision(change StoreRevision) error {
 	}
 	defer unlock()
 
-	var current StoreRevision
-	raw, err := os.ReadFile(path)
-	if err == nil {
-		if err := decodeOneJSON(raw, &current); err != nil {
-			return fmt.Errorf("Store revision: %w", err)
-		}
-	} else if !os.IsNotExist(err) {
+	current, err := readStoreRevision()
+	if os.IsNotExist(err) {
+		current = StoreRevision{}
+	} else if err != nil {
 		return err
 	}
 	if current.Revision == math.MaxUint64 {
 		return fmt.Errorf("Store revision overflow")
 	}
 	change.Revision = current.Revision + 1
-	raw, err = json.Marshal(change)
+	raw, err := json.Marshal(change)
 	if err != nil {
 		return err
 	}
 	return atomicWrite(path, append(raw, '\n'), 0o600)
+}
+func readStoreRevision() (StoreRevision, error) {
+	raw, err := os.ReadFile(storeRevisionPath())
+	if err != nil {
+		return StoreRevision{}, err
+	}
+	var revision StoreRevision
+	if err := decodeOneJSON(raw, &revision); err != nil {
+		return StoreRevision{}, fmt.Errorf("Store revision: %w", err)
+	}
+	if revision.Revision == 0 || !validProductCategory(revision.Category) ||
+		!productIDPattern.MatchString(revision.ID) || revision.Version == "" {
+		return StoreRevision{}, fmt.Errorf("Store revision has invalid identity")
+	}
+	switch revision.Operation {
+	case "install", "update", "remove":
+	default:
+		return StoreRevision{}, fmt.Errorf("Store revision has invalid operation %q", revision.Operation)
+	}
+	return revision, nil
 }
 
 func decodeOneJSON(raw []byte, value any) error {
