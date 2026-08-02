@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -345,6 +346,167 @@ func TestProductTransactionRecoversInterruptedRemoval(t *testing.T) {
 	}
 	if revision := readRevisionForTest(t); revision.Revision != 2 || revision.Operation != "remove" {
 		t.Fatalf("interrupted removal committed incorrectly: %#v", revision)
+	}
+}
+func TestProductTransactionReadyRecoveryUsesRevisionBaseline(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	for _, content := range []string{"version one\n", "version two\n"} {
+		fixture := newTransactionFixture(t, "1.0.0", []byte(content), []byte(content))
+		if err := installProduct(ctx, fixture.cache, "plugins", fixture.entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+	previousCheckpoint := productTransactionCheckpoint
+	productTransactionCheckpoint = func(phase string) error {
+		if phase == "ready" {
+			return errProductTransactionInterrupted
+		}
+		return nil
+	}
+	third := newTransactionFixture(t, "1.0.0", []byte("version three\n"), []byte("version three\n"))
+	if err := installProduct(ctx, third.cache, "plugins", third.entry); !errors.Is(err, errProductTransactionInterrupted) {
+		t.Fatalf("ready interruption error = %v", err)
+	}
+	productTransactionCheckpoint = previousCheckpoint
+	defer func() { productTransactionCheckpoint = previousCheckpoint }()
+	if err := recoverStoreTransactions(); err != nil {
+		t.Fatal(err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 3 || revision.Operation != "update" {
+		t.Fatalf("same-version ready recovery revision = %#v", revision)
+	}
+	installed := filepath.Join(installedPluginPath(), "content", "Plugin.qml")
+	if raw, err := os.ReadFile(installed); err != nil || string(raw) != "version three\n" {
+		t.Fatalf("ready recovery payload = %q, err=%v", raw, err)
+	}
+}
+
+func TestProductTransactionRecoversInterruptedRollbackIntent(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	first := newTransactionFixture(t, "1.0.0", []byte("version one\n"), []byte("version one\n"))
+	if err := installProduct(ctx, first.cache, "plugins", first.entry); err != nil {
+		t.Fatal(err)
+	}
+	previousWriter := writeProductRevision
+	previousCheckpoint := productTransactionCheckpoint
+	writeProductRevision = func(StoreRevision) error { return errors.New("injected revision failure") }
+	productTransactionCheckpoint = func(phase string) error {
+		if phase == "install-rollback" {
+			return errProductTransactionInterrupted
+		}
+		return nil
+	}
+	update := newTransactionFixture(t, "2.0.0", []byte("version two\n"), []byte("version two\n"))
+	if err := installProduct(ctx, update.cache, "plugins", update.entry); !errors.Is(err, errProductTransactionInterrupted) {
+		t.Fatalf("rollback interruption error = %v", err)
+	}
+	writeProductRevision = previousWriter
+	productTransactionCheckpoint = previousCheckpoint
+	defer func() {
+		writeProductRevision = previousWriter
+		productTransactionCheckpoint = previousCheckpoint
+	}()
+	if err := recoverStoreTransactions(); err != nil {
+		t.Fatal(err)
+	}
+	installed := filepath.Join(installedPluginPath(), "content", "Plugin.qml")
+	if raw, err := os.ReadFile(installed); err != nil || string(raw) != "version one\n" {
+		t.Fatalf("rollback recovery payload = %q, err=%v", raw, err)
+	}
+	if revision := readRevisionForTest(t); revision.Revision != 1 {
+		t.Fatalf("rollback recovery advanced revision: %#v", revision)
+	}
+}
+
+func TestProductTransactionScavengesJournalTempFiles(t *testing.T) {
+	setTransactionXDG(t)
+	temp := filepath.Join(storeTransactionsDir(), "plugins", ".tmp-orphan")
+	if err := os.MkdirAll(filepath.Dir(temp), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(temp, []byte("partial"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(context.Background(), fixture.cache, "plugins", fixture.entry); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(temp); !os.IsNotExist(err) {
+		t.Fatalf("journal temp remains: %v", err)
+	}
+}
+
+func TestProductTransactionRejectsNonRegularJournal(t *testing.T) {
+	setTransactionXDG(t)
+	shortState, err := os.MkdirTemp("", "rj")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(shortState) })
+	t.Setenv("XDG_STATE_HOME", shortState)
+	journal := filepath.Join(storeTransactionsDir(), "plugins", "demo.json")
+	if err := os.MkdirAll(filepath.Dir(journal), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("unix", journal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	if err := recoverStoreTransactions(); err == nil || !strings.Contains(err.Error(), "invalid Store transaction journal") {
+		t.Fatalf("non-regular journal error = %v", err)
+	}
+}
+
+func TestProductTransactionRejectsSymlinkInRemovalHold(t *testing.T) {
+	setTransactionXDG(t)
+	ctx := context.Background()
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(ctx, fixture.cache, "plugins", fixture.entry); err != nil {
+		t.Fatal(err)
+	}
+	previousCheckpoint := productTransactionCheckpoint
+	productTransactionCheckpoint = func(phase string) error {
+		if phase == "remove-files-moved" {
+			return errProductTransactionInterrupted
+		}
+		return nil
+	}
+	if err := removeProduct(ctx, "plugins", "demo"); !errors.Is(err, errProductTransactionInterrupted) {
+		t.Fatalf("removal interruption error = %v", err)
+	}
+	productTransactionCheckpoint = previousCheckpoint
+	defer func() { productTransactionCheckpoint = previousCheckpoint }()
+	hold := productRemovalHoldPath(installedPluginPath())
+	if err := os.Rename(filepath.Join(hold, "content"), filepath.Join(hold, "held-content")); err != nil {
+		t.Fatal(err)
+	}
+	trap := t.TempDir()
+	if err := os.Symlink(trap, filepath.Join(hold, "content")); err != nil {
+		t.Fatal(err)
+	}
+	if err := recoverStoreTransactions(); err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("removal recovery error = %v, want symlink refusal", err)
+	}
+	if entries, err := os.ReadDir(trap); err != nil || len(entries) != 0 {
+		t.Fatalf("removal recovery mutated symlink target: %v, err=%v", entries, err)
+	}
+}
+
+func TestLockscreenProductDestinationUsesDataHome(t *testing.T) {
+	setTransactionXDG(t)
+	destination, relative, err := productDestination("lockscreens", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if relative != "qylock/themes/demo" {
+		t.Fatalf("lockscreen relative destination = %q", relative)
+	}
+	want := filepath.Join(dataHome(), "qylock", "themes", "demo")
+	if destination != want {
+		t.Fatalf("lockscreen destination = %q, want %q", destination, want)
 	}
 }
 

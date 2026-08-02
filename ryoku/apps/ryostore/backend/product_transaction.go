@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path"
@@ -31,6 +32,7 @@ type productTransactionJournal struct {
 	Operation      string   `json:"operation"`
 	Phase          string   `json:"phase"`
 	HadDestination bool     `json:"hadDestination,omitempty"`
+	BaseRevision   uint64   `json:"baseRevision"`
 	PriorReceipt   *Receipt `json:"priorReceipt,omitempty"`
 }
 
@@ -157,6 +159,10 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 	if hadReceipt {
 		operation = "update"
 	}
+	baseRevision, err := currentStoreRevisionNumber()
+	if err != nil {
+		return err
+	}
 	journal := productTransactionJournal{
 		Schema:         1,
 		Category:       category,
@@ -164,6 +170,7 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 		Version:        entry.Version,
 		Operation:      operation,
 		Phase:          "install-prepared",
+		BaseRevision:   baseRevision,
 		HadDestination: hadDestination,
 	}
 	if hadReceipt {
@@ -215,8 +222,14 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 	if err := writeProductJournal(journal); err != nil {
 		return rollback(err)
 	}
+	if err := productTransactionCheckpoint(journal.Phase); err != nil {
+		if errors.Is(err, errProductTransactionInterrupted) {
+			return err
+		}
+		return beginProductRollback(journal, err)
+	}
 	if err := writeProductRevision(journalRevision(journal)); err != nil {
-		return rollbackProductJournalWithCause(journal, err)
+		return beginProductRollback(journal, err)
 	}
 	_ = cleanupCommittedProductJournal(journal)
 	return nil
@@ -280,6 +293,10 @@ func removeProduct(_ context.Context, category, id string) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
+	baseRevision, err := currentStoreRevisionNumber()
+	if err != nil {
+		return err
+	}
 	journal := productTransactionJournal{
 		Schema:       1,
 		Category:     category,
@@ -287,6 +304,7 @@ func removeProduct(_ context.Context, category, id string) error {
 		Version:      receipt.Version,
 		Operation:    "remove",
 		Phase:        "remove-prepared",
+		BaseRevision: baseRevision,
 		PriorReceipt: &receipt,
 	}
 	if err := writeProductJournal(journal); err != nil {
@@ -338,8 +356,14 @@ func removeProduct(_ context.Context, category, id string) error {
 	if err := writeProductJournal(journal); err != nil {
 		return rollback(err)
 	}
+	if err := productTransactionCheckpoint(journal.Phase); err != nil {
+		if errors.Is(err, errProductTransactionInterrupted) {
+			return err
+		}
+		return beginProductRollback(journal, err)
+	}
 	if err := writeProductRevision(journalRevision(journal)); err != nil {
-		return rollbackProductJournalWithCause(journal, err)
+		return beginProductRollback(journal, err)
 	}
 	_ = cleanupCommittedProductJournal(journal)
 	return nil
@@ -357,10 +381,21 @@ func recoverStoreTransactions() error {
 			return err
 		}
 		for _, entry := range entries {
-			if entry.Type()&os.ModeSymlink != 0 || entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
-				return fmt.Errorf("invalid Store transaction journal %s", filepath.Join(directory, entry.Name()))
+			journalPath := filepath.Join(directory, entry.Name())
+			info, err := os.Lstat(journalPath)
+			if err != nil {
+				return err
 			}
-			raw, err := os.ReadFile(filepath.Join(directory, entry.Name()))
+			if strings.HasPrefix(entry.Name(), ".tmp-") && info.Mode().IsRegular() {
+				if err := os.Remove(journalPath); err != nil {
+					return err
+				}
+				continue
+			}
+			if !info.Mode().IsRegular() || filepath.Ext(entry.Name()) != ".json" {
+				return fmt.Errorf("invalid Store transaction journal %s", journalPath)
+			}
+			raw, err := os.ReadFile(journalPath)
 			if err != nil {
 				return err
 			}
@@ -396,18 +431,47 @@ func recoverProductJournal(journal productTransactionJournal) error {
 	}
 	defer unlock()
 	if journal.Phase == "ready" {
-		matches, err := storeRevisionMatches(journalRevision(journal))
-		if err != nil {
+		current, err := readStoreRevision()
+		if os.IsNotExist(err) {
+			current = StoreRevision{}
+		} else if err != nil {
 			return err
 		}
-		if !matches {
+		switch {
+		case current.Revision == journal.BaseRevision:
 			if err := writeProductRevision(journalRevision(journal)); err != nil {
 				return err
 			}
+		case journal.BaseRevision < math.MaxUint64 &&
+			current.Revision == journal.BaseRevision+1 &&
+			storeRevisionChangeMatches(current, journalRevision(journal)):
+		default:
+			return fmt.Errorf("Store revision no longer matches transaction baseline %d", journal.BaseRevision)
 		}
 		return cleanupCommittedProductJournal(journal)
 	}
 	return rollbackProductJournal(journal)
+}
+
+func beginProductRollback(journal productTransactionJournal, cause error) error {
+	switch journal.Operation {
+	case "install", "update":
+		journal.Phase = "install-rollback"
+	case "remove":
+		journal.Phase = "remove-rollback"
+	default:
+		return fmt.Errorf("%w; rollback: invalid transaction operation %q", cause, journal.Operation)
+	}
+	if err := writeProductJournal(journal); err != nil {
+		return fmt.Errorf("%w; record rollback intent: %v", cause, err)
+	}
+	if err := productTransactionCheckpoint(journal.Phase); err != nil {
+		if errors.Is(err, errProductTransactionInterrupted) {
+			return err
+		}
+		cause = fmt.Errorf("%w; rollback checkpoint: %v", cause, err)
+	}
+	return rollbackProductJournalWithCause(journal, cause)
 }
 
 func rollbackProductJournalWithCause(journal productTransactionJournal, cause error) error {
@@ -452,19 +516,44 @@ func rollbackProductJournal(journal productTransactionJournal) error {
 			return fmt.Errorf("removal journal has no prior receipt")
 		}
 		hold := productRemovalHoldPath(dst)
+		holdInfo, err := os.Lstat(hold)
+		holdExists := err == nil
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if holdExists && (!holdInfo.IsDir() || holdInfo.Mode()&os.ModeSymlink != 0) {
+			return fmt.Errorf("removal hold %s is not a directory", hold)
+		}
 		for _, file := range journal.PriorReceipt.Files {
-			source := filepath.Join(hold, filepath.FromSlash(file.Destination))
+			relative := filepath.FromSlash(file.Destination)
+			if err := rejectSymlinkPath(hold, relative); err != nil {
+				return err
+			}
+			if err := rejectSymlinkPath(dst, relative); err != nil {
+				return err
+			}
+			source := filepath.Join(hold, relative)
 			if _, err := os.Lstat(source); os.IsNotExist(err) {
 				continue
 			} else if err != nil {
 				return err
 			}
-			target := filepath.Join(dst, filepath.FromSlash(file.Destination))
+			target := filepath.Join(dst, relative)
 			if _, err := os.Lstat(target); err == nil {
 				return fmt.Errorf("cannot restore owned path over %s", target)
 			} else if !os.IsNotExist(err) {
 				return err
 			}
+		}
+		for _, file := range journal.PriorReceipt.Files {
+			relative := filepath.FromSlash(file.Destination)
+			source := filepath.Join(hold, relative)
+			if _, err := os.Lstat(source); os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return err
+			}
+			target := filepath.Join(dst, relative)
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return err
 			}
@@ -533,21 +622,21 @@ func validateProductJournal(journal productTransactionJournal) error {
 		if journal.PriorReceipt != nil || journal.HadDestination {
 			return fmt.Errorf("install journal unexpectedly owns prior state")
 		}
-		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "ready" {
+		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "install-rollback" && journal.Phase != "ready" {
 			return fmt.Errorf("invalid install transaction phase %q", journal.Phase)
 		}
 	case "update":
 		if journal.PriorReceipt == nil {
 			return fmt.Errorf("update journal has no prior receipt")
 		}
-		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "ready" {
+		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "install-rollback" && journal.Phase != "ready" {
 			return fmt.Errorf("invalid install transaction phase %q", journal.Phase)
 		}
 	case "remove":
 		if journal.PriorReceipt == nil || journal.PriorReceipt.Version != journal.Version {
 			return fmt.Errorf("removal journal has no matching prior receipt")
 		}
-		if journal.Phase != "remove-prepared" && journal.Phase != "remove-files-moved" && journal.Phase != "remove-receipt" && journal.Phase != "ready" {
+		if journal.Phase != "remove-prepared" && journal.Phase != "remove-files-moved" && journal.Phase != "remove-receipt" && journal.Phase != "remove-rollback" && journal.Phase != "ready" {
 			return fmt.Errorf("invalid removal transaction phase %q", journal.Phase)
 		}
 	default:
@@ -560,15 +649,22 @@ func journalRevision(journal productTransactionJournal) StoreRevision {
 	return StoreRevision{Category: journal.Category, ID: journal.ID, Version: journal.Version, Operation: journal.Operation}
 }
 
-func storeRevisionMatches(change StoreRevision) (bool, error) {
+func currentStoreRevisionNumber() (uint64, error) {
 	current, err := readStoreRevision()
 	if os.IsNotExist(err) {
-		return false, nil
+		return 0, nil
 	}
 	if err != nil {
-		return false, err
+		return 0, err
 	}
-	return current.Category == change.Category && current.ID == change.ID && current.Version == change.Version && current.Operation == change.Operation, nil
+	return current.Revision, nil
+}
+
+func storeRevisionChangeMatches(current, change StoreRevision) bool {
+	return current.Category == change.Category &&
+		current.ID == change.ID &&
+		current.Version == change.Version &&
+		current.Operation == change.Operation
 }
 
 func storeTransactionsDir() string {
@@ -609,7 +705,7 @@ func productDestination(category, id string) (string, string, error) {
 }
 
 func productDestinationRoot(category string) string {
-	if category == "rices" || category == "lockscreens" {
+	if category == "rices" {
 		return configHome()
 	}
 	return dataHome()
