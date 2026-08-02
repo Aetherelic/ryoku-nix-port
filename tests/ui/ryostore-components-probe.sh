@@ -16,14 +16,18 @@ cat >"$work/bin/ryostore" <<'SCRIPT'
 set -euo pipefail
 printf '%s\n' "$*" >>"$RYOSTORE_COMMAND_LOG"
 case "${1:-}" in
-    catalog) printf '%s\n' '{"categories":[],"items":[],"offline":false}' ;;
-    install) ;;
+    catalog)
+        if [[ -e "$RYOSTORE_INSTALL_MARKER" ]]; then sleep 0.12; fi
+        printf '%s\n' '{"categories":[],"items":[],"offline":false}'
+        ;;
+    install) : >"$RYOSTORE_INSTALL_MARKER" ;;
 esac
 SCRIPT
 chmod +x "$work/bin/ryostore"
 
 PATH="$work/bin:$PATH" \
 RYOSTORE_COMMAND_LOG="$work/commands" \
+RYOSTORE_INSTALL_MARKER="$work/install-started" \
 QML2_IMPORT_PATH="$work:${QML2_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \
     timeout 20 qs -p "$work/probe.qml" >"$work/log" 2>&1 || true
 if ! grep -q RYOSTORE-COMPONENTS-PROBE-PASS "$work/log"; then

@@ -19,6 +19,7 @@ ShellRoot {
     property string editedQuery: ""
     property string retryKey: ""
     property int closeCount: 0
+    property bool sawVerifying: false
     property var probeDimensions: String(Quickshell.env("RYOSTORE_PROBE_SIZE") || "980x640").split("x")
     readonly property int probeWidth: Number(probeDimensions[0]) || 980
     readonly property int probeHeight: Number(probeDimensions[1]) || 640
@@ -272,24 +273,67 @@ ShellRoot {
             root.require(offline.labels.indexOf("OFFLINE") !== -1, "offline state explicit");
             root.require(failed.labels.indexOf("fixture install failed") !== -1, "exact failure preserved");
             root.require(detail.open && detail.item.id === "broken", "failure keeps dossier open");
+            root.require(detail.transitionMode === "shared", "standard motion uses shared transition");
             root.require(detail.errorText.indexOf("fixture install failed") !== -1, "exact failure shown");
             root.require(detail.screenshotCount === 1, "detail exposes real screenshots");
+            const detailCover = root.findObject(detail, "ryostore-detail-cover");
+            const detailDescription = root.findObject(detail, "ryostore-detail-description");
+            const detailScreenshots = root.findObject(detail, "ryostore-detail-screenshots");
+            const detailInstall = root.findObject(detail, "ryostore-detail-install");
+            const detailRetry = root.findObject(detail, "ryostore-detail-retry");
+            const detailSettings = root.findObject(detail, "ryostore-detail-settings");
+            root.require(Math.abs(detailCover.x - detail.targetX) < 0.5
+                    && Math.abs(detailCover.y - detail.targetY) < 0.5
+                    && Math.abs(detailCover.width - detail.targetWidth) < 0.5
+                    && Math.abs(detailCover.height - detail.targetHeight) < 0.5,
+                    "open shared cover reaches dossier bounds");
+            root.require(detailDescription.text.indexOf("lockscreen fixture") !== -1,
+                    "detail exposes description");
             root.require(detail.metadataText.indexOf("Fixture Author") !== -1
                     && detail.metadataText.indexOf("1.2.3") !== -1
-                    && detail.metadataText.indexOf("Hyprland 0.50+") !== -1,
-                    "detail exposes product metadata");
+                    && detail.metadataText.indexOf("4 MiB") !== -1
+                    && detail.metadataText.indexOf("Hyprland 0.50+") !== -1
+                    && detail.metadataText.indexOf("lockscreen QML") !== -1,
+                    "detail exposes all product metadata");
+            root.require(detailScreenshots.visible && detailRetry.visible,
+                    "detail exposes screenshots and failure action");
+            root.installedKey = "";
+            detailInstall.Accessible.pressAction();
+            root.require(root.installedKey === "lockscreens:broken",
+                    "accessible detail install targets selected item");
+            root.installedKey = "";
+            RyoState.Store.installErrorKey = "plugins:other";
+            RyoState.Store.installError = "keep this error";
+            RyoState.Store.installStage = "FAILED";
+            RyoState.Store.clearInstallError(detail.item);
+            root.require(RyoState.Store.installErrorKey === "plugins:other"
+                    && RyoState.Store.installError === "keep this error"
+                    && RyoState.Store.installStage === "FAILED",
+                    "nonmatching clear preserves failure");
+            detail.busyKey = "plugins:other";
+            root.retryKey = "";
+            detailRetry.Accessible.pressAction();
+            root.require(root.retryKey === "", "busy state suppresses retry");
+            detail.busyKey = "";
+            RyoState.Store.busyKey = "";
             RyoState.Store.installErrorKey = "lockscreens:broken";
             RyoState.Store.installError = "fixture install failed";
             RyoState.Store.installStage = "FAILED";
-            detail.triggerRetry();
-            root.require(root.retryKey === "lockscreens:broken", "retry targets selected item");
+            detailRetry.Accessible.pressAction();
+            root.require(root.retryKey === "lockscreens:broken", "accessible retry targets selected item");
             root.require(RyoState.Store.installError === ""
                     && RyoState.Store.installErrorKey === "", "retry clears matching error");
-            detail.reducedMotion = true;
-            root.require(detail.transitionMode === "immediate", "reduced motion removes shared-element travel");
-            detail.triggerClose();
-            root.require(root.closeCount === 1, "detail delegates reversible close");
-            root.require(detail.open && detail.item.id === "broken", "close does not mutate detail state");
+            verificationWatcher.start();
+            detail.item = Object.assign({}, detail.item, { installed: true });
+            root.require(detailSettings.visible, "installed detail exposes Settings");
+            root.settingsKey = "";
+            detailSettings.Accessible.pressAction();
+            root.require(root.settingsKey === "lockscreens:broken",
+                    "accessible detail Settings targets selected item");
+            root.settingsKey = "";
+            detail.open = false;
+            root.require(detail.visible && detail.transitionProgress > 0,
+                    "shared close remains visible during reverse travel");
             const headerDiscover = root.findObject(header, "ryostore-header-discover");
             const headerCategories = root.findObject(header, "ryostore-header-categories");
             const headerSearch = root.findObject(header, "ryostore-header-search");
@@ -454,9 +498,42 @@ ShellRoot {
     }
 
     Timer {
-        id: finishTimer
-        interval: 150
+        id: verificationWatcher
+        interval: 10
+        repeat: true
         onTriggered: {
+            if (RyoState.Store.installStage === "VERIFYING"
+                    && RyoState.Store.busyKey === "lockscreens:broken")
+                root.sawVerifying = true;
+            if (root.sawVerifying && RyoState.Store.busyKey === "")
+                stop();
+        }
+    }
+
+    Timer {
+        id: finishTimer
+        interval: 350
+        onTriggered: {
+            const detailCover = root.findObject(detail, "ryostore-detail-cover");
+            root.require(root.sawVerifying, "retry remains busy through VERIFYING refresh");
+            root.require(RyoState.Store.busyKey === ""
+                    && RyoState.Store.installStage === "COMPLETE",
+                    "successful refresh clears busy state after verification");
+            root.require(Math.abs(detailCover.x - detail.originRect.x) < 0.5
+                    && Math.abs(detailCover.y - detail.originRect.y) < 0.5
+                    && Math.abs(detailCover.width - detail.originRect.width) < 0.5
+                    && Math.abs(detailCover.height - detail.originRect.height) < 0.5,
+                    "shared close reverses cover to origin");
+            detail.reducedMotion = true;
+            detail.open = true;
+            root.require(detail.transitionMode === "immediate"
+                    && detail.transitionProgress === 1,
+                    "reduced motion removes shared-element travel");
+            const detailClose = root.findObject(detail, "ryostore-detail-close");
+            detailClose.Accessible.pressAction();
+            root.require(root.closeCount === 1, "accessible Back delegates reversible close");
+            root.require(detail.open && detail.item.id === "broken",
+                    "close does not mutate detail state");
             console.log("RYOSTORE-COMPONENTS-PROBE-PASS");
             Qt.quit();
         }
