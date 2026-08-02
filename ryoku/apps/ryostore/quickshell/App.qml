@@ -28,6 +28,8 @@ Rectangle {
     property var detailContext: null
     property rect detailOriginRect: Qt.rect(0, 0, 0, 0)
     property bool reducedMotion: performance.lowPowerMode || performance.reduceMotion
+    readonly property bool catalogLoading: Store.loading && Store.items.length === 0
+    readonly property bool catalogError: !Store.loading && Store.items.length === 0 && Store.error !== ""
 
     readonly property var searchableItems: Store.items.map(item => {
         const copy = {};
@@ -324,10 +326,93 @@ Rectangle {
         onSelectionRequested: item => app.selectKey(StoreLogic.itemKey(item))
     }
 
+    // initial catalogue fetch: show progress, never the empty plate, so a slow
+    // network never reads as "there is nothing here".
+    Column {
+        id: loadingState
+        anchors.centerIn: stage
+        spacing: Tokens.s4
+        visible: app.catalogLoading
+        z: 2
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "LOADING CATALOGUE"
+            color: Tokens.inkDim
+            font.family: Tokens.mono
+            font.pixelSize: Tokens.fSmall
+            font.letterSpacing: Tokens.trackLabel
+        }
+
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 220
+            height: 2
+            color: Tokens.lineSoft
+            clip: true
+
+            Rectangle {
+                width: 74
+                height: parent.height
+                radius: 1
+                color: Tokens.sun
+                x: app.reducedMotion ? (parent.width - width) / 2 : -width
+                XAnimator on x {
+                    from: -74
+                    to: 220
+                    duration: 1100
+                    loops: Animation.Infinite
+                    running: loadingState.visible && !app.reducedMotion
+                }
+            }
+        }
+    }
+
+    // catalogue source failed with nothing cached to fall back on.
     Column {
         anchors.centerIn: stage
         spacing: Tokens.s3
-        visible: app.collection.length === 0
+        visible: app.catalogError
+        z: 2
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "CATALOGUE UNAVAILABLE"
+            color: Tokens.ink
+            font.family: Tokens.mono
+            font.pixelSize: Tokens.fSmall
+            font.letterSpacing: Tokens.trackLabel
+        }
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.min(stage.width - Tokens.s7 * 2, 420)
+            text: Store.error
+            visible: text !== ""
+            horizontalAlignment: Text.AlignHCenter
+            color: Tokens.inkDim
+            font.family: Tokens.ui
+            font.pixelSize: Tokens.fSmall
+            wrapMode: Text.Wrap
+            maximumLineCount: 3
+            elide: Text.ElideRight
+        }
+
+        Btn {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "RETRY"
+            armed: true
+            onAct: Store.refresh(true)
+            Accessible.role: Accessible.Button
+            Accessible.name: text
+            Accessible.onPressAction: Store.refresh(true)
+        }
+    }
+
+    Column {
+        anchors.centerIn: stage
+        spacing: Tokens.s3
+        visible: app.collection.length === 0 && !app.catalogLoading && !app.catalogError
         z: 2
 
         Text {

@@ -1,10 +1,11 @@
 // The bundles provider adapts the ryoku-extras bundle registry into the store
-// contract. It fetches the registry, merges each bundle.json, resolves art, and
-// warms every script item's installer into the cache. Installed state is joined
-// from `ryoku-extras-install status`, run only after the caches it reads exist:
-// partial counts are first-class, and a bundle is installed only when every item
-// is present. Install launches the actuator in a floating terminal, which owns
-// the privileged package work; Settings owns installed bundle status and removal.
+// contract. Browsing fetches bundles/registry.json only: each entry carries its
+// inline components (type, name, detect, tier, interactive, summary), so no
+// per-bundle definition or installer is fetched to render the catalogue.
+// Installed state is joined from `ryoku-extras-install status`, which reads the
+// same inline components. Install launches the actuator in a floating terminal,
+// which fetches the selected bundle's full definition on demand and owns the
+// privileged package work; Settings owns installed bundle status and removal.
 package main
 
 import (
@@ -16,16 +17,17 @@ import (
 )
 
 type registryEntry struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Tagline     string   `json:"tagline,omitempty"`
-	Sources     string   `json:"sources,omitempty"`
-	Icon        string   `json:"icon,omitempty"`
-	Accent      string   `json:"accent,omitempty"`
-	Preview     string   `json:"preview,omitempty"`
-	Screenshots []string `json:"screenshots,omitempty"`
-	Path        string   `json:"path"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Tagline     string            `json:"tagline,omitempty"`
+	Sources     string            `json:"sources,omitempty"`
+	Icon        string            `json:"icon,omitempty"`
+	Accent      string            `json:"accent,omitempty"`
+	Preview     string            `json:"preview,omitempty"`
+	Screenshots []string          `json:"screenshots,omitempty"`
+	Path        string            `json:"path"`
+	Components  []bundleComponent `json:"components"`
 }
 
 type registry struct {
@@ -33,26 +35,15 @@ type registry struct {
 	Bundles []registryEntry `json:"bundles"`
 }
 
-type bundleItem struct {
+// bundleComponent is one item as carried inline in the registry: enough to
+// render the catalogue and detect installed state without fetching bundle.json.
+type bundleComponent struct {
 	Type        string `json:"type"`
 	Name        string `json:"name"`
 	Detect      string `json:"detect,omitempty"`
-	Summary     string `json:"summary,omitempty"`
-	Source      string `json:"source,omitempty"`
-	Upstream    string `json:"upstream,omitempty"`
 	Tier        string `json:"tier,omitempty"`
 	Interactive bool   `json:"interactive,omitempty"`
-}
-
-type bundleDef struct {
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Icon        string       `json:"icon,omitempty"`
-	Accent      string       `json:"accent,omitempty"`
-	Preview     string       `json:"preview,omitempty"`
-	Screenshots []string     `json:"screenshots,omitempty"`
-	Items       []bundleItem `json:"items"`
+	Summary     string `json:"summary,omitempty"`
 }
 
 type bundleProvider struct {
@@ -82,7 +73,7 @@ func (p bundleProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceS
 
 	type built struct {
 		item  Item
-		items []bundleItem
+		items []bundleComponent
 	}
 	out := make([]built, 0, len(reg.Bundles))
 	for _, e := range reg.Bundles {
@@ -96,100 +87,52 @@ func (p bundleProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceS
 		if !validLocalPath(path) {
 			return nil, state, fmt.Errorf("bundle %q has invalid path %q", e.ID, path)
 		}
-		name, desc := e.Name, e.Description
-		icon, accent, preview := e.Icon, e.Accent, e.Preview
-		screenshots := e.Screenshots
-		b, st, err := p.cache.Fetch(ctx, path+"/bundle.json", refresh)
-		state = combineOffline(state, st)
-		if err != nil {
-			return nil, state, fmt.Errorf("bundle %q definition: %w", e.ID, err)
-		}
-		var def bundleDef
-		if err := json.Unmarshal(b, &def); err != nil {
-			return nil, state, fmt.Errorf("bundle %q definition: %w", e.ID, err)
-		}
-		if def.ID != "" && def.ID != e.ID {
-			return nil, state, fmt.Errorf("bundle %q definition id is %q", e.ID, def.ID)
-		}
-		if len(def.Items) == 0 {
-			return nil, state, fmt.Errorf("bundle %q definition has no items", e.ID)
-		}
-		items := def.Items
-		if name == "" {
-			name = def.Name
-		}
-		if desc == "" {
-			desc = def.Description
-		}
-		if icon == "" {
-			icon = def.Icon
-		}
-		if accent == "" {
-			accent = def.Accent
-		}
-		if preview == "" {
-			preview = def.Preview
-		}
-		if len(screenshots) == 0 {
-			screenshots = def.Screenshots
-		}
-		for _, it := range items {
-			if it.Type == "script" {
-				if !validComponent(it.Name) {
-					return nil, state, fmt.Errorf("bundle %q has invalid installer name %q", e.ID, it.Name)
-				}
-				if _, _, err := p.cache.Fetch(ctx, "installers/"+it.Name+".sh", refresh); err != nil {
-					return nil, state, fmt.Errorf("bundle %q installer %q: %w", e.ID, it.Name, err)
-				}
-			}
+		if len(e.Components) == 0 {
+			return nil, state, fmt.Errorf("bundle %q has no components", e.ID)
 		}
 
 		md := map[string]any{}
 		if e.Sources != "" {
 			md["sources"] = e.Sources
 		}
-		if icon != "" {
-			md["icon"] = icon
+		if e.Icon != "" {
+			md["icon"] = e.Icon
 		}
-		if accent != "" {
-			md["accent"] = accent
+		if e.Accent != "" {
+			md["accent"] = e.Accent
 		}
-		if len(items) > 0 {
-			comps := make([]map[string]any, len(items))
-			for i, it := range items {
-				comp := map[string]any{"type": it.Type, "name": it.Name}
-				if it.Summary != "" {
-					comp["summary"] = it.Summary
-				}
-				if it.Tier != "" {
-					comp["tier"] = it.Tier
-				}
-				comps[i] = comp
+		comps := make([]map[string]any, len(e.Components))
+		for i, c := range e.Components {
+			comp := map[string]any{"type": c.Type, "name": c.Name}
+			if c.Summary != "" {
+				comp["summary"] = c.Summary
 			}
-			md["items"] = comps
+			if c.Tier != "" {
+				comp["tier"] = c.Tier
+			}
+			comps[i] = comp
 		}
-		if len(md) == 0 {
-			md = nil
-		}
+		md["items"] = comps
 
 		out = append(out, built{
 			item: Item{
 				ID:          e.ID,
 				Category:    "bundles",
-				Name:        name,
+				Name:        e.Name,
 				Summary:     e.Tagline,
-				Description: desc,
-				Art:         resolveAsset(extrasBase(), path, preview),
-				Screenshots: resolveAssets(extrasBase(), path, screenshots),
-				TotalCount:  len(items),
+				Description: e.Description,
+				Art:         resolveAsset(extrasBase(), path, e.Preview),
+				Screenshots: resolveAssets(extrasBase(), path, e.Screenshots),
+				TotalCount:  len(e.Components),
 				Metadata:    md,
 			},
-			items: items,
+			items: e.Components,
 		})
 	}
 
-	// join installed state now the registry + bundle caches the actuator reads
-	// exist. A missing or failed status source degrades to nothing installed.
+	// join installed state; the actuator reads the same inline components from
+	// the cached registry. A missing or failed status source degrades to nothing
+	// installed rather than an error.
 	var status map[string]map[string]bool
 	if p.status != nil {
 		status = p.status(ctx)

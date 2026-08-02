@@ -25,7 +25,7 @@ type riceRegistryEntry struct {
 	CreatedWith string   `json:"createdWith,omitempty"`
 	Color       string   `json:"color,omitempty"`
 	Manifest    string   `json:"manifest,omitempty"`
-	Poster      string   `json:"poster,omitempty"`
+	Preview     string   `json:"preview,omitempty"`
 	Screenshots []string `json:"screenshots,omitempty"`
 	Palette     string   `json:"palette,omitempty"`
 	Wallpaper   string   `json:"wallpaper,omitempty"`
@@ -123,11 +123,11 @@ func (p riceProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceSta
 			Name:          entry.Name,
 			Summary:       entry.Blurb,
 			Description:   entry.Blurb,
-			Art:           p.assetURL(entry.Poster),
+			Art:           resolveAsset(p.base, "rices/"+entry.ID, entry.Preview),
 			Author:        entry.Author,
 			Version:       entry.CreatedWith,
 			Compatibility: compat.Rice(entry.CreatedWith, p.runningVersion()),
-			Screenshots:   p.assetURLs(entry.Screenshots),
+			Screenshots:   resolveAssets(p.base, "rices/"+entry.ID, entry.Screenshots),
 			Tags:          entry.Tags,
 			Installed:     installed,
 			Active:        installed && entry.ID == active,

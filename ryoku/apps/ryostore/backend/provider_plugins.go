@@ -164,15 +164,3 @@ func resolveAssets(base, path string, assets []string) []string {
 	}
 	return resolved
 }
-
-// combineOffline folds a secondary fetch's state into the category's. The
-// bundle provider keeps this until its lazy registry cutover.
-func combineOffline(base, extra SourceState) SourceState {
-	if extra.Offline {
-		base.Offline = true
-		if base.CachedAt == "" {
-			base.CachedAt = extra.CachedAt
-		}
-	}
-	return base
-}

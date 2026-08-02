@@ -373,6 +373,47 @@ func ensureInstaller(name string) (string, error) {
 	return filepath.Join(extrasCacheDir(), rel), nil
 }
 
+// ensureBundleManifest pulls the selected bundle's bundle.json into the cache on
+// demand and returns its path. Browsing carries inline components in the
+// registry and never warms per-bundle definitions, so install and remove fetch
+// the full item list (sources, upstreams, requires) only for the one bundle the
+// user acted on.
+func ensureBundleManifest(id string) (string, error) {
+	if !validComponent(id) {
+		return "", fmt.Errorf("invalid bundle id %q", id)
+	}
+	cache := newCache()
+	raw, _, err := cache.Fetch(context.Background(), "bundles/registry.json", false)
+	if err != nil {
+		return "", fmt.Errorf("bundle catalogue: %w", err)
+	}
+	var reg registry
+	if err := json.Unmarshal(raw, &reg); err != nil {
+		return "", fmt.Errorf("bundle catalogue: %w", err)
+	}
+	relPath := ""
+	for _, entry := range reg.Bundles {
+		if entry.ID == id {
+			relPath = entry.Path
+			if relPath == "" {
+				relPath = "bundles/" + id
+			}
+			break
+		}
+	}
+	if relPath == "" {
+		return "", fmt.Errorf("unknown bundle %q", id)
+	}
+	if !validLocalPath(relPath) {
+		return "", fmt.Errorf("bundle %q has invalid path %q", id, relPath)
+	}
+	rel := relPath + "/bundle.json"
+	if _, _, err := cache.Fetch(context.Background(), rel, true); err != nil {
+		return "", fmt.Errorf("bundle %q definition not found: %w", id, err)
+	}
+	return filepath.Join(extrasCacheDir(), filepath.FromSlash(rel)), nil
+}
+
 type nautilusPack struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`

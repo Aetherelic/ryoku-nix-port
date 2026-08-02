@@ -50,7 +50,7 @@ Item {
         width: parent.width * 0.82
         height: width
         anchors.centerIn: parent
-        visible: !cover.hasArtwork
+        visible: !cover.hasArtwork && cover.hasIdentity
         rotation: -18
         radius: width / 2
         color: "transparent"
@@ -61,7 +61,7 @@ Item {
 
     Text {
         anchors.centerIn: parent
-        visible: !cover.hasArtwork
+        visible: !cover.hasArtwork && cover.hasIdentity
         text: cover.coverTitle.slice(0, 2).toUpperCase()
         color: Qt.rgba(cover.coverAccent.r, cover.coverAccent.g,
                        cover.coverAccent.b, 0.78)

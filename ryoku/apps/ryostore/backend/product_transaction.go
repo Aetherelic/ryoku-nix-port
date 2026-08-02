@@ -833,6 +833,16 @@ func fetchProductFile(ctx context.Context, cache *Cache, rel string, size int64,
 }
 
 func fetchProductFileLive(ctx context.Context, cache *Cache, rel string, limit int64) ([]byte, error) {
+	if root, ok := localBase(cache.base); ok {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			return nil, err
+		}
+		if int64(len(data)) > limit {
+			return nil, fmt.Errorf("%s: exceeds %d bytes", rel, limit)
+		}
+		return data, nil
+	}
 	url := cache.base + "/" + rel
 	separator := "?"
 	if strings.Contains(url, "?") {

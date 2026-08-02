@@ -8,14 +8,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 // TestBundleProviderNormalization proves the bundle provider carries registry
-// metadata, resolves relative art, warms each script item's installer into the
-// cache, and reports the total item count; with no status source nothing is
-// installed.
+// metadata, resolves relative art, reads inline components for the total item
+// count, and browses without fetching per-bundle definitions; with no status
+// source nothing is installed.
 func TestBundleProviderNormalization(t *testing.T) {
 	cache := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cache)
@@ -47,8 +48,8 @@ func TestBundleProviderNormalization(t *testing.T) {
 	if d.Screenshots[1] != "https://cdn.example/b.png" {
 		t.Fatalf("absolute screenshot must pass through: %q", d.Screenshots[1])
 	}
-	if _, err := os.Stat(filepath.Join(extrasCacheDir(), "installers", "demo-cli.sh")); err != nil {
-		t.Fatalf("script installer not warmed into the cache: %v", err)
+	if _, err := os.Stat(filepath.Join(extrasCacheDir(), "bundles", "demo", "bundle.json")); err == nil {
+		t.Fatal("browse must not warm the per-bundle definition")
 	}
 	if d.InstalledCount != 0 || d.Installed {
 		t.Fatalf("bundle with no status must be empty: %+v", d)
@@ -64,8 +65,10 @@ func TestBundleProviderPartialAndFullCounts(t *testing.T) {
 	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
 
 	partial := bundleProvider{
-		cache:  newCache(),
-		status: func(context.Context) map[string]map[string]bool { return map[string]map[string]bool{"demo": {"cmatrix": true, "demo-cli": false}} },
+		cache: newCache(),
+		status: func(context.Context) map[string]map[string]bool {
+			return map[string]map[string]bool{"demo": {"cmatrix": true, "demo-cli": false}}
+		},
 		launch: func(string) error { return nil },
 	}
 	got, _, err := partial.Load(context.Background(), false)
@@ -81,8 +84,10 @@ func TestBundleProviderPartialAndFullCounts(t *testing.T) {
 	}
 
 	full := bundleProvider{
-		cache:  newCache(),
-		status: func(context.Context) map[string]map[string]bool { return map[string]map[string]bool{"demo": {"cmatrix": true, "demo-cli": true}} },
+		cache: newCache(),
+		status: func(context.Context) map[string]map[string]bool {
+			return map[string]map[string]bool{"demo": {"cmatrix": true, "demo-cli": true}}
+		},
 		launch: func(string) error { return nil },
 	}
 	got2, _, err := full.Load(context.Background(), false)
@@ -110,6 +115,48 @@ func TestBundleProviderInstallLaunches(t *testing.T) {
 	}
 	if got != "demo" {
 		t.Fatalf("launcher id = %q, want demo", got)
+	}
+}
+
+// TestBundleProviderBrowseFetchesRegistryOnly proves browsing is a single
+// registry request: no per-bundle definition and no installer is fetched to
+// render the catalogue.
+func TestBundleProviderBrowseFetchesRegistryOnly(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	var mu sync.Mutex
+	var paths []string
+	const reg = `{"version":1,"bundles":[{"id":"demo","name":"Demo","description":"d","path":"bundles/demo","preview":"assets/hero.png","components":[` +
+		`{"type":"package","name":"cmatrix","detect":"cmatrix","tier":"core","interactive":false,"summary":"rain"},` +
+		`{"type":"script","name":"demo-cli","detect":"demo","tier":"optional","interactive":true,"summary":"cli"}]}]}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		if strings.HasSuffix(r.URL.Path, "/bundles/registry.json") {
+			_, _ = w.Write([]byte(reg))
+			return
+		}
+		http.Error(w, "browse fetched more than the registry", http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	prov := bundleProvider{
+		cache:  newCache(),
+		status: func(context.Context) map[string]map[string]bool { return nil },
+		launch: func(string) error { return nil },
+	}
+	got, _, err := prov.Load(context.Background(), false)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if d := itemsByID(got)["demo"]; d.TotalCount != 2 {
+		t.Fatalf("total count = %d, want 2", d.TotalCount)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(paths) != 1 || !strings.HasSuffix(paths[0], "/bundles/registry.json") {
+		t.Fatalf("browse made unexpected requests: %v", paths)
 	}
 }
 

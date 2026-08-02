@@ -20,6 +20,17 @@ func extrasBase() string {
 	return defaultExtrasBase
 }
 
+// localBase reports whether the extras base is a local tree (file:// URL) and
+// returns its root path. A local base lets a fork or a checkout under test serve
+// the catalogue straight off disk, with no network and no CDN, so browsing is
+// instant and art loads from the same tree.
+func localBase(base string) (string, bool) {
+	if strings.HasPrefix(base, "file://") {
+		return strings.TrimPrefix(base, "file://"), true
+	}
+	return "", false
+}
+
 func xdgCacheHome() string {
 	if b := os.Getenv("XDG_CACHE_HOME"); b != "" {
 		return b

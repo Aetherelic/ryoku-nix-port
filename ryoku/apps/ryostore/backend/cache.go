@@ -109,6 +109,16 @@ func (c *Cache) readDisk(rel string) ([]byte, SourceState, bool) {
 // minutes and makes a refresh look broken. A body past maxBody is an error, not
 // a truncated success, so it never replaces a valid cache.
 func (c *Cache) get(ctx context.Context, rel string) ([]byte, error) {
+	if root, ok := localBase(c.base); ok {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			return nil, err
+		}
+		if len(data) > maxBody {
+			return nil, fmt.Errorf("%s: response exceeds %d bytes", rel, maxBody)
+		}
+		return data, nil
+	}
 	url := c.base + "/" + rel
 	sep := "?"
 	if strings.Contains(url, "?") {

@@ -17,7 +17,14 @@ bin="$tmp/.local/bin"
 mkdir -p "$bin" "$tmp/cache/bundles/default" "$tmp/cache/collections/demo" "$tmp/data" "$tmp/run"
 
 cat >"$tmp/cache/bundles/registry.json" <<'EOF'
-{ "bundles": [ { "id": "demo", "path": "collections/demo" }, { "id": "default", "path": "" } ] }
+{ "bundles": [
+  { "id": "demo", "path": "collections/demo", "components": [
+    { "type": "package", "name": "corepkg", "detect": "corepkg", "tier": "core", "interactive": false, "summary": "" },
+    { "type": "package", "name": "optpkg", "detect": "optpkg", "tier": "optional", "interactive": false, "summary": "" },
+    { "type": "nautilus-pack", "name": "video-reformat", "detect": "video-reformat", "tier": "core", "interactive": false, "summary": "" },
+    { "type": "plugin", "name": "creator-deck", "detect": "creator-deck", "tier": "core", "interactive": false, "summary": "" } ] },
+  { "id": "default", "path": "", "components": [
+    { "type": "package", "name": "defaultpkg", "detect": "defaultpkg", "tier": "core", "interactive": false, "summary": "" } ] } ] }
 EOF
 cat >"$tmp/cache/collections/demo/bundle.json" <<'EOF'
 { "id": "demo", "requires": ["gpu-lib32"], "items": [
@@ -38,6 +45,11 @@ cat >"$bin/ryostore" <<EOF
 #!/usr/bin/env bash
 case "\$1 \$2" in
   "internal cache") echo "$tmp/cache"; exit 0 ;;
+  "internal bundle")
+    case "\$3" in
+      demo)    echo "$tmp/cache/collections/demo/bundle.json"; exit 0 ;;
+      default) echo "$tmp/cache/bundles/default/bundle.json"; exit 0 ;;
+    esac ;;
   "internal installer") echo "$tmp/cache/installers/\$3.sh"; exit 0 ;;
   "internal install-guest")
     case "\$3" in

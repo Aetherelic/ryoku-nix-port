@@ -128,6 +128,16 @@ func runInternal(args []string) error {
 		}
 		fmt.Println(p)
 		return nil
+	case "bundle":
+		if len(args) < 2 {
+			return fmt.Errorf("internal bundle needs an id")
+		}
+		p, err := ensureBundleManifest(args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Println(p)
+		return nil
 	case "install-guest":
 		if len(args) < 3 {
 			return fmt.Errorf("internal install-guest needs <kind> <id>")

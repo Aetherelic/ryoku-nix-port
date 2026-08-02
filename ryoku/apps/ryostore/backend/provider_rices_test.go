@@ -13,13 +13,13 @@ import (
 func riceFixtureServer(t *testing.T, missingWallpaper bool) *httptest.Server {
 	t.Helper()
 	files := map[string]string{
-		"/rices/registry.json":     `{"version":1,"rices":[{"id":"demo","name":"Demo Rice","author":"Ryoku","blurb":"A deliberate desktop look","tags":["warm"],"createdWith":"0.19.4","color":"fixed","manifest":"rices/demo/rice.json","poster":"rices/demo/poster.png","screenshots":["rices/demo/shot.png"],"palette":"rices/demo/palette.json","wallpaper":"rices/demo/wall.png","hero":"rices/demo/hero.png","accent":"#d75f5f","surface":"#101010","rounding":14}]}`,
-		"/rices/demo/rice.json":    `{"schema":1,"slug":"demo","name":"Demo Rice","createdWith":"0.19.4","color":{"mode":"fixed","palette":"palette.json"},"assets":{"wallpaper":"wall.png","hero":"hero.png"},"look":{}}`,
-		"/rices/demo/palette.json": `{"background":"#101010"}`,
-		"/rices/demo/poster.png":   "poster",
-		"/rices/demo/shot.png":     "shot",
-		"/rices/demo/wall.png":     "wallpaper",
-		"/rices/demo/hero.png":     "hero",
+		"/rices/registry.json":            `{"version":1,"rices":[{"id":"demo","name":"Demo Rice","author":"Ryoku","blurb":"A deliberate desktop look","tags":["warm"],"createdWith":"0.19.4","color":"fixed","manifest":"rices/demo/rice.json","preview":"assets/preview.webp","screenshots":["assets/shot.png"],"palette":"rices/demo/palette.json","wallpaper":"rices/demo/wall.png","hero":"rices/demo/hero.png","accent":"#d75f5f","surface":"#101010","rounding":14}]}`,
+		"/rices/demo/rice.json":           `{"schema":1,"slug":"demo","name":"Demo Rice","createdWith":"0.19.4","color":{"mode":"fixed","palette":"palette.json"},"assets":{"wallpaper":"wall.png","hero":"hero.png"},"look":{}}`,
+		"/rices/demo/palette.json":        `{"background":"#101010"}`,
+		"/rices/demo/assets/preview.webp": "preview",
+		"/rices/demo/assets/shot.png":     "shot",
+		"/rices/demo/wall.png":            "wallpaper",
+		"/rices/demo/hero.png":            "hero",
 	}
 	if missingWallpaper {
 		delete(files, "/rices/demo/wall.png")
@@ -77,7 +77,7 @@ func TestRiceProviderNormalizesInstalledActiveAndAssets(t *testing.T) {
 	if item.ID != "demo" || !item.Installed || !item.Active || item.Compatibility != "ok" {
 		t.Fatalf("state normalization = %+v", item)
 	}
-	if item.Art != srv.URL+"/rices/demo/poster.png" || len(item.Screenshots) != 1 {
+	if item.Art != srv.URL+"/rices/demo/assets/preview.webp" || len(item.Screenshots) != 1 {
 		t.Fatalf("asset normalization = %+v", item)
 	}
 	if item.Metadata["color"] != "fixed" || item.Metadata["rounding"] != 14 || item.Metadata["accent"] != "#d75f5f" {
