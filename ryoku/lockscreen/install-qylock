@@ -132,6 +132,13 @@ legacy_tape_matches() {
 QYLOCK_DIR="$TARGET_HOME/.local/share/qylock"
 LOCK_DIR="$TARGET_HOME/.local/share/quickshell-lockscreen"
 
+for parent in "$QYLOCK_DIR" "$QYLOCK_DIR/themes" "$QYLOCK_DIR/themes/clockwork"; do
+  if [[ -L $parent ]]; then
+    echo "install-qylock: refusing symlinked lock theme parent: $parent" >&2
+    exit 1
+  fi
+done
+
 echo "Installing qylock clockwork/orbital greeter for $TARGET_USER"
 
 # RYOKU_QYLOCK_USER_ONLY=1 skips the root half (SDDM greeter + its conf):
@@ -167,12 +174,6 @@ user chmod +x "$LOCK_DIR/lock.sh"
 
 # --- 4. themes the lock reads, plus the themes_link the lock resolves ---------
 echo "  lock themes -> $QYLOCK_DIR/themes"
-for parent in "$QYLOCK_DIR" "$QYLOCK_DIR/themes" "$QYLOCK_DIR/themes/clockwork"; do
-  if [[ -L $parent ]]; then
-    echo "install-qylock: refusing symlinked lock theme parent: $parent" >&2
-    exit 1
-  fi
-done
 user mkdir -p "$QYLOCK_DIR"
 legacy_tape="$QYLOCK_DIR/themes/clockwork/tape"
 product_tape="$QYLOCK_DIR/themes/clockwork-tape"
