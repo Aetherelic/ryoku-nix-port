@@ -212,10 +212,13 @@ and installation, not a second runtime copy.
 - **Lockscreens:** fetch the qylock catalogue, preview cache, and install-only
   theme downloader. Installed and active state come from the local qylock theme
   tree and current theme. Settings retains preview and activation.
-- **Plugins:** fetch and install the `ryoku-extras` plugin registry. Installed
-  version, enabled state, and update state come from the plugin directory and
-  `plugins.json`. Settings retains enable, placement, update, configuration, and
-  removal.
+- **Plugins:** browse only the canonical external product registry. The common
+  transaction engine atomically installs, updates, and removes the receipt-owned
+  plugin tree; receipts provide installed version and update state, while
+  `plugins.json` remains the sole owner of enablement, placement, and settings.
+  Install never enables a plugin, removal preserves that user state, and the
+  running shell watches Store revisions and keys Loader URLs by installed
+  version so updated content and services replace themselves without a reload.
 - **Bundles:** fetch the `ryoku-extras` bundle registry and join it with
   `ryoku-extras-install status`. Partial counts are first-class. Settings owns
   installed bundle status and removal.

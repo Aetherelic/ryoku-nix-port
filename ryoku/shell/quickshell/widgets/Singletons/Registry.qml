@@ -3,13 +3,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// plugin discovery + runtime registry. runs discover.sh (scan plugin dirs,
-// merge the user's plugins.json placement, drop disabled ones) and exposes
-// the result as `plugins`: an array of { id, dir, manifest, placement }. the
-// host config (shell.qml) instantiates each plugin's content into the host
-// the user picked. re-runs on reload() (the daemon calls it after a
-// placement change) and watches plugins.json, so a Settings edit retunes
-// with no restart.
+// Plugin discovery + runtime registry. discover.sh merges receipt-owned
+// installed manifests with the user's plugins.json placement and emits enabled
+// entries with their exact installed version. The registry watches placement
+// and Store revision state, so Settings edits and product install/update/remove
+// transactions retune the running shell without a restart.
 //
 // discover.sh path = RYOKU_SHELL_DIR in dev, else the installed quickshell
 // tree.
@@ -23,10 +21,21 @@ Singleton {
     readonly property string _script: (_shellDir && _shellDir.length > 0)
         ? _shellDir + "/quickshell/plugins/discover.sh"
         : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/plugins/discover.sh"
+    readonly property string _stateHome: Quickshell.env("XDG_STATE_HOME")
+        || ((Quickshell.env("HOME") + "/.local/state"))
+    readonly property string _revision: root._stateHome + "/ryoku/store/revision.json"
 
     function reload() {
         discoverProc.running = false;
         discoverProc.running = true;
+    }
+    function handleRevision(raw) {
+        try {
+            const revision = JSON.parse(raw || "{}");
+            if (revision.category === "plugins")
+                root.reload();
+        } catch (error) {
+        }
     }
 
     Process {
@@ -54,5 +63,15 @@ Singleton {
         printErrors: false
         onFileChanged: root.reload()
         onLoaded: root.reload()
+    }
+
+    FileView {
+        id: revisionFile
+        path: root._revision
+        watchChanges: true
+        atomicWrites: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.handleRevision(text())
     }
 }

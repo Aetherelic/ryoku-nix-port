@@ -1,11 +1,8 @@
-// The plugins provider adapts the ryoku-extras plugin registry into the store
-// contract. It fetches the registry, enriches sparse entries from each plugin's
-// manifest, and resolves relative preview art to absolute source URLs. Local
-// state is joined in: installed from the plugin data dir, enabled from
-// plugins.json placement, and update when the registry names a numerically newer
-// version than the installed one. Install downloads the source without ever
-// enabling the plugin; enable, placement, update, and removal stay with Ryoku
-// Settings.
+// The plugins provider adapts the canonical external product registry into the
+// Store contract. Browse metadata comes from the registry; receipt ownership,
+// installed version, and update state come from the common product transaction
+// layer. Placement remains user state in plugins.json and installation never
+// enables a plugin.
 package main
 
 import (
@@ -13,31 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
-
-type pluginRegistryEntry struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Tagline     string   `json:"tagline,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Author      string   `json:"author,omitempty"`
-	Official    bool     `json:"official,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Icon        string   `json:"icon,omitempty"`
-	Screenshots []string `json:"screenshots,omitempty"`
-	Preview     string   `json:"preview,omitempty"`
-	Hosts       []string `json:"hosts,omitempty"`
-	Path        string   `json:"path,omitempty"`
-	Version     string   `json:"version,omitempty"`
-}
-
-type pluginRegistry struct {
-	Version int                   `json:"version"`
-	Plugins []pluginRegistryEntry `json:"plugins"`
-}
 
 type pluginProvider struct {
 	cache *Cache
@@ -53,170 +29,144 @@ func (pluginProvider) Category() Category {
 }
 
 func (p pluginProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceState, error) {
-	raw, state, err := p.cache.Fetch(ctx, "plugins/registry.json", refresh)
+	if _, err := rebuildPluginIndex(); err != nil {
+		return nil, SourceState{}, fmt.Errorf("plugins: rebuild runtime index: %w", err)
+	}
+	entries, state, err := loadProductRegistry(ctx, p.cache, "plugins", refresh)
 	if err != nil {
 		return nil, state, err
 	}
-	var reg pluginRegistry
-	if err := json.Unmarshal(raw, &reg); err != nil {
-		return nil, state, fmt.Errorf("plugins/registry.json: %w", err)
-	}
-
 	placements := readPluginPlacements()
-	items := make([]Item, 0, len(reg.Plugins))
-	for _, e := range reg.Plugins {
-		path := e.Path
-		if path == "" {
-			path = "plugins/" + e.ID
+	items := make([]Item, 0, len(entries))
+	for _, entry := range entries {
+		item, err := productEntryItem(p.cache.base, "plugins", entry)
+		if err != nil {
+			return nil, state, fmt.Errorf("plugins/%s: installed state: %w", entry.ID, err)
 		}
-		name, desc, version := e.Name, e.Description, e.Version
-		hosts, tags := e.Hosts, e.Tags
-		// best-effort manifest enrichment: only fill what the registry omitted,
-		// so a curated registry always wins.
-		if b, st, err := p.cache.Fetch(ctx, path+"/manifest.json", refresh); err == nil {
-			state = combineOffline(state, st)
-			var man struct {
-				Name        string   `json:"name"`
-				Description string   `json:"description"`
-				Hosts       []string `json:"hosts"`
-				Tags        []string `json:"tags"`
-				Version     string   `json:"version"`
-			}
-			if json.Unmarshal(b, &man) == nil {
-				if name == "" {
-					name = man.Name
-				}
-				if desc == "" {
-					desc = man.Description
-				}
-				if len(hosts) == 0 {
-					hosts = man.Hosts
-				}
-				if len(tags) == 0 {
-					tags = man.Tags
-				}
-				if version == "" {
-					version = man.Version
-				}
-			}
+		placement, placed := placements[entry.ID]
+		item.Enabled = item.Installed && placed && placement.Enabled
+		metadata := map[string]any{}
+		if entry.Official {
+			metadata["official"] = true
 		}
-
-		installedVer, installed := localPluginVersion(e.ID)
-		pl, placed := placements[e.ID]
-		enabled := installed && placed && pl.Enabled
-		update := installed && version != "" && installedVer != "" && semverNewer(version, installedVer)
-
-		md := map[string]any{}
-		if e.Official {
-			md["official"] = true
+		if len(entry.Hosts) > 0 {
+			metadata["hosts"] = entry.Hosts
 		}
-		if len(hosts) > 0 {
-			md["hosts"] = hosts
+		if entry.Icon != "" {
+			metadata["icon"] = entry.Icon
 		}
-		if e.Icon != "" {
-			md["icon"] = e.Icon
+		if item.InstalledVersion != "" {
+			metadata["installedVersion"] = item.InstalledVersion
 		}
-		if installed && installedVer != "" {
-			md["installedVersion"] = installedVer
+		if placed && placement.Host != "" {
+			metadata["placement"] = placement.Host
 		}
-		if placed && pl.Host != "" {
-			md["placement"] = pl.Host
+		if len(metadata) > 0 {
+			item.Metadata = metadata
 		}
-		if len(md) == 0 {
-			md = nil
-		}
-
-		items = append(items, Item{
-			ID:              e.ID,
-			Category:        "plugins",
-			Name:            name,
-			Summary:         e.Tagline,
-			Description:     desc,
-			Art:             resolveAsset(extrasBase(), path, e.Preview),
-			Author:          e.Author,
-			Version:         version,
-			Screenshots:     resolveAssets(extrasBase(), path, e.Screenshots),
-			Tags:            tags,
-			Installed:       installed,
-			Enabled:         enabled,
-			UpdateAvailable: update,
-			Metadata:        md,
-		})
+		items = append(items, item)
 	}
 	return items, state, nil
 }
 
+func snapshotPluginPlacement(id string) (json.RawMessage, bool, bool, error) {
+	path := filepath.Join(configHome(), "ryoku", "plugins.json")
+	raw, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil, false, false, nil
+	}
+	if err != nil {
+		return nil, false, false, err
+	}
+	var placements map[string]json.RawMessage
+	if err := decodeOneJSON(raw, &placements); err != nil {
+		return nil, false, true, fmt.Errorf("plugins.json: %w", err)
+	}
+	entry, present := placements[id]
+	return append(json.RawMessage(nil), entry...), present, true, nil
+}
+
+func disableFreshPlugin(id string) error {
+	if err := exec.Command("ryoku-plugins-place", id, "enabled", "false").Run(); err != nil {
+		return fmt.Errorf("disable fresh plugin placement: %w", err)
+	}
+	return nil
+}
+
+func restorePluginPlacement(id string, entry json.RawMessage, present, filePresent bool) error {
+	value := "null"
+	if present {
+		value = string(entry)
+	}
+	if err := exec.Command(
+		"ryoku-plugins-place", id, "restore", value, fmt.Sprintf("%t", filePresent),
+	).Run(); err != nil {
+		return fmt.Errorf("restore plugin placement: %w", err)
+	}
+	return nil
+}
+
 func (p pluginProvider) Install(ctx context.Context, id string) error {
-	_, err := ensurePlugin(id)
-	return err
+	entries, _, err := loadProductRegistry(ctx, p.cache, "plugins", false)
+	if err != nil {
+		return err
+	}
+	entry, err := findProductEntry(entries, id)
+	if err != nil {
+		return err
+	}
+	return installProduct(ctx, p.cache, "plugins", entry)
 }
 
 func configHome() string {
-	if b := os.Getenv("XDG_CONFIG_HOME"); b != "" {
-		return b
+	if base := os.Getenv("XDG_CONFIG_HOME"); base != "" {
+		return base
 	}
 	return filepath.Join(os.Getenv("HOME"), ".config")
 }
 
-// pluginPlacement is one plugin's entry in plugins.json: whether it is enabled
-// and which host it is placed on. Ryostore reads this state; Settings owns it.
 type pluginPlacement struct {
 	Enabled bool   `json:"enabled"`
 	Host    string `json:"host"`
 }
 
 func readPluginPlacements() map[string]pluginPlacement {
-	b, err := os.ReadFile(filepath.Join(configHome(), "ryoku", "plugins.json"))
+	raw, err := os.ReadFile(filepath.Join(configHome(), "ryoku", "plugins.json"))
 	if err != nil {
 		return nil
 	}
-	var m map[string]pluginPlacement
-	if json.Unmarshal(b, &m) != nil {
+	var placements map[string]pluginPlacement
+	if decodeOneJSON(raw, &placements) != nil {
 		return nil
 	}
-	return m
-}
-
-// localPluginVersion reads an installed plugin's version from its data-dir
-// manifest, reporting installed=true whenever that manifest exists.
-func localPluginVersion(id string) (string, bool) {
-	b, err := os.ReadFile(filepath.Join(pluginDataDir(id), "manifest.json"))
-	if err != nil {
-		return "", false
-	}
-	var m struct {
-		Version string `json:"version"`
-	}
-	_ = json.Unmarshal(b, &m)
-	return m.Version, true
+	return placements
 }
 
 // resolveAsset turns a registry-relative asset path into an absolute source URL,
-// passing an already-absolute http(s) URL through unchanged.
-func resolveAsset(base, path, p string) string {
-	if p == "" {
+// passing an already-absolute HTTP URL through unchanged.
+func resolveAsset(base, path, asset string) string {
+	if asset == "" {
 		return ""
 	}
-	if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
-		return p
+	if strings.HasPrefix(asset, "http://") || strings.HasPrefix(asset, "https://") {
+		return asset
 	}
-	return base + "/" + path + "/" + strings.TrimLeft(p, "/")
+	return base + "/" + path + "/" + strings.TrimLeft(asset, "/")
 }
 
-func resolveAssets(base, path string, ps []string) []string {
-	if len(ps) == 0 {
+func resolveAssets(base, path string, assets []string) []string {
+	if len(assets) == 0 {
 		return nil
 	}
-	out := make([]string, len(ps))
-	for i, s := range ps {
-		out[i] = resolveAsset(base, path, s)
+	resolved := make([]string, len(assets))
+	for index, asset := range assets {
+		resolved[index] = resolveAsset(base, path, asset)
 	}
-	return out
+	return resolved
 }
 
-// combineOffline folds a secondary fetch's state into the category's: any source
-// served from the archive makes the category offline, keeping the first cache
-// timestamp seen.
+// combineOffline folds a secondary fetch's state into the category's. The
+// bundle provider keeps this until its lazy registry cutover.
 func combineOffline(base, extra SourceState) SourceState {
 	if extra.Offline {
 		base.Offline = true
@@ -225,41 +175,4 @@ func combineOffline(base, extra SourceState) SourceState {
 		}
 	}
 	return base
-}
-
-// semverNewer reports whether version a is numerically greater than b, comparing
-// dotted components left to right and ignoring any pre-release or build suffix.
-func semverNewer(a, b string) bool {
-	av, bv := parseSemver(a), parseSemver(b)
-	n := len(av)
-	if len(bv) > n {
-		n = len(bv)
-	}
-	for i := range n {
-		x, y := 0, 0
-		if i < len(av) {
-			x = av[i]
-		}
-		if i < len(bv) {
-			y = bv[i]
-		}
-		if x != y {
-			return x > y
-		}
-	}
-	return false
-}
-
-func parseSemver(v string) []int {
-	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
-	if i := strings.IndexAny(v, "-+"); i >= 0 {
-		v = v[:i]
-	}
-	parts := strings.Split(v, ".")
-	out := make([]int, len(parts))
-	for i, p := range parts {
-		n, _ := strconv.Atoi(strings.TrimSpace(p))
-		out[i] = n
-	}
-	return out
 }

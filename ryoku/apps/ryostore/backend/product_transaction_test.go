@@ -24,6 +24,8 @@ type transactionFixture struct {
 func newTransactionFixture(t *testing.T, version string, declared, served []byte) transactionFixture {
 	t.Helper()
 	fileHash := fmt.Sprintf("%x", sha256.Sum256(declared))
+	runtimeManifest := []byte(fmt.Sprintf(`{"id":"demo","version":%q}`, version))
+	runtimeHash := fmt.Sprintf("%x", sha256.Sum256(runtimeManifest))
 	manifest := ProductManifest{
 		Schema:      1,
 		ID:          "demo",
@@ -37,6 +39,14 @@ func newTransactionFixture(t *testing.T, version string, declared, served []byte
 				Mode:        "0644",
 				Size:        int64(len(declared)),
 				SHA256:      fileHash,
+				Install:     true,
+			},
+			{
+				Source:      "manifest.json",
+				Destination: "manifest.json",
+				Mode:        "0644",
+				Size:        int64(len(runtimeManifest)),
+				SHA256:      runtimeHash,
 				Install:     true,
 			},
 			{
@@ -66,15 +76,17 @@ func newTransactionFixture(t *testing.T, version string, declared, served []byte
 		Surface:        "#101010",
 		Screenshots:    []string{},
 		Preview:        "assets/preview.png",
-		Manifest:       "manifest.json",
+		Manifest:       "product-manifest.json",
 		ManifestSHA256: fmt.Sprintf("%x", sha256.Sum256(manifestRaw)),
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/plugins/demo/manifest.json":
+		case "/plugins/demo/product-manifest.json":
 			_, _ = w.Write(manifestRaw)
 		case "/plugins/demo/content/Plugin.qml":
 			_, _ = w.Write(served)
+		case "/plugins/demo/manifest.json":
+			_, _ = w.Write(runtimeManifest)
 		default:
 			http.NotFound(w, r)
 		}
@@ -122,7 +134,7 @@ func TestProductTransactionLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Version != "1.0.0" || len(receipt.Files) != 1 || receipt.Files[0].Destination != "content/Plugin.qml" {
+	if receipt.Version != "1.0.0" || len(receipt.Files) != 2 || receipt.Files[0].Destination != "content/Plugin.qml" || receipt.Files[1].Destination != "manifest.json" {
 		t.Fatalf("initial receipt = %#v", receipt)
 	}
 	if revision := readRevisionForTest(t); revision.Revision != 1 || revision.Operation != "install" {

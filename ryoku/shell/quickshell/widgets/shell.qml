@@ -171,6 +171,8 @@ ShellRoot {
                     readonly property var entry: Registry.plugins.find(p => p.id === slot.pid) || null
                     readonly property var dw: (entry && entry.placement && entry.placement.desktopWidget) || ({})
                     readonly property string dir: entry ? entry.dir : ""
+                    readonly property string versionQuery: entry && entry.version
+                        ? "?v=" + encodeURIComponent(entry.version) : ""
 
                     pluginId: slot.pid
                     locked: slot.dw.locked === true
@@ -213,14 +215,12 @@ ShellRoot {
                         function saveSettings() {}
                     }
 
-                    Loader {
-                        id: svc
-                        active: slot.dir.length > 0
-                        source: slot.dir.length > 0 ? "file://" + slot.dir + "/service/Main.qml" : ""
-                        onLoaded: if (item) item.pluginApi = slot.api
+                    PluginObjectSlot {
+                        source: slot.dir.length > 0 ? "file://" + slot.dir + "/service/Main.qml" + slot.versionQuery : ""
+                        configure: (service) => { service.pluginApi = slot.api; }
                     }
 
-                    contentUrl: slot.dir.length > 0 ? "file://" + slot.dir + "/content/Widget.qml" : ""
+                    contentUrl: slot.dir.length > 0 ? "file://" + slot.dir + "/content/Widget.qml" + slot.versionQuery : ""
                     configure: (it) => {
                         it.pluginApi = slot.api;
                         it.screen = win.screen;

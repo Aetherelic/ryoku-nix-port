@@ -37,21 +37,42 @@ Item {
     property string contentUrl: ""
     property var configure: null
     property var item: null
+    property int _buildGeneration: 0
     onContentUrlChanged: _build()
     function _build() {
-        if (item) { item.destroy(); item = null; }
-        if (!contentUrl || contentUrl.length === 0) return;
-        var c = Qt.createComponent(contentUrl);
-        function make() {
-            if (c.status === Component.Ready) {
-                item = c.createObject(holder);
-                if (item && configure) configure(item);
-            } else if (c.status === Component.Error) {
-                console.warn("PluginDesktopSlot:", c.errorString());
+        const generation = ++slot._buildGeneration;
+        if (!contentUrl || contentUrl.length === 0) {
+            const previous = item;
+            item = null;
+            if (previous)
+                previous.destroy();
+            return;
+        }
+        const requestedUrl = contentUrl;
+        const previous = item;
+        const component = Qt.createComponent(requestedUrl);
+        function publish() {
+            if (generation !== slot._buildGeneration || requestedUrl !== slot.contentUrl)
+                return;
+            if (component.status === Component.Ready) {
+                const next = component.createObject(holder);
+                if (!next) {
+                    console.warn("PluginDesktopSlot: could not create", requestedUrl);
+                    return;
+                }
+                if (configure)
+                    configure(next);
+                item = next;
+                if (previous && previous !== next)
+                    previous.destroy();
+            } else if (component.status === Component.Error) {
+                console.warn("PluginDesktopSlot:", component.errorString());
             }
         }
-        if (c.status === Component.Loading) c.statusChanged.connect(make);
-        else make();
+        if (component.status === Component.Loading)
+            component.statusChanged.connect(publish);
+        else
+            publish();
     }
 
     readonly property real cw: item ? item.implicitWidth : 100

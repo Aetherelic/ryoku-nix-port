@@ -25,16 +25,20 @@ var (
 )
 
 type productTransactionJournal struct {
-	Schema         int      `json:"schema"`
-	Category       string   `json:"category"`
-	ID             string   `json:"id"`
-	Version        string   `json:"version"`
-	Operation      string   `json:"operation"`
-	Phase          string   `json:"phase"`
-	HadDestination bool     `json:"hadDestination,omitempty"`
-	BaseRevision   uint64   `json:"baseRevision"`
-	PriorReceipt   *Receipt `json:"priorReceipt,omitempty"`
-	SelectionToken string   `json:"selectionToken,omitempty"`
+	Schema                  int             `json:"schema"`
+	Category                string          `json:"category"`
+	ID                      string          `json:"id"`
+	Version                 string          `json:"version"`
+	Operation               string          `json:"operation"`
+	Phase                   string          `json:"phase"`
+	HadDestination          bool            `json:"hadDestination,omitempty"`
+	BaseRevision            uint64          `json:"baseRevision"`
+	PriorReceipt            *Receipt        `json:"priorReceipt,omitempty"`
+	SelectionToken          string          `json:"selectionToken,omitempty"`
+	PluginPlacement         json.RawMessage `json:"pluginPlacement,omitempty"`
+	PluginPlacementPresent  bool            `json:"pluginPlacementPresent,omitempty"`
+	PluginConfigPresent     bool            `json:"pluginConfigPresent,omitempty"`
+	PluginPlacementCaptured bool            `json:"pluginPlacementCaptured,omitempty"`
 }
 
 func installProduct(ctx context.Context, cache *Cache, category string, entry ProductEntry) error {
@@ -178,6 +182,16 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 		priorCopy := prior
 		journal.PriorReceipt = &priorCopy
 	}
+	if category == "plugins" && operation == "install" {
+		placement, present, configPresent, err := snapshotPluginPlacement(entry.ID)
+		if err != nil {
+			return err
+		}
+		journal.PluginPlacement = placement
+		journal.PluginPlacementPresent = present
+		journal.PluginConfigPresent = configPresent
+		journal.PluginPlacementCaptured = true
+	}
 	if err := writeProductJournal(journal); err != nil {
 		return err
 	}
@@ -218,6 +232,18 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 	}
 	if err := verifyInstalledReceipt(dst, receipt); err != nil {
 		return rollback(err)
+	}
+	if category == "plugins" && operation == "install" {
+		if err := disableFreshPlugin(entry.ID); err != nil {
+			return rollback(err)
+		}
+		journal.Phase = "install-placement"
+		if err := writeProductJournal(journal); err != nil {
+			return rollback(err)
+		}
+		if err := productTransactionCheckpoint(journal.Phase); err != nil {
+			return rollback(err)
+		}
 	}
 	if err := syncProductDerivedState(journal, true); err != nil {
 		return rollback(err)
@@ -591,6 +617,13 @@ func rollbackProductJournal(journal productTransactionJournal) error {
 	default:
 		return fmt.Errorf("invalid transaction operation %q", journal.Operation)
 	}
+	if journal.Category == "plugins" && journal.Operation == "install" && journal.PluginPlacementCaptured {
+		if err := restorePluginPlacement(
+			journal.ID, journal.PluginPlacement, journal.PluginPlacementPresent, journal.PluginConfigPresent,
+		); err != nil {
+			return err
+		}
+	}
 	if err := syncProductDerivedState(journal, false); err != nil {
 		return err
 	}
@@ -652,12 +685,19 @@ func validateProductJournal(journal productTransactionJournal) error {
 	if journal.Category == "barstyles" && journal.Operation == "remove" && journal.SelectionToken == "" {
 		return fmt.Errorf("barstyle removal has no selection transaction")
 	}
+	if journal.Category == "plugins" && journal.Operation == "install" {
+		if !journal.PluginPlacementCaptured {
+			return fmt.Errorf("plugin install journal has no placement snapshot")
+		}
+	} else if journal.PluginPlacementCaptured || journal.PluginPlacementPresent || journal.PluginConfigPresent || len(journal.PluginPlacement) > 0 {
+		return fmt.Errorf("non-plugin transaction has plugin placement state")
+	}
 	switch journal.Operation {
 	case "install":
 		if journal.PriorReceipt != nil || journal.HadDestination {
 			return fmt.Errorf("install journal unexpectedly owns prior state")
 		}
-		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "install-rollback" && journal.Phase != "ready" {
+		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "install-placement" && journal.Phase != "install-rollback" && journal.Phase != "ready" {
 			return fmt.Errorf("invalid install transaction phase %q", journal.Phase)
 		}
 	case "update":
@@ -681,6 +721,9 @@ func validateProductJournal(journal productTransactionJournal) error {
 }
 
 func syncProductDerivedState(journal productTransactionJournal, committed bool) error {
+	if journal.Category == "plugins" {
+		return writePluginIndexLocked()
+	}
 	if journal.Category != "barstyles" {
 		return nil
 	}

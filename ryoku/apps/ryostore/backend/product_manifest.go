@@ -40,6 +40,11 @@ type ProductEntry struct {
 	Preview        string   `json:"preview"`
 	Manifest       string   `json:"manifest"`
 	ManifestSHA256 string   `json:"manifestSha256"`
+	Official       bool     `json:"official,omitempty"`
+	Tagline        string   `json:"tagline,omitempty"`
+	Icon           string   `json:"icon,omitempty"`
+	Hosts          []string `json:"hosts,omitempty"`
+	LastUpdated    string   `json:"lastUpdated,omitempty"`
 }
 
 // ProductFile is one manifest-owned source and its installed destination.
@@ -103,7 +108,7 @@ func loadProductManifest(ctx context.Context, cache *Cache, category string, ent
 	}
 
 	rel := path.Join(entry.Path, entry.Manifest)
-	raw, _, err := cache.Fetch(ctx, rel, false)
+	raw, _, err := cache.Fetch(ctx, rel, true)
 	if err != nil {
 		return ProductManifest{}, fmt.Errorf("%s/%s: fetch manifest: %w", category, entry.ID, err)
 	}

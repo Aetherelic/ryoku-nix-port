@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 import "popouts"
+import "../widgets" as PluginWidgets
 
 /**
  * hosts every enabled plugin whose chosen host = frame popout. frame popouts
@@ -35,13 +36,14 @@ Item {
     anchors.fill: parent
 
     property var plugins: []
+    property var pluginIds: []
     property alias repeater: popoutRepeater
 
     // input-mask geometry the pill grabs so hover opens the popout and the
     // open body keeps catching input, same as built-in edge popouts. v1 binds
     // the first frame popout (the common single-popout case); `first` updates
     // when the set changes, trigger/body are live bindings on that instance.
-    readonly property var first: plugins.length > 0 ? popoutRepeater.itemAt(0) : null
+    readonly property var first: pluginIds.length > 0 ? popoutRepeater.itemAt(0) : null
     readonly property real maskTrigX: first ? first.triggerX : 0
     readonly property real maskTrigY: first ? first.triggerY : 0
     readonly property real maskTrigW: first ? first.triggerW : 0
@@ -55,8 +57,28 @@ Item {
     readonly property string _script: (_shellDir && _shellDir.length > 0)
         ? _shellDir + "/quickshell/plugins/discover.sh"
         : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/plugins/discover.sh"
+    readonly property string _stateHome: Quickshell.env("XDG_STATE_HOME")
+        || (Quickshell.env("HOME") + "/.local/state")
+    readonly property string _revision: root._stateHome + "/ryoku/store/revision.json"
 
     function reload() { discoverProc.running = false; discoverProc.running = true; }
+    function syncPlugins(all) {
+        const next = all.filter(plugin => plugin.placement && plugin.placement.host === "framePopout");
+        root.plugins = next;
+        const ids = next.map(plugin => plugin.id);
+        const same = ids.length === root.pluginIds.length
+            && ids.every((id, index) => id === root.pluginIds[index]);
+        if (!same)
+            root.pluginIds = ids;
+    }
+    function handleRevision(raw) {
+        try {
+            const revision = JSON.parse(raw || "{}");
+            if (revision.category === "plugins")
+                root.reload();
+        } catch (error) {
+        }
+    }
 
     Process {
         id: discoverProc
@@ -66,7 +88,7 @@ Item {
             onStreamFinished: {
                 var all = [];
                 try { all = JSON.parse(text || "[]"); } catch (e) { all = []; }
-                root.plugins = all.filter(p => (p.placement && p.placement.host === "framePopout"));
+                root.syncPlugins(all);
             }
         }
     }
@@ -78,13 +100,26 @@ Item {
         onFileChanged: root.reload()
     }
 
+    FileView {
+        id: revisionFile
+        path: root._revision
+        watchChanges: true
+        atomicWrites: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.handleRevision(text())
+    }
+
     Repeater {
         id: popoutRepeater
-        model: root.plugins
+        model: root.pluginIds
         delegate: Popout {
             id: pop
-            required property var modelData
-            readonly property var place: modelData.placement
+            required property string modelData
+            readonly property var entry: root.plugins.find(plugin => plugin.id === modelData) || null
+            readonly property var place: entry ? entry.placement : ({})
+            readonly property string versionQuery: entry && entry.version
+                ? "?v=" + encodeURIComponent(entry.version) : ""
             group: root.group
             frameThickness: root.frameThickness
             radius: root.radius
@@ -93,7 +128,7 @@ Item {
             align: (place.framePopout && place.framePopout.align) ? place.framePopout.align : "start"
             s: root.s
             active: root.active
-            pinned: root.pinnedId === modelData.id
+            pinned: root.pinnedId === modelData
             // keybind/IPC-pinned popout dismisses once the pointer leaves it,
             // so it closes like a hover-opened one instead of staying open
             // until the keybind fires again. pointer gets a grace window to
@@ -113,7 +148,7 @@ Item {
             Timer {
                 id: graceTimer
                 interval: pop._touched ? 220 : pop._graceMs
-                onTriggered: if (pop.pinned && !pop.hovered) root.unpinRequested(pop.modelData.id);
+                onTriggered: if (pop.pinned && !pop.hovered) root.unpinRequested(pop.modelData);
             }
             // body fits content vertically. openH = loaded content's intrinsic
             // height + inner pad, so no deadspace. width is fixed (content lays
@@ -129,30 +164,30 @@ Item {
 
             // per-plugin service + content, instantiated from the plugin dir.
             property var api: QtObject {
-                property var mainInstance: svcLoader.item
+                property var mainInstance: serviceSlot.item
                 property var pluginSettings: (pop.place && pop.place.settings) ? pop.place.settings : {}
-                property string pluginDir: pop.modelData.dir
+                property string pluginDir: pop.entry ? pop.entry.dir : ""
                 function saveSettings() {}
             }
 
-            Loader {
-                id: svcLoader
-                source: "file://" + pop.modelData.dir + "/service/Main.qml"
-                onLoaded: if (item) item.pluginApi = pop.api
+            PluginWidgets.PluginObjectSlot {
+                id: serviceSlot
+                source: pop.entry ? "file://" + pop.entry.dir + "/service/Main.qml" + pop.versionQuery : ""
+                configure: (service) => { service.pluginApi = pop.api; }
             }
 
-            Loader {
+            PluginWidgets.PluginObjectSlot {
                 id: contentLoader
                 anchors.fill: parent
                 anchors.margins: pop.pad
-                source: "file://" + pop.modelData.dir + "/content/Widget.qml"
-                onLoaded: {
-                    if (!item) return;
-                    item.pluginApi = pop.api;
-                    item.density = "full";
-                    item.s = root.s;
-                    item.widthBudget = pop.contentW;
-                    item.active = Qt.binding(() => pop.prog > 0.5);
+                fill: true
+                source: pop.entry ? "file://" + pop.entry.dir + "/content/Widget.qml" + pop.versionQuery : ""
+                configure: (content) => {
+                    content.pluginApi = pop.api;
+                    content.density = "full";
+                    content.s = root.s;
+                    content.widthBudget = pop.contentW;
+                    content.active = Qt.binding(() => pop.prog > 0.5);
                 }
             }
         }
