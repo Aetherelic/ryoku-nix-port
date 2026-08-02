@@ -8,30 +8,42 @@ Singleton {
 
     readonly property string stateRoot: (Quickshell.env("XDG_STATE_HOME")
         || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku/store"
-    readonly property string dataRoot: (Quickshell.env("XDG_DATA_HOME")
-        || (Quickshell.env("HOME") + "/.local/share")) + "/ryoku/barstyles"
     property var rows: []
     property string revisionKey: ""
+    property var failedStyles: ({})
 
     function parseRows(raw) {
         try {
             const value = JSON.parse(raw || "[]");
             if (!Array.isArray(value))
                 return [];
-            return value.filter(row => row && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(row.id || ""))
-                && String(row.version || "") !== "" && String(row.scene || "") === "Scene.qml");
+            return value.filter(row => {
+                const id = String(row?.id || "");
+                const view = String(row?.view || "");
+                return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)
+                    && String(row?.version || "") !== ""
+                    && String(row?.scene || "") === "Scene.qml"
+                    && new RegExp("^barstyle-views/" + id + "/[a-f0-9]{64}$").test(view);
+            });
         } catch (e) {
             return [];
         }
     }
+    function fail(id) {
+        if (!id || root.failedStyles[id])
+            return;
+        const next = Object.assign({}, root.failedStyles);
+        next[id] = true;
+        root.failedStyles = next;
+    }
+
 
     function sceneUrl(id) {
-        if (!id || id === "sumi")
+        if (!id || id === "sumi" || root.failedStyles[id])
             return "";
         for (const row of root.rows) {
             if (row.id === id)
-                return "file://" + root.dataRoot + "/" + row.id + "/" + row.scene
-                    + "?v=" + encodeURIComponent(row.version);
+                return "file://" + root.stateRoot + "/" + row.view + "/" + row.scene;
         }
         return "";
     }
@@ -58,7 +70,10 @@ Singleton {
         atomicWrites: true
         printErrors: false
         onFileChanged: reload()
-        onLoaded: root.rows = root.parseRows(text())
+        onLoaded: {
+            root.failedStyles = {};
+            root.rows = root.parseRows(text());
+        }
         onLoadFailed: root.rows = []
     }
 

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -730,6 +731,34 @@ func loadSettingsFile(path string) (map[string]any, *settings, time.Time) {
 	resolveThemePalette(raw, cur.Theme.Theme)
 	return raw, cur, mtime
 }
+func loadSettingsPatchBase(path string, fallback map[string]any) (map[string]any, *settings, error) {
+	b, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		raw := deepCopyMap(fallback)
+		cur, buildErr := buildSettings(raw, false)
+		if buildErr != nil {
+			return nil, nil, buildErr
+		}
+		return raw, cur, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(b, &raw); err != nil || raw == nil {
+		if err == nil {
+			err = fmt.Errorf("root must be an object")
+		}
+		return nil, nil, fmt.Errorf("parse settings: %w", err)
+	}
+	cur, err := buildSettings(raw, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("validate settings: %w", err)
+	}
+	writeContract(raw, cur)
+	resolveThemePalette(raw, cur.Theme.Theme)
+	return raw, cur, nil
+}
 
 // frameLocked marshals the whole file for a subscriber. Map marshalling sorts
 // keys, so the frame is byte-stable and the topic suppresses no-op re-pushes.
@@ -743,6 +772,29 @@ func (s *settingsStore) notify(frame []byte) {
 		s.onChange(frame)
 	}
 }
+
+func lockSettingsFile(path string) (func(), error) {
+	if path == "" {
+		return nil, fmt.Errorf("no config path")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		file.Close()
+		return nil, err
+	}
+	return func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+		_ = file.Close()
+	}, nil
+}
+
+const barStyleTransactionKey = "ryoStoreBarStyleTransaction"
 
 // patch sets one leaf. A schema path is validated and clamped; any other path is
 // passthrough (merged, not validated). The change is persisted before it is
@@ -759,13 +811,25 @@ func (s *settingsStore) patch(path string, value json.RawMessage) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	unlock, err := lockSettingsFile(s.path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 
-	full := deepCopyMap(s.raw)
+	diskRaw, diskCur, err := loadSettingsPatchBase(s.path, s.raw)
+	if err != nil {
+		return err
+	}
+	full := deepCopyMap(diskRaw)
 	contract := contractKeys[segs[0]]
 	if err := setByPath(full, segs, value, !contract); err != nil {
 		return err
 	}
-	var newCur *settings
+	if len(segs) == 1 && segs[0] == "barStyle" {
+		delete(full, barStyleTransactionKey)
+	}
+	newCur := diskCur
 	if contract {
 		ns, err := buildSettings(full, true)
 		if err != nil {
@@ -779,9 +843,7 @@ func (s *settingsStore) patch(path string, value json.RawMessage) error {
 		return err
 	}
 	s.raw = full
-	if newCur != nil {
-		s.cur = newCur
-	}
+	s.cur = newCur
 	s.notify(s.frameLocked())
 	return nil
 }

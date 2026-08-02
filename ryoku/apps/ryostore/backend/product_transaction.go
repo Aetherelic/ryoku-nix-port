@@ -34,6 +34,7 @@ type productTransactionJournal struct {
 	HadDestination bool     `json:"hadDestination,omitempty"`
 	BaseRevision   uint64   `json:"baseRevision"`
 	PriorReceipt   *Receipt `json:"priorReceipt,omitempty"`
+	SelectionToken string   `json:"selectionToken,omitempty"`
 }
 
 func installProduct(ctx context.Context, cache *Cache, category string, entry ProductEntry) error {
@@ -218,6 +219,12 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 	if err := verifyInstalledReceipt(dst, receipt); err != nil {
 		return rollback(err)
 	}
+	if err := syncProductDerivedState(journal, true); err != nil {
+		return rollback(err)
+	}
+	if err := productTransactionCheckpoint("derived-state"); err != nil {
+		return rollback(err)
+	}
 	journal.Phase = "ready"
 	if err := writeProductJournal(journal); err != nil {
 		return rollback(err)
@@ -297,15 +304,20 @@ func removeProduct(_ context.Context, category, id string) error {
 	if err != nil {
 		return err
 	}
+	selectionToken := ""
+	if category == "barstyles" {
+		selectionToken = fmt.Sprintf("%s-%d", id, time.Now().UnixNano())
+	}
 	journal := productTransactionJournal{
-		Schema:       1,
-		Category:     category,
-		ID:           id,
-		Version:      receipt.Version,
-		Operation:    "remove",
-		Phase:        "remove-prepared",
-		BaseRevision: baseRevision,
-		PriorReceipt: &receipt,
+		Schema:         1,
+		Category:       category,
+		ID:             id,
+		Version:        receipt.Version,
+		Operation:      "remove",
+		Phase:          "remove-prepared",
+		BaseRevision:   baseRevision,
+		PriorReceipt:   &receipt,
+		SelectionToken: selectionToken,
 	}
 	if err := writeProductJournal(journal); err != nil {
 		return err
@@ -350,6 +362,12 @@ func removeProduct(_ context.Context, category, id string) error {
 		return rollback(err)
 	}
 	if err := productTransactionCheckpoint(journal.Phase); err != nil {
+		return rollback(err)
+	}
+	if err := syncProductDerivedState(journal, true); err != nil {
+		return rollback(err)
+	}
+	if err := productTransactionCheckpoint("derived-state"); err != nil {
 		return rollback(err)
 	}
 	journal.Phase = "ready"
@@ -431,6 +449,9 @@ func recoverProductJournal(journal productTransactionJournal) error {
 	}
 	defer unlock()
 	if journal.Phase == "ready" {
+		if err := syncProductDerivedState(journal, true); err != nil {
+			return err
+		}
 		current, err := readStoreRevision()
 		if os.IsNotExist(err) {
 			current = StoreRevision{}
@@ -570,6 +591,9 @@ func rollbackProductJournal(journal productTransactionJournal) error {
 	default:
 		return fmt.Errorf("invalid transaction operation %q", journal.Operation)
 	}
+	if err := syncProductDerivedState(journal, false); err != nil {
+		return err
+	}
 	if err := cleanupProductStages(filepath.Dir(dst), journal.ID); err != nil {
 		return err
 	}
@@ -580,6 +604,11 @@ func rollbackProductJournal(journal productTransactionJournal) error {
 }
 
 func cleanupCommittedProductJournal(journal productTransactionJournal) error {
+	if journal.Category == "barstyles" && journal.Operation == "remove" {
+		if err := finishBarStyleFallback(defaultShellConfigPath(), journal.ID, journal.SelectionToken, true); err != nil {
+			return err
+		}
+	}
 	dst, _, err := productDestination(journal.Category, journal.ID)
 	if err != nil {
 		return err
@@ -617,6 +646,12 @@ func validateProductJournal(journal productTransactionJournal) error {
 			return fmt.Errorf("invalid prior receipt: %w", err)
 		}
 	}
+	if journal.SelectionToken != "" && (journal.Category != "barstyles" || journal.Operation != "remove") {
+		return fmt.Errorf("invalid product selection transaction")
+	}
+	if journal.Category == "barstyles" && journal.Operation == "remove" && journal.SelectionToken == "" {
+		return fmt.Errorf("barstyle removal has no selection transaction")
+	}
 	switch journal.Operation {
 	case "install":
 		if journal.PriorReceipt != nil || journal.HadDestination {
@@ -643,6 +678,22 @@ func validateProductJournal(journal productTransactionJournal) error {
 		return fmt.Errorf("invalid transaction operation %q", journal.Operation)
 	}
 	return nil
+}
+
+func syncProductDerivedState(journal productTransactionJournal, committed bool) error {
+	if journal.Category != "barstyles" {
+		return nil
+	}
+	if err := writeBarStyleIndexLocked(); err != nil {
+		return err
+	}
+	if journal.Operation != "remove" {
+		return nil
+	}
+	if committed {
+		return applyBarStyleFallback(defaultShellConfigPath(), journal.ID, journal.SelectionToken)
+	}
+	return finishBarStyleFallback(defaultShellConfigPath(), journal.ID, journal.SelectionToken, false)
 }
 
 func journalRevision(journal productTransactionJournal) StoreRevision {

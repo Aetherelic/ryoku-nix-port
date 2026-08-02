@@ -796,9 +796,10 @@ ShellRoot {
         }
     }
 
-    // Store bar styles: a per-monitor Loader hosts an installed product's
-    // versioned Scene URL. Sumi is the built-in frame scene above; shell-wide
-    // surfaces below stay style-agnostic.
+    // Receipt-owned bar styles load from their durable content-addressed views.
+    // Sumi is the built-in frame scene above; any other style loads here. The
+    // shell-wide surfaces below (OSD, notifications, session dialog) stay
+    // style-agnostic.
     Variants {
         model: Quickshell.screens
         Loader {
@@ -806,6 +807,7 @@ ShellRoot {
             active: !root.sumiActive
             source: BarProducts.sceneUrl(Config.barStyle)
             onLoaded: if (item) item.modelData = modelData
+            onStatusChanged: if (status === Loader.Error) BarProducts.fail(Config.barStyle)
             onModelDataChanged: if (item) item.modelData = modelData
         }
     }

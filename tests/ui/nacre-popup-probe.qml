@@ -3,7 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import "." as Pill
 import "Singletons" as PillSingletons
-import "barstyles/shared" as Shared
+import "popouts" as PillPopouts
 import "barstyles/nacre/popouts" as Popouts
 import "barstyles/obi/widgets" as Obi
 import "barstyles/nacre/components" as NacreComponents
@@ -50,7 +50,7 @@ ShellRoot {
         return null;
     }
 
-    Shared.Popout {}
+    PillPopouts.Popout {}
 
     Component { id: audio; Popouts.AudioPopout {} }
     Component { id: battery; Popouts.BatteryPopout {} }

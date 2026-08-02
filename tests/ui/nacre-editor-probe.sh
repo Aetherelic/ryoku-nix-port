@@ -6,11 +6,10 @@ repo="$here/../.."
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-mkdir -p "$work/Ryoku" "$work/ryoku/hub" "$work/ryoku/shell/quickshell/pill/barstyles"
+mkdir -p "$work/Ryoku" "$work/ryoku/hub"
 ln -s "$repo/ryoku/ui" "$work/Ryoku/Ui"
 ln -s "$repo/ryoku/shell/framebars" "$work/Ryoku/FrameBars"
 cp -a "$repo/ryoku/hub/quickshell" "$work/ryoku/hub/"
-cp -a "$repo/ryoku/shell/quickshell/pill/barstyles/nacre" "$work/ryoku/shell/quickshell/pill/barstyles/"
 cp "$here/nacre-editor-probe.qml" "$work/ryoku/probe.qml"
 
 QML2_IMPORT_PATH="$work:${QML2_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \

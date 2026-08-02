@@ -505,3 +505,68 @@ func TestFrameBarsPatchPreservesSubtrees(t *testing.T) {
 		t.Fatalf("wallpaper lost on menus replace")
 	}
 }
+
+func TestPatchMergesAConcurrentSynchronizedWriter(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "shell.json")
+	if err := os.WriteFile(path, []byte("{\"barStyle\":\"obi\",\"keep\":true}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := newSettingsStore(path)
+	if err := os.WriteFile(path, []byte("{\"barStyle\":\"sumi\",\"keep\":true,\"external\":1}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.patch("weatherLocation", json.RawMessage(`"Oslo"`)); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["barStyle"] != "sumi" || got["keep"] != true || got["external"] != float64(1) || got["weatherLocation"] != "Oslo" {
+		t.Fatalf("merged settings = %#v", got)
+	}
+}
+
+func TestBarStyleCommandUsesSettingsStore(t *testing.T) {
+	store := newTestStore(t)
+	if err := store.patch(barStyleTransactionKey, json.RawMessage(`"remove-obi"`)); err != nil {
+		t.Fatal(err)
+	}
+	d := daemon{settings: store}
+	if got := d.dispatch("barstyle sumi"); got != "ok" {
+		t.Fatalf("barstyle command = %q", got)
+	}
+	if got := frameGet(t, store.frameLocked(), "barStyle"); got != "sumi" {
+		t.Fatalf("barStyle = %v", got)
+	}
+	if frameHas(t, store.frameLocked(), barStyleTransactionKey) {
+		t.Fatal("explicit barstyle selection retained transaction marker")
+	}
+	if got := d.dispatch("barstyle ../obi"); !strings.HasPrefix(got, "err ") {
+		t.Fatalf("invalid barstyle command = %q", got)
+	}
+}
+
+func TestPatchRejectsMalformedConcurrentWriter(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "shell.json")
+	if err := os.WriteFile(path, []byte("{\"barStyle\":\"obi\",\"keep\":true}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := newSettingsStore(path)
+	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.patch("weatherLocation", json.RawMessage(`"Oslo"`)); err == nil {
+		t.Fatal("patch accepted malformed concurrent settings")
+	}
+	if raw, err := os.ReadFile(path); err != nil || string(raw) != "{" {
+		t.Fatalf("malformed settings overwritten: %q, err=%v", raw, err)
+	}
+	if store.raw["barStyle"] != "obi" || store.raw["keep"] != true {
+		t.Fatalf("last-good settings changed: %#v", store.raw)
+	}
+}

@@ -253,7 +253,11 @@ func setupQmlImportPath() {
 	if err != nil {
 		return
 	}
-	shellRoot := filepath.Join(home, ".config", "quickshell")
+	configRoot := os.Getenv("XDG_CONFIG_HOME")
+	if configRoot == "" {
+		configRoot = filepath.Join(home, ".config")
+	}
+	shellRoot := filepath.Join(configRoot, "quickshell")
 	if shellDir != "" {
 		shellRoot = filepath.Join(shellDir, "quickshell")
 	}
@@ -628,6 +632,18 @@ func route(cmd string) (config, target, fn string, ok bool) {
 	return "", "", "", false
 }
 
+func validBarStyleID(id string) bool {
+	if id == "" {
+		return false
+	}
+	for _, r := range id {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
+			return false
+		}
+	}
+	return true
+}
+
 // dispatch turns one command line into actions and returns "ok" or "err ...".
 func (d *daemon) dispatch(line string) string {
 	fields := strings.Fields(line)
@@ -690,6 +706,18 @@ func (d *daemon) dispatch(line string) string {
 	switch cmd {
 	case "voice":
 		return d.voice()
+	case "barstyle":
+		if len(args) != 1 || !validBarStyleID(args[0]) {
+			return "err barstyle: expected one product id"
+		}
+		if d.settings == nil {
+			return "err barstyle: settings not ready"
+		}
+		value, _ := json.Marshal(args[0])
+		if err := d.settings.patch("barStyle", value); err != nil {
+			return "err barstyle: " + err.Error()
+		}
+		return "ok"
 	case "lock":
 		// lock status is the reference check (prints locked/unlocked, exit 0);
 		// bare lock engages the session lock.

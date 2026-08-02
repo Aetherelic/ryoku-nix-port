@@ -12,18 +12,25 @@ cleanup() {
 trap cleanup EXIT
 
 state="$work/state/ryoku/store"
-data="$work/data/ryoku/barstyles/obi"
-mkdir -p "$state" "$data"
+views="$state/barstyle-views/obi"
+mkdir -p "$state" "$views"
 cp "$here/barstyles-live-probe.qml" "$work/probe.qml"
 
 write_scene() {
-    local marker="$1"
-    printf 'import QtQuick\nItem { property string marker: "%s" }\n' "$marker" >"$data/.Scene.qml.tmp"
-    mv "$data/.Scene.qml.tmp" "$data/Scene.qml"
+    local version="$1"
+    local marker="$2"
+    local digest="$3"
+    local product="$views/$digest"
+    mkdir -p "$product"
+    printf 'import QtQuick\nItem { property string marker: "%s" }\n' "$marker" >"$product/Child.qml"
+    printf 'import QtQuick\nItem { Child { id: child } property string marker: child.marker }\n' \
+        >"$product/Scene.qml"
 }
 write_index() {
-    local body="$1"
-    printf '%s\n' "$body" >"$state/.barstyles.json.tmp"
+    local version="$1"
+    local digest="$2"
+    printf '[{"id":"obi","version":"%s","scene":"Scene.qml","view":"barstyle-views/obi/%s"}]\n' \
+        "$version" "$digest" >"$state/.barstyles.json.tmp"
     mv "$state/.barstyles.json.tmp" "$state/barstyles.json"
 }
 write_revision() {
@@ -43,23 +50,26 @@ wait_for() {
     return 1
 }
 
-write_scene v1
-write_index '[{"id":"obi","version":"1.0.1","scene":"Scene.qml"}]'
+v1_digest="$(printf 'a%.0s' {1..64})"
+v2_digest="$(printf 'b%.0s' {1..64})"
+write_scene 1 v1 "$v1_digest"
+write_index 1.0.1 "$v1_digest"
 write_revision 1
-XDG_STATE_HOME="$work/state" XDG_DATA_HOME="$work/data" \
+XDG_STATE_HOME="$work/state" \
 QML_IMPORT_PATH="$repo/ryoku/shell/quickshell:${QML_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \
 QT_QPA_PLATFORM=offscreen qs -p "$work/probe.qml" >"$work/log" 2>&1 &
 pid=$!
 
 wait_for 'BARSTYLE-MARKER:v1'
 original_pid=$pid
-write_scene v2
-write_index '[{"id":"obi","version":"1.0.2","scene":"Scene.qml"}]'
+write_scene 2 v2 "$v2_digest"
+write_index 1.0.2 "$v2_digest"
 write_revision 2
 wait_for 'BARSTYLE-MARKER:v2'
 [[ $pid == "$original_pid" ]] && kill -0 "$pid"
 
-write_index '[]'
+printf '[]\n' >"$state/.barstyles.json.tmp"
+mv "$state/.barstyles.json.tmp" "$state/barstyles.json"
 write_revision 3
 wait_for 'BARSTYLE-SUMI'
 [[ $pid == "$original_pid" ]] && kill -0 "$pid"
