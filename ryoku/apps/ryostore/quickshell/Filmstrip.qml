@@ -9,6 +9,7 @@ FocusScope {
     property string selectedKey: ""
     property bool reducedMotion: false
     property string pendingKey: selectedKey
+    property bool wheelDirty: false
 
     signal previewRequested(var item)
     signal selectionRequested(var item)
@@ -16,6 +17,8 @@ FocusScope {
     readonly property real contentOffset: flick.contentX
     readonly property real cardWidth: Math.max(210, Math.min(330, width * 0.29))
     readonly property real step: cardWidth + Tokens.s3
+    readonly property bool focusVisible: activeFocus
+    readonly property bool kineticEnabled: !reducedMotion
 
     activeFocusOnTab: true
 
@@ -59,6 +62,31 @@ FocusScope {
             selectionRequested(items[index]);
     }
 
+    function settleMovement() {
+        if (items.length === 0)
+            return;
+        const maximum = Math.max(0, flick.contentWidth - flick.width);
+        const atEnd = maximum > 0 && flick.contentX >= maximum - 0.5;
+        const index = atEnd ? items.length - 1
+                            : Math.round(flick.contentX / Math.max(1, step));
+        setPending(index);
+        commitPending();
+    }
+
+    function queueWheel(delta) {
+        if (delta === 0)
+            return;
+        move(delta < 0 ? 1 : -1);
+        wheelDirty = true;
+    }
+
+    function settleWheel() {
+        if (!wheelDirty || horizontalWheel.active || verticalWheel.active)
+            return;
+        wheelDirty = false;
+        commitPending();
+    }
+
     onSelectedKeyChanged: {
         var index = positionFor(selectedKey);
         if (index >= 0)
@@ -92,22 +120,24 @@ FocusScope {
 
     Flickable {
         id: flick
+        objectName: "ryostore-filmstrip-flick"
         anchors.fill: parent
         clip: true
         contentWidth: products.width
         contentHeight: height
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
+        onFlickStarted: {
+            if (strip.reducedMotion)
+                cancelFlick();
+        }
 
         Behavior on contentX {
             enabled: !strip.reducedMotion && !flick.dragging && !flick.flicking
             NumberAnimation { duration: Tokens.move; easing.type: Tokens.ease }
         }
 
-        onMovementEnded: {
-            strip.setPending(Math.round(contentX / Math.max(1, strip.step)));
-            strip.commitPending();
-        }
+        onMovementEnded: strip.settleMovement()
 
         Row {
             id: products
@@ -136,6 +166,17 @@ FocusScope {
                         selected: StoreLogic.itemKey(product.modelData) === strip.pendingKey
                     }
 
+                    Rectangle {
+                        objectName: StoreLogic.itemKey(product.modelData) === strip.pendingKey
+                                ? "ryostore-filmstrip-focus"
+                                : ""
+                        anchors.fill: parent
+                        color: "transparent"
+                        border.width: Tokens.border * 2
+                        border.color: Tokens.bone
+                        visible: strip.activeFocus
+                    }
+
                     HoverHandler {
                         id: hover
                         cursorShape: Qt.PointingHandCursor
@@ -154,14 +195,38 @@ FocusScope {
     }
 
     WheelHandler {
+        id: horizontalWheel
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        orientation: Qt.Horizontal
+        blocking: false
         onWheel: event => {
-            var delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.pixelDelta.y;
+            const delta = event.angleDelta.x !== 0 ? event.angleDelta.x : event.pixelDelta.x;
             if (delta === 0)
                 return;
-            strip.move(delta < 0 ? 1 : -1);
-            strip.commitPending();
+            strip.queueWheel(delta);
             event.accepted = true;
+        }
+        onActiveChanged: {
+            if (!active)
+                strip.settleWheel();
+        }
+    }
+
+    WheelHandler {
+        id: verticalWheel
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        orientation: Qt.Vertical
+        blocking: false
+        onWheel: event => {
+            const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.pixelDelta.y;
+            if (delta === 0)
+                return;
+            strip.queueWheel(delta);
+            event.accepted = true;
+        }
+        onActiveChanged: {
+            if (!active)
+                strip.settleWheel();
         }
     }
 }

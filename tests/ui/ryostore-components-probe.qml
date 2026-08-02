@@ -14,6 +14,20 @@ ShellRoot {
             throw new Error("RYOSTORE-COMPONENTS-PROBE-FAIL " + label);
     }
 
+    function findObject(item, name) {
+        if (!item)
+            return null;
+        if (item.objectName === name)
+            return item;
+        const children = item.children || [];
+        for (const child of children) {
+            const found = findObject(child, name);
+            if (found)
+                return found;
+        }
+        return null;
+    }
+
     Ryo.ProductCover {
         id: realCover
         width: 320
@@ -81,26 +95,32 @@ ShellRoot {
         installError: "fixture install failed"
     }
 
-    Ryo.Filmstrip {
-        id: strip
-        objectName: "filmstrip"
-        y: 220
-        width: 900
-        height: 220
-        selectedKey: "rices:b"
-        items: [
-            { id: "a", category: "rices", name: "A", art: "", accent: "#b23a48", surface: "#171113" },
-            { id: "b", category: "rices", name: "B", art: "", accent: "#d99b50", surface: "#18140f" },
-            { id: "c", category: "rices", name: "C", art: "", accent: "#4d8f72", surface: "#101815" },
-            { id: "d", category: "rices", name: "D", art: "", accent: "#5876a8", surface: "#11141b" }
-        ]
-        onPreviewRequested: item => {
-            root.previewCount++;
-            root.lastPreview = item ? item.category + ":" + item.id : "";
-        }
-        onSelectionRequested: item => {
-            root.selectionCount++;
-            root.lastSelected = item ? item.category + ":" + item.id : "";
+    FloatingWindow {
+        title: "ryostore-components-probe"
+        minimumSize: Qt.size(900, 220)
+        maximumSize: minimumSize
+        color: "#080a0d"
+
+        Ryo.Filmstrip {
+            id: strip
+            objectName: "filmstrip"
+            anchors.fill: parent
+            selectedKey: "rices:b"
+            items: [
+                { id: "a", category: "rices", name: "A", art: "", accent: "#b23a48", surface: "#171113" },
+                { id: "b", category: "rices", name: "B", art: "", accent: "#d99b50", surface: "#18140f" },
+                { id: "c", category: "rices", name: "C", art: "", accent: "#4d8f72", surface: "#101815" },
+                { id: "d", category: "rices", name: "D", art: "", accent: "#5876a8", surface: "#11141b" }
+            ]
+            onPreviewRequested: item => {
+                root.previewCount++;
+                root.lastPreview = item ? item.category + ":" + item.id : "";
+            }
+            onSelectionRequested: item => {
+                root.selectionCount++;
+                root.lastSelected = item ? item.category + ":" + item.id : "";
+                strip.selectedKey = root.lastSelected;
+            }
         }
     }
 
@@ -120,15 +140,35 @@ ShellRoot {
             strip.previewAt(1);
             root.require(root.lastPreview === "rices:b", "hover preview signal");
             root.require(root.selectionCount === 0, "preview does not select");
+            strip.forceActiveFocus();
+            root.require(strip.focusVisible, "filmstrip keyboard focus visible");
+            const focusRing = root.findObject(strip, "ryostore-filmstrip-focus");
+            root.require(focusRing && focusRing.visible, "pending cover draws focus ring");
             strip.move(-10);
             root.require(strip.pendingKey === "rices:a", "left boundary clamps");
             strip.moveBoundary(true);
             root.require(strip.pendingKey === "rices:d", "End reaches final item");
             strip.move(1);
             root.require(strip.pendingKey === "rices:d", "right boundary clamps");
-            strip.commitPending();
-            root.require(root.lastSelected === "rices:d", "settled item commits");
-            root.require(strip.contentOffset >= 0, "filmstrip offset exposed");
+            strip.moveBoundary(false);
+            const flick = root.findObject(strip, "ryostore-filmstrip-flick");
+            root.require(flick !== null, "filmstrip flick surface exposed");
+            strip.reducedMotion = true;
+            flick.contentX = Math.max(0, flick.contentWidth - flick.width);
+            strip.settleMovement();
+            root.require(root.lastSelected === "rices:d", "right-edge settle commits final item");
+            root.require(strip.contentOffset > 0, "filmstrip exposes changed offset");
+            strip.selectedKey = "rices:b";
+            const beforeWheelCommit = root.selectionCount;
+            strip.queueWheel(-1);
+            root.require(strip.pendingKey === "rices:c", "wheel advances pending item");
+            root.require(root.selectionCount === beforeWheelCommit, "wheel waits for gesture end");
+            strip.settleWheel();
+            root.require(root.lastSelected === "rices:c", "settled wheel commits pending item");
+            root.require(root.selectionCount === beforeWheelCommit + 1, "wheel commits once");
+            root.require(strip.kineticEnabled === false, "reduced motion disables kinetic travel");
+            flick.flick(-1200, 0);
+            root.require(flick.flicking === false, "reduced motion cancels flick immediately");
             console.log("RYOSTORE-COMPONENTS-PROBE-PASS");
             Qt.quit();
         }
