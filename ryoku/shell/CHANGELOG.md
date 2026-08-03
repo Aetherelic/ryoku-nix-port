@@ -78,6 +78,11 @@
   `quickshell/pill/BarWidgetHost.qml`, `framebars/widgets/RailDock.qml`).
 
 ### Added
+- **The desktop now has a location-aware calendar widget.** Wallpaper Glass and
+  Ryoku Paper styles share a configurable four-to-eight-week grid with ISO week
+  numbers, cached country and subdivision holidays, and indicators for personal
+  events. It follows the wallpaper palette, supports hover and bounded passive
+  motion, and uses the clock's drag, scale, lock, opacity and placement controls.
 - **App Launcher now offers Main, Hero, and OkShell styles in Ryoku Settings.**
   Hero is restored as the default, and the selected style persists across shell
   restarts.

@@ -117,7 +117,7 @@ Item {
                     required property var modelData
                     width: modelData.delta === 0 ? 48 * root.s : 28 * root.s
                     height: 28 * root.s
-                    radius: root.paper ? Theme.radius : Theme.radiusTile * root.s
+                    radius: Theme.radiusTile * root.s
                     color: navHover.hovered || activeFocus ? (root.paper ? Theme.ink : Theme.tileHover) : "transparent"
                     border.width: activeFocus ? 1 : 0
                     border.color: Theme.accent

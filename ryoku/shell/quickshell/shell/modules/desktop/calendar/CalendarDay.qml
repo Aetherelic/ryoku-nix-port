@@ -25,7 +25,7 @@ Item {
         anchors.centerIn: parent
         width: 29 * root.s
         height: 29 * root.s
-        radius: root.paper ? Theme.radius : width / 2
+        radius: root.paper ? Theme.radiusTile * root.s : width / 2
         color: root.paper && root.emphasized
             ? Theme.ink
             : (root.day.today ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.20)

@@ -53,7 +53,7 @@ Item {
             y: root.headerHeight + index * root.cellHeight
             width: root.cellWidth * 7
             height: root.cellHeight
-            radius: root.paper ? Theme.radius : Theme.radiusTile * root.s
+            radius: Theme.radiusTile * root.s
             color: {
                 const day = root.days[index * 7];
                 const current = day && root.days.some(function(candidate) { return candidate.row === index && candidate.today; });

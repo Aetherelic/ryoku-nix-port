@@ -7,7 +7,7 @@ Rectangle {
     property bool hovered: false
     property real s: 1
 
-    radius: Theme.radius
+    radius: Theme.radiusWidget * root.s
     color: Theme.surface
     border.width: 1
     border.color: root.hovered ? Theme.lineStrong : Theme.line
