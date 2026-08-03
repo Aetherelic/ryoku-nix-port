@@ -26,7 +26,10 @@ Item {
     readonly property var keys: [
         "clockEnabled", "clockDesign", "clock24h", "clockSeconds", "clockScale",
         "clockOpacity", "clockRadius", "clockAccent", "clockBg", "clockAnchor",
-        "clockX", "clockY", "clockLocked", "dateShow", "dateDesign"
+        "clockX", "clockY", "clockLocked", "dateShow", "dateDesign",
+        "calendarEnabled", "calendarStyle", "calendarWeeks", "calendarWeekNumbers",
+        "calendarHolidayRegion", "calendarScale", "calendarOpacity", "calendarAnchor",
+        "calendarX", "calendarY", "calendarLocked"
     ]
 
     // Factory values mirror the wallpaper clock's canonical Config defaults.
@@ -34,12 +37,16 @@ Item {
         "clockEnabled": true, "clockDesign": "digital", "clock24h": true, "clockSeconds": false,
         "clockScale": 1.0, "clockOpacity": 1.0, "clockRadius": 26, "clockAccent": "palette",
         "clockBg": "none", "clockAnchor": "top-left", "clockX": 72, "clockY": 64, "clockLocked": false,
-        "dateShow": true, "dateDesign": "inline"
+        "dateShow": true, "dateDesign": "inline",
+        "calendarEnabled": true, "calendarStyle": "glass", "calendarWeeks": 6,
+        "calendarWeekNumbers": true, "calendarHolidayRegion": "", "calendarScale": 1.0,
+        "calendarOpacity": 1.0, "calendarAnchor": "bottom-right", "calendarX": 80,
+        "calendarY": 80, "calendarLocked": false
     })
 
     // Scale and opacity persist as ratios; the sheet edits integer percents.
-    readonly property var pctKeys: ({ "clockOpacity": true })
-    readonly property var scaleKeys: ({ "clockScale": true })
+    readonly property var pctKeys: ({ "clockOpacity": true, "calendarOpacity": true })
+    readonly property var scaleKeys: ({ "clockScale": true, "calendarScale": true })
 
     property var draft: ({})
     property var committed: ({})
@@ -110,9 +117,12 @@ Item {
 
     // The clock and its date rows share one synthetic tab; ratio rows become
     // integer-percent sliders at the sheet boundary.
-    function groupOf(k) { return k.indexOf("date") === 0 ? "DATE" : "CLOCK"; }
+    function groupOf(k) {
+        if (k.indexOf("calendar") === 0) return "CALENDAR";
+        return k.indexOf("date") === 0 ? "DATE" : "CLOCK";
+    }
     readonly property var schemaRows: {
-        var order = ["CLOCK", "DATE"];
+        var order = ["CLOCK", "DATE", "CALENDAR"];
         var out = [];
         for (var gi = 0; gi < order.length; gi++) {
             for (var i = 0; i < Schema.rows.length; i++) {
@@ -275,6 +285,17 @@ Item {
             property bool clockLocked: false
             property bool dateShow: true
             property string dateDesign: "inline"
+            property bool calendarEnabled: true
+            property string calendarStyle: "glass"
+            property int calendarWeeks: 6
+            property bool calendarWeekNumbers: true
+            property string calendarHolidayRegion: ""
+            property real calendarScale: 1.0
+            property real calendarOpacity: 1.0
+            property string calendarAnchor: "bottom-right"
+            property int calendarX: 80
+            property int calendarY: 80
+            property bool calendarLocked: false
         }
     }
 
@@ -307,7 +328,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("The clock that floats on your wallpaper, previewed live on the right. Pick its face, size, opacity and corner; nothing lands on the desktop until you save.")
+            text: I18n.tr("The clock and calendar on your wallpaper, previewed live on the right. Choose each look, density, size, opacity and position; nothing lands on the desktop until you save.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -341,7 +362,7 @@ Item {
             }
             Text {
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                text: (pg.draft.clockEnabled ? "1 / 1 ON" : "0 / 1 ON")
+                text: ((pg.draft.clockEnabled ? 1 : 0) + (pg.draft.calendarEnabled ? 1 : 0)) + " / 2 ON"
                 color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
             }
         }
@@ -351,7 +372,7 @@ Item {
             anchors { left: parent.left; right: parent.right; top: pvHead.bottom; bottom: parent.bottom }
             anchors.topMargin: Tokens.s3
             spacing: Tokens.s4
-            readonly property real cardH: height
+            readonly property real cardH: Math.max(140, (height - spacing) / 2)
 
             SpecimenCard {
                 width: parent.width; height: pvCards.cardH
@@ -372,6 +393,27 @@ Item {
                             item.accentChoice = Qt.binding(() => pg.draft.clockAccent || "palette");
                             item.dateShow = Qt.binding(() => pg.draft.dateShow === true);
                             item.dateDesign = Qt.binding(() => pg.draft.dateDesign || "inline");
+                        }
+                    }
+                }
+            }
+
+            SpecimenCard {
+                width: parent.width; height: pvCards.cardH
+                title: I18n.tr("CALENDAR")
+                on: pg.draft.calendarEnabled === true
+                anchor: pg.draft.calendarAnchor || "bottom-right"
+                userScale: Math.min(1, pg.draft.calendarScale || 1)
+                userOpacity: pg.draft.calendarOpacity === undefined ? 1 : pg.draft.calendarOpacity
+                natW: 330; natH: 210
+                preview: Component {
+                    Loader {
+                        anchors.fill: parent
+                        source: Qt.resolvedUrl("../CalendarPreview.qml")
+                        onLoaded: {
+                            item.style = Qt.binding(() => pg.draft.calendarStyle || "glass");
+                            item.weeks = Qt.binding(() => pg.draft.calendarWeeks || 6);
+                            item.showWeekNumbers = Qt.binding(() => pg.draft.calendarWeekNumbers === true);
                         }
                     }
                 }

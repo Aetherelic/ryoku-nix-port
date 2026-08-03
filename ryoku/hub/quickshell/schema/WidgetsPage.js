@@ -188,5 +188,120 @@ var rows = [
         "desc": "Stops drags on the wallpaper so the widget cannot be moved by accident",
         "ctl": "sw",
         "src": "widgets.json"
+    },
+    {
+        "tab": "calendar",
+        "group": "WIDGET",
+        "key": "calendarEnabled",
+        "label": "Enabled",
+        "desc": "Shows the calendar on the wallpaper; settings are kept while off",
+        "ctl": "sw",
+        "src": "widgets.json"
+    },
+    {
+        "tab": "calendar",
+        "group": "WIDGET",
+        "key": "calendarStyle",
+        "label": "Style",
+        "desc": "Wallpaper Glass follows the wallpaper tint; Ryoku Paper is opaque paper and ink",
+        "ctl": "seg",
+        "src": "widgets.json",
+        "opts": ["glass", "paper"]
+    },
+    {
+        "tab": "calendar",
+        "group": "CALENDAR",
+        "key": "calendarWeeks",
+        "label": "Visible weeks",
+        "desc": "Shows four to eight complete weeks around the current month",
+        "ctl": "step",
+        "src": "widgets.json",
+        "lo": 4,
+        "hi": 8
+    },
+    {
+        "tab": "calendar",
+        "group": "CALENDAR",
+        "key": "calendarWeekNumbers",
+        "label": "ISO week numbers",
+        "desc": "Adds the week-of-year column to the left of the calendar",
+        "ctl": "sw",
+        "src": "widgets.json"
+    },
+    {
+        "tab": "calendar",
+        "group": "HOLIDAYS",
+        "key": "calendarHolidayRegion",
+        "label": "Holiday region",
+        "desc": "Blank follows the system locale; use a country or subdivision code such as US or US-CA",
+        "ctl": "text",
+        "src": "widgets.json"
+    },
+    {
+        "tab": "calendar",
+        "group": "SIZE & SHAPE",
+        "key": "calendarScale",
+        "label": "Size",
+        "desc": "Multiplies the calendar's designed size",
+        "ctl": "step",
+        "src": "widgets.json",
+        "lo": 0.5,
+        "hi": 2.0
+    },
+    {
+        "tab": "calendar",
+        "group": "SIZE & SHAPE",
+        "key": "calendarOpacity",
+        "label": "Opacity",
+        "desc": "Fades the calendar while keeping it readable",
+        "ctl": "slid",
+        "src": "widgets.json",
+        "lo": 0.2,
+        "hi": 1.0,
+        "unit": "%",
+        "pct": true
+    },
+    {
+        "tab": "calendar",
+        "group": "PLACEMENT",
+        "key": "calendarAnchor",
+        "label": "Anchor",
+        "desc": "Snaps the calendar to a screen edge or corner; free uses X/Y or dragging",
+        "ctl": "pick",
+        "src": "widgets.json",
+        "opts": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+    },
+    {
+        "tab": "calendar",
+        "group": "PLACEMENT",
+        "key": "calendarX",
+        "label": "X",
+        "desc": "Pixels from the left edge when Anchor is free",
+        "ctl": "step",
+        "src": "widgets.json",
+        "lo": 0,
+        "hi": 5000,
+        "unit": "px"
+    },
+    {
+        "tab": "calendar",
+        "group": "PLACEMENT",
+        "key": "calendarY",
+        "label": "Y",
+        "desc": "Pixels from the top edge when Anchor is free",
+        "ctl": "step",
+        "src": "widgets.json",
+        "lo": 0,
+        "hi": 5000,
+        "unit": "px"
+    },
+    {
+        "tab": "calendar",
+        "group": "PLACEMENT",
+        "key": "calendarLocked",
+        "label": "Lock on desktop",
+        "desc": "Stops accidental moves and resizes",
+        "ctl": "sw",
+        "src": "widgets.json"
     }
 ];

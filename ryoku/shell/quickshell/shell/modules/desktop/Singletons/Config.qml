@@ -26,6 +26,18 @@ Singleton {
     property alias dateShow:     adapter.dateShow
     property alias dateDesign:   adapter.dateDesign     // inline | badge | stacked
 
+    property alias calendarEnabled:       adapter.calendarEnabled
+    property alias calendarStyle:         adapter.calendarStyle
+    property alias calendarWeeks:         adapter.calendarWeeks
+    property alias calendarWeekNumbers:   adapter.calendarWeekNumbers
+    property alias calendarHolidayRegion: adapter.calendarHolidayRegion
+    property alias calendarScale:         adapter.calendarScale
+    property alias calendarAnchor:        adapter.calendarAnchor
+    property alias calendarX:             adapter.calendarX
+    property alias calendarY:             adapter.calendarY
+    property alias calendarLocked:        adapter.calendarLocked
+    property alias calendarOpacity:       adapter.calendarOpacity
+
     // brand: the desktop's mark + name, user-overridable from Ryoku Settings ->
     // Shell -> Global. a small cross-cutting identity master (like theme.json).
     // markText is the glyph/short-text seal (default 力); markImage an optional
@@ -91,6 +103,17 @@ Singleton {
             property int clockRadius: 26
             property bool dateShow: true
             property string dateDesign: "inline"
+            property bool calendarEnabled: true
+            property string calendarStyle: "glass"
+            property int calendarWeeks: 6
+            property bool calendarWeekNumbers: true
+            property string calendarHolidayRegion: ""
+            property real calendarScale: 1.0
+            property string calendarAnchor: "bottom-right"
+            property int calendarX: 80
+            property int calendarY: 80
+            property bool calendarLocked: false
+            property real calendarOpacity: 1.0
 
         }
     }

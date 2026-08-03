@@ -19,9 +19,10 @@ Item {
 
     readonly property bool isWidget: menu.scope !== "desktop"
     readonly property bool isClock: menu.scope === "clock"
+    readonly property bool isCalendar: menu.scope === "calendar"
     readonly property bool locked: menu.isWidget ? Config[menu.scope + "Locked"] : false
     readonly property string curAnchor: menu.isWidget ? Config[menu.scope + "Anchor"] : ""
-    readonly property string curDesign: menu.isWidget ? Config[menu.scope + "Design"] : ""
+    readonly property string curDesign: menu.isWidget ? (menu.isCalendar ? Config.calendarStyle : Config[menu.scope + "Design"]) : ""
 
     readonly property var zones: [
         { "zone": "top-left", "glyph": "\u2196" }, { "zone": "top", "glyph": "\u2191" }, { "zone": "top-right", "glyph": "\u2197" },
@@ -36,12 +37,13 @@ Item {
 
     function cycleDesign() {
         const lists = {
-            clock: ["digital", "minimal", "analog", "flip", "rings"]
+            clock: ["digital", "minimal", "analog", "flip", "rings"],
+            calendar: ["glass", "paper"]
         };
         const d = lists[menu.scope];
         if (!d)
             return;
-        const key = menu.scope + "Design";
+        const key = menu.isCalendar ? "calendarStyle" : menu.scope + "Design";
         Config.set(key, d[(d.indexOf(Config[key]) + 1) % d.length]);
     }
     function openSettings() {
@@ -65,6 +67,14 @@ Item {
             on: Config.clockEnabled
             closeOnTrigger: false
             onTriggered: Config.set("clockEnabled", !Config.clockEnabled)
+        }
+        MenuRow {
+            visible: !menu.isWidget
+            label: "Calendar"
+            value: Config.calendarEnabled ? "On" : "Off"
+            on: Config.calendarEnabled
+            closeOnTrigger: false
+            onTriggered: Config.set("calendarEnabled", !Config.calendarEnabled)
         }
 
         // ── widget scope ───────────────────────────────────────────────

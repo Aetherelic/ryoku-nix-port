@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import "Singletons"
 import "clock"
+import "calendar"
 import Ryoku.PluginKit
 
 // desktop widgets layer: WlrLayer.Bottom (below windows), instantiated once per
@@ -129,8 +130,8 @@ Scope {
 
         WidgetGrid {
             anchors.fill: parent
-            active: clockSlot.dragging
-            gridSize: clockSlot.gridSize
+            active: clockSlot.dragging || calendarSlot.dragging
+            gridSize: clockSlot.dragging ? clockSlot.gridSize : calendarSlot.gridSize
         }
 
         WidgetSlot {
@@ -148,6 +149,28 @@ Scope {
             opacity: Config.clockOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
             Clock {}
+        }
+
+        WidgetSlot {
+            id: calendarSlot
+            widget: "calendar"
+            visible: Config.calendarEnabled
+            anchor: Config.calendarAnchor
+            freeX: Config.calendarX
+            freeY: Config.calendarY
+            locked: Config.calendarLocked
+            bg: "none"
+            scaleCfg: Config.calendarScale
+            opacity: Config.calendarOpacity
+            onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            CalendarWidget {
+                style: Config.calendarStyle
+                weeks: Config.calendarWeeks
+                showWeekNumbers: Config.calendarWeekNumbers
+                holidayRegion: Config.calendarHolidayRegion
+                active: calendarSlot.visible
+                s: Config.calendarScale
+            }
         }
 
         // one draggable PluginDesktopSlot per enabled desktopWidget plugin.
