@@ -25,6 +25,7 @@ singleton WallIndex WallIndex.qml
 singleton Capture Capture.qml
 singleton Clipboard Clipboard.qml
 singleton Events Events.qml
+singleton Holidays Holidays.qml
 singleton Flags Flags.qml
 singleton Keyring Keyring.qml
 singleton OsdFeed OsdFeed.qml
