@@ -221,9 +221,9 @@ Each surface is its own directory under `quickshell/`, each component its own
   and the status widgets. Clicking a status widget (network, Bluetooth, battery,
   audio, system monitor, recording, music) grows a popout card out of the rail
   with the live controls for it, all wearing one skin from the card kit under
-  `pill/popouts/`. The monitor-local menu manager owns those cards, the bounded
-  frame menus, and the preserved Stash/System surfaces. See `docs/bar.md` and
-  `docs/frame.md`.
+  `pill/popouts/`. The monitor-local menu manager owns those cards, bounded
+  frame menus, the modular Super+Escape control sidebar, and the Stash surface.
+  See `docs/bar.md` and `docs/frame.md`.
 - **launcher** the Super-triggered app launcher and command palette, with a
   zero-query rest card (the solar-arc clock and weather). See `docs/launcher.md`.
 - **switcher** the full-screen Alt-Tab window switcher.
@@ -242,11 +242,11 @@ Each surface is its own directory under `quickshell/`, each component its own
 - **the keyring prompt** the GNOME keyring password prompt, grown from the bar
   edge as a popout rather than gcr's centred dialog. The `ryoku-shell` daemon acts as the
   keyring system prompter and drives it; `KeyringSurface.qml` renders it.
-- **the sidebars** preserved full-height left and right frame bodies with no
-  opening route. Left retains the Stash board; right retains control logic plus
-  notifications, calendar, now-playing, weather and recording panes. No corner,
-  edge, hover, keybind or IPC action exposes them until their UI is redesigned.
-  See `docs/frame.md`.
+- **the Super+Escape sidebar** the shell's one full-height control body. A fixed
+  icon rail selects independently catalogued Home, Notifications, Weather, and
+  optional Media modules inside the same frame. Home owns connectivity, audio,
+  display, calendar, performance profiles, and session actions; Stash remains a
+  separate floating surface. See `docs/bar.md`.
 - **desktop widgets** the clock and enabled third-party widgets on the
   wallpaper, hosted by one `WlrLayer.Bottom` surface and configured in Ryoku
   Settings' Desktop Widgets section. Clock faces live under

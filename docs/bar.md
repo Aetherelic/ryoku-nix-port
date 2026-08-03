@@ -74,16 +74,24 @@ profiles, and a detail panel, network runs Wi-Fi, and the rest follow suit. They
 share one skin from a card kit (`pill/popouts/PopoutCard.qml` and its siblings),
 so every card opens, reads, and dismisses the same way.
 
-`ryoku-shell bar <id>` opens a catalogued surface on the active monitor;
+Super+Escape opens the only full-height control sidebar. Its fixed rail selects
+independent modules catalogued in `MenuCatalog.js`; the default module list is
+home, notifications, and weather, while media is available as an optional
+module. The home module retains the session actions and performance profiles.
+Adding a module requires one catalog entry and one component under
+`pill/framebars/menus/quicksettings/`, then its ID can be added to
+`frameBars.menus.quick-settings.modules`.
+
+`ryoku-shell menu <id>` opens a catalogued menu on the active monitor;
 `MenuCatalog.js` holds the valid IDs, and anything else is rejected before it
-reaches Quickshell. Asking for the surface that already owns an anchor closes it,
-so a rail button and its command read as one toggle, and a different surface at
+reaches Quickshell. Asking for the menu that already owns an anchor closes it,
+so a rail button and its command read as one toggle, and a different menu at
 the same anchor replaces it safely. The keyring prompt and the voice toast are
 daemon-owned, so they replace rather than toggle.
 
 A card clears the rail it grows from and draws above the rails, so its body
-never hides under rail chrome. `ryoku-shell power`, `ryoku-shell voice`, and
-enabled plugin commands share this same manager scene.
+never hides under rail chrome. Voice, keyring, and enabled plugin surfaces share
+this same manager scene.
 
 ## Extending frame bars
 
