@@ -29,6 +29,7 @@ func providers() []Provider {
 		newFastfetchProvider(c),
 		pluginProvider{cache: c},
 		bundleProvider{cache: c, status: defaultBundleStatus, launch: launchBundleInstall},
+		newDecorProvider(c),
 	}
 }
 

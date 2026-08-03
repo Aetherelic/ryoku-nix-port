@@ -42,6 +42,7 @@ type Item struct {
 	Summary          string         `json:"summary,omitempty"`
 	Description      string         `json:"description,omitempty"`
 	Art              string         `json:"art,omitempty"`
+	ArtRaw           string         `json:"artRaw,omitempty"`
 	Author           string         `json:"author,omitempty"`
 	Version          string         `json:"version,omitempty"`
 	Manifest         string         `json:"manifest,omitempty"`

@@ -9,6 +9,7 @@ Item {
     property string mode: "cover"       // cover | hero | plate
     property bool selected: false
     property bool active: true
+    property string artOverride: ""     // the dither toggle shows this in place of item.art
 
     readonly property bool tile: mode === "cover"
     readonly property bool hasArtwork: String(item && item.art || "") !== ""
@@ -73,7 +74,7 @@ Item {
 
     ProductMedia {
         anchors.fill: parent
-        source: cover.hasArtwork ? cover.item.art : ""
+        source: cover.artOverride !== "" ? cover.artOverride : (cover.hasArtwork ? cover.item.art : "")
         mode: cover.mode
         surface: cover.coverSurface
         active: cover.active

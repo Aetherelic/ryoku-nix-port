@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls as C
 import QtQuick.Effects
 import QtQuick.Dialogs
+import Qt.labs.folderlistmodel
 import "Singletons"
 
 // A decorative filler poster in the reference's noir style: a real, noir-baked
@@ -44,6 +45,29 @@ Item {
         "render.gif", "torus.gif", "sphere.gif", "cube.gif", "spring.gif", "bounce.gif", "compass.gif"
     ]
 
+    // Store-installed decors share the shipped set's folder but are not part of
+    // it; surface them in the editor gallery so a store install is pickable in
+    // any box, without joining the per-context default images above.
+    property var installedArt: []
+    readonly property var galleryArt: dec.images.concat(dec.installedArt.filter(function (n) { return dec.images.indexOf(n) < 0; }))
+    FolderListModel {
+        id: decorFolder
+        folder: Ryodecors.dir
+        showDirs: false
+        showHidden: false
+        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.bmp"]
+        sortField: FolderListModel.Name
+        onCountChanged: {
+            var names = [];
+            for (var i = 0; i < decorFolder.count; i++) {
+                var nm = "" + decorFolder.get(i, "fileName");
+                if (dec.defaultArt.indexOf(nm) < 0)
+                    names.push(nm);
+            }
+            dec.installedArt = names;
+        }
+    }
+
     // persisted, live state (never a binding, so an edit sticks and never reverts)
     property int shot: 0
     property real zoom: 1            // 1 = cover the panel; <1 reveals more, >1 crops in
@@ -52,13 +76,13 @@ Item {
     property string src: ""          // a custom file, overrides the baked set
     property bool editing: false
 
-    readonly property int idx: dec.images.length > 0
-        ? ((dec.shot % dec.images.length) + dec.images.length) % dec.images.length : 0
+    readonly property int idx: dec.galleryArt.length > 0
+        ? ((dec.shot % dec.galleryArt.length) + dec.galleryArt.length) % dec.galleryArt.length : 0
     readonly property bool isCustom: dec.src !== ""
     // a noir desaturation layer freezes an animated gif to one captured frame, so
     // it is applied only to a custom still; gifs (custom or baked) animate as-is.
     readonly property bool srcIsGif: dec.art.toLowerCase().endsWith(".gif")
-    readonly property string art: dec.isCustom ? dec.src : (dec.images.length > 0 ? dec.images[dec.idx] : "")
+    readonly property string art: dec.isCustom ? dec.src : (dec.galleryArt.length > 0 ? dec.galleryArt[dec.idx] : "")
     readonly property bool hasArt: dec.art !== ""
     readonly property url artSource: dec.isCustom ? dec.src : (dec.hasArt ? Ryodecors.dir + dec.art : "")
 
@@ -199,12 +223,12 @@ Item {
                 }
                 MItem { text: "Adjust (drag, zoom, pick)"; onTriggered: dec.editing = true }
                 MItem {
-                    text: "Next image"; enabled: dec.images.length > 1
-                    onTriggered: { dec.src = ""; dec.shot = (dec.shot + 1) % dec.images.length; dec.posX = 0.5; dec.posY = 0.5; dec.zoom = 1; dec.persistNow(); }
+                    text: "Next image"; enabled: dec.galleryArt.length > 1
+                    onTriggered: { dec.src = ""; dec.shot = (dec.shot + 1) % dec.galleryArt.length; dec.posX = 0.5; dec.posY = 0.5; dec.zoom = 1; dec.persistNow(); }
                 }
                 MItem {
-                    text: "Shuffle"; enabled: dec.images.length > 1
-                    onTriggered: { dec.src = ""; dec.shot = Math.floor(Math.random() * dec.images.length); dec.posX = 0.5; dec.posY = 0.5; dec.zoom = 1; dec.persistNow(); }
+                    text: "Shuffle"; enabled: dec.galleryArt.length > 1
+                    onTriggered: { dec.src = ""; dec.shot = Math.floor(Math.random() * dec.galleryArt.length); dec.posX = 0.5; dec.posY = 0.5; dec.zoom = 1; dec.persistNow(); }
                 }
                 C.MenuSeparator { }
                 MItem {
@@ -471,7 +495,7 @@ Item {
                         id: gRow
                         spacing: Tokens.s2
                         Repeater {
-                            model: dec.images
+                            model: dec.galleryArt
                             Rectangle {
                                 required property int index
                                 required property var modelData

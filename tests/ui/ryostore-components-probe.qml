@@ -261,6 +261,28 @@ ShellRoot {
             onSettingsRequested: item => root.settingsKey = item.category + ":" + item.id
         }
 
+        Ryo.ProductDetail {
+            id: decorDetail
+            objectName: "ryostore-decor-detail"
+            z: 21
+            anchors.fill: parent
+            open: true
+            item: ({
+                id: "carceri",
+                category: "decors",
+                categoryName: "Decors",
+                name: "Carceri",
+                description: "A decor fixture with raw and dithered previews.",
+                art: "img://dithered.webp",
+                artRaw: "img://raw.webp",
+                screenshots: [],
+                accent: "#e8d8c9",
+                surface: "#101010",
+                installed: false
+            })
+            reducedMotion: true
+        }
+
     }
 
     Timer {
@@ -299,6 +321,12 @@ ShellRoot {
                     && detail.metadataText.indexOf("Hyprland 0.50+") !== -1
                     && detail.metadataText.indexOf("lockscreen QML") !== -1,
                     "detail exposes all product metadata");
+            const decorCover = root.findObject(decorDetail, "ryostore-detail-cover");
+            root.require(decorDetail.isDecor === true, "decor detail flagged as decor");
+            decorDetail.ditherOn = true;
+            root.require(String(decorCover.artOverride) === "", "dither ON keeps dithered preview");
+            decorDetail.ditherOn = false;
+            root.require(String(decorCover.artOverride) === "img://raw.webp", "dither OFF swaps to raw preview");
             root.require(detailScreenshots.visible && detailRetry.visible,
                     "detail exposes screenshots and failure action");
             root.installedKey = "";

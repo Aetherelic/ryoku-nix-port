@@ -3,12 +3,28 @@
 ## Unreleased
 
 ### Changed
+- `ryostore/`: **Decors, a new Store category of curated public-domain art for
+  the Hub's decor slots.** Seven specimens (Piranesi's Carceri, Dürer's
+  Melencolia I and Rhinoceros, Hokusai's Red Fuji, the Hubble Pillars of
+  Creation, a Met bronze, a Muybridge motion plate) ship in the external
+  catalogue, each with a raw and a `ryodither`-baked 1-bit bone variant. The
+  detail's **DITHER** toggle previews both looks and chooses which one installs;
+  a decor lands as one flat file in `~/Pictures/ryodecors`, so the `Decor` and
+  `Placard` gallery lists it beside the shipped set with no further wiring
+  (`ryostore/backend/provider_decors.go`, `backend/{catalog,main,routing,product_manifest,model}.go`,
+  `ryostore/quickshell/{ProductDetail,ProductCover,App}.qml`,
+  `quickshell/Singletons/Store.qml`, `ui/Decor.qml`).
 - `ryostore/`: **Nacre and Obi are installable Store products instead of
   bundled shell payloads.** Their complete QML scenes now live in the external
   catalogue with generated previews and strict manifests. RyoStore owns their
   install receipts, publishes a derived installed-style index, and the shell
   reloads a changed product in place from its versioned URL; removing the active
   product falls back to built-in Sumi without restarting the shell.
+- `wireplumber/`: **Bluetooth playback stays in A2DP unless the user selects
+  headset mode.** WirePlumber's default microphone autoswitch silently moved
+  earbuds into low-bandwidth HFP/HSP whenever an app opened their mic, degrading
+  every playing stream. The Ryoku fragment now disables that automatic switch;
+  its existing Hi-Fi / Headset control still provides explicit microphone mode.
 - `nvim/`: **the editor follows the live wallpaper palette.** `ryoku.lua` pinned
   `tokyonight-night` flat, so the editor ignored the theme while kitty and the
   shell tracked it. It now reads the daemon's `~/.cache/ryoku/colors.json` (the

@@ -14,6 +14,8 @@ FocusScope {
     property string installErrorKey: ""
     property string installError: ""
     property bool reducedMotion: false
+    property bool ditherOn: true
+    readonly property bool isDecor: String(actionItem.category) === "decors"
     property real transitionProgress: open ? 1 : 0
     property int lightboxIndex: -1
     readonly property bool lightboxOpen: lightboxIndex >= 0 && lightboxIndex < screenshotCount
@@ -24,8 +26,8 @@ FocusScope {
     }
 
     signal closeRequested()
-    signal installRequested(var item)
-    signal retryRequested(var item)
+    signal installRequested(var item, bool dither)
+    signal retryRequested(var item, bool dither)
     signal settingsRequested(var item)
 
     readonly property var actionItem: item || ({})
@@ -69,12 +71,12 @@ FocusScope {
 
     function triggerInstall() {
         if (item && busyKey === "" && StoreLogic.primaryAction(actionItem) !== "INSTALLED")
-            installRequested(actionItem);
+            installRequested(actionItem, ditherOn);
     }
 
     function triggerRetry() {
         if (item && busyKey === "" && errorText !== "")
-            retryRequested(actionItem);
+            retryRequested(actionItem, ditherOn);
     }
 
     function triggerSettings() {
@@ -125,6 +127,7 @@ FocusScope {
         width: detail.mix(detail.effectiveOrigin.width, detail.targetWidth)
         height: detail.mix(detail.effectiveOrigin.height, detail.targetHeight)
         item: detail.actionItem
+        artOverride: detail.isDecor && !detail.ditherOn ? String(detail.actionItem.artRaw || "") : ""
         mode: "plate"
     }
 
@@ -239,6 +242,17 @@ FocusScope {
 
         Row {
             spacing: Tokens.s2
+
+            Btn {
+                objectName: "ryostore-detail-dither"
+                visible: detail.isDecor
+                text: detail.ditherOn ? "DITHER / ON" : "DITHER / OFF"
+                armed: detail.busyKey === ""
+                Accessible.role: Accessible.Button
+                Accessible.name: text
+                onAct: detail.ditherOn = !detail.ditherOn
+                Accessible.onPressAction: detail.ditherOn = !detail.ditherOn
+            }
 
             Btn {
                 objectName: "ryostore-detail-install"

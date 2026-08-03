@@ -45,7 +45,7 @@ Singleton {
         catalogProc.running = true;
     }
 
-    function install(item) {
+    function install(item, dither) {
         if (!item || busyKey !== "")
             return;
         busyKey = itemKey(item);
@@ -53,7 +53,11 @@ Singleton {
         installError = "";
         installErrorKey = "";
         _installError = "";
-        installProc.command = ["ryostore", "install", String(item.category), String(item.id)];
+        var cmd = ["ryostore", "install", String(item.category), String(item.id)];
+        var wantDither = (dither === undefined) ? true : dither;
+        if (wantDither && String(item.category) === "decors")
+            cmd.push("--dither");
+        installProc.command = cmd;
         installProc.running = true;
     }
 
@@ -65,9 +69,9 @@ Singleton {
         installStage = "";
     }
 
-    function retryInstall(item) {
+    function retryInstall(item, dither) {
         clearInstallError(item);
-        install(item);
+        install(item, dither);
     }
 
     function openSettings(item) {

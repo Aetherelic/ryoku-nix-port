@@ -38,6 +38,7 @@ type ProductEntry struct {
 	Accent         string   `json:"accent"`
 	Surface        string   `json:"surface"`
 	Preview        string   `json:"preview"`
+	PreviewRaw     string   `json:"previewRaw,omitempty"`
 	Manifest       string   `json:"manifest"`
 	ManifestSHA256 string   `json:"manifestSha256"`
 	Official       bool     `json:"official,omitempty"`
@@ -261,7 +262,7 @@ func productUpdateAvailable(installedVersion, availableVersion string) bool {
 
 func validProductCategory(category string) bool {
 	switch category {
-	case "rices", "lockscreens", "barstyles", "fastfetch", "plugins", "bundles":
+	case "rices", "lockscreens", "barstyles", "fastfetch", "plugins", "bundles", "decors":
 		return true
 	default:
 		return false

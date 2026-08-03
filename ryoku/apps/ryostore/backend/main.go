@@ -111,16 +111,37 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 }
 
 func runInstall(provs []Provider, args []string) error {
-	if len(args) != 2 {
+	dither := false
+	rest := make([]string, 0, len(args))
+	for _, a := range args {
+		if a == "--dither" {
+			dither = true
+			continue
+		}
+		rest = append(rest, a)
+	}
+	if len(rest) != 2 {
 		return fmt.Errorf("install needs <category> <id>")
 	}
-	category, id := args[0], args[1]
+	category, id := rest[0], rest[1]
 	p, ok := providerFor(provs, category)
 	if !ok {
 		return fmt.Errorf("unknown category %q", category)
 	}
+	if dither {
+		if vi, ok := p.(variantInstaller); ok {
+			return vi.InstallVariant(context.Background(), id, true)
+		}
+	}
 	return p.Install(context.Background(), id)
 }
+
+// variantInstaller is a provider that offers install-time variants (the decors
+// dither toggle). Providers that do not implement it ignore --dither.
+type variantInstaller interface {
+	InstallVariant(ctx context.Context, id string, dither bool) error
+}
+
 func runRemove(provs []Provider, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("remove needs <category> <id>")
