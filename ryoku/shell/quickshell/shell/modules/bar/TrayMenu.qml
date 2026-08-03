@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import "../../services"
+import "../../components"
 
 // In-shell context menu for a system-tray item. Right-clicking a tray icon draws
 // the item's own dbusmenu here, rendered and driven by the shell, instead of

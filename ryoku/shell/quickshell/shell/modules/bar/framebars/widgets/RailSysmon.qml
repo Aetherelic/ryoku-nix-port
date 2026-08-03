@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../.."
+import "../../../../components"
 
 // System monitor widget: a CPU glyph on the rail that opens the system monitor
 // card (the "sysmon" surface) on click. The icon is static -- the live stats

@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../.." as Pill
+import "../../../../components"
 import "../../../../services"
 
 // Shared rail bar-widget button. Parity geometry (contract 02 sec 2, contract 04
@@ -71,7 +71,7 @@ Item {
         width: childrenRect.width
         height: childrenRect.height
 
-        Pill.SymbolIcon {
+        SymbolIcon {
             // The exact glyph set: freedesktop-named symbolic SVGs, sized to
             // the nominal icon box and flattened to the widget's colour.
             visible: root.icon.length > 0

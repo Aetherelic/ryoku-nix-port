@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import "../.." as Pill
+import "../../../../components"
 import "../../../../services"
 
 // Pill workspaces: each non-special workspace across all monitors is a rounded
@@ -330,7 +330,7 @@ Item {
                         asynchronous: true
                         visible: source !== "" && status === Image.Ready
                     }
-                    Pill.SymbolIcon {
+                    SymbolIcon {
                         anchors.fill: parent
                         visible: !wsIcon.visible
                         name: "view-app-grid"

@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import "../../../../services"
-import "../.." as Pill
+import "../../../../components"
 import "../lib/dock.js" as Dock
 
 // The dock. Order is pinned classes first (a pinned app may have zero clients),
@@ -119,7 +119,7 @@ Item {
                 asynchronous: true
             }
 
-            Pill.SymbolIcon {
+            SymbolIcon {
                 anchors.centerIn: parent
                 visible: !dockIcon.visible
                 name: "view-app-grid"
