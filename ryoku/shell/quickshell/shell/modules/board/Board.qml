@@ -1,5 +1,3 @@
-//@ pragma UseQApplication
-//@ pragma DefaultEnv QSG_RENDER_LOOP = basic
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -8,25 +6,25 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "Singletons"
-import Ryoku.Ui
-import Ryoku.Ui.Singletons
 
 /**
- * RyoLayer: the Super+G tool overlay. A transparent board over the desktop
- * (compositor-blurred behind, strength = Config.bgBlur) hosting the layer's
- * instrument widgets: drag to place, bracket to resize, pin to keep one on a
- * WlrLayer.Top window after the board closes. Resident and hidden at rest,
- * toggled by `ryoku-shell ryolayer` (an IpcHandler on the keybind hot path,
- * the overview pattern). Esc or click-out dismisses.
+ * Board: the Super+G tool overlay, one instance per monitor. A transparent
+ * board over the desktop (compositor-blurred behind, strength = Config.bgBlur)
+ * hosting the layer's instrument widgets: drag to place, bracket to resize, pin
+ * to keep one on a WlrLayer.Top window after the board closes. The controller
+ * drives `active`; Esc or click-out request a close.
  */
-ShellRoot {
+Scope {
     id: root
 
-    property bool open: false
+    // the monitor this instance renders on.
+    property var screen: null
+    // driven by the controller (ShellState.boardOpen).
+    property bool active: false
 
-    function show() { root.open = true; }
-    function hide() { root.open = false; }
-    function toggle() { root.open = !root.open; }
+    function show() { root.active = true; }
+    function hide() { root.active = false; }
+    function toggle() { root.active = !root.active; }
 
     // Report our effective visibility to the daemon's idle-park worker (mirrors
     // launcher/overview `state`): the board being open OR any pinned widget on
@@ -40,14 +38,15 @@ ShellRoot {
                 return true;
         return false;
     }
-    readonly property bool residentNeeded: root.open || root.hasPins
+    readonly property bool residentNeeded: root.active || root.hasPins
     onResidentNeededChanged: Quickshell.execDetached(["ryoku-shell", "state", "ryolayer", residentNeeded ? "1" : "0"])
-    Component.onCompleted: Quickshell.execDetached(["ryoku-shell", "state", "ryolayer", residentNeeded ? "1" : "0"])
 
     readonly property string focusedName: {
         var m = Hyprland.focusedMonitor;
         return m && m.name ? m.name : "";
     }
+
+    readonly property string screenName: root.screen && root.screen.name ? root.screen.name : ""
 
     IpcHandler {
         target: "ryolayer"
@@ -99,7 +98,7 @@ ShellRoot {
         command: ["sh", "-c", "hyprctl getoption -j decoration:blur:enabled; hyprctl getoption -j decoration:blur:size"]
         stdout: StdioCollector {
             onStreamFinished: {
-                if (!root.open)
+                if (!root.active)
                     return;
                 var en, sz;
                 try {
@@ -151,8 +150,8 @@ ShellRoot {
         interval: Motion.window
         repeat: false
     }
-    onOpenChanged: {
-        if (open) {
+    onActiveChanged: {
+        if (active) {
             openHold.restart();
             blurRestoreDelay.stop();
             applyBackdropBlur();
@@ -164,44 +163,58 @@ ShellRoot {
     Connections {
         target: Config
         function onBgBlurChanged() {
-            if (root.open)
+            if (root.active)
                 root.applyBackdropBlur();
         }
     }
 
-    // --- the board, one per screen -----------------------------------------
-    Variants {
-        model: Quickshell.screens
+    // --- pinned widgets on this screen --------------------------------------
+    property var pinned: []
+    function reloadPinned() {
+        var out = [];
+        var all = Config.widgets || [];
+        for (var i = 0; i < all.length; i++)
+            if (all[i].screen === root.screenName && all[i].pinned)
+                out.push(all[i]);
+        root.pinned = out;
+    }
+    Component.onCompleted: {
+        Quickshell.execDetached(["ryoku-shell", "state", "ryolayer", residentNeeded ? "1" : "0"]);
+        reloadPinned();
+    }
+    Connections {
+        target: Config
+        function onWidgetsChanged() { root.reloadPinned(); }
+    }
 
-        PanelWindow {
-            id: win
-            required property var modelData
-            readonly property bool isFocused: !root.focusedName || root.focusedName === modelData.name
-            readonly property bool shown: root.open
+    // --- the board window for this screen -----------------------------------
+    PanelWindow {
+        id: win
+        readonly property bool isFocused: !root.focusedName || root.focusedName === root.screenName
+        readonly property bool shown: root.active
 
-            screen: modelData
-            visible: shown || closing.running
-            color: "transparent"
-            exclusiveZone: 0
-            WlrLayershell.namespace: (Config.bgBlur | 0) > 0 && !Motion.blurDisabled ? "ryolayer" : "ryolayer-noblur"
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: (shown && isFocused) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-            anchors { top: true; bottom: true; left: true; right: true }
+        screen: root.screen
+        visible: shown || closing.running
+        color: "transparent"
+        exclusiveZone: 0
+        WlrLayershell.namespace: (Config.bgBlur | 0) > 0 && !Motion.blurDisabled ? "ryolayer" : "ryolayer-noblur"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: (shown && isFocused) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        anchors { top: true; bottom: true; left: true; right: true }
 
-            Timer { id: closing; interval: Motion.windowOut; repeat: false }
-            onShownChanged: if (!shown) closing.restart()
+        Timer { id: closing; interval: Motion.windowOut; repeat: false }
+        onShownChanged: if (!shown) closing.restart()
 
-            Board {
-                id: board
-                anchors.fill: parent
-                screenName: win.modelData ? win.modelData.name : ""
-                active: win.shown
-                focusHere: win.isFocused
-                onRequestClose: root.hide()
+        BoardSurface {
+            id: board
+            anchors.fill: parent
+            screenName: root.screenName
+            active: win.shown
+            focusHere: win.isFocused
+            onRequestClose: root.hide()
 
-                opacity: win.shown ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: win.shown ? Motion.window : Motion.windowOut; easing.type: win.shown ? Motion.easeStandard : Motion.easeExit } }
-            }
+            opacity: win.shown ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: win.shown ? Motion.window : Motion.windowOut; easing.type: win.shown ? Motion.easeStandard : Motion.easeExit } }
         }
     }
 
@@ -211,74 +224,52 @@ ShellRoot {
     // without the mask bookkeeping). Clickthrough pins mask to nothing and
     // fade, an ambient readout the pointer ignores.
     Variants {
-        model: Quickshell.screens
+        model: root.pinned
 
-        Scope {
-            id: pinScope
+        PanelWindow {
+            id: pinWin
             required property var modelData
-
-            property var pinned: []
-            function reloadPinned() {
-                var out = [];
-                var all = Config.widgets || [];
-                for (var i = 0; i < all.length; i++)
-                    if (all[i].screen === pinScope.modelData.name && all[i].pinned)
-                        out.push(all[i]);
-                pinScope.pinned = out;
-            }
-            Component.onCompleted: reloadPinned()
-            Connections {
-                target: Config
-                function onWidgetsChanged() { pinScope.reloadPinned(); }
+            readonly property var geom: {
+                var s = root.screen;
+                if (!s)
+                    return { x: 0, y: 0 };
+                var x = Math.round(modelData.cx * s.width - modelData.w / 2);
+                var y = Math.round(modelData.cy * s.height - modelData.h / 2);
+                return {
+                    x: Math.max(0, Math.min(s.width - modelData.w, x)),
+                    y: Math.max(0, Math.min(s.height - modelData.h, y))
+                };
             }
 
-            Variants {
-                model: pinScope.pinned
+            screen: root.screen
+            visible: (!root.active) || openHold.running
+            color: "transparent"
+            exclusiveZone: 0
+            WlrLayershell.namespace: "ryolayer-pin"
+            WlrLayershell.layer: WlrLayer.Top
+            // click-to-focus lets a pinned notes plate take typing;
+            // OnDemand releases focus on click-away, so pinned plates stay non-intrusive.
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+            anchors { top: true; left: true }
+            margins { top: pinWin.geom.y; left: pinWin.geom.x }
+            implicitWidth: modelData.w
+            implicitHeight: modelData.h
 
-                PanelWindow {
-                    id: pinWin
-                    required property var modelData
-                    readonly property var geom: {
-                        var s = pinScope.modelData;
-                        var x = Math.round(modelData.cx * s.width - modelData.w / 2);
-                        var y = Math.round(modelData.cy * s.height - modelData.h / 2);
-                        return {
-                            x: Math.max(0, Math.min(s.width - modelData.w, x)),
-                            y: Math.max(0, Math.min(s.height - modelData.h, y))
-                        };
-                    }
+            // clickthrough: no input at all, and a quieter presence.
+            mask: modelData.clickthrough ? passRegion : null
+            Region { id: passRegion }
 
-                    screen: pinScope.modelData
-                    visible: (!root.open) || openHold.running
-                    color: "transparent"
-                    exclusiveZone: 0
-                    WlrLayershell.namespace: "ryolayer-pin"
-                    WlrLayershell.layer: WlrLayer.Top
-                    // click-to-focus lets a pinned notes plate take typing;
-                    // OnDemand releases focus on click-away, so pinned plates stay non-intrusive.
-                    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
-                    anchors { top: true; left: true }
-                    margins { top: pinWin.geom.y; left: pinWin.geom.x }
-                    implicitWidth: modelData.w
-                    implicitHeight: modelData.h
+            RyoSlot {
+                anchors.fill: parent
+                entry: pinWin.modelData
+                screenName: root.screenName
+                interactive: false
+                active: pinWin.visible
 
-                    // clickthrough: no input at all, and a quieter presence.
-                    mask: modelData.clickthrough ? passRegion : null
-                    Region { id: passRegion }
-
-                    RyoSlot {
-                        anchors.fill: parent
-                        entry: pinWin.modelData
-                        screenName: pinScope.modelData.name
-                        interactive: false
-                        active: pinWin.visible
-
-                        // fade a clickthrough pin to the ambient 0.8; the plate
-                        // eases with the house settle, the window map does not.
-                        opacity: pinWin.modelData.clickthrough ? 0.8 : 1
-                        Behavior on opacity { NumberAnimation { duration: Motion.settle; easing.type: Motion.easeStandard } }
-                    }
-                }
+                // fade a clickthrough pin to the ambient 0.8; the plate
+                // eases with the house settle, the window map does not.
+                opacity: pinWin.modelData.clickthrough ? 0.8 : 1
+                Behavior on opacity { NumberAnimation { duration: Motion.settle; easing.type: Motion.easeStandard } }
             }
         }
     }
