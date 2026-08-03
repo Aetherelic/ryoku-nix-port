@@ -20,7 +20,7 @@ Item {
         anchors.fill: parent
         visible: false
         source: root.name.length > 0
-            ? Qt.resolvedUrl("framebars/icons/" + root.name + "-symbolic.svg") : ""
+            ? Qt.resolvedUrl("icons/" + root.name + "-symbolic.svg") : ""
         sourceSize.width: Math.round(root.size * Screen.devicePixelRatio)
         sourceSize.height: Math.round(root.size * Screen.devicePixelRatio)
         smooth: true
