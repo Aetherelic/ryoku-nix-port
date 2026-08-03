@@ -1,0 +1,2 @@
+singleton ShellState ShellState.qml
+ServiceLoader ServiceLoader.qml

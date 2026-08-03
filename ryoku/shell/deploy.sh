@@ -306,6 +306,13 @@ say "installing quickshell components -> $cfg/quickshell"
 rm -rf "$cfg/quickshell"
 mkdir -p "$cfg/quickshell"
 cp -a "$here/quickshell/." "$cfg/quickshell/"
+# The consolidated single-instance shell (qs -c shell,
+# docs/plans/2026-08-03-shell-consolidation.md) ships as
+# ryoku/shell/quickshell/shell and lands at $cfg/quickshell/shell via the copy
+# above, deployed alongside the legacy per-surface configs. It is intentionally
+# NOT in the ryoku-shell daemon's component list yet: it is load-tested by hand
+# (qs -c shell) until the Phase 11 cutover, so an unproven instance never drives
+# the live desktop.
 
 # Ryoku Hub's quickshell config (qs -c hub), kept beside the shell's components.
 mkdir -p "$cfg/quickshell/hub"
