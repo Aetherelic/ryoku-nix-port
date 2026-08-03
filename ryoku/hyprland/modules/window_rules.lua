@@ -73,6 +73,14 @@ hl.window_rule({
 })
 
 hl.window_rule({
+    name   = "float-ryostore",
+    match  = { title = "^(Ryostore)$" },
+    float  = true,
+    size   = { 1180, 760 },
+    center = true,
+})
+
+hl.window_rule({
     name   = "float-ryovm",
     match  = { title = "^(ryovm)$" },
     float  = true,
