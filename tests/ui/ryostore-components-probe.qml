@@ -327,6 +327,9 @@ ShellRoot {
             root.require(String(decorCover.artOverride) === "", "dither ON keeps dithered preview");
             decorDetail.ditherOn = false;
             root.require(String(decorCover.artOverride) === "img://raw.webp", "dither OFF swaps to raw preview");
+            decorDetail.item = Object.assign({}, decorDetail.item, { installed: true });
+            const decorSettings = root.findObject(decorDetail, "ryostore-detail-settings");
+            root.require(!decorSettings.visible, "decor detail hides Settings without a settings page");
             root.require(detailScreenshots.visible && detailRetry.visible,
                     "detail exposes screenshots and failure action");
             root.installedKey = "";
@@ -356,7 +359,7 @@ ShellRoot {
             root.require(RyoState.Store.installError === ""
                     && RyoState.Store.installErrorKey === "", "retry clears matching error");
             verificationWatcher.start();
-            detail.item = Object.assign({}, detail.item, { installed: true });
+            detail.item = Object.assign({}, detail.item, { installed: true, hasSettings: true });
             root.require(detailSettings.visible, "installed detail exposes Settings");
             root.settingsKey = "";
             detailSettings.Accessible.pressAction();
@@ -475,7 +478,8 @@ ShellRoot {
                 art: "",
                 accent: "#b23a48",
                 surface: "#171113",
-                installed: true
+                installed: true,
+                hasSettings: true
             });
             stage.triggerInstall();
             root.require(root.installedKey === "", "installed state suppresses install");

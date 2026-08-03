@@ -8,12 +8,11 @@ import (
 
 func TestSettingsSectionRoutesStoreCategories(t *testing.T) {
 	cases := map[string]string{
-		"rices":       "appearance",
-		"lockscreens": "lockscreen",
-		"plugins":     "addons",
-		"bundles":     "addons",
-		"barstyles":   "bar-studio",
-		"fastfetch":   "fastfetch",
+		"rices":     "appearance",
+		"plugins":   "addons",
+		"bundles":   "addons",
+		"barstyles": "bar-studio",
+		"fastfetch": "fastfetch",
 	}
 	for category, want := range cases {
 		got, ok := settingsSection(category)
@@ -21,8 +20,12 @@ func TestSettingsSectionRoutesStoreCategories(t *testing.T) {
 			t.Fatalf("settingsSection(%q) = %q, %v; want %q, true", category, got, ok, want)
 		}
 	}
-	if _, ok := settingsSection("today"); ok {
-		t.Fatal("Today incorrectly maps to a Settings page")
+	// Today has no Settings page; lockscreen and the app launcher are edit-only,
+	// and the flat-image categories have no page, so none routes to Settings.
+	for _, edit := range []string{"today", "lockscreens", "decors", "launcher-images"} {
+		if _, ok := settingsSection(edit); ok {
+			t.Fatalf("%q should have no Settings route", edit)
+		}
 	}
 }
 

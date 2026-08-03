@@ -26,9 +26,12 @@ Item {
         })
     readonly property string launcherRoot: {
         var shellDir = String(Quickshell.env("RYOKU_SHELL_DIR") || "");
-        return shellDir.length > 0
-            ? shellDir + "/quickshell/launcher"
-            : String(Qt.resolvedUrl("../../launcher")).replace(/^file:\/\//, "");
+        if (shellDir.length > 0)
+            return shellDir + "/quickshell/launcher";
+        // Deployed Hub QML loads from a qrc namespace, so Qt.resolvedUrl gives no
+        // usable file path; read the launcher the shell installs beside us.
+        var cfg = String(Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config"));
+        return cfg + "/quickshell/launcher";
     }
     property var catalog: ({ version: 0, fallback: "", variants: [] })
 

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Changed
+- `ryostore/`: **"Open in Settings" only shows for products with a real settings
+  page.** It appeared on every installed product, but decors, launcher images,
+  and lockscreens have no manage or apply page (the lockscreen and app-launcher
+  pages are edit-only), so the button did nothing there. The catalogue now marks
+  each item's `hasSettings` and the detail hides the action when there is nowhere
+  to go (`backend/routing.go`, `backend/{catalog,model}.go`, `quickshell/lib/store.js`).
 - `ryostore/`: **Launcher images, a Store category of curated hero art for the
   app launcher's header.** Six wide public-domain works (Hokusai's Great Wave,
   Hiroshige's Shono, Friedrich's Sea of Ice, Van Gogh's Wheatfield with Crows,

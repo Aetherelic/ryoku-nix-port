@@ -128,7 +128,7 @@ function primaryAction(item) {
 }
 
 function secondaryAction(item) {
-    return isInstalled(item) ? "OPEN IN SETTINGS" : "";
+    return (item && item.hasSettings && isInstalled(item)) ? "OPEN IN SETTINGS" : "";
 }
 
 function sortCategories(categories) {

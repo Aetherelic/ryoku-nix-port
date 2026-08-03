@@ -11,6 +11,11 @@
   shell.json (`quickshell/pages/BarStudioPage.qml`, `quickshell/Hub.qml`).
 
 ### Fixed
+- **The App Launcher settings page renders again.** `launcherRoot` fell back to
+  `Qt.resolvedUrl`, which resolves to an unusable qrc path in the deployed Hub, so
+  the launcher catalogue never loaded and the preview plus every style, palette,
+  and motion control drew blank. It now reads the launcher the shell installs
+  under `$XDG_CONFIG_HOME/quickshell/launcher` (`quickshell/pages/LauncherPage.qml`).
 - **The tiling-layout preview animates again.** Windows -> Layout declares a
   `layoutdemo` row for the looping dwindle/master/scrolling diagram, but
   `SettingsSheet` had no renderer for that control, so it fell through to the

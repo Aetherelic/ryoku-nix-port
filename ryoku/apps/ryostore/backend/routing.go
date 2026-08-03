@@ -16,16 +16,25 @@ func storeSection(section string) bool {
 	return ok
 }
 
+// settingsSection maps a Store category to the Hub page that applies or manages
+// it. The lockscreen and app-launcher pages are only for editing config, not for
+// applying a store install, and the flat-image categories (decors, launcher
+// images) have no page at all, so none of them appear here and none shows an
+// "open in settings" action.
 func settingsSection(category string) (string, bool) {
 	section, ok := map[string]string{
-		"rices":       "appearance",
-		"lockscreens": "lockscreen",
-		"plugins":     "addons",
-		"bundles":     "addons",
-		"barstyles":   "bar-studio",
-		"fastfetch":   "fastfetch",
+		"rices":     "appearance",
+		"plugins":   "addons",
+		"bundles":   "addons",
+		"barstyles": "bar-studio",
+		"fastfetch": "fastfetch",
 	}[category]
 	return section, ok
+}
+
+func hasSettingsSection(category string) bool {
+	_, ok := settingsSection(category)
+	return ok
 }
 
 func runOpen(args []string) error {

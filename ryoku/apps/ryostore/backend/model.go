@@ -59,6 +59,7 @@ type Item struct {
 	InstalledCount   int            `json:"installedCount"`
 	TotalCount       int            `json:"totalCount"`
 	UpdateAvailable  bool           `json:"updateAvailable"`
+	HasSettings      bool           `json:"hasSettings,omitempty"`
 	Metadata         map[string]any `json:"metadata,omitempty"`
 }
 

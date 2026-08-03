@@ -76,7 +76,9 @@ func BuildCatalog(ctx context.Context, provs []Provider, refresh bool) Catalog {
 			c.Error = r.err.Error()
 		} else {
 			c.Count = len(r.items)
+			settings := hasSettingsSection(c.ID)
 			for j := range r.items {
+				r.items[j].HasSettings = settings
 				if r.items[j].owned() {
 					c.InstalledCount++
 				}
