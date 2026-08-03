@@ -175,82 +175,17 @@ FocusScope {
         mode: "plate"
     }
 
-    Column {
+    Item {
         id: dossier
         objectName: "ryostore-detail-dossier"
         x: detail.targetX + detail.targetWidth + Tokens.s6
-        y: Tokens.s6
+        y: detail.targetY
         width: Math.max(1, detail.width - x - Tokens.s6)
-        spacing: Tokens.s3
+        height: detail.targetHeight
         opacity: detail.transitionProgress
+        clip: true
 
-        Text {
-            width: parent.width
-            text: String(detail.actionItem.categoryName || detail.actionItem.category || "").toUpperCase()
-            color: Tokens.inkDim
-            font.family: Tokens.mono
-            font.pixelSize: Tokens.fMicro
-            font.letterSpacing: Tokens.trackMark
-            elide: Text.ElideRight
-        }
-
-        Text {
-            objectName: "ryostore-detail-title"
-            width: parent.width
-            text: String(detail.actionItem.name || detail.actionItem.id || "")
-            color: Tokens.ink
-            font.family: Tokens.display
-            font.pixelSize: Tokens.fTitle
-            font.weight: Font.Medium
-            wrapMode: Text.Wrap
-            maximumLineCount: 2
-            elide: Text.ElideRight
-        }
-
-        Text {
-            objectName: "ryostore-detail-description"
-            width: parent.width
-            text: String(detail.actionItem.description || detail.actionItem.summary || "")
-            visible: text !== ""
-            color: Tokens.inkDim
-            font.family: Tokens.ui
-            font.pixelSize: Tokens.fBody
-            wrapMode: Text.Wrap
-            maximumLineCount: 4
-            elide: Text.ElideRight
-        }
-
-        Flow {
-            objectName: "ryostore-detail-tags"
-            width: parent.width
-            spacing: Tokens.s2
-            visible: detail.tags.length > 0
-
-            Repeater {
-                model: detail.tags
-
-                delegate: Rectangle {
-                    required property string modelData
-                    width: tagLabel.implicitWidth + Tokens.s3 * 2
-                    height: tagLabel.implicitHeight + Tokens.s2
-                    radius: Tokens.radius
-                    color: Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.12)
-                    border.width: Tokens.border
-                    border.color: Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.4)
-
-                    Text {
-                        id: tagLabel
-                        anchors.centerIn: parent
-                        text: parent.modelData.toUpperCase()
-                        color: Tokens.ink
-                        font.family: Tokens.mono
-                        font.pixelSize: Tokens.fMicro
-                        font.letterSpacing: Tokens.trackLabel
-                    }
-                }
-            }
-        }
-
+        // Row delegate for the bundle component list (used by both tier repeaters).
         Component {
             id: componentDelegate
             Item {
@@ -313,227 +248,336 @@ FocusScope {
             }
         }
 
-        Flickable {
-            id: bundleComponents
-            objectName: "ryostore-detail-components"
-            width: parent.width
-            visible: detail.isBundle && detail.components.length > 0
-            height: visible ? Math.min(bundleCol.implicitHeight, Math.round(detail.height * 0.42)) : 0
-            contentWidth: width
-            contentHeight: bundleCol.implicitHeight
-            clip: true
-            interactive: contentHeight > height
-            boundsBehavior: Flickable.StopAtBounds
+        // HEAD: identity, description, tags, metadata (fixed at the top).
+        Column {
+            id: dossierHead
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            spacing: Tokens.s3
 
-            Column {
-                id: bundleCol
-                width: bundleComponents.width
+            Text {
+                width: parent.width
+                text: String(detail.actionItem.categoryName || detail.actionItem.category || "").toUpperCase()
+                color: Tokens.inkDim
+                font.family: Tokens.mono
+                font.pixelSize: Tokens.fMicro
+                font.letterSpacing: Tokens.trackMark
+                elide: Text.ElideRight
+            }
+
+            Text {
+                objectName: "ryostore-detail-title"
+                width: parent.width
+                text: String(detail.actionItem.name || detail.actionItem.id || "")
+                color: Tokens.ink
+                font.family: Tokens.display
+                font.pixelSize: Tokens.fTitle
+                font.weight: Font.Medium
+                wrapMode: Text.Wrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+            }
+
+            Text {
+                objectName: "ryostore-detail-description"
+                width: parent.width
+                text: String(detail.actionItem.description || detail.actionItem.summary || "")
+                visible: text !== ""
+                color: Tokens.inkDim
+                font.family: Tokens.ui
+                font.pixelSize: Tokens.fBody
+                wrapMode: Text.Wrap
+                maximumLineCount: detail.isBundle ? 2 : 4
+                elide: Text.ElideRight
+            }
+
+            Flow {
+                objectName: "ryostore-detail-tags"
+                width: parent.width
                 spacing: Tokens.s2
-
-                Text {
-                    visible: detail.coreComponents.length > 0
-                    text: "CORE"
-                    color: Tokens.inkDim
-                    font.family: Tokens.mono
-                    font.pixelSize: Tokens.fMicro
-                    font.letterSpacing: Tokens.trackMark
-                }
-                Repeater { model: detail.coreComponents; delegate: componentDelegate }
-
-                Text {
-                    visible: detail.optionalComponents.length > 0
-                    text: "OPTIONAL"
-                    color: Tokens.inkDim
-                    font.family: Tokens.mono
-                    font.pixelSize: Tokens.fMicro
-                    font.letterSpacing: Tokens.trackMark
-                    topPadding: Tokens.s2
-                }
-                Repeater { model: detail.optionalComponents; delegate: componentDelegate }
-            }
-
-            Rectangle {
-                id: scrollThumb
-                width: 2
-                radius: 1
-                color: Tokens.line
-                visible: bundleComponents.interactive
-                x: bundleComponents.width - width
-                height: Math.max(20, bundleComponents.height * bundleComponents.height / Math.max(1, bundleComponents.contentHeight))
-                y: bundleComponents.contentY + (bundleComponents.contentHeight > bundleComponents.height
-                    ? (bundleComponents.contentY / (bundleComponents.contentHeight - bundleComponents.height)) * (bundleComponents.height - scrollThumb.height)
-                    : 0)
-            }
-        }
-
-        Text {
-            objectName: "ryostore-detail-metadata"
-            width: parent.width
-            text: detail.metadataText
-            visible: text !== ""
-            color: Tokens.inkDim
-            font.family: Tokens.mono
-            font.pixelSize: Tokens.fMicro
-            font.letterSpacing: Tokens.trackLabel
-            wrapMode: Text.Wrap
-        }
-
-        StatusReadout {
-            objectName: "ryostore-detail-status"
-            item: detail.actionItem
-            busyKey: detail.busyKey
-            installStage: detail.installStage
-            installErrorKey: detail.installErrorKey
-            installError: detail.installError
-        }
-
-        Text {
-            objectName: "ryostore-detail-error"
-            width: parent.width
-            text: detail.errorText
-            visible: text !== ""
-            color: Tokens.alert
-            font.family: Tokens.ui
-            font.pixelSize: Tokens.fSmall
-            wrapMode: Text.Wrap
-            textFormat: Text.PlainText
-        }
-
-        Row {
-            spacing: Tokens.s2
-
-            Btn {
-                objectName: "ryostore-detail-dither"
-                visible: detail.hasDither
-                text: detail.ditherOn ? "DITHER / ON" : "DITHER / OFF"
-                armed: detail.busyKey === ""
-                Accessible.role: Accessible.Button
-                Accessible.name: text
-                onAct: detail.ditherOn = !detail.ditherOn
-                Accessible.onPressAction: detail.ditherOn = !detail.ditherOn
-            }
-
-            Btn {
-                objectName: "ryostore-detail-install-selected"
-                visible: detail.isBundle
-                text: detail.busyKey === detail.actionKey && detail.installStage !== ""
-                        ? detail.installStage
-                        : "INSTALL SELECTED"
-                primary: true
-                armed: detail.item !== null && detail.busyKey === "" && detail.selectedNames.length > 0
-                Accessible.role: Accessible.Button
-                Accessible.name: text
-                onAct: detail.triggerInstallSelected()
-                Accessible.onPressAction: detail.triggerInstallSelected()
-            }
-
-            Btn {
-                objectName: "ryostore-detail-install-all"
-                visible: detail.isBundle
-                text: "INSTALL ALL"
-                armed: detail.item !== null && detail.busyKey === ""
-                Accessible.role: Accessible.Button
-                Accessible.name: text
-                onAct: detail.triggerInstallAll()
-                Accessible.onPressAction: detail.triggerInstallAll()
-            }
-
-            Btn {
-                objectName: "ryostore-detail-install"
-                visible: !detail.isBundle
-                text: detail.busyKey === detail.actionKey && detail.installStage !== ""
-                        ? detail.installStage
-                        : StoreLogic.primaryAction(detail.actionItem)
-                primary: true
-                armed: detail.item !== null && detail.busyKey === ""
-                        && StoreLogic.primaryAction(detail.actionItem) !== "INSTALLED"
-                Accessible.role: Accessible.Button
-                Accessible.name: text
-                onAct: detail.triggerInstall()
-                Accessible.onPressAction: detail.triggerInstall()
-            }
-
-            Btn {
-                objectName: "ryostore-detail-retry"
-                text: "RETRY"
-                visible: detail.errorText !== ""
-                armed: visible && detail.busyKey === ""
-                Accessible.role: Accessible.Button
-                Accessible.name: text
-                onAct: detail.triggerRetry()
-                Accessible.onPressAction: detail.triggerRetry()
-            }
-
-            Btn {
-                objectName: "ryostore-detail-settings"
-                text: "OPEN IN SETTINGS"
-                visible: StoreLogic.secondaryAction(detail.actionItem) !== ""
-                armed: visible
-                Accessible.role: Accessible.Button
-                Accessible.name: text
-                onAct: detail.triggerSettings()
-                Accessible.onPressAction: detail.triggerSettings()
-            }
-
-            Btn {
-                id: closeButton
-                objectName: "ryostore-detail-close"
-                focus: detail.open
-                text: "BACK"
-                Accessible.role: Accessible.Button
-                Accessible.name: text
-                onAct: detail.triggerClose()
-                Accessible.onPressAction: detail.triggerClose()
-            }
-        }
-
-        Flickable {
-            objectName: "ryostore-detail-screenshots"
-            width: parent.width
-            height: detail.screenshotCount > 0 ? 200 : 0
-            visible: detail.screenshotCount > 0
-            clip: true
-            contentWidth: screenshotRow.width
-            contentHeight: height
-            flickableDirection: Flickable.HorizontalFlick
-            boundsBehavior: Flickable.StopAtBounds
-
-            Row {
-                id: screenshotRow
-                height: parent.height
-                spacing: Tokens.s2
+                visible: detail.tags.length > 0
 
                 Repeater {
-                    model: detail.screenshots
+                    model: detail.tags
 
-                    delegate: Item {
-                        id: thumb
-                        required property var modelData
-                        required property int index
-                        width: Math.round(screenshotRow.height * 16 / 9)
-                        height: screenshotRow.height
-                        Accessible.role: Accessible.Button
-                        Accessible.name: "Screenshot " + String(index + 1) + " of " + detail.screenshotCount
-                        Accessible.onPressAction: detail.openLightbox(thumb.index)
+                    delegate: Rectangle {
+                        required property string modelData
+                        width: tagLabel.implicitWidth + Tokens.s3 * 2
+                        height: tagLabel.implicitHeight + Tokens.s2
+                        radius: Tokens.radius
+                        color: Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.12)
+                        border.width: Tokens.border
+                        border.color: Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.4)
 
-                        ProductMedia {
-                            anchors.fill: parent
-                            source: thumb.modelData
-                            mode: "cover"
-                            active: detail.open
+                        Text {
+                            id: tagLabel
+                            anchors.centerIn: parent
+                            text: parent.modelData.toUpperCase()
+                            color: Tokens.ink
+                            font.family: Tokens.mono
+                            font.pixelSize: Tokens.fMicro
+                            font.letterSpacing: Tokens.trackLabel
                         }
+                    }
+                }
+            }
 
-                        Rectangle {
-                            anchors.fill: parent
-                            color: "transparent"
-                            border.width: thumbHover.hovered ? Tokens.border * 2 : Tokens.border
-                            border.color: thumbHover.hovered
-                                    ? Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.9)
-                                    : "#28ffffff"
+            Text {
+                objectName: "ryostore-detail-metadata"
+                width: parent.width
+                text: detail.metadataText
+                visible: text !== ""
+                color: Tokens.inkDim
+                font.family: Tokens.mono
+                font.pixelSize: Tokens.fMicro
+                font.letterSpacing: Tokens.trackLabel
+                wrapMode: Text.Wrap
+            }
+        }
+
+        // FOOT: status, error, and the action row, pinned to the bottom so the
+        // buttons never scroll off no matter how long the component list is.
+        Column {
+            id: dossierFoot
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+            spacing: Tokens.s3
+
+            Text {
+                objectName: "ryostore-detail-selected"
+                width: parent.width
+                visible: detail.isBundle && detail.components.length > 0
+                text: detail.selectedNames.length + " / " + detail.components.length + " SELECTED"
+                color: Tokens.inkDim
+                font.family: Tokens.mono
+                font.pixelSize: Tokens.fMicro
+                font.letterSpacing: Tokens.trackLabel
+            }
+
+            StatusReadout {
+                objectName: "ryostore-detail-status"
+                item: detail.actionItem
+                busyKey: detail.busyKey
+                installStage: detail.installStage
+                installErrorKey: detail.installErrorKey
+                installError: detail.installError
+            }
+
+            Text {
+                objectName: "ryostore-detail-error"
+                width: parent.width
+                text: detail.errorText
+                visible: text !== ""
+                color: Tokens.alert
+                font.family: Tokens.ui
+                font.pixelSize: Tokens.fSmall
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+            }
+
+            Row {
+                spacing: Tokens.s2
+
+                Btn {
+                    objectName: "ryostore-detail-dither"
+                    visible: detail.hasDither
+                    text: detail.ditherOn ? "DITHER / ON" : "DITHER / OFF"
+                    armed: detail.busyKey === ""
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    onAct: detail.ditherOn = !detail.ditherOn
+                    Accessible.onPressAction: detail.ditherOn = !detail.ditherOn
+                }
+
+                Btn {
+                    objectName: "ryostore-detail-install-selected"
+                    visible: detail.isBundle
+                    text: detail.busyKey === detail.actionKey && detail.installStage !== ""
+                            ? detail.installStage
+                            : "INSTALL SELECTED"
+                    primary: true
+                    armed: detail.item !== null && detail.busyKey === "" && detail.selectedNames.length > 0
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    onAct: detail.triggerInstallSelected()
+                    Accessible.onPressAction: detail.triggerInstallSelected()
+                }
+
+                Btn {
+                    objectName: "ryostore-detail-install-all"
+                    visible: detail.isBundle
+                    text: "INSTALL ALL"
+                    armed: detail.item !== null && detail.busyKey === ""
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    onAct: detail.triggerInstallAll()
+                    Accessible.onPressAction: detail.triggerInstallAll()
+                }
+
+                Btn {
+                    objectName: "ryostore-detail-install"
+                    visible: !detail.isBundle
+                    text: detail.busyKey === detail.actionKey && detail.installStage !== ""
+                            ? detail.installStage
+                            : StoreLogic.primaryAction(detail.actionItem)
+                    primary: true
+                    armed: detail.item !== null && detail.busyKey === ""
+                            && StoreLogic.primaryAction(detail.actionItem) !== "INSTALLED"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    onAct: detail.triggerInstall()
+                    Accessible.onPressAction: detail.triggerInstall()
+                }
+
+                Btn {
+                    objectName: "ryostore-detail-retry"
+                    text: "RETRY"
+                    visible: detail.errorText !== ""
+                    armed: visible && detail.busyKey === ""
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    onAct: detail.triggerRetry()
+                    Accessible.onPressAction: detail.triggerRetry()
+                }
+
+                Btn {
+                    objectName: "ryostore-detail-settings"
+                    text: "OPEN IN SETTINGS"
+                    visible: StoreLogic.secondaryAction(detail.actionItem) !== ""
+                    armed: visible
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    onAct: detail.triggerSettings()
+                    Accessible.onPressAction: detail.triggerSettings()
+                }
+
+                Btn {
+                    id: closeButton
+                    objectName: "ryostore-detail-close"
+                    focus: detail.open
+                    text: "BACK"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    onAct: detail.triggerClose()
+                    Accessible.onPressAction: detail.triggerClose()
+                }
+            }
+        }
+
+        // BODY: fills the space between head and foot. Bundles get the scrollable
+        // component list here (as tall as the window allows); everything else gets
+        // its screenshot strip.
+        Item {
+            id: dossierBody
+            anchors {
+                top: dossierHead.bottom
+                topMargin: Tokens.s4
+                bottom: dossierFoot.top
+                bottomMargin: Tokens.s4
+                left: parent.left
+                right: parent.right
+            }
+            clip: true
+
+            Flickable {
+                id: bundleComponents
+                objectName: "ryostore-detail-components"
+                anchors.fill: parent
+                visible: detail.isBundle && detail.components.length > 0
+                contentWidth: width
+                contentHeight: bundleCol.implicitHeight
+                clip: true
+                interactive: contentHeight > height
+                boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    id: bundleCol
+                    width: bundleComponents.width - Tokens.s3
+                    spacing: Tokens.s2
+
+                    Text {
+                        visible: detail.coreComponents.length > 0
+                        text: "CORE"
+                        color: Tokens.inkDim
+                        font.family: Tokens.mono
+                        font.pixelSize: Tokens.fMicro
+                        font.letterSpacing: Tokens.trackMark
+                    }
+                    Repeater { model: detail.coreComponents; delegate: componentDelegate }
+
+                    Text {
+                        visible: detail.optionalComponents.length > 0
+                        text: "OPTIONAL"
+                        color: Tokens.inkDim
+                        font.family: Tokens.mono
+                        font.pixelSize: Tokens.fMicro
+                        font.letterSpacing: Tokens.trackMark
+                        topPadding: Tokens.s2
+                    }
+                    Repeater { model: detail.optionalComponents; delegate: componentDelegate }
+                }
+
+                Rectangle {
+                    id: scrollThumb
+                    width: 3
+                    radius: 1.5
+                    color: bundleComponents.moving ? Tokens.inkDim : Tokens.line
+                    visible: bundleComponents.interactive
+                    x: bundleComponents.width - width
+                    height: Math.max(30, bundleComponents.height * bundleComponents.height / Math.max(1, bundleComponents.contentHeight))
+                    y: bundleComponents.contentY + (bundleComponents.contentHeight > bundleComponents.height
+                        ? (bundleComponents.contentY / (bundleComponents.contentHeight - bundleComponents.height)) * (bundleComponents.height - scrollThumb.height)
+                        : 0)
+                    Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                }
+            }
+
+            Flickable {
+                objectName: "ryostore-detail-screenshots"
+                anchors { top: parent.top; left: parent.left; right: parent.right }
+                height: Math.min(200, parent.height)
+                visible: !detail.isBundle && detail.screenshotCount > 0
+                clip: true
+                contentWidth: screenshotRow.width
+                contentHeight: height
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+
+                Row {
+                    id: screenshotRow
+                    height: parent.height
+                    spacing: Tokens.s2
+
+                    Repeater {
+                        model: detail.screenshots
+
+                        delegate: Item {
+                            id: thumb
+                            required property var modelData
+                            required property int index
+                            width: Math.round(screenshotRow.height * 16 / 9)
+                            height: screenshotRow.height
+                            Accessible.role: Accessible.Button
+                            Accessible.name: "Screenshot " + String(index + 1) + " of " + detail.screenshotCount
+                            Accessible.onPressAction: detail.openLightbox(thumb.index)
+
+                            ProductMedia {
+                                anchors.fill: parent
+                                source: thumb.modelData
+                                mode: "cover"
+                                active: detail.open
+                            }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "transparent"
+                                border.width: thumbHover.hovered ? Tokens.border * 2 : Tokens.border
+                                border.color: thumbHover.hovered
+                                        ? Qt.rgba(detail.accentColor.r, detail.accentColor.g, detail.accentColor.b, 0.9)
+                                        : "#28ffffff"
+                            }
+
+                            HoverHandler { id: thumbHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: detail.openLightbox(thumb.index) }
                         }
-
-                        HoverHandler { id: thumbHover; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: detail.openLightbox(thumb.index) }
                     }
                 }
             }
