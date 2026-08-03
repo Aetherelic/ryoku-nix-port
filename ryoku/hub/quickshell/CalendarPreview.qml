@@ -9,7 +9,11 @@ Item {
     property int weeks: 6
     property bool showWeekNumbers: true
     readonly property date today: new Date()
-    readonly property int clampedWeeks: Math.max(4, Math.min(8, root.weeks))
+    readonly property int preferredWeeks: Math.max(4, Math.min(8, root.weeks))
+    readonly property int leadingDays: (new Date(root.today.getFullYear(), root.today.getMonth(), 1).getDay() + 6) % 7
+    readonly property int requiredWeeks: Math.ceil((root.leadingDays
+        + new Date(root.today.getFullYear(), root.today.getMonth() + 1, 0).getDate()) / 7)
+    readonly property int clampedWeeks: Math.max(root.preferredWeeks, root.requiredWeeks)
     readonly property real headerHeight: 44
     readonly property real weekColumn: root.showWeekNumbers ? 22 : 0
     readonly property real cellWidth: (width - 28 - root.weekColumn) / 7

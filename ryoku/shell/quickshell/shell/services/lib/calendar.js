@@ -37,8 +37,13 @@ function sameDay(a, b) {
 }
 
 function buildRange(today, viewYear, viewMonth, weeks, firstDay) {
-    var count = Math.max(4, Math.min(8, Math.round(Number(weeks) || 6)));
-    var start = weekStart(new Date(viewYear, viewMonth, 1, 12), firstDay);
+    var preferred = Math.max(4, Math.min(8, Math.round(Number(weeks) || 6)));
+    var monthStart = new Date(viewYear, viewMonth, 1, 12);
+    var normalized = ((Number(firstDay) % 7) + 7) % 7;
+    var leading = (monthStart.getDay() - normalized + 7) % 7;
+    var required = Math.ceil((leading + daysInMonth(viewYear, viewMonth)) / 7);
+    var count = Math.min(8, Math.max(preferred, required));
+    var start = weekStart(monthStart, firstDay);
     var out = [];
     for (var i = 0; i < count * 7; i++) {
         var date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i, 12);

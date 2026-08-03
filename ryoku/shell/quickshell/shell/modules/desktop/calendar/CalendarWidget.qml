@@ -24,6 +24,7 @@ Item {
     readonly property date today: systemClock.date
     property int viewYear: today.getFullYear()
     property int viewMonth: today.getMonth()
+    readonly property int visibleWeeks: root.days.length / 7
     property string selectedKey: CalendarModel.dateKey(today.getFullYear(), today.getMonth(), today.getDate())
     readonly property var days: CalendarModel.buildRange(today, viewYear, viewMonth, weeks, firstDay)
     readonly property var years: {
@@ -105,7 +106,7 @@ Item {
                 font.weight: Font.Medium
             }
             Text {
-                text: qsTr("WEEK %1 · %2 WEEKS").arg(root.currentWeek.week).arg(root.weeks)
+                text: qsTr("WEEK %1 · %2 WEEKS").arg(root.currentWeek.week).arg(root.visibleWeeks)
                 color: Theme.faint
                 font.family: Theme.mono
                 font.pixelSize: 9 * root.s
@@ -156,7 +157,7 @@ Item {
         x: 20 * root.s
         y: header.y + header.height + 8 * root.s
         days: root.days
-        weeks: root.weeks
+        weeks: root.visibleWeeks
         firstDay: root.firstDay
         showWeekNumbers: root.showWeekNumbers
         paper: root.paper
