@@ -1,5 +1,5 @@
 import QtQuick
-import "Singletons"
+import "../services"
 
 // single-line text that ping-pongs when it's wider than its space. long track
 // + artist names stay readable. caller sets width (anchors etc.) and `active`

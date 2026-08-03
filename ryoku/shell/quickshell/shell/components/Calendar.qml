@@ -3,8 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import Quickshell
-import "Singletons"
-import "lib/events.js" as EventsModel
+import "../services"
+import "../services/lib/events.js" as EventsModel
 
 // calendar surface content. header (month/year + prev/next), weekday strip,
 // day grid sized to exactly the rows the month needs. today gets a warm

@@ -2,7 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import "../framebars/lib/menupoll.js" as MenuPoll
+import "../utils/menupoll.js" as MenuPoll
 
 Singleton {
     id: root

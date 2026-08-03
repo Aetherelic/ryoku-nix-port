@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Shapes
-import "Singletons"
+import "../services"
 
 // A 270-degree ring gauge for the system monitor: a dim track arc and a coloured
 // value arc that eases to `value` (0..1), with a mono readout in the centre and

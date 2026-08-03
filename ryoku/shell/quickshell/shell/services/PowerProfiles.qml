@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../framebars/lib/menupoll.js" as MenuPoll
+import "../utils/menupoll.js" as MenuPoll
 
 // QML view of the daemon `powerprofiles` topic. power-profiles-daemon lives in
 // ryoku-shell (powerprofiles.go), so QML never shells out to powerprofilesctl:

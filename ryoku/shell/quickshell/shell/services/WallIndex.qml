@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../framebars/menus/WallColors.js" as WallColors
+import "lib/WallColors.js" as WallColors
 
 // Resident wallpaper index for the Super+W frame menu. index.sh reads one cached
 // thumbnail and a dominant-hue value per image and video (~0.4s warm), which is

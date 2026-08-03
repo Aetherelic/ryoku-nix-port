@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../lib/events.js" as Model
+import "lib/events.js" as Model
 
 // Local calendar events, persisted as a plain JSON array at
 // ~/.local/state/ryoku/events.json. The in-memory `events` is the source of

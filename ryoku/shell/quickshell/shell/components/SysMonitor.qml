@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "Singletons"
+import "../services"
 
 // The quick-settings system monitor under the calendar: CPU, memory and (when a
 // sensor is found) temperature as eased ring gauges, a CPU-history sparkline

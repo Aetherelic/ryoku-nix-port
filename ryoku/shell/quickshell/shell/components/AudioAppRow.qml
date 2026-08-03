@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Widgets
-import "Singletons"
+import "../services"
 
 // One per-app mixer row, shared by the audio menu and the audio popout: the app
 // icon doubles as a mute toggle and the app name sits above its own live VU

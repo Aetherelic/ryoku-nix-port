@@ -1,5 +1,5 @@
 import QtQuick
-import "Singletons"
+import "../services"
 
 // Pill toggle: tile bg off, terracotta on, cream knob slides. Shared by the
 // link surface and the WLAN/BT drill-ins.

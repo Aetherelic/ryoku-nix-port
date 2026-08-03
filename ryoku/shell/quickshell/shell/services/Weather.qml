@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../lib/weather.js" as Model
+import "lib/weather.js" as Model
 
 // QML view of the daemon `weather` topic. The Open-Meteo fetch, geocoding, IP
 // fallback, retry ladder, WMO-code and icon mapping and unit conversion all live

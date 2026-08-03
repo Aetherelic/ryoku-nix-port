@@ -3,7 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../framebars/lib/menupoll.js" as MenuPoll
+import "../utils/menupoll.js" as MenuPoll
 
 // Live computer stats for the quick-settings system monitor: CPU load from
 // /proc/stat deltas, memory from /proc/meminfo, and a best-effort CPU package

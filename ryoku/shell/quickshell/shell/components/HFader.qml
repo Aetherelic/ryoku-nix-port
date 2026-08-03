@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell.Services.Pipewire
-import "Singletons"
-import "framebars/lib/fader.js" as Fader
+import "../services"
+import "lib/fader.js" as Fader
 
 // horizontal ink fader for the mixer: a matte thread track with a vermilion
 // fill and a flat tick; the leading glyph doubles as a mute toggle; a faint VU
