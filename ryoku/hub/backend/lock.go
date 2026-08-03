@@ -37,11 +37,9 @@ type LockSkin struct {
 	SizeKB    int      `json:"sizeKB"` // upstream install weight, 0 when unknown
 }
 
-// LockResponse = the `ryoku-hub lock catalog` / `list` payload: active slug,
-// the skins, plus whether the upstream qylock repo was reachable.
+// LockResponse is the installed-only `ryoku-hub lock list` payload.
 type LockResponse struct {
 	Active string     `json:"active"`
-	Online bool       `json:"online"`
 	Skins  []LockSkin `json:"skins"`
 }
 

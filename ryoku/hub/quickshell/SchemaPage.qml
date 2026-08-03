@@ -30,6 +30,9 @@ Item {
     signal edited(string key, var value)
     signal pickRequested(var row)
 
+    // a search jump forwards here; the sheet switches tab, scrolls, and flashes.
+    function focusKey(k) { sheet.focusKey(k) }
+
     readonly property var tabs: {
         var t = [];
         for (var i = 0; i < schema.length; i++) {
@@ -110,7 +113,7 @@ Item {
 
     Item {
         id: extraSlot
-        anchors { left: parent.left; right: parent.right; top: head.bottom; topMargin: Tokens.s4 }
+        anchors { left: parent.left; right: parent.right; top: head.bottom; topMargin: childrenRect.height > 0 ? Tokens.s4 : 0 }
         height: childrenRect.height
         visible: children.length > 0
     }

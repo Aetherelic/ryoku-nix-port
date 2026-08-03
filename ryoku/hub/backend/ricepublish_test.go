@@ -7,23 +7,6 @@ import (
 	"testing"
 )
 
-// the store registry parses into entries with their raw in-repo paths intact.
-func TestParseRiceRegistry(t *testing.T) {
-	raw := []byte(`{"version":1,"rices":[
-		{"id":"lofi","name":"Lofi","createdWith":"0.6.8","color":"fixed","poster":"rices/lofi/poster.png","tags":["pixel"]}
-	]}`)
-	es, err := parseRiceRegistry(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(es) != 1 || es[0].ID != "lofi" {
-		t.Fatalf("entries = %v, want one lofi", es)
-	}
-	if es[0].Poster != "rices/lofi/poster.png" {
-		t.Fatalf("poster = %q", es[0].Poster)
-	}
-}
-
 // publishRice lays a local rice into the store structure (manifest, poster,
 // palette) and upserts its registry entry; a second publish replaces rather
 // than duplicates it.

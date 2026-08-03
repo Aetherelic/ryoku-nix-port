@@ -37,5 +37,32 @@ var rows = [
         "ctl": "custom",
         "src": "plugins.json (via `ryoku-plugins-place <id> settings <json>`, one single-key object per change, jq-merged into the existing settings object)",
         "unit": "none"
+    },
+    {
+        "tab": "Plugins",
+        "group": "Management",
+        "key": "",
+        "label": "Update / Remove",
+        "desc": "Refreshes or removes an installed plugin while placement remains in plugins.json",
+        "ctl": "action",
+        "src": "ryostore internal install-guest|remove-guest plugins <id>"
+    },
+    {
+        "tab": "Bundles",
+        "group": "Management",
+        "key": "",
+        "label": "Remove component / bundle",
+        "desc": "Shows every component state and opens the extras actuator in a terminal for removal",
+        "ctl": "action",
+        "src": "ryoku-extras-install remove item|bundle"
+    },
+    {
+        "tab": "",
+        "group": "OTHER",
+        "key": "",
+        "label": "Browse RyoStore",
+        "desc": "Opens the matching plugin or bundle catalogue",
+        "ctl": "action",
+        "src": "ryostore open plugins|bundles"
     }
 ];

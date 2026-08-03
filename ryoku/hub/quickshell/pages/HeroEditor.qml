@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Dialogs
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
@@ -73,11 +72,11 @@ Item {
         copyProc.running = true;
     }
 
-    FileDialog {
+    PickFile {
         id: pick
         title: I18n.tr("Choose a hero image")
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp)", "All files (*)"]
-        onAccepted: ed.adoptCustom(selectedFile)
+        onPicked: (p) => { ed.adoptCustom(p); pick.active = false; }
+        onCanceled: pick.active = false
     }
 
     Rectangle {

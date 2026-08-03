@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as C
 import QtQuick.Effects
-import QtQuick.Dialogs
 import Qt.labs.folderlistmodel
 import "Singletons"
 
@@ -354,14 +353,6 @@ Item {
         }
     }
 
-    // ── custom file picker ──────────────────────────────────────────────────
-    FileDialog {
-        id: fileDlg
-        title: "Choose an image or gif"
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp)", "All files (*)"]
-        onAccepted: { dec.src = "" + fileDlg.selectedFile; dec.posX = 0.5; dec.posY = 0.5; dec.zoom = 1; keyScope.forceActiveFocus(); }
-    }
-
     // ── the editor: cover + focal-point framing, gallery underneath ──────────
     C.Popup {
         id: editor
@@ -588,6 +579,15 @@ Item {
                         }
                     }
                 }
+            }
+
+            // custom image/gif picker: the shared paper-and-ink overlay, inside
+            // the editor modal so it covers it (the editor sits on the Overlay).
+            PickFile {
+                id: fileDlg
+                title: "Choose an image or gif"
+                onPicked: (p) => { dec.src = "" + p; dec.posX = 0.5; dec.posY = 0.5; dec.zoom = 1; keyScope.forceActiveFocus(); fileDlg.active = false; }
+                onCanceled: fileDlg.active = false
             }
         }
     }

@@ -249,245 +249,154 @@ Item {
             spacing: Tokens.s5
 
             // ── QUALITY ──────────────────────────────────────────────────────
-            Column {
+            SettingCard {
                 width: col.width
-                spacing: Tokens.s3
-
-                Item {
-                    width: parent.width; height: 16
-                    Row {
-                        id: qHdr
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        spacing: Tokens.s2
-                        Rectangle { width: 4; height: 4; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
-                        Text {
-                            text: I18n.tr("QUALITY"); color: Tokens.ink; font.family: Tokens.ui
-                            font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
-                            font.letterSpacing: Tokens.trackMark
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                    Rectangle {
-                        anchors.left: qHdr.right; anchors.leftMargin: Tokens.s3
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        height: 1; color: Tokens.lineSoft
-                    }
-                }
+                title: I18n.tr("QUALITY")
                 Text {
                     width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s1
                     text: I18n.tr("Higher framerate is smoother (120 gets closer to a high-refresh panel); higher quality and HEVC/AV1 are crisper but larger. Constant framerate plays and edits correctly everywhere; variable is smaller but can look choppy or import as 30fps.")
                     color: Tokens.inkMuted; font.family: Tokens.ui
                     font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
                 }
-
-                Flow {
-                    width: parent.width
-                    spacing: Tokens.s2
-
-                    Cell {
-                        width: pg.span(Spans.of("step", 0), col.width)
-                        height: Tokens.cellH
-                        controlWidth: Spans.inlineWidth("step", 0, width)
-                        label: I18n.tr("Framerate")
-                        desc: I18n.tr("Frames captured per second; higher is smoother but files are larger.")
-                        unit: "fps"
-                        source: "recording.json"
-                        value: pg.draft ? String(pg.draft.fps) : ""
-                        def: pg.committed ? String(pg.committed.fps) : ""
-                        changed: pg.draft && pg.committed ? pg.draft.fps !== pg.committed.fps : false
-                        Step {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            value: pg.draft ? (Number(pg.draft.fps) || 60) : 60
-                            from: 24; to: 120; stepBy: 1
-                            onModified: (v) => pg.edit("fps", v)
-                        }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Framerate")
+                    desc: I18n.tr("Frames captured per second; higher is smoother but files are larger.")
+                    unit: "fps"
+                    source: "recording.json"
+                    value: pg.draft ? String(pg.draft.fps) : ""
+                    def: pg.committed ? String(pg.committed.fps) : ""
+                    changed: pg.draft && pg.committed ? pg.draft.fps !== pg.committed.fps : false
+                    controlWidth: 58
+                    Step {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        value: pg.draft ? (Number(pg.draft.fps) || 60) : 60
+                        from: 24; to: 120; stepBy: 1
+                        onModified: (v) => pg.edit("fps", v)
                     }
-                    Cell {
-                        width: pg.span(Spans.of("seg", 2), col.width)
-                        height: Tokens.cellH
-                        controlWidth: Spans.inlineWidth("seg", 2, width)
-                        label: I18n.tr("Framerate mode")
-                        desc: I18n.tr("Constant plays everywhere; variable is smaller but may import as 30fps.")
-                        source: "recording.json"
-                        value: pg.draft ? String(pg.draft.framerateMode) : ""
-                        def: pg.committed ? String(pg.committed.framerateMode) : ""
-                        changed: pg.draft && pg.committed ? pg.draft.framerateMode !== pg.committed.framerateMode : false
-                        Seg {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            options: ["cfr", "vfr"]
-                            current: pg.draft ? String(pg.draft.framerateMode) : ""
-                            onChose: (k) => pg.edit("framerateMode", k)
-                        }
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Framerate mode")
+                    desc: I18n.tr("Constant plays everywhere; variable is smaller but may import as 30fps.")
+                    source: "recording.json"
+                    def: pg.committed ? String(pg.committed.framerateMode) : ""
+                    changed: pg.draft && pg.committed ? pg.draft.framerateMode !== pg.committed.framerateMode : false
+                    controlWidth: 124
+                    Seg {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        options: ["cfr", "vfr"]
+                        current: pg.draft ? String(pg.draft.framerateMode) : ""
+                        onChose: (k) => pg.edit("framerateMode", k)
                     }
-                    Cell {
-                        width: pg.span(Spans.of("seg", 4), col.width)
-                        height: Tokens.cellH
-                        controlWidth: Spans.inlineWidth("seg", 4, width)
-                        label: I18n.tr("Quality")
-                        desc: I18n.tr("Higher settings look crisper but make larger files.")
-                        source: "recording.json"
-                        value: pg.draft ? String(pg.draft.quality) : ""
-                        def: pg.committed ? String(pg.committed.quality) : ""
-                        changed: pg.draft && pg.committed ? pg.draft.quality !== pg.committed.quality : false
-                        Seg {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            options: ["medium", "high", "very_high", "ultra"]
-                            current: pg.draft ? String(pg.draft.quality) : ""
-                            onChose: (k) => pg.edit("quality", k)
-                        }
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    block: true
+                    label: I18n.tr("Quality")
+                    desc: I18n.tr("Higher settings look crisper but make larger files.")
+                    source: "recording.json"
+                    def: pg.committed ? String(pg.committed.quality) : ""
+                    changed: pg.draft && pg.committed ? pg.draft.quality !== pg.committed.quality : false
+                    Seg {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["medium", "high", "very_high", "ultra"]
+                        current: pg.draft ? String(pg.draft.quality) : ""
+                        onChose: (k) => pg.edit("quality", k)
                     }
-                    Cell {
-                        width: pg.span(Spans.of("seg", 3), col.width)
-                        height: Tokens.cellH
-                        controlWidth: Spans.inlineWidth("seg", 3, width)
-                        label: I18n.tr("Codec")
-                        desc: I18n.tr("H.264 plays anywhere; HEVC and AV1 are crisper, AV1 needs a newer GPU.")
-                        source: "recording.json"
-                        value: pg.draft ? String(pg.draft.codec) : ""
-                        def: pg.committed ? String(pg.committed.codec) : ""
-                        changed: pg.draft && pg.committed ? pg.draft.codec !== pg.committed.codec : false
-                        Seg {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            options: ["h264", "hevc", "av1"]
-                            current: pg.draft ? String(pg.draft.codec) : ""
-                            onChose: (k) => pg.edit("codec", k)
-                        }
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    block: true
+                    label: I18n.tr("Codec")
+                    desc: I18n.tr("H.264 plays anywhere; HEVC and AV1 are crisper, AV1 needs a newer GPU.")
+                    source: "recording.json"
+                    def: pg.committed ? String(pg.committed.codec) : ""
+                    changed: pg.draft && pg.committed ? pg.draft.codec !== pg.committed.codec : false
+                    Seg {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["h264", "hevc", "av1"]
+                        current: pg.draft ? String(pg.draft.codec) : ""
+                        onChose: (k) => pg.edit("codec", k)
                     }
                 }
             }
 
-            // ── ENCODER ──────────────────────────────────────────────────────
-            Column {
+            SettingCard {
                 width: col.width
-                spacing: Tokens.s3
-
-                Item {
-                    width: parent.width; height: 16
-                    Row {
-                        id: eHdr
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        spacing: Tokens.s2
-                        Rectangle { width: 4; height: 4; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
-                        Text {
-                            text: I18n.tr("ENCODER"); color: Tokens.ink; font.family: Tokens.ui
-                            font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
-                            font.letterSpacing: Tokens.trackMark
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                    Rectangle {
-                        anchors.left: eHdr.right; anchors.leftMargin: Tokens.s3
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        height: 1; color: Tokens.lineSoft
-                    }
-                }
+                title: I18n.tr("ENCODER")
                 Text {
                     width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s1
                     text: I18n.tr("GPU encoding is fast and barely touches your CPU. CPU is a fallback if the GPU encoder misbehaves.")
                     color: Tokens.inkMuted; font.family: Tokens.ui
                     font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
                 }
-
-                Flow {
-                    width: parent.width
-                    spacing: Tokens.s2
-
-                    Cell {
-                        width: pg.span(Spans.of("seg", 2), col.width)
-                        height: Tokens.cellH
-                        controlWidth: Spans.inlineWidth("seg", 2, width)
-                        label: I18n.tr("Encoder")
-                        desc: I18n.tr("GPU encoding barely loads the CPU; pick CPU if the GPU encoder fails.")
-                        source: "recording.json"
-                        value: pg.draft ? String(pg.draft.encoder) : ""
-                        def: pg.committed ? String(pg.committed.encoder) : ""
-                        changed: pg.draft && pg.committed ? pg.draft.encoder !== pg.committed.encoder : false
-                        Seg {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            options: ["gpu", "cpu"]
-                            current: pg.draft ? String(pg.draft.encoder) : ""
-                            onChose: (k) => pg.edit("encoder", k)
-                        }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Encoder")
+                    desc: I18n.tr("GPU encoding barely loads the CPU; pick CPU if the GPU encoder fails.")
+                    source: "recording.json"
+                    def: pg.committed ? String(pg.committed.encoder) : ""
+                    changed: pg.draft && pg.committed ? pg.draft.encoder !== pg.committed.encoder : false
+                    controlWidth: 124
+                    Seg {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        options: ["gpu", "cpu"]
+                        current: pg.draft ? String(pg.draft.encoder) : ""
+                        onChose: (k) => pg.edit("encoder", k)
                     }
-                    Cell {
-                        width: pg.span(Spans.of("sw", 0), col.width)
-                        height: Tokens.cellH
-                        controlWidth: Spans.inlineWidth("sw", 0, width)
-                        label: I18n.tr("Show the cursor")
-                        desc: I18n.tr("The mouse pointer is drawn into the video when on, hidden when off.")
-                        source: "recording.json"
-                        value: pg.draft ? (pg.draft.cursor ? "ON" : "OFF") : ""
-                        def: pg.committed ? (pg.committed.cursor ? "ON" : "OFF") : ""
-                        changed: pg.draft && pg.committed ? pg.draft.cursor !== pg.committed.cursor : false
-                        Sw {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            on: pg.draft ? !!pg.draft.cursor : false
-                            onToggled: (v) => pg.edit("cursor", v)
-                        }
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Show the cursor")
+                    desc: I18n.tr("The mouse pointer is drawn into the video when on, hidden when off.")
+                    source: "recording.json"
+                    changed: pg.draft && pg.committed ? pg.draft.cursor !== pg.committed.cursor : false
+                    controlWidth: 54
+                    Sw {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        on: pg.draft ? !!pg.draft.cursor : false
+                        onToggled: (v) => pg.edit("cursor", v)
                     }
-                    // Where every recording lands. One directory: the deck's list
-                    // reads this key, the recorder writes into it, and Ryoku Motion
-                    // is pointed at it too. Empty follows XDG_VIDEOS_DIR.
-                    Cell {
-                        width: parent.width
-                        height: Tokens.cellH
-                        controlWidth: Math.min(420, width * 0.5)
-                        label: I18n.tr("Save recordings to")
-                        desc: I18n.tr("Every recording lands here, the editor included. Leave it empty to follow your Videos folder.")
-                        source: "recording.json"
-                        value: pg.draft ? (String(pg.draft.directory) || pg.defaultDir) : ""
-                        def: pg.committed ? (String(pg.committed.directory) || pg.defaultDir) : ""
-                        changed: pg.draft && pg.committed ? pg.draft.directory !== pg.committed.directory : false
-                        Field {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            width: Math.min(420, parent.width * 0.5)
-                            tabular: true
-                            placeholder: pg.defaultDir
-                            text: pg.draft ? String(pg.draft.directory) : ""
-                            onCommitted: (v) => pg.edit("directory", v.trim())
-                        }
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    footH: 32
+                    label: I18n.tr("Save recordings to")
+                    desc: I18n.tr("Every recording lands here, the editor included. Leave it empty to follow your Videos folder.")
+                    source: "recording.json"
+                    changed: pg.draft && pg.committed ? pg.draft.directory !== pg.committed.directory : false
+                    Field {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        tabular: true
+                        placeholder: pg.defaultDir
+                        text: pg.draft ? String(pg.draft.directory) : ""
+                        onCommitted: (v) => pg.edit("directory", v.trim())
                     }
                 }
             }
 
-            // ── UNDER THE HOOD: the live backend/encoder readout (not a setting) ──
-            Column {
+            SettingCard {
                 width: col.width
-                spacing: Tokens.s3
-
-                Item {
-                    width: parent.width; height: 16
-                    Row {
-                        id: uHdr
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        spacing: Tokens.s2
-                        Rectangle { width: 4; height: 4; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
-                        Text {
-                            text: I18n.tr("UNDER THE HOOD"); color: Tokens.ink; font.family: Tokens.ui
-                            font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
-                            font.letterSpacing: Tokens.trackMark
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                    Rectangle {
-                        anchors.left: uHdr.right; anchors.leftMargin: Tokens.s3
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        height: 1; color: Tokens.lineSoft
-                    }
-                }
+                title: I18n.tr("UNDER THE HOOD")
                 Text {
                     width: parent.width
-                    text: I18n.tr("What the recorder resolves for this machine right now.")
-                    color: Tokens.inkMuted; font.family: Tokens.ui
-                    font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
-                }
-
-                // machine-said strings (backend name, encoder, container spec) are
-                // file-truth, so mono (DESIGN.md section 2). The Container line is
-                // half fixed (MP4), half live-bound to the draft, so it re-renders
-                // as the user turns the controls above.
-                Text {
-                    width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s2
                     wrapMode: Text.WordWrap
                     text: pg.infoBackend === ""
                         ? I18n.tr("Detecting\u2026")

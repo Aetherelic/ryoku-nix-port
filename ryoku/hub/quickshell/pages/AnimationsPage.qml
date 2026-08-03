@@ -542,42 +542,54 @@ Item {
             width: flick.width - Tokens.s4
             spacing: Tokens.s5
 
-            // MOTION
-            Section {
-                id: gsec
+            // MOTION -- the global motion switch plus the bespoke curve workshop
+            SettingCard {
                 width: col.width
                 title: I18n.tr("MOTION")
                 visible: pg.gVisible || pg.cVisible
 
-                Column {
-                    width: parent.width
-                    spacing: Tokens.s4
+                // the one genuine setting: the master switch for desktop motion
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    visible: pg.hit("animations master switch desktop motion")
+                    label: I18n.tr("Animations")
+                    desc: I18n.tr("Master switch for desktop motion; off, everything snaps into place")
+                    def: pg.cv("appearance.animations") ? "ON" : "OFF"
+                    changed: pg.chg("appearance.animations")
+                    source: "settings.lua"
+                    controlWidth: 54
+                    Sw {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        on: !!pg.hv("appearance.animations")
+                        onToggled: (v) => pg.he("appearance.animations", v)
+                    }
+                }
 
-                    // master switch + curve selector fill the top row
-                    Row {
-                        width: parent.width
-                        spacing: Tokens.s3
-                        Cell {
-                            id: swCell
-                            width: gsec.span(Spans.of("sw", 0))
-                            controlWidth: 54
-                            visible: pg.hit("animations master switch desktop motion")
-                            label: I18n.tr("Animations")
-                            desc: I18n.tr("Master switch for desktop motion; off, everything snaps into place")
-                            unit: ""
-                            value: pg.hv("appearance.animations") ? "ON" : "OFF"
-                            def: pg.cv("appearance.animations") ? "ON" : "OFF"
-                            changed: pg.chg("appearance.animations")
-                            source: "settings.lua"
-                            Sw {
-                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                on: !!pg.hv("appearance.animations")
-                                onToggled: (v) => pg.he("appearance.animations", v)
-                            }
-                        }
+                // the curve workshop -- bespoke: curve select + NEW/DELETE, one-tap
+                // feels, the live motion preview, and the cubic-bezier editor with
+                // its readouts and decor. Kept intact from the original MOTION group.
+                Item {
+                    width: parent.width
+                    height: workshop.height + 2 * Tokens.s4
+
+                    // hairline off the switch row above (only while it is shown)
+                    Rectangle {
+                        visible: pg.hit("animations master switch desktop motion")
+                        anchors { left: parent.left; right: parent.right; top: parent.top }
+                        anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4
+                        height: 1; color: Tokens.lineSoft
+                    }
+
+                    Column {
+                        id: workshop
+                        anchors { left: parent.left; right: parent.right; top: parent.top }
+                        anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s4
+                        spacing: Tokens.s4
+
+                        // curve selector + NEW / DELETE-RESET
                         Item {
-                            width: parent.width - swCell.width - Tokens.s3
-                            height: swCell.height
+                            width: parent.width
+                            height: Tokens.ctlH
                             MiniPick {
                                 id: curveSel
                                 anchors.left: parent.left
@@ -607,111 +619,111 @@ Item {
                                 onAct: pg.resetCurve(pg.selectedCurve)
                             }
                         }
-                    }
 
-                    // one-tap feels -- a starting point, friendlier than handles
-                    Item {
-                        width: parent.width
-                        height: Tokens.ctlH
-                        Text {
-                            id: feelLabel
-                            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                            text: I18n.tr("FEEL"); color: Tokens.inkFaint
-                            font.family: Tokens.mono; font.pixelSize: Tokens.fMicro; font.letterSpacing: Tokens.trackMark
-                        }
-                        Row {
-                            anchors { left: feelLabel.right; leftMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
-                            spacing: Tokens.s2
-                            Repeater {
-                                model: pg.feels
-                                delegate: Rectangle {
-                                    id: chip
-                                    required property var modelData
-                                    readonly property bool active: pg.feelActive(chip.modelData.c)
-                                    width: chipT.implicitWidth + Tokens.s4; height: Tokens.ctlH
-                                    radius: Tokens.radius
-                                    color: chip.active ? Tokens.bone : (chh.hovered ? Tokens.tint10 : "transparent")
-                                    border.width: Tokens.border
-                                    border.color: chip.active ? Tokens.bone : (chh.hovered ? Tokens.lineStrong : Tokens.line)
-                                    Behavior on color { ColorAnimation { duration: Tokens.snap } }
-                                    Text {
-                                        id: chipT
-                                        anchors.centerIn: parent
-                                        text: chip.modelData.name
-                                        color: chip.active ? Tokens.inkOnBone : Tokens.inkDim
-                                        font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                        // one-tap feels -- a starting point, friendlier than handles
+                        Item {
+                            width: parent.width
+                            height: Tokens.ctlH
+                            Text {
+                                id: feelLabel
+                                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                                text: I18n.tr("FEEL"); color: Tokens.inkFaint
+                                font.family: Tokens.mono; font.pixelSize: Tokens.fMicro; font.letterSpacing: Tokens.trackMark
+                            }
+                            Row {
+                                anchors { left: feelLabel.right; leftMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                                spacing: Tokens.s2
+                                Repeater {
+                                    model: pg.feels
+                                    delegate: Rectangle {
+                                        id: chip
+                                        required property var modelData
+                                        readonly property bool active: pg.feelActive(chip.modelData.c)
+                                        width: chipT.implicitWidth + Tokens.s4; height: Tokens.ctlH
+                                        radius: Tokens.radius
+                                        color: chip.active ? Tokens.bone : (chh.hovered ? Tokens.tint10 : "transparent")
+                                        border.width: Tokens.border
+                                        border.color: chip.active ? Tokens.bone : (chh.hovered ? Tokens.lineStrong : Tokens.line)
+                                        Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                                        Text {
+                                            id: chipT
+                                            anchors.centerIn: parent
+                                            text: chip.modelData.name
+                                            color: chip.active ? Tokens.inkOnBone : Tokens.inkDim
+                                            font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                        }
+                                        HoverHandler { id: chh; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: pg.upsertCurve(pg.selectedCurve, chip.modelData.c[0], chip.modelData.c[1], chip.modelData.c[2], chip.modelData.c[3]) }
                                     }
-                                    HoverHandler { id: chh; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler { onTapped: pg.upsertCurve(pg.selectedCurve, chip.modelData.c[0], chip.modelData.c[1], chip.modelData.c[2], chip.modelData.c[3]) }
                                 }
                             }
+                            Text {
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                text: I18n.tr("a one-tap starting point"); color: Tokens.inkFaint
+                                font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
+                            }
                         }
-                        Text {
-                            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                            text: I18n.tr("a one-tap starting point"); color: Tokens.inkFaint
-                            font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
-                        }
-                    }
 
-                    // the selected curve, felt -- sits between its controls
-                    MotionPreview {
-                        width: parent.width
-                        label: pg.selectedCurve
-                        x0: pg.curveOf(pg.selectedCurve).x0
-                        y0: pg.curveOf(pg.selectedCurve).y0
-                        x1: pg.curveOf(pg.selectedCurve).x1
-                        y1: pg.curveOf(pg.selectedCurve).y1
-                    }
-
-                    // editor + readouts
-                    Row {
-                        width: parent.width
-                        spacing: Tokens.s5
-
-                        BezierEditor {
-                            id: bez
-                            width: 300
-                            height: 280
+                        // the selected curve, felt -- sits between its controls
+                        MotionPreview {
+                            width: parent.width
+                            label: pg.selectedCurve
                             x0: pg.curveOf(pg.selectedCurve).x0
                             y0: pg.curveOf(pg.selectedCurve).y0
                             x1: pg.curveOf(pg.selectedCurve).x1
                             y1: pg.curveOf(pg.selectedCurve).y1
-                            onChanged: (a, b, c, d) => pg.upsertCurve(pg.selectedCurve, a, b, c, d)
                         }
 
-                        Column {
-                            id: readouts
-                            width: 220
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: Tokens.s3
+                        // editor + readouts + decor
+                        Row {
+                            width: parent.width
+                            spacing: Tokens.s5
 
-                            Text { text: I18n.tr("Fine-tune the handles."); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
-                            Text { text: I18n.tr("P1   ") + bez.x0.toFixed(2) + ", " + bez.y0.toFixed(2); color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: Tokens.fSmall }
-                            Text { text: I18n.tr("P2   ") + bez.x1.toFixed(2) + ", " + bez.y1.toFixed(2); color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: Tokens.fSmall }
-                            Text {
-                                width: 200
-                                text: I18n.tr("Presets set the shape; drag to fine-tune. Curves are shared by name, and Advanced animations reference them.")
-                                color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                            BezierEditor {
+                                id: bez
+                                width: 300
+                                height: 280
+                                x0: pg.curveOf(pg.selectedCurve).x0
+                                y0: pg.curveOf(pg.selectedCurve).y0
+                                x1: pg.curveOf(pg.selectedCurve).x1
+                                y1: pg.curveOf(pg.selectedCurve).y1
+                                onChanged: (a, b, c, d) => pg.upsertCurve(pg.selectedCurve, a, b, c, d)
                             }
-                        }
-                        Decor {
-                            id: motionDecor
-                            width: parent.width - bez.width - readouts.width - 2 * Tokens.s5
-                            height: bez.height
-                            images: ["bounce.gif", "cradle.gif", "horse.gif", "disc.gif", "earth.gif"]
-                            seed: 0
-                            title: "\u6ed1\u3089\u304b"
-                            sub: "\u30a4\u30fc\u30ba"
-                            tate: "\u306a\u3081\u3089\u304b\u306b"
-                            caption: I18n.tr("Every motion here rides an easing curve, so nothing on the desktop just snaps into place.")
-                            code: "MOVE-02"; seal: "\u52d5"; boxId: "anim.motion"
+
+                            Column {
+                                id: readouts
+                                width: 220
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: Tokens.s3
+
+                                Text { text: I18n.tr("Fine-tune the handles."); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                Text { text: I18n.tr("P1   ") + bez.x0.toFixed(2) + ", " + bez.y0.toFixed(2); color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: Tokens.fSmall }
+                                Text { text: I18n.tr("P2   ") + bez.x1.toFixed(2) + ", " + bez.y1.toFixed(2); color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: Tokens.fSmall }
+                                Text {
+                                    width: 200
+                                    text: I18n.tr("Presets set the shape; drag to fine-tune. Curves are shared by name, and Advanced animations reference them.")
+                                    color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                                }
+                            }
+                            Decor {
+                                id: motionDecor
+                                width: parent.width - bez.width - readouts.width - 2 * Tokens.s5
+                                height: bez.height
+                                images: ["bounce.gif", "cradle.gif", "horse.gif", "disc.gif", "earth.gif"]
+                                seed: 0
+                                title: "\u6ed1\u3089\u304b"
+                                sub: "\u30a4\u30fc\u30ba"
+                                tate: "\u306a\u3081\u3089\u304b\u306b"
+                                caption: I18n.tr("Every motion here rides an easing curve, so nothing on the desktop just snaps into place.")
+                                code: "MOVE-02"; seal: "\u52d5"; boxId: "anim.motion"
+                            }
                         }
                     }
                 }
             }
 
             // FOCUS FLASH
-            Section {
+            SettingCard {
                 id: fsec
                 width: col.width
                 title: I18n.tr("FOCUS FLASH")
@@ -720,44 +732,55 @@ Item {
                 readonly property bool ffOn: !!pg.hv("plugins.hyprfocus.enabled")
                 readonly property string ffMode: String(pg.hv("plugins.hyprfocus.mode"))
 
-                Cell {
-                    width: fsec.span(Spans.of("sw", 0))
-                    controlWidth: 54
+                // group note, shown once the effect is on (was the trailing blurb)
+                Text {
+                    width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s1
+                    visible: fsec.ffOn
+                    text: I18n.tr("Briefly flashes, bounces, or slides a window when it gains focus. Applies on Save.")
+                    color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                }
+
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: fsec.ffOn
                     visible: pg.hit("animate the focused window enabled")
                     label: I18n.tr("Animate the focused window")
                     desc: I18n.tr("Short effect on the window that takes focus; applies on Save only")
-                    value: fsec.ffOn ? "ON" : "OFF"
                     def: pg.cv("plugins.hyprfocus.enabled") ? "ON" : "OFF"
                     changed: pg.chg("plugins.hyprfocus.enabled")
                     source: "settings.lua"
+                    controlWidth: 54
                     Sw {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         on: fsec.ffOn
                         onToggled: (v) => pg.he("plugins.hyprfocus.enabled", v)
                     }
                 }
-                Cell {
-                    width: fsec.span(Spans.of("seg", 3))
-                    controlWidth: 52 * 3
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    block: true
                     visible: fsec.ffOn && pg.hit("style flash bounce slide")
                     label: I18n.tr("Style")
                     desc: I18n.tr("Flash dips opacity, Bounce shrinks and springs, Slide nudges it")
-                    value: pg.cap(fsec.ffMode)
                     def: pg.cap(String(pg.cv("plugins.hyprfocus.mode")))
                     changed: pg.chg("plugins.hyprfocus.mode")
                     source: "settings.lua"
                     Seg {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
                         options: ["flash", "bounce", "slide"]
                         current: fsec.ffMode
                         onChose: (k) => pg.he("plugins.hyprfocus.mode", k)
                     }
                 }
-                // opacity/bounce are fractional (0..1); the module Slid is
-                // integer, so map to a 0..100 percent domain and store /100.
-                Cell {
-                    width: parent.width
-                    controlWidth: Math.round(width * 0.42)
+                // opacity/bounce are fractional (0..1); the module Slid is integer,
+                // so map to a 0..100 percent domain and store /100.
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
                     visible: fsec.ffOn && fsec.ffMode === "flash" && pg.hit("flash opacity")
                     label: I18n.tr("Flash opacity")
                     desc: I18n.tr("Opacity the flash dips to, lower is deeper; Flash style only")
@@ -766,17 +789,17 @@ Item {
                     def: String(Math.round((Number(pg.cv("plugins.hyprfocus.opacity")) || 0) * 100))
                     changed: pg.chg("plugins.hyprfocus.opacity")
                     source: "settings.lua"
+                    controlWidth: Math.min(240, Math.max(160, Math.round(fsec.width * 0.34)))
                     Slid {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width
+                        anchors.fill: parent
                         from: 0; to: 100
                         value: Math.round((Number(pg.hv("plugins.hyprfocus.opacity")) || 0) * 100)
                         onModified: (v) => pg.he("plugins.hyprfocus.opacity", v / 100)
                     }
                 }
-                Cell {
-                    width: parent.width
-                    controlWidth: Math.round(width * 0.42)
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
                     visible: fsec.ffOn && fsec.ffMode === "bounce" && pg.hit("bounce strength")
                     label: I18n.tr("Bounce strength")
                     desc: I18n.tr("Scale the window shrinks to, lower bounces harder; Bounce style only")
@@ -785,17 +808,17 @@ Item {
                     def: String(Math.round((Number(pg.cv("plugins.hyprfocus.bounce")) || 0) * 100))
                     changed: pg.chg("plugins.hyprfocus.bounce")
                     source: "settings.lua"
+                    controlWidth: Math.min(240, Math.max(160, Math.round(fsec.width * 0.34)))
                     Slid {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width
+                        anchors.fill: parent
                         from: 50; to: 100
                         value: Math.round((Number(pg.hv("plugins.hyprfocus.bounce")) || 0) * 100)
                         onModified: (v) => pg.he("plugins.hyprfocus.bounce", v / 100)
                     }
                 }
-                Cell {
-                    width: parent.width
-                    controlWidth: 58
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
                     visible: fsec.ffOn && fsec.ffMode === "slide" && pg.hit("slide height")
                     label: I18n.tr("Slide height")
                     desc: I18n.tr("How far the window hops, in pixels; Slide style only")
@@ -804,6 +827,7 @@ Item {
                     def: String(Math.round(Number(pg.cv("plugins.hyprfocus.slide")) || 0))
                     changed: pg.chg("plugins.hyprfocus.slide")
                     source: "settings.lua"
+                    controlWidth: 58
                     Step {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         from: 0; to: 150
@@ -811,100 +835,102 @@ Item {
                         onModified: (v) => pg.he("plugins.hyprfocus.slide", v)
                     }
                 }
-                Text {
-                    width: parent.width
-                    visible: fsec.ffOn
-                    text: I18n.tr("Briefly flashes, bounces, or slides a window when it gains focus. Applies on Save.")
-                    color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
-                }
             }
 
-            // ANIMATIONS
-            Section {
-                id: asec
+            // ADVANCED -- per-animation control; the leaf table is a bespoke list
+            SettingCard {
                 width: col.width
                 title: I18n.tr("ADVANCED")
                 visible: pg.aVisible
 
-                Column {
-                    id: animList
+                Text {
                     width: parent.width
-                    spacing: Tokens.s2
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s1
+                    text: I18n.tr("Per-animation control, for when a feel isn't enough. Each row is one desktop animation: turn it off, change its speed, its curve, or its style.")
+                    color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                }
 
-                    Text {
-                        width: parent.width
-                        text: I18n.tr("Per-animation control, for when a feel isn't enough. Each row is one desktop animation: turn it off, change its speed, its curve, or its style.")
-                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
-                    }
+                Text {
+                    width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4; bottomPadding: Tokens.s3
+                    visible: pg.liveAnims.length === 0
+                    text: I18n.tr("No tunable animations reported.")
+                    color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                }
 
-                    Text {
-                        visible: pg.liveAnims.length === 0
-                        text: I18n.tr("No tunable animations reported.")
-                        color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                    }
+                // one flat drawer row per tunable leaf: name, then its four controls
+                // (enable, speed, style, curve). A bespoke multi-control list, so not
+                // a SettingRow, but styled to sit in the drawer.
+                Repeater {
+                    model: pg.liveAnims
+                    delegate: Item {
+                        id: ar
+                        required property var modelData
+                        readonly property string leaf: modelData.name
+                        readonly property var it: pg.itemOf(ar.leaf)
+                        readonly property var styleOpts: pg.styleOptionsFor(ar.leaf)
+                        readonly property bool on: !!ar.it.enabled
 
-                    Repeater {
-                        model: pg.liveAnims
-                        delegate: Rectangle {
-                            id: ar
-                            required property var modelData
-                            readonly property string leaf: modelData.name
-                            readonly property var it: pg.itemOf(ar.leaf)
-                            readonly property var styleOpts: pg.styleOptionsFor(ar.leaf)
-                            readonly property bool on: !!ar.it.enabled
+                        anchors.left: parent.left; anchors.right: parent.right
+                        height: Tokens.rowH
+                        visible: pg.hit(ar.leaf)
 
-                            width: animList.width
-                            height: Tokens.rowH
-                            visible: pg.hit(ar.leaf)
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: 1
                             radius: Tokens.radius
                             color: arh.hovered ? Tokens.tint5 : "transparent"
-                            border.width: Tokens.border
-                            border.color: arh.hovered ? Tokens.lineStrong : Tokens.line
                             Behavior on color { ColorAnimation { duration: Tokens.snap } }
-                            HoverHandler { id: arh }
+                        }
+                        Rectangle {
+                            anchors { left: parent.left; right: parent.right; top: parent.top }
+                            anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4
+                            height: 1; color: Tokens.lineSoft
+                        }
+                        HoverHandler { id: arh }
 
-                            Text {
-                                anchors { left: parent.left; leftMargin: Tokens.s4; right: ctl.left; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
-                                text: ar.leaf
-                                elide: Text.ElideRight
-                                color: ar.on ? Tokens.ink : Tokens.inkFaint
-                                font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.Medium
+                        Text {
+                            anchors { left: parent.left; leftMargin: Tokens.s4; right: ctl.left; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                            text: ar.leaf
+                            elide: Text.ElideRight
+                            color: ar.on ? Tokens.ink : Tokens.inkFaint
+                            font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.Medium
+                        }
+                        Row {
+                            id: ctl
+                            anchors { right: parent.right; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                            spacing: Tokens.s3
+
+                            Sw {
+                                anchors.verticalCenter: parent.verticalCenter
+                                on: ar.on
+                                onToggled: (v) => pg.upsertItem(ar.leaf, "enabled", v)
                             }
-                            Row {
-                                id: ctl
-                                anchors { right: parent.right; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
-                                spacing: Tokens.s3
-
-                                Sw {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    on: ar.on
-                                    onToggled: (v) => pg.upsertItem(ar.leaf, "enabled", v)
-                                }
-                                NumStep {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    value: Number(ar.it.speed) || 0
-                                    min: 0.1; max: 10
-                                    onChanged: (v) => pg.upsertItem(ar.leaf, "speed", v)
-                                }
-                                MiniPick {
-                                    id: styleP
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    visible: ar.styleOpts.length > 0
-                                    heading: I18n.tr("Style"); ph: "style"
-                                    opts: ar.styleOpts
-                                    current: String(ar.it.style || "")
-                                    onActivated: pg.openPicker("Style", styleP.opts, styleP.current, function (k) { styleP.picked(k); })
-                                    onPicked: (k) => pg.upsertItem(ar.leaf, "style", k)
-                                }
-                                MiniPick {
-                                    id: bezP
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    heading: I18n.tr("Curve"); ph: "curve"
-                                    opts: pg.curveNames()
-                                    current: String(ar.it.bezier || "")
-                                    onActivated: pg.openPicker("Curve", bezP.opts, bezP.current, function (k) { bezP.picked(k); })
-                                    onPicked: (k) => pg.upsertItem(ar.leaf, "bezier", k)
-                                }
+                            NumStep {
+                                anchors.verticalCenter: parent.verticalCenter
+                                value: Number(ar.it.speed) || 0
+                                min: 0.1; max: 10
+                                onChanged: (v) => pg.upsertItem(ar.leaf, "speed", v)
+                            }
+                            MiniPick {
+                                id: styleP
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: ar.styleOpts.length > 0
+                                heading: I18n.tr("Style"); ph: "style"
+                                opts: ar.styleOpts
+                                current: String(ar.it.style || "")
+                                onActivated: pg.openPicker("Style", styleP.opts, styleP.current, function (k) { styleP.picked(k); })
+                                onPicked: (k) => pg.upsertItem(ar.leaf, "style", k)
+                            }
+                            MiniPick {
+                                id: bezP
+                                anchors.verticalCenter: parent.verticalCenter
+                                heading: I18n.tr("Curve"); ph: "curve"
+                                opts: pg.curveNames()
+                                current: String(ar.it.bezier || "")
+                                onActivated: pg.openPicker("Curve", bezP.opts, bezP.current, function (k) { bezP.picked(k); })
+                                onPicked: (k) => pg.upsertItem(ar.leaf, "bezier", k)
                             }
                         }
                     }

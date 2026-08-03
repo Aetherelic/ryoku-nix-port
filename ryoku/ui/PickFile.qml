@@ -16,6 +16,9 @@ Item {
     id: fp
     property bool active: false
     property bool foldersOnly: false
+    // override the image glob for non-image pickers (e.g. ["*.svg"], ["*.txt"],
+    // ["*.ryoprofile"]); empty keeps the default image set (png/jpg/webp/gif/svg).
+    property var fileFilters: []
     property string title: "Choose a file"
     property string home: Quickshell.env("HOME") || ""
     property url startFolder: "file://" + fp.home + "/Pictures"
@@ -37,7 +40,8 @@ Item {
         showDirsFirst: true
         showDotAndDotDot: false
         showHidden: false
-        nameFilters: fp.foldersOnly ? ["ryoku-no-match"] : ["*.png", "*.jpg", "*.jpeg", "*.bmp"]
+        nameFilters: fp.foldersOnly ? ["ryoku-no-match"]
+            : (fp.fileFilters.length ? fp.fileFilters : ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.webp", "*.gif", "*.svg"])
         sortField: FolderListModel.Name
     }
 
@@ -110,6 +114,7 @@ Item {
                 required property string fileName
                 required property url fileUrl
                 required property bool fileIsDir
+                readonly property bool isImg: /\.(png|jpe?g|bmp|webp|gif|svg)$/i.test(fpTile.fileName)
                 width: fpGrid.cellWidth
                 height: fpGrid.cellHeight
 
@@ -144,9 +149,33 @@ Item {
                             font.pixelSize: Tokens.fTiny
                         }
                     }
+                    // a non-image file (an ascii art, a .ryoprofile): a doc tile
+                    // rather than a broken thumbnail, so PickFile serves every
+                    // pick coherently, not just images.
+                    Column {
+                        visible: !fpTile.fileIsDir && !fpTile.isImg
+                        anchors.centerIn: parent
+                        spacing: Tokens.s2
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "\uf15b"
+                            color: Tokens.inkMuted
+                            font.family: Tokens.mono
+                            font.pixelSize: 20
+                        }
+                        Text {
+                            width: fpTile.width - Tokens.s5
+                            horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideMiddle
+                            text: fpTile.fileName
+                            color: Tokens.inkDim
+                            font.family: Tokens.ui
+                            font.pixelSize: Tokens.fTiny
+                        }
+                    }
 
                     Image {
-                        visible: !fpTile.fileIsDir
+                        visible: !fpTile.fileIsDir && fpTile.isImg
                         anchors.fill: parent
                         anchors.margins: 1
                         asynchronous: true

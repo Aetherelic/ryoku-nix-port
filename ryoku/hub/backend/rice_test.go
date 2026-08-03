@@ -693,3 +693,12 @@ func TestSetWallVideoAndImport(t *testing.T) {
 		t.Fatalf("imported rice does not load: %v", err)
 	}
 }
+
+func TestRunRiceRejectsStoreCommands(t *testing.T) {
+	for _, command := range []string{"catalog", "install"} {
+		err := runRice([]string{command})
+		if err == nil || !strings.Contains(err.Error(), "unknown rice subcommand") {
+			t.Fatalf("runRice(%q) = %v, want unknown rice subcommand", command, err)
+		}
+	}
+}

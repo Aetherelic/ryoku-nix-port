@@ -3,6 +3,62 @@
 ## Unreleased
 
 ### Added
+- **The desktop visualiser previews live.** The Visualiser subtab now leads with
+  a self-contained animated preview that retunes as you change the style
+  (bars, dots, line, wave, segments, radial, circle), position, shape, bar
+  count, thickness and height, so the look is visible without leaving Settings
+  (`quickshell/VizPreview.qml`, `quickshell/pages/DesktopPage.qml`).
+- **The Hyprland plugins gather in one place and auto-detect.** The compositor
+  plugins (title bars, liquid glass, image borders, plus enables for realistic
+  cursor motion and focus animation) were scattered across Look, Cursor and
+  Animations; they now gather into a new Windows > Plugins tab that lists only
+  the plugins whose .so is actually installed on the box
+  (`quickshell/schema/WindowsPage.js`, `quickshell/pages/WindowsPage.qml`).
+- **Search understands intent and forgives typos.** A curated synonym map lets a
+  typed word reach the vocabulary the index uses ("transparency" finds opacity,
+  "hotkey" finds keybinds, "screenshot" finds recording), and a bounded edit
+  distance still matches a near-miss like "trasparency". No model, just a
+  lexical layer sized to the settings vocabulary (`quickshell/Hub.qml`).
+- **Every file and image picker is the same paper-and-ink browser.** The native
+  Qt file dialog is gone from the hub: the decor/image chooser, the Fastfetch
+  logo and ASCII pickers, the hero-image picker, and profile export/import all
+  use the shared `PickFile`, which now carries per-picker filters and a doc tile
+  for non-image files (`ui/PickFile.qml`, `ui/Decor.qml`,
+  `quickshell/pages/FastfetchPage.qml`, `quickshell/pages/HeroEditor.qml`,
+  `quickshell/pages/ProfilePage.qml`, `quickshell/pages/AddonsPage.qml`).
+- **Rows no longer collide with their control.** A changed inline row drew its
+  struck default and revert glyph in the same corner as the stepper or switch,
+  so they overlapped; the value, struck default and revert now sit in one
+  cluster to the control's left. Tabs and segmented controls also gained
+  breathing room so they read as distinct pills, not one fused strip
+  (`ui/SettingRow.qml`, `ui/Tabs.qml`, `ui/Seg.qml`).
+- **The hub reads as one instrument, not a wall of cards.** Every setting used
+  to be a 104px value-hero card packed into a bento grid, so a page of toggles
+  read as scattered tiles shouting ON/OFF. Each setting is now a compact row
+  (label and description on the left, the control on the right, or a full-width
+  band beneath for a segmented bar, chips, gallery or slider) grouped into
+  bordered, collapsible `SettingCard` drawers parted by hairlines. Two shared
+  primitives carry it, `SettingRow` and `SettingCard`; the schema pages and
+  every settings-grid page were ported to them (Appearance, Animations, Input,
+  GPU, Launcher, Displays, Recording, Performance, Bar Studio, Dictation), while
+  the bespoke surfaces (Connections lists, Keybinds capture, the displays
+  arrange canvas, previews and decor) were kept intact
+  (`ui/SettingRow.qml`, `ui/SettingCard.qml`, `quickshell/SettingsSheet.qml`,
+  `quickshell/SchemaPage.qml`, `quickshell/pages/*`).
+- **Search jumps to the setting.** Typing in the rail search now opens a results
+  card under the field, each hit showing its breadcrumb and the matched run
+  highlighted, instead of a cramped list crammed into the rail. Choosing a hit
+  navigates to its page, switches to the right tab, scrolls the exact control to
+  centre and flashes it; Enter takes the top hit and Escape clears. A changed
+  row also gains an inline reset on hover (`quickshell/Hub.qml`,
+  `quickshell/SettingsSheet.qml`, `ui/SettingRow.qml`).
+- **The at-rest write-ledger is gone and the space is reclaimed.** The 360px
+  right column drew a decorative torii poster whenever nothing was dirty, which
+  is most of the time; it is removed, the page takes the full width, and the
+  window narrowed to 1200px to suit. The pending diff moved into a "VIEW DIFF"
+  popover the action bar opens on demand, so the write ledger is one click away
+  when it matters and out of the way when it does not (`quickshell/Hub.qml`,
+  `quickshell/shell.qml`, `ui/ActionBar.qml`).
 - **Bar Studio picks the bar style and tunes it.** The Desktop page leads with a
   style picker, Sumi (the left rail) or Obi (the floating top bar), that swaps the
   running bar live. For Sumi it edits the frame and the left rail as before; for

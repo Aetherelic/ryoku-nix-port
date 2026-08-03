@@ -3,17 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 )
 
-// The ryoku-extras rice store browses, installs, and publishes rices. Catalogue
-// and install ownership moves to Ryostore in the next migration; authoring stays
-// here until that cutover.
+// Rice authoring stays in Ryoku Settings. Remote catalogue and install
+// ownership belongs exclusively to Ryostore.
 
 // riceStoreEntry mirrors one entry in ryoku-extras/rices/registry.json. text
 // (manifest, poster, palette, screenshots) is raw in-repo; the wallpaper and
@@ -41,157 +36,6 @@ type riceStoreEntry struct {
 type riceRegistry struct {
 	Version int              `json:"version"`
 	Rices   []riceStoreEntry `json:"rices"`
-}
-
-// riceCatalogItem is a store entry annotated for the Hub: absolute asset URLs,
-// compatibility vs the running Ryoku, and whether it is already installed.
-type riceCatalogItem struct {
-	riceStoreEntry
-	PosterURL string   `json:"posterUrl,omitempty"`
-	ShotURLs  []string `json:"shotUrls,omitempty"`
-	Compat    string   `json:"compat"`
-	Installed bool     `json:"installed"`
-}
-
-func parseRiceRegistry(raw []byte) ([]riceStoreEntry, error) {
-	var reg riceRegistry
-	if err := json.Unmarshal(raw, &reg); err != nil {
-		return nil, err
-	}
-	return reg.Rices, nil
-}
-
-// rawURL turns an in-repo path into an absolute raw URL; an already-absolute
-// URL (a Release asset) passes through.
-func rawURL(rel string) string {
-	if rel == "" {
-		return ""
-	}
-	if strings.HasPrefix(rel, "http://") || strings.HasPrefix(rel, "https://") {
-		return rel
-	}
-	return extrasBase() + "/" + strings.TrimLeft(rel, "/")
-}
-
-func catalogRices() ([]riceCatalogItem, error) {
-	raw, err := fetchOrCache("rices/registry.json")
-	if err != nil {
-		return nil, err
-	}
-	entries, err := parseRiceRegistry(raw)
-	if err != nil {
-		return nil, err
-	}
-	out := []riceCatalogItem{}
-	for _, e := range entries {
-		item := riceCatalogItem{
-			riceStoreEntry: e,
-			PosterURL:      rawURL(e.Poster),
-			Compat:         riceCompat(e.CreatedWith),
-			Installed:      isFile(ricePath(e.ID)),
-		}
-		for _, s := range e.Screenshots {
-			item.ShotURLs = append(item.ShotURLs, rawURL(s))
-		}
-		out = append(out, item)
-	}
-	return out, nil
-}
-
-// installRice downloads a store rice (manifest + palette + wallpaper + hero)
-// into ~/.config/ryoku/rices/<id>/, ready to apply or fork. install and apply
-// are separate so a rice can be previewed and forked before it changes anything.
-var riceDownloadClient = &http.Client{Timeout: 5 * time.Minute}
-
-func installRice(id string) error {
-	if !validRiceSlug(id) {
-		return fmt.Errorf("bad rice id %q", id)
-	}
-	raw, err := fetchOrCache("rices/registry.json")
-	if err != nil {
-		return err
-	}
-	entries, err := parseRiceRegistry(raw)
-	if err != nil {
-		return err
-	}
-	var e *riceStoreEntry
-	for i := range entries {
-		if entries[i].ID == id {
-			e = &entries[i]
-			break
-		}
-	}
-	if e == nil {
-		return fmt.Errorf("rice %q is not in the store", id)
-	}
-
-	dir := filepath.Join(ricesDir(), id)
-	manifestRel := e.Manifest
-	if manifestRel == "" {
-		manifestRel = "rices/" + id + "/rice.json"
-	}
-	mb, err := fetch(rawURL(manifestRel))
-	if err != nil {
-		return fmt.Errorf("fetch manifest: %w", err)
-	}
-	var r Rice
-	if err := json.Unmarshal(mb, &r); err != nil {
-		return fmt.Errorf("parse manifest: %w", err)
-	}
-	r.Slug = id
-	if err := saveRice(r); err != nil {
-		return err
-	}
-	if e.Palette != "" {
-		if pb, err := fetch(rawURL(e.Palette)); err == nil {
-			_ = atomicWrite(filepath.Join(dir, "palette.json"), pb, 0o644)
-		}
-	}
-	if e.Wallpaper != "" && r.Assets.Wallpaper != "" {
-		if err := downloadRiceFile(rawURL(e.Wallpaper), filepath.Join(dir, r.Assets.Wallpaper)); err != nil {
-			return fmt.Errorf("download wallpaper: %w", err)
-		}
-	}
-	if e.Hero != "" && r.Assets.Hero != "" {
-		if err := downloadRiceFile(rawURL(e.Hero), filepath.Join(dir, r.Assets.Hero)); err != nil {
-			return fmt.Errorf("download hero: %w", err)
-		}
-	}
-	return nil
-}
-
-func downloadRiceFile(url, dst string) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := riceDownloadClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s: %s", url, resp.Status)
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(dst), ".download-*")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	_, copyErr := io.Copy(tmp, resp.Body)
-	if copyErr != nil {
-		tmp.Close()
-		return copyErr
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpName, dst)
 }
 
 func extrasReleaseURL(asset string) string {

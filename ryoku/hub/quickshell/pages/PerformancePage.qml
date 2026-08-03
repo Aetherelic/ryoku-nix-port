@@ -309,8 +309,8 @@ Item {
         glyph: "column"; glyph2: "wave"
     }
 
-    // ── the switch grid: three meaning-groups, each a Section that flows its
-    // cells; every span comes from Spans.of(), so nothing here is hand-placed. ──
+    // ── the switch grid: three meaning-groups, each a SettingCard drawer that
+    // stacks its compact SettingRows; membership comes straight from the schema. ──
     Flickable {
         id: flick
         anchors {
@@ -333,7 +333,7 @@ Item {
             Repeater {
                 model: pg.groups
 
-                delegate: Section {
+                delegate: SettingCard {
                     id: sect
                     required property string modelData
                     width: col.width
@@ -342,17 +342,18 @@ Item {
                     Repeater {
                         model: pg.rowsIn(sect.modelData)
 
-                        delegate: Cell {
+                        delegate: SettingRow {
                             id: cell
                             required property var modelData
+                            required property int index
                             readonly property var r: cell.modelData
 
-                            width: sect.span(Spans.of("sw"))
-                            height: Tokens.cellH
-                            controlWidth: Spans.inlineWidth("sw", 0, width)
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            divider: cell.index > 0
+                            controlWidth: 54
                             label: I18n.tr(cell.r.label)
                             desc: I18n.tr(cell.r.desc)
-                            value: (pg.draft && pg.draft[cell.r.key]) ? "ON" : "OFF"
                             def: (pg.committed && pg.committed[cell.r.key]) ? "ON" : "OFF"
                             changed: !!(pg.draft && pg.committed) && pg.draft[cell.r.key] !== pg.committed[cell.r.key]
                             source: cell.r.src + ".json"

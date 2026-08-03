@@ -42,7 +42,7 @@ Item {
     Row {
         id: measure
         visible: false
-        spacing: 0
+        spacing: Tokens.s1
         Repeater {
             model: seg.options
             Item {
@@ -62,7 +62,7 @@ Item {
     Flow {
         id: flow
         width: seg.width
-        spacing: 0
+        spacing: Tokens.s1
         Repeater {
             model: seg.options
             Rectangle {

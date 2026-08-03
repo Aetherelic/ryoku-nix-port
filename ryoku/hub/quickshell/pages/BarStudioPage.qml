@@ -2,6 +2,8 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import Quickshell
+import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "../barstudio"
@@ -51,13 +53,34 @@ Item {
     readonly property var railWas: page.committedBars && page.committedBars.rails ? page.committedBars.rails[page.edge] : null
     readonly property bool horizontal: page.edge === "top" || page.edge === "bottom"
 
-    // Mirror of shell/quickshell/pill/barstyles/registry.js. The Hub runs as a
-    // separate process, so the style list is duplicated here; keep it in step.
-    readonly property var barStyles: [
-        { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink." },
-        { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces." },
-        { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands joined to the desktop frame." }
-    ]
+    property var barStyles: []
+
+    function browseBarStyles() {
+        Quickshell.execDetached(["ryostore", "open", "barstyles"]);
+    }
+
+    Process {
+        id: styleProc
+        command: ["ryostore", "catalog", "--category", "barstyles"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const catalog = JSON.parse(this.text || "{}");
+                    page.barStyles = (catalog.items || [])
+                        .filter(item => item.category === "barstyles" && item.installed === true)
+                        .map(item => ({
+                            id: item.id,
+                            name: item.name || item.id,
+                            desc: item.summary || item.description || "",
+                            active: item.active === true
+                        }));
+                } catch (e) {
+                    page.barStyles = [];
+                }
+            }
+        }
+    }
 
     // The Obi bar's widgets, for the per-widget show/hide toggles below. Mirrors
     // barstyles/obi/Scene.qml; Workspaces is the bar's identity and has no toggle.
@@ -202,58 +225,73 @@ Item {
             spacing: Tokens.s5
 
             // ── BAR STYLE: which bar the desktop draws ───────────────────────
-            Section {
+            SettingCard {
                 id: styleSect
                 width: col.width
                 title: qsTr("BAR STYLE")
 
-                Row {
-                    width: styleSect.width
-                    spacing: Tokens.s2
-                    Repeater {
-                        model: page.barStyles
-                        delegate: Rectangle {
-                            id: styleCard
-                            required property var modelData
-                            readonly property bool on: page.activeStyle === styleCard.modelData.id
+                Item {
+                    width: parent.width
+                    height: styleBody.height + Tokens.s3 + Tokens.s4
+                    Column {
+                        id: styleBody
+                        anchors { left: parent.left; right: parent.right; top: parent.top }
+                        anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s3
+                        spacing: Tokens.s3
+                        Row {
+                            id: styleRow
+                            width: parent.width
+                            spacing: Tokens.s2
+                            Repeater {
+                                model: page.barStyles
+                                delegate: Rectangle {
+                                    id: styleCard
+                                    required property var modelData
+                                    readonly property bool on: page.activeStyle === styleCard.modelData.id
 
-                            objectName: "bar-style-" + styleCard.modelData.id
-                            width: (styleSect.width - (page.barStyles.length - 1) * Tokens.s2) / page.barStyles.length
-                            height: 64
-                            radius: Tokens.radius
-                            color: styleCard.on ? Tokens.bone : (sma.containsMouse ? Tokens.tint5 : "transparent")
-                            border.width: Tokens.border
-                            border.color: styleCard.on ? Tokens.bone : Tokens.line
-                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                                    objectName: "bar-style-" + styleCard.modelData.id
+                                    width: (styleRow.width - (page.barStyles.length - 1) * Tokens.s2) / page.barStyles.length
+                                    height: 64
+                                    radius: Tokens.radius
+                                    color: styleCard.on ? Tokens.bone : (sma.containsMouse ? Tokens.tint5 : "transparent")
+                                    border.width: Tokens.border
+                                    border.color: styleCard.on ? Tokens.bone : Tokens.line
+                                    Behavior on color { ColorAnimation { duration: Tokens.snap } }
 
-                            Column {
-                                anchors { left: parent.left; right: parent.right; margins: Tokens.s3; verticalCenter: parent.verticalCenter }
-                                spacing: 3
-                                Text {
-                                    text: styleCard.modelData.name.toUpperCase()
-                                    color: styleCard.on ? Tokens.inkOnBone : Tokens.inkDim
-                                    font.family: Tokens.ui
-                                    font.pixelSize: 12
-                                    font.weight: Font.Medium
-                                    font.letterSpacing: Tokens.trackLabel
-                                }
-                                Text {
-                                    width: parent.width
-                                    text: styleCard.modelData.desc
-                                    color: styleCard.on ? Tokens.inkOnBoneDim : Tokens.inkFaint
-                                    font.family: Tokens.ui
-                                    font.pixelSize: Tokens.fTiny
-                                    elide: Text.ElideRight
+                                    Column {
+                                        anchors { left: parent.left; right: parent.right; margins: Tokens.s3; verticalCenter: parent.verticalCenter }
+                                        spacing: 3
+                                        Text {
+                                            text: styleCard.modelData.name.toUpperCase()
+                                            color: styleCard.on ? Tokens.inkOnBone : Tokens.inkDim
+                                            font.family: Tokens.ui
+                                            font.pixelSize: 12
+                                            font.weight: Font.Medium
+                                            font.letterSpacing: Tokens.trackLabel
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            text: styleCard.modelData.desc
+                                            color: styleCard.on ? Tokens.inkOnBoneDim : Tokens.inkFaint
+                                            font.family: Tokens.ui
+                                            font.pixelSize: Tokens.fTiny
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+                                    MouseArea {
+                                        id: sma
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        preventStealing: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: page.fedit("barStyle", styleCard.modelData.id)
+                                    }
                                 }
                             }
-                            MouseArea {
-                                id: sma
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                preventStealing: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: page.fedit("barStyle", styleCard.modelData.id)
-                            }
+                        }
+                        Btn {
+                            text: qsTr("BROWSE RYOSTORE")
+                            onAct: page.browseBarStyles()
                         }
                     }
                 }
@@ -261,14 +299,16 @@ Item {
 
             // A folder style owns its own frame, rails and widgets inside its
             // barstyles/<id>/ folder, so the Sumi editors below stand down.
-            Section {
+            SettingCard {
                 id: folderNote
                 width: col.width
                 visible: !page.sumiActive
                 title: qsTr("LAYOUT")
 
                 Text {
-                    width: folderNote.width
+                    width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s4
                     text: qsTr("The %1 style manages its own layout in barstyles/%2. Its controls are below.").arg(page.activeName).arg(page.activeStyle)
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
@@ -278,62 +318,66 @@ Item {
             }
 
             // OBI WIDGETS: show or hide each widget on the Obi bar.
-            Section {
+            SettingCard {
                 id: obiSect
                 width: col.width
                 visible: page.activeStyle === "obi"
                 title: qsTr("OBI WIDGETS")
 
-                Column {
-                    width: obiSect.width
-                    spacing: Tokens.s2
-                    Repeater {
-                        model: page.obiWidgets
-                        delegate: Cell {
-                            required property var modelData
-                            width: obiSect.width
-                            controlWidth: 54
-                            label: modelData.label
-                            value: page.obiShown(modelData.id) ? qsTr("ON") : qsTr("OFF")
-                            desc: modelData.desc
-                            source: "shell.json"
-                            Sw {
-                                objectName: "obi-" + modelData.id
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                on: page.obiShown(modelData.id)
-                                onToggled: value => page.obiSet(modelData.id, value)
-                            }
+                Repeater {
+                    model: page.obiWidgets
+                    delegate: SettingRow {
+                        required property var modelData
+                        required property int index
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        divider: index > 0
+                        controlWidth: 54
+                        label: modelData.label
+                        desc: modelData.desc
+                        source: "shell.json"
+                        Sw {
+                            objectName: "obi-" + modelData.id
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            on: page.obiShown(modelData.id)
+                            onToggled: value => page.obiSet(modelData.id, value)
                         }
                     }
                 }
             }
 
-            Section {
+            SettingCard {
                 id: nacreSect
                 width: col.width
                 visible: page.activeStyle === "nacre"
                 title: qsTr("NACRE LAYOUT")
 
-                NacreEditor {
-                    width: nacreSect.width
-                    config: page.fval("nacre", ({}))
-                    onStaged: value => page.fedit("nacre", value)
+                Item {
+                    width: parent.width
+                    height: nacreEd.height + Tokens.s3 + Tokens.s4
+                    NacreEditor {
+                        id: nacreEd
+                        anchors { left: parent.left; right: parent.right; top: parent.top }
+                        anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s3
+                        config: page.fval("nacre", ({}))
+                        onStaged: value => page.fedit("nacre", value)
+                    }
                 }
             }
 
             // ── FRAME: the chrome the shell draws around the desktop ─────────
-            Section {
+            SettingCard {
                 id: frameSect
                 width: col.width
                 title: qsTr("FRAME")
                 visible: page.sumiActive
 
-                Cell {
-                    width: frameSect.span(6)
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
                     controlWidth: 54
                     label: qsTr("Draw frame")
-                    value: page.fval("frameEnabled", true) ? qsTr("ON") : qsTr("OFF")
                     def: page.fwas("frameEnabled") === undefined ? "" : (page.fwas("frameEnabled") ? qsTr("ON") : qsTr("OFF"))
                     changed: page.fwas("frameEnabled") !== undefined && !!page.fval("frameEnabled", true) !== !!page.fwas("frameEnabled")
                     desc: qsTr("Draw the bounded frame around the desktop at all.")
@@ -346,9 +390,11 @@ Item {
                         onToggled: value => page.fedit("frameEnabled", value)
                     }
                 }
-                Cell {
-                    width: frameSect.span(6)
-                    controlWidth: 180
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: Math.min(240, Math.max(160, Math.round(frameSect.width * 0.34)))
                     label: qsTr("Opacity")
                     unit: "%"
                     value: String(Math.round(page.fnum("frameOpacity", 1) * 100))
@@ -358,16 +404,16 @@ Item {
                     source: "shell.json"
                     Slid {
                         objectName: "frame-opacity"
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width
+                        anchors.fill: parent
                         from: 0.5; to: 1.0
                         value: page.fnum("frameOpacity", 1)
                         onModified: value => page.fedit("frameOpacity", value)
                     }
                 }
-                Cell {
-                    width: frameSect.span(6)
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
                     controlWidth: 58
                     label: qsTr("Frame thickness")
                     unit: "px"
@@ -385,8 +431,10 @@ Item {
                         onModified: value => page.fedit("frameThickness", value)
                     }
                 }
-                Cell {
-                    width: frameSect.span(6)
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
                     controlWidth: 58
                     label: qsTr("Corner radius")
                     unit: "px"
@@ -407,73 +455,80 @@ Item {
             }
 
             // ── RAILS: pick an edge, then its own switches ───────────────────
-            Section {
+            SettingCard {
                 id: railSect
                 width: col.width
                 title: qsTr("RAILS")
                 visible: page.sumiActive
 
-                Row {
-                    width: railSect.width
-                    spacing: Tokens.s2
-                    Repeater {
-                        model: ["left"]
-                        delegate: Rectangle {
-                            id: plate
-                            required property string modelData
-                            readonly property var pRail: page.config.rails[plate.modelData]
-                            readonly property int count: {
-                                const zs = plate.modelData === "top" || plate.modelData === "bottom" ? ["start", "center", "end"] : ["top", "center", "bottom"];
-                                let n = 0;
-                                for (const zone of zs) n += (plate.pRail[zone] || []).length;
-                                return n;
-                            }
-                            readonly property bool on: page.edge === plate.modelData
-
-                            objectName: "rail-edge-" + plate.modelData
-                            width: (railSect.width - 3 * Tokens.s2) / 4
-                            height: 48
-                            radius: Tokens.radius
-                            color: plate.on ? Tokens.bone : (pma.containsMouse ? Tokens.tint5 : "transparent")
-                            border.width: Tokens.border
-                            border.color: plate.on ? Tokens.bone : Tokens.line
-                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
-
-                            Column {
-                                anchors { left: parent.left; leftMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
-                                spacing: 2
-                                Text {
-                                    text: labels.edge(plate.modelData).toUpperCase()
-                                    color: plate.on ? Tokens.inkOnBone : Tokens.inkDim
-                                    font.family: Tokens.ui
-                                    font.pixelSize: 11
-                                    font.weight: Font.Medium
-                                    font.letterSpacing: Tokens.trackLabel
+                Item {
+                    width: parent.width
+                    height: railRow.height + Tokens.s3 + Tokens.s3
+                    Row {
+                        id: railRow
+                        anchors { left: parent.left; right: parent.right; top: parent.top }
+                        anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s3
+                        spacing: Tokens.s2
+                        Repeater {
+                            model: ["left"]
+                            delegate: Rectangle {
+                                id: plate
+                                required property string modelData
+                                readonly property var pRail: page.config.rails[plate.modelData]
+                                readonly property int count: {
+                                    const zs = plate.modelData === "top" || plate.modelData === "bottom" ? ["start", "center", "end"] : ["top", "center", "bottom"];
+                                    let n = 0;
+                                    for (const zone of zs) n += (plate.pRail[zone] || []).length;
+                                    return n;
                                 }
-                                Text {
-                                    text: plate.pRail.enabled ? qsTr("on · %1").arg(plate.count) : qsTr("off")
-                                    color: plate.on ? Tokens.inkOnBoneDim : Tokens.inkFaint
-                                    font.family: Tokens.mono
-                                    font.pixelSize: Tokens.fTiny
+                                readonly property bool on: page.edge === plate.modelData
+
+                                objectName: "rail-edge-" + plate.modelData
+                                width: (railRow.width - 3 * Tokens.s2) / 4
+                                height: 48
+                                radius: Tokens.radius
+                                color: plate.on ? Tokens.bone : (pma.containsMouse ? Tokens.tint5 : "transparent")
+                                border.width: Tokens.border
+                                border.color: plate.on ? Tokens.bone : Tokens.line
+                                Behavior on color { ColorAnimation { duration: Tokens.snap } }
+
+                                Column {
+                                    anchors { left: parent.left; leftMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                                    spacing: 2
+                                    Text {
+                                        text: labels.edge(plate.modelData).toUpperCase()
+                                        color: plate.on ? Tokens.inkOnBone : Tokens.inkDim
+                                        font.family: Tokens.ui
+                                        font.pixelSize: 11
+                                        font.weight: Font.Medium
+                                        font.letterSpacing: Tokens.trackLabel
+                                    }
+                                    Text {
+                                        text: plate.pRail.enabled ? qsTr("on · %1").arg(plate.count) : qsTr("off")
+                                        color: plate.on ? Tokens.inkOnBoneDim : Tokens.inkFaint
+                                        font.family: Tokens.mono
+                                        font.pixelSize: Tokens.fTiny
+                                    }
                                 }
-                            }
-                            MouseArea {
-                                id: pma
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                preventStealing: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: page.edge = plate.modelData
+                                MouseArea {
+                                    id: pma
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    preventStealing: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: page.edge = plate.modelData
+                                }
                             }
                         }
                     }
                 }
 
-                Cell {
-                    width: railSect.span(4)
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
                     controlWidth: 54
                     label: qsTr("Show this rail")
-                    value: page.rail.enabled ? qsTr("ON") : qsTr("OFF")
                     def: page.railWas ? (page.railWas.enabled ? qsTr("ON") : qsTr("OFF")) : ""
                     changed: !!page.railWas && page.rail.enabled !== page.railWas.enabled
                     desc: qsTr("Draw the %1 rail on the frame.").arg(labels.edge(page.edge).toLowerCase())
@@ -486,9 +541,11 @@ Item {
                         onToggled: value => page.stage(Model.setRail(page.config, page.edge, { enabled: value }))
                     }
                 }
-                Cell {
-                    width: railSect.span(8)
-                    controlWidth: 180
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: Math.min(240, Math.max(160, Math.round(railSect.width * 0.34)))
                     label: qsTr("Thickness")
                     unit: "px"
                     value: String(page.rail.size)
@@ -498,9 +555,7 @@ Item {
                     source: "shell.json"
                     Slid {
                         objectName: "rail-thickness"
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width
+                        anchors.fill: parent
                         from: page.horizontal ? 16 : 24
                         to: page.horizontal ? 96 : 112
                         value: page.rail.size
@@ -510,18 +565,24 @@ Item {
             }
 
             // ── WIDGETS: the selected rail's three zones and its add drawers ──
-            Section {
+            SettingCard {
                 id: zoneSect
                 width: col.width
                 title: qsTr("WIDGETS ON THE %1 RAIL").arg(labels.edge(page.edge).toUpperCase())
                 visible: page.sumiActive
 
-                ZoneEditor {
-                    width: zoneSect.width
-                    config: page.config
-                    edge: page.edge
-                    catalog: BarCatalog
-                    onStaged: next => page.stage(next)
+                Item {
+                    width: parent.width
+                    height: zoneEd.height + Tokens.s3 + Tokens.s4
+                    ZoneEditor {
+                        id: zoneEd
+                        anchors { left: parent.left; right: parent.right; top: parent.top }
+                        anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s3
+                        config: page.config
+                        edge: page.edge
+                        catalog: BarCatalog
+                        onStaged: next => page.stage(next)
+                    }
                 }
             }
         }

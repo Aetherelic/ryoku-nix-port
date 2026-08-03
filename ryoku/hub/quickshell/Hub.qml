@@ -89,7 +89,7 @@ Rectangle {
             { key: "performance", name: "Performance", adv: true }, { key: "autostart", name: "Autostart", adv: true },
             { key: "environment", name: "Environment", adv: true } ] },
         { name: "ADD-ONS", items: [
-            { key: "store", name: "Store" }, { key: "addons", name: "Installed" },
+            { key: "addons", name: "Add-ons" },
             { key: "rashin", name: "Rashin", adv: true } ] },
         { name: "", items: [ { key: "credits", name: "Credits" } ] }
     ]
@@ -102,7 +102,7 @@ Rectangle {
         "profile": "横顔", "displays": "画面", "input": "入力", "cursor": "矢印", "keybinds": "操作",
         "connections": "接続", "gpu": "描画", "recording": "録画", "dictation": "音声",
         "windows": "窓", "appearance": "外観", "bar-studio": "帯", "desktop": "卓上", "launcher": "起動", "fastfetch": "情報",
-        "widgets": "部品", "lockscreen": "施錠", "animations": "動き", "store": "商店",
+        "widgets": "部品", "lockscreen": "施錠", "animations": "動き",
         "addons": "拡張", "windowrules": "規則", "appoverrides": "上書", "layerrules": "階層",
         "autostart": "自動", "environment": "環境", "performance": "性能", "rashin": "羅針",
         "updates": "更新", "credits": "謝辞"
@@ -110,8 +110,8 @@ Rectangle {
 
     // Extra search vocabulary per section: the words a user actually types that
     // the labels never use. This is what lets the search reach a page with no
-    // schema rows (Connections, Store, Rashin) and cover synonyms the copy
-    // avoids (transparency->opacity, startup->autostart, screensaver->lockscreen).
+    // schema rows (Connections, Rashin) and cover synonyms the copy avoids
+    // (transparency->opacity, startup->autostart, screensaver->lockscreen).
     readonly property var sectionKeywords: ({
         "profile": "dashboard status overview telemetry hostname cpu gpu memory uptime specs",
         "displays": "monitor screen resolution refresh scale rotation arrange mirror hidpi dual second external multiple",
@@ -131,8 +131,7 @@ Rectangle {
         "widgets": "desktop widget clock calendar weather face overlay wallpaper",
         "lockscreen": "lock screensaver signin greeter skin theme login",
         "animations": "animation animations motion transition bezier curve speed feel wobbly disable enable toggle",
-        "store": "store marketplace plugin widget install browse extras bundle addon download",
-        "addons": "installed plugin addon extension manage enable remove update widget",
+        "addons": "installed plugin addon extension manage enable remove update widget bundle extras store marketplace browse",
         "windowrules": "window rule float pin size place opacity class title override",
         "appoverrides": "app override per-app opacity blur corner class inherit opaque transparent",
         "layerrules": "layer rule namespace blur dim bar notification surface",
@@ -201,6 +200,65 @@ Rectangle {
         }
         return out;
     }
+    // Intent map: what a user types -> the vocabulary the index actually uses.
+    // This is the "semantic" layer without a model: a curated synonym table for
+    // a bounded settings vocabulary matches intent far more cheaply (and
+    // predictably) than a local embedding runtime would. A query word expands to
+    // itself plus these, and any one of them satisfying a term counts as a hit.
+    readonly property var synonyms: ({
+        "transparency": "opacity", "transparent": "opacity", "seethrough": "opacity transparency", "opacity": "transparency",
+        "darkmode": "dark scheme theme", "lightmode": "light scheme theme", "theme": "appearance scheme palette",
+        "wallpaper": "appearance background", "color": "colour appearance palette", "colour": "color appearance palette", "accent": "appearance colour",
+        "hotkey": "keybind shortcut", "hotkeys": "keybinds shortcuts", "shortcut": "keybind", "shortcuts": "keybinds",
+        "wifi": "connections wireless network", "internet": "connections network", "ethernet": "connections network", "bluetooth": "connections", "hotspot": "connections",
+        "brightness": "backlight", "backlight": "brightness", "nightlight": "night comfort backlight", "warmth": "night comfort", "bluelight": "night comfort",
+        "volume": "audio sound", "sound": "audio", "font": "typeface appearance", "typeface": "font appearance",
+        "screenshot": "recording capture", "screencast": "recording capture", "screensaver": "lockscreen lock", "lock": "lockscreen",
+        "startup": "autostart", "boot": "autostart", "battery": "performance power", "powersaving": "performance power", "potato": "performance", "lag": "performance",
+        "gap": "gaps spacing", "spacing": "gaps", "glass": "hyprglass blur liquid", "liquid": "hyprglass glass",
+        "titlebar": "hyprbars title bar", "titlebars": "hyprbars title bar", "plugin": "plugins hyprland", "plugins": "hyprland",
+        "monitor": "displays screen", "monitors": "displays screen", "resolution": "displays screen", "hidpi": "displays scale", "refresh": "displays",
+        "mouse": "cursor pointer input", "pointer": "cursor input", "keyboard": "input", "touchpad": "input trackpad", "trackpad": "input touchpad",
+        "visualizer": "desktop spectrum", "visualiser": "desktop spectrum", "clock": "widgets desktop", "notifications": "layerrules",
+        "update": "updates upgrade", "upgrade": "updates", "blur": "windows glass", "rounding": "windows corners", "corners": "windows rounding",
+        "animation": "animations motion", "motion": "animations", "gpu": "graphics", "graphics": "gpu",
+        "voice": "dictation", "speech": "dictation voice", "microphone": "dictation", "mic": "dictation"
+    })
+    // a query word expands to itself plus its synonyms, so a term is satisfied by
+    // any one of them (and never dilutes multi-word coverage).
+    function expandQuery(q) {
+        var words = q.split(/\s+/), groups = [];
+        for (var i = 0; i < words.length; i++) {
+            var w = words[i];
+            if (!w) continue;
+            var g = [w], syn = synonyms[w];
+            if (syn) { var ps = syn.split(/\s+/); for (var j = 0; j < ps.length; j++) if (ps[j]) g.push(ps[j]); }
+            groups.push(g);
+        }
+        return groups;
+    }
+    // bounded Levenshtein: returns the distance if <= max, else -1, with an
+    // early length-diff reject and a per-row floor so it stays cheap in the
+    // per-keystroke loop.
+    function editDistance(a, b, max) {
+        var la = a.length, lb = b.length, j;
+        if (Math.abs(la - lb) > max) return -1;
+        var prev = [], cur = [];
+        for (j = 0; j <= lb; j++) prev[j] = j;
+        for (var i = 1; i <= la; i++) {
+            cur[0] = i;
+            var rowMin = i;
+            for (j = 1; j <= lb; j++) {
+                var cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+                var v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+                cur[j] = v;
+                if (v < rowMin) rowMin = v;
+            }
+            if (rowMin > max) return -1;
+            var tmp = prev; prev = cur; cur = tmp;
+        }
+        return prev[lb] <= max ? prev[lb] : -1;
+    }
     function wordScore(w, text) {
         var tws = text.split(/[^a-z0-9]+/);
         var best = 0;
@@ -210,31 +268,46 @@ Rectangle {
             var idx = tw.indexOf(w);
             if (idx === 0) { if (best < 1200) best = 1200; continue; }
             if (idx > 0) { var ss = 1000 - Math.min(idx, 50); if (ss > best) best = ss; continue; }
-            if (w.length > tw.length) continue;
-            var ti = 0, sc = 0, streak = 0, ok = true;
-            for (var ci = 0; ci < w.length; ci++) {
-                var f = tw.indexOf(w.charAt(ci), ti);
-                if (f < 0) { ok = false; break; }
-                streak = (f === ti) ? streak + 1 : 0;
-                sc += 2 + streak * 3;
-                ti = f + 1;
+            if (w.length <= tw.length) {
+                var ti = 0, sc = 0, streak = 0, ok = true;
+                for (var ci = 0; ci < w.length; ci++) {
+                    var f = tw.indexOf(w.charAt(ci), ti);
+                    if (f < 0) { ok = false; break; }
+                    streak = (f === ti) ? streak + 1 : 0;
+                    sc += 2 + streak * 3;
+                    ti = f + 1;
+                }
+                if (ok && sc > best) best = sc;
             }
-            if (ok && sc > best) best = sc;
+        }
+        // typo tolerance: a near-miss still matches, weaker than a clean hit, so
+        // "trasparency" or "keybnd" still reach their setting. gated on nothing
+        // cleaner matching and bounded, so it stays cheap per keystroke.
+        if (best < 600 && w.length >= 4) {
+            for (var t = 0; t < tws.length; t++) {
+                var tw2 = tws[t];
+                if (tw2.length < 3) continue;
+                var d = editDistance(w, tw2, w.length >= 7 ? 2 : 1);
+                if (d >= 0) { var es = 640 - d * 140; if (es > best) best = es; }
+            }
         }
         return best;
     }
-    // Tolerant multi-word scoring: sum the words that DO match and scale by how
-    // much of the query landed, rather than zeroing the moment one word misses.
-    // A full-phrase match still wins (coverage 1.0), but "dark mode" or "second
-    // monitor" surface their page on the word that hit instead of cliffing to
-    // nothing -- the old AND-match made a single out-of-vocab word blank the rail.
-    function searchScore(q, text) {
-        var words = q.split(/\s+/), total = 0, matched = 0, n = 0;
-        for (var wi = 0; wi < words.length; wi++) {
-            if (!words[wi]) continue;
+    // Tolerant multi-word scoring over expanded groups: each term scores its best
+    // synonym (a synonym counts a touch less than the typed word), summed and
+    // scaled by how much of the query landed, so one out-of-vocab word never
+    // blanks the rail and a synonym or typo still finds the page.
+    function searchScore(groups, text) {
+        var total = 0, matched = 0, n = 0;
+        for (var gi = 0; gi < groups.length; gi++) {
             n++;
-            var s = wordScore(words[wi], text);
-            if (s > 0) { total += s; matched++; }
+            var g = groups[gi], best = 0;
+            for (var wi = 0; wi < g.length; wi++) {
+                var s = wordScore(g[wi], text);
+                if (wi > 0) s *= 0.85;
+                if (s > best) best = s;
+            }
+            if (best > 0) { total += best; matched++; }
         }
         if (matched === 0 || n === 0) return 0;
         return total * (matched / n);
@@ -242,20 +315,15 @@ Rectangle {
     readonly property var searchResults: {
         var q = query.toLowerCase().trim();
         if (q === "") return [];
+        var groups = expandQuery(q);
         var scored = [];
         for (var i = 0; i < searchIndex.length; i++) {
             var e = searchIndex[i];
-            // The full hay keeps a multi-word query matchable across fields; the
-            // label is re-scored on top (specificity) and the section vocabulary
-            // (its keywords) once more. A page that OWNS the queried word -- the
-            // word is in that section's keyword set -- then floats above any
-            // sub-setting that merely mentions it in a label, so "blur", "cursor"
-            // and "battery" land the section, not a stray control that says it.
             var full = (e.label + " " + e.desc + " " + e.sectionName + " " + e.group + " " + e.tab + " " + e.kw).toLowerCase();
-            var s = searchScore(q, full);
+            var s = searchScore(groups, full);
             if (s <= 0) continue;
-            s += 2 * searchScore(q, e.label.toLowerCase());
-            var kwHit = searchScore(q, (e.sectionName + " " + e.tab + " " + e.kw).toLowerCase());
+            s += 2 * searchScore(groups, e.label.toLowerCase());
+            var kwHit = searchScore(groups, (e.sectionName + " " + e.tab + " " + e.kw).toLowerCase());
             s += kwHit;
             if (e.isPage) s += 300 + 3 * kwHit;
             scored.push({ e: e, s: s });
@@ -276,7 +344,6 @@ Rectangle {
         "windowrules": true, "appoverrides": true, "layerrules": true,
         "autostart": true, "environment": true
     })
-    readonly property var ledgerSet: ({ "desktop": true, "appearance": true, "windows": true })
     // Which rail sections drive the Hyprland compositor (they write settings.lua:
     // input, window/layer rules, keybinds, animations, autostart, env, plus the
     // display and cursor hardware). Everything else configures the Ryoku shell.
@@ -312,7 +379,7 @@ Rectangle {
         return false;
     }
     function pageFile(s) {
-        var map = { "windows": "WindowsPage", "profile": "ProfilePage", "bar-studio": "BarStudioPage", "desktop": "DesktopPage", "environment": "EnvironmentPage", "autostart": "AutostartPage", "layerrules": "LayerRulesPage", "windowrules": "WindowRulesPage", "appoverrides": "AppOverridesPage", "animations": "AnimationsPage", "appearance": "AppearancePage", "input": "InputPage", "cursor": "CursorPage", "keybinds": "KeybindsPage", "dictation": "DictationPage", "displays": "DisplaysPage", "connections": "ConnectionsPage", "gpu": "GpuPage", "updates": "UpdatesPage", "rashin": "RashinPage", "recording": "RecordingPage", "performance": "PerformancePage", "launcher": "LauncherPage", "lockscreen": "LockscreenPage", "fastfetch": "FastfetchPage", "store": "StorePage", "addons": "AddonsPage", "widgets": "WidgetsPage", "credits": "CreditsPage" };
+        var map = { "windows": "WindowsPage", "profile": "ProfilePage", "bar-studio": "BarStudioPage", "desktop": "DesktopPage", "environment": "EnvironmentPage", "autostart": "AutostartPage", "layerrules": "LayerRulesPage", "windowrules": "WindowRulesPage", "appoverrides": "AppOverridesPage", "animations": "AnimationsPage", "appearance": "AppearancePage", "input": "InputPage", "cursor": "CursorPage", "keybinds": "KeybindsPage", "dictation": "DictationPage", "displays": "DisplaysPage", "connections": "ConnectionsPage", "gpu": "GpuPage", "updates": "UpdatesPage", "rashin": "RashinPage", "recording": "RecordingPage", "performance": "PerformancePage", "launcher": "LauncherPage", "lockscreen": "LockscreenPage", "fastfetch": "FastfetchPage", "addons": "AddonsPage", "widgets": "WidgetsPage", "credits": "CreditsPage" };
         return map[s] ? Qt.resolvedUrl("pages/" + map[s] + ".qml") : "";
     }
     function openPick(r) { picker.openFor(r); }
@@ -331,9 +398,6 @@ Rectangle {
         "fontFamily": "Space Grotesk", "fontScale": 1.3,
         "frameBars": FrameBars.defaultConfig(),
         "weatherLocation": "", "weatherUnit": "auto",
-        "sidebarLeftPanes": ["stash"],
-        "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
-        "sidebarWidth": 340,
         "ryolayerEnabled": true,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58, "bloom": 0.6,
         "reflection": 0.1, "idleWave": true, "style": "bars", "shape": "rounded",
@@ -707,7 +771,11 @@ Rectangle {
         }
     }
 
-    Keys.onEscapePressed: hub.requestQuit()
+    Keys.onEscapePressed: {
+        if (diffPop.open) diffPop.open = false;
+        else if (hub.query !== "") { hub.query = ""; searchField.clear(); }
+        else hub.requestQuit();
+    }
     Keys.onPressed: (e) => {
         if (e.key === Qt.Key_K && (e.modifiers & Qt.ControlModifier)) {
             searchField.grabFocus();
@@ -770,6 +838,7 @@ Rectangle {
                 toolbar: true
                 placeholder: I18n.tr("Search settings…")
                 onEdited: (t) => hub.query = t
+                onAccepted: hub.activateSearch(0)
             }
         }
 
@@ -861,7 +930,7 @@ Rectangle {
                 spacing: 0
 
                 Repeater {
-                    model: hub.query === "" ? hub.groups : []
+                    model: hub.groups
                     Column {
                         id: grp
                         required property var modelData
@@ -996,59 +1065,6 @@ Rectangle {
                         }
                     }
                 }
-                // search results: when searching, the rail becomes a fuzzy-ranked
-                // list of hits across every page's title and options. Clicking an
-                // option jumps to its page and filters to it; a page hit just goes.
-                Repeater {
-                    model: hub.query !== "" ? hub.searchResults : []
-                    Item {
-                        id: resItem
-                        required property var modelData
-                        width: nav.width
-                        height: 46
-                        Rectangle {
-                            anchors.fill: parent
-                            anchors.topMargin: 1; anchors.bottomMargin: 1
-                            radius: Tokens.radius
-                            color: rh.hovered ? Tokens.tint10 : "transparent"
-                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
-                        }
-                        Column {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: Tokens.s3
-                            width: parent.width - Tokens.s3 * 2 - 24
-                            spacing: 1
-                            Text {
-                                text: I18n.tr(resItem.modelData.label)
-                                color: Tokens.inkDim
-                                font.family: Tokens.ui; font.pixelSize: 13
-                                width: parent.width; elide: Text.ElideRight
-                            }
-                            Text {
-                                text: resItem.modelData.isPage
-                                    ? "Page"
-                                    : (resItem.modelData.sectionName + (resItem.modelData.group ? "  ›  " + resItem.modelData.group : ""))
-                                color: Tokens.inkFaint
-                                font.family: Tokens.mono; font.pixelSize: 9
-                                width: parent.width; elide: Text.ElideRight
-                            }
-                        }
-                        Text {
-                            anchors { right: parent.right; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
-                            text: hub.jpName[resItem.modelData.section] || ""
-                            color: Tokens.inkFaint
-                            font.family: Tokens.jp; font.pixelSize: 12
-                        }
-                        HoverHandler { id: rh; cursorShape: Qt.PointingHandCursor }
-                        TapHandler {
-                            onTapped: {
-                                hub.section = resItem.modelData.section;
-                                if (resItem.modelData.isPage) { hub.query = ""; searchField.clear(); }
-                                else { hub.query = resItem.modelData.label; searchField.text = resItem.modelData.label; }
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -1061,13 +1077,12 @@ Rectangle {
         // async page swap (only the page content fades). A porting page (no
         // file) stays framed too.
         readonly property bool full: hub.pageFile(hub.section) !== "" && !hub.framedSet[hub.section]
-        readonly property bool withSide: hub.ledgerSet[hub.section] === true
         anchors.left: rail.right
         anchors.top: parent.top
         anchors.bottom: pageArea.full ? parent.bottom : bar.top
-        anchors.right: (pageArea.full || !pageArea.withSide) ? parent.right : side.left
+        anchors.right: parent.right
         anchors.leftMargin: pageArea.full ? 0 : Tokens.s6
-        anchors.rightMargin: pageArea.full ? 0 : (pageArea.withSide ? Tokens.s5 : Tokens.s6)
+        anchors.rightMargin: pageArea.full ? 0 : Tokens.s6
         anchors.topMargin: pageArea.full ? 0 : Tokens.s5
         anchors.bottomMargin: pageArea.full ? 0 : Tokens.s3
 
@@ -1150,228 +1165,6 @@ Rectangle {
         }
     }
 
-    // ── side: the write ledger (state + pending diff) ───────────────────────
-    // No live-preview mock: the edits already show live on the real desktop, so
-    // a wireframe here was redundant clutter. This column is state and diff.
-    Item {
-        id: side
-        visible: pageArea.withSide
-        anchors { right: parent.right; top: updatesBtn.bottom; bottom: bar.top }
-        anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s3; anchors.bottomMargin: Tokens.s3
-        width: 360
-
-        // state card: clean is a hairline; dirty inverts to bone.
-        Rectangle {
-            id: stateCard
-            anchors { left: parent.left; right: parent.right; top: parent.top }
-            height: 72
-            radius: Tokens.radius
-            color: hub.dirty > 0 ? Tokens.bone : "transparent"
-            border.width: Tokens.border
-            border.color: hub.dirty > 0 ? Tokens.bone : Tokens.line
-            Behavior on color { ColorAnimation { duration: Tokens.snap } }
-            Ticks { color: hub.dirty > 0 ? Tokens.lineOnBone : Tokens.line }
-
-            Row {
-                anchors.fill: parent
-                anchors.margins: Tokens.s4
-                spacing: Tokens.s4
-                Column {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: hub.dirty > 0
-                    Text {
-                        text: hub.dirty
-                        color: Tokens.inkOnBone; font.family: Tokens.ui
-                        font.pixelSize: 36; font.weight: Font.Light
-                    }
-                    Text {
-                        text: "CHANGES"; color: Tokens.inkOnBoneDim; font.family: Tokens.ui
-                        font.pixelSize: 9; font.weight: Font.Medium; font.letterSpacing: 2
-                    }
-                }
-                Rectangle { visible: hub.dirty > 0; width: 1; height: parent.height; color: Tokens.lineOnBone }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - (hub.dirty > 0 ? 150 : 0)
-                    text: hub.dirty > 0 ? "Previewing live. Nothing is written until you save."
-                                        : "Everything matches what is on disk."
-                    color: hub.dirty > 0 ? Tokens.inkOnBoneDim : Tokens.inkMuted
-                    font.family: Tokens.ui; font.pixelSize: 12; wrapMode: Text.WordWrap
-                }
-            }
-        }
-
-        // pending write: the diff, grouped by file, in file syntax.
-        Item {
-            anchors { left: parent.left; right: parent.right; top: stateCard.bottom; bottom: parent.bottom; topMargin: Tokens.s3 }
-
-            Row {
-                id: diffHead
-                anchors { left: parent.left; right: parent.right; top: parent.top }
-                Text {
-                    text: "PENDING WRITE"; color: Tokens.inkMuted; font.family: Tokens.ui
-                    font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
-                }
-                Item { width: parent.width - 200; height: 1 }
-                Text {
-                    text: "DIFF"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 9
-                }
-            }
-
-            // idle: the diff zone becomes a framed specimen, composed the way
-            // the reference's image tiles are (art under a solid label bar, a
-            // topic chip, a tategaki slat), never a floating photo. Type never
-            // sits on the art: every label rides its own paper, so it reads.
-            Rectangle {
-                anchors { left: parent.left; right: parent.right; top: diffHead.bottom; bottom: parent.bottom; topMargin: Tokens.s3 }
-                // crossfade with the diff list, never a hard cut: the at-rest
-                // specimen fades as the first pending write lands.
-                opacity: hub.diff.length === 0 ? 1 : 0
-                visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: Tokens.swap; easing.type: Tokens.ease } }
-                color: "transparent"
-                radius: Tokens.radius
-                border.width: Tokens.border
-                border.color: Tokens.line
-                clip: true
-
-                Image {
-                    anchors.fill: parent
-                    anchors.margins: Tokens.border
-                    source: Qt.resolvedUrl("art/dither-torii.png")
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    opacity: 0.5
-                }
-                Ticks { }
-
-                // topic chip, the reference's `001 // ABOUT` tag, on solid paper
-                Rectangle {
-                    anchors { left: parent.left; top: parent.top; margins: Tokens.s3 }
-                    width: topic.implicitWidth + Tokens.s3 * 2
-                    height: topic.implicitHeight + Tokens.s2
-                    color: Tokens.paper
-                    border.width: Tokens.border
-                    border.color: Tokens.lineStrong
-                    Row {
-                        id: topic
-                        anchors.centerIn: parent
-                        spacing: Tokens.s2
-                        Text { text: "空"; color: Tokens.ink; font.family: Tokens.jp; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: "AT REST"; color: Tokens.inkMuted; font.family: Tokens.mono; font.pixelSize: 9; font.letterSpacing: 1.4; anchors.verticalCenter: parent.verticalCenter }
-                    }
-                }
-
-                // the brand in vertical Japanese (tategaki), on its own slat
-                Rectangle {
-                    anchors { right: parent.right; top: parent.top; bottom: bottomBar.top; margins: Tokens.s3 }
-                    width: 30
-                    color: Tokens.paper
-                    border.width: Tokens.border
-                    border.color: Tokens.lineStrong
-                    Column {
-                        anchors.centerIn: parent
-                        spacing: 1
-                        Repeater {
-                            model: ["リ", "ョ", "ク"]
-                            Text {
-                                required property string modelData
-                                text: modelData; color: Tokens.ink
-                                font.family: Tokens.jp; font.pixelSize: 15
-                                anchors.horizontalCenter: parent.horizontalCenter
-                            }
-                        }
-                    }
-                }
-
-                // the label bar: solid paper so the caption always reads
-                Rectangle {
-                    id: bottomBar
-                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Tokens.border }
-                    height: 42
-                    color: Tokens.paper
-                    Rectangle { anchors { left: parent.left; right: parent.right; top: parent.top } height: 1; color: Tokens.line }
-                    Column {
-                        anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: Tokens.s3 }
-                        spacing: 1
-                        Text {
-                            text: "// NOTHING TO WRITE_"; color: Tokens.inkDim
-                            font.family: Tokens.mono; font.pixelSize: 10; font.letterSpacing: 1.2
-                        }
-                        Text {
-                            text: "edits queue here before they land on disk"; color: Tokens.inkFaint
-                            font.family: Tokens.ui; font.pixelSize: 11
-                        }
-                    }
-                    Text {
-                        anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Tokens.s3 }
-                        text: "力"; color: Tokens.inkFaint; font.family: Tokens.jp; font.pixelSize: 14
-                    }
-                }
-            }
-
-            Flickable {
-                anchors { left: parent.left; right: parent.right; top: diffHead.bottom; bottom: parent.bottom; topMargin: Tokens.s3 }
-                contentHeight: diffCol.height
-                clip: true
-                opacity: hub.diff.length > 0 ? 1 : 0
-                visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: Tokens.swap; easing.type: Tokens.ease } }
-                ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
-                Column {
-                    id: diffCol
-                    width: parent.width - 14
-                    spacing: Tokens.s3
-                    Repeater {
-                        model: hub.diff
-                        Column {
-                            id: fileGrp
-                            required property var modelData
-                            width: diffCol.width
-                            spacing: Tokens.s1
-                            Row {
-                                spacing: Tokens.s2
-                                Rectangle { width: 3; height: 3; radius: 0; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
-                                Text {
-                                    text: fileGrp.modelData.file; color: Tokens.inkDim
-                                    font.family: Tokens.mono; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter
-                                }
-                                Text {
-                                    text: "· " + fileGrp.modelData.changes.length; color: Tokens.inkFaint
-                                    font.family: Tokens.mono; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-                            Repeater {
-                                model: fileGrp.modelData.changes
-                                Column {
-                                    required property var modelData
-                                    width: fileGrp.width
-                                    topPadding: 2
-                                    Text {
-                                        text: modelData.key + ":"; color: Tokens.inkDim
-                                        font.family: Tokens.mono; font.pixelSize: 12
-                                    }
-                                    Row {
-                                        spacing: Tokens.s2
-                                        Text {
-                                            text: modelData.was; color: Tokens.inkFaint; font.strikeout: true
-                                            font.family: Tokens.mono; font.pixelSize: 12
-                                        }
-                                        Text { text: "→"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 12 }
-                                        Text {
-                                            text: modelData.now; color: Tokens.ink
-                                            font.family: Tokens.mono; font.pixelSize: 12
-                                        }
-                                    }
-                                    Rectangle { width: parent.width; height: 1; color: Tokens.lineSoft }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     // ── updates: a corner button, not a rail row ────────────────────────────
     // Updates left the rail for a button in the top-right corner: an English
@@ -1429,6 +1222,7 @@ Rectangle {
         onSaved: hub.save()
         onReverted: hub.revert()
         onReset: hub.resetDefaults()
+        onDiffRequested: diffPop.toggle()
     }
 
     // ── catalogue overlay (font pick) ──────────────────────────────────────
@@ -1457,6 +1251,208 @@ Rectangle {
             current: pickState.row ? String(hub.val(pickState.row.key)) : ""
             onChose: (k) => { if (pickState.row) hub.edit(pickState.row.key, k); picker.close(); }
             onDismissed: picker.close()
+        }
+    }
+
+    // ── search: results overlay + jump-to-setting ────────────────────────────
+    // The rail search opens a results card under the field (not a cramped rail
+    // list). Picking a result navigates to its page and, for a real setting,
+    // scrolls it into view and flashes it -- the jump-to-setting the old search
+    // never did. Enter takes the top hit; Escape (the field clears) dismisses.
+    property string pendingFocusKey: ""
+    function activateSearch(i) {
+        var r = hub.searchResults[i];
+        if (!r) return;
+        hub.section = r.section;
+        hub.pendingFocusKey = (r.isPage || !r.key) ? "" : r.key;
+        hub.query = "";
+        searchField.clear();
+        if (hub.pendingFocusKey !== "") { focusTimer.tries = 0; focusTimer.restart(); }
+    }
+    // bold the matched run in a result label (StyledText).
+    function hlLabel(text) {
+        function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+        var q = hub.query.trim();
+        if (!q) return esc(text);
+        var lc = String(text).toLowerCase(), i = lc.indexOf(q.toLowerCase());
+        if (i < 0) return esc(text);
+        return esc(text.substring(0, i)) + "<u>" + esc(text.substring(i, i + q.length)) + "</u>" + esc(text.substring(i + q.length));
+    }
+    Timer {
+        id: focusTimer
+        interval: 90; repeat: false
+        property int tries: 0
+        onTriggered: {
+            var it = pageHost.front ? pageHost.front.item : null;
+            if (it && typeof it.focusKey === "function") { it.focusKey(hub.pendingFocusKey); hub.pendingFocusKey = ""; focusTimer.tries = 0; return; }
+            if (focusTimer.tries < 15) { focusTimer.tries++; focusTimer.restart(); } else focusTimer.tries = 0;
+        }
+    }
+
+    Item {
+        id: searchPop
+        z: 850
+        visible: hub.query !== "" && hub.searchResults.length > 0
+        x: rail.x + railHead.x + searchField.x
+        y: rail.y + railHead.y + searchField.y + searchField.height + Tokens.s2
+        width: Math.min(480, hub.width - x - Tokens.s5)
+        height: Math.min(440, list.contentHeight + head.height + Tokens.s3 * 2 + Tokens.s1)
+
+        Rectangle {
+            anchors.fill: parent
+            color: Tokens.paperLift
+            radius: Tokens.radius
+            border.width: Tokens.border
+            border.color: Tokens.lineStrong
+        }
+        // sink so a click on the card's chrome never falls through to the rail.
+        MouseArea { anchors.fill: parent; hoverEnabled: true }
+        Row {
+            id: head
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s3 }
+            height: 14
+            Text {
+                text: "// RESULTS_"; color: Tokens.inkMuted
+                font.family: Tokens.mono; font.pixelSize: 9; font.letterSpacing: 1.2
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Item { width: Math.max(0, parent.width - 170); height: 1 }
+            Text {
+                text: hub.searchResults.length + (hub.searchResults.length === 1 ? " HIT" : " HITS")
+                color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 9
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+        ListView {
+            id: list
+            anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: parent.bottom }
+            anchors.margins: Tokens.s2; anchors.topMargin: Tokens.s1
+            clip: true
+            model: hub.searchResults
+            spacing: 1
+            ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
+            delegate: Rectangle {
+                id: rr
+                required property var modelData
+                required property int index
+                width: ListView.view.width
+                height: 46
+                radius: Tokens.radius
+                color: rrh.containsMouse ? Tokens.tint10 : "transparent"
+                Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                Column {
+                    anchors { left: parent.left; right: kseal.left; verticalCenter: parent.verticalCenter }
+                    anchors.leftMargin: Tokens.s3; anchors.rightMargin: Tokens.s2
+                    spacing: 1
+                    Text {
+                        width: parent.width
+                        text: hub.hlLabel(I18n.tr(rr.modelData.label))
+                        textFormat: Text.StyledText
+                        color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 13
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        width: parent.width
+                        text: rr.modelData.isPage ? I18n.tr("Page") : (rr.modelData.sectionName + (rr.modelData.group ? "  \u203a  " + rr.modelData.group : ""))
+                        color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 9
+                        elide: Text.ElideRight
+                    }
+                }
+                Text {
+                    id: kseal
+                    anchors { right: parent.right; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                    text: hub.jpName[rr.modelData.section] || ""
+                    color: Tokens.inkFaint; font.family: Tokens.jp; font.pixelSize: 12
+                }
+                MouseArea {
+                    id: rrh
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: hub.activateSearch(rr.index)
+                }
+            }
+        }
+    }
+
+    // ── the pending diff, on demand ──────────────────────────────────────────
+    // The write ledger left the rail for a popover the action bar opens, so the
+    // page keeps the full width and the diff is one click away when it matters.
+    Item {
+        id: diffPop
+        anchors.fill: parent
+        z: 870
+        property bool open: false
+        visible: diffPop.open && hub.diff.length > 0
+        function toggle() { diffPop.open = !diffPop.open }
+
+        Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            TapHandler { onTapped: diffPop.open = false }
+        }
+        Rectangle {
+            id: diffCard
+            width: 480
+            anchors { left: parent.left; leftMargin: Tokens.s5; bottom: parent.bottom; bottomMargin: (bar.visible ? bar.height : 0) + Tokens.s2 }
+            height: Math.min(440, dcol.height + dhead.height + Tokens.s3 * 3)
+            color: Tokens.paperLift
+            radius: Tokens.radius
+            border.width: Tokens.border
+            border.color: Tokens.lineStrong
+            TapHandler {}
+            Row {
+                id: dhead
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s3 }
+                height: 14
+                Text { text: "// PENDING WRITE_"; color: Tokens.inkMuted; font.family: Tokens.mono; font.pixelSize: 9; font.letterSpacing: 1.2; anchors.verticalCenter: parent.verticalCenter }
+                Item { width: Math.max(0, parent.width - 200); height: 1 }
+                Text { text: "DIFF"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 9; anchors.verticalCenter: parent.verticalCenter }
+            }
+            Flickable {
+                id: dflick
+                anchors { left: parent.left; right: parent.right; top: dhead.bottom; bottom: parent.bottom }
+                anchors.margins: Tokens.s3; anchors.topMargin: Tokens.s2
+                contentHeight: dcol.height
+                clip: true
+                ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
+                Column {
+                    id: dcol
+                    width: dflick.width - 12
+                    spacing: Tokens.s3
+                    Repeater {
+                        model: hub.diff
+                        Column {
+                            id: fg
+                            required property var modelData
+                            width: dcol.width
+                            spacing: Tokens.s1
+                            Row {
+                                spacing: Tokens.s2
+                                Rectangle { width: 3; height: 3; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: fg.modelData.file; color: Tokens.inkDim; font.family: Tokens.mono; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: "\u00b7 " + fg.modelData.changes.length; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                            Repeater {
+                                model: fg.modelData.changes
+                                Column {
+                                    required property var modelData
+                                    width: fg.width
+                                    topPadding: 2
+                                    Text { text: modelData.key + ":"; color: Tokens.inkDim; font.family: Tokens.mono; font.pixelSize: 12 }
+                                    Row {
+                                        spacing: Tokens.s2
+                                        Text { text: modelData.was; color: Tokens.inkFaint; font.strikeout: true; font.family: Tokens.mono; font.pixelSize: 12 }
+                                        Text { text: "\u2192"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 12 }
+                                        Text { text: modelData.now; color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: 12 }
+                                    }
+                                    Rectangle { width: parent.width; height: 1; color: Tokens.lineSoft }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

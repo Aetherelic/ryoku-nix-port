@@ -428,50 +428,6 @@ Item {
     }
     function openPick(kind) { pg.pickKind = kind; picker.open(); }
 
-    // a named group header: 4px ink dot + tracked caps + a lineSoft leader.
-    component SectionHead: Item {
-        property string label: ""
-        width: parent ? parent.width : 0
-        height: 20
-        Row {
-            id: shl
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Tokens.s2
-            Rectangle { width: 4; height: 4; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
-            Text {
-                text: I18n.tr(parent.parent.label)
-                color: Tokens.ink; font.family: Tokens.ui
-                font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
-                font.letterSpacing: Tokens.trackMark
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
-        Rectangle {
-            anchors.left: shl.right; anchors.leftMargin: Tokens.s3
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-            height: 1; color: Tokens.lineSoft
-        }
-    }
-
-    // a control row: a tracked caps label on the left, the control on the right.
-    component CtlRow: Item {
-        property string label: ""
-        // expose the label so a filling control can anchor after it.
-        property alias capItem: rowCap
-        width: parent ? parent.width : 0
-        height: 32
-        Text {
-            id: rowCap
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text: I18n.tr(parent.label)
-            color: Tokens.inkMuted; font.family: Tokens.ui
-            font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
-            font.letterSpacing: Tokens.trackLabel
-        }
-    }
-
     // ── head: eyebrow, Fraunces title with quick actions, blurb ─────────────
     Column {
         id: head
@@ -722,105 +678,121 @@ Item {
                 width: controls.width - Tokens.s3   // reserve a lane for the scroll rail
                 spacing: Tokens.s5
 
-                // empty-selection placeholder: both per-monitor groups hide.
+                // empty-selection placeholder: both per-monitor cards hide.
                 Text {
                     visible: !pg.sel
                     text: I18n.tr("Select a display to configure it.")
                     color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                 }
 
-                // per-monitor group; the header is the selected connector name.
-                Column {
-                    width: parent.width
+                // per-monitor group; the card title is the selected connector name.
+                SettingCard {
+                    width: ctlCol.width
                     visible: !!pg.sel
-                    spacing: Tokens.s3
-
-                    SectionHead { label: pg.sel ? pg.sel.name : I18n.tr("DISPLAY") }
+                    title: pg.sel ? pg.sel.name : I18n.tr("DISPLAY")
 
                     // the main (primary) display: put this screen at the global
                     // origin so the cursor and new workspaces start here.
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
                         label: I18n.tr("MAIN DISPLAY")
-                        Text {
-                            visible: { void pg.tick; return pg.sel ? pg.sel.name === pg.mainName : false; }
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            text: I18n.tr("MAIN"); color: Tokens.ink; font.family: Tokens.ui
-                            font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
-                            font.letterSpacing: Tokens.trackMark
-                        }
-                        Btn {
-                            visible: { void pg.tick; return pg.sel ? (pg.sel.name !== pg.mainName && !pg.sel.disabled) : false; }
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            text: I18n.tr("SET AS MAIN")
-                            armed: true
-                            onAct: pg.setMain(pg.selected)
+                        footH: 32
+                        Item {
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            Text {
+                                visible: { void pg.tick; return pg.sel ? pg.sel.name === pg.mainName : false; }
+                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                text: I18n.tr("MAIN"); color: Tokens.ink; font.family: Tokens.ui
+                                font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
+                                font.letterSpacing: Tokens.trackMark
+                            }
+                            Btn {
+                                visible: { void pg.tick; return pg.sel ? (pg.sel.name !== pg.mainName && !pg.sel.disabled) : false; }
+                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                text: I18n.tr("SET AS MAIN")
+                                armed: true
+                                onAct: pg.setMain(pg.selected)
+                            }
                         }
                     }
 
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("ENABLED")
+                        controlWidth: 54
                         Sw {
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                             on: { void pg.tick; return pg.sel ? !pg.sel.disabled : false; }
                             onToggled: (v) => pg.setField(pg.selected, "disabled", !v)
                         }
                     }
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("RESOLUTION")
+                        footH: 32
                         PickBar {
-                            anchors.left: parent.capItem.right; anchors.leftMargin: Tokens.s3
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
                             value: { void pg.tick; return pg.sel ? pg.labelForKey(pg.modeOptions(pg.sel), pg.sel.mode) : ""; }
                             count: { void pg.tick; return pg.sel ? pg.modeOptions(pg.sel).length : 0; }
                             onOpened: pg.openPick("mode")
                         }
                     }
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("SCALE")
-                        Row {
+                        value: { void pg.tick; return pg.sel ? (pg.sel.scale.toFixed(2) + "\u00d7") : ""; }
+                        controlWidth: 58
+                        Step {
+                            id: scaleStep
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            spacing: Tokens.s2
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: { void pg.tick; return pg.sel ? pg.sel.scale.toFixed(2) + "\u00d7" : ""; }
-                                color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fRow
-                                font.weight: Font.Light
-                            }
-                            Step {
-                                id: scaleStep
-                                anchors.verticalCenter: parent.verticalCenter
-                                // value is an index into the per-resolution ladder
-                                // of Hyprland-valid scales (see scaleLadder).
-                                readonly property var ladder: { void pg.tick; return pg.sel ? pg.scaleLadder(pg.sel) : [1]; }
-                                from: 0; to: ladder.length - 1; stepBy: 1
-                                value: { void pg.tick; return pg.sel ? pg.nearestScaleIdx(scaleStep.ladder, pg.sel.scale) : 0; }
-                                onModified: (v) => pg.setField(pg.selected, "scale",
-                                    scaleStep.ladder[Math.max(0, Math.min(scaleStep.ladder.length - 1, v))])
-                            }
+                            // value is an index into the per-resolution ladder
+                            // of Hyprland-valid scales (see scaleLadder).
+                            readonly property var ladder: { void pg.tick; return pg.sel ? pg.scaleLadder(pg.sel) : [1]; }
+                            from: 0; to: ladder.length - 1; stepBy: 1
+                            value: { void pg.tick; return pg.sel ? pg.nearestScaleIdx(scaleStep.ladder, pg.sel.scale) : 0; }
+                            onModified: (v) => pg.setField(pg.selected, "scale",
+                                scaleStep.ladder[Math.max(0, Math.min(scaleStep.ladder.length - 1, v))])
                         }
                     }
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("ROTATION")
+                        block: true
                         Seg {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
                             options: ["0\u00b0", "90\u00b0", "180\u00b0", "270\u00b0"]
                             current: { void pg.tick; return pg.sel ? pg.rotLabel(pg.sel.transform) : "0\u00b0"; }
                             onChose: (label) => pg.setField(pg.selected, "transform", pg.rotKey(label))
                         }
                     }
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("ADAPTIVE SYNC")
+                        block: true
                         Seg {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
                             options: pg.vrrLabels
                             current: { void pg.tick; return pg.sel ? pg.vrrLabel(pg.sel.vrr) : "Off"; }
                             onChose: (label) => pg.setField(pg.selected, "vrr", pg.vrrKey(label))
                         }
                     }
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("COLOUR")
+                        block: true
                         Seg {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
                             options: pg.cmLabels
                             current: { void pg.tick; return pg.sel ? pg.cmLabel(pg.sel.cm) : "sRGB"; }
                             onChose: (label) => pg.setField(pg.selected, "cm", pg.cmKey(label))
@@ -828,33 +800,31 @@ Item {
                     }
                     // SDR brightness only bites in HDR (it maps SDR content into the
                     // HDR range); hidden otherwise so it never reads as a dead knob.
-                    CtlRow {
-                        label: I18n.tr("SDR BRIGHTNESS")
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         visible: { void pg.tick; return pg.sel ? pg.sel.cm === "hdr" : false; }
-                        Row {
+                        label: I18n.tr("SDR BRIGHTNESS")
+                        value: { void pg.tick; return pg.sel ? (pg.sel.sdrbrightness.toFixed(1) + "\u00d7") : ""; }
+                        controlWidth: 58
+                        Step {
+                            id: sdrStep
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            spacing: Tokens.s2
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: { void pg.tick; return pg.sel ? pg.sel.sdrbrightness.toFixed(1) + "\u00d7" : ""; }
-                                color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fRow
-                                font.weight: Font.Light
-                            }
-                            Step {
-                                anchors.verticalCenter: parent.verticalCenter
-                                readonly property var ladder: pg.sdrLadder
-                                from: 0; to: ladder.length - 1; stepBy: 1
-                                value: { void pg.tick; return pg.sel ? pg.nearestScaleIdx(ladder, pg.sel.sdrbrightness) : 0; }
-                                onModified: (v) => pg.setField(pg.selected, "sdrbrightness",
-                                    ladder[Math.max(0, Math.min(ladder.length - 1, v))])
-                            }
+                            readonly property var ladder: pg.sdrLadder
+                            from: 0; to: ladder.length - 1; stepBy: 1
+                            value: { void pg.tick; return pg.sel ? pg.nearestScaleIdx(sdrStep.ladder, pg.sel.sdrbrightness) : 0; }
+                            onModified: (v) => pg.setField(pg.selected, "sdrbrightness",
+                                sdrStep.ladder[Math.max(0, Math.min(sdrStep.ladder.length - 1, v))])
                         }
                     }
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("MIRROR OF")
+                        footH: 32
                         PickBar {
-                            anchors.left: parent.capItem.right; anchors.leftMargin: Tokens.s3
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
                             value: { void pg.tick; return pg.sel ? (pg.labelForKey(pg.mirrorOptions(), pg.sel.mirror) || "None") : "None"; }
                             count: { void pg.tick; return pg.mirrorOptions().length; }
                             onOpened: pg.openPick("mirror")
@@ -865,63 +835,71 @@ Item {
                 // position: dragging is primary; these coordinates are editable
                 // for a precise nudge. Fields push the stored value on change so a
                 // drag keeps them in sync without fighting a mid-type edit.
-                Column {
-                    width: parent.width
+                SettingCard {
+                    width: ctlCol.width
                     visible: !!pg.sel
-                    spacing: Tokens.s3
+                    title: I18n.tr("POSITION")
 
-                    SectionHead { label: I18n.tr("POSITION") }
-
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
                         label: I18n.tr("X")
-                        Text {
-                            id: unitX
+                        controlWidth: 128
+                        Row {
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            text: "px"; color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
-                        }
-                        Field {
-                            anchors.right: unitX.left; anchors.rightMargin: Tokens.s2
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 96
-                            tabular: true
-                            placeholder: "0"
-                            readonly property int modelX: { void pg.tick; return pg.sel ? pg.sel.x : 0; }
-                            onModelXChanged: text = String(modelX)
-                            Component.onCompleted: text = String(modelX)
-                            onCommitted: (v) => { var n = parseInt(v); if (!isNaN(n)) pg.setField(pg.selected, "x", n); }
+                            spacing: Tokens.s2
+                            Field {
+                                width: 96
+                                anchors.verticalCenter: parent.verticalCenter
+                                tabular: true
+                                placeholder: "0"
+                                readonly property int modelX: { void pg.tick; return pg.sel ? pg.sel.x : 0; }
+                                onModelXChanged: text = String(modelX)
+                                Component.onCompleted: text = String(modelX)
+                                onCommitted: (v) => { var n = parseInt(v); if (!isNaN(n)) pg.setField(pg.selected, "x", n); }
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "px"; color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
+                            }
                         }
                     }
-                    CtlRow {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("Y")
-                        Text {
-                            id: unitY
+                        controlWidth: 128
+                        Row {
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            text: "px"; color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
-                        }
-                        Field {
-                            anchors.right: unitY.left; anchors.rightMargin: Tokens.s2
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 96
-                            tabular: true
-                            placeholder: "0"
-                            readonly property int modelY: { void pg.tick; return pg.sel ? pg.sel.y : 0; }
-                            onModelYChanged: text = String(modelY)
-                            Component.onCompleted: text = String(modelY)
-                            onCommitted: (v) => { var n = parseInt(v); if (!isNaN(n)) pg.setField(pg.selected, "y", n); }
+                            spacing: Tokens.s2
+                            Field {
+                                width: 96
+                                anchors.verticalCenter: parent.verticalCenter
+                                tabular: true
+                                placeholder: "0"
+                                readonly property int modelY: { void pg.tick; return pg.sel ? pg.sel.y : 0; }
+                                onModelYChanged: text = String(modelY)
+                                Component.onCompleted: text = String(modelY)
+                                onCommitted: (v) => { var n = parseInt(v); if (!isNaN(n)) pg.setField(pg.selected, "y", n); }
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "px"; color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
+                            }
                         }
                     }
                 }
 
                 // profiles: a hardware-keyed layout that returns when the same
-                // displays reconnect.
-                Column {
-                    width: parent.width
-                    spacing: Tokens.s3
-
-                    SectionHead { label: I18n.tr("PROFILES") }
+                // displays reconnect. The save field and saved-profile list stay a
+                // bespoke management surface, housed in the card for cohesion.
+                SettingCard {
+                    width: ctlCol.width
+                    title: I18n.tr("PROFILES")
 
                     Text {
                         width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
                         wrapMode: Text.WordWrap
                         text: I18n.tr("Save this layout, keyed to the connected displays, so it returns automatically when you plug them in again.")
                         color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
@@ -929,16 +907,18 @@ Item {
 
                     Item {
                         width: parent.width
-                        height: 32
+                        height: 32 + Tokens.s2
                         Btn {
                             id: saveBtn
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            anchors.right: parent.right; anchors.rightMargin: Tokens.s4
+                            anchors.verticalCenter: parent.verticalCenter
                             text: I18n.tr("SAVE")
                             onAct: pg.saveProfile(nameField.text)
                         }
                         Field {
                             id: nameField
-                            anchors.left: parent.left; anchors.right: saveBtn.left; anchors.rightMargin: Tokens.s2
+                            anchors.left: parent.left; anchors.leftMargin: Tokens.s4
+                            anchors.right: saveBtn.left; anchors.rightMargin: Tokens.s2
                             anchors.verticalCenter: parent.verticalCenter
                             placeholder: I18n.tr("Profile name\u2026")
                             onCommitted: (v) => pg.saveProfile(v)
@@ -946,7 +926,8 @@ Item {
                     }
 
                     Column {
-                        width: parent.width
+                        width: parent.width - Tokens.s4 * 2
+                        x: Tokens.s4
                         spacing: Tokens.s2
 
                         // dynamic data from `ryoku-monitor profiles`.
@@ -956,7 +937,7 @@ Item {
                             delegate: Rectangle {
                                 id: prof
                                 required property var modelData
-                                width: ctlCol.width
+                                width: parent.width
                                 height: Tokens.rowH
                                 radius: Tokens.radius
                                 color: phov.hovered ? Tokens.tint5 : "transparent"
@@ -1012,6 +993,9 @@ Item {
                             }
                         }
                     }
+
+                    // breathing room below the list so it clears the card border.
+                    Item { width: parent.width; height: Tokens.s3 }
                 }
             }
         }

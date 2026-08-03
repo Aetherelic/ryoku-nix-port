@@ -19,10 +19,10 @@ ShellRoot {
         // fits (margins leave room for the shell bar). minimumSize shrinks
         // with it, else the compositor refuses to go down. Roomy screens keep
         // an unbounded maximum, so manual resizing stays possible.
-        readonly property int fitW: win.screen ? Math.min(1360, win.screen.width - 24) : 1360
+        readonly property int fitW: win.screen ? Math.min(1200, win.screen.width - 24) : 1200
         readonly property int fitH: win.screen ? Math.min(880, win.screen.height - 56) : 880
         readonly property bool cramped: win.fitW < 1360 || win.fitH < 880
-        minimumSize: Qt.size(Math.min(1280, win.fitW), Math.min(820, win.fitH))
+        minimumSize: Qt.size(Math.min(1120, win.fitW), Math.min(820, win.fitH))
         maximumSize: win.cramped ? Qt.size(win.fitW, win.fitH) : Qt.size(16777215, 16777215)
         color: Tokens.paper
 

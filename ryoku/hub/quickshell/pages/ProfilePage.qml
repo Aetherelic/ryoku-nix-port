@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import QtQuick.Dialogs
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "../Singletons"
@@ -993,22 +992,29 @@ Item {
         }
     }
     Process { id: profileProc }
-    FileDialog {
+    PickFile {
         id: exportDlg
-        fileMode: FileDialog.SaveFile
-        currentFile: "file://" + (Quickshell.env("HOME") || "") + "/ryoku-" + pg.fv(SysInfo.sysUser) + ".ryoprofile"
-        onAccepted: {
-            profileProc.command = ["ryoku-hub", "profile", "export", String(selectedFile).replace(/^file:\/\//, "")];
+        title: I18n.tr("Export profile to a folder")
+        foldersOnly: true
+        startFolder: "file://" + (Quickshell.env("HOME") || "")
+        onPicked: (p) => {
+            profileProc.command = ["ryoku-hub", "profile", "export", ("" + p).replace("file://", "") + "/ryoku-" + pg.fv(SysInfo.sysUser) + ".ryoprofile"];
             profileProc.running = true;
+            exportDlg.active = false;
         }
+        onCanceled: exportDlg.active = false
     }
-    FileDialog {
+    PickFile {
         id: importDlg
-        nameFilters: ["Ryoku profile (*.ryoprofile)", "All files (*)"]
-        onAccepted: {
-            profileProc.command = ["ryoku-hub", "profile", "import", String(selectedFile).replace(/^file:\/\//, "")];
+        title: I18n.tr("Open a Ryoku profile")
+        fileFilters: ["*.ryoprofile"]
+        startFolder: "file://" + (Quickshell.env("HOME") || "")
+        onPicked: (p) => {
+            profileProc.command = ["ryoku-hub", "profile", "import", ("" + p).replace("file://", "")];
             profileProc.running = true;
+            importDlg.active = false;
         }
+        onCanceled: importDlg.active = false
     }
     // sibling overlays are loaded by URL (the robust form that resolves both in
     // the shell and standalone), lazily instantiated only while their mode is on.

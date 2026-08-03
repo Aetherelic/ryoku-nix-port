@@ -4,6 +4,7 @@ const require = createRequire(import.meta.url);
 const Model = require("./BarStudioModel.js");
 const FrameBars = require("../../../shell/framebars/FrameBars.js");
 const BarCatalog = require("../../../shell/framebars/BarCatalog.js");
+const MenuCatalog = require("../../../shell/framebars/MenuCatalog.js");
 
 let failed = 0;
 function ok(value, message) {
@@ -24,7 +25,7 @@ function fresh(before, after, message) {
 // FrameBars.js owns and may retune). defaultConfig still supplies the whole
 // shape, so the subtree checks stay honest.
 function cfg() {
-    const c = FrameBars.defaultConfig();
+    const c = FrameBars.defaultConfig(MenuCatalog);
     for (const e of ["top", "left", "bottom", "right"]) for (const z of Model.zones(e)) c.rails[e][z] = [];
     return c;
 }
@@ -83,7 +84,7 @@ eq(Model.railWidgets(packed, "left"), ["dock", "clock", "battery"], "railWidgets
 // every mutation clones the whole config, so an edit can never drop the
 // menus/surfaces/dock subtrees. This is the source-side half of the invariant
 // the daemon also enforces (ryoku/shell/ipc/settings.go).
-const shipped = FrameBars.defaultConfig();
+const shipped = FrameBars.defaultConfig(MenuCatalog);
 const subtrees = ["version", "style", "rails", "menus", "surfaces", "dock"];
 function preservesAll(config, label) {
     for (const key of subtrees) ok(config[key] !== undefined, `${label} preserves the ${key} subtree`);

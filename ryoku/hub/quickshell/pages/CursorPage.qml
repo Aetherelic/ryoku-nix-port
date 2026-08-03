@@ -77,7 +77,9 @@ Item {
         return out;
     }
 
+    function focusKey(k) { sp.focusKey(k) }
     SchemaPage {
+        id: sp
         anchors.fill: parent
         schema: pg.settingsSchema
         draft: pg.draft

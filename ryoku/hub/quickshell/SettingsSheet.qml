@@ -5,9 +5,15 @@ import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
-// Renders a page from its schema. A setting is a row of data; where it lands
-// and what draws it are decided by Spans and its kind, so adding one is an
-// edit to the schema and nothing else.
+// Renders a page from its schema as grouped, compact rows. A setting is a row
+// of data; which card it lands in comes from its group and what draws it from
+// its kind, so adding one is an edit to the schema and nothing else.
+//
+// Each group is a SettingCard (a bordered, collapsible sheet); each setting is a
+// SettingRow inside it (label + description on the left, control on the right,
+// or a band beneath for a control that needs room). This replaced the bento
+// grid of value-hero cards, which read as scattered tiles; rows in a card read
+// as one instrument sheet.
 //
 // The draft object holds live values and is the page's own; this only reads it
 // and reports edits back. The one file it writes is the weather resolver cache
@@ -24,8 +30,14 @@ Item {
     // until Advanced is on. search still reaches them (the query branch ignores
     // this), so nothing is ever truly buried.
     property bool advanced: false
+    // the row a search jump lands on: switched to, scrolled into view, and
+    // flashed. Cleared shortly after so the wash is a pulse, not a highlight.
+    property string spotlightKey: ""
 
     signal edited(string key, var value)
+
+    // key -> the live SettingRow, so a search jump can find and scroll to it.
+    property var rowItems: ({})
 
     readonly property var rows: {
         var q = query.toLowerCase();
@@ -70,6 +82,75 @@ Item {
         if (r.ctl === "multi") return JSON.stringify(v || []) !== JSON.stringify(d || []);
         return v !== d;
     }
+    function resetRow(r) {
+        var d = defaults[r.key];
+        if (d !== undefined) sheet.edited(r.key, d);
+    }
+
+    // inline vs band, and how wide, decided once from the control kind. A
+    // control that needs room (chips, a gallery, a segmented bar of 3+, a demo)
+    // gets a band whose height is its own; a picker or field gets a fixed foot
+    // band; everything else sits inline at the row's right.
+    function ctlBlock(r) {
+        var c = r.ctl, n = (r.opts || []).length;
+        if (c === "chips" || c === "multi" || c === "gallery" || c === "layoutdemo") return true;
+        if (c === "seg" && n >= 3) return true;
+        return false;
+    }
+    function ctlFoot(r) {
+        var c = r.ctl;
+        if (c === "pick" || c === "text" || c === "color" || c === "location" || c === "image" || c === "action") return 32;
+        return 0;
+    }
+    function ctlWidth(r, w) {
+        var c = r.ctl, n = (r.opts || []).length;
+        if (c === "sw") return 54;
+        if (c === "step") return 58;
+        if (c === "slid") return Math.min(240, Math.max(160, Math.round(w * 0.34)));
+        if (c === "seg") return Math.max(120, 62 * Math.max(2, n));
+        return 54;
+    }
+    // the compact readout: a number for a stepper or slider; nothing for a
+    // toggle (the switch is the state) or a control that shows its own value.
+    function rowValue(r) {
+        if (r.ctl === "step" || r.ctl === "slid") return sheet.shown(r);
+        return "";
+    }
+    function rowUnit(r) {
+        if (r.ctl === "step" || r.ctl === "slid") return r.pct ? "%" : (r.unit || "");
+        return "";
+    }
+
+    // search jump: switch to the row's tab, then scroll it to centre and flash.
+    function focusKey(key) {
+        var r = null;
+        for (var i = 0; i < schema.length; i++) if (schema[i].key === key) { r = schema[i]; break; }
+        if (!r) return;
+        if (r.tab && r.tab !== sheet.tab) sheet.tab = r.tab;
+        sheet.spotlightKey = "";
+        scrollPending.key = key;
+        scrollPending.tries = 0;
+        scrollTimer.restart();
+    }
+    QtObject { id: scrollPending; property string key: ""; property int tries: 0 }
+    Timer {
+        id: scrollTimer
+        interval: 40
+        repeat: false
+        onTriggered: {
+            var it = sheet.rowItems[scrollPending.key];
+            if (!it && scrollPending.tries < 12) { scrollPending.tries++; scrollTimer.restart(); return; }
+            if (!it) return;
+            var y = it.mapToItem(col, 0, 0).y;
+            var target = Math.max(0, Math.min(y - flick.height / 2 + it.height / 2, Math.max(0, col.height - flick.height)));
+            scrollAnim.to = target;
+            scrollAnim.restart();
+            sheet.spotlightKey = scrollPending.key;
+            clearSpot.restart();
+        }
+    }
+    NumberAnimation { id: scrollAnim; target: flick; property: "contentY"; duration: Tokens.move; easing.type: Tokens.ease }
+    Timer { id: clearSpot; interval: 1600; onTriggered: sheet.spotlightKey = "" }
 
     Flickable {
         id: flick
@@ -80,57 +161,53 @@ Item {
 
         Column {
             id: col
-            width: flick.width - 14
-            spacing: Tokens.s5
+            // a settings sheet reads better bounded than sprawled edge to edge:
+            // cap the column so rows do not run a label metres from its control.
+            width: Math.min(flick.width - 14, 1000)
+            spacing: Tokens.s4
 
             Repeater {
                 model: sheet.groups
-                Section {
-                    id: sect
+                SettingCard {
+                    id: card
                     required property string modelData
                     width: col.width
                     title: I18n.tr(modelData === "" ? "OTHER" : modelData)
 
-                    // bento: pack this group's declared spans into flush rows,
-                    // so no row ends in dead space. minSpan keeps a cell usable
-                    // on a narrow sheet.
-                    readonly property var groupRows: sheet.rows.filter(function (r) { return r.group === sect.modelData })
-                    readonly property int minSpan: {
-                        for (var n = 1; n <= Spans.cols; n++)
-                            if (n * colWidth + (n - 1) * gutter >= 290) return n;
-                        return Spans.cols;
-                    }
-                    readonly property var packed: Spans.pack(
-                        groupRows.map(function (r) { return ((r.ctl === "seg" && (r.opts || []).length >= 3) || r.ctl === "layoutdemo") ? Spans.cols : Spans.of(r.ctl, (r.opts || []).length); }),
-                        minSpan)
+                    readonly property var groupRows: sheet.rows.filter(function (r) { return r.group === card.modelData })
 
                     Repeater {
-                        model: sect.groupRows
-                        Cell {
-                            id: cell
+                        model: card.groupRows
+                        SettingRow {
+                            id: srow
                             required property var modelData
                             required property int index
                             readonly property var r: modelData
-                            readonly property int optCount: (r.opts || []).length
 
-                            width: sect.span(sect.packed[index] || 4)
-                            height: neededHeight
-                            block: Spans.isBlock(r.ctl) || (r.ctl === "seg" && cell.optCount >= 3) || r.ctl === "layoutdemo"
-                            footH: (r.ctl === "pick" || r.ctl === "text" || r.ctl === "image" || r.ctl === "location" || r.ctl === "color" || r.ctl === "action") ? 34 : 0
-                            controlWidth: Spans.inlineWidth(r.ctl, optCount, width)
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            divider: index > 0
 
                             label: I18n.tr(r.label)
                             desc: I18n.tr(r.desc || "")
-                            unit: r.pct ? "%" : (r.unit || "")
-                            value: (r.ctl === "text" || r.ctl === "seg" || r.ctl === "image" || r.ctl === "location" || r.ctl === "color") ? "" : sheet.shown(r)
+                            value: sheet.rowValue(r)
+                            unit: sheet.rowUnit(r)
                             def: sheet.shownDef(r)
                             changed: sheet.isChanged(r)
-                            source: r.src + ".json"
+                            source: r.src ? r.src + ".json" : ""
+                            block: sheet.ctlBlock(r)
+                            footH: sheet.ctlBlock(r) ? 0 : sheet.ctlFoot(r)
+                            controlWidth: sheet.ctlWidth(r, card.width)
+                            spotlight: sheet.spotlightKey !== "" && sheet.spotlightKey === r.key
+                            onResetRequested: sheet.resetRow(r)
+
+                            Component.onCompleted: { var m = sheet.rowItems; m[r.key] = srow; sheet.rowItems = m; }
+                            Component.onDestruction: { if (sheet.rowItems[r.key] === srow) delete sheet.rowItems[r.key]; }
 
                             Loader {
                                 anchors.fill: parent
                                 sourceComponent: {
-                                    switch (cell.r.ctl) {
+                                    switch (srow.r.ctl) {
                                     case "sw": return swC;
                                     case "step": return stepC;
                                     case "slid": return slidC;
@@ -149,24 +226,18 @@ Item {
                                 }
                             }
 
-                            // an action button (e.g. AI translation): runs a tool
-                            // for the current language in a terminal.
                             Component {
                                 id: actionC
                                 Btn {
-                                    anchors { left: parent.left; bottom: parent.bottom }
-                                    text: I18n.tr(cell.r.actionLabel || "Generate")
+                                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                                    text: I18n.tr(srow.r.actionLabel || "Generate")
                                     onAct: {
-                                        if (cell.r.key === "i18nGenerate")
+                                        if (srow.r.key === "i18nGenerate")
                                             Quickshell.execDetached(["kitty", "--class", "ryoku-i18n", "-e", "sh", "-c",
                                                 "ryoku-i18n llm " + I18n.lang + "; echo; read -n1 -rsp 'Done. Press any key to close…'; echo"]);
                                     }
                                 }
                             }
-                            // the tiling-layout preview: a looping diagram of the
-                            // drafted layout (dwindle / master / scrolling), swapped
-                            // live as the picker above changes. Fills the block band;
-                            // the gifs ship in art/.
                             Component {
                                 id: layoutDemoC
                                 Item {
@@ -227,8 +298,8 @@ Item {
                                 Sw {
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
-                                    on: !!sheet.val(cell.r)
-                                    onToggled: (v) => sheet.edited(cell.r.key, v)
+                                    on: !!sheet.val(srow.r)
+                                    onToggled: (v) => sheet.edited(srow.r.key, v)
                                 }
                             }
                             Component {
@@ -236,55 +307,53 @@ Item {
                                 Step {
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
-                                    value: Number(sheet.val(cell.r)) || 0
-                                    from: Number(cell.r.lo) || 0
-                                    to: Number(cell.r.hi) || 100
-                                    onModified: (v) => sheet.edited(cell.r.key, v)
+                                    value: Number(sheet.val(srow.r)) || 0
+                                    from: Number(srow.r.lo) || 0
+                                    to: Number(srow.r.hi) || 100
+                                    onModified: (v) => sheet.edited(srow.r.key, v)
                                 }
                             }
                             Component {
                                 id: slidC
                                 Slid {
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: Math.round(cell.width * 0.42)
-                                    value: Number(sheet.val(cell.r)) || 0
-                                    from: Number(cell.r.lo) || 0
-                                    to: Number(cell.r.hi) || 1
-                                    onModified: (v) => sheet.edited(cell.r.key, v)
+                                    anchors.fill: parent
+                                    value: Number(sheet.val(srow.r)) || 0
+                                    from: Number(srow.r.lo) || 0
+                                    to: Number(srow.r.hi) || 1
+                                    onModified: (v) => sheet.edited(srow.r.key, v)
                                 }
                             }
                             Component {
                                 id: segC
                                 Seg {
-                                    anchors.right: cell.block ? undefined : parent.right
-                                    anchors.left: cell.block ? parent.left : undefined
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
-                                    options: cell.r.opts
-                                    current: String(sheet.val(cell.r))
-                                    onChose: (k) => sheet.edited(cell.r.key, k)
+                                    options: srow.r.opts
+                                    current: String(sheet.val(srow.r))
+                                    onChose: (k) => sheet.edited(srow.r.key, k)
                                 }
                             }
                             Component {
                                 id: chipsC
                                 Chips {
                                     anchors.fill: parent
-                                    options: cell.r.opts
-                                    current: String(sheet.val(cell.r))
-                                    onChose: (k) => sheet.edited(cell.r.key, k)
+                                    options: srow.r.opts
+                                    current: String(sheet.val(srow.r))
+                                    onChose: (k) => sheet.edited(srow.r.key, k)
                                 }
                             }
                             Component {
                                 id: multiC
                                 Multi {
                                     anchors.fill: parent
-                                    options: cell.r.opts
-                                    chosen: sheet.val(cell.r) || []
+                                    options: srow.r.opts
+                                    chosen: sheet.val(srow.r) || []
                                     onToggled: (k) => {
-                                        var l = (sheet.val(cell.r) || []).slice();
+                                        var l = (sheet.val(srow.r) || []).slice();
                                         var i = l.indexOf(k);
                                         if (i >= 0) l.splice(i, 1); else l.push(k);
-                                        sheet.edited(cell.r.key, l);
+                                        sheet.edited(srow.r.key, l);
                                     }
                                 }
                             }
@@ -292,18 +361,18 @@ Item {
                                 id: galleryC
                                 Gallery {
                                     anchors.fill: parent
-                                    options: Silhouette.skins.filter((skin) => !cell.r.opts || cell.r.opts.indexOf(skin.key) >= 0)
-                                    current: String(sheet.val(cell.r))
-                                    onChose: (k) => sheet.edited(cell.r.key, k)
+                                    options: Silhouette.skins.filter((skin) => !srow.r.opts || srow.r.opts.indexOf(skin.key) >= 0)
+                                    current: String(sheet.val(srow.r))
+                                    onChose: (k) => sheet.edited(srow.r.key, k)
                                 }
                             }
                             Component {
                                 id: pickC
                                 PickBar {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                                    value: String(sheet.val(cell.r))
-                                    count: cell.optCount
-                                    onOpened: sheet.openPick(cell.r)
+                                    anchors.fill: parent
+                                    value: String(sheet.val(srow.r))
+                                    count: (srow.r.opts || []).length
+                                    onOpened: sheet.openPick(srow.r)
                                 }
                             }
                             Component {
@@ -321,45 +390,29 @@ Item {
                                         anchors.rightMargin: 8
                                         verticalAlignment: Text.AlignVCenter
                                         clip: true
-                                        // show the head of a long value at rest, not
-                                        // a scrolled-to-the-cursor tail.
                                         autoScroll: activeFocus
                                         color: Tokens.ink
                                         font.family: Tokens.ui
                                         font.pixelSize: 12
                                         selectByMouse: true
-                                        text: String(sheet.val(cell.r))
-                                        onEditingFinished: sheet.edited(cell.r.key, text)
-                                        // commit as you type, not only on focus
-                                        // loss: clicking Save (a TapHandler) never
-                                        // blurs this field, so an editingFinished-
-                                        // only commit dropped the typed value and
-                                        // the setting "would not save".
-                                        onTextEdited: sheet.edited(cell.r.key, text)
+                                        text: String(sheet.val(srow.r))
+                                        onEditingFinished: sheet.edited(srow.r.key, text)
+                                        onTextEdited: sheet.edited(srow.r.key, text)
                                     }
                                 }
                             }
-                            // a colour: a live swatch + hex, with a visual picker
-                            // on the swatch, instead of the bare text field this
-                            // used to fall through to (ctl "color" had no case).
                             Component {
                                 id: colorC
                                 ColorField {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                                    height: 30
-                                    value: String(sheet.val(cell.r))
-                                    onChosen: (v) => sheet.edited(cell.r.key, v)
+                                    anchors.fill: parent
+                                    value: String(sheet.val(srow.r))
+                                    onChosen: (v) => sheet.edited(srow.r.key, v)
                                 }
                             }
-                            // an image mark: a live thumbnail of the current
-                            // file plus Choose (opens the shared file picker,
-                            // hosted by the page) and Clear (falls back to the
-                            // text glyph). far friendlier than typing a path.
                             Component {
                                 id: imageC
                                 Row {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                                    height: 30
+                                    anchors.fill: parent
                                     spacing: Tokens.s2
                                     Rectangle {
                                         id: imgThumb
@@ -370,7 +423,7 @@ Item {
                                         border.width: Tokens.border
                                         border.color: Tokens.line
                                         clip: true
-                                        readonly property string src: String(sheet.val(cell.r))
+                                        readonly property string src: String(sheet.val(srow.r))
                                         Image {
                                             anchors.fill: parent
                                             anchors.margins: 1
@@ -392,23 +445,16 @@ Item {
                                     Btn {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "CHOOSE…"
-                                        onAct: sheet.imagePick(cell.r)
+                                        onAct: sheet.imagePick(srow.r)
                                     }
                                     Btn {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        visible: String(sheet.val(cell.r)) !== ""
+                                        visible: String(sheet.val(srow.r)) !== ""
                                         text: "CLEAR"
-                                        onAct: sheet.edited(cell.r.key, "")
+                                        onAct: sheet.edited(srow.r.key, "")
                                     }
                                 }
                             }
-                            // a location field with live autocomplete: as you
-                            // type, Open-Meteo's keyless geocoder (the same one
-                            // the weather widgets resolve with) suggests real
-                            // places; picking one stores the name and records
-                            // the resolver cache so all three weather surfaces
-                            // land on exactly that place (Paris FR vs Paris TX).
-                            // typing freely still works; empty locates by IP.
                             Component {
                                 id: locationC
                                 Item {
@@ -418,7 +464,7 @@ Item {
 
                                     Rectangle {
                                         id: locField
-                                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
                                         height: 30
                                         color: "transparent"
                                         radius: Tokens.radius
@@ -436,9 +482,9 @@ Item {
                                             font.family: Tokens.ui
                                             font.pixelSize: 12
                                             selectByMouse: true
-                                            text: String(sheet.val(cell.r))
+                                            text: String(sheet.val(srow.r))
                                             onTextEdited: debounce.restart()
-                                            onEditingFinished: sheet.edited(cell.r.key, text)
+                                            onEditingFinished: sheet.edited(srow.r.key, text)
                                         }
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
@@ -474,9 +520,9 @@ Item {
                                                     var j = JSON.parse(this.text);
                                                     if (j && Array.isArray(j.results)) {
                                                         for (var i = 0; i < j.results.length; i++) {
-                                                            var r = j.results[i];
-                                                            if (typeof r.latitude === "number" && typeof r.longitude === "number")
-                                                                out.push({ name: r.name || "", admin1: r.admin1 || "", country: r.country || "", lat: r.latitude, lon: r.longitude });
+                                                            var rr = j.results[i];
+                                                            if (typeof rr.latitude === "number" && typeof rr.longitude === "number")
+                                                                out.push({ name: rr.name || "", admin1: rr.admin1 || "", country: rr.country || "", lat: rr.latitude, lon: rr.longitude });
                                                         }
                                                     }
                                                 } catch (e) {}
@@ -534,7 +580,7 @@ Item {
                                                 TapHandler {
                                                     onTapped: {
                                                         lti.text = lrow.modelData.name;
-                                                        sheet.edited(cell.r.key, lrow.modelData.name);
+                                                        sheet.edited(srow.r.key, lrow.modelData.name);
                                                         locCache.setText(JSON.stringify({ query: lrow.modelData.name, city: lrow.modelData.name, lat: lrow.modelData.lat, lon: lrow.modelData.lon }));
                                                         locPop.close();
                                                     }

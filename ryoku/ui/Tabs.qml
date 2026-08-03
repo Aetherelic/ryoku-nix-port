@@ -11,7 +11,7 @@ Row {
     property string current: ""
     signal chose(string label)
 
-    spacing: 0
+    spacing: Tokens.s2
 
     Repeater {
         model: tabs.options

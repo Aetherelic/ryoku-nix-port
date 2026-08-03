@@ -184,15 +184,11 @@ Item {
     Timer { id: comfortErrorClear; interval: 6000; onTriggered: pg.comfortError = "" }
 
     // ════════════════════════════════════════════════════════════════════════
-    // Rices: whole-desktop looks. Browse My rices / the store, then apply, fork,
-    // delete, set a wallpaper, view the config, export. All ryoku-hub rice.
+    // Rices: installed whole-desktop looks. RyoStore owns browsing and install;
+    // this page keeps local capture, activation, import, export, and deletion.
     // ════════════════════════════════════════════════════════════════════════
     property var rices: []
-    property var catalog: []
     property bool ricesLoading: true
-    property bool browseMode: false
-    property bool catalogLoading: false
-    property bool catalogError: false
     property string selectedSlug: ""
     property bool capturing: false
     property var touches: []
@@ -215,22 +211,13 @@ Item {
 
     onSelectedSlugChanged: {
         pg.exportedTo = "";
-        if (pg.selectedSlug !== "" && !pg.browseMode) pg.loadFiles();
+        if (pg.selectedSlug !== "") pg.loadFiles();
     }
 
     function reloadRices() {
         pg.ricesLoading = true;
         listProc.running = true;
         if (pg.selectedSlug !== "") pg.loadFiles();
-    }
-    function loadCatalog() {
-        pg.catalogLoading = true;
-        pg.catalogError = false;
-        catalogProc.running = true;
-    }
-    function showBrowse(on) {
-        pg.browseMode = on;
-        if (on && pg.catalog.length === 0 && !pg.catalogLoading) pg.loadCatalog();
     }
     function applyRice(slug, layers) {
         applyProc.command = ["ryoku-hub", "rice", "apply", slug].concat(layers || []);
@@ -247,7 +234,7 @@ Item {
     }
     function delRice(slug) { deleteProc.command = ["ryoku-hub", "rice", "delete", slug]; deleteProc.running = true; }
     function forkRice(slug) { forkProc.command = ["ryoku-hub", "rice", "fork", slug]; forkProc.running = true; }
-    function installRice(id) { installProc.command = ["ryoku-hub", "rice", "install", id]; installProc.running = true; }
+    function browseRices() { Quickshell.execDetached(["ryostore", "open", "rices"]); }
     function setwall(path) {
         if (!path || pg.selectedSlug === "") return;
         setwallProc.command = ["ryoku-hub", "rice", "setwall", pg.selectedSlug, path];
@@ -306,17 +293,6 @@ Item {
             }
         }
     }
-    Process {
-        id: catalogProc
-        command: ["ryoku-hub", "rice", "catalog"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try { pg.catalog = JSON.parse(this.text) || []; pg.catalogError = false; }
-                catch (e) { pg.catalog = []; pg.catalogError = true; }
-                pg.catalogLoading = false;
-            }
-        }
-    }
     Process { id: applyProc; onExited: (code, status) => { pg.selectedSlug = ""; pg.reloadRices(); } }
     Process { id: restoreProc; onExited: (code, status) => pg.reloadRices() }
     Process { id: captureProc; onExited: (code, status) => { pg.capturing = false; pg.reloadRices(); } }
@@ -330,7 +306,6 @@ Item {
     }
     Process { id: deleteProc; onExited: (code, status) => { pg.selectedSlug = ""; pg.reloadRices(); } }
     Process { id: forkProc; onExited: (code, status) => { pg.selectedSlug = ""; pg.reloadRices(); } }
-    Process { id: installProc; onExited: (code, status) => { pg.reloadRices(); pg.loadCatalog(); } }
     Process { id: setwallProc; onExited: (code, status) => pg.reloadRices() }
     Process {
         id: filesProc
@@ -359,37 +334,6 @@ Item {
     // ════════════════════════════════════════════════════════════════════════
     // small shared pieces
     // ════════════════════════════════════════════════════════════════════════
-
-    // a section header: dot + tracked caps title + a soft leader eating the gap.
-    component SectionHead: Item {
-        id: sh
-        property string title: ""
-        implicitHeight: 20
-        Row {
-            id: shLabel
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Tokens.s2
-            Rectangle { width: 4; height: 4; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
-            Text {
-                text: sh.title
-                color: Tokens.ink
-                font.family: Tokens.ui
-                font.pixelSize: Tokens.fMicro
-                font.weight: Font.Medium
-                font.letterSpacing: Tokens.trackMark
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
-        Rectangle {
-            anchors.left: shLabel.right
-            anchors.right: parent.right
-            anchors.leftMargin: Tokens.s3
-            anchors.verticalCenter: parent.verticalCenter
-            height: 1
-            color: Tokens.lineSoft
-        }
-    }
 
     // a colour-scheme card: the sidebar's swatch-card picker in the Hub's ink
     // vocabulary. A named palette shows its own surface, name and a two-by-three
@@ -477,17 +421,14 @@ Item {
         TapHandler { onTapped: pg.setScheme(scard.scheme.id) }
     }
 
-    // a rice as a storefront tile: monochrome chrome around a colour preview
-    // (the look is the data the user is choosing), name, blurb, compat tags.
+    // A local rice tile: monochrome chrome around its colour preview.
     component RiceCard: Rectangle {
         id: card
         property var rice: ({})
-        property bool store: false
         signal opened()
 
         readonly property string preview: card.rice.preview || card.rice.posterUrl || ""
         readonly property bool active: !!card.rice.active
-        readonly property bool installed: !!card.rice.installed
         readonly property string compat: card.rice.compat || "unknown"
 
         implicitHeight: 250
@@ -543,7 +484,7 @@ Item {
             Row {
                 anchors { top: parent.top; right: parent.right; margins: Tokens.s3 }
                 spacing: Tokens.s1
-                visible: card.active || (card.store && card.installed)
+                visible: card.active
                 Rectangle {
                     visible: card.active
                     width: 6; height: 6; radius: 3
@@ -552,8 +493,8 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: card.active ? I18n.tr("ACTIVE") : I18n.tr("INSTALLED")
-                    color: card.active ? Tokens.ink : Tokens.inkMuted
+                    text: I18n.tr("ACTIVE")
+                    color: Tokens.ink
                     font.family: Tokens.mono
                     font.pixelSize: Tokens.fTiny
                 }
@@ -641,279 +582,6 @@ Item {
         font.pixelSize: Tokens.fMicro
         font.weight: Font.Medium
         font.letterSpacing: Tokens.trackMark
-    }
-
-    // the settings sheet, inline. SettingsSheet is not exposed through the
-    // parent-directory import in this host, so the shared renderer is
-    // reproduced from the same Ryoku.Ui primitives (Section, Cell, and the
-    // Sw/Step/Slid/Seg/PickBar controls), with a colour-swatch control the
-    // schema needs and the cursor catalogue routed to this page's own picker.
-    // It reads the draft and reports edits; it writes nothing.
-    component Sheet: Flickable {
-        id: sheet
-        property var schema: []
-        property var draft: null
-        property var defaults: ({})
-        property string tab: ""
-        property string query: ""
-        signal edited(string key, var value)
-        signal pickRequested(var row)
-
-        readonly property var rows: {
-            var q = sheet.query.toLowerCase();
-            return sheet.schema.filter(function (r) {
-                if (r.tab !== sheet.tab && sheet.query === "") return false;
-                if (sheet.query === "") return true;
-                return (r.label + " " + (r.desc || "") + " " + r.key).toLowerCase().indexOf(q) >= 0;
-            });
-        }
-        readonly property var groups: {
-            var g = [];
-            for (var i = 0; i < sheet.rows.length; i++)
-                if (g.indexOf(sheet.rows[i].group) < 0) g.push(sheet.rows[i].group);
-            return g;
-        }
-        function val(r) { if (!sheet.draft) return ""; var v = sheet.draft[r.key]; return v === undefined ? "" : v; }
-        function shown(r) {
-            var v = sheet.val(r);
-            if (r.ctl === "sw") return v ? "ON" : "OFF";
-            if (r.ctl === "slid" && r.pct) return String(Math.round(v * 100));
-            if (r.ctl === "color") return String(v).toUpperCase();
-            return String(v);
-        }
-        function shownDef(r) {
-            var d = sheet.defaults[r.key];
-            if (d === undefined) return "";
-            if (r.ctl === "sw") return d ? "ON" : "OFF";
-            if (r.ctl === "slid" && r.pct) return String(Math.round(d * 100));
-            return String(d);
-        }
-        function isChanged(r) {
-            var v = sheet.val(r), d = sheet.defaults[r.key];
-            if (d === undefined) return false;
-            return v !== d;
-        }
-        function reserve(ctl, opts, w) {
-            if (ctl === "color") return 150;
-            if (ctl === "text") return 180;
-            return Spans.inlineWidth(ctl, opts, w);
-        }
-
-        contentWidth: width
-        contentHeight: col.height + Tokens.s5
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
-
-        Column {
-            id: col
-            width: sheet.width - Tokens.s3
-            spacing: Tokens.s5
-
-            Repeater {
-                model: sheet.groups
-                Section {
-                    id: sect
-                    required property string modelData
-                    width: col.width
-                    title: modelData === "" ? I18n.tr("OTHER") : modelData
-
-                    // bento: flush rows, no ragged right edge (same packer as
-                    // the shared sheet).
-                    readonly property var groupRows: sheet.rows.filter(function (r) { return r.group === sect.modelData; })
-                    readonly property int minSpan: {
-                        for (var n = 1; n <= Spans.cols; n++)
-                            if (n * colWidth + (n - 1) * gutter >= 290) return n;
-                        return Spans.cols;
-                    }
-                    readonly property var packed: Spans.pack(
-                        groupRows.map(function (r) { return (r.ctl === "layoutdemo" || (r.ctl === "seg" && (r.opts || []).length >= 3)) ? Spans.cols : Spans.of(r.ctl, (r.opts || []).length); }),
-                        minSpan)
-
-                    Repeater {
-                        model: sect.groupRows
-                        Cell {
-                            id: cell
-                            required property var modelData
-                            required property int index
-                            readonly property var r: modelData
-                            readonly property int optCount: (r.opts || []).length
-                            readonly property bool foot: r.ctl === "pick"
-
-                            width: sect.span(sect.packed[index] || 4)
-                            height: neededHeight
-                            block: cell.foot || Spans.isBlock(r.ctl) || r.ctl === "layoutdemo" || (r.ctl === "seg" && cell.optCount >= 3)
-                            controlWidth: sheet.reserve(r.ctl, optCount, width)
-
-                            label: I18n.tr(r.label)
-                            desc: r.desc || ""
-                            unit: r.pct ? "%" : (r.unit || "")
-                            value: sheet.shown(r)
-                            def: sheet.shownDef(r)
-                            changed: sheet.isChanged(r)
-                            source: "hypr.json"
-
-                            Loader {
-                                anchors.fill: parent
-                                sourceComponent: {
-                                    switch (cell.r.ctl) {
-                                    case "sw": return swC;
-                                    case "step": return stepC;
-                                    case "slid": return slidC;
-                                    case "seg": return segC;
-                                    case "pick": return pickC;
-                                    case "color": return colorC;
-                                    case "layoutdemo": return demoC;
-                                    default: return textC;
-                                    }
-                                }
-                            }
-                            Component {
-                                id: swC
-                                Sw {
-                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    on: !!sheet.val(cell.r); onToggled: (v) => sheet.edited(cell.r.key, v)
-                                }
-                            }
-                            Component {
-                                id: stepC
-                                Step {
-                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    value: Number(sheet.val(cell.r)) || 0
-                                    from: Number(cell.r.lo) || 0; to: Number(cell.r.hi) || 100
-                                    onModified: (v) => sheet.edited(cell.r.key, v)
-                                }
-                            }
-                            Component {
-                                id: slidC
-                                Slid {
-                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    width: Math.round(cell.width * 0.42)
-                                    value: Number(sheet.val(cell.r)) || 0
-                                    from: Number(cell.r.lo) || 0; to: Number(cell.r.hi) || 1
-                                    onModified: (v) => sheet.edited(cell.r.key, v)
-                                }
-                            }
-                            Component {
-                                id: segC
-                                Seg {
-                                    anchors.right: cell.block ? undefined : parent.right; anchors.left: cell.block ? parent.left : undefined; anchors.verticalCenter: parent.verticalCenter
-                                    options: cell.r.opts; current: String(sheet.val(cell.r))
-                                    onChose: (k) => sheet.edited(cell.r.key, k)
-                                }
-                            }
-                            Component {
-                                id: pickC
-                                PickBar {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                                    value: String(sheet.val(cell.r)); count: cell.optCount
-                                    onOpened: sheet.pickRequested(cell.r)
-                                }
-                            }
-                            Component {
-                                id: colorC
-                                Row {
-                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    spacing: Tokens.s2
-                                    Rectangle {
-                                        width: 24; height: 24; radius: Tokens.radius
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        // a swatch is a colour specimen (data), the one sanctioned chroma.
-                                        color: /^#?[0-9A-Fa-f]{6}$/.test(String(sheet.val(cell.r))) ? String(sheet.val(cell.r)) : "transparent"
-                                        border.width: Tokens.border; border.color: Tokens.line
-                                    }
-                                    Field {
-                                        width: 96; tabular: true
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: String(sheet.val(cell.r))
-                                        onCommitted: (v) => sheet.edited(cell.r.key, v)
-                                    }
-                                }
-                            }
-                            Component {
-                                id: textC
-                                Field {
-                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    width: 176; tabular: true
-                                    text: String(sheet.val(cell.r))
-                                    onCommitted: (v) => sheet.edited(cell.r.key, v)
-                                }
-                            }
-                            // the tiling-layout preview: a looping diagram of the
-                            // drafted layout (dwindle / master / scrolling), swapped
-                            // live as the picker above changes. gifs ship in ../art.
-                            Component {
-                                id: demoC
-                                Item {
-                                    id: demo
-                                    implicitHeight: 200
-                                    readonly property string layout: {
-                                        var v = sheet.draft ? sheet.draft["appearance.layout"] : "";
-                                        return (v === "master" || v === "scrolling") ? v : "dwindle";
-                                    }
-                                    readonly property var blurbs: ({
-                                        "dwindle": "Each new window splits the focused frame in two, so the layout spirals into smaller and smaller frames.",
-                                        "master": "One big master frame keeps the focus; every other window stacks down the side beside it.",
-                                        "scrolling": "Windows line up in one endless horizontal row; the strip pans sideways to keep the focused column in view."
-                                    })
-                                    Rectangle {
-                                        id: screen
-                                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                                        width: Math.min(380, demo.width * 0.52)
-                                        color: "transparent"
-                                        radius: Tokens.radius
-                                        border.width: Tokens.border
-                                        border.color: Tokens.line
-                                        AnimatedImage {
-                                            anchors.fill: parent
-                                            anchors.margins: Tokens.s3
-                                            source: Qt.resolvedUrl("../art/tiling-" + demo.layout + ".gif")
-                                            fillMode: Image.PreserveAspectFit
-                                            playing: true
-                                            cache: false
-                                            asynchronous: true
-                                            onStatusChanged: if (status === Image.Ready) playing = true
-                                        }
-                                    }
-                                    Column {
-                                        anchors { left: screen.right; leftMargin: Tokens.s5; right: parent.right; verticalCenter: screen.verticalCenter }
-                                        spacing: Tokens.s2
-                                        Text {
-                                            text: demo.layout.toUpperCase()
-                                            color: Tokens.ink
-                                            font.family: Tokens.display; font.pixelSize: Tokens.fValue
-                                        }
-                                        Text {
-                                            width: parent.width
-                                            text: demo.blurbs[demo.layout] || ""
-                                            color: Tokens.inkMuted
-                                            font.family: Tokens.ui; font.pixelSize: Tokens.fBody
-                                            wrapMode: Text.WordWrap
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Column {
-            anchors.centerIn: parent
-            visible: sheet.rows.length === 0
-            spacing: Tokens.s2
-            Text {
-                text: I18n.tr("NO MATCH"); color: Tokens.inkDim; font.family: Tokens.ui
-                font.pixelSize: Tokens.fRow; font.letterSpacing: 2
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-            Text {
-                text: I18n.tr("nothing here matches: ") + sheet.query
-                color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-        }
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1009,43 +677,39 @@ Item {
                 // ── COLOUR GENERATION: how matugen reads the wallpaper. First,
                 // because it is what the live scheme is actually made of; shown only
                 // for the live pick, since a fixed palette needs no extraction.
-                Column {
+                SettingCard {
                     visible: pg.scheme === "Wallpaper"
-                    width: parent.width
-                    spacing: Tokens.s4
-                    SectionHead { width: parent.width; title: I18n.tr("COLOUR GENERATION") }
+                    width: wallCol.width
+                    title: I18n.tr("COLOUR GENERATION")
                     Text {
-                        width: Math.min(parent.width, 620)
-                        wrapMode: Text.WordWrap
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
                         text: I18n.tr("Live colours are read from the wallpaper. Mode picks a light or dark palette, or follows the picture's own brightness; contrast pushes the palette apart. Both apply as you set them.")
-                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                        color: Tokens.inkMuted; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
                     }
-                    Row {
-                        spacing: Tokens.s3
-                        Column {
-                            spacing: Tokens.s1
-                            Text { text: I18n.tr("MODE"); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel }
-                            Text { text: pg.genMode.toUpperCase(); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fValue; font.weight: Font.Light }
-                        }
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        block: true
+                        label: I18n.tr("Mode")
                         Seg {
+                            anchors.left: parent.left; anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             options: ["DARK", "LIGHT", "SMART"]
                             current: pg.genMode.toUpperCase()
                             onChose: (k) => pg.setGen("mode", k.toLowerCase())
                         }
                     }
-                    Row {
-                        width: parent.width
-                        spacing: Tokens.s3
-                        Column {
-                            width: 220
-                            spacing: Tokens.s1
-                            Text { text: I18n.tr("CONTRAST"); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.letterSpacing: Tokens.trackLabel }
-                            Text { text: String(pg.genContrast); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fBody }
-                        }
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        label: I18n.tr("Contrast")
+                        value: String(pg.genContrast)
+                        controlWidth: Math.min(240, Math.max(160, Math.round(wallCol.width * 0.34)))
                         Slid {
-                            width: parent.width - 230
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.fill: parent
                             from: -1.0; to: 1.0
                             value: pg.genContrast
                             onModified: (v) => pg.setGen("contrast", Math.round(v * 100) / 100)
@@ -1059,82 +723,95 @@ Item {
                 // writes, so the two stay one truth. The named palettes sit behind a
                 // drawer: two picks carry the everyday choice, and the wall of 57 is
                 // there when it is wanted rather than in the way.
-                Column {
-                    id: schemeSection
+                SettingCard {
+                    id: schemeCard
+                    width: wallCol.width
+                    title: I18n.tr("COLOUR SCHEME")
                     property bool themesOpen: false
 
-                    width: parent.width
-                    spacing: Tokens.s3
-                    SectionHead { width: parent.width; title: I18n.tr("COLOUR SCHEME") }
-                    Column {
-                        spacing: Tokens.s1
-                        Text { text: I18n.tr("SCHEME"); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel }
-                        Text { text: pg.schemeName(pg.scheme); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fValue; font.weight: Font.Light }
-                    }
                     Text {
-                        width: Math.min(parent.width, 620)
-                        wrapMode: Text.WordWrap
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s2
                         text: I18n.tr("Follow the wallpaper for live colours, keep the Ryoku default, or lock one of the named palettes. The same picker as the sidebar; the daemon retints the shell and every app to match.")
-                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                        color: Tokens.inkMuted; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
                     }
 
-                    // Always out: the two dynamic picks, plus the named palette in use
-                    // so the current choice is never hidden behind the drawer.
-                    Flow {
+                    // the sidebar's swatch-card picker, kept intact -- inset into the
+                    // card body. Always out: the two dynamic variants plus the named
+                    // palette in use, so the current pick is never hidden; the wall of
+                    // 57 sits behind the drawer.
+                    Column {
                         width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4; bottomPadding: Tokens.s4
                         spacing: Tokens.s3
-                        Repeater {
-                            model: ThemeCatalog.schemes.filter(s => s.dynamic === true || s.id === pg.scheme)
-                            delegate: SchemeCard { required property var modelData; scheme: modelData }
-                        }
-                    }
-
-                    Row {
-                        spacing: Tokens.s3
-                        Btn {
-                            text: schemeSection.themesOpen ? I18n.tr("HIDE THEMES") : I18n.tr("ALL THEMES")
-                            onAct: schemeSection.themesOpen = !schemeSection.themesOpen
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: I18n.tr("%1 named palettes").arg(ThemeCatalog.schemes.filter(s => s.dynamic !== true).length)
-                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                        }
-                    }
-
-                    // The drawer. Clipped and height-animated, the same disclosure the
-                    // network list uses; the Flow inside keeps its own natural height.
-                    Item {
-                        width: parent.width
-                        height: schemeSection.themesOpen ? themeFlow.height : 0
-                        clip: true
-                        visible: height > 0.5
-                        opacity: schemeSection.themesOpen ? 1 : 0
-                        Behavior on height { NumberAnimation { duration: Tokens.move; easing.type: Tokens.ease } }
-                        Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
 
                         Flow {
-                            id: themeFlow
-                            width: parent.width
+                            width: parent.width - Tokens.s4 * 2
                             spacing: Tokens.s3
                             Repeater {
-                                model: ThemeCatalog.schemes.filter(s => s.dynamic !== true)
+                                model: ThemeCatalog.schemes.filter(s => s.dynamic === true || s.id === pg.scheme)
                                 delegate: SchemeCard { required property var modelData; scheme: modelData }
+                            }
+                        }
+
+                        Row {
+                            spacing: Tokens.s3
+                            Btn {
+                                text: schemeCard.themesOpen ? I18n.tr("HIDE THEMES") : I18n.tr("ALL THEMES")
+                                onAct: schemeCard.themesOpen = !schemeCard.themesOpen
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: I18n.tr("%1 named palettes").arg(ThemeCatalog.schemes.filter(s => s.dynamic !== true).length)
+                                color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            }
+                        }
+
+                        Item {
+                            width: parent.width - Tokens.s4 * 2
+                            height: schemeCard.themesOpen ? themeFlow.height : 0
+                            clip: true
+                            visible: height > 0.5
+                            opacity: schemeCard.themesOpen ? 1 : 0
+                            Behavior on height { NumberAnimation { duration: Tokens.move; easing.type: Tokens.ease } }
+                            Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                            Flow {
+                                id: themeFlow
+                                width: parent.width
+                                spacing: Tokens.s3
+                                Repeater {
+                                    model: ThemeCatalog.schemes.filter(s => s.dynamic !== true)
+                                    delegate: SchemeCard { required property var modelData; scheme: modelData }
+                                }
                             }
                         }
                     }
                 }
 
                 // ── RYOKU DEFAULT ──
-                Column {
-                    width: parent.width
-                    spacing: Tokens.s3
-                    SectionHead { width: parent.width; title: I18n.tr("RYOKU DEFAULT") }
-                    Row {
+                SettingCard {
+                    width: wallCol.width
+                    title: I18n.tr("RYOKU DEFAULT")
+                    Text {
                         width: parent.width
-                        spacing: Tokens.s3
-                        Text { width: Math.max(0, parent.width - ryokuBtn.width - Tokens.s3); anchors.verticalCenter: parent.verticalCenter; wrapMode: Text.WordWrap; text: I18n.tr("Reset the whole desktop to the Ryoku signature: paper frame bars, square corners, Space Grotesk, and the grainy mono palette."); color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
-                        Btn { id: ryokuBtn; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("APPLY RYOKU THEME"); primary: true; onAct: pg.applyRyokuTheme() }
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
+                        text: I18n.tr("Reset the whole desktop to the Ryoku signature: paper frame bars, square corners, Space Grotesk, and the grainy mono palette.")
+                        color: Tokens.inkMuted; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                    }
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        footH: 32
+                        label: I18n.tr("Apply the Ryoku theme")
+                        Btn {
+                            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                            text: I18n.tr("APPLY RYOKU THEME"); primary: true
+                            onAct: pg.applyRyokuTheme()
+                        }
                     }
                 }
             }
@@ -1156,21 +833,18 @@ Item {
                 width: comfortView.width - Tokens.s3
                 spacing: Tokens.s5
 
-                Section {
-                    id: backSect
-                    width: parent.width
+                SettingCard {
+                    width: comfortCol.width
                     title: I18n.tr("BACKLIGHT")
-                    Cell {
-                        width: backSect.span(6)
-                        controlWidth: Math.round(width * 0.42)
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
                         label: I18n.tr("Brightness"); unit: "%"
-                        value: String(pg.brightness < 0 ? 100 : pg.brightness)
                         desc: I18n.tr("Hardware backlight, applied at once, floors at 5% to stay visible.")
-                        source: ""
+                        value: String(pg.brightness < 0 ? 100 : pg.brightness)
                         changed: false
+                        controlWidth: Math.min(240, Math.max(160, Math.round(comfortCol.width * 0.34)))
                         Slid {
-                            width: parent.width
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.fill: parent
                             from: 5; to: 100
                             value: pg.brightness < 0 ? 100 : pg.brightness
                             onModified: (v) => pg.setBrightness(v)
@@ -1178,36 +852,31 @@ Item {
                     }
                 }
 
-                Section {
-                    id: nightSect
-                    width: parent.width
+                SettingCard {
+                    width: comfortCol.width
                     title: I18n.tr("NIGHT LIGHT")
-                    Cell {
-                        width: nightSect.span(4)
-                        controlWidth: 54
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
                         label: I18n.tr("Warm the screen")
-                        value: pg.nightOn ? "ON" : "OFF"
                         desc: I18n.tr("Cuts blue light for the evening, stays on across sessions.")
-                        source: ""
                         changed: false
+                        controlWidth: 54
                         Sw {
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                             on: pg.nightOn
                             onToggled: (v) => pg.setNight(v)
                         }
                     }
-                    Cell {
-                        width: nightSect.span(6)
-                        controlWidth: Math.round(width * 0.42)
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
                         label: I18n.tr("Temperature"); unit: "K"
-                        value: String(pg.nightTemp)
                         desc: I18n.tr("Lower Kelvin is warmer, saved only while the light is on.")
-                        source: ""
+                        value: String(pg.nightTemp)
                         changed: false
+                        controlWidth: Math.min(240, Math.max(160, Math.round(comfortCol.width * 0.34)))
                         Slid {
-                            width: parent.width
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.fill: parent
                             from: 2500; to: 6500
                             value: pg.nightTemp
                             onModified: (v) => pg.setNightTemp(v)
@@ -1249,16 +918,14 @@ Item {
                     visible: pg.selectedSlug === ""
                     spacing: Tokens.s4
 
-                    Seg {
-                        options: ["MY RICES", "BROWSE"]
-                        current: pg.browseMode ? "BROWSE" : "MY RICES"
-                        onChose: (k) => pg.showBrowse(k === "BROWSE")
+                    Btn {
+                        text: I18n.tr("BROWSE RYOSTORE")
+                        onAct: pg.browseRices()
                     }
 
                     // My rices
                     Column {
                         width: parent.width
-                        visible: !pg.browseMode
                         spacing: Tokens.s4
 
                         Row {
@@ -1347,7 +1014,7 @@ Item {
                             Text {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
-                                text: I18n.tr("Tune your desktop the way you like, then Save current setup to make your first rice, or Browse the store for one to install.")
+                                text: I18n.tr("Tune your desktop, then Save current setup to make your first rice, or browse RyoStore to install one.")
                                 color: Tokens.inkMuted
                                 font.family: Tokens.ui
                                 font.pixelSize: Tokens.fSmall
@@ -1372,76 +1039,6 @@ Item {
                         }
                     }
 
-                    // Browse the community store
-                    Column {
-                        width: parent.width
-                        visible: pg.browseMode
-                        spacing: Tokens.s4
-
-                        Text {
-                            width: parent.width
-                            wrapMode: Text.WordWrap
-                            text: I18n.tr("Install a rice from the community store, then apply it from My rices. A rice built for a different Ryoku version still applies; it is reconciled to yours.")
-                            color: Tokens.inkMuted
-                            font.family: Tokens.ui
-                            font.pixelSize: Tokens.fSmall
-                        }
-
-                        Row {
-                            spacing: Tokens.s3
-                            Btn {
-                                text: pg.catalogLoading ? I18n.tr("REFRESHING") : I18n.tr("REFRESH")
-                                armed: !pg.catalogLoading
-                                onAct: pg.loadCatalog()
-                            }
-                        }
-
-                        Tick {
-                            visible: pg.catalogLoading
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
-
-                        Column {
-                            visible: !pg.catalogLoading && pg.catalog.length === 0
-                            width: parent.width
-                            spacing: Tokens.s3
-                            topPadding: Tokens.s5
-                            Text {
-                                width: parent.width
-                                horizontalAlignment: Text.AlignHCenter
-                                text: pg.catalogError ? I18n.tr("Couldn't reach the rice store.") : I18n.tr("No rices in the store yet.")
-                                color: Tokens.inkMuted
-                                font.family: Tokens.ui
-                                font.pixelSize: Tokens.fSmall
-                                wrapMode: Text.WordWrap
-                            }
-                            Btn {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: I18n.tr("TRY AGAIN")
-                                onAct: pg.loadCatalog()
-                            }
-                        }
-
-                        Flow {
-                            id: storeGrid
-                            width: parent.width
-                            visible: !pg.catalogLoading && pg.catalog.length > 0
-                            spacing: Tokens.s3
-                            Repeater {
-                                model: pg.catalog
-                                delegate: RiceCard {
-                                    required property var modelData
-                                    width: Math.max(280, (storeGrid.width - Tokens.s3 * 2) / 3)
-                                    rice: modelData
-                                    store: true
-                                    onOpened: {
-                                        if (modelData.installed) { pg.browseMode = false; pg.selectedSlug = modelData.id; }
-                                        else pg.installRice(modelData.id);
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
 
                 // ---- the detail drill-in ----

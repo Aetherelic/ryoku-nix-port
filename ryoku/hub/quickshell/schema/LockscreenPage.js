@@ -37,5 +37,14 @@ var rows = [
             "never-ask",
             "ask"
         ]
+    },
+    {
+        "tab": "",
+        "group": "OTHER",
+        "key": "",
+        "label": "Browse RyoStore",
+        "desc": "Opens the RyoStore lockscreen catalogue for discovery and installation",
+        "ctl": "action",
+        "src": "ryostore open lockscreens"
     }
 ];

@@ -279,24 +279,20 @@ Item {
             width: flick.width - Tokens.s3
             spacing: Tokens.s5
 
-            Section {
-                id: launcherSect
+            SettingCard {
                 width: col.width
                 title: I18n.tr("LAUNCHER")
 
-                Cell {
-                    width: launcherSect.span(Spans.cols)
-                    height: Tokens.cellH
-                    controlWidth: Spans.inlineWidth("seg", pg.variantNames().length, width)
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    block: true
                     label: I18n.tr("Style")
                     desc: String(pg.variantEntry(pg.draft.variant).description || "")
-                    value: String(pg.variantEntry(pg.draft.variant).name || "")
                     def: String(pg.variantEntry(pg.committed.variant).name || "")
                     changed: !pg.same(pg.draft.variant, pg.committed.variant)
                     source: "launcher.json"
-
                     Seg {
-                        anchors.right: parent.right
+                        anchors.left: parent.left; anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         options: pg.variantNames()
                         current: String(pg.variantEntry(pg.draft.variant).name || "")
@@ -305,17 +301,14 @@ Item {
                 }
             }
 
-            Section {
-                id: palSect
+            SettingCard {
                 width: col.width
                 title: I18n.tr("PALETTE")
                 visible: pg.supports("shape") || pg.supports("background")
 
-                Cell {
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
                     visible: pg.supports("shape")
-                    width: palSect.span(6)
-                    height: Tokens.cellH
-                    controlWidth: Spans.inlineWidth("step", 0, width)
                     label: I18n.tr("Corner radius")
                     desc: I18n.tr("Rounds the palette window corners; inner cards follow 4 px tighter.")
                     unit: "px"
@@ -323,6 +316,7 @@ Item {
                     def: String(pg.committed.radius)
                     changed: !pg.same(pg.draft.radius, pg.committed.radius)
                     source: "launcher.json"
+                    controlWidth: 58
                     Step {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
@@ -331,11 +325,10 @@ Item {
                         onModified: (v) => pg.edit("radius", v)
                     }
                 }
-                Cell {
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
                     visible: pg.supports("background")
-                    width: palSect.span(6)
-                    height: Tokens.cellH
-                    controlWidth: Spans.inlineWidth("step", 0, width)
+                    divider: pg.supports("shape")
                     label: I18n.tr("Backdrop frost")
                     desc: I18n.tr("Blurs the frozen desktop visible through the result drawer. 0 keeps the drawer solid.")
                     unit: "px"
@@ -343,6 +336,7 @@ Item {
                     def: String(pg.committed.bgBlur)
                     changed: !pg.same(pg.draft.bgBlur, pg.committed.bgBlur)
                     source: "launcher.json"
+                    controlWidth: 58
                     Step {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
@@ -353,16 +347,13 @@ Item {
                 }
             }
 
-            Section {
-                id: motionSect
+            SettingCard {
                 width: col.width
                 title: I18n.tr("RESULT MOTION")
                 visible: pg.supports("results")
 
-                Cell {
-                    width: motionSect.span(Spans.cols)
-                    height: Tokens.cellH
-                    controlWidth: Spans.inlineWidth("step", 0, width)
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
                     label: I18n.tr("Type settle")
                     desc: I18n.tr("Waits for a pause before the finished result deck fades in. Higher values feel calmer; lower values respond sooner.")
                     unit: "ms"
@@ -370,6 +361,7 @@ Item {
                     def: String(pg.committed.resultSettleMs)
                     changed: !pg.same(pg.draft.resultSettleMs, pg.committed.resultSettleMs)
                     source: "launcher.json"
+                    controlWidth: 58
                     Step {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
@@ -380,22 +372,19 @@ Item {
                 }
             }
 
-            Section {
-                id: hcSect
+            SettingCard {
                 width: col.width
                 title: I18n.tr("HERO")
                 visible: pg.supports("hero")
 
-                Cell {
-                    width: hcSect.span(4)
-                    height: Tokens.cellH
-                    controlWidth: Spans.inlineWidth("sw", 0, width)
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
                     label: I18n.tr("Show greeting")
                     desc: I18n.tr("Time-of-day greeting above the hero clock.")
-                    value: pg.draft.showGreeting ? "ON" : "OFF"
                     def: pg.committed.showGreeting ? "ON" : "OFF"
                     changed: !pg.same(pg.draft.showGreeting, pg.committed.showGreeting)
                     source: "launcher.json"
+                    controlWidth: 54
                     Sw {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
@@ -403,16 +392,15 @@ Item {
                         onToggled: (v) => pg.edit("showGreeting", v)
                     }
                 }
-                Cell {
-                    width: hcSect.span(4)
-                    height: Tokens.cellH
-                    controlWidth: Spans.inlineWidth("sw", 0, width)
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
                     label: I18n.tr("Show weather")
                     desc: I18n.tr("Current conditions and temperature on the hero; off shows the date.")
-                    value: pg.draft.showWeather ? "ON" : "OFF"
                     def: pg.committed.showWeather ? "ON" : "OFF"
                     changed: !pg.same(pg.draft.showWeather, pg.committed.showWeather)
                     source: "launcher.json"
+                    controlWidth: 54
                     Sw {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
@@ -420,18 +408,17 @@ Item {
                         onToggled: (v) => pg.edit("showWeather", v)
                     }
                 }
-                Cell {
-                    width: hcSect.span(4)
-                    height: Tokens.cellH
-                    controlWidth: Spans.inlineWidth("seg", 3, width)
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    block: true
                     label: I18n.tr("Weather units")
                     desc: I18n.tr("Temperature scale on the hero; Auto follows your locale.")
-                    value: pg.unitLabel(pg.draft.weatherUnit)
                     def: pg.unitLabel(pg.committed.weatherUnit)
                     changed: !pg.same(pg.draft.weatherUnit, pg.committed.weatherUnit)
                     source: "launcher.json"
                     Seg {
-                        anchors.right: parent.right
+                        anchors.left: parent.left; anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         options: ["Auto", "\u00b0C", "\u00b0F"]
                         current: pg.unitLabel(pg.draft.weatherUnit)
@@ -440,105 +427,54 @@ Item {
                 }
             }
 
-            Section {
-                id: bdSect
+            SettingCard {
+                id: heroImgCard
                 width: col.width
                 title: I18n.tr("HERO IMAGE")
                 visible: pg.supports("hero")
 
-                Item {
-                    id: heroCell
-                    width: bdSect.span(Spans.cols)
-                    height: 120
-                    readonly property bool changed: !pg.same(pg.draft.heroImage, pg.committed.heroImage)
-                    readonly property bool set: (pg.draft.heroImage || "").length > 0
-
-                    Rectangle {
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    footH: 32
+                    label: I18n.tr("Image")
+                    desc: I18n.tr("A landscape PNG or JPG, ideally 1600 px wide or more. It is cropped to a wide banner and dimmed; drag the preview to pick the part that shows.")
+                    changed: !pg.same(pg.draft.heroImage, pg.committed.heroImage)
+                    source: "launcher.json"
+                    Item {
                         anchors.fill: parent
-                        radius: Tokens.radius
-                        color: hcHov.hovered ? Tokens.tint5 : "transparent"
-                        border.width: Tokens.border
-                        border.color: hcHov.hovered ? Tokens.lineStrong : Tokens.line
-                        Behavior on color { ColorAnimation { duration: Tokens.snap } }
-                        Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
-                    }
-                    HoverHandler { id: hcHov }
-
-                    Rectangle {
-                        visible: heroCell.changed
-                        x: 0; y: Tokens.s2
-                        width: 2; height: parent.height - Tokens.s4
-                        color: Tokens.ink
-                    }
-
-                    Text {
-                        anchors { right: parent.right; top: parent.top; margins: Tokens.s3 }
-                        text: "launcher"
-                        color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
-                        opacity: hcHov.hovered ? 1 : 0.8
-                        Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
-                    }
-
-                    Column {
-                        anchors { left: parent.left; top: parent.top; margins: Tokens.s3 }
-                        anchors.leftMargin: Tokens.s4
-                        width: heroCell.width - Tokens.s4 - Tokens.s3
-                        spacing: Tokens.s2
-
                         Text {
-                            text: I18n.tr("HERO IMAGE")
-                            color: Tokens.inkMuted; font.family: Tokens.ui
-                            font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+                            anchors.left: parent.left
+                            anchors.right: heroActs.left
+                            anchors.rightMargin: Tokens.s3
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideMiddle
+                            text: (pg.draft.heroImage || "").length > 0 ? pg.basename(pg.draft.heroImage) : I18n.tr("Shipped art")
+                            color: (pg.draft.heroImage || "").length > 0 ? Tokens.inkDim : Tokens.inkFaint
+                            font.family: (pg.draft.heroImage || "").length > 0 ? Tokens.mono : Tokens.ui
+                            font.pixelSize: (pg.draft.heroImage || "").length > 0 ? 12 : Tokens.fSmall
                         }
-
-                        Item {
-                            width: parent.width
-                            height: 32
-
-                            Text {
-                                anchors.left: parent.left
-                                anchors.right: heroActs.left
-                                anchors.rightMargin: Tokens.s3
+                        Row {
+                            id: heroActs
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Tokens.s2
+                            Btn {
                                 anchors.verticalCenter: parent.verticalCenter
-                                elide: Text.ElideMiddle
-                                text: heroCell.set ? pg.basename(pg.draft.heroImage) : I18n.tr("Shipped art")
-                                color: heroCell.set ? Tokens.inkDim : Tokens.inkFaint
-                                font.family: heroCell.set ? Tokens.mono : Tokens.ui
-                                font.pixelSize: heroCell.set ? 12 : Tokens.fSmall
+                                text: I18n.tr("CHANGE")
+                                onAct: pg.openPicker()
                             }
-                            Row {
-                                id: heroActs
-                                anchors.right: parent.right
+                            Btn {
                                 anchors.verticalCenter: parent.verticalCenter
-                                spacing: Tokens.s2
-                                Btn {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: I18n.tr("CHANGE")
-                                    onAct: pg.openPicker()
-                                }
-                                Btn {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    visible: heroCell.set
-                                    text: I18n.tr("USE SHIPPED ART")
-                                    onAct: pg.edit("heroImage", "")
-                                }
+                                visible: (pg.draft.heroImage || "").length > 0
+                                text: I18n.tr("USE SHIPPED ART")
+                                onAct: pg.edit("heroImage", "")
                             }
-                        }
-
-                        Text {
-                            width: parent.width
-                            text: I18n.tr("A landscape PNG or JPG, ideally 1600 px wide or more. It is cropped to a wide banner and dimmed; drag the preview to pick the part that shows.")
-                            color: Tokens.inkMuted; font.family: Tokens.ui
-                            font.pixelSize: 12; wrapMode: Text.WordWrap
-                            maximumLineCount: 2; elide: Text.ElideRight
                         }
                     }
                 }
-
-                Cell {
-                    width: bdSect.span(Spans.cols)
-                    height: Tokens.cellH
-                    controlWidth: Spans.inlineWidth("slid", 0, width)
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
                     label: I18n.tr("Strength")
                     desc: I18n.tr("How visible the hero image is; 0 hides it completely.")
                     unit: "%"
@@ -546,10 +482,11 @@ Item {
                     def: String(Math.round((Number(pg.committed.heroStrength) || 0) * 100))
                     changed: !pg.same(pg.draft.heroStrength, pg.committed.heroStrength)
                     source: "launcher.json"
+                    controlWidth: Math.min(240, Math.max(160, Math.round(heroImgCard.width * 0.34)))
                     Slid {
-                        anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
                         value: Math.round((Number(pg.draft.heroStrength) || 0) * 100)
                         from: 0; to: 100
                         onModified: (v) => pg.edit("heroStrength", v / 100)

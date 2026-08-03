@@ -6,17 +6,13 @@
 
 var rows = [
     {
-        "tab": "",
+        "tab": "My",
         "group": "OTHER",
         "key": "",
-        "label": "My rices / Browse (mode switch)",
-        "desc": "Sums up what applying alters: windows, bar, colours, wallpaper, cursor",
-        "ctl": "seg",
-        "src": "shell",
-        "opts": [
-            "mine",
-            "store"
-        ]
+        "label": "Browse RyoStore",
+        "desc": "Opens the RyoStore rice catalogue for discovery and installation",
+        "ctl": "action",
+        "src": "ryostore open rices"
     },
     {
         "tab": "My",
@@ -82,28 +78,10 @@ var rows = [
         "src": "shell"
     },
     {
-        "tab": "Browse",
-        "group": "OTHER",
-        "key": "",
-        "label": "Try again (reload the store catalog)",
-        "desc": "Sums up what applying alters: windows, bar, colours, wallpaper, cursor",
-        "ctl": "action",
-        "src": "shell"
-    },
-    {
         "tab": "My",
         "group": "OTHER",
         "key": "",
         "label": "Rice tile (My rices grid)",
-        "desc": "Sums up what applying alters: windows, bar, colours, wallpaper, cursor",
-        "ctl": "action",
-        "src": "shell"
-    },
-    {
-        "tab": "Browse",
-        "group": "OTHER",
-        "key": "",
-        "label": "Rice tile (Browse / store grid)",
         "desc": "Sums up what applying alters: windows, bar, colours, wallpaper, cursor",
         "ctl": "action",
         "src": "shell"

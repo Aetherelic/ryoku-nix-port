@@ -274,7 +274,7 @@ var rows = [{
         "lo": 2.0,
         "hi": 8.0
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "TITLE BARS",
         "key": "plugins.hyprbars.enabled",
         "label": "Window title bars",
@@ -282,7 +282,7 @@ var rows = [{
         "ctl": "sw",
         "src": "hypr.json"
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "TITLE BARS",
         "key": "plugins.hyprbars.height",
         "label": "Bar height",
@@ -293,7 +293,7 @@ var rows = [{
         "hi": 48.0,
         "unit": "px"
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "TITLE BARS",
         "key": "plugins.hyprbars.textSize",
         "label": "Title text size",
@@ -304,7 +304,7 @@ var rows = [{
         "hi": 20.0,
         "unit": "px"
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "TITLE BARS",
         "key": "plugins.hyprbars.blur",
         "label": "Blur the bar",
@@ -312,7 +312,7 @@ var rows = [{
         "ctl": "sw",
         "src": "hypr.json"
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "TITLE BARS",
         "key": "plugins.hyprbars.buttons",
         "label": "Close and maximise buttons",
@@ -623,7 +623,7 @@ var rows = [{
         "ctl": "color",
         "src": "hypr.json"
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "GLASS",
         "key": "plugins.hyprglass.enabled",
         "label": "Liquid glass windows",
@@ -631,7 +631,7 @@ var rows = [{
         "ctl": "sw",
         "src": "hypr.json"
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "GLASS",
         "key": "plugins.hyprglass.preset",
         "label": "Preset",
@@ -645,7 +645,7 @@ var rows = [{
             "glass"
         ]
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "GLASS",
         "key": "plugins.hyprglass.blurStrength",
         "label": "Blur strength",
@@ -655,7 +655,7 @@ var rows = [{
         "lo": 0.0,
         "hi": 5.0
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "GLASS",
         "key": "plugins.hyprglass.opacity",
         "label": "Glass opacity",
@@ -667,7 +667,7 @@ var rows = [{
         "unit": "%",
         "pct": true
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "GLASS",
         "key": "plugins.hyprglass.brightness",
         "label": "Glass brightness",
@@ -678,7 +678,7 @@ var rows = [{
         "hi": 2.0,
         "adv": true
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "GLASS",
         "key": "plugins.hyprglass.theme",
         "label": "Glass theme",
@@ -691,7 +691,7 @@ var rows = [{
         ],
         "adv": true
     },{
-        "tab": "Look",
+        "tab": "Plugins",
         "group": "GLASS",
         "key": "plugins.hyprglass.tint",
         "label": "Glass tint",
@@ -737,7 +737,7 @@ var rows = [{
         "lo": 1.0,
         "hi": 10.0
     },{
-        "tab": "Borders",
+        "tab": "Plugins",
         "group": "IMAGE",
         "key": "plugins.imgborders.enabled",
         "label": "Image border around windows",
@@ -746,7 +746,7 @@ var rows = [{
         "src": "hypr.json",
         "adv": true
     },{
-        "tab": "Borders",
+        "tab": "Plugins",
         "group": "IMAGE",
         "key": "plugins.imgborders.image",
         "label": "Border image",
@@ -755,7 +755,7 @@ var rows = [{
         "src": "hypr.json",
         "adv": true
     },{
-        "tab": "Borders",
+        "tab": "Plugins",
         "group": "IMAGE",
         "key": "plugins.imgborders.scale",
         "label": "Border scale",
@@ -766,7 +766,7 @@ var rows = [{
         "hi": 3.0,
         "adv": true
     },{
-        "tab": "Borders",
+        "tab": "Plugins",
         "group": "IMAGE",
         "key": "plugins.imgborders.smooth",
         "label": "Smooth scaling",
@@ -775,7 +775,7 @@ var rows = [{
         "src": "hypr.json",
         "adv": true
     },{
-        "tab": "Borders",
+        "tab": "Plugins",
         "group": "IMAGE",
         "key": "plugins.imgborders.blur",
         "label": "Blur border image",
@@ -784,7 +784,7 @@ var rows = [{
         "src": "hypr.json",
         "adv": true
     },{
-        "tab": "Borders",
+        "tab": "Plugins",
         "group": "IMAGE",
         "key": "plugins.imgborders.sizes",
         "label": "Border sizes",
@@ -793,7 +793,7 @@ var rows = [{
         "src": "hypr.json",
         "adv": true
     },{
-        "tab": "Borders",
+        "tab": "Plugins",
         "group": "IMAGE",
         "key": "plugins.imgborders.insets",
         "label": "Border insets",
@@ -801,6 +801,22 @@ var rows = [{
         "ctl": "text",
         "src": "hypr.json",
         "adv": true
+    },{
+        "tab": "Plugins",
+        "group": "MORE",
+        "key": "plugins.dynamicCursors.enabled",
+        "label": "Realistic cursor motion",
+        "desc": "The pointer tilts, turns, or stretches as it moves; full controls on the Cursor page",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },{
+        "tab": "Plugins",
+        "group": "MORE",
+        "key": "plugins.hyprfocus.enabled",
+        "label": "Animate the focused window",
+        "desc": "Short effect on the window that takes focus; full controls on the Animations page",
+        "ctl": "sw",
+        "src": "hypr.json"
     },{
         "tab": "Motion",
         "group": "MOTION",

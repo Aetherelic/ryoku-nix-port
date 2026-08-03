@@ -20,6 +20,7 @@ Item {
     signal saved()
     signal reverted()
     signal reset()
+    signal diffRequested()
 
     implicitHeight: 60
 
@@ -62,6 +63,16 @@ Item {
             font.weight: Font.Medium
             font.letterSpacing: 1.6
         }
+        Text {
+            visible: bar.dirty > 0
+            anchors.verticalCenter: parent.verticalCenter
+            text: sdh.hovered ? "\u25b8 VIEW DIFF" : "\u00b7 VIEW DIFF"
+            color: sdh.hovered ? Tokens.ink : Tokens.inkFaint
+            font.family: Tokens.mono; font.pixelSize: 9
+            font.letterSpacing: 1.2
+        }
+        HoverHandler { id: sdh; enabled: bar.dirty > 0; cursorShape: Qt.PointingHandCursor }
+        TapHandler { enabled: bar.dirty > 0; onTapped: bar.diffRequested() }
     }
 
     // marginalia in the bar's dead centre: a running register shared by every

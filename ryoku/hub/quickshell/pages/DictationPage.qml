@@ -196,34 +196,6 @@ Item {
         }
     }
 
-    // ── a section leader: dot + CAPS label + hairline rule ────────────────
-    component SectionHead: Item {
-        id: sh
-        property string label: ""
-        implicitHeight: 16
-        Row {
-            id: shLab
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            spacing: Tokens.s2
-            Rectangle {
-                width: 4; height: 4; color: Tokens.ink
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            Text {
-                text: I18n.tr(sh.label); color: Tokens.ink; font.family: Tokens.ui
-                font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
-                font.letterSpacing: Tokens.trackMark
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
-        Rectangle {
-            anchors.left: shLab.right; anchors.right: parent.right
-            anchors.leftMargin: Tokens.s3
-            anchors.verticalCenter: parent.verticalCenter
-            height: 1; color: Tokens.lineSoft
-        }
-    }
-
     // ── head: eyebrow, Fraunces title, blurb (matches every settings page) ──
     Column {
         id: head
@@ -353,32 +325,14 @@ Item {
                 }
 
                 // ── DICTATION: the voice-typing switch and its guidance ──
-                Column {
-                    width: parent.width
-                    spacing: Tokens.s3
+                SettingCard {
+                    width: content.width
+                    title: I18n.tr("DICTATION")
 
-                    SectionHead { width: parent.width; label: I18n.tr("DICTATION") }
-
-                    Item {
-                        width: Math.min(parent.width, 460)
-                        height: Tokens.rowH
-                        Text {
-                            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                            text: I18n.tr("Voice typing")
-                            color: Tokens.ink
-                            font.family: Tokens.ui; font.pixelSize: Tokens.fRow
-                        }
-                        Sw {
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            on: pg.voiceOn
-                            // switch off any time; switch on only once there's a model to use.
-                            enabled: pg.voiceOn || pg.usable
-                            opacity: enabled ? 1 : 0.3
-                            onToggled: (v) => pg.setEnabled(v)
-                        }
-                    }
                     Text {
                         width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
                         wrapMode: Text.WordWrap
                         text: (pg.voiceOn || pg.usable)
                             ? I18n.tr("Tap Super+` to dictate into whatever app has focus; tap again to stop. The pill grows a live mic wave while you speak.")
@@ -391,18 +345,35 @@ Item {
                         color: (pg.voiceOn || pg.usable) ? Tokens.inkMuted : Tokens.ink
                         font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                     }
+
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        label: I18n.tr("Voice typing")
+                        controlWidth: 54
+                        Sw {
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            on: pg.voiceOn
+                            // switch off any time; switch on only once there's a model to use.
+                            enabled: pg.voiceOn || pg.usable
+                            opacity: enabled ? 1 : 0.3
+                            onToggled: (v) => pg.setEnabled(v)
+                        }
+                    }
                 }
 
                 // ── ENGINE & MODEL: the click-to-select card list ──
-                Column {
-                    width: parent.width
-                    spacing: Tokens.s3
+                SettingCard {
+                    width: content.width
+                    title: I18n.tr("ENGINE & MODEL")
 
-                    SectionHead { width: parent.width; label: I18n.tr("ENGINE & MODEL") }
-
-                    Column {
+                    Item {
                         width: parent.width
-                        spacing: Tokens.s2
+                        height: enginesCol.height + Tokens.s3 * 2
+                        Column {
+                            id: enginesCol
+                            anchors { left: parent.left; right: parent.right; top: parent.top }
+                            anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s3
+                            spacing: Tokens.s2
 
                         Repeater {
                             model: pg.presets
@@ -579,19 +550,20 @@ Item {
                                 TapHandler { onTapped: pg.choose(card.modelData.key) }
                             }
                         }
+                        }
                     }
                 }
 
                 // ── API KEY: only for a cloud engine that needs one ──
-                Column {
-                    width: parent.width
+                SettingCard {
+                    width: content.width
                     visible: pg.needsKey
-                    spacing: Tokens.s3
-
-                    SectionHead { width: parent.width; label: I18n.tr("API KEY") }
+                    title: I18n.tr("API KEY")
 
                     Text {
                         width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
                         wrapMode: Text.WordWrap
                         text: pg.keyOnFile
                             ? I18n.tr("A key is saved. Enter a new one to replace it.")
@@ -602,85 +574,102 @@ Item {
                         font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                     }
 
+                    // the key entry, kept as its bespoke masked field + Save button,
+                    // inset from the card border.
                     Item {
                         width: parent.width
-                        height: 36
+                        height: 36 + Tokens.s3 * 2
 
-                        Btn {
-                            id: saveKeyBtn
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            text: I18n.tr("Save key")
-                            primary: true
-                            onAct: { pg.saveKey(keyInput.text); keyInput.text = ""; }
-                        }
-
-                        // the key is write-only: masked, never read back into the UI
-                        // (only the openaiKeySet bool). mono, since it is a literal
-                        // the machine will be told.
-                        Rectangle {
-                            id: keyField
-                            anchors.left: parent.left
-                            anchors.right: saveKeyBtn.left
-                            anchors.rightMargin: Tokens.s2
-                            anchors.verticalCenter: parent.verticalCenter
+                        Item {
+                            id: keyEntry
+                            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                            anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4
                             height: 36
-                            radius: Tokens.radius
-                            color: "transparent"
-                            border.width: keyInput.activeFocus ? 2 : Tokens.border
-                            border.color: keyInput.activeFocus ? Tokens.ink : (keyMa.containsMouse ? Tokens.lineStrong : Tokens.line)
-                            Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
 
-                            TextInput {
-                                id: keyInput
-                                anchors.fill: parent
-                                anchors.leftMargin: 9
-                                anchors.rightMargin: 9
-                                verticalAlignment: Text.AlignVCenter
-                                echoMode: TextInput.Password
-                                color: Tokens.ink
-                                font.family: Tokens.mono
-                                font.pixelSize: Tokens.fMicro
-                                clip: true
-                                onAccepted: { pg.saveKey(text); text = ""; }
-
-                                Text {
-                                    anchors.fill: parent
-                                    verticalAlignment: Text.AlignVCenter
-                                    visible: keyInput.text.length === 0
-                                    text: I18n.tr("OpenAI API key")
-                                    color: Tokens.inkMuted
-                                    font: keyInput.font
-                                    elide: Text.ElideRight
-                                }
+                            Btn {
+                                id: saveKeyBtn
+                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                text: I18n.tr("Save key")
+                                primary: true
+                                onAct: { pg.saveKey(keyInput.text); keyInput.text = ""; }
                             }
-                            MouseArea {
-                                id: keyMa
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.IBeamCursor
-                                onClicked: keyInput.forceActiveFocus()
+
+                            // the key is write-only: masked, never read back into the UI
+                            // (only the openaiKeySet bool). mono, since it is a literal
+                            // the machine will be told.
+                            Rectangle {
+                                id: keyField
+                                anchors.left: parent.left
+                                anchors.right: saveKeyBtn.left
+                                anchors.rightMargin: Tokens.s2
+                                anchors.verticalCenter: parent.verticalCenter
+                                height: 36
+                                radius: Tokens.radius
+                                color: "transparent"
+                                border.width: keyInput.activeFocus ? 2 : Tokens.border
+                                border.color: keyInput.activeFocus ? Tokens.ink : (keyMa.containsMouse ? Tokens.lineStrong : Tokens.line)
+                                Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+
+                                TextInput {
+                                    id: keyInput
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 9
+                                    anchors.rightMargin: 9
+                                    verticalAlignment: Text.AlignVCenter
+                                    echoMode: TextInput.Password
+                                    color: Tokens.ink
+                                    font.family: Tokens.mono
+                                    font.pixelSize: Tokens.fMicro
+                                    clip: true
+                                    onAccepted: { pg.saveKey(text); text = ""; }
+
+                                    Text {
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                        visible: keyInput.text.length === 0
+                                        text: I18n.tr("OpenAI API key")
+                                        color: Tokens.inkMuted
+                                        font: keyInput.font
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                MouseArea {
+                                    id: keyMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.IBeamCursor
+                                    onClicked: keyInput.forceActiveFocus()
+                                }
                             }
                         }
                     }
                 }
 
                 // ── PACKAGE: uninstall handoff ──
-                Column {
-                    width: parent.width
-                    spacing: Tokens.s3
-
-                    SectionHead { width: parent.width; label: I18n.tr("PACKAGE") }
+                SettingCard {
+                    width: content.width
+                    title: I18n.tr("PACKAGE")
 
                     Text {
                         width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
                         wrapMode: Text.WordWrap
                         text: I18n.tr("Voxtype is installed (voxtype-bin). Removing it uninstalls the package; your engine choice and downloaded models stay on disk.")
                         color: Tokens.inkMuted
                         font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                     }
-                    Btn {
-                        text: I18n.tr("Remove Voxtype")
-                        onAct: pg.removeVoxtype()
+
+                    Item {
+                        width: parent.width
+                        height: pkgBtn.implicitHeight + Tokens.s3 * 2
+                        Btn {
+                            id: pkgBtn
+                            anchors.left: parent.left; anchors.leftMargin: Tokens.s4
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: I18n.tr("Remove Voxtype")
+                            onAct: pg.removeVoxtype()
+                        }
                     }
                 }
 

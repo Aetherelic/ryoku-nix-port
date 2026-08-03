@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"ryostore/compat"
 )
 
 // rice = a named, versioned look document for the whole desktop. it captures a
@@ -717,43 +719,6 @@ func activeRice() string {
 
 func setActiveRice(slug string) { _ = atomicWrite(activePath(), []byte(slug), 0o644) }
 
-// majorMinor pulls the (major, minor) from a version like "0.6.8-beta.17".
-func majorMinor(v string) (int, int, bool) {
-	base := v
-	if i := strings.IndexByte(base, '-'); i >= 0 {
-		base = base[:i]
-	}
-	parts := strings.Split(base, ".")
-	if len(parts) < 2 {
-		return 0, 0, false
-	}
-	maj, err1 := strconv.Atoi(parts[0])
-	min, err2 := strconv.Atoi(parts[1])
-	if err1 != nil || err2 != nil {
-		return 0, 0, false
-	}
-	return maj, min, true
-}
-
-// riceCompat marks a rice against the running Ryoku: ok (same major.minor),
-// older (built for an earlier Ryoku, may need migration), newer (built for a
-// later one), or unknown.
-func riceCompat(createdWith string) string {
-	cM, cm, ok1 := majorMinor(ryokuVersion())
-	rM, rm, ok2 := majorMinor(createdWith)
-	if !ok1 || !ok2 {
-		return "unknown"
-	}
-	switch {
-	case rM == cM && rm == cm:
-		return "ok"
-	case rM < cM || (rM == cM && rm < cm):
-		return "older"
-	default:
-		return "newer"
-	}
-}
-
 // --- the UI-facing list ----------------------------------------------------
 
 // riceListEntry is a rice plus the fields the Rices tab needs: compatibility
@@ -772,7 +737,7 @@ func listRiceEntries() []riceListEntry {
 	out := []riceListEntry{}
 	for _, r := range listRices() {
 		e := riceListEntry{
-			Rice: r, Compat: riceCompat(r.CreatedWith), Active: r.Slug == active,
+			Rice: r, Compat: compat.Rice(r.CreatedWith, ryokuVersion()), Active: r.Slug == active,
 			Live: isVideo(r.Assets.Wallpaper),
 		}
 		dir := filepath.Join(ricesDir(), r.Slug)
@@ -1143,7 +1108,7 @@ func ricePreflight() error { return printJSON(preflightData()) }
 
 func runRice(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("rice needs list|preflight|capture|apply|restore|save|fork|delete|catalog|install|import|publish|setwall|files|export")
+		return fmt.Errorf("rice needs list|preflight|capture|apply|restore|save|fork|delete|import|publish|setwall|files|export")
 	}
 	switch args[0] {
 	case "preflight":
@@ -1197,17 +1162,6 @@ func runRice(args []string) error {
 			return fmt.Errorf("rice delete needs a slug")
 		}
 		return deleteRice(args[1])
-	case "catalog":
-		items, err := catalogRices()
-		if err != nil {
-			return err
-		}
-		return printJSON(items)
-	case "install":
-		if len(args) < 2 {
-			return fmt.Errorf("rice install needs an id")
-		}
-		return installRice(args[1])
 	case "import":
 		if len(args) < 2 {
 			return fmt.Errorf("rice import needs a folder")

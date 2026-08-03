@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Dialogs
 import Quickshell
 import Quickshell.Io
 import Ryoku.Ui
@@ -388,17 +387,19 @@ Item {
     function previewInTerminal() { Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
     function openConfig() { Quickshell.execDetached(["kitty", "-e", "nvim", "-O", pg.configPath]); }
 
-    FileDialog {
+    PickFile {
         id: imageDlg
         title: I18n.tr("Choose a logo image")
-        nameFilters: ["Images (*.svg *.png *.jpg *.jpeg *.webp)", "All files (*)"]
-        onAccepted: pg.importLogo("" + imageDlg.selectedFile, "image")
+        fileFilters: ["*.svg", "*.png", "*.jpg", "*.jpeg", "*.webp"]
+        onPicked: (p) => { pg.importLogo(("" + p).replace("file://", ""), "image"); imageDlg.active = false; }
+        onCanceled: imageDlg.active = false
     }
-    FileDialog {
+    PickFile {
         id: asciiDlg
         title: I18n.tr("Choose an ASCII art file")
-        nameFilters: ["Text (*.txt *.ascii *.art)", "All files (*)"]
-        onAccepted: pg.importLogo("" + asciiDlg.selectedFile, "ascii")
+        fileFilters: ["*.txt", "*.ascii", "*.art"]
+        onPicked: (p) => { pg.importLogo(("" + p).replace("file://", ""), "ascii"); asciiDlg.active = false; }
+        onCanceled: asciiDlg.active = false
     }
 
     // ── reusable pieces ─────────────────────────────────────────────────────

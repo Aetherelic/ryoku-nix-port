@@ -2,30 +2,15 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Dialogs
 import Quickshell
 import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
-// Add-ons (DESIGN.md section 8). Home for the shell plugins the user has
-// installed: a master list read live from plugins.json, and a detail per
-// plugin that renders its own settings from the manifest schema, toggles it on
-// or off, chooses where it sits, and removes it. Browsing and installing new
-// ones lives in the Store; this page manages what is already here.
-//
-// This is a full-bleed page: it owns the whole content region, draws its own
-// head, and every action applies immediately (the Store's dirty/Save loop does
-// not apply -- writes go through `ryoku-plugins-place` straight into
-// plugins.json, and the running shell watches the file and retunes live). No
-// unsaved state, so no action bar. Master/detail swap through a Loader.
-//
-// Backend, ported verbatim from the warm-dark AddonsPage: installed list =
-// `discover.sh --all`; catalogue (for update detection) = `ryoku-hub extras
-// plugincatalog`; enable/host/placement/settings = `ryoku-plugins-place`;
-// update = `ryoku-hub extras plugin <id>`; remove = forget + pluginremove.
-// Every value is a Token; no colour, no bitmap previews (a raw screenshot on a
-// monochrome sheet would break the palette, so cards are typographic).
+// Installed add-on management. RyoStore owns discovery and installation;
+// Settings keeps plugin enablement, placement, live options, updates/removal,
+// and bundle component removal. The page is full-bleed because every action
+// applies immediately instead of participating in the shared Save/Revert flow.
 Item {
     id: pg
 
@@ -34,11 +19,14 @@ Item {
 
     // ── installed-management state ──────────────────────────────────────────
     property var plugins: []        // discover.sh --all: [{ id, dir, manifest, placement }]
-    property var catalog: []         // plugincatalog: available versions, for the Update marker
+    property var catalog: []         // normalized RyoStore plugin items, for update detection
     property string selId: ""        // "" = master list; else the open plugin's id
     property string busyId: ""        // id currently installing/removing
     property bool confirmRemove: false // the destructive-confirm plate is up
     property bool loaded: false        // discover.sh has answered at least once
+    property string tab: "Plugins"
+    property var bundles: []
+    property bool bundlesLoaded: false
 
     // hub.query carries the rail search text; empty means no filter.
     readonly property string query: (pg.hub && pg.hub.query) ? ("" + pg.hub.query) : ""
@@ -63,6 +51,18 @@ Item {
             return name.indexOf(q) >= 0 || ("" + p.id).toLowerCase().indexOf(q) >= 0;
         });
     }
+    readonly property var shownBundles: {
+        const q = pg.query.trim().toLowerCase();
+        if (q === "")
+            return pg.bundles;
+        return pg.bundles.filter(bundle => {
+            const parts = (bundle.metadata || {}).items || [];
+            const hay = [bundle.id, bundle.name, bundle.summary, bundle.description]
+                .concat(parts.map(part => part.name + " " + (part.summary || "")))
+                .join(" ").toLowerCase();
+            return hay.indexOf(q) !== -1;
+        });
+    }
 
     readonly property string shellDir: Quickshell.env("RYOKU_SHELL_DIR")
     readonly property string script: (pg.shellDir && pg.shellDir.length > 0)
@@ -79,6 +79,14 @@ Item {
 
     function refresh() { listProc.running = false; listProc.running = true; }
     function loadCatalog() { catProc.running = false; catProc.running = true; }
+    function loadBundles() { bundleProc.running = false; bundleProc.running = true; }
+    function browseStore() {
+        Quickshell.execDetached(["ryostore", "open", pg.tab === "Bundles" ? "bundles" : "plugins"]);
+    }
+    function removeBundle(id, item) {
+        const scope = item ? ["item", id, item] : ["bundle", id];
+        Quickshell.execDetached(["kitty", "--class", "ryoku-extras", "-e", "ryoku-extras-install", "remove"].concat(scope));
+    }
     function catalogEntry(id) {
         for (var i = 0; i < pg.catalog.length; i++)
             if (pg.catalog[i].id === id)
@@ -110,7 +118,7 @@ Item {
         if (!id)
             return;
         pg.busyId = id;
-        installProc.command = ["ryoku-hub", "extras", "plugin", id];
+        installProc.command = ["ryostore", "internal", "install-guest", "plugins", id];
         installProc.running = true;
     }
     function place(id, field, a, b, c, d) {
@@ -139,11 +147,11 @@ Item {
             return;
         pg.busyId = id;
         pg.place(id, "forget");
-        rmProc.command = ["ryoku-hub", "extras", "pluginremove", id];
+        rmProc.command = ["ryostore", "internal", "remove-guest", "plugins", id];
         rmProc.running = true;
     }
 
-    Component.onCompleted: { pg.refresh(); pg.loadCatalog(); }
+    Component.onCompleted: { pg.refresh(); pg.loadCatalog(); pg.loadBundles(); }
 
     Process {
         id: listProc
@@ -161,12 +169,31 @@ Item {
     Process { id: rmProc; onExited: { pg.busyId = ""; pg.selId = ""; pg.confirmRemove = false; pg.refresh(); } }
     Process {
         id: catProc
-        command: ["ryoku-hub", "extras", "plugincatalog"]
+        command: ["ryostore", "catalog", "--category", "plugins"]
         stdout: StdioCollector {
-            onStreamFinished: { try { pg.catalog = (JSON.parse(text || "{}").plugins) || []; } catch (e) { pg.catalog = []; } }
+            onStreamFinished: {
+                try { pg.catalog = (JSON.parse(text || "{}").items) || []; }
+                catch (e) { pg.catalog = []; }
+            }
         }
     }
     Process { id: installProc; onExited: { pg.busyId = ""; pg.refresh(); pg.loadCatalog(); } }
+    Process {
+        id: bundleProc
+        command: ["ryostore", "catalog", "--category", "bundles"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const items = (JSON.parse(text || "{}").items) || [];
+                    pg.bundles = items.filter(item =>
+                        item.category === "bundles" && Number(item.installedCount || 0) > 0);
+                } catch (e) {
+                    pg.bundles = [];
+                }
+                pg.bundlesLoaded = true;
+            }
+        }
+    }
 
     // ── head: eyebrow, Fraunces title, blurb (matches every page) ───────────
     Column {
@@ -191,13 +218,27 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
-        Text {
-            text: I18n.tr("Installed"); color: Tokens.ink
-            font.family: Tokens.display; font.pixelSize: Tokens.fTitle
+        Item {
+            width: parent.width
+            height: title.implicitHeight
+            Text {
+                id: title
+                anchors.left: parent.left
+                text: I18n.tr("Add-ons")
+                color: Tokens.ink
+                font.family: Tokens.display
+                font.pixelSize: Tokens.fTitle
+            }
+            Btn {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                text: I18n.tr("BROWSE RYOSTORE")
+                onAct: pg.browseStore()
+            }
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("The shell plugins you have installed. Open one to tune its options, choose where it sits, enable or remove it. Changes apply to your desktop live; browse and install more from the Store.")
+            text: I18n.tr("Manage installed shell plugins and extras bundles. Changes apply live; RyoStore owns browsing and installation.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -211,17 +252,29 @@ Item {
         index: "07"; label: I18n.tr("ADD-ONS")
         glyph: "asanoha"; glyph2: "meander"
     }
+    Tabs {
+        id: tabs
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: head.bottom
+        anchors.leftMargin: Tokens.s6
+        anchors.rightMargin: Tokens.s6
+        anchors.topMargin: Tokens.s4
+        options: ["Plugins", "Bundles"]
+        current: pg.tab
+        onChose: label => { pg.tab = label; pg.selId = ""; }
+    }
 
     // ── the body: a Loader swaps master (list) and detail (one plugin) ──────
     Loader {
         id: body
         anchors {
             left: parent.left; right: parent.right
-            top: head.bottom; bottom: parent.bottom
+            top: tabs.bottom; bottom: parent.bottom
             leftMargin: Tokens.s6; rightMargin: Tokens.s6
             topMargin: Tokens.s5; bottomMargin: Tokens.s6
         }
-        sourceComponent: pg.selId === "" ? masterComp : detailComp
+        sourceComponent: pg.tab === "Bundles" ? bundleComp : (pg.selId === "" ? masterComp : detailComp)
         onLoaded: {
             if (!item)
                 return;
@@ -278,7 +331,7 @@ Item {
                         text: pg.plugins.length + (pg.plugins.length === 1 ? I18n.tr(" PLUGIN") : I18n.tr(" PLUGINS"))
                         color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
                     }
-                    // re-scan installed plugins (installs happen in the Store).
+                    // Re-scan installed plugins after external RyoStore changes.
                     IconBtn {
                         anchors.verticalCenter: parent.verticalCenter
                         glyph: "\u21bb"
@@ -414,7 +467,7 @@ Item {
             Text {
                 anchors.centerIn: flick
                 visible: pg.loaded && pg.plugins.length === 0
-                text: I18n.tr("No add-ons installed. Open the Store to browse and install.")
+                text: I18n.tr("No add-ons installed. Browse RyoStore to install one.")
                 color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
             }
             // no-results state, when a search filters everything out.
@@ -435,9 +488,147 @@ Item {
                 visible: pg.loaded && pg.shown.length > 0 && pg.query.trim() === "" && height > 140
                 title: "拡張"; sub: "アドオン"
                 tate: "力を継ぎ足す"
-                caption: I18n.tr("Plugins extend the shell: live surfaces you install from the Store.")
+                caption: I18n.tr("Plugins extend the shell: live surfaces installed through RyoStore.")
                 readout: ["SOURCE|plugins.json", "APPLY|live", "SITS|frame · desktop", "SCOPE|per-plugin"]
                 code: "ADDON-04"; seal: "拡"; boxId: "addons.installed"; seed: 5; ditherFreq: 1.0
+            }
+        }
+    }
+
+    Component {
+        id: bundleComp
+
+        Item {
+            Item {
+                id: bundleHead
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                height: Tokens.ctlH
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: pg.bundles.length + (pg.bundles.length === 1 ? I18n.tr(" BUNDLE") : I18n.tr(" BUNDLES"))
+                    color: Tokens.inkFaint
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fTiny
+                }
+                IconBtn {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: "\u21bb"
+                    onAct: pg.loadBundles()
+                }
+            }
+
+            Flickable {
+                id: bundleFlick
+                anchors { left: parent.left; right: parent.right; top: bundleHead.bottom; bottom: parent.bottom; topMargin: Tokens.s3 }
+                contentWidth: width
+                contentHeight: bundleList.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
+
+                Column {
+                    id: bundleList
+                    width: bundleFlick.width - Tokens.s3
+                    spacing: Tokens.s3
+
+                    Repeater {
+                        model: pg.shownBundles
+                        delegate: Rectangle {
+                            id: bundleCard
+                            required property var modelData
+                            readonly property var parts: (modelData.metadata || {}).items || []
+                            width: bundleList.width
+                            implicitHeight: bundleBody.implicitHeight + Tokens.s4 * 2
+                            color: "transparent"
+                            radius: Tokens.radius
+                            border.width: Tokens.border
+                            border.color: Tokens.line
+
+                            Column {
+                                id: bundleBody
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s4 }
+                                spacing: Tokens.s2
+
+                                Row {
+                                    width: parent.width
+                                    spacing: Tokens.s3
+                                    Column {
+                                        width: Math.max(0, parent.width - removeAll.width - Tokens.s3)
+                                        Text {
+                                            width: parent.width
+                                            text: bundleCard.modelData.name || bundleCard.modelData.id
+                                            color: Tokens.ink
+                                            font.family: Tokens.display
+                                            font.pixelSize: Tokens.fRow
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            text: Number(bundleCard.modelData.installedCount || 0) + " / " + Number(bundleCard.modelData.totalCount || bundleCard.parts.length) + I18n.tr(" INSTALLED")
+                                            color: Tokens.inkMuted
+                                            font.family: Tokens.mono
+                                            font.pixelSize: Tokens.fTiny
+                                        }
+                                    }
+                                    Btn {
+                                        id: removeAll
+                                        text: I18n.tr("REMOVE BUNDLE")
+                                        onAct: pg.removeBundle(bundleCard.modelData.id, "")
+                                    }
+                                }
+
+                                Repeater {
+                                    model: bundleCard.parts
+                                    delegate: Item {
+                                        id: partRow
+                                        required property var modelData
+                                        width: bundleBody.width
+                                        height: Tokens.rowH
+                                        Text {
+                                            anchors.left: parent.left
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: Math.max(0, parent.width - state.width - removeOne.width - Tokens.s5)
+                                            text: partRow.modelData.name + (partRow.modelData.summary ? "  ·  " + partRow.modelData.summary : "")
+                                            color: Tokens.ink
+                                            font.family: Tokens.ui
+                                            font.pixelSize: Tokens.fSmall
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            id: state
+                                            anchors.right: removeOne.left
+                                            anchors.rightMargin: Tokens.s3
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: partRow.modelData.installed === true ? I18n.tr("INSTALLED") : I18n.tr("ABSENT")
+                                            color: partRow.modelData.installed === true ? Tokens.ink : Tokens.inkFaint
+                                            font.family: Tokens.mono
+                                            font.pixelSize: Tokens.fTiny
+                                        }
+                                        Btn {
+                                            id: removeOne
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: I18n.tr("REMOVE")
+                                            visible: partRow.modelData.installed === true
+                                            onAct: pg.removeBundle(bundleCard.modelData.id, partRow.modelData.name)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                anchors.centerIn: parent
+                visible: pg.bundlesLoaded && pg.bundles.length === 0
+                text: I18n.tr("No bundle components are installed.")
+                color: Tokens.inkMuted
+                font.family: Tokens.ui
+                font.pixelSize: Tokens.fSmall
             }
         }
     }
@@ -448,6 +639,7 @@ Item {
 
         Item {
             id: detail
+            property var pendingImageField: null
 
             readonly property var sel: pg.sel || ({})
             readonly property var man: detail.sel.manifest || ({})
@@ -598,9 +790,9 @@ Item {
                         // ── frame-popout placement editor ──
                         // Screen-proportioned stage: pick an edge for the popout
                         // to grow from and drag it along that edge (start | end;
-                        // the centre third of every edge is reserved for the
-                        // island/mixer/power menu and shown struck out). Edits
-                        // write live via ryoku-plugins-place. Desktop widgets do
+                        // the centre third of every edge is reserved for built-in
+                        // control surfaces and shown struck out). Edits write live
+                        // via ryoku-plugins-place. Desktop widgets do
                         // not come through here (they are placed on the
                         // wallpaper), so this renders for framePopout only.
                         Item {
@@ -1061,13 +1253,7 @@ Item {
                                             font.pixelSize: ci.cur.length === 0 ? 12 : 11
                                         }
                                         HoverHandler { id: ciHov; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler { onTapped: ciDlg.open() }
-                                    }
-                                    FileDialog {
-                                        id: ciDlg
-                                        title: I18n.tr("Choose an image")
-                                        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp)", "All files (*)"]
-                                        onAccepted: form._set(ci.field.key, "" + ciDlg.selectedFile)
+                                        TapHandler { onTapped: { detail.pendingImageField = ci.field; ciDlg.open(); } }
                                     }
                                 }
                             }
@@ -1082,6 +1268,16 @@ Item {
                         color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                     }
                 }
+            }
+
+            // image-type plugin option picker; lifted to the detail root so it
+            // overlays as a full modal (the delegate row itself is only 30px tall).
+            // The tapped field is captured in pendingImageField, like SchemaPage.
+            PickFile {
+                id: ciDlg
+                title: I18n.tr("Choose an image")
+                onPicked: (p) => { if (detail.pendingImageField) form._set(detail.pendingImageField.key, "" + p); ciDlg.active = false; }
+                onCanceled: ciDlg.active = false
             }
         }
     }
@@ -1126,7 +1322,7 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: I18n.tr("This deletes the add-on and its settings from your desktop. You can reinstall it from the Store.")
+                    text: I18n.tr("This deletes the add-on and its settings from your desktop. You can reinstall it from RyoStore.")
                     color: Tokens.inkOnBoneDim; font.family: Tokens.ui
                     font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
                 }

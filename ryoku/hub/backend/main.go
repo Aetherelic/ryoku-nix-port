@@ -45,11 +45,6 @@ func main() {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
 			os.Exit(1)
 		}
-	case "extras":
-		if err := runExtras(args[1:]); err != nil {
-			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
-			os.Exit(1)
-		}
 	case "lock":
 		if err := runLock(args[1:]); err != nil {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
@@ -125,8 +120,6 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-hub hypr variants <layout>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub hypr save|preview <json>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub hypr restore")
-	fmt.Fprintln(os.Stderr, "  ryoku-hub extras catalog|cache")
-	fmt.Fprintln(os.Stderr, "  ryoku-hub extras installer <name>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub lock list")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub lock set <slug>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub gpu caps|mode")
@@ -136,7 +129,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-hub voxtype get|ensure")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub voxtype set <json>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub voxtype download|rmmodel <key>")
-	fmt.Fprintln(os.Stderr, "  ryoku-hub rice list|preflight|capture|apply|restore|save|fork|delete|setwall|files|export|catalog|install|publish")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub rice list|preflight|capture|apply|restore|save|fork|delete|import|publish|setwall|files|export")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub fastfetch get|preview <json>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub fastfetch save <json>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub fastfetch import-logo <path>")

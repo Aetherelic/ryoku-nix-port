@@ -505,20 +505,24 @@ done
         }
     }
 
-    // ── one tuning knob as a Cell, control chosen from its kind ────────────────
-    component TuneCell: Cell {
+    // ── one tuning knob as a SettingRow, control chosen from its kind ──────────
+    component TuneCell: SettingRow {
         id: tc
         property var tunable: ({})
         readonly property string knd: tc.tunable.kind || ""
         readonly property int optCount: (tc.tunable.options || []).length
 
-        height: neededHeight
-        block: tc.knd === "segment"
-        controlWidth: Spans.inlineWidth(tc.knd === "toggle" ? "sw" : (tc.knd === "slider" ? "slid" : "seg"), tc.optCount, width)
+        anchors.left: parent.left
+        anchors.right: parent.right
+        // a segmented bar of 3+ needs its own band; a switch, slider or short
+        // segment sits inline at the row's right.
+        block: tc.knd === "segment" && tc.optCount >= 3
+        controlWidth: tc.knd === "toggle" ? 54
+            : (tc.knd === "slider" ? Math.min(240, Math.max(160, Math.round(tc.width * 0.34)))
+            : Math.max(120, 62 * Math.max(2, tc.optCount)))
         label: pg.tag(tc.tunable.gpu) + " · " + I18n.tr(tc.tunable.label || "")
         unit: tc.tunable.unit || ""
-        value: tc.knd === "slider" ? String(Math.round(tc.tunable.current || 0))
-            : (tc.knd === "toggle" ? (tc.tunable.value === "on" ? "ON" : "OFF") : "")
+        value: tc.knd === "slider" ? String(Math.round(tc.tunable.current || 0)) : ""
         desc: tc.tunable.risk === "advanced" ? I18n.tr("Advanced · per session, can misbehave") : I18n.tr("Applies now, resets on reboot")
         source: tc.tunable.src || ""
         changed: false
@@ -538,8 +542,7 @@ done
         Component {
             id: slidC
             Slid {
-                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                width: Math.round(tc.width * 0.42)
+                anchors.fill: parent
                 from: tc.tunable.min || 0
                 to: tc.tunable.max || 1
                 value: tc.tunable.current || 0
@@ -549,7 +552,8 @@ done
         Component {
             id: segC
             Seg {
-                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
                 options: tc.tunable.options || []
                 current: tc.tunable.value
                 onChose: (k) => pg.tuneSet(tc.tunable.gpu, tc.tunable.id, k)
@@ -661,45 +665,47 @@ done
                 spacing: Tokens.s6
 
                 // ── RYOKU RENDERS ON ──
-                Section {
-                    width: parent.width
+                SettingCard {
+                    width: gfxCol.width
                     title: I18n.tr("RYOKU RENDERS ON")
 
-                    Column {
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        block: true
+                        label: I18n.tr("Graphics mode")
+                        desc: I18n.tr("A change takes effect on your next login.")
+                        Seg {
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            options: ["Hybrid", "Performance", "Passthrough"]
+                            current: pg.modeLabel(pg.mode)
+                            onChose: (label) => pg.setMode(label.toLowerCase())
+                        }
+                    }
+
+                    // what the chosen mode means, spelled out beneath the control.
+                    Text {
                         width: parent.width
-                        spacing: Tokens.s3
-                        Row {
-                            width: parent.width
-                            Text {
-                                width: parent.width - segMode.width
-                                text: I18n.tr("Graphics mode")
-                                color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fRow
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Seg {
-                                id: segMode
-                                options: ["Hybrid", "Performance", "Passthrough"]
-                                current: pg.modeLabel(pg.mode)
-                                onChose: (label) => pg.setMode(label.toLowerCase())
-                            }
-                        }
-                        Text {
-                            width: parent.width; wrapMode: Text.WordWrap
-                            text: pg.mode === "hybrid"
-                                ? I18n.tr("Hybrid keeps the built-in GPU primary for battery; apps can still use %1 on demand.").arg(pg.dgpuName)
-                                : (pg.mode === "performance"
-                                    ? I18n.tr("Performance pins %1 as primary: fastest, more power draw.").arg(pg.dgpuName)
-                                    : I18n.tr("Passthrough runs the desktop on the built-in GPU so %1 is free for a VM.").arg(pg.dgpuName))
-                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                        }
-                        Text {
-                            width: parent.width
-                            text: I18n.tr("A change takes effect on your next login.")
-                            color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                        }
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s2; bottomPadding: Tokens.s3
+                        wrapMode: Text.WordWrap
+                        text: pg.mode === "hybrid"
+                            ? I18n.tr("Hybrid keeps the built-in GPU primary for battery; apps can still use %1 on demand.").arg(pg.dgpuName)
+                            : (pg.mode === "performance"
+                                ? I18n.tr("Performance pins %1 as primary: fastest, more power draw.").arg(pg.dgpuName)
+                                : I18n.tr("Passthrough runs the desktop on the built-in GPU so %1 is free for a VM.").arg(pg.dgpuName))
+                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                    }
+
+                    // mode-set warning: a bordered plate, only when the backend complains.
+                    Item {
+                        visible: pg.modeWarn !== ""
+                        width: parent.width
+                        height: visible ? modeWarnPlate.height + Tokens.s3 : 0
                         Rectangle {
-                            visible: pg.modeWarn !== ""
-                            width: parent.width
+                            id: modeWarnPlate
+                            anchors { left: parent.left; right: parent.right; top: parent.top }
+                            anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4
                             height: modeWarnText.implicitHeight + Tokens.s3 * 2
                             radius: Tokens.radius; color: "transparent"
                             border.width: Tokens.border; border.color: Tokens.lineStrong
@@ -718,31 +724,25 @@ done
                 }
 
                 // ── TUNING · THIS SESSION ──
-                Section {
-                    id: tuneSect
-                    width: parent.width
+                SettingCard {
+                    width: gfxCol.width
                     title: I18n.tr("TUNING · THIS SESSION")
 
                     // the per-session promise, said plainly and kept in view.
-                    Row {
+                    Text {
                         width: parent.width
-                        spacing: Tokens.s2
-                        Rectangle {
-                            width: 6; height: 6; radius: 3
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: Tokens.inkMuted
-                        }
-                        Text {
-                            width: parent.width - 6 - Tokens.s2
-                            text: I18n.tr("Tuning is live and per session. Everything resets on reboot; there is nothing to save and nothing to undo but a reboot.")
-                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                            wrapMode: Text.WordWrap
-                        }
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
+                        wrapMode: Text.WordWrap
+                        text: I18n.tr("Tuning is live and per session. Everything resets on reboot; there is nothing to save and nothing to undo but a reboot.")
+                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                     }
 
                     // presets: apply a bundle, or save the current knobs as your own.
                     Column {
-                        width: parent.width
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4
+                        topPadding: Tokens.s2; bottomPadding: Tokens.s2
                         spacing: Tokens.s2
                         visible: (pg.tune || []).length > 0
                         Text {
@@ -807,24 +807,23 @@ done
                         }
                     }
 
-                    // safe knobs, always visible; one cell per probed tunable.
-                    Flow {
-                        width: parent.width; spacing: Tokens.s2
-                        Repeater {
-                            model: pg.safeTune
-                            delegate: TuneCell {
-                                required property var modelData
-                                tunable: modelData
-                                width: modelData.kind === "segment" ? tuneSect.span(12)
-                                    : (modelData.kind === "slider" ? tuneSect.span(6) : tuneSect.span(4))
-                            }
+                    // safe knobs, always visible; one row per probed tunable.
+                    Repeater {
+                        model: pg.safeTune
+                        delegate: TuneCell {
+                            required property var modelData
+                            tunable: modelData
+                            divider: true
                         }
                     }
 
                     // nothing writable on this hardware: say so, do not leave a void.
                     Text {
                         visible: (pg.tune || []).length === 0
-                        width: parent.width; wrapMode: Text.WordWrap
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s3
+                        wrapMode: Text.WordWrap
                         text: I18n.tr("Your graphics driver exposes no tunable knobs on this session. Everything here is read-only on this hardware.")
                         color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                     }
@@ -832,9 +831,10 @@ done
                     // advanced disclosure: overclock, undervolt, clock-lock, fan.
                     Item {
                         visible: pg.advTune.length > 0
-                        width: parent.width; height: 22
+                        width: parent.width; height: visible ? 34 : 0
                         Row {
-                            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left; anchors.leftMargin: Tokens.s4
+                            anchors.verticalCenter: parent.verticalCenter
                             spacing: Tokens.s2
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
@@ -854,69 +854,85 @@ done
                         HoverHandler { id: advHov; cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: pg.showAdvanced = !pg.showAdvanced }
                     }
+                    // advanced knobs, folded behind the disclosure.
                     Column {
                         width: parent.width
                         visible: pg.showAdvanced && pg.advTune.length > 0
-                        spacing: Tokens.s3
+                        spacing: 0
                         // the warning is a bone plate and the words, never a colour.
-                        Rectangle {
+                        Item {
                             width: parent.width
-                            height: advWarn.implicitHeight + Tokens.s3 * 2
-                            radius: Tokens.radius; color: Tokens.bone
-                            Text {
-                                id: advWarn
-                                anchors {
-                                    left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
-                                    leftMargin: Tokens.s3; rightMargin: Tokens.s3
+                            height: advWarnPlate.height + Tokens.s2 * 2
+                            Rectangle {
+                                id: advWarnPlate
+                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                                anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4
+                                height: advWarn.implicitHeight + Tokens.s3 * 2
+                                radius: Tokens.radius; color: Tokens.bone
+                                Text {
+                                    id: advWarn
+                                    anchors {
+                                        left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
+                                        leftMargin: Tokens.s3; rightMargin: Tokens.s3
+                                    }
+                                    text: I18n.tr("Overclocking, undervolting and fan control can freeze the GPU or the desktop. Every change is per session and clears on reboot; if the screen misbehaves, reboot to recover.")
+                                    color: Tokens.inkOnBone; wrapMode: Text.WordWrap
+                                    font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.Medium
                                 }
-                                text: I18n.tr("Overclocking, undervolting and fan control can freeze the GPU or the desktop. Every change is per session and clears on reboot; if the screen misbehaves, reboot to recover.")
-                                color: Tokens.inkOnBone; wrapMode: Text.WordWrap
-                                font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.Medium
                             }
                         }
-                        Flow {
-                            width: parent.width; spacing: Tokens.s2
-                            Repeater {
-                                model: pg.advTune
-                                delegate: TuneCell {
-                                    required property var modelData
-                                    tunable: modelData
-                                    width: modelData.kind === "segment" ? tuneSect.span(12)
-                                        : (modelData.kind === "slider" ? tuneSect.span(6) : tuneSect.span(4))
-                                }
+                        Repeater {
+                            model: pg.advTune
+                            delegate: TuneCell {
+                                required property var modelData
+                                tunable: modelData
+                                divider: true
                             }
                         }
                     }
 
                     Text {
                         visible: pg.tuneError !== ""
-                        width: parent.width; wrapMode: Text.WordWrap
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s2; bottomPadding: Tokens.s2
+                        wrapMode: Text.WordWrap
                         text: pg.tuneError
                         color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                         font.weight: Font.Medium
                     }
 
                     Text {
-                        width: parent.width; wrapMode: Text.WordWrap
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s1; bottomPadding: Tokens.s3
+                        wrapMode: Text.WordWrap
                         text: I18n.tr("Want deeper overclocking (voltage curves, fan curves)? Install LACT, a dedicated GPU control daemon.")
                         color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
                     }
                 }
 
                 // ── GPU PASSTHROUGH · ADVANCED ──
-                Section {
-                    width: parent.width
+                SettingCard {
+                    width: gfxCol.width
                     title: I18n.tr("GPU PASSTHROUGH · ADVANCED")
 
-                    Column {
+                    Text {
                         width: parent.width
-                        spacing: Tokens.s3
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
+                        wrapMode: Text.WordWrap
+                        text: I18n.tr("Free %1 from the desktop and bind it to vfio so a virtual machine can own it for near-native performance. This sets up the host only; you run the VM yourself (libvirt + Looking Glass). Everyday VMs in ryovm need none of this.").arg(pg.dgpuName)
+                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                    }
 
-                        Text {
-                            width: parent.width; wrapMode: Text.WordWrap
-                            text: I18n.tr("Free %1 from the desktop and bind it to vfio so a virtual machine can own it for near-native performance. This sets up the host only; you run the VM yourself (libvirt + Looking Glass). Everyday VMs in ryovm need none of this.").arg(pg.dgpuName)
-                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                        }
+                    // the passthrough surface: status, actions, plan, and readiness
+                    // checks -- a bespoke console, kept intact and inset into the card.
+                    Column {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4
+                        topPadding: Tokens.s1; bottomPadding: Tokens.s4
+                        spacing: Tokens.s3
 
                         Row {
                             width: parent.width; spacing: Tokens.s2

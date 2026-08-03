@@ -7,7 +7,7 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
 // Input (DESIGN.md, SYSTEM). Keyboard layout and remaps, pointer and touchpad
-// behaviour, and key repeat for the Hyprland session. Rendered as cells off the
+// behaviour, and key repeat for the Hyprland session. Rendered as rows off the
 // shared taxonomy, but three surfaces refuse a plain schema and are built by
 // hand:
 //
@@ -312,13 +312,13 @@ Item {
         return "";
     }
 
-    // ── a scalar cell driven straight off a hypr path ───────────────────────
+    // ── a scalar row driven straight off a hypr path ────────────────────────
     // sw / seg / slid / step. Fractional ratios ride an integer control scaled
-    // by `sc` (the module Slid/Step are integer), and the cell numeral shows the
+    // by `sc` (the module Slid/Step are integer), and the row numeral shows the
     // real value. Enums whose stored key is not its label carry an opts map, and
     // int-backed enums (followMouse, swipeFingers) write back an int so the
     // draft never diverges from disk as a string.
-    component Setting: Cell {
+    component Setting: SettingRow {
         id: st
         property string path: ""
         property string ctl: "sw"
@@ -351,20 +351,25 @@ Item {
         }
         function fmt(n) { return Number(n).toFixed(st.dec); }
 
-        readonly property real gutter: Tokens.s2
-        readonly property real colW: parent ? (parent.width - 11 * gutter) / 12 : 0
-        function spanW(n) { return n * st.colW + (n - 1) * st.gutter; }
+        // a 3+-option segmented needs its own band beneath the text; a switch, a
+        // stepper, a slider or a 2-option segmented sits inline at the right.
+        readonly property bool segBand: st.ctl === "seg" && st.optCount >= 3
 
+        anchors.left: parent.left
+        anchors.right: parent.right
+        divider: true
         visible: st.gate
-        width: st.spanW(Spans.of(st.ctl, st.optCount))
-        height: Spans.rows(st.ctl) * Tokens.cellH + (Spans.rows(st.ctl) - 1) * Tokens.s2
-        block: Spans.isBlock(st.ctl)
-        controlWidth: Spans.inlineWidth(st.ctl, st.optCount, width)
         source: "hypr"
+        block: st.segBand
+        controlWidth: st.ctl === "sw" ? 54
+            : st.ctl === "step" ? 58
+            : st.ctl === "slid" ? Math.min(240, Math.max(160, Math.round(st.width * 0.34)))
+            : st.ctl === "seg" ? Math.max(120, 62 * Math.max(2, st.optCount))
+            : 54
 
-        value: st.ctl === "sw" ? (st.rawV === true ? "ON" : "OFF")
-            : st.ctl === "seg" ? st.keyLabel(st.rawV)
-            : st.fmt(st.numV)
+        // the numeric readout is a stepper's or slider's alone; a switch or a
+        // segmented shows its own state, so it leaves the readout empty.
+        value: (st.ctl === "step" || st.ctl === "slid") ? st.fmt(st.numV) : ""
         def: st.ctl === "sw" ? (st.rawD === true ? "ON" : "OFF")
             : st.ctl === "seg" ? st.keyLabel(st.rawD)
             : st.fmt(st.numD)
@@ -392,6 +397,7 @@ Item {
             id: segC
             Seg {
                 anchors.right: parent.right
+                anchors.left: st.segBand ? parent.left : undefined
                 anchors.verticalCenter: parent.verticalCenter
                 options: pg.labels(st.opts)
                 current: st.keyLabel(st.rawV)
@@ -404,8 +410,7 @@ Item {
         Component {
             id: slidC
             Slid {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width
+                anchors.fill: parent
                 from: Math.round(st.lo * st.sc)
                 to: Math.round(st.hi * st.sc)
                 value: Math.round(st.numV * st.sc)
@@ -427,8 +432,8 @@ Item {
         }
     }
 
-    // ── a kb_options family cell (seg / chips / sw over the shared string) ────
-    component OptCell: Cell {
+    // ── a kb_options family row (seg / chips / sw over the shared string) ────
+    component OptCell: SettingRow {
         id: oc
         property string cellLabel: ""
         property string cellDesc: ""
@@ -438,24 +443,24 @@ Item {
         property string onKey: ""        // the token written when a sw is on
         property bool gate: true
 
-        readonly property real gutter: Tokens.s2
-        readonly property real colW: parent ? (parent.width - 11 * gutter) / 12 : 0
-        function spanW(n) { return n * oc.colW + (n - 1) * oc.gutter; }
-
         readonly property int optCount: oc.map.length
         readonly property string curKey: pg.pickFrom(oc.ids, false)
         readonly property string defKey: pg.pickFrom(oc.ids, true)
 
+        // chips and a 3+-option segmented take a band beneath the text; a switch
+        // sits inline at the row's right.
+        readonly property bool segBand: oc.kind === "seg" && oc.optCount >= 3
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        divider: true
         visible: oc.gate
-        width: oc.spanW(Spans.of(oc.kind, oc.optCount))
-        height: oc.neededHeight   // hug the control: a lone chip row stays a row, no 2-row void
-        block: Spans.isBlock(oc.kind)
-        controlWidth: Spans.inlineWidth(oc.kind, oc.optCount, width)
         source: "hypr"
+        block: oc.kind === "chips" || oc.segBand
+        controlWidth: oc.kind === "sw" ? 54 : Math.max(120, 62 * Math.max(2, oc.optCount))
         label: oc.cellLabel
         desc: oc.cellDesc
-        value: oc.kind === "sw" ? (oc.curKey === oc.onKey ? "ON" : "OFF")
-            : oc.kind === "chips" ? "" : pg.mapLabel(oc.map, oc.curKey)
+        value: ""
         def: oc.kind === "sw" ? (oc.defKey === oc.onKey ? "ON" : "OFF")
             : oc.kind === "chips" ? "" : pg.mapLabel(oc.map, oc.defKey)
         changed: oc.curKey !== oc.defKey
@@ -477,6 +482,7 @@ Item {
             id: segCmp
             Seg {
                 anchors.right: parent.right
+                anchors.left: oc.segBand ? parent.left : undefined
                 anchors.verticalCenter: parent.verticalCenter
                 options: pg.labels(oc.map)
                 current: pg.mapLabel(oc.map, oc.curKey)
@@ -494,11 +500,10 @@ Item {
         }
     }
 
-    // ── a catalogue pick cell (layout / variant) ────────────────────────────
-    // The taxonomy's pick foot bar reserves no width in the shared Cell, so the
-    // catalogue rides an inline PickBar on the right; the current value is its
-    // own readout, and the 2px changed bar carries the dirty cue.
-    component PickCell: Cell {
+    // ── a catalogue pick row (layout / variant) ─────────────────────────────
+    // The catalogue rides a PickBar in the row's foot band; the current value is
+    // the bar's own readout, and the 2px changed edge carries the dirty cue.
+    component PickCell: SettingRow {
         id: pc
         property string cellLabel: ""
         property string cellDesc: ""
@@ -508,14 +513,10 @@ Item {
         property string committedCode: ""
         property var applyFn: null
 
-        readonly property real gutter: Tokens.s2
-        readonly property real colW: parent ? (parent.width - 11 * gutter) / 12 : 0
-        function spanW(n) { return n * pc.colW + (n - 1) * pc.gutter; }
-
-        width: pc.spanW(Spans.of("pick", 0))
-        height: Tokens.cellH
-        block: false
-        controlWidth: 170
+        anchors.left: parent.left
+        anchors.right: parent.right
+        divider: true
+        footH: 32
         source: "hypr"
         label: pc.cellLabel
         desc: pc.cellDesc
@@ -523,7 +524,9 @@ Item {
         changed: pc.currentCode !== pc.committedCode
 
         PickBar {
-            anchors.fill: parent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
             value: pg.nameIn(pc.list, pc.currentCode)
             count: pc.list.length
             onOpened: pg.openCat(pc.pickTitle, pc.list, pc.currentCode, pc.applyFn)
@@ -643,12 +646,12 @@ Item {
             width: flick.width - Tokens.s3   // reserve a lane for the scroll rail
             spacing: Tokens.s5
 
-            Section {
-                id: kbSect
-                width: parent.width
+            SettingCard {
+                width: body.width
                 title: I18n.tr("KEYBOARD")
 
                 PickCell {
+                    divider: false
                     cellLabel: "Layout"
                     cellDesc: "The main keyboard layout."
                     pickTitle: "KEYBOARD LAYOUT"
@@ -689,22 +692,14 @@ Item {
                     label: I18n.tr("Numlock on at login")
                     desc: I18n.tr("Start each session with the keypad typing digits.")
                 }
-                Decor {
-                    width: kbSect.span(12)
-                    height: Tokens.cellH
-                    title: "配列"; sub: "レイアウト"
-                    tate: "指の地図"
-                    caption: I18n.tr("The map under your fingers -- the layout loaded, and the spare kept a chord away.")
-                    code: "LAYOUT"; seal: "列"; seed: 2; ditherFreq: 1.2; boxId: "input.keyboard"
-                }
             }
 
-            Section {
-                id: krSect
-                width: parent.width
+            SettingCard {
+                width: body.width
                 title: I18n.tr("KEY REMAPS")
 
                 OptCell {
+                    divider: false
                     cellLabel: "Caps Lock"
                     cellDesc: "Turn the Caps Lock key into something more useful."
                     ids: pg.capsIds
@@ -727,27 +722,26 @@ Item {
                     kind: "seg"
                 }
 
-                // Extra options: the free-text escape hatch. Everything the
-                // family pickers do not recognise round-trips here. Commit on
+                // Extra options: the free-text escape hatch. Everything the family
+                // pickers do not recognise round-trips here. Commit on
                 // editing-finished (not per keystroke, which would fight the
                 // tokeniser mid-word) and re-bind to the draft on focus loss so
                 // Reset/Revert refresh the shown text after a manual edit.
-                Cell {
-                    id: extraCell
-                    width: krSect.span(12)
-                    height: Tokens.cellH
-                    block: true
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    footH: 32
                     source: "hypr"
                     label: I18n.tr("Extra options")
                     desc: I18n.tr("Raw xkb options, comma separated. The pickers above manage their own.")
-                    value: ""
                     changed: pg.extraOptions(false) !== pg.extraOptions(true)
 
                     Field {
                         id: extraField
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        anchors.top: parent.top
+                        anchors.verticalCenter: parent.verticalCenter
                         tabular: true
                         placeholder: I18n.tr("raw xkb options, comma separated")
                         text: pg.extraOptions(false)
@@ -760,14 +754,14 @@ Item {
                 // Apply system-wide: privileged localectl write to /etc, gated on
                 // the keyboard keys already being saved so the console matches
                 // what the compositor shows.
-                Cell {
-                    width: krSect.span(Spans.of("sw", 0))
-                    height: Tokens.cellH
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
                     controlWidth: 84
                     source: "vconsole"
                     label: I18n.tr("Apply system-wide")
                     desc: I18n.tr("Also set the login screen, the TTYs, and the disk passphrase prompt.")
-                    value: ""
                     changed: false
 
                     Btn {
@@ -780,10 +774,10 @@ Item {
                 }
                 // paired readout: the last apply result, self-clearing after 6s.
                 // No colour; the word carries the state (DESIGN.md section 1).
-                Cell {
-                    width: krSect.span(Spans.of("seg", 3))
-                    height: Tokens.cellH
-                    controlWidth: 0
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
                     source: "vconsole"
                     label: I18n.tr("Login screen, TTY, and boot")
                     value: pg.sysApplyState === "ok" ? "APPLIED"
@@ -793,22 +787,14 @@ Item {
                         : I18n.tr("They keep their own keymap until you apply.")
                     changed: false
                 }
-                Decor {
-                    width: krSect.span(12)
-                    height: Tokens.cellH
-                    title: "変換"; sub: "リマップ"
-                    tate: "鍵の再定義"
-                    caption: I18n.tr("Every key can be taught a new job -- Caps made useful, modifiers swapped, a compose key at hand.")
-                    code: "REMAP"; seal: "変"; seed: 3; ditherFreq: 1.5; boxId: "input.remaps"
-                }
             }
 
-            Section {
-                id: ptSect
-                width: parent.width
+            SettingCard {
+                width: body.width
                 title: I18n.tr("POINTER")
 
                 Setting {
+                    divider: false
                     path: "input.sensitivity"
                     ctl: "slid"; lo: -1; hi: 1; sc: 100; dec: 2
                     label: I18n.tr("Sensitivity")
@@ -852,22 +838,14 @@ Item {
                     label: I18n.tr("Middle-click pastes")
                     desc: I18n.tr("Press the wheel to insert the last highlighted text.")
                 }
-                Decor {
-                    width: ptSect.span(8)
-                    height: Tokens.cellH
-                    title: "操作"; sub: "ポインタ"
-                    tate: "手の記憶"
-                    caption: I18n.tr("The hand on the glass. Speed, acceleration, and the buttons under your fingers.")
-                    code: "POINTER"; seal: "操"; seed: 21; ditherFreq: 1.4; boxId: "input.pointer"
-                }
             }
 
-            Section {
-                id: tpSect
-                width: parent.width
+            SettingCard {
+                width: body.width
                 title: I18n.tr("TOUCHPAD")
 
                 Setting {
+                    divider: false
                     path: "input.naturalScroll"
                     ctl: "sw"
                     label: I18n.tr("Natural scroll")
@@ -940,22 +918,14 @@ Item {
                     label: I18n.tr("Swipe distance")
                     desc: I18n.tr("Finger travel for a full switch; lower flips sooner.")
                 }
-                Decor {
-                    width: tpSect.span(12)
-                    height: Tokens.cellH
-                    title: "触覚"; sub: "タッチパッド"
-                    tate: "指の対話"
-                    caption: I18n.tr("The glass that reads your fingers -- taps, drags, and the swipe between worlds.")
-                    code: "TOUCHPAD"; seal: "触"; seed: 6; ditherFreq: 0.9; boxId: "input.touchpad"
-                }
             }
 
-            Section {
-                id: rpSect
-                width: parent.width
+            SettingCard {
+                width: body.width
                 title: I18n.tr("KEY REPEAT")
 
                 Setting {
+                    divider: false
                     path: "input.repeatRate"
                     ctl: "step"; lo: 1; hi: 100; stepBy: 1; unit: "/s"
                     label: I18n.tr("Repeat rate")
@@ -966,13 +936,6 @@ Item {
                     ctl: "step"; lo: 100; hi: 2000; stepBy: 50; unit: "ms"
                     label: I18n.tr("Repeat delay")
                     desc: I18n.tr("Pause before a held key starts repeating.")
-                }
-                Decor {
-                    width: rpSect.span(4)
-                    height: Tokens.cellH
-                    title: "連打"; sub: "リピート"
-                    caption: I18n.tr("How fast a held key repeats, and the pause before it starts.")
-                    code: "REPEAT"; seal: "連"; seed: 33; ditherFreq: 0.8; boxId: "input.repeat"
                 }
             }
         }

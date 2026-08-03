@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import ".."
@@ -26,10 +27,35 @@ Item {
     function hv(path) { return pg.hub ? pg.hub.hyprVal(path) : undefined }
     function cv(path) { return pg.hub ? pg.hub.hyprCommittedVal(path) : undefined }
 
+    // Which compositor plugins are actually installed. The probe below lists the
+    // .so files present in either plugin dir into availablePlugins; until it
+    // returns, probed is false and every plugin row shows (fail-open, no empty
+    // flash). Once probed, a plugin whose .so is absent has its rows gated out,
+    // so the Plugins tab lists only what is installed.
+    property var availablePlugins: ({})
+    property bool probed: false
+
+    // the .so a plugin key needs, "" for non-plugin keys. hyprscrolling is a core
+    // layout (no .so), so it is deliberately unmapped and never gated here.
+    function pluginSo(key) {
+        if (key === undefined || key === null) return "";
+        if (key.indexOf("plugins.hyprbars.") === 0) return "hyprbars.so";
+        if (key.indexOf("plugins.hyprglass.") === 0) return "hyprglass.so";
+        if (key.indexOf("plugins.imgborders.") === 0) return "imgborders.so";
+        if (key.indexOf("plugins.dynamicCursors.") === 0) return "dynamic-cursors.so";
+        if (key.indexOf("plugins.hyprfocus.") === 0) return "hyprfocus.so";
+        return "";
+    }
+
     // per-row visibility: a dependent stays hidden until its parent toggle is on
     // or the relevant layout is selected. Mirrors the gates the settings carried
     // when they lived on the Appearance page.
     function gateOk(key, d) {
+        // auto-detect: hide a plugin's rows once the probe confirms its .so is
+        // absent; before the probe returns (probed false) they show (fail-open).
+        var so = pg.pluginSo(key);
+        if (so !== "" && pg.probed && pg.availablePlugins[so] !== true)
+            return false;
         switch (key) {
         case "dwindle.preserveSplit": case "dwindle.smartSplit": case "dwindle.smartResizing":
         case "dwindle.defaultSplitRatio": case "dwindle.forceSplit": case "dwindle.useActiveForSplits":
@@ -83,7 +109,31 @@ Item {
         return out;
     }
 
+    // probe both plugin dirs for the shipped .so files and record which are
+    // present, driving availablePlugins/probed that gateOk reads to auto-hide
+    // rows for plugins that are not installed. one sh -c covers both dirs and all
+    // five names; StdioCollector gathers the printed basenames into a set.
+    Process {
+        running: true
+        command: ["sh", "-c",
+            "for d in /usr/lib/hyprland/plugins \"$HOME/.local/lib/hyprland/plugins\"; do for n in dynamic-cursors hyprbars hyprfocus hyprglass imgborders; do [ -e \"$d/$n.so\" ] && echo \"$n.so\"; done; done"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var set = {};
+                var lines = ("" + this.text).split("\n");
+                for (var i = 0; i < lines.length; i++) {
+                    var s = lines[i].trim();
+                    if (s !== "") set[s] = true;
+                }
+                pg.availablePlugins = set;
+                pg.probed = true;
+            }
+        }
+    }
+
+    function focusKey(k) { sp.focusKey(k) }
     SchemaPage {
+        id: sp
         anchors.fill: parent
         schema: pg.settingsSchema
         draft: pg.draft
