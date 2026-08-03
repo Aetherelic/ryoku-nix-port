@@ -143,12 +143,12 @@ set_state() {
 # --- parsing ------------------------------------------------------------------
 
 # Emit "type<TAB>name<TAB>detect<TAB>summary" for the bundle's items, optionally
-# only the one named by $2.
+# only those whose name is in the comma-separated $2 list.
 bundle_items() {
   local file=$1 only=${2:-}
   if [[ -n $only ]]; then
-    jq -r --arg n "$only" \
-      '.items[] | select(.name == $n) | [.type, .name, (.detect // .name), (.tier // "core"), ((.interactive // false)|tostring), (.summary // "")] | @tsv' "$file"
+    jq -r --arg only "$only" \
+      '($only | split(",")) as $ns | .items[] | select(.name as $x | $ns | index($x)) | [.type, .name, (.detect // .name), (.tier // "core"), ((.interactive // false)|tostring), (.summary // "")] | @tsv' "$file"
   else
     jq -r '.items[] | [.type, .name, (.detect // .name), (.tier // "core"), ((.interactive // false)|tostring), (.summary // "")] | @tsv' "$file"
   fi
@@ -503,7 +503,11 @@ case "${1:-}" in
     ;;
   install)
     case "${2:-}" in
-      bundle) [[ -n ${3:-} ]] || die "install bundle needs an id"; install_set "$3" ;;
+      bundle)
+        [[ -n ${3:-} ]] || die "install bundle needs an id"
+        only=""
+        [[ ${4:-} == --only ]] && only=${5:-}
+        install_set "$3" "$only" ;;
       item) [[ -n ${4:-} ]] || die "install item needs <id> <name>"; install_set "$3" "$4" ;;
       *) die "install needs 'bundle <id>' or 'item <id> <name>'" ;;
     esac
@@ -521,7 +525,7 @@ case "${1:-}" in
     cat >&2 <<'USAGE'
 usage:
   ryoku-extras-install status [bundle <id>]
-  ryoku-extras-install install bundle <id>
+  ryoku-extras-install install bundle <id> [--only name1,name2,...]
   ryoku-extras-install install item <id> <name>
   ryoku-extras-install remove bundle <id>
   ryoku-extras-install remove item <id> <name>
