@@ -571,6 +571,11 @@ func (s *clipState) watch() {
 // line, so the bytes never reach a command line. A cleared or password-manager
 // (sensitive) selection is skipped.
 func runClipIngest() {
+	// A stuck wl-paste read, or a daemon that stops consuming the socket, must
+	// never strand this helper holding a data-control slot: cap its whole
+	// lifetime so it always exits (the resident __clip-ingest leak). A normal
+	// ingest finishes in well under a second.
+	time.AfterFunc(5*time.Second, func() { os.Exit(0) })
 	if st := os.Getenv("CLIPBOARD_STATE"); st == "clear" || st == "sensitive" {
 		return
 	}
@@ -594,6 +599,7 @@ func runClipIngest() {
 		return
 	}
 	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
 	if _, err := fmt.Fprintf(conn, "clip-ingest %s %d\n", mime, len(data)); err != nil {
 		return
 	}
