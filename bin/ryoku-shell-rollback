@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Restore a shell snapshot (see ryoku-shell-snapshot) over the two deploy targets
+# and restart the live shell. Run before every consolidation deploy so a broken
+# phase is one command away from the last good state.
+#
+#   ryoku-shell-rollback                 restore the newest snapshot
+#   ryoku-shell-rollback <ts|filename>   restore that specific snapshot
+#   ryoku-shell-rollback --list          list snapshots (newest first) and exit
+#   ryoku-shell-rollback --dry-run [id]  print the restore plan; change nothing
+set -euo pipefail
+
+backup_dir="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/shell-backups"
+targets=(".config/quickshell" ".local/lib/qt6/qml/Ryoku")
+
+list_snapshots() {
+  find "$backup_dir" -maxdepth 1 -name '*.tar.zst' -printf '%f\n' 2>/dev/null | sort -r
+}
+
+# Resolve a user-supplied id (timestamp or filename) to an archive path.
+resolve() {
+  local id="$1"
+  if [[ -f "$id" ]]; then
+    printf '%s\n' "$id"; return 0
+  fi
+  if [[ -f "$backup_dir/$id" ]]; then
+    printf '%s\n' "$backup_dir/$id"; return 0
+  fi
+  if [[ -f "$backup_dir/$id.tar.zst" ]]; then
+    printf '%s\n' "$backup_dir/$id.tar.zst"; return 0
+  fi
+  return 1
+}
+
+dry_run=0
+id=""
+case "${1:-}" in
+  --list)
+    mapfile -t snaps < <(list_snapshots)
+    if (( ${#snaps[@]} == 0 )); then
+      echo "ryoku-shell-rollback: no snapshots in $backup_dir" >&2
+      exit 1
+    fi
+    printf '%s\n' "${snaps[@]}"
+    exit 0
+    ;;
+  --dry-run)
+    dry_run=1
+    id="${2:-}"
+    ;;
+  -h|--help)
+    sed -n '2,10p' "$0"
+    exit 0
+    ;;
+  *)
+    id="${1:-}"
+    ;;
+esac
+
+if [[ -n "$id" ]]; then
+  if ! archive=$(resolve "$id"); then
+    echo "ryoku-shell-rollback: no snapshot matching '$id' in $backup_dir" >&2
+    exit 1
+  fi
+else
+  archive=$(list_snapshots | head -n1)
+  if [[ -z "$archive" ]]; then
+    echo "ryoku-shell-rollback: no snapshots in $backup_dir" >&2
+    exit 1
+  fi
+  archive="$backup_dir/$archive"
+fi
+
+if (( dry_run )); then
+  echo "would restore: $archive"
+  echo "would overwrite these targets:"
+  for t in "${targets[@]}"; do
+    echo "  $HOME/$t"
+  done
+  echo "would then: systemctl --user restart ryoku-shell"
+  exit 0
+fi
+
+echo "ryoku-shell-rollback: restoring $archive"
+for t in "${targets[@]}"; do
+  rm -rf -- "${HOME:?}/$t"
+done
+tar --zstd -xf "$archive" -C "$HOME"
+systemctl --user restart ryoku-shell
+echo "ryoku-shell-rollback: restored and restarted ryoku-shell"
