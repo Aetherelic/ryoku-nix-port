@@ -75,6 +75,14 @@ Singleton {
     function requestSurface(id, mon, context) { root.surfaceRequested(id, mon, context); }
     function closeSurface(id, mon) { root.surfaceClosed(id, mon); }
 
+    // Open a surface on the focused monitor: the menu global-shortcut handlers
+    // call this so a keybind lands on the active screen, matching the old
+    // `ryoku-shell menu <id>` which routed to the daemon's activeMonitor.
+    function requestSurfaceActive(id, context) {
+        const m = Hyprland.focusedMonitor;
+        root.surfaceRequested(id, m && m.name ? m.name : "", context);
+    }
+
     // Keyboard-return bounce bridge. A dismissed keyboard surface (the per-monitor
     // FrameSurfaceLifecycle in Frame.qml) pulses the single root-level kbBounce
     // helper in shell.qml to hand the keyboard back to the compositor. The signal

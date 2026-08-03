@@ -382,4 +382,32 @@ ShellRoot {
         function closeAllMenus(mon: string): void { ShellState.closeSurface("", mon); }
         function sessionConfirm(mon: string, action: string): void { ShellState.askSessionAction(action, mon); }
     }
+    // Menu global shortcuts (Phase 10): open a bar menu/surface on the focused
+    // monitor via the ShellState bus, replacing the old `ryoku-shell menu <id>`
+    // spawn. binds.lua dispatches global:ryoku:<name> straight here.
+    CustomShortcut {
+        name: "quicksettings"
+        description: "Open quick settings on the active monitor"
+        onPressed: ShellState.requestSurfaceActive("quick-settings", undefined)
+    }
+    CustomShortcut {
+        name: "wallpaper-menu"
+        description: "Open the wallpaper and theme menu on the active monitor"
+        onPressed: ShellState.requestSurfaceActive("wallpaper", undefined)
+    }
+    CustomShortcut {
+        name: "clipboard"
+        description: "Open the clipboard history on the active monitor"
+        onPressed: ShellState.requestSurfaceActive("quick-settings#clipboard", undefined)
+    }
+    CustomShortcut {
+        name: "stash"
+        description: "Open the stash sidebar on the active monitor"
+        onPressed: ShellState.requestSurfaceActive("stash", undefined)
+    }
+    CustomShortcut {
+        name: "screenshot"
+        description: "Open the screenshot capture menu on the active monitor"
+        onPressed: ShellState.requestSurfaceActive("screenshot", undefined)
+    }
 }
