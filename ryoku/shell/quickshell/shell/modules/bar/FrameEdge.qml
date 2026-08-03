@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "Singletons"
+import "../../services"
 
 // One of the four background reservation surfaces of the frame. It paints
 // nothing and takes no input; its exclusive zone reserves the revealed bar's

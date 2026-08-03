@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../framebars/lib/menupoll.js" as MenuPoll
+import "../utils/menupoll.js" as MenuPoll
 
 // QML view of the daemon `network` topic. NetworkManager lives in ryoku-shell
 // (network.go), so QML never shells out to nmcli nor speaks D-Bus itself:

@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Ryoku.FrameBars
 import "framebars/widgets"
-import "Singletons"
+import "../../services"
 
 // Maps a catalogue id to its Rail* component and forwards the widget's intents
 // (menu open, bar action) up to the frame. A self-hiding widget collapses the

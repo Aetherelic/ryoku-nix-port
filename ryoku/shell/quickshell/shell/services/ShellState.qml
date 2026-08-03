@@ -52,10 +52,10 @@ Singleton {
             property bool wallpaperSwitcherOpen: false  // wallpaper-switcher
             property bool boardOpen: false              // board (was ryolayer, Super+G)
 
-            // The bar reveal. A single flag for now; split per edge
-            // (top/bottom/left/right) when the frame migrates in Phase 2 if edges
-            // reveal independently.
-            property bool barRevealed: false
+            // The frame bar's master reveal for this monitor. Resting policy is
+            // revealed: each edge then follows its Config reveal flag, and the
+            // bar toggle shortcut flips this to show or hide every edge at once.
+            property bool barRevealed: true
 
             // Desktop audio visualiser mode: "off" | "desktop" | "overlay".
             property string visualizerMode: "off"

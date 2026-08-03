@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.." as Pill
-import "../../Singletons"
+import "../../../../services"
 
 // Shared rail bar-widget button. Parity geometry (contract 02 sec 2, contract 04
 // sec 2.1): on a vertical bar (left/right) 48x36, on a horizontal bar

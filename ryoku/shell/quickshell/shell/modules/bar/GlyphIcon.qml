@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
-import "Singletons"
+import "../../services"
 
 // vector glyph from baked SVG paths. no system icon theme, no external assets.
 // `name` picks one, `color` tints; stroked glyphs use `stroke` width, filled

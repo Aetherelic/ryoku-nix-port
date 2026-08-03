@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../Singletons"
+import "../../../../services"
 
 // VPN indicator: a box-shape indicator (no click) that self-hides unless a
 // tunnel is up. `active` (the host visibility) gates the singleton's polling so a

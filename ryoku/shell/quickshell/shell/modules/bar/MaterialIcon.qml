@@ -1,5 +1,5 @@
 import QtQuick
-import "Singletons"
+import "../../services"
 
 // Material Symbols Rounded ligature. The glyph name is the text and the
 // variable axes carry fill. Shipped by ttf-material-symbols-variable.

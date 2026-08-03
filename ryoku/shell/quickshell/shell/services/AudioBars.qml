@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../framebars/lib/menupoll.js" as MenuPoll
+import "../utils/menupoll.js" as MenuPoll
 
 // playback spectrum for the pill: the bar's music widget and its card both draw
 // from this one cava feed (the PipeWire playback monitor, 40 bands / 30fps), so

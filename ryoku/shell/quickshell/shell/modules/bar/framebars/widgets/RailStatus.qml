@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
-import "../../Singletons"
+import "../../../../services"
 
 // One renderer parameterised by statusId, exactly as the reference treats each
 // status widget as its own type. The battery, network, bluetooth and the speaker

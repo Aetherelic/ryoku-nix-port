@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import "../.." as Pill
-import "../../Singletons"
+import "../../../../services"
 
 // Pill workspaces: each non-special workspace across all monitors is a rounded
 // pill showing up to 3 tiny app icons resolved via DesktopEntries (same method

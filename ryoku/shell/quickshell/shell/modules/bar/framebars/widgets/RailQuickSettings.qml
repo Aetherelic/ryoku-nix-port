@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.." as Pill
-import "../../Singletons"
+import "../../../../services"
 
 // Quick-settings launch button: opens the main quick-settings menu on left
 // click. Shows the Ryoku brand mark (user decision): the same slot carries the

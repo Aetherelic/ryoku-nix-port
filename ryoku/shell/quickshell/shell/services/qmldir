@@ -1,2 +1,18 @@
 singleton ShellState ShellState.qml
 ServiceLoader ServiceLoader.qml
+singleton Theme Theme.qml
+singleton Scheme Scheme.qml
+singleton Config Config.qml
+singleton Motion Motion.qml
+singleton Workspaces Workspaces.qml
+singleton Media Media.qml
+singleton AudioBars AudioBars.qml
+singleton Recorder Recorder.qml
+singleton Battery Battery.qml
+singleton Network Network.qml
+singleton Notifs Notifs.qml
+singleton Audio Audio.qml
+singleton Tray Tray.qml
+singleton DockPreview DockPreview.qml
+singleton BarProducts BarProducts.qml
+singleton Fullscreen Fullscreen.qml

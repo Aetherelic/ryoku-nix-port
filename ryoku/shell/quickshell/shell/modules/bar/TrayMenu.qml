@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "Singletons"
+import "../../services"
 
 // In-shell context menu for a system-tray item. Right-clicking a tray icon draws
 // the item's own dbusmenu here, rendered and driven by the shell, instead of
