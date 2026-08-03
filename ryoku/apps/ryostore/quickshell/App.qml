@@ -188,30 +188,29 @@ Rectangle {
             detailClear.restart();
     }
 
-    function openSearch() {
-        if (searchOpen) {
-            searchLayer.focusField();
+    function enterSearch() {
+        if (searchOpen)
             return;
-        }
         searchContext = snapshotContext();
         searchOpen = true;
-        query = "";
         previewItem = null;
         reconcileSelection(0);
     }
 
-    function setQuery(value) {
+    function searchFor(value) {
+        enterSearch();
         query = value;
         previewItem = null;
         reconcileSelection(0);
     }
 
-    function closeSearch() {
+    function exitSearch() {
         if (!searchOpen)
             return;
         const context = searchContext;
         searchOpen = false;
         searchContext = null;
+        query = "";
         restoreContext(context);
     }
 
@@ -221,7 +220,7 @@ Rectangle {
         else if (detailOpen)
             closeDetail();
         else if (searchOpen)
-            closeSearch();
+            exitSearch();
         else if (view !== "discover" || categoryID !== "")
             openRoute("discover");
     }
@@ -248,7 +247,7 @@ Rectangle {
     }
     Keys.onPressed: event => {
         if (event.text === "/" && event.modifiers === Qt.NoModifier) {
-            openSearch();
+            header.focusSearch();
         } else if (!detailOpen && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
             openSelectedDetail();
         } else {
@@ -257,7 +256,7 @@ Rectangle {
         event.accepted = true;
     }
 
-    Shortcut { sequence: "Ctrl+K"; onActivated: app.openSearch() }
+    Shortcut { sequence: "Ctrl+K"; onActivated: header.focusSearch() }
     Shortcut { sequence: "Ctrl+Q"; onActivated: app.requestQuit() }
 
     Timer { id: quitArm; interval: 3000 }
@@ -293,9 +292,13 @@ Rectangle {
         updateCount: app.updateCount
         offline: Store.offline
         refreshing: Store.refreshing
+        searchActive: app.searchOpen
+        resultCount: app.collection.length
         onRouteRequested: (routeView, routeCategory) => app.openRoute(routeCategory || routeView)
-        onSearchRequested: app.openSearch()
         onRefreshRequested: Store.refresh(true)
+        onQueryEdited: value => app.searchFor(value)
+        onSearchActivated: app.enterSearch()
+        onSearchEscaped: app.exitSearch()
     }
 
     ShowroomStage {
@@ -444,18 +447,6 @@ Rectangle {
             Accessible.name: text
             Accessible.onPressAction: app.openRoute("discover")
         }
-    }
-
-    SearchLayer {
-        id: searchLayer
-        objectName: "ryostore-search"
-        anchors.fill: header
-        z: 10
-        open: app.searchOpen
-        query: app.query
-        resultCount: app.collection.length
-        onQueryEdited: value => app.setQuery(value)
-        onCloseRequested: app.closeSearch()
     }
 
     ProductDetail {

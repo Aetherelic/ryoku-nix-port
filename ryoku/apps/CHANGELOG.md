@@ -12,6 +12,16 @@
   (`quickshell/ProductDetail.qml`, `quickshell/Singletons/Store.qml`,
   `backend/{main,provider_bundles}.go`).
 
+### Changed
+- `ryostore/`: **The store navigation is a proper two-tier app bar.** The old
+  flat row crammed identity, a hidden "SEARCH" overlay trigger, Library,
+  Refresh, and every category into one strip, so categories clipped off-screen
+  with no affordance. Tier one now carries the 力 wordmark, a persistent search
+  field (magnifier, always visible, Ctrl+K focuses it, live result count) and
+  the Library / Refresh actions; tier two lays every category out as bone-invert
+  Tabs plates so none are hidden. The `SearchLayer` overlay is gone, folded into
+  the header field (`quickshell/StoreHeader.qml`, `quickshell/App.qml`).
+
 ### Fixed
 - `ryowalls/`: **The source picker actually switches source now.** Choosing a
   row (MoeWalls, Live, a library, …) dismissed the drawer but left you on

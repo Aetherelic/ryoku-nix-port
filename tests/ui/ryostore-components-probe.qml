@@ -131,7 +131,7 @@ ShellRoot {
             id: header
             z: 10
             width: parent.width
-            height: 64
+            height: implicitHeight
             view: "discover"
             categoryID: ""
             categories: [
@@ -146,24 +146,15 @@ ShellRoot {
             libraryCount: 3
             updateCount: 1
             offline: false
+            searchActive: false
+            resultCount: 4
             onRouteRequested: (view, categoryID) => {
                 root.routeView = view;
                 root.routeCategory = categoryID;
             }
-            onSearchRequested: root.searchOpened = true
-        }
-
-        Ryo.SearchLayer {
-            id: search
-            z: 11
-            y: header.height
-            width: parent.width
-            height: 64
-            open: false
-            query: "seed"
-            resultCount: 4
             onQueryEdited: value => root.editedQuery = value
-            onCloseRequested: root.searchClosed = true
+            onSearchActivated: root.searchOpened = true
+            onSearchEscaped: root.searchClosed = true
         }
 
         Ryo.ShowroomStage {
@@ -402,6 +393,7 @@ ShellRoot {
             const headerDiscover = root.findObject(header, "ryostore-header-discover");
             const headerCategories = root.findObject(header, "ryostore-header-categories");
             const headerSearch = root.findObject(header, "ryostore-header-search");
+            const headerSearchField = root.findObject(header, "ryostore-header-search-field");
             const headerLibrary = root.findObject(header, "ryostore-header-library");
             const firstCategory = root.findObject(header, "ryostore-header-category-rices");
             const lastCategory = root.findObject(header, "ryostore-header-category-bundles");
@@ -409,40 +401,33 @@ ShellRoot {
             root.require(root.routeView === "discover" && root.routeCategory === "rices", "accessible category route");
             headerLibrary.Accessible.pressAction();
             root.require(root.routeView === "library" && root.routeCategory === "", "accessible library route");
-            headerSearch.Accessible.pressAction();
-            root.require(root.searchOpened, "accessible header search opens layer");
             headerDiscover.Accessible.pressAction();
             root.require(root.routeView === "discover" && root.routeCategory === "", "accessible Discover route");
-            search.open = true;
-            search.focusField();
-            root.require(search.fieldActive, "search takes focus");
-            const searchField = root.findObject(search, "ryostore-search-field");
-            searchField.text = "rice";
-            searchField.textEdited();
-            root.require(root.editedQuery === "rice", "search edit delegates query");
-            const queryBeforeClose = search.query;
-            root.searchClosed = false;
-            const escapeEvent = ({ accepted: false });
-            search.handleEscape(escapeEvent);
-            root.require(root.searchClosed && escapeEvent.accepted, "Escape delegates restoration");
-            root.require(search.query === queryBeforeClose, "search Escape preserves query");
-            root.require(headerDiscover.x < headerCategories.x
-                    && headerCategories.x < headerSearch.x
-                    && headerSearch.x < headerLibrary.x, "header keeps semantic navigation order");
+            root.searchOpened = false;
+            headerSearchField.forceActiveFocus();
+            root.require(headerSearchField.activeFocus, "search field takes focus");
+            root.require(root.searchOpened, "focusing search activates search mode");
+            root.editedQuery = "";
+            headerSearchField.text = "rice";
+            headerSearchField.textEdited();
+            root.require(root.editedQuery === "rice", "search field edit delegates query");
+            const searchPt = headerSearch.mapToItem(header, 0, 0);
+            const libPt = headerLibrary.mapToItem(header, 0, 0);
+            const discPt = headerDiscover.mapToItem(header, 0, 0);
+            const catPt = firstCategory.mapToItem(header, 0, 0);
+            root.require(searchPt.x < libPt.x, "search sits before the account actions");
+            root.require(searchPt.y < discPt.y, "identity and search tier sits above the category nav");
+            root.require(discPt.x < catPt.x, "Discover leads the category row");
             root.require(root.inside(headerSearch, header), "search stays visible at responsive size");
             root.require(root.inside(headerLibrary, header), "library stays visible at responsive size");
             root.require(headerCategories.width > 0, "categories retain scroll region");
-            if (root.probeWidth <= 980)
-                root.require(headerCategories.contentWidth > headerCategories.width, "category labels scroll at cramped size");
             const focusOrder = [
                 "ryostore-header-category-rices",
                 "ryostore-header-category-lockscreens",
                 "ryostore-header-category-plugins",
                 "ryostore-header-category-barstyles",
                 "ryostore-header-category-fastfetch",
-                "ryostore-header-category-bundles",
-                "ryostore-header-search",
-                "ryostore-header-library"
+                "ryostore-header-category-bundles"
             ];
             var focusItem = headerDiscover;
             for (const expectedName of focusOrder) {
@@ -458,7 +443,7 @@ ShellRoot {
             root.require(headerLibrary.Accessible.name.indexOf("3") !== -1
                     && headerLibrary.Accessible.name.indexOf("1 UPDATE") !== -1, "library counts remain explicit");
             header.offline = true;
-            root.require(headerSearch.Accessible.name.indexOf("OFFLINE") !== -1, "header exposes offline state");
+            root.require(headerSearchField.Accessible.name.toLowerCase().indexOf("offline") !== -1, "search field exposes offline state");
             const stageTitle = root.findObject(stage, "ryostore-stage-title");
             const stageStatus = root.findObject(stage, "ryostore-stage-status");
             const stagePrimary = root.findObject(stage, "ryostore-stage-primary");

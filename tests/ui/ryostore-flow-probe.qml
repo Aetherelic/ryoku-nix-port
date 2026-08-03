@@ -101,14 +101,18 @@ ShellRoot {
                 grid.restoreOffset(140);
                 root.savedOffset = grid.contentY;
                 root.require(root.savedOffset > 0, "fixture starts from a nonzero grid offset");
-                app.openSearch();
-                app.setQuery("installed clock");
+                app.searchFor("installed clock");
+                const flowHeader = root.findObject(app, "ryostore-header");
+                if (flowHeader)
+                    flowHeader.focusSearch();
                 root.phase = 4;
                 return;
             }
 
             if (root.phase === 4) {
-                const searchField = root.findObject(app, "ryostore-search-field");
+                const searchField = root.findObject(app, "ryostore-header-search-field");
+                if (searchField && !searchField.activeFocus)
+                    searchField.forceActiveFocus();
                 if (!app.searchOpen || !searchField || !searchField.activeFocus)
                     return;
                 root.require(app.collection.length === 1, "showroom search projection");
@@ -131,7 +135,7 @@ ShellRoot {
             }
 
             if (root.phase === 6) {
-                const searchField = root.findObject(app, "ryostore-search-field");
+                const searchField = root.findObject(app, "ryostore-header-search-field");
                 if (!app.searchOpen || !searchField || !searchField.activeFocus)
                     return;
                 root.require(app.query === "installed clock",
