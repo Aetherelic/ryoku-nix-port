@@ -93,15 +93,6 @@ hl.layer_rule({
   ignore_alpha = 0.05,
 })
 
--- Desktop widgets share one full-screen transparent layer. Ignore transparent
--- pixels so the compositor frosts only the visible glass cards, not the
--- wallpaper surrounding them.
-hl.layer_rule({
-  name         = "desktop-widgets-blur",
-  match        = { namespace = "^ryoku-widgets$" },
-  blur         = not no_blur,
-  ignore_alpha = 0.05,
-})
 
 -- the workspace overview (qs -c overview, Super+Tab) is a full-screen layer-shell
 -- expo: blur the desktop behind it so only the workspace cells and their live

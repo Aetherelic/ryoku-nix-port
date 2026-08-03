@@ -95,6 +95,11 @@ func ipcCallN(config, target, fn string, args ...string) string {
 	return "err qs ipc " + config + "/" + fn + ": " + msg
 }
 
+// ryoku: the pill was consolidated into the single shell instance, which serves
+// no command socket (its shell.qml omits the SocketServer fast path). The pill
+// socket helpers below and pillIpc are therefore dead in production; they are
+// retained (and still covered by pillipc_test.go) for the retire phase rather
+// than deleted here, to keep this cutover minimal and reversible.
 // pillSockPath: the pill's command socket. The pill (a persistent Quickshell
 // component) serves it; the daemon writes a surface command here to skip the
 // `qs ipc call` subprocess on the keybind hot path.
@@ -138,6 +143,15 @@ func pillIpc(fn string, args ...string) string {
 		return "ok"
 	}
 	return ipcCallN("pill", "pill", fn, args...)
+}
+
+// shellIpc invokes a "shell" IpcHandler function through the qs client. Unlike
+// the pill, the single consolidated shell serves no command socket, so there is
+// no socket fast path to prefer: every call goes straight to the qs client. A
+// package var so tests can capture the emitted call in place of a live
+// Quickshell.
+var shellIpc = func(fn string, args ...string) string {
+	return ipcCallN("shell", "shell", fn, args...)
 }
 
 // queryActiveMonitor reads the focused monitor fresh from hyprctl. The daemon's

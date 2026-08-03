@@ -104,11 +104,11 @@ func (s *screenshareState) pick(raw json.RawMessage) (any, error) {
 
 	s.publish(id, programs)
 	// Open the picker on the active monitor. Fire-and-forget: the wait below is
-	// on the user's choice, not on the surface appearing, and pillIpc retries
+	// on the user's choice, not on the surface appearing, and shellIpc retries
 	// against a component that may still be starting.
 	go func() {
-		s.d.ensure("pill")
-		pillIpc("openSurface", s.d.activeMonitor(), "screenshare")
+		s.d.ensure("shell")
+		shellIpc("openSurface", s.d.activeMonitor(), "screenshare")
 	}()
 
 	var sel string
@@ -124,7 +124,7 @@ func (s *screenshareState) pick(raw json.RawMessage) (any, error) {
 	s.publish(0, nil)
 	// Close the picker if it is still mapped. A selection already closed it; a
 	// timeout or a shutdown did not.
-	go pillIpc("closeSurface", s.d.activeMonitor(), "screenshare")
+	go shellIpc("closeSurface", s.d.activeMonitor(), "screenshare")
 	return sel, nil
 }
 

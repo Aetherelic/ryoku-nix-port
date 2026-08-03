@@ -15,6 +15,8 @@ Item {
     property bool active: true
     property real s: 1
     property real underL: Scheme.wallLstar
+    property Item wallpaperSource: null
+    property rect wallpaperRect: Qt.rect(0, 0, 0, 0)
 
     readonly property bool paper: root.style === "paper"
     readonly property var loc: Qt.locale()
@@ -71,7 +73,15 @@ Item {
         anchors.fill: parent
         sourceComponent: root.paper ? paperBackground : glassBackground
     }
-    Component { id: glassBackground; CalendarGlass { hovered: hover.hovered; s: root.s } }
+    Component {
+        id: glassBackground
+        CalendarGlass {
+            hovered: hover.hovered
+            s: root.s
+            sourceItem: root.wallpaperSource
+            sourceRect: root.wallpaperRect
+        }
+    }
     Component { id: paperBackground; CalendarPaper { hovered: hover.hovered; s: root.s } }
 
     HoverHandler { id: hover }

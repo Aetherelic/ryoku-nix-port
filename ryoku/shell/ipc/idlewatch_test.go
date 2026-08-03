@@ -13,7 +13,7 @@ func TestParkable(t *testing.T) {
 			t.Errorf("%s should be parkable", n)
 		}
 	}
-	for _, n := range []string{"pill", "visualizer", "widgets", "hub", ""} {
+	for _, n := range []string{"shell", "visualizer", "widgets", "hub", ""} {
 		if parkable(n) {
 			t.Errorf("%s should not be parkable", n)
 		}
@@ -81,8 +81,8 @@ func TestUnloadPaletteWhenIdle(t *testing.T) {
 	if !unloadPaletteWhenIdle("ryolayer") {
 		t.Error("ryolayer unset -> on by default (cheap default)")
 	}
-	if unloadPaletteWhenIdle("pill") {
-		t.Error("pill is not a parkable palette")
+	if unloadPaletteWhenIdle("shell") {
+		t.Error("shell is not a parkable palette")
 	}
 }
 
@@ -112,7 +112,7 @@ func TestStartsAtBoot(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "ryoku"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if !startsAtBoot(component{"pill", true}) {
+	if !startsAtBoot(component{"shell", true}) {
 		t.Error("a persistent component starts at boot")
 	}
 	if startsAtBoot(component{"launcher", false}) {

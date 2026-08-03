@@ -25,20 +25,15 @@ type component struct {
 }
 
 var components = []component{
-	{"pill", true},
-	// backdrop is always-on like pill: the in-shell desktop wallpaper, one
-	// ryoku-wallpaper Background window per monitor, replacing the external daemon.
-	{"backdrop", true},
-	{"launcher", false},  // on-demand: starts on Super+Space, parks when idle
-	{"visualizer", true}, // audio-gated: parked while the desktop is silent
-	{"widgets", true},    // covered-gated: parked while windows cover the desktop
-	{"overview", false},  // on-demand: starts on Super+Tab, parks when idle
-	{"ryolayer", false},  // on-demand: Super+G (or at login only if a widget is pinned)
+	// One consolidated instance renders every surface in-process (bar, backdrop,
+	// launcher, visualizer, widgets, overview, board), replacing the old
+	// per-surface Quickshell configs. Always-on, as the pill frame was.
+	{"shell", true},
 }
 
 // parseDisabledComponents pulls the "disabledComponents" string array from a
-// performance.json body. pill is never returned: the frame and bar are the shell
-// itself, so turning them off is not offered. A malformed or absent list
+// performance.json body. shell is never returned: it is the whole in-process
+// desktop, so turning it off is not offered. A malformed or absent list
 // disables nothing.
 func parseDisabledComponents(b []byte) map[string]bool {
 	var m struct {
@@ -49,7 +44,7 @@ func parseDisabledComponents(b []byte) map[string]bool {
 		return out
 	}
 	for _, name := range m.Disabled {
-		if name != "pill" {
+		if name != "shell" {
 			out[name] = true
 		}
 	}
@@ -61,11 +56,15 @@ func parseDisabledComponents(b []byte) map[string]bool {
 // the Shell page's `ryolayerEnabled` toggle in shell.json (the widget board on/
 // off). Disabled components never start, at boot or on demand -- a user who
 // never opens the overview, launcher, or widget board stops paying for its
-// resident process entirely. pill is always on; a missing file disables nothing.
+// resident process entirely. shell is always on; a missing file disables nothing.
 func componentDisabled(name string) bool {
-	if name == "pill" {
+	if name == "shell" {
 		return false
 	}
+	// ryoku: with surfaces consolidated into the single shell, per-surface disable
+	// is now internal to the shell; performance.json's disabledComponents no longer
+	// maps to separate processes. The parsing below is kept for the retire phase
+	// but only ever guards components that no longer exist.
 	if name == "ryolayer" && !shellFlagDefault("ryolayerEnabled", true) {
 		return true
 	}
@@ -602,35 +601,31 @@ func (d *daemon) handle(conn net.Conn) {
 var surfaceCommands = map[string]string{
 	"menu screenshot": "screenshot",
 	"menu stash":      "stash",
+	// ryoku: launcher/overview/board(ryolayer)/visualizer are toggled in-process
+	// by the shell's own global:ryoku:* keybinds (CustomShortcut -> ShellState),
+	// not by the daemon. These CLI verbs stay mapped to the closest openSurface
+	// call on the shell target, but the shell's surface bus does not route these
+	// ids yet, so they are no-ops pending the retire phase (wire the ids there, or
+	// drop the dead verbs). Do NOT invent a shell IPC function for them.
+	"menu app-launcher":  "launcher",
+	"launcher":           "launcher",
+	"overview":           "overview",
+	"ryolayer":           "board",
+	"visualizer":         "visualizer",
+	"visualizer-overlay": "visualizer-overlay",
 }
 
-// route resolves an IPC-style command to the Quickshell config, IpcHandler target,
-// and function it triggers. ok is false for commands that need more than one IPC
-// call (wallpaper, reload, status, ...).
+// route resolves an IPC-style command to the single shell's IpcHandler config,
+// target, and function it triggers. The consolidated shell renders every surface
+// in-process, so a matched command always resolves to config and target "shell"
+// and the openSurface entry point on its surface bus. ok is false for commands
+// that need more than one IPC call (wallpaper, reload, status, ...).
 func route(cmd string) (config, target, fn string, ok bool) {
-	if cmd == "menu app-launcher" {
-		// The app launcher is Ryoku's own surface (Super+Space opens it), not an
-		// in-frame menu; the frame's app-launcher entry funnels to the one
-		// launcher verb, so there is a single launcher reached one way.
-		return "launcher", "launcher", "toggle", true
-	}
 	if _, ok := surfaceCommands[cmd]; ok {
-		return "pill", "pill", "openSurface", true
+		return "shell", "shell", "openSurface", true
 	}
 	if _, ok := menuID(cmd); ok {
-		return "pill", "pill", "openSurface", true
-	}
-	switch cmd {
-	case "launcher":
-		return "launcher", "launcher", "toggle", true
-	case "overview":
-		return "overview", "overview", "toggle", true
-	case "ryolayer":
-		return "ryolayer", "ryolayer", "toggle", true
-	case "visualizer":
-		return "visualizer", "visualizer", "toggle", true
-	case "visualizer-overlay":
-		return "visualizer", "visualizer", "overlay", true
+		return "shell", "shell", "openSurface", true
 	}
 	return "", "", "", false
 }
@@ -692,15 +687,15 @@ func (d *daemon) dispatch(line string) string {
 			d.setGate(config, true)
 		}
 		mon := d.activeMonitor()
-		if config == "pill" {
+		if config == "shell" {
 			if fn == "openSurface" {
 				id, menu := menuID(routeCmd)
 				if !menu {
 					id = surfaceCommands[routeCmd]
 				}
-				return pillIpc(fn, mon, id)
+				return shellIpc(fn, mon, id)
 			}
-			return pillIpc(fn, mon)
+			return shellIpc(fn, mon)
 		}
 		return ipcCall(config, target, fn, mon)
 	}
@@ -811,8 +806,8 @@ func (d *daemon) dispatch(line string) string {
 		if len(args) < 1 {
 			return "err plugin: missing id"
 		}
-		d.ensure("pill")
-		return pillIpc("openSurface", d.activeMonitor(), "plugin:"+args[0])
+		d.ensure("shell")
+		return shellIpc("openSurface", d.activeMonitor(), "plugin:"+args[0])
 	case "plugins":
 		// plugins reload -> the per-monitor PluginPopouts watch plugins.json and
 		// re-discover on change, so a Settings save retunes live; this is a no-op
@@ -856,17 +851,17 @@ func (d *daemon) voice() string {
 	defer d.voiceMu.Unlock()
 	if !dictationReady() {
 		d.voiceOn = false
-		d.ensure("pill")
-		return pillIpc("openSurface", d.activeMonitor(), "voice-off")
+		d.ensure("shell")
+		return shellIpc("openSurface", d.activeMonitor(), "voice-off")
 	}
 	d.voiceOn = !d.voiceOn
 	if d.voiceOn {
-		d.ensure("pill")
+		d.ensure("shell")
 		voxtypeRecord("start")
-		return pillIpc("openSurface", d.activeMonitor(), "voice")
+		return shellIpc("openSurface", d.activeMonitor(), "voice")
 	}
 	voxtypeRecord("stop")
-	return pillIpc("closeSurface", d.activeMonitor(), "voice")
+	return shellIpc("closeSurface", d.activeMonitor(), "voice")
 }
 
 // reload restarts every supervised component by terminating it; the supervisor

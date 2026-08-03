@@ -1,13 +1,6 @@
 package main
 
-import (
-	"bufio"
-	"fmt"
-	"net"
-	"strings"
-	"testing"
-	"time"
-)
+import "testing"
 
 // route = the single source of truth for which panel a keybind toggles; a wrong
 // entry silently opens the wrong surface, so pin every command.
@@ -15,15 +8,18 @@ func TestRoute(t *testing.T) {
 	cases := []struct {
 		cmd, config, target, fn string
 	}{
-		{"launcher", "launcher", "launcher", "toggle"},
-		{"overview", "overview", "overview", "toggle"},
-		{"ryolayer", "ryolayer", "ryolayer", "toggle"},
-		{"menu quick-settings", "pill", "pill", "openSurface"},
-		{"menu theme", "pill", "pill", "openSurface"},
-		{"menu wallpaper", "pill", "pill", "openSurface"},
-		{"menu screenshare", "pill", "pill", "openSurface"},
-		{"menu screenshot", "pill", "pill", "openSurface"},
-		{"menu stash", "pill", "pill", "openSurface"},
+		{"launcher", "shell", "shell", "openSurface"},
+		{"overview", "shell", "shell", "openSurface"},
+		{"ryolayer", "shell", "shell", "openSurface"},
+		{"visualizer", "shell", "shell", "openSurface"},
+		{"visualizer-overlay", "shell", "shell", "openSurface"},
+		{"menu app-launcher", "shell", "shell", "openSurface"},
+		{"menu quick-settings", "shell", "shell", "openSurface"},
+		{"menu theme", "shell", "shell", "openSurface"},
+		{"menu wallpaper", "shell", "shell", "openSurface"},
+		{"menu screenshare", "shell", "shell", "openSurface"},
+		{"menu screenshot", "shell", "shell", "openSurface"},
+		{"menu stash", "shell", "shell", "openSurface"},
 	}
 	for _, c := range cases {
 		config, target, fn, ok := route(c.cmd)
@@ -52,50 +48,55 @@ func TestRoute(t *testing.T) {
 	}
 }
 
-func TestDispatchFrameSurface(t *testing.T) {
-	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	listener, err := net.Listen("unix", pillSockPath())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer listener.Close()
-
-	calls := make(chan string, len(frameBarMenuIDs)+2)
-	go func() {
-		n := len(frameBarMenuIDs) + 2
-		for range n {
-			conn, err := listener.Accept()
-			if err != nil {
-				return
+// stubShellIpc replaces the shellIpc seam with one that records each emitted call
+// (fn plus its non-empty args, matching the old pill socket line) on calls and
+// acks "ok", so a dispatch test asserts routing without a live Quickshell. A nil
+// channel drains silently for tests that only need the call to succeed.
+func stubShellIpc(t *testing.T, calls chan<- string) {
+	t.Helper()
+	prev := shellIpc
+	shellIpc = func(fn string, args ...string) string {
+		if calls != nil {
+			line := fn
+			for _, a := range args {
+				if a != "" {
+					line += " " + a
+				}
 			}
-			line, _ := bufio.NewReader(conn).ReadString('\n')
-			calls <- strings.TrimSpace(line)
-			_, _ = fmt.Fprintln(conn, "ok")
-			conn.Close()
+			calls <- line
 		}
-	}()
+		return "ok"
+	}
+	t.Cleanup(func() { shellIpc = prev })
+}
 
-	d := &daemon{sup: map[string]bool{"pill": true}, activeMon: "DP-1"}
+// dispatch routes every frame surface, the menu close-all, and the bar reveal
+// verbs onto the single shell's IpcHandler; a wrong entry opens the wrong surface.
+func TestDispatchFrameSurface(t *testing.T) {
+	calls := make(chan string, len(frameBarMenuIDs)+2)
+	stubShellIpc(t, calls)
+
+	d := &daemon{sup: map[string]bool{"shell": true}, activeMon: "DP-1"}
 	for id := range frameBarMenuIDs {
 		if got := d.dispatch("menu " + id); got != "ok" {
 			t.Errorf("dispatch(menu %s) = %q, want ok", id, got)
 			continue
 		}
 		if got := <-calls; got != "openSurface DP-1 "+id {
-			t.Errorf("pill IPC = %q, want %q", got, "openSurface DP-1 "+id)
+			t.Errorf("shell IPC = %q, want %q", got, "openSurface DP-1 "+id)
 		}
 	}
 	// menu close and bar edge toggles map to the reference close-all and the
-	// per-edge bar operations, each on its own pill function.
+	// per-edge bar operations, each on its own shell function.
 	if got := d.dispatch("menu close"); got != "ok" {
 		t.Errorf("dispatch(menu close) = %q, want ok", got)
 	} else if got := <-calls; got != "closeAllMenus DP-1" {
-		t.Errorf("menu close pill IPC = %q, want %q", got, "closeAllMenus DP-1")
+		t.Errorf("menu close shell IPC = %q, want %q", got, "closeAllMenus DP-1")
 	}
 	if got := d.dispatch("bar left toggle"); got != "ok" {
 		t.Errorf("dispatch(bar left toggle) = %q, want ok", got)
 	} else if got := <-calls; got != "setBar DP-1 left toggle" {
-		t.Errorf("bar toggle pill IPC = %q, want %q", got, "setBar DP-1 left toggle")
+		t.Errorf("bar toggle shell IPC = %q, want %q", got, "setBar DP-1 left toggle")
 	}
 	for _, command := range []string{"bar", "bar left", "bar sideways toggle", "bar left sideways", "menu", "menu bogus", "menu clock extra"} {
 		if got := d.dispatch(command); got == "ok" {
@@ -104,63 +105,41 @@ func TestDispatchFrameSurface(t *testing.T) {
 	}
 }
 
-func TestDispatchSurfaceSocketContracts(t *testing.T) {
-	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	t.Setenv("PATH", t.TempDir())
-	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: pillSockPath(), Net: "unix"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer listener.Close()
+// Malformed bar/menu input is rejected before any shell IPC is emitted, and the
+// surface/voice verbs each emit their exact openSurface call on the shell target.
+func TestDispatchSurfaceRouting(t *testing.T) {
+	t.Setenv("PATH", t.TempDir()) // no voxtype on PATH: voice falls to the "off" note
+	calls := make(chan string, 3)
+	stubShellIpc(t, calls)
 
-	d := &daemon{sup: map[string]bool{"pill": true}, activeMon: "DP-1"}
+	d := &daemon{sup: map[string]bool{"shell": true}, activeMon: "DP-1"}
 	for _, command := range []string{"bar", "bar left", "bar sideways toggle", "menu", "menu bogus"} {
 		if got := d.dispatch(command); got == "ok" {
 			t.Errorf("dispatch(%q) = ok, want rejection", command)
 		}
 	}
-	if err := listener.SetDeadline(time.Now().Add(50 * time.Millisecond)); err != nil {
-		t.Fatal(err)
+	select {
+	case got := <-calls:
+		t.Fatalf("rejected input emitted shell IPC %q", got)
+	default:
 	}
-	if conn, err := listener.Accept(); err == nil {
-		conn.Close()
-		t.Fatal("rejected bar input sent pill IPC")
-	} else if !strings.Contains(err.Error(), "i/o timeout") {
-		t.Fatalf("Accept after rejected bar input = %v", err)
-	}
-	if err := listener.SetDeadline(time.Time{}); err != nil {
-		t.Fatal(err)
-	}
-	calls := make(chan string, 3)
-	go func() {
-		for range 3 {
-			conn, err := listener.Accept()
-			if err != nil {
-				return
-			}
-			line, _ := bufio.NewReader(conn).ReadString('\n')
-			calls <- strings.TrimSpace(line)
-			_, _ = fmt.Fprintln(conn, "ok")
-			conn.Close()
-		}
-	}()
 
 	if got := d.dispatch("menu screenshot"); got != "ok" {
 		t.Fatalf("dispatch(menu screenshot) = %q, want ok", got)
 	}
 	if got := <-calls; got != "openSurface DP-1 screenshot" {
-		t.Fatalf("screenshot pill IPC = %q", got)
+		t.Fatalf("screenshot shell IPC = %q", got)
 	}
 	if got := d.dispatch("menu stash"); got != "ok" {
 		t.Fatalf("dispatch(menu stash) = %q, want ok", got)
 	}
 	if got := <-calls; got != "openSurface DP-1 stash" {
-		t.Fatalf("stash pill IPC = %q", got)
+		t.Fatalf("stash shell IPC = %q", got)
 	}
 	if got := d.dispatch("voice"); got != "ok" {
 		t.Fatalf("dispatch(voice) = %q, want ok", got)
 	}
 	if got := <-calls; got != "openSurface DP-1 voice-off" {
-		t.Fatalf("voice pill IPC = %q", got)
+		t.Fatalf("voice shell IPC = %q", got)
 	}
 }

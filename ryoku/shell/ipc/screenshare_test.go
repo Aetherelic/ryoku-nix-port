@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"net"
 	"reflect"
 	"testing"
 	"time"
@@ -55,30 +53,11 @@ func TestParseSharePayload(t *testing.T) {
 
 // TestScreensharePickReply drives the full request/response rendezvous and shows
 // every reply form the picker can produce: a screen by output name, a region as
-// output plus geometry, a window by id, and the empty cancel. A fake pill socket
-// stands in for the frame so the picker "opens" without shelling out.
+// output plus geometry, a window by id, and the empty cancel. shellIpc is stubbed
+// so the picker "opens" without shelling out to a live Quickshell.
 func TestScreensharePickReply(t *testing.T) {
-	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	pill, err := net.Listen("unix", pillSockPath())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer pill.Close()
-	go func() {
-		for {
-			conn, err := pill.Accept()
-			if err != nil {
-				return
-			}
-			go func(c net.Conn) {
-				_, _ = bufio.NewReader(c).ReadString('\n')
-				_, _ = fmt.Fprintln(c, "ok")
-				_ = c.Close()
-			}(conn)
-		}
-	}()
-
-	d := &daemon{sup: map[string]bool{"pill": true}, activeMon: "DP-1", quit: make(chan struct{})}
+	stubShellIpc(t, nil)
+	d := &daemon{sup: map[string]bool{"shell": true}, activeMon: "DP-1", quit: make(chan struct{})}
 	d.startScreenshare()
 	pick := d.callHandler("screenshare.pick")
 	reply := d.callHandler("screenshare.reply")

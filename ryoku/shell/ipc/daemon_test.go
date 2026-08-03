@@ -46,7 +46,7 @@ func TestParseDisabledComponents(t *testing.T) {
 	}{
 		{"one", `{"disabledComponents":["overview"]}`, map[string]bool{"overview": true}},
 		{"several", `{"disabledComponents":["launcher","visualizer"]}`, map[string]bool{"launcher": true, "visualizer": true}},
-		{"pill excluded", `{"disabledComponents":["pill","widgets"]}`, map[string]bool{"widgets": true}},
+		{"shell excluded", `{"disabledComponents":["shell","widgets"]}`, map[string]bool{"widgets": true}},
 		{"absent key", `{"unloadWidgetsWhenCovered":true}`, map[string]bool{}},
 		{"empty list", `{"disabledComponents":[]}`, map[string]bool{}},
 		{"malformed", `not json`, map[string]bool{}},
@@ -66,7 +66,7 @@ func TestComponentDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "ryoku", "performance.json"),
-		[]byte(`{"disabledComponents":["overview","pill"]}`), 0o644); err != nil {
+		[]byte(`{"disabledComponents":["overview","shell"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if !componentDisabled("overview") {
@@ -75,8 +75,8 @@ func TestComponentDisabled(t *testing.T) {
 	if componentDisabled("launcher") {
 		t.Error("launcher not listed -> should be enabled")
 	}
-	if componentDisabled("pill") {
-		t.Error("pill must never be disabled, even when listed")
+	if componentDisabled("shell") {
+		t.Error("shell must never be disabled, even when listed")
 	}
 }
 

@@ -110,15 +110,22 @@ func isLocked() bool {
 
 // menuClose closes every open menu on the active monitor (reference close-all).
 func (d *daemon) menuClose() string {
-	d.ensure("pill")
-	return pillIpc("closeAllMenus", d.activeMonitor())
+	d.ensure("shell")
+	return shellIpc("closeAllMenus", d.activeMonitor())
 }
 
 // barToggle drives the per-edge bar reveal state (reference bar toggle/reveal/
 // hide, per edge or across all).
+//
+// ryoku: the shell exposes no setBar IPC function. Its bar reveal is a single
+// whole-bar toggle driven in-process by the global:ryoku:barToggle keybind
+// (CustomShortcut -> ShellState.barRevealed), with no per-edge reveal/hide
+// grammar. This CLI verb still emits setBar on the shell target, so it is a
+// no-op pending the retire phase (add a shell IPC fn there, or drop the verb).
+// Do NOT invent a shell IPC function here.
 func (d *daemon) barToggle(edge, action string) string {
-	d.ensure("pill")
-	return pillIpc("setBar", d.activeMonitor(), edge, action)
+	d.ensure("shell")
+	return shellIpc("setBar", d.activeMonitor(), edge, action)
 }
 
 // hub opens or closes Ryoku Hub, which replaces the reference settings window.

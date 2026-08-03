@@ -20,6 +20,8 @@ Scope {
     property var screen
     // controller hook; the desktop layer defaults on.
     property bool active: true
+    property string wallpaperUrl: ""
+    property string wallpaperFit: "Cover"
 
     // Resolve the placement helper the way Registry resolves discover.sh: in a
     // dev run RYOKU_SHELL_DIR points at the shell tree and the tool is NOT on
@@ -118,6 +120,29 @@ Scope {
             function onPluginsChanged() { win.syncDesktopIds(); }
         }
 
+        // The wallpaper is painted in a separate Wayland surface, which Qt cannot
+        // sample across scene graphs. Mirror the same image into this scene as an
+        // offscreen texture so ShaderEffectSource can capture the pixels beneath
+        // the calendar. CalendarGlass hides this source after taking its crop.
+        Image {
+            id: glassBackdrop
+            anchors.fill: parent
+            source: root.wallpaperUrl
+            cache: false
+            asynchronous: true
+            visible: Config.calendarEnabled && Config.calendarStyle === "glass"
+            fillMode: {
+                switch (root.wallpaperFit) {
+                case "Contain": return Image.PreserveAspectFit;
+                case "Fill": return Image.Stretch;
+                case "ScaleDown":
+                    return sourceSize.width <= width && sourceSize.height <= height
+                        ? Image.Pad : Image.PreserveAspectFit;
+                default: return Image.PreserveAspectCrop;
+                }
+            }
+        }
+
         // right-click empty desktop = global menu. sits behind the widgets
         // (which own their own right-click) and only takes RightButton, so
         // left-clicks on wallpaper fall through instead of being silently
@@ -170,6 +195,9 @@ Scope {
                 holidayRegion: Config.calendarHolidayRegion
                 active: calendarSlot.visible
                 s: Config.calendarScale
+                wallpaperSource: glassBackdrop
+                wallpaperRect: Qt.rect(calendarSlot.x, calendarSlot.y,
+                    calendarSlot.width, calendarSlot.height)
             }
         }
 

@@ -66,11 +66,14 @@ ShellRoot {
 
             // Always-on backdrop and desktop widget layer.
             Wallpaper {
+                id: wallpaper
                 screen: perScreen.modelData
             }
             Desktop {
                 screen: perScreen.modelData
                 active: true
+                wallpaperUrl: wallpaper.wallpaperUrl
+                wallpaperFit: wallpaper.fit
             }
             Visualizer {
                 screen: perScreen.modelData
