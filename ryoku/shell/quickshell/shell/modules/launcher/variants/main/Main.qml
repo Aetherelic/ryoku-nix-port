@@ -24,9 +24,8 @@ Scope {
         || (activeSurface !== null && activeSurface.visible)
 
     onShownChanged: {
-        Quickshell.execDetached([
-            "ryoku-shell", "state", "launcher", shown ? "1" : "0"
-        ]);
+        // Phase 10: the launcher-open daemon report (execDetached ryoku-shell state
+        // launcher) is dropped; ShellState.launcherOpen owns open state now.
         if (shown)
             root.applyBackdropBlur();
         else

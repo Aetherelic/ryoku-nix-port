@@ -2,7 +2,6 @@
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import "Singletons"
 
@@ -25,13 +24,10 @@ Item {
     readonly property bool active: root.mode !== "off"
     readonly property bool raised: root.mode === "overlay"
 
-    IpcHandler {
-        target: "visualizer"
-        function toggle(mon: string): void { Config.setEnabled(!Config.enabled); }
-        function show(mon: string): void { Config.setEnabled(true); }
-        function hide(): void { Config.setEnabled(false); }
-        function overlay(mon: string): void { root.mode = root.mode === "overlay" ? "desktop" : "overlay"; if (root.mode === "overlay") Config.setEnabled(true); }
-    }
+    // Phase 10: the daemon IpcHandler (target "visualizer") that toggled the
+    // persisted Config.enabled is removed; ShellState.visualizerMode (bound to
+    // `mode`) drives visibility and layer now, flipped by the shell's visualizer
+    // and visualizer-overlay shortcuts. Config still seeds the standalone default.
 
     // cava runs whenever the visualiser is enabled. Gating on "audio playing"
     // needs a probe (pactl / pw-dump) that is either broken or costs a periodic

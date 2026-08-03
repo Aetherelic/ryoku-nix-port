@@ -86,35 +86,6 @@ Scope {
             variantLoader.item.hide();
     }
 
-    function toggle(mon) {
-        if (!pendingId && variantReady)
-            variantLoader.item.toggle(mon);
-    }
-
-    function stateDump() {
-        var state = variantReady ? variantLoader.item.stateDump() : {};
-        state.variant = activeId;
-        state.requestedVariant = requestedId;
-        state.pendingVariant = pendingId;
-        state.availableVariants = catalog
-            ? catalog.variants.map(function(entry) { return entry.id; }) : [];
-        if (state.open === undefined)
-            state.open = false;
-        return state;
-    }
-
-    function runCommand(line) {
-        var parts = String(line || "").trim().split(/\s+/);
-        var fn = parts[0];
-        var mon = parts.length > 1 ? parts[1] : "";
-        switch (fn) {
-        case "toggle": toggle(mon); return true;
-        case "show": show(mon); return true;
-        case "hide": hide(); return true;
-        default: return false;
-        }
-    }
-
     FileView {
         id: catalogFile
         path: Qt.resolvedUrl("catalog.json")
@@ -151,31 +122,9 @@ Scope {
         }
     }
 
-    IpcHandler {
-        target: "launcher"
-        function toggle(mon: string): void { root.toggle(mon); }
-        function show(mon: string): void { root.show(mon); }
-        function hide(): void { root.hide(); }
-    }
-
-    SocketServer {
-        active: true
-        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
-            + "/ryoku-launcher.sock"
-        handler: Socket {
-            id: commandSocket
-            parser: SplitParser {
-                onRead: line => {
-                    var command = String(line || "").trim();
-                    if (command === "state") {
-                        commandSocket.write(
-                            JSON.stringify(root.stateDump()) + "\n");
-                    } else {
-                        commandSocket.write(
-                            (root.runCommand(command) ? "ok" : "err") + "\n");
-                    }
-                }
-            }
-        }
-    }
+    // Phase 10: the launcher's legacy daemon control channels are removed so this
+    // instance stays self-contained. ShellState.launcherOpen (bound to `active`)
+    // owns open/close now, replacing the IpcHandler (target "launcher") and the
+    // ryoku-launcher.sock SocketServer the old daemon drove for toggle/show/hide/
+    // state; the daemon-facing bridge is rebuilt on ShellState in Phase 10.
 }

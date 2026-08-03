@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "Singletons"
@@ -30,46 +29,28 @@ Scope {
     // Reveal input the controller binds to this monitor's ShellState.overviewOpen.
     property bool active: false
 
-    // Report open/close to the shell daemon so its opt-in idle-park worker
-    // (unloadOverviewWhenIdle) can free this resident expo after a grace of being
-    // hidden. Legacy path, replaced when the daemon IPC migrates in a later phase.
-    onActiveChanged: Quickshell.execDetached(["ryoku-shell", "state", "overview", active ? "1" : "0"])
+    // Refresh Hyprland's monitor/workspace/toplevel models once when the expo
+    // opens so a just-mapped window lands; the resident models are already warm,
+    // so nothing polls. Phase 10: the daemon idle-park report that also lived on
+    // this handler (execDetached ryoku-shell state overview) is dropped now that
+    // ShellState.overviewOpen owns open/close.
+    onActiveChanged: if (root.active) {
+        Hyprland.refreshMonitors();
+        Hyprland.refreshWorkspaces();
+        Hyprland.refreshToplevels();
+    }
 
     function focusedMonitor() {
         var m = Hyprland.focusedMonitor;
         return m && m.name ? m.name : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
     }
-    function show() {
-        // One refresh on open lands a just-mapped window; the resident models are
-        // already populated, so there is nothing to poll for.
-        Hyprland.refreshMonitors();
-        Hyprland.refreshWorkspaces();
-        Hyprland.refreshToplevels();
-        root.active = true;
-    }
     function hide() {
         root.active = false;
-    }
-    function toggle() {
-        if (root.active)
-            root.hide();
-        else
-            root.show();
     }
 
     readonly property string focusedMon: {
         var m = Hyprland.focusedMonitor;
         return m && m.name ? m.name : "";
-    }
-
-    // Toggled by the daemon over `qs ipc call overview toggle`. The monitor arg
-    // is accepted for a uniform call shape but ignored: the expo spans every
-    // screen and grabs the keyboard on whichever one is focused.
-    IpcHandler {
-        target: "overview"
-        function toggle(mon: string): void { root.toggle(); }
-        function show(mon: string): void { root.show(); }
-        function hide(): void { root.hide(); }
     }
 
     PanelWindow {

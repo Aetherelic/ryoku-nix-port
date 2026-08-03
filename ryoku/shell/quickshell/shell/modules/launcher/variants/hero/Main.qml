@@ -32,9 +32,8 @@ Scope {
     readonly property string openMon: String(lifecycleState.monitor || "")
 
     onOpenChanged: {
-        Quickshell.execDetached([
-            "ryoku-shell", "state", "launcher", open ? "1" : "0"
-        ]);
+        // Phase 10: the launcher-open daemon report (execDetached ryoku-shell state
+        // launcher) is dropped; ShellState.launcherOpen owns open state now.
         if (open) {
             freezePointerFocus();
         } else {
