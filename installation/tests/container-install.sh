@@ -92,6 +92,7 @@ files=(
   yazi/yazi.toml
   nvim/init.lua
   pip/pip.conf
+  wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf
   mimeapps.list
 )
 dirs=(quickshell/hub)

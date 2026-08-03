@@ -32,14 +32,14 @@ d = json.load(open(sys.argv[1]))
 frame_bars = d.get("frameBars")
 want = {
     "frameBorder": 88,
-    "frameBars.style": "ryoku-frame",
+    "barStyle": "nacre",
     "frameBars.rails.top.size": 38,
     "frameBars.rails.left.center": ["dock"],
     "sidebarRightPanes": ["notifications", "calendar"],
 }
 got = {
     "frameBorder": d.get("frameBorder"),
-    "frameBars.style": frame_bars.get("style") if isinstance(frame_bars, dict) else None,
+    "barStyle": d.get("barStyle"),
     "frameBars.rails.top.size": frame_bars.get("rails", {}).get("top", {}).get("size") if isinstance(frame_bars, dict) else None,
     "frameBars.rails.left.center": frame_bars.get("rails", {}).get("left", {}).get("center") if isinstance(frame_bars, dict) else None,
     "sidebarRightPanes": d.get("sidebarRightPanes"),

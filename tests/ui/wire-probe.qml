@@ -13,7 +13,7 @@ ShellRoot {
     readonly property var shellKeys: [
         "language","frameRadius","roundness","frameBorder","frameEnabled",
         "frameSmoothing","frameOpacity","shadowStrength","shadowSize",
-        "surfaceColor","osdRadius","osdOpacity","frameBars","fontFamily","fontScale","weatherLocation","weatherUnit",
+        "surfaceColor","osdRadius","osdOpacity","frameBars","barStyle","fontFamily","fontScale","weatherLocation","weatherUnit",
         "ryolayerEnabled","sidebarLeftPanes","sidebarRightPanes","sidebarWidth"
     ]
 
@@ -66,6 +66,7 @@ ShellRoot {
             property var sidebarRightPanes: ["notifications","calendar","media","weather","recording"]
             property real sidebarWidth: 340
             property var frameBars: ({})
+            property string barStyle: "sumi"
         }
     }
 
@@ -76,7 +77,7 @@ ShellRoot {
             if (!root.loaded) { console.log("PROBE-FAIL not loaded"); Qt.quit(); return }
             root.edit("frameBorder", 88);                              // real
             root.edit("frameBars", {
-                "version": 1, "style": "ryoku-frame",
+                "version": 1,
                 "rails": { "top": { "enabled": true, "size": 38, "reveal": true,
                                       "start": ["tray"], "center": ["clock"], "end": [] },
                            "left": { "enabled": true, "size": 52, "reveal": true,
@@ -87,6 +88,7 @@ ShellRoot {
                                        "top": [], "center": [], "bottom": [] } },
                 "menus": {}, "dock": { "pinned": [] }
             });
+            root.edit("barStyle", "nacre");
             root.edit("sidebarRightPanes", ["notifications","calendar"]); // set
             root.flush();
             quit.start();
