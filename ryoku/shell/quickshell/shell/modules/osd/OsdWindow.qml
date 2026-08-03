@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
-import "Singletons"
+import "../../services"
 
 // One OSD window (contract 12 sec 1/2): a small overlay layer surface anchored
 // to the bottom centre, shown on every monitor. `kind` selects volume-out,

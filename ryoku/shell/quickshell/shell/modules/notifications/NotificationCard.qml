@@ -1,7 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "Singletons"
+import "../../services"
+import "../../components"
 
 // One notification card, shared by the history panel and the popup surface
 // (contract 07 sec 2.3). A bordered surface tile with a header (app name, time,

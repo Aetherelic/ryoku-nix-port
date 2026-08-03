@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "Singletons"
+import "../../services"
 
 // Session-action confirmation dialog (contract 13 sec 2c). A ryoku-dialog layer
 // surface holding one centred box: a 2px outline, radiusWindow corners, a centred

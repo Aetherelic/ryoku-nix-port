@@ -1,5 +1,5 @@
 import QtQuick
-import "Singletons"
+import "../../services"
 
 // Faint L-bracket ticks at the four corners. Pure decoration, sits behind content.
 Item {

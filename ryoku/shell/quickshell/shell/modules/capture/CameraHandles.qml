@@ -1,7 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "Singletons"
+import "../../services"
+import "../../components"
 
 // Visual edit-handle indicators for the camera bubble. The drag logic lives in
 // CameraOverlay's single DragHandler, which moves / resizes / rounds by press

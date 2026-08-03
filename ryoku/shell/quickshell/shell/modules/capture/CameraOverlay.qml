@@ -6,7 +6,8 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Ryoku.Blobs
-import "Singletons"
+import "../../services"
+import "../../components"
 
 // Draggable, shaped webcam bubble on a per-screen layer surface: it stays put
 // across workspace switches and gsr captures it into recordings. The live feed
