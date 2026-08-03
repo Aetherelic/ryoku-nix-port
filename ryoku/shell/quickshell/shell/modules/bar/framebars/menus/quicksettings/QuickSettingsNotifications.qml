@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import ".." as Menus
+import "../../../../../services"
 
 Item {
     id: root
@@ -10,6 +11,13 @@ Item {
     property bool open: false
     property var navigate: null
     property var closePanel: null
+
+    // Opaque surface backing so the push covers the outgoing module (matches the
+    // home tab); without it this transparent module ghosts the page behind it.
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.surface
+    }
 
     Menus.MenuNotifications {
         anchors.fill: parent
