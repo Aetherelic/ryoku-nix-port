@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../.." as Pill
+import "../../../../components"
 import "../../../../services"
 
 // Quick-settings launch button: opens the main quick-settings menu on left
@@ -30,7 +30,7 @@ Item {
         Item {
             width: btn.glyphPx
             height: btn.glyphPx
-            Pill.BrandMark {
+            BrandMark {
                 anchors.centerIn: parent
                 size: btn.glyphPx * (15 / Theme.iconSm)
                 color: Theme.onSurface

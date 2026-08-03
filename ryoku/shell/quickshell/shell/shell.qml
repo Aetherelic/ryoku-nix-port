@@ -13,6 +13,13 @@ import "modules/bar"
 import "modules/launcher"
 import "modules/overview"
 import "modules/board"
+import QtQuick
+import Quickshell.Io
+import Quickshell.Wayland
+import "modules/osd"
+import "modules/notifications"
+import "modules/capture"
+import "modules/confirm"
 
 /**
  * The single resident Ryoku shell instance.
@@ -92,6 +99,46 @@ ShellRoot {
                 screen: perScreen.modelData
                 active: perScreen.st ? perScreen.st.wallpaperSwitcherOpen : false
                 onRequestClose: if (perScreen.st) perScreen.st.wallpaperSwitcherOpen = false
+            }
+
+            // Shell-wide per-monitor surfaces: the three OSDs, the notification
+            // popup column, the capture/region/camera overlays, and the
+            // session-confirm dialog. Each binds this screen's modelData; the
+            // Wayland layer each maps on decides the real stacking.
+            OsdWindow {
+                modelData: perScreen.modelData
+                kind: "volume"
+            }
+            OsdWindow {
+                modelData: perScreen.modelData
+                kind: "mic"
+            }
+            OsdWindow {
+                modelData: perScreen.modelData
+                kind: "brightness"
+            }
+            NotificationPopups {
+                modelData: perScreen.modelData
+            }
+            RegionOverlay {
+                modelData: perScreen.modelData
+            }
+            CaptureOverlay {
+                modelData: perScreen.modelData
+            }
+            CameraOverlay {
+                modelData: perScreen.modelData
+            }
+            // Shown only on the monitor whose frame bar raised it; the positive
+            // button runs the power action through the daemon, then clears.
+            RyokuConfirmationDialog {
+                modelData: perScreen.modelData
+                action: ShellState.sessionActionMonitor === perScreen.modelData.name ? ShellState.sessionAction : ""
+                message: ShellState.sessionMessage
+                positiveLabel: ShellState.sessionPositive
+                negativeLabel: "Cancel"
+                onConfirmed: a => { SessionActions.run(a); ShellState.clearSessionAction(); }
+                onCancelled: ShellState.clearSessionAction()
             }
         }
     }
@@ -173,5 +220,166 @@ ShellRoot {
             if (st)
                 st.visualizerMode = st.visualizerMode === "overlay" ? "desktop" : "overlay";
         }
+    }
+
+    // --- Root machinery (ported from the reference pill root) --------------
+
+    // Bring the durable services online and prewarm the slow scans so the first
+    // open of each surface is instant. Ported from pill/shell.qml 170-194:
+    // device restore + ddc prewarm, wallpaper index warm, and re-arming the
+    // persisted Keep-Awake / Game Mode external inhibitors.
+    Component.onCompleted: {
+        Devices.restore();
+        root.syncCaffeine(Flags.keepAwake ? "start" : "stop");
+        if (Flags.gameMode)
+            root.syncGameMode("start");
+        WallIndex.refresh();
+        Devices.prewarmDisplays();
+    }
+
+    // Keep-Awake's durable inhibitor lives outside the shell so it survives a
+    // reload/restart: ryoku-cmd-caffeine runs systemd-inhibit independent of our
+    // lifetime, while the Wayland IdleInhibitor below only gives compositor-level
+    // effect. Every surface toggle just flips Flags.keepAwake. (pill 246-257)
+    readonly property string caffeineScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-caffeine"
+    function syncCaffeine(action) {
+        Quickshell.execDetached([root.caffeineScript, action]);
+    }
+    Connections {
+        target: Flags
+        function onKeepAwakeChanged() {
+            root.syncCaffeine(Flags.keepAwake ? "start" : "stop");
+        }
+    }
+
+    // Game mode's compositor + WiFi tuning lives outside the shell, same shape as
+    // Keep-Awake: ryoku-cmd-game-mode drives hyprctl and NetworkManager so the
+    // tuning survives a reload. The deck toggle just flips Flags.gameMode.
+    // (pill 264-275)
+    readonly property string gameModeScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-game-mode"
+    function syncGameMode(action) {
+        Quickshell.execDetached([root.gameModeScript, action]);
+    }
+    Connections {
+        target: Flags
+        function onGameModeChanged() {
+            root.syncGameMode(Flags.gameMode ? "start" : "stop");
+        }
+    }
+
+    // Do-not-disturb: the notification server suppresses popups while the flag is
+    // set (the deck toggle owns the flag). (pill 196-200)
+    Binding {
+        target: Notifs
+        property: "dnd"
+        value: Flags.dnd
+    }
+
+    // Compositor-level idle inhibitor, mapped only while Keep-Awake is on. It
+    // dies with the shell; the external caffeine bridge above keeps the durable
+    // one. (pill 202-214)
+    PanelWindow {
+        id: inhibitWin
+        visible: Flags.keepAwake
+        implicitWidth: 1
+        implicitHeight: 1
+        color: "transparent"
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Background
+        WlrLayershell.namespace: "ryoku-frame-inhibit"
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        anchors { top: true; left: true }
+        IdleInhibitor { window: inhibitWin; enabled: Flags.keepAwake }
+    }
+
+    // keyboard-return bounce. The frame overlay never unmaps, and dropping an
+    // Exclusive grab on a mapped layer strands the keyboard (the window looks
+    // active but cannot type). This 1x1 helper takes the grab and unmaps, which
+    // makes Hyprland hand the keyboard back. A per-monitor FrameSurfaceLifecycle
+    // pulses it through ShellState.focusRestoreRequested when a keyboard surface
+    // is dismissed, since the lifecycle is per-monitor but this window is single.
+    // (pill 216-237, 304-308)
+    property bool kbBounce: false
+    Timer {
+        id: kbBounceTimer
+        interval: 90
+        onTriggered: root.kbBounce = false
+    }
+    PanelWindow {
+        id: kbBounceWin
+        visible: root.kbBounce
+        implicitWidth: 1
+        implicitHeight: 1
+        color: "transparent"
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.namespace: "ryoku-frame-kbfocus"
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+        anchors { top: true; left: true }
+    }
+    Connections {
+        target: ShellState
+        function onFocusRestoreRequested() {
+            root.kbBounce = true;
+            kbBounceTimer.restart();
+        }
+    }
+
+    // the self-view is a recording companion: when the last capture stops, clear
+    // it so it does not linger. (pill 872-878)
+    Connections {
+        target: Recorder
+        function onAnyActiveChanged() {
+            if (!Recorder.anyActive)
+                Camera.active = false;
+        }
+    }
+
+    // The polkit agent streams its prompt on a topic rather than pushing a
+    // surface, so raise and drop the island from the state itself. (pill 321-329)
+    Connections {
+        target: Polkit
+        function onActiveChanged() {
+            if (Polkit.active)
+                ShellState.requestSurface("polkit", "", undefined);
+            else
+                ShellState.closeSurface("polkit", "");
+        }
+    }
+
+    // Stash steps a running task's own surface aside when it needs the auth
+    // island. (pill 332-335)
+    Connections {
+        target: Stash
+        function onAuthStepAside(mon, id) { ShellState.closeSurface(id, mon); }
+    }
+
+    // Daemon-facing surface channel (Phase 10 points the daemon here). Target
+    // "shell" avoids the live pill's "pill" target; each call maps onto the
+    // ShellState surface bus. Ported from pill/shell.qml 341-364; the SocketServer
+    // fast path (pill 402-411) is deliberately omitted so this instance owns no
+    // runtime socket and produces zero live side effects alongside the daemon.
+    IpcHandler {
+        target: "shell"
+        function openSurface(mon: string, id: string): void { ShellState.requestSurface(id, mon, undefined); }
+        function closeSurface(mon: string, id: string): void { ShellState.closeSurface(id, mon); }
+        function keyringPrompt(payload: string): void {
+            Keyring.apply(payload);
+            ShellState.keyringPromptChanged(Keyring.promptId);
+            ShellState.requestSurface("keyring", Keyring.mon !== "" ? Keyring.mon
+                : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""),
+                { promptId: Keyring.promptId });
+        }
+        function keyringHide(): void {
+            Keyring.clear();
+            ShellState.closeSurface("keyring", "");
+        }
+        function voiceShow(mon: string): void { ShellState.requestSurface("voice", mon, undefined); }
+        function voiceOff(mon: string): void { ShellState.requestSurface("voice-off", mon, undefined); }
+        function voiceHide(): void { ShellState.closeSurface("voice", ""); }
+        function pluginPopout(mon: string, id: string): void { ShellState.requestSurface("plugin:" + id, mon, undefined); }
+        function bar(mon: string, id: string): void { ShellState.requestSurface(id, mon, undefined); }
+        function closeAllMenus(mon: string): void { ShellState.closeSurface("", mon); }
+        function sessionConfirm(mon: string, action: string): void { ShellState.askSessionAction(action, mon); }
     }
 }
