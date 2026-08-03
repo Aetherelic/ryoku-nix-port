@@ -472,19 +472,6 @@ PanelWindow {
         RectangularShadow {
             width: visualGroup.width
             height: visualGroup.height
-            color: Qt.rgba(0, 0, 0, 0.68)
-            offset: Qt.vector2d(0, 24 * win.s)
-            blur: 36 * win.s
-            spread: 2 * win.s
-            topLeftRadius: win.longRadius
-            topRightRadius: win.shortRadius
-            bottomLeftRadius: win.shortRadius
-            bottomRightRadius: win.longRadius
-        }
-
-        RectangularShadow {
-            width: visualGroup.width
-            height: visualGroup.height
             color: Qt.rgba(0, 0, 0, 0.94)
             offset: Qt.vector2d(8 * win.s, 8 * win.s)
             blur: Math.max(0.5, win.s)

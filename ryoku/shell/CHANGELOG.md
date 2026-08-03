@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Fixed
+- **Hero App Launcher no longer has a diffuse rounded halo.** Its floating card
+  keeps the crisp offset contact shadow and hairline frame while removing the
+  broad soft falloff that made the launcher look like a larger rounded blur.
 - **Quick settings now grows directly out of the Ryoku frame without freezing.**
   Its retained full-height body stays at fixed geometry while the frame chrome
   widens around it, then the content crossfades into the opened panel. Opening

@@ -95,8 +95,8 @@ state. The screenshots and frame recordings carry a separate visual bar:
 
 - no fullscreen dim/scrim, flash, compositor-wide blur, grain, or click-catcher;
 - the mapped surface is the card plus its reserved shadow envelope;
-- the hard contact shadow and broad falloff are complete at every animation
-  extreme;
+- the crisp contact shadow is complete at every animation extreme, with no
+  diffuse halo around the card;
 - no text, icon, mode key, ledger row, option, range counter, or scrollbar
   overlaps or clips;
 - Rest opens as a fully prepared 250 px hero, never a compressed Query remnant;
