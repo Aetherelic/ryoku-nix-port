@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- **Materialize activates WirePlumber policy changes immediately.** It compares
+  the effective Bluetooth fragment before and after the base plus user overlay,
+  then try-restarts WirePlumber only when those bytes changed. Updated installs
+  get the A2DP default in the current session without interrupting audio on
+  ordinary updates (`internal/updater/materialize.go`).
 - **Doctor restarts a shell daemon left running on a replaced binary.** Updaters
   before beta-17 swapped the packages without quiescing the shell, so the old
   daemon kept serving surfaces that hot-reload QML newer than it can host

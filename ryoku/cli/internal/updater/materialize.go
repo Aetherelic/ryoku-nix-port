@@ -1,13 +1,17 @@
 package updater
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"ryoku-cli/internal/sys"
 	"sort"
 	"strings"
 )
+
+const wirePlumberPolicyRel = "wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf"
 
 // generatedSeed: base files seeded once on a fresh install, then never
 // clobbered or pruned by an update. The machine owns them after first boot.
@@ -46,6 +50,7 @@ func Materialize() error {
 	base := sys.BaseConfigDir()
 	dest := sys.ConfigHome()
 	state := materializeStatePath()
+	wirePlumberBefore, _ := os.ReadFile(filepath.Join(dest, wirePlumberPolicyRel))
 
 	info, err := os.Stat(base)
 	if err != nil || !info.IsDir() {
@@ -124,6 +129,10 @@ func Materialize() error {
 	}
 	if err := overlayUserEdits(dest); err != nil {
 		return err
+	}
+	wirePlumberAfter, _ := os.ReadFile(filepath.Join(dest, wirePlumberPolicyRel))
+	if !bytes.Equal(wirePlumberBefore, wirePlumberAfter) {
+		_ = exec.Command("systemctl", "--user", "try-restart", "wireplumber.service").Run()
 	}
 	fmt.Printf("materialized %d files -> %s\n", len(managed), dest)
 	return nil

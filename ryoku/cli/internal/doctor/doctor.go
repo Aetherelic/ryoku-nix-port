@@ -123,6 +123,7 @@ func reconcilers() []reconciler {
 		{"shell style knobs", reconcileLegacyStyleKnobs},
 		{"sumi bar simplification", reconcileSumiBar},
 		{"shell screenshot menu", reconcileCaptureMenu},
+		{"retired system sidebar", reconcileLegacySystemSidebar},
 		{"stash features sidebar anchor", reconcileStashSidebar},
 		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
 		{"user edits overlay", reconcileUserEditsAdopt},
@@ -1263,17 +1264,20 @@ func defaultFrameBarsFromLegacy(_ map[string]any) map[string]any {
 		"version": float64(1),
 		"style":   "slate-frame",
 		"rails": map[string]any{
-			"top":    frameRail(true, 32, map[string][]any{"start": {}, "center": {}, "end": {}}),
-			"left":   frameRail(true, 48, map[string][]any{"top": {"quick-settings", "workspaces"}, "center": {"dock"}, "bottom": {"recording", "tray", "notifications", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery"}}),
+			"top":    frameRail(false, 32, map[string][]any{"start": {}, "center": {}, "end": {}}),
+			"left":   frameRail(true, 48, map[string][]any{"top": {"quick-settings", "workspaces"}, "center": {"dock"}, "bottom": {"recording", "tray", "audio-input", "audio-output", "bluetooth", "network", "clock", "battery"}}),
 			"bottom": frameRail(false, 32, map[string][]any{"start": {}, "center": {}, "end": {}}),
 			"right":  frameRail(false, 48, map[string][]any{"top": {}, "center": {}, "bottom": {}}),
 		},
 		"menus": map[string]any{
-			"quick-settings": map[string]any{"anchor": "left", "minWidth": float64(410), "expansion": "always", "widgets": []any{"quick-settings"}},
+			"quick-settings": map[string]any{"anchor": "left", "minWidth": float64(410), "expansion": "always", "widgets": []any{"quick-settings"}, "modules": []any{"home", "notifications", "weather"}},
+			"wallpaper":      map[string]any{"anchor": "bottom", "minWidth": float64(1400), "expansion": "always", "widgets": []any{"theme", "wallpaper"}},
+			"screenshare":    map[string]any{"anchor": "left", "minWidth": float64(410), "expansion": "always", "widgets": []any{}},
+			"theme":          map[string]any{"anchor": "right", "minWidth": float64(320), "expansion": "never", "widgets": []any{"theme"}},
+			"weather":        map[string]any{"anchor": "right", "minWidth": float64(320), "expansion": "never", "widgets": []any{"weather"}},
 		},
 		"surfaces": map[string]any{
-			"stash":  map[string]any{"anchor": "left", "minWidth": float64(340), "panes": []any{"stash"}},
-			"system": map[string]any{"anchor": "right", "minWidth": float64(340), "panes": []any{"notifications", "calendar", "media", "weather", "recording"}},
+			"stash": map[string]any{"anchor": "right", "minWidth": float64(340), "panes": []any{"stash"}},
 		},
 		"dock": map[string]any{"pinned": []any{}},
 	}
@@ -1294,14 +1298,6 @@ var frameBarAxes = map[string][]string{
 	"vpn": {"horizontal", "vertical"},
 }
 
-var frameMenuWidgets = map[string]bool{
-	"audio-input": true, "audio-output": true, "bluetooth": true,
-	"clipboard": true, "clock": true, "container": true, "divider": true, "spacer": true,
-	"network": true, "notifications": true, "power-profile": true, "quick-settings": true,
-	"screenshot": true, "theme": true, "wallpaper": true, "weather": true, "media": true,
-	"layout-switcher": true, "quick-actions": true,
-}
-
 func frameMap(value any) map[string]any {
 	m, _ := value.(map[string]any)
 	return m
@@ -1314,6 +1310,19 @@ func frameStringList(value any, allowed map[string]bool) []any {
 	for _, value := range values {
 		id, ok := value.(string)
 		if ok && allowed[id] && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
+}
+func frameUniqueStrings(value any) []any {
+	values, _ := value.([]any)
+	out := make([]any, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		id, ok := value.(string)
+		if ok && id != "" && !seen[id] {
 			seen[id] = true
 			out = append(out, id)
 		}
@@ -1400,29 +1409,31 @@ func normalizeFrameBars(v any) (map[string]any, []string) {
 		}
 	}
 	baseMenus, sourceMenus, outMenus := frameMap(base["menus"]), frameMap(source["menus"]), frameMap(out["menus"])
-	menuFallback, menuRaw, menuOut := frameMap(baseMenus["quick-settings"]), frameMap(sourceMenus["quick-settings"]), frameMap(outMenus["quick-settings"])
-	menuOut["anchor"] = frameAnchor(menuRaw["anchor"], menuFallback["anchor"].(string))
-	menuOut["minWidth"] = frameNumber(menuRaw["minWidth"], menuFallback["minWidth"].(float64), 1, 10000)
-	if expansion, ok := menuRaw["expansion"].(string); ok {
-		switch expansion {
-		case "always", "never", "both", "up", "down":
-			menuOut["expansion"] = expansion
+	for _, id := range []string{"quick-settings", "wallpaper", "screenshare", "theme", "weather"} {
+		fallback, raw, menu := frameMap(baseMenus[id]), frameMap(sourceMenus[id]), frameMap(outMenus[id])
+		menu["anchor"] = frameAnchor(raw["anchor"], fallback["anchor"].(string))
+		menu["minWidth"] = frameNumber(raw["minWidth"], fallback["minWidth"].(float64), 1, 10000)
+		if expansion, ok := raw["expansion"].(string); ok {
+			switch expansion {
+			case "always", "never", "both", "up", "down":
+				menu["expansion"] = expansion
+			}
 		}
 	}
-	// The quick-settings widget list is a fixed cohesive stack, not user-composed,
-	// so it always converges to the default rather than preserving a stale list.
+	// Modules are catalogued and filtered by the shell. Doctor only guarantees a
+	// unique string list so a future module can be enabled without teaching this
+	// migration layer about every QML component.
+	menuRaw, menuOut := frameMap(sourceMenus["quick-settings"]), frameMap(outMenus["quick-settings"])
+	if modules := frameUniqueStrings(menuRaw["modules"]); len(modules) > 0 {
+		menuOut["modules"] = modules
+	}
 	baseSurfaces, sourceSurfaces, outSurfaces := frameMap(base["surfaces"]), frameMap(source["surfaces"]), frameMap(out["surfaces"])
-	for _, id := range []string{"stash", "system"} {
-		fallback, raw, surface := frameMap(baseSurfaces[id]), frameMap(sourceSurfaces[id]), frameMap(outSurfaces[id])
-		surface["anchor"] = frameAnchor(raw["anchor"], fallback["anchor"].(string))
-		surface["minWidth"] = frameNumber(raw["minWidth"], fallback["minWidth"].(float64), 1, 10000)
-		if _, present := raw["panes"]; present {
-			allowed := map[string]bool{}
-			for _, pane := range fallback["panes"].([]any) {
-				allowed[pane.(string)] = true
-			}
-			surface["panes"] = frameStringList(raw["panes"], allowed)
-		}
+	fallback, raw, surface := frameMap(baseSurfaces["stash"]), frameMap(sourceSurfaces["stash"]), frameMap(outSurfaces["stash"])
+	surface["anchor"] = frameAnchor(raw["anchor"], fallback["anchor"].(string))
+	surface["minWidth"] = frameNumber(raw["minWidth"], fallback["minWidth"].(float64), 1, 10000)
+	if _, present := raw["panes"]; present {
+		allowed := map[string]bool{"stash": true}
+		surface["panes"] = frameStringList(raw["panes"], allowed)
 	}
 	dockRaw, dockOut := frameMap(source["dock"]), frameMap(out["dock"])
 	if pinned, ok := dockRaw["pinned"].([]any); ok {
@@ -1471,21 +1482,19 @@ func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 		frameBars := frameMap(cfg["frameBars"])
 		surfaces := frameMap(frameBars["surfaces"])
 		stash := frameMap(surfaces["stash"])
-		system := frameMap(surfaces["system"])
-		stash["panes"] = cfg["sidebarLeftPanes"]
-		system["panes"] = cfg["sidebarRightPanes"]
+		if panes, ok := cfg["sidebarLeftPanes"]; ok {
+			stash["panes"] = panes
+		}
 		if width, ok := cfg["sidebarWidth"]; ok {
 			stash["minWidth"] = width
-			system["minWidth"] = width
 		}
 		surfaces["stash"] = stash
-		surfaces["system"] = system
 		frameBars["surfaces"] = surfaces
 		cfg["frameBars"] = frameBars
 		delete(cfg, "sidebarLeftPanes")
 		delete(cfg, "sidebarRightPanes")
 		delete(cfg, "sidebarWidth")
-		changes = append(changes, "migrated sidebar panes to frame surfaces")
+		changes = append(changes, "migrated stash sidebar and retired system sidebar settings")
 	}
 	normalized, frameChanges := normalizeFrameBars(cfg["frameBars"])
 	cfg["frameBars"] = normalized
@@ -2213,7 +2222,7 @@ func reconcileShellDaemon(checkOnly bool) recResult {
 				withFix("run `ryoku-shell daemon` in a terminal to see why it exits")
 		}
 		if checkOnly {
-			return wouldRes("shell daemon is bound to a previous Hyprland instance; workspaces and the power menu are dead").
+			return wouldRes("shell daemon is bound to a previous Hyprland instance; workspaces and monitor-aware menus are dead").
 				withFix("ryoku doctor restarts the daemon against the live session")
 		}
 		if err := restartShellDaemon(); err != nil {

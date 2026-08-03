@@ -166,6 +166,62 @@ func TestMaterializeUserEditsOverlay(t *testing.T) {
 	wantFile(t, filepath.Join(dest, "hypr/modules/binds.lua"), "base binds v2")
 }
 
+// WirePlumber reads fragments only at startup. Materialize restarts it when the
+// effective Ryoku-owned Bluetooth policy changes, but leaves audio uninterrupted
+// on ordinary updates that copy identical bytes.
+func TestMaterializeRestartsWirePlumberOnlyWhenPolicyChanges(t *testing.T) {
+	base, dest := t.TempDir(), t.TempDir()
+	t.Setenv("RYOKU_CONFIG_BASE", base)
+	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	const policy = "wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf"
+	writeFile(t, filepath.Join(base, policy), "wireplumber.settings = { bluetooth.autoswitch-to-headset-profile = false }\n")
+
+	bin := t.TempDir()
+	log := filepath.Join(t.TempDir(), "systemctl.log")
+	t.Setenv("RYOKU_TEST_SYSTEMCTL_LOG", log)
+	writeFile(t, filepath.Join(bin, "systemctl"), "#!/bin/sh\nprintf '%s\\n' \"$*\" >>\"$RYOKU_TEST_SYSTEMCTL_LOG\"\n")
+	if err := os.Chmod(filepath.Join(bin, "systemctl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if err := Materialize(); err != nil {
+		t.Fatalf("fresh materialize: %v", err)
+	}
+	first, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("WirePlumber was not restarted after the policy landed: %v", err)
+	}
+	if got := strings.Count(string(first), "--user try-restart wireplumber.service"); got != 1 {
+		t.Fatalf("fresh policy caused %d WirePlumber restarts, want 1; log: %q", got, first)
+	}
+
+	if err := Materialize(); err != nil {
+		t.Fatalf("unchanged materialize: %v", err)
+	}
+	unchanged, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(unchanged) != string(first) {
+		t.Fatalf("unchanged policy restarted WirePlumber again: before %q, after %q", first, unchanged)
+	}
+
+	writeFile(t, filepath.Join(base, policy), "# revised\nwireplumber.settings = { bluetooth.autoswitch-to-headset-profile = false }\n")
+	if err := Materialize(); err != nil {
+		t.Fatalf("changed materialize: %v", err)
+	}
+	changed, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(string(changed), "--user try-restart wireplumber.service"); got != 2 {
+		t.Fatalf("policy revision caused %d total WirePlumber restarts, want 2; log: %q", got, changed)
+	}
+}
+
 func wantFile(t *testing.T, path, want string) {
 	t.Helper()
 	b, err := os.ReadFile(path)

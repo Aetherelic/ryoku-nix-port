@@ -9,12 +9,11 @@ import (
 )
 
 // moveStashRight flips frameBars.surfaces.stash.anchor from "left" to "right",
-// leaves the system surface, the stash panes/minWidth and every top-level key
+// leaves sibling surfaces, the stash panes/minWidth and every top-level key
 // untouched, and does nothing once the anchor is already right.
 func TestMoveStashRight(t *testing.T) {
-	// stash anchored left alongside the system surface and unrelated top-level
-	// keys: only stash.anchor flips, everything else stays.
-	full := []byte(`{"frameBars":{"surfaces":{"stash":{"anchor":"left","minWidth":340,"panes":["stash"]},"system":{"anchor":"right","minWidth":340,"panes":["notifications"]}},"dock":{"pinned":[]}},"fontScale":1.3}`)
+	// Only stash.anchor flips; an unrelated future surface and top-level keys stay.
+	full := []byte(`{"frameBars":{"surfaces":{"stash":{"anchor":"left","minWidth":340,"panes":["stash"]},"future":{"anchor":"top","minWidth":500}},"dock":{"pinned":[]}},"fontScale":1.3}`)
 	out, changed, err := moveStashRight(full)
 	if err != nil || !changed {
 		t.Fatalf("stash left anchor must be flipped: changed=%v err=%v", changed, err)
@@ -34,8 +33,8 @@ func TestMoveStashRight(t *testing.T) {
 	if panes, ok := stash["panes"].([]any); !ok || len(panes) != 1 || panes[0] != "stash" {
 		t.Errorf("stash panes were lost or changed: %v", stash["panes"])
 	}
-	if surfaces["system"].(map[string]any)["anchor"] != "right" {
-		t.Errorf("sibling system surface was disturbed: %v", surfaces["system"])
+	if surfaces["future"].(map[string]any)["anchor"] != "top" {
+		t.Errorf("sibling surface was disturbed: %v", surfaces["future"])
 	}
 	if cfg["fontScale"].(float64) != 1.3 {
 		t.Errorf("passthrough key fontScale was lost: %v", cfg["fontScale"])
@@ -55,7 +54,7 @@ func TestMoveStashRight(t *testing.T) {
 	for _, store := range []string{
 		`{"fontScale":1}`,
 		`{"frameBars":{"dock":{"pinned":[]}}}`,
-		`{"frameBars":{"surfaces":{"system":{"anchor":"right"}}}}`,
+		`{"frameBars":{"surfaces":{"future":{"anchor":"top"}}}}`,
 		`{"frameBars":{"surfaces":{"stash":{"minWidth":340}}}}`,
 	} {
 		if _, changed, err := moveStashRight([]byte(store)); err != nil || changed {
@@ -85,7 +84,7 @@ func TestReconcileStashSidebar(t *testing.T) {
 		t.Fatalf("missing shell.json: status=%s detail=%q, want ok", r.status.label(), r.detail)
 	}
 
-	stored := `{"frameBars":{"surfaces":{"stash":{"anchor":"left","panes":["stash"]},"system":{"anchor":"right"}}}}`
+	stored := `{"frameBars":{"surfaces":{"stash":{"anchor":"left","panes":["stash"]},"future":{"anchor":"top"}}}}`
 	if err := os.WriteFile(path, []byte(stored), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -114,8 +113,8 @@ func TestReconcileStashSidebar(t *testing.T) {
 	if surfaces["stash"].(map[string]any)["anchor"] != "right" {
 		t.Error("fix did not flip stash anchor to right")
 	}
-	if surfaces["system"].(map[string]any)["anchor"] != "right" {
-		t.Error("fix disturbed the sibling system surface")
+	if surfaces["future"].(map[string]any)["anchor"] != "top" {
+		t.Error("fix disturbed the sibling surface")
 	}
 
 	// second run is a no-op: the store is now correct.

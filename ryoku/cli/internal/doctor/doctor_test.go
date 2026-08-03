@@ -1188,26 +1188,25 @@ func TestMigrateShellConfig(t *testing.T) {
 		t.Fatal("legacy settings must seed frameBars")
 	}
 	rails := frameBars["rails"].(map[string]any)
-	if top := rails["top"].(map[string]any); !top["enabled"].(bool) {
-		t.Error("legacy settings must seed the top reference rail")
+	if top := rails["top"].(map[string]any); top["enabled"].(bool) {
+		t.Error("legacy settings must keep the empty top reference rail disabled")
 	}
 	if left := rails["left"].(map[string]any); !left["enabled"].(bool) {
 		t.Error("legacy settings must seed the left reference rail")
 	}
 	surfaces := frameBars["surfaces"].(map[string]any)
 	stash := surfaces["stash"].(map[string]any)
-	system := surfaces["system"].(map[string]any)
-	if stash["anchor"] != "left" || system["anchor"] != "right" {
-		t.Errorf("sidebar anchors were not preserved: stash=%v system=%v", stash["anchor"], system["anchor"])
+	if stash["anchor"] != "right" {
+		t.Errorf("stash anchor was not normalized: %v", stash["anchor"])
 	}
-	if stash["minWidth"].(float64) != 360 || system["minWidth"].(float64) != 360 {
-		t.Errorf("sidebar width was not preserved: stash=%v system=%v", stash["minWidth"], system["minWidth"])
+	if stash["minWidth"].(float64) != 360 {
+		t.Errorf("stash width was not preserved: %v", stash["minWidth"])
 	}
 	if got := stash["panes"]; !reflect.DeepEqual(got, []any{"stash"}) {
 		t.Errorf("left sidebar panes were not preserved: %v", got)
 	}
-	if got := system["panes"]; !reflect.DeepEqual(got, []any{"weather", "calendar", "media"}) {
-		t.Errorf("right sidebar pane order was not preserved: %v", got)
+	if _, present := surfaces["system"]; present {
+		t.Error("retired system sidebar was recreated")
 	}
 	for _, key := range []string{"sidebarLeftPanes", "sidebarRightPanes", "sidebarWidth"} {
 		if _, ok := cfg[key]; ok {
@@ -1231,7 +1230,7 @@ func TestMigrateShellConfig(t *testing.T) {
                 "top": { "size": 2, "start": ["tray", "tray", "dock", "unknown"] },
                 "left": { "size": 999, "top": ["clock", "clock", "unknown"] }
             },
-            "menus": { "quick-settings": { "anchor": "wrong" } },
+            "menus": { "quick-settings": { "anchor": "wrong", "modules": ["media", "future-module", "media"] } },
             "surfaces": { "stash": { "anchor": "wrong" } }
         }
     }`)
@@ -1260,8 +1259,11 @@ func TestMigrateShellConfig(t *testing.T) {
 		t.Errorf("menu anchor was not normalized: %v", menus)
 	}
 	surfaces = frameBars["surfaces"].(map[string]any)
-	if surfaces["stash"].(map[string]any)["anchor"] != "left" {
+	if surfaces["stash"].(map[string]any)["anchor"] != "right" {
 		t.Errorf("surface anchor was not normalized: %v", surfaces)
+	}
+	if got := menus["quick-settings"].(map[string]any)["modules"]; !reflect.DeepEqual(got, []any{"media", "future-module"}) {
+		t.Errorf("quick-settings module configuration was not preserved: %v", got)
 	}
 
 	out, changes, err = migrateShellConfig(out)
