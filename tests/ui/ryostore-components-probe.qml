@@ -20,6 +20,7 @@ ShellRoot {
     property string retryKey: ""
     property string activatedKey: ""
     property int closeCount: 0
+    property var lastInstallComponents: null
     property bool sawVerifying: false
     property var probeDimensions: String(Quickshell.env("RYOSTORE_PROBE_SIZE") || "980x640").split("x")
     readonly property int probeWidth: Number(probeDimensions[0]) || 980
@@ -283,6 +284,35 @@ ShellRoot {
             reducedMotion: true
         }
 
+        Ryo.ProductDetail {
+            id: bundleDetail
+            objectName: "ryostore-bundle-detail"
+            z: 22
+            anchors.fill: parent
+            open: true
+            item: ({
+                id: "kit",
+                category: "bundles",
+                categoryName: "Bundles",
+                name: "Kit",
+                description: "A bundle fixture with core and optional components.",
+                art: "",
+                screenshots: [],
+                installedCount: 1,
+                totalCount: 3,
+                metadata: ({ items: [
+                    ({ type: "package", name: "core-a", tier: "core", summary: "core a", installed: false }),
+                    ({ type: "package", name: "core-b", tier: "core", summary: "core b", installed: true }),
+                    ({ type: "package", name: "opt-a", tier: "optional", summary: "optional a", installed: false })
+                ] })
+            })
+            reducedMotion: true
+            onInstallRequested: (item, dither, components) => {
+                root.installedKey = item.category + ":" + item.id;
+                root.lastInstallComponents = components;
+            }
+        }
+
     }
 
     Timer {
@@ -530,6 +560,35 @@ ShellRoot {
             root.require(cell.width > 0 && cell.height > 0, "cellRectFor returns the selected tile bounds");
             grid.restoreOffset(0);
             root.require(grid.contentY === 0, "restoreOffset sets the scroll position");
+            root.require(bundleDetail.isBundle === true, "bundle detail flagged as bundle");
+            root.require(bundleDetail.components.length === 3, "bundle detail exposes components");
+            const bundleList = root.findObject(bundleDetail, "ryostore-detail-components");
+            root.require(bundleList && bundleList.visible, "bundle detail shows component list");
+            root.require(bundleDetail.selectedNames.indexOf("core-a") !== -1
+                    && bundleDetail.selectedNames.indexOf("core-b") !== -1, "core components default selected");
+            root.require(bundleDetail.selectedNames.indexOf("opt-a") === -1, "optional components default unselected");
+            const bundleInstallSelected = root.findObject(bundleDetail, "ryostore-detail-install-selected");
+            const bundleInstallAll = root.findObject(bundleDetail, "ryostore-detail-install-all");
+            const bundlePlainInstall = root.findObject(bundleDetail, "ryostore-detail-install");
+            root.require(bundleInstallSelected.visible && bundleInstallAll.visible, "bundle exposes select and all install actions");
+            root.require(!bundlePlainInstall.visible, "bundle hides the single install action");
+            bundleDetail.toggleSel("opt-a");
+            root.require(bundleDetail.selectedNames.indexOf("opt-a") !== -1, "toggling an optional component selects it");
+            bundleDetail.toggleSel("opt-a");
+            root.require(bundleDetail.selectedNames.indexOf("opt-a") === -1, "toggling again deselects it");
+            root.installedKey = "";
+            root.lastInstallComponents = null;
+            bundleInstallSelected.Accessible.pressAction();
+            root.require(root.installedKey === "bundles:kit", "install selected targets the bundle");
+            root.require(root.lastInstallComponents.indexOf("core-a") !== -1
+                    && root.lastInstallComponents.indexOf("opt-a") === -1,
+                    "install selected passes only the selected components");
+            root.installedKey = "";
+            root.lastInstallComponents = null;
+            bundleInstallAll.Accessible.pressAction();
+            root.require(root.lastInstallComponents.length === 3
+                    && root.lastInstallComponents.indexOf("opt-a") !== -1,
+                    "install all passes every component");
             finishTimer.start();
         }
 

@@ -472,8 +472,8 @@ Rectangle {
         installError: Store.installError
         reducedMotion: app.reducedMotion
         onCloseRequested: app.closeDetail()
-        onInstallRequested: (item, dither) => Store.install(item, dither)
-        onRetryRequested: (item, dither) => Store.retryInstall(item, dither)
+        onInstallRequested: (item, dither, components) => Store.install(item, dither, components)
+        onRetryRequested: (item, dither, components) => Store.retryInstall(item, dither, components)
         onSettingsRequested: item => Store.openSettings(item)
     }
 }

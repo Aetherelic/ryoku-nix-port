@@ -45,7 +45,7 @@ Singleton {
         catalogProc.running = true;
     }
 
-    function install(item, dither) {
+    function install(item, dither, components) {
         if (!item || busyKey !== "")
             return;
         busyKey = itemKey(item);
@@ -57,6 +57,8 @@ Singleton {
         var wantDither = (dither === undefined) ? true : dither;
         if (wantDither && String(item.artRaw || "") !== "")
             cmd.push("--dither");
+        if (Array.isArray(components) && components.length > 0)
+            cmd.push("--only", components.join(","));
         installProc.command = cmd;
         installProc.running = true;
     }
@@ -69,9 +71,9 @@ Singleton {
         installStage = "";
     }
 
-    function retryInstall(item, dither) {
+    function retryInstall(item, dither, components) {
         clearInstallError(item);
-        install(item, dither);
+        install(item, dither, components);
     }
 
     function openSettings(item) {

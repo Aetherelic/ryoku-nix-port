@@ -26,7 +26,7 @@ func TestBundleProviderNormalization(t *testing.T) {
 	prov := bundleProvider{
 		cache:  newCache(),
 		status: func(context.Context) map[string]map[string]bool { return nil },
-		launch: func(string) error { return nil },
+		launch: func(string, []string) error { return nil },
 	}
 	if prov.Category().ID != "bundles" {
 		t.Fatalf("category id = %q, want bundles", prov.Category().ID)
@@ -69,7 +69,7 @@ func TestBundleProviderPartialAndFullCounts(t *testing.T) {
 		status: func(context.Context) map[string]map[string]bool {
 			return map[string]map[string]bool{"demo": {"cmatrix": true, "demo-cli": false}}
 		},
-		launch: func(string) error { return nil },
+		launch: func(string, []string) error { return nil },
 	}
 	got, _, err := partial.Load(context.Background(), false)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestBundleProviderPartialAndFullCounts(t *testing.T) {
 		status: func(context.Context) map[string]map[string]bool {
 			return map[string]map[string]bool{"demo": {"cmatrix": true, "demo-cli": true}}
 		},
-		launch: func(string) error { return nil },
+		launch: func(string, []string) error { return nil },
 	}
 	got2, _, err := full.Load(context.Background(), false)
 	if err != nil {
@@ -108,13 +108,39 @@ func TestBundleProviderInstallLaunches(t *testing.T) {
 	prov := bundleProvider{
 		cache:  newCache(),
 		status: func(context.Context) map[string]map[string]bool { return nil },
-		launch: func(id string) error { got = id; return nil },
+		launch: func(id string, _ []string) error { got = id; return nil },
 	}
 	if err := prov.Install(context.Background(), "demo"); err != nil {
 		t.Fatalf("Install: %v", err)
 	}
 	if got != "demo" {
 		t.Fatalf("launcher id = %q, want demo", got)
+	}
+}
+
+// TestBundleProviderInstallComponents proves the manual selection reaches the
+// launcher as the --only list, and that a whole-bundle Install passes none.
+func TestBundleProviderInstallComponents(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	var gotID string
+	var gotOnly []string
+	prov := bundleProvider{
+		cache:  newCache(),
+		status: func(context.Context) map[string]map[string]bool { return nil },
+		launch: func(id string, only []string) error { gotID = id; gotOnly = only; return nil },
+	}
+	if err := prov.InstallComponents(context.Background(), "demo", []string{"steam", "lutris"}); err != nil {
+		t.Fatalf("InstallComponents: %v", err)
+	}
+	if gotID != "demo" || strings.Join(gotOnly, ",") != "steam,lutris" {
+		t.Fatalf("launcher got id=%q only=%v, want demo [steam lutris]", gotID, gotOnly)
+	}
+	gotOnly = []string{"stale"}
+	if err := prov.Install(context.Background(), "demo"); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	if gotOnly != nil {
+		t.Fatalf("whole-bundle Install must pass no components, got %v", gotOnly)
 	}
 }
 
@@ -144,7 +170,7 @@ func TestBundleProviderBrowseFetchesRegistryOnly(t *testing.T) {
 	prov := bundleProvider{
 		cache:  newCache(),
 		status: func(context.Context) map[string]map[string]bool { return nil },
-		launch: func(string) error { return nil },
+		launch: func(string, []string) error { return nil },
 	}
 	got, _, err := prov.Load(context.Background(), false)
 	if err != nil {
@@ -267,7 +293,7 @@ func TestBundleProviderRejectsMalformedDefinition(t *testing.T) {
 	prov := bundleProvider{
 		cache:  newCache(),
 		status: func(context.Context) map[string]map[string]bool { return nil },
-		launch: func(string) error { return nil },
+		launch: func(string, []string) error { return nil },
 	}
 	if _, _, err := prov.Load(context.Background(), false); err == nil {
 		t.Fatal("malformed required bundle definition was accepted")
@@ -289,7 +315,7 @@ func TestBundleProviderRejectsMissingDefinition(t *testing.T) {
 	prov := bundleProvider{
 		cache:  newCache(),
 		status: func(context.Context) map[string]map[string]bool { return nil },
-		launch: func(string) error { return nil },
+		launch: func(string, []string) error { return nil },
 	}
 	if _, _, err := prov.Load(context.Background(), false); err == nil {
 		t.Fatal("missing required bundle definition was accepted")
@@ -507,7 +533,7 @@ func TestBundleProviderRejectsDotID(t *testing.T) {
 	prov := bundleProvider{
 		cache:  newCache(),
 		status: func(context.Context) map[string]map[string]bool { return nil },
-		launch: func(string) error { return nil },
+		launch: func(string, []string) error { return nil },
 	}
 	if _, _, err := prov.Load(context.Background(), false); err == nil {
 		t.Fatal("dot bundle id accepted")

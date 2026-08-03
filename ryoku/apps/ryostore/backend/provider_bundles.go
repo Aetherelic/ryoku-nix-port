@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -49,7 +50,7 @@ type bundleComponent struct {
 type bundleProvider struct {
 	cache  *Cache
 	status func(context.Context) map[string]map[string]bool
-	launch func(id string) error
+	launch func(id string, only []string) error
 }
 
 func (bundleProvider) Category() Category {
@@ -158,7 +159,13 @@ func (p bundleProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceS
 }
 
 func (p bundleProvider) Install(ctx context.Context, id string) error {
-	return p.launch(id)
+	return p.launch(id, nil)
+}
+
+// InstallComponents installs only the named components (the store's manual
+// selection); an empty list falls back to the whole-bundle install.
+func (p bundleProvider) InstallComponents(ctx context.Context, id string, only []string) error {
+	return p.launch(id, only)
 }
 
 // defaultBundleStatus queries the actuator for every bundle's item state and
@@ -195,8 +202,12 @@ func defaultBundleStatus(ctx context.Context) map[string]map[string]bool {
 // launchBundleInstall runs the actuator's bundle install in a floating kitty
 // terminal, detached into its own session so it owns the sudo prompt and
 // long-running output independently of this short-lived process.
-func launchBundleInstall(id string) error {
-	cmd := exec.Command("kitty", "--class", "ryoku-extras", "-e", "ryoku-extras-install", "install", "bundle", id)
+func launchBundleInstall(id string, only []string) error {
+	args := []string{"--class", "ryoku-extras", "-e", "ryoku-extras-install", "install", "bundle", id}
+	if len(only) > 0 {
+		args = append(args, "--only", strings.Join(only, ","))
+	}
+	cmd := exec.Command("kitty", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
 		return err

@@ -2,7 +2,53 @@
 
 ## Unreleased
 
+### Added
+- `ryostore/`: **Bundles preview their contents and install by selection.**
+  Opening a bundle lists its components grouped Core / Optional, each with a
+  toggle (Core on, Optional off) and a one-line summary. Two actions replace the
+  single install: INSTALL SELECTED (only the toggled items) and INSTALL ALL. The
+  selection threads to the actuator as `install bundle <id> --only ...`; the
+  detail is a scrollable list so a 40-item bundle stays navigable
+  (`quickshell/ProductDetail.qml`, `quickshell/Singletons/Store.qml`,
+  `backend/{main,provider_bundles}.go`).
+
+### Fixed
+- `ryowalls/`: **The source picker actually switches source now.** Choosing a
+  row (MoeWalls, Live, a library, …) dismissed the drawer but left you on
+  Wallhaven. The filter field's "Enter picks the top match" was wired to Field's
+  `committed`, which rides `editingFinished` and so also fires on focus loss --
+  and dismissing the drawer after a row pick moves focus away, re-selecting the
+  top row (Wallhaven) and clobbering the choice. It now uses Field's `accepted`
+  (Return only), matching the Picker grammar (`quickshell/SourcePicker.qml`).
+- `ryowalls/`: **The live preview now shows the exact colours Set will apply.**
+  Its palette command copied the picture to an extensionless temp file, which
+  matugen cannot decode, so the palette came back empty and the preview -- the
+  candidate strip and the cava spectrum -- fell back to stand-in colours; even
+  when it did run it used a second matugen invocation that diverged from the
+  daemon (no scheme/mode/neutralisation). The daemon now owns generation behind
+  one command (`ryoku-shell matugen-preview`) that emits exactly what apply
+  writes -- the shell palette, the tonal ramps, and the wallpaper's L* map --
+  and the preview's cava paints tones off the image's own primary/secondary
+  ramps against that map, mirroring the desktop visualiser
+  (`bin/ryowalls`, `quickshell/Singletons/Wallhaven.qml`,
+  `quickshell/MockDesktop.qml`, `shell/ipc/matugen.go`).
+- `ryowalls/`: **motionbgs page 2 and beyond no longer error out.** The pager
+  built the page path without a trailing slash (`/2`), which motionbgs 404s, so
+  the whole browse fell over with a curl 22; the real scheme is a trailing-slash
+  path (`/2/`, `/3/`, …) -- `?page=` is silently ignored -- so the pager uses it
+  now and every page loads distinct results (`bin/ryowalls`).
+
 ### Changed
+- `ryowalls/`: **The store is reworked around the image and its rice preview.**
+  The live preview -- your wallpaper wearing the terminal and the cava spectrum
+  in its own colours -- is now the hero: it fills the right column down to a slim
+  candidate-palette + metadata footer, no longer squeezed above a redundant
+  pending-diff card whose state the commit bar already carries. Editing is
+  demoted from a co-equal BROWSE / GRADE / PALETTE tab set to a secondary
+  "ADJUST" entry that appears on a pick, with a `‹ BROWSE` back and an
+  ADJUST / COLOUR switch; browsing is home. Grid thumbnails lean in on hover
+  (`quickshell/App.qml`, `quickshell/PreviewStack.qml`, `quickshell/WallCell.qml`;
+  `quickshell/PendingCard.qml` retired).
 - `ryostore/`: **The store lands on the section it was opened to instead of
   snapping to Discover.** A nav-open (from `ryostore open`, behind every Hub
   "Browse RyoStore" button and "Open in Settings") arrived before the catalogue

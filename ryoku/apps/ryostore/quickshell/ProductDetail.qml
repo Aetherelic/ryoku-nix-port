@@ -26,8 +26,8 @@ FocusScope {
     }
 
     signal closeRequested()
-    signal installRequested(var item, bool dither)
-    signal retryRequested(var item, bool dither)
+    signal installRequested(var item, bool dither, var components)
+    signal retryRequested(var item, bool dither, var components)
     signal settingsRequested(var item)
 
     readonly property var actionItem: item || ({})
@@ -45,6 +45,15 @@ FocusScope {
         actionItem.compatibility ? "COMPATIBILITY / " + valueText(actionItem.compatibility) : "",
         actionItem.contents ? "CONTENTS / " + valueText(actionItem.contents) : ""
     ].filter(Boolean).join("\n")
+    readonly property bool isBundle: String(actionItem.category || "") === "bundles"
+    readonly property var components: (actionItem.metadata && Array.isArray(actionItem.metadata.items)) ? actionItem.metadata.items : []
+    readonly property var coreComponents: components.filter(c => String(c.tier || "core") !== "optional")
+    readonly property var optionalComponents: components.filter(c => String(c.tier || "core") === "optional")
+    property var sel: ({})
+    property var lastComponents: null
+    readonly property var selectedNames: components.filter(c => sel[String(c.name)] === true).map(c => String(c.name))
+    readonly property var allNames: components.map(c => String(c.name))
+    onItemChanged: rebuildSelection()
     readonly property real targetX: Tokens.s6
     readonly property real targetY: Tokens.s6
     readonly property real targetWidth: Math.min(430, width * 0.42)
@@ -70,13 +79,48 @@ FocusScope {
     }
 
     function triggerInstall() {
-        if (item && busyKey === "" && StoreLogic.primaryAction(actionItem) !== "INSTALLED")
-            installRequested(actionItem, ditherOn);
+        if (item && busyKey === "" && StoreLogic.primaryAction(actionItem) !== "INSTALLED") {
+            lastComponents = null;
+            installRequested(actionItem, ditherOn, null);
+        }
+    }
+
+    function triggerInstallAll() {
+        if (item && busyKey === "") {
+            lastComponents = allNames;
+            installRequested(actionItem, false, allNames);
+        }
+    }
+
+    function triggerInstallSelected() {
+        if (item && busyKey === "" && selectedNames.length > 0) {
+            lastComponents = selectedNames;
+            installRequested(actionItem, false, selectedNames);
+        }
     }
 
     function triggerRetry() {
         if (item && busyKey === "" && errorText !== "")
-            retryRequested(actionItem, ditherOn);
+            retryRequested(actionItem, ditherOn, lastComponents);
+    }
+
+    function rebuildSelection() {
+        var it = item || {};
+        var comps = (it.metadata && Array.isArray(it.metadata.items)) ? it.metadata.items : [];
+        var next = {};
+        for (var i = 0; i < comps.length; i++) {
+            var c = comps[i];
+            next[String(c.name)] = (c.installed === true) || (String(c.tier || "core") !== "optional");
+        }
+        sel = next;
+    }
+
+    function toggleSel(name) {
+        var next = {};
+        for (var k in sel)
+            next[k] = sel[k];
+        next[name] = !next[name];
+        sel = next;
     }
 
     function triggerSettings() {
@@ -207,6 +251,121 @@ FocusScope {
             }
         }
 
+        Component {
+            id: componentDelegate
+            Item {
+                id: compRow
+                required property var modelData
+                readonly property string cname: String(modelData.name || "")
+                readonly property bool ison: detail.sel[cname] === true
+                readonly property bool isinstalled: modelData.installed === true
+                width: bundleCol.width
+                implicitHeight: rowInfo.implicitHeight + Tokens.s2
+                height: implicitHeight
+
+                Rectangle {
+                    id: box
+                    width: 16
+                    height: 16
+                    radius: Tokens.radius
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    color: (compRow.ison || compRow.isinstalled) ? Tokens.bone : "transparent"
+                    border.width: Tokens.border
+                    border.color: (compRow.ison || compRow.isinstalled) ? Tokens.bone : Tokens.line
+                    Text {
+                        anchors.centerIn: parent
+                        visible: compRow.ison || compRow.isinstalled
+                        text: "\u2713"
+                        color: Tokens.inkOnBone
+                        font.family: Tokens.ui
+                        font.pixelSize: 11
+                    }
+                }
+
+                Column {
+                    id: rowInfo
+                    anchors { left: box.right; leftMargin: Tokens.s3; right: parent.right; verticalCenter: parent.verticalCenter }
+                    spacing: 0
+                    Text {
+                        width: parent.width
+                        text: compRow.cname + (compRow.isinstalled ? "  \u00b7 INSTALLED" : "")
+                        color: Tokens.ink
+                        font.family: Tokens.mono
+                        font.pixelSize: Tokens.fMicro
+                        font.letterSpacing: Tokens.trackLabel
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        width: parent.width
+                        text: String(compRow.modelData.summary || "")
+                        visible: text !== ""
+                        color: Tokens.inkDim
+                        font.family: Tokens.ui
+                        font.pixelSize: Tokens.fMicro
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                    }
+                }
+
+                HoverHandler { cursorShape: Qt.PointingHandCursor; enabled: !compRow.isinstalled }
+                TapHandler { enabled: !compRow.isinstalled; onTapped: detail.toggleSel(compRow.cname) }
+            }
+        }
+
+        Flickable {
+            id: bundleComponents
+            objectName: "ryostore-detail-components"
+            width: parent.width
+            visible: detail.isBundle && detail.components.length > 0
+            height: visible ? Math.min(bundleCol.implicitHeight, Math.round(detail.height * 0.42)) : 0
+            contentWidth: width
+            contentHeight: bundleCol.implicitHeight
+            clip: true
+            interactive: contentHeight > height
+            boundsBehavior: Flickable.StopAtBounds
+
+            Column {
+                id: bundleCol
+                width: bundleComponents.width
+                spacing: Tokens.s2
+
+                Text {
+                    visible: detail.coreComponents.length > 0
+                    text: "CORE"
+                    color: Tokens.inkDim
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fMicro
+                    font.letterSpacing: Tokens.trackMark
+                }
+                Repeater { model: detail.coreComponents; delegate: componentDelegate }
+
+                Text {
+                    visible: detail.optionalComponents.length > 0
+                    text: "OPTIONAL"
+                    color: Tokens.inkDim
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fMicro
+                    font.letterSpacing: Tokens.trackMark
+                    topPadding: Tokens.s2
+                }
+                Repeater { model: detail.optionalComponents; delegate: componentDelegate }
+            }
+
+            Rectangle {
+                id: scrollThumb
+                width: 2
+                radius: 1
+                color: Tokens.line
+                visible: bundleComponents.interactive
+                x: bundleComponents.width - width
+                height: Math.max(20, bundleComponents.height * bundleComponents.height / Math.max(1, bundleComponents.contentHeight))
+                y: bundleComponents.contentY + (bundleComponents.contentHeight > bundleComponents.height
+                    ? (bundleComponents.contentY / (bundleComponents.contentHeight - bundleComponents.height)) * (bundleComponents.height - scrollThumb.height)
+                    : 0)
+            }
+        }
+
         Text {
             objectName: "ryostore-detail-metadata"
             width: parent.width
@@ -255,7 +414,33 @@ FocusScope {
             }
 
             Btn {
+                objectName: "ryostore-detail-install-selected"
+                visible: detail.isBundle
+                text: detail.busyKey === detail.actionKey && detail.installStage !== ""
+                        ? detail.installStage
+                        : "INSTALL SELECTED"
+                primary: true
+                armed: detail.item !== null && detail.busyKey === "" && detail.selectedNames.length > 0
+                Accessible.role: Accessible.Button
+                Accessible.name: text
+                onAct: detail.triggerInstallSelected()
+                Accessible.onPressAction: detail.triggerInstallSelected()
+            }
+
+            Btn {
+                objectName: "ryostore-detail-install-all"
+                visible: detail.isBundle
+                text: "INSTALL ALL"
+                armed: detail.item !== null && detail.busyKey === ""
+                Accessible.role: Accessible.Button
+                Accessible.name: text
+                onAct: detail.triggerInstallAll()
+                Accessible.onPressAction: detail.triggerInstallAll()
+            }
+
+            Btn {
                 objectName: "ryostore-detail-install"
+                visible: !detail.isBundle
                 text: detail.busyKey === detail.actionKey && detail.installStage !== ""
                         ? detail.installStage
                         : StoreLogic.primaryAction(detail.actionItem)

@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -112,13 +113,27 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 
 func runInstall(provs []Provider, args []string) error {
 	dither := false
+	var only []string
 	rest := make([]string, 0, len(args))
-	for _, a := range args {
-		if a == "--dither" {
+	i := 0
+	for i < len(args) {
+		a := args[i]
+		i++
+		switch a {
+		case "--dither":
 			dither = true
-			continue
+		case "--only":
+			if i < len(args) {
+				for _, n := range strings.Split(args[i], ",") {
+					if n = strings.TrimSpace(n); n != "" {
+						only = append(only, n)
+					}
+				}
+				i++
+			}
+		default:
+			rest = append(rest, a)
 		}
-		rest = append(rest, a)
 	}
 	if len(rest) != 2 {
 		return fmt.Errorf("install needs <category> <id>")
@@ -127,6 +142,11 @@ func runInstall(provs []Provider, args []string) error {
 	p, ok := providerFor(provs, category)
 	if !ok {
 		return fmt.Errorf("unknown category %q", category)
+	}
+	if len(only) > 0 {
+		if ci, ok := p.(componentInstaller); ok {
+			return ci.InstallComponents(context.Background(), id, only)
+		}
 	}
 	if dither {
 		if vi, ok := p.(variantInstaller); ok {
@@ -140,6 +160,13 @@ func runInstall(provs []Provider, args []string) error {
 // dither toggle). Providers that do not implement it ignore --dither.
 type variantInstaller interface {
 	InstallVariant(ctx context.Context, id string, dither bool) error
+}
+
+// componentInstaller is a provider that can install a named subset of a
+// product's components (the bundles manual selection). Providers that do not
+// implement it ignore --only.
+type componentInstaller interface {
+	InstallComponents(ctx context.Context, id string, only []string) error
 }
 
 func runRemove(provs []Provider, args []string) error {
