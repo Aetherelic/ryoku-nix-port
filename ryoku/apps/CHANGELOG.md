@@ -37,6 +37,13 @@
   the whole browse fell over with a curl 22; the real scheme is a trailing-slash
   path (`/2/`, `/3/`, …) -- `?page=` is silently ignored -- so the pager uses it
   now and every page loads distinct results (`bin/ryowalls`).
+- `ryowalls/`: **a live wall's Adjust and Colour lanes read cleanly.** A video
+  pick has only a few controls (Fit, sampling Frame, Enhance), and the Fit and
+  Frame cells were declared at a narrow span: the reserved control slot collapsed
+  the cell's text column to nothing and left the Fill/Fit segments stacked in an
+  empty box, and it clipped the Frame caption to "The sec…". Both are full-width
+  inline cells now, with the shared segment reservation padded a gutter so Fill|Fit
+  stays one row (`quickshell/GradeSheet.qml`, `quickshell/PaletteSheet.qml`).
 
 ### Changed
 - `ryowalls/`: **The store is reworked around the image and its rice preview.**

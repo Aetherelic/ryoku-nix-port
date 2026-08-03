@@ -51,6 +51,11 @@ Rectangle {
         sourceSize: Qt.size(Math.ceil(cell.width * 1.6), Math.ceil(cell.height * 1.6))
         source: cell.hasThumb ? cell.item.thumb : ""
         visible: !vout.visible
+        // a slight zoom on hover: the image is clipped to the tile, so it reads
+        // as the thumbnail leaning toward you -- the store's one interactivity tell.
+        scale: ma.containsMouse ? 1.06 : 1.0
+        transformOrigin: Item.Center
+        Behavior on scale { NumberAnimation { duration: Tokens.swap; easing.type: Easing.OutCubic } }
     }
 
     MediaPlayer {

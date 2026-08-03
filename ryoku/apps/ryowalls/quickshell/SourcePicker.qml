@@ -126,7 +126,12 @@ Item {
                 width: parent.width
                 placeholder: "Filter sources…"
                 onEdited: (v) => picker.filter = v
-                onCommitted: if (picker.shown.length) picker.choose(picker.shown[0])
+                // Enter picks the top match -- Field's `accepted` (Return only),
+                // never `committed`: committed rides editingFinished, which also
+                // fires on focus loss, and dismissing the drawer after a row pick
+                // moves focus away -- committed would then re-pick the top source
+                // and clobber the row the user just chose.
+                onAccepted: if (picker.shown.length) picker.choose(picker.shown[0])
             }
 
             Flickable {

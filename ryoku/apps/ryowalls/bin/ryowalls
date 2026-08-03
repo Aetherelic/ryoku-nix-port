@@ -373,32 +373,22 @@ download)
 palette)
 	url="${1:?image url required}"
 	tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-	img="$tmp/img"
+	# Keep a real extension so the decoder can read the file: matugen (and thus
+	# the daemon) fails on an extensionless path ("failed to parse"), which left
+	# the preview palette empty and the spectrum specimen on fallback colours.
+	case "$url" in
+	*.png | *.PNG) ext=png ;;
+	*.webp | *.WEBP) ext=webp ;;
+	*.gif | *.GIF) ext=gif ;;
+	*) ext=jpg ;;
+	esac
+	img="$tmp/img.$ext"
 	if [ -f "$url" ]; then cp -- "$url" "$img"; else curl -fsSL "${auth[@]}" "$url" -o "$img"; fi
-	# Derive the 16-slot palette matugen-backed, mirroring the daemon engine so the
-	# preview matches what Set writes. Mode + source preference come from the one
-	# knob store (~/.config/ryoku/matugen.json); smart resolves to dark for the
-	# preview (the daemon's per-image luma split owns the live light/dark choice).
-	# --dry-run touches nothing on disk; --prefer is required for a non-tty source
-	# pick. The 16 colorN slots mirror matugenBase16 in ipc/matugen.go exactly, so
-	# the preview strip reads like the palette the daemon writes to colors.json.
-	cfg="${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/matugen.json"
-	mode="$(jq -r '.mode // "smart"' "$cfg" 2>/dev/null)"; case "$mode" in light) mode=light ;; *) mode=dark ;; esac
-	prefer="$(jq -r '.prefer // "saturation"' "$cfg" 2>/dev/null)"; case "$prefer" in "" | null) prefer=saturation ;; esac
-	matugen image "$img" --prefer "$prefer" --json hex --dry-run 2>/dev/null | jq -r --arg m "$mode" '
-		def bv($b): if $b == null then null elif (($b.color // "") != "") then $b.color elif (($b.hex // "") != "") then $b.hex else null end;
-		.colors as $c
-		| def role($r; $fb): (bv($c[$r][$m]) // bv($c[$r].default) // bv($c[$r].dark) // bv($c[$r].light) // $fb);
-		  (role("surface"; role("background"; "#121212"))) as $bg
-		| (role("on_surface"; role("on_background"; "#e6e6e6"))) as $fg
-		| (role("primary"; "#a8c7fa")) as $p
-		| (role("secondary"; "#7cacf8")) as $s
-		| (role("tertiary"; "#ffb4a9")) as $t
-		| (role("error"; "#ffb4ab")) as $e
-		| (role("outline"; "#8e918f")) as $o
-		| (role("on_primary_container"; $fg)) as $c15
-		| [$bg,$e,$p,$t,$s,$p,$t,$fg,$o,$e,$p,$t,$s,$p,$o,$c15]
-		| .[]'
+	# The daemon owns palette generation: ask it for exactly what Set will write
+	# (same scheme, mode and achromatic neutralisation) plus the tonal ramps and
+	# the L* map, as JSON, so the live preview and its cava specimen match the
+	# applied desktop instead of running a divergent second engine.
+	ryoku-shell matugen-preview "$img"
 	;;
 moewalls-search)
 	# Anime / aesthetic live wallpapers from moewalls.com. No API, but it runs
@@ -466,9 +456,11 @@ motionbgs-search)
 	mb="https://motionbgs.com"
 	if [ -n "$query" ]; then
 		q2="$(printf '%s' "$query" | tr '[:upper:] ' '[:lower:]-')"
-		path="/tag:$q2/"; [ "$page" -gt 1 ] && path="/tag:$q2/$page"
+		path="/tag:$q2/"; [ "$page" -gt 1 ] && path="/tag:$q2/$page/"
 	else
-		path="/"; [ "$page" -gt 1 ] && path="/$page"
+		# motionbgs paginates only via a trailing-slash path (/2/, /3/, ...); the
+		# slashless /2 404s (curl 22) and ?page= is ignored (silently page 1).
+		path="/"; [ "$page" -gt 1 ] && path="/$page/"
 	fi
 	html="$(curl -fsSL -A "$ua" -e "$mb/" "$mb$path")"
 	# posters look like /i/c/{WxH}/media/{id}/{name}[.{res}].jpg. Take the media id

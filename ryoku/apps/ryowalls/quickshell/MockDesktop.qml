@@ -36,8 +36,6 @@ Item {
     readonly property color cYellow: Wallhaven.col(3, "#d6a85f")
     readonly property color cBlue:   Wallhaven.col(4, "#5a7a9a")
     readonly property color cMag:    Wallhaven.col(5, "#9a6f8a")
-    readonly property color cCyan:   Wallhaven.col(6, "#6f9aa0")
-    readonly property color cAccent: cBlue
 
     FileView {
         id: shellCfg
@@ -246,21 +244,55 @@ Item {
         mock.levels = arr;
         mock.phase += 0.32;
     }
-    // each band is a colour swept across the candidate palette, exactly the
-    // shell's Palette.colorAt sweep. before an image is picked the palette is
-    // empty, so a mid-tone candidate ramp keeps the specimen legible.
-    function bandColor(t) {
-        var p = Wallhaven.palette;
-        if (p && p.length >= 8) {
-            var idx = Math.max(0, Math.min(p.length - 1, Math.round(t * (p.length - 1))));
-            return p[idx];
+    // The spectrum specimen, coloured exactly as the desktop visualiser will
+    // colour it on Set: each band is a tone off the previewed image's own
+    // primary / secondary ramp (never its error or tertiary), lit against the
+    // patch of picture behind that bar. Mirrors visualizer/Singletons/Scheme.qml
+    // + Ui.Ink, reading the daemon's tonal ramps and 8x8 L* map for THIS image.
+    readonly property var cavaRamps: ["secondary", "primary", "primary", "primary", "primary", "secondary"]
+
+    // One direction for the whole spectrum (mean L* of the picture's bottom
+    // band), so neighbouring bars never flip over a mid-tone picture.
+    readonly property real cavaFieldL: {
+        var g = Wallhaven.previewGrid, cols = Wallhaven.previewCols | 0, rows = Wallhaven.previewRows | 0;
+        if (!g || cols <= 0 || rows <= 0 || g.length < cols * rows)
+            return Wallhaven.previewLstar;
+        var sum = 0;
+        for (var x = 0; x < cols; x++)
+            sum += g[(rows - 1) * cols + x];
+        return sum / cols;
+    }
+    readonly property int cavaDir: mock.cavaFieldL >= 50 ? -1 : 1
+
+    // L* under the bar at normalised x (the map's bottom row); mid when absent.
+    function cavaLstar(t) {
+        var g = Wallhaven.previewGrid, cols = Wallhaven.previewCols | 0, rows = Wallhaven.previewRows | 0;
+        if (!g || cols <= 0 || rows <= 0 || g.length < cols * rows)
+            return mock.cavaFieldL;
+        var x = Math.max(0, Math.min(cols - 1, Math.floor(t * cols)));
+        return g[(rows - 1) * cols + x];
+    }
+    // Nearest published tone off a ramp, "" when no ramps were sent.
+    function cavaTone(ramp, tv) {
+        var r = Wallhaven.previewTones ? Wallhaven.previewTones[ramp] : null;
+        if (!r)
+            return "";
+        var best = "", bestD = Infinity;
+        for (var k in r) {
+            var d = Math.abs(Number(k) - tv);
+            if (d < bestD) { bestD = d; best = r[k]; }
         }
-        var stops = [mock.cAccent, mock.cCyan, mock.cMag];
-        var seg = t * (stops.length - 1);
-        var a = stops[Math.floor(seg)];
-        var b = stops[Math.min(stops.length - 1, Math.ceil(seg))];
-        var f = seg - Math.floor(seg);
-        return Qt.rgba(a.r + (b.r - a.r) * f, a.g + (b.g - a.g) * f, a.b + (b.b - a.b) * f, 1);
+        return best;
+    }
+    // Each band: primary across the middle, secondary at the edges, each held to
+    // where the ramp still carries chroma (30..88) and moved off the picture by
+    // the visualiser's 45 L* bar delta.
+    function bandColor(t) {
+        var bgL = mock.cavaLstar(t);
+        var tv = Math.max(30, Math.min(88, bgL + mock.cavaDir * 45));
+        var edge = Math.abs(t - 0.5) * 2;   // 0 centre, 1 edges
+        var h = mock.cavaTone(edge > 0.75 ? "secondary" : "primary", tv);
+        return h.length ? h : mock.cGreen;  // fallback: image primary (or default)
     }
     Component.onCompleted: retick()
     Timer { interval: 55; running: mock.visible; repeat: true; onTriggered: mock.retick() }

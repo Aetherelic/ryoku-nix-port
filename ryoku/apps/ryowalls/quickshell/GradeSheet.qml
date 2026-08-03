@@ -177,14 +177,15 @@ Item {
                 title: "MOTION"
                 visible: sheet.videoMode
                 Cell {
-                    width: motionSec.span(4)
+                    width: motionSec.span(12)
                     label: "Fit"
                     // one immediate-persist control on this lane, so it keeps a tag.
                     source: "ryowalls.json"
                     value: Wallhaven.settings.liveFit === "fit" ? "Fit" : "Fill"
                     def: "Fill"
                     desc: "Cover the screen, or letterbox the clip."
-                    controlWidth: Spans.inlineWidth("seg", 2, width)
+                    // pad the shared seg reservation so Fill|Fit stays one row.
+                    controlWidth: Spans.inlineWidth("seg", 2, width) + Tokens.s3
                     Seg {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.right: parent.right

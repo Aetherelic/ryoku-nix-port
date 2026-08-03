@@ -295,22 +295,36 @@ Rectangle {
         anchors.topMargin: Tokens.s4
         height: 40
 
-        Seg {
-            id: laneSeg
+        // editing is demoted from a co-equal lane tab: browsing is home, and you
+        // reach for editing on a pick. This left cluster only shows while editing
+        // -- a way back to the store and a switch between the two edit surfaces.
+        Row {
+            id: editNav
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            options: ["BROWSE", "GRADE", "PALETTE"]
-            current: app.lane.toUpperCase()
-            onChose: (k) => app.lane = k.toLowerCase()
+            spacing: Tokens.s3
+            visible: app.lane !== "browse"
+            Btn {
+                anchors.verticalCenter: parent.verticalCenter
+                compact: true
+                text: "‹ BROWSE"
+                onAct: app.lane = "browse"
+            }
+            Seg {
+                anchors.verticalCenter: parent.verticalCenter
+                options: ["ADJUST", "COLOUR"]
+                current: app.lane === "grade" ? "ADJUST" : "COLOUR"
+                onChose: (k) => app.lane = (k === "ADJUST" ? "grade" : "palette")
+            }
         }
 
         Field {
             id: search
-            anchors.left: laneSeg.right
-            anchors.leftMargin: Tokens.s3
+            anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: 260
+            width: 300
             toolbar: true
+            visible: app.lane === "browse"
             enabled: Wallhaven.source !== "live"
             opacity: Wallhaven.source === "live" ? 0.4 : 1
             placeholder: Wallhaven.source === "local" ? "Search saved wallpapers"
@@ -397,6 +411,21 @@ Rectangle {
                 text: "DELETE " + Wallhaven.localSelection.length
                 onAct: app.confirmOpen = true
             }
+            // a hairline divider, then the secondary way into editing: it needs a
+            // pick, since you grade the wallpaper you selected.
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Wallhaven.selected !== null
+                width: 1; height: 22
+                color: Tokens.line
+            }
+            Btn {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Wallhaven.selected !== null
+                compact: true
+                text: "ADJUST"
+                onAct: app.lane = "grade"
+            }
         }
     }
 
@@ -457,14 +486,6 @@ Rectangle {
             anchors.bottom: parent.bottom
             x: split.leftW + split.gutter
             width: split.rightW
-            clean: app.clean
-            desktopValid: app.desktop.valid
-            desktopName: app.desktop.name
-            desktopColours: app.desktop.colours
-            desktopImage: app.desktop.image
-            desktopFrame: app.desktop.frame
-            candImage: app.candSetPath()
-            isVideo: Wallhaven.selectedVideo
         }
     }
 

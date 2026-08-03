@@ -45,7 +45,7 @@ Item {
                 title: "SAMPLING"
                 visible: sheet.videoMode
                 Cell {
-                    width: sampleSec.span(6)
+                    width: sampleSec.span(12)
                     label: "Frame"
                     source: "ryowalls.json"
                     value: Wallhaven.settings.frame.toFixed(1) + "s"

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Ryowalls</title>
+  <rect width="64" height="64" fill="#cdc4ba"/>
+  <circle cx="49" cy="15" r="6" fill="#e2342a"/>
+  <path d="M10 20h44M14 26h36M19 28v27M45 28v27M14 40h36M28 26v14" fill="none" stroke="#000000" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+</svg>

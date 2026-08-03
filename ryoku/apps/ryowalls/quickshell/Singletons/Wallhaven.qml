@@ -21,6 +21,11 @@ Singleton {
     // ---- selection + live preview palette -----------------------------------
     property var selected: null
     property var palette: []            // 16 palette colours for the picked image
+    property var previewTones: null     // matugen tonal ramps for the picked image
+    property var previewGrid: null      // its 8x8 L* map, for the cava specimen
+    property int previewCols
+    property int previewRows
+    property real previewLstar: 50
     property bool paletteLoading
 
     // ---- apply --------------------------------------------------------------
@@ -458,7 +463,7 @@ Singleton {
     // extract the palette from a specific image (the thumb, or the graded
     // preview when an adjustment is live) without touching the running desktop.
     function _previewFrom(src) {
-        palette = [];
+        palette = []; previewTones = null; previewGrid = null;
         if (!src || ("" + src).length === 0) { paletteLoading = false; return; }
         paletteLoading = true;
         palProc.running = false;
@@ -600,11 +605,37 @@ Singleton {
         id: palProc
         stdout: StdioCollector {
             onStreamFinished: {
-                root.palette = text.trim().split("\n").filter(l => l.trim().length > 0);
+                // The daemon prints exactly what Set would write: base16 + the
+                // Material roles, the tonal ramps, and the 8x8 L* map. Reshape the
+                // base16 keys into the flat 16-slot array col() indexes.
+                try {
+                    const j = JSON.parse(text);
+                    const c = j.colors || {};
+                    const arr = [];
+                    for (let i = 0; i < 16; i++)
+                        arr.push(c["color" + i] || "");
+                    root.palette = arr;
+                    root.previewTones = j.tones || null;
+                    root.previewGrid = j.grid || null;
+                    root.previewCols = j.cols || 0;
+                    root.previewRows = j.rows || 0;
+                    root.previewLstar = (typeof j.lstar === "number") ? j.lstar : 50;
+                } catch (e) {
+                    root.palette = [];
+                    root.previewTones = null;
+                    root.previewGrid = null;
+                }
                 root.paletteLoading = false;
             }
         }
-        onExited: code => { if (code !== 0) { root.palette = []; root.paletteLoading = false; } }
+        onExited: code => {
+            if (code !== 0) {
+                root.palette = [];
+                root.previewTones = null;
+                root.previewGrid = null;
+                root.paletteLoading = false;
+            }
+        }
     }
 
     Process {
