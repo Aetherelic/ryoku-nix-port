@@ -60,7 +60,7 @@ ClippingRectangle {
 
     Rectangle {
         anchors.fill: parent
-        radius: parent.radius
+        radius: root.radius
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b,
             root.hovered ? 0.46 : 0.38)
         gradient: Gradient {
