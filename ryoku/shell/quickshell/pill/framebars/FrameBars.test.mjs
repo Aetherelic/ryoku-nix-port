@@ -1,8 +1,9 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { defaultConfig, normalize, addWidget, moveWidget, removeWidget, setMenu, setSurface } = require("../../../framebars/FrameBars.js");
+const { defaultConfig: frameBarDefaults, normalize, addWidget, moveWidget, removeWidget, setMenu, setSurface } = require("../../../framebars/FrameBars.js");
 const BarCatalog = require("../../../framebars/BarCatalog.js");
 const MenuCatalog = require("../../../framebars/MenuCatalog.js");
+function defaultConfig() { return frameBarDefaults(MenuCatalog); }
 
 let failed = 0;
 function eq(actual, expected, msg) {
@@ -27,6 +28,8 @@ eq(reference.rails.bottom.end, [], "bottom end list defaults empty");
 for (const id of ["quick-settings", "theme", "weather"]) {
     eq(reference.menus[id].widgets, [id], `default ${id} menu is configured`);
 }
+eq(reference.menus["quick-settings"].modules, ["home", "notifications", "weather"], "quick settings defaults to the current three visible modules");
+eq(reference.surfaces.system, undefined, "the legacy system sidebar is absent from the default schema");
 eq(reference.menus["app-launcher"], undefined, "the app launcher is Ryoku's own surface, not a frame menu");
 eq([reference.menus["quick-settings"].anchor, reference.menus.screenshare.anchor], ["left", "left"], "the reference left menus anchor left");
 eq([reference.menus.wallpaper.anchor, reference.menus.wallpaper.minWidth], ["bottom", 1400], "wallpaper anchors bottom-centre at 1400 wide");
@@ -47,7 +50,7 @@ const normalized = normalize({
         top: { size: 2, start: ["tray", "tray", "dock", "bad"], center: "clock", unknown: true },
         left: { enabled: "no", size: 900, top: ["clock", "clock", "bad"], center: ["dock"], bottom: 5 }
     },
-    menus: { "quick-settings": { anchor: "wrong", minWidth: 1, expansion: "sometimes", widgets: ["clock", "bad"] } },
+    menus: { "quick-settings": { anchor: "wrong", minWidth: 1, expansion: "sometimes", widgets: ["clock", "bad"], modules: ["media", "bad", "media", "home"] } },
     surfaces: { stash: { anchor: "bad", minWidth: 9999, panes: ["stash", "bad"] } },
     dock: { pinned: ["firefox", 4] },
     arbitrary: true
@@ -59,6 +62,8 @@ eq(normalized.rails.left.top, ["clock"], "normalizer drops duplicate and unknown
 eq(normalized.rails.left.bottom, defaultConfig().rails.left.bottom, "normalizer restores a malformed zone to its default");
 eq(normalized.menus["quick-settings"].anchor, "left", "normalizer restores invalid menu anchor");
 eq(normalized.menus["quick-settings"].widgets, ["quick-settings"], "normalize pins quick-settings to its fixed cohesive stack");
+eq(normalized.menus["quick-settings"].modules, ["media", "home"], "normalize keeps known quick-settings modules in requested order and drops duplicates");
+eq(normalized.surfaces.system, undefined, "normalize never restores the retired system sidebar");
 const renamed = normalize({ menus: { launcher: { anchor: "right", minWidth: 999 }, "app-launcher": { anchor: "right", minWidth: 999 } } }, BarCatalog, MenuCatalog);
 eq(renamed.menus.launcher, undefined, "normalize drops the retired launcher menu id from a stale config");
 eq(renamed.menus["app-launcher"], undefined, "normalize drops the retired app-launcher menu id from a stale config");

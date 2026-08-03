@@ -19,16 +19,22 @@ const widgets = {
     "layout-switcher": { id: "layout-switcher", nested: false },
     "quick-actions": { id: "quick-actions", nested: false }
 };
+const quickSettingsModules = {
+    "home": { id: "home", label: "Home", icon: "space_dashboard", source: "QuickSettingsHome.qml" },
+    "notifications": { id: "notifications", label: "Notifications", icon: "notifications", source: "QuickSettingsNotifications.qml" },
+    "weather": { id: "weather", label: "Weather", icon: "partly_cloudy_day", source: "QuickSettingsWeather.qml" },
+    "media": { id: "media", label: "Media", icon: "music_note", source: "QuickSettingsMedia.qml" }
+};
+const quickSettingsDefaults = ["home", "notifications", "weather"];
 const menus = {
-    "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
+    "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"], modules: quickSettingsDefaults },
     wallpaper: { id: "wallpaper", anchor: "bottom", minWidth: 1400, expansion: "always", widgets: ["theme", "wallpaper"] },
     screenshare: { id: "screenshare", anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
     theme: { id: "theme", anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
     weather: { id: "weather", anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
 };
 const surfaces = {
-    "stash": { id: "stash", anchor: "left", minWidth: 340, panes: ["stash"] },
-    "system": { id: "system", anchor: "right", minWidth: 340, panes: ["notifications", "calendar", "media", "weather", "recording"] }
+    "stash": { id: "stash", anchor: "right", minWidth: 340, panes: ["stash"] },
 };
 const actions = {
     "lock": { id: "lock", action: "lock" }, "logout": { id: "logout", action: "logout" },
@@ -49,5 +55,11 @@ function menu(id) { return menus[id] || null; }
 function surface(id) { return surfaces[id] || null; }
 function quickAction(id) { return actions[id] || null; }
 function quickActionIds() { return Object.keys(actions); }
+function quickSettingsModuleIds() { return Object.keys(quickSettingsModules); }
+function quickSettingsModule(id) { return quickSettingsModules[id] || null; }
+function defaultQuickSettingsModules() { return quickSettingsDefaults.slice(); }
 
-if (typeof module !== "undefined" && module.exports) module.exports = { anchors, widgetIds, widget, menu, surface, quickAction, quickActionIds };
+if (typeof module !== "undefined" && module.exports) module.exports = {
+    anchors, widgetIds, widget, menu, surface, quickAction, quickActionIds,
+    quickSettingsModuleIds, quickSettingsModule, defaultQuickSettingsModules
+};

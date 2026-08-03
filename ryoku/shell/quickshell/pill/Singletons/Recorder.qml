@@ -7,14 +7,14 @@ import Quickshell.Io
 // (gpu-screen-recorder, falling back to wf-recorder on multi-GPU machines) and
 // reconciles against the live process, so a failed launch or an external stop
 // can't strand the UI. pause is optimistic, gsr only (wf-recorder can't pause).
-// the strip chip + the utilities Record card share this one source of truth.
+// the Super+S capture card and floating record island share this source of truth.
 Singleton {
     id: root
 
     property bool active: false
     property bool paused: false
-    // the sidebar Record button opens the floating island in its pre-record
-    // chooser, where the capture toggles and the Quick / Studio / Edit actions live.
+    // The capture card opens the floating island in its pre-record chooser,
+    // where the Quick / Studio / Edit actions live.
     property bool chooserOpen: false
     // studio capture records with gpu-screen-recorder (below) and hands the clip
     // to the ryomotion editor; our island is the toolbar and drives start/stop.

@@ -9,8 +9,8 @@ import "../lib/weather.js" as Model
 // in ryoku-shell (weather.go), so QML makes no HTTP call: `subscribe weather`
 // streams a full frame on every change, and location/unit intent rides back over
 // a second connection. The daemon ships every display string ready to bind; this
-// singleton just parses the frame and re-exposes it, deriving the legacy base
-// glyph and short label for the sidebar consumers from the current WMO code.
+// singleton just parses the frame and re-exposes it, deriving the compact glyph
+// and short label for the quick-settings and calendar views from the WMO code.
 Singleton {
     id: root
 
@@ -30,8 +30,8 @@ Singleton {
     readonly property var air: frame.air || null
     readonly property string updatedAt: frame.updatedAt || ""
 
-    // Legacy contract kept for the sidebar/calendar popouts, derived from the
-    // frame so those surfaces render unchanged.
+    // Compact contract for the quick-settings and calendar views, derived from
+    // the full weather frame.
     readonly property bool available: root.status === "loaded" && root.current !== null
     readonly property string temp: root.current ? root.current.temperature : ""
     readonly property int tempNow: root.current ? root.current.temp : 0

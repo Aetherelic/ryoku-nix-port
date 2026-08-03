@@ -11,6 +11,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import "Singletons"
 import "clock"
+import Ryoku.PluginKit
 
 // desktop widgets layer: WlrLayer.Bottom (below windows), one per monitor,
 // carrying the clock. only clicks on bare wallpaper land here,

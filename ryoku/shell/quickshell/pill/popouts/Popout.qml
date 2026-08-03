@@ -32,10 +32,6 @@ Item {
     // When non-negative, centre the body at this coordinate along the edge;
     // negative values fall back to `align`.
     property real alongCenter: -1
-    // When >= 0, replace the frame-lip inset with this exact value. The frame
-    // menus set 0 so a menu abuts its bar band precisely (contract 05 sec 7),
-    // instead of the Ryoku popout's decorative corner inset.
-    property real edgeInsetOverride: -1
     property real openW: 220
     property real openH: 200
     // Perpendicular gap from the growing edge to the body, so a surface can
@@ -137,7 +133,7 @@ Item {
     // corner. the wall is the on-screen frame lip (frameBorder - 50, the same
     // the frame border and barVisibleH use), NOT the bar's full thickness --
     // using frameThickness held a corner popout a whole band's width off.
-    readonly property real edgeInset: root.edgeInsetOverride >= 0 ? root.edgeInsetOverride : 12 * s
+    readonly property real edgeInset: 12 * s
     function alignPos(span, sz) {
         if (effectiveAlong >= 0)
             return Math.max(edgeInset, Math.min(span - sz - edgeInset, effectiveAlong - sz / 2));
@@ -253,7 +249,7 @@ Item {
     readonly property real burial: (1 - Math.max(0, Math.min(1, prog))) * smoothing
 
     // These surfaces never grow a welding neck into the border and never fuse
-    // edge-first; they scale from their trigger point (curW/curH above).
+    // edge-first; they scale from their trigger point.
     readonly property bool noWeld: true
 
     BlobRect {
@@ -264,13 +260,8 @@ Item {
         readonly property real hugNeckL: (root.hugLeft && !root.noWeld) ? reach : 0
         readonly property real hugNeckR: (root.hugRight && !root.noWeld) ? reach : 0
         group: root.group
-        // a closed popout (prog 0) still sits in the shared blob field at its
-        // resting origin, and even at zero implicit size it pulls a smooth-min
-        // nub onto whatever popout is open at the same centre -- every popout
-        // shares `alongCenter`, so they stack at one point. that nub is invisible
-        // on transparent popout content (the blob IS the surface there) but reads
-        // as a dark bump on an opaque one (the power panel's wallpaper hero). so
-        // drop the body from the field until it actually opens, matching bodyClip.
+        // A closed zero-size popout can still pull a smooth-min nub into another
+        // shape at the same trigger, so remove it from the field until it opens.
         visible: root.prog > 0.004
         // noWeld has no frame band to weld into (frame off, or a free-floating
         // islands), so it grows no neck -- but it stays a blob and still buries its

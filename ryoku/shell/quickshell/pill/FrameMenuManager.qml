@@ -68,7 +68,6 @@ Item {
         // stash is the floating Features page (non-span); other surfaces stay full-span.
         for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: id !== "stash" }, src[id]));
         out.push(
-            { id: "power", kind: "power", anchor: "top", minWidth: 480 },
             { id: "voice", kind: "voice", anchor: "bottom", minWidth: 380 },
             { id: "keyring", kind: "keyring", anchor: "top", minWidth: 420 },
             // polkit asks for an administrator password: same island as the
@@ -103,9 +102,6 @@ Item {
         return root.topBar ? all.map(r => Object.assign({}, r, { anchor: root.mapAnchor(r.anchor) })) : all;
     }
     property string stashPane: ""
-    property string systemPane: ""
-    property real sidebarTopInset: 0
-    property real sidebarBottomInset: 0
 
     // { [monitor]: { [anchor]: record } }, driven by the pure MenuState model.
     property var menuState: ({})
@@ -118,15 +114,13 @@ Item {
         for (const a in mon) if (mon[a]) return true;
         return false;
     }
-    // A Ryoku surface (sidebar, power, keyring, plugin) is open. These keep
-    // Ryoku's outside-click dismissal and take keyboard; the reference frame
-    // menus deliberately do not (contract 05 sec 4). The passive voice toast is
-    // never modal.
+    // Ryoku-owned credential, stash, and plugin surfaces keep outside-click
+    // dismissal and keyboard focus. Pointer-only cards and voice stay passive.
     readonly property bool surfaceModal: {
         const mon = menuState[monitorName];
         if (!mon) return false;
         for (const anchor in mon)
-            if (mon[anchor] && mon[anchor].kind && mon[anchor].kind !== "menu" && mon[anchor].id !== "voice" && mon[anchor].id !== "music" && mon[anchor].id !== "bluetooth" && mon[anchor].id !== "battery" && mon[anchor].id !== "network" && mon[anchor].id !== "sysmon" && mon[anchor].id !== "audio" && mon[anchor].id !== "screenshot") return true;
+            if (mon[anchor] && mon[anchor].kind && mon[anchor].kind !== "menu" && mon[anchor].id !== "quick-settings" && mon[anchor].id !== "voice" && mon[anchor].id !== "music" && mon[anchor].id !== "bluetooth" && mon[anchor].id !== "battery" && mon[anchor].id !== "network" && mon[anchor].id !== "sysmon" && mon[anchor].id !== "audio" && mon[anchor].id !== "screenshot") return true;
         return false;
     }
     // Keyboard focus the frame raises while something is open (contract 05 sec
@@ -142,14 +136,13 @@ Item {
             if (rec.id === "screenshare") return "exclusive";
             if (rec.id === "wallpaper") return "ondemand";
             if (rec.id === "network") return "ondemand";
-            if (rec.kind && rec.kind !== "menu" && rec.id !== "voice" && rec.id !== "music" && rec.id !== "bluetooth" && rec.id !== "battery" && rec.id !== "network" && rec.id !== "sysmon" && rec.id !== "audio" && rec.id !== "screenshot") return "exclusive";
+            if (rec.kind && rec.kind !== "menu" && rec.id !== "quick-settings" && rec.id !== "voice" && rec.id !== "music" && rec.id !== "bluetooth" && rec.id !== "battery" && rec.id !== "network" && rec.id !== "sysmon" && rec.id !== "audio" && rec.id !== "screenshot") return "exclusive";
         }
         return "none";
     }
 
     // The single reference menu (kind "menu") open on this monitor, or null.
-    // Ryoku-own surfaces (power/voice/keyring/stash/system) and plugins keep
-    // their own blob popouts and never feed the chrome band.
+    // Ryoku-owned credential, stash, voice, and plugin surfaces remain popouts.
     readonly property var activeMenu: {
         const mon = menuState[monitorName];
         if (!mon) return null;
@@ -164,34 +157,113 @@ Item {
     property var chromeRest: ({ x: 0, y: 0, w: 0, h: 0 })
     property string chromeAnchor: ""
     property bool chromeSide: true
-    // 0 closed .. 1 open. Side menus slide 250 ms ease-out-cubic, edge/corner
-    // menus scale 200 ms ease-in-out-quad; a Behavior retarget reverses (slide)
-    // or restarts (scale) from the current value on interrupt (contract 05 sec 5).
+    property string chromeOwner: ""
+    property var pendingChrome: ({})
+    property string waitingChromeId: ""
+    readonly property bool chromeSwitchPending: !!(root.pendingChrome && root.pendingChrome.id)
+    Timer {
+        id: chromeSwitchTimer
+        interval: root.chromeSide ? Motion.sidebarExit : Motion.diagonal
+        onTriggered: {
+            const next = root.pendingChrome;
+            root.pendingChrome = ({});
+            if (!next || !next.id || !root.activeMenu || root.activeMenu.id !== next.id)
+                return;
+            root.applyChromeSource(next);
+        }
+    }
+    // 0 closed .. 1 open. Full-height sidebars follow iNiR's window-local
+    // slide: their already-sized panel translates from beyond the screen edge,
+    // entering over 400 ms and leaving over 200 ms. Compact menus retain the
+    // frame's edge/corner scale.
     property real chromeReveal: 0
+    readonly property bool anyVisible: root.anyOpen || root.chromeReveal > 0
+    readonly property bool chromeEntering: !!root.activeMenu
+        && !root.chromeSwitchPending && root.waitingChromeId === ""
     Behavior on chromeReveal {
         NumberAnimation {
-            duration: root.chromeSide ? Motion.menuSlide : Motion.diagonal
-            easing.type: root.chromeSide ? Motion.menuSlideCurve : Motion.diagonalCurve
+            duration: root.chromeSide
+                ? (root.chromeEntering ? Motion.sidebarEnter : Motion.sidebarExit)
+                : Motion.diagonal
+            easing.type: root.chromeSide ? Easing.BezierSpline : Motion.diagonalCurve
+            easing.bezierCurve: root.chromeEntering
+                ? Motion.sidebarEnterCurve : Motion.sidebarExitCurve
+        }
+    }
+    property real chromeOpacity: 0
+    Behavior on chromeOpacity {
+        NumberAnimation {
+            duration: !root.chromeSide ? 0
+                : Math.round((root.chromeEntering ? Motion.sidebarEnter : Motion.sidebarExit) * 0.7)
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.chromeEntering
+                ? Motion.sidebarFadeInCurve : Motion.sidebarFadeOutCurve
         }
     }
 
-    // FrameMenu calls this while its menu is open: it latches the band source
-    // and drives the reveal to 1 with the current edge's curve. A same-region
-    // swap pushes an identical rect so the band does not blink; a fresh open
-    // animates in from the band. On close (activeMenu -> null) the reveal falls
-    // to 0 along the held edge.
-    function setChromeSource(anchor, x, y, w, h, isSide) {
-        root.chromeAnchor = anchor;
-        root.chromeRest = { x: x, y: y, w: w, h: h };
-        root.chromeSide = isSide;
-        root.chromeReveal = 1;
+    function applyChromeSource(source) {
+        root.chromeOwner = source.id;
+        root.chromeAnchor = source.anchor;
+        root.chromeRest = { x: source.x, y: source.y, w: source.w, h: source.h };
+        root.chromeSide = source.side;
+        root.chromeReveal = root.chromeOpacity = 1;
     }
-    onActiveMenuChanged: if (!root.activeMenu) root.chromeReveal = 0;
+    // A retained body may still be incubating when it replaces a menu on
+    // another edge. Retract the outgoing panel now, but do not expose an empty
+    // incoming panel; body readiness will call setChromeSource with its rect.
+    function prepareChromeSource(id, anchor) {
+        if (root.chromeOwner === "" || root.chromeOwner === id || root.chromeAnchor === anchor)
+            return;
+        chromeSwitchTimer.stop();
+        root.pendingChrome = ({});
+        root.waitingChromeId = id;
+        root.chromeReveal = root.chromeOpacity = 0;
+    }
+    function setChromeSource(id, anchor, x, y, w, h, isSide) {
+        const source = { id: id, anchor: anchor, x: x, y: y, w: w, h: h, side: isSide };
+        if (root.waitingChromeId !== "" && root.waitingChromeId !== id)
+            root.waitingChromeId = "";
+        if (root.waitingChromeId === id && root.chromeReveal > 0.004) {
+            root.pendingChrome = source;
+            root.waitingChromeId = "";
+            root.chromeReveal = root.chromeOpacity = 0;
+            chromeSwitchTimer.restart();
+            return;
+        }
+        if (root.waitingChromeId === id)
+            root.waitingChromeId = "";
+        if (root.chromeOwner === ""
+                || (root.chromeOwner === id && root.chromeAnchor === anchor)
+                || root.chromeAnchor === anchor || root.chromeReveal <= 0.004) {
+            chromeSwitchTimer.stop();
+            root.pendingChrome = ({});
+            root.applyChromeSource(source);
+            return;
+        }
+        if (root.chromeSwitchPending && root.pendingChrome.id === id) {
+            root.pendingChrome = source;
+            return;
+        }
+        root.pendingChrome = source;
+        root.chromeReveal = root.chromeOpacity = 0;
+        chromeSwitchTimer.restart();
+    }
+    onActiveMenuChanged: {
+        if (!root.activeMenu) {
+            chromeSwitchTimer.stop();
+            root.pendingChrome = ({});
+            root.waitingChromeId = "";
+            root.chromeReveal = root.chromeOpacity = 0;
+        } else if (root.waitingChromeId !== ""
+                && root.waitingChromeId !== root.activeMenu.id) {
+            root.waitingChromeId = "";
+        }
+    }
 
-    // The animated band rect + anchor FrameChrome carves out of the desktop
-    // hole and each menu body clips into. Interpolated from the latched rest
-    // rect by the reveal: side menus slide their inner edge inward; edge and
-    // corner menus scale from the anchor origin.
+    // The panel rect shared by the shell chrome and clipped menu body. A
+    // full-height sidebar keeps its resting size and translates as one unit,
+    // so its QML subtree never relayouts during the animation. Compact edge and
+    // corner menus still scale from their anchor origin.
     readonly property var chromePanel: {
         const r = root.chromeRest;
         const p = root.chromeReveal;
@@ -201,6 +273,10 @@ Item {
         const cx = r.x + r.w / 2;
         const wp = r.w * p;
         const hp = r.h * p;
+        if (root.chromeSide && (a === "left" || a.indexOf("-left") >= 0))
+            return { anchor: a, x: r.x - (r.x + r.w) * (1 - p), y: r.y, w: r.w, h: r.h };
+        if (root.chromeSide && (a === "right" || a.indexOf("-right") >= 0))
+            return { anchor: a, x: r.x + (root.width - r.x) * (1 - p), y: r.y, w: r.w, h: r.h };
         if (a === "left")         return { anchor: a, x: r.x,         y: r.y,     w: wp, h: r.h };
         if (a === "right")        return { anchor: a, x: rr - wp,     y: r.y,     w: wp, h: r.h };
         if (a === "top")          return { anchor: a, x: cx - wp / 2, y: r.y,     w: wp, h: hp };
@@ -383,7 +459,12 @@ Item {
         const horiz = anchor.indexOf("top") === 0 || anchor.indexOf("bottom") === 0;
         const along = horiz ? cx : cy;
         const trigger = { x: local.x, y: local.y, width: ownerRect.width, height: ownerRect.height };
-        const base = daemonOwned ? root.menuState : root.closeOtherUsers(root.menuState, surfaceID);
+        let base = daemonOwned ? root.menuState : root.closeOtherUsers(root.menuState, surfaceID);
+        const occupied = MenuState.activeAt(base, root.monitorName, anchor);
+        if (occupied && occupied.id !== surfaceID) {
+            root.surfaceClosed(occupied.id, occupied);
+            base = MenuState.closeAt(base, root.monitorName, anchor);
+        }
         root.menuState = MenuState.open(base, root.monitorName,
             Object.assign({}, rec, { id: surfaceID, anchor: anchor, along: along, trigger: trigger,
                 off: voiceOff, page: page, promptId: surfaceID === "keyring" && context ? context.promptId : undefined }));

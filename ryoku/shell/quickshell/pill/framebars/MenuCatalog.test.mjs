@@ -20,7 +20,12 @@ const requiredMenuWidgets = [
 eq(MenuCatalog.widgetIds().sort(), requiredMenuWidgets.sort(), "all approved menu widgets are catalogued");
 eq(MenuCatalog.anchors().sort(), ["bottom", "bottom-left", "bottom-right", "left", "right", "top", "top-left", "top-right"].sort(), "all frame anchors exist");
 ok(MenuCatalog.surface("stash").panes.includes("stash"), "stash is a registered frame surface");
+eq(MenuCatalog.surface("stash").anchor, "right", "stash uses the shipped right-edge anchor");
 ok(MenuCatalog.menu("quick-settings").widgets.includes("quick-settings"), "quick settings is one cohesive stack widget");
+eq(MenuCatalog.surface("system"), null, "the legacy system sidebar is retired");
+eq(MenuCatalog.quickSettingsModuleIds(), ["home", "notifications", "weather", "media"], "quick settings exposes the registered module ids");
+eq(MenuCatalog.defaultQuickSettingsModules(), ["home", "notifications", "weather"], "quick settings preserves the current visible module set by default");
+eq(MenuCatalog.quickSettingsModule("media").label, "Media", "the relocated media module is registered for future configuration");
 eq(MenuCatalog.menu("clock"), null, "the clock menu is retired; the clock widget opens quick settings");
 eq(MenuCatalog.menu("notifications"), null, "the notifications menu is retired; the bell opens the quick-settings notifications page");
 eq(MenuCatalog.menu("clipboard"), null, "the clipboard menu is retired; the clipboard button opens the quick-settings clipboard page");

@@ -23,7 +23,7 @@ Item {
     readonly property var entries: root.open ? Clipboard.entries : []
 
     implicitWidth: 410 * s
-    implicitHeight: col.implicitHeight
+    implicitHeight: 560 * s
 
     // Reference format_size: "{n} B" below 1 KiB, "{:.1} KB" below 1 MiB, else
     // "{:.1} MB" (contract 07 sec 2.2).
@@ -82,8 +82,21 @@ Item {
             font.pixelSize: Theme.fontMd
         }
 
-        Repeater {
-            model: root.entries
+    }
+
+    ListView {
+        id: clipboardList
+        anchors.top: col.bottom
+        anchors.topMargin: 12 * root.s
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        clip: true
+        spacing: 10 * root.s
+        model: root.entries
+        reuseItems: true
+        cacheBuffer: Math.max(0, height)
+        boundsBehavior: Flickable.StopAtBounds
 
             delegate: Rectangle {
                 id: entry
@@ -92,7 +105,7 @@ Item {
                 readonly property string kind: entry.modelData.kind
                 readonly property int entryId: entry.modelData.id
 
-                width: col.width
+                width: clipboardList.width
                 radius: Theme.radiusWidget
                 border.width: Theme.borderWidth
                 border.color: Theme.outline
@@ -216,5 +229,4 @@ Item {
                 }
             }
         }
-    }
 }

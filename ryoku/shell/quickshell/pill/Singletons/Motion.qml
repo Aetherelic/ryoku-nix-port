@@ -50,6 +50,16 @@ Singleton {
     // reverse from current.
     readonly property int menuSlide: root.dur(250)
     readonly property int menuSlideCurve: Easing.OutCubic
+    // Full-height sidebar entrance/exit. This follows iNiR's default slide:
+    // translate the already-sized panel, with a slower emphasized settle in
+    // and a short emphasized acceleration out. The panel never relayouts while
+    // moving.
+    readonly property int sidebarEnter: root.dur(400)
+    readonly property int sidebarExit: root.dur(200)
+    readonly property var sidebarEnterCurve: [0.05, 0.7, 0.1, 1, 1, 1]
+    readonly property var sidebarExitCurve: [0.3, 0, 0.8, 0.15, 1, 1]
+    readonly property var sidebarFadeInCurve: [0, 0, 0, 1, 1, 1]
+    readonly property var sidebarFadeOutCurve: [0.3, 0, 1, 1, 1, 1]
 
     // Sidebar page push: the one continuous navigation move, 420 ms on a long
     // OutQuint settle so the incoming page glides in and eases to rest, never
@@ -116,9 +126,8 @@ Singleton {
     // slide.
     readonly property int startupReveal: 1000
 
-    // Pending Ryoku vocabulary: still consumed by surfaces this wave does not
-    // touch (Popout, Deck*, Stash*, KeyringSurface, WaveMeter, SidebarSystem).
-    // Retained until those surfaces are translated; tracked in the slice report.
+    // Retained transitional timings for remaining Popout, Deck, Stash,
+    // KeyringSurface, and WaveMeter consumers.
     readonly property int fast:     root.dur(140)
     readonly property int standard: root.dur(300)
     readonly property int morph:    root.dur(420)

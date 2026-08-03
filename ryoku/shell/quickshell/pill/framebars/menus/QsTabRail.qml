@@ -3,25 +3,17 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import "../.." as Pill
+import Ryoku.FrameBars
 import "../../Singletons"
 
-// Left icon tab rail for the quick-settings panel. 44px wide, full height.
-// Three tabs: Home, Notifications (+ badge), Weather.
-// Bottom: Settings (Hub) and Colour picker moved from the old footer.
-//
-// ACTIVE TAB: solid Theme.primary disc + Theme.onPrimary icon + sumi edge.
-// INACTIVE: onSurfaceVariant icon, no disc. HOVER: wash. PRESS: scale dip.
-// QsTip: side: true => bubble opens RIGHT (inside panel body, never clips).
-//
-// NO rail background strip — the rail sits directly on the panel surface;
-// only the right-edge sumi hairline separates it from the content pane.
-// Raise z:10 in MenuQuickSettings so the QsTip bubble (z:1000 inside rail)
-// renders above all tab sheets.
+// Icon rail for the configured quick-settings modules. Module metadata comes
+// from the shared frame catalog, so the rail and loader cannot drift.
 Item {
     id: root
 
-    property int activeTab: 0
-    signal tabActivated(int index)
+    property var modules: []
+    property string activeModule: ""
+    signal moduleActivated(string moduleId)
     signal requestClose()
 
     readonly property int notifCount: Notifs.history.length
@@ -35,27 +27,25 @@ Item {
         color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.20)
     }
 
-    // ---- top three tabs -----------------------------------------------------
     Column {
-        anchors.top: parent.top; anchors.topMargin: 10
+        anchors.top: parent.top
+        anchors.topMargin: 10
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 6
 
-        RailTab {
-            tabIdx: 0; icon: "space_dashboard"; tipText: qsTr("Home")
-            active: root.activeTab === 0
-            onActivated: root.tabActivated(0)
-        }
-        RailTab {
-            tabIdx: 1; icon: "notifications"; tipText: qsTr("Notifications")
-            active: root.activeTab === 1
-            badge: root.notifCount
-            onActivated: root.tabActivated(1)
-        }
-        RailTab {
-            tabIdx: 2; icon: "partly_cloudy_day"; tipText: qsTr("Weather")
-            active: root.activeTab === 2
-            onActivated: root.tabActivated(2)
+        Repeater {
+            model: root.modules
+
+            delegate: RailTab {
+                required property string modelData
+                readonly property var metadata: MenuCatalog.quickSettingsModule(modelData)
+
+                icon: metadata ? metadata.icon : ""
+                tipText: metadata ? qsTr(metadata.label) : ""
+                active: root.activeModule === modelData
+                badge: modelData === "notifications" ? root.notifCount : 0
+                onActivated: root.moduleActivated(modelData)
+            }
         }
     }
 
@@ -93,7 +83,7 @@ Item {
     // Disc = filled circle in Theme.primary. Icon = Theme.onPrimary when active.
     component RailTab: Item {
         id: rt
-        property int tabIdx: 0
+        property string moduleId: ""
         property string icon: ""
         property string tipText: ""
         property bool active: false

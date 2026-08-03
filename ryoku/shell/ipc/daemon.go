@@ -76,9 +76,6 @@ func componentDisabled(name string) bool {
 	return parseDisabledComponents(b)[name]
 }
 
-// pillSurfaces are compatibility commands routed through the manager scene.
-var pillSurfaces = map[string]string{"power": "power"}
-
 type daemon struct {
 	mu             sync.Mutex
 	sup            map[string]bool      // components that already have a supervisor goroutine
@@ -122,11 +119,11 @@ func runDaemon() error {
 		// incumbent left from a previous Hyprland instance, whose
 		// HYPRLAND_INSTANCE_SIGNATURE differs from this session's. A stale
 		// daemon supervises its quickshell children against the dead compositor
-		// socket, so workspaces freeze and every monitor-aware command (power,
-		// launcher, ...) fails; the fresh login-time daemon must displace it and
-		// rebind the shell to the live session. A same-session incumbent, an
-		// older one that cannot report its signature, or our own missing
-		// signature are left alone, so a genuine double-start still refuses.
+		// socket, so workspaces freeze and monitor-aware commands fail; the fresh
+		// login-time daemon must displace it and rebind to the live session.
+		// A same-session incumbent, an older one that cannot report its
+		// signature, or our own missing signature are left alone, so a genuine
+		// double-start still refuses.
 		mySig := os.Getenv("HYPRLAND_INSTANCE_SIGNATURE")
 		incSig, ok := daemonSignature(path)
 		if !shouldTakeOver(mySig, incSig, ok) {
@@ -601,6 +598,11 @@ func (d *daemon) handle(conn net.Conn) {
 	fmt.Fprintln(conn, d.dispatch(cmd))
 }
 
+var surfaceCommands = map[string]string{
+	"menu screenshot": "screenshot",
+	"menu stash":      "stash",
+}
+
 // route resolves an IPC-style command to the Quickshell config, IpcHandler target,
 // and function it triggers. ok is false for commands that need more than one IPC
 // call (wallpaper, reload, status, ...).
@@ -611,7 +613,7 @@ func route(cmd string) (config, target, fn string, ok bool) {
 		// launcher verb, so there is a single launcher reached one way.
 		return "launcher", "launcher", "toggle", true
 	}
-	if _, p := pillSurfaces[cmd]; p {
+	if _, ok := surfaceCommands[cmd]; ok {
 		return "pill", "pill", "openSurface", true
 	}
 	if _, ok := menuID(cmd); ok {
@@ -654,13 +656,12 @@ func (d *daemon) dispatch(line string) string {
 	routeCmd := cmd
 	switch cmd {
 	case "menu":
-		// menu close clears every open menu; menu <id> toggles one. app-launcher
-		// is Ryoku's own launcher surface (Super+Space), not a frame menu, so it
-		// is accepted here and routed to the one launcher verb (see route).
+		// menu close clears every open menu. App launcher and dedicated frame
+		// surfaces keep their established menu commands.
 		switch {
 		case len(args) == 1 && args[0] == "close":
 			return d.menuClose()
-		case len(args) == 1 && args[0] == "app-launcher":
+		case len(args) == 1 && (args[0] == "app-launcher" || args[0] == "screenshot" || args[0] == "stash"):
 			routeCmd = line
 		default:
 			if _, ok := menuID(line); !ok {
@@ -692,9 +693,9 @@ func (d *daemon) dispatch(line string) string {
 		mon := d.activeMonitor()
 		if config == "pill" {
 			if fn == "openSurface" {
-				id := pillSurfaces[cmd]
-				if cmd == "menu" {
-					id, _ = menuID(routeCmd)
+				id, menu := menuID(routeCmd)
+				if !menu {
+					id = surfaceCommands[routeCmd]
 				}
 				return pillIpc(fn, mon, id)
 			}

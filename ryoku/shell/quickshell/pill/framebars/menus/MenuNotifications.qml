@@ -20,7 +20,7 @@ Item {
     readonly property var notifs: root.open ? Notifs.history : []
 
     implicitWidth: 410 * s
-    implicitHeight: col.implicitHeight
+    implicitHeight: 560 * s
 
     Column {
         id: col
@@ -46,7 +46,7 @@ Item {
 
                 Pill.MaterialIcon {
                     anchors.centerIn: parent
-                    text: Flags.dnd ? "notifications_off" : "notifications"
+                    text: Flags.dnd ? "do_not_disturb_on" : "notifications"
                     font.pixelSize: Theme.iconSm
                     color: Flags.dnd ? Theme.primary : (dndHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant)
                 }
@@ -103,22 +103,27 @@ Item {
             font.pixelSize: Theme.fontMd
         }
 
-        // The flat, newest-first card list; inter-card spacing 10 (contract 07
-        // sec 2.3 DynamicBox).
-        Column {
-            width: parent.width
-            spacing: 10 * root.s
+    }
 
-            Repeater {
-                model: root.notifs
+    ListView {
+        id: notificationList
+        anchors.top: col.bottom
+        anchors.topMargin: 12 * root.s
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        clip: true
+        spacing: 10 * root.s
+        model: root.notifs
+        reuseItems: true
+        cacheBuffer: Math.max(0, height)
+        boundsBehavior: Flickable.StopAtBounds
 
-                delegate: Pill.NotificationCard {
-                    required property var modelData
-                    width: col.width
-                    notif: modelData
-                    onActionInvoked: root.requestClose()
-                }
-            }
+        delegate: Pill.NotificationCard {
+            required property var modelData
+            width: notificationList.width
+            notif: modelData
+            onActionInvoked: root.requestClose()
         }
     }
 }

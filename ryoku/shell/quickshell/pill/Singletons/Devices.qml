@@ -18,6 +18,11 @@ Singleton {
     // ddc monitors from `ddcutil detect`: [{ bus, label }]. label = drm connector,
     // else just the i2c bus number.
     property var ddcMonitors: []
+    property var probeOwners: []
+    readonly property bool probesWanted: root.probeOwners.length > 0
+    // `ddcutil detect` is a slow i2c bus scan whose result almost never changes,
+    // so it runs once and is cached here; the sidebar never rescans on open.
+    property bool displaysProbed: false
 
     // load saved vibrance % and apply once -> tint survives reboot. singletons
     // init lazily, so something at startup has to actually touch this for the
@@ -49,7 +54,35 @@ Singleton {
             "_", root.stateFile, String(Math.round(pct))]);
     }
 
+    function startProbes(owner) {
+        if (root.probeOwners.indexOf(owner) < 0)
+            root.probeOwners = root.probeOwners.concat([owner]);
+        // The monitor set is cached from the one prewarmed scan, so an open only
+        // re-reads live values (backlight here, per-monitor getvcp in the fader)
+        // and never pays for the i2c enumeration that stalled the slide.
+        if (!root.displaysProbed)
+            root.detect();
+        root.readBacklight();
+    }
+
+    function stopProbes(owner) {
+        root.probeOwners = root.probeOwners.filter(candidate => candidate !== owner);
+        if (!root.probesWanted) {
+            ddcDetect.running = false;
+            blRead.running = false;
+        }
+    }
+
+    // Prewarm the ddc monitor list once at pill start, off the sidebar's open
+    // path, so the first Super+Escape open already has its faders and no open
+    // ever triggers an i2c scan mid-animation.
+    function prewarmDisplays() {
+        if (!root.displaysProbed)
+            root.detect();
+    }
+
     function detect() {
+        ddcDetect.running = false;
         ddcDetect.running = true;
     }
 
@@ -72,6 +105,9 @@ Singleton {
     readonly property bool backlightAvailable: root.backlightPct >= 0
 
     function readBacklight() {
+        if (!root.probesWanted)
+            return;
+        blRead.running = false;
         blRead.running = true;
     }
 
@@ -99,6 +135,9 @@ Singleton {
                         mons.push({ bus: bus[1], label: conn ? conn[1] : "BUS " + bus[1] });
                 }
                 root.ddcMonitors = mons;
+                // Cache the enumeration: a completed scan (even an empty one on a
+                // lone laptop panel) means no open needs to rescan the bus.
+                root.displaysProbed = true;
             }
         }
     }
@@ -109,6 +148,8 @@ Singleton {
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
+                if (!root.probesWanted)
+                    return;
                 var v = parseInt(this.text.trim());
                 if (!isNaN(v))
                     root.backlightPct = v;

@@ -279,8 +279,14 @@ Item {
                     visible: Network.wgTunnels.length === 0
                 }
 
-                Repeater {
+                ListView {
+                    width: parent.width
+                    height: count > 0 ? Math.min(Math.max(contentHeight, 64 * root.s), 300 * root.s) : 0
+                    clip: true
+                    spacing: 10
                     model: row.revealed ? Network.wgTunnels : []
+                    cacheBuffer: Math.max(0, height)
+                    boundsBehavior: Flickable.StopAtBounds
                     delegate: wgRowComponent
                 }
             }
@@ -298,8 +304,14 @@ Item {
                     visible: root.availableNets.length === 0 && !root.scanning
                 }
 
-                Repeater {
+                ListView {
+                    width: parent.width
+                    height: count > 0 ? Math.min(Math.max(contentHeight, 64 * root.s), 440 * root.s) : 0
+                    clip: true
+                    spacing: 10
                     model: row.revealed ? root.availableNets : []
+                    cacheBuffer: Math.max(0, height)
+                    boundsBehavior: Flickable.StopAtBounds
                     delegate: availNetComponent
                 }
 

@@ -413,13 +413,21 @@ Item {
             }
         }
 
-        // edit-after switch.
+        // Post-capture actions for Quick recordings.
         InlineToggle {
             width: parent.width
             glyph: "film"
             label: qsTr("Edit in Ryomotion when done")
             on: Recorder.editMode
             onToggled: Recorder.editMode = !Recorder.editMode
+        }
+        InlineToggle {
+            width: parent.width
+            visible: !Recorder.anyActive
+            glyph: "discord"
+            label: qsTr("Compact for Discord")
+            on: Recorder.discordMode
+            onToggled: Recorder.discordMode = !Recorder.discordMode
         }
 
         Rule { width: parent.width }

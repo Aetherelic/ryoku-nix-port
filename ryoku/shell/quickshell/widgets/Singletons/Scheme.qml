@@ -63,15 +63,15 @@ Singleton {
     // --- accents: Material accent roles, verbatim (the daemon curates them) ----
     readonly property color accent:    role("primary", "#e2342a")
     readonly property color accent2:   role("secondary", "#7fbbb3")
-    readonly property color tertiary:  role("tertiary", "#83c092")
-    readonly property color err:       role("error", "#e67e80")
-
-    // The sweep the ring clock samples, held as ramp names: it is drawn on the
-    // wallpaper, so each stop takes its tone off matugen's ramp against the
-    // picture under the widget. `seeds` are the matching roles, re-lit when no
+    // The sweep the ring clock samples, held as ramp names, and only the
+    // wallpaper's own hue: matugen's primary and secondary both derive from the
+    // source colour, so each stop reads as the picture under the widget.
+    // tertiary (a +60 hue rotation) and error (a fixed red) are Material accents
+    // the wallpaper never contains, so a sweep built from them paints colours
+    // nowhere in the picture. `seeds` are the matching roles, re-lit when no
     // ramps are published.
-    readonly property var ramps: ["primary", "tertiary", "secondary", "error", "tertiary", "primary"]
-    readonly property var seeds: [accent, tertiary, accent2, err, tertiary, accent]
+    readonly property var ramps: ["secondary", "primary", "primary", "primary", "primary", "secondary"]
+    readonly property var seeds: [accent2, accent, accent, accent, accent, accent2]
 
     // The sweep at t in [0,1] over a background of L* `bgL`.
     function colorAt(t, bgL) {

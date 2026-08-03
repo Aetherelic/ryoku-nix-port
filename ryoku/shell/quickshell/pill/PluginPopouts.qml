@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 import "popouts"
-import "../widgets" as PluginWidgets
+import Ryoku.PluginKit
 
 /**
  * hosts every enabled plugin whose chosen host = frame popout. frame popouts
@@ -170,13 +170,13 @@ Item {
                 function saveSettings() {}
             }
 
-            PluginWidgets.PluginObjectSlot {
+            PluginObjectSlot {
                 id: serviceSlot
                 source: pop.entry ? "file://" + pop.entry.dir + "/service/Main.qml" + pop.versionQuery : ""
                 configure: (service) => { service.pluginApi = pop.api; }
             }
 
-            PluginWidgets.PluginObjectSlot {
+            PluginObjectSlot {
                 id: contentLoader
                 anchors.fill: parent
                 anchors.margins: pop.pad

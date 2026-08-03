@@ -7,6 +7,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -245,6 +246,88 @@ func ffmpegLuma(img string) (float64, bool) {
 	return (0.299*r + 0.587*g + 0.114*b) / 255, true
 }
 
+// achromaticChroma is the mean-saturation floor a wallpaper must clear to count
+// as carrying colour. Below it a picture is grayscale or monochrome, matugen has
+// no source hue to extract and falls back to its built-in blue, so the palette
+// is neutralized to match the wallpaper instead. Measured: a grayscale wall sits
+// near 0, the least saturated real wallpapers near 0.12.
+const achromaticChroma = 0.05
+
+// imageAchromatic reports whether the wallpaper carries essentially no colour (a
+// grayscale or monochrome picture). Decoded with the standard library,
+// ffmpeg-downscaled for the formats it misses (webp); an undecodable image reads
+// as chromatic, so a palette is never neutralized on a guess.
+func imageAchromatic(img string) bool {
+	if f, err := os.Open(img); err == nil {
+		m, _, derr := image.Decode(f)
+		f.Close()
+		if derr == nil {
+			return meanChroma(m) < achromaticChroma
+		}
+	}
+	if c, ok := ffmpegChroma(img); ok {
+		return c < achromaticChroma
+	}
+	return false
+}
+
+// meanChroma averages HSV saturation over the same bounded grid meanLuma walks,
+// skipping near-black cells where hue is meaningless and sensor / JPEG noise
+// dominates, so the measure reflects the picture's real colourfulness.
+func meanChroma(m image.Image) float64 {
+	b := m.Bounds()
+	if b.Empty() {
+		return 0
+	}
+	const grid = 64
+	sx := max(1, b.Dx()/grid)
+	sy := max(1, b.Dy()/grid)
+	var sum, n float64
+	for y := b.Min.Y; y < b.Max.Y; y += sy {
+		for x := b.Min.X; x < b.Max.X; x += sx {
+			r, g, bl, _ := m.At(x, y).RGBA()
+			mx := max(r>>8, g>>8, bl>>8)
+			if mx < 24 { // near-black: no meaningful hue
+				continue
+			}
+			mn := min(r>>8, g>>8, bl>>8)
+			sum += float64(mx-mn) / float64(mx)
+			n++
+		}
+	}
+	if n == 0 {
+		return 0
+	}
+	return sum / n
+}
+
+// ffmpegChroma downscales to a small grid and averages saturation from the raw
+// pixels, for the formats the stdlib decoders miss. A one-pixel average (what
+// ffmpegLuma reads) washes all colour out, so chroma needs a grid.
+func ffmpegChroma(img string) (float64, bool) {
+	const n = 32
+	out, err := runCommandOutput("ffmpeg", "-v", "error", "-i", img,
+		"-vf", fmt.Sprintf("scale=%d:%d:flags=area", n, n),
+		"-frames:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "-")
+	if err != nil || len(out) < n*n*3 {
+		return 0, false
+	}
+	var sum, cnt float64
+	for i := 0; i+2 < len(out); i += 3 {
+		mx := max(out[i], out[i+1], out[i+2])
+		if mx < 24 {
+			continue
+		}
+		mn := min(out[i], out[i+1], out[i+2])
+		sum += float64(mx-mn) / float64(mx)
+		cnt++
+	}
+	if cnt == 0 {
+		return 0, true
+	}
+	return sum / cnt, true
+}
+
 // syncFollowWallpaper makes theme.json's followWallpaper track the selected
 // scheme. Without it the two disagree: the Appearance page and the sidebar write
 // theme.theme, nothing writes followWallpaper, and the live path is gated on
@@ -341,17 +424,7 @@ func (d *daemon) matugenApply(img string) error {
 		}
 		img = frame
 	}
-	k := readMatugenKnobs()
-	mode := resolveMode(k.Mode, img)
-	args, err := matugenArgs(img, k, mode)
-	if err != nil {
-		return err
-	}
-	out, err := runMatugenCapture(args)
-	if err != nil {
-		return err
-	}
-	pal, err := parseMatugenPalette(out, mode)
+	pal, tones, mode, err := generatePaletteStill(img)
 	if err != nil {
 		return err
 	}
@@ -364,7 +437,7 @@ func (d *daemon) matugenApply(img string) error {
 	}
 
 	// And the tonal ramps behind those roles, from the same run.
-	if tones := parseMatugenTones(out); tones != nil {
+	if tones != nil {
 		if err := writeJSONFile(matugenTonesPath(), tones); err != nil {
 			fmt.Fprintf(os.Stderr, "matugen tones.json: %v\n", err)
 		}
@@ -372,12 +445,78 @@ func (d *daemon) matugenApply(img string) error {
 
 	// Fan the same palette into the app suite through matugen's templating pass,
 	// gated by the per-app roster and the app-suite toggle.
-	matugenRenderTemplates(matugenShellPalette(pal), k)
+	matugenRenderTemplates(matugenShellPalette(pal), readMatugenKnobs())
 
 	// Toolkit nudges so running apps re-read the regenerated configs. Hyprland is
 	// reloaded by the caller (paintWorker).
 	matugenReload(mode)
 	return nil
+}
+
+// generatePaletteStill runs matugen on a still image with the configured knobs
+// and neutralizes an achromatic picture, returning the shell palette, the tonal
+// ramps, and the resolved light/dark mode -- the exact values matugenApply
+// writes, with no cache writes and no desktop effects. Shared by apply and the
+// ryowalls preview so the specimen never diverges from what Set paints.
+func generatePaletteStill(img string) (map[string]string, map[string]map[string]string, string, error) {
+	k := readMatugenKnobs()
+	mode := resolveMode(k.Mode, img)
+	args, err := matugenArgs(img, k, mode)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	out, err := runMatugenCapture(args)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	pal, err := parseMatugenPalette(out, mode)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	tones := parseMatugenTones(out)
+
+	// A wallpaper with essentially no colour gives matugen no source hue to
+	// extract, so it falls back to its built-in blue and paints a blue palette
+	// onto a black-and-white picture. Strip the invented hue to grays that match
+	// the picture, luminance preserved so every contrast still lands.
+	if imageAchromatic(img) {
+		neutralizePalette(pal)
+		neutralizeTones(tones)
+	}
+	return pal, tones, mode, nil
+}
+
+// matugenPreview prints, as JSON, the palette an image WOULD produce on apply --
+// the shell colours, the tonal ramps, and the wallpaper's 8x8 L* map -- without
+// touching the cache or the desktop. ryowalls calls it so its live preview and
+// spectrum specimen show exactly what Set will paint (one generator, no drift).
+func matugenPreview(img string) error {
+	if isVideo(img) {
+		if f := liveFrame(img); f != "" {
+			img = f
+		} else {
+			return fmt.Errorf("matugen-preview: could not sample a still from %q", img)
+		}
+	}
+	pal, tones, _, err := generatePaletteStill(img)
+	if err != nil {
+		return err
+	}
+	out := map[string]any{
+		"colors": matugenColorsJSON(pal),
+		"tones":  tones,
+	}
+	if grid, ok := wallToneGrid(img); ok {
+		var sum float64
+		for _, v := range grid {
+			sum += v
+		}
+		out["grid"] = grid
+		out["cols"] = wallToneCols
+		out["rows"] = wallToneRows
+		out["lstar"] = round2(sum / float64(len(grid)))
+	}
+	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
 // matugenApplyStatic renders the app templates from a fixed named theme's curated
@@ -571,6 +710,55 @@ func matugenRampName(name string) string {
 		return "neutralVariant"
 	}
 	return name
+}
+
+// neutralizeHex returns the gray with the same relative luminance as hex: the
+// (invented) hue removed, the lightness -- and so every contrast the shell
+// derives from the palette -- left exactly where it was. A non-#rrggbb value
+// passes through untouched.
+func neutralizeHex(hex string) string {
+	h := strings.TrimPrefix(hex, "#")
+	if len(h) != 6 {
+		return hex
+	}
+	v, err := strconv.ParseInt(h, 16, 64)
+	if err != nil {
+		return hex
+	}
+	y := relLuminance(uint8(v>>16), uint8(v>>8), uint8(v))
+	n := int(math.Round(srgbFromLinear(y) * 255))
+	if n < 0 {
+		n = 0
+	} else if n > 255 {
+		n = 255
+	}
+	return fmt.Sprintf("#%02x%02x%02x", n, n, n)
+}
+
+// srgbFromLinear gamma-encodes a linear channel, the inverse of the linearise in
+// relLuminance, so a luminance maps back to an 8-bit sRGB gray.
+func srgbFromLinear(u float64) float64 {
+	if u <= 0.0031308 {
+		return u * 12.92
+	}
+	return 1.055*math.Pow(u, 1.0/2.4) - 0.055
+}
+
+// neutralizePalette strips every role to its gray, in place.
+func neutralizePalette(pal map[string]string) {
+	for k, v := range pal {
+		pal[k] = neutralizeHex(v)
+	}
+}
+
+// neutralizeTones strips every tone of every ramp to its gray, in place; a nil
+// map (no ramps were published) is left alone.
+func neutralizeTones(tones map[string]map[string]string) {
+	for _, ramp := range tones {
+		for t, v := range ramp {
+			ramp[t] = neutralizeHex(v)
+		}
+	}
 }
 
 // matugenBase16 maps the Material 3 palette onto the sixteen-colour base16 keys

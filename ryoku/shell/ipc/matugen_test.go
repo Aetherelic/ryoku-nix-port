@@ -773,3 +773,166 @@ func TestRosterDefaultsNewAppsOn(t *testing.T) {
 		t.Error("an explicitly disabled group must not render")
 	}
 }
+
+// TestNeutralizeHex proves the achromatic fallback strips hue while holding
+// lightness: the result is a true gray (all channels equal), black and white map
+// to themselves, luminance ordering survives (a darker colour yields a darker
+// gray), and a non-hex value passes through.
+func TestNeutralizeHex(t *testing.T) {
+	grayVal := func(hex string) int {
+		out := neutralizeHex(hex)
+		var r, g, b int
+		if _, err := fmt.Sscanf(out, "#%02x%02x%02x", &r, &g, &b); err != nil {
+			t.Fatalf("neutralizeHex(%q) = %q: %v", hex, out, err)
+		}
+		if r != g || g != b {
+			t.Fatalf("neutralizeHex(%q) = %q, not gray", hex, out)
+		}
+		return r
+	}
+	if v := grayVal("#000000"); v != 0 {
+		t.Errorf("neutralizeHex(black) gray = %d, want 0", v)
+	}
+	if v := grayVal("#ffffff"); v != 255 {
+		t.Errorf("neutralizeHex(white) gray = %d, want 255", v)
+	}
+	// matugen's invented blue primary (#005ac1) must land below its own light
+	// tone (#adc6ff): luminance is preserved, so the darker colour stays darker.
+	if dark, light := grayVal("#005ac1"), grayVal("#adc6ff"); dark >= light {
+		t.Errorf("neutralizeHex ordering: #005ac1 -> %d not < #adc6ff -> %d", dark, light)
+	}
+	if got := neutralizeHex("nope"); got != "nope" {
+		t.Errorf("neutralizeHex passthrough = %q, want unchanged", got)
+	}
+}
+
+// TestMeanChromaSeparatesGrayFromColour is the achromatic gate itself: a solid
+// gray reads well below the threshold, a saturated colour well above it, so only
+// a colourless wallpaper trips neutralization.
+func TestMeanChromaSeparatesGrayFromColour(t *testing.T) {
+	if c := meanChroma(solidRGBA(16, 16, 128, 128, 128)); c >= achromaticChroma {
+		t.Errorf("meanChroma(gray) = %.3f, want < %.3f", c, achromaticChroma)
+	}
+	if c := meanChroma(solidRGBA(16, 16, 200, 40, 40)); c <= achromaticChroma {
+		t.Errorf("meanChroma(red) = %.3f, want > %.3f", c, achromaticChroma)
+	}
+}
+
+// TestMatugenApplyNeutralizesAchromaticWallpaper is the whole fix end to end: an
+// achromatic wallpaper drives matugen's default-blue fallback, so the daemon
+// strips the invented hue before authoring the palette. A grayscale wall yields a
+// gray colors.json and gray tones.json; a saturated wall keeps the generated
+// colour, proving the gate is scoped to colourless pictures.
+func TestMatugenApplyNeutralizesAchromaticWallpaper(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
+
+	bin := t.TempDir()
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	// The shim always emits matugen's blue fallback -- both the roles and the
+	// tonal ramps -- exactly as it does for a picture it cannot seed from.
+	blue := filepath.Join(home, "blue.json")
+	writeFile(t, blue, blueMatugenJSON())
+	writeShim(t, filepath.Join(bin, "matugen"), `case "$1" in image) cat "`+blue+`";; esac`)
+	writeShim(t, filepath.Join(bin, "gsettings"), ":")
+	writeShim(t, filepath.Join(bin, "pkill"), ":")
+
+	mgDir := filepath.Join(home, ".config", "matugen")
+	if err := os.MkdirAll(mgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(mgDir, "config.toml"), "[config]\n")
+	writeFile(t, filepath.Join(mgDir, "apps.toml"), "[config]\n")
+
+	ryoku := filepath.Join(home, ".config", "ryoku")
+	if err := os.MkdirAll(ryoku, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(ryoku, "matugen.json"), `{"mode":"dark","prefer":"saturation","themeRyokuApps":true}`)
+
+	colorsPath := filepath.Join(home, ".cache", "ryoku", "colors.json")
+	tonesPath := filepath.Join(home, ".cache", "ryoku", "tones.json")
+
+	gray := filepath.Join(home, "gray.png")
+	writeSolidPNG(t, gray, 30) // achromatic + dark
+	colour := filepath.Join(home, "colour.png")
+	writeSolidColourPNG(t, colour, 200, 40, 40) // saturated red
+
+	isGray := func(hex string) bool {
+		var r, g, b int
+		if _, err := fmt.Sscanf(hex, "#%02x%02x%02x", &r, &g, &b); err != nil {
+			return false
+		}
+		return r == g && g == b
+	}
+	readPalette := func() map[string]string {
+		b, err := os.ReadFile(colorsPath)
+		if err != nil {
+			t.Fatalf("colors.json: %v", err)
+		}
+		var m map[string]string
+		if err := json.Unmarshal(b, &m); err != nil {
+			t.Fatalf("colors.json parse: %v", err)
+		}
+		return m
+	}
+
+	// Achromatic: colors.json and tones.json are stripped to gray.
+	if err := (&daemon{}).matugenApply(gray); err != nil {
+		t.Fatalf("matugenApply(gray): %v", err)
+	}
+	if p := readPalette()["primary"]; !isGray(p) {
+		t.Errorf("achromatic wall: colors.json primary = %q, want gray", p)
+	}
+	var tones map[string]map[string]string
+	tb, err := os.ReadFile(tonesPath)
+	if err != nil {
+		t.Fatalf("tones.json: %v", err)
+	}
+	if err := json.Unmarshal(tb, &tones); err != nil {
+		t.Fatalf("tones.json parse: %v", err)
+	}
+	if got := tones["primary"]["80"]; !isGray(got) {
+		t.Errorf("achromatic wall: tones primary/80 = %q, want gray", got)
+	}
+
+	// Chromatic: the generated colour survives untouched.
+	if err := (&daemon{}).matugenApply(colour); err != nil {
+		t.Fatalf("matugenApply(colour): %v", err)
+	}
+	if p := readPalette()["primary"]; isGray(p) {
+		t.Errorf("chromatic wall: colors.json primary = %q, want the generated colour kept", p)
+	}
+}
+
+// blueMatugenJSON is matugen's output when it seeds from its built-in blue
+// fallback: every role carries the blue the wallpaper never had, and the tonal
+// ramps do too, so the daemon writes both a colors.json and a tones.json to
+// check.
+func blueMatugenJSON() string {
+	var doc map[string]any
+	_ = json.Unmarshal([]byte(fakeMatugenJSON("#adc6ff", "#adc6ff", "#445e91")), &doc)
+	doc["palettes"] = map[string]any{
+		"primary":   map[string]any{"40": map[string]any{"color": "#005ac1"}, "80": map[string]any{"color": "#adc6ff"}},
+		"secondary": map[string]any{"80": map[string]any{"color": "#bfc6dc"}},
+	}
+	b, _ := json.Marshal(doc)
+	return string(b)
+}
+
+// writeSolidColourPNG writes a solid saturated PNG, a wallpaper the achromatic
+// gate must leave alone.
+func writeSolidColourPNG(t *testing.T, path string, r, g, b uint8) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, solidRGBA(16, 16, r, g, b)); err != nil {
+		t.Fatal(err)
+	}
+}

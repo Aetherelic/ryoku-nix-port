@@ -18,11 +18,12 @@ func TestRoute(t *testing.T) {
 		{"launcher", "launcher", "launcher", "toggle"},
 		{"overview", "overview", "overview", "toggle"},
 		{"ryolayer", "ryolayer", "ryolayer", "toggle"},
-		{"power", "pill", "pill", "openSurface"},
 		{"menu quick-settings", "pill", "pill", "openSurface"},
-		{"menu clock", "pill", "pill", "openSurface"},
-		{"menu app-launcher", "launcher", "launcher", "toggle"},
-		{"menu clipboard", "pill", "pill", "openSurface"},
+		{"menu theme", "pill", "pill", "openSurface"},
+		{"menu wallpaper", "pill", "pill", "openSurface"},
+		{"menu screenshare", "pill", "pill", "openSurface"},
+		{"menu screenshot", "pill", "pill", "openSurface"},
+		{"menu stash", "pill", "pill", "openSurface"},
 	}
 	for _, c := range cases {
 		config, target, fn, ok := route(c.cmd)
@@ -33,7 +34,13 @@ func TestRoute(t *testing.T) {
 			t.Fatalf("route(%q) = (%s,%s,%s), want (%s,%s,%s)", c.cmd, config, target, fn, c.config, c.target, c.fn)
 		}
 	}
-	for _, cmd := range []string{"clipboard", "link", "inbox", "mixer", "calendar", "battery", "stash", "toolkit", "utilities", "system", "workspaces", "sysinfo", "peek", "hide", "voice", "lock", "wallpaper", "wallpaper-switcher", "reload", "status", "ping", "quit", "bogus", ""} {
+	for _, cmd := range []string{
+		"clipboard", "link", "inbox", "mixer", "calendar", "battery",
+		"toolkit", "utilities", "system", "workspaces", "sysinfo", "peek", "hide",
+		"voice", "lock", "wallpaper", "wallpaper-switcher", "reload", "status",
+		"ping", "quit", "bogus", "", "power", "menu system", "menu recording",
+		"menu clipboard",
+	} {
 		if _, _, _, ok := route(cmd); ok {
 			t.Fatalf("route(%q) should not be a single IPC call", cmd)
 		}
@@ -124,9 +131,9 @@ func TestDispatchSurfaceSocketContracts(t *testing.T) {
 	if err := listener.SetDeadline(time.Time{}); err != nil {
 		t.Fatal(err)
 	}
-	calls := make(chan string, 2)
+	calls := make(chan string, 3)
 	go func() {
-		for range 2 {
+		for range 3 {
 			conn, err := listener.Accept()
 			if err != nil {
 				return
@@ -138,11 +145,17 @@ func TestDispatchSurfaceSocketContracts(t *testing.T) {
 		}
 	}()
 
-	if got := d.dispatch("power"); got != "ok" {
-		t.Fatalf("dispatch(power) = %q, want ok", got)
+	if got := d.dispatch("menu screenshot"); got != "ok" {
+		t.Fatalf("dispatch(menu screenshot) = %q, want ok", got)
 	}
-	if got := <-calls; got != "openSurface DP-1 power" {
-		t.Fatalf("power pill IPC = %q", got)
+	if got := <-calls; got != "openSurface DP-1 screenshot" {
+		t.Fatalf("screenshot pill IPC = %q", got)
+	}
+	if got := d.dispatch("menu stash"); got != "ok" {
+		t.Fatalf("dispatch(menu stash) = %q, want ok", got)
+	}
+	if got := <-calls; got != "openSurface DP-1 stash" {
+		t.Fatalf("stash pill IPC = %q", got)
 	}
 	if got := d.dispatch("voice"); got != "ok" {
 		t.Fatalf("dispatch(voice) = %q, want ok", got)

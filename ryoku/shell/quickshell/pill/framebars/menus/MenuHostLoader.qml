@@ -15,9 +15,13 @@ Loader {
     property int depth: 0
     property real avail: 0
     property string initialPage: ""
+    property bool incubate: false
+    readonly property bool contentReady: host.status === Loader.Ready
+        && !!(host.item && host.item.loaded)
 
     signal requestClose()
     source: Qt.resolvedUrl("../../MenuWidgetHost.qml")
+    asynchronous: host.incubate
     onLoaded: {
         item.widgetId = Qt.binding(() => (typeof host.widget === "string") ? host.widget : (host.widget && host.widget.id ? host.widget.id : ""));
         item.widgetData = Qt.binding(() => (typeof host.widget === "object") ? host.widget : null);
@@ -26,6 +30,7 @@ Loader {
         item.depth = Qt.binding(() => host.depth);
         item.avail = Qt.binding(() => host.avail);
         item.initialPage = Qt.binding(() => host.initialPage);
+        item.incubate = Qt.binding(() => host.incubate);
     }
 
     Connections {

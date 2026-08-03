@@ -3,6 +3,30 @@
 ## Unreleased
 
 ### Fixed
+- **Ryoport and Ryowalls now have distinct application icons.** Ryoport uses a
+  compass for navigating local and remote machines, while Ryowalls uses its
+  torii mark and fixed red sun. Both remain legible in launcher and dock tiles
+  instead of falling back to the generic Ryoku seal.
+- **A grayscale or monochrome wallpaper no longer paints the desktop blue.**
+  matugen has no source hue to extract from a colourless picture, so it fell
+  back to its built-in blue seed (`#4285f4`) and derived a blue / purple / pink
+  palette from a black-and-white wall -- the visualiser bars, desktop widgets,
+  and every `colors.json` reader then showed colours the wallpaper never had.
+  The daemon now measures the wallpaper's chroma (the sampled still for a live
+  wall) and, when it is essentially colourless, neutralizes the generated
+  palette and tonal ramps to grays of the same luminance, so the surfaces track
+  the picture instead of an invented hue (`ipc/matugen.go`).
+- **The visualiser and desktop widgets no longer sweep colours the wallpaper
+  never had.** Both floating surfaces built their spectrum from the full Material
+  accent set -- `primary`, `tertiary`, and `error` -- so a single-hue wallpaper
+  (a blue seascape, say) still drew a band of `tertiary` (a +60 hue rotation)
+  and a band of `error` (Material's fixed red), painting pink and red bars over
+  a picture that contains neither. They now sweep only the source-hue roles
+  (`primary`/`secondary`, both derived from the wallpaper's own colour), so the
+  spectrum reads as the wallpaper's hue for any wallpaper, while the chrome keeps
+  the full palette for real error states
+  (`quickshell/visualizer/Singletons/Scheme.qml`,
+  `quickshell/widgets/Singletons/Scheme.qml`).
 - **Hero App Launcher no longer has a diffuse rounded halo.** Its floating card
   keeps the crisp offset contact shadow and hairline frame while removing the
   broad soft falloff that made the launcher look like a larger rounded blur.

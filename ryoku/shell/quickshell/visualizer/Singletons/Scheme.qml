@@ -52,14 +52,14 @@ Singleton {
     // palette puts every accent near black, hence the black spectrum.
     readonly property color accent:    role("primary",   "#a7c080")
     readonly property color secondary: role("secondary", "#7fbbb3")
-    readonly property color tertiary:  role("tertiary",  "#83c092")
-    readonly property color err:       role("error",     "#e67e80")
-
-    // So the sweep is ramp names: each band takes its tone off matugen's ramp,
-    // far enough from the picture behind it to stay lit. `seeds` are the
-    // matching roles, re-lit when no ramps are published.
-    readonly property var ramps: ["primary", "tertiary", "secondary", "error", "tertiary", "primary"]
-    readonly property var seeds: [accent, tertiary, secondary, err, tertiary, accent]
+    // The sweep is ramp names, and only the wallpaper's own hue: matugen's
+    // primary and secondary both derive from the source colour, so every band
+    // reads as the picture behind it. tertiary (a +60 hue rotation) and error
+    // (a fixed red) are Material accents the wallpaper itself never contains, so
+    // a spectrum built from them paints colours nowhere in the picture. `seeds`
+    // are the matching roles, re-lit when no ramps are published.
+    readonly property var ramps: ["secondary", "primary", "primary", "primary", "primary", "secondary"]
+    readonly property var seeds: [secondary, accent, accent, accent, accent, secondary]
 
     // 45 L* (~3.7:1) reads as a lit bar; the 55 a run of text needs turns a band
     // of saturated colour neon.

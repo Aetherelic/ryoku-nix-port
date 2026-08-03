@@ -200,6 +200,7 @@ Item {
             source: root.player ? (root.player.trackArtUrl || "") : ""
             fillMode: Image.PreserveAspectCrop
             opacity: 0; asynchronous: true
+            sourceSize: Qt.size(Math.max(1, Math.ceil(width * 2)), Math.max(1, Math.ceil(height * 2)))
             onStatusChanged: if (status === Image.Ready) opacity = 0.14
             Behavior on opacity { NumberAnimation { duration: Motion.rowFade } }
         }
@@ -268,6 +269,7 @@ Item {
                         id: artImg; anchors.fill: parent
                         source: root.player ? (root.player.trackArtUrl || "") : ""
                         fillMode: Image.PreserveAspectCrop; asynchronous: true
+                        sourceSize: Qt.size(168, 168)
                     }
                     Pill.MaterialIcon {
                         anchors.centerIn: parent; font.pixelSize: 28; fill: 0; text: "music_note"
@@ -359,17 +361,19 @@ Item {
                             Repeater {
                                 model: root.cavaBars
                                 delegate: Rectangle {
+                                    id: spectrumBar
                                     required property int index
+                                    readonly property real level: root.cavaLevels[index] || 0
                                     width: barsRow.barW
-                                    height: {
-                                        var lv = root.cavaLevels[index] || 0;
-                                        return Math.max(0, lv * transportArea.height * 0.88);
-                                    }
+                                    height: transportArea.height * 0.88
                                     anchors.bottom: parent.bottom
                                     radius: 1
                                     color: Theme.primary
-                                    opacity: 0.18
-                                    Behavior on height { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+                                    opacity: spectrumBar.level > 0.01 ? 0.18 : 0
+                                    transform: Scale {
+                                        origin.y: spectrumBar.height
+                                        yScale: spectrumBar.level
+                                    }
                                 }
                             }
                         }

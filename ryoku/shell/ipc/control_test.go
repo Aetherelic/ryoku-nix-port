@@ -70,17 +70,18 @@ func TestBrightnessArgv(t *testing.T) {
 	}
 }
 
-// menuID accepts only `menu <id>` for an id in the frame menu catalog; the old
-// bar-prefixed form and any unknown id must miss.
+// menuID accepts only `menu <id>` for an id in the current frame menu catalog;
+// retired sidebar/power menu ids, the old bar-prefixed form, and unknown ids
+// must miss.
 func TestMenuID(t *testing.T) {
-	if id, ok := menuID("menu clipboard"); !ok || id != "clipboard" {
-		t.Errorf("menuID(menu clipboard) = (%q,%v), want (clipboard,true)", id, ok)
+	if id, ok := menuID("menu quick-settings"); !ok || id != "quick-settings" {
+		t.Errorf("menuID(menu quick-settings) = (%q,%v), want (quick-settings,true)", id, ok)
 	}
 	// #page suffix: the full id (base#page) is returned for QML's deep-link.
 	if id, ok := menuID("menu quick-settings#clipboard"); !ok || id != "quick-settings#clipboard" {
 		t.Errorf("menuID(menu quick-settings#clipboard) = (%q,%v), want (quick-settings#clipboard,true)", id, ok)
 	}
-	for _, cmd := range []string{"menu", "menu bogus", "menu clock extra", "bar clock", "clipboard", "menu bogus#page"} {
+	for _, cmd := range []string{"menu", "menu bogus", "menu clock", "menu clipboard", "menu recording", "menu system", "menu clock extra", "bar clock", "clipboard", "menu bogus#page"} {
 		if _, ok := menuID(cmd); ok {
 			t.Errorf("menuID(%q) accepted, want rejection", cmd)
 		}

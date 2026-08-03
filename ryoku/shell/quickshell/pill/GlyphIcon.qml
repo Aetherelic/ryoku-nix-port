@@ -40,7 +40,7 @@ Item {
         "pause-s": { d: "M9 5.5v13 M15 5.5v13", fill: false },
         "next-s": { d: "M7 5.5l9 6.5-9 6.5z M17 5.5v13", fill: false },
         "prev-s": { d: "M17 5.5l-9 6.5 9 6.5z M7 5.5v13", fill: false },
-        "dnd": { d: "M6 16V11a6 6 0 0 1 9.3-5M18 11v5M4 16h16M10.5 20a1.8 1.8 0 0 0 3 0M3 3l18 18", fill: false },
+        "dnd": { d: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM7 11h10v2H7z", fill: true },
         "awake": { d: "M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", fill: false },
         "chevron-left": { d: "M14 6l-6 6 6 6", fill: false },
         "chevron-right": { d: "M10 6l6 6-6 6", fill: false },

@@ -72,24 +72,30 @@ ShellRoot {
             }
             first.openSurface("quick-settings", null, "eDP-1");
             const firstOpen = first.activeIdAt("left") === "quick-settings";
+            const quickSettingsFrame = first.activeMenu !== null
+                && first.activeMenu.id === "quick-settings"
+                && first.chromeOwner === "quick-settings";
+            const quickSettingsFrameSpan = first.chromePanel.anchor === "left"
+                && first.chromePanel.y === first.railClearances.top
+                && first.chromePanel.h === first.height - first.railClearances.top - first.railClearances.bottom
+                && first.chromePanel.w > 0;
             first.openSurface("stash", null, "eDP-1");
-            const replacement = first.activeIdAt("left") === "stash";
+            const replacement = first.activeIdAt("right") === "stash";
             second.openSurface("stash", null, "HDMI-A-1");
             first.openSurface("stash", null, "eDP-1");
             Stash.authStepAside("eDP-1", "stash");
-            const authStepAside = first.activeIdAt("left") === "" && second.activeIdAt("left") === "stash";
-            second.openSurface("system", null, "HDMI-A-1");
+            const authStepAside = first.activeIdAt("right") === "" && second.activeIdAt("right") === "stash";
             first.closeSurface("stash", "eDP-1");
-            const isolatedClose = first.activeIdAt("left") === "" && second.activeIdAt("right") === "system";
+            const isolatedClose = first.activeIdAt("right") === "" && second.activeIdAt("right") === "stash";
             second.openSurface("quick-settings", null, "HDMI-A-1");
             second.closeSurface("stash", "HDMI-A-1");
             const staleClose = second.activeIdAt("left") === "quick-settings";
-            first.openSurface("power", null, "HDMI-A-1");
+            first.openSurface("polkit", null, "HDMI-A-1");
             const monitorGuard = first.activeIdAt("top") === "";
-            first.openSurface("power", null, "eDP-1");
-            const modalMask = first.modal && first.masks["top"].bw > 0;
-            first.openSurface("power", null, "eDP-1");
-            const powerToggle = first.activeIdAt("top") === "";
+            first.openSurface("polkit", null, "eDP-1");
+            const modalMask = first.surfaceModal && first.masks["top"].bw > 0;
+            first.openSurface("polkit", null, "eDP-1");
+            const polkitToggle = first.activeIdAt("top") === "";
             first.openSurface("plugin:missing", null, "eDP-1");
             first.openSurface("plugin:missing", null, "eDP-1");
             const pluginToggle = first.activeIdAt("top") === "";
@@ -97,13 +103,14 @@ ShellRoot {
             first.openSurface("plugin:replacement", null, "eDP-1");
             first.pluginUnpinRequested("old");
             const delayedPluginUnpinSafe = first.activeIdAt("top") === "plugin:replacement";
+            first.closeAll();
             first.openSurface("voice-off", null, "eDP-1");
-            const voicePassive = first.activeIdAt("top") === "voice" && !first.modal;
+            const voicePassive = first.activeIdAt("bottom") === "voice" && !first.surfaceModal;
             openKeyringOn(first, "eDP-1", 1);
-            const keyringFocus = first.activeIdAt("top") === "keyring" && first.modal;
-            first.openSurface("power", null, "eDP-1");
+            const keyringFocus = first.activeIdAt("top") === "keyring" && first.surfaceModal;
+            first.openSurface("polkit", null, "eDP-1");
             first.closeSurface("voice-off", "eDP-1");
-            const normalizedStaleClose = first.activeIdAt("top") === "power";
+            const normalizedStaleClose = first.activeIdAt("top") === "polkit";
             openKeyringOn(first, "eDP-1", 2);
             const bodyClose = closesKeyring(() => first.closeMenu("keyring"));
             openKeyringOn(first, "eDP-1", 3);
@@ -118,7 +125,7 @@ ShellRoot {
             const fullscreenClose = closesKeyring(() => first.active = false);
             first.active = true;
             openKeyringOn(first, "eDP-1", 8);
-            const replacementClose = closesKeyring(() => first.openSurface("power", null, "eDP-1"));
+            const replacementClose = closesKeyring(() => first.openSurface("polkit", null, "eDP-1"));
             first.openSurface("voice", null, "eDP-1");
             openKeyringOn(first, "eDP-1", 9);
             const beforeStaleDismiss = keyring.dismissCount;
@@ -137,11 +144,18 @@ ShellRoot {
             const activeHandoffCloseOnce = keyring.dismissCount === beforeHandoffDismiss + 1
                 && root.focusCount === beforeHandoffFocus + 1;
             first.closeAll();
-            console.log((firstOpen && replacement && authStepAside && isolatedClose && staleClose && monitorGuard && modalMask
-                && powerToggle && pluginToggle && delayedPluginUnpinSafe && voicePassive && keyringFocus && normalizedStaleClose
-                && bodyClose && escapeClose && backdropClose && focusGrabClose && daemonClose
-                && fullscreenClose && replacementClose && staleKeyringSafe && handoffRetiresOld
-                && staleHandoffCloseSafe && activeHandoffCloseOnce)
+            console.log("FRAME-MENU-MANAGER-GATES " + JSON.stringify({
+                firstOpen, quickSettingsFrame, quickSettingsFrameSpan, replacement, authStepAside, isolatedClose, staleClose,
+                monitorGuard, modalMask, polkitToggle, pluginToggle, delayedPluginUnpinSafe,
+                voicePassive, keyringFocus, normalizedStaleClose, bodyClose, escapeClose,
+                backdropClose, focusGrabClose, daemonClose, fullscreenClose, replacementClose,
+                staleKeyringSafe, handoffRetiresOld, staleHandoffCloseSafe, activeHandoffCloseOnce
+            }));
+            console.log((firstOpen && quickSettingsFrame && quickSettingsFrameSpan && replacement && authStepAside && isolatedClose && staleClose
+                && monitorGuard && modalMask && polkitToggle && pluginToggle && delayedPluginUnpinSafe
+                && voicePassive && keyringFocus && normalizedStaleClose && bodyClose && escapeClose
+                && backdropClose && focusGrabClose && daemonClose && fullscreenClose && replacementClose
+                && staleKeyringSafe && handoffRetiresOld && staleHandoffCloseSafe && activeHandoffCloseOnce)
                 ? "FRAME-MENU-MANAGER-PASS" : "FRAME-MENU-MANAGER-FAIL");
             Qt.quit();
         }

@@ -45,11 +45,11 @@ func TestPillSocketCallAck(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	get, stop := startPillServer(t, "ok\n")
 	defer stop()
-	if !pillSocketCall("power eDP-1") {
+	if !pillSocketCall("openSurface eDP-1 quick-settings") {
 		t.Fatal("pillSocketCall = false, want true on ok ack")
 	}
-	if got := get(); got != "power eDP-1" {
-		t.Fatalf("server received %q, want %q", got, "power eDP-1")
+	if got := get(); got != "openSurface eDP-1 quick-settings" {
+		t.Fatalf("server received %q, want %q", got, "openSurface eDP-1 quick-settings")
 	}
 }
 
@@ -67,7 +67,7 @@ func TestPillSocketCallErrAck(t *testing.T) {
 // no socket (pill down or restarting) must fail so the caller falls back.
 func TestPillSocketCallNoServer(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	if pillSocketCall("power eDP-1") {
+	if pillSocketCall("openSurface eDP-1 quick-settings") {
 		t.Fatal("pillSocketCall = true with no server, want false")
 	}
 }
@@ -77,17 +77,17 @@ func TestPillIpcPrefersSocket(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	get, stop := startPillServer(t, "ok\n")
 	defer stop()
-	if got := pillIpc("power", "eDP-1"); got != "ok" {
-		t.Fatalf("pillIpc(power) = %q, want ok", got)
+	if got := pillIpc("openSurface", "eDP-1", "quick-settings"); got != "ok" {
+		t.Fatalf("pillIpc(openSurface) = %q, want ok", got)
 	}
-	if got := get(); got != "power eDP-1" {
-		t.Fatalf("server received %q, want %q", got, "power eDP-1")
+	if got := get(); got != "openSurface eDP-1 quick-settings" {
+		t.Fatalf("server received %q, want %q", got, "openSurface eDP-1 quick-settings")
 	}
-	if got := pillIpc("power"); got != "ok" {
-		t.Fatalf("pillIpc(power without monitor) = %q, want ok", got)
+	if got := pillIpc("closeAllMenus"); got != "ok" {
+		t.Fatalf("pillIpc(closeAllMenus without monitor) = %q, want ok", got)
 	}
-	if got := get(); got != "power" {
-		t.Fatalf("server received %q, want %q", got, "power")
+	if got := get(); got != "closeAllMenus" {
+		t.Fatalf("server received %q, want %q", got, "closeAllMenus")
 	}
 }
 
@@ -111,7 +111,7 @@ func BenchmarkPillSocketCall(b *testing.B) {
 	}()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		if !pillSocketCall("power eDP-1") {
+		if !pillSocketCall("openSurface eDP-1 quick-settings") {
 			b.Fatal("not ok")
 		}
 	}

@@ -2,9 +2,10 @@ import QtQuick
 import "../.." as Pill
 import "../../Singletons"
 
-// Hold-to-activate icon button for destructive session actions: a stray click
-// never fires. Press and hold and a bone liquid fills the tile, the glyph
-// inverting to black; it fires at the top and releasing early drains it back.
+// Click-to-confirm icon button for destructive session actions: a stray click
+// never fires instantly. The first click arms the tile and a bone liquid fills
+// it on its own, the glyph inverting to black; it confirms when the fill reaches
+// the top, and a second click before then drains it back and cancels.
 Rectangle {
     id: root
 
@@ -14,7 +15,7 @@ Rectangle {
     property bool tipBelow: false
     // Bubble edge to pin to: "center" (default), "left" or "right".
     property string tipAlign: "center"
-    // Continuous hold (ms) before firing.
+    // Fill time (ms) from the arming click to the confirm.
     property int holdMs: 800
     signal activated()
 
@@ -26,24 +27,25 @@ Rectangle {
         : Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.06)
     border.width: 1
     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b,
-        (tap.containsMouse || root.heat > 0.01) ? 0.4 : 0.22)
+        (tap.containsMouse || root.armed) ? 0.4 : 0.22)
     Behavior on color { ColorAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
     clip: true
 
     scale: tap.pressed ? 0.94 : 1
     Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
 
-    // Hold heat 0..1: rises over holdMs while held, drains on release, fires at 1.
-    // Literal durations so reduce-motion can never collapse the hold to a tap.
-    property bool holding: false
+    // Fill heat 0..1: once armed it rises to the top over holdMs and fires at 1;
+    // disarming drains it back. Literal durations so reduce-motion can never
+    // collapse the fill to an instant confirm.
+    property bool armed: false
     property real heat: 0
-    readonly property bool active: root.holding || root.heat > 0.001
-    onHoldingChanged: heat = holding ? 1 : 0
-    Behavior on heat { NumberAnimation { duration: root.holding ? root.holdMs : 220; easing.type: Easing.OutCubic } }
-    onHeatChanged: if (root.heat >= 0.999 && root.holding) root.fire()
+    readonly property bool active: root.armed || root.heat > 0.001
+    onArmedChanged: heat = armed ? 1 : 0
+    Behavior on heat { NumberAnimation { duration: root.armed ? root.holdMs : 220; easing.type: Easing.OutCubic } }
+    onHeatChanged: if (root.heat >= 0.999 && root.armed) root.fire()
 
     function fire() {
-        root.holding = false;
+        root.armed = false;
         root.heat = 0;
         root.activated();
     }
@@ -104,10 +106,10 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onPressed: root.holding = true
-        onReleased: root.holding = false
-        onCanceled: root.holding = false
-        onExited: root.holding = false
+        // First click arms and starts the fill; a second click before it tops
+        // out cancels. Moving the pointer away never cancels: the fill is
+        // autonomous once armed.
+        onClicked: root.armed = !root.armed
     }
 
     QsTip {

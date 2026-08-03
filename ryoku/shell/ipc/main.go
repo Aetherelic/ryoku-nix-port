@@ -50,6 +50,16 @@ func main() {
 		fmt.Println(themeCatalogJSON())
 		return
 	}
+	if args[0] == "matugen-preview" && len(args) == 2 {
+		// Generate (never apply) the palette an image would produce, for the
+		// ryowalls live preview. Runs standalone -- no daemon round trip -- so the
+		// same generator serves apply and preview from one binary.
+		if err := matugenPreview(args[1]); err != nil {
+			fmt.Fprintln(os.Stderr, "ryoku-shell:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := sendCommand(strings.Join(args, " ")); err != nil {
 		fmt.Fprintln(os.Stderr, "ryoku-shell:", err)
 		os.Exit(1)
@@ -83,7 +93,7 @@ func sendCommand(line string) error {
 func usage() {
 	fmt.Fprintln(os.Stderr, "usage:")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell daemon")
-	fmt.Fprintln(os.Stderr, "  ryoku-shell <launcher|power>")
+	fmt.Fprintln(os.Stderr, "  ryoku-shell launcher")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell <overview|ryolayer|wallpaper-switcher>")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell plugin <id>")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell <visualizer|visualizer-overlay>")

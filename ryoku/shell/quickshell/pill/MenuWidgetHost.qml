@@ -18,11 +18,12 @@ Item {
     property int depth: 0
     property real avail: 0
     property string initialPage: ""
+    property bool incubate: false
     signal requestClose()
 
     implicitWidth: loader.item ? loader.item.implicitWidth : 0
     implicitHeight: loader.item ? loader.item.implicitHeight : 0
-    readonly property bool loaded: loader.item !== null
+    readonly property bool loaded: loader.status === Loader.Ready && loader.item !== null
 
     function componentFor(id) {
         switch (id) {
@@ -59,6 +60,7 @@ Item {
     Loader {
         id: loader
         width: root.width
+        asynchronous: root.incubate
         sourceComponent: root.componentFor(root.widgetId)
     }
 
@@ -76,7 +78,7 @@ Item {
     Component { id: dividerComponent; MenuDivider { scale: root.scale } }
     Component { id: spacerComponent; MenuSpacer { scale: root.scale } }
     Component { id: clockComponent; MenuClock { width: root.width; s: root.scale; open: root.open } }
-    Component { id: notificationsComponent; MenuNotifications { width: root.width; s: root.scale; open: root.open } }
+    Component { id: notificationsComponent; MenuNotifications { width: root.width; height: implicitHeight; s: root.scale; open: root.open } }
     Component { id: networkComponent; MenuNetwork { width: root.width; s: root.scale; open: root.open } }
     Component { id: bluetoothComponent; MenuBluetooth { width: root.width; s: root.scale; open: root.open } }
     Component { id: audioInputComponent; MenuAudioInput { width: root.width; s: root.scale; open: root.open } }
@@ -85,7 +87,7 @@ Item {
     Component { id: quickSettingsComponent; MenuQuickSettings { width: root.width; s: root.scale; open: root.open; avail: root.avail; initialPage: root.initialPage } }
     Component { id: quickActionsComponent; MenuQuickActions { width: root.width; s: root.scale; open: root.open } }
     Component { id: layoutSwitcherComponent; MenuLayoutSwitcher { width: root.width; s: root.scale; open: root.open } }
-    Component { id: clipboardComponent; MenuClipboard { width: root.width; s: root.scale; open: root.open } }
+    Component { id: clipboardComponent; MenuClipboard { width: root.width; height: implicitHeight; s: root.scale; open: root.open } }
     Component { id: themeComponent; MenuTheme { width: root.width; s: root.scale; open: root.open } }
     Component { id: wallpaperComponent; MenuWallpaper { width: root.width; s: root.scale; open: root.open } }
     Component { id: weatherComponent; MenuWeather { width: root.width; s: root.scale; open: root.open } }

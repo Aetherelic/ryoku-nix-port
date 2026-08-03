@@ -178,8 +178,14 @@ Item {
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontMd
                 }
-                Repeater {
+                ListView {
+                    width: parent.width
+                    height: count > 0 ? Math.min(Math.max(contentHeight, 64 * root.s), 320 * root.s) : 0
+                    clip: true
+                    spacing: 10
                     model: root.pairedDevices
+                    cacheBuffer: Math.max(0, height)
+                    boundsBehavior: Flickable.StopAtBounds
                     delegate: deviceRowComponent
                 }
             }
@@ -206,8 +212,14 @@ Item {
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontMd
                 }
-                Repeater {
+                ListView {
+                    width: parent.width
+                    height: count > 0 ? Math.min(Math.max(contentHeight, 64 * root.s), 400 * root.s) : 0
+                    clip: true
+                    spacing: 10
                     model: root.discoveredDevices
+                    cacheBuffer: Math.max(0, height)
+                    boundsBehavior: Flickable.StopAtBounds
                     delegate: deviceRowComponent
                 }
             }

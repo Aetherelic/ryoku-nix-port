@@ -4,15 +4,8 @@ import QtQuick
 import "popouts"
 import "Singletons"
 
-// One Ryoku-own surface (power, voice, keyring, stash sidebar, system sidebar)
-// riding the shared Popout. These are NOT the reference frame menus: they keep
-// the trigger-centred, monitor-scaled Popout behaviour so their content
-// (wallpaper hero, dictation overlay, password prompt, sidebars) renders as
-// built. Openness is owned by FrameMenuManager (menuOpen); the manager reads
-// maskX/Y/W/H off this item to union the body into the overlay input mask.
-//
-// This is the pass's one remaining frame-chrome blob user: the reference menus
-// moved to the crisp composite-hole FrameChrome band, these surfaces have not.
+// One Ryoku-owned surface riding the shared Popout. Credential prompts, voice,
+// stash, capture, and small rail cards mount on demand.
 Popout {
     id: root
 
@@ -32,7 +25,7 @@ Popout {
 
     readonly property real fallbackMinWidth: 200
     readonly property real minWidth: record && record.minWidth ? record.minWidth : fallbackMinWidth
-    readonly property string kind: record && record.kind ? record.kind : "power"
+    readonly property string kind: record && record.kind ? record.kind : ""
     // stays true through the close melt so the body tears down only once flush.
     readonly property bool effectiveOpen: menuOpen || prog > 0.004
 
@@ -63,31 +56,34 @@ Popout {
 
     readonly property bool sideMenu: root.edge === "left" || root.edge === "right"
 
-    // Reveal envelope: side surfaces slide (menuSlide, 250 ms ease-out-cubic),
-    // top/bottom surfaces grow diagonally (diagonal, 200 ms ease-in-out-quad),
-    // matching the frame menus. A re-trigger retargets prog from its current
-    // value, reproducing the reverse/restart-from-current interrupt.
+    // Side surfaces slide; top and bottom surfaces grow diagonally.
     transitions: [
         Transition {
             to: "open"
-            NumberAnimation { property: "prog"; duration: root.sideMenu ? Motion.menuSlide : Motion.diagonal; easing.type: root.sideMenu ? Motion.menuSlideCurve : Motion.diagonalCurve }
+            NumberAnimation {
+                property: "prog"
+                duration: root.sideMenu ? Motion.menuSlide : Motion.diagonal
+                easing.type: root.sideMenu ? Motion.menuSlideCurve : Motion.diagonalCurve
+            }
         },
         Transition {
             from: "open"
-            NumberAnimation { property: "prog"; duration: root.sideMenu ? Motion.menuSlide : Motion.diagonal; easing.type: root.sideMenu ? Motion.menuSlideCurve : Motion.diagonalCurve }
+            NumberAnimation {
+                property: "prog"
+                duration: root.sideMenu ? Motion.menuSlide : Motion.diagonal
+                easing.type: root.sideMenu ? Motion.menuSlideCurve : Motion.diagonalCurve
+            }
         }
     ]
 
     Loader {
         id: body
-        // Mount the body only while open (or melting closed), mirroring the
-        // reference-menu path: a closed surface does no work. This is what lets
-        // the voice popout's cava mic-capture stop when dictation is hidden.
+        // Bodies mount only while open or melting closed, so inactive capture
+        // and monitoring processes do no work.
         active: root.effectiveOpen
         width: root.openW
         height: root.openH
-        sourceComponent: root.kind === "power" ? powerBody
-            : root.kind === "voice" ? voiceBody
+        sourceComponent: root.kind === "voice" ? voiceBody
             : root.kind === "keyring" ? keyringBody
             : root.kind === "polkit" ? polkitBody
             : root.kind === "music" ? musicBody
@@ -98,17 +94,10 @@ Popout {
             : root.kind === "audio" ? audioBody
             : root.kind === "screenshot" ? captureBody
             : root.kind === "stash" ? stashBody
-            : systemBody
+            : null
     }
 
-    Component {
-        id: powerBody
-        PowerPanel {
-            s: root.s
-            open: root.effectiveOpen
-            onCloseRequested: root.requestClose()
-        }
-    }
+
     Component {
         id: voiceBody
         VoicePopout {
@@ -198,19 +187,6 @@ Popout {
             monitorName: root.manager ? root.manager.monitorName : ""
             surfaceId: root.record ? root.record.id : ""
             onPaneSelected: key => { if (root.manager) root.manager.stashPane = key; }
-        }
-    }
-    Component {
-        id: systemBody
-        SidebarSystem {
-            s: root.s
-            topInset: root.manager ? root.manager.sidebarTopInset : 0
-            botInset: root.manager ? root.manager.sidebarBottomInset : 0
-            open: root.effectiveOpen
-            panes: root.record ? root.record.panes : []
-            pane: root.manager ? root.manager.systemPane : ""
-            onPaneSelected: key => { if (root.manager) root.manager.systemPane = key; }
-            onDismiss: root.requestClose()
         }
     }
 }

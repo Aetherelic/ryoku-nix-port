@@ -5,13 +5,11 @@ import "framebars/menus"
 import "Singletons"
 
 // One reference frame menu (contract 05 sec 7). It is NOT a window, overlay
-// card or blob: the open panel is the frame's own band grown wider, painted by
-// FrameChrome's composite hole. So this file paints no background of its own; it
-// only feeds FrameChrome the resting panel rect (setChromeSource, via the
-// manager) and rides FrameChrome's animated band, clipping its fixed-size body
-// into the growing band like a curtain. Width is EXACTLY minimumWidth (no
-// natural-width growth), rendered at reference pixels (scale 1) to match the
-// unscaled frame band.
+// card or blob: the shell paints its background as a scene-graph extension of
+// the frame band. Full-height sidebars ride one fixed-size translated panel;
+// compact menus clip the same fixed-size body into a scaling edge/corner rect.
+// Width is EXACTLY minimumWidth (no natural-width growth), rendered at
+// reference pixels (scale 1) to match the unscaled frame band.
 //
 // Openness is owned by FrameMenuManager (menuOpen), never a private boolean, so
 // a busy anchor's content is replaced by flipping which record is active. The
@@ -53,12 +51,25 @@ Item {
     readonly property bool isScreenshare: root.record && root.record.id === "screenshare"
 
     // The reveal fades the body content in and out; on a same-region swap the
-    // two bodies crossfade (200 ms) while the chrome band stays put. It also
-    // holds the body mounted through the close so it tears down once flush.
-    property real bodyReveal: root.menuOpen ? 1 : 0
+    // two bodies crossfade (200 ms) while the chrome band stays put. A retained
+    // body starts that fade only after its nested content is ready. The reveal
+    // also holds a non-retained body mounted through close until it is flush.
+    property real bodyReveal: root.menuOpen && (!root.retainBody || root.bodyReady) ? 1 : 0
     Behavior on bodyReveal { NumberAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
     readonly property bool effectiveOpen: root.menuOpen || root.bodyReveal > 0.004
+    readonly property bool retainBody: root.isMenu && root.fillsBand
+    readonly property bool bodyReady: menuBody.status === Loader.Ready
+        && (root.isScreenshare || !!(menuBody.item && menuBody.item.ready))
+    readonly property bool stableSidePanel: root.sideMenu && root.manager
+        && !!root.manager.activeMenu && !root.manager.chromeSwitchPending
+        && root.manager.waitingChromeId === ""
+        && root.manager.chromeReveal > 0.996 && root.manager.chromeOpacity > 0.996
 
+    Timer {
+        interval: 2000
+        running: root.menuOpen && root.retainBody && !root.bodyReady
+        onTriggered: root.requestClose()
+    }
     // Per-edge clearance (bar band + border, or the bare frame lip) so the
     // formulas reference all four bar thicknesses, not just this anchor's.
     readonly property real clL: root.clearances && typeof root.clearances.left === "number" ? root.clearances.left : 0
@@ -92,7 +103,7 @@ Item {
     readonly property bool fillsBand: root.widgetIds.length === 1 && root.expansion === "always"
 
     // Resting panel rect in window coords (contract 05 sec 7). Width is exactly
-    // minimumWidth. FrameChrome animates the reveal from this rect.
+    // minimumWidth; the manager animates the panel to and from this target.
     readonly property real restW: root.minWidth
     readonly property real restH: (root.sideMenu || root.fillsBand) ? root.bandH : Math.min(root.contentH, root.bandH)
     // A top/bottom menu opens over the widget that summoned it, clamped inside
@@ -107,29 +118,40 @@ Item {
         : root.alongX(root.restW)
     readonly property real restY: root.atBottom ? (root.height - root.clB - root.restH) : root.clT
 
-    // The animated band from FrameChrome (shared, single-open). The active
-    // menu's body clips into it so it reveals edge-first as the band grows.
-    readonly property var panel: root.manager ? root.manager.chromePanel : null
+    // The animated panel is shared by one menu at a time. A cross-anchor swap
+    // keeps the incoming body hidden until the manager has retracted the
+    // previous edge and transferred chrome ownership.
+    readonly property bool sharesChrome: !!(root.manager && root.record
+        && !root.manager.chromeSwitchPending && root.manager.chromeAnchor === root.anchor)
+    readonly property var panel: root.manager && root.record
+        && (root.manager.chromeOwner === root.record.id || root.sharesChrome)
+        ? root.manager.chromePanel : null
 
-    // Feed the manager the resting rect + anchor while open, so FrameChrome can
-    // paint and animate the band. On close the manager holds the last rect and
-    // retracts the band; on a same-region swap the new menu pushes the same
-    // rect, so the band never blinks.
+    // Feed the manager the resting rect + anchor while open. On close the
+    // manager holds the last rect and retracts it; on a same-region swap the new
+    // menu pushes the same rect, so the panel never blinks.
     function pushChrome() {
-        if (!root.isMenu || !root.menuOpen || !root.manager)
+        if (!root.isMenu || !root.menuOpen || !root.manager
+                || (root.retainBody && !root.bodyReady))
             return;
         // Compute the rect atomically from width/height so a top-anchored y
-        // never lags a just-changed height (which would flash the band one
-        // frame off-screen while the readonly restY binding catches up).
+        // never lags a just-changed height.
         const w = root.restW;
         const h = root.restH;
         const x = root.atLeft ? root.clL
             : root.atRight ? (root.width - root.clR - w)
             : root.alongX(w);
         const y = root.atBottom ? (root.height - root.clB - h) : root.clT;
-        root.manager.setChromeSource(root.anchor, x, y, w, h, root.sideMenu);
+        root.manager.setChromeSource(root.record.id, root.anchor, x, y, w, h,
+            root.sideMenu || root.fillsBand);
     }
-    onMenuOpenChanged: root.pushChrome()
+    onMenuOpenChanged: {
+        if (root.menuOpen && root.retainBody && !root.bodyReady && root.manager)
+            root.manager.prepareChromeSource(root.record.id, root.anchor);
+        else
+            root.pushChrome();
+    }
+    onBodyReadyChanged: if (root.bodyReady) root.pushChrome()
     // -1 is the manager clearing the trigger as the record closes, not a move to
     // the centre of the bar; pushing that would re-open the band on its way out.
     onTriggerAlongChanged: if (root.triggerAlong >= 0) root.pushChrome()
@@ -139,19 +161,20 @@ Item {
     onRestHChanged: root.pushChrome()
     Component.onCompleted: root.pushChrome()
 
-    // Input mask: the resting panel rect while open (drops the instant a close
-    // starts, matching the reference's non-melting mask). Surfaces forward their
-    // Popout mask.
+    // Input mask: the resting panel rect while open. The manager's `anyVisible`
+    // keeps the overlay's full input region through the closing animation even
+    // after this per-menu rect drops away.
     readonly property real maskX: root.isMenu ? root.restX : (surfaceHost.item ? surfaceHost.item.maskX : 0)
     readonly property real maskY: root.isMenu ? root.restY : (surfaceHost.item ? surfaceHost.item.maskY : 0)
     readonly property real maskW: root.isMenu ? (root.menuOpen ? root.restW : 0) : (surfaceHost.item ? surfaceHost.item.maskW : 0)
     readonly property real maskH: root.isMenu ? (root.menuOpen ? root.restH : 0) : (surfaceHost.item ? surfaceHost.item.maskH : 0)
 
-    // ---- Reference-menu path: a plain clipped body riding FrameChrome's band.
+    // ---- Reference-menu path: a plain clipped body riding the panel rect.
     Item {
         id: clipHost
-        visible: root.isMenu && root.effectiveOpen
         clip: true
+        visible: root.isMenu && root.effectiveOpen && root.bodyReady
+        enabled: root.menuOpen
         x: root.panel ? root.panel.x : root.restX
         y: root.panel ? root.panel.y : root.restY
         width: root.panel ? root.panel.w : 0
@@ -174,22 +197,24 @@ Item {
 
         Loader {
             id: menuBody
-            active: root.isMenu && root.effectiveOpen
-            // A band-filling menu (the quick-settings sidebar) is fixed-size: it
-            // spans the whole band and sits at its minimum width, so its heavy
-            // body incubates off the main thread and the reveal never stalls
-            // building every control in one frame. Content-sized menus stay
-            // synchronous so the band has a measured height to grow to.
-            asynchronous: root.fillsBand
+            active: root.isMenu && (root.effectiveOpen || root.retainBody)
+            // The band-filling quick-settings body is retained between opens
+            // and incubated before first use. Content-sized menus still load
+            // synchronously because their measured height defines the band.
+            asynchronous: root.retainBody
             width: root.restW
             height: root.restH
-            // Aligned to the edge/corner the band grows from, so the widening
-            // clip reveals the body from the band side, never the free edge.
+            // A moving sidebar fades as one surface with its background. Once
+            // settled, same-anchor replacements use each body's local crossfade.
             x: root.atLeft ? 0
                 : root.atRight ? (clipHost.width - root.restW)
                 : ((clipHost.width - root.restW) / 2)
             y: root.atBottom ? (clipHost.height - root.restH) : 0
-            opacity: root.bodyReveal
+            opacity: menuBody.status === Loader.Ready
+                ? ((root.sideMenu && root.manager)
+                    ? root.manager.chromeOpacity * (root.stableSidePanel ? root.bodyReveal : 1)
+                    : root.bodyReveal)
+                : 0
             sourceComponent: root.isScreenshare ? screenshareBody : menuColumnBody
         }
     }
@@ -201,6 +226,9 @@ Item {
             height: root.restH
             scale: 1
             open: root.effectiveOpen
+            mounted: root.effectiveOpen
+            retain: root.retainBody
+            incubate: root.retainBody
             widgets: root.widgetIds
             initialPage: root.recordPage
             onRequestClose: root.requestClose()

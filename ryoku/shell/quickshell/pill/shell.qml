@@ -187,6 +187,10 @@ ShellRoot {
         // first open would run it fresh and the theme cards would beat the images
         // onto the screen; a resident touch here runs it once, off the hot path.
         WallIndex.refresh();
+        // Prewarm the ddc monitor scan for the same reason: `ddcutil detect` is a
+        // slow i2c bus scan, and running it once here keeps every Super+Escape
+        // open from stalling the slide on a fresh enumeration.
+        Devices.prewarmDisplays();
     }
 
     Binding {
@@ -338,7 +342,6 @@ ShellRoot {
         target: "pill"
         function openSurface(mon: string, id: string): void { root.requestSurface(id, mon); }
         function closeSurface(mon: string, id: string): void { root.surfaceCloseRequested(id, mon); }
-        function power(mon: string): void { root.requestSurface("power", mon); }
         function keyringPrompt(payload: string): void {
             Keyring.apply(payload);
             root.keyringPromptChanged(Keyring.promptId);
@@ -377,8 +380,6 @@ ShellRoot {
             root.requestSurface(id, mon); return true;
         case "closeSurface":
             root.surfaceCloseRequested(id, mon); return true;
-        case "power":
-            root.requestSurface("power", mon); return true;
         case "pluginPopout":
             root.requestSurface("plugin:" + id, mon); return true;
         case "voiceShow":
@@ -562,7 +563,7 @@ ShellRoot {
             // mid-drag; losing the region there kills the grab and the island
             // snaps home while the button is still held.
             mask: monFullscreen ? hiddenRegion
-                : (frameMenus.anyOpen || recHud.dragging) ? fullRegion
+                : (frameMenus.anyVisible || recHud.dragging) ? fullRegion
                 : root.sumiActive ? railRegion
                 : (Recorder.anyActive || Recorder.chooserOpen) ? recRegion
                 : dragRegion
@@ -657,13 +658,8 @@ ShellRoot {
                 visible: !overlay.monFullscreen
                 Keys.onEscapePressed: if (frameMenus.keyboardMode === "exclusive") frameMenus.closeAll()
 
-                // Shared blob field for the Ryoku-own surfaces (power/voice/
-                // keyring/stash/system via FrameSurface), the plugin popouts and
-                // RecordHud. FrameChrome now owns the ONE frame border, so this
-                // field draws NO border of its own: a bordered blob beside the
-                // painted frame border reads as a duplicated stroke (user
-                // verdict 2026-07-26). Bodies are flush surface colour; full
-                // band-growth for these surfaces is a later pass.
+                // Shared blob field for retained Ryoku-owned credential, voice,
+                // stash, capture, and rail-card popouts plus RecordHud.
                 BlobGroup {
                     id: blobGroup
                     color: Theme.surface
@@ -673,14 +669,27 @@ ShellRoot {
                     shadowSize: 0
                 }
 
+                // The animated menu extension is a simple scene-graph primitive;
+                // changing its rect stays smooth while the frame path remains static.
+                Rectangle {
+                    x: frameMenus.chromePanel.x
+                    y: frameMenus.chromePanel.y
+                    width: frameMenus.chromePanel.w
+                    height: frameMenus.chromePanel.h
+                    radius: Math.min(Config.frameCorner, width / 2, height / 2)
+                    color: Theme.surface
+                    border.width: Theme.borderWidth
+                    border.color: Theme.outline
+                    opacity: Theme.windowOpacity * (frameMenus.chromeSide ? frameMenus.chromeOpacity : 1)
+                    visible: !overlay.monFullscreen
+                        && Config.frameEnabled && root.sumiActive
+                        && width > 0 && height > 0
+                }
+
                 FrameChrome {
                     // The painted frame band: per-edge thickness = that edge's
                     // reserve (bar band + border), the 2px outline stroked just
                     // inside the hole edge, inner corners arced at radiusWindow.
-                    // When a menu is open the hole loses that menu's animated
-                    // panel rect, so the open panel reads as the band grown
-                    // wider -- one silhouette, no field morphing (contract 01
-                    // sec 2b, menu parity spec).
                     anchors.fill: parent
                     reserveTop: root.sumiActive ? root.edgeReserve("top") : root.frameBorderPx
                     reserveBottom: root.sumiActive ? root.edgeReserve("bottom") : root.frameBorderPx
@@ -690,11 +699,6 @@ ShellRoot {
                     surface: Theme.surface
                     outline: Theme.outline
                     strokeWidth: Theme.borderWidth
-                    panelAnchor: frameMenus.chromePanel.anchor
-                    panelX: frameMenus.chromePanel.x
-                    panelY: frameMenus.chromePanel.y
-                    panelW: frameMenus.chromePanel.w
-                    panelH: frameMenus.chromePanel.h
                     opacity: Theme.windowOpacity
                     visible: !overlay.monFullscreen
                         && Config.frameEnabled && root.sumiActive
@@ -737,8 +741,6 @@ ShellRoot {
                         right: overlay.railClearance("right")
                     }) : ({ top: 52, left: 0, bottom: 0, right: 0 })
                     active: !overlay.monFullscreen
-                    sidebarTopInset: overlay.sidebarTopGap
-                    sidebarBottomInset: overlay.sidebarBotGap
                     onSurfaceClosed: (id, context) => surfaceLifecycle.handleClosed(id, context)
 
                     Connections {

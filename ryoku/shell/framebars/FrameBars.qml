@@ -17,7 +17,7 @@ QtObject {
         return JSON.parse(JSON.stringify(value));
     }
 
-    function defaultConfig() { return Lib.defaultConfig(); }
+    function defaultConfig() { return Lib.defaultConfig(MenuCatalog); }
     // barCatalog / menuCatalog are the sibling BarCatalog / MenuCatalog
     // singletons; the JS reaches entry()/anchors()/widget()/menu()/surface()
     // through them, so callers keep passing them by name.

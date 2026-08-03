@@ -81,10 +81,10 @@ Item {
     readonly property bool live: hud.prog > 0.002
     visible: hud.live
 
-    // chooser state: the deck's Record button opens the island in a pre-record
-    // chooser (Recorder.chooserOpen). Quick records via gsr; Studio and Edit hand
-    // off to ryomotion. `starting` holds the island up through the short beat
-    // between closing the chooser and gsr coming up, so it never blinks out.
+    // Chooser state: the Super+S capture card opens this island before recording.
+    // Quick records via gsr; Studio and Edit hand off to ryomotion. `starting`
+    // holds the island up through the short beat between closing the chooser and
+    // gsr coming up, so it never blinks out.
     property bool starting: false
     function startQuick() {
         Recorder.chooserOpen = false;

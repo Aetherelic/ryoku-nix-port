@@ -4,12 +4,12 @@ import QtQuick
 import Quickshell.Io
 import "Singletons"
 
-// brightness for the System sidebar: one fader for the internal backlight
-// (brightnessctl) plus one per external ddc monitor (ddcutil detect), so a
-// multi-head rig gets a labelled fader each while a lone laptop panel gets one
-// clean fader. `active` gates the probes -- ddc detect + the reads fire only
-// while the sidebar is open -- and writes debounce so a drag never floods i2c
-// or brightnessctl.
+// Brightness controls for the Super+Escape home module: one fader for the
+// internal backlight (brightnessctl) plus one per external ddc monitor
+// (ddcutil detect), so a multi-head rig gets a labelled fader each while a lone
+// laptop panel gets one clean fader. `active` gates the probes so reads run only
+// while the module is open, and writes debounce so a drag never floods i2c or
+// brightnessctl.
 Column {
     id: root
 
@@ -26,10 +26,16 @@ Column {
     property int pendingBl: -1
 
     // on open: enumerate external monitors and read the panel level once.
-    onActiveChanged: if (active) {
-        Devices.detect();
-        Devices.readBacklight();
+    onActiveChanged: {
+        if (active) {
+            Devices.startProbes(root);
+        } else {
+            Devices.stopProbes(root);
+            blDebounce.stop();
+            root.pendingBl = -1;
+        }
     }
+    Component.onDestruction: Devices.stopProbes(root)
 
     // the brightness keys move the backlight out from under us, so re-read on a
     // slow poll while the sidebar is open.
@@ -43,8 +49,9 @@ Column {
     Timer {
         id: blDebounce
         interval: 40
-        onTriggered: if (root.pendingBl >= 0) {
-            Devices.setBacklight(root.pendingBl);
+        onTriggered: {
+            if (root.active && root.pendingBl >= 0)
+                Devices.setBacklight(root.pendingBl);
             root.pendingBl = -1;
         }
     }
@@ -109,8 +116,9 @@ Column {
             Timer {
                 id: monCommit
                 interval: 160
-                onTriggered: if (mon.pendingPct >= 0) {
-                    Devices.setBrightness(mon.modelData.bus, mon.pendingPct);
+                onTriggered: {
+                    if (root.active && mon.pendingPct >= 0)
+                        Devices.setBrightness(mon.modelData.bus, mon.pendingPct);
                     mon.pendingPct = -1;
                 }
             }

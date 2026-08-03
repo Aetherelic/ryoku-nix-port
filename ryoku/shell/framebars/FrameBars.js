@@ -39,8 +39,21 @@ function menuWidgetsFor(value, catalog, depth) {
     }
     return out;
 }
+function quickSettingsModulesFor(value, catalog, fallback) {
+    if (!Array.isArray(value)) return clone(fallback);
+    const seen = {};
+    const modules = [];
+    for (const id of value) {
+        if (typeof id === "string" && catalog.quickSettingsModule(id) && !seen[id]) {
+            seen[id] = true;
+            modules.push(id);
+        }
+    }
+    return modules.length > 0 ? modules : clone(fallback);
+}
 
-function defaultConfig() {
+
+function defaultConfig(menuCatalog) {
     return {
         version: 1,
         style: "slate-frame",
@@ -51,7 +64,7 @@ function defaultConfig() {
             right: { enabled: false, size: 48, reveal: true, top: [], center: [], bottom: [] }
         },
         menus: {
-            "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"] },
+            "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"], modules: menuCatalog.defaultQuickSettingsModules() },
             wallpaper: { anchor: "bottom", minWidth: 1400, expansion: "always", widgets: ["theme", "wallpaper"] },
             screenshare: { anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
             theme: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
@@ -59,7 +72,6 @@ function defaultConfig() {
         },
         surfaces: {
             stash: { anchor: "right", minWidth: 340, panes: ["stash"] },
-            system: { anchor: "right", minWidth: 340, panes: ["notifications", "calendar", "media", "weather", "recording"] }
         },
         dock: { pinned: [] }
     };
@@ -71,9 +83,9 @@ function defaultConfig() {
 const menuExpansions = ["always", "never", "both", "up", "down"];
 
 function normalize(raw, barCatalog, menuCatalog) {
-    const base = defaultConfig();
+    const base = defaultConfig(menuCatalog);
     const source = isObject(raw) ? raw : {};
-    const output = defaultConfig();
+    const output = defaultConfig(menuCatalog);
     output.style = source.style === "slate-frame" || source.style === "ryoku-frame" ? source.style : base.style;
     for (const edge of ["top", "left", "bottom", "right"]) {
         const rail = isObject(source.rails) && isObject(source.rails[edge]) ? source.rails[edge] : {};
@@ -96,7 +108,13 @@ function normalize(raw, barCatalog, menuCatalog) {
     // user-composed widget list, so its widgets always resolve to the fixed
     // default regardless of any stale persisted list.
     output.menus["quick-settings"].widgets = clone(base.menus["quick-settings"].widgets);
-    for (const id of ["stash", "system"]) {
+    const quickSettingsSource = isObject(source.menus) && isObject(source.menus["quick-settings"]) ? source.menus["quick-settings"] : {};
+    output.menus["quick-settings"].modules = quickSettingsModulesFor(
+        quickSettingsSource.modules,
+        menuCatalog,
+        base.menus["quick-settings"].modules
+    );
+    for (const id of ["stash"]) {
         const value = isObject(source.surfaces) && isObject(source.surfaces[id]) ? source.surfaces[id] : {};
         const fallback = base.surfaces[id];
         output.surfaces[id] = {
@@ -147,7 +165,7 @@ function removeWidget(config, edge, zone, index) {
 
 function setMenu(config, id, value, menuCatalog) {
     const output = clone(config);
-    const fallback = defaultConfig().menus[id];
+    const fallback = defaultConfig(menuCatalog).menus[id];
     if (!fallback || !menuCatalog.menu(id)) return output;
     const source = isObject(value) ? value : {};
     output.menus[id] = {
@@ -156,12 +174,19 @@ function setMenu(config, id, value, menuCatalog) {
         expansion: menuExpansions.includes(source.expansion) ? source.expansion : fallback.expansion,
         widgets: Array.isArray(source.widgets) ? source.widgets.filter(widget => menuCatalog.widget(widget)) : clone(fallback.widgets)
     };
+    if (id === "quick-settings") {
+        output.menus[id].modules = quickSettingsModulesFor(
+            source.modules,
+            menuCatalog,
+            fallback.modules
+        );
+    }
     return output;
 }
 
 function setSurface(config, id, value, menuCatalog) {
     const output = clone(config);
-    const fallback = defaultConfig().surfaces[id];
+    const fallback = defaultConfig(menuCatalog).surfaces[id];
     if (!fallback || !menuCatalog.surface(id)) return output;
     const source = isObject(value) ? value : {};
     output.surfaces[id] = {

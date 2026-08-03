@@ -392,6 +392,10 @@ if [[ -d $cfg/hypr ]]; then
 fi
 mv "$staging" "$cfg/hypr"
 
+wireplumber_policy="$cfg/wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf"
+wireplumber_before=
+[[ -f $wireplumber_policy ]] && wireplumber_before=$(<"$wireplumber_policy")
+
 # Palette generation, per-app config, and the user session target.
 mkdir -p "$cfg/matugen"; cp -a "$here/matugen/." "$cfg/matugen/"
 cp -a "$here/../apps/fish/config.fish" "$cfg/fish/config.fish"
@@ -399,6 +403,7 @@ mkdir -p "$cfg/fish/conf.d"; cp -a "$here/../apps/fish/conf.d/." "$cfg/fish/conf
 mkdir -p "$cfg/qt6ct"; cp -a "$here/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
 mkdir -p "$cfg/btop"; cp -a "$here/../apps/btop/btop.conf" "$cfg/btop/btop.conf"
 mkdir -p "$cfg/pipewire"; cp -a "$here/../apps/pipewire/." "$cfg/pipewire/"
+mkdir -p "$cfg/wireplumber"; cp -a "$here/../apps/wireplumber/." "$cfg/wireplumber/"
 mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
 # dev deploy runs the daemon from ~/.local/bin; the package ships /usr/bin.
 sed -i -e "s|^ExecStart=.*|ExecStart=$bindir/ryoku-shell daemon|" \
@@ -429,6 +434,14 @@ command -v systemctl >/dev/null 2>&1 && systemctl --user daemon-reload 2>/dev/nu
 
 # User overrides win over the base just laid, for hypr and every other surface.
 overlay_user_edits
+wireplumber_after=
+[[ -f $wireplumber_policy ]] && wireplumber_after=$(<"$wireplumber_policy")
+if (( reload )) && [[ $wireplumber_before != "$wireplumber_after" ]]; then
+  if systemctl --user try-restart wireplumber.service 2>/dev/null; then
+    say "restarted WirePlumber for updated Bluetooth audio policy"
+  fi
+fi
+
 
 if (( hypr_live && reload )); then
   # Apply now in one clean reload (this also restores auto-reload), then restart
