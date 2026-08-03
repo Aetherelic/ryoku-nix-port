@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Changed
+- `ryostore/`: **The store lands on the section it was opened to instead of
+  snapping to Discover.** A nav-open (from `ryostore open`, behind every Hub
+  "Browse RyoStore" button and "Open in Settings") arrived before the catalogue
+  loaded, so the route was dropped; it is now stashed and applied once the
+  categories arrive (`quickshell/App.qml`).
+- `ryostore/`: **Animated gif previews keep their aspect instead of stretching
+  to the plate.** The preview's AnimatedImage forced a sourceSize, which QMovie
+  applies as an exact scale that distorts a gif whose aspect differs; dropping it
+  lets fillMode fit the frames (`quickshell/ProductMedia.qml`).
+- **Softer corners across the desktop.** The shared Ryoku.Ui radius went from
+  2 px to 6 px, so buttons, cards, and tiles read less boxy
+  (`ui/Singletons/Tokens.qml`).
 - `ryostore/`: **"Open in Settings" only shows for products with a real settings
   page.** It appeared on every installed product, but decors, launcher images,
   and lockscreens have no manage or apply page (the lockscreen and app-launcher

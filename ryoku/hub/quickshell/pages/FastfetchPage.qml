@@ -55,6 +55,7 @@ Item {
             }
         }
     }
+    function resetToDefault() { resetProc.running = true; }
 
     readonly property bool dirty: {
         void pg.rev;
@@ -142,6 +143,11 @@ Item {
             getProc.running = true;
             storeStylesProc.running = true;
         }
+    }
+    Process {
+        id: resetProc
+        command: ["ryoku-hub", "fastfetch", "reset"]
+        onExited: function (code) { if (code === 0) getProc.running = true; }
     }
     // ---- edit helpers (reassign model so bindings + dirty re-evaluate) -------
     function clone() { return JSON.parse(JSON.stringify(pg.model)); }
@@ -569,9 +575,9 @@ Item {
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
         Row {
-            visible: pg.installedStoreStyles.length > 0
             spacing: Tokens.s3
             Text {
+                visible: pg.installedStoreStyles.length > 0
                 anchors.verticalCenter: parent.verticalCenter
                 text: I18n.tr("STORE LIBRARY") + " · " + pg.installedStoreStyles.length
                 color: Tokens.inkMuted
@@ -581,8 +587,13 @@ Item {
                 font.letterSpacing: Tokens.trackMark
             }
             Btn {
+                visible: pg.installedStoreStyles.length > 0
                 text: I18n.tr("APPLY INSTALLED STYLE")
                 onAct: pg.storeStyleOpen = true
+            }
+            Btn {
+                text: I18n.tr("RESET TO DEFAULT")
+                onAct: pg.resetToDefault()
             }
         }
         Text {

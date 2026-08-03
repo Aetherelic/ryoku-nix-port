@@ -11,6 +11,10 @@
   shell.json (`quickshell/pages/BarStudioPage.qml`, `quickshell/Hub.qml`).
 
 ### Fixed
+- **Fastfetch can be reset to the default.** The page offered "Apply Installed
+  Style" from the Store but no way back to the built-in readout; a "Reset to
+  Default" action now rewrites config.jsonc from the default model
+  (`backend/fastfetch.go`, `quickshell/pages/FastfetchPage.qml`).
 - **The App Launcher settings page renders again.** `launcherRoot` fell back to
   `Qt.resolvedUrl`, which resolves to an unusable qrc path in the deployed Hub, so
   the launcher catalogue never loaded and the preview plus every style, palette,

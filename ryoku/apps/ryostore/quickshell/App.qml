@@ -30,6 +30,11 @@ Rectangle {
     property bool reducedMotion: performance.lowPowerMode || performance.reduceMotion
     readonly property bool catalogLoading: Store.loading && Store.items.length === 0
     readonly property bool catalogError: !Store.loading && Store.items.length === 0 && Store.error !== ""
+    // A nav-open (from `ryostore open` / `settings`) can arrive before the
+    // catalogue's categories load, with nothing to validate the route against;
+    // stash it and apply once the categories arrive so the store lands right.
+    property string pendingRoute: ""
+    onNavigationCategoriesChanged: if (app.pendingRoute !== "" && app.validRoute(app.pendingRoute)) app.openRoute(app.pendingRoute)
 
     readonly property var searchableItems: Store.items.map(item => {
         const copy = {};
@@ -121,8 +126,11 @@ Rectangle {
     }
 
     function openRoute(route) {
-        if (!validRoute(route))
+        if (!validRoute(route)) {
+            app.pendingRoute = route;
             return;
+        }
+        app.pendingRoute = "";
         detailClear.stop();
         detailOpen = false;
         detailItem = null;

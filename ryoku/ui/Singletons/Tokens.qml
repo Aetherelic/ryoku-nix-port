@@ -109,7 +109,7 @@ Singleton {
     readonly property int s7: 48
 
     // ── geometry ─────────────────────────────────────────────────────────
-    readonly property int radius: 2
+    readonly property int radius: 6
     readonly property real border: 1
     readonly property int rowH: 48
     readonly property int cellH: 104

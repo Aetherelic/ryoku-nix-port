@@ -108,8 +108,9 @@ Item {
         anchors.margins: media.plate
                 ? Math.round(Math.min(media.width, media.height) * 0.045) : 0
         source: media.animated ? media.source : ""
-        sourceSize: Qt.size(Math.max(1, Math.ceil(media.width * 2)),
-                            Math.max(1, Math.ceil(media.height * 2)))
+        // No forced sourceSize: an AnimatedImage scales its movie to sourceSize
+        // exactly (QMovie), which stretches gifs whose aspect differs from the
+        // frame; native size plus fillMode keeps the aspect right.
         fillMode: media.fit
         asynchronous: true
         cache: true
