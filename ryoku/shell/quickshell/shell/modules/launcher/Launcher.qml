@@ -7,8 +7,23 @@ import "shared/Singletons"
 import "shared/providers" as SharedProviders
 import "shared/lib/catalog.js" as Catalog
 
-ShellRoot {
+Scope {
     id: root
+
+    property var screen: null
+    property bool active: false
+
+    onActiveChanged: root.syncOpen()
+    onVariantReadyChanged: root.syncOpen()
+
+    function syncOpen() {
+        if (!variantReady)
+            return;
+        if (active)
+            show(screen && screen.name ? screen.name : "");
+        else
+            hide();
+    }
 
     property var catalog: null
     property string activeId: ""
