@@ -5,6 +5,7 @@ import QtQuick.Controls
 import Quickshell
 import "../services"
 import "../services/lib/events.js" as EventsModel
+import "../services/lib/calendar.js" as CalendarModel
 
 // calendar surface content. header (month/year + prev/next), weekday strip,
 // day grid sized to exactly the rows the month needs. today gets a warm
@@ -59,7 +60,7 @@ PillSurface {
     }
 
     function daysInMonth(year, month) {
-        return new Date(year, month + 1, 0).getDate();
+        return CalendarModel.daysInMonth(year, month);
     }
 
     function isToday(day) {
@@ -69,12 +70,9 @@ PillSurface {
     }
 
     function shiftMonth(delta) {
-        var m = viewMonth + delta;
-        var y = viewYear;
-        while (m < 0) { m += 12; y -= 1; }
-        while (m > 11) { m -= 12; y += 1; }
-        viewMonth = m;
-        viewYear = y;
+        var next = CalendarModel.shiftMonth(viewYear, viewMonth, delta);
+        viewYear = next.year;
+        viewMonth = next.month;
     }
 
     function resetToday() {
