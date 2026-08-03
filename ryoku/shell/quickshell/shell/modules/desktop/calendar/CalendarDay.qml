@@ -12,6 +12,7 @@ Item {
     property bool selected: false
     property real s: 1
     signal activated(string key)
+    signal hoverChanged(string key, bool inside)
 
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
@@ -70,7 +71,7 @@ Item {
 
     HoverHandler {
         id: hover
-        onHoveredChanged: if (hovered) root.activated(root.day.key)
+        onHoveredChanged: root.hoverChanged(root.day.key, hovered)
     }
     TapHandler { onTapped: { root.forceActiveFocus(); root.activated(root.day.key); } }
     Keys.onReturnPressed: root.activated(root.day.key)

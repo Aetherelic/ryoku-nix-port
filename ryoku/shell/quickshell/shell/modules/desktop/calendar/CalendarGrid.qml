@@ -16,6 +16,7 @@ Item {
     property var holidayForDate: function(key) { return []; }
     property var eventForDate: function(key) { return []; }
     signal selected(string key)
+    signal dayHoverChanged(string key, bool inside)
 
     readonly property real weekWidth: root.showWeekNumbers ? 28 * root.s : 0
     readonly property real cellWidth: 40 * root.s
@@ -100,6 +101,7 @@ Item {
             selected: root.selectedKey === modelData.key
             s: root.s
             onActivated: key => root.selected(key)
+            onHoverChanged: (key, inside) => root.dayHoverChanged(key, inside)
         }
     }
 }

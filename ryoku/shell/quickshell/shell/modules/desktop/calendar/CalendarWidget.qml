@@ -26,6 +26,8 @@ Item {
     property int viewMonth: today.getMonth()
     readonly property int visibleWeeks: root.days.length / 7
     property string selectedKey: CalendarModel.dateKey(today.getFullYear(), today.getMonth(), today.getDate())
+    property string hoveredKey: ""
+    readonly property string activeKey: root.hoveredKey.length > 0 ? root.hoveredKey : root.selectedKey
     readonly property var days: CalendarModel.buildRange(today, viewYear, viewMonth, weeks, firstDay)
     readonly property var years: {
         const result = [];
@@ -33,10 +35,10 @@ Item {
             if (result.indexOf(day.year) < 0) result.push(day.year);
         return result;
     }
-    readonly property var selectedHolidays: Holidays.forDate(root.selectedKey)
-    readonly property var selectedEvents: Events.forDate(root.selectedKey)
+    readonly property var selectedHolidays: Holidays.forDate(root.activeKey)
+    readonly property var selectedEvents: Events.forDate(root.activeKey)
     readonly property string selectedDateLabel: {
-        const parts = root.selectedKey.split("-");
+        const parts = root.activeKey.split("-");
         if (parts.length !== 3) return "";
         const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         return root.loc.toString(date, "dddd, MMMM d, yyyy");
@@ -161,11 +163,17 @@ Item {
         firstDay: root.firstDay
         showWeekNumbers: root.showWeekNumbers
         paper: root.paper
-        selectedKey: root.selectedKey
+        selectedKey: root.activeKey
         s: root.s
         holidayForDate: function(key) { return Holidays.forDate(key); }
         eventForDate: function(key) { return Events.forDate(key); }
         onSelected: key => root.selectedKey = key
+        onDayHoverChanged: (key, inside) => {
+            if (inside)
+                root.hoveredKey = key;
+            else if (root.hoveredKey === key)
+                root.hoveredKey = "";
+        }
     }
 
     CalendarDetails {
