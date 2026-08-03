@@ -21,8 +21,8 @@ Singleton {
     // (the plugins idiom; reliable under both `qs -p` and `qs -c`).
     readonly property string shellDir: Quickshell.env("RYOKU_SHELL_DIR")
     readonly property string script: (shellDir && shellDir.length > 0)
-        ? shellDir + "/quickshell/wallpaper/index.sh"
-        : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/wallpaper/index.sh"
+        ? shellDir + "/quickshell/shell/modules/wallpaper/switcher/index.sh"
+        : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/shell/modules/wallpaper/switcher/index.sh"
     readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku-wallpaper"
 
     // absolute path of the wallpaper on screen, watched so a pick lights its cell
