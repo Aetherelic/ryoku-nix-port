@@ -711,6 +711,7 @@ Item {
                 Btn { text: I18n.tr("HOME"); onAct: pg.gotoDir("") }
                 Btn { text: I18n.tr("PICTURES"); onAct: pg.gotoDir("Pictures") }
                 Btn { text: I18n.tr("DOWNLOADS"); onAct: pg.gotoDir("Downloads") }
+                Btn { text: I18n.tr("STORE"); onAct: pg.gotoDir("Pictures/ryoku-launchers") }
             }
 
             GridView {

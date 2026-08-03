@@ -15,7 +15,7 @@ FocusScope {
     property string installError: ""
     property bool reducedMotion: false
     property bool ditherOn: true
-    readonly property bool isDecor: String(actionItem.category) === "decors"
+    readonly property bool hasDither: String(actionItem.artRaw || "") !== ""
     property real transitionProgress: open ? 1 : 0
     property int lightboxIndex: -1
     readonly property bool lightboxOpen: lightboxIndex >= 0 && lightboxIndex < screenshotCount
@@ -127,7 +127,7 @@ FocusScope {
         width: detail.mix(detail.effectiveOrigin.width, detail.targetWidth)
         height: detail.mix(detail.effectiveOrigin.height, detail.targetHeight)
         item: detail.actionItem
-        artOverride: detail.isDecor && !detail.ditherOn ? String(detail.actionItem.artRaw || "") : ""
+        artOverride: detail.hasDither && !detail.ditherOn ? String(detail.actionItem.artRaw || "") : ""
         mode: "plate"
     }
 
@@ -245,7 +245,7 @@ FocusScope {
 
             Btn {
                 objectName: "ryostore-detail-dither"
-                visible: detail.isDecor
+                visible: detail.hasDither
                 text: detail.ditherOn ? "DITHER / ON" : "DITHER / OFF"
                 armed: detail.busyKey === ""
                 Accessible.role: Accessible.Button

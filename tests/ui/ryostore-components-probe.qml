@@ -322,7 +322,7 @@ ShellRoot {
                     && detail.metadataText.indexOf("lockscreen QML") !== -1,
                     "detail exposes all product metadata");
             const decorCover = root.findObject(decorDetail, "ryostore-detail-cover");
-            root.require(decorDetail.isDecor === true, "decor detail flagged as decor");
+            root.require(decorDetail.hasDither === true, "decor detail exposes dither variants");
             decorDetail.ditherOn = true;
             root.require(String(decorCover.artOverride) === "", "dither ON keeps dithered preview");
             decorDetail.ditherOn = false;

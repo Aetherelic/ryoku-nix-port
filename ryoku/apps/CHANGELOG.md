@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Changed
+- `ryostore/`: **Launcher images, a Store category of curated hero art for the
+  app launcher's header.** Six wide public-domain works (Hokusai's Great Wave,
+  Hiroshige's Shono, Friedrich's Sea of Ice, Van Gogh's Wheatfield with Crows,
+  Aivazovsky's Ninth Wave, the Hubble Carina Nebula) ship with raw and
+  `ryodither`-baked variants; the detail's DITHER toggle previews and picks
+  which installs. An install lands one flat file in `~/Pictures/ryoku-launchers`,
+  and the launcher settings hero picker gains a STORE shortcut that browses it,
+  so a store image becomes the launcher hero. Decors and launcher images now
+  share one `flatImageProvider` (`ryostore/backend/provider_flat_image.go`,
+  `backend/{catalog,routing,product_manifest}.go`, `hub/quickshell/pages/LauncherPage.qml`).
 - `ryostore/`: **Decors, a new Store category of curated public-domain art for
   the Hub's decor slots.** Seven specimens (Piranesi's Carceri, Dürer's
   Melencolia I and Rhinoceros, Hokusai's Red Fuji, the Hubble Pillars of
@@ -11,7 +21,7 @@
   detail's **DITHER** toggle previews both looks and chooses which one installs;
   a decor lands as one flat file in `~/Pictures/ryodecors`, so the `Decor` and
   `Placard` gallery lists it beside the shipped set with no further wiring
-  (`ryostore/backend/provider_decors.go`, `backend/{catalog,main,routing,product_manifest,model}.go`,
+  (`ryostore/backend/provider_flat_image.go`, `backend/{catalog,main,routing,product_manifest,model}.go`,
   `ryostore/quickshell/{ProductDetail,ProductCover,App}.qml`,
   `quickshell/Singletons/Store.qml`, `ui/Decor.qml`).
 - `ryostore/`: **Nacre and Obi are installable Store products instead of

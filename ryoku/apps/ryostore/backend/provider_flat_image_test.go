@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-var _ variantInstaller = decorProvider{}
+var _ variantInstaller = flatImageProvider{}
 
-func decorFixture(t *testing.T) decorProvider {
+func decorFixture(t *testing.T) flatImageProvider {
 	t.Helper()
 	files := map[string]string{
 		"/decors/registry.json":                 `{"schema":1,"decors":[{"id":"demo-decor","name":"Demo Decor","version":"1.0.0","author":"Ryoku","summary":"A demo specimen.","description":"A demo specimen for tests.","path":"decors/demo-decor","preview":"assets/preview.webp","previewRaw":"assets/preview-raw.webp","manifest":"manifest.json","manifestSha256":"` + strings.Repeat("a", 64) + `","tags":["test"],"screenshots":[],"accent":"#d7a45f","surface":"#101010"}]}`,
@@ -28,9 +28,10 @@ func decorFixture(t *testing.T) decorProvider {
 	}))
 	t.Cleanup(srv.Close)
 	t.Setenv("HOME", t.TempDir())
-	return decorProvider{
-		cache:   &Cache{client: srv.Client(), base: srv.URL, dir: filepath.Join(t.TempDir(), "cache"), memo: map[string]memoEntry{}},
-		dirPath: filepath.Join(os.Getenv("HOME"), "Pictures", "ryodecors"),
+	return flatImageProvider{
+		category: Category{ID: "decors"},
+		cache:    &Cache{client: srv.Client(), base: srv.URL, dir: filepath.Join(t.TempDir(), "cache"), memo: map[string]memoEntry{}},
+		dirPath:  filepath.Join(os.Getenv("HOME"), "Pictures", "ryodecors"),
 	}
 }
 

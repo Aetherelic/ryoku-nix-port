@@ -55,7 +55,7 @@ Singleton {
         _installError = "";
         var cmd = ["ryostore", "install", String(item.category), String(item.id)];
         var wantDither = (dither === undefined) ? true : dither;
-        if (wantDither && String(item.category) === "decors")
+        if (wantDither && String(item.artRaw || "") !== "")
             cmd.push("--dither");
         installProc.command = cmd;
         installProc.running = true;

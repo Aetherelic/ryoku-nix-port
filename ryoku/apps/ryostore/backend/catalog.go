@@ -30,6 +30,7 @@ func providers() []Provider {
 		pluginProvider{cache: c},
 		bundleProvider{cache: c, status: defaultBundleStatus, launch: launchBundleInstall},
 		newDecorProvider(c),
+		newLauncherImageProvider(c),
 	}
 }
 
