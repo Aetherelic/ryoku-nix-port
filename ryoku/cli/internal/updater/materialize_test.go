@@ -105,18 +105,18 @@ func TestMaterializeSweepsStaleQuickshell(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", dest)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 
-	writeFile(t, filepath.Join(base, "quickshell/pill/shell.qml"), "NEW\n")
+	writeFile(t, filepath.Join(base, "quickshell/shell/shell.qml"), "NEW\n")
 	// stale leftovers no manifest knows about, plus an unmanaged file outside
 	// quickshell that must survive.
-	writeFile(t, filepath.Join(dest, "quickshell/pill/Pill.qml"), "OLD\n")
+	writeFile(t, filepath.Join(dest, "quickshell/shell/Removed.qml"), "OLD\n")
 	writeFile(t, filepath.Join(dest, "quickshell/plugins/shell.qml"), "OLD\n")
 	writeFile(t, filepath.Join(dest, "hypr/user.lua"), "USER\n")
 
 	if err := Materialize(); err != nil {
 		t.Fatalf("materialize: %v", err)
 	}
-	wantFile(t, filepath.Join(dest, "quickshell/pill/shell.qml"), "NEW")
-	if sys.Exists(filepath.Join(dest, "quickshell/pill/Pill.qml")) {
+	wantFile(t, filepath.Join(dest, "quickshell/shell/shell.qml"), "NEW")
+	if sys.Exists(filepath.Join(dest, "quickshell/shell/Removed.qml")) {
 		t.Error("stale quickshell file should be swept without a manifest entry")
 	}
 	if sys.Exists(filepath.Join(dest, "quickshell/plugins")) {
