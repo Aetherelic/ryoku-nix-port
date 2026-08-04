@@ -188,3 +188,28 @@ func TestClipPersistence(t *testing.T) {
 		t.Errorf("reloaded nextID = %d, want %d", s2.nextID, s.nextID)
 	}
 }
+
+// isClipWatcherCmdline must match only our own watcher/helper -- never another
+// app's wl-paste or the daemon itself -- since a false match SIGKILLs the pid.
+func TestIsClipWatcherCmdline(t *testing.T) {
+	const self = "/home/u/.local/bin/ryoku-shell"
+	cases := []struct {
+		name string
+		argv []string
+		want bool
+	}{
+		{"watcher", []string{"wl-paste", "--watch", self, "__clip-ingest"}, true},
+		{"helper", []string{self, "__clip-ingest"}, true},
+		{"other-app wl-paste", []string{"wl-paste", "--watch", "/usr/bin/cliphist", "store"}, false},
+		{"plain wl-paste", []string{"wl-paste", "-n", "-t", "image/png"}, false},
+		{"our daemon", []string{self, "daemon"}, false},
+		{"our other verb", []string{self, "ipc", "menu"}, false},
+		{"ingest marker, foreign binary", []string{"wl-paste", "--watch", "/other/bin", "__clip-ingest"}, false},
+		{"empty", nil, false},
+	}
+	for _, c := range cases {
+		if got := isClipWatcherCmdline(c.argv, self); got != c.want {
+			t.Errorf("%s: isClipWatcherCmdline(%v) = %v, want %v", c.name, c.argv, got, c.want)
+		}
+	}
+}

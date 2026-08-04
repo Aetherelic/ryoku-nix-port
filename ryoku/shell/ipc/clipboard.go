@@ -553,6 +553,9 @@ func (s *clipState) watch() {
 	if err != nil {
 		return
 	}
+	// Reap watchers and helpers stranded by a previous daemon before attaching
+	// ours, so a force-kill or logout can never accumulate them across sessions.
+	reapStrayClipWatchers(self)
 	for {
 		cmd := exec.Command("wl-paste", "--watch", self, "__clip-ingest")
 		// Tie the watcher to us: a hard daemon exit must not strand a wl-paste
@@ -564,6 +567,52 @@ func (s *clipState) watch() {
 		_ = cmd.Wait()
 		time.Sleep(2 * time.Second)
 	}
+}
+
+// reapStrayClipWatchers kills clip watchers and ingest helpers stranded by a
+// previous daemon. wl-paste's Pdeathsig ties a watcher to the daemon that
+// started it, but a force-killed daemon (or an older build) can leave watchers
+// that reparent to init and hold a data-control slot for the rest of the login.
+// Only processes carrying our own executable path and the __clip-ingest marker
+// are touched, so other apps' wl-paste is never disturbed.
+func reapStrayClipWatchers(self string) {
+	me := os.Getpid()
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil || pid == me {
+			continue
+		}
+		raw, err := os.ReadFile("/proc/" + e.Name() + "/cmdline")
+		if err != nil {
+			continue
+		}
+		if !isClipWatcherCmdline(strings.Split(string(raw), "\x00"), self) {
+			continue
+		}
+		if p, err := os.FindProcess(pid); err == nil {
+			_ = p.Signal(syscall.SIGKILL)
+		}
+	}
+}
+
+// isClipWatcherCmdline reports whether argv is one of our clip processes: the
+// helper (`<self> __clip-ingest`) or the watcher (`wl-paste --watch <self>
+// __clip-ingest`). Both carry our executable path and the __clip-ingest marker.
+func isClipWatcherCmdline(argv []string, self string) bool {
+	var hasSelf, hasIngest bool
+	for _, a := range argv {
+		switch a {
+		case self:
+			hasSelf = true
+		case "__clip-ingest":
+			hasIngest = true
+		}
+	}
+	return hasSelf && hasIngest
 }
 
 // runClipIngest is the wl-paste --watch helper (ryoku-shell __clip-ingest). It
