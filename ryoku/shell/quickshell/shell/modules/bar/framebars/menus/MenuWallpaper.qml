@@ -111,80 +111,98 @@ Item {
             }
         }
 
-        // type filter: All / Images / Live, shown only when live walls exist.
-        Row {
-            spacing: 7
-            visible: root.hasLive
-            Repeater {
-                model: [{ k: "all", t: qsTr("All") }, { k: "image", t: qsTr("Images") }, { k: "live", t: qsTr("Live") }]
-                delegate: Rectangle {
-                    id: tc
-                    required property var modelData
-                    readonly property bool on: root.typeFilter === tc.modelData.k
-                    width: tcTxt.implicitWidth + 18
+        // Filters share one row: type (All / Images / Live) on the left, the
+        // colour swatches on the right, so they use the width instead of
+        // stacking and leaving the right half empty.
+        Item {
+            width: parent.width
+            height: 26
+            visible: root.hasLive || root.groups.length > 0
+
+            // type filter: All / Images / Live, shown only when live walls exist.
+            Row {
+                id: typeRow
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 7
+                visible: root.hasLive
+                Repeater {
+                    model: [{ k: "all", t: qsTr("All") }, { k: "image", t: qsTr("Images") }, { k: "live", t: qsTr("Live") }]
+                    delegate: Rectangle {
+                        id: tc
+                        required property var modelData
+                        readonly property bool on: root.typeFilter === tc.modelData.k
+                        width: tcTxt.implicitWidth + 18
+                        height: 26
+                        radius: 6
+                        color: tc.on ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+                        border.width: Theme.borderWidth
+                        border.color: tc.on ? Theme.primary : Theme.outline
+                        Text {
+                            id: tcTxt
+                            anchors.centerIn: parent
+                            text: tc.modelData.t
+                            color: tc.on ? Theme.primary : Theme.onSurfaceVariant
+                            font.family: Theme.fontPrimary
+                            font.pixelSize: 12
+                            font.weight: tc.on ? Font.DemiBold : Font.Medium
+                        }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.setType(tc.modelData.k) }
+                    }
+                }
+            }
+
+            // colour filter: an ALL chip then one rounded swatch per hue group
+            // present. Rides the right edge beside the type row, or the left when
+            // there are no live walls (no type row to sit beside).
+            Row {
+                id: colorRow
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: root.hasLive ? undefined : parent.left
+                anchors.right: root.hasLive ? parent.right : undefined
+                spacing: 7
+                visible: root.groups.length > 0
+
+                Rectangle {
+                    id: allChip
+                    readonly property bool on: root.colorFilter === -1
+                    width: allTxt.implicitWidth + 18
                     height: 26
                     radius: 6
-                    color: tc.on ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+                    color: allChip.on ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
                     border.width: Theme.borderWidth
-                    border.color: tc.on ? Theme.primary : Theme.outline
+                    border.color: allChip.on ? Theme.primary : Theme.outline
                     Text {
-                        id: tcTxt
+                        id: allTxt
                         anchors.centerIn: parent
-                        text: tc.modelData.t
-                        color: tc.on ? Theme.primary : Theme.onSurfaceVariant
+                        text: qsTr("All")
+                        color: allChip.on ? Theme.primary : Theme.onSurfaceVariant
                         font.family: Theme.fontPrimary
                         font.pixelSize: 12
-                        font.weight: tc.on ? Font.DemiBold : Font.Medium
+                        font.weight: allChip.on ? Font.DemiBold : Font.Medium
                     }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.setType(tc.modelData.k) }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.colorFilter = -1 }
                 }
-            }
-        }
 
-        // colour filter: an ALL chip then one rounded swatch per hue group present.
-        Row {
-            spacing: 7
-            visible: root.groups.length > 0
-
-            Rectangle {
-                id: allChip
-                readonly property bool on: root.colorFilter === -1
-                width: allTxt.implicitWidth + 18
-                height: 26
-                radius: 6
-                color: allChip.on ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
-                border.width: Theme.borderWidth
-                border.color: allChip.on ? Theme.primary : Theme.outline
-                Text {
-                    id: allTxt
-                    anchors.centerIn: parent
-                    text: qsTr("All")
-                    color: allChip.on ? Theme.primary : Theme.onSurfaceVariant
-                    font.family: Theme.fontPrimary
-                    font.pixelSize: 12
-                    font.weight: allChip.on ? Font.DemiBold : Font.Medium
-                }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.colorFilter = -1 }
-            }
-
-            Repeater {
-                model: root.groups
-                delegate: Rectangle {
-                    id: sw
-                    required property var modelData
-                    readonly property bool on: root.colorFilter === sw.modelData
-                    readonly property var hsl: WallColors.swatchHsl(sw.modelData)
-                    width: 26
-                    height: 26
-                    radius: 6
-                    color: hh.hovered ? Qt.hsla(sw.hsl[0], sw.hsl[1], Math.min(1, sw.hsl[2] + 0.08), 1)
-                        : Qt.hsla(sw.hsl[0], sw.hsl[1], sw.hsl[2], 1)
-                    opacity: (root.colorFilter !== -1 && !sw.on) ? 0.45 : 1
-                    border.width: sw.on ? 2 : 1
-                    border.color: sw.on ? Theme.primary : Qt.rgba(0, 0, 0, 0.35)
-                    Behavior on opacity { NumberAnimation { duration: Motion.thumbHover } }
-                    HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: root.colorFilter = (root.colorFilter === sw.modelData ? -1 : sw.modelData) }
+                Repeater {
+                    model: root.groups
+                    delegate: Rectangle {
+                        id: sw
+                        required property var modelData
+                        readonly property bool on: root.colorFilter === sw.modelData
+                        readonly property var hsl: WallColors.swatchHsl(sw.modelData)
+                        width: 26
+                        height: 26
+                        radius: 6
+                        color: hh.hovered ? Qt.hsla(sw.hsl[0], sw.hsl[1], Math.min(1, sw.hsl[2] + 0.08), 1)
+                            : Qt.hsla(sw.hsl[0], sw.hsl[1], sw.hsl[2], 1)
+                        opacity: (root.colorFilter !== -1 && !sw.on) ? 0.45 : 1
+                        border.width: sw.on ? 2 : 1
+                        border.color: sw.on ? Theme.primary : Qt.rgba(0, 0, 0, 0.35)
+                        Behavior on opacity { NumberAnimation { duration: Motion.thumbHover } }
+                        HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: root.colorFilter = (root.colorFilter === sw.modelData ? -1 : sw.modelData) }
+                    }
                 }
             }
         }
