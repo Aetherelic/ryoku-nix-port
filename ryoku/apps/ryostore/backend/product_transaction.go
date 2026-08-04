@@ -32,6 +32,7 @@ type productTransactionJournal struct {
 	Operation               string          `json:"operation"`
 	Phase                   string          `json:"phase"`
 	HadDestination          bool            `json:"hadDestination,omitempty"`
+	Adopted                 bool            `json:"adopted,omitempty"`
 	BaseRevision            uint64          `json:"baseRevision"`
 	PriorReceipt            *Receipt        `json:"priorReceipt,omitempty"`
 	SelectionToken          string          `json:"selectionToken,omitempty"`
@@ -87,6 +88,7 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 	if destinationErr != nil && !os.IsNotExist(destinationErr) {
 		return destinationErr
 	}
+	adopting := false
 	if hadDestination {
 		if info.Mode()&os.ModeSymlink != 0 {
 			return fmt.Errorf("%s is a symlink", dst)
@@ -95,7 +97,15 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 			return fmt.Errorf("tracked destination %s is not a directory", dst)
 		}
 		if !hadReceipt {
-			return fmt.Errorf("refusing untracked destination %s", dst)
+			// Adopt a pre-receipt install: a receipt-less directory that still
+			// carries a product manifest.json predates the receipt system (or a
+			// failed migration), not foreign user data, so replace it (the
+			// transaction backs up the old tree) and write a receipt below rather
+			// than refuse. A directory with no manifest is genuinely untracked.
+			if mInfo, mErr := os.Stat(filepath.Join(dst, "manifest.json")); mErr != nil || mInfo.IsDir() {
+				return fmt.Errorf("refusing untracked destination %s", dst)
+			}
+			adopting = true
 		}
 	}
 	if hadReceipt && prior.Destination != expectedDestination {
@@ -177,6 +187,7 @@ func installProduct(ctx context.Context, cache *Cache, category string, entry Pr
 		Phase:          "install-prepared",
 		BaseRevision:   baseRevision,
 		HadDestination: hadDestination,
+		Adopted:        adopting,
 	}
 	if hadReceipt {
 		priorCopy := prior
@@ -694,7 +705,7 @@ func validateProductJournal(journal productTransactionJournal) error {
 	}
 	switch journal.Operation {
 	case "install":
-		if journal.PriorReceipt != nil || journal.HadDestination {
+		if journal.PriorReceipt != nil || (journal.HadDestination && !journal.Adopted) {
 			return fmt.Errorf("install journal unexpectedly owns prior state")
 		}
 		if journal.Phase != "install-prepared" && journal.Phase != "install-published" && journal.Phase != "install-receipt" && journal.Phase != "install-placement" && journal.Phase != "install-rollback" && journal.Phase != "ready" {

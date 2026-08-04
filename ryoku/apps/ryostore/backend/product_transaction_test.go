@@ -578,6 +578,26 @@ func TestProductTransactionRefusesUntrackedDestination(t *testing.T) {
 	}
 }
 
+func TestProductTransactionAdoptsManifestDestination(t *testing.T) {
+	setTransactionXDG(t)
+	if err := os.MkdirAll(installedPluginPath(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A pre-receipt install: the directory carries a product manifest but has no
+	// receipt (installed before receipts existed). Installing must adopt it and
+	// write a receipt, not refuse it as an untracked destination.
+	if err := os.WriteFile(filepath.Join(installedPluginPath(), "manifest.json"), []byte("{\"id\":\"demo\"}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fixture := newTransactionFixture(t, "1.0.0", []byte("content\n"), []byte("content\n"))
+	if err := installProduct(context.Background(), fixture.cache, "plugins", fixture.entry); err != nil {
+		t.Fatalf("adopt install failed: %v", err)
+	}
+	if _, err := readReceipt("plugins", "demo"); err != nil {
+		t.Fatalf("adopt did not write a receipt: %v", err)
+	}
+}
+
 func TestProductTransactionRefusesSymlink(t *testing.T) {
 	setTransactionXDG(t)
 	if err := os.MkdirAll(filepath.Dir(installedPluginPath()), 0o755); err != nil {
