@@ -30,17 +30,21 @@ truth for the live desktop.
   directory deploys to `~/.config/hypr/`.
 - `lockscreen/` `qylock/` (the lock theme and its quickshell lockscreen),
   `install-qylock`, and `sddm/` (the greeter setup).
-- `shell/` the desktop shell subsystem: `quickshell/` (the QML UI: `pill` (the
-  four-edge frame bars, shared frame scene, bounded menu manager, rail status
-  popout cards (`popouts/`), the modular Super+Escape control sidebar, pluggable
-  bar styles (`barstyles/`, see `docs/barstyles.md`), and preserved frame
-  surfaces), `launcher`, `ryoshot`,
-  `ryolayer` (the Super+G tool overlay), `welcome` (the first-run guided tour),
-  and `widgets` (the wallpaper clock and enabled third-party widgets), plus
-  `plugins` (the third-party shell plugin runtime: `discover.sh` merges the
-  catalogue with the user's `plugins.json`, the widget host carries desktop
-  placements, and `kit/` is the `Ryoku.PluginKit` QML module a plugin imports
-  for the signature look; see `docs/plugins.md`)),
+- `shell/` the desktop shell subsystem: `quickshell/` (the QML UI. Every surface
+  runs in-process in a single `qs -c shell` instance under `shell/`, drawn per
+  monitor from one scene (`shell.qml`): `modules/` is one directory per surface
+  (`bar` the four-edge frame bars with the bounded menu manager, rail status
+  popout cards (`bar/popouts/`), the Super+Escape control sidebar and pluggable
+  bar styles (`bar/barstyles/`, see `docs/barstyles.md`); then `launcher`,
+  `overview` (Super+Tab), `board` (the Super+G tool overlay), `wallpaper`,
+  `visualizer`, `osd`, `notifications`, `capture`, `confirm`, and `desktop` the
+  wallpaper clock and enabled third-party widgets); `services/` holds the shared
+  singletons every surface reads, `components/` the shared UI primitives, and
+  `utils/` the shared JS. Beside it are `ryoshot`, `welcome` (the first-run
+  guided tour), and `plugins` (the third-party shell plugin runtime:
+  `discover.sh` merges the catalogue with the user's `plugins.json`, the widget
+  host carries desktop placements, and `kit/` is the `Ryoku.PluginKit` QML module
+  a plugin imports for the signature look; see `docs/plugins.md`)),
   `plugin/` (`Ryoku.Blobs`, the C++/QML SDF metaball module the frame renders
   with; `build.sh` builds it, and it ships prebuilt), `matugen/` (palette
   templates rendered on every wallpaper change), `qt6ct/` (the Qt icon theme, `qt6ct.conf`),

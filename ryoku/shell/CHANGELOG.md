@@ -2,7 +2,37 @@
 
 ## Unreleased
 
+### Changed
+- **The desktop shell now runs as a single Quickshell instance.** The frame bar
+  and its menus, the launcher, overview, board, wallpaper, visualiser, on-screen
+  displays, notifications, capture, and the desktop widgets were seven separate
+  `qs -c <config>` processes, each spawned on its keybind (~130 ms to launch and
+  a +130-470 MB spike per open, climbing toward 1-2 GB as surfaces piled up).
+  They now live in one `qs -c shell` instance under `quickshell/shell/`
+  (`modules/` one directory per surface, `services/` the shared singletons,
+  `components/` the shared primitives), driven by the `ryoku-shell` daemon
+  through in-process Hyprland global shortcuts. Opening a surface is now a
+  property flip (~2 ms, no spawn) and resident RAM holds a flat ~705 MB ceiling
+  instead of a 614 MB rest that spiked toward 1-2 GB. The old per-surface
+  configs (`pill` and the standalone surface trees) are retired.
+
 ### Fixed
+- **The quick-settings sidebar no longer ghosts when a page opens.** The device
+  pages (clipboard, Wi-Fi, Bluetooth, ...) slid in over the module band with no
+  opaque backing, so the modules behind bled through and looked like they cut
+  the page off; opening a page directly (Super+V for the clipboard) also
+  animated the bands from the home layout, flashing the home dashboard. The page
+  band now carries the same surface backing the home and media modules have, and
+  the slide only animates once the user navigates in-panel, so a direct open
+  snaps straight to its page (`quickshell/shell/modules/bar/framebars/menus/MenuQuickSettings.qml`).
+- **Stray clipboard watchers no longer accumulate across logins.** wl-paste's
+  Pdeathsig ties a watcher to the daemon that started it, but a force-killed
+  daemon or a logout could strand watchers that reparented to init and held a
+  data-control slot for the rest of the session; they built up run over run
+  (seen: ten watchers plus ten ingest helpers, ~157 MB). The daemon now reaps
+  any stray watcher carrying its own `__clip-ingest` marker on start before
+  attaching a fresh one, and each ingest helper caps its own lifetime
+  (`ipc/clipboard.go`).
 - **Ryoport and Ryowalls now have distinct application icons.** Ryoport uses a
   compass for navigating local and remote machines, while Ryowalls uses its
   torii mark and fixed red sun. Both remain legible in launcher and dock tiles
