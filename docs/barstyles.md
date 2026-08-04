@@ -3,7 +3,7 @@
 Ryoku ships three bar styles, and a single key decides which one runs. The
 default is **Sumi**, the built-in left rail. Sumi is not a folder: the shell
 draws it from the frame scene in `shell.qml`. Each other style lives under
-`ryoku/shell/quickshell/pill/barstyles/<id>/`, ships its own bar, widgets and
+`ryoku/shell/quickshell/shell/modules/bar/barstyles/<id>/`, ships its own bar, widgets and
 settings, and loads once per monitor. **Obi** is a
 floating sash with kanji workspaces. **Nacre** is three frosted top islands with
 a configurable widget layout.
@@ -97,11 +97,17 @@ how edits land:
   in scope just because they share a folder. Keep shared pieces in a subdirectory
   and import it namespaced: `import "components" as C`, then `C.BarPill { ... }`.
   A bare `BarPill { ... }` next to `BarPill.qml` will not resolve.
-- **Reach the shared code by relative path.** A widget three levels down imports
-  the singletons with `import "../../../Singletons"` and the Ryoku icon
-  primitives with `import "../../.." as Pill`. The `Scene.qml` sits one level
-  higher, so it uses `import "../../Singletons"`. Get these paths wrong and the
-  scene loads to a blank strip with import errors in the shell log.
+- **Reach the shell's shared code through the SDK modules, not relative paths.**
+  A product imports the shell's singletons with `import shell.services` (Theme,
+  Media, Notifs, Battery, Network, ...) and the non-singleton primitives with
+  `import shell.barkit as Pill` (the icon and brand types, `MusicBars`,
+  `TrayMenu`, `NotificationCard`, the `Popout` base building blocks, and the
+  audio and notification menus). Both are named modules resolved through the
+  Quickshell import path, so they work from any folder depth. `shell.services`
+  hands back the shell's own live singleton instances -- a product's `Notifs` is
+  the one notification server, never a second one. A product still reaches its
+  OWN files by relative path (`import "components" as C`). Get a module name
+  wrong and the scene loads to a blank strip with import errors in the shell log.
 
 ## The shape of a style
 
@@ -143,7 +149,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "../../Singletons"
+import shell.services
+import shell.barkit as Pill
 import "components" as C
 import "widgets" as W
 
@@ -181,7 +188,7 @@ out left to right. The smallest useful widget is a bound `Text`:
 
 ```qml
 import QtQuick
-import "../../../Singletons"
+import shell.services
 
 Text {
     text: "Desktop"
@@ -197,11 +204,10 @@ Everything past this point is about what a widget binds to.
 
 ## Fetching data
 
-This is the real work. The shell already gathers every live fact through
-singletons under `pill/Singletons/`; a widget reads them and draws. Import the
-whole directory once (`import "../../../Singletons"`) and each singleton is in
-scope by name. What follows is the exact surface each one exposes, drawn from the
-Obi widgets.
+This is the real work. The shell already gathers every live fact through the
+singletons in `shell.services`; a widget reads them and draws. Import the module
+once (`import shell.services`) and each singleton is in scope by name. What
+follows is the exact surface each one exposes, drawn from the Obi widgets.
 
 ### Workspaces and Hyprland
 
@@ -213,7 +219,7 @@ switch come from `Quickshell.Hyprland` directly:
 
 ```qml
 import Quickshell.Hyprland
-import "../../../Singletons"
+import shell.services
 
 readonly property int activeId: Workspaces.activeId
 
@@ -450,14 +456,14 @@ Behavior on color {
 }
 ```
 
-There are two glyph primitives, reached through the Ryoku root
-(`import "../../.." as Pill`):
+There are two glyph primitives, from the shell.barkit module
+(`import shell.barkit as Pill`):
 
 - **`Pill.MaterialIcon`** is a Material Symbols Rounded ligature. The glyph name
   is the text, and `fill` (0 or 1) picks the outline or filled variant. Use it
   for UI verbs: `Pill.MaterialIcon { text: "music_note"; font.pixelSize: Theme.iconSm }`.
 - **`Pill.SymbolIcon`** is one flattened symbolic SVG from the shell's own icon
-  set (`framebars/icons/`, freedesktop names without the `-symbolic` suffix),
+  set (`components/icons/`, freedesktop names without the `-symbolic` suffix),
   tinted to a single colour. Use it for the status glyphs the frame renders
   (battery levels, weather, network, mic):
   `Pill.SymbolIcon { name: "weather-clear-day"; size: 18; color: Theme.onSurface }`.

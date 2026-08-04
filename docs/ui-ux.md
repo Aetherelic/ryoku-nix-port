@@ -215,8 +215,8 @@ Each surface is its own directory under `quickshell/`, each component its own
 
 - **frame** the rounded screen border and the popouts that melt into it; the
   desktop's signature surface. See `docs/frame.md`.
-- **pill** the historical shell surface directory (`quickshell/pill/`): the
-  four-edge frame-bar system, the shared frame scene, and the service surfaces.
+- **bar** the four-edge frame-bar system (`shell/modules/bar/`), its shared frame
+  scene, and the service surfaces it draws from (`shell/services/`).
   Configurable rails carry the clock, quick settings, workspaces, dock, tray,
   and the status widgets. Clicking a status widget (network, Bluetooth, battery,
   audio, system monitor, recording, music) grows a popout card out of the rail
@@ -266,7 +266,7 @@ Each surface is its own directory under `quickshell/`, each component its own
 Motion is smooth, short, and purposeful. It exists to explain a state change, not
 to decorate.
 
-- **The `Motion` singleton is the token set** (`pill/Singletons/Motion.qml`).
+- **The `Motion` singleton is the token set** (`shell/services/Motion.qml`).
   Reach for its durations and curves rather than inventing values: `fast`
   (140ms) hover/press, `standard` (300ms) general, `morph` (420ms) shape changes
   and popout close, `emphasized` (400ms, `emphasizedCurve`) slides and indicator
@@ -288,7 +288,7 @@ to decorate.
 ## Building or replicating an animation
 
 1. Read the closest existing component first; `FrameRail`, the power surface,
-   and service surfaces under `quickshell/pill/` show the project's durations,
+   and service surfaces under `quickshell/shell/` show the project's durations,
    curves, and structure. Reuse the `Motion` tokens.
 2. Break the target motion into property transitions (size, position, opacity)
    and the easing between them, and reproduce each with a `Behavior` or a named

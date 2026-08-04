@@ -15,18 +15,13 @@
 #   2. EXTERNAL (nacre-popup-probe.barstyles.qml) - the nacre/obi barstyle
 #      PRODUCTS from ryoku-extras, copied into the built-in barstyle dir.
 #
-# BARSTYLE-API GAP: the external products still import the RETIRED `pill.*`
-# namespace - `pill.Singletons`, `pill as Pill` (flat SymbolIcon/MaterialIcon/
-# GlyphIcon/BrandMark/MusicBars/TrayMenu/NotificationCard/HFader/AudioAppRow),
-# `pill.popouts`, `pill.framebars.menus`. The consolidation scattered those flat
-# components across shell/{components,modules/bar,modules/notifications} and
-# rewrote their imports to nested-relative paths, so a flat `pill` namespace can
-# no longer be reconstructed (Qt resolves relative imports against the file's
-# path, not its symlink target, and the flat components need `services` at
-# incompatible depths). Until the products are migrated to the consolidated tree
-# (a ryoku-extras change) they cannot load, so half 2 is attempted and, when
-# `pill.*` fails to resolve, is loudly SKIPPED - the probe still exits 0 on the
-# built-in half. Commit nothing.
+# Both halves MUST pass. The external products import the shell.services +
+# shell.barkit SDK (docs/barstyles.md): shell.services shares the shell's live
+# singletons (so a product's Notifs is the one notification server, never a
+# second), and shell.barkit re-exports the non-singleton primitives (icon and
+# brand types, MusicBars, TrayMenu, NotificationCard, the Popout bases, the
+# audio/notification menus). When ryoku-extras is absent half 2 is skipped; when
+# present it must load or the probe exits non-zero. Commit nothing.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -78,23 +73,21 @@ if grep -Eq ' ERROR|TypeError|ReferenceError|is not a type|Type .* unavailable' 
     exit 1
 fi
 
-# --- half 2: EXTERNAL barstyle products (attempt; skip on retired pill.*) ------
+# --- half 2: EXTERNAL barstyle products (must load when present) --------------
 if [[ -f "$extras/barstyles/nacre/manifest.json" && -f "$extras/barstyles/obi/manifest.json" ]]; then
     cp -a "$extras/barstyles/nacre" "$extras/barstyles/obi" "$work/shell/modules/bar/barstyles/"
     QML2_IMPORT_PATH="$impath" timeout 20 qs -p "$work/shell/probe-barstyles.qml" >"$work/barstyles.log" 2>&1 || true
-    if grep -q NACRE-BARSTYLE-PROBE-PASS "$work/barstyles.log"; then
-        if grep -Eq ' ERROR|TypeError|ReferenceError|is not a type|Type .* unavailable' "$work/barstyles.log"; then
-            echo "nacre-popup-probe: WARNING external barstyle products loaded but logged errors (not fatal; only built-in failures exit non-zero)" >&2
-            sed -n '1,100p' "$work/barstyles.log" >&2
-        else
-            echo "nacre-popup-probe: external nacre/obi barstyle products load"
-        fi
-    elif grep -Eq 'module "pill|"pill(\.[A-Za-z]+)*" is not installed|pill\.(Singletons|popouts|framebars)' "$work/barstyles.log"; then
-        echo "SKIP: external barstyle products (nacre/obi) need migration to the consolidated tree - pill.* namespace retired"
-    else
-        echo "SKIP: external barstyle products (nacre/obi) did not load for a non-pill.* reason - see log below" >&2
-        sed -n '1,100p' "$work/barstyles.log" >&2
+    if ! grep -q NACRE-BARSTYLE-PROBE-PASS "$work/barstyles.log"; then
+        echo "nacre-popup-probe: FAIL external nacre/obi barstyle products did not load" >&2
+        sed -n '1,120p' "$work/barstyles.log" >&2
+        exit 1
     fi
+    if grep -Eq ' ERROR|TypeError|ReferenceError|is not a type|Type .* unavailable' "$work/barstyles.log"; then
+        echo "nacre-popup-probe: FAIL external barstyle products loaded with errors" >&2
+        sed -n '1,120p' "$work/barstyles.log" >&2
+        exit 1
+    fi
+    echo "nacre-popup-probe: external nacre/obi barstyle products load"
 else
     echo "SKIP: external barstyle products not present at $extras (set RYOKU_EXTRAS_ROOT)"
 fi

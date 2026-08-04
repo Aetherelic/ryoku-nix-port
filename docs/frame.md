@@ -2,7 +2,7 @@
 
 The frame is the rounded monitor border and the shared material behind Ryoku's
 edge-bound shell surfaces. Each monitor creates one `BlobGroup` in
-`ryoku/shell/quickshell/pill/shell.qml`. The group contains the frame cut-out,
+`ryoku/shell/quickshell/shell/modules/bar/Frame.qml`. The group contains the frame cut-out,
 all enabled `FrameRail`s, and the one monitor-local `FrameMenuManager`.
 
 A frame bar is part of that scene; it is not a floating island or a separate

@@ -15,6 +15,14 @@
   property flip (~2 ms, no spawn) and resident RAM holds a flat ~705 MB ceiling
   instead of a 614 MB rest that spiked toward 1-2 GB. The old per-surface
   configs (`pill` and the standalone surface trees) are retired.
+- **Barstyle products load through a stable SDK API.** The consolidation retired
+  the `pill.*` module namespace that third-party bar styles imported, so nacre
+  and obi failed to load and fell back to the built-in sumi. Products now import
+  `shell.services` (the shell's live singletons -- one shared notification
+  server, never a second) and `shell.barkit` (the non-singleton primitives: icon
+  and brand types, MusicBars, TrayMenu, NotificationCard, the Popout bases, and
+  the audio and notification menus), both resolved through the Quickshell import
+  path. See `docs/barstyles.md`; the ryoku-extras catalogue is migrated to it.
 
 ### Fixed
 - **The quick-settings sidebar no longer ghosts when a page opens.** The device

@@ -1,13 +1,13 @@
 # Frame bars
 
 Ryoku renders one frame-bar system: four independent rails that share the
-monitor's frame scene. `ryoku/shell/quickshell/pill/Bar.qml` creates a
+monitor's frame scene. `ryoku/shell/quickshell/shell/modules/bar/Bar.qml` creates a
 `FrameRail` for each edge and reads the normalized `frameBars` object from
 `~/.config/ryoku/shell.json`.
 
 The frame bars described here are Ryoku's built-in **Sumi** bar style. A
 different bar can be loaded from a self-contained folder under
-`pill/barstyles/`; to build one, see `docs/barstyles.md`.
+`shell/modules/bar/barstyles/`; to build one, see `docs/barstyles.md`.
 
 A rail is a thin interactive strip, not a second panel process. The monitor
 overlay owns its input region and the corresponding exclusive-zone reserve, so
@@ -79,7 +79,7 @@ independent modules catalogued in `MenuCatalog.js`; the default module list is
 home, notifications, and weather, while media is available as an optional
 module. The home module retains the session actions and performance profiles.
 Adding a module requires one catalog entry and one component under
-`pill/framebars/menus/quicksettings/`, then its ID can be added to
+`shell/modules/bar/framebars/menus/quicksettings/`, then its ID can be added to
 `frameBars.menus.quick-settings.modules`.
 
 `ryoku-shell menu <id>` opens a catalogued menu on the active monitor;
