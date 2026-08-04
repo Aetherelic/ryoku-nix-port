@@ -25,6 +25,15 @@
   path. See `docs/barstyles.md`; the ryoku-extras catalogue is migrated to it.
 
 ### Fixed
+- **Desktop-widget plugins render again.** The desktop host exposed each
+  plugin's service as `pluginApi.mainInstance = svc.item`, but the service
+  loader carried no `id: svc`, so that reference was undefined and every desktop
+  widget saw a null service. Photo Frame fell back to its defaults (a
+  transparent "rounded" mat and no image) and drew as a blank grey box; other
+  widgets lost their settings the same way. The loader now carries `id: svc`,
+  matching the popout host, so the service reaches the content and each widget
+  paints from its own settings
+  (`quickshell/shell/modules/desktop/Desktop.qml`).
 - **The Mono colour scheme no longer follows the wallpaper.** Picking Mono
   (`theme.theme` "Default", the shipped default) wrote `followWallpaper: true`
   into `theme.json`: the shadow key tracked "no fixed palette selected" and so

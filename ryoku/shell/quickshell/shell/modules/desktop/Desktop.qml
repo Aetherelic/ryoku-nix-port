@@ -264,6 +264,7 @@ Scope {
                 }
 
                 PluginObjectSlot {
+                    id: svc
                     source: slot.dir.length > 0 ? "file://" + slot.dir + "/service/Main.qml" + slot.versionQuery : ""
                     configure: (service) => { service.pluginApi = slot.api; }
                 }
