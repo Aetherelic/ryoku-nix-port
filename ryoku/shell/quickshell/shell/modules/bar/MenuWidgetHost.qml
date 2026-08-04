@@ -87,7 +87,7 @@ Item {
     Component { id: quickSettingsComponent; MenuQuickSettings { width: root.width; s: root.scale; open: root.open; avail: root.avail; initialPage: root.initialPage } }
     Component { id: quickActionsComponent; MenuQuickActions { width: root.width; s: root.scale; open: root.open } }
     Component { id: layoutSwitcherComponent; MenuLayoutSwitcher { width: root.width; s: root.scale; open: root.open } }
-    Component { id: clipboardComponent; MenuClipboard { width: root.width; height: implicitHeight; s: root.scale; open: root.open } }
+    Component { id: clipboardComponent; MenuClipboard { width: root.width; s: root.scale; open: root.open; avail: root.avail } }
     Component { id: themeComponent; MenuTheme { width: root.width; s: root.scale; open: root.open } }
     Component { id: wallpaperComponent; MenuWallpaper { width: root.width; s: root.scale; open: root.open } }
     Component { id: weatherComponent; MenuWeather { width: root.width; s: root.scale; open: root.open } }

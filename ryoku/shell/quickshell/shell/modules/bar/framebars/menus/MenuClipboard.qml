@@ -19,12 +19,15 @@ Item {
 
     required property real s
     required property bool open
+    // The panel's available height (from MenuColumn via MenuWidgetHost); 0 falls
+    // back to the resting height. Without it a tall history clips at the bottom.
+    property real avail: 0
     signal requestClose()
 
     readonly property var entries: root.open ? Clipboard.entries : []
 
     implicitWidth: 410 * s
-    implicitHeight: 560 * s
+    implicitHeight: avail > 0 ? avail : 560 * s
 
     // Reference format_size: "{n} B" below 1 KiB, "{:.1} KB" below 1 MiB, else
     // "{:.1} MB" (contract 07 sec 2.2).

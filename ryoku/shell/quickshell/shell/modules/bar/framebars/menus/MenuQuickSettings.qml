@@ -370,6 +370,7 @@ Item {
             }
 
             Flickable {
+                id: pageScroll
                 width: parent.width
                 height: parent.height - 50
                 contentWidth: width
@@ -470,6 +471,7 @@ Item {
                         onStatusChanged: root.completePendingPage("clipboard", clipboardPageLoader)
                         sourceComponent: Component {
                             MenuClipboard {
+                                avail: pageScroll.height
                                 width: parent.width
                                 s: root.s
                                 open: root.open && root.page === "clipboard"
