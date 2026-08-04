@@ -40,11 +40,9 @@ import "modules/confirm"
  * hides exactly this monitor's copy in-process, where the old shell spawned a
  * ryoku-shell client per press across separate surface processes.
  *
- * The surfaces run ALONGSIDE the live per-surface configs; the ryoku-shell
- * daemon does not launch this instance yet (cutover is Phase 11, see
- * docs/plans/2026-08-03-shell-consolidation.md), so the migrated surfaces' legacy
- * daemon round-trips are neutralized and the compositor binds still call
- * ryoku-shell until Phase 10 rewires them to global:ryoku:<name>.
+ * The ryoku-shell daemon launches this instance as `qs -c shell`, the live
+ * desktop, and the compositor binds dispatch global:ryoku:<name> straight to the
+ * shortcuts registered here.
  *
  * UseQApplication is declared once for the whole shell (the tray needs Qt
  * Widgets), replacing the six per-surface copies the old multi-process shell paid.
