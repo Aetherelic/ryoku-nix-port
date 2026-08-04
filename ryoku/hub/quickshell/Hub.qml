@@ -421,8 +421,9 @@ Rectangle {
     function adapterFor(src) { return src === "viz" ? vizA : brandA; }
     function fileFor(src) { return src === "viz" ? "visualizer" : (src === "brand" ? "brand" : "shell"); }
 
-    // The config files backing the current page: the user-owned layer (kept on
-    // update, edits win) and the shipped base it overrides. Opened from the FILES
+    // The full config files backing the current page: the source of truth the GUI
+    // writes and the user can hand-edit in place (every value present, not a sparse
+    // overlay). Plus the shipped base they layer over. Opened from the FILES
     // masthead chip; the overlay model lives in docs/updates.md.
     function settingsFiles() {
         var s = hub.section;
@@ -432,27 +433,24 @@ Rectangle {
         var home = Quickshell.env("HOME") || "";
         var out = [];
         if (hub.hyprlandSet[s]) {
-            out.push({ role: "yours", label: "Your settings", path: ce + "/hypr.json",
-                note: "What this page writes. Kept on update; your edits win." });
-            out.push({ role: "yours", label: "Hand-edits", path: ue + "/user.lua",
+            out.push({ role: "yours", label: "Your Hyprland config", path: ce + "/hypr.json",
+                note: "Every Hyprland setting the pages control, with your values, in one full file you edit in place. The GUI writes this same file and reads your hand-edits back on open." });
+            out.push({ role: "advanced", label: "Raw overrides", path: ue + "/user.lua",
                 seed: "-- Your Hyprland overrides. Loaded last, so this wins over the\\n-- hub-generated files and the shipped base. Updates never touch it.\\n",
-                note: "Raw Hyprland you write. Wins over all; the hub never rewrites it." });
-            out.push({ role: "gen", label: s === "keybinds" ? "Generated binds" : "Generated overlay",
-                path: ue + "/" + (s === "keybinds" ? "rebinds.lua" : "settings.lua"),
-                note: "The hub writes this from your settings on Save." });
+                note: "Advanced, starts empty. Hand-written Hyprland for anything the GUI does not expose; loaded last, so it wins over all." });
             out.push({ role: "base", label: "Shipped base", path: home + "/.config/hypr/modules",
-                note: "Ryoku-owned. Refreshed on every update; your layers above win." });
+                note: "Ryoku's defaults (Lua logic), refreshed every update; your config above wins. The compositor loads a generated copy of your settings, which you never edit." });
         } else {
-            out.push({ role: "yours", label: "Your settings", path: ce + "/shell.json",
-                note: "Kept on update; your edits win." });
+            out.push({ role: "yours", label: "Your shell config", path: ce + "/shell.json",
+                note: "Every shell setting, with your values, in one full file you edit in place. The GUI writes it and the shell retunes live when you save a hand-edit." });
             if (s === "desktop" || s === "appearance") {
                 out.push({ role: "yours", label: "Widget visuals", path: ce + "/visualizer.json",
-                    note: "Visualiser and desktop-widget visuals. Kept on update." });
+                    note: "Visualiser and desktop-widget visuals, a full file you edit in place." });
                 out.push({ role: "yours", label: "Brand mark", path: ce + "/brand.json",
-                    note: "The brand mark and hero. Kept on update." });
+                    note: "The brand mark and hero, a full file you edit in place." });
             }
             out.push({ role: "base", label: "Shipped defaults", noOpen: true,
-                note: "Ship in the shell package and refresh each update; your file overrides them." });
+                note: "Ship in the shell package and refresh each update; your config above overrides them." });
         }
         return out;
     }
@@ -1584,7 +1582,7 @@ Rectangle {
                     spacing: Tokens.s2
                     Text {
                         width: fcol.width
-                        text: "Your files are kept on update and win; the shipped base underneath refreshes each update. Run `ryoku reset <path>` to drop an override."
+                        text: "Each page's settings live in one full file below: the complete config you edit in place (the GUI writes the very same file). The shipped base underneath refreshes on update; your file wins. Run `ryoku reset <path>` to drop an override."
                         color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: 11; wrapMode: Text.WordWrap
                     }
                     Repeater {
@@ -1610,9 +1608,9 @@ Rectangle {
                                         color: modelData.role === "yours" ? Tokens.ink : Tokens.inkFaint
                                     }
                                     Text { text: modelData.label; color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
-                                    Text { visible: modelData.role === "yours"; text: "KEPT"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
-                                    Text { visible: modelData.role === "base"; text: "OVERWRITTEN"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
-                                    Text { visible: modelData.role === "gen"; text: "GENERATED"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+                                    Text { visible: modelData.role === "yours"; text: "EDIT HERE"; color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+                                    Text { visible: modelData.role === "advanced"; text: "ADVANCED"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+                                    Text { visible: modelData.role === "base"; text: "SHIPPED"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
                                 }
                                 Text { visible: !!modelData.path; text: hub.tildePath(modelData.path || ""); color: Tokens.inkDim; font.family: Tokens.mono; font.pixelSize: 11; width: fentry.width; elide: Text.ElideMiddle }
                                 Text { text: modelData.note; color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: 11; width: fentry.width; wrapMode: Text.WordWrap }
