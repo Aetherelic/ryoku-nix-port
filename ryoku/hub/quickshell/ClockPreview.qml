@@ -6,7 +6,7 @@ import "Singletons"
  * A live, plain-QML preview of the desktop clock widget for the Desktop Widgets
  * section, so the chosen face, date design, format and accent show at a glance
  * without leaning over the hub window to the wallpaper. It mirrors the live faces
- * in ryoku/shell/quickshell/widgets/clock; the accent follows your real
+ * in ryoku/shell/quickshell/shell/modules/desktop/clock; the accent follows your real
  * palette (Scheme singleton), the rest is bright ink as on the wallpaper.
  */
 Item {
