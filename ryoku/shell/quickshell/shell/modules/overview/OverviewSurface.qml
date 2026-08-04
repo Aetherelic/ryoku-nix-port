@@ -29,6 +29,11 @@ Scope {
     // Reveal input the controller binds to this monitor's ShellState.overviewOpen.
     property bool active: false
 
+    // Close request (Esc / click-out). The controller resets overviewOpen; we
+    // never assign `active` here, which would destroy its binding to the flag
+    // and leave the overview permanently unable to reopen.
+    signal requestClose()
+
     // Refresh Hyprland's monitor/workspace/toplevel models once when the expo
     // opens so a just-mapped window lands; the resident models are already warm,
     // so nothing polls. Phase 10: the daemon idle-park report that also lived on
@@ -45,7 +50,7 @@ Scope {
         return m && m.name ? m.name : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
     }
     function hide() {
-        root.active = false;
+        root.requestClose();
     }
 
     readonly property string focusedMon: {

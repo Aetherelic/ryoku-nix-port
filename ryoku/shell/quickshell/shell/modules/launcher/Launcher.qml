@@ -13,6 +13,11 @@ Scope {
     property var screen: null
     property bool active: false
 
+    // A genuine dismiss (click-out, Esc, or launching an app) hides the variant
+    // itself; the controller resets launcherOpen so the flag never goes stale
+    // (a stale flag needs a second Super+Space to reopen).
+    signal requestClose()
+
     onActiveChanged: root.syncOpen()
     onVariantReadyChanged: root.syncOpen()
 
@@ -117,8 +122,14 @@ Scope {
     Connections {
         target: root.variantReady ? variantLoader.item : null
         function onShownChanged() {
-            if (!target.shown)
+            if (target.shown)
+                return;
+            // Variant hid: finish a queued style switch, else it was a genuine
+            // dismiss, so sync ShellState.launcherOpen back to closed.
+            if (root.pendingId)
                 root.finishSwitch();
+            else
+                root.requestClose();
         }
     }
 

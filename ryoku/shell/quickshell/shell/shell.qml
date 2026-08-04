@@ -96,14 +96,17 @@ ShellRoot {
             Launcher {
                 screen: perScreen.modelData
                 active: perScreen.st ? perScreen.st.launcherOpen : false
+                onRequestClose: if (perScreen.st) perScreen.st.launcherOpen = false
             }
             OverviewSurface {
                 screen: perScreen.modelData
                 active: perScreen.st ? perScreen.st.overviewOpen : false
+                onRequestClose: if (perScreen.st) perScreen.st.overviewOpen = false
             }
             Board {
                 screen: perScreen.modelData
                 active: perScreen.st ? perScreen.st.boardOpen : false
+                onRequestClose: if (perScreen.st) perScreen.st.boardOpen = false
             }
             Switcher {
                 screen: perScreen.modelData

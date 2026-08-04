@@ -83,9 +83,10 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 		// current revision on its own, so there is nothing to repaint here.
 		return nil
 	case "random":
-		// Super+Shift+W: a random image from the switcher pool, never the current
-		// one; the image branch below reveals it with a random transition preset.
-		pic = pickRandomImage(imagePics(), readState())
+		// Super+Shift+W: a random wallpaper from the switcher pool, never the
+		// current one. Includes live walls: the type branch below plays a video
+		// through ryoku-livewall, or reveals an image with a random transition.
+		pic = pickRandomImage(listPics(), readState())
 	case "init":
 		if cur := readState(); cur != "" && isFile(cur) {
 			pic = cur

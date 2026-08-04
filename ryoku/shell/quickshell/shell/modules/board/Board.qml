@@ -22,10 +22,14 @@ Scope {
     // driven by the controller (ShellState.boardOpen).
     property bool active: false
 
-    // Close request from the board surface / Esc. Phase 10: the daemon idle-park
-    // report (execDetached ryoku-shell state ryolayer) that tracked board + pin
-    // residency is dropped; ShellState.boardOpen owns open/close in-process now.
-    function hide() { root.active = false; }
+    // Close request (Esc / click-out, via BoardSurface). The controller resets
+    // boardOpen; assigning `active` here would destroy its binding to the flag.
+    signal requestClose()
+
+    // Phase 10: the daemon idle-park report (execDetached ryoku-shell state
+    // ryolayer) that tracked board + pin residency is dropped; ShellState.boardOpen
+    // owns open/close in-process now.
+    function hide() { root.requestClose(); }
 
     readonly property string focusedName: {
         var m = Hyprland.focusedMonitor;
