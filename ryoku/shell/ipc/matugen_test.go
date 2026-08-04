@@ -702,11 +702,11 @@ func writePNG(t *testing.T, path string) {
 	}
 }
 
-// TestSyncFollowWallpaper pins theme.theme as the single colour master: leaving a
-// fixed palette has to turn theme.json's followWallpaper back on, since that key
-// alone gates the dynamic path and nothing else could turn it on -- APPLY RYOKU
-// THEME and a fixed rice both turned it off with no way back. Other keys in the
-// file are somebody else's and must survive.
+// TestSyncFollowWallpaper pins theme.theme as the single colour master and its
+// shadow key: only the Wallpaper variant turns theme.json's followWallpaper on
+// (the live path gates on it, and nothing else could), while Default (the mono
+// base) and every named theme turn it off. Other keys in the file are somebody
+// else's and must survive.
 func TestSyncFollowWallpaper(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -744,11 +744,12 @@ func TestSyncFollowWallpaper(t *testing.T) {
 		t.Errorf("named theme: followWallpaper = %v, want false", got["followWallpaper"])
 	}
 
-	// Default is the other dynamic variant, so it follows too -- the rule is
-	// "no fixed palette selected", the same one the pipeline gates on.
+	// Default is the monochrome base, not a wallpaper follower: it turns the
+	// shadow key OFF so the shell renders its compiled mono palette (the shipped
+	// default and the Appearance MONO card), never the wallpaper's colours.
 	syncFollowWallpaper("Default")
-	if got := read(); got["followWallpaper"] != true {
-		t.Errorf("Default: followWallpaper = %v, want true", got["followWallpaper"])
+	if got := read(); got["followWallpaper"] != false {
+		t.Errorf("Default: followWallpaper = %v, want false", got["followWallpaper"])
 	}
 }
 

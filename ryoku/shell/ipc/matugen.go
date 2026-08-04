@@ -341,12 +341,13 @@ func syncFollowWallpaper(themeName string) {
 	if b, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(b, &doc)
 	}
-	// Follow whenever no fixed palette is selected -- the same rule the pipeline
-	// itself gates on, so the two cannot drift again. Deliberately not "only the
-	// Wallpaper pick": that would redefine Default, which follows the wallpaper
-	// today. `ryoku-hub hypr scheme` still pins the key afterwards for the fixed
-	// light/dark/mono schemes, and it runs last.
-	follow := !staticName(themeName)
+	// Only the Wallpaper variant drives the live pipeline. Default is the
+	// monochrome base (the shell's compiled palette -- the shipped default and
+	// the Appearance MONO card), and every named theme owns a fixed palette;
+	// none of them follow the wallpaper, so their shadow key is off. This matches
+	// the fresh-install state (theme.theme "Default", no theme.json -> Match
+	// wallpaper off) instead of fighting it the moment the picker is touched.
+	follow := themeName == "Wallpaper"
 	if cur, ok := doc["followWallpaper"].(bool); ok && cur == follow {
 		return
 	}

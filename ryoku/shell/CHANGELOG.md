@@ -25,6 +25,15 @@
   path. See `docs/barstyles.md`; the ryoku-extras catalogue is migrated to it.
 
 ### Fixed
+- **The Mono colour scheme no longer follows the wallpaper.** Picking Mono
+  (`theme.theme` "Default", the shipped default) wrote `followWallpaper: true`
+  into `theme.json`: the shadow key tracked "no fixed palette selected" and so
+  lumped Default in with the live Wallpaper variant. Mono then rendered the
+  wallpaper's colours, indistinguishable from Wallpaper, so selecting it in
+  Appearance did nothing visible. Only the Wallpaper variant follows now;
+  Default (and every named theme) turns the key off, so Mono renders the shell's
+  compiled monochrome base. Existing installs self-heal on the next daemon
+  restart (`ipc/matugen.go`).
 - **The quick-settings sidebar no longer ghosts when a page opens.** The device
   pages (clipboard, Wi-Fi, Bluetooth, ...) slid in over the module band with no
   opaque backing, so the modules behind bled through and looked like they cut
