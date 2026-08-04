@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+- **`ryoku track <main|unstable-dev>` switches the update channel.** It points a
+  box at a channel and makes `ryoku update` follow it: installs the build tools,
+  checks out the branch, records the channel, and rebuilds the desktop from the
+  checkout, keeping your user_edits overlay and Hub settings (deploy re-applies
+  them). It mirrors `ryoku recovery`'s handoff, running `bin/ryoku-track` from a
+  local checkout or fetching the canonical copy, so a packaged install with no
+  checkout can still hop onto the source-tracked edge and back. `ryoku recovery`
+  stays the heavy factory reset to stable main (`track.go`, `main.go`,
+  `bin/ryoku-track`).
+
 ### Fixed
 - **Materialize activates WirePlumber policy changes immediately.** It compares
   the effective Bluetooth fragment before and after the base plus user overlay,

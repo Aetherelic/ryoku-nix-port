@@ -57,6 +57,8 @@ func main() {
 		err = updater.Deploy(os.Args[2:])
 	case "recovery":
 		err = cmdRecovery(os.Args[2:])
+	case "track":
+		err = cmdTrack(os.Args[2:])
 	case "doctor":
 		err = doctor.Run(os.Args[2:])
 	case "keyring":
@@ -77,6 +79,7 @@ func usage() {
 	fmt.Print(`Usage: ryoku <command>
 
   update         apply channel commits (or pacman -Syu), redeploy, reload
+  track <chan>   switch update channel to main (stable) or unstable-dev (source)
   rollback [id]  guide restoring a snapshot from the boot menu (no id: list them)
   snapshots      list snapper snapshots
   status         version, commits behind the channel, snapshot count
