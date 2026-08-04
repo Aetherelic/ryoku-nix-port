@@ -72,6 +72,8 @@ Item {
     }
 
     function switchToModule(id) {
+        if (!root.applyingInitial)
+            root.navReady = true;
         if (!root.moduleEnabled(id))
             return;
         if (id === root.activeModule) {
@@ -103,6 +105,10 @@ Item {
     property string page: ""
     property var pageSeen: ({})
     property string pendingPage: ""
+    // Snap the panel straight to its initial page on open (no home flash); only
+    // once the user navigates in-panel do the bands slide.
+    property bool navReady: false
+    property bool applyingInitial: false
 
     function pageLoader(id) {
         switch (id) {
@@ -117,6 +123,8 @@ Item {
     }
 
     function showPage(id) {
+        if (!root.applyingInitial)
+            root.navReady = true;
         if (id === "") {
             root.pendingPage = "";
             root.page = "";
@@ -170,6 +178,7 @@ Item {
     function applyInitialPage() {
         if (!root.open || root.initialPage === "")
             return;
+        root.applyingInitial = true;
         switch (root.initialPage) {
         case "notifications":
         case "weather":
@@ -184,6 +193,7 @@ Item {
         default:
             root.showPage(root.initialPage);
         }
+        root.applyingInitial = false;
     }
 
     Timer {
@@ -199,6 +209,7 @@ Item {
     onConfiguredModulesChanged: root.syncConfiguredModules()
     onOpenChanged: {
         if (root.open) {
+            root.navReady = false;
             root.syncConfiguredModules();
             root.scheduleInitialPage();
         } else {
@@ -208,6 +219,7 @@ Item {
             root.pendingModule = "";
             root.pendingPage = "";
             root.page = "";
+            root.navReady = false;
         }
         root.syncWatch();
     }
@@ -235,7 +247,7 @@ Item {
         visible: x > -root.width / 3 + 0.5
 
         Behavior on x {
-            enabled: root.open
+            enabled: root.open && root.navReady
             NumberAnimation { duration: Motion.push; easing.type: Motion.pushCurve }
         }
 
@@ -281,7 +293,7 @@ Item {
                         : contentPane.width
 
                     Behavior on x {
-                        enabled: root.open
+                        enabled: root.open && root.navReady
                             && (root.activeModule === moduleLoaderDelegate.moduleId
                                 || root.previousModule === moduleLoaderDelegate.moduleId)
                         NumberAnimation { duration: Motion.push; easing.type: Motion.pushCurve }
@@ -318,10 +330,19 @@ Item {
         visible: x < root.width - 0.5
 
         Behavior on x {
-            enabled: root.open
+            enabled: root.open && root.navReady
             NumberAnimation { duration: Motion.push; easing.type: Motion.pushCurve }
         }
 
+
+        // Opaque surface backing. The page band slides in over the module band
+        // (which only shifts part-way off), so without this the modules behind
+        // ghost through the page and look like they cut it off. The page owns its
+        // own back-nav header, so covering the whole band is correct.
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.surface
+        }
 
         Column {
             anchors.fill: parent
