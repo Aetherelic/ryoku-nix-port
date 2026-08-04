@@ -174,15 +174,15 @@ else
 fi
 
 # ---- one title prefix across the stack ----------------------------------------
-# the engine's forced title, the launcher's matcher and the pill's hand copy
+# the engine's forced title, the launcher's matcher and the media service's copy
 # must agree, or the broadcast dress silently falls off a surface.
 eng="$here/../ryoku/hyprland/scripts/ryoku-cmd-radio"
 if grep -q 'force-media-title="LIVE · ' "$eng" \
-  && grep -q 'TITLE_PREFIX = "LIVE · "' "$here/../ryoku/shell/quickshell/launcher/shared/lib/radio.js" \
-  && grep -q '"LIVE · "' "$here/../ryoku/shell/quickshell/pill/Singletons/Media.qml"; then
-  ok "LIVE title prefix agrees across engine, launcher, pill"
+  && grep -q 'TITLE_PREFIX = "LIVE · "' "$here/../ryoku/shell/quickshell/shell/modules/launcher/shared/lib/radio.js" \
+  && grep -q '"LIVE · "' "$here/../ryoku/shell/quickshell/shell/services/Media.qml"; then
+  ok "LIVE title prefix agrees across engine, launcher, media"
 else
-  bad "LIVE title prefix agrees across engine, launcher, pill" "grep the three files for 'LIVE · '"
+  bad "LIVE title prefix agrees across engine, launcher, media" "grep the three files for 'LIVE · '"
 fi
 
 printf '%d passed, %d failed\n' "$pass" "$fail"
