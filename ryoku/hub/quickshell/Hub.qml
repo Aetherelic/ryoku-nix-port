@@ -421,6 +421,59 @@ Rectangle {
     function adapterFor(src) { return src === "viz" ? vizA : brandA; }
     function fileFor(src) { return src === "viz" ? "visualizer" : (src === "brand" ? "brand" : "shell"); }
 
+    // The config files backing the current page: the user-owned layer (kept on
+    // update, edits win) and the shipped base it overrides. Opened from the FILES
+    // masthead chip; the overlay model lives in docs/updates.md.
+    function settingsFiles() {
+        var s = hub.section;
+        if (hub.pageFile(s) === "") return [];
+        var ce = hub.cfgDir;
+        var ue = ce + "/user_edits/hypr";
+        var home = Quickshell.env("HOME") || "";
+        var out = [];
+        if (hub.hyprlandSet[s]) {
+            out.push({ role: "yours", label: "Your settings", path: ce + "/hypr.json",
+                note: "What this page writes. Kept on update; your edits win." });
+            out.push({ role: "yours", label: "Hand-edits", path: ue + "/user.lua",
+                seed: "-- Your Hyprland overrides. Loaded last, so this wins over the\\n-- hub-generated files and the shipped base. Updates never touch it.\\n",
+                note: "Raw Hyprland you write. Wins over all; the hub never rewrites it." });
+            out.push({ role: "gen", label: s === "keybinds" ? "Generated binds" : "Generated overlay",
+                path: ue + "/" + (s === "keybinds" ? "rebinds.lua" : "settings.lua"),
+                note: "The hub writes this from your settings on Save." });
+            out.push({ role: "base", label: "Shipped base", path: home + "/.config/hypr/modules",
+                note: "Ryoku-owned. Refreshed on every update; your layers above win." });
+        } else {
+            out.push({ role: "yours", label: "Your settings", path: ce + "/shell.json",
+                note: "Kept on update; your edits win." });
+            if (s === "desktop" || s === "appearance") {
+                out.push({ role: "yours", label: "Widget visuals", path: ce + "/visualizer.json",
+                    note: "Visualiser and desktop-widget visuals. Kept on update." });
+                out.push({ role: "yours", label: "Brand mark", path: ce + "/brand.json",
+                    note: "The brand mark and hero. Kept on update." });
+            }
+            out.push({ role: "base", label: "Shipped defaults", noOpen: true,
+                note: "Ship in the shell package and refresh each update; your file overrides them." });
+        }
+        return out;
+    }
+    function tildePath(p) {
+        var home = Quickshell.env("HOME") || "";
+        return (home && p.indexOf(home) === 0) ? "~" + p.substring(home.length) : p;
+    }
+    // Ensure a user file exists (seeding a header when given), then open it via
+    // xdg-open (mimeapps route text/json/lua to ryoku-nvim); a base dir opens in
+    // the file manager.
+    function openSettingsFile(e) {
+        if (!e || e.noOpen || !e.path)
+            return;
+        var dir = e.path.substring(0, e.path.lastIndexOf("/"));
+        var sh = "mkdir -p \"" + dir + "\"; ";
+        if (e.seed)
+            sh += "[ -e \"" + e.path + "\" ] || printf \"" + e.seed + "\" > \"" + e.path + "\"; ";
+        sh += "xdg-open \"" + e.path + "\"";
+        Quickshell.execDetached(["sh", "-c", sh]);
+    }
+
     function snapshot() {
         var s = {};
         for (var k in defs) {
@@ -1213,6 +1266,40 @@ Rectangle {
         TapHandler { onTapped: hub.section = "updates" }
     }
 
+    // ── settings files: a masthead chip beside UPDATES ───────────────────────
+    // Opens a popover naming the files that back the current page: the user-owned
+    // layer (kept on update, edits win) and the shipped base it overrides.
+    Item {
+        id: filesBtn
+        anchors { top: parent.top; right: updatesBtn.left }
+        anchors.topMargin: Tokens.s2; anchors.rightMargin: Tokens.s2
+        z: 60
+        visible: hub.settingsFiles().length > 0
+        width: fbLabel.implicitWidth + Tokens.s3 * 2
+        height: 24
+        Rectangle {
+            anchors.fill: parent
+            radius: Tokens.radius
+            color: filesPop.open ? Tokens.bone : (fbh.hovered ? Tokens.paperLift : Tokens.paper)
+            border.width: Tokens.border
+            border.color: (filesPop.open || fbh.hovered) ? Tokens.lineStrong : Tokens.line
+            antialiasing: false
+            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+            Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+        }
+        Text {
+            id: fbLabel
+            anchors.centerIn: parent
+            text: I18n.tr("FILES")
+            color: filesPop.open ? Tokens.inkOnBone : Tokens.inkMuted
+            font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+            font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+        }
+        HoverHandler { id: fbh; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: filesPop.open = !filesPop.open }
+    }
+
     // ── action bar ─────────────────────────────────────────────────────────
     ActionBar {
         id: bar
@@ -1448,6 +1535,87 @@ Rectangle {
                                     }
                                     Rectangle { width: parent.width; height: 1; color: Tokens.lineSoft }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── settings files popover ───────────────────────────────────────────────
+    Item {
+        id: filesPop
+        anchors.fill: parent
+        z: 880
+        property bool open: false
+        visible: filesPop.open && hub.settingsFiles().length > 0
+        Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            TapHandler { onTapped: filesPop.open = false }
+        }
+        Rectangle {
+            width: Math.min(460, filesPop.width - Tokens.s4 * 2)
+            anchors { right: parent.right; rightMargin: Tokens.s4; top: parent.top; topMargin: Tokens.s2 + 24 + Tokens.s2 }
+            height: Math.min(520, fcol.height + fhead.height + Tokens.s3 * 3)
+            color: Tokens.paperLift
+            radius: Tokens.radius
+            border.width: Tokens.border
+            border.color: Tokens.lineStrong
+            TapHandler {}
+            Row {
+                id: fhead
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s3 }
+                height: 14
+                Text { text: "SETTINGS FILES"; color: Tokens.inkMuted; font.family: Tokens.mono; font.pixelSize: 9; font.letterSpacing: 1.2; anchors.verticalCenter: parent.verticalCenter }
+                Item { width: Math.max(0, parent.width - 240); height: 1 }
+                Text { text: I18n.tr(hub.nameFor(hub.section)); color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 9; anchors.verticalCenter: parent.verticalCenter }
+            }
+            Flickable {
+                anchors { left: parent.left; right: parent.right; top: fhead.bottom; bottom: parent.bottom }
+                anchors.margins: Tokens.s3; anchors.topMargin: Tokens.s2
+                contentHeight: fcol.height
+                clip: true
+                ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
+                Column {
+                    id: fcol
+                    width: parent.width - 12
+                    spacing: Tokens.s2
+                    Text {
+                        width: fcol.width
+                        text: "Your files are kept on update and win; the shipped base underneath refreshes each update. Run `ryoku reset <path>` to drop an override."
+                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: 11; wrapMode: Text.WordWrap
+                    }
+                    Repeater {
+                        model: hub.settingsFiles()
+                        Rectangle {
+                            required property var modelData
+                            width: fcol.width
+                            height: fentry.height + Tokens.s3 * 2
+                            color: rowH.hovered && !modelData.noOpen ? Tokens.paper : "transparent"
+                            radius: Tokens.radius
+                            border.width: Tokens.border
+                            border.color: Tokens.line
+                            HoverHandler { id: rowH; cursorShape: modelData.noOpen ? Qt.ArrowCursor : Qt.PointingHandCursor }
+                            TapHandler { enabled: !modelData.noOpen; onTapped: { hub.openSettingsFile(modelData); filesPop.open = false; } }
+                            Column {
+                                id: fentry
+                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: Tokens.s3 }
+                                spacing: 3
+                                Row {
+                                    spacing: Tokens.s2
+                                    Rectangle {
+                                        width: 6; height: 6; radius: 3; anchors.verticalCenter: parent.verticalCenter
+                                        color: modelData.role === "yours" ? Tokens.ink : Tokens.inkFaint
+                                    }
+                                    Text { text: modelData.label; color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
+                                    Text { visible: modelData.role === "yours"; text: "KEPT"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+                                    Text { visible: modelData.role === "base"; text: "OVERWRITTEN"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+                                    Text { visible: modelData.role === "gen"; text: "GENERATED"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+                                }
+                                Text { visible: !!modelData.path; text: hub.tildePath(modelData.path || ""); color: Tokens.inkDim; font.family: Tokens.mono; font.pixelSize: 11; width: fentry.width; elide: Text.ElideMiddle }
+                                Text { text: modelData.note; color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: 11; width: fentry.width; wrapMode: Text.WordWrap }
                             }
                         }
                     }
