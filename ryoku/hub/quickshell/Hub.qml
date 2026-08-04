@@ -1062,18 +1062,6 @@ Rectangle {
                                     color: navItem.sel ? Tokens.bone : (nh.hovered ? Tokens.tint10 : "transparent")
                                     Behavior on color { ColorAnimation { duration: Tokens.snap } }
                                 }
-                                // Shell (non-Hyprland) sections wear a red tick at
-                                // the rail's inner edge, so the knobs that drive the
-                                // desktop shell stand apart from the compositor ones.
-                                Rectangle {
-                                    visible: hub.isShellSection(navItem.modelData.key)
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    x: 0
-                                    width: 3
-                                    height: 18
-                                    radius: 1.5
-                                    color: Tokens.alert
-                                }
                                 // selection is typography, never a coloured bar:
                                 // the live section takes the sheet's // lead. On
                                 // the right, every item carries its kanji seal,
