@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // A full-width sidebar navigation row: an icon disc, a label with live

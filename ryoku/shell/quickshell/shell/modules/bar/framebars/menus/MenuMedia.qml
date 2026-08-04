@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Services.Mpris
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // Media player entry (contract 06 sec 2.10): a bordered now-playing card with a

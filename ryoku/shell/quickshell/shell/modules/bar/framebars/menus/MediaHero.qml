@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // Media hero card: the showpiece on the Home tab. Full-width card visible only

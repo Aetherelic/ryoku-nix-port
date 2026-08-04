@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 import "../framebars/menus" as Tips
 

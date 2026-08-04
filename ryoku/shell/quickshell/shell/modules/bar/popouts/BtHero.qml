@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell.Bluetooth
 import Quickshell.Io
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // The focused device as a compact instrument row: a boxed class glyph, the name

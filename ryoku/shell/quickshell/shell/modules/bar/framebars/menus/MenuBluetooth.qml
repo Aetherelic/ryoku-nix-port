@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Bluetooth
-import "../../../../services"
+import shell.services
 
 // Bluetooth entry (contract 06 sec 2.7): a RevealerRow whose inert action button
 // carries the adapter-state icon and whose label reports adapter presence and

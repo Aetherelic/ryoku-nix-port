@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../services"
+import shell.services
 import "../../components"
 
 // Cobalt download/remux window, raised over the stash grid. Mirrors cobalt's

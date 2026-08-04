@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // Recording indicator: self-hides unless a screen recording is active, drawn in
 // the error colour role (a red glyph). Left click stops the

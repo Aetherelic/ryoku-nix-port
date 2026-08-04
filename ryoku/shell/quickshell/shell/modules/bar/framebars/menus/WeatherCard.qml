@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // The single quiet-card primitive every section of the weather surface is built

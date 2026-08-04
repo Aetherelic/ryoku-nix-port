@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import "../../../../services"
+import shell.services
 import "../.." as Pill
 
 // System tray. State comes from the daemon `tray` topic (Tray singleton), never

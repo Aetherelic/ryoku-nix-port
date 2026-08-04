@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../services"
+import shell.services
 
 // A detail line shared by the "!" panels: a dim label with a right-aligned mono
 // value, or -- with `toggle` -- a boxy switch. The caller sets `width`.

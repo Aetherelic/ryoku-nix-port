@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.."
-import "../../../../services"
+import shell.services
 
 // Music widget: a spectrum strip on the rail, fed by the shared AudioBars cava
 // feed. On a vertical rail (left/right) the cava lines run horizontally and

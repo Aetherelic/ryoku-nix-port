@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../services"
+import shell.services
 import "../../components"
 
 // stash action bar, bottom of the section. five tiles full-width: Send all,

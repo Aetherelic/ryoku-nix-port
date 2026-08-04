@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // The desktop portal screen-share picker (contract 09 sec 2c). It opens when the

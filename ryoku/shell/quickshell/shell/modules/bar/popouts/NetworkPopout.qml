@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // Network popout: a frame-edge card (shared PopoutCard, so it opens and melts

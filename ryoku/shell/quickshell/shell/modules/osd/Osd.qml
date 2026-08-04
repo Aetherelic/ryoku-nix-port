@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Services.Pipewire
-import "../../services"
+import shell.services
 import "../../components"
 
 // One OSD: an icon, a value bar and a percentage, for volume-out, mic-in, or

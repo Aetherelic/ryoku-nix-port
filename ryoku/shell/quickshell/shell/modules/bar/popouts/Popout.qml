@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Ryoku.Blobs
-import "../../../services"
+import shell.services
 
 // surface popout that grows out of a frame edge (left/right/top/bottom) on
 // hover and melts back into the border through the SHARED blob field. joins

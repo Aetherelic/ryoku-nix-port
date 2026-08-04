@@ -6,7 +6,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Ryoku.Blobs
-import "../../services"
+import shell.services
 import "../../components"
 
 // Draggable, shaped webcam bubble on a per-screen layer surface: it stays put

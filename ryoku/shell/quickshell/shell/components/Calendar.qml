@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import Quickshell
-import "../services"
+import shell.services
 import "../services/lib/events.js" as EventsModel
 import "../services/lib/calendar.js" as CalendarModel
 

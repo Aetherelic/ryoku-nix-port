@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "popouts"
-import "../../services"
+import shell.services
 
 // One Ryoku-owned surface riding the shared Popout. Credential prompts, voice,
 // stash, capture, and small rail cards mount on demand.

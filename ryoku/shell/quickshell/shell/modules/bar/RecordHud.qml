@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import "../../services"
+import shell.services
 import "../../components"
 
 // Draggable recording control that lives just inside the frame. At rest it is a

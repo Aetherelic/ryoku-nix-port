@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
-import "../../services"
+import shell.services
 
 // One fullscreen selection overlay per output (contract 09 sec 1b/4a), raised on
 // the Overlay layer with no exclusive zone so it floats over the bars and app

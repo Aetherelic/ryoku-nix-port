@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // One quick-settings toggle tile: icon in a state circle, label + live

@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../services"
+import shell.services
 
 // Ryoku wave used as a meter: dim line full-width, bright (brand) crest fills
 // left to `frac` -- lit length = value. held static; its idle Canvas ripple

@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // The colour-scheme picker (contract 08 sec 2.2/2.3/4.2): a horizontally

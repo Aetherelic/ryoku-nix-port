@@ -1,5 +1,5 @@
 import QtQuick
-import "../services"
+import shell.services
 
 // section eyebrow, dossier idiom: small vermilion registration dot, then a
 // mono uppercase letterspaced label. scales with `s`.

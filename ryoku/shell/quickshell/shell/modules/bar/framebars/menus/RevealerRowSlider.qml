@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // The middle content of the audio rows (contract 16 sec 2.5, contract 06 sec
 // 2.4): an 8px pill progress bar acting as a continuous volume slider. The

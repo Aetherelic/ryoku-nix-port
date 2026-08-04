@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../services"
+import shell.services
 import "../../components"
 
 // stash section of the 力 deck: a 4-col file board over ~/Downloads/Stash that

@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // Network entry (contract 06 sec 2.6): a RevealerRow whose inert action button

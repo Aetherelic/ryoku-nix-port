@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // Segmented choice row: equal-width options in one bordered track, the active
 // one filled with the primary tint. Used for power profiles.

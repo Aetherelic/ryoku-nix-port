@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import "../../../../services"
+import shell.services
 
 // The quick-settings clock entry (contract 06 sec 2.5): a big bold weekday on
 // the left, with a stacked date and time taking the rest of the row. Rendered at

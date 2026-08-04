@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../services"
+import shell.services
 import "../../components"
 
 // LocalSend send sheet, raised over the stash grid. ~2s LAN scan, list of

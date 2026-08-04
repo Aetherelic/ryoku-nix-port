@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Bluetooth
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // Battery popout: a frame-edge card (shared PopoutCard, so it opens and melts

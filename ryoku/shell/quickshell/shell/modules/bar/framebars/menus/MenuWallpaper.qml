@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../../services"
+import shell.services
 import "../../../../services/lib/WallColors.js" as WallColors
 
 // The wallpaper section of the frame blob menu: two endless belts of cached

@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // The dock's window-preview strip. Hovering a dock icon that has open windows

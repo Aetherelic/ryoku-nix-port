@@ -1,6 +1,6 @@
 import QtQuick
 import Quickshell.Services.Pipewire
-import "../services"
+import shell.services
 import "lib/fader.js" as Fader
 
 // horizontal ink fader for the mixer: a matte thread track with a vermilion

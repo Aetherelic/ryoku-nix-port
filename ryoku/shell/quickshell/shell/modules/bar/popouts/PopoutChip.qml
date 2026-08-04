@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // A hairline mono chip shared by the popout cards. `act` makes it a tappable,

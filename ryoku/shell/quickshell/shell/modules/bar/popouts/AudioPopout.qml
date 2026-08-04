@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../services"
+import shell.services
 import "../../../components"
 import ".."
 import "../framebars/menus" as Menus

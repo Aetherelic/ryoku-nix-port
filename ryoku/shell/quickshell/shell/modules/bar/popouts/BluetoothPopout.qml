@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell.Bluetooth
 import Quickshell.Io
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // Bluetooth popout: a frame-edge card (the shared PopoutCard skin, so it opens,

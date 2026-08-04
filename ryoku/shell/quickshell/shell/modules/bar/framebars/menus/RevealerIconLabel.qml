@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // The collapsed header content of a RevealerButton (contract 16 sec 2.4,

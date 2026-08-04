@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../services"
+import shell.services
 
 // A spectrum strip fed by the shared AudioBars cava feed. Two orientations, each
 // spreading its bars evenly across the size the caller gives:

@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // One wallpaper tile for the wallpaper belt: a rounded thumbnail whose outline
 // lifts to the on-surface ink on hover and the primary accent on the pick,

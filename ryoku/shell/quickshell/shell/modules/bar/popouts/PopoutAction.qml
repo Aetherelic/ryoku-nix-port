@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../services"
+import shell.services
 
 // The shared card action: a bone-plate primary (Connect / Turn on / Scan) or,
 // with `destructive`, a hairline-outlined word (Forget). Sizes to its label but

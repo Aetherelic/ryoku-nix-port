@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Qt5Compat.GraphicalEffects
-import "../services"
+import shell.services
 
 // The desktop brand seal, 力 by default. Users swap it globally (their own
 // glyph/text, or an image) from Ryoku Settings -> Shell -> Global; stored in

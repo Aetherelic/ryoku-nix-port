@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../services"
+import shell.services
 import "../../components"
 
 // One notification card, shared by the history panel and the popup surface

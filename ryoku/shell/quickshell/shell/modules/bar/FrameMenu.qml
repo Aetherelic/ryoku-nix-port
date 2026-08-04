@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "framebars/menus"
-import "../../services"
+import shell.services
 
 // One reference frame menu (contract 05 sec 7). It is NOT a window, overlay
 // card or blob: the shell paints its background as a scene-graph extension of

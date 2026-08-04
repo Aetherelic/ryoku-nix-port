@@ -1,5 +1,5 @@
 import QtQuick
-import "../../services"
+import shell.services
 
 // Faint L-bracket ticks at the four corners. Pure decoration, sits behind content.
 Item {

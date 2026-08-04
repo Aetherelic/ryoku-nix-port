@@ -5,7 +5,7 @@ import QtQuick.Effects
 import Quickshell.Widgets
 import Quickshell
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // Music card popout: grown from the frame edge off the rail's spectrum widget,

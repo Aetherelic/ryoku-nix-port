@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // The middle content of a status RevealerRow (network / bluetooth / power):
 // one bold 16px label that takes the row slack and elides (contract 16 sec

@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Ryoku.FrameBars
-import "../../../../services"
+import shell.services
 
 // Quick settings is a fixed-width module host: the configured module rail and
 // one content sheet share the same frame. Modules are catalogued centrally and

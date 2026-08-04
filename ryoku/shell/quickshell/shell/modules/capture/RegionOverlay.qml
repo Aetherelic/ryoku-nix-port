@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
-import "../../services"
+import shell.services
 
 // Persistent region-capture boundary. While a region recording runs (Quick or
 // Studio), everything outside the captured box is dimmed and the box stays clear,

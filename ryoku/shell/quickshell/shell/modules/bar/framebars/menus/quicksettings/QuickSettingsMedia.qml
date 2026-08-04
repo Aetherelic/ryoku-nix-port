@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../../../services"
+import shell.services
 import ".." as Menus
 
 Item {

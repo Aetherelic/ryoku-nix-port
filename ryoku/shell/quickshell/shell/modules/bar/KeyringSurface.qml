@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
-import "../../services"
+import shell.services
 import "../../components"
 
 // keyring password island, grown from the pill centre. renders the GNOME

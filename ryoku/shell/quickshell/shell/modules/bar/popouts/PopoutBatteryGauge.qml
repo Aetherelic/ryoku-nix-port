@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../services"
+import shell.services
 
 // A boxy battery pictogram: hairline body, a proportional fill that eases as the
 // level moves, and a terminal nub. `frac` 0..1; `warn` reds the fill. Sizes to

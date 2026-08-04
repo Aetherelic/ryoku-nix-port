@@ -10,7 +10,7 @@
 pragma ComponentBehavior: Bound
 
 import Quickshell
-import "services"
+import shell.services
 import "components"
 import "modules/wallpaper"
 import "modules/wallpaper/switcher"

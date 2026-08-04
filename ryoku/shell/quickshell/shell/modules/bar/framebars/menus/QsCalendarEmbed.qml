@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // Calendar-only embed: the calendar grid from MenuClock, without the weather

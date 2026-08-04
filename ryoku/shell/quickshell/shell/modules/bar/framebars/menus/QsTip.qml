@@ -1,5 +1,5 @@
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // Hover bubble naming an icon-only control. Shows above (default), below
 // (below: true), or to the RIGHT (side: true) after a short dwell. `align`

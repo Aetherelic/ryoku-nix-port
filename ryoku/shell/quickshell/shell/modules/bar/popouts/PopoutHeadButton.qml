@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // A boxy head control shared by the card heads (scan, power, wifi toggle):

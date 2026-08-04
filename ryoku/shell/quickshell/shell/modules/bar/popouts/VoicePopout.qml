@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // Dictation card: grown from the bottom-centre edge on Super+`, framed like the

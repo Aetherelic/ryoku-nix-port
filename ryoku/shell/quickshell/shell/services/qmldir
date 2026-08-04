@@ -1,3 +1,4 @@
+module shell.services
 singleton ShellState ShellState.qml
 ServiceLoader ServiceLoader.qml
 singleton Theme Theme.qml

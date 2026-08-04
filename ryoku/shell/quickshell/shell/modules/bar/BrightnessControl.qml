@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Io
-import "../../services"
+import shell.services
 import "../../components"
 
 // Brightness controls for the Super+Escape home module: one fader for the

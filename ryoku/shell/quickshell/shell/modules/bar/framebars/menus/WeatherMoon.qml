@@ -1,5 +1,5 @@
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // A single crisp moon disc drawn from the daemon's phase data. `frac` is the
 // illuminated fraction (0 new .. 1 full) and `waxing` picks the lit limb (right

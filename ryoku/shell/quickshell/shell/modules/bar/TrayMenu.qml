@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "../../services"
+import shell.services
 import "../../components"
 
 // In-shell context menu for a system-tray item. Right-clicking a tray icon draws

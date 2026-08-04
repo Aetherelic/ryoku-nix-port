@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
-import "../../../../services"
+import shell.services
 import "../lib/providers.js" as Providers
 
 // Resolves the active workspace's tiled layout and applies a chosen layout to it.

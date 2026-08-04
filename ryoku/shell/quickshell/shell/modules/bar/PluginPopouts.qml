@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../../services"
+import shell.services
 import "popouts"
 import Ryoku.PluginKit
 

@@ -1,5 +1,5 @@
 import QtQuick
-import "../services"
+import shell.services
 
 // The sumi edge: a 1px light line laid along a card's top edge, like the lit
 // edge of layered paper. Inset by the corner radius so it never overshoots the

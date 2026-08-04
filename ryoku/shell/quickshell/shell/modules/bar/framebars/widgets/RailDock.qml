@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import "../../../../services"
+import shell.services
 import "../../../../components"
 import "../lib/dock.js" as Dock
 

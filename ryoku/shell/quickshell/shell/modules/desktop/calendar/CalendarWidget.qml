@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import "../../../services"
+import shell.services
 import "../../../services/lib/calendar.js" as CalendarModel
 import "../Singletons"
 

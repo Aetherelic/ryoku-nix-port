@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // One quick-action row (contract 06 sec 2.11): a centred horizontal row of

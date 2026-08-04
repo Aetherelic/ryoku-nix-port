@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "framebars/MenuState.js" as MenuState
 import Ryoku.FrameBars
-import "../../services"
+import shell.services
 import "popouts"
 
 // The single per-monitor frame menu manager. It repeats the configured menu

@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../services"
+import shell.services
 
 // The reusable frame-edge card skin, factored out of the music card: the framed
 // instrument tile (flat surface, hairline border) plus the click-swallow that

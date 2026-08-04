@@ -1,5 +1,5 @@
 import QtQuick
-import "../../../../services"
+import shell.services
 
 Item {
     id: root

@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import ".."
-import "../../../services"
+import shell.services
 import "../../../components"
 
 // the LEFT sidebar's content: FEATURES. a compact eyebrow header over a

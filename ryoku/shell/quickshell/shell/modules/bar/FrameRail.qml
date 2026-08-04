@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../services"
+import shell.services
 
 // One bar edge: a fixed-thickness band pinned to its screen edge, holding the
 // three zones. It creates no surface (it is content inside the frame overlay).

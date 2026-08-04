@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // The shared surface tile every quick-settings row, device entry and action
 // tile is built from: the reference `.ok-button-surface` and its size/state

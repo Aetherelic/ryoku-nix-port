@@ -1,5 +1,5 @@
 import QtQuick
-import "../../services"
+import shell.services
 
 // Shared base for the standard surface bodies (calendar, voice, keyring). A
 // plain clipped Item that paints no background of its own: the host behind it

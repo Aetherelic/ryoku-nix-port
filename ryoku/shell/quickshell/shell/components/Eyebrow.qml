@@ -1,5 +1,5 @@
 import QtQuick
-import "../services"
+import shell.services
 
 // section eyebrow, the website's `.eyebrow`: a short vermilion tick, then the
 // 力 seal, then a mono uppercase label with wide tracking. the pill surfaces'

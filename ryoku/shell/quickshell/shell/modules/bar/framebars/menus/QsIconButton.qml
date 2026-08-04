@@ -1,6 +1,6 @@
 import QtQuick
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // Square icon button for the sidebar header, footer, and page-back rows.

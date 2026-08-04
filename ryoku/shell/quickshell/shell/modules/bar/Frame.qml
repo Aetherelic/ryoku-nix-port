@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Ryoku.Blobs
-import "../../services"
+import shell.services
 import "framebars/RailGeometry.js" as RailGeometry
 
 // One monitor's frame bar. It maps four exclusive-zone background surfaces that

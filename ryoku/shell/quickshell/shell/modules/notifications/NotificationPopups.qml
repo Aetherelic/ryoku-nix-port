@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "../../services"
+import shell.services
 
 // Notification popup surface (contract 07 sec 1/2.4, sec 8; contract 12 sec 1).
 // A per-monitor overlay layer surface anchored to the top edge, on the left or

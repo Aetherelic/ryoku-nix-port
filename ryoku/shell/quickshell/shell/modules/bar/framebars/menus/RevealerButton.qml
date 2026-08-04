@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // A collapsible surface row (contract 16 sec 2.4, contract 06 sec 2.1): a full
 // width `ok-button-surface` header whose whole face toggles a revealed card

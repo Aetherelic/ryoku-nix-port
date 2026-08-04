@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../.." as Pill
-import "../../../../services"
+import shell.services
 
 // Power profiles entry (contract 06 sec 2.9): a RevealerRow whose inert action
 // button carries the active-profile icon and whose label reads

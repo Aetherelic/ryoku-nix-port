@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import "../../.." as Pill
-import "../../../../../services"
+import shell.services
 import "../../../../../components"
 import ".." as Menus
 

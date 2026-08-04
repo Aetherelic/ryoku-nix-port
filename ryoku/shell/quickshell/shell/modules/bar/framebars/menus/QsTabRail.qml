@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import "../.." as Pill
 import Ryoku.FrameBars
-import "../../../../services"
+import shell.services
 import "../../../../components"
 
 // Icon rail for the configured quick-settings modules. Module metadata comes

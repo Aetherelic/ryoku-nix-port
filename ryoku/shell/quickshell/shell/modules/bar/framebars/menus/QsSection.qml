@@ -1,5 +1,5 @@
 import QtQuick
-import "../../../../services"
+import shell.services
 
 // Section eyebrow: a spaced small-caps label with a hairline leader, the
 // sidebar's visual rhythm between control groups.
