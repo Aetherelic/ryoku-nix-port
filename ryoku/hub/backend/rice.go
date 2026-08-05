@@ -38,6 +38,7 @@ type RiceAssets struct {
 	Hero      string   `json:"hero,omitempty"`
 	Cursor    string   `json:"cursor,omitempty"`
 	Fonts     []string `json:"fonts,omitempty"`
+	Fastfetch string   `json:"fastfetch,omitempty"`
 }
 
 type Rice struct {
@@ -86,7 +87,7 @@ var riceHyprLayers = []string{"input", "windowRules", "layerRules", "appOverride
 // layers that live outside hypr.json; routed to their own store on apply.
 var riceExtraLayers = []string{"brand"}
 var riceShellLook = []string{
-	"frameRadius", "frameBorder", "frameSmoothing", "frameOpacity", "frameEnabled",
+	"frameRadius", "frameCorner", "frameBorder", "frameSmoothing", "frameOpacity", "frameEnabled",
 	"shadowStrength", "shadowSize", "surfaceColor",
 	"osdRadius", "osdOpacity",
 	"frameBars",
@@ -529,7 +530,7 @@ func readPalette(path string) map[string]string {
 // "restore my original setup" trustworthy.
 var backupStores = []string{
 	"hypr.json", "shell.json", "launcher.json", "theme.json",
-	"widgets.json", "visualizer.json", "decor.json", "brand.json",
+	"widgets.json", "visualizer.json", "decor.json", "brand.json", "profile.json",
 }
 
 func snapshotStores(slot string) error {
@@ -663,19 +664,6 @@ func applyRice(slug string, layers []string) error {
 		ta := *r.Color.ThemeApps
 		st.ThemeApps = &ta
 	}
-	if r.Color.Mode == "fixed" {
-		st.FollowWallpaper = false
-		st.Scheme = ""
-		saveThemeState(st)
-		if pal := readPalette(filepath.Join(dir, r.Color.Palette)); pal != nil {
-			writePalette(pal)
-		}
-		_ = riceRun("ryoku-shell", "wallpaper", "repaint")
-	} else {
-		st.FollowWallpaper = true
-		saveThemeState(st)
-	}
-
 	if r.Assets.Wallpaper != "" {
 		// a video wall lands in the livewalls pool (Super+W cycles it like the
 		// shell's own), a still in the wallpapers pool; `wallpaper set` routes
@@ -690,6 +678,22 @@ func applyRice(slug string, layers []string) error {
 			_ = riceRun("ryoku-shell", "wallpaper", "set", dst)
 		}
 	}
+	// Colour mode is set AFTER the wallpaper: `wallpaper set` re-derives the
+	// palette from the new wall and turns follow back on, so a fixed rice must
+	// re-assert its palette and follow=false last, or the wallpaper's matugen
+	// colours overwrite the fixed ones.
+	if r.Color.Mode == "fixed" {
+		st.FollowWallpaper = false
+		st.Scheme = ""
+		saveThemeState(st)
+		if pal := readPalette(filepath.Join(dir, r.Color.Palette)); pal != nil {
+			writePalette(pal)
+		}
+		_ = riceRun("ryoku-shell", "wallpaper", "repaint")
+	} else {
+		st.FollowWallpaper = true
+		saveThemeState(st)
+	}
 	if r.Assets.Hero != "" {
 		dst := filepath.Join(ryokuConfigDir(), "rice-hero"+filepath.Ext(r.Assets.Hero))
 		if copyFile(filepath.Join(dir, r.Assets.Hero), dst) == nil {
@@ -701,6 +705,30 @@ func applyRice(slug string, layers []string) error {
 		o.Cursor.Theme = r.Assets.Cursor
 		_ = saveOverrides(o)
 		_ = riceRun("hyprctl", "setcursor", o.Cursor.Theme, fmt.Sprintf("%d", o.Cursor.Size))
+	}
+	if r.Assets.Fastfetch != "" {
+		dst := filepath.Join(filepath.Dir(ryokuConfigDir()), "fastfetch", "fastfetch-emblem.png")
+		_ = os.MkdirAll(filepath.Dir(dst), 0o755)
+		_ = copyFile(filepath.Join(dir, r.Assets.Fastfetch), dst)
+	}
+	// profile hero: copy the bundled image into the profile store and point the
+	// hero at it, so the recipient's Profile page wears the rice's face. profile.json
+	// is in backupStores, so a restore reverts it.
+	if prof := r.Look["profile"]; len(prof) > 0 {
+		if hero, ok := prof["hero"].(map[string]any); ok {
+			if src, _ := hero["source"].(string); src != "" {
+				heroDir := profileHeroDir()
+				_ = os.MkdirAll(heroDir, 0o755)
+				name := "rice-" + r.Slug + filepath.Ext(src)
+				if copyFile(filepath.Join(dir, src), filepath.Join(heroDir, name)) == nil {
+					hero["source"] = name
+					prof["hero"] = hero
+				}
+			}
+		}
+		if err := overlayStore(profileConfigPath(), prof, nil); err != nil {
+			return fmt.Errorf("apply profile: %w", err)
+		}
 	}
 
 	_ = writeGeneratedLua(loadOverrides())
