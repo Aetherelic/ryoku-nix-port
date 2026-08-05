@@ -22,7 +22,7 @@ Item {
 
     TooltipMixin {
         id: tip; root: rootMod.root; owner: rootMod
-        text: "L: Theme  R: Wallpaper"
+        text: "Wallpaper"
     }
 
     MouseArea {
@@ -34,9 +34,7 @@ Item {
         onExited:  tip.hide()
         onClicked: function(mouse) {
             tip.hide()
-            rootMod.root.toggleImagePicker(
-                mouse.button === Qt.RightButton ? "wallpaper" : "theme",
-                rootMod.screen)
+            rootMod.root.toggleImagePicker("wallpaper", rootMod.screen)
         }
     }
 }

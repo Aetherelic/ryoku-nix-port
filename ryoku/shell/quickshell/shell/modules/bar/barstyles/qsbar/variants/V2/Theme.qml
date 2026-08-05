@@ -15,14 +15,11 @@ Item {
     readonly property string themeNamePath: omarchyCurrentRoot + "/theme.name"
     readonly property string colorsPath: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
     readonly property string currentBackgroundPath: omarchyCurrentRoot + "/background"
-    readonly property string currentBackgroundsPath: omarchyCurrentRoot + "/theme/backgrounds"
     property string currentThemeName: ""
-    readonly property string userBackgroundsPath: currentThemeName === ""
-        ? ""
-        : Quickshell.env("HOME") + "/.config/ryoku/backgrounds/" + currentThemeName
-    readonly property var wallpaperSourcePaths: userBackgroundsPath === ""
-        ? [currentBackgroundsPath]
-        : [currentBackgroundsPath, userBackgroundsPath]
+    readonly property var wallpaperSourcePaths: [
+        Quickshell.env("HOME") + "/Pictures/Wallpapers",
+        Quickshell.env("HOME") + "/Pictures/livewalls"
+    ]
 
     function setCurrentThemeName(rawName) {
         var name = String(rawName || "").trim()
@@ -427,9 +424,13 @@ Item {
     }
 
     function openImagePicker(mode, screen) {
-        // Ryoku owns the wallpaper/theme picker: open the shell daemon's own
-        // wallpaper switcher rather than the legacy in-bar carousel.
-        Quickshell.execDetached(["ryoku-shell", "wallpaper"])
+        if (imagePickerVisible && imagePickerMode !== mode)
+            imagePickerVisible = false
+        if (screen && screen.name !== "") activatePopupScreen(screen)
+        else activateFocusedPopupScreen()
+        mediaBrowserVisible = false
+        imagePickerMode = mode
+        imagePickerVisible = true
     }
 
     function toggleImagePicker(mode, screen) {

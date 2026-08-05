@@ -221,7 +221,7 @@ PanelWindow {
             applyThemeProc.command = ["env", "RYOKU_PATH=" + root.omarchyInstallRoot, "true", name]
             applyThemeProc.running = false; applyThemeProc.running = true
         } else {
-            applyBgProc.command = ["bash", "-c", "true '" + path.replace(/'/g, "'\\''") + "'"]
+            applyBgProc.command = ["ryoku-shell", "wallpaper", "set", path]
             applyBgProc.running = false; applyBgProc.running = true
         }
         root.imagePickerVisible = false
