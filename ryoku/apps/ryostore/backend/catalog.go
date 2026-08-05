@@ -25,6 +25,7 @@ func providers() []Provider {
 	return []Provider{
 		newLockProvider(c),
 		newRiceProvider(c),
+		newColorschemeProvider(c),
 		newBarProvider(c),
 		newFastfetchProvider(c),
 		pluginProvider{cache: c},

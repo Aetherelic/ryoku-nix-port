@@ -50,10 +50,16 @@ Item {
     // staged Save the wallpaper-tuning knobs ride.
     readonly property string scheme: { Settings.revision; return Settings.get("theme.theme") || ""; }
     function setScheme(k) { if (k) Settings.patch("theme.theme", k); }
+    // Installed RyoStore schemes, read live from the daemon catalog and listed
+    // beside the built-ins so a downloaded theme is pickable here too.
+    readonly property var userSchemes: UserSchemes.schemes
     function schemeName(id) {
         for (var i = 0; i < ThemeCatalog.schemes.length; i++)
             if (ThemeCatalog.schemes[i].id === id)
                 return ThemeCatalog.schemes[i].label;
+        for (var j = 0; j < pg.userSchemes.length; j++)
+            if (pg.userSchemes[j].id === id)
+                return pg.userSchemes[j].label;
         return id === "" ? I18n.tr("Loading") : id;
     }
 
@@ -751,7 +757,7 @@ Item {
                             width: parent.width - Tokens.s4 * 2
                             spacing: Tokens.s3
                             Repeater {
-                                model: ThemeCatalog.schemes.filter(s => s.dynamic === true || s.id === pg.scheme)
+                                model: ThemeCatalog.schemes.filter(s => s.dynamic === true || s.id === pg.scheme).concat(pg.userSchemes.filter(s => s.id === pg.scheme))
                                 delegate: SchemeCard { required property var modelData; scheme: modelData }
                             }
                         }
@@ -760,11 +766,11 @@ Item {
                             spacing: Tokens.s3
                             Btn {
                                 text: schemeCard.themesOpen ? I18n.tr("HIDE THEMES") : I18n.tr("ALL THEMES")
-                                onAct: schemeCard.themesOpen = !schemeCard.themesOpen
+                                onAct: { schemeCard.themesOpen = !schemeCard.themesOpen; if (schemeCard.themesOpen) UserSchemes.refresh(); }
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: I18n.tr("%1 named palettes").arg(ThemeCatalog.schemes.filter(s => s.dynamic !== true).length)
+                                text: I18n.tr("%1 named palettes").arg(ThemeCatalog.schemes.filter(s => s.dynamic !== true).length + pg.userSchemes.length)
                                 color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                             }
                         }
@@ -782,7 +788,7 @@ Item {
                                 width: parent.width
                                 spacing: Tokens.s3
                                 Repeater {
-                                    model: ThemeCatalog.schemes.filter(s => s.dynamic !== true)
+                                    model: ThemeCatalog.schemes.filter(s => s.dynamic !== true).concat(pg.userSchemes)
                                     delegate: SchemeCard { required property var modelData; scheme: modelData }
                                 }
                             }

@@ -402,7 +402,7 @@ func (g *generalSettings) normalize(v *validator) {
 
 func (t *themeSettings) normalize(v *validator) {
 	v.nonEmpty("theme.theme", t.Theme)
-	v.enum("theme.theme", t.Theme, themeThemeValues)
+	v.enum("theme.theme", t.Theme, effectiveThemeThemeValues())
 	v.enum("theme.matugen.preference", t.Matugen.Preference, matugenPrefValues)
 	v.enum("theme.matugen.scheme_type", t.Matugen.SchemeType, matugenTypeValues)
 	v.enum("theme.matugen.mode", t.Matugen.Mode, matugenModeValues)
@@ -640,7 +640,7 @@ func writeContract(full map[string]any, ns *settings) {
 func resolveThemePalette(full map[string]any, themeName string) {
 	// The live path is gated on theme.json, so the same selection has to reach it.
 	syncFollowWallpaper(themeName)
-	pal, ok := themePalettes[themeName]
+	pal, ok := lookupThemePalette(themeName)
 	if !ok {
 		delete(full, "themePalette")
 		return

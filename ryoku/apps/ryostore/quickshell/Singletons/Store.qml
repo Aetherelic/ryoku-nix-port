@@ -22,6 +22,7 @@ Singleton {
     property string _catalogError: ""
     property string _installError: ""
     property bool _clearBusyAfterRefresh: false
+    property var _queue: []
 
     function itemKey(item) {
         return item ? String(item.category || "") + ":" + String(item.id || "") : "";
@@ -76,6 +77,26 @@ Singleton {
         install(item, dither, components);
     }
 
+    // installAll queues every not-yet-installed item and installs them one at a
+    // time (install is single-flight): each completion pumps the next. The batch
+    // stops on the first failure so the error stays visible.
+    function installAll(list) {
+        var q = [];
+        var src = Array.isArray(list) ? list : [];
+        for (var i = 0; i < src.length; i++)
+            if (src[i] && src[i].installed !== true)
+                q.push(src[i]);
+        _queue = q;
+        _pumpQueue();
+    }
+    function _pumpQueue() {
+        if (busyKey !== "" || _queue.length === 0)
+            return;
+        var next = _queue[0];
+        _queue = _queue.slice(1);
+        install(next);
+    }
+
     function openSettings(item) {
         if (!item)
             return;
@@ -120,6 +141,7 @@ Singleton {
                     root.busyKey = "";
                 }
             }
+            root._pumpQueue();
         }
     }
 
@@ -133,6 +155,7 @@ Singleton {
                 root.installError = root._installError.trim() || "Installation failed";
                 root.installErrorKey = root.busyKey;
                 root.busyKey = "";
+                root._queue = [];
                 return;
             }
             root.installStage = "VERIFYING";

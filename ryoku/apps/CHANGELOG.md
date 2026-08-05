@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- `ryostore/`: **A Themes category delivers third-party colour schemes.** It
+  serves the `ryoku-extras` colorschemes catalogue through a per-provider subtab
+  strip (the HANCORE-linux Omarchy themes and the existing Noctalia set) with a
+  My themes tab for the installed library and a per-provider Install all. A
+  scheme installs (install-only) into `~/.local/share/ryoku/themes/<id>`, where
+  the shell picks it up so it shows in the Color-scheme section (Super+W and the
+  Hub); schemes without a preview render an accent/surface swatch tile
+  (`backend/provider_colorschemes.go`, `backend/catalog.go`,
+  `quickshell/{ProviderTabs,App}.qml`, `quickshell/Singletons/Store.qml`,
+  `quickshell/lib/store.js`).
 - `ryostore/`: **Bundles preview their contents and install by selection.**
   Opening a bundle lists its components grouped Core / Optional, each with a
   toggle (Core on, Optional off) and a one-line summary. Two actions replace the

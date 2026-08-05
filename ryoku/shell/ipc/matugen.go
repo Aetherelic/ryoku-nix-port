@@ -526,7 +526,7 @@ func matugenPreview(img string) error {
 // master instead of splitting (rail static, apps stuck on the last wallpaper
 // render). No wallpaper is involved; the palette is the catalog's.
 func (d *daemon) matugenApplyStatic(name string) error {
-	pal, ok := themePalettes[name]
+	pal, ok := lookupThemePalette(name)
 	if !ok {
 		return fmt.Errorf("no palette for static theme %q", name)
 	}

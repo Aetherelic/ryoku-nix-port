@@ -18,6 +18,7 @@ import "encoding/json"
 type themeCard struct {
 	ID      string   `json:"id"`
 	Label   string   `json:"label"`
+	Provider string   `json:"provider,omitempty"`
 	Dynamic bool     `json:"dynamic,omitempty"`
 	Icon    string   `json:"icon,omitempty"`
 	Dark    bool     `json:"dark,omitempty"`
@@ -65,6 +66,8 @@ func themeCatalog() []themeCard {
 			Sw:    sw,
 		})
 	}
+	// Installed library schemes follow the built-ins, each provider-tagged.
+	out = append(out, userThemeCards()...)
 	return out
 }
 

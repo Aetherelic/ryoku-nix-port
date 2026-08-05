@@ -19,6 +19,7 @@ Rectangle {
     property string categoryID: ""
     property string query: ""
     property bool searchOpen: false
+    property string providerFilter: ""
     property string selectedKey: ""
     property var previewItem: null
     property var detailItem: null
@@ -48,7 +49,9 @@ Rectangle {
     readonly property var collection: StoreLogic.collection(searchableItems, {
         view: view,
         categoryID: categoryID,
-        query: query
+        query: query,
+        provider: app.themesBrowse && app.providerFilter !== "" && app.providerFilter !== "__mine__" ? app.providerFilter : "",
+        installedOnly: app.themesBrowse && app.providerFilter === "__mine__"
     })
     readonly property var selectedItem: itemForKey(selectedKey, collection)
     readonly property var resolvedDetail: detailItem
@@ -61,6 +64,37 @@ Rectangle {
             ? String(selectedIndex + 1) + " / " + String(collection.length)
             : ""
     readonly property bool showHero: view === "discover" && categoryID === "" && !searchOpen && collection.length > 0
+    // The Themes category browses per provider through a subtab strip; the filter
+    // narrows the collection to one provider or to the installed library.
+    readonly property bool themesBrowse: app.categoryID === "colorschemes" && app.view === "discover" && !app.searchOpen
+    readonly property var themeProviders: {
+        var seen = ({});
+        var out = [];
+        var its = Store.items;
+        for (var i = 0; i < its.length; i++) {
+            if (its[i].category !== "colorschemes")
+                continue;
+            var pv = (its[i].metadata && its[i].metadata.provider) ? its[i].metadata.provider : "Community";
+            if (!seen[pv]) { seen[pv] = true; out.push(pv); }
+        }
+        out.sort();
+        return out;
+    }
+    readonly property int themeInstallable: {
+        if (!app.themesBrowse || app.providerFilter === "" || app.providerFilter === "__mine__")
+            return 0;
+        var n = 0;
+        var its = Store.items;
+        for (var i = 0; i < its.length; i++) {
+            var it = its[i];
+            if (it.category !== "colorschemes")
+                continue;
+            var pv = (it.metadata && it.metadata.provider) ? it.metadata.provider : "Community";
+            if (pv === app.providerFilter && it.installed !== true)
+                n++;
+        }
+        return n;
+    }
 
     function itemForKey(key, items) {
         const source = Array.isArray(items) ? items : [];
@@ -76,6 +110,19 @@ Rectangle {
             if (StoreLogic.itemKey(source[i]) === key)
                 return i;
         return -1;
+    }
+    function providerItems(provider) {
+        var out = [];
+        var its = Store.items;
+        for (var i = 0; i < its.length; i++) {
+            var it = its[i];
+            if (it.category !== "colorschemes")
+                continue;
+            var pv = (it.metadata && it.metadata.provider) ? it.metadata.provider : "Community";
+            if (pv === provider)
+                out.push(it);
+        }
+        return out;
     }
 
     function reconcileSelection(fallbackIndex) {
@@ -131,6 +178,7 @@ Rectangle {
             return;
         }
         app.pendingRoute = "";
+        app.providerFilter = "";
         detailClear.stop();
         detailOpen = false;
         detailItem = null;
@@ -300,11 +348,28 @@ Rectangle {
         onSearchActivated: app.enterSearch()
         onSearchEscaped: app.exitSearch()
     }
+    ProviderTabs {
+        id: providerTabs
+        objectName: "ryostore-provider-tabs"
+        anchors { left: parent.left; top: header.bottom; right: parent.right }
+        height: app.themesBrowse ? implicitHeight : 0
+        visible: app.themesBrowse
+        providers: app.themeProviders
+        active: app.providerFilter
+        installableCount: app.themeInstallable
+        busy: Store.busyKey !== ""
+        onPicked: filter => {
+            app.providerFilter = filter;
+            app.reconcileSelection(0);
+            Qt.callLater(function() { productGrid.forceActiveFocus(); });
+        }
+        onInstallAll: Store.installAll(app.providerItems(app.providerFilter))
+    }
 
     ShowroomStage {
         id: stage
         objectName: "ryostore-stage"
-        anchors { left: parent.left; top: header.bottom; right: parent.right }
+        anchors { left: parent.left; top: providerTabs.bottom; right: parent.right }
         height: app.showHero ? Math.round((app.height - header.height) * 0.42) : 0
         visible: app.showHero
         enabled: !app.detailOpen

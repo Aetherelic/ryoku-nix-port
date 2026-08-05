@@ -54,6 +54,8 @@ function filter(items, options) {
             return false;
         if (opts.updatesOnly && !item.updateAvailable)
             return false;
+        if (opts.provider && (item.metadata && item.metadata.provider ? item.metadata.provider : "Community") !== opts.provider)
+            return false;
         if (opts.tag && (item.tags || []).indexOf(opts.tag) === -1)
             return false;
         return matchesQuery(item, opts.query);
@@ -90,7 +92,8 @@ function collection(items, options) {
     var opts = options || {};
     var filtered = filter(items, {
         category: opts.categoryID || "",
-        installedOnly: opts.view === "library",
+        installedOnly: opts.view === "library" || opts.installedOnly === true,
+        provider: opts.provider || "",
         query: opts.query || ""
     });
     if (opts.view !== "library" && !opts.categoryID && !opts.query) {

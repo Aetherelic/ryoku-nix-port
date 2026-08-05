@@ -134,6 +134,14 @@
   `quickshell/pill/BarWidgetHost.qml`, `framebars/widgets/RailDock.qml`).
 
 ### Added
+- **Downloaded colour schemes appear in the Color-scheme picker.** RyoStore's
+  Themes category installs a scheme into `~/.local/share/ryoku/themes/<id>` as a
+  Noctalia-format `scheme.json`; the daemon converts its dark/light block into the
+  34-role catalog palette and merges it into the theme world, so `ryoku-shell
+  theme catalog` lists it (provider-tagged) beside the built-ins, `ryoku-shell
+  theme <id>` applies it live through the existing static-theme render, and the
+  settings seam validates the id. Installing never activates
+  (`ipc/usertheme.go`, `ipc/{themecatalog,matugen,settings}.go`).
 - **The desktop now has a location-aware calendar widget.** Wallpaper Glass and
   Ryoku Paper styles share a configurable four-to-eight-week grid with ISO week
   numbers, cached country and subdivision holidays, and indicators for personal

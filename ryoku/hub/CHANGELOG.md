@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Appearance lists downloaded colour schemes.** The Colour scheme picker now
+  shows installed RyoStore themes beside the built-in palettes, read live from
+  the daemon catalog (`ryoku-shell theme catalog`) and applied through the same
+  `theme.theme` seam; the ALL THEMES drawer and the named-palette count include
+  them (`quickshell/Singletons/UserSchemes.qml`, `quickshell/pages/AppearancePage.qml`).
 - **The desktop visualiser previews live.** The Visualiser subtab now leads with
   a self-contained animated preview that retunes as you change the style
   (bars, dots, line, wave, segments, radial, circle), position, shape, bar

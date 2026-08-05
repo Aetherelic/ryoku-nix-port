@@ -12,6 +12,9 @@ import (
 // seven-swatch preview taken from the authoritative palette and a dark flag
 // (surface luma < 0.5). It must not drift from themePalettes.
 func TestThemeCatalogProjection(t *testing.T) {
+	// Isolate from any installed theme library so the built-in projection is
+	// deterministic: user cards append after the built-ins (usertheme.go).
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	cat := themeCatalog()
 	if len(cat) != len(themeCatalogNames)+2 {
 		t.Fatalf("catalog has %d cards, want %d", len(cat), len(themeCatalogNames)+2)
@@ -75,6 +78,7 @@ func TestThemeCatalogProjection(t *testing.T) {
 // TestThemeCatalogJSONValid confirms the CLI output is well-formed JSON the
 // switcher can parse.
 func TestThemeCatalogJSONValid(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	var cards []themeCard
 	if err := json.Unmarshal([]byte(themeCatalogJSON()), &cards); err != nil {
 		t.Fatalf("theme catalog JSON does not round-trip: %v", err)
@@ -88,6 +92,7 @@ func TestThemeCatalogJSONValid(t *testing.T) {
 // drives: every catalog id is a valid theme.theme the settings store accepts,
 // and an id outside the catalog is rejected.
 func TestThemeApplyByCatalogID(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	path := filepath.Join(t.TempDir(), "shell.json")
 	if err := os.WriteFile(path, []byte(`{}`), 0o644); err != nil {
 		t.Fatal(err)
