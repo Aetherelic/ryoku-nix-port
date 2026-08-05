@@ -169,3 +169,62 @@ func TestRiceInstallRejectsTraversingAssetPath(t *testing.T) {
 		t.Fatalf("install wrote outside its rice directory: %v", err)
 	}
 }
+
+func TestRiceInstallFetchesBundledDecorAndBrandAssets(t *testing.T) {
+	files := map[string]string{
+		"/rices/registry.json":     `{"version":1,"rices":[{"id":"demo","name":"Demo","manifest":"rices/demo/rice.json","palette":"rices/demo/palette.json","wallpaper":"rices/demo/wall.png"}]}`,
+		"/rices/demo/rice.json":    `{"schema":1,"slug":"demo","name":"Demo","color":{"palette":"palette.json"},"assets":{"wallpaper":"wall.png"},"look":{"decor":[{"src":"rice://decor-x.png"}]},"layers":{"brand":{"markImage":"rice://mark.png"}}}`,
+		"/rices/demo/palette.json": `{"background":"#101010"}`,
+		"/rices/demo/wall.png":     "wallpaper",
+		"/rices/demo/decor-x.png":  "decor-art",
+		"/rices/demo/mark.png":     "brand-mark",
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if body, ok := files[r.URL.Path]; ok {
+			_, _ = w.Write([]byte(body))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	p := testRiceProvider(t, srv)
+	if err := p.Install(context.Background(), "demo"); err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]string{
+		"decor-x.png": "decor-art",
+		"mark.png":    "brand-mark",
+	} {
+		b, err := os.ReadFile(filepath.Join(p.ricesDir, "demo", path))
+		if err != nil || string(b) != want {
+			t.Fatalf("bundled asset %s = %q, err=%v", path, b, err)
+		}
+	}
+}
+
+func TestRiceInstallSkipsMissingBundledAsset(t *testing.T) {
+	files := map[string]string{
+		"/rices/registry.json":     `{"version":1,"rices":[{"id":"demo","name":"Demo","manifest":"rices/demo/rice.json","palette":"rices/demo/palette.json","wallpaper":"rices/demo/wall.png"}]}`,
+		"/rices/demo/rice.json":    `{"schema":1,"slug":"demo","name":"Demo","color":{"palette":"palette.json"},"assets":{"wallpaper":"wall.png"},"look":{"decor":[{"src":"rice://gone.png"}]}}`,
+		"/rices/demo/palette.json": `{"background":"#101010"}`,
+		"/rices/demo/wall.png":     "wallpaper",
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if body, ok := files[r.URL.Path]; ok {
+			_, _ = w.Write([]byte(body))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	p := testRiceProvider(t, srv)
+	if err := p.Install(context.Background(), "demo"); err != nil {
+		t.Fatalf("missing optional decor asset failed the install: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(p.ricesDir, "demo", "rice.json")); err != nil {
+		t.Fatalf("install did not complete: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(p.ricesDir, "demo", "gone.png")); !os.IsNotExist(err) {
+		t.Fatalf("missing asset unexpectedly present: %v", err)
+	}
+}

@@ -9,7 +9,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -217,10 +219,37 @@ func (p riceProvider) Install(ctx context.Context, id string) error {
 			return fmt.Errorf("download %s: %w", asset.name, err)
 		}
 	}
+	for _, name := range riceBundledAssets(manifestRaw) {
+		remote := path.Join("rices", id, name)
+		// Bundled decor/brand art is optional: a fetch failure degrades to the
+		// apply-time default rather than failing the whole install.
+		if err := p.download(ctx, p.assetURL(remote), filepath.Join(stage, name)); err != nil {
+			continue
+		}
+	}
 	if err := atomicWrite(filepath.Join(stage, "rice.json"), manifestRaw, 0o644); err != nil {
 		return err
 	}
 	return replaceTree(stage, dst, nil)
+}
+
+var riceAssetRef = regexp.MustCompile(`rice://([A-Za-z0-9._-]+)`)
+
+// riceBundledAssets returns the unique rice://<name> assets a manifest
+// references (look.decor[*].src, layers.brand.markImage, etc). Names that would
+// escape the rice directory are skipped so a hostile manifest cannot traverse.
+func riceBundledAssets(manifest []byte) []string {
+	seen := map[string]bool{}
+	names := []string{}
+	for _, m := range riceAssetRef.FindAllSubmatch(manifest, -1) {
+		name := string(m[1])
+		if seen[name] || !validLocalPath(name) {
+			continue
+		}
+		seen[name] = true
+		names = append(names, name)
+	}
+	return names
 }
 
 func (p riceProvider) assetURL(path string) string {
