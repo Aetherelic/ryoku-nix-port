@@ -140,18 +140,9 @@ Item {
     function commitTargetFailed(variant) {
         if (phase !== "committing" || variant !== runningVariant) return
 
-        if (!rollbackMode && previousVariant !== "") {
-            failedVariant = runningVariant
-            lastError = "could not persist active variant"
-            rollbackMode = true
-            targetVariant = previousVariant
-            beginUnload()
-            return
-        }
-
-        // On first boot or while already restoring a known-good variant there
-        // is no safer target left. Keep the healthy UI for this session; the
-        // StateService warning makes the persistence failure diagnosable.
+        // Ryoku: a persistence miss must not revert the user's chosen variant.
+        // Keep it for the session; it re-persists on the next successful write.
+        lastError = "could not persist active variant"
         finalizeAcceptedTarget()
     }
 
