@@ -404,7 +404,7 @@ Rectangle {
         "position": "bottom", "mirror": false, "segments": 10, "fps": 30,
         "adaptive": true, "smoothing": 0.5, "gain": 1.0, "peaks": false,
         "markText": "力", "markImage": "", "markTint": true, "name": "Ryoku",
-        "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig()
+        "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig(), "qsbar": {}
     })
 
     // key -> source file, derived from the schema so it cannot drift.
@@ -512,7 +512,7 @@ Rectangle {
     // against liveBaseline: the state at open, re-snapshotted on every Save.
     // Quit and Revert walk the desktop back to that baseline through the same
     // channel, so an unsaved close leaves no residue.
-    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "barStyle", "obi", "nacre"]
+    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "barStyle", "obi", "nacre", "qsbar"]
     property var liveBaseline: null
     property var livePending: ({})
     function captureLiveBaseline() {

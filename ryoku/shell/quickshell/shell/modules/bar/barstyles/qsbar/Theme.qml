@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Services.UPower
+import shell.services
 import "Palette.js" as Palette
 
 Item {
@@ -1855,11 +1856,53 @@ Item {
                     if (parts.length > wsField + 32) theme.compactMpris      = parts[wsField + 32] === "1"
                 }
                 theme._widgetsLoaded = true
+                theme.applyStudioSettings()
             }
         }
     }
 
     Process { id: widgetSaveProc }
+
+    // ── Bar Studio bridge ──
+    // Ryoku Hub (Bar Studio) writes a `qsbar` map into shell.json; the shell's
+    // Config watches it, so these settings apply live and win over the local
+    // widget cache. Only keys the user set are present; the rest keep defaults.
+    function applyStudioSettings() {
+        var q = Config.qsbar
+        if (!q) return
+        // Config is the source of truth for these keys, so suppress the widget
+        // and split cache writes the property-change handlers would make (both
+        // gated on their *Loaded flags). Clearing a key in Bar Studio then
+        // reverts to the cache/default on the next load instead of sticking.
+        var wl = _widgetsLoaded, sl = _splitsLoaded
+        _widgetsLoaded = false; _splitsLoaded = false
+        if (q.barColor !== undefined && barColorValid(q.barColor)) barColor = q.barColor
+        if (q.barAnim !== undefined) barAnim = q.barAnim
+        if (q.barPosition === "top" || q.barPosition === "bottom") barPosition = q.barPosition
+        if (q.workspaceMode !== undefined) workspaceMode = q.workspaceMode
+        var w = q.widgets
+        if (w) {
+            if (w.status     !== undefined) modStatus     = w.status
+            if (w.memory     !== undefined) modMemory     = w.memory
+            if (w.cpu        !== undefined) modCpu        = w.cpu
+            if (w.volume     !== undefined) modVolume     = w.volume
+            if (w.weather    !== undefined) modWeather    = w.weather
+            if (w.network    !== undefined) modNetwork    = w.network
+            if (w.brightness !== undefined) modBrightness = w.brightness
+            if (w.media      !== undefined) modMedia      = w.media
+            if (w.mpris      !== undefined) modMpris      = w.mpris
+            if (w.quick      !== undefined) modQuick      = w.quick
+            if (w.claude     !== undefined) modClaude     = w.claude
+            if (w.power      !== undefined) modPower      = w.power
+            if (w.bluetooth  !== undefined) modBluetooth  = w.bluetooth
+        }
+        _widgetsLoaded = wl; _splitsLoaded = sl
+    }
+    Connections {
+        target: Config
+        function onQsbarChanged() { theme.applyStudioSettings() }
+    }
+    Component.onCompleted: theme.applyStudioSettings()
 
     // ── New widget panel states ──
     property bool networkVisible:   false

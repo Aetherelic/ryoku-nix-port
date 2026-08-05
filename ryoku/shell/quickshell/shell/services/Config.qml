@@ -44,6 +44,7 @@ Singleton {
     // style gets its own key here, the extensible per-style settings store.
     property alias obi: adapter.obi
     property alias nacre: adapter.nacre
+    property alias qsbar: adapter.qsbar
     readonly property var normalizedNacre: NacreConfig.normalize(nacre)
 
     // typography: a scale that grows or shrinks the whole shell (the bar text
@@ -120,6 +121,7 @@ Singleton {
             property string barStyle: "qsbar"
             property var obi: ({})
             property var nacre: NacreConfig.defaultConfig()
+            property var qsbar: ({})
         }
     }
 

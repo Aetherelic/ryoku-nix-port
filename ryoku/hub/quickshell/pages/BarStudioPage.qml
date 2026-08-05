@@ -149,6 +149,81 @@ Item {
         page.fedit("obi", o);
     }
 
+    // ── QS Bar (Hancore top bar) settings ────────────────────────────────────
+    // Stored in the `qsbar` map in shell.json and applied live by the bar's
+    // Theme; an absent key keeps the bar's own default. The V1/V2 variant is
+    // owned by the bar's StateService, so it rides the bar's IPC and is mirrored
+    // back from the persisted state file.
+    function qval(key, fall) {
+        const q = page.fval("qsbar", ({}));
+        return q && q[key] !== undefined ? q[key] : fall;
+    }
+    function qset(key, v) {
+        const q = Object.assign({}, page.fval("qsbar", ({})));
+        q[key] = v;
+        page.fedit("qsbar", q);
+    }
+    function qwid(id, fall) {
+        const q = page.fval("qsbar", ({}));
+        const w = q && q.widgets ? q.widgets : ({});
+        return w[id] !== undefined ? w[id] : fall;
+    }
+    function qwidset(id, v) {
+        const q = Object.assign({}, page.fval("qsbar", ({})));
+        const w = Object.assign({}, q.widgets || ({}));
+        w[id] = v;
+        q.widgets = w;
+        page.fedit("qsbar", q);
+    }
+
+    property string qsbarVariant: "v1"
+    function qsbarSetVariant(v) {
+        Quickshell.execDetached(["qs", "-c", "shell", "ipc", "call", "variant", "activate", v]);
+    }
+    FileView {
+        id: qsbarVariantFile
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/quickshell-rise/active-variant"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: page.qsbarVariant = (qsbarVariantFile.text() || "v1").trim() || "v1"
+    }
+
+    readonly property var qsbarWidgets: [
+        { id: "status", label: qsTr("Status"), def: true, desc: qsTr("Arch updates, tray and notifications.") },
+        { id: "cpu", label: qsTr("CPU"), def: true, desc: qsTr("CPU load and history.") },
+        { id: "memory", label: qsTr("Memory"), def: true, desc: qsTr("Memory use.") },
+        { id: "volume", label: qsTr("Volume"), def: true, desc: qsTr("Output volume and mixer.") },
+        { id: "network", label: qsTr("Network"), def: true, desc: qsTr("Wi-Fi and Ethernet.") },
+        { id: "brightness", label: qsTr("Brightness"), def: true, desc: qsTr("Backlight level.") },
+        { id: "weather", label: qsTr("Weather"), def: true, desc: qsTr("Current conditions.") },
+        { id: "media", label: qsTr("Media"), def: true, desc: qsTr("Now-playing controls.") },
+        { id: "mpris", label: qsTr("Now playing"), def: true, desc: qsTr("The now-playing pill.") },
+        { id: "quick", label: qsTr("Quick toggles"), def: true, desc: qsTr("Idle inhibitor, media and theme.") },
+        { id: "claude", label: qsTr("AI usage"), def: false, desc: qsTr("Coding-agent usage meter.") },
+        { id: "power", label: qsTr("Power profile"), def: false, desc: qsTr("Power-profile pill.") },
+        { id: "bluetooth", label: qsTr("Bluetooth"), def: false, desc: qsTr("Bluetooth pill.") }
+    ]
+    readonly property var qsbarColors: ["color01", "color02", "color03", "color04", "color05", "color06", "color07", "foreground"]
+    property var qsbarPalette: ({})
+    FileView {
+        id: qsbarColorsFile
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try { page.qsbarPalette = JSON.parse(qsbarColorsFile.text() || "{}"); }
+            catch (e) { page.qsbarPalette = ({}); }
+        }
+    }
+    function qsbarSwatch(id) {
+        const p = page.qsbarPalette;
+        if (!p) return Tokens.inkDim;
+        if (id === "foreground") return p.foreground || Tokens.ink;
+        return p["color" + parseInt(id.slice(-2), 10)] || Tokens.inkDim;
+    }
+
     CatalogLabels { id: labels }
 
     // ── head: the eyebrow band, the title, the blurb ─────────────────────────
@@ -362,6 +437,125 @@ Item {
                         anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s3
                         config: page.fval("nacre", ({}))
                         onStaged: value => page.fedit("nacre", value)
+                    }
+                }
+            }
+
+            // ── QS BAR: the Hancore top bar's controls ───────────────────────
+            SettingCard {
+                id: qsbarSect
+                width: col.width
+                visible: page.activeStyle === "qsbar"
+                title: qsTr("QS BAR")
+
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    controlWidth: 120
+                    label: qsTr("Layout")
+                    desc: qsTr("V1 split islands with the animated stream, or the V2 unified top shell.")
+                    source: qsTr("state")
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["v1", "v2"]
+                        current: page.qsbarVariant
+                        onChose: key => page.qsbarSetVariant(key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Animated gap")
+                    desc: qsTr("The stream that flows between the islands, reactive to playback.")
+                    source: "shell.json"
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.qval("barAnim", 1) > 0
+                        onToggled: value => page.qset("barAnim", value ? 1 : 0)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 130
+                    label: qsTr("Position")
+                    desc: qsTr("Which screen edge the bar sits on.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["top", "bottom"]
+                        current: page.qval("barPosition", "top")
+                        onChose: key => page.qset("barPosition", key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 170
+                    label: qsTr("Workspaces")
+                    desc: qsTr("Only the active workspace, or a fixed 1-5 / 1-10 row.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["active", "5", "10"]
+                        current: page.qval("workspaceMode", "active")
+                        onChose: key => page.qset("workspaceMode", key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 190
+                    label: qsTr("Accent colour")
+                    desc: qsTr("Which wallpaper colour tints the bar and its stream.")
+                    source: "shell.json"
+                    Row {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Tokens.s1
+                        Repeater {
+                            model: page.qsbarColors
+                            delegate: Rectangle {
+                                required property string modelData
+                                readonly property bool on: page.qval("barColor", "color01") === modelData
+                                width: 20
+                                height: 20
+                                radius: Tokens.radius
+                                color: page.qsbarSwatch(modelData)
+                                border.width: on ? 2 : Tokens.border
+                                border.color: on ? Tokens.bone : Tokens.line
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: page.qset("barColor", modelData) }
+                            }
+                        }
+                    }
+                }
+                Repeater {
+                    model: page.qsbarWidgets
+                    delegate: SettingRow {
+                        required property var modelData
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        divider: true
+                        controlWidth: 54
+                        label: modelData.label
+                        desc: modelData.desc
+                        source: "shell.json"
+                        Sw {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            on: page.qwid(modelData.id, modelData.def)
+                            onToggled: value => page.qwidset(modelData.id, value)
+                        }
                     }
                 }
             }
