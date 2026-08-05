@@ -2329,12 +2329,6 @@ Item {
     function launcherLogoIconValid(id) {
         return launcherLogoIconIndex(id) >= 0 && launcherLogoIconOptions[launcherLogoIconIndex(id)] === id
     }
-    function nextLauncherLogoText() {
-        launcherLogoText = launcherLogoTextOptions[(launcherLogoTextIndex(launcherLogoText) + 1) % launcherLogoTextOptions.length]
-    }
-    function nextLauncherLogoIcon() {
-        launcherLogoIcon = launcherLogoIconOptions[(launcherLogoIconIndex(launcherLogoIcon) + 1) % launcherLogoIconOptions.length]
-    }
     function launcherConfigValue(config, a, b, c) {
         if (!config) return undefined
         if (config[a] !== undefined) return config[a]
@@ -2353,66 +2347,6 @@ Item {
         if (mode === "text" || mode === "icon") launcherLogoMode = mode
         if (text !== undefined && launcherLogoTextValid(text)) launcherLogoText = text
         if (icon !== undefined && launcherLogoIconValid(icon)) launcherLogoIcon = icon
-    }
-    function launcherLogoLabel(id) {
-        if (id === "omarchy") return "Ryoku"
-        if (id === "hyprland") return "Hyprland"
-        if (id === "arch") return "Arch"
-        if (id === "omacom") return "Omacom"
-        if (id === "grid") return "Grid"
-        if (id === "spark") return "Spark"
-        if (id === "power") return "Power"
-        if (id === "dragon") return "Dragon"
-        if (id === "mark") return "Mark"
-        if (id === "nix") return "Nix"
-        if (id === "branch") return "Branch"
-        if (id === "rebel") return "Rebel"
-        return "Ryoku"
-    }
-    function launcherLogoIconGlyph(id) {
-        if (id === "omarchy") return String.fromCodePoint(0xE900)
-        if (id === "hyprland") return ""
-        if (id === "arch") return ""
-        if (id === "grid") return ""
-        if (id === "spark") return ""
-        if (id === "power") return ""
-        if (id === "dragon") return "⻯"
-        if (id === "mark") return ""
-        if (id === "nix") return ""
-        if (id === "branch") return ""
-        if (id === "rebel") return ""
-        return String.fromCodePoint(0xE900)
-    }
-    function launcherLogoIconFont(id) {
-        return id === "omarchy" ? "omarchy" : mono
-    }
-    function launcherLogoIconSize(id) {
-        if (id === "omarchy") return 15
-        if (id === "arch") return 17
-        if (id === "dragon") return 16
-        return 16
-    }
-    function launcherLogoIconXOffset(id) {
-        if (id === "omarchy") return 0.5
-        if (id === "hyprland") return 0
-        if (id === "arch") return 1
-        if (id === "grid") return -1
-        if (id === "spark") return 0
-        if (id === "power") return 0
-        if (id === "dragon") return 0
-        if (id === "mark") return 0.5
-        if (id === "nix") return 0
-        if (id === "branch") return 0
-        return 0
-    }
-    function launcherLogoIconYOffset(id) {
-        if (id === "omarchy") return 0
-        if (id === "hyprland") return 0
-        if (id === "arch") return 0
-        if (id === "mark") return 0.5
-        if (id === "branch") return 0
-        if (id === "dragon") return 0
-        return 0
     }
 
     Process {

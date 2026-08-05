@@ -693,21 +693,15 @@ PanelWindow {
                 spacing: 4
                 Tile {
                     width: root.evenW((wwCol.width - 4) / 2)
-                    label: root.launcherLogoLabel(root.launcherLogoText)
+                    label: "RYOKU"
                     active: root.launcherLogoMode === "text"
-                    onActivated: {
-                        if (root.launcherLogoMode === "text") root.nextLauncherLogoText()
-                        else root.launcherLogoMode = "text"
-                    }
+                    onActivated: root.launcherLogoMode = "text"
                 }
                 Tile {
                     width: root.evenW((wwCol.width - 4) / 2)
-                    label: root.launcherLogoLabel(root.launcherLogoIcon)
+                    label: "力"
                     active: root.launcherLogoMode === "icon"
-                    onActivated: {
-                        if (root.launcherLogoMode === "icon") root.nextLauncherLogoIcon()
-                        else root.launcherLogoMode = "icon"
-                    }
+                    onActivated: root.launcherLogoMode = "icon"
                 }
             }
         }

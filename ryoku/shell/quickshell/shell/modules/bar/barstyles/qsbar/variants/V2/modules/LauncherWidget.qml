@@ -77,17 +77,17 @@ Item {
         }
     }
 
-    // Ryoku brand wordmark, themed with the accent seal colour.
+    // Ryoku brand mark: the RYOKU wordmark, or the 力 kanji, themed with the seal.
     Text {
         id: logo
         anchors.centerIn: parent
-        text: "RYOKU"
+        text: root.launcherLogoMode === "icon" ? "力" : "RYOKU"
         color: root.seal
         renderType: Text.NativeRendering
-        font.family: root.mono
-        font.pixelSize: 12
+        font.family: root.launcherLogoMode === "icon" ? "Noto Sans CJK JP" : root.mono
+        font.pixelSize: root.launcherLogoMode === "icon" ? 15 : 12
         font.weight: Font.Bold
-        font.letterSpacing: 2
+        font.letterSpacing: root.launcherLogoMode === "icon" ? 0 : 2
         Behavior on color { ColorAnimation { duration: 200 } }
     }
 
