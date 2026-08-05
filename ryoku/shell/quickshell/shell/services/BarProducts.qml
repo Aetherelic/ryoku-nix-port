@@ -38,9 +38,16 @@ Singleton {
     }
 
 
+    // Built-in folder styles ship inside the shell and resolve relative to the
+    // Frame Loader, so no store install is needed. "sumi" stays the painted
+    // frame scene (empty scene url); "qsbar" is the shipped QS Bar folder.
+    readonly property var builtins: ({ "qsbar": "barstyles/qsbar/Scene.qml" })
+
     function sceneUrl(id) {
         if (!id || id === "sumi" || root.failedStyles[id])
             return "";
+        if (root.builtins[id])
+            return root.builtins[id];
         for (const row of root.rows) {
             if (row.id === id)
                 return "file://" + root.stateRoot + "/" + row.view + "/" + row.scene;

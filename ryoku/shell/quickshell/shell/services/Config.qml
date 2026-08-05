@@ -32,9 +32,10 @@ Singleton {
     property alias frameBars: adapter.frameBars
     readonly property var normalizedFrameBars: FrameBars.normalize(frameBars, BarCatalog, MenuCatalog)
 
-    // barStyle: which bar design renders. "sumi" is the built-in left rail; any
-    // other id is a self-contained folder under pill/barstyles/<id>, registered
-    // in BarStyles, that owns its own bar, popouts and settings. Default sumi.
+    // barStyle: which bar design renders. "qsbar" is the default QS Bar top bar
+    // (a shipped folder style under modules/bar/barstyles/qsbar); "sumi" is the
+    // built-in painted left rail; any other id is an installed store folder
+    // style. Each owns its own bar, popouts and settings. Default qsbar.
     property alias barStyle: adapter.barStyle
 
     // obi: per-widget visibility for the Obi bar style, edited in Bar Studio.
@@ -116,7 +117,7 @@ Singleton {
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property var frameBars: FrameBars.defaultConfig()
-            property string barStyle: "sumi"
+            property string barStyle: "qsbar"
             property var obi: ({})
             property var nacre: NacreConfig.defaultConfig()
         }
