@@ -70,6 +70,15 @@ func (p barProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceStat
 		Installed:   true,
 		Metadata:    map[string]any{"scene": "", "core": true},
 	}}
+	items = append(items, Item{
+		ID: "qsbar", Category: "barstyles", Name: "QS Bar",
+		Summary:     "Hancore top bar",
+		Description: "The default top bar: Hancore's Quickshell Rise, ported to Ryoku.",
+		Tags:        []string{"top", "horizontal", "built-in"},
+		Installed:   true,
+		Active:      active == "qsbar",
+		Metadata:    map[string]any{"scene": "Scene.qml", "core": true},
+	})
 
 	entries, state, registryErr := loadProductRegistry(ctx, p.cache, "barstyles", refresh)
 	if registryErr != nil && !barStyleRegistryUnavailable(registryErr) {
@@ -123,8 +132,8 @@ func barStyleRegistryUnavailable(err error) bool {
 }
 
 func (p barProvider) Install(ctx context.Context, id string) error {
-	if id == "sumi" {
-		return fmt.Errorf("the built-in Sumi bar style is already installed")
+	if id == "sumi" || id == "qsbar" {
+		return fmt.Errorf("the built-in %s bar style is already installed", id)
 	}
 	entries, _, err := loadProductRegistry(ctx, p.cache, "barstyles", false)
 	if err != nil {
@@ -138,8 +147,8 @@ func (p barProvider) Install(ctx context.Context, id string) error {
 }
 
 func (p barProvider) Remove(ctx context.Context, id string) error {
-	if id == "sumi" {
-		return fmt.Errorf("the built-in Sumi bar style is not removable")
+	if id == "sumi" || id == "qsbar" {
+		return fmt.Errorf("the built-in %s bar style is not removable", id)
 	}
 	return removeProduct(ctx, "barstyles", id)
 }

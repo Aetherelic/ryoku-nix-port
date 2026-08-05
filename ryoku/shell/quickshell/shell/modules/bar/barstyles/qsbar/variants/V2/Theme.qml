@@ -427,13 +427,9 @@ Item {
     }
 
     function openImagePicker(mode, screen) {
-        if (imagePickerVisible && imagePickerMode !== mode)
-            imagePickerVisible = false
-        if (screen && screen.name !== "") activatePopupScreen(screen)
-        else activateFocusedPopupScreen()
-        mediaBrowserVisible = false
-        imagePickerMode = mode
-        imagePickerVisible = true
+        // Ryoku owns the wallpaper/theme picker: open the shell daemon's own
+        // wallpaper switcher rather than the legacy in-bar carousel.
+        Quickshell.execDetached(["ryoku-shell", "wallpaper"])
     }
 
     function toggleImagePicker(mode, screen) {
@@ -446,10 +442,8 @@ Item {
     }
 
     function openMediaBrowser(mode) {
-        activateFocusedPopupScreen()
-        imagePickerVisible = false
-        mediaBrowserMode = mode
-        mediaBrowserVisible = true
+        Quickshell.execDetached(["xdg-open",
+            (Quickshell.env("HOME") || "") + (mode === "videos" ? "/Videos" : "/Pictures")])
     }
 
     // ── pill/card border (default, non-borderless mode) ──
