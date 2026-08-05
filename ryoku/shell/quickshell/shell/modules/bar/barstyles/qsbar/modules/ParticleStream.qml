@@ -4,12 +4,19 @@ import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Services.UPower
 import Quickshell.Services.Mpris
+import shell.services
 
 Item {
     id: root
     required property var   theme
     required property Item  layout   // island: exposes pillRuns, runRightEdge(), runLeftEdge()
     property bool active: false
+    // Ryoku CAVA feed: the stream flows on a passive sine when idle and swells
+    // with playback energy when music plays. Claimed only while active so cava
+    // (owner-refcounted) runs solely when the gap animation is on screen.
+    readonly property real audioLevel: AudioBars.active ? Math.min(1, AudioBars.energy) : 0
+    Component.onCompleted: AudioBars.setActive(root, root.active)
+    Component.onDestruction: AudioBars.setActive(root, false)
     property int  mode:   1          // 1=stream, 2=surge, 3=bolt, 4=bolt2, 5=stream2, 6=surge2, 7=reactor, 8=quotes
     property string monitor: ""      // this bar's output (for monitor-focus pulses)
     readonly property bool reactorMode7: mode === 7
@@ -125,6 +132,7 @@ Item {
     }
 
     onActiveChanged: {
+        AudioBars.setActive(root, active)
         if (!active) {
             animating7 = false
             animating8 = false
@@ -1021,6 +1029,7 @@ Item {
             if (!root.layout || !root.layout.pillRuns) return
 
             var now  = Date.now()
+            var aud  = root.audioLevel
             var cy   = height / 2
             var seal = root.theme.seal
             if (!seal) return
@@ -1859,7 +1868,7 @@ Item {
                     // ── global stream: fixed speed + spacing, gap is a viewport ──
                     var sp1  = 65   // px between fast dots
                     var sp2  = 110  // px between slow dots
-                    var off1 = (now / 1000 * 70) % sp1
+                    var off1 = (now / 1000 * (70 + aud * 160)) % sp1
                     var off2 = (now / 1000 * 38) % sp2
 
                     // fast layer — cap at 60 iterations (60×65 = 3900 px)
@@ -1871,9 +1880,9 @@ Item {
                         var isPulse = (dotId % 5 === 0)
                         if (isPulse) {
                             var pulse = 0.5 + 0.5 * Math.sin(now / 700 + dotId * 2.4)
-                            ctx.globalAlpha = 0.28 + pulse * 0.18
+                            ctx.globalAlpha = Math.min(1, 0.28 + pulse * 0.18 + aud * 0.4)
                             ctx.fillStyle   = seal
-                            ctx.beginPath(); ctx.arc(fx, cy, 4.0 + pulse * 1.5, 0, Math.PI * 2); ctx.fill()
+                            ctx.beginPath(); ctx.arc(fx, cy, 4.0 + pulse * 1.5 + aud * 4.0, 0, Math.PI * 2); ctx.fill()
                             ctx.globalAlpha = 0.95
                             ctx.fillStyle   = "#ffffff"
                             ctx.beginPath(); ctx.arc(fx, cy, 1.6 + pulse * 0.4, 0, Math.PI * 2); ctx.fill()

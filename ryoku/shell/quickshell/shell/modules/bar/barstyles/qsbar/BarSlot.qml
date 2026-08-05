@@ -659,7 +659,7 @@ PanelWindow {
         // ── split state (positional, per within-region gap) ──
         property var leftSplits:  [false, false, false, false, false, false]   // gaps in leftModel
         property var rightSplits: [false, false, false, false, false, false]   // gaps in rightModel
-        property var boundarySplits: [false, false]   // [left↔center, center↔right]
+        property var boundarySplits: [true, true]   // [left↔center, center↔right] — split by default so the animated gap shows
 
         readonly property real lcBoundaryX: leftRowItem.x + leftRowItem.width + 9    // just right of Claude
         readonly property real crBoundaryX: rightRowItem.x - 9                       // just left of Mpris
