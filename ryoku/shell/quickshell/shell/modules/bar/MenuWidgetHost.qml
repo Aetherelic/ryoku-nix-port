@@ -42,7 +42,6 @@ Item {
         case "layout-switcher": return layoutSwitcherComponent;
         case "clipboard": return clipboardComponent;
         case "theme": return themeComponent;
-        case "wallpaper": return wallpaperComponent;
         case "weather": return weatherComponent;
         case "media": return mediaComponent;
         default:
@@ -89,7 +88,6 @@ Item {
     Component { id: layoutSwitcherComponent; MenuLayoutSwitcher { width: root.width; s: root.scale; open: root.open } }
     Component { id: clipboardComponent; MenuClipboard { width: root.width; s: root.scale; open: root.open; avail: root.avail } }
     Component { id: themeComponent; MenuTheme { width: root.width; s: root.scale; open: root.open } }
-    Component { id: wallpaperComponent; MenuWallpaper { width: root.width; s: root.scale; open: root.open } }
     Component { id: weatherComponent; MenuWeather { width: root.width; s: root.scale; open: root.open } }
     Component { id: mediaComponent; MenuMedia { width: root.width; s: root.scale; open: root.open } }
 }

@@ -128,6 +128,22 @@ hl.layer_rule({
   ignore_alpha = 0.05,
 })
 
+-- the wallpaper switcher (Super+W) is a translucent bottom-centre picker card on
+-- a full-screen layer: blur only the card (ignore_alpha keeps the frost off the
+-- clear surround), so it reads as frosted glass floating over the desktop with
+-- no full-screen dim. QML owns the open/close morph, so suppress the layer anim.
+hl.layer_rule({
+  name    = "wallpaper-picker-noanim",
+  match   = { namespace = "^ryoku-wallpaper-picker$" },
+  no_anim = true,
+})
+hl.layer_rule({
+  name         = "wallpaper-picker-blur",
+  match        = { namespace = "^ryoku-wallpaper-picker$" },
+  blur         = not no_blur,
+  ignore_alpha = 0.05,
+})
+
 -- The wallpaper rides the background layer: the awww image daemon and the
 -- ryoku-livewall video daemon each map a surface there (mpvpaper/phonto on
 -- boxes whose orphaned players predate livewall), and switching image<->live

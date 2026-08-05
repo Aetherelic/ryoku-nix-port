@@ -37,17 +37,17 @@ Singleton {
     }
 
     // --- 30 Material colour roles (compiled defaults: Solitude Dark) ----------
-    readonly property color surface:                 role("surface", "#101315")
+    readonly property color surface:                 role("surface", "#08090a")
     readonly property color surfaceVariant:          role("surfaceVariant", "#1a1d1f")
     readonly property color surfaceContainerLowest:  role("surfaceContainerLowest", "#101315")
-    readonly property color surfaceContainerLow:     role("surfaceContainerLow", "#1a1d1f")
+    readonly property color surfaceContainerLow:     role("surfaceContainerLow", "#0e0f10")
     readonly property color surfaceContainer:        role("surfaceContainer", "#2c2f32")
     readonly property color surfaceContainerHigh:    role("surfaceContainerHigh", "#3d4144")
     readonly property color surfaceContainerHighest: role("surfaceContainerHighest", "#4b4e55")
     readonly property color inverseSurface:          role("inverseSurface", "#cacccc")
     readonly property color inverseOnSurface:        role("inverseOnSurface", "#101315")
     readonly property color surfaceTint:             role("surfaceTint", "#798186")
-    readonly property color primary:                 role("primary", "#798186")
+    readonly property color primary:                 role("primary", "#e2342a")
     readonly property color primaryContainer:        role("primaryContainer", "#1a1d1f")
     readonly property color secondary:               role("secondary", "#a8adb0")
     readonly property color secondaryContainer:      role("secondaryContainer", "#1a1d1f")
@@ -55,7 +55,7 @@ Singleton {
     readonly property color tertiaryContainer:       role("tertiaryContainer", "#1a1d1f")
     readonly property color error:                   role("error", "#de6145")
     readonly property color errorContainer:          role("errorContainer", "#1a1d1f")
-    readonly property color outline:                 role("outline", "#565d60")
+    readonly property color outline:                 role("outline", "#3f3b36")
     readonly property color outlineVariant:          role("outlineVariant", "#343d41")
 
     property color onSurface
@@ -68,8 +68,8 @@ Singleton {
     property color onTertiaryContainer
     property color onError
     property color onErrorContainer
-    Binding { target: root; property: "onSurface";            value: root.role("onSurface", "#cacccc") }
-    Binding { target: root; property: "onSurfaceVariant";     value: root.role("onSurfaceVariant", "#a8adb0") }
+    Binding { target: root; property: "onSurface";            value: root.role("onSurface", "#cdc4ba") }
+    Binding { target: root; property: "onSurfaceVariant";     value: root.role("onSurfaceVariant", "#b0a9a0") }
     Binding { target: root; property: "onPrimary";            value: root.role("onPrimary", "#101315") }
     Binding { target: root; property: "onPrimaryContainer";   value: root.role("onPrimaryContainer", "#a8adb0") }
     Binding { target: root; property: "onSecondary";          value: root.role("onSecondary", "#101315") }
@@ -106,4 +106,8 @@ Singleton {
 
     // brand mark, user-overridable via ~/.config/ryoku/brand.json.
     readonly property string mark: Config.markText.length > 0 ? Config.markText : "\u529b"
+
+    // paper-and-ink alias: the single red accent (seal / sun) for the switcher.
+    readonly property color seal: primary
+    readonly property color sun:  primary
 }

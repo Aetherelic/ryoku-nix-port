@@ -5,3 +5,4 @@ singleton Config Config.qml
 singleton Colors Colors.qml
 singleton Walls Walls.qml
 singleton Themes Themes.qml
+singleton View View.qml

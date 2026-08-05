@@ -356,8 +356,16 @@ Scope {
                 Connections {
                     target: ShellState
                     function onSurfaceRequested(id, mon, ctx) {
-                        if (mon === "" || mon === (root.modelData ? root.modelData.name : ""))
-                            frameMenus.openSurface(id, null, mon, ctx);
+                        if (mon !== "" && mon !== (root.modelData ? root.modelData.name : ""))
+                            return;
+                        // The wallpaper + theme picker is the standalone Switcher
+                        // overlay now, not a frame-blob menu: route its surface
+                        // request straight to the overlay toggle.
+                        if (id === "wallpaper") {
+                            if (root.state) root.state.wallpaperSwitcherOpen = !root.state.wallpaperSwitcherOpen;
+                            return;
+                        }
+                        frameMenus.openSurface(id, null, mon, ctx);
                     }
                     function onSurfaceClosed(id, mon) { frameMenus.closeSurface(id, mon); }
                     function onKeyringPromptChanged(pid) { frameMenus.retireKeyringPrompt(pid); }

@@ -51,7 +51,7 @@ Item {
         visible: shown || closing.running
         color: "transparent"
         exclusiveZone: 0
-        WlrLayershell.namespace: "ryoku-wallpaper"
+        WlrLayershell.namespace: "ryoku-wallpaper-picker"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: (shown && isFocused) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         anchors { top: true; bottom: true; left: true; right: true }
@@ -60,10 +60,10 @@ Item {
         Timer { id: closing; interval: Motion.window; repeat: false }
         onShownChanged: if (!shown) closing.restart()
 
-        // Dim scrim over the desktop; click-out dismisses.
+        // Click-out catcher; no dim (the frosted card carries the separation).
         Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(0, 0, 0, 0.42)
+            color: "transparent"
             opacity: win.shown ? 1 : 0
             visible: opacity > 0.001
             Behavior on opacity { NumberAnimation { duration: Motion.window; easing.type: Motion.easeStandard } }

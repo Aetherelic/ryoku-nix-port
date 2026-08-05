@@ -59,7 +59,9 @@ Item {
             asynchronous: true
             cache: true
             fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(Math.ceil(cell.width * 1.4), Math.ceil(cell.height * 1.4))
+            // Fixed decode size: binding this to the animating tile width/height
+            // re-decodes the thumbnail every frame of a slide and flashes black.
+            sourceSize: Qt.size(512, 512)
             source: (cell.live && cell.item && cell.item.thumb) ? "file://" + cell.item.thumb : ""
             // fade the still out once the live preview presents, so the clip
             // replaces the thumbnail cleanly instead of playing on top of it.

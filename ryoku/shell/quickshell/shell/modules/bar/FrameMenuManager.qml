@@ -134,7 +134,6 @@ Item {
             const rec = mon[anchor];
             if (!rec) continue;
             if (rec.id === "screenshare") return "exclusive";
-            if (rec.id === "wallpaper") return "ondemand";
             if (rec.id === "network") return "ondemand";
             if (rec.kind && rec.kind !== "menu" && rec.id !== "quick-settings" && rec.id !== "voice" && rec.id !== "music" && rec.id !== "bluetooth" && rec.id !== "battery" && rec.id !== "network" && rec.id !== "sysmon" && rec.id !== "audio" && rec.id !== "screenshot") return "exclusive";
         }

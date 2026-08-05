@@ -2,140 +2,190 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// The switcher body: a rounded bottom-centre box in the shell's Material style,
-// with a mode switch (Wallpapers / Color scheme) in the header, two endless
-// belts below (the top drifts right, the bottom drifts left), a filter/hint
-// strip between them, and a footer. In Wallpapers mode the belts carry cached
-// image + live tiles and the strip filters by colour; in Color-scheme mode they
-// carry the theme cards, with a Follow-wallpaper toggle and a Default button in
-// the corner. The belts idle-drift; a scroll pushes them faster and they ease
-// back. Hover a tile to light it, click or Enter to set it, Esc to close.
+// The switcher body: a bottom-centre paper card in the desktop's own language
+// (near-black paper, bone ink, a single red seal). A prominent Wallpapers |
+// Themes tab splits the two so neither clutters the other; a control row filters
+// by type and colour, sorts, switches layout, and takes a type-to-search; one
+// focused view (filmstrip / carousel / grid) fills the stage. Arrows or a wheel
+// move the focus, Enter or a click sets it, Tab flips tabs, Esc clears the search
+// then closes. The backend (Walls / Themes / index.sh / ryoku-shell wallpaper)
+// is untouched; this is only how it is shown.
 Item {
     id: body
 
     required property real s
-    required property bool active           // the surface is open (drives the drift)
+    required property bool active
     signal requestClose()
 
-    property string mode: "walls"           // walls | themes
-    property string typeFilter: "all"       // all | image | live  (walls)
-    property int colorFilter: -1            // -1 = every colour, else a Colors group id
-    property var hoverEntry: null
-    property int kbRow: 0                    // which belt Enter picks from when not hovering
+    // transient per-open state (the body unloads on close); the layout + sort
+    // preference lives in the View singleton so it survives a reopen.
+    property string mode: "walls"            // walls | themes
+    property string typeFilter: "all"        // all | image | live
+    property int colorFilter: -1             // -1 = every colour, else a group id
+    property string search: ""
+    property int selIndex: 0
 
     readonly property bool themesMode: body.mode === "themes"
     readonly property bool following: Themes.following
 
-    // wallpaper entries under the current type + colour filter, colour-sorted.
-    readonly property var wallShown: {
+    function norm(t) { return String(t || "").toLowerCase(); }
+
+    // walls: type + colour + search filter, then the chosen sort.
+    readonly property var wallBase: {
         var out = [];
+        var q = body.norm(body.search);
         var es = Walls.entries;
         for (var i = 0; i < es.length; i++) {
             var e = es[i];
-            if (body.typeFilter !== "all" && e.type !== body.typeFilter)
-                continue;
-            if (body.colorFilter !== -1 && e.group !== body.colorFilter)
-                continue;
+            if (body.typeFilter !== "all" && e.type !== body.typeFilter) continue;
+            if (body.colorFilter !== -1 && e.group !== body.colorFilter) continue;
+            if (q.length > 0 && body.norm(e.name).indexOf(q) < 0) continue;
             out.push(e);
         }
         return out;
     }
-    // static themes only; the two dynamic variants are the toggle + Default button.
-    readonly property var themeShown: Themes.themes
+    function sorted(a) {
+        var v = View.sort;
+        if (v === "recent") return a.slice().sort((x, y) => y.mtime - x.mtime);
+        if (v === "name") return a.slice().sort((x, y) => body.norm(x.name).localeCompare(body.norm(y.name)));
+        return a;   // colour: the scan's own hue order
+    }
+    readonly property var wallShown: body.sorted(body.wallBase)
+
+    // themes: label search only (no colour / mtime axis).
+    readonly property var themeShown: {
+        var q = body.norm(body.search);
+        if (q.length === 0) return Themes.themes;
+        return Themes.themes.filter(t => body.norm(t.label).indexOf(q) >= 0);
+    }
 
     readonly property var shown: body.themesMode ? body.themeShown : body.wallShown
-    readonly property var topCells: shown.filter((e, i) => i % 2 === 0)
-    readonly property var bottomCells: shown.filter((e, i) => i % 2 === 1)
+    readonly property var selEntry: (body.selIndex >= 0 && body.selIndex < body.shown.length)
+        ? body.shown[body.selIndex] : null
+    readonly property string activeKey: (body.themesMode ? Themes.active : Walls.current) || ""
 
-    // colour groups present under the current type filter (walls colour strip).
+    // colour groups present under the current type filter (walls strip).
     readonly property var wallGroups: {
         var seen = ({});
         var es = Walls.entries;
         for (var i = 0; i < es.length; i++) {
             var e = es[i];
-            if (body.typeFilter !== "all" && e.type !== body.typeFilter)
-                continue;
+            if (body.typeFilter !== "all" && e.type !== body.typeFilter) continue;
             seen[e.group] = true;
         }
         var out = [];
         for (var g = 0; g < Colors.order.length; g++)
-            if (seen[Colors.order[g]])
-                out.push(Colors.order[g]);
+            if (seen[Colors.order[g]]) out.push(Colors.order[g]);
         return out;
     }
 
-    function keyOf(e) { return e ? ((body.themesMode ? e.id : e.path) || "") : ""; }
-    readonly property string highlightKey: keyOf(body.hoverEntry)
-    readonly property string activeKey: (body.themesMode ? Themes.active : Walls.current) || ""
-
-    readonly property var selEntry: hoverEntry ? hoverEntry
-        : (kbRow === 0 ? topRow.centerEntry : bottomRow.centerEntry)
+    // keep the focus in range as filters shrink the list.
+    onShownChanged: if (body.selIndex >= body.shown.length)
+        body.selIndex = Math.max(0, body.shown.length - 1)
 
     function setMode(m) {
-        if (body.mode === m)
-            return;
-        body.mode = m;
-        body.hoverEntry = null;
+        if (body.mode === m) return;
+        body.mode = m; body.selIndex = 0; body.search = "";
     }
     function setType(t) {
-        if (body.typeFilter === t)
-            return;
-        body.typeFilter = t;
-        body.colorFilter = -1;
-        body.hoverEntry = null;
+        if (body.typeFilter === t) return;
+        body.typeFilter = t; body.colorFilter = -1; body.selIndex = 0;
     }
     function setColor(g) {
-        body.colorFilter = (body.colorFilter === g) ? -1 : g;
-        body.hoverEntry = null;
+        body.colorFilter = (body.colorFilter === g) ? -1 : g; body.selIndex = 0;
     }
-    // Apply the pick live and stay open (like the shell's menu: click-activate,
-    // Esc or a click-out dismisses), so a wallpaper and a scheme can be set in
-    // one visit. Theme picks are inert while following the wallpaper.
+    function moveSel(d) {
+        if (body.shown.length === 0) return;
+        body.selIndex = Math.max(0, Math.min(body.shown.length - 1, body.selIndex + d));
+    }
     function apply(entry) {
-        if (!entry)
-            return;
+        if (!entry) return;
         if (body.themesMode) {
-            if (body.following)
-                return;
+            if (body.following) return;
             Themes.apply(entry.id);
         } else {
             Walls.apply(entry.path);
         }
     }
-    // Follow-wallpaper toggle: on follows the wallpaper palette; off commits the
-    // centred theme so the change sticks and the belt re-enables.
     function toggleFollow() {
         if (body.following) {
-            var e = topRow.centerEntry || bottomRow.centerEntry;
-            if (e)
-                Themes.apply(e.id);
+            if (body.selEntry) Themes.apply(body.selEntry.id);
         } else {
             Themes.apply("Wallpaper");
         }
     }
 
+    readonly property int hostCols: (host.item && host.item.columns) ? host.item.columns : 1
+
     focus: true
     Component.onCompleted: forceActiveFocus()
     Keys.onPressed: (e) => {
-        if (e.key === Qt.Key_Escape)
-            body.requestClose();
-        else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Space)
+        if (e.key === Qt.Key_Escape) {
+            if (body.search.length > 0) body.search = "";
+            else body.requestClose();
+        } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
             body.apply(body.selEntry);
-        else if (e.key === Qt.Key_Tab)
+        } else if (e.key === Qt.Key_Tab) {
             body.setMode(body.themesMode ? "walls" : "themes");
-        else if (e.key === Qt.Key_Right) {
-            topRow.boostBy(760);
-            bottomRow.boostBy(-760);
         } else if (e.key === Qt.Key_Left) {
-            topRow.boostBy(-760);
-            bottomRow.boostBy(760);
-        } else if (e.key === Qt.Key_Up)
-            body.kbRow = 0;
-        else if (e.key === Qt.Key_Down)
-            body.kbRow = 1;
-        else
+            body.moveSel(-1);
+        } else if (e.key === Qt.Key_Right) {
+            body.moveSel(1);
+        } else if (e.key === Qt.Key_Up) {
+            body.moveSel(-body.hostCols);
+        } else if (e.key === Qt.Key_Down) {
+            body.moveSel(body.hostCols);
+        } else if (e.key === Qt.Key_Backspace) {
+            if (body.search.length > 0) body.search = body.search.slice(0, -1);
+        } else if (e.text && e.text.length === 1 && e.text.charCodeAt(0) >= 32 && e.text.charCodeAt(0) !== 127
+                   && (e.modifiers === Qt.NoModifier || e.modifiers === Qt.ShiftModifier)) {
+            if (e.text !== " " || (body.search.length > 0 && !body.search.endsWith(" ")))
+                body.search += e.text;
+        } else {
             return;
+        }
         e.accepted = true;
+    }
+
+    // ── a paper-and-ink chip: a hairline pill that lifts to the seal when on ──
+    component Chip: Rectangle {
+        id: chip
+        property string label: ""
+        property string glyph: ""
+        property bool on: false
+        signal clicked()
+        implicitWidth: chipRow.implicitWidth + Math.round(22 * body.s)
+        height: Math.round(30 * body.s)
+        radius: Math.round(7 * body.s)
+        color: chip.on ? Qt.rgba(Theme.seal.r, Theme.seal.g, Theme.seal.b, 0.12)
+            : (chipHover.hovered ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.06) : "transparent")
+        border.width: 1
+        border.color: chip.on ? Theme.seal : Theme.outline
+        Behavior on color { ColorAnimation { duration: Motion.fast } }
+        Behavior on border.color { ColorAnimation { duration: Motion.fast } }
+        Row {
+            id: chipRow
+            anchors.centerIn: parent
+            spacing: Math.round(6 * body.s)
+            Text {
+                visible: chip.glyph.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                text: chip.glyph
+                color: chip.on ? Theme.seal : Theme.onSurfaceVariant
+                font.family: Theme.mono
+                font.pixelSize: Math.round(12 * body.s)
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: chip.label
+                color: chip.on ? Theme.seal : Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
+                font.pixelSize: Math.round(13 * body.s)
+                font.weight: chip.on ? Font.DemiBold : Font.Medium
+            }
+        }
+        HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: chip.clicked() }
     }
 
     Rectangle {
@@ -143,153 +193,98 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Math.round(30 * body.s)
-        width: Math.round(Math.min(parent.width * 0.9, 1680 * body.s))
-        height: Math.round(Math.min(parent.height * 0.58, 760 * body.s))
-        radius: Theme.radiusWindow
-        color: Theme.surface
-        border.width: Theme.borderWidth
+        width: Math.round(Math.min(parent.width * 0.92, 1720 * body.s))
+        height: Math.round(Math.min(parent.height * 0.62, 800 * body.s))
+        radius: Math.round(14 * body.s)
+        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.8)
+        border.width: 1
         border.color: Theme.outline
-
         readonly property int pad: Math.round(22 * body.s)
 
-        // one segmented-control pill, reused for the mode switch and the type filter.
-        component Segment: Rectangle {
-            id: seg
-            property string label: ""
-            property bool on: false
-            signal clicked()
-            implicitWidth: segTxt.implicitWidth + Math.round(26 * body.s)
-            height: Math.round(32 * body.s)
-            radius: Math.round(8 * body.s)
-            color: seg.on ? Theme.frameBg : "transparent"
-            border.width: Theme.borderWidth
-            border.color: seg.on ? Theme.primary : Theme.outline
-            Text {
-                id: segTxt
-                anchors.centerIn: parent
-                text: seg.label
-                color: seg.on ? Theme.primary : Theme.onSurfaceVariant
-                font.family: Theme.fontPrimary
-                font.pixelSize: Math.round(13 * body.s)
-                font.weight: seg.on ? Font.DemiBold : Font.Medium
-            }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: seg.clicked() }
-        }
+        // absorb clicks landing on empty card space so they never fall through
+        // to the scrim and dismiss the picker; controls/tiles sit on top.
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: false }
 
-        // ---- header ----
+        // ── header: tabs (left) · type / follow (right) ──
         Item {
             id: header
             anchors { top: parent.top; left: parent.left; right: parent.right }
             anchors.margins: card.pad
-            height: Math.round(34 * body.s)
+            height: Math.round(32 * body.s)
 
-            // mode switch (left).
             Row {
-                id: modeSwitch
+                id: tabs
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Math.round(6 * body.s)
-                Segment { label: "Wallpapers"; on: !body.themesMode; onClicked: body.setMode("walls") }
-                Segment { label: "Color scheme"; on: body.themesMode; onClicked: body.setMode("themes") }
+                Chip { label: "Wallpapers"; on: !body.themesMode; onClicked: body.setMode("walls") }
+                Chip { label: "Themes"; on: body.themesMode; onClicked: body.setMode("themes") }
             }
-
-            // count (next to the mode switch).
             Row {
-                anchors.left: modeSwitch.right
-                anchors.leftMargin: Math.round(20 * body.s)
+                anchors.left: tabs.right
+                anchors.leftMargin: Math.round(16 * body.s)
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Math.round(8 * body.s)
+                spacing: Math.round(7 * body.s)
                 Text {
-                    id: num
+                    anchors.verticalCenter: parent.verticalCenter
                     text: "" + body.shown.length
                     color: Theme.onSurface
                     font.family: Theme.fontPrimary
-                    font.pixelSize: Math.round(22 * body.s)
+                    font.pixelSize: Math.round(20 * body.s)
                     font.weight: Font.DemiBold
                 }
                 Text {
-                    anchors.baseline: num.baseline
+                    anchors.verticalCenter: parent.verticalCenter
                     text: body.themesMode ? "schemes"
                         : body.typeFilter === "image" ? "images"
-                        : body.typeFilter === "live" ? "live"
-                        : "images + live"
+                        : body.typeFilter === "live" ? "live" : "images + live"
                     color: Theme.onSurfaceVariant
                     font.family: Theme.fontPrimary
-                    font.pixelSize: Math.round(13 * body.s)
+                    font.pixelSize: Math.round(12 * body.s)
                 }
             }
 
-            // walls: type filter (right).
+            // walls: type filter
             Row {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Math.round(6 * body.s)
                 visible: !body.themesMode
-                Segment { label: "All"; on: body.typeFilter === "all"; onClicked: body.setType("all") }
-                Segment { label: "Images"; on: body.typeFilter === "image"; onClicked: body.setType("image") }
-                Segment { label: "Live"; on: body.typeFilter === "live"; onClicked: body.setType("live") }
+                Chip { label: "All"; on: body.typeFilter === "all"; onClicked: body.setType("all") }
+                Chip { label: "Images"; on: body.typeFilter === "image"; onClicked: body.setType("image") }
+                Chip { label: "Live"; on: body.typeFilter === "live"; onClicked: body.setType("live") }
             }
-
-            // themes: Follow-wallpaper toggle + Default button (right corner).
+            // themes: follow + default
             Row {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Math.round(8 * body.s)
+                spacing: Math.round(6 * body.s)
                 visible: body.themesMode
-
-                Rectangle {
-                    id: followBtn
-                    readonly property bool on: body.following
-                    width: followRow.implicitWidth + Math.round(24 * body.s)
-                    height: Math.round(32 * body.s)
-                    radius: Math.round(8 * body.s)
-                    color: followBtn.on ? Theme.frameBg : "transparent"
-                    border.width: Theme.borderWidth
-                    border.color: followBtn.on ? Theme.primary : Theme.outline
-                    Row {
-                        id: followRow
-                        anchors.centerIn: parent
-                        spacing: Math.round(8 * body.s)
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: Math.round(9 * body.s)
-                            height: width
-                            radius: width / 2
-                            color: followBtn.on ? Theme.primary : Theme.outline
-                        }
-                        Text {
-                            text: "Follow wallpaper"
-                            color: followBtn.on ? Theme.primary : Theme.onSurfaceVariant
-                            font.family: Theme.fontPrimary
-                            font.pixelSize: Math.round(13 * body.s)
-                            font.weight: followBtn.on ? Font.DemiBold : Font.Medium
-                        }
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: body.toggleFollow() }
-                }
-
-                Segment { label: "Default"; on: Themes.active === "Default"; onClicked: Themes.apply("Default") }
+                Chip { label: "Follow wallpaper"; glyph: body.following ? "\u25c9" : "\u25cb"; on: body.following; onClicked: body.toggleFollow() }
+                Chip { label: "Default"; on: Themes.active === "Default"; onClicked: Themes.apply("Default") }
             }
         }
 
-        // ---- colour strip (walls) / hint (themes) ----
+        // ── control row: colour strip / hint (left) · search · sort · layout (right) ──
         Item {
-            id: strip
+            id: controls
             anchors { left: parent.left; right: parent.right; top: header.bottom }
             anchors.leftMargin: card.pad
             anchors.rightMargin: card.pad
-            anchors.topMargin: Math.round(16 * body.s)
-            height: Math.round(24 * body.s)
+            anchors.topMargin: Math.round(14 * body.s)
+            height: Math.round(30 * body.s)
 
             ColorStrip {
-                anchors.fill: parent
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - rightControls.width - Math.round(16 * body.s)
+                height: parent.height
                 visible: !body.themesMode
                 s: body.s
                 groups: body.wallGroups
                 selected: body.colorFilter
                 onPicked: (g) => body.setColor(g)
             }
-
             Text {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
@@ -301,120 +296,130 @@ Item {
                 font.family: Theme.fontPrimary
                 font.pixelSize: Math.round(13 * body.s)
             }
+
+            Row {
+                id: rightControls
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Math.round(8 * body.s)
+
+                // search readout (fed by type-to-search)
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.round(150 * body.s)
+                    height: Math.round(30 * body.s)
+                    radius: Math.round(7 * body.s)
+                    color: "transparent"
+                    border.width: 1
+                    border.color: body.search.length > 0 ? Theme.onSurfaceVariant : Theme.outline
+                    Behavior on border.color { ColorAnimation { duration: Motion.fast } }
+                    Row {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Math.round(9 * body.s)
+                        anchors.right: parent.right
+                        anchors.rightMargin: Math.round(9 * body.s)
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Math.round(6 * body.s)
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "\u2315"
+                            color: Theme.onSurfaceVariant
+                            font.family: Theme.mono
+                            font.pixelSize: Math.round(13 * body.s)
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - Math.round(22 * body.s)
+                            elide: Text.ElideRight
+                            text: body.search.length > 0 ? body.search : "Type to search"
+                            color: body.search.length > 0 ? Theme.onSurface : Theme.outline
+                            font.family: Theme.fontPrimary
+                            font.pixelSize: Math.round(13 * body.s)
+                        }
+                    }
+                }
+
+                Chip {
+                    glyph: "\u21c5"
+                    label: View.sortLabel(View.sort)
+                    visible: !body.themesMode
+                    onClicked: View.cycleSort()
+                }
+                Chip {
+                    glyph: "\u25a4"
+                    label: View.layoutLabel(View.layout)
+                    onClicked: View.cycleLayout()
+                }
+            }
         }
 
-        // ---- the two belts ----
+        // ── stage: the active layout ──
         Item {
-            id: rows
+            id: stage
             anchors {
                 left: parent.left; right: parent.right
-                top: strip.bottom; bottom: footer.top
-                topMargin: Math.round(16 * body.s)
-                bottomMargin: Math.round(12 * body.s)
+                top: controls.bottom; bottom: footer.top
+                topMargin: Math.round(14 * body.s)
+                bottomMargin: Math.round(10 * body.s)
             }
             visible: body.shown.length > 0
 
-            readonly property int rowGap: Math.round(18 * body.s)
-            readonly property real rowH: (height - rowGap) / 2
-            readonly property real cH: body.themesMode
-                ? Math.max(150 * body.s, Math.min(228 * body.s, rowH - 14 * body.s))
-                : Math.max(120 * body.s, Math.min(240 * body.s, rowH - 14 * body.s))
-            readonly property real cW: body.themesMode ? Math.round(cH * 0.82) : Math.round(cH * 1.55)
-            readonly property int cGap: Math.round(14 * body.s)
-            property bool scrolling: false
-
-            Belt {
-                id: topRow
-                anchors { left: parent.left; right: parent.right; top: parent.top }
-                height: rows.rowH
-                s: body.s
-                dir: 1
-                topRow: true
-                kind: body.themesMode ? "theme" : "wall"
-                cells: body.topCells
-                cellW: rows.cW
-                cellH: rows.cH
-                gap: rows.cGap
-                bg: Theme.surface
-                running: body.active
-                hovering: rowsHover.hovered
-                scrollHold: rows.scrolling
-                highlightKey: body.highlightKey
-                activeKey: body.activeKey
-                frozen: body.themesMode && body.following
-                onEntered: (e) => body.hoverEntry = e
-                onChosen: (e) => body.apply(e)
+            Loader {
+                id: host
+                anchors.fill: parent
+                sourceComponent: View.layout === "carousel" ? carouselC
+                    : View.layout === "grid" ? gridC : filmstripC
+                onItemChanged: if (item) { item.selIndex = Qt.binding(() => body.selIndex); }
             }
-            Belt {
-                id: bottomRow
-                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                height: rows.rowH
-                s: body.s
-                dir: -1
-                topRow: false
-                kind: body.themesMode ? "theme" : "wall"
-                cells: body.bottomCells
-                cellW: rows.cW
-                cellH: rows.cH
-                gap: rows.cGap
-                bg: Theme.surface
-                running: body.active
-                hovering: rowsHover.hovered
-                scrollHold: rows.scrolling
-                highlightKey: body.highlightKey
-                activeKey: body.activeKey
-                frozen: body.themesMode && body.following
-                onEntered: (e) => body.hoverEntry = e
-                onChosen: (e) => body.apply(e)
-            }
-
-            // scroll pushes both belts faster (they ease back to the idle drift).
-            WheelHandler {
-                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                onWheel: (e) => {
-                    var f = e.angleDelta.y * 3.2;
-                    topRow.boostBy(f);
-                    bottomRow.boostBy(-f);
-                    rows.scrolling = true;
-                    scrollCool.restart();
+            Component {
+                id: filmstripC
+                LayoutFilmstrip {
+                    s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
+                    bg: Theme.surface; active: body.active; activeKey: body.activeKey
+                    interactive: !(body.themesMode && body.following)
+                    onFocusIndex: (i) => body.selIndex = i
+                    onChosen: (i) => body.apply(body.shown[i])
                 }
             }
-            Timer { id: scrollCool; interval: 450; onTriggered: rows.scrolling = false }
-            HoverHandler {
-                id: rowsHover
-                onHoveredChanged: if (!hovered) body.hoverEntry = null
+            Component {
+                id: carouselC
+                LayoutCarousel {
+                    s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
+                    bg: Theme.surface; active: body.active; activeKey: body.activeKey
+                    interactive: !(body.themesMode && body.following)
+                    onFocusIndex: (i) => body.selIndex = i
+                    onChosen: (i) => body.apply(body.shown[i])
+                }
             }
-
-            // faint guide marking the tile Enter picks when nothing is hovered.
-            Rectangle {
-                visible: !body.hoverEntry
-                width: Math.round(30 * body.s)
-                height: Math.round(3 * body.s)
-                radius: height / 2
-                color: Theme.primary
-                opacity: 0.7
-                x: (rows.width - width) / 2
-                y: body.kbRow === 0
-                    ? topRow.y + topRow.height - height / 2
-                    : bottomRow.y + bottomRow.height - height / 2
+            Component {
+                id: gridC
+                LayoutGrid {
+                    s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
+                    bg: Theme.surface; active: body.active; activeKey: body.activeKey
+                    interactive: !(body.themesMode && body.following)
+                    onFocusIndex: (i) => body.selIndex = i
+                    onChosen: (i) => body.apply(body.shown[i])
+                }
             }
         }
 
-        // empty / loading state.
+        // empty / loading
         Text {
             anchors.centerIn: parent
             visible: body.shown.length === 0
+            horizontalAlignment: Text.AlignHCenter
             text: body.themesMode
-                ? (Themes.loading ? "Reading colour schemes" : "No colour schemes")
+                ? (Themes.loading ? "Reading colour schemes" : (body.search.length > 0 ? "No schemes match \u201c" + body.search + "\u201d" : "No colour schemes"))
                 : Walls.loading ? "Reading wallpapers"
-                : (body.colorFilter !== -1 || body.typeFilter !== "all" ? "Nothing in this filter"
-                : "No wallpapers in ~/Pictures/Wallpapers")
+                : (body.search.length > 0 ? "No wallpapers match \u201c" + body.search + "\u201d"
+                    : (body.colorFilter !== -1 || body.typeFilter !== "all") ? "Nothing in this filter"
+                    : "No wallpapers in ~/Pictures/Wallpapers")
             color: Theme.onSurfaceVariant
             font.family: Theme.fontPrimary
             font.pixelSize: Math.round(15 * body.s)
         }
 
-        // ---- footer ----
+        // ── footer: the pick + hints ──
         Item {
             id: footer
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -427,12 +432,8 @@ Item {
                 width: parent.width - hint.width - Math.round(20 * body.s)
                 elide: Text.ElideRight
                 text: body.themesMode
-                    ? (body.selEntry
-                        ? (body.selEntry.label + (body.following ? "   \u00b7 following wallpaper" : (body.hoverEntry ? "" : "   \u00b7 centre")))
-                        : "Scroll to browse schemes, click one to apply it")
-                    : (body.selEntry
-                        ? (body.selEntry.name + "   " + (body.selEntry.type === "live" ? "Live" : "Image") + " \u00b7 " + Colors.names[body.selEntry.group] + (body.hoverEntry ? "" : "   \u00b7 centre"))
-                        : "Scroll to browse, hover a tile to set it")
+                    ? (body.selEntry ? (body.selEntry.label + (body.following ? "   \u00b7 following wallpaper" : "")) : "Pick a scheme")
+                    : (body.selEntry ? (body.selEntry.name + "   " + (body.selEntry.type === "live" ? "Live" : "Image") + " \u00b7 " + Colors.names[body.selEntry.group]) : "Browse wallpapers")
                 color: Theme.onSurfaceVariant
                 font.family: Theme.fontPrimary
                 font.pixelSize: Math.round(13 * body.s)
@@ -441,7 +442,7 @@ Item {
                 id: hint
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: body.themesMode ? "Click apply \u00b7 Tab wallpapers \u00b7 Esc close" : "Enter set \u00b7 Tab schemes \u00b7 Esc close"
+                text: (body.selIndex + 1) + " / " + body.shown.length + "    \u2190\u2192 browse \u00b7 Enter set \u00b7 Tab " + (body.themesMode ? "wallpapers" : "themes") + " \u00b7 Esc close"
                 color: Theme.outline
                 font.family: Theme.fontPrimary
                 font.pixelSize: Math.round(12 * body.s)

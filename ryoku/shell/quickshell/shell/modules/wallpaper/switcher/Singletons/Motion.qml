@@ -10,6 +10,8 @@ Singleton {
     readonly property int standard: 300
     readonly property int window:   240
     readonly property int highlight: 90
+    // filmstrip / carousel focus travel: a touch quicker than a full swap.
+    readonly property int beltEase: 260
     readonly property int easeStandard: Easing.OutCubic
     readonly property int easeExpo:     Easing.OutExpo
 
