@@ -330,7 +330,10 @@ Scope {
 
             // the image being shown; empty = closed.
             property url src: ""
-            readonly property bool shown: photoViewer.src !== ""
+            // `src` is a url: `src !== ""` is always true for an empty url (strict
+            // type mismatch against a string), which opened the viewer on boot and
+            // stranded kbWanted (an exclusive keyboard grab). Test length, as open() does.
+            readonly property bool shown: String(photoViewer.src).length > 0
 
             visible: opacity > 0
             opacity: photoViewer.shown ? 1 : 0

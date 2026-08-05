@@ -25,6 +25,15 @@
   path. See `docs/barstyles.md`; the ryoku-extras catalogue is migrated to it.
 
 ### Fixed
+- **The desktop no longer boots into a keyboard-grabbed, greyed-out state.** The
+  photo-viewer overlay's `shown` guard tested `src !== ""`, but `src` is a `url`
+  property and strict inequality against a string is always true for an empty
+  url, so the viewer counted as open from the first frame: it dimmed the desktop
+  with its scrim and bumped `kbWanted`, handing the wallpaper layer an exclusive
+  keyboard grab that left every window unfocusable (no typing, no clicks, only
+  spawn and global-shortcut keybinds firing). It now tests the url's length,
+  matching `open()`, so an empty source reads as closed
+  (`quickshell/shell/modules/desktop/Desktop.qml`).
 - **Desktop-widget plugins render again.** The desktop host exposed each
   plugin's service as `pluginApi.mainInstance = svc.item`, but the service
   loader carried no `id: svc`, so that reference was undefined and every desktop
