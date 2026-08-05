@@ -71,7 +71,6 @@ PanelWindow {
     property bool   audioErrorNotified: false
 
     readonly property string outputMuteCommand:
-        "(command -v true >/dev/null 2>&1 && true --output-volume mute-toggle) || " +
         "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || " +
         "pamixer -t"
 

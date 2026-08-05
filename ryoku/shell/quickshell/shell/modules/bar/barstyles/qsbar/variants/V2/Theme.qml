@@ -1978,7 +1978,7 @@ Item {
     // iwd (Ryoku 3.8.x) → impala/bluetui through kitty *; if NetworkManager
     // is the active backend (Ryoku 4.0) → nmtui instead. Quattro removed the
     // dedicated Bluetooth launcher; prefer a retained bluetui, then bluetoothctl.
-    readonly property string launchWifiCmd: "if systemctl is-active --quiet NetworkManager 2>/dev/null; then kitty nmtui; else kitty nmtui; fi"
+    readonly property string launchWifiCmd: "ryoku-shell hub open"
     readonly property string launchBtCmd:   "if command -v kitty bluetoothctl >/dev/null 2>&1; then exec kitty bluetoothctl; elif command -v kitty >/dev/null 2>&1; then if command -v bluetui >/dev/null 2>&1; then command -v rfkill >/dev/null 2>&1 && rfkill unblock bluetooth >/dev/null 2>&1 || true; exec kitty bluetui; elif command -v bluetoothctl >/dev/null 2>&1; then command -v rfkill >/dev/null 2>&1 && rfkill unblock bluetooth >/dev/null 2>&1 || true; exec kitty bluetoothctl; fi; fi; command -v notify-send >/dev/null 2>&1 && notify-send -a QS-Shell -u critical 'Bluetooth settings unavailable' 'No supported Bluetooth settings backend was found' || true; exit 0"
     property bool modPower:      false   // default off (toggle in ControlPanel)
     property bool modBluetooth:  false   // default off (toggle in ControlPanel)
@@ -1994,7 +1994,7 @@ Item {
     property bool hasBacklight:  false
 
     // ── workspace display mode ──
-    property string workspaceMode: "10"   // "10", "5", "active"
+    property string workspaceMode: "active"   // "10", "5", "active"
     // ── workspace display style (orthogonal to mode; persisted) ──
     // "rings" is the stable cache token for the user-facing Frame style.
     property string workspaceStyle: "default"   // default, numbers, magic, kanji, rings, aurora

@@ -59,7 +59,6 @@ Item {
     property int pendingVolumeSteps: 0
 
     readonly property string muteCommand:
-        "(command -v true >/dev/null 2>&1 && true --output-volume mute-toggle) || " +
         "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || " +
         "pamixer -t"
 
