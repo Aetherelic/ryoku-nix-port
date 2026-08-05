@@ -10,15 +10,15 @@ import Quickshell
 Singleton {
     id: root
 
-    // "filmstrip" (tanzaku) | "carousel" (skewed slices) | "grid"
+    // "filmstrip" (tanzaku) | "carousel" (skewed slices) | "grid" | "drift" (two-line)
     property string layout: "filmstrip"
-    readonly property var layouts: ["filmstrip", "carousel", "grid"]
+    readonly property var layouts: ["filmstrip", "carousel", "grid", "drift"]
     function cycleLayout() {
         var i = root.layouts.indexOf(root.layout);
         root.layout = root.layouts[(i + 1) % root.layouts.length];
     }
     function layoutLabel(id) {
-        return id === "filmstrip" ? "Filmstrip" : id === "carousel" ? "Carousel" : "Grid";
+        return id === "filmstrip" ? "Filmstrip" : id === "carousel" ? "Carousel" : id === "grid" ? "Grid" : "Drift";
     }
 
     // "colour" (hue buckets, the scan's own order) | "recent" (mtime) | "name"

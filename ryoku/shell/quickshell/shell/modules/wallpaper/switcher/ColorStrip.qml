@@ -26,15 +26,15 @@ Item {
             width: allTxt.implicitWidth + Math.round(18 * strip.s)
             height: strip.chip
             radius: Math.round(6 * strip.s)
-            color: all.on ? Theme.frameBg : "transparent"
-            border.width: Theme.borderWidth
-            border.color: all.on ? Theme.primary : Theme.outline
+            color: all.on ? Theme.fillActive : Theme.fillIdle
+            border.width: 1
+            border.color: all.on ? Theme.seal : Theme.sep
             Text {
                 id: allTxt
                 anchors.centerIn: parent
                 text: "All"
-                color: all.on ? Theme.primary : Theme.onSurfaceVariant
-                font.family: Theme.fontPrimary
+                color: all.on ? Theme.seal : Theme.onSurface
+                font.family: Theme.mono
                 font.pixelSize: Math.round(11 * strip.s)
                 font.weight: all.on ? Font.DemiBold : Font.Medium
             }
@@ -54,7 +54,7 @@ Item {
                 color: hh.hovered ? Qt.lighter(Colors.swatch(sw.modelData), 1.15) : Colors.swatch(sw.modelData)
                 opacity: sw.dimmed ? 0.45 : 1
                 border.width: sw.on ? Math.max(2, Theme.borderWidth) : 1
-                border.color: sw.on ? Theme.primary : Qt.rgba(0, 0, 0, 0.35)
+                border.color: sw.on ? Theme.seal : Qt.rgba(0, 0, 0, 0.35)
                 Behavior on opacity { NumberAnimation { duration: Motion.fast } }
                 HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: strip.picked(sw.modelData) }

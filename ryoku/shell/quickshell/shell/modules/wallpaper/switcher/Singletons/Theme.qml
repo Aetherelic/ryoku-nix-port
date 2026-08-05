@@ -37,7 +37,7 @@ Singleton {
     }
 
     // --- 30 Material colour roles (compiled defaults: Solitude Dark) ----------
-    readonly property color surface:                 role("surface", "#08090a")
+    readonly property color surface:                 role("surface", "#181616")
     readonly property color surfaceVariant:          role("surfaceVariant", "#1a1d1f")
     readonly property color surfaceContainerLowest:  role("surfaceContainerLowest", "#101315")
     readonly property color surfaceContainerLow:     role("surfaceContainerLow", "#0e0f10")
@@ -68,8 +68,8 @@ Singleton {
     property color onTertiaryContainer
     property color onError
     property color onErrorContainer
-    Binding { target: root; property: "onSurface";            value: root.role("onSurface", "#cdc4ba") }
-    Binding { target: root; property: "onSurfaceVariant";     value: root.role("onSurfaceVariant", "#b0a9a0") }
+    Binding { target: root; property: "onSurface";            value: root.role("onSurface", "#c5c9c5") }
+    Binding { target: root; property: "onSurfaceVariant";     value: root.role("onSurfaceVariant", "#a6a69c") }
     Binding { target: root; property: "onPrimary";            value: root.role("onPrimary", "#101315") }
     Binding { target: root; property: "onPrimaryContainer";   value: root.role("onPrimaryContainer", "#a8adb0") }
     Binding { target: root; property: "onSecondary";          value: root.role("onSecondary", "#101315") }
@@ -110,4 +110,18 @@ Singleton {
     // paper-and-ink alias: the single red accent (seal / sun) for the switcher.
     readonly property color seal: primary
     readonly property color sun:  primary
+
+    // ── qsbar-matching style tokens: the switcher reads in the bar's own
+    // language (warm paper, mono labels, sep hairlines, seal-lift tiles). ──
+    readonly property color sumi:       onSurfaceVariant
+    readonly property color sumiHi:     Qt.rgba(onSurfaceVariant.r * 0.45 + onSurface.r * 0.55, onSurfaceVariant.g * 0.45 + onSurface.g * 0.55, onSurfaceVariant.b * 0.45 + onSurface.b * 0.55, 1.0)
+    readonly property color sep:        Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.18)
+    readonly property color fillIdle:   Qt.rgba(0, 0, 0, 0.12)
+    readonly property color fillHover:  Qt.rgba(seal.r, seal.g, seal.b, 0.10)
+    readonly property color fillActive: Qt.rgba(seal.r, seal.g, seal.b, 0.18)
+    readonly property color frameWeak:  Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.05)
+    readonly property int   pillRadius:   12
+    readonly property int   islandRadius: 16
+    readonly property int   tileRadius:   10
+    readonly property string ui: "Space Grotesk"
 }

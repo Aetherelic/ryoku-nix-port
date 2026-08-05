@@ -156,11 +156,10 @@ Item {
         signal clicked()
         implicitWidth: chipRow.implicitWidth + Math.round(22 * body.s)
         height: Math.round(30 * body.s)
-        radius: Math.round(7 * body.s)
-        color: chip.on ? Qt.rgba(Theme.seal.r, Theme.seal.g, Theme.seal.b, 0.12)
-            : (chipHover.hovered ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.06) : "transparent")
+        radius: Math.round(9 * body.s)
+        color: chip.on ? Theme.fillActive : (chipHover.hovered ? Theme.fillHover : Theme.fillIdle)
         border.width: 1
-        border.color: chip.on ? Theme.seal : Theme.outline
+        border.color: (chip.on || chipHover.hovered) ? Theme.seal : Theme.sep
         Behavior on color { ColorAnimation { duration: Motion.fast } }
         Behavior on border.color { ColorAnimation { duration: Motion.fast } }
         Row {
@@ -171,17 +170,18 @@ Item {
                 visible: chip.glyph.length > 0
                 anchors.verticalCenter: parent.verticalCenter
                 text: chip.glyph
-                color: chip.on ? Theme.seal : Theme.onSurfaceVariant
+                color: (chip.on || chipHover.hovered) ? Theme.seal : Theme.sumi
                 font.family: Theme.mono
                 font.pixelSize: Math.round(12 * body.s)
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: chip.label
-                color: chip.on ? Theme.seal : Theme.onSurfaceVariant
-                font.family: Theme.fontPrimary
-                font.pixelSize: Math.round(13 * body.s)
-                font.weight: chip.on ? Font.DemiBold : Font.Medium
+                color: (chip.on || chipHover.hovered) ? Theme.seal : Theme.onSurface
+                font.family: Theme.mono
+                font.pixelSize: Math.round(12 * body.s)
+                font.letterSpacing: 0.5
+                font.weight: chip.on ? Font.Medium : Font.Normal
             }
         }
         HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
@@ -195,10 +195,10 @@ Item {
         anchors.bottomMargin: Math.round(30 * body.s)
         width: Math.round(Math.min(parent.width * 0.92, 1720 * body.s))
         height: Math.round(Math.min(parent.height * 0.62, 800 * body.s))
-        radius: Math.round(14 * body.s)
+        radius: Math.round(16 * body.s)
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.8)
         border.width: 1
-        border.color: Theme.outline
+        border.color: Theme.sep
         readonly property int pad: Math.round(22 * body.s)
 
         // absorb clicks landing on empty card space so they never fall through
@@ -229,7 +229,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "" + body.shown.length
                     color: Theme.onSurface
-                    font.family: Theme.fontPrimary
+                    font.family: Theme.mono
                     font.pixelSize: Math.round(20 * body.s)
                     font.weight: Font.DemiBold
                 }
@@ -239,7 +239,7 @@ Item {
                         : body.typeFilter === "image" ? "images"
                         : body.typeFilter === "live" ? "live" : "images + live"
                     color: Theme.onSurfaceVariant
-                    font.family: Theme.fontPrimary
+                    font.family: Theme.mono
                     font.pixelSize: Math.round(12 * body.s)
                 }
             }
@@ -309,9 +309,9 @@ Item {
                     width: Math.round(150 * body.s)
                     height: Math.round(30 * body.s)
                     radius: Math.round(7 * body.s)
-                    color: "transparent"
+                    color: Theme.fillIdle
                     border.width: 1
-                    border.color: body.search.length > 0 ? Theme.onSurfaceVariant : Theme.outline
+                    border.color: body.search.length > 0 ? Theme.onSurfaceVariant : Theme.sep
                     Behavior on border.color { ColorAnimation { duration: Motion.fast } }
                     Row {
                         anchors.left: parent.left
@@ -333,7 +333,7 @@ Item {
                             elide: Text.ElideRight
                             text: body.search.length > 0 ? body.search : "Type to search"
                             color: body.search.length > 0 ? Theme.onSurface : Theme.outline
-                            font.family: Theme.fontPrimary
+                            font.family: Theme.mono
                             font.pixelSize: Math.round(13 * body.s)
                         }
                     }
@@ -368,7 +368,8 @@ Item {
                 id: host
                 anchors.fill: parent
                 sourceComponent: View.layout === "carousel" ? carouselC
-                    : View.layout === "grid" ? gridC : filmstripC
+                    : View.layout === "grid" ? gridC
+                    : View.layout === "drift" ? driftC : filmstripC
                 onItemChanged: if (item) { item.selIndex = Qt.binding(() => body.selIndex); }
             }
             Component {
@@ -394,6 +395,16 @@ Item {
             Component {
                 id: gridC
                 LayoutGrid {
+                    s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
+                    bg: Theme.surface; active: body.active; activeKey: body.activeKey
+                    interactive: !(body.themesMode && body.following)
+                    onFocusIndex: (i) => body.selIndex = i
+                    onChosen: (i) => body.apply(body.shown[i])
+                }
+            }
+            Component {
+                id: driftC
+                LayoutDrift {
                     s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
                     bg: Theme.surface; active: body.active; activeKey: body.activeKey
                     interactive: !(body.themesMode && body.following)
@@ -435,7 +446,7 @@ Item {
                     ? (body.selEntry ? (body.selEntry.label + (body.following ? "   \u00b7 following wallpaper" : "")) : "Pick a scheme")
                     : (body.selEntry ? (body.selEntry.name + "   " + (body.selEntry.type === "live" ? "Live" : "Image") + " \u00b7 " + Colors.names[body.selEntry.group]) : "Browse wallpapers")
                 color: Theme.onSurfaceVariant
-                font.family: Theme.fontPrimary
+                font.family: Theme.mono
                 font.pixelSize: Math.round(13 * body.s)
             }
             Text {
@@ -444,7 +455,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: (body.selIndex + 1) + " / " + body.shown.length + "    \u2190\u2192 browse \u00b7 Enter set \u00b7 Tab " + (body.themesMode ? "wallpapers" : "themes") + " \u00b7 Esc close"
                 color: Theme.outline
-                font.family: Theme.fontPrimary
+                font.family: Theme.mono
                 font.pixelSize: Math.round(12 * body.s)
             }
         }
