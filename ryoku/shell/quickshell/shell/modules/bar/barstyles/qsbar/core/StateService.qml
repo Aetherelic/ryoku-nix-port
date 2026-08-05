@@ -5,9 +5,10 @@ import Quickshell.Io
 Item {
     id: service
 
-    readonly property string stateBase: Quickshell.env("XDG_STATE_HOME") !== ""
-        ? Quickshell.env("XDG_STATE_HOME")
-        : Quickshell.env("HOME") + "/.local/state"
+    readonly property string stateBase: {
+        var x = Quickshell.env("XDG_STATE_HOME")
+        return (x && x !== "") ? x : (Quickshell.env("HOME") + "/.local/state")
+    }
     readonly property string stateRoot: stateBase + "/quickshell-rise"
     readonly property string statePath: stateRoot + "/active-variant"
     readonly property string legacyStatePath: stateRoot + "/active-version"
@@ -44,20 +45,13 @@ Item {
 
     function commit(variant) {
         var normalized = normalize(variant)
-        if (!persistenceAvailable) {
-            console.warn("[StateService] state directory is unavailable; keeping "
-                         + normalized + " for this session only")
-            commitFailed(normalized)
-            return
-        }
-
         pendingVariant = normalized
         activeVariantFile.setText(normalized + "\n")
     }
 
     Process {
         id: stateDirectoryCreator
-        command: ["mkdir", "-p", service.stateRoot]
+        command: ["bash", "-c", "mkdir -p '" + service.stateRoot + "'"]
         running: true
         onExited: (exitCode) => {
             service.persistenceAvailable = exitCode === 0
