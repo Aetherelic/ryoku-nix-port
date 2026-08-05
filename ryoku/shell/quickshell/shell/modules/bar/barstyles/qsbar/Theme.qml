@@ -464,8 +464,12 @@ Item {
     }
 
     function openMediaBrowser(mode) {
-        Quickshell.execDetached(["xdg-open",
-            (Quickshell.env("HOME") || "") + (mode === "videos" ? "/Videos" : "/Pictures")])
+        if (mediaBrowserVisible && mediaBrowserMode !== mode)
+            mediaBrowserVisible = false
+        activateFocusedPopupScreen()
+        imagePickerVisible = false
+        mediaBrowserMode = mode
+        mediaBrowserVisible = true
     }
 
     // ── pill/card border (default, non-borderless mode) ──

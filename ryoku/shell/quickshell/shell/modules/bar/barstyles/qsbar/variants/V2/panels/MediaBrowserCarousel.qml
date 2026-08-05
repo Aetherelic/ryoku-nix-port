@@ -75,15 +75,15 @@ PanelWindow {
     function buildScanCmd() {
         if (isVideos) {
             return ["bash", "-c",
-                "D=\"${RYOKU_SCREENRECORD_DIR:-${XDG_VIDEOS_DIR:-$(xdg-user-dir VIDEOS 2>/dev/null)}}\"; case \"$D\" in \"\"|\"$HOME\") D=\"$HOME/Videos\";; esac; " +
+                "D=\"${RYOKU_SCREENRECORD_DIR:-${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings}\"; " +
                 "find \"$D\" -maxdepth 1 -type f " +
                 "\\( -iname '*.mp4' -o -iname '*.mkv' -o -iname '*.webm' -o -iname '*.mov' -o -iname '*.avi' -o -iname '*.m4v' \\) " +
                 "-printf '%T@\\t%p\\n' 2>/dev/null | sort -rn | head -100 | cut -f2- | " +
                 "while IFS= read -r f; do b=$(basename \"$f\"); printf '%s\\t%s/%s-512.jpg\\n' \"$f\" \"$HOME/.cache/quickshell-media-thumbs\" \"${b%.*}\"; done"]
         } else {
             return ["bash", "-c",
-                "D=\"${RYOKU_SCREENSHOT_DIR:-${XDG_PICTURES_DIR:-$(xdg-user-dir PICTURES 2>/dev/null)}}\"; case \"$D\" in \"\"|\"$HOME\") D=\"$HOME/Pictures\";; esac; " +
-                "find \"$D\" -maxdepth 1 -type f -iname 'screenshot-*.png' " +
+                "D=\"${RYOKU_SCREENSHOT_DIR:-${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots}\"; " +
+                "find \"$D\" -maxdepth 1 -type f -iname '*.png' " +
                 "-printf '%T@\\t%p\\n' 2>/dev/null | sort -rn | head -100 | cut -f2- | " +
                 "while IFS= read -r f; do k=$(printf '%s' \"$f\" | md5sum | cut -d' ' -f1); m=$(stat -c %Y \"$f\" 2>/dev/null); printf '%s\\t%s/%s-%s-512.jpg\\n' \"$f\" \"$HOME/.cache/quickshell-img-thumbs\" \"$k\" \"$m\"; done"]
         }
@@ -309,7 +309,7 @@ PanelWindow {
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: panel.layoutSettled && !panel.loaded
-              ? (panel.isVideos ? "No recordings in ~/Videos" : "No screenshots in ~/Pictures") + "\n\nEsc or click to close"
+              ? (panel.isVideos ? "No recordings in ~/Videos/Recordings" : "No screenshots in ~/Pictures/Screenshots") + "\n\nEsc or click to close"
               : "Loading…"
         color: root.ink
         style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.6)
