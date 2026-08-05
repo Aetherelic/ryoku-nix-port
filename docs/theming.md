@@ -104,6 +104,13 @@ Ryoku covers what Omarchy does not: telegram, heroic, obs, micro, qt5ct/qt6ct.
 
 ## Supporting a third-party theme folder (later)
 
+The **palette** half of this already ships. RyoStore's Themes category imports a
+theme's colours (its `colors.toml`, pre-converted into Ryoku's palette shape and
+hosted under `ryoku-extras/colorschemes`) into a named Ryoku colour scheme, so a
+HANCORE theme shows in the Color-scheme picker and matugen fans it into every
+app. The rest of this section is the larger, still-future part: using a theme's
+own hand-authored per-app files verbatim.
+
 A repo like `HANCORE-linux/omarchy-harbordark-theme` is a flat directory of
 per-app files plus `backgrounds/`. Once app configs read from a stable theme
 directory, installing one is: clone it into a themes dir, rebuild the active

@@ -72,7 +72,7 @@ The fixed header exposes one semantic route order:
 
 ```text
 Discover
-Lockscreens · Rices · Bar styles · Fastfetch · Plugins · Bundles
+Lockscreens · Rices · Themes · Bar styles · Fastfetch · Plugins · Bundles
 Search
 Library
 ```
@@ -225,6 +225,13 @@ and installation, not a second runtime copy.
 - **Rices:** fetch and install the `ryoku-extras` rice registry. Installed and
   active state come from the local rices tree and active marker. Appearance
   retains apply, capture, fork, export, delete, and local rice management.
+- **Color schemes (Themes):** fetch the `ryoku-extras` colorschemes registry and
+  present it through a per-provider subtab strip (HANCORE-linux, Noctalia) with a
+  My themes tab for the installed library. Install copies the entry's Noctalia
+  palette into `~/.local/share/ryoku/themes/<id>` (install-only); the shell daemon
+  converts it to its 34-role palette, so a downloaded scheme appears in the
+  Color-scheme picker (Super+W and the Hub) and applies through `theme.theme`.
+  Activation stays in that picker, never on install.
 - **Bar styles:** expose the shipped runtime style manifests and the active
   `shell.json` value. The current development styles are all visible and report
   installed state. Settings retains selection and configuration.
