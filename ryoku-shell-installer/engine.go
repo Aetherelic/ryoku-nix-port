@@ -825,9 +825,25 @@ func stepDrivers(e *engine) error {
 			e.say("skipping the NVIDIA driver setup (kept nouveau; re-run with the toggle on to switch)")
 		}
 	}
+	// the vendor scripts each do a bare `pacman -S`, so -- exactly like
+	// stepPackages -- they must transact against a current db. this step is
+	// re-entered on a resume with the sysupgrade/packages steps already
+	// skipped, and a repo publish can land between those steps and this one,
+	// pruning the files a stale db still points at (pacman's "failed
+	// retrieving file" abort that reads as a driver that would not install).
+	// clear resumed .part downloads and bring the system current first.
+	if err := e.sudoSh(`rm -f /var/cache/pacman/pkg/*.part`); err != nil {
+		e.say("warning: could not clear partial downloads (continuing)")
+	}
+	if err := e.sudo("pacman", "-Syu", "--noconfirm"); err != nil {
+		e.say("warning: could not refresh the package db before the driver install; a stale mirror may still fail a download (continuing)")
+	}
+	// a single vendor script failing must NOT sink the whole desktop install,
+	// matching installation/backend/lib/drivers.sh: the box still boots on the
+	// iGPU or software renderer, and stepDoctor plus first boot heal the driver.
 	for _, s := range scripts {
 		if err := e.cmd("", nil, "bash", filepath.Join(drv, s)); err != nil {
-			return err
+			e.sayf("warning: %s did not finish; leaving the GPU driver for `ryoku doctor` after first boot (continuing)", s)
 		}
 	}
 	if e.p.nvidia && e.f.hasNvidia {

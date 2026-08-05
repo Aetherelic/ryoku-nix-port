@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Fixed
+- **The GPU driver step no longer aborts the whole install, and no longer
+  installs against a stale package db.** `stepDrivers` ran the per-vendor
+  `pacman -S` scripts (amd/intel/vulkan/nvidia) with no db refresh and returned
+  the first non-zero straight up, so a transient mirror hiccup -- or a repo
+  publish or a resume landing on this step after the earlier `pacman -Syu`
+  steps were already skipped -- made pacman try to fetch package versions the
+  mirror no longer serves ("failed retrieving file"), killing the desktop
+  install at "Setting up GPU drivers" for AMD and NVIDIA boxes alike. It now
+  clears resumed `.part` downloads and runs `pacman -Syu` first (the same
+  hardening `stepPackages` already has), then treats a failing vendor script as
+  a warning and continues -- matching `installation/backend/lib/drivers.sh` --
+  so the box still boots on the iGPU/software renderer and `ryoku doctor` heals
+  the driver on first boot. Rebuilt the committed binary + checksum.
+
 - **A shell-installed box now gets the identical package set an ISO box does.** The
   installer reads `system/packages/base.packages` from the payload -- the same
   manifest the ISO pacstraps -- instead of a hand-kept `sessionPkgs` list that had
