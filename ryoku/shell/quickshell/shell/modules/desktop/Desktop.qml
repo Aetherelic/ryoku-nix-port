@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import Quickshell.Widgets
 import "Singletons"
 import "clock"
 import "calendar"
@@ -261,6 +262,10 @@ Scope {
                     property var pluginSettings: (slot.entry && slot.entry.placement && slot.entry.placement.settings) ? slot.entry.placement.settings : ({})
                     property string pluginDir: slot.dir
                     function saveSettings() {}
+                    // host image viewer: a real click on a photo tile calls
+                    // this to open a dimmed, full-desktop enlarged view of the
+                    // image (see photoViewer). Closed by click-away or Esc.
+                    function expandImage(url) { photoViewer.open(url); }
                 }
 
                 PluginObjectSlot {
@@ -308,6 +313,78 @@ Scope {
                 obj[key] = value;
                 settingsProc.command = [root.placeTool, id, "settings", JSON.stringify(obj)];
                 settingsProc.running = true;
+            }
+        }
+
+        // Shared image viewer for desktop plugin tiles. A tile (e.g. Photo
+        // Frame) calls pluginApi.expandImage(url) on a real click; this dims the
+        // whole desktop and shows that image large + centered
+        // (PreserveAspectFit, capped per axis at min(85% of the screen, the
+        // image's own size) so small photos never upscale). Any click on the
+        // scrim or the photo, or Esc, closes it. It rides this same wallpaper
+        // layer, so it sits above the tiles as a full-desktop overlay.
+        Item {
+            id: photoViewer
+            anchors.fill: parent
+            z: 100
+
+            // the image being shown; empty = closed.
+            property url src: ""
+            readonly property bool shown: photoViewer.src !== ""
+
+            visible: opacity > 0
+            opacity: photoViewer.shown ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.quick; easing.type: Theme.ease } }
+
+            function open(url) { if (url && String(url).length > 0) photoViewer.src = url; }
+            function close() { photoViewer.src = ""; }
+
+            // Esc closes. The wallpaper layer only holds the keyboard while
+            // something wants it (kbWanted), so bump it exactly like a focused
+            // plugin text field and take active focus while shown.
+            Keys.onEscapePressed: photoViewer.close()
+            onShownChanged: {
+                win.kbWanted += photoViewer.shown ? 1 : -1;
+                if (photoViewer.shown)
+                    photoViewer.forceActiveFocus();
+            }
+            Component.onDestruction: if (photoViewer.shown) win.kbWanted -= 1
+
+            // dim scrim + click-away. Accepts both buttons so a click or
+            // right-click anywhere closes, instead of falling through to a tile
+            // or the global desktop menu behind it.
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.78)
+            }
+            MouseArea {
+                anchors.fill: parent
+                enabled: photoViewer.shown
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: photoViewer.close()
+            }
+
+            // the enlarged print: rounded-clipped to match the tile aesthetic.
+            // clicks fall through it to the MouseArea above, so tapping the photo
+            // closes too.
+            ClippingRectangle {
+                anchors.centerIn: parent
+                radius: Theme.radiusWidget
+                color: "transparent"
+                width: big.paintedWidth
+                height: big.paintedHeight
+
+                Image {
+                    id: big
+                    anchors.centerIn: parent
+                    source: photoViewer.src
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    cache: true
+                    smooth: true
+                    width: implicitWidth > 0 ? Math.min(photoViewer.width * 0.85, implicitWidth) : photoViewer.width * 0.85
+                    height: implicitHeight > 0 ? Math.min(photoViewer.height * 0.85, implicitHeight) : photoViewer.height * 0.85
+                }
             }
         }
 
