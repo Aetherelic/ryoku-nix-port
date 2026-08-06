@@ -153,6 +153,55 @@ Item {
                 onTapped: root.startDownload()
             }
 
+            // what cobalt can pull from, live from the instance (built-in list otherwise).
+            Rectangle {
+                width: parent.width
+                visible: Stash.supportedSites.length > 0
+                radius: Theme.radiusWidget
+                color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.04)
+                border.width: Theme.borderWidth
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.4)
+                implicitHeight: sitesCol.implicitHeight + 18 * root.s
+
+                Column {
+                    id: sitesCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 9 * root.s
+                    spacing: 4 * root.s
+
+                    Row {
+                        spacing: 5 * root.s
+                        MaterialIcon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            font.pixelSize: 10 * root.s
+                            text: "public"
+                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("WORKS WITH %1 SITES").arg(Stash.supportedSites.length)
+                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                            font.family: Theme.fontPrimary
+                            font.pixelSize: 6.5 * root.s
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 1.5
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: Stash.supportedSites.map(s => s === "twitter" ? "x" : s).join("  ·  ")
+                        wrapMode: Text.WordWrap
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                        font.family: Theme.mono
+                        font.pixelSize: 8.5 * root.s
+                        lineHeight: 1.3
+                    }
+                }
+            }
+
             Column {
                 width: parent.width
                 spacing: 6 * root.s
@@ -218,12 +267,12 @@ Item {
                 }
             }
 
-            Menus.QsSection { width: parent.width; label: qsTr("In stash") }
+            Menus.QsSection { width: parent.width; label: qsTr("Recently downloaded") }
 
             Text {
                 width: parent.width
                 visible: Stash.count === 0
-                text: qsTr("Nothing stashed yet. Downloads land here.")
+                text: qsTr("Nothing downloaded yet. Links you grab land here.")
                 wrapMode: Text.WordWrap
                 color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                 font.family: Theme.fontPrimary
@@ -235,10 +284,10 @@ Item {
                 spacing: 6 * root.s
 
                 Repeater {
-                    model: Stash.files
+                    model: Stash.recentFiles
                     delegate: Rectangle {
                         id: fileRow
-                        required property var model
+                        required property var modelData
                         width: parent.width
                         height: 24 * root.s
                         radius: Theme.radiusWidget
@@ -252,7 +301,7 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: Stash.openFile(fileRow.model.filePath)
+                            onClicked: Stash.openFile(fileRow.modelData.path)
                         }
 
                         Row {
@@ -266,13 +315,13 @@ Item {
                             MaterialIcon {
                                 anchors.verticalCenter: parent.verticalCenter
                                 font.pixelSize: 13 * root.s
-                                text: root.fileGlyph(fileRow.model.fileName)
+                                text: root.fileGlyph(fileRow.modelData.name)
                                 color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: parent.width - 28 * root.s - parent.spacing
-                                text: fileRow.model.fileName
+                                text: fileRow.modelData.name
                                 elide: Text.ElideMiddle
                                 color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                 font.family: Theme.fontPrimary
@@ -294,7 +343,7 @@ Item {
                                 anchors.margins: -8 * root.s
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Stash.removeFile(fileRow.model.filePath)
+                                onClicked: Stash.removeFile(fileRow.modelData.path)
                             }
                         }
                     }

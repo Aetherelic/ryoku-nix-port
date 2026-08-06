@@ -48,7 +48,6 @@ hl.bind(K(mod .. " + W"),         hl.dsp.global("ryoku:wallpaper-menu"))      --
 hl.bind(K(mod .. " + SHIFT + W"), hl.dsp.exec_cmd("ryoku-shell wallpaper random")) -- random wallpaper, random transition
 hl.bind(K(mod .. " + SHIFT + V"), hl.dsp.exec_cmd("ryoku-summon ryovm flock -n -o /tmp/ryovm.lock qs -c ryovm")) -- ryovm: summon to current workspace
 hl.bind(K(mod .. " + V"),         hl.dsp.global("ryoku:clipboard")) -- clipboard (sidebar deep link)
-hl.bind(K(mod .. " + T"),         hl.dsp.global("ryoku:stash"))         -- Feature sidebar (Super+T)
 hl.bind(K(mod .. " + Tab"),       hl.dsp.global("ryoku:overview")) -- workspace overview (expo: live previews, drag windows between workspaces, cycle)
 hl.bind(K(mod .. " + ALT + Tab"), hl.dsp.global("ryoku:overview")) -- workspace overview, stepping desktops (Alt+Tab again inside cycles desktops)
 hl.bind(K(mod .. " + M"),         hl.dsp.global("ryoku:visualizer"))        -- toggle the desktop audio visualiser
@@ -56,7 +55,7 @@ hl.bind(K(mod .. " + SHIFT + M"), hl.dsp.global("ryoku:visualizer-overlay")) -- 
 hl.bind(K(mod .. " + G"),         hl.dsp.global("ryoku:ryolayer"))         -- ryolayer: the tool overlay (music + EQ, mic; drag, resize, pin over the desktop)
 hl.bind(K(mod .. " + grave"),     hl.dsp.exec_cmd("ryoku-shell voice"))             -- tap: Voxtype speech-to-text + mic wave (tap again to stop)
 hl.bind(K(mod .. " + comma"),     hl.dsp.exec_cmd("ryoku-shell hub open"))     -- ryoku settings
-hl.bind(K(mod .. " + S"),         hl.dsp.global("ryoku:screenshot"))    -- quick capture menu (no confirmation)
+hl.bind(K(mod .. " + S"),         hl.dsp.global("ryoku:stash"))         -- Feature sidebar: screen time + downloads (Super+S)
 hl.bind(K(mod .. " + SHIFT + S"), hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))  -- ryoshot: beautify and annotate
 hl.bind(K(mod .. " + SHIFT + C"), hl.dsp.exec_cmd("hyprpicker -a"))                 -- pick a color
 

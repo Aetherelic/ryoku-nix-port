@@ -3,17 +3,18 @@
 ## Unreleased
 
 ### Changed
-- **Super+T opens a feature sidebar with local screen time.** The old file
-  stash (the board, its LocalSend send and receive, and the drag-to-edge stash)
-  is retired. Super+T now opens a framed floating card with a left activity
-  rail. Usage is a screen-time overview built from a local tracker that samples
-  the focused app every few seconds and keeps the day history under
-  ~/.local/state/ryoku (nothing leaves the box): today's active total, a
-  seven-day trend, and the apps used most with their icons. Tools keeps the
-  download, convert and install backends: paste a link to pull it in with
-  cobalt, watch the queue, then compress media or install a package. The rail
-  leaves room for more tabs (AI chat and the like) later
-  (`quickshell/shell/modules/bar/panel/`, `services/ScreenTime.qml`).
+- **Super+S opens a feature sidebar: screen time and downloads.** The old file
+  stash (the board, LocalSend send and receive, the drag-to-edge stash) is
+  retired, and the sidebar moved off Super+T (now free) onto Super+S. Usage is a
+  local screen-time overview built from a tracker that samples the focused app
+  every few seconds and keeps the day history under ~/.local/state/ryoku
+  (nothing leaves the box): today's active total, a seven-day trend, and the
+  apps used most. Tools is a downloader: paste a link and cobalt fetches it (now
+  handling cobalt's client-side local-processing and showing the instance's live
+  list of supported sites), recent downloads sit below newest-first, and
+  Convert/Install compress media or install a package
+  (`quickshell/shell/modules/bar/panel/`, `services/ScreenTime.qml`,
+  `services/Stash.qml`, `hyprland/scripts/stash-cobalt.sh`).
 - **The desktop shell now runs as a single Quickshell instance.** The frame bar
   and its menus, the launcher, overview, board, wallpaper, visualiser, on-screen
   displays, notifications, capture, and the desktop widgets were seven separate

@@ -24,6 +24,19 @@ Singleton {
     readonly property int count: files.count
     readonly property alias queueModel: queueModel
 
+    // Newest-first, capped: the Tools "recently downloaded" list. Sorted here in
+    // JS because FolderListModel's own time sort is unreliable across builds.
+    readonly property var recentFiles: {
+        const arr = [];
+        const n = files.count;
+        for (let i = 0; i < n; i++)
+            arr.push({ name: files.get(i, "fileName"),
+                       path: files.get(i, "filePath"),
+                       t: files.get(i, "fileModified") });
+        arr.sort((a, b) => b.t - a.t);
+        return arr.slice(0, 6);
+    }
+
     // Live file-type read so the tools light only what applies.
     readonly property bool hasMedia: {
         var n = files.count;
@@ -56,6 +69,7 @@ Singleton {
     // Cobalt download queue.
     property string dlMode: "auto"        // auto | audio | mute
     property int activeJob: -1            // index of the running queue entry, -1 idle
+    property var supportedSites: []       // cobalt's supported services (for the Tools bubble)
 
     function openFile(path) {
         Quickshell.execDetached(["xdg-open", path]);
@@ -224,5 +238,22 @@ Singleton {
         }
     }
 
-    Component.onCompleted: Quickshell.execDetached(["mkdir", "-p", root.dir])
+    // Cobalt's supported services, for the Tools "works with" bubble. Live from
+    // the instance when it's up, else the script's built-in list.
+    Process {
+        id: sitesProc
+        command: ["bash", root.cobaltScript, "sites"]
+        stdout: StdioCollector {
+            id: sitesOut
+            onStreamFinished: {
+                const out = ("" + sitesOut.text).trim();
+                root.supportedSites = out.length > 0 ? out.split("\n").filter(l => l.length > 0) : [];
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        Quickshell.execDetached(["mkdir", "-p", root.dir]);
+        sitesProc.running = true;
+    }
 }
