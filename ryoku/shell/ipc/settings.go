@@ -197,26 +197,19 @@ type verticalBar struct {
 }
 
 type menusSettings struct {
-	ClockMenu              menuConfig            `json:"clock_menu"`
-	ClipboardMenu          menuConfig            `json:"clipboard_menu"`
-	QuickSettingsMenu      menuConfig            `json:"quick_settings_menu"`
-	NotificationMenu       menuConfig            `json:"notification_menu"`
-	WallpaperMenu          menuConfig            `json:"wallpaper_menu"`
-	ScreenshareMenu        screenshareMenuConfig `json:"screenshare_menu"`
-	LeftMenuExpansionType  string                `json:"left_menu_expansion_type"`
-	RightMenuExpansionType string                `json:"right_menu_expansion_type"`
+	ClockMenu              menuConfig `json:"clock_menu"`
+	ClipboardMenu          menuConfig `json:"clipboard_menu"`
+	QuickSettingsMenu      menuConfig `json:"quick_settings_menu"`
+	NotificationMenu       menuConfig `json:"notification_menu"`
+	WallpaperMenu          menuConfig `json:"wallpaper_menu"`
+	LeftMenuExpansionType  string     `json:"left_menu_expansion_type"`
+	RightMenuExpansionType string     `json:"right_menu_expansion_type"`
 }
 
 type menuConfig struct {
 	Position     string       `json:"position"`
 	MinimumWidth int          `json:"minimum_width"`
 	Widgets      []menuWidget `json:"widgets"`
-}
-
-// screenshareMenuConfig has a position only: the reference screenshare menu takes
-// no width or widget list.
-type screenshareMenuConfig struct {
-	Position string `json:"position"`
 }
 
 // menuWidget is the reference's tagged menu-widget union. Unit variants serialize
@@ -305,7 +298,6 @@ func defaultSettings() *settings {
 			),
 			NotificationMenu:       menu("Left", 410, mw("Notifications")),
 			WallpaperMenu:          menu("Bottom", 1200, mw("ThemePicker"), mw("Wallpaper")),
-			ScreenshareMenu:        screenshareMenuConfig{Position: "Left"},
 			LeftMenuExpansionType:  "AlwaysExpanded",
 			RightMenuExpansionType: "AlwaysExpanded",
 		},
@@ -441,7 +433,6 @@ func (m *menusSettings) normalize(v *validator) {
 	m.QuickSettingsMenu.normalize(v, "menus.quick_settings_menu")
 	m.NotificationMenu.normalize(v, "menus.notification_menu")
 	m.WallpaperMenu.normalize(v, "menus.wallpaper_menu")
-	v.enum("menus.screenshare_menu.position", m.ScreenshareMenu.Position, positionValues)
 	v.enum("menus.left_menu_expansion_type", m.LeftMenuExpansionType, menuExpansionValues)
 	v.enum("menus.right_menu_expansion_type", m.RightMenuExpansionType, menuExpansionValues)
 }

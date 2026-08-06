@@ -3,6 +3,7 @@ package updater
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"ryoku-cli/internal/sys"
 	"strings"
 	"testing"
@@ -230,5 +231,52 @@ func wantFile(t *testing.T, path, want string) {
 	}
 	if !strings.Contains(string(b), want) {
 		t.Errorf("%s = %q, want substring %q", path, string(b), want)
+	}
+}
+
+// chromium-flags.conf is a root-level config: chromium reads
+// $XDG_CONFIG_HOME/chromium-flags.conf at launch. It is delivered like
+// mimeapps.list, shipped under the base config dir and laid at
+// ~/.config/chromium-flags.conf by materialize on install and every update. This
+// pins the exact flag and that materialize routes it to the config root as a
+// managed file, not a one-time seed.
+func TestMaterializeDeliversChromiumFlags(t *testing.T) {
+	const want = "--password-store=gnome-libsecret\n"
+
+	// the shipped source carries exactly the one flag: the screen-share keyring
+	// only works if chromium uses GNOME Secret Service, not kwallet or basic.
+	_, thisFile, _, _ := runtime.Caller(0)
+	shipped := filepath.Join(filepath.Dir(thisFile), "..", "..", "..", "apps", "chromium-flags.conf")
+	src, err := os.ReadFile(shipped)
+	if err != nil {
+		t.Fatalf("read shipped chromium-flags.conf: %v", err)
+	}
+	if string(src) != want {
+		t.Fatalf("shipped chromium-flags.conf = %q, want %q", src, want)
+	}
+
+	base, dest := t.TempDir(), t.TempDir()
+	t.Setenv("RYOKU_CONFIG_BASE", base)
+	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	writeFile(t, filepath.Join(base, "chromium-flags.conf"), string(src))
+
+	// install/update routes the base file to the config root, byte for byte.
+	if err := Materialize(); err != nil {
+		t.Fatalf("materialize: %v", err)
+	}
+	routed := filepath.Join(dest, "chromium-flags.conf")
+	if b, err := os.ReadFile(routed); err != nil || string(b) != want {
+		t.Fatalf("chromium-flags.conf not routed to ~/.config: got %q err %v", b, err)
+	}
+
+	// managed, not a seed: a later `ryoku update` re-lays it, restoring a drifted
+	// copy to the shipped flag.
+	writeFile(t, routed, "--password-store=basic\n")
+	if err := Materialize(); err != nil {
+		t.Fatalf("re-materialize: %v", err)
+	}
+	if b, err := os.ReadFile(routed); err != nil || string(b) != want {
+		t.Fatalf("update did not re-deliver chromium-flags.conf: got %q err %v", b, err)
 	}
 }

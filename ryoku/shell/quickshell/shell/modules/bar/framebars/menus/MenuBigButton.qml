@@ -8,9 +8,8 @@ import "../../../../components"
 // Shared primary capture tile (contract 09 sec 2): a primary-filled 116x72 tile
 // carrying a 32px icon above a 14px label, both in the on-primary tone. Hover
 // lifts the fill to the accent-light tint; disabled dims fill and content to 38%
-// and drops the pointer cursor. The screenshot modes, the record modes and the
-// screenshare picker are all built from this one tile, so it lives with the
-// shared menu primitives.
+// and drops the pointer cursor. The screenshot modes and the record modes are
+// all built from this one tile, so it lives with the shared menu primitives.
 Item {
     id: root
 

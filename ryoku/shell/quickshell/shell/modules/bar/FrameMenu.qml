@@ -48,7 +48,6 @@ Item {
     readonly property real minWidth: record && record.minWidth ? record.minWidth : 200
     readonly property string kind: record && record.kind ? record.kind : "menu"
     readonly property bool isMenu: root.kind === "menu"
-    readonly property bool isScreenshare: root.record && root.record.id === "screenshare"
 
     // The reveal fades the body content in and out; on a same-region swap the
     // two bodies crossfade (200 ms) while the chrome band stays put. A retained
@@ -59,7 +58,7 @@ Item {
     readonly property bool effectiveOpen: root.menuOpen || root.bodyReveal > 0.004
     readonly property bool retainBody: root.isMenu && root.fillsBand
     readonly property bool bodyReady: menuBody.status === Loader.Ready
-        && (root.isScreenshare || !!(menuBody.item && menuBody.item.ready))
+        && !!(menuBody.item && menuBody.item.ready)
     readonly property bool stableSidePanel: root.sideMenu && root.manager
         && !!root.manager.activeMenu && !root.manager.chromeSwitchPending
         && root.manager.waitingChromeId === ""
@@ -215,7 +214,7 @@ Item {
                     ? root.manager.chromeOpacity * (root.stableSidePanel ? root.bodyReveal : 1)
                     : root.bodyReveal)
                 : 0
-            sourceComponent: root.isScreenshare ? screenshareBody : menuColumnBody
+            sourceComponent: menuColumnBody
         }
     }
 
@@ -231,16 +230,6 @@ Item {
             incubate: root.retainBody
             widgets: root.widgetIds
             initialPage: root.recordPage
-            onRequestClose: root.requestClose()
-        }
-    }
-    Component {
-        id: screenshareBody
-        MenuScreenshare {
-            width: root.restW
-            height: root.restH
-            s: 1
-            open: root.effectiveOpen
             onRequestClose: root.requestClose()
         }
     }

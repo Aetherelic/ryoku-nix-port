@@ -111,14 +111,6 @@ mkdir -p "$bindir"
 install -m755 "$here/ipc/ryoku-shell" "$bindir/ryoku-shell"
 say "installed $bindir/ryoku-shell"
 
-# Build the screen-share picker helper. xdg-desktop-portal-hyprland runs it as
-# the screencopy custom picker (see hyprland/xdph.conf); it forwards the portal's
-# window list to the daemon and prints the chosen source.
-say "building ryoku-share"
-(cd "$here/ipc" && go build -o ryoku-share ./share)
-install -m755 "$here/ipc/ryoku-share" "$bindir/ryoku-share"
-say "installed $bindir/ryoku-share"
-
 # Every hyprland leaf script the config calls by bare name (ryoku-app, the
 # ryoku-cmd-*, ...). The package ships them to /usr/bin; a checkout must put the
 # current copies on PATH too, else a new one like ryoku-app is simply missing.
@@ -416,6 +408,8 @@ systemctl --user daemon-reload 2>/dev/null || true
 # them the way the package materializes them for an installed one.
 mkdir -p "$cfg/pip"; cp -a "$here/../apps/pip/pip.conf" "$cfg/pip/pip.conf"
 cp -a "$here/../apps/mimeapps.list" "$cfg/mimeapps.list"
+# chromium reads ~/.config/chromium-flags.conf at launch; pin its password store to the GNOME keyring.
+cp -a "$here/../apps/chromium-flags.conf" "$cfg/chromium-flags.conf"
 # Refresh the icon cache only when the theme has an index.theme; the user-overlay
 # hicolor dir usually has none, and gtk-update-icon-cache -f on an index-less dir
 # writes an EMPTY cache that Qt then trusts, hiding every icon in it. With no

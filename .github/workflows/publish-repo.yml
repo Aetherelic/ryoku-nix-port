@@ -97,13 +97,14 @@ jobs:
           # wayland/wayland-protocols) plus hyprcursor/pkgconf build the compositor
           # plugin packages (hypr-dynamic-cursors, ryoku-hypr-plugins, hyprglass,
           # imgborders); makepkg runs --nodeps, so their makedepends must be present
-          # here. rust (cargo) builds awww from source (awww's
-          # common/build.rs probes liblz4, hence lz4). gnupg signs, rclone
-          # uploads, git backs checkout.
+          # here. rust (cargo) builds awww and hyprland-preview-share-picker from
+          # source (awww's common/build.rs probes liblz4, hence lz4; the picker is
+          # a gtk4 app, so gtk4 + gtk4-layer-shell). gnupg signs, rclone uploads,
+          # git backs checkout.
           pacman -Syu --noconfirm --needed \
             base-devel git go rust cmake ninja gnupg rclone \
             qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
-            hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4
+            hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4 gtk4 gtk4-layer-shell
 
       - name: Checkout
         uses: actions/checkout@v4

@@ -17,7 +17,6 @@ func TestRoute(t *testing.T) {
 		{"menu quick-settings", "shell", "shell", "openSurface"},
 		{"menu theme", "shell", "shell", "openSurface"},
 		{"menu wallpaper", "shell", "shell", "openSurface"},
-		{"menu screenshare", "shell", "shell", "openSurface"},
 		{"menu screenshot", "shell", "shell", "openSurface"},
 		{"menu stash", "shell", "shell", "openSurface"},
 	}

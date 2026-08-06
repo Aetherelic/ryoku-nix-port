@@ -46,6 +46,7 @@ INSTALLED_CHECKS = [
     ("f", "home/{user}/.config/pip/pip.conf"),
     ("f", "home/{user}/.config/wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf"),
     ("f", "home/{user}/.config/mimeapps.list"),
+    ("f", "home/{user}/.config/chromium-flags.conf"),
     ("f", "usr/share/applications/ryoku-nvim.desktop"),
     ("d", "boot/EFI"),
 ]

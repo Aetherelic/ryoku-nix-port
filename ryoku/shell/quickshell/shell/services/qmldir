@@ -32,7 +32,6 @@ singleton Keyring Keyring.qml
 singleton OsdFeed OsdFeed.qml
 singleton Polkit Polkit.qml
 singleton PowerProfiles PowerProfiles.qml
-singleton Screenshare Screenshare.qml
 singleton Session Session.qml
 singleton SessionActions SessionActions.qml
 singleton Stash Stash.qml

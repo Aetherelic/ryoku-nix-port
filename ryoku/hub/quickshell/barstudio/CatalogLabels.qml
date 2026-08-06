@@ -27,7 +27,6 @@ QtObject {
         case "quick-settings": return qsTr("Quick Settings")
         case "reboot": return qsTr("Reboot")
         case "recording": return qsTr("Recording")
-        case "screenshare": return qsTr("Screen Share")
         case "screenshot": return qsTr("Screenshot")
         case "shutdown": return qsTr("Shut Down")
         case "spacer": return qsTr("Spacer")

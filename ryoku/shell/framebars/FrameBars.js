@@ -66,7 +66,6 @@ function defaultConfig(menuCatalog) {
         menus: {
             "quick-settings": { anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"], modules: menuCatalog.defaultQuickSettingsModules() },
             wallpaper: { anchor: "bottom", minWidth: 1400, expansion: "always", widgets: ["theme", "wallpaper"] },
-            screenshare: { anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
             theme: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
             weather: { anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
         },

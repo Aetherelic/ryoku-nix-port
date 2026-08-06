@@ -21,7 +21,6 @@ var frameBarMenuIDs = map[string]bool{
 	"theme": true,
 	"wallpaper": true,
 	"weather": true,
-	"screenshare": true,
 }
 
 func menuID(cmd string) (string, bool) {

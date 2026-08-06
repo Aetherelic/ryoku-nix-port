@@ -29,7 +29,6 @@ const quickSettingsDefaults = ["home", "notifications", "weather"];
 const menus = {
     "quick-settings": { id: "quick-settings", anchor: "left", minWidth: 410, expansion: "always", widgets: ["quick-settings"], modules: quickSettingsDefaults },
     wallpaper: { id: "wallpaper", anchor: "bottom", minWidth: 1400, expansion: "always", widgets: ["theme", "wallpaper"] },
-    screenshare: { id: "screenshare", anchor: "left", minWidth: 410, expansion: "always", widgets: [] },
     theme: { id: "theme", anchor: "right", minWidth: 320, expansion: "never", widgets: ["theme"] },
     weather: { id: "weather", anchor: "right", minWidth: 320, expansion: "never", widgets: ["weather"] },
 };
