@@ -7,10 +7,8 @@ import Quickshell.Io
 /**
  * ~/Downloads/Stash: the download landing plus the compress/install backends.
  * A live FolderListModel tracks the folder (created on first load); cobalt
- * drives a one-at-a-time download queue through stash-cobalt.sh, and
- * requestInstall/requestCompress raise a confirm then run the helper.
- * hasMedia / hasInstallable read the live file types so the tools only light
- * when they apply.
+ * drives a one-at-a-time download queue through stash-cobalt.sh. compressPick /
+ * installPick open a multi-file picker and run the helper on the selection.
  */
 Singleton {
     id: root
@@ -37,35 +35,6 @@ Singleton {
         return arr.slice(0, 6);
     }
 
-    // Live file-type read so the tools light only what applies.
-    readonly property bool hasMedia: {
-        var n = files.count;
-        for (var i = 0; i < n; i++) {
-            var nm = ("" + files.get(i, "fileName")).toLowerCase();
-            var e = nm.substring(nm.lastIndexOf(".") + 1);
-            if (/^(mp4|mkv|webm|mov|avi|m4v|mp3|flac|wav|ogg|opus|m4a|aac|png|jpe?g|webp|gif|bmp|tif|tiff)$/.test(e))
-                return true;
-        }
-        return false;
-    }
-    readonly property bool hasInstallable: {
-        var n = files.count;
-        for (var i = 0; i < n; i++) {
-            var nm = ("" + files.get(i, "fileName")).toLowerCase();
-            if (/\.(appimage|flatpak|deb|rpm|tar\.gz|tgz|tar\.xz|tar\.bz2|tar\.zst|tar)$/.test(nm))
-                return true;
-        }
-        return false;
-    }
-
-    // Install / compress confirm state.
-    property string task: ""              // "" | install | compress
-    property string taskState: "idle"     // idle | confirm | running | done | error
-    property string taskMsg: ""
-    signal authStepAside(string monitor, string surfaceId)
-    property string taskMonitor: ""
-    property string taskSurfaceId: ""
-
     // Cobalt download queue.
     property string dlMode: "auto"        // auto | audio | mute
     property int activeJob: -1            // index of the running queue entry, -1 idle
@@ -83,48 +52,15 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", "rm -f \"$1\"/*", "--", root.dir]);
     }
 
-    // ── Install / compress ──────────────────────────────────────────────
-    function requestInstall(monitor, surfaceId) {
-        if (root.hasInstallable) {
-            root.task = "install";
-            root.taskMsg = "";
-            root.taskState = "confirm";
-            root.taskMonitor = monitor || "";
-            root.taskSurfaceId = surfaceId || "";
-        }
+    // ── Compress / install ──────────────────────────────────────────────
+    // Both open a multi-file picker (zenity) and process the selection; the
+    // sidebar buttons and the launcher's Compress video / Install app entries
+    // run the same --pick scripts.
+    function compressPick() {
+        Quickshell.execDetached(["bash", root.scriptDir + "/stash-compress.sh", "--pick"]);
     }
-
-    function requestCompress(monitor, surfaceId) {
-        if (root.hasMedia) {
-            root.task = "compress";
-            root.taskMsg = "";
-            root.taskState = "confirm";
-            root.taskMonitor = monitor || "";
-            root.taskSurfaceId = surfaceId || "";
-        }
-    }
-
-    function confirmTask() {
-        if (root.task === "install")
-            runTask("install", ["bash", root.scriptDir + "/stash-install.sh"]);
-        else if (root.task === "compress")
-            runTask("compress", ["bash", root.scriptDir + "/stash-compress.sh"]);
-    }
-
-    function runTask(name, cmd) {
-        root.task = name;
-        root.taskMsg = "";
-        root.taskState = "running";
-        taskProc.command = cmd;
-        taskProc.running = true;
-    }
-
-    function dismissTask() {
-        root.task = "";
-        root.taskState = "idle";
-        root.taskMsg = "";
-        root.taskMonitor = "";
-        root.taskSurfaceId = "";
+    function installPick() {
+        Quickshell.execDetached(["bash", root.scriptDir + "/stash-install.sh", "--pick"]);
     }
 
     // ── Cobalt download + remux ─────────────────────────────────────────
@@ -198,27 +134,6 @@ Singleton {
 
     ListModel {
         id: queueModel
-    }
-
-    Process {
-        id: taskProc
-        property string lastLine: ""
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: (line) => {
-                var l = ("" + line).trim();
-                if (l === "@AUTH") {
-                    root.authStepAside(root.taskMonitor, root.taskSurfaceId);
-                    return;
-                }
-                if (l.length > 0)
-                    taskProc.lastLine = l;
-            }
-        }
-        onExited: (exitCode) => {
-            root.taskMsg = taskProc.lastLine;
-            root.taskState = exitCode === 0 ? "done" : "error";
-        }
     }
 
     Process {

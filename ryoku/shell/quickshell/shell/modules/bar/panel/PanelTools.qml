@@ -350,81 +350,19 @@ Item {
                 }
             }
 
-            Menus.QsSection {
-                width: parent.width
-                label: qsTr("Convert & install")
-                visible: Stash.hasMedia || Stash.hasInstallable
-            }
+            Menus.QsSection { width: parent.width; label: qsTr("Convert & install") }
 
             ActionButton {
                 width: parent.width
-                visible: Stash.hasMedia
-                label: qsTr("Compress media")
+                label: qsTr("Compress video…")
                 icon: "compress"
-                enabled: Stash.taskState === "idle"
-                onTapped: Stash.requestCompress(root.monitorName, root.surfaceId)
+                onTapped: Stash.compressPick()
             }
             ActionButton {
                 width: parent.width
-                visible: Stash.hasInstallable
-                label: qsTr("Install package")
+                label: qsTr("Install app…")
                 icon: "install_desktop"
-                enabled: Stash.taskState === "idle"
-                onTapped: Stash.requestInstall(root.monitorName, root.surfaceId)
-            }
-
-            Rectangle {
-                width: parent.width
-                visible: Stash.taskState !== "idle"
-                radius: Theme.radiusWidget
-                color: Theme.surface
-                border.width: Theme.borderWidth
-                border.color: Theme.outline
-                implicitHeight: taskCol.implicitHeight + 2 * (12 * root.s)
-                SumiEdge {}
-
-                Column {
-                    id: taskCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 12 * root.s
-                    spacing: 8 * root.s
-
-                    Text {
-                        width: parent.width
-                        wrapMode: Text.WordWrap
-                        text: Stash.taskState === "confirm"
-                                ? (Stash.task === "install" ? qsTr("Install the stashed package?") : qsTr("Compress stashed media?"))
-                            : Stash.taskState === "running" ? qsTr("Working…")
-                            : Stash.taskState === "error" ? (Stash.taskMsg.length > 0 ? Stash.taskMsg : qsTr("Failed"))
-                            : qsTr("Done")
-                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
-                        font.family: Theme.fontPrimary
-                        font.pixelSize: 9 * root.s
-                    }
-                    Row {
-                        spacing: 8 * root.s
-                        visible: Stash.taskState === "confirm"
-                        ActionButton {
-                            width: 110 * root.s
-                            label: qsTr("Confirm")
-                            primary: true
-                            onTapped: Stash.confirmTask()
-                        }
-                        ActionButton {
-                            width: 90 * root.s
-                            label: qsTr("Cancel")
-                            onTapped: Stash.dismissTask()
-                        }
-                    }
-                    ActionButton {
-                        visible: Stash.taskState === "done" || Stash.taskState === "error"
-                        width: 90 * root.s
-                        label: qsTr("Dismiss")
-                        onTapped: Stash.dismissTask()
-                    }
-                }
+                onTapped: Stash.installPick()
             }
 
             Item { width: 1; height: 6 * root.s }

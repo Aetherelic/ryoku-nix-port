@@ -314,6 +314,12 @@ package() {
   # the mimeapps map is materialized, so the mapping reaches installs on update.
   install -Dm644 "$_repo/ryoku/apps/nvim/ryoku-nvim.desktop" \
     "$pkgdir/usr/share/applications/ryoku-nvim.desktop"
+  # Compress video / Install app: launcher-searchable tools that open a
+  # multi-file picker and run the stash compress/install helpers on the pick.
+  install -Dm644 "$_repo/ryoku/apps/tools/compress-video.desktop" \
+    "$pkgdir/usr/share/applications/compress-video.desktop"
+  install -Dm644 "$_repo/ryoku/apps/tools/install-app.desktop" \
+    "$pkgdir/usr/share/applications/install-app.desktop"
   install -Dm644 "$_repo/ryoku/apps/mimeapps.list" "$cfg/mimeapps.list"
 
   # the qylock lockscreen bundle + its installer, so doctor can install or
