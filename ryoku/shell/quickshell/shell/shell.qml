@@ -53,7 +53,7 @@ ShellRoot {
     // Construct the shared services (ShellState's per-monitor state now, heavier
     // providers as surfaces migrate) at load rather than on the first keybind.
     ServiceLoader {
-        services: [ShellState]
+        services: [ShellState, ScreenTime]
     }
 
     // One per-monitor surface stack. Each screen gets a Scope carrying its

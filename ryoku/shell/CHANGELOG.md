@@ -3,17 +3,17 @@
 ## Unreleased
 
 ### Changed
-- **Super+T opens a feature sidebar, and the file stash is gone.** The old
-  stash board (the file hoard, its LocalSend send and receive, and the
-  drag-a-file-to-the-edge stash) is retired. Super+T now opens a full-height
-  right sidebar with a left activity rail. Widgets is a dashboard: the clock,
-  date and weather, quick toggles, now playing, the CPU / memory / temperature
-  gauges and the month calendar, all built from the same components as the
-  quick-settings home so it reads in one language. Tools keeps the download,
-  convert and install backends: paste a link to pull it in with cobalt, watch
-  the queue, see what landed, then compress media or install a package. The
-  rail has room for more tabs (AI chat and the like) later
-  (`quickshell/shell/modules/bar/panel/`, `services/Stash.qml`).
+- **Super+T opens a feature sidebar with local screen time.** The old file
+  stash (the board, its LocalSend send and receive, and the drag-to-edge stash)
+  is retired. Super+T now opens a framed floating card with a left activity
+  rail. Usage is a screen-time overview built from a local tracker that samples
+  the focused app every few seconds and keeps the day history under
+  ~/.local/state/ryoku (nothing leaves the box): today's active total, a
+  seven-day trend, and the apps used most with their icons. Tools keeps the
+  download, convert and install backends: paste a link to pull it in with
+  cobalt, watch the queue, then compress media or install a package. The rail
+  leaves room for more tabs (AI chat and the like) later
+  (`quickshell/shell/modules/bar/panel/`, `services/ScreenTime.qml`).
 - **The desktop shell now runs as a single Quickshell instance.** The frame bar
   and its menus, the launcher, overview, board, wallpaper, visualiser, on-screen
   displays, notifications, capture, and the desktop widgets were seven separate

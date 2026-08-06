@@ -39,3 +39,4 @@ singleton Stash Stash.qml
 singleton Sysinfo Sysinfo.qml
 singleton BluetoothDiscovery BluetoothDiscovery.qml
 singleton BtLink BtLink.qml
+singleton ScreenTime ScreenTime.qml

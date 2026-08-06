@@ -65,8 +65,8 @@ Item {
     readonly property var surfaces: {
         const src = Config.normalizedFrameBars.surfaces || ({});
         const out = [];
-        // The config surface (the feature panel) is a full-span welded sidebar.
-        for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: true }, src[id]));
+        // The config surface (the feature panel) is a framed floating card.
+        for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: false }, src[id]));
         out.push(
             { id: "voice", kind: "voice", anchor: "bottom", minWidth: 380 },
             { id: "keyring", kind: "keyring", anchor: "top", minWidth: 420 },

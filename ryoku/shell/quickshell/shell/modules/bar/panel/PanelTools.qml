@@ -18,6 +18,7 @@ Item {
     property string surfaceId: ""
 
     property string urlText: ""
+    implicitHeight: col.implicitHeight + 24 * root.s
 
     function startDownload() {
         if (root.urlText.trim().length === 0)
@@ -46,7 +47,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: 18 * root.s
         anchors.rightMargin: 18 * root.s
-        anchors.topMargin: 20 * root.s
+        anchors.topMargin: 16 * root.s
         anchors.bottomMargin: 8 * root.s
         contentWidth: width
         contentHeight: col.implicitHeight
@@ -57,7 +58,7 @@ Item {
         Column {
             id: col
             width: parent.width
-            spacing: 12 * root.s
+            spacing: 10 * root.s
 
             Menus.QsSection { width: parent.width; label: qsTr("Download") }
 
