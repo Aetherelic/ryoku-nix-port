@@ -253,6 +253,7 @@ Item {
             manager: root.manager
             record: root.record
             off: root.recordOff
+            page: root.recordPage
             anchor: root.anchor
             menuOpen: root.menuOpen
             triggerAlong: root.triggerAlong

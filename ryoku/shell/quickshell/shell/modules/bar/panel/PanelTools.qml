@@ -14,8 +14,7 @@ Item {
 
     property real s: 1
     property bool open: false
-    property string monitorName: ""
-    property string surfaceId: ""
+    signal pick(string mode)
 
     property string urlText: ""
     implicitHeight: col.implicitHeight + 24 * root.s
@@ -356,13 +355,13 @@ Item {
                 width: parent.width
                 label: qsTr("Compress video…")
                 icon: "compress"
-                onTapped: Stash.compressPick()
+                onTapped: root.pick("compress")
             }
             ActionButton {
                 width: parent.width
                 label: qsTr("Install app…")
                 icon: "install_desktop"
-                onTapped: Stash.installPick()
+                onTapped: root.pick("install")
             }
 
             Item { width: 1; height: 6 * root.s }

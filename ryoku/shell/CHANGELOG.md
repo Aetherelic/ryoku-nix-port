@@ -15,6 +15,17 @@
   Convert/Install compress media or install a package
   (`quickshell/shell/modules/bar/panel/`, `services/ScreenTime.qml`,
   `services/Stash.qml`, `hyprland/scripts/stash-cobalt.sh`).
+- **Compress video and Install app open an in-shell file picker.** Picking files
+  for the Tools tab's Compress and Install (and their searchable launcher
+  entries) no longer spawns an external zenity dialog that closed the sidebar.
+  A paper-and-ink file browser opens inside the sidebar itself: navigate folders,
+  multi-select, and run, with the sidebar never closing. The launcher entries
+  deep-link straight to it (`stash#compress`, `stash#install`), the picker hands
+  the chosen paths to the ffmpeg compressor and the package installer, and the
+  zenity dependency plus the scripts' `--pick` mode are retired
+  (`quickshell/shell/modules/bar/panel/PanelPicker.qml`, `panel/Panel.qml`,
+  `panel/PanelTools.qml`, `services/Stash.qml`,
+  `apps/tools/compress-video.desktop`, `apps/tools/install-app.desktop`).
 - **The desktop shell now runs as a single Quickshell instance.** The frame bar
   and its menus, the launcher, overview, board, wallpaper, visualiser, on-screen
   displays, notifications, capture, and the desktop widgets were seven separate

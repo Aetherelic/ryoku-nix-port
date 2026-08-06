@@ -61,9 +61,6 @@ xorg-xwayland
 hyprpolkitagent
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
-# zenity: the GTK multi-file picker the shell's Compress video / Install app
-# tools open (uses the portal-gtk file chooser above).
-zenity
 xdg-user-dirs
 qt6-wayland
 qt6ct

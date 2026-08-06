@@ -421,4 +421,14 @@ ShellRoot {
         description: "Open the screenshot capture menu on the active monitor"
         onPressed: ShellState.requestSurfaceActive("screenshot", undefined)
     }
+    CustomShortcut {
+        name: "compress"
+        description: "Open the feature sidebar's file picker to compress media"
+        onPressed: ShellState.requestSurfaceActive("stash#compress", undefined)
+    }
+    CustomShortcut {
+        name: "install"
+        description: "Open the feature sidebar's file picker to install a package"
+        onPressed: ShellState.requestSurfaceActive("stash#install", undefined)
+    }
 }

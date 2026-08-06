@@ -13,6 +13,8 @@ Popout {
     property var record: null
     property string anchor: "top"
     property bool menuOpen: false
+    // Initial deep-link page from the manager's open record (e.g. stash#compress).
+    property string page: ""
     // Live "voice opened in its inactive state" flag from the manager record
     // (the static config record does not carry it). Gates the dictation capture
     // and the surface's off note.
@@ -182,6 +184,7 @@ Popout {
             open: root.effectiveOpen
             monitorName: root.manager ? root.manager.monitorName : ""
             surfaceId: root.record ? root.record.id : ""
+            page: root.page
         }
     }
 }

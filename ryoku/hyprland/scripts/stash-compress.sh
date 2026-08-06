@@ -45,17 +45,10 @@ encode() {
   esac
 }
 
-# targets: --pick opens a multi-file dialog; explicit paths use those; no args
-# falls back to every regular file directly in the stash.
+# targets: explicit paths (from the in-shell picker) use those; no args falls
+# back to every regular file directly in the stash.
 declare -a targets=()
 case "${1:-}" in
-  --pick)
-    mapfile -t targets < <(zenity --file-selection --multiple --separator=$'\n' \
-      --title="Compress video or image" \
-      --file-filter="Video and images | *.mp4 *.mkv *.webm *.mov *.avi *.m4v *.png *.jpg *.jpeg *.webp *.bmp" \
-      --file-filter="All files | *" 2>/dev/null)
-    [ "${#targets[@]}" -gt 0 ] || exit 0
-    ;;
   "")
     if [ ! -d "$STASH" ]; then
       notify "Stash folder not found" dialog-error

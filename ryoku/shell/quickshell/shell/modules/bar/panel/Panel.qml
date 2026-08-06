@@ -4,10 +4,11 @@ import QtQuick
 import shell.services
 import "../../../components"
 
-// Feature sidebar behind Super+T: a framed floating card with a left activity
-// rail over pluggable pages (Usage, Tools; room for more). The card keeps its
-// roomy scaled footprint; only the text and icons inside read compact. It hugs
-// its content height so it never leaves a dead half-panel.
+// Feature sidebar behind Super+S: a framed floating card with a left activity
+// rail over pluggable pages (Usage, Tools). The Tools "Compress video" and
+// "Install app" tools open an in-shell file picker that takes over the content
+// area without ever closing the sidebar. Fixed reference px inside; the card
+// hugs its content.
 Item {
     id: root
 
@@ -15,9 +16,16 @@ Item {
     property bool open: false
     property string monitorName: ""
     property string surfaceId: ""
+    // A deep-link fragment (stash#compress / stash#install) opens straight into
+    // that picker.
+    property string page: ""
+
+    // "" | "compress" | "install": the in-shell file picker takes over content.
+    property string picking: ""
 
     implicitWidth: 428 * root.s
-    readonly property real contentH: contentLoader.item ? contentLoader.item.implicitHeight : 420 * root.s
+    readonly property real contentH: root.picking !== "" ? picker.implicitHeight
+        : (contentLoader.item ? contentLoader.item.implicitHeight : 420 * root.s)
     implicitHeight: Math.max(320 * root.s, Math.min(792 * root.s, root.contentH))
 
     // Adding a feature is one row here plus one branch in the Loader below.
@@ -26,6 +34,15 @@ Item {
         { id: "tools", icon: "download", label: qsTr("Tools") }
     ]
     property string activeTab: "usage"
+
+    onPageChanged: root.applyPage()
+    Component.onCompleted: root.applyPage()
+    function applyPage() {
+        if (root.page === "compress" || root.page === "install") {
+            root.activeTab = "tools";
+            root.picking = root.page;
+        }
+    }
 
     // ── frame ──
     Rectangle {
@@ -67,7 +84,7 @@ Item {
                 delegate: Item {
                     id: tab
                     required property var modelData
-                    readonly property bool on: root.activeTab === modelData.id
+                    readonly property bool on: root.activeTab === modelData.id && root.picking === ""
                     width: 44 * root.s
                     height: 48 * root.s
 
@@ -112,7 +129,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.activeTab = tab.modelData.id
+                        onClicked: { root.picking = ""; root.activeTab = tab.modelData.id; }
                     }
                 }
             }
@@ -131,14 +148,30 @@ Item {
         Component { id: usagePage; PanelOverview { s: root.s; open: root.open } }
         Component {
             id: toolsPage
-            PanelTools { s: root.s; open: root.open; monitorName: root.monitorName; surfaceId: root.surfaceId }
+            PanelTools { s: root.s; open: root.open; onPick: m => root.picking = m }
         }
 
         Loader {
             id: contentLoader
             anchors.fill: parent
+            active: root.picking === ""
+            visible: root.picking === ""
             sourceComponent: root.activeTab === "usage" ? usagePage
                 : root.activeTab === "tools" ? toolsPage : null
+        }
+
+        PanelPicker {
+            id: picker
+            anchors.fill: parent
+            visible: root.picking !== ""
+            s: root.s
+            mode: root.picking === "install" ? "install" : "compress"
+            onCancelled: root.picking = ""
+            onConfirmed: paths => {
+                if (root.picking === "install") Stash.install(paths);
+                else Stash.compress(paths);
+                root.picking = "";
+            }
         }
     }
 }

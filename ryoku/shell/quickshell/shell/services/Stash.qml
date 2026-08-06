@@ -53,14 +53,15 @@ Singleton {
     }
 
     // ── Compress / install ──────────────────────────────────────────────
-    // Both open a multi-file picker (zenity) and process the selection; the
-    // sidebar buttons and the launcher's Compress video / Install app entries
-    // run the same --pick scripts.
-    function compressPick() {
-        Quickshell.execDetached(["bash", root.scriptDir + "/stash-compress.sh", "--pick"]);
+    // Run the helpers on an explicit set of files chosen in the in-shell picker
+    // (PanelPicker); the launcher entries deep-link to the same picker.
+    function compress(paths) {
+        if (!paths || paths.length === 0) return;
+        Quickshell.execDetached(["bash", root.scriptDir + "/stash-compress.sh"].concat(paths));
     }
-    function installPick() {
-        Quickshell.execDetached(["bash", root.scriptDir + "/stash-install.sh", "--pick"]);
+    function install(paths) {
+        if (!paths || paths.length === 0) return;
+        Quickshell.execDetached(["bash", root.scriptDir + "/stash-install.sh"].concat(paths));
     }
 
     // ── Cobalt download + remux ─────────────────────────────────────────

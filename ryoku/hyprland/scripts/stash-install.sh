@@ -404,17 +404,10 @@ install_one() {
 
 # --- main ------------------------------------------------------------------
 
-# targets: --pick opens a multi-file dialog; explicit paths use those; no args
-# falls back to every installable file in the stash.
+# targets: explicit paths (from the in-shell picker) use those; no args falls
+# back to every installable file in the stash.
 targets=()
 case "${1:-}" in
-  --pick)
-    mapfile -t targets < <(zenity --file-selection --multiple --separator=$'\n' \
-      --title="Install app" \
-      --file-filter="App packages | *.AppImage *.appimage *.pkg.tar.zst *.pkg.tar.xz *.deb *.rpm *.flatpak *.tar.gz *.tgz *.tar.xz *.tar.bz2 *.tar.zst *.tar" \
-      --file-filter="All files | *" 2>/dev/null)
-    [ "${#targets[@]}" -gt 0 ] || exit 0
-    ;;
   "")
     shopt -s nullglob
     for f in "$STASH"/*; do
