@@ -92,3 +92,8 @@ hl.bind(K("XF86AudioPrev"),        hl.dsp.exec_cmd("playerctl previous"),       
 -- Brightness keys (laptop backlight + external DDC monitors)
 hl.bind(K("XF86MonBrightnessUp"),   hl.dsp.exec_cmd("ryoku-cmd-brightness +5"), { locked = true, repeating = true })
 hl.bind(K("XF86MonBrightnessDown"), hl.dsp.exec_cmd("ryoku-cmd-brightness -5"), { locked = true, repeating = true })
+
+-- Touchpad lock (the FN touchpad key)
+hl.bind(K("XF86TouchpadToggle"), hl.dsp.exec_cmd("ryoku-cmd-touchpad toggle"), { locked = true }) -- toggle the touchpad
+hl.bind(K("XF86TouchpadOn"),     hl.dsp.exec_cmd("ryoku-cmd-touchpad on"),     { locked = true }) -- enable the touchpad
+hl.bind(K("XF86TouchpadOff"),    hl.dsp.exec_cmd("ryoku-cmd-touchpad off"),    { locked = true }) -- disable the touchpad

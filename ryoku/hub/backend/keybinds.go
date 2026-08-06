@@ -195,6 +195,9 @@ var keyNames = map[string]string{
 	"XF86AudioPlay":        "Play",
 	"XF86AudioNext":        "Next",
 	"XF86AudioPrev":        "Prev",
+	"XF86TouchpadToggle":   "Touchpad",
+	"XF86TouchpadOn":       "Touchpad On",
+	"XF86TouchpadOff":      "Touchpad Off",
 }
 
 func prettyKey(tok string) string {

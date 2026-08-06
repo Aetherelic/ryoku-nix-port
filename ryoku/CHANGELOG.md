@@ -53,6 +53,13 @@
   (Portuguese `Padrão|Plano|Adaptativo`, `arredondado|plano`); short sets unchanged.
 
 ### Added
+- **The FN touchpad-lock key now toggles the touchpad.** New
+  `scripts/ryoku-cmd-touchpad`, bound to `XF86TouchpadToggle`/`On`/`Off` in
+  `modules/binds`, enables or disables every touchpad through `hyprctl eval`
+  (`hl.device{ enabled }`, since the Lua config parser rejects the old
+  `hyprctl keyword` device path), so the one hardware key that did nothing now
+  works like the volume and brightness keys. The Ryoku Settings Keybinds legend
+  reads the new binds live.
 - **Brightness keys work on laptops AND desktop monitors.** New
   `scripts/ryoku-cmd-brightness`, bound to `XF86MonBrightnessUp`/`Down` in
   `modules/binds`, drives the laptop backlight through `brightnessctl` and every
