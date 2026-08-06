@@ -7,7 +7,8 @@ import "../../../components"
 
 // Screen-time overview: today's active total, a seven-day trend, and the apps
 // used most, all from the local ScreenTime tracker. Data only, no toggles or
-// media (those live in quick settings).
+// media (those live in quick settings). The layout keeps the sidebar's roomy
+// scale; only the type and icons read compact.
 Item {
     id: root
 
@@ -49,7 +50,7 @@ Item {
                         text: "SCREEN TIME"
                         color: root.dim
                         font.family: Theme.fontPrimary
-                        font.pixelSize: 10 * root.s
+                        font.pixelSize: 6.5 * root.s
                         font.weight: Font.DemiBold
                         font.letterSpacing: 2
                     }
@@ -59,7 +60,7 @@ Item {
                         text: Qt.formatDate(clock.date, "ddd, MMM d")
                         color: root.dim
                         font.family: Theme.mono
-                        font.pixelSize: 10 * root.s
+                        font.pixelSize: 6.5 * root.s
                     }
                 }
 
@@ -67,14 +68,14 @@ Item {
                     text: ScreenTime.fmtDuration(ScreenTime.activeToday)
                     color: root.ink
                     font.family: Theme.mono
-                    font.pixelSize: 32 * root.s
+                    font.pixelSize: 18 * root.s
                     font.weight: Font.Medium
                 }
                 Text {
                     text: qsTr("active today")
                     color: root.dim
                     font.family: Theme.fontPrimary
-                    font.pixelSize: 12 * root.s
+                    font.pixelSize: 8 * root.s
                 }
             }
 
@@ -87,7 +88,7 @@ Item {
                     text: "THIS WEEK"
                     color: root.dim
                     font.family: Theme.fontPrimary
-                    font.pixelSize: 10 * root.s
+                    font.pixelSize: 6.5 * root.s
                     font.weight: Font.DemiBold
                     font.letterSpacing: 2
                 }
@@ -126,7 +127,7 @@ Item {
                                 text: cell.modelData.label
                                 color: cell.modelData.isToday ? root.ink : root.dim
                                 font.family: Theme.mono
-                                font.pixelSize: 10 * root.s
+                                font.pixelSize: 6.5 * root.s
                                 font.weight: cell.modelData.isToday ? Font.DemiBold : Font.Normal
                             }
                         }
@@ -143,7 +144,7 @@ Item {
                     text: "MOST USED"
                     color: root.dim
                     font.family: Theme.fontPrimary
-                    font.pixelSize: 10 * root.s
+                    font.pixelSize: 6.5 * root.s
                     font.weight: Font.DemiBold
                     font.letterSpacing: 2
                 }
@@ -155,7 +156,7 @@ Item {
                     wrapMode: Text.WordWrap
                     color: root.dim
                     font.family: Theme.fontPrimary
-                    font.pixelSize: 12 * root.s
+                    font.pixelSize: 8 * root.s
                 }
 
                 Repeater {
@@ -171,8 +172,8 @@ Item {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.topMargin: 2 * root.s
-                            width: 22 * root.s
-                            height: 22 * root.s
+                            width: 15 * root.s
+                            height: 15 * root.s
                             visible: appRow.modelData.icon !== ""
                             source: appRow.modelData.icon
                             sourceSize.width: width * 2
@@ -183,9 +184,9 @@ Item {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.topMargin: 2 * root.s
-                            width: 22 * root.s
-                            height: 22 * root.s
-                            radius: 6 * root.s
+                            width: 15 * root.s
+                            height: 15 * root.s
+                            radius: 5 * root.s
                             visible: appRow.modelData.icon === ""
                             color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08)
                             Text {
@@ -193,7 +194,7 @@ Item {
                                 text: appRow.modelData.name.charAt(0).toUpperCase()
                                 color: root.dim
                                 font.family: Theme.mono
-                                font.pixelSize: 12 * root.s
+                                font.pixelSize: 8 * root.s
                             }
                         }
 
@@ -209,7 +210,7 @@ Item {
                             elide: Text.ElideRight
                             color: root.ink
                             font.family: Theme.fontPrimary
-                            font.pixelSize: 13 * root.s
+                            font.pixelSize: 8.5 * root.s
                         }
                         Text {
                             id: appTime
@@ -219,7 +220,7 @@ Item {
                             text: ScreenTime.fmtDuration(appRow.modelData.seconds)
                             color: root.dim
                             font.family: Theme.mono
-                            font.pixelSize: 12 * root.s
+                            font.pixelSize: 7.5 * root.s
                         }
 
                         Rectangle {

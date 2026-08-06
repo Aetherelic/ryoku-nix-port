@@ -64,7 +64,7 @@ Item {
 
             Rectangle {
                 width: parent.width
-                height: 46 * root.s
+                height: 26 * root.s
                 radius: Theme.radiusWidget
                 color: Theme.surface
                 border.width: Theme.borderWidth
@@ -80,7 +80,7 @@ Item {
 
                     MaterialIcon {
                         anchors.verticalCenter: parent.verticalCenter
-                        font.pixelSize: 18 * root.s
+                        font.pixelSize: 13 * root.s
                         text: "link"
                         color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                     }
@@ -92,7 +92,7 @@ Item {
                         onTextChanged: root.urlText = text
                         color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                         font.family: Theme.fontPrimary
-                        font.pixelSize: Theme.fontMd * root.s
+                        font.pixelSize: 10.5 * root.s
                         clip: true
                         selectByMouse: true
                         onAccepted: root.startDownload()
@@ -119,7 +119,7 @@ Item {
                         required property var modelData
                         readonly property bool on: Stash.dlMode === modelData.id
                         width: parent.segW
-                        height: 34 * root.s
+                        height: 22 * root.s
                         radius: Theme.radiusWidget
                         color: on ? Theme.primary : Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.05)
                         border.width: 1
@@ -132,7 +132,7 @@ Item {
                             color: parent.on ? Theme.inkOn(Theme.primary, Theme.onPrimary)
                                 : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                             font.family: Theme.fontPrimary
-                            font.pixelSize: Theme.fontSm * root.s
+                            font.pixelSize: 9 * root.s
                             font.weight: parent.on ? Font.DemiBold : Font.Normal
                         }
                         MouseArea {
@@ -163,7 +163,7 @@ Item {
                     delegate: Rectangle {
                         required property var model
                         width: parent.width
-                        height: 42 * root.s
+                        height: 24 * root.s
                         radius: Theme.radiusWidget
                         color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.05)
 
@@ -188,7 +188,7 @@ Item {
                                     elide: Text.ElideRight
                                     color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                     font.family: Theme.fontPrimary
-                                    font.pixelSize: Theme.fontSm * root.s
+                                    font.pixelSize: 9 * root.s
                                 }
                                 Text {
                                     id: qState
@@ -197,7 +197,7 @@ Item {
                                     color: model.state === "error" ? Theme.vermLit
                                         : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                                     font.family: Theme.mono
-                                    font.pixelSize: (Theme.fontSm - 2) * root.s
+                                    font.pixelSize: 8 * root.s
                                 }
                             }
                             Rectangle {
@@ -227,7 +227,7 @@ Item {
                 wrapMode: Text.WordWrap
                 color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                 font.family: Theme.fontPrimary
-                font.pixelSize: Theme.fontSm * root.s
+                font.pixelSize: 9 * root.s
             }
 
             Column {
@@ -240,7 +240,7 @@ Item {
                         id: fileRow
                         required property var model
                         width: parent.width
-                        height: 44 * root.s
+                        height: 24 * root.s
                         radius: Theme.radiusWidget
                         color: rowArea.containsMouse
                             ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08)
@@ -265,7 +265,7 @@ Item {
 
                             MaterialIcon {
                                 anchors.verticalCenter: parent.verticalCenter
-                                font.pixelSize: 18 * root.s
+                                font.pixelSize: 13 * root.s
                                 text: root.fileGlyph(fileRow.model.fileName)
                                 color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                             }
@@ -276,7 +276,7 @@ Item {
                                 elide: Text.ElideMiddle
                                 color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                 font.family: Theme.fontPrimary
-                                font.pixelSize: Theme.fontSm * root.s
+                                font.pixelSize: 9 * root.s
                             }
                         }
 
@@ -285,7 +285,7 @@ Item {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.rightMargin: 10 * root.s
-                            font.pixelSize: 17 * root.s
+                            font.pixelSize: 13 * root.s
                             text: "close"
                             color: Theme.inkOn(Theme.effectiveSurface, rmArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant, 3.0)
                             MouseArea {
@@ -352,7 +352,7 @@ Item {
                             : qsTr("Done")
                         color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                         font.family: Theme.fontPrimary
-                        font.pixelSize: Theme.fontSm * root.s
+                        font.pixelSize: 9 * root.s
                     }
                     Row {
                         spacing: 8 * root.s
@@ -390,7 +390,7 @@ Item {
         property bool primary: false
         signal tapped()
 
-        implicitHeight: 42 * root.s
+        implicitHeight: 24 * root.s
         opacity: btn.enabled ? 1 : 0.4
 
         Rectangle {
@@ -411,7 +411,7 @@ Item {
                 MaterialIcon {
                     visible: btn.icon.length > 0
                     anchors.verticalCenter: parent.verticalCenter
-                    font.pixelSize: 18 * root.s
+                    font.pixelSize: 13 * root.s
                     text: btn.icon
                     color: btn.primary ? Theme.inkOn(Theme.primary, Theme.onPrimary)
                         : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
@@ -422,7 +422,7 @@ Item {
                     color: btn.primary ? Theme.inkOn(Theme.primary, Theme.onPrimary)
                         : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                     font.family: Theme.fontPrimary
-                    font.pixelSize: Theme.fontSm * root.s
+                    font.pixelSize: 9 * root.s
                     font.weight: Font.DemiBold
                 }
             }

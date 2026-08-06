@@ -5,8 +5,9 @@ import shell.services
 import "../../../components"
 
 // Feature sidebar behind Super+T: a framed floating card with a left activity
-// rail over pluggable pages (Usage, Tools; room for more). The card hugs its
-// content height so it never leaves a dead half-panel.
+// rail over pluggable pages (Usage, Tools; room for more). The card keeps its
+// roomy scaled footprint; only the text and icons inside read compact. It hugs
+// its content height so it never leaves a dead half-panel.
 Item {
     id: root
 
@@ -83,7 +84,7 @@ Item {
 
                         MaterialIcon {
                             anchors.centerIn: parent
-                            font.pixelSize: 19 * root.s
+                            font.pixelSize: 15 * root.s
                             text: tab.modelData.icon
                             fill: tab.on ? 1 : 0
                             color: tab.on ? Theme.inkOn(Theme.primary, Theme.onPrimary)
@@ -99,7 +100,7 @@ Item {
                         color: tab.on ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                             : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                         font.family: Theme.fontPrimary
-                        font.pixelSize: 8.5 * root.s
+                        font.pixelSize: 7 * root.s
                         font.weight: tab.on ? Font.DemiBold : Font.Normal
                     }
 
