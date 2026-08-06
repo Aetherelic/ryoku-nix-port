@@ -132,5 +132,5 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onHoveredChanged: if (hovered) cell.entered()
     }
-    TapHandler { onTapped: cell.chosen() }
+    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: cell.chosen() }
 }

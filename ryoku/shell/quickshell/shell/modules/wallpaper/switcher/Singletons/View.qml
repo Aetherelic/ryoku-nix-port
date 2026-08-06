@@ -10,16 +10,23 @@ import Quickshell
 Singleton {
     id: root
 
-    // "filmstrip" (tanzaku) | "carousel" (skewed slices) | "grid" | "drift" (two-line)
-    property string layout: "filmstrip"
-    readonly property var layouts: ["filmstrip", "carousel", "grid", "drift"]
+    // "strips" (hero preview + shelf) | "hearthstone" (fanned cards) |
+    // "drift" (two drifting belts) | "grid" (scan)
+    property string layout: "strips"
+    readonly property var layouts: ["strips", "hearthstone", "drift", "grid"]
     function cycleLayout() {
         var i = root.layouts.indexOf(root.layout);
         root.layout = root.layouts[(i + 1) % root.layouts.length];
     }
     function layoutLabel(id) {
-        return id === "filmstrip" ? "Filmstrip" : id === "carousel" ? "Carousel" : id === "grid" ? "Grid" : "Drift";
+        return id === "grid" ? "Grid"
+            : id === "hearthstone" ? "Hearthstone"
+            : id === "drift" ? "Drift" : "Strips";
     }
+
+    // apply the focused wallpaper to the desktop while browsing (live canvas).
+    // off = the strip is the preview and the pick applies only on keep.
+    property bool livePreview: false
 
     // "colour" (hue buckets, the scan's own order) | "recent" (mtime) | "name"
     property string sort: "colour"

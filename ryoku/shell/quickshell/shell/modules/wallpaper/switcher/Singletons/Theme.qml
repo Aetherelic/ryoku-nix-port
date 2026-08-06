@@ -124,4 +124,10 @@ Singleton {
     readonly property int   islandRadius: 16
     readonly property int   tileRadius:   10
     readonly property string ui: "Space Grotesk"
+
+    // inversion is Ryoku's only emphasis: an active plate flips to bone with
+    // dark ink on it. lineStrong is the overlay-separating hairline.
+    readonly property color bone:       onSurface
+    readonly property color inkOnBone:  surface
+    readonly property color lineStrong: Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.42)
 }

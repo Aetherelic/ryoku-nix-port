@@ -14,8 +14,11 @@ Item {
     signal picked(int g)
 
     readonly property int chip: Math.round(22 * s)
+    implicitWidth: rowInner.width
+    implicitHeight: chip
 
     Row {
+        id: rowInner
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         spacing: Math.round(7 * strip.s)
@@ -57,7 +60,7 @@ Item {
                 border.color: sw.on ? Theme.seal : Qt.rgba(0, 0, 0, 0.35)
                 Behavior on opacity { NumberAnimation { duration: Motion.fast } }
                 HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: strip.picked(sw.modelData) }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: strip.picked(sw.modelData) }
             }
         }
     }

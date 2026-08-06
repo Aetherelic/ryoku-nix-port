@@ -2,14 +2,13 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// The switcher body: a bottom-centre paper card in the desktop's own language
-// (near-black paper, bone ink, a single red seal). A prominent Wallpapers |
-// Themes tab splits the two so neither clutters the other; a control row filters
-// by type and colour, sorts, switches layout, and takes a type-to-search; one
-// focused view (filmstrip / carousel / grid) fills the stage. Arrows or a wheel
-// move the focus, Enter or a click sets it, Tab flips tabs, Esc clears the search
-// then closes. The backend (Walls / Themes / index.sh / ryoku-shell wallpaper)
-// is untouched; this is only how it is shown.
+// Wallpaper switcher — a shelf of tall wallpaper columns filling the screen and a
+// single compact instrument pill floating at top-centre (力 · mode · layout · the
+// colour rail · sort · search · counter). No card, no bottom chrome. It runs the
+// live-canvas model: browsing applies the focused wallpaper to the real desktop
+// (on a short settle), so the screen itself is the preview; Enter or a click
+// keeps the pick, Esc reverts to whatever was on screen when it opened. Themes
+// preview the same way. The backend (Walls / Themes / ryoku-shell) is untouched.
 Item {
     id: body
 
@@ -17,8 +16,7 @@ Item {
     required property bool active
     signal requestClose()
 
-    // transient per-open state (the body unloads on close); the layout + sort
-    // preference lives in the View singleton so it survives a reopen.
+    // ── mode / filter / search (transient per open); layout + sort live in View ──
     property string mode: "walls"            // walls | themes
     property string typeFilter: "all"        // all | image | live
     property int colorFilter: -1             // -1 = every colour, else a group id
@@ -26,6 +24,7 @@ Item {
     property int selIndex: 0
 
     readonly property bool themesMode: body.mode === "themes"
+    property string drawer: ""               // "" | "layout" | "filter" popover
     readonly property bool following: Themes.following
 
     function norm(t) { return String(t || "").toLowerCase(); }
@@ -52,7 +51,7 @@ Item {
     }
     readonly property var wallShown: body.sorted(body.wallBase)
 
-    // themes: label search only (no colour / mtime axis).
+    // themes: label search only.
     readonly property var themeShown: {
         var q = body.norm(body.search);
         if (q.length === 0) return Themes.themes;
@@ -64,7 +63,7 @@ Item {
         ? body.shown[body.selIndex] : null
     readonly property string activeKey: (body.themesMode ? Themes.active : Walls.current) || ""
 
-    // colour groups present under the current type filter (walls strip).
+    // colour groups present under the current type filter.
     readonly property var wallGroups: {
         var seen = ({});
         var es = Walls.entries;
@@ -79,13 +78,66 @@ Item {
         return out;
     }
 
-    // keep the focus in range as filters shrink the list.
-    onShownChanged: if (body.selIndex >= body.shown.length)
-        body.selIndex = Math.max(0, body.shown.length - 1)
+    // ── live preview: snapshot on open, apply on settle, revert on cancel ──
+    property string originalWall: ""
+    property string originalTheme: ""
+    property bool touchedWall: false
+    property bool touchedTheme: false
+    property bool started: false
+
+    Component.onCompleted: {
+        body.originalWall = Walls.current;
+        body.originalTheme = Themes.active;
+        body.forceActiveFocus();
+    }
+
+    Timer {
+        id: previewTimer
+        interval: 190
+        onTriggered: body.applyPreview()
+    }
+    function schedulePreview() { if (View.livePreview) previewTimer.restart(); }
+    function applyPreview() {
+        var e = body.selEntry;
+        if (!e) return;
+        if (body.themesMode) {
+            Themes.apply(e.id);
+            body.touchedTheme = true;
+        } else {
+            Walls.apply(e.path);
+            body.touchedWall = true;
+        }
+    }
+    function commit() {                       // Enter / click a column: keep the pick
+        previewTimer.stop();
+        body.applyPreview();
+        body.requestClose();
+    }
+    function cancel() {                       // Esc: put back what was on screen
+        previewTimer.stop();
+        if (body.touchedWall && body.originalWall.length > 0)
+            Walls.apply(body.originalWall);
+        if (body.touchedTheme)
+            Themes.apply(body.originalTheme.length > 0 ? body.originalTheme : "Wallpaper");
+        body.requestClose();
+    }
+    function choose(i) { body.selIndex = i; body.commit(); }
+
+    function positionToActive() {
+        var arr = body.shown, idx = 0;
+        for (var i = 0; i < arr.length; i++) {
+            var hit = body.themesMode
+                ? (arr[i].id === (Themes.active.length > 0 ? Themes.active : body.originalTheme))
+                : (arr[i].path === Walls.current);
+            if (hit) { idx = i; break; }
+        }
+        body.selIndex = idx;
+    }
 
     function setMode(m) {
         if (body.mode === m) return;
-        body.mode = m; body.selIndex = 0; body.search = "";
+        body.mode = m; body.search = "";
+        body.positionToActive();
     }
     function setType(t) {
         if (body.typeFilter === t) return;
@@ -96,35 +148,43 @@ Item {
     }
     function moveSel(d) {
         if (body.shown.length === 0) return;
-        body.selIndex = Math.max(0, Math.min(body.shown.length - 1, body.selIndex + d));
+        var ni = Math.max(0, Math.min(body.shown.length - 1, body.selIndex + d));
+        if (ni === body.selIndex) return;
+        body.selIndex = ni;
+        body.schedulePreview();
     }
-    function apply(entry) {
-        if (!entry) return;
-        if (body.themesMode) {
-            if (body.following) return;
-            Themes.apply(entry.id);
-        } else {
-            Walls.apply(entry.path);
-        }
+    function focusAt(i) {
+        if (i === body.selIndex) return;
+        body.selIndex = i;
+        body.schedulePreview();
     }
     function toggleFollow() {
         if (body.following) {
-            if (body.selEntry) Themes.apply(body.selEntry.id);
+            if (body.selEntry) { Themes.apply(body.selEntry.id); body.touchedTheme = true; }
         } else {
-            Themes.apply("Wallpaper");
+            Themes.apply("Wallpaper"); body.touchedTheme = true;
         }
     }
 
     readonly property int hostCols: (host.item && host.item.columns) ? host.item.columns : 1
+    function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+    onShownChanged: {
+        if (!body.started && body.shown.length > 0) {
+            body.started = true;
+            body.positionToActive();
+        }
+        if (body.selIndex >= body.shown.length)
+            body.selIndex = Math.max(0, body.shown.length - 1);
+    }
 
     focus: true
-    Component.onCompleted: forceActiveFocus()
     Keys.onPressed: (e) => {
         if (e.key === Qt.Key_Escape) {
             if (body.search.length > 0) body.search = "";
-            else body.requestClose();
+            else body.cancel();
         } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
-            body.apply(body.selEntry);
+            body.commit();
         } else if (e.key === Qt.Key_Tab) {
             body.setMode(body.themesMode ? "walls" : "themes");
         } else if (e.key === Qt.Key_Left) {
@@ -147,316 +207,300 @@ Item {
         e.accepted = true;
     }
 
-    // ── a paper-and-ink chip: a hairline pill that lifts to the seal when on ──
-    component Chip: Rectangle {
-        id: chip
+    // ── a mode segment: bone plate + dark ink when on (inversion, the one accent) ──
+    component Seg: Item {
+        id: seg
         property string label: ""
-        property string glyph: ""
         property bool on: false
         signal clicked()
-        implicitWidth: chipRow.implicitWidth + Math.round(22 * body.s)
-        height: Math.round(30 * body.s)
-        radius: Math.round(9 * body.s)
-        color: chip.on ? Theme.fillActive : (chipHover.hovered ? Theme.fillHover : Theme.fillIdle)
-        border.width: 1
-        border.color: (chip.on || chipHover.hovered) ? Theme.seal : Theme.sep
-        Behavior on color { ColorAnimation { duration: Motion.fast } }
-        Behavior on border.color { ColorAnimation { duration: Motion.fast } }
-        Row {
-            id: chipRow
-            anchors.centerIn: parent
-            spacing: Math.round(6 * body.s)
+        implicitWidth: segTxt.implicitWidth + Math.round(20 * body.s)
+        implicitHeight: Math.round(26 * body.s)
+        Rectangle {
+            anchors.fill: parent
+            radius: Math.round(3 * body.s)
+            color: seg.on ? Theme.bone : (segHov.hovered ? Theme.fillHover : "transparent")
+            Behavior on color { ColorAnimation { duration: Motion.fast } }
             Text {
-                visible: chip.glyph.length > 0
-                anchors.verticalCenter: parent.verticalCenter
-                text: chip.glyph
-                color: (chip.on || chipHover.hovered) ? Theme.seal : Theme.sumi
-                font.family: Theme.mono
+                id: segTxt
+                anchors.centerIn: parent
+                text: seg.label
+                color: seg.on ? Theme.inkOnBone : (segHov.hovered ? Theme.onSurface : Theme.sumi)
+                font.family: Theme.ui
                 font.pixelSize: Math.round(12 * body.s)
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: chip.label
-                color: (chip.on || chipHover.hovered) ? Theme.seal : Theme.onSurface
-                font.family: Theme.mono
-                font.pixelSize: Math.round(12 * body.s)
-                font.letterSpacing: 0.5
-                font.weight: chip.on ? Font.Medium : Font.Normal
+                font.weight: seg.on ? Font.DemiBold : Font.Medium
             }
         }
-        HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: chip.clicked() }
+        HoverHandler { id: segHov; cursorShape: Qt.PointingHandCursor }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: seg.clicked() }
     }
 
-    Rectangle {
-        id: card
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: Math.round(30 * body.s)
-        width: Math.round(Math.min(parent.width * 0.92, 1720 * body.s))
-        height: Math.round(Math.min(parent.height * 0.62, 800 * body.s))
-        radius: Math.round(16 * body.s)
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.8)
-        border.width: 1
-        border.color: Theme.sep
-        readonly property int pad: Math.round(22 * body.s)
-
-        // absorb clicks landing on empty card space so they never fall through
-        // to the scrim and dismiss the picker; controls/tiles sit on top.
-        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: false }
-
-        // ── header: tabs (left) · type / follow (right) ──
-        Item {
-            id: header
-            anchors { top: parent.top; left: parent.left; right: parent.right }
-            anchors.margins: card.pad
-            height: Math.round(32 * body.s)
-
+    // ── a borderless glyph button for the pill (layout / sort / search / type) ──
+    component IconBtn: Item {
+        id: ib
+        property string glyph: ""
+        property string label: ""
+        property bool on: false
+        signal clicked()
+        implicitWidth: ibRow.implicitWidth + Math.round(14 * body.s)
+        implicitHeight: Math.round(26 * body.s)
+        Rectangle {
+            anchors.fill: parent
+            radius: Math.round(3 * body.s)
+            color: ib.on ? Theme.fillActive : (ibHov.hovered ? Theme.fillHover : "transparent")
+            Behavior on color { ColorAnimation { duration: Motion.fast } }
             Row {
-                id: tabs
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Math.round(6 * body.s)
-                Chip { label: "Wallpapers"; on: !body.themesMode; onClicked: body.setMode("walls") }
-                Chip { label: "Themes"; on: body.themesMode; onClicked: body.setMode("themes") }
-            }
-            Row {
-                anchors.left: tabs.right
-                anchors.leftMargin: Math.round(16 * body.s)
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Math.round(7 * body.s)
+                id: ibRow
+                anchors.centerIn: parent
+                spacing: Math.round(5 * body.s)
                 Text {
+                    visible: ib.glyph.length > 0
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "" + body.shown.length
-                    color: Theme.onSurface
+                    text: ib.glyph
+                    color: ib.on ? Theme.seal : (ibHov.hovered ? Theme.onSurface : Theme.sumi)
                     font.family: Theme.mono
-                    font.pixelSize: Math.round(20 * body.s)
-                    font.weight: Font.DemiBold
+                    font.pixelSize: Math.round(13 * body.s)
                 }
                 Text {
+                    visible: ib.label.length > 0
                     anchors.verticalCenter: parent.verticalCenter
-                    text: body.themesMode ? "schemes"
-                        : body.typeFilter === "image" ? "images"
-                        : body.typeFilter === "live" ? "live" : "images + live"
-                    color: Theme.onSurfaceVariant
-                    font.family: Theme.mono
-                    font.pixelSize: Math.round(12 * body.s)
+                    text: ib.label
+                    color: ib.on ? Theme.onSurface : (ibHov.hovered ? Theme.onSurface : Theme.sumi)
+                    font.family: Theme.ui
+                    font.pixelSize: Math.round(11.5 * body.s)
                 }
-            }
-
-            // walls: type filter
-            Row {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Math.round(6 * body.s)
-                visible: !body.themesMode
-                Chip { label: "All"; on: body.typeFilter === "all"; onClicked: body.setType("all") }
-                Chip { label: "Images"; on: body.typeFilter === "image"; onClicked: body.setType("image") }
-                Chip { label: "Live"; on: body.typeFilter === "live"; onClicked: body.setType("live") }
-            }
-            // themes: follow + default
-            Row {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Math.round(6 * body.s)
-                visible: body.themesMode
-                Chip { label: "Follow wallpaper"; glyph: body.following ? "\u25c9" : "\u25cb"; on: body.following; onClicked: body.toggleFollow() }
-                Chip { label: "Default"; on: Themes.active === "Default"; onClicked: Themes.apply("Default") }
             }
         }
+        HoverHandler { id: ibHov; cursorShape: Qt.PointingHandCursor }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ib.clicked() }
+    }
 
-        // ── control row: colour strip / hint (left) · search · sort · layout (right) ──
-        Item {
-            id: controls
-            anchors { left: parent.left; right: parent.right; top: header.bottom }
-            anchors.leftMargin: card.pad
-            anchors.rightMargin: card.pad
-            anchors.topMargin: Math.round(14 * body.s)
-            height: Math.round(30 * body.s)
+    component Sep: Rectangle {
+        width: 1
+        height: Math.round(18 * body.s)
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        color: Theme.sep
+    }
 
-            ColorStrip {
-                anchors.left: parent.left
+    // ── the stage: the active layout, a fixed region above the bar (so a
+    // layout swap never moves the bar or resizes the stage) ──
+    Item {
+        id: stage
+        anchors.fill: parent
+        anchors.topMargin: Math.round(26 * body.s)
+        anchors.bottomMargin: Math.round(64 * body.s)
+        visible: body.shown.length > 0
+
+        Loader {
+            id: host
+            anchors.fill: parent
+            sourceComponent: View.layout === "grid" ? gridC
+                : View.layout === "hearthstone" ? hearthC
+                : View.layout === "drift" ? driftC : stripsC
+            onItemChanged: if (item) item.selIndex = Qt.binding(() => body.selIndex)
+        }
+        Component {
+            id: stripsC
+            LayoutStrips {
+                s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
+                bg: Theme.surface; active: body.active; activeKey: body.activeKey
+                interactive: true
+                onFocusIndex: (i) => body.focusAt(i)
+                onChosen: (i) => body.choose(i)
+            }
+        }
+        Component {
+            id: hearthC
+            LayoutHearthstone {
+                s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
+                bg: Theme.surface; active: body.active; activeKey: body.activeKey
+                interactive: true
+                onFocusIndex: (i) => body.focusAt(i)
+                onChosen: (i) => body.choose(i)
+            }
+        }
+        Component {
+            id: driftC
+            LayoutDrift {
+                s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
+                bg: Theme.surface; active: body.active; activeKey: body.activeKey
+                interactive: true
+                onFocusIndex: (i) => body.focusAt(i)
+                onChosen: (i) => body.choose(i)
+            }
+        }
+        Component {
+            id: gridC
+            LayoutGrid {
+                s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
+                bg: Theme.surface; active: body.active; activeKey: body.activeKey
+                interactive: true
+                onFocusIndex: (i) => body.focusAt(i)
+                onChosen: (i) => body.choose(i)
+            }
+        }
+    }
+
+    // empty / loading
+    Text {
+        anchors.centerIn: parent
+        visible: body.shown.length === 0
+        horizontalAlignment: Text.AlignHCenter
+        text: body.themesMode
+            ? (Themes.loading ? "Reading colour schemes" : (body.search.length > 0 ? "No schemes match \u201c" + body.search + "\u201d" : "No colour schemes"))
+            : Walls.loading ? "Reading wallpapers"
+            : (body.search.length > 0 ? "No wallpapers match \u201c" + body.search + "\u201d"
+                : (body.colorFilter !== -1 || body.typeFilter !== "all") ? "Nothing in this filter"
+                : "No wallpapers in ~/Pictures/Wallpapers")
+        color: Theme.onSurface
+        font.family: Theme.ui
+        font.pixelSize: Math.round(16 * body.s)
+    }
+
+    // click anywhere (while a drawer is open) to dismiss it, not the switcher
+    MouseArea {
+        anchors.fill: parent
+        visible: body.drawer !== ""
+        onClicked: body.drawer = ""
+    }
+
+    // ── drawer: a popover above the bar (layout picker / filters) ──
+    Rectangle {
+        id: drawer
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: bar.top
+        anchors.bottomMargin: body.drawer !== "" ? Math.round(10 * body.s) : Math.round(2 * body.s)
+        Behavior on anchors.bottomMargin { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
+        opacity: body.drawer !== "" ? 1 : 0
+        visible: opacity > 0.01
+        Behavior on opacity { NumberAnimation { duration: Motion.fast } }
+        height: Math.round(40 * body.s)
+        width: (body.drawer === "filter" ? filterRow.implicitWidth : layoutRow.implicitWidth) + Math.round(24 * body.s)
+        radius: Math.round(8 * body.s)
+        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.96)
+        border.width: 1
+        border.color: Theme.lineStrong
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onPressed: (m) => m.accepted = true }
+
+        Row {
+            id: layoutRow
+            anchors.centerIn: parent
+            spacing: Math.round(4 * body.s)
+            visible: body.drawer === "layout"
+            IconBtn { label: "Strips"; on: View.layout === "strips"; onClicked: { View.layout = "strips"; body.drawer = ""; } }
+            IconBtn { label: "Hearthstone"; on: View.layout === "hearthstone"; onClicked: { View.layout = "hearthstone"; body.drawer = ""; } }
+            IconBtn { label: "Drift"; on: View.layout === "drift"; onClicked: { View.layout = "drift"; body.drawer = ""; } }
+            IconBtn { label: "Grid"; on: View.layout === "grid"; onClicked: { View.layout = "grid"; body.drawer = ""; } }
+        }
+        Row {
+            id: filterRow
+            anchors.centerIn: parent
+            spacing: Math.round(8 * body.s)
+            visible: body.drawer === "filter"
+            Row {
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - rightControls.width - Math.round(16 * body.s)
-                height: parent.height
-                visible: !body.themesMode
+                spacing: Math.round(2 * body.s)
+                IconBtn { label: "All"; on: body.typeFilter === "all"; onClicked: body.setType("all") }
+                IconBtn { label: "Img"; on: body.typeFilter === "image"; onClicked: body.setType("image") }
+                IconBtn { label: "Live"; on: body.typeFilter === "live"; onClicked: body.setType("live") }
+            }
+            Sep {}
+            ColorStrip {
+                anchors.verticalCenter: parent.verticalCenter
+                height: Math.round(20 * body.s)
                 s: body.s
                 groups: body.wallGroups
                 selected: body.colorFilter
                 onPicked: (g) => body.setColor(g)
             }
-            Text {
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                visible: body.themesMode
-                text: body.following
-                    ? "Following the wallpaper palette \u2014 turn off Follow to pick a scheme"
-                    : "Pick a scheme to apply it live"
-                color: Theme.onSurfaceVariant
-                font.family: Theme.fontPrimary
-                font.pixelSize: Math.round(13 * body.s)
-            }
-
-            Row {
-                id: rightControls
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Math.round(8 * body.s)
-
-                // search readout (fed by type-to-search)
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Math.round(150 * body.s)
-                    height: Math.round(30 * body.s)
-                    radius: Math.round(7 * body.s)
-                    color: Theme.fillIdle
-                    border.width: 1
-                    border.color: body.search.length > 0 ? Theme.onSurfaceVariant : Theme.sep
-                    Behavior on border.color { ColorAnimation { duration: Motion.fast } }
-                    Row {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Math.round(9 * body.s)
-                        anchors.right: parent.right
-                        anchors.rightMargin: Math.round(9 * body.s)
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: Math.round(6 * body.s)
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "\u2315"
-                            color: Theme.onSurfaceVariant
-                            font.family: Theme.mono
-                            font.pixelSize: Math.round(13 * body.s)
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - Math.round(22 * body.s)
-                            elide: Text.ElideRight
-                            text: body.search.length > 0 ? body.search : "Type to search"
-                            color: body.search.length > 0 ? Theme.onSurface : Theme.outline
-                            font.family: Theme.mono
-                            font.pixelSize: Math.round(13 * body.s)
-                        }
-                    }
-                }
-
-                Chip {
-                    glyph: "\u21c5"
-                    label: View.sortLabel(View.sort)
-                    visible: !body.themesMode
-                    onClicked: View.cycleSort()
-                }
-                Chip {
-                    glyph: "\u25a4"
-                    label: View.layoutLabel(View.layout)
-                    onClicked: View.cycleLayout()
-                }
-            }
+            Sep {}
+            IconBtn { glyph: "\u21c5"; label: View.sortLabel(View.sort); onClicked: View.cycleSort() }
+            Sep {}
+            IconBtn { glyph: View.livePreview ? "\u25c9" : "\u25cb"; label: "Preview"; on: View.livePreview; onClicked: View.livePreview = !View.livePreview }
         }
+    }
 
-        // ── stage: the active layout ──
-        Item {
-            id: stage
-            anchors {
-                left: parent.left; right: parent.right
-                top: controls.bottom; bottom: footer.top
-                topMargin: Math.round(14 * body.s)
-                bottomMargin: Math.round(10 * body.s)
-            }
-            visible: body.shown.length > 0
+    // ── the bar: compact, bottom-centre; secondary controls live in drawers ──
+    Rectangle {
+        id: bar
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Math.round(16 * body.s)
+        anchors.horizontalCenter: parent.horizontalCenter
+        height: Math.round(32 * body.s)
+        width: barRow.implicitWidth + Math.round(24 * body.s)
+        radius: Math.round(8 * body.s)
+        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.94)
+        border.width: 1
+        border.color: Theme.lineStrong
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onPressed: (m) => m.accepted = true }
 
-            Loader {
-                id: host
-                anchors.fill: parent
-                sourceComponent: View.layout === "carousel" ? carouselC
-                    : View.layout === "grid" ? gridC
-                    : View.layout === "drift" ? driftC : filmstripC
-                onItemChanged: if (item) { item.selIndex = Qt.binding(() => body.selIndex); }
-            }
-            Component {
-                id: filmstripC
-                LayoutFilmstrip {
-                    s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
-                    bg: Theme.surface; active: body.active; activeKey: body.activeKey
-                    interactive: !(body.themesMode && body.following)
-                    onFocusIndex: (i) => body.selIndex = i
-                    onChosen: (i) => body.apply(body.shown[i])
-                }
-            }
-            Component {
-                id: carouselC
-                LayoutCarousel {
-                    s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
-                    bg: Theme.surface; active: body.active; activeKey: body.activeKey
-                    interactive: !(body.themesMode && body.following)
-                    onFocusIndex: (i) => body.selIndex = i
-                    onChosen: (i) => body.apply(body.shown[i])
-                }
-            }
-            Component {
-                id: gridC
-                LayoutGrid {
-                    s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
-                    bg: Theme.surface; active: body.active; activeKey: body.activeKey
-                    interactive: !(body.themesMode && body.following)
-                    onFocusIndex: (i) => body.selIndex = i
-                    onChosen: (i) => body.apply(body.shown[i])
-                }
-            }
-            Component {
-                id: driftC
-                LayoutDrift {
-                    s: body.s; model: body.shown; kind: body.themesMode ? "theme" : "wall"
-                    bg: Theme.surface; active: body.active; activeKey: body.activeKey
-                    interactive: !(body.themesMode && body.following)
-                    onFocusIndex: (i) => body.selIndex = i
-                    onChosen: (i) => body.apply(body.shown[i])
-                }
-            }
-        }
-
-        // empty / loading
-        Text {
+        Row {
+            id: barRow
             anchors.centerIn: parent
-            visible: body.shown.length === 0
-            horizontalAlignment: Text.AlignHCenter
-            text: body.themesMode
-                ? (Themes.loading ? "Reading colour schemes" : (body.search.length > 0 ? "No schemes match \u201c" + body.search + "\u201d" : "No colour schemes"))
-                : Walls.loading ? "Reading wallpapers"
-                : (body.search.length > 0 ? "No wallpapers match \u201c" + body.search + "\u201d"
-                    : (body.colorFilter !== -1 || body.typeFilter !== "all") ? "Nothing in this filter"
-                    : "No wallpapers in ~/Pictures/Wallpapers")
-            color: Theme.onSurfaceVariant
-            font.family: Theme.fontPrimary
-            font.pixelSize: Math.round(15 * body.s)
-        }
-
-        // ── footer: the pick + hints ──
-        Item {
-            id: footer
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            anchors.margins: card.pad
-            height: Math.round(20 * body.s)
+            spacing: Math.round(8 * body.s)
 
             Text {
-                anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - hint.width - Math.round(20 * body.s)
-                elide: Text.ElideRight
-                text: body.themesMode
-                    ? (body.selEntry ? (body.selEntry.label + (body.following ? "   \u00b7 following wallpaper" : "")) : "Pick a scheme")
-                    : (body.selEntry ? (body.selEntry.name + "   " + (body.selEntry.type === "live" ? "Live" : "Image") + " \u00b7 " + Colors.names[body.selEntry.group]) : "Browse wallpapers")
+                text: Theme.mark
+                color: Theme.seal
+                font.family: Theme.fontJp
+                font.pixelSize: Math.round(15 * body.s)
+            }
+            Sep {}
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Math.round(2 * body.s)
+                Seg { label: "Walls"; on: !body.themesMode; onClicked: body.setMode("walls") }
+                Seg { label: "Themes"; on: body.themesMode; onClicked: body.setMode("themes") }
+            }
+            Sep {}
+            IconBtn {
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: "\u25b4"; label: View.layoutLabel(View.layout)
+                on: body.drawer === "layout"
+                onClicked: body.drawer = (body.drawer === "layout" ? "" : "layout")
+            }
+            IconBtn {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: !body.themesMode
+                glyph: "\u25b4"; label: "Filter"
+                on: body.drawer === "filter"
+                onClicked: body.drawer = (body.drawer === "filter" ? "" : "filter")
+            }
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Math.round(2 * body.s)
+                visible: body.themesMode
+                IconBtn { glyph: body.following ? "\u25c9" : "\u25cb"; label: "Follow"; on: body.following; onClicked: body.toggleFollow() }
+                IconBtn { label: "Default"; on: Themes.active === "Default"; onClicked: { Themes.apply("Default"); body.touchedTheme = true; } }
+            }
+            Sep {}
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Math.round(6 * body.s)
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "\u2315"
+                    color: body.search.length > 0 ? Theme.onSurface : Theme.sumi
+                    font.family: Theme.mono
+                    font.pixelSize: Math.round(13 * body.s)
+                }
+                Text {
+                    visible: body.search.length > 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: body.search
+                    color: Theme.onSurface
+                    font.family: Theme.mono
+                    font.pixelSize: Math.round(11 * body.s)
+                }
+            }
+            Sep {}
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: body.shown.length > 0 ? (body.pad2(body.selIndex + 1) + " / " + body.pad2(body.shown.length)) : "--"
                 color: Theme.onSurfaceVariant
                 font.family: Theme.mono
-                font.pixelSize: Math.round(13 * body.s)
-            }
-            Text {
-                id: hint
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                text: (body.selIndex + 1) + " / " + body.shown.length + "    \u2190\u2192 browse \u00b7 Enter set \u00b7 Tab " + (body.themesMode ? "wallpapers" : "themes") + " \u00b7 Esc close"
-                color: Theme.outline
-                font.family: Theme.mono
-                font.pixelSize: Math.round(12 * body.s)
+                font.pixelSize: Math.round(11 * body.s)
+                font.letterSpacing: 1 * body.s
             }
         }
     }

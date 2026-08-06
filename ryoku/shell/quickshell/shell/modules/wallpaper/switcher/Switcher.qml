@@ -43,7 +43,7 @@ Item {
 
     PanelWindow {
         id: win
-        readonly property real s: Math.min(1.3, (root.screen ? root.screen.height / 1080 : 1)) * Math.max(0.8, Math.min(1.4, Config.fontScale))
+        readonly property real s: Math.min(1.08, (root.screen ? root.screen.height / 1080 : 1)) * Math.max(0.8, Math.min(1.25, Config.fontScale))
         readonly property bool isFocused: !root.focusedMon || root.focusedMon === root.screen.name
         readonly property bool shown: root.active
 

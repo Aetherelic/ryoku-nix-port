@@ -70,10 +70,14 @@ Item {
         onTriggered: {
             var dt = Math.min(0.05, frameTime);
             var target = row.hovering ? 0 : row.base;
-            row.speed += (target - row.speed) * Math.min(1, 8 * dt);
-            row.boost -= row.boost * Math.min(1, 3.5 * dt);
+            row.speed += (target - row.speed) * Math.min(1, 10 * dt);
+            row.boost -= row.boost * Math.min(1, 4 * dt);
             if (Math.abs(row.boost) < 0.5)
                 row.boost = 0;
+            // drift is a cursor-first UI: freeze dead-still under the pointer
+            // (unless a wheel boost is live) so a click lands on the tile it's over.
+            if (row.hovering && !row.scrollHold && Math.abs(row.boost) < 1)
+                return;
             var v = row.dir * row.speed + row.boost;
             row.pos = (((row.pos + v * dt) % row.setW) + row.setW) % row.setW;
         }

@@ -34,6 +34,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: Math.round(8 * grid.s)
         anchors.rightMargin: Math.round(8 * grid.s)
+        topMargin: Math.max(0, (grid.height - Math.ceil(grid.count / Math.max(1, grid.columns)) * (grid.cellH + grid.cellGap)) / 2)
         clip: true
         cellWidth: grid.cellW + grid.cellGap
         cellHeight: grid.cellH + grid.cellGap
