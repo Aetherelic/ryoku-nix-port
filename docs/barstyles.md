@@ -1,12 +1,21 @@
 # Bar styles
 
-Ryoku ships three bar styles, and a single key decides which one runs. The
-default is **Sumi**, the built-in left rail. Sumi is not a folder: the shell
-draws it from the frame scene in `shell.qml`. Each other style lives under
-`ryoku/shell/quickshell/shell/modules/bar/barstyles/<id>/`, ships its own bar, widgets and
-settings, and loads once per monitor. **Obi** is a
-floating sash with kanji workspaces. **Nacre** is three frosted top islands with
-a configurable widget layout.
+Ryoku ships two bar styles, and a single key decides which one runs. The default
+is **QS Bar** (`qsbar`), a full-colour top bar. The other is **Sumi**, the
+monochrome left rail. Sumi is not a folder: the shell paints it from the built-in
+frame scene in `shell.qml`, so it has no scene file of its own. QS Bar lives under
+`ryoku/shell/quickshell/shell/modules/bar/barstyles/qsbar/`, ships its own bar,
+popouts, control centre and settings, and loads once per monitor. Store-installed
+styles land under the same folder contract.
+
+**QS Bar wears colour on purpose, and it is the one place the desktop does.** It
+is a Quickshell "Rise" bar ported onto Ryoku's data plane, and it keeps that
+project's full-colour skin: its `Theme.qml` reads the live wallpaper palette from
+`~/.cache/ryoku/colors.json` into a seven-slot set (`color01..07`) over a warm,
+near-black `paper`, so the bar retints with the wallpaper like a terminal theme
+rather than clamping to bone-on-black. Sumi is the paper-and-ink bar for anyone
+who wants the rest of the desktop's restraint on the edge too; `docs/ui-ux.md` is
+where colour is and is not allowed, and the bar is the sanctioned exception.
 
 A bar style owns the bar and nothing else. The frame border, the menus, the
 service surfaces, and the tokens stay where they are; a style just decides what
@@ -16,72 +25,70 @@ mostly a layout job over singletons that already exist.
 ## How selection works
 
 The `barStyle` key in `~/.config/ryoku/shell.json` picks the active style by id.
-It is a top-level string, default `"sumi"`:
+It is a top-level string, default `"qsbar"`:
 
 ```json
 {
-  "barStyle": "obi"
+  "barStyle": "sumi"
 }
 ```
 
 `Config.qml` surfaces it as `Config.barStyle`, and the file is watched, so a save
-retunes the running shell without a reload. The set of valid ids lives in one
-registry, `pill/barstyles/registry.js`. Each row is a style:
-
-```js
-var STYLES = [
-    { id: "sumi", name: "Sumi", desc: "Ink spine: the left rail, paper and ink.", scene: "" },
-    { id: "obi", name: "Obi", desc: "Sash: a floating top bar with kanji workspaces.", scene: "barstyles/obi/Scene.qml" },
-    { id: "nacre", name: "Nacre", desc: "Pearl: three frosted islands joined to the desktop frame.", scene: "barstyles/nacre/Scene.qml" }
-];
-```
-
-`scene` is the QML file `shell.qml` loads per monitor, resolved relative to
-`shell.qml`. An empty `scene` means the built-in frame scene (Sumi), which
-`shell.qml` paints itself. Any non-empty path is a folder style. **To add a
-style, drop its folder under `barstyles/` and add one row here.** `sceneUrl(id)`
-returns the row's scene, and `isBuiltin(id)` is true when it is empty.
-
-`shell.qml` reads the registry through one derived flag:
+retunes the running shell without a reload. The valid ids are resolved by the
+`BarProducts` singleton (`shell/services/BarProducts.qml`), not a static registry
+file. Built-in folder styles ship inside the shell, one row each:
 
 ```qml
-import "barstyles/registry.js" as BarStyles
-
-readonly property bool sumiActive: BarStyles.sceneUrl(Config.barStyle) === ""
+// BarProducts.qml
+readonly property var builtins: ({ "qsbar": "barstyles/qsbar/Scene.qml" })
 ```
 
-`sumiActive` is the gate. While it is true, the built-in frame chrome and the
-four rails draw, and each `FrameEdge` reserves its exclusive zone
-(`reserve: root.sumiActive ? root.edgeReserve("top") : 0`). While it is false,
-the frame scene hides, the edges release their reserves, and a per-monitor
-`Loader` mounts the active style's `Scene.qml` instead:
+`BarProducts.sceneUrl(id)` is the one lookup the shell needs, and it returns:
+
+- `""` for `"sumi"`, an empty id, or a style that has failed to load. An empty
+  scene is the built-in frame scene (Sumi), which `shell.qml` paints itself.
+- the built-in's relative `Scene.qml` for `"qsbar"`.
+- a `file://` path drawn from `~/.local/state/ryoku/store/barstyles.json` for a
+  store-installed folder style. The store writes that index and a `revision.json`;
+  `BarProducts` watches both and reloads live.
+
+`Frame.qml` reads the result through one derived flag:
 
 ```qml
-Variants {
-    model: Quickshell.screens
-    Loader {
-        required property var modelData
-        active: !root.sumiActive
-        source: BarStyles.sceneUrl(Config.barStyle)
-        onLoaded: if (item) item.modelData = modelData
-        onModelDataChanged: if (item) item.modelData = modelData
-    }
+import shell.services
+
+readonly property bool sumiActive: BarProducts.sceneUrl(Config.barStyle) === ""
+```
+
+`sumiActive` is the gate. While it is true, the built-in frame chrome and the four
+rails draw, and each `FrameEdge` reserves its exclusive zone
+(`reserve: root.sumiActive ? root.edgeReserve("top") : 0`). While it is false, the
+frame scene hides, the edges release their reserves, and a per-monitor `Loader`
+mounts the active style's `Scene.qml`:
+
+```qml
+Loader {
+    id: barStyleLoader
+    active: !root.sumiActive
+    source: BarProducts.sceneUrl(Config.barStyle)
+    onLoaded: if (item) item.modelData = root.modelData
+    onStatusChanged: if (status === Loader.Error) BarProducts.fail(Config.barStyle)
 }
 ```
 
-That is the whole contract with the shell: your `Scene.qml` is loaded once per
-screen, and the screen is handed to it through a `modelData` property the Loader
-sets. Everything else is yours.
+`Frame.qml` is itself instantiated once per screen by `shell.qml`'s `Variants`, so
+the contract is: your `Scene.qml` loads once per screen, takes the screen through
+a `modelData` property, and if it errors on load `BarProducts.fail` drops the shell
+back to Sumi. Everything else is yours.
 
-The shipped Sumi profile is left-only. `FrameBars.js` `defaultConfig()` enables
-the left rail and leaves the other three off:
+**To add a built-in style, drop its folder under `barstyles/` and add one row to
+`BarProducts.builtins`.** A store style needs no shell edit: it installs into
+`~/.local/state/ryoku/store/barstyles.json` and resolves through the same
+`sceneUrl` path.
 
-```js
-top:    { enabled: false, size: 32, reveal: true, ... },
-left:   { enabled: true,  size: 48, reveal: true, top: [...], center: ["dock"], bottom: [...] },
-bottom: { enabled: false, size: 32, reveal: true, ... },
-right:  { enabled: false, size: 48, reveal: true, ... }
-```
+The shipped Sumi profile is left-only: `FrameBars.js` `defaultConfig()` enables the
+left rail and leaves the other three off. That profile applies only while
+`barStyle` is `"sumi"`.
 
 ### One gotcha, three parts
 
@@ -111,32 +118,25 @@ how edits land:
 
 ## The shape of a style
 
-Folder styles and their popup ownership are laid out like this:
+A folder style owns its own tree; QS Bar's is the shipped example:
 
 ```
 barstyles/
-  shared/
-    Popout.qml
-  obi/
-    Scene.qml
-    components/BarPill.qml
-    widgets/
-  nacre/
-    Scene.qml
-    Format.js
-    components/
-    popouts/
-    widgets/
+  qsbar/
+    Scene.qml        // the per-monitor entry the Loader mounts
+    Theme.qml        // its palette, retinted from the wallpaper
+    components/      // shared pieces (import them namespaced)
+    modules/         // the bar widgets
+    panels/          // the popout bodies
+    controlcenter/   // its Super+Escape-style control surface
 ```
 
-Obi and Nacre keep separate compact widget faces. Nacre owns the popup contents,
-and Obi reuses them so controls and fixes do not drift. Obi's standalone popup
-window remains the neutral component under `barstyles/shared/`.
-Nacre's `nacre` object in `shell.json` stores the three widget arrays, height,
-opacity, padding, spacing, island gap, frame size and roundness, edge melt,
-island and OSD scale, desktop-frame toggle, and workspace filter. Bar Studio
-edits that object live with drag-and-drop and Save/Revert. Its media face
-collapses completely when playback is idle.
+Only `Scene.qml` is required; the rest is the style's own business, and a
+store-installed style unpacks the same shape under
+`~/.local/state/ryoku/store/barstyle-views/<id>/`. Keep shared pieces in
+subdirectories and import them namespaced (QML does not put siblings in scope just
+because they share a folder), and reach the shell's singletons through the SDK
+modules below rather than guessing a relative path.
 
 `Scene.qml` is a `PanelWindow`, one instance per monitor. It takes the screen
 through `modelData`, anchors itself to an edge, reserves its band with an
@@ -165,7 +165,7 @@ PanelWindow {
     exclusiveZone: 46
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-    WlrLayershell.namespace: "ryoku-obi"
+    WlrLayershell.namespace: "ryoku-bar"
 
     anchors { top: true; left: true; right: true }
     implicitHeight: 52
@@ -207,7 +207,7 @@ Everything past this point is about what a widget binds to.
 This is the real work. The shell already gathers every live fact through the
 singletons in `shell.services`; a widget reads them and draws. Import the module
 once (`import shell.services`) and each singleton is in scope by name. What
-follows is the exact surface each one exposes, drawn from the Obi widgets.
+follows is the exact surface each one exposes.
 
 ### Workspaces and Hyprland
 
@@ -243,7 +243,7 @@ function focus(id) { Hyprland.dispatch('hl.dsp.focus({ workspace = "' + id + '" 
 
 The focused window is `Hyprland.activeToplevel`, and its title lives at
 `activeToplevel.lastIpcObject.title` (guard it; it is empty on a bare
-workspace). Obi's `ActiveWindow.qml` is nothing more than that string, elided.
+workspace). An active-window widget is nothing more than that string, elided.
 
 ### Media
 
@@ -313,7 +313,7 @@ Text {
 Text { visible: Battery.healthSupported; text: "Health " + Battery.health + "%" }
 ```
 
-The power-profile picker in Obi's battery card is a second singleton,
+The power-profile picker in a battery card is a second singleton,
 `PowerProfiles`: `PowerProfiles.available` gates it, `PowerProfiles.profiles` is
 the list, `PowerProfiles.profile` is the current one, and
 `PowerProfiles.setProfile(name)` switches it.
@@ -470,7 +470,7 @@ There are two glyph primitives, from the shell.barkit module
 
 ## The popout pattern
 
-A status widget grows a hover card. Obi's `components/Popout.qml` is that card,
+A status widget grows a hover card. A style provides its own popout card,
 and its contract is three properties:
 
 - `target`: the widget `Item` the card anchors under.
@@ -481,7 +481,7 @@ and its contract is three properties:
 The popout opens while the pointer is over the target or the card, and eases shut
 a moment after both are left. It is its own Overlay `PanelWindow`, click-through
 outside the card, and it centres itself under the target while clamping to the
-screen. Wire it exactly as `Clock.qml` does:
+screen. Wire it into a widget:
 
 ```qml
 import "../components" as C
@@ -515,55 +515,54 @@ poll) inside the `content`, so it runs only while the card is open.
 ## Per-style settings
 
 A style keeps its own settings in a namespaced key in `shell.json`, read through
-`Config` and edited from Bar Studio, so a user tweak survives updates and never
-lives in a shipped file. Obi's key is a widget-visibility map:
+`Config`, so a user tweak survives updates and never lives in a shipped file. Give
+the key the style's id: a top-level alias plus a var in the adapter.
 
 ```qml
-// Singletons/Config.qml: a top-level alias, plus a var in the JsonAdapter
-property alias obi: adapter.obi
+// services/Config.qml: a top-level alias, plus a var in the JsonAdapter
+property alias qsbar: adapter.qsbar
 // inside JsonAdapter { ... }
-property var obi: ({})
+property var qsbar: ({})
 ```
 
-The Scene reads it with a small helper and gates each widget. An absent key
-reads as shown, so the bar is full by default and only an explicit `false` hides
-one:
+The Scene reads it and gates each widget. An absent key reads as its default, so
+the bar is whole until a value explicitly changes it:
 
 ```qml
-function shows(id) { return !Config.obi || Config.obi[id] !== false; }
+function shows(id) { return !Config.qsbar || Config.qsbar[id] !== false; }
 ...
 W.Media { visible: win.shows("media") && Media.present }
 ```
 
-Bar Studio writes it live. Add the key to the Hub's `defs` and `liveKeys`
-(`hub/quickshell/Hub.qml`) so it snapshots and applies as you toggle, then add a
-section to `BarStudioPage.qml` that reads `fval("obi", {})` and writes
-`fedit("obi", nextMap)`. To give a new style its own settings, pick a fresh key
-(its id is the obvious choice), add the alias and the adapter var to `Config`,
-read it in your Scene, and mirror the Hub wiring. A style with no settings omits
-all of this.
+Where that key is edited is the style's call. The built-in Sumi bar is edited from
+**Bar Studio** in Ryoku Settings (`hub/quickshell/pages/BarStudioPage.qml`), which
+snapshots the keys and applies them live. A folder style usually ships its own
+settings surface instead, the way QS Bar carries its own control centre. A style
+with no settings omits all of this.
 
 ## Frame menus
 
-The wallpaper picker (Super+W), quick settings (Super+Esc), and the capture card
-(Super+S) are shell surfaces, not bar widgets, so they are the same in every
-style. They normally anchor to the Sumi rail edges and read against the frame
-band. A folder style has no rails and hides the band, so `shell.qml` sets
-`topBar` on the per-monitor `FrameMenuManager`: side and bottom anchors fold up
-to the matching top edge or corner (the capture card lands top-left), the menus
-drop a small inset below the bar, and each menu paints its own card since the
-frame is not there to draw it. Nothing per-style is needed; a top-bar folder
-style gets this for free.
+The wallpaper picker (Super+W), quick settings (Super+Escape), the feature sidebar
+(Super+S), and the capture card (a separate `screenshot` shortcut into
+`quick-settings#capture`) are shell surfaces, not bar widgets, so they are the same
+in every style. They normally anchor to the Sumi rail edges and read against the
+frame band. A folder style has no rails and hides the band, so `shell.qml` sets
+`topBar` on the per-monitor `FrameMenuManager`: side and bottom anchors fold up to
+the matching top edge or corner, the menus drop a small inset below the bar, and
+each menu paints its own card since the frame is not there to draw it. Nothing
+per-style is needed; a top-bar folder style like QS Bar gets this for free.
 
 ## Checklist to ship a style
 
 1. **Folder.** Create `barstyles/<id>/` with a `Scene.qml` (a per-monitor
-   `PanelWindow` that takes `property var modelData` for its screen), a
-   `components/` subdir for shared pieces, and a `widgets/` subdir. Import the
-   subdirs namespaced and reach the singletons and icons by relative path
-   (`../../../Singletons`, `../../..`).
-2. **Registry row.** Add one row to `barstyles/registry.js`:
-   `{ id: "<id>", name: "<Name>", desc: "<one line>", scene: "barstyles/<id>/Scene.qml" }`.
+   `PanelWindow` that takes `property var modelData` for its screen), plus any
+   `components/`, `modules/` and `panels/` subdirs it needs. Import the subdirs
+   namespaced, and reach the shell's singletons and idioms through the SDK modules
+   (`import shell.services`, `import shell.barkit as Pill`), never a relative path.
+2. **Register it.** For a built-in, add one row to `BarProducts.builtins`
+   (`"<id>": "barstyles/<id>/Scene.qml"`). A store-installed style needs no shell
+   edit; it lands in `~/.local/state/ryoku/store/barstyles.json` and resolves by
+   the same `sceneUrl` path.
 3. **Select it.** Set `"barStyle": "<id>"` in `~/.config/ryoku/shell.json`.
 4. **Restart.** Run `systemctl --user restart ryoku-shell`. Structural edits (new
    files, new imports, a reshaped scene) need the restart; property tweaks inside

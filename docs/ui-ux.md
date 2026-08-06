@@ -98,6 +98,12 @@ never did. What the shell actually does, which is the better policy:
 - **App content carries no accent at all.** The Hub, ryowalls and ryovm are paper
   and ink. Emphasis is inversion: a surface flips to bone and its ink flips to
   black. The frame carries the accent; the content does not compete with it.
+- **The default bar is the one surface that wears the whole palette.** QS Bar,
+  the shipped default, retints every slot from the wallpaper (`color01..07`), not
+  just the single clamped accent, so it reads in full colour like a terminal
+  theme. It is a deliberate exception opted into as the default; the Hub, the
+  apps, the frame, and the monochrome Sumi bar hold the line above. See
+  `docs/barstyles.md`.
 
 So the rice wins inside an envelope the brand enforces. Write that down rather
 than the reverse: the clamp is the design.
@@ -215,15 +221,16 @@ Each surface is its own directory under `quickshell/`, each component its own
 
 - **frame** the rounded screen border and the popouts that melt into it; the
   desktop's signature surface. See `docs/frame.md`.
-- **bar** the four-edge frame-bar system (`shell/modules/bar/`), its shared frame
-  scene, and the service surfaces it draws from (`shell/services/`).
-  Configurable rails carry the clock, quick settings, workspaces, dock, tray,
-  and the status widgets. Clicking a status widget (network, Bluetooth, battery,
-  audio, system monitor, recording, music) grows a popout card out of the rail
-  with the live controls for it, all wearing one skin from the card kit under
-  `pill/popouts/`. The monitor-local menu manager owns those cards, bounded
-  frame menus, the modular Super+Escape control sidebar, and the Stash surface.
-  See `docs/bar.md` and `docs/frame.md`.
+- **bar** the desktop's edge instrument, chosen by `barStyle` (see
+  `docs/barstyles.md`). The default is **QS Bar**, a full-colour top bar retinted
+  from the wallpaper palette; **Sumi**, the built-in monochrome four-edge
+  frame-bar system (`shell/modules/bar/`), is the paper-and-ink alternative. Both
+  read the same service surfaces (`shell/services/`) and grow the same popout
+  cards from the card kit under `shell/modules/bar/popouts/`: clicking a status
+  widget (network, Bluetooth, battery, audio, system monitor, recording, music)
+  grows its live controls out of the bar. The monitor-local menu manager owns
+  those cards, the bounded frame menus, the Super+Escape control sidebar, and the
+  Super+S feature sidebar. See `docs/bar.md` and `docs/frame.md`.
 - **launcher** the Super-triggered app launcher and command palette, with a
   zero-query rest card (the solar-arc clock and weather). See `docs/launcher.md`.
 - **switcher** the full-screen Alt-Tab window switcher.
@@ -245,8 +252,11 @@ Each surface is its own directory under `quickshell/`, each component its own
 - **the Super+Escape sidebar** the shell's one full-height control body. A fixed
   icon rail selects independently catalogued Home, Notifications, Weather, and
   optional Media modules inside the same frame. Home owns connectivity, audio,
-  display, calendar, performance profiles, and session actions; Stash remains a
-  separate floating surface. See `docs/bar.md`.
+  display, calendar, performance profiles, and session actions. Stash is now a
+  separate surface: the **Super+S feature sidebar**, a framed floating card whose
+  left rail switches a Usage page (a local screen-time overview) and a Tools page
+  (link download plus an in-shell file picker that compresses media or installs
+  packages). See `docs/bar.md`.
 - **desktop widgets** the clock and enabled third-party widgets on the
   wallpaper, hosted by one `WlrLayer.Bottom` surface and configured in Ryoku
   Settings' Desktop Widgets section. Clock faces live under

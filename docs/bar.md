@@ -1,13 +1,17 @@
 # Frame bars
 
-Ryoku renders one frame-bar system: four independent rails that share the
-monitor's frame scene. `ryoku/shell/quickshell/shell/modules/bar/Bar.qml` creates a
-`FrameRail` for each edge and reads the normalized `frameBars` object from
-`~/.config/ryoku/shell.json`.
+This document describes **Sumi**, Ryoku's built-in painted-frame bar: one
+frame-bar system of four independent rails that share the monitor's frame
+scene. When Sumi is the active style,
+`ryoku/shell/quickshell/shell/modules/bar/Bar.qml` creates a `FrameRail` for each
+edge and reads the normalized `frameBars` object from `~/.config/ryoku/shell.json`.
 
-The frame bars described here are Ryoku's built-in **Sumi** bar style. A
-different bar can be loaded from a self-contained folder under
-`shell/modules/bar/barstyles/`; to build one, see `docs/barstyles.md`.
+Sumi is no longer the shipped default. The default is **qsbar**, a separate
+full-color top bar that loads from a self-contained folder under
+`shell/modules/bar/barstyles/`. `Frame.qml` draws Sumi's rails only while
+`barStyle` resolves to no folder scene (the id `"sumi"` or an empty value), and
+any other id mounts that folder style's `Scene.qml` instead. For style
+selection and qsbar, see `docs/barstyles.md`.
 
 A rail is a thin interactive strip, not a second panel process. The monitor
 overlay owns its input region and the corresponding exclusive-zone reserve, so
@@ -45,14 +49,15 @@ Pick an edge to work on that rail. It edits only what changes the running frame:
   rail's axis and is not already on it, remove one, or reorder within a zone.
 
 The frame's material and colour come from the shell's look (`Theme` and the
-palette), not a user knob, and there is no second style to pick.
+palette), not a user knob; picking a different bar style is a separate choice,
+covered in `docs/barstyles.md`.
 
 Every change is live on the desktop at once. Save keeps it and rebaselines;
 Revert, or closing the window with unsaved edits, walks the desktop back to the
 saved state through the same channel. Bar Studio never writes configuration
 files directly.
 
-The bounded menus and the `stash` and `system` frame surfaces keep whatever
+The bounded menus and the `stash` frame surface keep whatever
 values are persisted: every Bar Studio edit clones the whole `frameBars` object,
 so a subtree it does not touch is never dropped. They are configured through
 their defaults and the catalogue, not edited on this page.
@@ -71,12 +76,12 @@ The cards are not read-outs, they are the controls: audio is a full mixer
 (output, input, per-app volume, and the Bluetooth codec), Bluetooth pairs and
 connects devices and shows their battery, battery carries the gauge, the power
 profiles, and a detail panel, network runs Wi-Fi, and the rest follow suit. They
-share one skin from a card kit (`pill/popouts/PopoutCard.qml` and its siblings),
+share one skin from a card kit (`shell/modules/bar/popouts/PopoutCard.qml` and its siblings),
 so every card opens, reads, and dismisses the same way.
 
 Super+Escape opens the only full-height control sidebar. Its fixed rail selects
 independent modules catalogued in `MenuCatalog.js`; the default module list is
-home, notifications, and weather, while media is available as an optional
+home, notifications, weather, and capture, while media is available as an optional
 module. The home module retains the session actions and performance profiles.
 Adding a module requires one catalog entry and one component under
 `shell/modules/bar/framebars/menus/quicksettings/`, then its ID can be added to

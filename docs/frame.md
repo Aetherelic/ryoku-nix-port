@@ -36,10 +36,13 @@ the request's anchor and identity. This gives the manager one place to enforce:
 - owner, body, and backdrop input-mask regions; and
 - monitor-local geometry after hotplug or scale changes.
 
-`FrameMenu.qml` draws catalogue-backed menus. `StashSurface.qml` and
-`SystemSurface.qml` hold the preserved sidebar content as configurable frame
-surfaces. The menu manager, rather than a widget or IPC client, owns their
-lifecycle.
+`FrameMenu.qml` draws catalogue-backed menus. `FrameSurface.qml` is the single
+Ryoku-owned surface host: it rides the shared `Popout` and mounts a body by
+`kind`, so credential prompts, voice, capture, small rail cards, and the Super+S
+stash all share one component. The stash surface (`kind: "stash"`) renders
+`panel/Panel.qml`, a framed floating card whose left activity rail switches
+between Usage and Tools pages. The menu manager, rather than a widget or IPC
+client, owns their lifecycle.
 
 ## Input and focus
 

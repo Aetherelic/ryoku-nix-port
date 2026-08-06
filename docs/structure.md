@@ -25,8 +25,9 @@ truth for the live desktop.
   (`env`, `input`, `displays`, `decoration`, `animations`, `binds`, `ryoshot`,
   `window_rules`, `fullscreen`, `autostart`). `scripts/` holds the leaf shell helpers the UI
   calls directly: the `ryoku-cmd-*` screen tools (lens, OCR, color, QR, webcam
-  mirror, screen record, night light, caffeine) plus the stash and sysinfo
-  helpers. `hypridle.conf` is the idle daemon's native config. The whole
+  mirror, screen record, night light, caffeine) plus the stash sidebar's
+  download, compress, and install helpers and `ryoku-sysinfo`. `hypridle.conf`
+  is the idle daemon's native config. The whole
   directory deploys to `~/.config/hypr/`.
 - `lockscreen/` `qylock/` (the lock theme and its quickshell lockscreen),
   `install-qylock`, and `sddm/` (the greeter setup).

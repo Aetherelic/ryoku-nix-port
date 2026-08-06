@@ -203,7 +203,7 @@ stage, filmstrip, search, Library projection, and detail surface need no new QML
 page.
 
 Runtime implementations remain with their owning subsystem. A bar style still
-lives under `pill/barstyles/<id>/`, a qylock theme under the qylock theme tree,
+lives under `modules/bar/barstyles/<id>/`, a qylock theme under the qylock theme tree,
 and a plugin in the plugin data directory. Ryostore owns their catalogue adapter
 and installation, not a second runtime copy.
 
