@@ -48,7 +48,7 @@ hl.bind(K(mod .. " + W"),         hl.dsp.global("ryoku:wallpaper-menu"))      --
 hl.bind(K(mod .. " + SHIFT + W"), hl.dsp.exec_cmd("ryoku-shell wallpaper random")) -- random wallpaper, random transition
 hl.bind(K(mod .. " + SHIFT + V"), hl.dsp.exec_cmd("ryoku-summon ryovm flock -n -o /tmp/ryovm.lock qs -c ryovm")) -- ryovm: summon to current workspace
 hl.bind(K(mod .. " + V"),         hl.dsp.global("ryoku:clipboard")) -- clipboard (sidebar deep link)
-hl.bind(K(mod .. " + T"),         hl.dsp.global("ryoku:stash"))         -- Features sidebar (Stash)
+hl.bind(K(mod .. " + T"),         hl.dsp.global("ryoku:stash"))         -- Feature sidebar (Super+T)
 hl.bind(K(mod .. " + Tab"),       hl.dsp.global("ryoku:overview")) -- workspace overview (expo: live previews, drag windows between workspaces, cycle)
 hl.bind(K(mod .. " + ALT + Tab"), hl.dsp.global("ryoku:overview")) -- workspace overview, stepping desktops (Alt+Tab again inside cycles desktops)
 hl.bind(K(mod .. " + M"),         hl.dsp.global("ryoku:visualizer"))        -- toggle the desktop audio visualiser

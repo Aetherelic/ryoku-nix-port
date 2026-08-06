@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Changed
+- **Super+T opens a feature sidebar, and the file stash is gone.** The old
+  stash board (the file hoard, its LocalSend send and receive, and the
+  drag-a-file-to-the-edge stash) is retired. Super+T now opens a full-height
+  right sidebar with a left activity rail. Widgets is a dashboard: the clock,
+  date and weather, quick toggles, now playing, the CPU / memory / temperature
+  gauges and the month calendar, all built from the same components as the
+  quick-settings home so it reads in one language. Tools keeps the download,
+  convert and install backends: paste a link to pull it in with cobalt, watch
+  the queue, see what landed, then compress media or install a package. The
+  rail has room for more tabs (AI chat and the like) later
+  (`quickshell/shell/modules/bar/panel/`, `services/Stash.qml`).
 - **The desktop shell now runs as a single Quickshell instance.** The frame bar
   and its menus, the launcher, overview, board, wallpaper, visualiser, on-screen
   displays, notifications, capture, and the desktop widgets were seven separate

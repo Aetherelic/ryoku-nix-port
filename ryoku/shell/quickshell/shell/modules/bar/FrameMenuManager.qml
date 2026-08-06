@@ -65,8 +65,8 @@ Item {
     readonly property var surfaces: {
         const src = Config.normalizedFrameBars.surfaces || ({});
         const out = [];
-        // stash is the floating Features page (non-span); other surfaces stay full-span.
-        for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: id !== "stash" }, src[id]));
+        // The config surface (the feature panel) is a full-span welded sidebar.
+        for (const id in src) out.push(Object.assign({ id: id, kind: id, fullSpan: true }, src[id]));
         out.push(
             { id: "voice", kind: "voice", anchor: "bottom", minWidth: 380 },
             { id: "keyring", kind: "keyring", anchor: "top", minWidth: 420 },
@@ -101,7 +101,6 @@ Item {
         const all = root.menus.concat(root.surfaces);
         return root.topBar ? all.map(r => Object.assign({}, r, { anchor: root.mapAnchor(r.anchor) })) : all;
     }
-    property string stashPane: ""
 
     // { [monitor]: { [anchor]: record } }, driven by the pure MenuState model.
     property var menuState: ({})

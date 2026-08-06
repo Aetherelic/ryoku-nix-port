@@ -413,7 +413,7 @@ ShellRoot {
     }
     CustomShortcut {
         name: "stash"
-        description: "Open the stash sidebar on the active monitor"
+        description: "Open the feature sidebar on the active monitor"
         onPressed: ShellState.requestSurfaceActive("stash", undefined)
     }
     CustomShortcut {

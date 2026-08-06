@@ -123,13 +123,11 @@ Scope {
             return reserve > 0 ? reserve : overlay.frameLip;
         }
 
-        // drag-to-stash strip. Input regions gate clicks AND drags, so idle it is
-        // a 2px edge sliver (the hidden-bar trick) and only widens while a drag is
-        // inside it; a resident strip would eat clicks.
+        // Right-edge input reserve: a 2px sliver (the hidden-bar trick) so the
+        // frame reveals on hover there without the region eating clicks; off
+        // while a fullscreen window owns the monitor.
         readonly property bool rightDropOn: !overlay.monFullscreen
-        readonly property real rightDropW: rightEdgeDrop.containsDrag
-            ? Math.max(root.edgeReserve("right"), 64)
-            : Math.max(root.edgeReserve("right"), 2)
+        readonly property real rightDropW: Math.max(root.edgeReserve("right"), 2)
 
         // True when this monitor's active workspace holds a fullscreen window;
         // the frame then unmaps its input and hides so the window is unobstructed.
@@ -369,28 +367,6 @@ Scope {
                     }
                     function onSurfaceClosed(id, mon) { frameMenus.closeSurface(id, mon); }
                     function onKeyringPromptChanged(pid) { frameMenus.retireKeyringPrompt(pid); }
-                }
-            }
-
-            // drag-to-stash: dragging a file onto the right edge opens the stash
-            // page right there; a drop stashes it. z above the rails wins the drag.
-            DropArea {
-                id: rightEdgeDrop
-                z: 3
-                x: overlay.width - overlay.rightDropW
-                y: 0
-                width: overlay.rightDropOn ? overlay.rightDropW : 0
-                height: overlay.rightDropOn ? overlay.height : 0
-                onEntered: {
-                    if (frameMenus.liveAnchorFor("stash") === "") {
-                        frameMenus.stashPane = "stash";
-                        frameMenus.openSurface("stash", null, root.modelData ? root.modelData.name : "");
-                    }
-                }
-                onDropped: drop => {
-                    for (var i = 0; i < drop.urls.length; i++)
-                        Stash.addUrl(drop.urls[i]);
-                    drop.accept();
                 }
             }
 

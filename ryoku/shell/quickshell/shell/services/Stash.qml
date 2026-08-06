@@ -5,45 +5,29 @@ import Quickshell
 import Quickshell.Io
 
 /**
- * File stash bridge: a live snapshot of ~/Downloads/Stash and the back-end for
- * the stash surface. The FolderListModel watches the directory (created on first
- * load) so the grid stays current without polling; openFile, removeFile, clearAll
- * and addUrl drive it through detached coreutils. `hasMedia` / `hasInstallable`
- * read the live file types so the action bar only lights the actions that apply.
- *
- * Flows, all behind helper scripts under ~/.config/hypr/scripts:
- *  - LocalSend send. openSendPicker / openSendAll / openSendText kick a ~2s LAN
- *    discovery (lsState scanning|ready|sending); sendTo uploads the picked file,
- *    the whole stash, or a typed note to the chosen IP.
- *  - LocalSend receive. start/stopReceive run localsend.sh receive, a server that
- *    announces us on the LAN and drops incoming files into the stash.
- *  - Install / compress. requestInstall/Compress raise a confirm (taskState
- *    confirm); confirmTask runs the helper (running -> done|error).
- *  - Cobalt download + remux. openDownload raises the cobalt window; enqueue*
- *    feed a sequential processing queue driven by stash-cobalt.sh (a cobalt API
- *    client with a yt-dlp fallback; remux is a local lossless ffmpeg copy).
+ * ~/Downloads/Stash: the download landing plus the compress/install backends.
+ * A live FolderListModel tracks the folder (created on first load); cobalt
+ * drives a one-at-a-time download queue through stash-cobalt.sh, and
+ * requestInstall/requestCompress raise a confirm then run the helper.
+ * hasMedia / hasInstallable read the live file types so the tools only light
+ * when they apply.
  */
 Singleton {
     id: root
 
     readonly property string home: Quickshell.env("HOME") || ""
     readonly property string dir: home + "/Downloads/Stash"
-    readonly property string script: home + "/.config/hypr/scripts/localsend.sh"
     readonly property string scriptDir: home + "/.config/hypr/scripts"
     readonly property string cobaltScript: scriptDir + "/stash-cobalt.sh"
 
     readonly property alias files: files
     readonly property int count: files.count
-    readonly property alias deviceModel: deviceModel
     readonly property alias queueModel: queueModel
 
-    // Live file-type read so the action bar lights only what applies.
+    // Live file-type read so the tools light only what applies.
     readonly property bool hasMedia: {
         var n = files.count;
         for (var i = 0; i < n; i++) {
-            // FolderListModel.fileSuffix is the COMPLETE suffix (after the first
-            // dot), so a name like "clip.16.45.mp4" yields "16.45.mp4". Take the
-            // real extension from the last dot instead.
             var nm = ("" + files.get(i, "fileName")).toLowerCase();
             var e = nm.substring(nm.lastIndexOf(".") + 1);
             if (/^(mp4|mkv|webm|mov|avi|m4v|mp3|flac|wav|ogg|opus|m4a|aac|png|jpe?g|webp|gif|bmp|tif|tiff)$/.test(e))
@@ -55,45 +39,22 @@ Singleton {
         var n = files.count;
         for (var i = 0; i < n; i++) {
             var nm = ("" + files.get(i, "fileName")).toLowerCase();
-            // Everything stash-install.sh can install: AppImages, self-contained
-            // tarballs, Arch packages (.pkg.tar.zst), Flatpak bundles, and .deb/.rpm
-            // (payload extracted, best-effort). Self-extracting .bin/.run stay out:
-            // running an arbitrary installer blind is unsafe.
             if (/\.(appimage|flatpak|deb|rpm|tar\.gz|tgz|tar\.xz|tar\.bz2|tar\.zst|tar)$/.test(nm))
                 return true;
         }
         return false;
     }
 
-    // Send flow.
-    property string lsState: "idle"       // idle | scanning | ready | sending
-    property string sendKind: "file"      // file | all | text
-    property string pendingFile: ""
-    property string composeText: ""
-
-    // Receive flow.
-    property string recvState: "idle"     // idle | listening | prompt
-    property string recvAlias: ""
-    property int recvCount: 0
-    property string recvLast: ""
-    property string offerAlias: ""        // device asking to send (recvState=prompt)
-    property int    offerCount: 0
-    property string offerSid: ""
-
-    // Install / compress.
+    // Install / compress confirm state.
     property string task: ""              // "" | install | compress
     property string taskState: "idle"     // idle | confirm | running | done | error
     property string taskMsg: ""
-
     signal authStepAside(string monitor, string surfaceId)
     property string taskMonitor: ""
     property string taskSurfaceId: ""
 
-    // Cobalt download window.
-    property bool dlOpen: false
-    property string dlTab: "download"     // download | remux
+    // Cobalt download queue.
     property string dlMode: "auto"        // auto | audio | mute
-    property string dlText: ""
     property int activeJob: -1            // index of the running queue entry, -1 idle
 
     function openFile(path) {
@@ -106,127 +67,6 @@ Singleton {
 
     function clearAll() {
         Quickshell.execDetached(["sh", "-c", "rm -f \"$1\"/*", "--", root.dir]);
-    }
-
-    function addUrl(url) {
-        var p = ("" + url).replace(/^file:\/\//, "");
-        Quickshell.execDetached(["cp", "-n", p, root.dir]);
-    }
-
-    // ── Send ────────────────────────────────────────────────────────────
-    function startScan() {
-        deviceModel.clear();
-        root.lsState = "scanning";
-        discoverProc.running = true;
-    }
-
-    function rescan() {
-        if (root.lsState !== "idle" && root.lsState !== "sending")
-            startScan();
-    }
-
-    function openSendPicker(file) {
-        root.sendKind = "file";
-        root.pendingFile = file;
-        startScan();
-    }
-
-    function openSendAll() {
-        if (root.count === 0)
-            return;
-        root.sendKind = "all";
-        root.pendingFile = "";
-        startScan();
-    }
-
-    function openSendText() {
-        root.sendKind = "text";
-        root.pendingFile = "";
-        root.composeText = "";
-        startScan();
-    }
-
-    function cancelSend() {
-        discoverProc.running = false;
-        root.lsState = "idle";
-        root.pendingFile = "";
-        root.composeText = "";
-    }
-
-    function pasteCompose() {
-        pasteProc.running = true;
-    }
-
-    function sendTo(ip) {
-        root.lsState = "sending";
-        if (root.sendKind === "all")
-            sendProc.command = ["bash", root.script, "send-all", root.dir, ip];
-        else if (root.sendKind === "text")
-            // Notes have no file: drop the text into a temp file named note.txt so
-            // the receiver shows a sensible name, send it, then clean up.
-            sendProc.command = ["bash", "-c",
-                "d=$(mktemp -d) && printf '%s' \"$1\" > \"$d/note.txt\" && bash \"$2\" send \"$d/note.txt\" \"$3\"; r=$?; rm -rf \"$d\"; exit $r",
-                "--", root.composeText, root.script, ip];
-        else
-            sendProc.command = ["bash", root.script, "send", root.pendingFile, ip];
-        sendProc.running = true;
-    }
-
-    // ── Receive ─────────────────────────────────────────────────────────
-    function startReceive() {
-        root.recvCount = 0;
-        root.recvLast = "";
-        root.recvAlias = "Ryoku Stash";
-        root.recvState = "listening";
-        recvProc.running = true;
-    }
-
-    function stopReceive() {
-        recvProc.running = false;
-        root.recvState = "idle";
-        root.clearOffer();
-    }
-
-    function clearOffer() {
-        root.offerAlias = "";
-        root.offerCount = 0;
-        root.offerSid = "";
-        if (root.recvState === "prompt")
-            root.recvState = "listening";
-    }
-
-    // Answer the held OFFER over the receiver's stdin; the server only issues an
-    // upload token (so only lets bytes through) once it reads ACCEPT.
-    function acceptIncoming() {
-        if (root.recvState !== "prompt") return;
-        recvProc.write("ACCEPT\t" + root.offerSid + "\n");
-        root.clearOffer();
-    }
-
-    function declineIncoming() {
-        if (root.recvState !== "prompt") return;
-        recvProc.write("DECLINE\t" + root.offerSid + "\n");
-        root.clearOffer();
-    }
-
-    function onRecvLine(line) {
-        var t = ("" + line).split("\t");
-        if (t[0] === "READY") {
-            root.recvAlias = t[1] || "Ryoku Stash";
-            root.recvState = "listening";
-        } else if (t[0] === "OFFER") {
-            root.offerAlias = t[1] || "A device";
-            root.offerCount = parseInt(t[2]) || 1;
-            root.offerSid = t[3] || "";
-            root.recvState = "prompt";
-        } else if (t[0] === "DECLINED") {
-            if (t[1] === root.offerSid) root.clearOffer();
-        } else if (t[0] === "SAVED") {
-            root.recvCount += 1;
-            root.recvLast = t[1] || "";
-        } else if (t[0] === "ERROR") {
-            root.recvState = "idle";
-        }
     }
 
     // ── Install / compress ──────────────────────────────────────────────
@@ -274,26 +114,6 @@ Singleton {
     }
 
     // ── Cobalt download + remux ─────────────────────────────────────────
-    function openDownload() {
-        root.dlTab = "download";
-        root.dlOpen = true;
-    }
-
-    function closeDownload() {
-        root.dlOpen = false;
-    }
-
-    function pasteDownload() {
-        dlPasteProc.running = true;
-    }
-
-    function submitDownload() {
-        if (root.dlText.trim().length > 0) {
-            enqueueDownload(root.dlText, root.dlMode);
-            root.dlText = "";
-        }
-    }
-
     function enqueueDownload(url, mode) {
         var u = ("" + url).trim();
         if (u.length === 0)
@@ -309,8 +129,8 @@ Singleton {
         pumpQueue();
     }
 
-    // One worker at a time walks the queue, so a burst of links downloads in order
-    // instead of fighting over the network.
+    // One worker at a time walks the queue, so a burst of links downloads in
+    // order instead of fighting over the network.
     function pumpQueue() {
         if (root.activeJob >= 0)
             return;
@@ -363,52 +183,7 @@ Singleton {
     }
 
     ListModel {
-        id: deviceModel
-    }
-
-    ListModel {
         id: queueModel
-    }
-
-    Process {
-        id: discoverProc
-        command: ["bash", root.script, "discover"]
-        stdout: StdioCollector {
-            id: discoverOut
-        }
-        onExited: {
-            if (root.lsState !== "scanning")
-                return;
-            deviceModel.clear();
-            var ipRe = /^\d{1,3}(\.\d{1,3}){3}$/;
-            var lines = discoverOut.text.split("\n");
-            for (var i = 0; i < lines.length; i++) {
-                var parts = lines[i].split("\t");
-                if (parts.length === 2 && ipRe.test(parts[1].trim()))
-                    deviceModel.append({ alias: parts[0].trim(), ip: parts[1].trim() });
-            }
-            root.lsState = "ready";
-        }
-    }
-
-    Process {
-        id: sendProc
-        onExited: {
-            root.lsState = "idle";
-            root.pendingFile = "";
-            root.composeText = "";
-        }
-    }
-
-    Process {
-        id: recvProc
-        command: ["bash", root.script, "receive"]
-        stdinEnabled: true
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: (line) => root.onRecvLine(line)
-        }
-        onExited: if (root.recvState !== "idle") root.recvState = "idle"
     }
 
     Process {
@@ -430,20 +205,6 @@ Singleton {
             root.taskMsg = taskProc.lastLine;
             root.taskState = exitCode === 0 ? "done" : "error";
         }
-    }
-
-    Process {
-        id: pasteProc
-        command: ["wl-paste", "-n"]
-        stdout: StdioCollector { id: pasteOut }
-        onExited: root.composeText = ("" + pasteOut.text)
-    }
-
-    Process {
-        id: dlPasteProc
-        command: ["wl-paste", "-n"]
-        stdout: StdioCollector { id: dlPasteOut }
-        onExited: root.dlText = ("" + dlPasteOut.text).trim()
     }
 
     Process {
