@@ -34,10 +34,10 @@ func TestCurrentSchemeReportsFollow(t *testing.T) {
 		}
 	}
 
-	// a missing file is a fresh box: the shipped grainy-mono default.
+	// a missing file is a fresh box: the shipped default now follows the wallpaper.
 	os.Remove(tp)
-	if got := currentScheme(); got != "mono" {
-		t.Errorf("missing file: currentScheme() = %q, want mono", got)
+	if got := currentScheme(); got != "follow" {
+		t.Errorf("missing file: currentScheme() = %q, want follow", got)
 	}
 }
 

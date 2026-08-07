@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+- **The theme defaults to following the wallpaper.** `loadThemeState`
+  (`backend/schemes.go`) defaults a box with no `theme.json` to follow the
+  wallpaper now (was static mono), so the Appearance scheme control and the daemon
+  agree with the shell's new default look.
+
 ### Added
 - **Appearance lists downloaded colour schemes.** The Colour scheme picker now
   shows installed RyoStore themes beside the built-in palettes, read live from

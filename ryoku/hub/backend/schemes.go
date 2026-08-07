@@ -180,10 +180,11 @@ func themeStatePath() string {
 	return filepath.Join(base, "ryoku", "theme.json")
 }
 
-// loadThemeState defaults to the shipped grainy-mono preset on a missing or
-// blank file; an existing file (a user who picked follow or a scheme) wins.
+// loadThemeState defaults to following the wallpaper on a missing or blank file
+// (the shipped default look); an existing file (a user who locked a scheme or
+// turned follow off) wins.
 func loadThemeState() themeState {
-	s := themeState{FollowWallpaper: false, Scheme: "mono"}
+	s := themeState{FollowWallpaper: true, Scheme: "mono"}
 	if b, err := os.ReadFile(themeStatePath()); err == nil {
 		_ = json.Unmarshal(b, &s)
 	}
