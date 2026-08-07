@@ -22,7 +22,7 @@ Singleton {
     // signal-handler grammar rejects), a removed themePalette key only reads as
     // absent from raw text, and a bare JsonAdapter does not repopulate reliably
     // for a lazily-created singleton.
-    property bool matchWallpaper: false
+    property bool matchWallpaper: true
     property var namedScheme: null
     property var wall: ({})
 
@@ -86,9 +86,12 @@ Singleton {
         try {
             const t = themeFile.text();
             const o = t ? JSON.parse(t) : null;
-            root.matchWallpaper = !!(o && o.followWallpaper);
+            // Default ON when theme.json is absent or omits the key, matching
+            // services/Config.qml and the daemon's matchWallpaperOn: a fresh box
+            // follows the wallpaper. Only an explicit false locks it off.
+            root.matchWallpaper = (o && typeof o.followWallpaper === "boolean") ? o.followWallpaper : true;
         } catch (e) {
-            root.matchWallpaper = false;
+            root.matchWallpaper = true;
         }
     }
 

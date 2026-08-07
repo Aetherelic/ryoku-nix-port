@@ -23,7 +23,7 @@ Singleton {
     // "on" role names defeat JsonAdapter's signal-handler grammar, a removed
     // themePalette key only reads as absent from raw text, and a bare adapter does
     // not repopulate reliably for a lazily-created singleton.
-    property bool matchWallpaper: false
+    property bool matchWallpaper: true
     property var namedScheme: null
     property var wall: ({})
 
@@ -154,9 +154,12 @@ Singleton {
         try {
             const txt = themeFile.text();
             const o = txt ? JSON.parse(txt) : null;
-            t.matchWallpaper = !!(o && o.followWallpaper);
+            // Default ON when theme.json is absent or omits the key, matching
+            // services/Config.qml and the daemon's matchWallpaperOn: a fresh box
+            // follows the wallpaper. Only an explicit false locks it off.
+            t.matchWallpaper = (o && typeof o.followWallpaper === "boolean") ? o.followWallpaper : true;
         } catch (e) {
-            t.matchWallpaper = false;
+            t.matchWallpaper = true;
         }
     }
 

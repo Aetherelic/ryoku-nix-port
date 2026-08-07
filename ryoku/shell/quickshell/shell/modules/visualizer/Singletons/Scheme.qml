@@ -21,7 +21,7 @@ Singleton {
 
     // The follow-the-wallpaper master (theme.json, the single colour source the
     // daemon and window borders also read).
-    property bool matchWallpaper: false
+    property bool matchWallpaper: true
 
     // The static named scheme's palette (shell.json themePalette; null for the
     // dynamic Default/Wallpaper variants) and the live wallpaper roles
@@ -123,9 +123,12 @@ Singleton {
         try {
             const t = themeFile.text();
             const o = t ? JSON.parse(t) : null;
-            root.matchWallpaper = !!(o && o.followWallpaper);
+            // Default ON when theme.json is absent or omits the key, matching
+            // services/Config.qml and the daemon's matchWallpaperOn: a fresh box
+            // follows the wallpaper. Only an explicit false locks it off.
+            root.matchWallpaper = (o && typeof o.followWallpaper === "boolean") ? o.followWallpaper : true;
         } catch (e) {
-            root.matchWallpaper = false;
+            root.matchWallpaper = true;
         }
     }
 

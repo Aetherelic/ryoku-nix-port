@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- **The follow-the-wallpaper default now reaches every surface, not just the
+  frame and bar.** The shipped colour default is the wallpaper, but five
+  per-surface colour singletons still defaulted to the static brand palette when
+  `theme.json` was absent, so a fresh box's desktop widgets, plugin tiles, audio
+  visualiser and wallpaper switcher stayed monochrome while the frame and bar
+  retinted. They now default on when the key is absent, matching
+  `services/Config.qml` and the daemon, so an uncustomised box follows the
+  wallpaper everywhere while an explicit Mono/Light/Dark pick still locks it off
+  (`ui/Singletons/Tokens.qml`, `modules/desktop/Singletons/Scheme.qml`,
+  `plugins/kit/Singletons/Scheme.qml`,
+  `modules/visualizer/Singletons/Scheme.qml`, and
+  `modules/wallpaper/switcher/Singletons/Config.qml`).
 - **Bluetooth is reachable from the default bar.** The Bluetooth pill defaulted
   hidden (`modBluetooth: false`) and only ever rendered when that toggle was on,
   so a fresh install -- or any user whose widget cache had persisted it off -- had
