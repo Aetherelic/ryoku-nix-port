@@ -30,6 +30,10 @@ Scope {
     // built-in one; a receipt-owned style would load its own scene without rails.
     readonly property bool sumiActive: BarProducts.sceneUrl(Config.barStyle) === ""
 
+    // A transient Loader.Error on a builtin style must not stick us on sumi; count
+    // retries so a genuinely broken style still degrades gracefully after ~8s.
+    property int barStyleRetries: 0
+
     readonly property var state: root.modelData ? ShellState.forScreen(root.modelData) : null
     readonly property bool revealed: root.state ? root.state.barRevealed : true
 
@@ -396,8 +400,32 @@ Scope {
         id: barStyleLoader
         active: !root.sumiActive
         source: BarProducts.sceneUrl(Config.barStyle)
-        onLoaded: if (item) item.modelData = root.modelData
-        onStatusChanged: if (status === Loader.Error) BarProducts.fail(Config.barStyle)
+        onLoaded: {
+            root.barStyleRetries = 0
+            if (item) item.modelData = root.modelData
+        }
+        // A builtin style (qsbar) cannot be legitimately broken: a load error is a
+        // transient hiccup (an update's config/plugin swap, a cold-start race), so
+        // retry instead of permanently dropping to the sumi rail. A store-installed
+        // style that errors is genuinely broken → fail() it as before.
+        onStatusChanged: {
+            if (status !== Loader.Error)
+                return;
+            if (BarProducts.isBuiltin(Config.barStyle) && root.barStyleRetries < 10) {
+                root.barStyleRetries++;
+                barStyleReload.restart();
+            } else {
+                BarProducts.fail(Config.barStyle);
+            }
+        }
+    }
+    Timer {
+        id: barStyleReload
+        interval: 800
+        onTriggered: {
+            barStyleLoader.active = false;
+            barStyleLoader.active = Qt.binding(() => !root.sumiActive);
+        }
     }
     Connections {
         target: root

@@ -241,6 +241,43 @@ Item {
                 WidgetRow { modProp: "modBrightness"; gid: "G13"; flag: "compactBrightness"; title: "Brightness" }
                 WidgetRow { modProp: "modPower";      gid: "G14"; flag: "compactPower";      title: "Power Profile" }
                 WidgetRow { modProp: "modBluetooth";  gid: "G15"; flag: "compactBluetooth";  title: "Bluetooth" }
+                WidgetRow { visible: page.root && page.root.modGpu !== undefined;            modProp: "modGpu";            gid: "G17"; flag: "compactGpu";            title: "GPU" }
+                WidgetRow { visible: page.root && page.root.modCpuTemperature !== undefined; modProp: "modCpuTemperature"; gid: "G16"; flag: "compactCpuTemperature"; title: "CPU Temp" }
+                WidgetRow { visible: page.root && page.root.modStorage !== undefined;        modProp: "modStorage";        gid: "G18"; flag: "compactStorage";        title: "Storage" }
+            }
+
+            // AI-usage tool: which coding-agent meter the pill shows. A per-widget
+            // behaviour, not a mod*/palette/density knob, so it sits in its own
+            // section under the list and only shows while the widget is enabled.
+            CcSection {
+                width: contentCol.width
+                root: page.root
+                title: "AI USAGE"
+                visible: page.boolOf("modClaude")
+
+                CcSeg {
+                    root: page.root
+                    options: [{ key: "claude", label: "Claude" }, { key: "codex", label: "Codex" }, { key: "opencode", label: "OpenCode" }]
+                    current: page.root ? page.root.aiTool : ""
+                    onChose: (key) => { if (page.root) page.root.aiTool = key }
+                }
+            }
+
+            // Temperature source for the V2 CPU-temperature widget: the same
+            // sensor picker the Thermals panel carries, surfaced while the widget
+            // is enabled (V1 has no CPU-temp widget, so this never shows there).
+            CcSection {
+                width: contentCol.width
+                root: page.root
+                title: "TEMPERATURE"
+                visible: page.boolOf("modCpuTemperature")
+
+                CcSeg {
+                    root: page.root
+                    options: [{ key: "cpu", label: "CPU" }, { key: "core", label: "Core" }, { key: "gpu", label: "GPU" }, { key: "nvme", label: "NVMe" }, { key: "memory", label: "Memory" }]
+                    current: page.root ? page.root.barTemperatureSource : ""
+                    onChose: (key) => { if (page.root) page.root.barTemperatureSource = key }
+                }
             }
         }
     }

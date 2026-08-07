@@ -179,6 +179,13 @@ for s in "$here/../../system/extras"/ryoku-*; do
   install -m755 "$s" "$bindir/${s##*/}"
 done
 install -m755 "$here/quickshell/plugins/ryoku-plugins-place" "$bindir/ryoku-plugins-place"
+# AI-usage collectors: refresh ~/.cache/{claude,codex,opencode}-usage.json for
+# the qsbar AI pill, driven by the ryoku-ai-usage.timer installed below. The
+# package ships them to /usr/bin; the dev loop puts the current copies on PATH.
+for s in "$here/bin"/claude-usage "$here/bin"/codex-usage "$here/bin"/opencode-usage; do
+  install -m755 "$s" "$bindir/${s##*/}"
+done
+say "installed the AI-usage collectors to $bindir"
 say "installed Ryoku CLI and hardware helpers"
 
 # Record the checkout this deploy came from and the commit it laid down, so the
@@ -421,6 +428,12 @@ mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
 sed -i -e "s|^ExecStart=.*|ExecStart=$bindir/ryoku-shell daemon|" \
   -e "s|^ExecStartPre=.*|ExecStartPre=-$bindir/ryoku-shell quit|" "$cfg/systemd/user/ryoku-shell.service"
 systemctl --user daemon-reload 2>/dev/null || true
+# ryoku-ai-usage.service ships three ExecStart=-/usr/bin/<collector> lines (the
+# package path); rewrite them to ~/.local/bin so the dev-deployed collectors
+# resolve, mirroring the ryoku-shell.service rewrite above.
+sed -i "s|^ExecStart=-/usr/bin/|ExecStart=-$bindir/|" "$cfg/systemd/user/ryoku-ai-usage.service"
+systemctl --user daemon-reload 2>/dev/null || true
+systemctl --user enable --now ryoku-ai-usage.timer 2>/dev/null || true
 # pip (PEP 668 --user) + the default-app map: Ryoku-owned, so a dev box tracks
 # them the way the package materializes them for an installed one.
 mkdir -p "$cfg/pip"; cp -a "$here/../apps/pip/pip.conf" "$cfg/pip/pip.conf"

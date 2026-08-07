@@ -224,7 +224,10 @@ Item {
         { id: "quick", label: qsTr("Quick toggles"), def: true, desc: qsTr("Idle inhibitor, media and theme.") },
         { id: "claude", label: qsTr("AI usage"), def: false, desc: qsTr("Coding-agent usage meter.") },
         { id: "power", label: qsTr("Power profile"), def: false, desc: qsTr("Power-profile pill.") },
-        { id: "bluetooth", label: qsTr("Bluetooth"), def: false, desc: qsTr("Bluetooth pill.") }
+        { id: "bluetooth", label: qsTr("Bluetooth"), def: false, desc: qsTr("Bluetooth pill.") },
+        { id: "gpu", label: qsTr("GPU"), def: true, desc: qsTr("GPU load."), v2: true },
+        { id: "cpuTemperature", label: qsTr("CPU temperature"), def: true, desc: qsTr("CPU temperature."), v2: true },
+        { id: "storage", label: qsTr("Storage"), def: true, desc: qsTr("Root filesystem usage."), v2: true }
     ]
     readonly property var qsbarColors: ["color01", "color02", "color03", "color04", "color05", "color06", "color07", "foreground"]
     property var qsbarPalette: ({})
@@ -490,6 +493,7 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     controlWidth: 220
+                    visible: page.qsbarVariant === "v2"
                     label: qsTr("Bar form")
                     desc: qsTr("The full-width shell, a fitted island, a floating dock, or a notch.")
                     source: "shell.json"
@@ -506,6 +510,7 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     controlWidth: 54
+                    visible: page.qsbarVariant === "v2"
                     label: qsTr("Bar border")
                     desc: qsTr("Draw the outer border around the bar shell.")
                     source: "shell.json"
@@ -521,6 +526,7 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     controlWidth: 54
+                    visible: page.qsbarVariant === "v2"
                     label: qsTr("Panel + tooltip border")
                     desc: qsTr("Draw the outer border around popouts and tooltips.")
                     source: "shell.json"
@@ -590,7 +596,7 @@ Item {
                     Seg {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        options: ["default", "numbers", "magic"]
+                        options: page.qsbarVariant === "v2" ? ["default", "numbers", "magic", "kanji", "rings", "aurora"] : ["default", "numbers", "magic"]
                         current: page.qval("workspaceStyle", "default")
                         onChose: key => page.qset("workspaceStyle", key)
                     }
@@ -622,6 +628,39 @@ Item {
                                 TapHandler { onTapped: page.qset("barColor", modelData) }
                             }
                         }
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 210
+                    label: qsTr("AI tool")
+                    desc: qsTr("Which coding-agent usage meter the AI pill shows.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["claude", "codex", "opencode"]
+                        current: page.qval("aiTool", "claude")
+                        onChose: key => page.qset("aiTool", key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    block: true
+                    visible: page.qsbarVariant === "v2"
+                    label: qsTr("Temperature source")
+                    desc: qsTr("Which sensor the CPU-temperature widget reads.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["cpu", "core", "gpu", "nvme", "memory"]
+                        current: page.qval("barTemperatureSource", "cpu")
+                        onChose: key => page.qset("barTemperatureSource", key)
                     }
                 }
                 SettingRow {
@@ -660,6 +699,7 @@ Item {
                     model: page.qsbarWidgets
                     delegate: SettingRow {
                         required property var modelData
+                        visible: !modelData.v2 || page.qsbarVariant === "v2"
                         anchors.left: parent.left
                         anchors.right: parent.right
                         divider: true

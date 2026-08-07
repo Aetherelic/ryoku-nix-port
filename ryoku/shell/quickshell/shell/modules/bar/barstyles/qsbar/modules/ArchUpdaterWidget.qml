@@ -59,7 +59,7 @@ Item {
     // legitimate worst case is well past 45s. Kill the process (not just the flag)
     // so the state is unambiguous if it ever hangs.
     Timer {
-        id: refreshWatchdog; interval: 70000
+        id: refreshWatchdog; interval: 130000
         onTriggered: { rootMod.refreshing = false; checkProc.running = false }
     }
 
@@ -74,49 +74,40 @@ Item {
     }
 
     function doRefresh() {
-        var cmd = [
-            "bash", Quickshell.env("HOME") + "/.local/bin/qs-arch-update-check.sh"
-        ]
+        // Ryoku-native: the bar reads the same seam the Hub and update island do
+        // (`ryoku status --json`) — the channel commits behind plus, when
+        // checkupdates is present, pending pacman packages. No qs-arch-* scripts.
         rootMod.refreshing = true
         refreshWatchdog.restart()
-        checkProc.command = cmd
+        checkProc.command = ["bash", "-c", "ryoku status --json 2>/dev/null"]
         checkProc.running = false
         checkProc.running = true
     }
 
     function parseOutput(text) {
-        var lines = text.trim().split("\n")
         var updates = []
-        var sysCount = 0; var aCount = 0
-        var sawMeta = false
-        for (var i = 0; i < lines.length; i++) {
-            var parts = lines[i].split("|")
-            if (parts.length >= 4) {
-                var src = parts[0]
-                if (src === "M") {
-                    sawMeta = true
-                    root.archScanId = parts[1] || ""
-                    root.archScanCheckedEpoch = parseInt(parts[2] || "0")
-                    root.archScanHash = parts[3] || ""
-                    root.archScanSystemCount = parseInt(parts[4] || "0")
-                    continue
-                }
-                if (src !== "S" && src !== "A") continue
-                var entry = {name: parts[1], oldVer: parts[2], newVer: parts[3], source: src === "S" ? "system" : "aur"}
-                updates.push(entry)
-                if (src === "S") sysCount++
-                else if (src === "A") aCount++
+        var count = 0
+        try {
+            var d = JSON.parse(text.trim())
+            var list = d.updates instanceof Array ? d.updates : []
+            for (var i = 0; i < list.length; i++) {
+                var u = list[i] || {}
+                updates.push({name: u.name || "", oldVer: u.old || "", newVer: u.new || "", source: "system"})
             }
+            count = (typeof d.pendingUpdates === "number") ? d.pendingUpdates : list.length
+        } catch (e) {
+            updates = []
+            count = 0
         }
-        if (!sawMeta) {
-            root.archScanId = ""
-            root.archScanCheckedEpoch = 0
-            root.archScanHash = ""
-            root.archScanSystemCount = 0
-        }
-        rootMod.systemCount = sysCount
-        rootMod.aurCount = aCount
-        rootMod.updateCount = sysCount + aCount
+        // No per-package security gate in the Ryoku model: stamp the scan fresh so
+        // the panel treats the list as current, and let `ryoku update` own applying.
+        root.archScanId = ""
+        root.archScanCheckedEpoch = Math.floor(Date.now() / 1000)
+        root.archScanHash = ""
+        root.archScanSystemCount = count
+        rootMod.systemCount = count
+        rootMod.aurCount = 0
+        rootMod.updateCount = count
         root.archUpdates = updates
     }
 

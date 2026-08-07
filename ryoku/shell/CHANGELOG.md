@@ -73,6 +73,74 @@
   (`quickshell/shell/modules/bar/framebars/menus/quicksettings/QuickSettingsCapture.qml`).
 
 ### Fixed
+- **The bar no longer resets to the sumi rail after an update.** `Frame` loads
+  the active bar style through a `Loader`, and a single `Loader.Error` called
+  `BarProducts.fail(id)`, which recorded the style as failed for the rest of the
+  session — so any transient load hiccup on a fresh post-update start (a plugin
+  `.so` swap, a cold-start import race) permanently dropped the configured qsbar
+  style to the built-in sumi rail until a full clean restart. A built-in style
+  ships with the shell and cannot be legitimately broken, so `fail()` now ignores
+  built-ins and `Frame` retries the loader (up to ~8s) before degrading; a
+  genuinely broken store-installed style still falls back as before
+  (`quickshell/shell/services/BarProducts.qml`, `quickshell/shell/modules/bar/Frame.qml`).
+- **The updates widget detects updates again.** The ported qsbar updater shelled
+  out to upstream quickshell-dots scripts (`~/.local/bin/qs-arch-{update-check,
+  security-gate,apply-update}.sh`) plus bare `checkupdates`, none of which Ryoku
+  ships — so it always read zero. Rewired the bar's `ArchUpdaterWidget` and the
+  `UpdateWidget` dot to Ryoku's own seam, `ryoku status --json` (the same source
+  the Hub and update island use: channel commits behind plus, when
+  `checkupdates` is present, pending pacman packages). The per-package security
+  gate (an upstream concept Ryoku has no script for) is retired — applying is
+  owned by the panel's Ryoku-updater backend (`ryoku update`), which the panel
+  already prefers — so the advisory gate is held benignly clean instead of
+  erroring on a missing script
+  (`quickshell/shell/modules/bar/barstyles/qsbar/modules/{ArchUpdaterWidget,UpdateWidget}.qml`,
+  the V2 copies, and the `archGate` in both `Theme.qml`).
+- **The AI-usage pill can show data again.** The pill reads
+  `~/.cache/{claude,codex,opencode}-usage.json`, but the collectors that write
+  them were never ported, so the caches never existed and the pill (which hides
+  without a signal) stayed invisible. Ported the three collectors to
+  `ryoku/shell/bin/` and added a `ryoku-ai-usage` systemd user timer (10-minute
+  cadence) that refreshes the caches; each collector no-ops cleanly when its
+  tool is absent. Shipped by both the dev deploy and the `ryoku-desktop` package
+  (`ryoku/shell/bin/{claude,codex,opencode}-usage`,
+  `ryoku/shell/systemd/user/ryoku-ai-usage.{service,timer}`). The pill itself
+  stays off by default; enable it in Appearance / Bar Studio.
+- **QS Bar settings no longer leak across variants.** The Control Center's Bars
+  route and the Hub's Bar Studio showed V2-only controls (bar form
+  full/fit/dock/notch, the separate bar and panel/tooltip borders) while V1 was
+  active and never surfaced V1's own island style (border, frost, shadow), and
+  the workspace-marker picker offered only V1's three styles under both. Each
+  surface now gates on the active variant: V1 shows its STYLE section and the
+  full gap-animation set (including the `·2` presets), V2 shows the shell forms
+  and two-border surface, and the marker picker is driven by a per-variant
+  `workspaceStyleOptions` list (V2 adds Kanji, Frame, Aurora). Bar Studio hides
+  the V2-only rows and matches the marker set under V1
+  (`quickshell/shell/modules/bar/barstyles/qsbar/controlcenter/routes/BarsRoute.qml`,
+  `.../routes/WorkspacesRoute.qml`, `.../qsbar/Theme.qml`,
+  `.../qsbar/variants/V2/Theme.qml`, `hub/quickshell/pages/BarStudioPage.qml`).
+- **The AI-usage tool is now a first-class setting.** Choosing which coding-agent
+  meter the bar pill shows (Claude, Codex, or OpenCode) was only reachable from
+  inside the AI-usage popout, so the option never appeared in either settings
+  surface. The Control Center's Appearance route grows an AI USAGE selector
+  (shown while the widget is enabled) and the Hub's Bar Studio grows an AI tool
+  row; both drive `aiTool` on either variant, and the Bar Studio bridge
+  (`applyStudioSettings`) now applies the `qsbar.aiTool` key it writes
+  (`quickshell/shell/modules/bar/barstyles/qsbar/controlcenter/routes/AppearanceRoute.qml`,
+  `.../qsbar/Theme.qml`, `.../qsbar/variants/V2/Theme.qml`,
+  `hub/quickshell/pages/BarStudioPage.qml`).
+- **V2's GPU, CPU-temperature and storage widgets are now configurable.** These
+  three continuous-bar telemetry widgets (and the temperature widget's sensor
+  source) existed on the bar but appeared in no settings surface — neither the
+  Control Center's Appearance list nor the Hub's Bar Studio widget list, and the
+  Bar Studio bridge dropped them on the floor. The Appearance route gains GPU,
+  CPU Temp and Storage rows (visibility, accent, icon-only density) plus a
+  TEMPERATURE selector, Bar Studio gains the three widget toggles and a
+  temperature-source row (all gated to V2, which alone has these widgets), and
+  `applyStudioSettings` now applies `qsbar.barTemperatureSource` and the three
+  `qsbar.widgets` keys
+  (`quickshell/shell/modules/bar/barstyles/qsbar/controlcenter/routes/AppearanceRoute.qml`,
+  `.../qsbar/variants/V2/Theme.qml`, `hub/quickshell/pages/BarStudioPage.qml`).
 - **The desktop no longer boots into a keyboard-grabbed, greyed-out state.** The
   photo-viewer overlay's `shown` guard tested `src !== ""`, but `src` is a `url`
   property and strict inequality against a string is always true for an empty

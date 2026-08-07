@@ -27,6 +27,13 @@ Item {
     readonly property int gap: (page.cc && page.cc.tokens) ? page.cc.tokens.gap : 10
     readonly property int sectionGap: (page.cc && page.cc.tokens) ? page.cc.tokens.sectionGap : 16
 
+    // Variant capability gates. V1 (island) exposes the style* surface toggles;
+    // V2 (continuous) exposes the shell forms and the two-border surface. Each
+    // section gates on these so a control only shows under the variant it drives,
+    // matching upstream Rise: V2-only forms/borders never render under V1.
+    readonly property bool isV1: !!(page.root && page.root.styleFrost !== undefined)
+    readonly property bool isV2: !!(page.root && page.root.barShellStyleValid !== undefined)
+
     // the four V2 bar forms + their captions (drives the header + the FORM grid)
     readonly property var formModel: [
         { form: "full",  label: "Full",  detail: "Edge to edge" },
@@ -186,11 +193,63 @@ Item {
                 }
             }
 
+            // ── STYLE (V1 island surface) ──
+            CcSection {
+                width: col.width
+                root: page.root
+                title: "STYLE"
+                visible: page.isV1
+
+                CcRow {
+                    root: page.root
+                    label: "Bar border"
+                    desc: "Outline the pill surfaces"
+                    controlWidth: 108
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
+                        current: (page.root && page.root.styleBorder) ? "on" : "off"
+                        onChose: k => { if (page.root && page.root.styleBorder !== undefined) page.root.styleBorder = (k === "on") }
+                    }
+                }
+                CcRow {
+                    root: page.root
+                    label: "Frost"
+                    desc: "Lower the island opacity so blur shows through"
+                    controlWidth: 108
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
+                        current: (page.root && page.root.styleFrost) ? "on" : "off"
+                        onChose: k => { if (page.root && page.root.styleFrost !== undefined) page.root.styleFrost = (k === "on") }
+                    }
+                }
+                CcRow {
+                    root: page.root
+                    label: "Shadow"
+                    desc: "Cast a soft shadow under the pills"
+                    controlWidth: 108
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
+                        current: (page.root && page.root.styleShadow) ? "on" : "off"
+                        onChose: k => { if (page.root && page.root.styleShadow !== undefined) page.root.styleShadow = (k === "on") }
+                    }
+                }
+            }
+
             // ── BAR SURFACE ──
             CcSection {
                 width: col.width
                 root: page.root
                 title: "BAR SURFACE"
+                visible: page.isV2
 
                 CcRow {
                     root: page.root
@@ -229,6 +288,7 @@ Item {
                 width: col.width
                 root: page.root
                 title: "BAR FORM"
+                visible: page.isV2
 
                 Grid {
                     id: formGrid
@@ -364,11 +424,11 @@ Item {
                     spacing: page.gap
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Off";        on: page.curAnim === 0; onAct: page.setAnim(0) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Stream";     on: page.curAnim === 1; onAct: page.setAnim(1) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Stream · 2"; on: page.curAnim === 5; onAct: page.setAnim(5) }
+                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: "Stream · 2"; on: page.curAnim === 5; onAct: page.setAnim(5) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Surge";      on: page.curAnim === 2; onAct: page.setAnim(2) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Surge · 2";  on: page.curAnim === 6; onAct: page.setAnim(6) }
+                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: "Surge · 2";  on: page.curAnim === 6; onAct: page.setAnim(6) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Bolt";       on: page.curAnim === 3; onAct: page.setAnim(3) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Bolt · 2";   on: page.curAnim === 4; onAct: page.setAnim(4) }
+                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: "Bolt · 2";   on: page.curAnim === 4; onAct: page.setAnim(4) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Reactor";    on: page.curAnim === 7; onAct: page.setAnim(7) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Quotes";     on: page.curAnim === 8; onAct: page.setAnim(8) }
                 }

@@ -52,7 +52,7 @@ Item {
                 title: "MARKER"
                 CcSeg {
                     root: page.root
-                    options: [{ key: "default", label: "Dots" }, { key: "numbers", label: "Numbers" }, { key: "magic", label: "Glyph" }]
+                    options: page.root ? page.root.workspaceStyleOptions : []
                     current: page.root ? page.root.workspaceStyle : ""
                     onChose: (key) => { if (page.root) page.root.workspaceStyle = key }
                 }

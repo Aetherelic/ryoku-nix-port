@@ -25,7 +25,7 @@ Item {
 
     Process {
         id: updateProc
-        command: ["bash", "-c", "checkupdates >/dev/null 2>&1 && echo YES || echo NO"]
+        command: ["bash", "-c", "ryoku status --json 2>/dev/null | grep -q '\"available\":true' && echo YES || echo NO"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: { rootMod.updateAvailable = this.text.trim() === "YES" }

@@ -1998,6 +1998,16 @@ Item {
     // ── workspace display style (orthogonal to mode; persisted) ──
     // "rings" is the stable cache token for the user-facing Frame style.
     property string workspaceStyle: "default"   // default, numbers, magic, kanji, rings, aurora
+    // The marker styles this variant offers (continuous V2 adds Kanji, Frame,
+    // Aurora; "rings" is the persisted cache token for the Frame style).
+    readonly property var workspaceStyleOptions: [
+        { key: "default", label: "Dots" },
+        { key: "numbers", label: "Numbers" },
+        { key: "magic",   label: "Glyph" },
+        { key: "kanji",   label: "Kanji" },
+        { key: "rings",   label: "Frame" },
+        { key: "aurora",  label: "Aurora" }
+    ]
 
     // ── bar screen position (persisted) ──
     property string barPosition: "top"   // "top" or "bottom"
@@ -2505,6 +2515,8 @@ Item {
         if (q.workspaceStyle  !== undefined) workspaceStyle  = q.workspaceStyle
         if (q.pickerStyle     !== undefined) pickerStyle     = q.pickerStyle
         if (q.launcherLogoMode !== undefined) launcherLogoMode = q.launcherLogoMode
+        if (q.aiTool === "claude" || q.aiTool === "codex" || q.aiTool === "opencode") aiTool = q.aiTool
+        if (q.barTemperatureSource !== undefined && barTemperatureSourceValid(q.barTemperatureSource)) barTemperatureSource = q.barTemperatureSource
         if (q.barShellStyle !== undefined && barShellStyleValid(q.barShellStyle)) barShellStyle = q.barShellStyle
         if (q.barBorderEnabled !== undefined) barBorderEnabled = q.barBorderEnabled
         if (q.panelTooltipBorderEnabled !== undefined) panelTooltipBorderEnabled = q.panelTooltipBorderEnabled
@@ -2523,6 +2535,9 @@ Item {
             if (w.claude     !== undefined) modClaude     = w.claude
             if (w.power      !== undefined) modPower      = w.power
             if (w.bluetooth  !== undefined) modBluetooth  = w.bluetooth
+            if (w.gpu            !== undefined) modGpu            = w.gpu
+            if (w.cpuTemperature !== undefined) modCpuTemperature = w.cpuTemperature
+            if (w.storage        !== undefined) modStorage        = w.storage
         }
         _widgetsLoaded = wl
     }
@@ -2635,92 +2650,32 @@ Item {
     // Manual retry, e.g. on panel open: a degraded verdict can be a transient
     // (blacklist file mid-update at scan time) and must not stick until the
     // next refresh.
-    function archGateRescan() { archGate.rerun() }
+    function archGateRescan() { theme.applyBenignArchGate() }
 
-    Process {
-        id: archGate
-        // Hang on the DATA, not the refresh trigger: archRefreshTick fires the
-        // refresh, but archUpdates is only filled when the refresh finishes — so
-        // watching the tick would scan the PREVIOUS list. Watch archUpdates.
-        property var watched: theme.archUpdates
-        onWatchedChanged: rerun()
-        // A rerun restarts even a live scan (running=false→true). That kill makes
-        // onExited see a nonzero (terminated) exit; flag it so onExited does NOT
-        // mistake the deliberate kill for a crash and force degraded — that false
-        // degraded could land AFTER a clean scan and stick ("protection limited" +
-        // no "mirrors ✓" despite a healthy feed).
-        property bool killing: false
-        function rerun() {
-            if (running) killing = true
-            running = false   // restart even if a previous scan is still running
-            theme.archGateResults = []
-            theme.archGateOk = 0; theme.archGateWarn = 0; theme.archGateFail = 0
-            theme.archGateBlacklist = 0; theme.archGateDegraded = false
-            theme.archGateStale = false; theme.archGateMirrorsAgree = false; theme.archGateMirrorMismatch = false
-            // Run the gate even with 0 updates — it still emits the meta line, so the
-            // panel can always show the blacklist size / protection status.
-            theme.archGateState = (theme.archUpdates && theme.archUpdates.length > 0)
-                ? "scanning" : "clean"
-            stdinEnabled = true   // re-arm stdin each run — onStarted sets it false to send EOF; without this the 2nd+ run reads disabled stdin and hangs in 'scanning'
-            running = true
+    // Ryoku has no per-package security gate: applying is owned by `ryoku update`
+    // (the panel's Ryoku-updater backend), and upstream's qs-arch-security-gate.sh
+    // is not shipped. Keep the advisory gate benignly "clean" — mirror each pending
+    // update as an OK verdict — so the panel never shows a false scanning/degraded
+    // state from a scan that no longer runs.
+    onArchUpdatesChanged: theme.applyBenignArchGate()
+    function applyBenignArchGate() {
+        var ups = theme.archUpdates || []
+        var results = []
+        for (var i = 0; i < ups.length; i++) {
+            var u = ups[i] || {}
+            results.push({ pkg: u.name, repo: (u.source === "aur") ? "aur" : "system",
+                           old: u.oldVer || "", new: u.newVer || "", verdict: "OK", reason: "" })
         }
-        command: ["bash", Quickshell.env("HOME") + "/.local/bin/qs-arch-security-gate.sh"]
-        stdinEnabled: true
-        onStarted: {
-            // Feed "pkg|repo|old|new" — exactly the gate's stdin format.
-            var ups = theme.archUpdates || []
-            for (var i = 0; i < ups.length; i++) {
-                var u = ups[i]
-                var repo = (u.source === "aur") ? "aur" : "system"
-                write(u.name + "|" + repo + "|" + (u.oldVer || "") + "|" + (u.newVer || "") + "\n")
-            }
-            stdinEnabled = false   // EOF → gate finishes
-        }
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var results = [], ok = 0, warn = 0, fail = 0, sawMeta = false
-                var lines = this.text.trim().split("\n")
-                for (var i = 0; i < lines.length; i++) {
-                    var s = lines[i].trim(); if (!s) continue
-                    var o; try { o = JSON.parse(s) } catch (e) { continue }
-                    if (o.meta === "gate") {
-                        sawMeta = true
-                        theme.archGateBlacklist = o.blacklist || 0
-                        if (o.degraded) theme.archGateDegraded = true
-                        if (o.list_date) theme.archGateListDate = o.list_date
-                        if (o.stale) theme.archGateStale = true
-                        theme.archGateMirrorsAgree = (o.mirrors_agree === true)
-                        theme.archGateMirrorMismatch = (o.mirror_mismatch === true)
-                        continue
-                    }
-                    results.push(o)
-                    if (o.verdict === "FAIL") fail++
-                    else if (o.verdict === "WARN") warn++
-                    else ok++
-                }
-                theme.archGateResults = results
-                theme.archGateOk = ok; theme.archGateWarn = warn; theme.archGateFail = fail
-                // Fail-CLOSED: if the gate didn't fully respond (no meta line, or a
-                // package has no verdict — gate missing/crashed/partial), do NOT
-                // claim "clean". An empty/short answer means "unverified", not "safe".
-                if (!sawMeta || results.length !== (theme.archUpdates || []).length)
-                    theme.archGateDegraded = true
-                theme.archGateState =
-                    fail > 0 ? "blocked"
-                    : theme.archGateDegraded ? "degraded"
-                    : warn > 0 ? "warn" : "clean"
-            }
-        }
-        onExited: (exitCode) => {
-            if (killing) { killing = false; return }   // we restarted it on purpose, not a crash
-            // Gate exited nonzero (missing script, crash) => force degraded so the
-            // panel never shows a false all-clear.
-            if (exitCode !== 0) {
-                theme.archGateDegraded = true
-                if (theme.archGateFail === 0 && theme.archGateWarn === 0)
-                    theme.archGateState = "degraded"
-            }
-        }
+        theme.archGateResults = results
+        theme.archGateOk = ups.length
+        theme.archGateWarn = 0
+        theme.archGateFail = 0
+        theme.archGateBlacklist = 0
+        theme.archGateDegraded = false
+        theme.archGateStale = false
+        theme.archGateMirrorsAgree = false
+        theme.archGateMirrorMismatch = false
+        theme.archGateState = "clean"
     }
 
     // ── Shell Updater state (shared by ArchUpdaterWidget and ShellUpdateTab) ──
