@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- **The bar's "Open audio" button opens a mixer.** It launches `pavucontrol` for
+  advanced routing (card profiles, per-app device moves) beyond the bar's own
+  native mixer, but `pavucontrol` was never a dependency, so the button ran a
+  missing binary. It is a hard `ryoku-desktop` depend now, from the official extra
+  repo, so it works on every install path (`packages/ryoku-desktop/PKGBUILD`).
 - **`power-profiles-daemon` is enabled, so power-mode switching persists.** The
   daemon shipped only D-Bus activated (`systemctl is-enabled` = disabled), so the
   shell's power-mode switching could not reliably stick. A one-shot `_powerprofiles`

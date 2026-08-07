@@ -182,6 +182,11 @@ depends=(
   # was base.packages-only, so it never reached update/shell boxes (the pill
   # faders were silently dead there); a hard depend fixes every path.
   'ddcutil'
+  # GUI audio mixer the bar's "Open audio" button launches for advanced routing
+  # (card profiles, per-app device moves) beyond the bar's own native PipeWire
+  # mixer. A hard depend so the button works on every install path; it launched a
+  # missing binary before. Official extra repo.
+  'pavucontrol'
 )
 optdepends=(
   'chromium: web browser'
