@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `network/ryoku-dns`: persistent system-wide DNS provider switching for
+  DHCP, Cloudflare, Google, and validated custom IPv4/IPv6 servers. The helper
+  writes one NetworkManager global-DNS drop-in, reloads the active resolver
+  state, and removes only its own drop-in when returning to DHCP; it is
+  privilege-separated behind polkit and ships through `ryoku-desktop`.
 - `ddc/`: external-monitor brightness over DDC/CI. `ryoku-i2c.conf` loads the
   `i2c-dev` module (`/etc/modules-load.d/`) so `ddcutil` can open `/dev/i2c-*`, and
   `60-ryoku-i2c.rules` grants the active-session user access (`uaccess`, no group
