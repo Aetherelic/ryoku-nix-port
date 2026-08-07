@@ -48,6 +48,23 @@ _rtkit() {
   mkdir -p /var/lib/ryoku && : >"$marker"
 }
 
+# enable power-profiles-daemon exactly once, so power-mode switching persists and
+# the daemon is reliably running -- it is only D-Bus activated otherwise, and the
+# shell's power-profile UI silently fails when it isn't up. Marker keeps it
+# one-shot: a user who later disables the service stays disabled across upgrades.
+# `start` only fires on a booted system; inside the installer chroot the enable
+# symlink is enough.
+_powerprofiles() {
+  [ -e /usr/lib/systemd/system/power-profiles-daemon.service ] || return 0
+  local marker=/var/lib/ryoku/power-profiles-enabled
+  [ -e "$marker" ] && return 0
+  systemctl enable power-profiles-daemon.service 2>/dev/null || true
+  if [ -d /run/systemd/system ]; then
+    systemctl start power-profiles-daemon.service 2>/dev/null || true
+  fi
+  mkdir -p /var/lib/ryoku && : >"$marker"
+}
+
 # reload logind so the lid-policy drop-in (10-ryoku-lid.conf) applies without a
 # reboot. reload is session-safe (unlike restart, which drops sessions); only on
 # a booted system -- the installer chroot reads the drop-in on first boot.
@@ -72,6 +89,7 @@ post_install() {
   _refresh
   _bluetooth
   _rtkit
+  _powerprofiles
   _logind_lid
   _ai_usage_timer
   _hint
@@ -81,6 +99,7 @@ post_upgrade() {
   _refresh
   _bluetooth
   _rtkit
+  _powerprofiles
   _logind_lid
   _ai_usage_timer
   _hint

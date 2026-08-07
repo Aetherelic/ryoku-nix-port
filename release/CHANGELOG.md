@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **`power-profiles-daemon` is enabled, so power-mode switching persists.** The
+  daemon shipped only D-Bus activated (`systemctl is-enabled` = disabled), so the
+  shell's power-mode switching could not reliably stick. A one-shot `_powerprofiles`
+  hook (guarded by `/var/lib/ryoku/power-profiles-enabled`, mirroring
+  `_bluetooth`/`_rtkit`) now enables it on install and upgrade
+  (`packages/ryoku-desktop/ryoku-desktop.install`).
 - **`ryoku-desktop` delivers the WirePlumber policy through materialize.** The
   Bluetooth fragment moved from the package-only `/etc` drop-in into
   `/usr/share/ryoku/config/wireplumber`, so package updates and checkout deploys

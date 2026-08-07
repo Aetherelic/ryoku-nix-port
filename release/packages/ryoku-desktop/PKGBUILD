@@ -333,9 +333,10 @@ package() {
     "$pkgdir/usr/share/applications/ryotunes.desktop"
   install -Dm644 "$_repo/ryoku/apps/ryotunes/ryotunes.svg" \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/ryotunes.svg"
-  # ryoku-canvas spicetify extension (apps/spicetify): a share asset for the
-  # music widget's Spotify Canvas backdrop. spicetify users enable it; it stays
-  # inert otherwise, so it ships as an asset rather than an active config.
+  # ryoku-canvas spicetify extension (apps/spicetify): the source asset for the
+  # music widget's Spotify Canvas backdrop. `ryoku doctor` (reconcileSpicetifyCanvas)
+  # drops it into a Spotify user's spicetify Extensions and applies it, and stays
+  # inert for anyone without Spotify, so it ships as an asset here, not active config.
   install -Dm644 "$_repo/ryoku/apps/spicetify/ryoku-canvas.js" \
     "$pkgdir/usr/share/ryoku/spicetify/ryoku-canvas.js"
   install -Dm644 "$_repo/ryoku/apps/mimeapps.list" "$cfg/mimeapps.list"
