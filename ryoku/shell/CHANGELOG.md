@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Fixed
+- **The bar's audio controls are one native PipeWire path, not three racing
+  tools.** The volume pill's mute and wheel, and the whole volume panel (output
+  device switch, per-app mixer, microphone), now write straight to PipeWire
+  through the shell's `Audio` singleton (`Quickshell.Services.Pipewire`) instead
+  of a mix of `wpctl`, `pactl` and `pamixer`. The old split read the volume
+  natively but wrote through those tools, and switched the default sink with a
+  `wpctl set-default` plus `pactl set-default-sink` plus a manual `move-sink-input`
+  loop that fought WirePlumber, so the readout and the hardware could disagree and
+  switching outputs was flaky. One event-driven source of truth now
+  (`modules/bar/barstyles/qsbar/modules/AudioWidget.qml`,
+  `.../qsbar/panels/VolumePanel.qml`, and the V2 counterparts, on the shipped
+  `services/Audio.qml`).
+- **The volume panel's "Open audio" button works.** It launches `pavucontrol`,
+  which Ryoku never shipped, so it silently did nothing; `pavucontrol` is a hard
+  dependency now (see the release changelog).
 - **The follow-the-wallpaper default now reaches every surface, not just the
   frame and bar.** The shipped colour default is the wallpaper, but five
   per-surface colour singletons still defaulted to the static brand palette when

@@ -55,60 +55,17 @@ Item {
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
-    property bool audioErrorNotified: false
-    property int pendingVolumeSteps: 0
-
-    readonly property string muteCommand:
-        "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || " +
-        "pamixer -t"
-
-    function volumeCommand(steps) {
-        var amount = Math.min(100, Math.abs(steps) * 5)
-        var up = steps > 0
-        return "wpctl set-volume " + (up ? "-l 1.0 " : "") + "@DEFAULT_AUDIO_SINK@ " + amount + "%" + (up ? "+" : "-") + " || " +
-            "pamixer " + (up ? "--increase " : "--decrease ") + amount
+    // Native PipeWire control through the tracked default sink (AudioData binds
+    // it): setting volume/mute writes straight to the node, so the bar readout and
+    // the hardware never disagree. No wpctl/pactl/pamixer shell-out.
+    function stepVolume(up) {
+        var s = audio.sink
+        if (!s || !s.audio) return
+        s.audio.volume = Math.max(0, Math.min(1, s.audio.volume + (up ? 0.05 : -0.05)))
     }
-
-    function runPendingVolumeCommand() {
-        if (volumeRunner.running || pendingVolumeSteps === 0) return
-        var steps = pendingVolumeSteps
-        pendingVolumeSteps = 0
-        volumeRunner.action = steps > 0 ? "Volume up" : "Volume down"
-        volumeRunner.command = ["bash", "-c", volumeCommand(steps)]
-        volumeRunner.running = true
-    }
-
-    function queueVolumeStep(step) {
-        pendingVolumeSteps += step
-        runPendingVolumeCommand()
-    }
-
-    function notifyAudioError(action, exitCode) {
-        if (exitCode === 0 || audioErrorNotified) return
-        audioErrorNotified = true
-        audioErrNotify.command = ["bash", "-c",
-            "notify-send -a 'QS-Shell' 'Audio command failed' '" + action + " failed; audio backend unavailable.' 2>/dev/null || true"]
-        audioErrNotify.running = false
-        audioErrNotify.running = true
-    }
-
-    Process { id: audioErrNotify }
-    Process {
-        id: muteRunner
-        command: ["bash", "-c", rootMod.muteCommand]
-        onExited: (code) => {
-            rootMod.notifyAudioError("Mute", code)
-            audio.refresh()
-        }
-    }
-    Process {
-        id: volumeRunner
-        property string action: ""
-        onExited: (code) => {
-            rootMod.notifyAudioError(action, code)
-            audio.refresh()
-            rootMod.runPendingVolumeCommand()
-        }
+    function toggleMute() {
+        var s = audio.sink
+        if (s && s.audio) s.audio.muted = !s.audio.muted
     }
 
     MouseArea {
@@ -118,13 +75,11 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onEntered: tip.show()
         onExited: { tip.hide() }
-        onWheel: (e) => {
-            rootMod.queueVolumeStep(e.angleDelta.y > 0 ? 1 : -1)
-        }
+        onWheel: (e) => rootMod.stepVolume(e.angleDelta.y > 0)
         onClicked: (e) => {
             tip.hide()
-            if (e.button === Qt.RightButton) { if (!muteRunner.running) muteRunner.running = true }
-            else                             { root.volVisible = !root.volVisible }
+            if (e.button === Qt.RightButton) rootMod.toggleMute()
+            else                             root.volVisible = !root.volVisible
         }
     }
 }

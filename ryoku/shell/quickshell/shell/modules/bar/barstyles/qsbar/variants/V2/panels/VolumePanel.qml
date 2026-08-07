@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import shell.services
 import "../modules"
 
 PanelWindow {
@@ -22,10 +23,8 @@ PanelWindow {
     AudioData { id: audio }
     readonly property int    volume:   audio.volume
     readonly property bool   muted:    audio.muted
-    property bool   micMuted: false
+    readonly property bool   micMuted: Audio.source && Audio.source.audio ? Audio.source.audio.muted : false
     property real   micLevel: 0
-    property bool   notifyMicStateAfterRefresh: false
-    property bool   micStateRefreshPending: false
     readonly property real micNoiseFloorDb: -55
     readonly property bool micMeterAvailable: micPeakLoader.status === Loader.Ready
         && micPeakLoader.item !== null
@@ -60,87 +59,6 @@ PanelWindow {
                 ? sample : Math.max(sample, volPanel.micLevel * 0.78)
         }
         onRunningChanged: if (!running) volPanel.micLevel = 0
-    }
-
-    // ── per-app mixer + device switcher state ──
-    property var    apps:        []   // [{idx, name, vol, muted}]
-    property var    sinks:       []   // [{index, name, desc}]
-    property string defaultSink: ""
-    property string _appsRaw:    ""
-    property string _sinksRaw:   ""
-    property bool   audioErrorNotified: false
-
-    readonly property string outputMuteCommand:
-        "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || " +
-        "pamixer -t"
-
-    readonly property string micMuteCommand:
-        "if command -v wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle >/dev/null 2>&1; then " +
-        "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle; " +
-        "else wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle || pamixer --default-source -t; fi"
-
-    function shq(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'" }
-    function run(cmd, refreshAfter) {
-        actProc.running = false
-        actProc.refreshAfterExit = refreshAfter === true
-        actProc.command = ["bash", "-c", cmd]
-        actProc.running = true
-    }
-    function notifyAudioError(action, exitCode) {
-        if (exitCode === 0 || audioErrorNotified) return
-        audioErrorNotified = true
-        audioErrNotify.command = ["bash", "-c",
-            "notify-send -a 'QS-Shell' 'Audio command failed' " +
-            volPanel.shq(action + " failed; audio backend unavailable.") +
-            " 2>/dev/null || true"]
-        audioErrNotify.running = false
-        audioErrNotify.running = true
-    }
-    function notifyMicState() {
-        var title = micMuted ? "Microphone muted" : "Microphone active"
-        var body = micMuted ? "Input has been disabled" : "Input is ready"
-        micStateNotify.command = ["notify-send", "-a", "Audio",
-            "-h", "string:x-canonical-private-synchronous:qs-microphone", title, body]
-        micStateNotify.running = false
-        micStateNotify.running = true
-    }
-    function parseMicMuteState(text) {
-        var match = String(text || "").trim().match(/^Mute:\s*(yes|no)$/i)
-        if (!match) return -1
-        return match[1].toLowerCase() === "yes" ? 1 : 0
-    }
-    function refreshMicState(notifyAfter) {
-        if (notifyAfter === true) notifyMicStateAfterRefresh = true
-        if (micData.running) {
-            micStateRefreshPending = true
-            return
-        }
-        micData.running = true
-    }
-
-    function setDefaultSink(dev) {
-        if (!dev || !dev.name) return
-
-        var sinkName = volPanel.shq(dev.name)
-        var nodeId = (dev.index !== undefined && dev.index !== null) ? String(dev.index).replace(/[^0-9]/g, "") : ""
-        var cmd = ""
-        if (nodeId.length > 0)
-            cmd += "timeout 2 wpctl set-default " + nodeId + " 2>/dev/null || true\n"
-        cmd += "timeout 2 pactl set-default-sink " + sinkName + " 2>/dev/null || true\n"
-        cmd += "timeout 2 pactl list short sink-inputs 2>/dev/null | awk '{ print $1 }' | while read -r input; do\n"
-        cmd += "  [ -n \"$input\" ] && timeout 2 pactl move-sink-input \"$input\" " + sinkName + " 2>/dev/null || true\n"
-        cmd += "done"
-
-        volPanel.defaultSink = dev.name
-        volPanel.run(cmd, true)
-    }
-
-    function refreshAll() {
-        audio.refresh()
-        appsProc.running   = false; appsProc.running   = true
-        sinksProc.running  = false; sinksProc.running  = true
-        defSinkProc.running = false; defSinkProc.running = true
-        volPanel.refreshMicState(false)
     }
 
     readonly property real reveal: root.volReveal
@@ -265,11 +183,11 @@ PanelWindow {
                 width: parent.width
                 spacing: 4
                 Repeater {
-                    model: volPanel.sinks
+                    model: Audio.outputs
                     delegate: Rectangle {
                         id: devTile
                         required property var modelData
-                        readonly property bool isDef:   devTile.modelData.name === volPanel.defaultSink
+                        readonly property bool isDef:   Audio.sink && devTile.modelData.name === Audio.sink.name
                         readonly property bool hovered: devMa.containsMouse
                         width: parent.width
                         height: 26; radius: root.panelButtonRadius
@@ -291,7 +209,7 @@ PanelWindow {
                             UiText {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: parent.width - 22
-                                text: devTile.modelData.desc
+                                text: Audio.nodeLabel(devTile.modelData)
                                 color: (devTile.isDef || devTile.hovered) ? root.seal : root.ink
                                 font.family: root.mono; font.pixelSize: 11
                                 elide: Text.ElideRight
@@ -303,7 +221,7 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                volPanel.setDefaultSink(devTile.modelData)
+                                Audio.setOutput(devTile.modelData)
                             }
                         }
                     }
@@ -334,15 +252,15 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (!muteRunner.running) muteRunner.running = true
+                        if (Audio.sink && Audio.sink.audio) Audio.sink.audio.muted = !Audio.sink.audio.muted
                     }
                 }
             }
 
             // ── per-app mixer ──
-            Rectangle { width: parent.width; height: 1; color: root.sep; visible: volPanel.apps.length > 0 }
+            Rectangle { width: parent.width; height: 1; color: root.sep; visible: Audio.streams.length > 0 }
             UiText {
-                visible: volPanel.apps.length > 0
+                visible: Audio.streams.length > 0
                 text: "APPS"
                 color: root.sumiHi
                 font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
@@ -351,28 +269,28 @@ PanelWindow {
                 width: parent.width
                 spacing: 8
                 Repeater {
-                    model: volPanel.apps
+                    model: Audio.streams
                     delegate: Item {
                         id: appRow
                         required property var modelData
                         width: parent.width
                         height: 32
-                        property int liveVol: modelData.vol
+                        readonly property bool appMuted: modelData.audio ? modelData.audio.muted : false
+                        property int liveVol: modelData.audio ? Math.round(modelData.audio.volume * 100) : 0
 
                         // mute glyph
                         IconText {
                             id: appMute
                             anchors.left: parent.left
                             anchors.top: parent.top
-                            text: appRow.modelData.muted ? String.fromCodePoint(0xE04F) : String.fromCodePoint(0xE050)
+                            text: appRow.appMuted ? String.fromCodePoint(0xE04F) : String.fromCodePoint(0xE050)
                             font.pixelSize: 15
-                            color: appRow.modelData.muted ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4) : root.seal
+                            color: appRow.appMuted ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4) : root.seal
                             MouseArea {
                                 anchors.fill: parent; anchors.margins: -3
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    volPanel.run("pactl set-sink-input-mute " + appRow.modelData.idx + " toggle")
-                                    Qt.callLater(function() { volPanel.refreshAll() })
+                                    if (appRow.modelData.audio) appRow.modelData.audio.muted = !appRow.modelData.audio.muted
                                 }
                             }
                         }
@@ -381,8 +299,8 @@ PanelWindow {
                             anchors.verticalCenter: appMute.verticalCenter
                             anchors.verticalCenterOffset: 1
                             anchors.right: appPct.left; anchors.rightMargin: 6
-                            text: appRow.modelData.name
-                            color: appRow.modelData.muted ? root.sumi : root.ink
+                            text: Audio.streamName(appRow.modelData)
+                            color: appRow.appMuted ? root.sumi : root.ink
                             font.family: root.mono; font.pixelSize: 11
                             elide: Text.ElideRight
                         }
@@ -406,7 +324,7 @@ PanelWindow {
                             Rectangle {
                                 width: parent.width * Math.min(appRow.liveVol / 100, 1)
                                 height: parent.height; radius: 4
-                                color: appRow.modelData.muted ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.4) : root.seal
+                                color: appRow.appMuted ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.4) : root.seal
                             }
                             MouseArea {
                                 anchors.fill: parent; anchors.topMargin: -8; anchors.bottomMargin: -4
@@ -416,8 +334,9 @@ PanelWindow {
                                 }
                                 onPressed:          function(m) { setFromX(m.x) }
                                 onPositionChanged:  function(m) { if (pressed) setFromX(m.x) }
-                                onReleased: {
-                                    volPanel.run("pactl set-sink-input-volume " + appRow.modelData.idx + " " + appRow.liveVol + "%")
+                                onReleased: function(m) {
+                                    if (appRow.modelData.audio)
+                                        appRow.modelData.audio.volume = Math.max(0, Math.min(1, m.x / appTrack.width))
                                 }
                             }
                         }
@@ -502,7 +421,7 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (!micMuteRunner.running) micMuteRunner.running = true
+                        if (Audio.source && Audio.source.audio) Audio.source.audio.muted = !Audio.source.audio.muted
                     }
                 }
             }
@@ -536,142 +455,5 @@ PanelWindow {
         }
     }
 
-    Process { id: audioErrNotify }
-    Process { id: micStateNotify }
-    Process {
-        id: muteRunner
-        command: ["bash", "-c", volPanel.outputMuteCommand]
-        onExited: (code) => {
-            volPanel.notifyAudioError("Mute volume", code)
-            audio.refresh()
-        }
-    }
-    Process {
-        id: micMuteRunner
-        command: ["bash", "-c", volPanel.micMuteCommand]
-        onExited: (code) => {
-            volPanel.notifyAudioError("Mute mic", code)
-            volPanel.refreshMicState(code === 0)
-        }
-    }
     Process { id: audioRunner;   command: ["bash", "-c", "pavucontrol"] }
-    Process {
-        id: actProc
-        property bool refreshAfterExit: false
-        command: []
-        onExited: {
-            if (refreshAfterExit) {
-                refreshAfterExit = false
-                volPanel.refreshAll()
-            }
-        }
-    }
-
-    Process {
-        id: micData
-        command: ["env", "LC_ALL=C", "pactl", "get-source-mute", "@DEFAULT_SOURCE@"]
-        running: false
-        stdout: StdioCollector { id: micDataOut }
-        // pactl get-source-mute prints "Mute: yes" | "Mute: no". Only act on an explicit,
-        // VALID read (exit 0 + a parsed yes/no): empty/failed/malformed output must NOT flip
-        // micMuted to false — that would falsely report "Microphone active". On a bad read we
-        // keep the previous state, drop any pending toggle notification, and surface the
-        // failure through the existing audio-error path.
-        onExited: (code) => {
-            var state = volPanel.parseMicMuteState(micDataOut.text)
-            var valid = code === 0 && state >= 0
-            var rerun = volPanel.micStateRefreshPending
-            volPanel.micStateRefreshPending = false
-            if (rerun) {
-                Qt.callLater(function() { volPanel.refreshMicState(false) })
-                return
-            }
-            var pending = volPanel.notifyMicStateAfterRefresh
-            volPanel.notifyMicStateAfterRefresh = false
-            if (!valid) {
-                volPanel.notifyAudioError("Read mic state", code !== 0 ? code : 1)
-                return
-            }
-            volPanel.micMuted = state === 1
-            if (pending) volPanel.notifyMicState()
-        }
-    }
-
-    // per-app streams
-    Process {
-        id: appsProc
-        command: ["bash", "-c", "pactl -f json list sink-inputs 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            waitForEnd: true
-            onStreamFinished: {
-                var raw = String(text || "[]")
-                if (raw === volPanel._appsRaw) return   // unchanged → no rebuild/flicker
-                volPanel._appsRaw = raw
-                var out = []
-                try {
-                    var j = JSON.parse(raw)
-                    for (var i = 0; i < j.length; i++) {
-                        var s = j[i], p = s.properties || {}
-                        var nm = p["application.name"] || p["media.name"] || p["application.process.binary"] || "App"
-                        var vk = Object.keys(s.volume || {})
-                        var vp = vk.length ? String(s.volume[vk[0]].value_percent) : "0%"
-                        out.push({ idx: s.index, name: nm, vol: (parseInt(vp.replace("%", "")) || 0), muted: !!s.mute })
-                    }
-                } catch (e) {}
-                volPanel.apps = out
-            }
-        }
-    }
-
-    // output devices
-    Process {
-        id: sinksProc
-        command: ["bash", "-c", "pactl -f json list sinks 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            waitForEnd: true
-            onStreamFinished: {
-                var raw = String(text || "[]")
-                if (raw === volPanel._sinksRaw) return
-                volPanel._sinksRaw = raw
-                var out = []
-                try {
-                    var j = JSON.parse(raw)
-                    for (var i = 0; i < j.length; i++) {
-                        var d = j[i].description
-                        if (!d || d === "(null)") {
-                            var p = j[i].properties || {}
-                            d = p["device.description"] || p["alsa.card_name"] || j[i].name
-                        }
-                        out.push({ index: j[i].index, name: j[i].name, desc: d })
-                    }
-                } catch (e) {}
-                volPanel.sinks = out
-            }
-        }
-    }
-
-    Process {
-        id: defSinkProc
-        command: ["bash", "-c", "pactl get-default-sink 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: { volPanel.defaultSink = this.text.trim() }
-        }
-    }
-
-    // light refresh while open so new apps / external changes show up
-    Timer {
-        interval: 2000; repeat: true
-        running: volPanel.visible
-        onTriggered: {
-            appsProc.running   = false; appsProc.running   = true
-            defSinkProc.running = false; defSinkProc.running = true
-        }
-    }
-
-    onVisibleChanged: {
-        if (visible) volPanel.refreshAll()
-    }
 }
