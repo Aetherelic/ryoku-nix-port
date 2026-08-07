@@ -49,8 +49,8 @@ ryoku_bootloader() {
     ryoku_boot_install_efi
   fi
 
-  log "enabling services: sddm, NetworkManager, bluetooth, rtkit"
-  run arch-chroot /mnt systemctl enable sddm.service NetworkManager.service bluetooth.service rtkit-daemon.service
+  log "enabling services: sddm, NetworkManager, bluetooth, rtkit, power-profiles-daemon"
+  run arch-chroot /mnt systemctl enable sddm.service NetworkManager.service bluetooth.service rtkit-daemon.service power-profiles-daemon.service
 }
 
 # finalize: runs after the AUR step, when the limine hooks may have landed.

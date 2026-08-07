@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Fixed
+- `bootloader`: fresh installs now `systemctl enable power-profiles-daemon.service`
+  alongside sddm/NetworkManager/bluetooth/rtkit, so the shell's power-mode switching
+  works out of the box instead of depending on transient D-Bus activation.
 - **One fewer `.pacnew` out of the box.** `chroot` no longer overwrites the
   `filesystem`-owned `/etc/hosts` (the default `nss-myhostname` already resolves
   localhost and the machine hostname), so the first `ryoku update` no longer spawns
