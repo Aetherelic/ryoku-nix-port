@@ -56,11 +56,24 @@ _logind_lid() {
   systemctl reload systemd-logind 2>/dev/null || true
 }
 
+# enable the AI-usage collector timer exactly once via --global, so every user
+# picks it up (the units live in /usr/lib/systemd/user). --global only writes the
+# timers.target.wants symlink; the timer arms on the user's next login. Marker
+# keeps it one-shot: a user who later disables it stays disabled across upgrades.
+_ai_usage_timer() {
+  [ -e /usr/lib/systemd/user/ryoku-ai-usage.timer ] || return 0
+  local marker=/var/lib/ryoku/ai-usage-timer-enabled
+  [ -e "$marker" ] && return 0
+  systemctl --global enable ryoku-ai-usage.timer 2>/dev/null || true
+  mkdir -p /var/lib/ryoku && : >"$marker"
+}
+
 post_install() {
   _refresh
   _bluetooth
   _rtkit
   _logind_lid
+  _ai_usage_timer
   _hint
 }
 
@@ -69,6 +82,7 @@ post_upgrade() {
   _bluetooth
   _rtkit
   _logind_lid
+  _ai_usage_timer
   _hint
 }
 
