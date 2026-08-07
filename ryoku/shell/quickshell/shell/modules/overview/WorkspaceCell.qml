@@ -349,11 +349,12 @@ Item {
                     }
                 }
 
-                // the live window texture (covers the icon once it captures).
+                // A one-shot capture (not live): the overview is a momentary
+                // picker, so per-frame window capture is what dropped it to 30fps.
                 ScreencopyView {
                     anchors.fill: parent
                     captureSource: (!!cell.ov && cell.ov.active && tile.modelData.tl) ? tile.modelData.tl.wayland : null
-                    live: !!cell.ov && cell.ov.active
+                    live: false
                     visible: (tile.modelData.tl && tile.modelData.tl.wayland) !== null
                 }
 
