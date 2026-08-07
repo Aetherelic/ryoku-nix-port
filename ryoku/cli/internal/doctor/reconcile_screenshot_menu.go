@@ -116,3 +116,108 @@ func stripRetiredMenus(raw []byte) ([]byte, bool, error) {
 	}
 	return append(out, '\n'), true, nil
 }
+
+// The capture (screenshot/record) UI moved again: from the floating Super+S popup
+// to a quick-settings subtab that sits after Weather, so the shipped module rail
+// gained a "capture" entry. A machine that persisted the pre-capture default
+// still lists exactly [home, notifications, weather] and never shows the tab.
+// reconcileCaptureModule upgrades only that exact retired list, leaving a
+// hand-customized rail alone (add it in Bar Studio). Idempotent: once capture is
+// present the list no longer matches and it is a no-op.
+func reconcileCaptureModule(checkOnly bool) recResult {
+	path := filepath.Join(sys.ConfigHome(), "ryoku", "shell.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return okRes("no shell.json yet (seeded on first shell run)")
+	}
+	migrated, changed, err := addCaptureModule(raw)
+	if err != nil {
+		return warnRes("shell.json does not parse (%v); the shell falls back to defaults", err).
+			withFix("delete %s to re-seed it", path)
+	}
+	if !changed {
+		return okRes("quick-settings rail carries the capture tab (or a custom module list)")
+	}
+	if checkOnly {
+		return wouldRes("quick-settings rail predates the Super+S capture tab").
+			withFix("ryoku doctor adds it after Weather")
+	}
+	tmp := path + ".ryoku-tmp"
+	if err := os.WriteFile(tmp, migrated, 0o644); err != nil {
+		return failRes("could not write %s: %v", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return failRes("could not replace %s: %v", path, err)
+	}
+	return fixedRes("added the capture tab to the quick-settings rail after Weather")
+}
+
+// addCaptureModule appends "capture" to a shell store whose quick-settings module
+// rail is exactly the retired default [home, notifications, weather]. Every
+// sibling menu and every top-level key is preserved as its own raw bytes; a
+// customized rail (or one already carrying capture) comes back unchanged, and a
+// store with no frameBars/menus/quick-settings.modules is a no-op.
+func addCaptureModule(raw []byte) ([]byte, bool, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil {
+		return nil, false, err
+	}
+	frameRaw, ok := top["frameBars"]
+	if !ok {
+		return nil, false, nil
+	}
+	var frame map[string]json.RawMessage
+	if err := json.Unmarshal(frameRaw, &frame); err != nil {
+		return nil, false, err
+	}
+	menusRaw, ok := frame["menus"]
+	if !ok {
+		return nil, false, nil
+	}
+	var menus map[string]json.RawMessage
+	if err := json.Unmarshal(menusRaw, &menus); err != nil {
+		return nil, false, err
+	}
+	qsRaw, ok := menus["quick-settings"]
+	if !ok {
+		return nil, false, nil
+	}
+	var qs map[string]json.RawMessage
+	if err := json.Unmarshal(qsRaw, &qs); err != nil {
+		return nil, false, err
+	}
+	var modules []string
+	if err := json.Unmarshal(qs["modules"], &modules); err != nil {
+		return nil, false, nil
+	}
+	// Only the exact retired default is upgraded; a customized rail is left alone.
+	if len(modules) != 3 || modules[0] != "home" || modules[1] != "notifications" || modules[2] != "weather" {
+		return nil, false, nil
+	}
+	next, err := json.Marshal([]string{"home", "notifications", "weather", "capture"})
+	if err != nil {
+		return nil, false, err
+	}
+	qs["modules"] = next
+	qsBytes, err := json.Marshal(qs)
+	if err != nil {
+		return nil, false, err
+	}
+	menus["quick-settings"] = qsBytes
+	menusBytes, err := json.Marshal(menus)
+	if err != nil {
+		return nil, false, err
+	}
+	frame["menus"] = menusBytes
+	frameBytes, err := json.Marshal(frame)
+	if err != nil {
+		return nil, false, err
+	}
+	top["frameBars"] = frameBytes
+	out, err := json.MarshalIndent(top, "", "  ")
+	if err != nil {
+		return nil, false, err
+	}
+	return append(out, '\n'), true, nil
+}

@@ -123,6 +123,7 @@ func reconcilers() []reconciler {
 		{"shell style knobs", reconcileLegacyStyleKnobs},
 		{"sumi bar simplification", reconcileSumiBar},
 		{"retired shell menus", reconcileRetiredMenus},
+		{"quick-settings capture tab", reconcileCaptureModule},
 		{"retired system sidebar", reconcileLegacySystemSidebar},
 		{"stash features sidebar anchor", reconcileStashSidebar},
 		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
@@ -1270,7 +1271,7 @@ func defaultFrameBarsFromLegacy(_ map[string]any) map[string]any {
 			"right":  frameRail(false, 48, map[string][]any{"top": {}, "center": {}, "bottom": {}}),
 		},
 		"menus": map[string]any{
-			"quick-settings": map[string]any{"anchor": "left", "minWidth": float64(410), "expansion": "always", "widgets": []any{"quick-settings"}, "modules": []any{"home", "notifications", "weather"}},
+			"quick-settings": map[string]any{"anchor": "left", "minWidth": float64(410), "expansion": "always", "widgets": []any{"quick-settings"}, "modules": []any{"home", "notifications", "weather", "capture"}},
 			"wallpaper":      map[string]any{"anchor": "bottom", "minWidth": float64(1400), "expansion": "always", "widgets": []any{"theme", "wallpaper"}},
 			"theme":          map[string]any{"anchor": "right", "minWidth": float64(320), "expansion": "never", "widgets": []any{"theme"}},
 			"weather":        map[string]any{"anchor": "right", "minWidth": float64(320), "expansion": "never", "widgets": []any{"weather"}},

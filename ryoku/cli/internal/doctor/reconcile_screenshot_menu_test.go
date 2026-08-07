@@ -138,3 +138,88 @@ func TestReconcileCaptureMenu(t *testing.T) {
 		t.Fatalf("clean store: status=%s detail=%q, want ok", r.status.label(), r.detail)
 	}
 }
+
+// addCaptureModule appends "capture" to a quick-settings rail that is exactly the
+// retired default, preserves every sibling and top-level key, and no-ops on a
+// customized or already-migrated rail.
+func TestAddCaptureModule(t *testing.T) {
+	// exact retired default alongside a sibling menu and passthrough keys: capture
+	// is appended after weather, everything else stays.
+	full := []byte(`{"frameBars":{"menus":{"quick-settings":{"anchor":"left","minWidth":410,"modules":["home","notifications","weather"]},"weather":{"anchor":"right"}},"style":"slate-frame"},"weatherLocation":"Oslo"}`)
+	out, changed, err := addCaptureModule(full)
+	if err != nil || !changed {
+		t.Fatalf("the retired default must gain capture: changed=%v err=%v", changed, err)
+	}
+	if got, want := captureModules(t, out), []string{"home", "notifications", "weather", "capture"}; !sameStrings(got, want) {
+		t.Fatalf("modules = %v, want %v", got, want)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("migrated JSON does not parse: %v", err)
+	}
+	frame := cfg["frameBars"].(map[string]any)
+	if _, ok := frame["menus"].(map[string]any)["weather"]; !ok {
+		t.Error("sibling weather menu was lost")
+	}
+	if frame["style"] != "slate-frame" {
+		t.Errorf("frameBars.style was lost: %v", frame["style"])
+	}
+	if cfg["weatherLocation"] != "Oslo" {
+		t.Errorf("passthrough key weatherLocation was lost: %v", cfg)
+	}
+
+	// idempotent: the migrated store already carries capture, so a re-run no-ops.
+	if _, changed, err := addCaptureModule(out); err != nil || changed {
+		t.Errorf("re-running on a migrated store must be a no-op: changed=%v err=%v", changed, err)
+	}
+
+	// a customized rail (shorter, or with extra modules) is left alone.
+	for _, custom := range []string{
+		`{"frameBars":{"menus":{"quick-settings":{"modules":["home","weather"]}}}}`,
+		`{"frameBars":{"menus":{"quick-settings":{"modules":["home","notifications","weather","media"]}}}}`,
+	} {
+		if _, changed, err := addCaptureModule([]byte(custom)); err != nil || changed {
+			t.Errorf("a customized rail must be untouched: changed=%v err=%v (%s)", changed, err, custom)
+		}
+	}
+
+	// a store with no frameBars namespace is untouched.
+	if _, changed, err := addCaptureModule([]byte(`{"bars":{}}`)); err != nil || changed {
+		t.Errorf("a store with no frameBars must be untouched: changed=%v err=%v", changed, err)
+	}
+
+	// garbage errors rather than silently rewriting.
+	if _, _, err := addCaptureModule([]byte("not json")); err == nil {
+		t.Fatal("garbage must error, not silently rewrite")
+	}
+}
+
+// captureModules pulls frameBars.menus.quick-settings.modules out of a store.
+func captureModules(t *testing.T, raw []byte) []string {
+	t.Helper()
+	var cfg struct {
+		FrameBars struct {
+			Menus struct {
+				QS struct {
+					Modules []string `json:"modules"`
+				} `json:"quick-settings"`
+			} `json:"menus"`
+		} `json:"frameBars"`
+	}
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatalf("parse modules: %v", err)
+	}
+	return cfg.FrameBars.Menus.QS.Modules
+}
+
+func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
