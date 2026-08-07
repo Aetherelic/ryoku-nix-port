@@ -167,12 +167,16 @@ Item {
     // The system pull (toggle probes, module services) holds until the reveal
     // settles, so opening stays smooth on low-resource machines.
     property bool settled: false
+    // A brief hidden warm after login primes that pull once, so the first real
+    // open already has its data and closing stays fluid.
+    property bool warm: false
     property bool watching: false
     function syncWatch() {
-        if (root.settled && !root.watching) {
+        var want = root.settled || root.warm;
+        if (want && !root.watching) {
             Toggles.watchers += 1;
             root.watching = true;
-        } else if (!root.settled && root.watching) {
+        } else if (!want && root.watching) {
             Toggles.watchers -= 1;
             root.watching = false;
         }
@@ -212,6 +216,17 @@ Item {
         onTriggered: { root.settled = true; root.syncWatch(); }
     }
 
+    Timer {
+        id: warmDelay
+        interval: 4000
+        onTriggered: { root.warm = true; root.syncWatch(); warmHold.restart(); }
+    }
+    Timer {
+        id: warmHold
+        interval: 700
+        onTriggered: { root.warm = false; root.syncWatch(); }
+    }
+
     function scheduleInitialPage() {
         initialPageApply.restart();
     }
@@ -244,7 +259,7 @@ Item {
             root.pageSeen = seen;
         }
     }
-    Component.onCompleted: root.syncConfiguredModules()
+    Component.onCompleted: { root.syncConfiguredModules(); warmDelay.start(); }
     Component.onDestruction: {
         if (root.watching) {
             Toggles.watchers -= 1;
@@ -322,7 +337,7 @@ Item {
                     Binding {
                         target: moduleLoaderDelegate.item
                         property: "open"
-                        value: root.open && root.settled && root.page === ""
+                        value: ((root.open && root.settled) || root.warm) && root.page === ""
                             && root.activeModule === moduleLoaderDelegate.moduleId
                         when: moduleLoaderDelegate.status === Loader.Ready
                     }
