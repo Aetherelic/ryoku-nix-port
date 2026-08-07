@@ -71,6 +71,11 @@ One motion language across every surface, retinted live from your wallpaper.
 Click a status widget on the bar and its controls grow out of the rail as a
 popout card, then melt back when you are done.
 
+On first login a short welcome walks you through the desktop: the handful of
+keybinds that open almost everything, and a few choices you can make on the
+spot, the interface scale, the bar, and which desktop widgets to show.
+Everything else waits in Ryoku Settings (`Super + ,`).
+
 <table>
   <tr>
     <td width="50%">
