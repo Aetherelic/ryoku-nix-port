@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `aur.packages`: add `spicetify-cli`, the Spotify client patcher the desktop
+  music widget's Spotify Canvas backdrop needs. `ryoku doctor` drops the bundled
+  `ryoku-canvas.js` extension into a Spotify user's spicetify Extensions and
+  applies it; inert for anyone without Spotify.
 - `base.packages`: add `gnome-themes-extra`, the standalone `Adwaita-dark` GTK
   theme the Hyprland autostart selects (`gsettings gtk-theme`). Without it that
   name has nothing on disk, so GTK3 apps -- notably the `xdg-desktop-portal-gtk`

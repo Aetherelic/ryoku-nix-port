@@ -47,6 +47,12 @@ localsend-bin
 # ships every engine (Whisper + the ONNX set) and types through wtype.
 voxtype-bin
 
+# spicetify-cli: patches the Spotify client so the bundled Ryoku Canvas extension
+# (ryoku/apps/spicetify/ryoku-canvas.js) can relay the playing track's Spotify
+# Canvas to the desktop music widget. `ryoku doctor` drops the extension in and
+# applies it when Spotify is installed; inert for anyone who does not use Spotify.
+spicetify-cli
+
 # Display + UI fonts the shell/Hub use to match the Ryoku brand (the website's
 # type stack): Fraunces (variable serif, editorial headlines) and Space Grotesk
 # (UI sans). Inter, JetBrains Mono and Noto CJK ship from the official repo (see
