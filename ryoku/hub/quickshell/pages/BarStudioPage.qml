@@ -176,6 +176,28 @@ Item {
         page.fedit("qsbar", q);
     }
 
+    // The gap animation is stored as an int mode in the qsbar map. Bar Studio
+    // exposes a labelled subset (the V1 stream's usable presets); each label maps
+    // to the mode int the running bar reads. Off is the sentinel 0.
+    readonly property var qsbarAnimModes: [
+        { v: 0, label: qsTr("Off") },
+        { v: 1, label: qsTr("Stream") },
+        { v: 2, label: qsTr("Surge") },
+        { v: 3, label: qsTr("Bolt") },
+        { v: 7, label: qsTr("Reactor") },
+        { v: 8, label: qsTr("Quotes") }
+    ]
+    function qsbarAnimLabel(v) {
+        for (let i = 0; i < page.qsbarAnimModes.length; i++)
+            if (page.qsbarAnimModes[i].v === v) return page.qsbarAnimModes[i].label;
+        return page.qsbarAnimModes[0].label;
+    }
+    function qsbarAnimValue(label) {
+        for (let i = 0; i < page.qsbarAnimModes.length; i++)
+            if (page.qsbarAnimModes[i].label === label) return page.qsbarAnimModes[i].v;
+        return 0;
+    }
+
     property string qsbarVariant: "v1"
     function qsbarSetVariant(v) {
         Quickshell.execDetached(["qs", "-c", "shell", "ipc", "call", "variant", "activate", v]);
@@ -467,15 +489,62 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     divider: true
+                    controlWidth: 220
+                    label: qsTr("Bar form")
+                    desc: qsTr("The full-width shell, a fitted island, a floating dock, or a notch.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["full", "fit", "dock", "notch"]
+                        current: page.qval("barShellStyle", "full")
+                        onChose: key => page.qset("barShellStyle", key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
                     controlWidth: 54
-                    label: qsTr("Animated gap")
-                    desc: qsTr("The stream that flows between the islands, reactive to playback.")
+                    label: qsTr("Bar border")
+                    desc: qsTr("Draw the outer border around the bar shell.")
                     source: "shell.json"
                     Sw {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("barAnim", 1) > 0
-                        onToggled: value => page.qset("barAnim", value ? 1 : 0)
+                        on: page.qval("barBorderEnabled", true)
+                        onToggled: value => page.qset("barBorderEnabled", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Panel + tooltip border")
+                    desc: qsTr("Draw the outer border around popouts and tooltips.")
+                    source: "shell.json"
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.qval("panelTooltipBorderEnabled", true)
+                        onToggled: value => page.qset("panelTooltipBorderEnabled", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    block: true
+                    label: qsTr("Gap animation")
+                    desc: qsTr("The stream that flows between the islands, reactive to playback.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: page.qsbarAnimModes.map(m => m.label)
+                        current: page.qsbarAnimLabel(page.qval("barAnim", 1))
+                        onChose: key => page.qset("barAnim", page.qsbarAnimValue(key))
                     }
                 }
                 SettingRow {
@@ -515,6 +584,22 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     controlWidth: 190
+                    label: qsTr("Workspace marker")
+                    desc: qsTr("How the workspace indicators are drawn.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["default", "numbers", "magic"]
+                        current: page.qval("workspaceStyle", "default")
+                        onChose: key => page.qset("workspaceStyle", key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 190
                     label: qsTr("Accent colour")
                     desc: qsTr("Which wallpaper colour tints the bar and its stream.")
                     source: "shell.json"
@@ -537,6 +622,38 @@ Item {
                                 TapHandler { onTapped: page.qset("barColor", modelData) }
                             }
                         }
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    block: true
+                    label: qsTr("Picker style")
+                    desc: qsTr("How the theme, wallpaper and media pickers are laid out.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["tanzaku", "hearthstone", "carousel"]
+                        current: page.qval("pickerStyle", "tanzaku")
+                        onChose: key => page.qset("pickerStyle", key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 130
+                    label: qsTr("Logo")
+                    desc: qsTr("The launcher mark: the RYOKU wordmark or the 力 kanji.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["text", "icon"]
+                        current: page.qval("launcherLogoMode", "text")
+                        onChose: key => page.qset("launcherLogoMode", key)
                     }
                 }
                 Repeater {

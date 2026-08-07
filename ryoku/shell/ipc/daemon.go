@@ -284,6 +284,7 @@ func (d *daemon) bootstrap() {
 	d.startClipboard()
 	d.startTray()
 	d.startWeather()
+	d.startMusic()
 	d.startCalendar()
 	d.startPowerProfiles()
 	d.startNetwork()

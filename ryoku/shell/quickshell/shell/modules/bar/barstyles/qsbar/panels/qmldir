@@ -4,7 +4,6 @@ BatteryPanel BatteryPanel.qml
 BluetoothPanel BluetoothPanel.qml
 BrightnessPanel BrightnessPanel.qml
 CalendarPopup CalendarPopup.qml
-ControlPanel ControlPanel.qml
 CpuPanel CpuPanel.qml
 ImageCarouselCarousel ImageCarouselCarousel.qml
 ImageCarouselHearthstone ImageCarouselHearthstone.qml

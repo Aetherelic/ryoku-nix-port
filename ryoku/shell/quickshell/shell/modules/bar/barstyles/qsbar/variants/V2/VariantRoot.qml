@@ -9,6 +9,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import "panels"
+import "../../controlcenter"
 
 Item {
     id: root
@@ -34,10 +35,7 @@ Item {
     function layoutLock() { theme.barUnlocked = false }
     function layoutUnlock() { theme.barUnlocked = true }
     function systemUpdateRefresh() { theme.archRefreshTick++ }
-    function runReactor(kind, arg) {
-        // Reactor is a V1-only animation. Keep the shared IPC contract stable,
-        // but deliberately do nothing while V2 is active.
-    }
+    function runReactor(kind, arg) { theme.reactorTest(kind, arg) }
     function applyTheme(payload) { theme.ipcApplyTheme(payload) }
     function applyLauncher(payload) { theme.ipcApplyLauncher(payload) }
     function reloadTheme() { theme.ipcReloadTheme() }
@@ -265,7 +263,7 @@ Item {
     MprisPanel { root: theme }
     WeatherPanel { root: theme }
     WorkspacePanel { root: theme }
-    ControlPanel { root: theme }
+    ControlCenter { root: theme }
     TrayMenu { root: theme }
 
     // Picker variants: only the selected pickerStyle is instantiated.

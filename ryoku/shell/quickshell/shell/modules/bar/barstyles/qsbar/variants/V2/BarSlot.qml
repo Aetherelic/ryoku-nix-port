@@ -2075,6 +2075,22 @@ PanelWindow {
         onPanelAnchorsChanged: barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
         Component.onCompleted: barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
 
+        // ── reactor / gap-stream layer (barAnim modes 1-8) ──
+        // Runs = the widget clusters; the stream flows in the dead space between
+        // them. z:1 places it above the widget rows and below the edit-mode frame
+        // and screen chrome — the same z ordering V1's particleLayer uses inside
+        // its island. Idle unless an animation is picked and the bar is on screen.
+        ReactorLayer {
+            anchors.fill: parent
+            z: 1
+            theme: barSlot.root
+            leftRow: leftRowItem
+            centerRow: centerRowItem
+            rightRow: rightRowItem
+            monitor: barSlot.screenName
+            shellVisible: barSlot.visible
+        }
+
     }
 
     // The screen-facing edge is the final visual layer of the bar. Keeping this

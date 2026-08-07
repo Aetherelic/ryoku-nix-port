@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Services.UPower
+import shell.services
 import "Palette.js" as Palette
 
 Item {
@@ -2000,6 +2001,13 @@ Item {
 
     // ── bar screen position (persisted) ──
     property string barPosition: "top"   // "top" or "bottom"
+    // ── gap animation mode (Bar Studio; drives the V2 gap/reactor layer) ──
+    // 0=off, 1=stream, 2=surge, 3=bolt, 7=reactor, 8=quotes.
+    property int barAnim: 1
+    onBarAnimChanged: if (_widgetsLoaded) saveWidgets()
+    // Reactor IPC (barAnim modes 7/8): ParticleStream listens via onReactorTest.
+    // Mirrors the root V1 Theme signal so V2's reactor path resolves.
+    signal reactorTest(string kind, string arg)
     // ── outer bar shell (persisted) ──
     // full  = current edge-to-edge strip
     // fit   = centered content-width capsule
@@ -2308,7 +2316,8 @@ Item {
                  + mprisBarStyle + " "                                  // +41 now-playing bar presentation
                  + barShellStyle + " "                                  // +42 outer bar shell
                  + (barBorderEnabled ? "1" : "0") + " "                 // +43 outer bar border
-                 + (panelTooltipBorderEnabled ? "1" : "0")              // +44 panel + tooltip outer border
+                 + (panelTooltipBorderEnabled ? "1" : "0") + " "        // +44 panel + tooltip outer border
+                 + barAnim                                              // +45 gap-animation mode
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -2463,13 +2472,65 @@ Item {
                         theme.barBorderEnabled = parts[wsField + 43] !== "0"
                     if (parts.length > wsField + 44)
                         theme.panelTooltipBorderEnabled = parts[wsField + 44] !== "0"
+                    if (parts.length > wsField + 45) {
+                        var ba = parseInt(parts[wsField + 45], 10)
+                        if (isFinite(ba) && ba >= 0 && ba <= 8) theme.barAnim = ba
+                    }
                 }
                 theme._widgetsLoaded = true
+                theme.applyStudioSettings()
             }
         }
     }
 
     Process { id: widgetSaveProc }
+
+    // ── Bar Studio bridge ──
+    // Ryoku Hub (Bar Studio) writes a `qsbar` map into shell.json; the Config
+    // singleton watches it, so these settings apply live and win over the local
+    // widget cache. Only keys the user set are present; the rest keep defaults.
+    function applyStudioSettings() {
+        var q = Config.qsbar
+        if (!q) return
+        // Config is the source of truth for these keys, so suppress the widget
+        // cache writes the property-change handlers would make (all gated on
+        // _widgetsLoaded). Clearing a key in Bar Studio then reverts to the
+        // cache/default on the next load instead of sticking.
+        var wl = _widgetsLoaded
+        _widgetsLoaded = false
+        if (q.barColor !== undefined && barColorValid(q.barColor)) barColor = q.barColor
+        if (q.barAnim !== undefined) barAnim = q.barAnim
+        if (q.barPosition === "top" || q.barPosition === "bottom") barPosition = q.barPosition
+        if (q.workspaceMode !== undefined) workspaceMode = q.workspaceMode
+        if (q.workspaceStyle  !== undefined) workspaceStyle  = q.workspaceStyle
+        if (q.pickerStyle     !== undefined) pickerStyle     = q.pickerStyle
+        if (q.launcherLogoMode !== undefined) launcherLogoMode = q.launcherLogoMode
+        if (q.barShellStyle !== undefined && barShellStyleValid(q.barShellStyle)) barShellStyle = q.barShellStyle
+        if (q.barBorderEnabled !== undefined) barBorderEnabled = q.barBorderEnabled
+        if (q.panelTooltipBorderEnabled !== undefined) panelTooltipBorderEnabled = q.panelTooltipBorderEnabled
+        var w = q.widgets
+        if (w) {
+            if (w.status     !== undefined) modStatus     = w.status
+            if (w.memory     !== undefined) modMemory     = w.memory
+            if (w.cpu        !== undefined) modCpu        = w.cpu
+            if (w.volume     !== undefined) modVolume     = w.volume
+            if (w.weather    !== undefined) modWeather    = w.weather
+            if (w.network    !== undefined) modNetwork    = w.network
+            if (w.brightness !== undefined) modBrightness = w.brightness
+            if (w.media      !== undefined) modMedia      = w.media
+            if (w.mpris      !== undefined) modMpris      = w.mpris
+            if (w.quick      !== undefined) modQuick      = w.quick
+            if (w.claude     !== undefined) modClaude     = w.claude
+            if (w.power      !== undefined) modPower      = w.power
+            if (w.bluetooth  !== undefined) modBluetooth  = w.bluetooth
+        }
+        _widgetsLoaded = wl
+    }
+    Connections {
+        target: Config
+        function onQsbarChanged() { theme.applyStudioSettings() }
+    }
+    Component.onCompleted: theme.applyStudioSettings()
 
     // ── New widget panel states ──
     property bool networkVisible:   false

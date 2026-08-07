@@ -60,6 +60,7 @@ declare -A need=(
   [qr-scan]=zbar
   [screen-record]=gpu-screen-recorder
   [screen-record-fallback]=wf-recorder
+  [screen-share-picker]=hyprland-preview-share-picker
   [night-light]=hyprsunset
   [voice-type]=wtype
   [voice-stt]=voxtype-bin

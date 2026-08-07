@@ -1819,6 +1819,9 @@ Item {
         if (q.barAnim !== undefined) barAnim = q.barAnim
         if (q.barPosition === "top" || q.barPosition === "bottom") barPosition = q.barPosition
         if (q.workspaceMode !== undefined) workspaceMode = q.workspaceMode
+        if (q.workspaceStyle  !== undefined) workspaceStyle  = q.workspaceStyle
+        if (q.pickerStyle     !== undefined) pickerStyle     = q.pickerStyle
+        if (q.launcherLogoMode !== undefined) launcherLogoMode = q.launcherLogoMode
         var w = q.widgets
         if (w) {
             if (w.status     !== undefined) modStatus     = w.status

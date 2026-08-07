@@ -5,6 +5,9 @@ import ".."
 import shell.services
 import "../../../components"
 import "../framebars/menus" as Tips
+import Qt.labs.folderlistmodel
+import Quickshell
+import Quickshell.Io
 
 // Capture card: the Super+S surface, a frame-edge card on the shared PopoutCard
 // skin so it opens, melts and dismisses exactly like the music / bluetooth cards.
@@ -19,9 +22,13 @@ Item {
     property real s: 1
     property bool open: false
     signal requestClose()
+    property bool skin: true                 // false: embed bare (quick-settings tab), no card
+    // The card skin is the compact popup; embedded bare (the quick-settings tab)
+    // the surface is roomier, so its padding, gaps and tiles open up.
+    readonly property bool roomy: !root.skin
 
-    readonly property real pad: 12 * root.s
-    readonly property real gap: 7 * root.s
+    readonly property real pad: (root.roomy ? 16 : 12) * root.s
+    readonly property real gap: (root.roomy ? 10 : 7) * root.s
     readonly property color ink: Theme.ink(Theme.effectiveSurface)
     readonly property color inkDim: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
     readonly property color line: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.14)
@@ -44,11 +51,118 @@ Item {
             Recorder.start(Recorder.recordArgs());
     }
 
+    // ── recent captures gallery (roomy tab) ─────────────────────────────────────
+    // The latest screenshots and recordings, each in its own labelled group so the
+    // two never blur together. A recording shows a poster frame with a play badge
+    // and its duration; a click on any tile opens that group's folder.
+    readonly property string recordingsDir: Quickshell.env("RYOKU_SCREENRECORD_DIR")
+        || ((Quickshell.env("XDG_VIDEOS_DIR") || (Quickshell.env("HOME") + "/Videos")) + "/Recordings")
+    readonly property string thumbDir: Quickshell.env("HOME") + "/.cache/ryoku-capture-thumbs"
+    property var clipDur: ({})                // recording path -> "M:SS"
+    property var clipPoster: ({})             // recording path -> poster jpg path
+    // FolderListModel's own Time sort proved unreliable here (it fell back to
+    // name order, surfacing the oldest files), so read the folder and sort by
+    // modified time in JS -- newest first -- then take the group's first few.
+    function recentFrom(model, n) {
+        const all = [];
+        for (let i = 0; i < model.count; i++) {
+            const u = model.get(i, "fileUrl");
+            if (!u)
+                continue;
+            const d = model.get(i, "fileModified");
+            const t = d ? (typeof d.getTime === "function" ? d.getTime() : Date.parse(d) || 0) : 0;
+            all.push({ url: "" + u, path: "" + model.get(i, "filePath"), t: t });
+        }
+        all.sort((a, b) => b.t - a.t);
+        return all.slice(0, n);
+    }
+    readonly property var recentShots: recentFrom(shotFiles, 3)
+    readonly property var recentClips: recentFrom(clipFiles, 3)
+    onRecentClipsChanged: if (root.roomy) clipTimer.restart()
+
+    function shq(p) { return "'" + ("" + p).replace(/'/g, "'\\''") + "'"; }
+    function fmtDur(sec) {
+        if (!(sec > 0))
+            return "";
+        const m = Math.floor(sec / 60), r = Math.floor(sec % 60);
+        return m + ":" + (r < 10 ? "0" : "") + r;
+    }
+    // For each recent recording, in one pass: cache a poster frame (keyed by a
+    // path hash) if missing, then read the duration. Output: path\tseconds\tposter.
+    function refreshClips() {
+        const clips = root.recentClips;
+        if (clips.length === 0)
+            return;
+        const dir = root.shq(root.thumbDir);
+        const lines = clips.map(c => {
+            const p = root.shq(c.path);
+            return "K=$(printf %s " + p + " | md5sum | cut -d' ' -f1); PO=" + dir + "/$K.jpg; "
+                + "[ -s \"$PO\" ] || ffmpeg -nostdin -loglevel error -y -ss 0.5 -i " + p
+                + " -frames:v 1 -vf scale=480:-2 \"$PO\" 2>/dev/null; "
+                + "D=$(ffprobe -v error -show_entries format=duration -of csv=p=0 " + p + " 2>/dev/null); "
+                + "printf '%s\\t%s\\t%s\\n' " + p + " \"$D\" \"$PO\"";
+        });
+        clipProc.running = false;
+        clipProc.command = ["bash", "-c", "mkdir -p " + dir + "\n" + lines.join("\n")];
+        clipProc.running = true;
+    }
+
     implicitWidth: 264 * root.s
     implicitHeight: content.implicitHeight + root.pad * 2
 
     // the shared card skin: framed surface tile + click-swallow, same as music/bt.
-    PopoutCard { anchors.fill: parent }
+    PopoutCard { anchors.fill: parent; visible: root.skin }
+
+    // Defer the recent gallery's heavy work (folder scans, thumbnail decodes, the
+    // poster ffmpeg pass) until just after the open animation, so Super+Esc opens
+    // without a hitch; the gallery fills in a beat later.
+    property bool galleryReady: false
+    Component.onCompleted: if (root.roomy) readyTimer.start()
+    Timer { id: readyTimer; interval: 400; onTriggered: root.galleryReady = true }
+
+    // Live views of the capture folders (newest first); FolderListModel watches
+    // each dir, so a fresh shot or clip appears without polling.
+    FolderListModel {
+        id: shotFiles
+        folder: root.galleryReady ? ("file://" + Capture.shotsDir) : ""
+        showDirs: false
+        nameFilters: ["*.png"]
+    }
+    FolderListModel {
+        id: clipFiles
+        folder: root.galleryReady ? ("file://" + root.recordingsDir) : ""
+        showDirs: false
+        nameFilters: ["*.mp4", "*.mkv", "*.webm", "*.mov", "*.avi", "*.m4v"]
+    }
+    Process {
+        id: clipProc
+        stdout: StdioCollector {
+            id: clipOut
+            onStreamFinished: {
+                const dur = {}, post = {};
+                const rows = clipOut.text.split("\n");
+                for (let i = 0; i < rows.length; i++) {
+                    const c = rows[i].split("\t");
+                    if (c.length < 3)
+                        continue;
+                    const p = c[0], sec = parseFloat(c[1]);
+                    if (p && sec > 0)
+                        dur[p] = root.fmtDur(sec);
+                    if (p && c[2])
+                        post[p] = c[2];
+                }
+                root.clipDur = dur;
+                root.clipPoster = post;
+            }
+        }
+    }
+    // Debounce: FolderListModel settles its count over several ticks on load, so
+    // coalesce the bursts into one batch once the recent list stops changing.
+    Timer {
+        id: clipTimer
+        interval: 200
+        onTriggered: root.refreshClips()
+    }
 
     // ── shared bits ───────────────────────────────────────────────────────────
 
@@ -143,7 +257,7 @@ Item {
         property bool accent: false
         signal tapped()
         width: tile.w
-        implicitHeight: 40 * root.s
+        implicitHeight: (root.roomy ? 50 : 40) * root.s
         Rectangle {
             anchors.fill: parent
             radius: 6 * root.s
@@ -154,10 +268,10 @@ Item {
         }
         Column {
             anchors.centerIn: parent
-            spacing: 3 * root.s
+            spacing: (root.roomy ? 5 : 3) * root.s
             GlyphIcon {
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: 16 * root.s
+                width: (root.roomy ? 19 : 16) * root.s
                 height: width
                 name: tile.glyph
                 stroke: 1.7
@@ -168,7 +282,7 @@ Item {
                 text: tile.label
                 color: root.inkDim
                 font.family: Theme.fontPrimary
-                font.pixelSize: 8.5 * root.s
+                font.pixelSize: (root.roomy ? 10 : 8.5) * root.s
                 font.weight: Font.Medium
             }
         }
@@ -184,7 +298,7 @@ Item {
         property string label: ""
         property bool on: false
         signal toggled()
-        implicitHeight: 20 * root.s
+        implicitHeight: (root.roomy ? 28 : 20) * root.s
         GlyphIcon {
             id: itIcon
             anchors.left: parent.left
@@ -249,6 +363,96 @@ Item {
         color: root.line
     }
 
+    // one recent-capture cell: a screenshot thumbnail, or a recording poster with a
+    // play badge + duration, so the groups read differently at a glance. Hairline
+    // framed, hover lifts, a click opens the capture folder.
+    component RecentTile: Item {
+        id: rt
+        property var item: null
+        property bool video: false
+        property string dir: ""
+        property real cw: 80 * root.s
+        readonly property string src: !rt.item ? ""
+            : rt.video ? (root.clipPoster[rt.item.path] ? "file://" + root.clipPoster[rt.item.path] : "")
+            : rt.item.url
+        width: rt.cw
+        height: Math.round(rt.cw * 0.64)
+        Rectangle {
+            id: frame
+            anchors.fill: parent
+            radius: 7 * root.s
+            clip: true
+            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.05)
+            border.width: Theme.borderWidth
+            border.color: rtHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.32) : root.line
+            Behavior on border.color { ColorAnimation { duration: Motion.fast } }
+            Image {
+                id: thumb
+                anchors.fill: parent
+                source: rt.src
+                visible: status === Image.Ready
+                fillMode: Image.PreserveAspectCrop
+                sourceSize.width: Math.round(rt.cw * 2)
+                sourceSize.height: Math.round(rt.cw * 1.4)
+                asynchronous: true
+                cache: true
+            }
+            GlyphIcon {
+                anchors.centerIn: parent
+                visible: thumb.status !== Image.Ready
+                width: 24 * root.s
+                height: width
+                name: rt.video ? "film" : "image"
+                stroke: 1.7
+                color: root.inkDim
+            }
+        }
+        // play badge: the video signifier, centred over the poster
+        Rectangle {
+            visible: rt.video
+            anchors.centerIn: frame
+            width: 28 * root.s
+            height: width
+            radius: width / 2
+            color: Qt.rgba(0, 0, 0, 0.5)
+            border.width: Math.max(1, Theme.borderWidth)
+            border.color: Qt.rgba(1, 1, 1, 0.75)
+            GlyphIcon {
+                anchors.centerIn: parent
+                anchors.horizontalCenterOffset: 1 * root.s
+                width: 14 * root.s
+                height: width
+                name: "play"
+                stroke: 2
+                color: "white"
+            }
+        }
+        // duration badge, bottom-right on recordings
+        Rectangle {
+            visible: rt.video && !!rt.item && !!root.clipDur[rt.item.path]
+            anchors.right: frame.right
+            anchors.bottom: frame.bottom
+            anchors.margins: 4 * root.s
+            radius: 3 * root.s
+            color: Qt.rgba(0, 0, 0, 0.66)
+            width: durTxt.implicitWidth + 8 * root.s
+            height: durTxt.implicitHeight + 4 * root.s
+            Text {
+                id: durTxt
+                anchors.centerIn: parent
+                text: (rt.item && root.clipDur[rt.item.path]) ? root.clipDur[rt.item.path] : ""
+                color: "white"
+                font.family: Theme.mono
+                font.pixelSize: 10 * root.s
+                font.weight: Font.Medium
+            }
+        }
+        HoverHandler { id: rtHov; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: if (rt.dir) Quickshell.execDetached(["nautilus", rt.dir]) }
+        scale: rtHov.hovered ? 1.03 : 1
+        Behavior on scale { NumberAnimation { duration: Motion.fast } }
+    }
+
     // ── layout ────────────────────────────────────────────────────────────────
     Column {
         id: content
@@ -256,13 +460,13 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: root.pad
-        spacing: 8 * root.s
+        spacing: (root.roomy ? 15 : 8) * root.s
 
         // SCREENSHOT eyebrow, with the save target + delay chips on the right.
         Item {
             z: 20
             width: parent.width
-            height: 19 * root.s
+            height: (root.roomy ? 24 : 19) * root.s
             Eyebrow {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
@@ -315,7 +519,7 @@ Item {
         Item {
             z: 20
             width: parent.width
-            height: 19 * root.s
+            height: (root.roomy ? 24 : 19) * root.s
             Eyebrow {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
@@ -418,7 +622,7 @@ Item {
         InlineToggle {
             width: parent.width
             glyph: "film"
-            label: qsTr("Edit in Ryomotion when done")
+            label: qsTr("Edit in Ryomotion")
             on: Recorder.editMode
             onToggled: Recorder.editMode = !Recorder.editMode
         }
@@ -431,6 +635,70 @@ Item {
             onToggled: Recorder.discordMode = !Recorder.discordMode
         }
 
+        // RECENT — screenshots and recordings in separate labelled groups; a click
+        // on any tile opens that group's folder.
+        Rule { width: parent.width; visible: root.recentShots.length > 0 || root.recentClips.length > 0 }
+
+        Item {
+            width: parent.width
+            height: (root.roomy ? 24 : 19) * root.s
+            visible: root.recentShots.length > 0
+            Eyebrow {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("SCREENSHOTS")
+            }
+        }
+        Grid {
+            id: shotGrid
+            width: parent.width
+            visible: root.recentShots.length > 0
+            columns: 3
+            columnSpacing: root.gap
+            rowSpacing: root.gap
+            readonly property real cw: (root.innerW - root.gap * 2) / 3
+            Repeater {
+                model: root.recentShots
+                delegate: RecentTile {
+                    required property var modelData
+                    item: modelData
+                    video: false
+                    dir: Capture.shotsDir
+                    cw: shotGrid.cw
+                }
+            }
+        }
+
+        Item {
+            width: parent.width
+            height: (root.roomy ? 24 : 19) * root.s
+            visible: root.recentClips.length > 0
+            Eyebrow {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("RECORDINGS")
+            }
+        }
+        Grid {
+            id: clipGrid
+            width: parent.width
+            visible: root.recentClips.length > 0
+            columns: 3
+            columnSpacing: root.gap
+            rowSpacing: root.gap
+            readonly property real cw: (root.innerW - root.gap * 2) / 3
+            Repeater {
+                model: root.recentClips
+                delegate: RecentTile {
+                    required property var modelData
+                    item: modelData
+                    video: true
+                    dir: root.recordingsDir
+                    cw: clipGrid.cw
+                }
+            }
+        }
+
         Rule { width: parent.width }
 
         // hint: the companion beautify/annotate app.
@@ -439,7 +707,7 @@ Item {
             text: qsTr("Super+Shift+S opens Ryoshot to beautify & annotate.")
             color: root.inkDim
             font.family: Theme.fontPrimary
-            font.pixelSize: 9 * root.s
+            font.pixelSize: (root.roomy ? 10 : 9) * root.s
             wrapMode: Text.WordWrap
             lineHeight: 1.1
         }

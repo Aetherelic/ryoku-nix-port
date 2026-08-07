@@ -418,8 +418,8 @@ ShellRoot {
     }
     CustomShortcut {
         name: "screenshot"
-        description: "Open the screenshot capture menu on the active monitor"
-        onPressed: ShellState.requestSurfaceActive("screenshot", undefined)
+        description: "Open the capture tab in quick settings on the active monitor"
+        onPressed: ShellState.requestSurfaceActive("quick-settings#capture", undefined)
     }
     CustomShortcut {
         name: "compress"

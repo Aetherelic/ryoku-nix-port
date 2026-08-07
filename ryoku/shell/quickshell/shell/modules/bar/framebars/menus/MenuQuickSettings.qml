@@ -182,6 +182,7 @@ Item {
         switch (root.initialPage) {
         case "notifications":
         case "weather":
+        case "capture":
         case "media":
             root.showPage("");
             root.switchToModule(root.initialPage);

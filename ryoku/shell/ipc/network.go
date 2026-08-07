@@ -4,20 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/netip"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/godbus/dbus/v5"
 )
 
 // network.go owns the NetworkManager integration: it reads Wi-Fi radio state,
-// the active connection, the scanned access-point list, and the saved WireGuard
-// tunnels over the system bus, streams them to QML on the "network" state
-// topic, and drives connect / disconnect / forget / scan and WireGuard
-// activate / deactivate on request. The bus name, object paths, interfaces, and
-// signals are the NetworkManager spec (contract 11 sec 3.0 row 9), reproduced
-// as-is; they are third-party protocol, not reference API.
-//
+// the active connection, scanned access points, saved WireGuard tunnels, and
+// global DNS configuration over the system bus. It streams them to QML on the
+// "network" state topic and drives Wi-Fi, WireGuard, and DNS changes on request.
+// The bus name, object paths, interfaces, and signals are from the
+// NetworkManager specification.
 // The reveal-side derivations live in QML per contract 06 sec 9: the widget
 // filters the currently-connected SSID out of the available list and orders by
 // service order (the order NetworkManager returns), so the topic hands over the
@@ -127,6 +129,20 @@ func (d *daemon) startNetwork() {
 			return nil, err
 		}
 		return nil, n.wifiForget(a.Ssid)
+	})
+	d.registerCall("network.dnsSet", func(raw json.RawMessage) (any, error) {
+		var a struct {
+			Provider string   `json:"provider"`
+			Servers  []string `json:"servers"`
+		}
+		if err := json.Unmarshal(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := n.setDns(a.Provider, a.Servers); err != nil {
+			return nil, err
+		}
+		n.publish()
+		return nil, nil
 	})
 	d.registerCall("network.wgActivate", func(raw json.RawMessage) (any, error) {
 		var a struct {
@@ -258,6 +274,7 @@ func (n *networkState) snapshot() map[string]any {
 		"wired":        wired,
 		"accessPoints": aps,
 		"wireguard":    n.wireguardTunnels(saved, active),
+		"dns":          n.dnsFrame(),
 	}
 }
 
@@ -471,6 +488,62 @@ func (n *networkState) wifiForget(ssid string) error {
 	return fmt.Errorf("no saved network: %s", ssid)
 }
 
+func (n *networkState) dnsFrame() map[string]any {
+	servers := n.globalDnsServers()
+	if servers == nil {
+		servers = []string{}
+	}
+	return map[string]any{
+		"provider": dnsProviderForServers(servers),
+		"servers":  servers,
+	}
+}
+
+func (n *networkState) globalDnsServers() []string {
+	v, err := n.obj(nmPath).GetProperty(nmIface + ".GlobalDnsConfiguration")
+	if err != nil {
+		return nil
+	}
+	config, ok := v.Value().(map[string]dbus.Variant)
+	if !ok {
+		return nil
+	}
+	domainsValue, ok := config["domains"]
+	if !ok {
+		return nil
+	}
+	domains, ok := domainsValue.Value().(map[string]map[string]dbus.Variant)
+	if !ok {
+		return nil
+	}
+	defaultDomain, ok := domains["*"]
+	if !ok {
+		return nil
+	}
+	serversValue, ok := defaultDomain["servers"]
+	if !ok {
+		return nil
+	}
+	servers, _ := serversValue.Value().([]string)
+	return servers
+}
+
+func (n *networkState) setDns(provider string, custom []string) error {
+	args, err := dnsHelperArgs(provider, custom)
+	if err != nil {
+		return err
+	}
+	out, err := exec.Command(dnsHelperPath(), args...).CombinedOutput()
+	if err != nil {
+		message := strings.TrimSpace(string(out))
+		if message == "" {
+			message = err.Error()
+		}
+		return fmt.Errorf("DNS change failed: %s", message)
+	}
+	return nil
+}
+
 // wgSetActive activates or deactivates a WireGuard tunnel by UUID.
 func (n *networkState) wgSetActive(uuid string, active bool) error {
 	if uuid == "" {
@@ -563,6 +636,101 @@ func (n *networkState) pathProp(o dbus.BusObject, name string) dbus.ObjectPath {
 }
 
 // --- pure helpers (unit-tested) ---
+var (
+	cloudflareDnsServers = []string{
+		"1.1.1.1", "1.0.0.1",
+		"2606:4700:4700::1111", "2606:4700:4700::1001",
+	}
+	googleDnsServers = []string{
+		"8.8.8.8", "8.8.4.4",
+		"2001:4860:4860::8888", "2001:4860:4860::8844",
+	}
+)
+
+func dnsServersForSelection(provider string, custom []string) ([]string, error) {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "dhcp":
+		return nil, nil
+	case "cloudflare":
+		return append([]string(nil), cloudflareDnsServers...), nil
+	case "google":
+		return append([]string(nil), googleDnsServers...), nil
+	case "custom":
+		servers := make([]string, 0, len(custom))
+		seen := make(map[netip.Addr]struct{}, len(custom))
+		for _, raw := range custom {
+			addr, err := netip.ParseAddr(strings.TrimSpace(raw))
+			if err != nil {
+				return nil, fmt.Errorf("invalid DNS server %q", raw)
+			}
+			addr = addr.Unmap()
+			if _, exists := seen[addr]; exists {
+				continue
+			}
+			seen[addr] = struct{}{}
+			servers = append(servers, addr.String())
+		}
+		if len(servers) == 0 {
+			return nil, fmt.Errorf("enter at least one DNS server")
+		}
+		return servers, nil
+	default:
+		return nil, fmt.Errorf("unknown DNS provider %q", provider)
+	}
+}
+
+func dnsHelperArgs(provider string, custom []string) ([]string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(provider))
+	servers, err := dnsServersForSelection(normalized, custom)
+	if err != nil {
+		return nil, err
+	}
+	args := make([]string, 1, len(servers)+1)
+	args[0] = normalized
+	return append(args, servers...), nil
+}
+
+func dnsHelperPath() string {
+	if shellDir != "" {
+		return filepath.Join(shellDir, "..", "..", "system", "hardware", "network", "ryoku-dns")
+	}
+	if executable, err := os.Executable(); err == nil {
+		return filepath.Join(filepath.Dir(executable), "ryoku-dns")
+	}
+	return "ryoku-dns"
+}
+
+func dnsProviderForServers(servers []string) string {
+	switch {
+	case len(servers) == 0:
+		return "dhcp"
+	case sameDnsServers(servers, cloudflareDnsServers):
+		return "cloudflare"
+	case sameDnsServers(servers, googleDnsServers):
+		return "google"
+	default:
+		return "custom"
+	}
+}
+
+func sameDnsServers(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for _, expected := range want {
+		found := false
+		for _, actual := range got {
+			if actual == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
 
 // decodeSsid turns the raw SSID bytes NetworkManager reports into a string.
 func decodeSsid(b []byte) string {

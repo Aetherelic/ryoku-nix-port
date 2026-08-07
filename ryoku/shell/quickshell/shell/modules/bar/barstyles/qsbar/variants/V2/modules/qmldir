@@ -29,6 +29,7 @@ NotificationWidget NotificationWidget.qml
 PanelPointer PanelPointer.qml
 PillShadow PillShadow.qml
 PowerProfileWidget PowerProfileWidget.qml
+ReactorLayer ReactorLayer.qml
 ScreenRecordWidget ScreenRecordWidget.qml
 StorageWidget StorageWidget.qml
 ThemeDisplayWidget ThemeDisplayWidget.qml

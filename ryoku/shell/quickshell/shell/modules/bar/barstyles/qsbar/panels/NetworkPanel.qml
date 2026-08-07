@@ -1,5 +1,6 @@
 import QtQuick
 import "../modules"
+import "../components"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -681,6 +682,14 @@ PanelWindow {
                         font.letterSpacing: 1
                     }
                 }
+            }
+
+            Rectangle { width: parent.width; height: 1; color: root.sep }
+
+            DnsProviderSection {
+                width: parent.width
+                theme: root
+                buttonRadius: root.tileRadius
             }
 
             Rectangle { width: parent.width; height: 1; color: root.sep; visible: netPanel.hasWifi }

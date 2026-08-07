@@ -5,14 +5,11 @@ import Quickshell.Io
 import "../utils/menupoll.js" as MenuPoll
 
 // QML view of the daemon `network` topic. NetworkManager lives in ryoku-shell
-// (network.go), so QML never shells out to nmcli nor speaks D-Bus itself:
-// `subscribe network` streams a full {wifi, wired, accessPoints, wireguard}
-// frame on every change, and connect/disconnect/forget/scan and WireGuard
-// activate/deactivate ride back as `call network.*` intents on a second
-// connection. The status derivations the rail and the collapsed row read
-// (kind/level/wifiRadio) and the VPN indicator (an active WireGuard tunnel,
-// per contract 06 / RailVpn = vpn_indicator) are computed here from that typed
-// state. Contract 06 sec 2.6 / 3, contract 11 sec 3.0 row 9.
+// (network.go), so QML never shells out to nmcli nor speaks D-Bus itself.
+// `subscribe network` streams a full frame; Wi-Fi, WireGuard, and DNS changes use
+// `call network.*` intents on a second connection. The status derivations the
+// rail and collapsed row read (kind/level/wifiRadio), the active WireGuard
+// indicator, and DNS provider state are computed from that typed frame.
 Singleton {
     id: root
 
@@ -21,6 +18,7 @@ Singleton {
     property var wired: ({ present: false, connectivity: "Disconnected" })
     property var accessPoints: []
     property var wgTunnels: []
+    property var dns: ({ provider: "dhcp", servers: [] })
 
     // --- derived status the rail + collapsed row bind to (preserved interface) ---
     readonly property string kind: root.wired.connectivity === "Connected" ? "ethernet"
@@ -30,6 +28,8 @@ Singleton {
     readonly property string activeSsid: root.wifi.ssid || ""
     readonly property string wifiConnectivity: root.wifi.connectivity || "Disconnected"
     readonly property bool wifiPresent: root.wifi.present === true
+    readonly property string dnsProvider: root.dns.provider || "dhcp"
+    readonly property var dnsServers: Array.isArray(root.dns.servers) ? root.dns.servers : []
 
     // The VPN indicator is an active WireGuard tunnel (contract 06 sec 3
     // appends " (+WG)"; RailVpn shows only while a tunnel is up).
@@ -56,6 +56,12 @@ Singleton {
     function wgActivate(uuid) { root.call("network.wgActivate", { uuid: uuid }); }
     function wgDeactivate(uuid) { root.call("network.wgDeactivate", { uuid: uuid }); }
     function wgImport(path) { root.call("network.wgImport", { path: path }); }
+    function setDnsProvider(provider, servers) {
+        return root.call("network.dnsSet", {
+            provider: provider || "",
+            servers: Array.isArray(servers) ? servers : []
+        });
+    }
 
     // Reply correlation: connectWifi returns an id, and `replied(id, ok, error)`
     // fires when the daemon answers, so the reveal can show "Error Connecting"
@@ -72,6 +78,7 @@ Singleton {
             if (f.wired) root.wired = f.wired;
             root.accessPoints = Array.isArray(f.accessPoints) ? f.accessPoints : [];
             root.wgTunnels = Array.isArray(f.wireguard) ? f.wireguard : [];
+            if (f.dns) root.dns = f.dns;
         } catch (e) {
             // A malformed frame keeps the last good state.
         }

@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -20,9 +22,9 @@ func TestApSecurity(t *testing.T) {
 		sae     = 0x400
 	)
 	cases := []struct {
-		name             string
-		flags, wpa, rsn  uint32
-		want             string
+		name            string
+		flags, wpa, rsn uint32
+		want            string
 	}{
 		{"open", 0, 0, 0, "None"},
 		{"wep", privacy, 0, 0, "Wep"},
@@ -120,6 +122,98 @@ func TestApFrame(t *testing.T) {
 	}
 }
 
+func TestDnsServersForSelection(t *testing.T) {
+	cases := []struct {
+		name     string
+		provider string
+		custom   []string
+		want     []string
+		wantErr  bool
+	}{
+		{"dhcp", "dhcp", nil, nil, false},
+		{"cloudflare", "cloudflare", nil, []string{
+			"1.1.1.1", "1.0.0.1",
+			"2606:4700:4700::1111", "2606:4700:4700::1001",
+		}, false},
+		{"google", "google", nil, []string{
+			"8.8.8.8", "8.8.4.4",
+			"2001:4860:4860::8888", "2001:4860:4860::8844",
+		}, false},
+		{"custom normalizes and deduplicates", "custom", []string{
+			" 192.0.2.53 ", "2001:db8::53", "192.0.2.53",
+		}, []string{"192.0.2.53", "2001:db8::53"}, false},
+		{"custom requires a server", "custom", nil, nil, true},
+		{"custom rejects hostnames", "custom", []string{"dns.example.com"}, nil, true},
+		{"unknown provider", "quad9", nil, nil, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := dnsServersForSelection(c.provider, c.custom)
+			if (err != nil) != c.wantErr {
+				t.Fatalf("dnsServersForSelection() error = %v, wantErr %v", err, c.wantErr)
+			}
+			if !reflect.DeepEqual(got, c.want) {
+				t.Errorf("dnsServersForSelection() = %#v, want %#v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestDnsProviderForServers(t *testing.T) {
+	cases := []struct {
+		name    string
+		servers []string
+		want    string
+	}{
+		{"empty is dhcp", nil, "dhcp"},
+		{"cloudflare ignores order", []string{
+			"2606:4700:4700::1001", "1.0.0.1",
+			"2606:4700:4700::1111", "1.1.1.1",
+		}, "cloudflare"},
+		{"google", []string{
+			"8.8.8.8", "8.8.4.4",
+			"2001:4860:4860::8888", "2001:4860:4860::8844",
+		}, "google"},
+		{"provider subset stays custom", []string{"1.1.1.1"}, "custom"},
+		{"unrecognized is custom", []string{"192.0.2.53"}, "custom"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := dnsProviderForServers(c.servers); got != c.want {
+				t.Errorf("dnsProviderForServers(%#v) = %q, want %q", c.servers, got, c.want)
+			}
+		})
+	}
+}
+
+func TestDnsHelperArgs(t *testing.T) {
+	got, err := dnsHelperArgs("Custom", []string{"192.0.2.53", "2001:db8::53"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"custom", "192.0.2.53", "2001:db8::53"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("dnsHelperArgs() = %#v, want %#v", got, want)
+	}
+}
+
+func TestDnsHelperPathUsesExecutableDirectory(t *testing.T) {
+	previousShellDir := shellDir
+	shellDir = ""
+	t.Cleanup(func() { shellDir = previousShellDir })
+
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(filepath.Dir(executable), "ryoku-dns")
+	if got := dnsHelperPath(); got != want {
+		t.Errorf("dnsHelperPath() = %q, want %q", got, want)
+	}
+}
+
 // TestLiveNetworkFrame exercises the real snapshot path against the running
 // NetworkManager and prints the frame, as evidence the topic renders live data.
 // Gated so the default `go test` stays deterministic and bus-free.
@@ -142,7 +236,7 @@ func TestLiveNetworkFrame(t *testing.T) {
 		if err := json.Unmarshal(frame, &m); err != nil {
 			t.Fatalf("frame is not valid JSON: %v", err)
 		}
-		for _, k := range []string{"wifi", "wired", "accessPoints", "wireguard"} {
+		for _, k := range []string{"wifi", "wired", "accessPoints", "wireguard", "dns"} {
 			if _, ok := m[k]; !ok {
 				t.Errorf("frame missing key %q", k)
 			}
