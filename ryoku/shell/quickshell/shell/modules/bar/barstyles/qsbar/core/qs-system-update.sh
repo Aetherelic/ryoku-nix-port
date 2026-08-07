@@ -78,7 +78,7 @@ probe_backend() {
 }
 
 launch_terminal() {
-  local terminal presentation inner
+  local terminal presentation
   [ "$#" -gt 0 ] || {
     printf 'qs-system-update: update command is missing\n' >&2
     exit 64
@@ -100,8 +100,7 @@ launch_terminal() {
     "$RYOKU_USER_ROOT/bin/kitty" \
     "$RYOKU_SYSTEM_ROOT/bin/kitty")"
   if [ -n "$presentation" ]; then
-    printf -v inner '%q ' "$@"
-    exec "$presentation" "${inner% }"
+    exec "$presentation" --hold "$@"
   elif terminal="$(type -P xdg-terminal-exec 2>/dev/null)"; then
     exec "$terminal" --hold -- "$@"
   elif terminal="$(type -P footclient 2>/dev/null)"; then

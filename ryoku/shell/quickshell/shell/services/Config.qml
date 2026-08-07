@@ -134,7 +134,7 @@ Singleton {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter { id: themeAdapter; property bool followWallpaper: false }
+        JsonAdapter { id: themeAdapter; property bool followWallpaper: true }
     }
 
     // brand identity master (mark + name), shared with doctor and the

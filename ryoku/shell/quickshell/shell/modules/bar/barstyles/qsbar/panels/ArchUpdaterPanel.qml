@@ -1103,7 +1103,7 @@ PanelWindow {
                         onClicked: {
                             var command = [archPanel.packageUpdateCommand]
                             if (archPanel.usesRyokuUpdater) {
-                                if (archPanel.packageUpdateMode === "cli") command.push("update")
+                                command.push("update")
                             } else {
                                 command.push(
                                     "--run",

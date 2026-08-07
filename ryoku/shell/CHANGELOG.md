@@ -2,7 +2,48 @@
 
 ## Unreleased
 
+### Fixed
+- **Bluetooth is reachable from the default bar.** The Bluetooth pill defaulted
+  hidden (`modBluetooth: false`) and only ever rendered when that toggle was on,
+  so a fresh install -- or any user whose widget cache had persisted it off -- had
+  no entry point to the Bluetooth panel from the default (V1) bar and couldn't
+  turn Bluetooth on, scan, or connect. The pill now auto-shows whenever a
+  controller is present (mirroring how the network pill stays up on Wi-Fi),
+  detected by extending the widget's `bluetoothctl show` poll to report adapter
+  presence (NONE/OFF/ON); machines with no adapter keep a clean bar, and the
+  poller keeps running while hidden so a dongle added later still surfaces the
+  pill. The panel it opens (power toggle, timed scan, connect/disconnect) already
+  works and is identical across V1/V2
+  (`modules/bar/barstyles/qsbar/modules/BluetoothWidget.qml` and the V2
+  counterpart under `.../qsbar/variants/V2/`).
+- **Power-mode switching offers only the profiles the hardware supports.** The
+  qsbar power panels hardcoded `power-saver`/`balanced`/`performance` and ran
+  `powerprofilesctl set` blindly, so on hardware missing a profile the button did
+  nothing and the widget snapped back to the active one (users saw "Balanced works,
+  the others don't"). Both Theme roots now parse `powerprofilesctl list` into
+  `powerProfileAvailable`; the panel renders, and the widget's right-click cycle
+  steps through, only that set -- falling back to the standard three if the list
+  can't be read, so nothing regresses (`modules/bar/barstyles/qsbar/Theme.qml`,
+  `.../qsbar/panels/PowerProfilePanel.qml`,
+  `.../qsbar/modules/PowerProfileWidget.qml`, and the V2 counterparts under
+  `.../qsbar/variants/V2/`).
+
 ### Changed
+- **Colours follow the wallpaper by default.** The shipped default colour source
+  is the wallpaper now, not the static Mono palette: `services/Config.qml`
+  (`followWallpaper`) and the daemon's `matchWallpaperOn` (`ipc/matugen.go`)
+  default on when no `theme.json` is present, so a fresh install and any user who
+  never locked a scheme get wallpaper-driven colours (Mono, Light and Dark stay a
+  one-click pick). This matches Ryoku's wallpaper-driven identity.
+- **The first-run welcome sets you up in a few taps.** The tour's "make it
+  yours" step now wires the essentials it used to only point at: an interface
+  scale slider (the fix for a first login that reads oversized), a bar picker
+  (QS Bar or the Sumi rail), and per-widget toggles for the desktop clock,
+  calendar, and music player, each writing the same `shell.json`/`widgets.json`
+  the shell already reads live. The keybind cheat-sheet is corrected to the
+  current chords, and the tour shows once more for anyone updating into beta 18
+  (`quickshell/welcome/StepCustomize.qml`, `StepBasics.qml`, `Welcome.qml`, and
+  the version gate in `hyprland/modules/autostart.lua`).
 - **QS Bar gains a full Control Center.** The bar's compact 240px control card is
   replaced by a route-based Control Center, opened from the 力/RYOKU launcher: a
   QUICK page (bar variant/form cards, reload, and session actions) and a
@@ -76,7 +117,7 @@
 - **The bar no longer resets to the sumi rail after an update.** `Frame` loads
   the active bar style through a `Loader`, and a single `Loader.Error` called
   `BarProducts.fail(id)`, which recorded the style as failed for the rest of the
-  session — so any transient load hiccup on a fresh post-update start (a plugin
+  session -- so any transient load hiccup on a fresh post-update start (a plugin
   `.so` swap, a cold-start import race) permanently dropped the configured qsbar
   style to the built-in sumi rail until a full clean restart. A built-in style
   ships with the shell and cannot be legitimately broken, so `fail()` now ignores
@@ -86,16 +127,26 @@
 - **The updates widget detects updates again.** The ported qsbar updater shelled
   out to upstream quickshell-dots scripts (`~/.local/bin/qs-arch-{update-check,
   security-gate,apply-update}.sh`) plus bare `checkupdates`, none of which Ryoku
-  ships — so it always read zero. Rewired the bar's `ArchUpdaterWidget` and the
+  ships -- so it always read zero. Rewired the bar's `ArchUpdaterWidget` and the
   `UpdateWidget` dot to Ryoku's own seam, `ryoku status --json` (the same source
   the Hub and update island use: channel commits behind plus, when
   `checkupdates` is present, pending pacman packages). The per-package security
-  gate (an upstream concept Ryoku has no script for) is retired — applying is
+  gate (an upstream concept Ryoku has no script for) is retired -- applying is
   owned by the panel's Ryoku-updater backend (`ryoku update`), which the panel
-  already prefers — so the advisory gate is held benignly clean instead of
+  already prefers -- so the advisory gate is held benignly clean instead of
   erroring on a missing script
   (`quickshell/shell/modules/bar/barstyles/qsbar/modules/{ArchUpdaterWidget,UpdateWidget}.qml`,
   the V2 copies, and the `archGate` in both `Theme.qml`).
+- **The updater panel's "Open Ryoku update" button works.** Two faults left it
+  inert: the panel only appended the `update` subcommand for the `cli` backend
+  mode, so the Ryoku-updater (`update` mode) launched the bare `ryoku` binary
+  (usage, no-op); and the panel's terminal adapter (`qs-system-update.sh`)
+  `%q`-joined the command into a single string, so kitty tried to exec a program
+  literally named `ryoku update` and failed. The panel now appends `update` for
+  either Ryoku-updater mode, and the adapter passes the command as separate args
+  with `--hold`, so the button opens a terminal running `ryoku update`
+  (`quickshell/shell/modules/bar/barstyles/qsbar/panels/ArchUpdaterPanel.qml` +
+  the V2 copy, `.../qsbar/core/qs-system-update.sh`).
 - **The AI-usage pill can show data again.** The pill reads
   `~/.cache/{claude,codex,opencode}-usage.json`, but the collectors that write
   them were never ported, so the caches never existed and the pill (which hides
@@ -131,7 +182,7 @@
   `hub/quickshell/pages/BarStudioPage.qml`).
 - **V2's GPU, CPU-temperature and storage widgets are now configurable.** These
   three continuous-bar telemetry widgets (and the temperature widget's sensor
-  source) existed on the bar but appeared in no settings surface — neither the
+  source) existed on the bar but appeared in no settings surface -- neither the
   Control Center's Appearance list nor the Hub's Bar Studio widget list, and the
   Bar Studio bridge dropped them on the floor. The Appearance route gains GPU,
   CPU Temp and Storage rows (visibility, accent, icon-only density) plus a

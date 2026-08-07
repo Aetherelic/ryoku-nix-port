@@ -357,16 +357,20 @@ func syncFollowWallpaper(themeName string) {
 
 // matchWallpaperOn reports whether the colour master follows the wallpaper. The
 // key lives in theme.json (the single source the daemon, window borders and shell
-// chrome all read), defaulting off to match the shell's own Config default.
+// chrome all read), defaulting ON to match the shell's own Config default: a
+// fresh box with no theme.json (or a file missing the key) follows the wallpaper.
 func matchWallpaperOn() bool {
 	b, err := os.ReadFile(filepath.Join(ryokuConfigDir(), "theme.json"))
 	if err != nil {
-		return false
+		return true
 	}
 	s := struct {
-		FollowWallpaper bool `json:"followWallpaper"`
+		FollowWallpaper *bool `json:"followWallpaper"`
 	}{}
-	return json.Unmarshal(b, &s) == nil && s.FollowWallpaper
+	if json.Unmarshal(b, &s) != nil || s.FollowWallpaper == nil {
+		return true
+	}
+	return *s.FollowWallpaper
 }
 
 // staticThemeName returns the fixed named theme selected in shell.json, or ""

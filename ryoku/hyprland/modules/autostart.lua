@@ -47,20 +47,26 @@ hl.on("hyprland.start", function()
     -- file exists for the user to paste an API key into; idempotent, a no-op if
     -- present. The Hub's Language > "Generate with AI" then reads it.
     hl.exec_cmd("command -v ryoku-i18n >/dev/null 2>&1 && ryoku-i18n ensure >/dev/null 2>&1")
-    -- First-login welcome walkthrough: show the guided tour once, then mark it
-    -- seen so it never returns. The flag lives in state (not config), so it needs
-    -- no doctor reconciler. The seen-check lives in Lua because Hyprland's exec
-    -- reads a leading [...] as its window-rules prefix: the old `[ -e flag ]`
-    -- shell guard was eaten as a rule block, sh got a line starting at `||`, and
-    -- the tour never launched on any install. The flock still guards a double
-    -- fire, and the flag is written only if qs actually ran the tour (`&&`), so a
-    -- first-boot launch failure retries next login instead of marking it seen
-    -- forever. exec is async, so the blocking `qs` never holds up autostart.
+    -- Welcome walkthrough: show the guided tour once per tour VERSION. A fresh
+    -- box (no flag) sees it; a box that saw an older tour (a bare flag or a lower
+    -- version) sees the refreshed tour once more on update; a box already on this
+    -- version is left alone. The flag lives in state (not config), so it needs no
+    -- doctor reconciler. The seen-check lives in Lua because Hyprland's exec reads
+    -- a leading [...] as its window-rules prefix, and because Lua can compare the
+    -- stored version. The flock guards a double fire, and the version is written
+    -- only if qs actually ran the tour (`&&`), so a first-boot launch failure
+    -- retries next login instead of marking it seen. exec is async, so the
+    -- blocking `qs` never holds up autostart. Bump welcome_version when the tour
+    -- changes materially (beta 18 = 18).
     local welcome_state = (os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state")) .. "/ryoku"
-    local seen = io.open(welcome_state .. "/welcome-seen", "r")
-    if seen then
-        seen:close()
-    else
-        hl.exec_cmd("flock -n \"${XDG_RUNTIME_DIR:-/tmp}/ryoku-welcome.lock\" qs -c welcome && mkdir -p '" .. welcome_state .. "' && touch '" .. welcome_state .. "/welcome-seen'")
+    local welcome_version = 18
+    local seen_file = io.open(welcome_state .. "/welcome-seen", "r")
+    local seen_version = 0
+    if seen_file then
+        seen_version = tonumber((seen_file:read("*l") or "")) or 0
+        seen_file:close()
+    end
+    if seen_version < welcome_version then
+        hl.exec_cmd("flock -n \"${XDG_RUNTIME_DIR:-/tmp}/ryoku-welcome.lock\" qs -c welcome && mkdir -p '" .. welcome_state .. "' && printf '" .. welcome_version .. "' > '" .. welcome_state .. "/welcome-seen'")
     end
 end)

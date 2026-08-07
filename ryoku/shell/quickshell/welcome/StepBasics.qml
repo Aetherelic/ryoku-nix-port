@@ -11,12 +11,13 @@ Column {
 
     Repeater {
         model: [
+            { "combo": "Super + ,",      "desc": "Ryoku Settings \u2014 every knob, in one place" },
             { "combo": "Super + Space",  "desc": "App launcher & command palette" },
             { "combo": "Super + Return", "desc": "A terminal" },
-            { "combo": "Super + ,",      "desc": "Ryoku Settings" },
             { "combo": "Super + Tab",    "desc": "Overview \u2014 every workspace at a glance" },
-            { "combo": "Super + Escape", "desc": "Power & session menu" },
-            { "combo": "Super + Q",      "desc": "Close the focused window" }
+            { "combo": "Super + Escape", "desc": "Power & quick settings" },
+            { "combo": "Super + S",      "desc": "Feature sidebar \u2014 screen time & downloads" },
+            { "combo": "Super + W",      "desc": "Wallpaper & theme menu" }
         ]
 
         delegate: Row {
@@ -82,7 +83,7 @@ Column {
             id: note
             width: step.width - 26
             wrapMode: Text.WordWrap
-            text: "Press Super + K anytime for the complete shortcut legend."
+            text: "Open Ryoku Settings (Super + ,) for the full shortcut list \u2014 and to rebind any of them."
             color: Tokens.inkFaint
             font.family: Tokens.ui
             font.pixelSize: Tokens.fSmall

@@ -2599,6 +2599,31 @@ Item {
         }
     }
 
+    // Available power profiles, parsed from `powerprofilesctl list`. Header lines
+    // look like "* performance:" / "  balanced:" (the marker flags the active one);
+    // detail lines have a value after the colon, so we keep only lines that END at
+    // the colon. Defaults to the standard three so nothing regresses if the list
+    // can't be read; the panel/widget offer and cycle only through this set, so a
+    // profile the hardware lacks never shows up as a dead button.
+    property var powerProfileAvailable: ["power-saver", "balanced", "performance"]
+
+    Process {
+        id: initPowerProfileList
+        command: ["bash", "-c", "powerprofilesctl list 2>/dev/null"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var lines = this.text.split("\n")
+                var found = []
+                for (var i = 0; i < lines.length; i++) {
+                    var m = lines[i].match(/^\s*\*?\s*([a-z][a-z0-9-]*):\s*$/)
+                    if (m) found.push(m[1])
+                }
+                if (found.length > 0) theme.powerProfileAvailable = found
+            }
+        }
+    }
+
     // ── Hyprland workspace dispatch (config-mode-aware) ──
     // Hyprland 0.55 added Lua configs but still supports classic hyprlang, and
     // BOTH ship the same version number — so the dispatch form depends on which

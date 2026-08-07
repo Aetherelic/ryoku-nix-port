@@ -89,9 +89,14 @@ Item {
         onClicked: (e) => {
             tip.hide()
             if (e.button === Qt.RightButton) {
-                var profiles = ["power-saver", "balanced", "performance"]
-                var idx = profiles.indexOf(root.powerProfileCurrent)
-                var next = profiles[(Math.max(0, idx) + 1) % profiles.length]
+                var order = ["power-saver", "balanced", "performance"]
+                var avail = root.powerProfileAvailable
+                var cycle = (avail && avail.length > 0)
+                    ? order.filter(function(k) { return avail.indexOf(k) !== -1 })
+                    : order
+                if (cycle.length === 0) cycle = order
+                var idx = cycle.indexOf(root.powerProfileCurrent)
+                var next = cycle[(Math.max(0, idx) + 1) % cycle.length]
                 setProfileProc.command = ["bash", "-c", "powerprofilesctl set " + next]
                 setProfileProc.running = false; setProfileProc.running = true
                 root.powerProfileCurrent = next

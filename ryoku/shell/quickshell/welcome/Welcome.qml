@@ -24,7 +24,7 @@ Rectangle {
 
     readonly property var steps: [
         { "eyebrow": "Welcome",          "title": "Welcome to " + Theme.brandName,     "subtitle": Theme.mark + " \u00b7 a hand-built paper-and-ink desktop on Arch and Hyprland.", "next": "Take the tour" },
-        { "eyebrow": "Getting around",   "title": "The keys that matter", "subtitle": "Six shortcuts open almost everything.",                              "next": "Next" },
+        { "eyebrow": "Getting around",   "title": "The keys that matter", "subtitle": "A handful of shortcuts open almost everything.",                    "next": "Next" },
         { "eyebrow": "Where things live","title": "Know your desktop",    "subtitle": "Four surfaces, and how to summon each one.",                          "next": "Next" },
         { "eyebrow": "Make it yours",    "title": "A few quick choices",  "subtitle": "Set the essentials now; the rest waits in Settings.",                 "next": "Next" },
         { "eyebrow": "Ready",            "title": "You're all set",       "subtitle": "Everything from here is yours to change.",                            "next": "Enter " + Theme.brandName }

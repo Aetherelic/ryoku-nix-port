@@ -19,11 +19,21 @@ PanelWindow {
     readonly property int barBottom: 35
     readonly property int gap: 8
 
-    readonly property var profiles: [
+    readonly property var allProfiles: [
         { key: "power-saver",  icon: "\uF06C",  label: "Power Saver" },
         { key: "balanced",     icon: "\uF24E", label: "Balanced" },
         { key: "performance",  icon: "\uF0E7", label: "Performance" },
     ]
+
+    // Only offer profiles `powerprofilesctl list` reports (root.powerProfileAvailable),
+    // keeping the canonical order and look. Falls back to all three if availability
+    // can't be read, so a shown button always applies and nothing regresses.
+    readonly property var profiles: {
+        var avail = root.powerProfileAvailable
+        if (!avail || avail.length === 0)
+            return allProfiles
+        return allProfiles.filter(function(p) { return avail.indexOf(p.key) !== -1 })
+    }
 
     property real reveal: root.powerProfileVisible ? 1 : 0
     Behavior on reveal {
