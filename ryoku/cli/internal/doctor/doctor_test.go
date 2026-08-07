@@ -1352,6 +1352,50 @@ func TestMigrateShellConfigDropsEveryRetiredKey(t *testing.T) {
 	}
 }
 
+// The pluggable bar-style selector must survive migration and default to the
+// shipped QS Bar: reconcileShellConfig no longer strips the live barStyle, and
+// reconcileSumiBar defaults an absent or retired Atoll-era style to "qsbar" (not
+// the old "sumi"), so an existing box lands on the current default bar on update
+// while an explicit sumi/store choice is kept.
+func TestBarStyleDefaultsToQsbar(t *testing.T) {
+	barStyleOf := func(raw []byte) string {
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			t.Fatalf("output does not parse: %v", err)
+		}
+		s, _ := m["barStyle"].(string)
+		return s
+	}
+	// migrateShellConfig must not strip the live selector while shedding Atoll keys.
+	out, _, err := migrateShellConfig([]byte(`{"barStyle":"qsbar","atollVariant":"x"}`))
+	if err != nil {
+		t.Fatalf("migrateShellConfig: %v", err)
+	}
+	if got := barStyleOf(out); got != "qsbar" {
+		t.Errorf("migrateShellConfig dropped the live barStyle: got %q, want qsbar", got)
+	}
+	cases := []struct{ name, in, want string }{
+		{"qsbar kept", `{"barStyle":"qsbar"}`, "qsbar"},
+		{"sumi kept", `{"barStyle":"sumi"}`, "sumi"},
+		{"absent defaults to qsbar", `{"fontScale":1.3}`, "qsbar"},
+		{"retired atoll to qsbar", `{"barStyle":"atoll"}`, "qsbar"},
+		{"retired washi to qsbar", `{"barStyle":"washi"}`, "qsbar"},
+	}
+	for _, c := range cases {
+		got, changed, err := migrateSumiBar([]byte(c.in))
+		if err != nil {
+			t.Fatalf("%s: migrateSumiBar: %v", c.name, err)
+		}
+		result := c.in
+		if changed {
+			result = string(got)
+		}
+		if bs := barStyleOf([]byte(result)); bs != c.want {
+			t.Errorf("%s: barStyle = %q, want %q", c.name, bs, c.want)
+		}
+	}
+}
+
 // limineDropFlat mirrors the installer's promote surgery: flat placeholder
 // entries go (with their indented options), default_entry moves off the tree
 // directory, globals and the /+ tree survive untouched.

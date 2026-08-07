@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- **Existing boxes land on the QS Bar default on update.** `ryoku doctor` no
+  longer strips the live top-level `barStyle` (it was wrongly listed as a retired
+  key, so an update stripped it and reseeded `sumi`, flipping every QS Bar user to
+  the minimal Sumi rail); `reconcileSumiBar` now defaults an absent or retired
+  Atoll-era bar style to `qsbar`, while an explicit sumi or installed store style
+  is kept (`internal/doctor/doctor.go`).
+- **Spotify Canvas is wired up for a Spotify user automatically.** A new
+  `reconcileSpicetifyCanvas` drops the bundled `ryoku-canvas.js` into a Spotify
+  user's spicetify Extensions, enables it, and applies it (building `spicetify-cli`
+  from the AUR if missing). Gated on Spotify being installed and best-effort, so it
+  never blocks an update and stays inert for anyone without Spotify
+  (`internal/doctor/reconcile_spicetify.go`).
 - **`ryoku track <main|unstable-dev>` switches the update channel.** It points a
   box at a channel and makes `ryoku update` follow it: installs the build tools,
   checks out the branch, records the channel, and rebuilds the desktop from the
