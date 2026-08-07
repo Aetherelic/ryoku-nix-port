@@ -164,12 +164,15 @@ Item {
         return "";
     }
 
+    // The system pull (toggle probes, module services) holds until the reveal
+    // settles, so opening stays smooth on low-resource machines.
+    property bool settled: false
     property bool watching: false
     function syncWatch() {
-        if (root.open && !root.watching) {
+        if (root.settled && !root.watching) {
             Toggles.watchers += 1;
             root.watching = true;
-        } else if (!root.open && root.watching) {
+        } else if (!root.settled && root.watching) {
             Toggles.watchers -= 1;
             root.watching = false;
         }
@@ -203,6 +206,12 @@ Item {
         onTriggered: if (root.open) root.applyInitialPage()
     }
 
+    Timer {
+        id: settleTimer
+        interval: 800
+        onTriggered: { root.settled = true; root.syncWatch(); }
+    }
+
     function scheduleInitialPage() {
         initialPageApply.restart();
     }
@@ -213,7 +222,10 @@ Item {
             root.navReady = false;
             root.syncConfiguredModules();
             root.scheduleInitialPage();
+            settleTimer.restart();
         } else {
+            settleTimer.stop();
+            root.settled = false;
             previousModuleTimer.stop();
             initialPageApply.stop();
             root.previousModule = "";
@@ -310,7 +322,7 @@ Item {
                     Binding {
                         target: moduleLoaderDelegate.item
                         property: "open"
-                        value: root.open && root.page === ""
+                        value: root.open && root.settled && root.page === ""
                             && root.activeModule === moduleLoaderDelegate.moduleId
                         when: moduleLoaderDelegate.status === Loader.Ready
                     }
