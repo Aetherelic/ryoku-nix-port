@@ -1,8 +1,13 @@
 import QtQuick
 import QtQuick.Effects
 import Quickshell.Widgets
-import "../Singletons"
+import "Singletons"
 
+// Frosted plate for a desktop widget that draws its own card: the exact patch of
+// wallpaper behind the widget, blurred and dimmed inside the rounded shape, with
+// a palette wash over it. The wallpaper lives in its own Wayland surface, which
+// Qt cannot sample, so the host mirrors it into the scene and hands that Item in
+// as `sourceItem` with the widget's rect (see Desktop.qml).
 ClippingRectangle {
     id: root
 

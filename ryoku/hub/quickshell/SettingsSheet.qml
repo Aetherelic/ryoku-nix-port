@@ -99,7 +99,7 @@ Item {
     }
     function ctlFoot(r) {
         var c = r.ctl;
-        if (c === "pick" || c === "text" || c === "color" || c === "location" || c === "image" || c === "action") return 32;
+        if (c === "pick" || c === "text" || c === "color" || c === "location" || c === "image" || c === "action" || c === "app") return 32;
         return 0;
     }
     function ctlWidth(r, w) {
@@ -217,6 +217,7 @@ Item {
                                     case "pick": return pickC;
                                     case "gallery": return galleryC;
                                     case "image": return imageC;
+                                    case "app": return appC;
                                     case "location": return locationC;
                                     case "color": return colorC;
                                     case "action": return actionC;
@@ -456,6 +457,40 @@ Item {
                                 }
                             }
                             Component {
+                                id: appC
+                                Item {
+                                    anchors.fill: parent
+                                    Btn {
+                                        id: defBtn
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        visible: String(sheet.val(srow.r)) !== ""
+                                        text: "DEFAULT"
+                                        onAct: sheet.edited(srow.r.key, "")
+                                    }
+                                    Btn {
+                                        id: chooseBtn
+                                        anchors.right: defBtn.visible ? defBtn.left : parent.right
+                                        anchors.rightMargin: defBtn.visible ? Tokens.s2 : 0
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "CHOOSE…"
+                                        onAct: sheet.appPick(srow.r)
+                                    }
+                                    Text {
+                                        anchors.left: parent.left
+                                        anchors.right: chooseBtn.left
+                                        anchors.rightMargin: Tokens.s2
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        elide: Text.ElideRight
+                                        readonly property string cmd: String(sheet.val(srow.r))
+                                        text: cmd.length ? cmd : "ryotunes (YouTube Music)"
+                                        color: cmd.length ? Tokens.ink : Tokens.inkMuted
+                                        font.family: Tokens.ui
+                                        font.pixelSize: 12
+                                    }
+                                }
+                            }
+                            Component {
                                 id: locationC
                                 Item {
                                     id: locRoot
@@ -602,6 +637,9 @@ Item {
 
     signal imagePickRequested(var row)
     function imagePick(r) { imagePickRequested(r) }
+
+    signal appPickRequested(var row)
+    function appPick(r) { appPickRequested(r) }
 
     Column {
         anchors.centerIn: parent

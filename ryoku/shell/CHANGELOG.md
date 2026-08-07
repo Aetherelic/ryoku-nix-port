@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Changed
+- **QS Bar gains a full Control Center.** The bar's compact 240px control card is
+  replaced by a route-based Control Center, opened from the 力/RYOKU launcher: a
+  QUICK page (bar variant/form cards, reload, and session actions) and a
+  CONFIGURE page whose bezier connection-graph landing opens live editors for
+  Bars (position, form Full/Fit/Dock/Notch, surface, accent, edit/restore
+  layout), Appearance (per-widget visibility, colour, density), Logo,
+  Workspaces, and Pickers, with CTRL-K predictive search and staged page motion.
+  The V2 shell now runs the reactor/gap event layer that used to be V1-only, and
+  every control mirrors into the Hub's Bar Studio through the `qsbar` shell.json
+  map. Ported from Shibumi-Shell's control-center and interaction model; it wears
+  QS Bar's own dark theme, not the paper-ink shell tokens
+  (`modules/bar/barstyles/qsbar/controlcenter/`,
+  `.../qsbar/variants/V2/modules/ReactorLayer.qml`,
+  `hub/quickshell/pages/BarStudioPage.qml`).
 - **Super+S opens a feature sidebar: screen time and downloads.** The old file
   stash (the board, LocalSend send and receive, the drag-to-edge stash) is
   retired, and the sidebar moved off Super+T (now free) onto Super+S. Usage is a
@@ -46,6 +60,17 @@
   and brand types, MusicBars, TrayMenu, NotificationCard, the Popout bases, and
   the audio and notification menus), both resolved through the Quickshell import
   path. See `docs/barstyles.md`; the ryoku-extras catalogue is migrated to it.
+- **Super+S opens capture as a quick-settings tab.** The screenshot and screen
+  record card that Super+S raised as a floating popup now lives as a Capture tab
+  in the Super+Esc quick settings rail, right after Weather, so it reads as part
+  of the same instrument rather than a separate surface. Super+S deep-links to
+  that tab (`quick-settings#capture`) and the card content is reused in place. The
+  tab carries a Recent section: the latest screenshots and recordings in two
+  labelled groups (recordings as poster frames with a play badge and duration),
+  each opening its folder in the file manager on click; the section fills in just
+  after the open so the sidebar never hitches. `ryoku doctor` adds the tab to a
+  rail still carrying the pre-capture default
+  (`quickshell/shell/modules/bar/framebars/menus/quicksettings/QuickSettingsCapture.qml`).
 
 ### Fixed
 - **The desktop no longer boots into a keyboard-grabbed, greyed-out state.** The
@@ -166,6 +191,54 @@
   `quickshell/pill/BarWidgetHost.qml`, `framebars/widgets/RailDock.qml`).
 
 ### Added
+- **A now-playing music sheet joins the wallpaper widgets.** Enable it in Ryoku
+  Settings -> Desktop Widgets (or the desktop right-click): the sleeve leads, the
+  song's synced lyrics run beside it under the line being sung, and the title, a
+  wavy seek rail and prev/play-pause/next close it out. The card wears the
+  album's own colour, not the theme's -- the accent, the lit lyric, the seek fill
+  and the play tile all retune per song from a `ColorQuantizer` of the cover --
+  with a now-playing equaliser on the sleeve and a soft accent glow on the play
+  tile while a track moves. It follows any MPRIS player (`services/Media`), so
+  Spotify, a browser tab or ryotunes all drive it. A corner button opens your
+  music app (ryotunes by default; pick any installed app in the Hub, the same
+  way the Keybinds page binds one), then minimises and restores it on later taps
+  -- a scratchpad hide/show, since the compositor has no real minimise. Whenever
+  no lyric sheet is up (lyrics off, or none found) a live cava spectrum in the
+  sleeve's colour takes the space instead of a dead panel. A `cover` and a
+  frosted `glass` style, an optional lyric sheet, drag/resize/anchor placement,
+  and a live preview + controls in the Hub's Desktop Widgets page. The daemon
+  (`ipc/music.go`) owns the enrichment off the QML thread: the full-size cover
+  from the player, else Deezer then iTunes, and synced (or plain) lyrics from
+  LRCLIB, cached under `~/.cache/ryoku/music`; the `Music` service holds the
+  interpolated 60fps playback clock every lyric surface follows
+  (`quickshell/shell/modules/desktop/music/` (incl. `MusicViz`, `MusicPulse`),
+  `services/{Media,Music,AudioBars}.qml`, `utils/artcolor.js`,
+  `modules/desktop/{Desktop,WidgetMenu,WidgetGlass}.qml`, `ipc/music.go`, `hyprland/scripts/ryoku-music-toggle`,
+  `hub/quickshell/{MusicPreview,AppPicker,SettingsSheet}.qml`,
+  `hub/quickshell/schema/WidgetsPage.js`).
+- **The music sheet can go 9:16 with a living video backdrop.** A new Canvas
+  toggle on the widget's right-click menu flips the sheet between the
+  wide card and a portrait 9:16 "canvas" that full-bleeds a looping backdrop with
+  the sung line and transport floating over it. The backdrop, in both shapes, is
+  either a custom video or GIF you pick (a themed in-shell chooser with a live
+  preview, not the system file dialog), or the track's **Spotify Canvas** pulled
+  automatically: a bundled spicetify extension (`apps/spicetify/ryoku-canvas.js`)
+  reads the Canvas from Spotify's own session and relays it to the daemon's
+  loopback endpoint (Spotify's token is bot-gated, so the daemon cannot fetch it
+  directly), which also matches a local clip in `~/.config/ryoku/canvas/<id>.<ext>`.
+  Video software-decodes so it composites on hybrid GPUs. `Super+J` toggles the
+  music app's scratchpad, the same dropdown idiom as `Super+H`
+  (`modules/desktop/music/{MusicBackdrop,MusicTall}.qml`,
+  `modules/desktop/MusicVideoPicker.qml`, `apps/spicetify/ryoku-canvas.js`,
+  `ipc/music.go`, `hyprland/modules/binds.lua`, `systemd/user/ryoku-shell.service`).
+- **QSBar's network popup can switch DNS providers in one click.** A four-way
+  DHCP / Cloudflare / Google / Custom row mirrors Omarchy Quattro's compact
+  provider control, with inline custom IPv4/IPv6 entry, pending state, and
+  surfaced errors. The shared network topic reports NetworkManager's live global
+  DNS choice, while `network.dnsSet` validates requests and delegates the
+  privileged change to `ryoku-dns`; both QSBar variants use the same component
+  (`quickshell/shell/modules/bar/barstyles/qsbar/components/DnsProviderSection.qml`,
+  `quickshell/shell/services/Network.qml`, `ipc/network.go`).
 - **Downloaded colour schemes appear in the Color-scheme picker.** RyoStore's
   Themes category installs a scheme into `~/.local/share/ryoku/themes/<id>` as a
   Noctalia-format `scheme.json`; the daemon converts its dark/light block into the

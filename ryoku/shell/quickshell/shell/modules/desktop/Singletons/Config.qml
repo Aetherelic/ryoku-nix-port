@@ -38,6 +38,20 @@ Singleton {
     property alias calendarLocked:        adapter.calendarLocked
     property alias calendarOpacity:       adapter.calendarOpacity
 
+    property alias musicEnabled: adapter.musicEnabled
+    property alias musicStyle:   adapter.musicStyle    // cover | glass
+    property alias musicLyrics:  adapter.musicLyrics   // show the synced lyric sheet
+    property alias musicScale:   adapter.musicScale
+    property alias musicAnchor:  adapter.musicAnchor
+    property alias musicX:       adapter.musicX
+    property alias musicY:       adapter.musicY
+    property alias musicLocked:  adapter.musicLocked
+    property alias musicOpacity: adapter.musicOpacity
+    property alias musicApp:     adapter.musicApp     // launch command for the corner button
+    property alias musicShape:     adapter.musicShape      // wide | tall (9:16)
+    property alias musicVideo:     adapter.musicVideo      // off | canvas | custom
+    property alias musicVideoFile: adapter.musicVideoFile  // custom backdrop file
+
     // brand: the desktop's mark + name, user-overridable from Ryoku Settings ->
     // Shell -> Global. a small cross-cutting identity master (like theme.json).
     // markText is the glyph/short-text seal (default 力); markImage an optional
@@ -114,7 +128,19 @@ Singleton {
             property int calendarY: 80
             property bool calendarLocked: false
             property real calendarOpacity: 1.0
-
+            property bool musicEnabled: false
+            property string musicStyle: "cover"
+            property bool musicLyrics: true
+            property real musicScale: 1.0
+            property string musicAnchor: "bottom-left"
+            property int musicX: 80
+            property int musicY: 80
+            property bool musicLocked: false
+            property real musicOpacity: 1.0
+            property string musicApp: ""
+            property string musicShape: "wide"
+            property string musicVideo: "off"
+            property string musicVideoFile: ""
         }
     }
 

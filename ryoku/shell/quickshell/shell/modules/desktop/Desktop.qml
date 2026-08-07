@@ -6,6 +6,7 @@ import Quickshell.Widgets
 import "Singletons"
 import "clock"
 import "calendar"
+import "music"
 import Ryoku.PluginKit
 
 // desktop widgets layer: WlrLayer.Bottom (below windows), instantiated once per
@@ -123,15 +124,16 @@ Scope {
 
         // The wallpaper is painted in a separate Wayland surface, which Qt cannot
         // sample across scene graphs. Mirror the same image into this scene as an
-        // offscreen texture so ShaderEffectSource can capture the pixels beneath
-        // the calendar. CalendarGlass hides this source after taking its crop.
+        // offscreen texture so ShaderEffectSource can capture the pixels beneath a
+        // frosted widget. WidgetGlass hides this source after taking its crop.
         Image {
             id: glassBackdrop
             anchors.fill: parent
             source: root.wallpaperUrl
             cache: false
             asynchronous: true
-            visible: Config.calendarEnabled && Config.calendarStyle === "glass"
+            visible: (Config.calendarEnabled && Config.calendarStyle === "glass")
+                || (Config.musicEnabled && Config.musicStyle === "glass")
             fillMode: {
                 switch (root.wallpaperFit) {
                 case "Contain": return Image.PreserveAspectFit;
@@ -156,8 +158,9 @@ Scope {
 
         WidgetGrid {
             anchors.fill: parent
-            active: clockSlot.dragging || calendarSlot.dragging
-            gridSize: clockSlot.dragging ? clockSlot.gridSize : calendarSlot.gridSize
+            active: clockSlot.dragging || calendarSlot.dragging || musicSlot.dragging
+            gridSize: clockSlot.dragging ? clockSlot.gridSize
+                : (calendarSlot.dragging ? calendarSlot.gridSize : musicSlot.gridSize)
         }
 
         WidgetSlot {
@@ -199,6 +202,33 @@ Scope {
                 wallpaperSource: glassBackdrop
                 wallpaperRect: Qt.rect(calendarSlot.x, calendarSlot.y,
                     calendarSlot.width, calendarSlot.height)
+            }
+        }
+
+        WidgetSlot {
+            id: musicSlot
+            widget: "music"
+            visible: Config.musicEnabled
+            anchor: Config.musicAnchor
+            freeX: Config.musicX
+            freeY: Config.musicY
+            locked: Config.musicLocked
+            bg: "none"
+            scaleCfg: Config.musicScale
+            opacity: Config.musicOpacity
+            onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            MusicWidget {
+                style: Config.musicStyle
+                showLyrics: Config.musicLyrics
+                active: musicSlot.visible
+                musicApp: Config.musicApp
+                shape: Config.musicShape
+                videoMode: Config.musicVideo
+                videoFile: Config.musicVideoFile
+                s: Config.musicScale
+                wallpaperSource: glassBackdrop
+                wallpaperRect: Qt.rect(musicSlot.x, musicSlot.y,
+                    musicSlot.width, musicSlot.height)
             }
         }
 

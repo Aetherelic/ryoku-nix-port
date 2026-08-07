@@ -20,9 +20,14 @@ Item {
     readonly property bool isWidget: menu.scope !== "desktop"
     readonly property bool isClock: menu.scope === "clock"
     readonly property bool isCalendar: menu.scope === "calendar"
+    readonly property bool isMusic: menu.scope === "music"
     readonly property bool locked: menu.isWidget ? Config[menu.scope + "Locked"] : false
     readonly property string curAnchor: menu.isWidget ? Config[menu.scope + "Anchor"] : ""
-    readonly property string curDesign: menu.isWidget ? (menu.isCalendar ? Config.calendarStyle : Config[menu.scope + "Design"]) : ""
+    // clock faces persist as <scope>Design; the calendar and the music sheet
+    // persist their look as <scope>Style.
+    readonly property string designKey: menu.isCalendar || menu.isMusic
+        ? menu.scope + "Style" : menu.scope + "Design"
+    readonly property string curDesign: menu.isWidget ? Config[menu.designKey] : ""
 
     readonly property var zones: [
         { "zone": "top-left", "glyph": "\u2196" }, { "zone": "top", "glyph": "\u2191" }, { "zone": "top-right", "glyph": "\u2197" },
@@ -38,13 +43,13 @@ Item {
     function cycleDesign() {
         const lists = {
             clock: ["digital", "minimal", "analog", "flip", "rings"],
-            calendar: ["glass", "paper"]
+            calendar: ["glass", "paper"],
+            music: ["cover", "glass"]
         };
         const d = lists[menu.scope];
         if (!d)
             return;
-        const key = menu.isCalendar ? "calendarStyle" : menu.scope + "Design";
-        Config.set(key, d[(d.indexOf(Config[key]) + 1) % d.length]);
+        Config.set(menu.designKey, d[(d.indexOf(Config[menu.designKey]) + 1) % d.length]);
     }
     function openSettings() {
         Quickshell.execDetached(["sh", "-c", "ryoku-hub config set section widgets; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
@@ -53,6 +58,17 @@ Item {
     function refreshShell() {
         Quickshell.execDetached(["ryoku-shell", "reload"]);
         menu.close();
+    }
+    function videoLabel(v) { return v === "canvas" ? "Spotify Canvas" : v === "custom" ? "Custom" : "Off"; }
+    function videoName(p) {
+        if (!p || p.length === 0)
+            return "None";
+        const s = ("" + p).replace(/\/+$/, "");
+        return decodeURIComponent(s.slice(s.lastIndexOf("/") + 1));
+    }
+    function cycleVideo() {
+        const d = ["off", "canvas", "custom"];
+        Config.set("musicVideo", d[(d.indexOf(Config.musicVideo) + 1) % d.length]);
     }
 
     DesktopMenu {
@@ -76,6 +92,14 @@ Item {
             closeOnTrigger: false
             onTriggered: Config.set("calendarEnabled", !Config.calendarEnabled)
         }
+        MenuRow {
+            visible: !menu.isWidget
+            label: "Music"
+            value: Config.musicEnabled ? "On" : "Off"
+            on: Config.musicEnabled
+            closeOnTrigger: false
+            onTriggered: Config.set("musicEnabled", !Config.musicEnabled)
+        }
 
         // ── widget scope ───────────────────────────────────────────────
         MenuRow {
@@ -92,6 +116,36 @@ Item {
             on: Config.dateShow
             closeOnTrigger: false
             onTriggered: Config.toggle("dateShow")
+        }
+        MenuRow {
+            visible: menu.isMusic
+            label: "Lyrics"
+            value: Config.musicLyrics ? "On" : "Off"
+            on: Config.musicLyrics
+            closeOnTrigger: false
+            onTriggered: Config.toggle("musicLyrics")
+        }
+        MenuRow {
+            visible: menu.isMusic
+            label: "Canvas"
+            value: Config.musicShape === "tall" ? "9:16" : "Wide"
+            on: Config.musicShape === "tall"
+            closeOnTrigger: false
+            onTriggered: Config.set("musicShape", Config.musicShape === "tall" ? "wide" : "tall")
+        }
+        MenuRow {
+            visible: menu.isMusic
+            label: "Backdrop"
+            value: menu.videoLabel(Config.musicVideo)
+            on: Config.musicVideo !== "off"
+            closeOnTrigger: false
+            onTriggered: menu.cycleVideo()
+        }
+        MenuRow {
+            visible: menu.isMusic
+            label: "Video / GIF…"
+            value: menu.videoName(Config.musicVideoFile)
+            onTriggered: videoPicker.open = true
         }
         MenuRow {
             visible: menu.isWidget
@@ -147,5 +201,13 @@ Item {
         MenuSection {}
         MenuRow { label: "Settings"; accent: true; closeOnTrigger: false; onTriggered: menu.openSettings() }
         MenuRow { label: "Reload shell"; closeOnTrigger: false; onTriggered: menu.refreshShell() }
+    }
+
+    MusicVideoPicker {
+        id: videoPicker
+        onChose: (url) => {
+            Config.set("musicVideoFile", url);
+            Config.set("musicVideo", "custom");
+        }
     }
 }

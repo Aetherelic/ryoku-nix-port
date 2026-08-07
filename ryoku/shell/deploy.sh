@@ -171,6 +171,7 @@ install -m755 "$here/../../system/hardware/leds/ryoku-leds" "$bindir/ryoku-leds"
 install -m755 "$here/../../system/hardware/audio/ryoku-mic" "$bindir/ryoku-mic"
 install -m755 "$here/../../system/hardware/audio/ryoku-eq" "$bindir/ryoku-eq"
 install -m755 "$here/../../system/hardware/display/ryoku-monitor" "$bindir/ryoku-monitor"
+install -m755 "$here/../../system/hardware/network/ryoku-dns" "$bindir/ryoku-dns"
 install -m755 "$here/../../system/hardware/gpu/ryoku-gpu" "$bindir/ryoku-gpu"
 install -m755 "$here/../../system/hardware/gpu/ryoku-gpu-detect" "$bindir/ryoku-gpu-detect"
 install -m755 "$here/../../system/hardware/gpu/ryoku-gpu-lib32" "$bindir/ryoku-gpu-lib32"
@@ -330,6 +331,22 @@ for appdir in "$here"/../apps/*/; do
   install -Dm644 "$icon" "$appshare/icons/hicolor/scalable/apps/$appname.svg"
   say "installed app $appname -> $cfg/quickshell/$appname"
 done
+
+# ryotunes: YouTube Music as a Chromium app-window (apps/ryotunes). Not a
+# quickshell app, so it ships explicitly like the other non-qs launchers: the
+# wrapper on PATH, its .desktop, and its icon into the hicolor set.
+install -m755 "$here/../apps/ryotunes/bin/ryotunes" "$bindir/ryotunes"
+install -Dm644 "$here/../apps/ryotunes/ryotunes.desktop" "$appshare/applications/ryotunes.desktop"
+install -Dm644 "$here/../apps/ryotunes/ryotunes.svg" "$appshare/icons/hicolor/scalable/apps/ryotunes.svg"
+say "installed ryotunes launcher"
+
+# ryoku-canvas: a spicetify extension (apps/spicetify) that relays the playing
+# track's Spotify Canvas to the shell so the music widget can show it. Landed in
+# the spicetify Extensions dir; a spicetify user turns it on with
+# `spicetify config extensions ryoku-canvas.js && spicetify apply`, and it stays
+# inert for anyone who does not spicetify Spotify.
+install -Dm644 "$here/../apps/spicetify/ryoku-canvas.js" "$cfg/spicetify/Extensions/ryoku-canvas.js"
+say "installed ryoku-canvas spicetify extension"
 
 # Nautilus stash actions (a nautilus-python extension). Installs ship it system-wide
 # from the ryoku-desktop package; the dev loop drops it in the user extensions dir.

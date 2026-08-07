@@ -14,6 +14,13 @@ StartLimitBurst=5
 # set here, not only via the session env: an import that does not land would
 # silently drop the polkit agent back to the stock one.
 Environment=RYOKU_POLKIT_AGENT=1
+# QtMultimedia video (the music widget's Canvas / video-gif backdrop) must
+# software-decode: on hybrid-GPU boxes hardware-decoded frames land on the
+# offload GPU and never composite on the surface's GPU, so the video paints
+# black (the same failure that hits Electron/CEF). The backdrop clips are short
+# loops, so software decode is cheap.
+Environment=QT_MEDIA_BACKEND=ffmpeg
+Environment=QT_FFMPEG_DECODING_HW_DEVICE_TYPES=
 # a stray unsupervised daemon (an old deploy, a crashed update) holds the
 # socket and would wedge the unit into its start limit; ask it to quit first.
 ExecStartPre=-/usr/bin/ryoku-shell quit

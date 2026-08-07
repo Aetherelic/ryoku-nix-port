@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import shell.services
 import "../../../services/lib/calendar.js" as CalendarModel
+import ".."
 import "../Singletons"
 
 Item {
@@ -78,7 +79,7 @@ Item {
     }
     Component {
         id: glassBackground
-        CalendarGlass {
+        WidgetGlass {
             hovered: hover.hovered
             s: root.s
             sourceItem: root.wallpaperSource

@@ -7,6 +7,7 @@ singleton Config Config.qml
 singleton Motion Motion.qml
 singleton Workspaces Workspaces.qml
 singleton Media Media.qml
+singleton Music Music.qml
 singleton AudioBars AudioBars.qml
 singleton Recorder Recorder.qml
 singleton Battery Battery.qml

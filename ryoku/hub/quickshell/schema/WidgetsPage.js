@@ -303,5 +303,109 @@ var rows = [
         "desc": "Stops accidental moves and resizes",
         "ctl": "sw",
         "src": "widgets.json"
+    },
+    {
+        "tab": "music",
+        "group": "WIDGET",
+        "key": "musicEnabled",
+        "label": "Enabled",
+        "desc": "Shows the now-playing sheet on your wallpaper; settings are kept while off",
+        "ctl": "sw",
+        "src": "widgets.json"
+    },
+    {
+        "tab": "music",
+        "group": "WIDGET",
+        "key": "musicStyle",
+        "label": "Style",
+        "desc": "Cover wears the album's own colour; Glass is a frosted wallpaper pane",
+        "ctl": "seg",
+        "src": "widgets.json",
+        "opts": ["cover", "glass"]
+    },
+    {
+        "tab": "music",
+        "group": "WIDGET",
+        "key": "musicLyrics",
+        "label": "Lyrics",
+        "desc": "Shows the synced lyric sheet beside the album when a match is found",
+        "ctl": "sw",
+        "src": "widgets.json"
+    },
+    {
+        "tab": "music",
+        "group": "WIDGET",
+        "key": "musicApp",
+        "label": "Music app",
+        "desc": "The app the corner button opens; blank uses ryotunes (YouTube Music)",
+        "ctl": "app",
+        "src": "widgets.json"
+    },
+    {
+        "tab": "music",
+        "group": "SIZE & SHAPE",
+        "key": "musicScale",
+        "label": "Size",
+        "desc": "Multiplies the sheet's designed size",
+        "ctl": "step",
+        "src": "widgets.json",
+        "lo": 0.5,
+        "hi": 2.0
+    },
+    {
+        "tab": "music",
+        "group": "SIZE & SHAPE",
+        "key": "musicOpacity",
+        "label": "Opacity",
+        "desc": "Fades the sheet while keeping it readable",
+        "ctl": "slid",
+        "src": "widgets.json",
+        "lo": 0.2,
+        "hi": 1.0,
+        "unit": "%",
+        "pct": true
+    },
+    {
+        "tab": "music",
+        "group": "PLACEMENT",
+        "key": "musicAnchor",
+        "label": "Anchor",
+        "desc": "Snaps the sheet to a screen edge or corner; free uses X/Y or dragging",
+        "ctl": "pick",
+        "src": "widgets.json",
+        "opts": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+    },
+    {
+        "tab": "music",
+        "group": "PLACEMENT",
+        "key": "musicX",
+        "label": "X",
+        "desc": "Pixels from the left edge when Anchor is free",
+        "ctl": "step",
+        "src": "widgets.json",
+        "lo": 0,
+        "hi": 5000,
+        "unit": "px"
+    },
+    {
+        "tab": "music",
+        "group": "PLACEMENT",
+        "key": "musicY",
+        "label": "Y",
+        "desc": "Pixels from the top edge when Anchor is free",
+        "ctl": "step",
+        "src": "widgets.json",
+        "lo": 0,
+        "hi": 5000,
+        "unit": "px"
+    },
+    {
+        "tab": "music",
+        "group": "PLACEMENT",
+        "key": "musicLocked",
+        "label": "Lock on desktop",
+        "desc": "Stops accidental moves and resizes",
+        "ctl": "sw",
+        "src": "widgets.json"
     }
 ];

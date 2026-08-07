@@ -324,6 +324,20 @@ package() {
     "$pkgdir/usr/share/applications/compress-video.desktop"
   install -Dm644 "$_repo/ryoku/apps/tools/install-app.desktop" \
     "$pkgdir/usr/share/applications/install-app.desktop"
+  # ryotunes: YouTube Music as a Chromium app-window wired to the desktop
+  # now-playing widget over MPRIS. Not a quickshell app, so it ships explicitly:
+  # the wrapper on PATH, its .desktop, and its icon. chromium comes from
+  # base.packages, so the wrap always has an engine.
+  install -Dm755 "$_repo/ryoku/apps/ryotunes/bin/ryotunes" "$pkgdir/usr/bin/ryotunes"
+  install -Dm644 "$_repo/ryoku/apps/ryotunes/ryotunes.desktop" \
+    "$pkgdir/usr/share/applications/ryotunes.desktop"
+  install -Dm644 "$_repo/ryoku/apps/ryotunes/ryotunes.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/ryotunes.svg"
+  # ryoku-canvas spicetify extension (apps/spicetify): a share asset for the
+  # music widget's Spotify Canvas backdrop. spicetify users enable it; it stays
+  # inert otherwise, so it ships as an asset rather than an active config.
+  install -Dm644 "$_repo/ryoku/apps/spicetify/ryoku-canvas.js" \
+    "$pkgdir/usr/share/ryoku/spicetify/ryoku-canvas.js"
   install -Dm644 "$_repo/ryoku/apps/mimeapps.list" "$cfg/mimeapps.list"
   # chromium reads ~/.config/chromium-flags.conf; pin its password store to GNOME
   # Secret Service so it shares the keyring the desktop unlocks (screen share).
@@ -365,6 +379,9 @@ package() {
   done
   # the app-role resolver the keybinds launch by bare name (SUPER+B -> browser, ...)
   install -Dm755 "$_repo/ryoku/hyprland/scripts/ryoku-app" "$pkgdir/usr/bin/ryoku-app"
+  # the desktop music widget's corner button: launch / minimise / restore.
+  install -Dm755 "$_repo/ryoku/hyprland/scripts/ryoku-music-toggle" \
+    "$pkgdir/usr/bin/ryoku-music-toggle"
   for s in "$_repo"/system/hardware/*/ryoku-*; do
     install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
   done

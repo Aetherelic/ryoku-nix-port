@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- `ryotunes/`: **YouTube Music as a first-party Ryoku app, wired to the desktop
+  now-playing widget.** A dedicated Chromium app-window on music.youtube.com,
+  single-instanced by a flock and isolated in its own profile, so it carries its
+  own login and its own MPRIS identity -- which the desktop music widget follows
+  and retints to. Chromium is the wrap because Ryoku already ships it and its
+  media session speaks MPRIS on Wayland out of the box, where the Electron
+  (pear-desktop / glassy) and Tauri (zuno) YTM clients respectively crash on the
+  compositor or publish no MPRIS at all. Ships as a launcher on PATH, a `.desktop`
+  and an icon; a float window rule gives it the music-player treatment
+  (`apps/ryotunes/{bin/ryotunes,ryotunes.desktop,ryotunes.svg}`,
+  `hyprland/modules/window_rules.lua`, `shell/deploy.sh`,
+  `release/packages/ryoku-desktop/PKGBUILD`).
 - `ryostore/`: **A Themes category delivers third-party colour schemes.** It
   serves the `ryoku-extras` colorschemes catalogue through a per-provider subtab
   strip (the HANCORE-linux Omarchy themes and the existing Noctalia set) with a

@@ -29,7 +29,9 @@ Item {
         "clockX", "clockY", "clockLocked", "dateShow", "dateDesign",
         "calendarEnabled", "calendarStyle", "calendarWeeks", "calendarWeekNumbers",
         "calendarHolidayRegion", "calendarScale", "calendarOpacity", "calendarAnchor",
-        "calendarX", "calendarY", "calendarLocked"
+        "calendarX", "calendarY", "calendarLocked",
+        "musicEnabled", "musicStyle", "musicLyrics", "musicScale", "musicOpacity",
+        "musicAnchor", "musicX", "musicY", "musicLocked", "musicApp"
     ]
 
     // Factory values mirror the wallpaper clock's canonical Config defaults.
@@ -41,12 +43,19 @@ Item {
         "calendarEnabled": true, "calendarStyle": "glass", "calendarWeeks": 6,
         "calendarWeekNumbers": true, "calendarHolidayRegion": "", "calendarScale": 1.0,
         "calendarOpacity": 1.0, "calendarAnchor": "bottom-right", "calendarX": 80,
-        "calendarY": 80, "calendarLocked": false
+        "calendarY": 80, "calendarLocked": false,
+        "musicEnabled": false, "musicStyle": "cover", "musicLyrics": true,
+        "musicScale": 1.0, "musicOpacity": 1.0, "musicAnchor": "bottom-left",
+        "musicX": 80, "musicY": 80, "musicLocked": false, "musicApp": ""
     })
 
     // Scale and opacity persist as ratios; the sheet edits integer percents.
-    readonly property var pctKeys: ({ "clockOpacity": true, "calendarOpacity": true })
-    readonly property var scaleKeys: ({ "clockScale": true, "calendarScale": true })
+    readonly property var pctKeys: ({
+        "clockOpacity": true, "calendarOpacity": true, "musicOpacity": true
+    })
+    readonly property var scaleKeys: ({
+        "clockScale": true, "calendarScale": true, "musicScale": true
+    })
 
     property var draft: ({})
     property var committed: ({})
@@ -119,10 +128,11 @@ Item {
     // integer-percent sliders at the sheet boundary.
     function groupOf(k) {
         if (k.indexOf("calendar") === 0) return "CALENDAR";
+        if (k.indexOf("music") === 0) return "MUSIC";
         return k.indexOf("date") === 0 ? "DATE" : "CLOCK";
     }
     readonly property var schemaRows: {
-        var order = ["CLOCK", "DATE", "CALENDAR"];
+        var order = ["CLOCK", "DATE", "CALENDAR", "MUSIC"];
         var out = [];
         for (var gi = 0; gi < order.length; gi++) {
             for (var i = 0; i < Schema.rows.length; i++) {
@@ -296,6 +306,16 @@ Item {
             property int calendarX: 80
             property int calendarY: 80
             property bool calendarLocked: false
+            property bool musicEnabled: false
+            property string musicStyle: "cover"
+            property bool musicLyrics: true
+            property real musicScale: 1.0
+            property real musicOpacity: 1.0
+            property string musicAnchor: "bottom-left"
+            property int musicX: 80
+            property int musicY: 80
+            property bool musicLocked: false
+            property string musicApp: ""
         }
     }
 
@@ -328,7 +348,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("The clock and calendar on your wallpaper, previewed live on the right. Choose each look, density, size, opacity and position; nothing lands on the desktop until you save.")
+            text: I18n.tr("The clock, calendar and now-playing sheet on your wallpaper, previewed live on the right. Choose each look, density, size, opacity and position; nothing lands on the desktop until you save.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -362,7 +382,8 @@ Item {
             }
             Text {
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                text: ((pg.draft.clockEnabled ? 1 : 0) + (pg.draft.calendarEnabled ? 1 : 0)) + " / 2 ON"
+                text: ((pg.draft.clockEnabled ? 1 : 0) + (pg.draft.calendarEnabled ? 1 : 0)
+                    + (pg.draft.musicEnabled ? 1 : 0)) + " / 3 ON"
                 color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
             }
         }
@@ -372,7 +393,7 @@ Item {
             anchors { left: parent.left; right: parent.right; top: pvHead.bottom; bottom: parent.bottom }
             anchors.topMargin: Tokens.s3
             spacing: Tokens.s4
-            readonly property real cardH: Math.max(140, (height - spacing) / 2)
+            readonly property real cardH: Math.max(130, (height - spacing * 2) / 3)
 
             SpecimenCard {
                 width: parent.width; height: pvCards.cardH
@@ -418,6 +439,26 @@ Item {
                     }
                 }
             }
+
+            SpecimenCard {
+                width: parent.width; height: pvCards.cardH
+                title: I18n.tr("MUSIC")
+                on: pg.draft.musicEnabled === true
+                anchor: pg.draft.musicAnchor || "bottom-left"
+                userScale: Math.min(1, pg.draft.musicScale || 1)
+                userOpacity: pg.draft.musicOpacity === undefined ? 1 : pg.draft.musicOpacity
+                natW: 400; natH: 216
+                preview: Component {
+                    Loader {
+                        anchors.fill: parent
+                        source: Qt.resolvedUrl("../MusicPreview.qml")
+                        onLoaded: {
+                            item.style = Qt.binding(() => pg.draft.musicStyle || "cover");
+                            item.lyrics = Qt.binding(() => pg.draft.musicLyrics === true);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -439,6 +480,7 @@ Item {
             item.query = Qt.binding(() => pg.query);
             item.edited.connect(pg.onSheetEdited);
             item.pickRequested.connect(pg.onSheetPick);
+            item.appPickRequested.connect(pg.onSheetAppPick);
         }
     }
 
@@ -532,6 +574,8 @@ Item {
 
     // ── the anchor catalogue overlay (Picker), shared by the pick cells ──────
     property var pickRow: null
+    property var appPickRow: null
+    function onSheetAppPick(r) { pg.appPickRow = r; }
 
     MouseArea {
         id: scrim
@@ -555,6 +599,23 @@ Item {
             onDismissed: pg.pickRow = null
 
             MouseArea { anchors.fill: parent; z: -1 }
+        }
+    }
+
+    // ── the music-app picker overlay (keybinds-style), for the "app" cell ────
+    Loader {
+        id: appPickerLoader
+        anchors.fill: parent
+        z: 101
+        active: pg.appPickRow !== null
+        source: active ? Qt.resolvedUrl("../AppPicker.qml") : ""
+        onLoaded: {
+            item.title = Qt.binding(() => pg.appPickRow ? I18n.tr(pg.appPickRow.label) : "");
+            item.chosen.connect(function (cmd) {
+                if (pg.appPickRow) pg.edit(pg.appPickRow.key, cmd);
+                pg.appPickRow = null;
+            });
+            item.dismissed.connect(function () { pg.appPickRow = null; });
         }
     }
 }

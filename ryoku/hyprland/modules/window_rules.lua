@@ -162,3 +162,12 @@ hl.window_rule({
     opaque       = true,
     idle_inhibit = "fullscreen",
 })
+
+-- ryotunes is YouTube Music as a Chromium app-window (apps/ryotunes); the
+-- --app mode derives its class from the URL, so match that. Float it like the
+-- other music players (Spotify above).
+hl.window_rule({
+    name  = "float-ryotunes",
+    match = { class = "^chrome-music\\.youtube\\.com.*$" },
+    float = true,
+})

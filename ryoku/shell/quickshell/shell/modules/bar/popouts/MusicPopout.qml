@@ -7,6 +7,7 @@ import Quickshell
 import ".."
 import shell.services
 import "../../../components"
+import "../../../utils/artcolor.js" as ArtColor
 
 // Music card popout: grown from the frame edge off the rail's spectrum widget,
 // framed like a bar blob (a crisp surface tile with the frame's own outline).
@@ -51,26 +52,7 @@ Item {
         depth: 3
         rescaleSize: 48
     }
-    function vibrance(c) {
-        const mx = Math.max(c.r, c.g, c.b);
-        const mn = Math.min(c.r, c.g, c.b);
-        return (mx > 0 ? (mx - mn) / mx : 0) * mx;
-    }
-    readonly property color artAccent: {
-        const cs = quant.colors || [];
-        let best = Theme.primary;
-        let score = 0.10;
-        for (let i = 0; i < cs.length; i++) {
-            const v = root.vibrance(cs[i]);
-            if (v > score) { score = v; best = cs[i]; }
-        }
-        // lift a dark or muddy sleeve tone to a vivid, readable accent so the
-        // transport, progress and spectrum pop regardless of the art.
-        return Qt.hsla(best.hslHue,
-                       Math.max(0.5, best.hslSaturation),
-                       Math.max(0.52, Math.min(0.68, best.hslLightness)),
-                       1);
-    }
+    readonly property color artAccent: ArtColor.accentOf(quant.colors, Theme.primary)
     // a readable accent for ink-on-accent buttons, and the two ends of the ramp.
     readonly property color accentLo: Qt.darker(root.artAccent, 1.35)
     readonly property color accentHi: Qt.lighter(root.artAccent, 1.25)
