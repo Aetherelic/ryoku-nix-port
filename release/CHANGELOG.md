@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- **The network panel's DNS switch applies without a password prompt.** `ryoku-dns`
+  runs through pkexec but no polkit rule shipped, so the DNS buttons silently did
+  nothing. `ryoku-desktop` now installs `50-ryoku-dns.rules` to
+  `/usr/share/polkit-1/rules.d` (`packages/ryoku-desktop/PKGBUILD`).
 - **The bar's "Open audio" button opens a mixer.** It launches `pavucontrol` for
   advanced routing (card profiles, per-app device moves) beyond the bar's own
   native mixer, but `pavucontrol` was never a dependency, so the button ran a

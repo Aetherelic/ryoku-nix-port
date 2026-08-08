@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `network/50-ryoku-dns.rules`: the network panel's DNS switch applies without a
+  password. `ryoku-dns` runs as root through pkexec but shipped no polkit grant,
+  so the DNS buttons silently did nothing; a rule now authorizes exactly
+  `/usr/bin/ryoku-dns` for the active wheel user, matching the WiFi power-save
+  helper. Installed to `/usr/share/polkit-1/rules.d` by `ryoku-desktop`.
 - `network/ryoku-dns`: persistent system-wide DNS provider switching for
   DHCP, Cloudflare, Google, and validated custom IPv4/IPv6 servers. The helper
   writes one NetworkManager global-DNS drop-in, reloads the active resolver

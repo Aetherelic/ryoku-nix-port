@@ -449,6 +449,11 @@ package() {
   install -Dm644 "$_repo/system/hardware/network/49-ryoku-wifi-powersave.rules" \
     "$pkgdir/usr/share/polkit-1/rules.d/49-ryoku-wifi-powersave.rules"
 
+  # DNS provider switch: the same one-click grant for ryoku-dns (installed above),
+  # so the network panel's DNS buttons apply without a password prompt.
+  install -Dm644 "$_repo/system/hardware/network/50-ryoku-dns.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/50-ryoku-dns.rules"
+
   # Laptop clamshell: logind suspends on lid close in every case; the
   # ryoku-clamshell daemon (installed to /usr/bin by the hardware glob above) is
   # the only thing that keeps a closed lid awake, and only on AC power with an
