@@ -29,6 +29,13 @@
   `shell.json` keys without touching preserved sidebar state.
 
 ### Fixed
+- **Screen recording no longer leaves the desktop black or colour-inverted.**
+  On GPUs whose DRM buffer modifiers Hyprland's screencopy path mishandles, the
+  output was mis-restored when a capture ended, so after any capture (OBS,
+  gpu-screen-recorder, hyprpicker, a screenshot) the whole screen could go black
+  then negative until a reconfigure (Hyprland #11315, #8134). `AQ_NO_MODIFIERS=1`
+  in the aquamarine backend sidesteps it; effective on the next login, and safe
+  to drop once the upstream screencopy fix ships (`hyprland/modules/env.lua`).
 - **The screen's colours are restored after a recording.** gpu-screen-recorder's
   KMS capture leaves Hyprland's colour management in CM space, washing the whole
   desktop out until the output is reconfigured (Hyprland #11284, #9286). Stopping

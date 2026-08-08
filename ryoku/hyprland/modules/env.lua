@@ -14,6 +14,13 @@ if nvidia then
     hl.env("__GL_VRR_ALLOWED",          "0")
 end
 
+-- Screen capture (OBS, gpu-screen-recorder, hyprpicker, screenshots) can leave
+-- the desktop black then colour-inverted when it ends, on GPUs whose DRM buffer
+-- modifiers Hyprland's screencopy path mishandles (Hyprland #11315, #8134).
+-- Disabling modifiers in the aquamarine backend sidesteps it; drop this once the
+-- upstream screencopy colour-management fix ships.
+hl.env("AQ_NO_MODIFIERS", "1")
+
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 
 -- GTK4 apps (nautilus, the file manager) hang at startup on wlroots compositors:
