@@ -690,11 +690,15 @@ func dnsHelperArgs(provider string, custom []string) ([]string, error) {
 	return append(args, servers...), nil
 }
 
+// dnsPackagedHelper is the installed helper path. A package var (not a literal)
+// so a test can point it at an absent path and reach the dev-checkout fallbacks.
+var dnsPackagedHelper = "/usr/bin/ryoku-dns"
+
 func dnsHelperPath() string {
 	// Prefer the packaged helper: the polkit rule is installed for it and it is
 	// the real path on an installed box.
-	if _, err := os.Stat("/usr/bin/ryoku-dns"); err == nil {
-		return "/usr/bin/ryoku-dns"
+	if _, err := os.Stat(dnsPackagedHelper); err == nil {
+		return dnsPackagedHelper
 	}
 	if shellDir != "" {
 		return filepath.Join(shellDir, "..", "..", "system", "hardware", "network", "ryoku-dns")

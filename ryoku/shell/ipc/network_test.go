@@ -204,6 +204,12 @@ func TestDnsHelperPathUsesExecutableDirectory(t *testing.T) {
 	shellDir = ""
 	t.Cleanup(func() { shellDir = previousShellDir })
 
+	// Point the packaged-helper probe at an absent path so the executable-dir
+	// fallback is reachable regardless of whether this host has ryoku-dns.
+	previousPackaged := dnsPackagedHelper
+	dnsPackagedHelper = filepath.Join(t.TempDir(), "absent-ryoku-dns")
+	t.Cleanup(func() { dnsPackagedHelper = previousPackaged })
+
 	executable, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -211,6 +217,20 @@ func TestDnsHelperPathUsesExecutableDirectory(t *testing.T) {
 	want := filepath.Join(filepath.Dir(executable), "ryoku-dns")
 	if got := dnsHelperPath(); got != want {
 		t.Errorf("dnsHelperPath() = %q, want %q", got, want)
+	}
+}
+
+func TestDnsHelperPathPrefersPackaged(t *testing.T) {
+	pkg := filepath.Join(t.TempDir(), "ryoku-dns")
+	if err := os.WriteFile(pkg, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	previousPackaged := dnsPackagedHelper
+	dnsPackagedHelper = pkg
+	t.Cleanup(func() { dnsPackagedHelper = previousPackaged })
+
+	if got := dnsHelperPath(); got != pkg {
+		t.Errorf("dnsHelperPath() = %q, want the packaged helper %q", got, pkg)
 	}
 }
 
