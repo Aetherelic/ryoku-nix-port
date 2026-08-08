@@ -122,7 +122,10 @@ PanelWindow {
     Rectangle {
         id: card
         width: cc.cardW
-        height: cc.cardH
+        height: (stage.item && stage.item.implicitHeight > 0)
+            ? Math.min(cc.cardH, chromeCol.implicitHeight + tk.gap + tk.pad * 2 + stage.item.implicitHeight)
+            : cc.cardH
+        Behavior on height { NumberAnimation { duration: tk.pageIn; easing.type: Easing.OutCubic } }
         radius: cc.root.pillRadius
         color: cc.root.bg
         border.width: 1

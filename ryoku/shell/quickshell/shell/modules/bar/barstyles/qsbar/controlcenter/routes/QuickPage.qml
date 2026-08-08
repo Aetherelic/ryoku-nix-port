@@ -13,6 +13,7 @@ Item {
     id: page
     property var root: null
     property var cc: null
+    implicitHeight: col.implicitHeight
 
     // ── token shortcuts (all from root; fallbacks only while root is null) ──
     readonly property color fg: root ? root.ink : "#cccccc"

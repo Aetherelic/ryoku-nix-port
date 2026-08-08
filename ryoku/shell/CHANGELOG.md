@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- **The volume panel can select an input (microphone) device.** The qsbar volume
+  panel listed output devices but the input section was a mute toggle only, so a
+  mic or capture device could not be picked; it now shows an input-device switcher
+  off the native `Audio.inputs`, mirroring the output one
+  (`modules/bar/barstyles/qsbar/panels/VolumePanel.qml` and the V2 counterpart).
+- **The "Open audio" button says when pavucontrol is missing.** It launched
+  `pavucontrol` blind, so on a box without it the button did nothing; it now
+  notifies instead (`.../qsbar/panels/VolumePanel.qml` and the V2 counterpart).
+- **The Control Center's Quick page no longer leaves a tall empty area.** The card
+  was locked to the taller Configure page's height; it now fits the active page's
+  content (`.../qsbar/controlcenter/ControlCenter.qml`,
+  `.../controlcenter/routes/QuickPage.qml`).
 - **The system tray no longer shows closed or mislabelled apps.** The qsbar tray
   strip, panel and context menu read Quickshell's own StatusNotifier host, which
   kept dead items and wrong titles on this machine; they now read the ryoku-shell

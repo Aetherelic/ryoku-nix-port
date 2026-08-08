@@ -351,6 +351,53 @@ PanelWindow {
                 font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
 
+            Column {
+                width: parent.width
+                spacing: 4
+                Repeater {
+                    model: Audio.inputs
+                    delegate: Rectangle {
+                        id: inTile
+                        required property var modelData
+                        readonly property bool isDef:   Audio.source && inTile.modelData.name === Audio.source.name
+                        readonly property bool hovered: inMa.containsMouse
+                        width: parent.width
+                        height: 26; radius: root.tileRadius
+                        color: isDef     ? root.fillActive
+                             : hovered ? root.fillHover : root.fillIdle
+                        border.color: (isDef || hovered) ? root.seal : root.sep
+                        border.width: 1
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8; anchors.rightMargin: 8
+                            spacing: 6
+                            UiText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: inTile.isDef ? "●" : "○"
+                                color: inTile.isDef ? root.seal : root.sumi
+                                font.family: root.mono; font.pixelSize: 10
+                            }
+                            UiText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 22
+                                text: Audio.nodeLabel(inTile.modelData)
+                                color: (inTile.isDef || inTile.hovered) ? root.seal : root.ink
+                                font.family: root.mono; font.pixelSize: 11
+                                elide: Text.ElideRight
+                            }
+                        }
+                        MouseArea {
+                            id: inMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Audio.setInput(inTile.modelData)
+                        }
+                    }
+                }
+            }
+
             Row {
                 width: parent.width
                 UiText {
@@ -453,5 +500,5 @@ PanelWindow {
         }
     }
 
-    Process { id: audioRunner;   command: ["bash", "-c", "pavucontrol"] }
+    Process { id: audioRunner; command: ["bash", "-c", "command -v pavucontrol >/dev/null 2>&1 && exec pavucontrol || notify-send -a Ryoku 'Audio settings' 'pavucontrol is not installed'"] }
 }
