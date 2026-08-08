@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **qsbar widget selection survives a shell reload.** Toggling a widget in the
+  bar's control center only wrote a local cache that a stale Bar Studio value in
+  shell.json overrode on the next load, so the selection reset. The control
+  center now persists visibility to shell.json `.qsbar.widgets` through the
+  daemon (the single writer), so a toggle from any surface sticks
+  (`modules/bar/barstyles/qsbar/**/Theme.qml`).
 - **The Bluetooth panel shows device details.** A connected device now has an
   info toggle that expands its battery, type, and address, read live from
   `Quickshell.Bluetooth` (`modules/bar/barstyles/qsbar/**/BluetoothPanel.qml`).

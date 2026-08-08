@@ -1662,6 +1662,7 @@ Item {
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
         widgetSaveProc.running = true
+        persistWidgetsToConfig()
     }
 
     readonly property var launcherLogoTextOptions: ["omarchy", "hyprland", "arch", "omacom"]
@@ -1807,6 +1808,37 @@ Item {
     }
 
     Process { id: widgetSaveProc }
+
+    // Persist widget visibility to shell.json .qsbar.widgets, the store Bar Studio
+    // writes and applyStudioSettings applies on every load. Without this, a
+    // control-center toggle only reached the local cache and was overridden by a
+    // stale Bar Studio value on the next reload (the widgets reset). shell.json has
+    // one writer, the daemon; reach it over the settings.patch seam Weather uses.
+    readonly property string _cfgSockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
+    function persistWidgetsToConfig() {
+        var cur = Config.qsbar || ({})
+        var q = ({})
+        for (var k in cur) q[k] = cur[k]
+        q.widgets = {
+            "status": modStatus, "memory": modMemory, "cpu": modCpu, "volume": modVolume,
+            "weather": modWeather, "network": modNetwork, "brightness": modBrightness,
+            "media": modMedia, "mpris": modMpris, "quick": modQuick, "claude": modClaude,
+            "power": modPower, "bluetooth": modBluetooth
+        }
+        _cfgCtl.queued += "call settings.patch " + JSON.stringify({ path: "qsbar", value: q }) + "\n"
+        if (_cfgCtl.connected) _cfgCtl.flushQueued()
+        else _cfgCtl.connected = true
+    }
+    Socket {
+        id: _cfgCtl
+        path: theme._cfgSockPath
+        property string queued: ""
+        function flushQueued() {
+            if (queued.length === 0) return
+            write(queued); flush(); queued = ""
+        }
+        onConnectionStateChanged: if (connected) flushQueued()
+    }
 
     // ── Bar Studio bridge ──
     // Ryoku Hub (Bar Studio) writes a `qsbar` map into shell.json; the shell's
