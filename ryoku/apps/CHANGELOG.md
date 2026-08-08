@@ -52,6 +52,11 @@
   the header field (`quickshell/StoreHeader.qml`, `quickshell/App.qml`).
 
 ### Fixed
+- `nautilus/`: **The right-click menu no longer shows duplicate "Compress with
+  Ryoku" (or "Install with Ryoku") entries.** nautilus-python could register the
+  stash extension twice in one nautilus process (an extension reload after a
+  deploy, a re-import), doubling every entry; the provider now binds once per
+  process (`apps/nautilus/ryoku-stash-menu.py`).
 - `ryowalls/`: **The source picker actually switches source now.** Choosing a
   row (MoeWalls, Live, a library, …) dismissed the drawer but left you on
   Wallhaven. The filter field's "Enter picks the top match" was wired to Field's

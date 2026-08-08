@@ -54,45 +54,50 @@ def _run_each(script, paths, env=None):
     )
 
 
-class RyokuStashMenu(GObject.GObject, Nautilus.MenuProvider):
-    def get_file_items(self, files):
-        paths = _local_paths(files)
-        if not paths:
-            return []
+# nautilus-python can register this provider twice in one nautilus process (an
+# extension reload after a deploy, a re-import), and each extra registration
+# doubles every menu entry. Bind the provider once per process.
+if not getattr(Nautilus, "_ryoku_stash_menu_registered", False):
+    Nautilus._ryoku_stash_menu_registered = True
 
-        scripts = _scripts_dir()
-        items = []
+    class RyokuStashMenu(GObject.GObject, Nautilus.MenuProvider):
+        def get_file_items(self, files):
+            paths = _local_paths(files)
+            if not paths:
+                return []
 
-        installable = [p for p in paths if p.lower().endswith(INSTALLABLE)]
-        if installable:
-            item = Nautilus.MenuItem(
-                name="RyokuStashMenu::install",
-                label="Install with Ryoku",
-                tip="Install the selected app with the Ryoku Stash helper",
-                icon="system-software-install",
-            )
-            item.connect("activate", self._install, installable)
-            items.append(item)
+            items = []
 
-        compressible = [p for p in paths if p.lower().endswith(COMPRESSIBLE)]
-        if compressible:
-            item = Nautilus.MenuItem(
-                name="RyokuStashMenu::compress",
-                label="Compress with Ryoku",
-                tip="Shrink the selected media in place",
-                icon="application-x-archive",
-            )
-            item.connect("activate", self._compress, compressible)
-            items.append(item)
+            installable = [p for p in paths if p.lower().endswith(INSTALLABLE)]
+            if installable:
+                item = Nautilus.MenuItem(
+                    name="RyokuStashMenu::install",
+                    label="Install with Ryoku",
+                    tip="Install the selected app with the Ryoku Stash helper",
+                    icon="system-software-install",
+                )
+                item.connect("activate", self._install, installable)
+                items.append(item)
 
-        return items
+            compressible = [p for p in paths if p.lower().endswith(COMPRESSIBLE)]
+            if compressible:
+                item = Nautilus.MenuItem(
+                    name="RyokuStashMenu::compress",
+                    label="Compress with Ryoku",
+                    tip="Shrink the selected media in place",
+                    icon="application-x-archive",
+                )
+                item.connect("activate", self._compress, compressible)
+                items.append(item)
 
-    # The deck drops a stash source after installing it (it's a redundant copy by
-    # then); a file the user right-clicked is theirs to keep, so hold onto it.
-    def _install(self, menu, paths):
-        _run_each(os.path.join(_scripts_dir(), "stash-install.sh"), paths,
-                  env={"RYOKU_STASH_KEEP": "1"})
+            return items
 
-    def _compress(self, menu, paths):
-        _run_each(os.path.join(_scripts_dir(), "stash-compress.sh"), paths)
+        # The deck drops a stash source after installing it (it's a redundant copy
+        # by then); a file the user right-clicked is theirs to keep, so hold onto it.
+        def _install(self, menu, paths):
+            _run_each(os.path.join(_scripts_dir(), "stash-install.sh"), paths,
+                      env={"RYOKU_STASH_KEEP": "1"})
+
+        def _compress(self, menu, paths):
+            _run_each(os.path.join(_scripts_dir(), "stash-compress.sh"), paths)
 
