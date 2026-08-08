@@ -107,8 +107,7 @@ Scope {
         readonly property var rails: overlay.frameBars.rails
         readonly property real frameLip: root.frameBorderPx
 
-        // qsbar hosts its shared menus/surfaces in this overlay and can sit on the
-        // top (default) or bottom edge; fold those menus to the bar's actual edge.
+        // fold qsbar's shared menus to whichever edge its bar sits on
         readonly property string qsBarEdge: (!root.sumiActive && Config.qsbar && Config.qsbar.barPosition === "bottom") ? "bottom" : "top"
         readonly property var edgeReveal: ({
             top: root.edgeRevealed("top"),

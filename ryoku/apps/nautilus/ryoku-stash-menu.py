@@ -54,9 +54,7 @@ def _run_each(script, paths, env=None):
     )
 
 
-# nautilus-python can register this provider twice in one nautilus process (an
-# extension reload after a deploy, a re-import), and each extra registration
-# doubles every menu entry. Bind the provider once per process.
+# register once: nautilus-python can load this extension twice, doubling menu entries
 if not getattr(Nautilus, "_ryoku_stash_menu_registered", False):
     Nautilus._ryoku_stash_menu_registered = True
 

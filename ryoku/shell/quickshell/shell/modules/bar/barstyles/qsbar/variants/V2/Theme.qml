@@ -3154,9 +3154,7 @@ Item {
         }
     }
 
-    // colors.json is rewritten on every palette change, including a wallpaper
-    // swap in follow-wallpaper mode that never touches theme.name. Watch it so
-    // the bar retints live instead of only after a full shell reload.
+    // retint live on a palette-file change (a wallpaper swap never touches theme.name)
     FileView {
         id: paletteWatcher
         path: theme.colorsPath

@@ -54,8 +54,7 @@ Item {
                         var y = cy + Math.sin(x * k + rootMod.phase + phaseOff) * amp
                         if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
                     }
-                    // fade both ends so the wave dissolves instead of hard-clipping
-                    // at the pill's rectangular edge
+                    // fade the ends so the wave doesn't hard-clip at the pill edge
                     var r = Math.round(rootMod.contentColor.r * 255)
                     var g = Math.round(rootMod.contentColor.g * 255)
                     var b = Math.round(rootMod.contentColor.b * 255)
