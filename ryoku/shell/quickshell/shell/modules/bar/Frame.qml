@@ -106,6 +106,10 @@ Scope {
         // rect at zero and swallowed all bar input.
         readonly property var rails: overlay.frameBars.rails
         readonly property real frameLip: root.frameBorderPx
+
+        // qsbar hosts its shared menus/surfaces in this overlay and can sit on the
+        // top (default) or bottom edge; fold those menus to the bar's actual edge.
+        readonly property string qsBarEdge: (!root.sumiActive && Config.qsbar && Config.qsbar.barPosition === "bottom") ? "bottom" : "top"
         readonly property var edgeReveal: ({
             top: root.edgeRevealed("top"),
             bottom: root.edgeRevealed("bottom"),
@@ -343,12 +347,13 @@ Scope {
                 scale: overlay.s
                 group: blobGroup
                 topBar: !root.sumiActive
+                barEdge: overlay.qsBarEdge
                 railClearances: root.sumiActive ? ({
                     top: overlay.railClearance("top"),
                     left: overlay.railClearance("left"),
                     bottom: overlay.railClearance("bottom"),
                     right: overlay.railClearance("right")
-                }) : ({ top: 52, left: 0, bottom: 0, right: 0 })
+                }) : (overlay.qsBarEdge === "bottom" ? ({ top: 0, left: 0, bottom: 52, right: 0 }) : ({ top: 52, left: 0, bottom: 0, right: 0 }))
                 active: !overlay.monFullscreen
                 onSurfaceClosed: (id, context) => surfaceLifecycle.handleClosed(id, context)
 

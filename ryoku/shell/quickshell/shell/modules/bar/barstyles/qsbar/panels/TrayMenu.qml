@@ -2,9 +2,13 @@ import QtQuick
 import "../modules"
 import Quickshell
 import Quickshell.Wayland
+import shell.services
 
-// Themed system-tray context menu, rendered from the DBusMenu model so it
-// matches the bar (QsMenuAnchor draws its own unthemeable native popup).
+// Themed system-tray context menu, rendered from the daemon's dbusmenu tree so
+// it matches the bar. The daemon (Tray) is the StatusNotifier host: it streams
+// each item's `menu` tree and drives clicks via Tray.menuEvent, so this file is
+// only the surface. It keeps qsbar's anchor/state model (Theme.trayMenu* +
+// setPanelAnchor + trayMenuVisible) and discloses submenus inline.
 PanelWindow {
     id: trayMenu
     required property var root
@@ -20,23 +24,65 @@ PanelWindow {
     readonly property int barBottom: 35
     readonly property int gap: 8
 
-    // drill-down stack of menu handles (root menu + any opened submenus)
-    property var menuStack: []
-    readonly property var currentHandle: menuStack.length > 0 ? menuStack[menuStack.length - 1] : null
+    // Relocate the live item by its stable service key so the card re-renders
+    // when the daemon republishes (e.g. aboutToShow fills a lazy submenu).
+    readonly property string service: root.trayMenuService
+    readonly property var currentItem: {
+        var svc = trayMenu.service
+        if (!svc) return null
+        var its = Tray.items
+        for (var i = 0; i < its.length; i++)
+            if (its[i] && its[i].service === svc) return its[i]
+        return null
+    }
+    readonly property var menu: currentItem ? currentItem.menu : null
 
-    function strip(t) { return (t || "").replace(/_([^_])/, "$1") }   // drop GTK mnemonic underscore
+    // id -> true for every disclosed submenu parent (inline expansion).
+    property var expanded: ({})
 
     Connections {
         target: root
         function onTrayMenuVisibleChanged() {
-            trayMenu.menuStack = root.trayMenuVisible && root.trayMenuHandle ? [root.trayMenuHandle] : []
+            if (root.trayMenuVisible) {
+                trayMenu.expanded = ({})
+                Tray.aboutToShow(root.trayMenuService)
+            }
         }
     }
 
-    QsMenuOpener {
-        id: opener
-        menu: trayMenu.currentHandle
+    // The app quit or dropped its menu while the card was open.
+    onMenuChanged: if (root.trayMenuVisible && !menu) root.trayMenuVisible = false
+
+    function isExpanded(id) { return !!trayMenu.expanded[id] }
+    function toggleExpand(id) {
+        var e = {}
+        for (var k in trayMenu.expanded) e[k] = trayMenu.expanded[k]
+        if (e[id]) delete e[id]; else e[id] = true
+        trayMenu.expanded = e
     }
+    function activate(id) { Tray.menuEvent(trayMenu.service, id); root.trayMenuVisible = false }
+
+    // dbusmenu labels carry '_' accelerators; show the plain text.
+    function cleanLabel(s) {
+        if (!s) return ""
+        return String(s).replace(/_([^_])/g, "$1").replace(/__/g, "_")
+    }
+
+    // Flatten the visible tree into rows carrying depth, so a disclosed submenu
+    // appears inline beneath its parent.
+    function rowsFor(node, depth, out) {
+        var kids = (node && node.children) ? node.children : []
+        for (var i = 0; i < kids.length; i++) {
+            var c = kids[i]
+            if (!c || c.visible === false) continue
+            var sep = c.type === "separator"
+            var hasKids = !sep && Array.isArray(c.children) && c.children.length > 0
+            out.push({ node: c, depth: depth, sep: sep, hasKids: hasKids })
+            if (hasKids && trayMenu.isExpanded(c.id)) trayMenu.rowsFor(c, depth + 1, out)
+        }
+        return out
+    }
+    readonly property var rows: (root.trayMenuVisible && menu) ? rowsFor(menu, 0, []) : []
 
     property real reveal: root.trayMenuVisible ? 1 : 0
     Behavior on reveal {
@@ -74,7 +120,7 @@ PanelWindow {
             anchors.margins: 8
             spacing: 1
 
-            // App identity stays visible while navigating its DBusMenu tree.
+            // App identity stays visible while its menu is open.
             Item {
                 width: parent.width
                 height: 28
@@ -131,62 +177,54 @@ PanelWindow {
 
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
-            // back row (only when inside a submenu)
-            Rectangle {
-                width: parent.width; height: 24; radius: root.tileRadius
-                visible: trayMenu.menuStack.length > 1
-                color: backMa.containsMouse ? root.fillHover : "transparent"
-                UiText {
-                    anchors.left: parent.left; anchors.leftMargin: 8
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "‹  back"; color: root.sumiHi
-                    font.family: root.mono; font.pixelSize: 11
-                }
-                MouseArea {
-                    id: backMa
-                    anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: trayMenu.menuStack = trayMenu.menuStack.slice(0, -1)
-                }
-            }
-            Rectangle {
-                width: parent.width; height: 1; color: root.sep
-                visible: trayMenu.menuStack.length > 1
-            }
-
             Repeater {
-                model: opener.children
+                model: trayMenu.rows
 
                 delegate: Item {
                     id: entry
                     required property var modelData
+                    readonly property var node: modelData.node
+                    readonly property int depth: modelData.depth
+                    readonly property bool sep: modelData.sep
+                    readonly property bool hasKids: modelData.hasKids
+                    readonly property bool rowEnabled: node.enabled !== false
+                    readonly property string toggleType: node.toggleType || ""
+                    readonly property bool toggled: (node.toggleState || 0) === 1
+                    readonly property string iconName: node.iconName || ""
+                    readonly property string label: trayMenu.cleanLabel(node.label)
+                    readonly property real indent: 6 + entry.depth * 14
+
                     width: col.width
-                    height: modelData.isSeparator ? 7 : 26
+                    height: entry.sep ? 7 : 26
 
                     // separator
                     Rectangle {
-                        visible: entry.modelData.isSeparator
+                        visible: entry.sep
                         anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width; height: 1
+                        anchors.left: parent.left
+                        anchors.leftMargin: entry.indent
+                        anchors.right: parent.right
+                        anchors.rightMargin: 6
+                        height: 1
                         color: root.sep
                     }
 
                     // entry row
                     Rectangle {
-                        visible: !entry.modelData.isSeparator
+                        visible: !entry.sep
                         anchors.fill: parent
                         radius: root.tileRadius
-                        color: (entryMa.containsMouse && entry.modelData.enabled)
-                            ? root.fillActive : "transparent"
+                        color: (entryMa.containsMouse && entry.rowEnabled) ? root.fillActive : "transparent"
                         Behavior on color { ColorAnimation { duration: 100 } }
 
-                        // check / radio indicator
+                        // check / radio indicator (mono ✓, matching qsbar's minimal style)
                         UiText {
                             id: check
-                            anchors.left: parent.left; anchors.leftMargin: 6
+                            anchors.left: parent.left
+                            anchors.leftMargin: entry.indent
                             anchors.verticalCenter: parent.verticalCenter
                             width: 12
-                            text: entry.modelData.checkState === Qt.Checked ? "✓" : ""
+                            text: (entry.toggleType.length > 0 && entry.toggled) ? "✓" : ""
                             color: root.seal
                             font.family: root.mono; font.pixelSize: 11
                         }
@@ -195,8 +233,8 @@ PanelWindow {
                             id: entryIcon
                             anchors.left: check.right; anchors.leftMargin: 2
                             anchors.verticalCenter: parent.verticalCenter
-                            visible: (entry.modelData.icon || "") !== ""
-                            source: entry.modelData.icon || ""
+                            visible: entry.iconName.length > 0
+                            source: entry.iconName.length > 0 ? Quickshell.iconPath(entry.iconName, "") : ""
                             sourceSize.width: 14; sourceSize.height: 14
                             width: visible ? 14 : 0; height: 14
                             fillMode: Image.PreserveAspectFit; smooth: true
@@ -206,20 +244,23 @@ PanelWindow {
                             anchors.left: entryIcon.right; anchors.leftMargin: 6
                             anchors.right: arrow.left; anchors.rightMargin: 4
                             anchors.verticalCenter: parent.verticalCenter
-                            text: trayMenu.strip(entry.modelData.text)
-                            color: entry.modelData.enabled ? root.ink
+                            text: entry.label
+                            color: entry.rowEnabled ? root.ink
                                  : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.35)
                             font.family: root.mono; font.pixelSize: 11
                             elide: Text.ElideRight
                         }
 
-                        // submenu arrow
+                        // submenu chevron (rotates down when disclosed)
                         UiText {
                             id: arrow
                             anchors.right: parent.right; anchors.rightMargin: 8
                             anchors.verticalCenter: parent.verticalCenter
-                            visible: entry.modelData.hasChildren
-                            text: "›"; color: root.sumiHi
+                            visible: entry.hasKids
+                            text: "›"
+                            rotation: trayMenu.isExpanded(entry.node.id) ? 90 : 0
+                            Behavior on rotation { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+                            color: root.sumiHi
                             font.family: root.mono; font.pixelSize: 13
                         }
 
@@ -227,15 +268,13 @@ PanelWindow {
                             id: entryMa
                             anchors.fill: parent
                             hoverEnabled: true
-                            enabled: entry.modelData.enabled
+                            enabled: entry.rowEnabled
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (entry.modelData.hasChildren) {
-                                    trayMenu.menuStack = trayMenu.menuStack.concat([entry.modelData])
-                                } else {
-                                    entry.modelData.triggered()
-                                    root.trayMenuVisible = false
-                                }
+                                if (entry.hasKids)
+                                    trayMenu.toggleExpand(entry.node.id)
+                                else
+                                    trayMenu.activate(entry.node.id)
                             }
                         }
                     }

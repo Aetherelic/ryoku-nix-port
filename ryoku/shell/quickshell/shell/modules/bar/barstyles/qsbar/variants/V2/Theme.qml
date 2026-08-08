@@ -3029,7 +3029,7 @@ Item {
     // ── Tray context-menu state (themed menu, rendered by TrayMenu.qml) ──
     property bool trayMenuVisible: false
     onTrayMenuVisibleChanged: popupOpened("trayMenuVisible")
-    property var  trayMenuHandle: null   // the QsMenuHandle of the clicked item
+    property string trayMenuService: ""  // service key of the clicked item; menu resolved live from Tray.items
     property real trayMenuX: 0           // global x to anchor the menu under the icon
     property string trayMenuTitle: ""
     property string trayMenuIcon: ""
@@ -3040,7 +3040,7 @@ Item {
         var title = String(item.title || "").trim()
         if (title !== "") return title
 
-        var tooltipTitle = String(item.tooltipTitle || "").trim()
+        var tooltipTitle = String((item.tooltip && item.tooltip.title) || "").trim()
         if (tooltipTitle !== "") return tooltipTitle
 
         var fallback = String(item.id || "").trim()
@@ -3055,8 +3055,8 @@ Item {
     function trayDescription(item, displayName) {
         if (!item) return ""
 
-        var description = String(item.tooltipDescription || "").trim()
-        var tooltipTitle = String(item.tooltipTitle || "").trim()
+        var description = String((item.tooltip && item.tooltip.description) || "").trim()
+        var tooltipTitle = String((item.tooltip && item.tooltip.title) || "").trim()
         var name = String(displayName || "").trim().toLowerCase()
         if (description !== "" && description.toLowerCase() !== name)
             return description
@@ -3065,9 +3065,9 @@ Item {
         return ""
     }
 
-    function openTrayMenu(handle, x, title, icon) {
-        if (!handle) return
-        trayMenuHandle = handle
+    function openTrayMenu(service, x, title, icon) {
+        if (!service) return
+        trayMenuService = service
         trayMenuTitle = String(title || "App Menu")
         trayMenuIcon = String(icon || "")
         setPanelAnchor("trayMenu", x)
@@ -3075,12 +3075,12 @@ Item {
     }
 
     function trayIsHidden(item) {
-        return trayPinned.indexOf(item.id) < 0
+        return trayPinned.indexOf(item.service) < 0
     }
 
     // toggle: hidden items get pinned (shown in bar); pinned items get unpinned (back to panel)
     function trayToggleHide(item) {
-        var key = item.id
+        var key = item.service
         if (!key) return
         var i = trayPinned.indexOf(key)
         if (i >= 0) {
@@ -3152,6 +3152,17 @@ Item {
                 Palette.apply(theme, Palette.parse(this.text));
             }
         }
+    }
+
+    // colors.json is rewritten on every palette change, including a wallpaper
+    // swap in follow-wallpaper mode that never touches theme.name. Watch it so
+    // the bar retints live instead of only after a full shell reload.
+    FileView {
+        id: paletteWatcher
+        path: theme.colorsPath
+        watchChanges: true
+        printErrors: false
+        onFileChanged: { paletteWatcher.reload(); theme.reloadCurrentThemeFiles() }
     }
 
     function ipcApplyTheme(payload) {

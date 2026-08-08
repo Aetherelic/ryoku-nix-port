@@ -25,7 +25,7 @@ Item {
     // a single top-rail figure tucked every left and right body under the side
     // rails.
     required property var railClearances
-    readonly property real frameThickness: root.clearanceFor("top")
+    readonly property real frameThickness: root.clearanceFor(root.barEdge)
     function clearanceFor(anchor) {
         const edge = anchor.indexOf("top") === 0 ? "top"
             : anchor.indexOf("bottom") === 0 ? "bottom"
@@ -35,12 +35,22 @@ Item {
     }
     property bool active: true
 
-    // A folder bar style (topBar) is a top sash with no side or bottom rails, so
-    // the frame menus drop from the top edge: side and bottom anchors fold up to
-    // the matching top edge or corner (so Super+S lands top-left).
+    // A folder bar style (topBar) is a single sash on one screen edge with no
+    // other rails, so the frame menus fold to that edge: every side/opposite
+    // anchor collapses to barEdge or its matching corner (so Super+S lands in
+    // the corner nearest the bar).
     property bool topBar: false
+    property string barEdge: "top"   // the edge the folded bar sits on: top | bottom
     function mapAnchor(a) {
         if (!root.topBar || !a) return a;
+        if (root.barEdge === "bottom") {
+            if (a === "left") return "bottom-left";
+            if (a === "right") return "bottom-right";
+            if (a === "top") return "bottom";
+            if (a === "top-left") return "bottom-left";
+            if (a === "top-right") return "bottom-right";
+            return a;
+        }
         if (a === "left") return "top-left";
         if (a === "right") return "top-right";
         if (a === "bottom") return "top";

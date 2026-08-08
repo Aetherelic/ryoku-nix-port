@@ -1,5 +1,5 @@
 import Quickshell
-import Quickshell.Services.SystemTray
+import shell.services
 import QtQuick
 
 Item {
@@ -21,21 +21,21 @@ Item {
         spacing: root.v2IconClusterSpacing
 
         Repeater {
-            model: SystemTray.items
+            model: Tray.items
 
             delegate: Item {
                 id: trayDelegate
-                required property SystemTrayItem modelData
+                required property var modelData
 
                 // System-tray actions share the bar's compact 24px centre pitch:
                 // 22px action cell plus the surrounding Row's 2px cluster gap.
                 implicitWidth: root.v2ActionIconCellWidth
                 implicitHeight: 28
-                visible: root.trayPinned.indexOf(modelData.id) >= 0
+                visible: root.trayPinned.indexOf(modelData.service) >= 0
 
                 Image {
                     anchors.centerIn: parent
-                    source: modelData.icon
+                    source: modelData.iconPath ? "file://" + modelData.iconPath : (modelData.iconName ? Quickshell.iconPath(modelData.iconName, true) : "")
                     sourceSize.width: 14
                     sourceSize.height: 14
                     width: 14
@@ -52,7 +52,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: (e) => {
                         if (e.button === Qt.LeftButton)
-                            modelData.activate()
+                            Tray.activate(modelData.service)
                         else if (e.button === Qt.RightButton)
                             rootMod.toggleHide(modelData)
                     }
@@ -68,13 +68,13 @@ Item {
             visible: hiddenCount > 0
 
             // count CURRENTLY-EXISTING tray items that are not pinned (= hidden behind this
-            // button), iterating SystemTray.items so stale pinned IDs can't inflate the count
+            // button), iterating Tray.items so stale pinned IDs can't inflate the count
             readonly property int hiddenCount: {
-                var n = 0, vals = SystemTray.items.values
-                for (var i = 0; i < vals.length; i++) if (root.trayPinned.indexOf(vals[i].id) < 0) n++
+                var n = 0, its = Tray.items
+                for (var i = 0; i < its.length; i++) if (root.trayPinned.indexOf(its[i].service) < 0) n++
                 return n
             }
-            readonly property int totalCount:  SystemTray.items.values.length
+            readonly property int totalCount:  Tray.items.length
             readonly property string tooltipText: totalCount + (totalCount === 1 ? " app" : " apps")
                                                   + (hiddenCount > 0 ? " · " + hiddenCount + " hidden" : "")
 

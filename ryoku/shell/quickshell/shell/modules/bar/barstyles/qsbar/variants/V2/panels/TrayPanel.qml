@@ -1,6 +1,6 @@
 import Quickshell
 import "../modules"
-import Quickshell.Services.SystemTray
+import shell.services
 import Quickshell.Wayland
 import QtQuick
 
@@ -35,15 +35,15 @@ PanelWindow {
 
     // auto-close when there are no hidden (unpinned) items left to show
     readonly property int hiddenCount: {
-        var n = 0, vals = SystemTray.items.values
-        for (var i = 0; i < vals.length; i++)
-            if (root.trayPinned.indexOf(vals[i].id) < 0) n++
+        var n = 0, its = Tray.items
+        for (var i = 0; i < its.length; i++)
+            if (root.trayPinned.indexOf(its[i].service) < 0) n++
         return n
     }
     readonly property int attentionCount: {
-        var n = 0, vals = SystemTray.items.values
-        for (var i = 0; i < vals.length; i++)
-            if (root.trayPinned.indexOf(vals[i].id) < 0 && vals[i].status === Status.NeedsAttention) n++
+        var n = 0, its = Tray.items
+        for (var i = 0; i < its.length; i++)
+            if (root.trayPinned.indexOf(its[i].service) < 0 && its[i].status === "NeedsAttention") n++
         return n
     }
     onHiddenCountChanged: if (root.trayVisible && hiddenCount === 0) root.trayVisible = false
@@ -156,40 +156,42 @@ PanelWindow {
                         spacing: 6
 
                         Repeater {
-                            model: SystemTray.items
+                            model: Tray.items
 
                             delegate: Item {
                                 id: appRow
-                                required property SystemTrayItem modelData
+                                required property var modelData
                                 required property int index
 
                                 readonly property string appName: root.trayDisplayName(modelData)
                                 readonly property string appDescription: root.trayDescription(modelData, appName)
-                                readonly property bool needsAttention: modelData.status === Status.NeedsAttention
+                                readonly property bool needsAttention: modelData.status === "NeedsAttention"
                                 readonly property string statusDescription: needsAttention
                                     ? "\u26a0 " + (appDescription !== "" ? appDescription : "Needs attention")
                                     : appDescription
                                 readonly property int cellWidth: 96
+                                readonly property string iconSource: modelData.iconPath ? "file://" + modelData.iconPath : (modelData.iconName ? Quickshell.iconPath(modelData.iconName, true) : "")
+                                readonly property bool hasMenu: modelData.menu != null
 
                                 width: trayRows.width
                                 height: visible ? 28 : 0
-                                visible: root.trayPinned.indexOf(modelData.id) < 0
+                                visible: root.trayPinned.indexOf(modelData.service) < 0
 
                                 function openAppMenu() {
-                                    if (!modelData.hasMenu) return
+                                    if (!appRow.hasMenu) return
                                     var gp = menuButton.mapToItem(null, 0, 0)
-                                    root.openTrayMenu(modelData.menu,
+                                    root.openTrayMenu(modelData.service,
                                                       gp.x + menuButton.width / 2 - 110,
-                                                      appName, modelData.icon)
+                                                      appName, appRow.iconSource)
                                 }
 
                                 function activateApp() {
-                                    var item = modelData
+                                    var svc = modelData.service
                                     root.trayVisible = false
                                     // Release the layer-shell keyboard focus before asking
                                     // the application to surface/focus its primary window.
                                     Qt.callLater(function() {
-                                        if (item) item.activate()
+                                        if (svc) Tray.activate(svc)
                                     })
                                 }
 
@@ -210,7 +212,7 @@ PanelWindow {
                                         anchors.left: parent.left
                                         anchors.leftMargin: 8
                                         anchors.verticalCenter: parent.verticalCenter
-                                        source: appRow.modelData.icon
+                                        source: appRow.iconSource
                                         sourceSize.width: 16
                                         sourceSize.height: 16
                                         width: 16
@@ -252,7 +254,7 @@ PanelWindow {
                                         onExited: appTip.hide()
                                         onClicked: {
                                             appTip.hide()
-                                            if (appRow.modelData.onlyMenu && appRow.modelData.hasMenu)
+                                            if (appRow.modelData.itemIsMenu && appRow.hasMenu)
                                                 appRow.openAppMenu()
                                             else
                                                 appRow.activateApp()
@@ -298,20 +300,20 @@ PanelWindow {
                                     width: appRow.cellWidth
                                     height: 28
                                     radius: root.panelButtonRadius
-                                    color: appRow.modelData.hasMenu
+                                    color: appRow.hasMenu
                                         ? (menuMa.containsMouse ? root.fillHover : root.fillIdle)
                                         : "transparent"
-                                    border.color: appRow.modelData.hasMenu
+                                    border.color: appRow.hasMenu
                                         ? (menuMa.containsMouse ? root.seal : root.sep)
                                         : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.10)
                                     border.width: 1
-                                    opacity: appRow.modelData.hasMenu ? 1.0 : 0.42
+                                    opacity: appRow.hasMenu ? 1.0 : 0.42
                                     Behavior on color { ColorAnimation { duration: 120 } }
 
                                     UiText {
                                         anchors.centerIn: parent
-                                        text: appRow.modelData.hasMenu ? "AppMenu" : "No Menu"
-                                        color: menuMa.containsMouse && appRow.modelData.hasMenu ? root.seal : root.ink
+                                        text: appRow.hasMenu ? "AppMenu" : "No Menu"
+                                        color: menuMa.containsMouse && appRow.hasMenu ? root.seal : root.ink
                                         font.family: root.mono
                                         font.pixelSize: 11
                                     }
@@ -319,7 +321,7 @@ PanelWindow {
                                     MouseArea {
                                         id: menuMa
                                         anchors.fill: parent
-                                        enabled: appRow.modelData.hasMenu
+                                        enabled: appRow.hasMenu
                                         hoverEnabled: enabled
                                         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                         onClicked: appRow.openAppMenu()

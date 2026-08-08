@@ -54,7 +54,18 @@ Item {
                         var y = cy + Math.sin(x * k + rootMod.phase + phaseOff) * amp
                         if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
                     }
-                    ctx.strokeStyle = Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, alpha)
+                    // fade both ends so the wave dissolves instead of hard-clipping
+                    // at the pill's rectangular edge
+                    var r = Math.round(rootMod.contentColor.r * 255)
+                    var g = Math.round(rootMod.contentColor.g * 255)
+                    var b = Math.round(rootMod.contentColor.b * 255)
+                    var lit = "rgba(" + r + "," + g + "," + b + "," + alpha + ")"
+                    var grad = ctx.createLinearGradient(0, 0, width, 0)
+                    grad.addColorStop(0,    "rgba(" + r + "," + g + "," + b + ",0)")
+                    grad.addColorStop(0.16, lit)
+                    grad.addColorStop(0.84, lit)
+                    grad.addColorStop(1,    "rgba(" + r + "," + g + "," + b + ",0)")
+                    ctx.strokeStyle = grad
                     ctx.lineWidth = 1.5
                     ctx.lineCap = "round"
                     ctx.stroke()

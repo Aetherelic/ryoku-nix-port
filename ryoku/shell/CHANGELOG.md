@@ -3,6 +3,28 @@
 ## Unreleased
 
 ### Fixed
+- **The system tray no longer shows closed or mislabelled apps.** The qsbar tray
+  strip, panel and context menu read Quickshell's own StatusNotifier host, which
+  kept dead items and wrong titles on this machine; they now read the ryoku-shell
+  daemon's `Tray` service (the documented single host, already used by the frame
+  bar), so closed apps drop promptly and icons and titles are correct. The
+  context menu renders the daemon's dbusmenu tree in-shell with qsbar theming
+  (`modules/bar/barstyles/qsbar/{modules/TrayWidget,panels/TrayPanel,panels/TrayMenu}.qml`,
+  `.../qsbar/Theme.qml`, and the V2 counterparts).
+- **The bar accent follows the wallpaper without a reload.** `colors.json` is
+  rewritten on every palette change, but the qsbar palette was only re-read on a
+  theme-name change or an explicit reload, so a follow-wallpaper swap left the
+  accent stale until the whole shell reloaded. A watch on `colors.json` retints
+  live (`modules/bar/barstyles/qsbar/Theme.qml` and the V2 counterpart).
+- **Frame menus open against a bottom bar instead of clipping into it.** The
+  shared frame menu host (Super+Escape quick settings and the rest) always
+  dropped from the top edge, so on a bottom qsbar the menu ran down into the bar.
+  It now folds to the bar's actual edge (`modules/bar/Frame.qml`,
+  `modules/bar/FrameMenuManager.qml`).
+- **The launcher pill's hover wave no longer hard-clips.** The wave was stroked
+  edge to edge inside a rectangular clip, leaving a hard vertical seam; it now
+  fades at both ends (`modules/bar/barstyles/qsbar/modules/LauncherWidget.qml`
+  and the V2 counterpart).
 - **The bar's audio controls are one native PipeWire path, not three racing
   tools.** The volume pill's mute and wheel, and the whole volume panel (output
   device switch, per-app mixer, microphone), now write straight to PipeWire
