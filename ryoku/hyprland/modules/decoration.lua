@@ -105,29 +105,6 @@ hl.layer_rule({
   no_anim = true,
 })
 
--- ryolayer (qs -c ryolayer, Super+G) is a full-screen transparent tool layer:
--- blur the desktop behind the board so its widgets read on top; the strength
--- slider drives decoration:blur:size live (the launcher's force/restore). At
--- blur 0 the board maps as "ryolayer-noblur" and never frosts. Pinned widgets
--- ride their own small "ryolayer-pin" windows, never blurred. QML owns every
--- open/close morph, so Hyprland's layer animation is suppressed for all three.
--- ignore_alpha ties the frost to surface alpha: the compositor only blurs where
--- the board's own alpha clears the threshold, so the frost sweeps in and out
--- WITH the board's fade instead of popping to full strength the instant the
--- layer maps -- and, because it ramps with alpha, the one-frame gap between the
--- baseline blur at map and the forced size landing is never visible.
-hl.layer_rule({
-  name    = "ryolayer-noanim",
-  match   = { namespace = "^ryolayer" },
-  no_anim = true,
-})
-hl.layer_rule({
-  name        = "ryolayer-blur",
-  match       = { namespace = "^ryolayer$" },
-  blur        = not no_blur,
-  ignore_alpha = 0.05,
-})
-
 -- the wallpaper switcher (Super+W) is a translucent bottom-centre picker card on
 -- a full-screen layer: blur only the card (ignore_alpha keeps the frost off the
 -- clear surround), so it reads as frosted glass floating over the desktop with

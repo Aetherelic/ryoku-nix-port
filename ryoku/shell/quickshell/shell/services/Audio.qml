@@ -25,30 +25,25 @@ Singleton {
         return (n && typeof PwNodeType !== "undefined") ? PwNodeType.toString(n.type) : "";
     }
 
-    // a real, switchable output/input device (not a stream). the ryoku-eq
-    // filter-chain sink is internal plumbing, not a user-pickable output:
-    // picking it while the chain is down routes @DEFAULT into silence.
-    function isOutput(n) { return !!(n && n.isSink && !n.isStream && n.audio && n.name !== "ryoku.eq.sink"); }
+    // a real, switchable output/input device (not a stream).
+    function isOutput(n) { return !!(n && n.isSink && !n.isStream && n.audio); }
     function isInput(n) { return !!(n && !n.isSink && !n.isStream && n.audio); }
     // an application feeding the graph (playback, not capture). per-app here.
-    // the ryoku.eq.out node is the equalizer's own output leg, not an app:
-    // muting or dropping it in the mixer silences everything routed through the EQ.
     function isPlayStream(n) {
-        return !!(n && n.isStream && n.audio && root.typeOf(n).indexOf("In") < 0 && n.name !== "ryoku.eq.out");
+        return !!(n && n.isStream && n.audio && root.typeOf(n).indexOf("In") < 0);
     }
 
     // an application capturing from the graph -- a screen recorder, a call, a
     // browser tab on the mic. per-app input, surfaced to streamers. shell and
     // plumbing capture is filtered by node.name (a constant, so this never
     // deadlocks on untracked properties): our own VU peak monitors ("quickshell"),
-    // the cava visualisers, Bluetooth's internal capture leg, and the EQ input.
+    // the cava visualisers, and Bluetooth's internal capture leg.
     function isCaptureStream(n) {
         if (!(n && n.isStream && n.audio && root.typeOf(n).indexOf("In") >= 0))
             return false;
         var nm = (n.name + "");
         return nm !== "quickshell" && nm !== "cava"
-            && nm.indexOf("bluez_capture_internal") !== 0
-            && nm.indexOf("ryoku.eq") !== 0;
+            && nm.indexOf("bluez_capture_internal") !== 0;
     }
 
     readonly property var outputs: root.nodes.filter(root.isOutput)

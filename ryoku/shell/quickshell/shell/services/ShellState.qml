@@ -103,7 +103,6 @@ Singleton {
             property bool launcherOpen: false           // launcher
             property bool overviewOpen: false           // overview (Super+Tab expo)
             property bool wallpaperSwitcherOpen: false  // wallpaper-switcher
-            property bool boardOpen: false              // board (was ryolayer, Super+G)
 
             // The frame bar's master reveal for this monitor. Resting policy is
             // revealed: each edge then follows its Config reveal flag, and the

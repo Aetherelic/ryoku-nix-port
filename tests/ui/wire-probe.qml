@@ -14,7 +14,7 @@ ShellRoot {
         "language","frameRadius","roundness","frameBorder","frameEnabled",
         "frameSmoothing","frameOpacity","shadowStrength","shadowSize",
         "surfaceColor","osdRadius","osdOpacity","frameBars","barStyle","fontFamily","fontScale","weatherLocation","weatherUnit",
-        "ryolayerEnabled","sidebarLeftPanes","sidebarRightPanes","sidebarWidth"
+        "sidebarLeftPanes","sidebarRightPanes","sidebarWidth"
     ]
 
     function adopt() {
@@ -61,7 +61,6 @@ ShellRoot {
             property real fontScale: 1.3
             property string weatherLocation: ""
             property string weatherUnit: "auto"
-            property bool ryolayerEnabled: true
             property var sidebarLeftPanes: ["stash"]
             property var sidebarRightPanes: ["notifications","calendar","media","weather","recording"]
             property real sidebarWidth: 340

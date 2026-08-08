@@ -10,7 +10,6 @@ func TestRoute(t *testing.T) {
 	}{
 		{"launcher", "shell", "shell", "openSurface"},
 		{"overview", "shell", "shell", "openSurface"},
-		{"ryolayer", "shell", "shell", "openSurface"},
 		{"visualizer", "shell", "shell", "openSurface"},
 		{"visualizer-overlay", "shell", "shell", "openSurface"},
 		{"menu app-launcher", "shell", "shell", "openSurface"},

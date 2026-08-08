@@ -79,29 +79,6 @@ func perfFlagDefault(key string, def bool) bool {
 	return def
 }
 
-// shellFlagDefault reads one boolean out of shell.json (the Shell section's
-// store), with an explicit default. Mirrors perfFlagDefault; used for the few
-// shell features whose on/off the daemon must honour -- the ryolayer widget
-// board's Shell-page toggle.
-func shellFlagDefault(key string, def bool) bool {
-	dir := ryokuConfigDir()
-	if dir == "" {
-		return def
-	}
-	b, err := os.ReadFile(filepath.Join(dir, "shell.json"))
-	if err != nil {
-		return def
-	}
-	var m map[string]any
-	if json.Unmarshal(b, &m) != nil {
-		return def
-	}
-	if v, ok := m[key].(bool); ok {
-		return v
-	}
-	return def
-}
-
 // On by default: the widgets ride the wallpaper, so freeing them while every
 // screen is covered is invisible and reclaims their scene-graph + GL memory.
 func unloadWidgetsWhenCovered() bool { return perfFlagDefault("unloadWidgetsWhenCovered", true) }

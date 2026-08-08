@@ -1,13 +1,10 @@
 package main
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"time"
 )
 
-// idlewatch frees an idle palette (launcher, overview, ryolayer) after a grace
+// idlewatch frees an idle palette (launcher, overview) after a grace
 // of not being used. These palettes draw nothing while hidden yet hold a full
 // Qt/jemalloc process, so freeing one reclaims ~a quarter gig of RSS until the
 // next open, which respawns and shows it in a single cold start (setGate wakes
@@ -20,7 +17,7 @@ import (
 // All three are on-demand (not persistent): they start on their first keybind
 // and park again after the idle grace.
 func parkable(name string) bool {
-	return name == "launcher" || name == "overview" || name == "ryolayer"
+	return name == "launcher" || name == "overview"
 }
 
 // unloadPaletteWhenIdle is the per-palette control that frees it after a grace
@@ -34,38 +31,6 @@ func unloadPaletteWhenIdle(name string) bool {
 		return perfFlagDefault("unloadLauncherWhenIdle", true)
 	case "overview":
 		return perfFlagDefault("unloadOverviewWhenIdle", true)
-	case "ryolayer":
-		return perfFlagDefault("unloadRyolayerWhenIdle", true)
-	}
-	return false
-}
-
-// ryolayerHasPins reports whether ryolayer.json holds at least one pinned
-// widget. A pinned widget is an always-on desktop plate the ryolayer process
-// renders even while its Super+G board is closed, so ryolayer must run at login
-// to show it. No pins (the default) leaves ryolayer purely on-demand: it starts
-// on the first Super+G and parks when idle.
-func ryolayerHasPins() bool {
-	dir := ryokuConfigDir()
-	if dir == "" {
-		return false
-	}
-	b, err := os.ReadFile(filepath.Join(dir, "ryolayer.json"))
-	if err != nil {
-		return false
-	}
-	var m struct {
-		Widgets []struct {
-			Pinned bool `json:"pinned"`
-		} `json:"widgets"`
-	}
-	if json.Unmarshal(b, &m) != nil {
-		return false
-	}
-	for _, w := range m.Widgets {
-		if w.Pinned {
-			return true
-		}
 	}
 	return false
 }
@@ -118,7 +83,7 @@ func (d *daemon) idlePark() {
 			return
 		case <-tick.C:
 		}
-		for _, name := range []string{"launcher", "overview", "ryolayer"} {
+		for _, name := range []string{"launcher", "overview"} {
 			if !unloadPaletteWhenIdle(name) {
 				continue
 			}

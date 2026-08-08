@@ -13,7 +13,7 @@ package as the base config under `/usr/share/ryoku/config`, which
   thin client that forwards a command to that socket; Hyprland keybinds use it.
 - `quickshell/` The hand-written QML UI: `pill` (the four-edge frame bars,
   screen frame, bounded menu manager, power menu, and preserved frame
-  surfaces), `launcher`, `overview`, `ryoshot`, `ryolayer`, `visualizer`,
+  surfaces), `launcher`, `overview`, `ryoshot`, `visualizer`,
   `welcome`, and `widgets` (the wallpaper clock plus enabled third-party
   widgets). These render the shell; they hold no daemon logic.
   `pill/Singletons/Config` and `visualizer/Singletons/Config` watch
@@ -47,7 +47,7 @@ socket and one place that knows how to talk to the components:
 | `ryoku-shell daemon` | supervise the persistent components, clipboard history and wallpaper workers, then serve the socket |
 | `launcher`, `power` | toggle the launcher or power surface on the active monitor |
 | `bar <id>` | open a finite frame-bar menu or surface on the active monitor |
-| `overview`, `ryolayer`, `wallpaper-switcher` | open the workspace overview, widget board or wallpaper picker |
+| `overview`, `wallpaper-switcher` | open the workspace overview or wallpaper picker |
 | `lock` | lock the screen with qylock |
 | `wallpaper [next\|init\|set <path>]` | change the wallpaper and retheme |
 | `voice` | toggle Voxtype transcription and its live mic surface |

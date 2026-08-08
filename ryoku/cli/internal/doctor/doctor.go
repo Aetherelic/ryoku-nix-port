@@ -1480,7 +1480,7 @@ var retiredShellKeys = []string{
 	"barLayoutRight", "barOccupiedWorkspaces", "barPosition", "barShowMedia",
 	"barShowSpecialWs", "barShowStatus", "barShowTitle", "barShowWeather",
 	"barToggles", "dyadVariant", "islandAlong", "islandEdge",
-	"islandHidden", "islandModules", "islandRadius", "sidebarClickless",
+	"islandHidden", "islandModules", "islandRadius", "ryolayerEnabled", "sidebarClickless",
 	"sidebarCornerSize", "sidebarLeftEnabled", "sidebarRightEnabled",
 	"washiVariant",
 }
@@ -1524,7 +1524,7 @@ func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 		}
 	}
 	if removed {
-		changes = append(changes, "removed retired bar settings")
+		changes = append(changes, "removed retired settings")
 	}
 	if len(changes) == 0 {
 		return nil, nil, nil

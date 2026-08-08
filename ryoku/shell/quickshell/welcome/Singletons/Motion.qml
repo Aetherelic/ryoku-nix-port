@@ -5,8 +5,8 @@ import Quickshell.Io
 import Ryoku.Ui.Singletons
 
 // The tour's durations are Tokens' mechanical set verbatim; this singleton only
-// adds the reduced-motion gate every sibling surface carries (launcher, overview,
-// ryolayer). reduceMotion / lowPowerMode collapse every duration to an instant
+// adds the reduced-motion gate every sibling surface carries (launcher,
+// overview). reduceMotion / lowPowerMode collapse every duration to an instant
 // cut so a weak GPU stops repainting through transitions. Read from
 // performance.json, the same file Ryoku Settings and the shell singletons use.
 Singleton {

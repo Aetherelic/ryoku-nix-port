@@ -19,7 +19,6 @@ import "modules/visualizer"
 import "modules/bar"
 import "modules/launcher"
 import "modules/overview"
-import "modules/board"
 import QtQuick
 import Quickshell.Io
 import Quickshell.Wayland
@@ -100,11 +99,6 @@ ShellRoot {
                 screen: perScreen.modelData
                 active: perScreen.st ? perScreen.st.overviewOpen : false
                 onRequestClose: if (perScreen.st) perScreen.st.overviewOpen = false
-            }
-            Board {
-                screen: perScreen.modelData
-                active: perScreen.st ? perScreen.st.boardOpen : false
-                onRequestClose: if (perScreen.st) perScreen.st.boardOpen = false
             }
             Switcher {
                 screen: perScreen.modelData
@@ -193,25 +187,6 @@ ShellRoot {
             const st = ShellState.forActive();
             if (st)
                 st.wallpaperSwitcherOpen = !st.wallpaperSwitcherOpen;
-        }
-    }
-    CustomShortcut {
-        name: "board"
-        description: "Toggle the board tool overlay on the active monitor"
-        onPressed: {
-            const st = ShellState.forActive();
-            if (st)
-                st.boardOpen = !st.boardOpen;
-        }
-    }
-    // Legacy Super+G name for the board (was ryolayer); same in-process flip.
-    CustomShortcut {
-        name: "ryolayer"
-        description: "Toggle the board tool overlay on the active monitor"
-        onPressed: {
-            const st = ShellState.forActive();
-            if (st)
-                st.boardOpen = !st.boardOpen;
         }
     }
     CustomShortcut {

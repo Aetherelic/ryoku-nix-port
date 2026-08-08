@@ -1318,7 +1318,7 @@ func TestMigrateShellConfigConvergesMenus(t *testing.T) {
 // just the four geometry keys. Every one of them must go, and the settings the
 // shell still reads must survive untouched.
 func TestMigrateShellConfigDropsEveryRetiredKey(t *testing.T) {
-	cfg := map[string]any{"fontScale": 0.96, "language": "Auto", "ryolayerEnabled": true}
+	cfg := map[string]any{"fontScale": 0.96, "language": "Auto"}
 	for _, key := range retiredShellKeys {
 		cfg[key] = "carried"
 	}
@@ -1339,7 +1339,7 @@ func TestMigrateShellConfigDropsEveryRetiredKey(t *testing.T) {
 			t.Errorf("retired key %s survived migration", key)
 		}
 	}
-	for key, want := range map[string]any{"fontScale": 0.96, "language": "Auto", "ryolayerEnabled": true} {
+	for key, want := range map[string]any{"fontScale": 0.96, "language": "Auto"} {
 		if got[key] != want {
 			t.Errorf("live setting %s = %v, want %v", key, got[key], want)
 		}

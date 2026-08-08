@@ -37,7 +37,7 @@ truth for the live desktop.
   (`bar` the four-edge frame bars with the bounded menu manager, rail status
   popout cards (`bar/popouts/`), the Super+Escape control sidebar and pluggable
   bar styles (`bar/barstyles/`, see `docs/barstyles.md`); then `launcher`,
-  `overview` (Super+Tab), `board` (the Super+G tool overlay), `wallpaper`,
+  `overview` (Super+Tab), `wallpaper`,
   `visualizer`, `osd`, `notifications`, `capture`, `confirm`, and `desktop` the
   wallpaper clock and enabled third-party widgets); `services/` holds the shared
   singletons every surface reads, `components/` the shared UI primitives, and

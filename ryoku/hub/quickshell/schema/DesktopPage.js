@@ -54,14 +54,6 @@ var rows = [{
             "fahrenheit"
         ]
     },{
-        "tab": "General",
-        "group": "WIDGET BOARD",
-        "key": "ryolayerEnabled",
-        "label": "Enable widget board",
-        "desc": "The Super+G board of drag-and-drop instrument widgets (RyoLayer); off frees it and its pins entirely",
-        "ctl": "sw",
-        "src": "shell"
-    },{
         "tab": "Visualizer",
         "group": "STYLE",
         "key": "enabled",

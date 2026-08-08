@@ -26,7 +26,7 @@ type component struct {
 
 var components = []component{
 	// One consolidated instance renders every surface in-process (bar, backdrop,
-	// launcher, visualizer, widgets, overview, board), replacing the old
+	//	launcher, visualizer, widgets, overview), replacing the old
 	// per-surface Quickshell configs. Always-on, as the pill frame was.
 	{"shell", true},
 }
@@ -51,23 +51,17 @@ func parseDisabledComponents(b []byte) map[string]bool {
 	return out
 }
 
-// componentDisabled reports whether a component is turned off. performance.json's
-// disabledComponents array is the general control; ryolayer additionally honours
-// the Shell page's `ryolayerEnabled` toggle in shell.json (the widget board on/
-// off). Disabled components never start, at boot or on demand -- a user who
-// never opens the overview, launcher, or widget board stops paying for its
-// resident process entirely. shell is always on; a missing file disables nothing.
+// componentDisabled reports whether a component is turned off via
+// performance.json's disabledComponents array. Disabled components never start,
+// at boot or on demand. shell is always on; a missing file disables nothing.
 func componentDisabled(name string) bool {
 	if name == "shell" {
 		return false
 	}
 	// ryoku: with surfaces consolidated into the single shell, per-surface disable
 	// is now internal to the shell; performance.json's disabledComponents no longer
-	// maps to separate processes. The parsing below is kept for the retire phase
-	// but only ever guards components that no longer exist.
-	if name == "ryolayer" && !shellFlagDefault("ryolayerEnabled", true) {
-		return true
-	}
+	// maps to separate processes, so this only ever guards components that no
+	// longer exist.
 	b, err := os.ReadFile(perfPath())
 	if err != nil {
 		return false
@@ -369,18 +363,14 @@ func (d *daemon) startComponents() {
 	}
 }
 
-// startsAtBoot reports whether a component comes up at login. Persistent
-// components always do; an on-demand palette does only when a login-time reason
-// forces it -- ryolayer with a pinned widget must render it at once rather than
-// wait for a Super+G. A disabled component never starts.
+// startsAtBoot reports whether a component renders at login. Persistent
+// components always do; on-demand palettes wait for their first keybind. A
+// disabled component never starts.
 func startsAtBoot(c component) bool {
 	if componentDisabled(c.name) {
 		return false
 	}
-	if c.persistent {
-		return true
-	}
-	return c.name == "ryolayer" && ryolayerHasPins()
+	return c.persistent
 }
 
 // ensure guarantees a supervisor goroutine exists for a component.
@@ -601,7 +591,7 @@ func (d *daemon) handle(conn net.Conn) {
 var surfaceCommands = map[string]string{
 	"menu screenshot": "screenshot",
 	"menu stash":      "stash",
-	// ryoku: launcher/overview/board(ryolayer)/visualizer are toggled in-process
+	// ryoku: launcher/overview/visualizer are toggled in-process
 	// by the shell's own global:ryoku:* keybinds (CustomShortcut -> ShellState),
 	// not by the daemon. These CLI verbs stay mapped to the closest openSurface
 	// call on the shell target, but the shell's surface bus does not route these
@@ -610,7 +600,6 @@ var surfaceCommands = map[string]string{
 	"menu app-launcher":  "launcher",
 	"launcher":           "launcher",
 	"overview":           "overview",
-	"ryolayer":           "board",
 	"visualizer":         "visualizer",
 	"visualizer-overlay": "visualizer-overlay",
 }
