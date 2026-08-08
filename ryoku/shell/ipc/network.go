@@ -691,6 +691,11 @@ func dnsHelperArgs(provider string, custom []string) ([]string, error) {
 }
 
 func dnsHelperPath() string {
+	// Prefer the packaged helper: the polkit rule is installed for it and it is
+	// the real path on an installed box.
+	if _, err := os.Stat("/usr/bin/ryoku-dns"); err == nil {
+		return "/usr/bin/ryoku-dns"
+	}
 	if shellDir != "" {
 		return filepath.Join(shellDir, "..", "..", "system", "hardware", "network", "ryoku-dns")
 	}

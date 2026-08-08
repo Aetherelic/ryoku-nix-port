@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- **The Bluetooth panel shows device details.** A connected device now has an
+  info toggle that expands its battery, type, and address, read live from
+  `Quickshell.Bluetooth` (`modules/bar/barstyles/qsbar/**/BluetoothPanel.qml`).
+- **Changing the DNS provider works from a dev checkout.** The daemon prefers the
+  installed `/usr/bin/ryoku-dns`, the polkit rule matches any `ryoku-dns` path,
+  and `deploy.sh` installs the helper + rule so escalation works without a
+  package build (`ipc/network.go`, `deploy.sh`).
 - **The volume panel can select an input (microphone) device.** The qsbar volume
   panel listed output devices but the input section was a mute toggle only, so a
   mic or capture device could not be picked; it now shows an input-device switcher

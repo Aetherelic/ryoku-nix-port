@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **Bluetooth, brightness, and controller hardware fixes reach every box.** The
+  `.install` now tunes `/etc/bluetooth/main.conf` in place (bluez owns it, so no
+  file conflict) and applies the ASUS AMD+NVIDIA backlight kernel param on
+  install + upgrade; the PKGBUILD ships the backlight udev rule and the `uinput`
+  module-load, and the AUR set adds the game-controller drivers
+  (`packages/ryoku-desktop/PKGBUILD`, `ryoku-desktop.install`).
 - **The network panel's DNS switch applies without a password prompt.** `ryoku-dns`
   runs through pkexec but no polkit rule shipped, so the DNS buttons silently did
   nothing. `ryoku-desktop` now installs `50-ryoku-dns.rules` to

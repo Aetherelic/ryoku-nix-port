@@ -106,8 +106,10 @@ EOF
 }
 
 ryoku_cfg_user() {
-  log "user: $RYOKU_USERNAME (wheel, shell /usr/bin/fish)"
-  run arch-chroot /mnt useradd -m -G wheel -s /usr/bin/fish "$RYOKU_USERNAME"
+  log "user: $RYOKU_USERNAME (wheel,video,input; shell /usr/bin/fish)"
+  # video -> write panel backlight (with 90-ryoku-backlight.rules); input ->
+  # read game controllers / input devices without a per-login logind grant.
+  run arch-chroot /mnt useradd -m -G wheel,video,input -s /usr/bin/fish "$RYOKU_USERNAME"
   # same password on the user + root, so sudo (wheel) and su both work
   # with what the installer collected. hashes go in on stdin (chpasswd -e
   # reads name:hash) and never hit the logs.

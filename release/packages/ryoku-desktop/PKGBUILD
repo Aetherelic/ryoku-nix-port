@@ -435,6 +435,13 @@ package() {
   install -Dm644 "$_repo/system/hardware/gpu/90-ryoku-gpu.rules" \
     "$pkgdir/usr/lib/udev/rules.d/90-ryoku-gpu.rules"
 
+  # Panel backlight writable by the video group without logind: ASUS AMD+NVIDIA
+  # panels expose a root:root sysfs backlight with no seat ACL, so this rule
+  # chgrp/chmods it for the video group ryoku-cmd-brightness runs as. The
+  # ryoku-hw-backlight + ryoku-hw-backlight-fix helpers ride the hardware glob.
+  install -Dm644 "$_repo/system/hardware/display/90-ryoku-backlight.rules" \
+    "$pkgdir/usr/lib/udev/rules.d/90-ryoku-backlight.rules"
+
   # external-monitor brightness over DDC/CI (pill DISPLAY faders + the
   # XF86MonBrightness keys via ryoku-cmd-brightness): load i2c-dev so ddcutil
   # can open /dev/i2c-*, and grant the active-session user access (uaccess).
@@ -442,6 +449,17 @@ package() {
     "$pkgdir/etc/modules-load.d/ryoku-i2c.conf"
   install -Dm644 "$_repo/system/hardware/ddc/60-ryoku-i2c.rules" \
     "$pkgdir/usr/lib/udev/rules.d/60-ryoku-i2c.rules"
+
+  # Bluetooth tuning: bluez owns /etc/bluetooth/main.conf and BlueZ has no
+  # drop-in dir, so Ryoku cannot ship a copy here (pacman file conflict). The
+  # ryoku-bluetooth-tune helper (installed by the hardware glob above) sets the
+  # keys in place; the .install runs it on install + upgrade.
+
+  # Game controllers: load uinput at boot so Steam Input and the userspace pad
+  # drivers (xpadneo-dkms, game-devices-udev, both from the AUR step) can create
+  # their virtual gamepads. The user must also be in the `input` group (installer).
+  install -Dm644 "$_repo/system/hardware/input/99-ryoku-uinput.conf" \
+    "$pkgdir/etc/modules-load.d/99-ryoku-uinput.conf"
 
   # Game Mode wifi power-save: a polkit rule authorizes the privileged helper
   # (ryoku-wifi-powersave, installed to /usr/bin by the hardware glob above)

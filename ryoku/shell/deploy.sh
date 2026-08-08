@@ -187,6 +187,24 @@ done
 say "installed the AI-usage collectors to $bindir"
 say "installed Ryoku CLI and hardware helpers"
 
+# Privileged network helpers + their polkit rules. A packaged install ships these
+# to /usr/bin and /usr/share/polkit-1/rules.d; a dev box has neither, so pkexec
+# has no rule to match and the qsbar DNS/wifi toggles silently fail. Install them
+# here when sudo is available (skipped cleanly in a sudo-less/CI env), and skip
+# each dest that already matches so a redeploy is a no-op.
+if command -v sudo >/dev/null 2>&1; then
+  netdir="$here/../../system/hardware/network"
+  _priv_install() { # src dest mode
+    cmp -s "$1" "$2" && return 0
+    sudo install -Dm"$3" "$1" "$2" || true
+  }
+  _priv_install "$netdir/ryoku-dns" /usr/bin/ryoku-dns 755
+  _priv_install "$netdir/50-ryoku-dns.rules" /usr/share/polkit-1/rules.d/50-ryoku-dns.rules 644
+  _priv_install "$netdir/ryoku-wifi-powersave" /usr/bin/ryoku-wifi-powersave 755
+  _priv_install "$netdir/49-ryoku-wifi-powersave.rules" /usr/share/polkit-1/rules.d/49-ryoku-wifi-powersave.rules 644
+  say "installed privileged network helpers + polkit rules"
+fi
+
 # Record the checkout this deploy came from and the commit it laid down, so the
 # deployed `ryoku` binary (on PATH, far from the repo) can track the update
 # channel in `ryoku status`: it compares this commit (what is now running)

@@ -144,6 +144,9 @@ git
 github-cli
 lazygit
 neovim
+# pciutils: lspci is the primary GPU-detection path for the per-profile driver
+# scripts during pacstrap (system/hardware/drivers/*.sh); absent from the chroot otherwise.
+pciutils
 ripgrep
 starship
 zoxide

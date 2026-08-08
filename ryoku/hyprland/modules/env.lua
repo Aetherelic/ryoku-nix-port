@@ -9,6 +9,8 @@ local nvidia = io.open("/proc/driver/nvidia/version")
 if nvidia then
     nvidia:close()
     hl.env("LIBVA_DRIVER_NAME",         "nvidia")
+    -- NVD_BACKEND=direct: nvidia VA-API direct backend (Turing+); omarchy's GSP default.
+    hl.env("NVD_BACKEND",               "direct")
     hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
     hl.env("__GL_GSYNC_ALLOWED",        "0")
     hl.env("__GL_VRR_ALLOWED",          "0")

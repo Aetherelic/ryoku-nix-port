@@ -18,12 +18,15 @@ case "$sign" in
   *) echo "usage: ryoku-cmd-brightness <+N|-N>" >&2; exit 2 ;;
 esac
 
-# Laptop panel: only if a backlight device is present.
+# Laptop panel: only if a backlight device is present. Pin the panel's real
+# backlight -- on ASUS AMD+NVIDIA laptops brightnessctl's default pick is the
+# unreliable nvidia_wmi_ec_backlight, so ryoku-hw-backlight names the right one.
 if compgen -G "/sys/class/backlight/*" >/dev/null; then
+  device=$(ryoku-hw-backlight 2>/dev/null || true)
   if [[ $sign == "+" ]]; then
-    brightnessctl set "${mag}%+" >/dev/null 2>&1 || true
+    brightnessctl ${device:+-d "$device"} set "${mag}%+" >/dev/null 2>&1 || true
   else
-    brightnessctl set "${mag}%-" >/dev/null 2>&1 || true
+    brightnessctl ${device:+-d "$device"} set "${mag}%-" >/dev/null 2>&1 || true
   fi
 fi
 

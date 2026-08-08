@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Quickshell.Bluetooth
 import "../IconMap.js" as IconMap
 
 PanelWindow {
@@ -52,6 +53,40 @@ PanelWindow {
                 + " && bluetoothctl connect " + mac
         }
         connProc.running = true
+    }
+
+    // The bash model carries only {name,mac,connected,paired}; battery/icon/state
+    // come live off Quickshell.Bluetooth, matched by MAC.
+    function btDeviceFor(mac) {
+        if (typeof Bluetooth === "undefined" || !Bluetooth || !Bluetooth.devices) return null
+        var m = String(mac || "").toUpperCase()
+        if (!m) return null
+        var vals = Bluetooth.devices.values
+        for (var i = 0; i < vals.length; i++) {
+            var d = vals[i]
+            if (d && String(d.address || "").toUpperCase() === m) return d
+        }
+        return null
+    }
+    // BlueZ phone charge is coarse/stale without provenance; suppress it (mirrors Shibumi).
+    function batteryText(dev) {
+        if (!dev || !dev.batteryAvailable) return ""
+        var ic = String(dev.icon || "").toLowerCase()
+        if (ic === "phone" || ic === "smartphone") return ""
+        var b = Number(dev.battery)
+        if (!isFinite(b) || b < 0 || b > 1) return ""
+        return Math.round(b * 100) + "%"
+    }
+    function typeLabel(dev) {
+        var ic = String(dev && dev.icon ? dev.icon : "").toLowerCase()
+        if (ic === "input-gaming") return "Controller"
+        if (ic === "audio-headphones") return "Headphones"
+        if (ic === "audio-headset") return "Headset"
+        if (ic === "audio-card") return "Speaker"
+        if (ic === "input-mouse") return "Mouse"
+        if (ic === "input-keyboard") return "Keyboard"
+        if (ic === "phone") return "Phone"
+        return ic ? ic : "Device"
     }
 
     property real reveal: root.bluetoothVisible ? 1 : 0
@@ -215,15 +250,23 @@ PanelWindow {
                     delegate: Rectangle {
                         id: devTile
                         required property var modelData
-                        readonly property bool hovered: tileHover.containsMouse || actionMa.containsMouse
+                        property bool expanded: false
+                        readonly property var nativeDev: btPanel.btDeviceFor(modelData.mac)
+                        readonly property string batteryText: btPanel.batteryText(nativeDev)
+                        readonly property bool canExpand: modelData.connected
+                        readonly property bool hovered: tileHover.containsMouse || actionMa.containsMouse || infoMa.containsMouse
+                        readonly property int rowHeight: 42
                         width: col.width
-                        height: 42; radius: root.panelButtonRadius
+                        height: rowHeight + (expanded && canExpand ? detailCol.implicitHeight + 10 : 0)
+                        radius: root.panelButtonRadius
+                        clip: true
                         color: modelData.connected ? root.fillActive
                                : hovered ? root.fillHover : root.fillIdle
                         border.color: modelData.connected ? root.seal
                                       : hovered ? root.seal : root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
                         MouseArea {
                             id: tileHover
@@ -232,51 +275,115 @@ PanelWindow {
                             hoverEnabled: true
                         }
 
-                        Column {
-                            anchors.left: parent.left; anchors.leftMargin: 8
-                            anchors.right: actionButton.left; anchors.rightMargin: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 1
-                            UiText {
-                                width: parent.width
-                                text: devTile.modelData.name
-                                color: root.ink; font.family: root.mono; font.pixelSize: 11
-                                elide: Text.ElideRight
+                        Item {
+                            id: rowItem
+                            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                            height: devTile.rowHeight
+
+                            Column {
+                                anchors.left: parent.left; anchors.leftMargin: 8
+                                anchors.right: devTile.canExpand ? infoPill.left : actionButton.left
+                                anchors.rightMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 1
+                                UiText {
+                                    width: parent.width
+                                    text: devTile.modelData.name
+                                    color: root.ink; font.family: root.mono; font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+                                UiText {
+                                    width: parent.width
+                                    text: devTile.modelData.connected
+                                          ? (devTile.batteryText !== "" ? "Connected · " + devTile.batteryText : "Connected")
+                                          : (devTile.modelData.paired ? "Paired" : "Available")
+                                    color: root.ink
+                                    font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
+                                    elide: Text.ElideRight
+                                }
                             }
-                            UiText {
-                                width: parent.width
-                                text: devTile.modelData.connected ? "Connected"
-                                      : devTile.modelData.paired ? "Paired" : "Available"
-                                color: root.ink
-                                font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
-                                elide: Text.ElideRight
+
+                            // info toggle: connected rows only, reveals the inline detail area
+                            Rectangle {
+                                id: infoPill
+                                visible: devTile.canExpand
+                                anchors.right: actionButton.left; anchors.rightMargin: 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 18; height: 18; radius: 9
+                                color: devTile.expanded ? root.fillActive
+                                       : infoMa.containsMouse ? root.fillHover : root.fillIdle
+                                border.color: (devTile.expanded || infoMa.containsMouse) ? root.seal : root.sep
+                                border.width: 1
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                                UiText {
+                                    anchors.centerIn: parent
+                                    text: "!"
+                                    color: (devTile.expanded || infoMa.containsMouse) ? root.seal : root.sumi
+                                    font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
+                                }
+                                MouseArea {
+                                    id: infoMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: devTile.expanded = !devTile.expanded
+                                }
+                            }
+
+                            Rectangle {
+                                id: actionButton
+                                anchors.right: parent.right; anchors.rightMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: actionLabel.implicitWidth + 14
+                                height: 24; radius: root.panelButtonRadius
+                                color: btPanel.deviceActionFill
+                                border.color: root.sep
+                                border.width: 1
+                                opacity: connProc.running ? 0.45 : 1
+                                UiText {
+                                    id: actionLabel
+                                    anchors.centerIn: parent
+                                    text: devTile.modelData.connected ? "Disconnect" : "Connect"
+                                    color: actionMa.containsMouse ? root.seal : root.ink
+                                    font.family: root.mono; font.pixelSize: 10
+                                }
+                                MouseArea {
+                                    id: actionMa
+                                    anchors.fill: parent
+                                    enabled: !connProc.running
+                                    hoverEnabled: true
+                                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: btPanel.activateDevice(devTile.modelData)
+                                }
                             }
                         }
 
-                        Rectangle {
-                            id: actionButton
+                        // inline detail: battery / type / address, gated by the info toggle
+                        Column {
+                            id: detailCol
+                            anchors.top: rowItem.bottom; anchors.topMargin: 2
+                            anchors.left: parent.left; anchors.leftMargin: 8
                             anchors.right: parent.right; anchors.rightMargin: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: actionLabel.implicitWidth + 14
-                            height: 24; radius: root.panelButtonRadius
-                            color: btPanel.deviceActionFill
-                            border.color: root.sep
-                            border.width: 1
-                            opacity: connProc.running ? 0.45 : 1
-                            UiText {
-                                id: actionLabel
-                                anchors.centerIn: parent
-                                text: devTile.modelData.connected ? "Disconnect" : "Connect"
-                                color: actionMa.containsMouse ? root.seal : root.ink
-                                font.family: root.mono; font.pixelSize: 10
+                            spacing: 2
+                            visible: devTile.expanded && devTile.canExpand
+                            opacity: visible ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 120 } }
+
+                            Item {
+                                width: parent.width; height: 14
+                                visible: devTile.batteryText !== ""
+                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Battery"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                                UiText { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: devTile.batteryText; color: root.ink; font.family: root.mono; font.pixelSize: 10 }
                             }
-                            MouseArea {
-                                id: actionMa
-                                anchors.fill: parent
-                                enabled: !connProc.running
-                                hoverEnabled: true
-                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                onClicked: btPanel.activateDevice(devTile.modelData)
+                            Item {
+                                width: parent.width; height: 14
+                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Type"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                                UiText { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: btPanel.typeLabel(devTile.nativeDev); color: root.ink; font.family: root.mono; font.pixelSize: 10; elide: Text.ElideRight }
+                            }
+                            Item {
+                                width: parent.width; height: 14
+                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Address"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                                UiText { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: String(devTile.modelData.mac || ""); color: root.ink; font.family: root.mono; font.pixelSize: 10 }
                             }
                         }
                     }
@@ -284,7 +391,7 @@ PanelWindow {
                 UiText {
                     visible: btPanel.btOn && btPanel.devices.length === 0
                     width: parent.width; horizontalAlignment: Text.AlignHCenter
-                    text: btPanel.scanning ? "Searching…" : "No devices — tap Scan"
+                    text: btPanel.scanning ? "Searching…" : "No devices, tap Scan"
                     color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.3)
                     font.family: root.mono; font.pixelSize: 11
                     topPadding: 2; bottomPadding: 2

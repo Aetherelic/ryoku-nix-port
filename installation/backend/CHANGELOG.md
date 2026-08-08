@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- New users join the `video` and `input` groups (`lib/chroot.sh`): `video` for
+  backlight write access, `input` for game controllers.
+- `lib/drivers.sh` runs `ryoku-hw-backlight-fix` after the GPU drivers (the ASUS
+  AMD+NVIDIA backlight param) and logs a loud warning when a driver install fails
+  instead of failing silently.
 - In-installer carve (resize). `probe resize <disk>` reports, per partition, what
   it can give up (min size, used, shrinkable + reason) for NTFS, ext4, and btrfs;
   `lib/resize.sh` then shrinks the chosen partition (filesystem first, table
