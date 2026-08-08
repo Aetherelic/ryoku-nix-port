@@ -1819,6 +1819,19 @@ Item {
         var cur = Config.qsbar || ({})
         var q = ({})
         for (var k in cur) q[k] = cur[k]
+        // Mirror EVERY key applyStudioSettings() applies, from the LIVE
+        // properties, so Config.qsbar always equals the live state. Persisting
+        // only `widgets` let applyStudioSettings re-apply a stale Config value
+        // over an unpersisted control-center change on the next qsbar change or
+        // reload (the reset). Keep this in lockstep with applyStudioSettings.
+        q.barColor = barColor
+        q.barAnim = barAnim
+        q.barPosition = barPosition
+        q.workspaceMode = workspaceMode
+        q.workspaceStyle = workspaceStyle
+        q.pickerStyle = pickerStyle
+        q.launcherLogoMode = launcherLogoMode
+        q.aiTool = aiTool
         q.widgets = {
             "status": modStatus, "memory": modMemory, "cpu": modCpu, "volume": modVolume,
             "weather": modWeather, "network": modNetwork, "brightness": modBrightness,
