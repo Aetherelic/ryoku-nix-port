@@ -29,6 +29,11 @@
   `shell.json` keys without touching preserved sidebar state.
 
 ### Fixed
+- **The screen's colours are restored after a recording.** gpu-screen-recorder's
+  KMS capture leaves Hyprland's colour management in CM space, washing the whole
+  desktop out until the output is reconfigured (Hyprland #11284, #9286). Stopping
+  a recording now waits for the recorder to release the capture, then reloads
+  Hyprland to reset the screen (`hyprland/scripts/ryoku-cmd-screenrecord`).
 - **Steam Big Picture and launched games render native and stay awake.** Steam is
   an XWayland app, so Big Picture and the client (class `steam`), launched games
   (`steam_app_*`) and `gamescope` inherited the desktop blur and shadow (per-frame
