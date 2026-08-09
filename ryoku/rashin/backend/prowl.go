@@ -67,6 +67,30 @@ func prowlRepo() string {
 	return ""
 }
 
+// prowlMCPServers exposes prowl-agent's code intelligence to the hermes session
+// as an MCP server, but only when prowl and an indexed Ryoku checkout are both
+// present (otherwise the session opens with no extra servers, as before). The
+// server runs in the repo so it finds the .prowl index; the agent then gets
+// find_symbol, find_references, blast_radius and the rest over MCP.
+func prowlMCPServers() []any {
+	bin, ok := findProwl()
+	repo := prowlRepo()
+	if !ok || repo == "" {
+		return []any{}
+	}
+	return []any{map[string]any{
+		"name":    "prowl",
+		"command": "sh",
+		"args": []any{"-c",
+			"cd " + shQuote(repo) + " && exec " + shQuote(bin) + " serve --mcp-surface core"},
+		"env": []any{},
+	}}
+}
+
+func shQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 func prowlExec(repo string, timeout time.Duration, args ...string) ([]byte, error) {
 	bin, ok := findProwl()
 	if !ok {

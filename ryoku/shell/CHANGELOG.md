@@ -15,6 +15,12 @@
   closing and reopening the sidebar keeps the thread; a fresh chat starts only
   after the sidebar has been away ten minutes (`modules/bar/panel/PanelChat.qml`,
   `services/Needle.qml`, `rashin/backend/chatcli.go`).
+- **The needle can query the Ryoku code index mid-chat.** When prowl-agent and
+  an indexed checkout are both present, the hermes session starts with
+  prowl-agent wired in as an MCP server, so the agent answers "where is X
+  defined", "what calls Y", or "what is the blast radius of Z" with cited
+  results from the index instead of guessing. Absent prowl, the session opens
+  unchanged (`rashin/backend/acp.go`, `rashin/backend/prowl.go`).
 
 ### Fixed
 - **Chat image upload no longer fails on all but the tiniest images.** The chat

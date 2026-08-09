@@ -206,7 +206,7 @@ func (c *acpConn) Initialize(vault string) error {
 	if err != nil {
 		return err
 	}
-	return c.openSession("session/new", map[string]any{"cwd": vault, "mcpServers": []any{}})
+	return c.openSession("session/new", map[string]any{"cwd": vault, "mcpServers": prowlMCPServers()})
 }
 
 // openSession issues new/load and installs the returned session id.
@@ -228,7 +228,7 @@ func (c *acpConn) openSession(method string, params map[string]any) error {
 
 // NewSession abandons the current session for a fresh one in the vault.
 func (c *acpConn) NewSession() error {
-	return c.openSession("session/new", map[string]any{"cwd": c.vault, "mcpServers": []any{}})
+	return c.openSession("session/new", map[string]any{"cwd": c.vault, "mcpServers": prowlMCPServers()})
 }
 
 // LoadSession switches to a stored session; hermes replays its transcript as
@@ -236,7 +236,7 @@ func (c *acpConn) NewSession() error {
 func (c *acpConn) LoadSession(id string) error {
 	c.emit(AcpEvent{Type: "replay_start"})
 	err := c.openSession("session/load", map[string]any{
-		"sessionId": id, "cwd": c.vault, "mcpServers": []any{},
+		"sessionId": id, "cwd": c.vault, "mcpServers": prowlMCPServers(),
 	})
 	c.emit(AcpEvent{Type: "replay_end"})
 	return err
