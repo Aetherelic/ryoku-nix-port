@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **A corrupt shell.json no longer wipes qsbar and the other look knobs.** The
+  daemon reduced an existing-but-unparseable shell.json to defaults with no
+  passthrough keys, then persisted that over the file on the next patch, so a
+  transient or torn read (e.g. around an update) could permanently drop the bar
+  style the user had. It now retries the read and backs the file up to
+  `shell.json.corrupt` before falling back to defaults (`ipc/settings.go`).
 - **qsbar Bar Studio settings survive a shell reload.** A control-center change
   wrote the local widget cache, but `applyStudioSettings` re-applies `Config.qsbar`
   over the live state on every reload and every qsbar change, while the persist

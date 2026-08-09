@@ -570,3 +570,26 @@ func TestPatchRejectsMalformedConcurrentWriter(t *testing.T) {
 		t.Fatalf("last-good settings changed: %#v", store.raw)
 	}
 }
+
+// TestLoadCorruptFileIsBackedUp: an existing but unparseable shell.json is
+// preserved to <path>.corrupt instead of being silently reduced to defaults, so
+// a transient or corrupt read never destroys the user's passthrough keys (qsbar
+// and the other native look knobs) unrecoverably.
+func TestLoadCorruptFileIsBackedUp(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "shell.json")
+	junk := []byte(`{"barStyle":"qsbar","qsbar":{"barShellStyle":"full"}`) // truncated: unparseable
+	if err := os.WriteFile(path, junk, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	raw, _, _ := loadSettingsFile(path)
+	if _, ok := raw["qsbar"]; ok {
+		t.Fatalf("unparseable file should fall back to defaults (no qsbar), got %v", raw)
+	}
+	b, err := os.ReadFile(path + ".corrupt")
+	if err != nil {
+		t.Fatalf("corrupt file was not backed up: %v", err)
+	}
+	if !reflect.DeepEqual(b, junk) {
+		t.Fatalf(".corrupt backup does not match the original bytes")
+	}
+}

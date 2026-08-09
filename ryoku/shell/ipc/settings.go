@@ -695,9 +695,10 @@ func newSettingsStore(path string) *settingsStore {
 	return s
 }
 
-// loadSettingsFile reads the file into the in-memory pair. A missing or wholly
-// unparseable file yields defaults with no passthrough keys (first-load
-// fallback). A parseable file whose schema portion does not validate keeps its
+// loadSettingsFile reads the file into the in-memory pair. A missing file yields
+// defaults; an existing file that will not parse is retried, then backed up to
+// <path>.corrupt before falling back to defaults, so a transient or corrupt read
+// never silently drops the passthrough keys. A parseable file whose schema portion does not validate keeps its
 // passthrough keys but resets the schema to defaults, rather than discarding the
 // native look knobs over a bad enum.
 func loadSettingsFile(path string) (map[string]any, *settings, time.Time) {
@@ -711,7 +712,20 @@ func loadSettingsFile(path string) (map[string]any, *settings, time.Time) {
 		mtime = fi.ModTime()
 	}
 	var raw map[string]any
-	if json.Unmarshal(b, &raw) != nil || raw == nil {
+	parsed := json.Unmarshal(b, &raw) == nil && raw != nil
+	// never reduce an existing file to defaults over a transient/corrupt read:
+	// that drops qsbar and the other passthrough knobs on the next patch.
+	for i := 0; !parsed && i < 3; i++ {
+		time.Sleep(50 * time.Millisecond)
+		if b2, e := os.ReadFile(path); e == nil {
+			b = b2
+			parsed = json.Unmarshal(b, &raw) == nil && raw != nil
+		}
+	}
+	if !parsed {
+		if len(b) > 0 {
+			_ = os.WriteFile(path+".corrupt", b, 0o644)
+		}
 		return settingsToMap(def), def, mtime
 	}
 	cur, err := buildSettings(raw, false)
