@@ -136,6 +136,18 @@ func RunSetup() error {
 	if err := cmdEnable(false); err != nil {
 		return err
 	}
+	// Verify the chat backend: a working hermes CLI does not guarantee the ACP
+	// adapter's deps are present, and the dashboard, sidebar, and terminal chat
+	// all drive `hermes acp`. Checking here surfaces a "settings say OK but the
+	// chat will not start" gap at setup instead of as a dead chat later.
+	if hermesBin != "" {
+		reportPhase("verify", "checking the chat backend (hermes acp)", true)
+		if err := exec.Command(hermesBin, "acp", "--check").Run(); err != nil {
+			reportPhase("verify", "chat backend not ready; run 'hermes acp --check' for details", false)
+		} else {
+			reportPhase("verify", "chat backend ready", true)
+		}
+	}
 	cfg := LoadConfig()
 	url := fmt.Sprintf("http://127.0.0.1:%d", cfg.Port)
 	reportPhase("done", "dashboard at "+url, true)

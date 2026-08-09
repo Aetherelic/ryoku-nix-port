@@ -21,6 +21,11 @@
   (`hyprland/modules/displays.lua`).
 
 ### Added
+- **Setup verifies the chat backend before declaring success.** After enabling
+  the daemon, `ryoku-rashin setup` runs `hermes acp --check` and reports whether
+  the chat will actually start, so a working hermes CLI that still cannot run
+  the ACP adapter surfaces at setup instead of as a silently dead chat later
+  (`rashin/backend/setup.go`).
 - **Super+Shift+A restarts audio.** Runs `ryoku-restart-audio` to recover sound
   when it does not come back after an update (`hyprland/modules/binds.lua`).
 
