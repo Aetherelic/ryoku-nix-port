@@ -610,29 +610,50 @@ Item {
                             }
                         }
                     }
+                    // agent answer actions: regenerate + copy the whole answer
+                    Row {
+                        visible: !msg.isUser && !msg.streaming && msg.body.length > 0
+                        spacing: 2 * root.s
+                        Repeater {
+                            model: [ { icon: "refresh", label: "RETRY" }, { icon: "content_copy", label: "COPY" } ]
+                            delegate: Rectangle {
+                                id: actBtn
+                                required property var modelData
+                                height: 20 * root.s
+                                width: actRow.implicitWidth + 12 * root.s
+                                radius: 5 * root.s
+                                color: abArea.containsMouse ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.12) : "transparent"
+                                Row {
+                                    id: actRow
+                                    anchors.centerIn: parent
+                                    spacing: 3 * root.s
+                                    MaterialIcon {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: actBtn.modelData.icon
+                                        font.pixelSize: 11 * root.s
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: actBtn.modelData.label
+                                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                        font.family: Theme.mono
+                                        font.pixelSize: 7.5 * root.s
+                                        font.letterSpacing: 0.8
+                                    }
+                                }
+                                MouseArea {
+                                    id: abArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: actBtn.modelData.label === "RETRY" ? Needle.regenerate() : Needle.copyText(msg.body)
+                                }
+                            }
+                        }
+                    }
                 }
 
-                // copy affordance (agent answers)
-                MaterialIcon {
-                    visible: !msg.isUser && !msg.streaming && msg.body.length > 0 && copyArea.containsMouse
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.margins: 6 * root.s
-                    font.pixelSize: 13 * root.s
-                    text: "content_copy"
-                    color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
-                }
-                MouseArea {
-                    id: copyArea
-                    visible: !msg.isUser && !msg.streaming && msg.body.length > 0
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    width: 26 * root.s
-                    height: 26 * root.s
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Needle.copyText(msg.body)
-                }
             }
         }
     }

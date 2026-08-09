@@ -57,12 +57,36 @@ Singleton {
             return;
         messages.append({ who: "user", body: q, imagesJson: JSON.stringify(imgs),
             working: "", streaming: false, failed: false });
+        root._run(q, imgs);
+    }
+
+    // Re-run the last question, replacing its answer (regenerate / retry).
+    function regenerate() {
+        if (root.busy || messages.count < 2)
+            return;
+        var lastIdx = messages.count - 1;
+        if (messages.get(lastIdx).who !== "agent")
+            return;
+        var uIdx = -1;
+        for (var i = lastIdx - 1; i >= 0; i--) {
+            if (messages.get(i).who === "user") { uIdx = i; break; }
+        }
+        if (uIdx < 0)
+            return;
+        var u = messages.get(uIdx);
+        var imgs = [];
+        try { imgs = JSON.parse(u.imagesJson) || []; } catch (e) {}
+        messages.remove(lastIdx);
+        root._run(String(u.body), imgs);
+    }
+
+    // Append the agent bubble and start the turn (shared by send + regenerate).
+    function _run(q, imgs) {
         messages.append({ who: "agent", body: "", imagesJson: "[]",
             working: "waking the needle", streaming: true, failed: false });
         root.liveIdx = messages.count - 1;
         root.busy = true;
         root.lastSeen = Date.now();
-
         var cmd = ["ryoku-rashin", "chat"];
         for (var i = 0; i < imgs.length; i++) {
             cmd.push("--image");
