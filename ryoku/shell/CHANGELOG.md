@@ -4,14 +4,16 @@
 
 ### Added
 - **A chat with the Rashin agent lives in the Super+S sidebar.** A new Chat tab
-  (the default) in the feature sidebar holds a scrolling conversation with the
-  `ryoku-rashin` agent: ask a question, watch the step it is on, then read the
-  Markdown answer (selectable, copyable, with produced images inline). The input
-  grows with the text and sends on Enter, Shift+Enter for a newline. The
-  conversation and any in-flight answer live in a `Needle` singleton, so closing
-  and reopening the sidebar keeps the thread; a fresh chat starts only after the
-  sidebar has been away ten minutes (`modules/bar/panel/PanelChat.qml`,
-  `services/Needle.qml`).
+  (the default) in the feature sidebar holds a multi-turn conversation with the
+  `ryoku-rashin` agent: the answer streams in as it is written and renders as
+  Markdown (selectable, copyable, with produced images inline). The input grows
+  with the text and sends on Enter, Shift+Enter for a newline. A new
+  `ryoku-rashin chat` command bridges the daemon's shared hermes session over a
+  line protocol, so follow-ups keep context and New Chat (`chat --new`) forgets
+  it. The conversation and any in-flight answer live in a `Needle` singleton, so
+  closing and reopening the sidebar keeps the thread; a fresh chat starts only
+  after the sidebar has been away ten minutes (`modules/bar/panel/PanelChat.qml`,
+  `services/Needle.qml`, `rashin/backend/chatcli.go`).
 
 ### Fixed
 - **A corrupt shell.json no longer wipes qsbar and the other look knobs.** The

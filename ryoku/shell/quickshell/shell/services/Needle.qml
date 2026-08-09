@@ -8,9 +8,12 @@ import Quickshell.Io
 // lives in a singleton, not the sidebar body, so the conversation and any
 // in-flight answer survive the sidebar closing and reopening (the body is torn
 // down every close). A fresh chat starts only when the sidebar has been away
-// longer than idleResetMs; a quick close/reopen keeps the thread. The ask
-// Process also lives here, so a long answer keeps streaming into the
-// transcript even while the sidebar is shut.
+// longer than idleResetMs; a quick close/reopen keeps the thread.
+//
+// The turn runs `ryoku-rashin chat`, which bridges the daemon's shared hermes
+// ACP session over a JSONL line protocol: {type:working|delta|perm|done|error}.
+// Because it is the one shared session, the conversation is multi-turn and the
+// answer streams in as it is written.
 Singleton {
     id: root
 
@@ -27,52 +30,63 @@ Singleton {
     // Emitted whenever the transcript changes so the view can scroll to end.
     signal touched()
 
-    // Called by the sidebar body when it mounts. Resets to a new chat only if
-    // the sidebar has been away past the idle window and nothing is streaming.
     function noteOpened() {
         if (!busy && messages.count > 0 && lastSeen > 0 && (Date.now() - lastSeen) > root.idleResetMs)
             root.newChat();
         root.lastSeen = Date.now();
     }
 
-    // Called by the body on teardown (close or tab switch); starts the idle clock.
     function noteClosed() {
         root.lastSeen = Date.now();
     }
 
+    // A new chat clears the transcript AND resets the hermes session, so the
+    // next turn starts with no memory of the last one.
     function newChat() {
         if (root.busy)
             root.cancel();
+        Quickshell.execDetached(["ryoku-rashin", "chat", "--new"]);
         messages.clear();
         root.liveIdx = -1;
         root.lastSeen = Date.now();
         root.touched();
     }
 
-    function send(text) {
+    function send(text, imagePaths) {
         var q = String(text).trim();
-        if (q.length === 0 || root.busy)
+        var imgs = imagePaths || [];
+        if ((q.length === 0 && imgs.length === 0) || root.busy)
             return;
-        messages.append({ who: "user", body: q, imagesJson: "[]",
+        messages.append({ who: "user", body: q, imagesJson: JSON.stringify(imgs),
             working: "", streaming: false, failed: false });
         messages.append({ who: "agent", body: "", imagesJson: "[]",
             working: "waking the needle", streaming: true, failed: false });
         root.liveIdx = messages.count - 1;
         root.busy = true;
         root.lastSeen = Date.now();
-        askProc.command = ["ryoku-rashin", "ask", q];
-        askProc.running = true;
+
+        var cmd = ["ryoku-rashin", "chat"];
+        for (var i = 0; i < imgs.length; i++) {
+            cmd.push("--image");
+            cmd.push(String(imgs[i]));
+        }
+        if (q.length > 0)
+            cmd.push(q);
+        chatProc.command = cmd;
+        chatProc.running = true;
         root.touched();
     }
 
     function cancel() {
-        askProc.running = false;
-        Quickshell.execDetached(["ryoku-rashin", "ask", "--cancel"]);
+        chatProc.running = false;
+        Quickshell.execDetached(["ryoku-rashin", "chat", "--cancel"]);
         if (root.liveIdx >= 0 && root.liveIdx < messages.count && messages.get(root.liveIdx).streaming) {
             messages.setProperty(root.liveIdx, "working", "");
             messages.setProperty(root.liveIdx, "streaming", false);
-            messages.setProperty(root.liveIdx, "failed", true);
-            messages.setProperty(root.liveIdx, "body", "cancelled");
+            if (messages.get(root.liveIdx).body.length === 0) {
+                messages.setProperty(root.liveIdx, "failed", true);
+                messages.setProperty(root.liveIdx, "body", "cancelled");
+            }
         }
         root.busy = false;
         root.liveIdx = -1;
@@ -90,35 +104,60 @@ Singleton {
     ListModel { id: messages }
 
     Process {
-        id: askProc
+        id: chatProc
         stdout: SplitParser {
+            splitMarker: "\n"
             onRead: (line) => {
                 if (root.liveIdx < 0 || root.liveIdx >= messages.count)
                     return;
                 var i = root.liveIdx;
-                line = String(line);
-                if (line.indexOf("@working ") === 0) {
-                    messages.setProperty(i, "working", line.slice(9));
-                } else if (line.indexOf("@perm ") === 0) {
-                    messages.setProperty(i, "working", "waiting for approval: " + line.slice(6));
-                } else if (line.indexOf("@answer ") === 0) {
-                    try {
-                        var a = JSON.parse(line.slice(8));
-                        messages.setProperty(i, "body", String(a.text || ""));
-                        messages.setProperty(i, "imagesJson", JSON.stringify(a.images || []));
+                var f;
+                try {
+                    f = JSON.parse(String(line));
+                } catch (e) {
+                    return;
+                }
+                if (!f || !f.type)
+                    return;
+                switch (f.type) {
+                case "working":
+                    messages.setProperty(i, "working", String(f.label || ""));
+                    break;
+                case "delta":
+                    messages.setProperty(i, "body", messages.get(i).body + String(f.text || ""));
+                    if (messages.get(i).working.length > 0)
                         messages.setProperty(i, "working", "");
-                        messages.setProperty(i, "streaming", false);
-                    } catch (e) {
-                        messages.setProperty(i, "body", "unreadable answer");
+                    root.touched();
+                    break;
+                case "perm":
+                    messages.setProperty(i, "working", "waiting for approval: " + String(f.title || ""));
+                    break;
+                case "done":
+                    var imgs = f.images || [];
+                    if (imgs.length > 0)
+                        messages.setProperty(i, "imagesJson", JSON.stringify(imgs));
+                    if (messages.get(i).body.length === 0 && imgs.length === 0) {
+                        messages.setProperty(i, "body", "(no response)");
                         messages.setProperty(i, "failed", true);
-                        messages.setProperty(i, "streaming", false);
                     }
+                    messages.setProperty(i, "working", "");
+                    messages.setProperty(i, "streaming", false);
+                    root.busy = false;
+                    root.liveIdx = -1;
                     root.lastSeen = Date.now();
                     root.touched();
-                } else if (line.indexOf("@error ") === 0) {
-                    messages.setProperty(i, "body", line.slice(7));
+                    break;
+                case "error":
+                    if (messages.get(i).body.length === 0)
+                        messages.setProperty(i, "body", String(f.message || "failed"));
                     messages.setProperty(i, "failed", true);
+                    messages.setProperty(i, "working", "");
                     messages.setProperty(i, "streaming", false);
+                    root.busy = false;
+                    root.liveIdx = -1;
+                    root.lastSeen = Date.now();
+                    root.touched();
+                    break;
                 }
             }
         }
@@ -126,8 +165,10 @@ Singleton {
             if (root.liveIdx >= 0 && root.liveIdx < messages.count && messages.get(root.liveIdx).streaming) {
                 messages.setProperty(root.liveIdx, "working", "");
                 messages.setProperty(root.liveIdx, "streaming", false);
-                messages.setProperty(root.liveIdx, "failed", true);
-                messages.setProperty(root.liveIdx, "body", code === 0 ? "no answer" : "ask failed");
+                if (messages.get(root.liveIdx).body.length === 0) {
+                    messages.setProperty(root.liveIdx, "failed", true);
+                    messages.setProperty(root.liveIdx, "body", code === 0 ? "no answer" : "chat failed");
+                }
             }
             root.busy = false;
             root.liveIdx = -1;

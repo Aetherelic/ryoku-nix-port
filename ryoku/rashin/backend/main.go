@@ -51,6 +51,8 @@ func main() {
 		err = cmdRepoIndex(argOr(2, ""), argOr(3, ""))
 	case "ask":
 		err = cmdAsk(strings.Join(os.Args[2:], " "))
+	case "chat":
+		err = cmdChat(os.Args[2:])
 	case "term":
 		err = cmdTerm(os.Args[2:])
 	case "setup":
