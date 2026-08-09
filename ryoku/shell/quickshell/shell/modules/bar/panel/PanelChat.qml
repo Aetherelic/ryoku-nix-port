@@ -352,6 +352,7 @@ Item {
             required property string working
             required property bool streaming
             required property bool failed
+            required property string activityJson
 
             width: ListView.view ? ListView.view.width : 0
             spacing: 5 * root.s
@@ -414,6 +415,87 @@ Item {
                             color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                             font.family: Theme.fontPrimary
                             font.pixelSize: 11 * root.s
+                        }
+                    }
+
+                    // live activity: the tools the agent runs and its reasoning
+                    Column {
+                        id: activityCol
+                        width: parent.width
+                        spacing: 3 * root.s
+                        visible: !msg.isUser && actRepeater.count > 0
+                        Repeater {
+                            id: actRepeater
+                            model: {
+                                try { return JSON.parse(msg.activityJson) || []; }
+                                catch (e) { return []; }
+                            }
+                            delegate: Item {
+                                id: actRow
+                                required property var modelData
+                                width: activityCol.width
+                                height: Math.max(actIcon.implicitHeight, actText.implicitHeight)
+                                readonly property bool isTool: actRow.modelData.k === "tool"
+                                readonly property bool running: actRow.isTool && actRow.modelData.status !== "completed" && actRow.modelData.status !== "failed"
+                                readonly property bool failedTool: actRow.isTool && actRow.modelData.status === "failed"
+                                readonly property string kindIcon: {
+                                    if (!actRow.isTool)
+                                        return "psychology";
+                                    switch (actRow.modelData.kind) {
+                                    case "read": return "description";
+                                    case "edit": return "edit_note";
+                                    case "execute": return "terminal";
+                                    case "search": return "search";
+                                    case "fetch": return "public";
+                                    case "delete": return "delete";
+                                    case "move": return "drive_file_move";
+                                    case "think": return "psychology";
+                                    default: return "build";
+                                    }
+                                }
+                                MaterialIcon {
+                                    id: actIcon
+                                    anchors.left: parent.left
+                                    anchors.top: parent.top
+                                    font.pixelSize: 12 * root.s
+                                    text: actRow.kindIcon
+                                    color: actRow.failedTool ? Theme.vermLit
+                                        : actRow.isTool ? Theme.primary
+                                        : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                    opacity: actRow.isTool ? 0.95 : 0.7
+                                }
+                                MaterialIcon {
+                                    id: actStatus
+                                    visible: actRow.isTool
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    font.pixelSize: 12 * root.s
+                                    text: actRow.running ? "pending" : actRow.failedTool ? "error" : "check"
+                                    color: actRow.failedTool ? Theme.vermLit : Theme.primary
+                                    opacity: actRow.running ? 0.5 : 0.85
+                                }
+                                Text {
+                                    id: actText
+                                    anchors.left: actIcon.right
+                                    anchors.leftMargin: 6 * root.s
+                                    anchors.right: actRow.isTool ? actStatus.left : parent.right
+                                    anchors.rightMargin: 6 * root.s
+                                    anchors.top: parent.top
+                                    text: actRow.isTool
+                                        ? ((actRow.modelData.title && actRow.modelData.title.length) ? actRow.modelData.title : (actRow.modelData.kind || "tool"))
+                                        : (actRow.modelData.text || "")
+                                    wrapMode: Text.Wrap
+                                    maximumLineCount: actRow.isTool ? 1 : 3
+                                    elide: Text.ElideRight
+                                    textFormat: actRow.isTool ? Text.PlainText : Text.MarkdownText
+                                    color: actRow.isTool ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                                        : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                    font.family: actRow.isTool ? Theme.mono : Theme.fontPrimary
+                                    font.pixelSize: 10.5 * root.s
+                                    font.italic: !actRow.isTool
+                                    opacity: actRow.isTool ? 0.92 : 0.66
+                                }
+                            }
                         }
                     }
 
@@ -620,11 +702,11 @@ Item {
                                 id: actBtn
                                 required property var modelData
                                 height: 20 * root.s
-                                width: actRow.implicitWidth + 12 * root.s
+                                width: actBtnRow.implicitWidth + 12 * root.s
                                 radius: 5 * root.s
                                 color: abArea.containsMouse ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.12) : "transparent"
                                 Row {
-                                    id: actRow
+                                    id: actBtnRow
                                     anchors.centerIn: parent
                                     spacing: 3 * root.s
                                     MaterialIcon {

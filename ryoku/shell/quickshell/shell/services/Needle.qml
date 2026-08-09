@@ -56,7 +56,7 @@ Singleton {
         if ((q.length === 0 && imgs.length === 0) || root.busy)
             return;
         messages.append({ who: "user", body: q, imagesJson: JSON.stringify(imgs),
-            working: "", streaming: false, failed: false });
+            working: "", streaming: false, failed: false, activityJson: "[]" });
         root._run(q, imgs);
     }
 
@@ -83,7 +83,7 @@ Singleton {
     // Append the agent bubble and start the turn (shared by send + regenerate).
     function _run(q, imgs) {
         messages.append({ who: "agent", body: "", imagesJson: "[]",
-            working: "waking the needle", streaming: true, failed: false });
+            working: "waking the needle", streaming: true, failed: false, activityJson: "[]" });
         root.liveIdx = messages.count - 1;
         root.busy = true;
         root.lastSeen = Date.now();
@@ -132,6 +132,43 @@ Singleton {
         Quickshell.execDetached(["ryoku-rashin", "chat", "--set-model", String(id)]);
     }
 
+    // Append or update (tools are keyed by id) an activity item on message i.
+    function _pushActivity(i, item) {
+        var arr = [];
+        try { arr = JSON.parse(messages.get(i).activityJson) || []; } catch (e) { arr = []; }
+        if (item.k === "tool" && item.id.length > 0) {
+            for (var j = 0; j < arr.length; j++) {
+                if (arr[j].k === "tool" && arr[j].id === item.id) {
+                    arr[j] = item;
+                    messages.setProperty(i, "activityJson", JSON.stringify(arr));
+                    return;
+                }
+            }
+        }
+        if (item.k === "thought" && arr.length > 0 && arr[arr.length - 1].k === "thought") {
+            arr[arr.length - 1].text += item.text;
+            messages.setProperty(i, "activityJson", JSON.stringify(arr));
+            return;
+        }
+        arr.push(item);
+        messages.setProperty(i, "activityJson", JSON.stringify(arr));
+    }
+
+    // A finished turn: any tool still pending really did complete.
+    function _finishActivity(i) {
+        var arr = [];
+        try { arr = JSON.parse(messages.get(i).activityJson) || []; } catch (e) { return; }
+        var changed = false;
+        for (var j = 0; j < arr.length; j++) {
+            if (arr[j].k === "tool" && arr[j].status !== "completed" && arr[j].status !== "failed") {
+                arr[j].status = "completed";
+                changed = true;
+            }
+        }
+        if (changed)
+            messages.setProperty(i, "activityJson", JSON.stringify(arr));
+    }
+
     ListModel { id: messages }
 
     Process {
@@ -153,6 +190,18 @@ Singleton {
                 switch (f.type) {
                 case "working":
                     messages.setProperty(i, "working", String(f.label || ""));
+                    break;
+                case "thought":
+                    root._pushActivity(i, { k: "thought", text: String(f.text || "") });
+                    if (messages.get(i).working.length > 0)
+                        messages.setProperty(i, "working", "");
+                    root.touched();
+                    break;
+                case "tool":
+                    root._pushActivity(i, { k: "tool", id: String(f.id || ""), title: String(f.title || ""), kind: String(f.kind || ""), status: String(f.status || "") });
+                    if (messages.get(i).working.length > 0)
+                        messages.setProperty(i, "working", "");
+                    root.touched();
                     break;
                 case "delta":
                     messages.setProperty(i, "body", messages.get(i).body + String(f.text || ""));
@@ -176,6 +225,7 @@ Singleton {
                         messages.setProperty(i, "body", "(no response)");
                         messages.setProperty(i, "failed", true);
                     }
+                    root._finishActivity(i);
                     messages.setProperty(i, "working", "");
                     messages.setProperty(i, "streaming", false);
                     root.busy = false;

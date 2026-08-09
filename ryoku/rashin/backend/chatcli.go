@@ -200,11 +200,11 @@ func cmdChat(args []string) error {
 				}
 			}
 		case "agent_thought":
-			emitChat(map[string]any{"type": "working", "label": "thinking"})
-		case "tool":
-			if m.Title != "" && m.Status != "completed" && m.Status != "failed" {
-				emitChat(map[string]any{"type": "working", "label": m.Title})
+			if m.Text != "" {
+				emitChat(map[string]any{"type": "thought", "text": m.Text})
 			}
+		case "tool":
+			emitChat(map[string]any{"type": "tool", "id": m.ID, "title": m.Title, "kind": m.Kind, "status": m.Status})
 		case "agent_text":
 			busy = true
 			full.WriteString(m.Text)

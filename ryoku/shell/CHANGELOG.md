@@ -16,6 +16,13 @@
   closing and reopening the sidebar keeps the thread; a fresh chat starts only
   after the sidebar has been away ten minutes (`modules/bar/panel/PanelChat.qml`,
   `services/Needle.qml`, `rashin/backend/chatcli.go`).
+- **The chat shows the agent working.** While the needle answers, a live
+  activity log streams above the text: every tool the agent runs (read, search,
+  edit, run a command, ...) as an icon and title with a status that flips to a
+  check when it finishes, and the agent's reasoning as it thinks. Each finished
+  answer also carries a RETRY (re-ask in place) and COPY row
+  (`rashin/backend/chatcli.go`, `services/Needle.qml`,
+  `modules/bar/panel/PanelChat.qml`).
 - **The needle can query the Ryoku code index mid-chat.** When prowl-agent and
   an indexed checkout are both present, the hermes session starts with
   prowl-agent wired in as an MCP server, so the agent answers "where is X
