@@ -151,7 +151,7 @@ func nvidiaDriverActive() bool {
 // run -- is unit-testable.
 func nvidiaConfigOK(modprobe, mkinit string) bool {
 	return strings.Contains(modprobe, "blacklist nouveau") &&
-		strings.Contains(modprobe, "nvidia_drm modeset=1") &&
+		strings.Contains(modprobe, "nvidia_drm modeset=1 fbdev=1") &&
 		strings.Contains(mkinit, "nvidia_drm")
 }
 
@@ -201,10 +201,10 @@ func reconcileNvidiaModeset(checkOnly bool) recResult {
 	mkinit := readFileSafe("/etc/mkinitcpio.conf.d/nvidia.conf")
 	ok := nvidiaConfigOK(modprobe, mkinit)
 	if ok {
-		return okRes("NVIDIA modeset + nouveau blacklist in place")
+		return okRes("NVIDIA modeset + fbdev + nouveau blacklist in place")
 	}
 	if checkOnly {
-		return wouldRes("NVIDIA driver in use but nouveau is not blacklisted / DRM modeset not set; the GPU can fail to come up on some boots").
+		return wouldRes("NVIDIA driver in use but nouveau is not blacklisted / DRM modeset + fbdev not set; the GPU or an external display can fail to come up on some boots").
 			withFix("ryoku doctor  (writes /etc/modprobe.d/nvidia.conf and rebuilds the initramfs)")
 	}
 	if err := writeRootFile("/etc/modprobe.d/nvidia.conf", nvidiaModprobeConf, "0644"); err != nil {

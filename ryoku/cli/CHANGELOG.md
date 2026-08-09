@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **`ryoku doctor` heals an NVIDIA box left without `fbdev=1`.** The config check
+  passed on any drop-in containing `nvidia_drm modeset=1`, so an install that had
+  modeset but not `fbdev=1` never got it added, and external displays could come
+  up wrong or not at all. The check now requires `modeset=1 fbdev=1`, so doctor
+  rewrites the drop-in and rebuilds the initramfs
+  (`internal/doctor/reconcile_hardware.go`).
 - **`ryoku track` no longer leaves a box measuring against the wrong channel.**
   `ryoku status`/`update` read the channel from the live `RYOKU_CHANNEL`, which
   `ryoku track` writes to `environment.d` (loaded only at the next login), so a

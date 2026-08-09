@@ -13,6 +13,7 @@ func TestNvidiaConfigOK(t *testing.T) {
 	}{
 		{"canonical config the reconciler writes", nvidiaModprobeConf, nvidiaMkinitcpioConf, true},
 		{"old install: modeset only, no nouveau blacklist", "options nvidia_drm modeset=1 fbdev=1\n", nvidiaMkinitcpioConf, false},
+		{"old install: modeset without fbdev heals", "options nvidia_drm modeset=1\nblacklist nouveau\n", nvidiaMkinitcpioConf, false},
 		{"blacklisted but nvidia modules not in the initramfs", nvidiaModprobeConf, "", false},
 		{"both drop-ins missing (readFileSafe error strings)", "(open /etc/modprobe.d/nvidia.conf: no such file or directory)", "(open /etc/mkinitcpio.conf.d/nvidia.conf: no such file or directory)", false},
 	}
