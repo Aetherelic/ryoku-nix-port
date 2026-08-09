@@ -70,6 +70,14 @@
   `modules/bar/panel/PanelChat.qml`, `services/Needle.qml`).
 
 ### Fixed
+- **The sidebar chat no longer goes dark when KSyntaxHighlighting is absent.**
+  The code-block highlighter imported `org.kde.syntaxhighlighting` at the top
+  of the chat panel, so a machine without the `syntax-highlighting` module
+  failed the whole panel and the chat showed nothing. The highlighter now
+  loads through a `Loader` (`components/CodeHighlight.qml`); a missing module
+  degrades to plain, readable code blocks instead of a dead chat. The fix
+  reaches existing installs the moment `materialize` lays the updated QML, with
+  no package dependency required (`modules/bar/panel/PanelChat.qml`).
 - **Chat answers keep their line breaks.** Markdown collapses single newlines,
   so a line-structured reply (a `/tools` list, terse notes) rendered as one
   run-on paragraph. Both chat surfaces now preserve non-blank newlines as hard
@@ -88,6 +96,13 @@
   uses, so a collision lands as "name (1)" instead of being dropped; its stdin is
   tied to `/dev/null` so an ffmpeg merge can never stall on the inherited pipe
   (`hyprland/scripts/stash-cobalt.sh`).
+- **The Tools download queue detects a no-op and offers a retry.** A row only
+  reads "done" when the worker actually emits a saved file; a run that exits
+  cleanly without saving anything (a skipped duplicate, a picker that fetched
+  nothing) now shows a red failure with the reason instead of a false success.
+  Finished rows carry a dismiss (x); failed rows also carry a retry that re-runs
+  the same link in place, and the progress bar hides once a row settles
+  (`services/Stash.qml`, `modules/bar/panel/PanelTools.qml`).
 - **The dashboard chat recovers from a dead session instead of locking up.**
   If the hermes session dies, the composer stays usable and the banner reads
   "offline, send to reconnect"; the next message respawns the session. The
