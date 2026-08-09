@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+- **`ryoku track` no longer leaves a box measuring against the wrong channel.**
+  `ryoku status`/`update` read the channel from the live `RYOKU_CHANNEL`, which
+  `ryoku track` writes to `environment.d` (loaded only at the next login), so a
+  just-switched box measured against the default `main`: it showed updates that
+  never cleared, `update` no-oped, and it could redeploy a mismatched tree (the
+  `shell.qml: File not found` config load). They now fall back to the persisted
+  channel (new `sys.TrackedChannel`), and a new `reconcileUpdateChannel` doctor
+  step puts the update checkout back on the tracked branch, so status, update,
+  and the checkout agree without a relogin (`internal/updater/channel.go`,
+  `internal/sys/repo.go`, `internal/doctor/reconcile_channel.go`).
+
 ### Added
 - **Dropping a shipped WirePlumber config takes effect on update, not next login.**
   `materialize` now restarts `wireplumber.service` whenever a `wireplumber/`

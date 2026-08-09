@@ -34,3 +34,22 @@ func ResolveRepo() string {
 	}
 	return ""
 }
+
+// TrackedChannel is the update channel `ryoku track` recorded in
+// ~/.config/environment.d/ryoku.conf (a RYOKU_CHANNEL=<branch> line), or "" when
+// absent. environment.d is read into the session only at the next login, so the
+// live RYOKU_CHANNEL is unset on a just-switched box; reading the file keeps the
+// CLI on the tracked channel without waiting for a relogin.
+func TrackedChannel() string {
+	b, err := os.ReadFile(filepath.Join(ConfigHome(), "environment.d", "ryoku.conf"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "RYOKU_CHANNEL=") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "RYOKU_CHANNEL="))
+		}
+	}
+	return ""
+}

@@ -333,6 +333,7 @@ func TestChannelUpdateReconcilesDivergence(t *testing.T) {
 }
 
 func TestRyokuChannelDefaultAndOverride(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // no persisted environment.d channel, so default applies
 	t.Setenv("RYOKU_CHANNEL", "")
 	if got := ryokuChannel(); got != "main" {
 		t.Errorf("default channel = %q, want main", got)
@@ -591,5 +592,24 @@ func TestSyncChannelErrorsOnUntrackedCollision(t *testing.T) {
 
 	if err := syncChannel(work, "main"); err == nil {
 		t.Fatal("syncChannel: err=nil, want an error when an untracked file collides")
+	}
+}
+
+// A box just switched with `ryoku track` has RYOKU_CHANNEL in environment.d but
+// not yet in the live env (that waits for a relogin). ryokuChannel must read the
+// persisted value, else status/update measure against the default main and show
+// updates that never clear.
+func TestChannelUsesPersistedChannel(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	writeFile(t, filepath.Join(cfg, "environment.d", "ryoku.conf"), "RYOKU_CHANNEL=unstable-dev\n")
+
+	t.Setenv("RYOKU_CHANNEL", "") // live env unset, as before a relogin
+	if got := ryokuChannel(); got != "unstable-dev" {
+		t.Fatalf("persisted channel: got %q, want unstable-dev", got)
+	}
+	t.Setenv("RYOKU_CHANNEL", "main") // an explicit live env still wins
+	if got := ryokuChannel(); got != "main" {
+		t.Fatalf("env override: got %q, want main", got)
 	}
 }
