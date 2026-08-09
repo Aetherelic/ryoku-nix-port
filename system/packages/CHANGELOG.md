@@ -8,12 +8,16 @@
 - `base.packages`: add `alsa-utils` (`alsamixer`, `amixer`, `alsactl`) so a muted
   hardware codec can be inspected and unstuck by hand; omarchy ships them in its
   base set too.
+- `base.packages`: add `spotify-launcher` so Spotify ships by default. It installs
+  per-user (into `~/.local`, never root-owned `/opt`), so the music widget's
+  Spotify Canvas backdrop wires up with no root chmod; the client itself downloads
+  on first launch.
 - `aur.packages`: add `game-devices-udev` (PS4/PS5/DualSense/DualShock and Switch
   Pro udev rules + battery) and `xpadneo-dkms` (Xbox One/Series Bluetooth pads).
 - `aur.packages`: add `spicetify-cli`, the Spotify client patcher the desktop
   music widget's Spotify Canvas backdrop needs. `ryoku doctor` drops the bundled
-  `ryoku-canvas.js` extension into a Spotify user's spicetify Extensions and
-  applies it; inert for anyone without Spotify.
+  `ryoku-canvas.js` extension into the spicetified client and applies it, pointing
+  spicetify at the per-user `spotify-launcher` install.
 - `base.packages`: add `gnome-themes-extra`, the standalone `Adwaita-dark` GTK
   theme the Hyprland autostart selects (`gsettings gtk-theme`). Without it that
   name has nothing on disk, so GTK3 apps -- notably the `xdg-desktop-portal-gtk`

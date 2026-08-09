@@ -127,6 +127,11 @@ mpv-mpris
 nautilus
 # nautilus-python: runs the Ryoku stash actions in the file-manager right-click menu
 nautilus-python
+# spotify-launcher: Spotify from the official repo, installed per-user into
+# ~/.local (never root-owned /opt), so the desktop music widget's Spotify Canvas
+# backdrop works out of the box: `ryoku doctor` spicetifies the per-user client
+# with no root chmod. The client itself downloads on first launch.
+spotify-launcher
 
 # Virtual machines (Ryoku Settings > GPU > Machine): a windowed VM runs in QEMU
 # on the host GPU. edk2-ovmf is the UEFI firmware and virglrenderer the host-GL
