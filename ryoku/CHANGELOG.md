@@ -14,6 +14,11 @@
   shrinking the toplevel to nothing (invisible and click-dead) while `qs` kept
   the single-instance lock so reopening no-oped. The read now requires a positive
   size (`hub/quickshell/shell.qml`).
+- **Unplugging an external monitor no longer strands the remaining display.**
+  Hotplug handling only re-ran DPI autoscale on `monitor.added`; `monitor.removed`
+  now re-runs it too, so undocking re-lays out and re-scales the monitors that
+  stay instead of leaving one at the gone display's offset with a blank wallpaper
+  (`hyprland/modules/displays.lua`).
 
 ### Added
 - **Super+Shift+A restarts audio.** Runs `ryoku-restart-audio` to recover sound
@@ -29,6 +34,10 @@
   prompts on the same island the keyring prompt uses instead of the stock Qt
   agent's grey dialog, and `hyprpolkitagent` is no longer started
   (`hyprland/modules/env.lua`, `hyprland/modules/autostart.lua`).
+- **No raw "scale changed" popup when displays rescale.**
+  `misc.disable_scale_notification` is set, so a login/hotplug/undock rescale by
+  `ryoku-monitor` no longer flashes Hyprland's own toast over the shell's OSD
+  (`hyprland/modules/misc.lua`).
 
 ### Changed
 - **Super+W opens the wallpaper + theme menu bottom-centre; Super+C is freed.**

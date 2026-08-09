@@ -9,6 +9,10 @@ hl.config({
         -- wedges the session on a black screen that eats every key. with this,
         -- Hyprland accepts a fresh locker instead of stranding the session.
         allow_session_lock_restore = true,
+        -- ryoku-monitor changes scale live during autoscale (login, hotplug,
+        -- undock); suppress Hyprland's own "scale changed" popup so a rescale
+        -- does not flash a raw toast over the shell's OSD.
+        disable_scale_notification = true,
     },
     xwayland = {
         force_zero_scaling = true, -- XWayland (Chromium/Electron) crisp on HiDPI
