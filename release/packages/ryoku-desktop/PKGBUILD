@@ -76,6 +76,9 @@ depends=(
   'ryoku-cursors'
   # shell + apps configured here
   'quickshell'
+  # KSyntaxHighlighting (org.kde.syntaxhighlighting QML module) colours code
+  # blocks in the Super+S chat; the import is load-bearing, so it ships here.
+  'syntax-highlighting'
   'kitty'
   'fish'
   'starship'

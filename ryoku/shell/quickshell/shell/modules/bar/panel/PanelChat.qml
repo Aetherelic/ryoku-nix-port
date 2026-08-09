@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import shell.services
 import "../../../components"
+import org.kde.syntaxhighlighting
 
 // Chat: the Super+S sidebar's view onto the Needle singleton (which owns the
 // thread and the running turn). Renders streamed Markdown over a growing input;
@@ -579,6 +580,7 @@ Item {
                                         }
 
                                         TextEdit {
+                                            id: codeText
                                             width: parent.width
                                             leftPadding: 10 * root.s
                                             rightPadding: 10 * root.s
@@ -594,6 +596,12 @@ Item {
                                             selectedTextColor: color
                                             font.family: Theme.mono
                                             font.pixelSize: 11 * root.s
+                                            SyntaxHighlighter {
+                                                textEdit: codeText
+                                                repository: Repository
+                                                definition: Repository.definitionForName((blk.modelData.lang && blk.modelData.lang.length) ? blk.modelData.lang : "plaintext")
+                                                theme: "Monokai"
+                                            }
                                         }
                                     }
 

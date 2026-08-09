@@ -6,8 +6,8 @@
 - **A chat with the Rashin agent lives in the Super+S sidebar.** A new Chat tab
   (the default) in the feature sidebar holds a multi-turn conversation with the
   `ryoku-rashin` agent: the answer streams in as it is written and renders as
-  Markdown, selectable and copyable, with fenced code in a wrapped box with a
-  one-click copy. Attach images with the paperclip, by pasting
+  Markdown, selectable and copyable, with fenced code in a wrapped,
+  syntax-highlighted box that has a one-click copy. Attach images with the paperclip, by pasting
   (Ctrl+V), or by dropping them; attached and produced images preview inline.
   The input grows with the text and sends on Enter, Shift+Enter for a newline. A new
   `ryoku-rashin chat` command bridges the daemon's shared hermes session over a
