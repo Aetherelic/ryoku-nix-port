@@ -7,6 +7,13 @@
   screencopy workaround `AQ_NO_MODIFIERS=1` forced modifier-less buffers NVIDIA
   can't import, so the first multi-GPU commit failed `drmModeAddFB2` and SIGABRTed.
   It is now set only when no NVIDIA driver is present (`hyprland/modules/env.lua`).
+- **Ryoku Settings no longer goes invisible after switching to another monitor.**
+  The window sized itself from `win.screen`, which briefly dangles during a
+  monitor switch (non-null but reporting size 0); the unguarded read drove
+  min/maximumSize negative and Quickshell forwarded that to the compositor,
+  shrinking the toplevel to nothing (invisible and click-dead) while `qs` kept
+  the single-instance lock so reopening no-oped. The read now requires a positive
+  size (`hub/quickshell/shell.qml`).
 
 ### Added
 - **Super+Shift+A restarts audio.** Runs `ryoku-restart-audio` to recover sound
