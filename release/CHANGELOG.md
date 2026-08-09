@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- **The desktop shell now loads on a packaged install (no more grey screen).**
+  Every shell config root and `shell/services/Config.qml` import `Ryoku.FrameBars`
+  (the shared frame-bar schema and menu/bar catalogs), so it is load-bearing.
+  `deploy.sh` installed it on the QML import path for dev boxes, but no package
+  shipped it, so on every ISO and shell-installer install `qs -c shell` failed the
+  import at login and painted a bare grey Hyprland desktop with no bar or
+  wallpaper; `ryoku recovery` only masked it by redeploying from source.
+  `ryoku-desktop` now installs `Ryoku.FrameBars` to
+  `/usr/lib/qt6/qml/Ryoku/FrameBars` beside `Ryoku.Ui`/`PluginKit`, and
+  `container-install.sh` now asserts every imported `Ryoku.*` module is packaged,
+  so a future module cannot ship unpackaged (`packages/ryoku-desktop/PKGBUILD`,
+  `installation/tests/container-install.sh`).
 - **Bluetooth, brightness, and controller hardware fixes reach every box.** The
   `.install` now tunes `/etc/bluetooth/main.conf` in place (bluez owns it, so no
   file conflict) and applies the ASUS AMD+NVIDIA backlight kernel param on

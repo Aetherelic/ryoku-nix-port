@@ -110,6 +110,21 @@ done
 [[ -s /usr/share/applications/ryoku-nvim.desktop ]] \
   || missing+=("/usr/share/applications/ryoku-nvim.desktop")
 
+# Every Ryoku.* QML module the shell (and hub/apps) imports must be installed on
+# the system Qt import path. deploy.sh puts them there for a dev box, so a package
+# that forgets one ships a desktop only a dev box can run: qs -c shell fails the
+# import at login and paints a bare grey Hyprland screen with no shell. Derive the
+# set from the source imports so a new module cannot be added without packaging it.
+mapfile -t ryoku_mods < <(
+  grep -rhoE "import Ryoku\.[A-Za-z0-9]+" \
+    "$REPO/ryoku/shell" "$REPO/ryoku/hub" "$REPO/ryoku/apps" "$REPO/ryoku/ui" 2>/dev/null \
+    | awk '{print $2}' | sort -u
+)
+for mod in "${ryoku_mods[@]}"; do
+  [[ -s "/usr/lib/qt6/qml/Ryoku/${mod#Ryoku.}/qmldir" ]] \
+    || missing+=("/usr/lib/qt6/qml/Ryoku/${mod#Ryoku.}/qmldir (imported as $mod, but no package installs it)")
+done
+
 if (( ${#missing[@]} )); then
   echo "container-install: FAIL -- packaged install is missing config a user needs:" >&2
   printf '  - %s\n' "${missing[@]}" >&2

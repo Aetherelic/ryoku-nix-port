@@ -284,6 +284,17 @@ package() {
   rm -rf "$pkgdir/usr/lib/qt6/qml/Ryoku/Ui/__pycache__"
   chmod -R u=rwX,go=rX "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit"
 
+  # Ryoku.FrameBars: the shared frame-bar schema + menu/bar catalogs every
+  # config root imports (shell/services/Config.qml, the launcher, widgets, and
+  # plugin surfaces via PluginKit). Quickshell sandboxes a relative import to the
+  # running config root, so this has to be an installed module, not a copy inside
+  # one root. Omitting it loads no shell at all: qs fails the import and paints a
+  # bare Hyprland desktop. Pure QML + JS like Ryoku.Ui/PluginKit; strip the
+  # authoring-time install.sh and the JS unit test.
+  install -d "$pkgdir/usr/lib/qt6/qml/Ryoku/FrameBars"
+  cp -a "$_repo/ryoku/shell/framebars/." "$pkgdir/usr/lib/qt6/qml/Ryoku/FrameBars/"
+  rm -f "$pkgdir/usr/lib/qt6/qml/Ryoku/FrameBars/install.sh" "$pkgdir"/usr/lib/qt6/qml/Ryoku/FrameBars/*.test.mjs
+
   # matugen templates (colors.json + kitty + Hyprland from a palette).
   install -d "$cfg/matugen"
   cp -a "$_repo/ryoku/shell/matugen/." "$cfg/matugen/"
