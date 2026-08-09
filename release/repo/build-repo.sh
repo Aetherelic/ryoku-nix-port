@@ -83,11 +83,27 @@ export PKGEXT='.pkg.tar.zst'
 : "${RYOKU_PKGVER:=$("$RELEASE_DIR/../bin/ryoku-release-version" --pkgver)}"
 export RYOKU_PKGVER
 log "Monorepo package version -> $RYOKU_PKGVER"
+# makepkg's VCS sources (imgborders clones from Codeberg) make a build only as
+# reliable as that host, and a Codeberg 5xx has repeatedly aborted the whole
+# publish. Retry a failed build with backoff so a transient fetch outage rides
+# out; a real build error still surfaces once the attempts are spent.
+build_pkg() {
+  local pkgdir=$1 attempt=1 max=3 delay=15
+  while true; do
+    if ( cd "$pkgdir" \
+           && makepkg --force --clean --nodeps --noconfirm --sign --key "$KEY_ID" ); then
+      return 0
+    fi
+    (( attempt >= max )) && return 1
+    log "build of $(basename "$pkgdir") failed (attempt $attempt/$max); retrying in ${delay}s"
+    sleep "$delay"; delay=$(( delay * 2 )); attempt=$(( attempt + 1 ))
+  done
+}
+
 for pkgbuild in "${pkgbuilds[@]}"; do
   pkgdir=$(dirname "$pkgbuild")
   log "Building $(basename "$pkgdir")"
-  ( cd "$pkgdir" \
-      && makepkg --force --clean --nodeps --noconfirm --sign --key "$KEY_ID" )
+  build_pkg "$pkgdir" || die "makepkg failed for $(basename "$pkgdir") after retries"
 done
 
 # 3. a published filename never changes bytes. makepkg is not reproducible,
