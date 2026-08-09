@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Ryoku Arch commit-msg hook.
-# blocks commits with no impact label, generated-content attribution,
-# authorship trailers, or em-dashes. project-wide message hygiene.
+# blocks commits with no impact label, AI/generated-content attribution
+# (including AI/bot co-author trailers; human co-authors are allowed), or em-dashes.
 # --no-verify bypass only if you know what you're doing.
 
 set -e
@@ -20,8 +20,10 @@ fail() {
   exit 1
 }
 
-if grep -qiE '^co-authored-by:|^[[:space:]]+co-authored-by:' <<<"$msg"; then
-  fail "forbidden authorship trailer found in commit message."
+# AI/bot co-authors are forbidden; human co-authors are allowed. The
+# generated-content check below also catches AI names anywhere in the message.
+if grep -iE '^[[:space:]]*co-authored-by:' <<<"$msg" | grep -qiE '\b(cl[a]ude|anthr[o]pic|assist[a]nt|L[L]M|chatg[p]t|g[p]t-[0-9]|copil[o]t|curs[o]r|gemin[i]|cod[e]x|dev[i]n|b[o]t)\b'; then
+  fail "forbidden AI/bot co-author trailer found (human co-authors are allowed)."
 fi
 
 case "$subject" in
