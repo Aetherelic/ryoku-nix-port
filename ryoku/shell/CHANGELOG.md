@@ -61,6 +61,13 @@
   `modules/bar/panel/PanelChat.qml`, `services/Needle.qml`).
 
 ### Fixed
+- **The dashboard chat recovers from a dead session instead of locking up.**
+  If the hermes session dies, the composer stays usable and the banner reads
+  "offline, send to reconnect"; the next message respawns the session. The
+  daemon now waits for a respawned session to finish initializing before it
+  sends the prompt, so the first message after a respawn is not lost (a lost
+  prompt failed on the empty session and killed it, dead-ending the chat)
+  (`rashin/backend/acp.go`, `rashin/backend/web/js/chat.js`).
 - **Chat image upload no longer fails on all but the tiniest images.** The chat
   WebSocket kept coder/websocket's 32 KiB default read limit, so a base64 image
   overran it and the send was dropped. The daemon now raises the limit, and the

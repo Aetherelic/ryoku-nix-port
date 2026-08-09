@@ -363,14 +363,17 @@ if (typeof document !== "undefined") {
       const model = shortModel(state.currentModel) || b.model;
       if (model) txt += " / " + model;
       if (b.state === "dead") {
-        txt += b.error ? " / " + b.error : " / hermes unavailable, run setup";
+        txt += b.error ? " / " + b.error : " / offline";
+        txt += " \u2014 send to reconnect";
       } else if (b.error) {
         txt += " / " + b.error;
       }
       banner.textContent = txt;
-      const live = b.state !== "dead";
-      input.disabled = !live;
-      sendBtn.disabled = !live;
+      // A dead session revives on the next send: the daemon respawns hermes on
+      // a user frame once the connection has dropped, so never lock the
+      // composer over a dead state (the reported "can't use chat" dead-end).
+      input.disabled = false;
+      sendBtn.disabled = false;
       cancelBtn.hidden = !state.busy;
       if (replayBanner) replayBanner.hidden = !state.replaying;
     }

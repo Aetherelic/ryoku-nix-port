@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // acp.go speaks the Agent Client Protocol: newline-delimited JSON-RPC 2.0
@@ -323,9 +324,6 @@ type PromptImage struct {
 // Prompt runs one user turn; the turn_end event carries the stop reason.
 // Images ride along as ACP image content blocks (base64 required by schema).
 func (c *acpConn) Prompt(text string, images []PromptImage) {
-	c.mu.Lock()
-	sid := c.sessionID
-	c.mu.Unlock()
 	blocks := make([]map[string]any, 0, 1+len(images))
 	if text != "" {
 		blocks = append(blocks, map[string]any{"type": "text", "text": text})
@@ -339,6 +337,15 @@ func (c *acpConn) Prompt(text string, images []PromptImage) {
 		return
 	}
 	go func() {
+		// A freshly (re)spawned session may still be running Initialize; wait
+		// for its id so a prompt sent right after a respawn is not lost — an
+		// empty-session prompt fails and would kill the new session, cascading
+		// every later send into the same death.
+		sid := c.waitSession(15 * time.Second)
+		if sid == "" {
+			c.emit(AcpEvent{Type: "state", State: "dead", Err: "session not ready"})
+			return
+		}
 		res, err := c.request("session/prompt", map[string]any{
 			"sessionId": sid,
 			"prompt":    blocks,
@@ -356,6 +363,21 @@ func (c *acpConn) Prompt(text string, images []PromptImage) {
 		_ = json.Unmarshal(res, &out)
 		c.emit(AcpEvent{Type: "turn_end", StopReason: out.StopReason})
 	}()
+}
+
+// waitSession blocks until the session id is set (Initialize done), the conn
+// closes, or the timeout elapses; returns "" if no id ever arrives.
+func (c *acpConn) waitSession(timeout time.Duration) string {
+	deadline := time.Now().Add(timeout)
+	for {
+		c.mu.Lock()
+		sid, closed := c.sessionID, c.closed
+		c.mu.Unlock()
+		if sid != "" || closed || time.Now().After(deadline) {
+			return sid
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }
 
 func (c *acpConn) Cancel() {
