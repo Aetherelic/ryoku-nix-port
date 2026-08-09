@@ -120,7 +120,7 @@ stage_ryoku_repo() {
 log "Staging profile -> $PROFILE_STAGE"
 rm -rf "$PROFILE_STAGE"
 mkdir -p "$PROFILE_STAGE"
-for item in profiledef.sh packages.x86_64 pacman.conf airootfs efiboot syslinux; do
+for item in profiledef.sh packages.x86_64 pacman.conf airootfs efiboot syslinux grub; do
   cp -a "$PROFILE_DIR/$item" "$PROFILE_STAGE/"
 done
 AIROOTFS=$PROFILE_STAGE/airootfs

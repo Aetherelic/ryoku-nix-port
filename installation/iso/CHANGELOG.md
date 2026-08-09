@@ -25,6 +25,19 @@
   layer on all media. Ventoy's normal mode boots the image through its
   device-mapper virtualization (it presents the ISO as a virtual block device, not
   via `img_dev`/`img_loop` injection); the README is corrected to match.
+- **Ventoy's GRUB2 mode can now boot the ISO.** Ventoy's normal (device-mapper)
+  mode is still the primary path, but when its injection fails on a machine's
+  firmware archiso finds no medium, waits, and drops to an initramfs rescue
+  prompt where the USB keyboard is typically dead -- the reported "install fails
+  and no key works" case. Without a `grub/loopback.cfg` the documented GRUB2-mode
+  fallback (Ventoy's secondary menu / `Ctrl+r`) was unavailable too, so such a
+  machine had no way in. The ISO now ships `installation/iso/grub/loopback.cfg`;
+  because no `grub` bootmode is active, `mkarchiso` copies it to
+  `/boot/grub/loopback.cfg` (`_make_common_grubenv_and_loopbackcfg`), so a
+  loopback loader boots the image by file with `img_dev`/`img_loop` and
+  `archiso_loop_mnt` mounts the ISO directly instead of searching for a label.
+  `build.sh` stages the new `grub/` profile directory alongside `efiboot` and
+  `syslinux`.
 - **The live serial console (`ttyS0`) now gets a login.** The boot entries make
   `tty0` the primary console, so systemd-getty-generator never spawned
   `serial-getty@ttyS0`; the serial console was dead, which also meant the

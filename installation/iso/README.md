@@ -115,9 +115,15 @@ virtual device carries the ISO's own label, so archiso's `archisosearchuuid`
 finds the squashfs and the live session runs the same as a raw `dd` write. The
 boot entries carry `cow_spacesize=1G`, so the live writable overlay is a 1 GiB
 tmpfs (larger than archiso's 256 MiB default, which a long install can exhaust
-into "no space left" errors). Ventoy's default (normal) mode is the supported
-path for this systemd-boot ISO; a raw `dd` / Rufus-DD write to a dedicated stick
-is the fallback if a machine's firmware balks at Ventoy's shim.
+into "no space left" errors). Ventoy's default (normal) mode is the primary
+path for this systemd-boot ISO. When that device-mapper injection fails on a
+given firmware -- archiso then waits for a medium that never appears and drops to
+an initramfs rescue prompt where the USB keyboard is often dead -- boot the ISO
+in Ventoy's **GRUB2 mode** (its secondary boot menu, or `Ctrl+r`). That mode
+reads `grub/loopback.cfg` from the image and boots by file with `img_dev`/
+`img_loop` instead of a label search, so `archiso_loop_mnt` mounts the ISO
+directly. A raw `dd` / Rufus-DD write to a dedicated stick is the last resort if
+a machine's firmware balks at Ventoy's shim entirely.
 
 Both firmware paths (UEFI systemd-boot, BIOS syslinux) expose the same three
 entries; the default is always the first:
