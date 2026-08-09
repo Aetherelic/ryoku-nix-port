@@ -46,9 +46,10 @@ pipewire
 pipewire-alsa
 pipewire-pulse
 wireplumber
-# alsa-utils: amixer + alsactl. ryoku-restart-audio unmutes the raw hardware
-# mixer (a mute below PipeWire that a graph restart cannot clear); this ships the
-# tools it needs.
+# alsa-utils: alsamixer / amixer / alsactl, the standard tools for inspecting and
+# unsticking a muted hardware codec by hand. Not used by the desktop at runtime
+# (PipeWire owns volume on stock defaults); shipped so audio stays diagnosable, as
+# omarchy's base set does too.
 alsa-utils
 # rtkit: RealtimeKit grants PipeWire/WirePlumber realtime scheduling priority.
 # base set so the installer's rtkit-daemon.service enable succeeds even offline

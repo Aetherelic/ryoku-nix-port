@@ -5,9 +5,9 @@
 ### Added
 - `base.packages`: add `pciutils`. `lspci` is the GPU-detection path the driver
   scripts use during pacstrap; without it NVIDIA cards were silently missed.
-- `base.packages`: add `alsa-utils` (`amixer`, `alsactl`). `ryoku-restart-audio`
-  unmutes the raw ALSA hardware mixer, a mute below PipeWire that a graph restart
-  cannot clear, so it needs these tools on every install.
+- `base.packages`: add `alsa-utils` (`alsamixer`, `amixer`, `alsactl`) so a muted
+  hardware codec can be inspected and unstuck by hand; omarchy ships them in its
+  base set too.
 - `aur.packages`: add `game-devices-udev` (PS4/PS5/DualSense/DualShock and Switch
   Pro udev rules + battery) and `xpadneo-dkms` (Xbox One/Series Bluetooth pads).
 - `aur.packages`: add `spicetify-cli`, the Spotify client patcher the desktop

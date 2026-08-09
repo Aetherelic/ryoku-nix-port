@@ -4,10 +4,8 @@
 
 ### Added
 - `audio/ryoku-restart-audio`: recover sound when it does not come back. Restarts
-  the PipeWire stack (wireplumber, pipewire, pipewire-pulse), unmutes and opens
-  the raw ALSA hardware mixer (a mute below PipeWire, from EasyEffects or a codec
-  that boots muted, that a graph restart cannot clear), and resets a stuck USB
-  audio device. Bound to Super+Shift+A. Ported from omarchy.
+  the PipeWire stack (wireplumber, pipewire, pipewire-pulse) and resets a stuck
+  USB audio device. Bound to Super+Shift+A. Ported from omarchy.
 - `drivers/intel.sh` now installs `sof-firmware`: recent Intel laptops route audio
   through a DSP that stays silent without it.
 - `bluetooth/ryoku-bluetooth-tune`: BlueZ pairing/reconnect tuning. bluez owns
