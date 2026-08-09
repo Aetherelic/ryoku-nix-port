@@ -209,7 +209,9 @@ Item {
                 Repeater {
                     model: Stash.queueModel
                     delegate: Rectangle {
+                        id: qRow
                         required property var model
+                        required property int index
                         width: parent.width
                         height: 24 * root.s
                         radius: Theme.radiusWidget
@@ -230,25 +232,64 @@ Item {
                                 Text {
                                     id: qName
                                     anchors.left: parent.left
-                                    anchors.right: qState.left
+                                    anchors.right: qActions.left
                                     anchors.rightMargin: 8 * root.s
-                                    text: model.name && model.name.length > 0 ? model.name : model.arg
+                                    text: qRow.model.name && qRow.model.name.length > 0 ? qRow.model.name : qRow.model.arg
                                     elide: Text.ElideRight
                                     color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                                     font.family: Theme.fontPrimary
                                     font.pixelSize: 9 * root.s
                                 }
-                                Text {
-                                    id: qState
+                                Row {
+                                    id: qActions
                                     anchors.right: parent.right
-                                    text: model.state === "running" ? model.pct + "%" : model.state
-                                    color: model.state === "error" ? Theme.vermLit
-                                        : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
-                                    font.family: Theme.mono
-                                    font.pixelSize: 8 * root.s
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 7 * root.s
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: qRow.model.state === "running" ? qRow.model.pct + "%"
+                                            : qRow.model.state === "error" ? (qRow.model.msg && qRow.model.msg.length > 0 ? qRow.model.msg : qsTr("failed"))
+                                            : qRow.model.state
+                                        color: qRow.model.state === "error" ? Theme.vermLit
+                                            : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                        font.family: Theme.mono
+                                        font.pixelSize: 8 * root.s
+                                    }
+                                    MaterialIcon {
+                                        visible: qRow.model.state === "error"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        font.pixelSize: 12 * root.s
+                                        text: "refresh"
+                                        color: Theme.inkOn(Theme.effectiveSurface, retryArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant, 3.0)
+                                        MouseArea {
+                                            id: retryArea
+                                            anchors.fill: parent
+                                            anchors.margins: -6 * root.s
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Stash.retryJob(qRow.index)
+                                        }
+                                    }
+                                    MaterialIcon {
+                                        visible: qRow.model.state === "done" || qRow.model.state === "error"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        font.pixelSize: 12 * root.s
+                                        text: "close"
+                                        color: Theme.inkOn(Theme.effectiveSurface, dropArea.containsMouse ? Theme.onSurface : Theme.onSurfaceVariant, 3.0)
+                                        MouseArea {
+                                            id: dropArea
+                                            anchors.fill: parent
+                                            anchors.margins: -6 * root.s
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Stash.dismissJob(qRow.index)
+                                        }
+                                    }
                                 }
                             }
                             Rectangle {
+                                visible: qRow.model.state === "running" || qRow.model.state === "queued"
                                 width: parent.width
                                 height: 2
                                 radius: 1
@@ -256,7 +297,7 @@ Item {
                                 Rectangle {
                                     height: parent.height
                                     radius: 1
-                                    width: parent.width * Math.max(0, Math.min(1, (model.pct || 0) / 100))
+                                    width: parent.width * Math.max(0, Math.min(1, (qRow.model.pct || 0) / 100))
                                     color: Theme.primary
                                     Behavior on width { NumberAnimation { duration: Motion.fast } }
                                 }

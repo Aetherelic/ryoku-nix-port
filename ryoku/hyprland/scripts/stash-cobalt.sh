@@ -47,26 +47,34 @@ fetch() {
 
 # yt-dlp fallback, honours download mode; prints its own clean percent.
 ytdlp() {
-  local url="$1" mode="$2" out err dest status
-  out=$(mktemp); err=$(mktemp); trap 'rm -f "$out" "$err"' RETURN
+  local url="$1" mode="$2" out err wd status f dest saved=0
+  out=$(mktemp); err=$(mktemp); wd=$(mktemp -d); trap 'rm -f "$out" "$err"; rm -rf "$wd"' RETURN
   local fmt=(--merge-output-format mp4)
   case "$mode" in
     audio) fmt=(-x --audio-format mp3) ;;
     mute)  fmt=(-f "bv*" --merge-output-format mp4) ;;
   esac
+  # download into a private dir so distinct videos that happen to share a title
+  # (e.g. two captionless posts by the same author) never collide: yt-dlp would
+  # otherwise find the first file and skip the rest as "already downloaded",
+  # exiting 0 while nothing new lands. dest_for then moves each result into the
+  # stash under a free name, matching the cobalt path. stdin from /dev/null so a
+  # postprocessor (ffmpeg merge) can never block on the inherited pipe.
   ( yt-dlp --no-playlist --no-mtime --no-warnings --restrict-filenames --newline \
-      "${fmt[@]}" -P "$STASH" -o "%(title).80s.%(ext)s" "$url" >"$out" 2>"$err" ) &
+      "${fmt[@]}" -P "$wd" -o "%(title).80s.%(ext)s" "$url" </dev/null >"$out" 2>"$err" ) &
   local pid=$!
   ( tail -f --pid=$pid "$out" 2>/dev/null | stdbuf -oL grep -oE '\[download\] +[0-9]{1,3}\.[0-9]%' \
       | while read -r line; do line=${line##* }; emit PROGRESS "${line%%.*}"; done ) &
   wait $pid; status=$?
   if [ "$status" -ne 0 ]; then tail -n2 "$err" >&2; return "$status"; fi
-  dest=$(sed -n 's/.*Merging formats into "\(.*\)".*/\1/p' "$out" | tail -n1)
-  [ -n "$dest" ] || dest=$(sed -n 's/^\[download\] Destination: //p' "$out" | tail -n1)
-  [ -n "$dest" ] || dest=$(sed -n 's/^\[ExtractAudio\] Destination: //p' "$out" | tail -n1)
-  [ -n "$dest" ] || dest=$(find "$STASH" -maxdepth 1 -type f -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -n1 | cut -f2-)
-  case "$dest" in /*) ;; *) dest="$STASH/$dest" ;; esac
-  emit SAVED "$(basename "$dest")"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    dest=$(dest_for "$(basename "$f")")
+    mv -f "$f" "$dest" || return 1
+    emit SAVED "$(basename "$dest")"
+    saved=1
+  done < <(find "$wd" -maxdepth 1 -type f | sort)
+  [ "$saved" -eq 1 ] || return 1
 }
 
 # cobalt POST + tunnel/redirect/picker; nonzero return triggers the fallback.

@@ -70,13 +70,13 @@ Singleton {
         if (u.length === 0)
             return;
         queueModel.append({ kind: "download", arg: u, mode: mode || root.dlMode,
-            name: "link", state: "queued", pct: 0, msg: "" });
+            name: "link", state: "queued", pct: 0, msg: "", saved: false });
         pumpQueue();
     }
 
     function enqueueRemux(file) {
         queueModel.append({ kind: "remux", arg: file, mode: "",
-            name: ("" + file).split("/").pop(), state: "queued", pct: 0, msg: "" });
+            name: ("" + file).split("/").pop(), state: "queued", pct: 0, msg: "", saved: false });
         pumpQueue();
     }
 
@@ -110,11 +110,33 @@ Singleton {
             queueModel.setProperty(i, "pct", parseInt(t[1]) || 0);
         } else if (t[0] === "SAVED") {
             if (t[1]) queueModel.setProperty(i, "name", t[1]);
+            queueModel.setProperty(i, "saved", true);
             queueModel.setProperty(i, "state", "done");
         } else if (t[0] === "ERROR") {
             queueModel.setProperty(i, "msg", t[1] || "failed");
             queueModel.setProperty(i, "state", "error");
         }
+    }
+
+    // Re-run a finished job in place: reset it to queued and let the worker pick
+    // it up. Used by the retry affordance on a failed row.
+    function retryJob(i) {
+        if (i < 0 || i >= queueModel.count || queueModel.get(i).state === "running")
+            return;
+        queueModel.setProperty(i, "state", "queued");
+        queueModel.setProperty(i, "pct", 0);
+        queueModel.setProperty(i, "msg", "");
+        queueModel.setProperty(i, "saved", false);
+        pumpQueue();
+    }
+
+    // Drop a finished row from the queue list (never the running one).
+    function dismissJob(i) {
+        if (i < 0 || i >= queueModel.count || i === root.activeJob)
+            return;
+        queueModel.remove(i);
+        if (root.activeJob > i)
+            root.activeJob -= 1;
     }
 
     function clearQueueDone() {
@@ -146,8 +168,15 @@ Singleton {
         onExited: (code) => {
             if (root.activeJob >= 0) {
                 var st = queueModel.get(root.activeJob).state;
-                if (st === "running")
-                    queueModel.setProperty(root.activeJob, "state", code === 0 ? "done" : "error");
+                if (st === "running") {
+                    // No SAVED marker arrived: nothing landed, even if the script
+                    // exited 0 (e.g. yt-dlp skipped a same-named file). Surface a
+                    // retryable error rather than a misleading "done".
+                    queueModel.setProperty(root.activeJob, "state", "error");
+                    if (!queueModel.get(root.activeJob).msg)
+                        queueModel.setProperty(root.activeJob, "msg",
+                            code === 0 ? "nothing downloaded" : "failed");
+                }
             }
             root.activeJob = -1;
             root.pumpQueue();
