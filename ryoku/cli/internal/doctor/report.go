@@ -30,6 +30,17 @@ func writeReport(override string, findings []finding) (string, error) {
 	return path, nil
 }
 
+// diagnosticPackages: the desktop stack whose versions decide whether the shell
+// renders and how the session behaves. `ryoku status` reports only the
+// ryoku-desktop channel commit, so these per-component and third-party versions
+// are otherwise absent from a report a maintainer reads.
+var diagnosticPackages = []string{
+	"ryoku-desktop", "ryoku", "ryoku-shell", "ryoku-hub", "ryoku-blobs", "ryoku-rashin",
+	"quickshell", "hyprland", "xdg-desktop-portal-hyprland",
+	"qt6-base", "qt6-declarative", "qt6-wayland",
+	"pipewire", "wireplumber", "nvidia-utils", "mesa", "limine", "snapper",
+}
+
 // gatherReport: one self-contained text report. doctor findings, then the
 // system state a maintainer needs to diagnose the unknown. safe to share --
 // system state + recent error logs, no secrets.
@@ -72,6 +83,7 @@ func gatherReport(findings []finding) string {
 	line("/etc/conf.d/snapper:\n%s", readFileSafe("/etc/conf.d/snapper"))
 
 	section("packages")
+	cmd("pacman", append([]string{"-Q"}, diagnosticPackages...)...)
 	cmd("pacman", "-Qtdq")
 	cmd("pacman", "-Dk")
 	line(".pacnew files:\n%s", captureOut("find", "/etc", "-name", "*.pacnew"))

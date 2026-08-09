@@ -15,6 +15,12 @@
   `internal/sys/repo.go`, `internal/doctor/reconcile_channel.go`).
 
 ### Added
+- **`ryoku doctor --report` records the desktop stack's package versions.**
+  `ryoku status` shows only the ryoku-desktop channel commit, so a report never
+  carried the quickshell, Qt, compositor, audio, and GPU versions that decide
+  whether the shell renders. The report's packages section now lists `pacman -Q`
+  for the Ryoku components and those key dependencies
+  (`internal/doctor/report.go`).
 - **Safer updates: one at a time, sleep-inhibited, space-checked, fewer snapshots.**
   `ryoku update` now holds an flock so a second run cannot race it, refuses to
   start when `/` has under 1 GiB free (a mid-update disk-full leaves the system
