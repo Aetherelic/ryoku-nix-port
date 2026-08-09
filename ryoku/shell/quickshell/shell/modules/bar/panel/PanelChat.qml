@@ -75,6 +75,13 @@ Item {
         var c = t.lastIndexOf(":");
         return c >= 0 ? t.slice(c + 1) : t;
     }
+    // Markdown collapses single newlines, so line-structured output (a /tools
+    // list, terse notes) renders as one run-on paragraph. Turn each non-blank
+    // newline into a hard break so the line structure survives; blank-line
+    // paragraph breaks stay, and fenced code is already split out by msgBlocks.
+    function hardBreaks(s) {
+        return String(s).replace(/([^\n])\n(?!\n)/g, "$1  \n");
+    }
     // Split an agent answer into text and fenced-code segments so code renders
     // in a wrapped, copyable box instead of overflowing (mirrors iNiR).
     function msgBlocks(md) {
@@ -748,7 +755,7 @@ Item {
                                     id: txt
                                     visible: !blk.isCode
                                     width: blk.width
-                                    text: blk.isCode ? "" : blk.modelData.content
+                                    text: blk.isCode ? "" : root.hardBreaks(blk.modelData.content)
                                     readOnly: true
                                     selectByMouse: true
                                     wrapMode: TextEdit.Wrap

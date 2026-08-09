@@ -329,7 +329,7 @@ if (typeof document !== "undefined") {
         // flashes broken; on turn_end the closed message re-renders via mdToHtml
         // (linkified) and the token-new spans collapse back into clean text.
         const caret = it.open ? '<span class="caret">\u25AE</span>' : "";
-        const body = it.open ? esc(it.text) + caret : mdToHtml(it.text);
+        const body = it.open ? esc(it.text) + caret : mdToHtml(it.text, { breaks: true });
         return (
           '<div class="msg msg-agent" data-open="' + (it.open ? "1" : "0") + '"><div class="msg-head">\u7F85\u91DD</div>' +
           thought +

@@ -73,15 +73,18 @@ function inline(s) {
   return s;
 }
 
-export function mdToHtml(src) {
+export function mdToHtml(src, opts) {
   const lines = escapeHtml(src).split(/\r?\n/);
   const out = [];
   let para = [];
   let list = null;
+  // Agent replies opt into hard line breaks so a line-structured answer (a
+  // /tools list, terse notes) keeps its shape; vault docs stay soft-wrapped.
+  const brk = opts && opts.breaks ? "<br>" : " ";
 
   const flushPara = () => {
     if (para.length) {
-      out.push("<p>" + inline(para.join(" ")) + "</p>");
+      out.push("<p>" + inline(para.join(brk)) + "</p>");
       para = [];
     }
   };

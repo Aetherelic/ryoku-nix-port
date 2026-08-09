@@ -70,6 +70,24 @@
   `modules/bar/panel/PanelChat.qml`, `services/Needle.qml`).
 
 ### Fixed
+- **Chat answers keep their line breaks.** Markdown collapses single newlines,
+  so a line-structured reply (a `/tools` list, terse notes) rendered as one
+  run-on paragraph. Both chat surfaces now preserve non-blank newlines as hard
+  breaks, so structured output reads line by line; blank-line paragraphs and
+  fenced code are untouched, and vault docs stay soft-wrapped
+  (`modules/bar/panel/PanelChat.qml`, `rashin/backend/web/js/markdown.js`,
+  `rashin/backend/web/js/chat.js`).
+- **Sidebar downloads that share a title no longer vanish after "done".** With
+  no cobalt instance reachable, the yt-dlp fallback downloaded straight into the
+  stash under `%(title)s.%(ext)s`; distinct videos that generate the same title
+  (for example several captionless posts by one author, all named
+  `Video by <author>`) collided, so yt-dlp skipped every one after the first as
+  "already downloaded" and exited 0. The queue showed "done" while nothing new
+  landed. The fallback now downloads into a private temp dir and moves each
+  result into the stash through the same `dest_for` disambiguator the cobalt path
+  uses, so a collision lands as "name (1)" instead of being dropped; its stdin is
+  tied to `/dev/null` so an ffmpeg merge can never stall on the inherited pipe
+  (`hyprland/scripts/stash-cobalt.sh`).
 - **The dashboard chat recovers from a dead session instead of locking up.**
   If the hermes session dies, the composer stays usable and the banner reads
   "offline, send to reconnect"; the next message respawns the session. The
