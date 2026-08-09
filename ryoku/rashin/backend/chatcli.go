@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -89,6 +92,71 @@ func emitCommandsFrame(m wsOut) {
 	emitChat(map[string]any{"type": "commands", "commands": arr})
 }
 
+func skillMeta(path string) (name, desc string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", ""
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	fences := 0
+	for sc.Scan() {
+		t := strings.TrimSpace(sc.Text())
+		if t == "---" {
+			fences++
+			if fences >= 2 {
+				break
+			}
+			continue
+		}
+		if fences != 1 {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(t, "name:"):
+			name = strings.Trim(strings.TrimSpace(strings.TrimPrefix(t, "name:")), "\"'")
+		case strings.HasPrefix(t, "description:"):
+			desc = strings.Trim(strings.TrimSpace(strings.TrimPrefix(t, "description:")), "\"'")
+		}
+	}
+	return name, desc
+}
+
+// emitSkillsFrame lists the installed hermes skills (each usable as a slash
+// command) by walking ~/.hermes/skills for SKILL.md files.
+func emitSkillsFrame() {
+	home := os.Getenv("HERMES_HOME")
+	if home == "" {
+		if h, err := os.UserHomeDir(); err == nil {
+			home = filepath.Join(h, ".hermes")
+		}
+	}
+	type skill struct{ name, desc string }
+	var found []skill
+	seen := map[string]bool{}
+	_ = filepath.WalkDir(filepath.Join(home, "skills"), func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || d.Name() != "SKILL.md" {
+			return nil
+		}
+		name, desc := skillMeta(p)
+		if name == "" {
+			name = filepath.Base(filepath.Dir(p))
+		}
+		if name == "" || seen[name] {
+			return nil
+		}
+		seen[name] = true
+		found = append(found, skill{name, desc})
+		return nil
+	})
+	sort.Slice(found, func(i, j int) bool { return found[i].name < found[j].name })
+	arr := make([]map[string]any, 0, len(found))
+	for _, s := range found {
+		arr = append(arr, map[string]any{"name": s.name, "description": s.desc})
+	}
+	emitChat(map[string]any{"type": "skills", "skills": arr})
+}
+
 func cmdChat(args []string) error {
 	var images, words []string
 	var modelID string
@@ -103,6 +171,8 @@ func cmdChat(args []string) error {
 			mode = "models"
 		case "--commands":
 			mode = "commands"
+		case "--skills":
+			mode = "skills"
 		case "--set-model":
 			mode = "setmodel"
 			if i+1 < len(args) {
@@ -119,6 +189,10 @@ func cmdChat(args []string) error {
 		}
 	}
 	q := strings.TrimSpace(strings.Join(words, " "))
+	if mode == "skills" {
+		emitSkillsFrame()
+		return nil
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()

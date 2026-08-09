@@ -24,6 +24,7 @@ Item {
     // Slash-command palette: the session's built-in commands (/tools, /steer,
     // /compress, ...) fetched from the daemon; typing "/" filters them.
     property var commands: []
+    property var skills: []
     property int paletteIdx: 0
     property bool paletteDismissed: false
     readonly property bool slashMode: input.text.length > 0 && input.text.charAt(0) === "/" && input.text.indexOf(" ") === -1 && !root.paletteDismissed
@@ -31,7 +32,11 @@ Item {
         if (!root.slashMode)
             return [];
         var pre = input.text.slice(1).toLowerCase();
-        return (root.commands || []).filter(c => String(c.name).toLowerCase().indexOf(pre) === 0);
+        var cmds = (root.commands || []).map(c => ({ name: String(c.name), description: String(c.description || ""), skill: false }));
+        if (pre === "")
+            return cmds;
+        var sk = (root.skills || []).map(s => ({ name: String(s.name), description: String(s.description || ""), skill: true }));
+        return cmds.concat(sk).filter(e => e.name.toLowerCase().indexOf(pre) === 0);
     }
     readonly property bool paletteOpen: root.slashMode && root.slashMatches.length > 0
     function acceptSlash() {
@@ -126,7 +131,26 @@ Item {
             }
         }
     }
-    function loadCommands() { if (!cmdsProc.running) cmdsProc.running = true; }
+    Process {
+        id: skillsProc
+        command: ["ryoku-rashin", "chat", "--skills"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => {
+                try {
+                    var f = JSON.parse(String(line));
+                    if (f && f.type === "skills" && f.skills)
+                        root.skills = f.skills;
+                } catch (e) {}
+            }
+        }
+    }
+    function loadCommands() {
+        if (!cmdsProc.running)
+            cmdsProc.running = true;
+        if (!skillsProc.running)
+            skillsProc.running = true;
+    }
 
     Component.onCompleted: {
         Needle.noteOpened();
@@ -849,6 +873,11 @@ Item {
                         anchors.rightMargin: 8 * root.s
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8 * root.s
+                        MaterialIcon {
+                            text: pRow.modelData.skill ? "extension" : "bolt"
+                            font.pixelSize: 12 * root.s
+                            color: pRow.modelData.skill ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0) : Theme.primary
+                        }
                         Text {
                             text: "/" + pRow.modelData.name
                             color: Theme.primary
@@ -862,7 +891,7 @@ Item {
                             color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                             font.family: Theme.fontPrimary
                             font.pixelSize: 10.5 * root.s
-                            width: paletteCol.width - 106 * root.s
+                            width: paletteCol.width - 128 * root.s
                             elide: Text.ElideRight
                         }
                     }
