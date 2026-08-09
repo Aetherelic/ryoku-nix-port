@@ -29,6 +29,9 @@ func reconcileSpicetifyCanvas(checkOnly bool) recResult {
 	if !spotifyInstalled() {
 		return okRes("no Spotify installed; the Canvas spicetify setup is not needed")
 	}
+	if spotifyLauncherPending() {
+		return okRes("Spotify (spotify-launcher) is not downloaded yet; the Canvas wires up after its first launch")
+	}
 	src := spicetifyCanvasSource()
 	if src == "" {
 		return okRes("Canvas extension asset not present yet (ships with ryoku-desktop; arrives on the package update)")
@@ -157,17 +160,39 @@ func spicetifyApply() error {
 	return spicetifyRun(120*time.Second, "backup", "apply")
 }
 
+// spotifyLauncherDir is the per-user Spotify tree a spotify-launcher install
+// unpacks under $XDG_DATA_HOME on first launch.
+func spotifyLauncherDir() string {
+	data := os.Getenv("XDG_DATA_HOME")
+	if data == "" {
+		data = filepath.Join(os.Getenv("HOME"), ".local", "share")
+	}
+	return filepath.Join(data, "spotify-launcher", "install", "usr", "share", "spotify")
+}
+
+// spotifyLauncherPending: spotify-launcher is installed but has not downloaded its
+// client yet (first launch pending) and no other client is present, so there is
+// nothing to spicetify. The setup defers quietly instead of warning on every fresh
+// box until the user first opens Spotify.
+func spotifyLauncherPending() bool {
+	if !sys.PkgInstalled("spotify-launcher") {
+		return false
+	}
+	if sys.PkgInstalled("spotify") || sys.Exists("/opt/spotify") {
+		return false
+	}
+	if sys.Has("flatpak") && exec.Command("flatpak", "info", "com.spotify.Client").Run() == nil {
+		return false
+	}
+	return !sys.Exists(spotifyLauncherDir())
+}
+
 // spicetifyPointAtLauncher aims spicetify at a spotify-launcher install, which
 // lives per-user under $XDG_DATA_HOME (not root-owned /opt), so `apply` needs no
 // root. spicetify does not auto-detect that path, so set it when it exists; a
 // no-op for /opt or flatpak clients, which spicetify finds itself. Best-effort.
 func spicetifyPointAtLauncher() {
-	data := os.Getenv("XDG_DATA_HOME")
-	if data == "" {
-		data = filepath.Join(os.Getenv("HOME"), ".local", "share")
-	}
-	dir := filepath.Join(data, "spotify-launcher", "install", "usr", "share", "spotify")
-	if sys.Exists(dir) {
+	if dir := spotifyLauncherDir(); sys.Exists(dir) {
 		_ = spicetifyRun(30*time.Second, "config", "spotify_path", dir)
 	}
 }
