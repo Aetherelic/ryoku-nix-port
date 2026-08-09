@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,21 +15,10 @@ import (
 	"github.com/coder/websocket/wsjson"
 )
 
-// chatcli.go is the Super+S sidebar's multi-turn chat client. Unlike `ask`
-// (the launcher's stateless fast lane), `chat` talks to the daemon's shared
-// hermes ACP session over /ws/chat, so the conversation is multi-turn and the
-// answer streams as it is written. It speaks a line-oriented JSONL protocol to
-// its caller (the Quickshell sidebar): one JSON frame per line, so a streamed
-// chunk carries newlines safely.
-//
-//	{"type":"working","label":"..."}          the step the agent is on
-//	{"type":"delta","text":"..."}             one streamed chunk of the answer
-//	{"type":"perm","title":"...","requestId":"..."}  a permission is waiting
-//	{"type":"done","images":["/abs.png"]}     the turn finished
-//	{"type":"error","message":"..."}          terminal failure
-//
-// Flags: --image <path> (repeatable) attaches an image to the turn; --cancel
-// stops the in-flight turn; --new starts a fresh session (forgets context).
+// `chat` is the sidebar's multi-turn client: it drives the daemon's shared
+// hermes session over /ws/chat and relays each frame as one line of JSON
+// (working|delta|perm|done|error) so streamed chunks keep their newlines.
+// Flags: --image <path> (repeatable), --cancel, --new.
 
 func chatWSURL() string {
 	return fmt.Sprintf("ws://127.0.0.1:%d/ws/chat", LoadConfig().Port)
@@ -56,16 +46,31 @@ func chatImageMime(p string) string {
 func loadPromptImages(paths []string) []PromptImage {
 	var out []PromptImage
 	for _, p := range paths {
-		b, err := os.ReadFile(p)
-		if err != nil {
+		data, mime := encodeImage(p)
+		if data == "" {
 			continue
 		}
-		out = append(out, PromptImage{
-			Data:     base64.StdEncoding.EncodeToString(b),
-			MimeType: chatImageMime(p),
-		})
+		out = append(out, PromptImage{Data: data, MimeType: mime})
 	}
 	return out
+}
+
+// encodeImage base64-encodes an image for the model, downscaling through
+// ImageMagick to a sane edge (as the dashboard does) so a big screenshot or
+// photo is small on the wire. If magick is missing or fails, the original
+// bytes are sent.
+func encodeImage(p string) (data, mime string) {
+	if _, err := exec.LookPath("magick"); err == nil {
+		out, err := exec.Command("magick", p, "-resize", "1568x1568>", "-strip", "-quality", "85", "jpeg:-").Output()
+		if err == nil && len(out) > 0 {
+			return base64.StdEncoding.EncodeToString(out), "image/jpeg"
+		}
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return "", ""
+	}
+	return base64.StdEncoding.EncodeToString(b), chatImageMime(p)
 }
 
 func cmdChat(args []string) error {

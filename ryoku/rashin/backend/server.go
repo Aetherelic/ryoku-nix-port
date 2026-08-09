@@ -230,9 +230,15 @@ func acceptWS(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 			return nil, errors.New("bad origin")
 		}
 	}
-	return websocket.Accept(w, r, &websocket.AcceptOptions{
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns: []string{"127.0.0.1:*", "localhost:*"},
 	})
+	if err == nil {
+		// User messages carry base64 image blocks; the 32 KiB default read
+		// limit rejects all but the smallest, so raise it past a downscaled image.
+		conn.SetReadLimit(8 << 20)
+	}
+	return conn, err
 }
 
 func cmdServe(ifEnabled bool) error {

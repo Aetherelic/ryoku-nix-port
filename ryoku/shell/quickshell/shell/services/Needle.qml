@@ -4,16 +4,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Needle: the resident state of the Super+S chat with the Rashin agent. It
-// lives in a singleton, not the sidebar body, so the conversation and any
-// in-flight answer survive the sidebar closing and reopening (the body is torn
-// down every close). A fresh chat starts only when the sidebar has been away
-// longer than idleResetMs; a quick close/reopen keeps the thread.
-//
-// The turn runs `ryoku-rashin chat`, which bridges the daemon's shared hermes
-// ACP session over a JSONL line protocol: {type:working|delta|perm|done|error}.
-// Because it is the one shared session, the conversation is multi-turn and the
-// answer streams in as it is written.
+// Needle: resident state of the Super+S chat, held in a singleton (not the
+// sidebar body) so the thread and any in-flight answer survive a close/reopen;
+// a new chat starts only after idleResetMs away. Turns run `ryoku-rashin chat`,
+// streaming the shared hermes session as JSONL.
 Singleton {
     id: root
 

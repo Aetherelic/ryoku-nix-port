@@ -6,8 +6,9 @@
 - **A chat with the Rashin agent lives in the Super+S sidebar.** A new Chat tab
   (the default) in the feature sidebar holds a multi-turn conversation with the
   `ryoku-rashin` agent: the answer streams in as it is written and renders as
-  Markdown (selectable, copyable, with produced images inline). The input grows
-  with the text and sends on Enter, Shift+Enter for a newline. A new
+  Markdown (selectable, copyable). Attach images with the paperclip, by pasting
+  (Ctrl+V), or by dropping them; attached and produced images preview inline.
+  The input grows with the text and sends on Enter, Shift+Enter for a newline. A new
   `ryoku-rashin chat` command bridges the daemon's shared hermes session over a
   line protocol, so follow-ups keep context and New Chat (`chat --new`) forgets
   it. The conversation and any in-flight answer live in a `Needle` singleton, so
@@ -16,6 +17,11 @@
   `services/Needle.qml`, `rashin/backend/chatcli.go`).
 
 ### Fixed
+- **Chat image upload no longer fails on all but the tiniest images.** The chat
+  WebSocket kept coder/websocket's 32 KiB default read limit, so a base64 image
+  overran it and the send was dropped. The daemon now raises the limit, and the
+  `chat` client downscales through ImageMagick before sending
+  (`rashin/backend/server.go`, `rashin/backend/chatcli.go`).
 - **A corrupt shell.json no longer wipes qsbar and the other look knobs.** The
   daemon reduced an existing-but-unparseable shell.json to defaults with no
   passthrough keys, then persisted that over the file on the next patch, so a
