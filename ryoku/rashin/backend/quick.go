@@ -90,6 +90,15 @@ func isLocalURL(u string) bool {
 // session lane.
 func resolveQuickTarget(cfg Config) (quickTarget, error) {
 	provider, model, _ := hermesModel()
+	// Track the remembered session model so the terminal fast lane defaults to
+	// the same model as the sidebar and dashboard; an explicit Quick.Model in
+	// the rashin config still overrides.
+	if saved := savedSessionModel(); saved != "" {
+		model = saved
+		if i := strings.IndexByte(saved, ':'); i >= 0 {
+			model = saved[i+1:]
+		}
+	}
 
 	t := quickTarget{Model: cfg.Quick.Model, BaseURL: cfg.Quick.BaseURL}
 	if t.Model == "" {

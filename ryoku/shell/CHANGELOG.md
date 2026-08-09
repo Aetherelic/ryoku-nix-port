@@ -55,9 +55,10 @@
   switching is one click. So the chat can talk to rashin's hermes, OpenAI, or a
   local model without leaving the sidebar. The pick is remembered: the daemon
   saves it and re-applies it to every new session, so a restart keeps your
-  model and the dashboard, sidebar, and `status` all report the one the session
-  is actually on (`chat --models`, `chat --set-model`;
+  model and the dashboard, sidebar, terminal fast lane, and `status` all use
+  the model the session is actually on (`chat --models`, `chat --set-model`;
   `rashin/backend/acp.go`, `rashin/backend/ws.go`, `rashin/backend/hermes.go`,
+  `rashin/backend/quick.go`,
   `modules/bar/panel/PanelChat.qml`, `services/Needle.qml`).
 
 ### Fixed
