@@ -99,6 +99,10 @@ jobs:
               | collect_from_git_stream
           elif [[ $GITHUB_EVENT_NAME == "push" ]]; then
             before="${{ github.event.before }}"
+            # force-push (main sync) orphans before-sha; fall back to HEAD~1
+            if [[ -n $before ]] && ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+              before="$(git rev-parse HEAD~1 2>/dev/null || true)"
+            fi
 
             if [[ -z $before || $before == "0000000000000000000000000000000000000000" ]]; then
               git ls-files -z | collect_from_git_stream

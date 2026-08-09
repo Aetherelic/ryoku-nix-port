@@ -55,6 +55,10 @@ jobs:
               ;;
             push)
               base="$PUSH_BEFORE"
+              # force-push (e.g. main sync) orphans before-sha; fall back to HEAD~1
+              if [[ -n $base ]] && ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+                base="$(git rev-parse HEAD~1 2>/dev/null || true)"
+              fi
               ;;
             *)
               if [[ $SCOPE != "all" ]]; then
