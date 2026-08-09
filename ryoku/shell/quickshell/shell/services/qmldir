@@ -40,3 +40,4 @@ singleton Sysinfo Sysinfo.qml
 singleton BluetoothDiscovery BluetoothDiscovery.qml
 singleton BtLink BtLink.qml
 singleton ScreenTime ScreenTime.qml
+singleton Needle Needle.qml

@@ -30,10 +30,11 @@ Item {
 
     // Adding a feature is one row here plus one branch in the Loader below.
     readonly property var tabs: [
+        { id: "chat", icon: "forum", label: qsTr("Chat") },
         { id: "usage", icon: "insights", label: qsTr("Usage") },
         { id: "tools", icon: "download", label: qsTr("Tools") }
     ]
-    property string activeTab: "usage"
+    property string activeTab: "chat"
 
     onPageChanged: root.applyPage()
     Component.onCompleted: root.applyPage()
@@ -145,6 +146,7 @@ Item {
         anchors.margins: 1
         clip: true
 
+        Component { id: chatPage; PanelChat { s: root.s; open: root.open } }
         Component { id: usagePage; PanelOverview { s: root.s; open: root.open } }
         Component {
             id: toolsPage
@@ -156,7 +158,8 @@ Item {
             anchors.fill: parent
             active: root.picking === ""
             visible: root.picking === ""
-            sourceComponent: root.activeTab === "usage" ? usagePage
+            sourceComponent: root.activeTab === "chat" ? chatPage
+                : root.activeTab === "usage" ? usagePage
                 : root.activeTab === "tools" ? toolsPage : null
         }
 
