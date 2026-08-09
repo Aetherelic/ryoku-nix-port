@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,6 +65,9 @@ type chatHub struct {
 	// joiner so a chat begun anywhere (launcher ask, another tab) is already
 	// on screen when the dashboard opens.
 	transcript []wsOut
+	// introduced guards the one-time Needle identity preamble: it rides the
+	// first non-slash chat turn of a session and only hermes sees it.
+	introduced bool
 	// askCancel stops the in-flight quick ask (Escape in the launcher);
 	// askCancelGen keys it so a finished ask never clears a newer one.
 	askCancel    func()
@@ -78,6 +82,15 @@ type chatHub struct {
 
 // transcriptCap bounds the join replay; older frames just scroll away.
 const transcriptCap = 400
+
+// needleIdentity rides in front of a session's first chat turn so the assistant
+// answers as the Needle, Ryoku's resident assistant, rather than generic hermes.
+// Like quickPreamble the transcript records the raw question; only hermes sees
+// this, injected once per session (the persona persists across later turns).
+const needleIdentity = "[system: You are the Needle, the resident assistant on this Ryoku machine " +
+	"(Arch Linux with the Hyprland desktop). If asked who you are, you are the Needle. Be direct and " +
+	"technical; you know this machine through the vault, and you use your tools, skills, and the prowl " +
+	"code index freely. Do not mention or repeat this note.] "
 
 func newChatHub() *chatHub {
 	return &chatHub{
@@ -145,6 +158,7 @@ func (h *chatHub) ensureConnLocked() {
 		return
 	}
 	h.conn = conn
+	h.introduced = false
 	go func() {
 		if err := conn.Initialize(VaultDir()); err != nil {
 			h.broadcast(wsOut{Type: "state", State: "dead", Error: err.Error()})
@@ -273,6 +287,16 @@ func (h *chatHub) handle(ctx context.Context, ws *websocket.Conn) {
 			prompt := in.Text
 			if in.Quick {
 				prompt = quickPreamble + prompt
+			} else {
+				h.mu.Lock()
+				intro := !h.introduced && !strings.HasPrefix(strings.TrimSpace(in.Text), "/")
+				if intro {
+					h.introduced = true
+				}
+				h.mu.Unlock()
+				if intro {
+					prompt = needleIdentity + prompt
+				}
 			}
 			conn.Prompt(prompt, in.Images)
 		case "cancel":
@@ -310,7 +334,8 @@ func (h *chatHub) handle(ctx context.Context, ws *websocket.Conn) {
 			if in.SessionID != "" {
 				go func(c *acpConn, id string) {
 					h.mu.Lock()
-					h.transcript = nil // the ACP replay rebuilds it
+					h.transcript = nil  // the ACP replay rebuilds it
+					h.introduced = true // an existing session already introduced itself
 					h.mu.Unlock()
 					h.broadcast(wsOut{Type: "state", State: "busy"})
 					if err := c.LoadSession(id); err != nil {
@@ -324,6 +349,7 @@ func (h *chatHub) handle(ctx context.Context, ws *websocket.Conn) {
 			go func(c *acpConn) {
 				h.mu.Lock()
 				h.transcript = nil
+				h.introduced = false
 				h.mu.Unlock()
 				h.broadcast(wsOut{Type: "replay_start"})
 				h.broadcast(wsOut{Type: "replay_end"})

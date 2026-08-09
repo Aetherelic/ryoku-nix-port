@@ -16,6 +16,12 @@
   closing and reopening the sidebar keeps the thread; a fresh chat starts only
   after the sidebar has been away ten minutes (`modules/bar/panel/PanelChat.qml`,
   `services/Needle.qml`, `rashin/backend/chatcli.go`).
+- **The chat answers as the Needle, not generic hermes.** The daemon rides a
+  one-time identity preamble in front of a session's first turn, so the sidebar
+  assistant introduces itself as the Needle, Ryoku's resident assistant, and
+  stays Ryoku-aware. It is chat-scoped and invisible to the transcript, so
+  Claude Code and other agents reading the shared vault are unaffected
+  (`rashin/backend/ws.go`).
 - **The chat shows the agent working.** While the needle answers, a live
   activity log streams above the text: every tool the agent runs (read, search,
   edit, run a command, ...) as an icon and title with a status that flips to a
