@@ -81,6 +81,14 @@ func emitModelsFrame(m wsOut) {
 	emitChat(map[string]any{"type": "models", "models": arr, "current": m.Current})
 }
 
+func emitCommandsFrame(m wsOut) {
+	arr := make([]map[string]any, 0, len(m.Commands))
+	for _, c := range m.Commands {
+		arr = append(arr, map[string]any{"name": c.Name, "description": c.Description, "hint": c.Hint})
+	}
+	emitChat(map[string]any{"type": "commands", "commands": arr})
+}
+
 func cmdChat(args []string) error {
 	var images, words []string
 	var modelID string
@@ -93,6 +101,8 @@ func cmdChat(args []string) error {
 			mode = "new"
 		case "--models":
 			mode = "models"
+		case "--commands":
+			mode = "commands"
 		case "--set-model":
 			mode = "setmodel"
 			if i+1 < len(args) {
@@ -147,6 +157,20 @@ func cmdChat(args []string) error {
 			}
 			if m.Type == "models" {
 				emitModelsFrame(m)
+				return nil
+			}
+		}
+	case "commands":
+		cctx, ccancel := context.WithTimeout(ctx, 4*time.Second)
+		defer ccancel()
+		for {
+			var m wsOut
+			if wsjson.Read(cctx, c, &m) != nil {
+				emitChat(map[string]any{"type": "commands", "commands": []any{}})
+				return nil
+			}
+			if m.Type == "commands" {
+				emitCommandsFrame(m)
 				return nil
 			}
 		}

@@ -23,6 +23,12 @@
   answer also carries a RETRY (re-ask in place) and COPY row
   (`rashin/backend/chatcli.go`, `services/Needle.qml`,
   `modules/bar/panel/PanelChat.qml`).
+- **A slash-command palette in the chat.** Type `/` and the session's commands
+  float above the input (`/tools`, `/context`, `/compress`, `/steer`, `/model`,
+  `/reset`, ...); typing filters, arrows move, Tab or Enter completes, Esc
+  dismisses, and Enter runs the command in the session. A new
+  `ryoku-rashin chat --commands` fetches the list (`rashin/backend/chatcli.go`,
+  `modules/bar/panel/PanelChat.qml`).
 - **The needle can query the Ryoku code index mid-chat.** When prowl-agent and
   an indexed checkout are both present, the hermes session starts with
   prowl-agent wired in as an MCP server, so the agent answers "where is X

@@ -21,6 +21,27 @@ Item {
     property var pendingImages: []
     readonly property int maxImages: 3
 
+    // Slash-command palette: the session's built-in commands (/tools, /steer,
+    // /compress, ...) fetched from the daemon; typing "/" filters them.
+    property var commands: []
+    property int paletteIdx: 0
+    property bool paletteDismissed: false
+    readonly property bool slashMode: input.text.length > 0 && input.text.charAt(0) === "/" && input.text.indexOf(" ") === -1 && !root.paletteDismissed
+    readonly property var slashMatches: {
+        if (!root.slashMode)
+            return [];
+        var pre = input.text.slice(1).toLowerCase();
+        return (root.commands || []).filter(c => String(c.name).toLowerCase().indexOf(pre) === 0);
+    }
+    readonly property bool paletteOpen: root.slashMode && root.slashMatches.length > 0
+    function acceptSlash() {
+        if (root.slashMatches.length === 0)
+            return;
+        var idx = Math.max(0, Math.min(root.paletteIdx, root.slashMatches.length - 1));
+        input.text = "/" + root.slashMatches[idx].name + " ";
+        input.cursorPosition = input.text.length;
+    }
+
     implicitHeight: 648 * root.s
 
     readonly property real minInputH: 20 * root.s
@@ -90,13 +111,37 @@ Item {
         root.pendingImages = [];
     }
 
+    // Fetch the session's slash commands (available once a session exists).
+    Process {
+        id: cmdsProc
+        command: ["ryoku-rashin", "chat", "--commands"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => {
+                try {
+                    var f = JSON.parse(String(line));
+                    if (f && f.type === "commands" && f.commands)
+                        root.commands = f.commands;
+                } catch (e) {}
+            }
+        }
+    }
+    function loadCommands() { if (!cmdsProc.running) cmdsProc.running = true; }
+
     Component.onCompleted: {
         Needle.noteOpened();
+        root.loadCommands();
         Qt.callLater(input.forceActiveFocus);
         root.scrollEnd();
     }
     Component.onDestruction: Needle.noteClosed()
-    onOpenChanged: if (root.open) Qt.callLater(input.forceActiveFocus)
+    onOpenChanged: {
+        if (root.open) {
+            Qt.callLater(input.forceActiveFocus);
+            if (root.commands.length === 0)
+                root.loadCommands();
+        }
+    }
 
     Connections {
         target: Needle
@@ -767,6 +812,76 @@ Item {
     }
 
     // ── input ──
+    // Slash-command palette, floating just above the input.
+    Rectangle {
+        id: palette
+        visible: root.paletteOpen
+        clip: true
+        anchors.left: inputWrap.left
+        anchors.right: inputWrap.right
+        anchors.bottom: inputWrap.top
+        anchors.bottomMargin: 6 * root.s
+        height: Math.min(paletteCol.implicitHeight + 8 * root.s, 210 * root.s)
+        radius: 10 * root.s
+        color: Qt.rgba(Theme.effectiveSurface.r, Theme.effectiveSurface.g, Theme.effectiveSurface.b, 0.98)
+        border.width: 1
+        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.4)
+        Column {
+            id: paletteCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 4 * root.s
+            Repeater {
+                model: root.slashMatches
+                delegate: Rectangle {
+                    id: pRow
+                    required property var modelData
+                    required property int index
+                    width: paletteCol.width
+                    height: 30 * root.s
+                    radius: 6 * root.s
+                    color: root.paletteIdx === pRow.index ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16) : "transparent"
+                    Row {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: 8 * root.s
+                        anchors.rightMargin: 8 * root.s
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 8 * root.s
+                        Text {
+                            text: "/" + pRow.modelData.name
+                            color: Theme.primary
+                            font.family: Theme.mono
+                            font.pixelSize: 11 * root.s
+                            width: 82 * root.s
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            text: pRow.modelData.description || ""
+                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                            font.family: Theme.fontPrimary
+                            font.pixelSize: 10.5 * root.s
+                            width: paletteCol.width - 106 * root.s
+                            elide: Text.ElideRight
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: root.paletteIdx = pRow.index
+                        onClicked: {
+                            root.paletteIdx = pRow.index;
+                            root.acceptSlash();
+                            input.forceActiveFocus();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Rectangle {
         id: inputWrap
         anchors.left: parent.left
@@ -889,10 +1004,26 @@ Item {
                         selectByMouse: true
                         font.family: Theme.fontPrimary
                         font.pixelSize: 12.5 * root.s
+                        onTextChanged: {
+                            root.paletteIdx = 0;
+                            root.paletteDismissed = false;
+                        }
                         // Ctrl+V: let the text paste happen, and also check the
                         // clipboard for an image to attach (harmless for text).
                         Keys.onPressed: (e) => {
-                            if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && !(e.modifiers & Qt.ShiftModifier)) {
+                            if (root.paletteOpen && e.key === Qt.Key_Down) {
+                                root.paletteIdx = Math.min(root.paletteIdx + 1, root.slashMatches.length - 1);
+                                e.accepted = true;
+                            } else if (root.paletteOpen && e.key === Qt.Key_Up) {
+                                root.paletteIdx = Math.max(root.paletteIdx - 1, 0);
+                                e.accepted = true;
+                            } else if (root.paletteOpen && (e.key === Qt.Key_Tab || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && !(e.modifiers & Qt.ShiftModifier)) {
+                                root.acceptSlash();
+                                e.accepted = true;
+                            } else if (root.slashMode && e.key === Qt.Key_Escape) {
+                                root.paletteDismissed = true;
+                                e.accepted = true;
+                            } else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && !(e.modifiers & Qt.ShiftModifier)) {
                                 root.submit();
                                 e.accepted = true;
                             } else if (e.key === Qt.Key_Escape && Needle.busy) {
