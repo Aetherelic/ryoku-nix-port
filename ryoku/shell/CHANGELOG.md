@@ -53,7 +53,11 @@
   current model; opening it lists every model the hermes session offers (an
   OpenAI model, a local endpoint, or whatever the provider config exposes) and
   switching is one click. So the chat can talk to rashin's hermes, OpenAI, or a
-  local model without leaving the sidebar (`chat --models`, `chat --set-model`;
+  local model without leaving the sidebar. The pick is remembered: the daemon
+  saves it and re-applies it to every new session, so a restart keeps your
+  model and the dashboard, sidebar, and `status` all report the one the session
+  is actually on (`chat --models`, `chat --set-model`;
+  `rashin/backend/acp.go`, `rashin/backend/ws.go`, `rashin/backend/hermes.go`,
   `modules/bar/panel/PanelChat.qml`, `services/Needle.qml`).
 
 ### Fixed

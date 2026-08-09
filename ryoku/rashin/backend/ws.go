@@ -309,6 +309,7 @@ func (h *chatHub) handle(ctx context.Context, ws *websocket.Conn) {
 			if in.ModelID != "" {
 				go func(c *acpConn, id string) {
 					if err := c.SetModel(id); err == nil {
+						saveSessionModel(id)
 						h.mu.Lock()
 						m := h.models
 						m.Current = id

@@ -53,6 +53,7 @@ func (f *fakeAgent) update(session string, update map[string]any) {
 }
 
 func newTestPair(t *testing.T) (*acpConn, *fakeAgent) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	cr, cw := io.Pipe() // client -> agent
 	ar, aw := io.Pipe() // agent -> client
 	conn := newACPConn(cw, ar, cw)

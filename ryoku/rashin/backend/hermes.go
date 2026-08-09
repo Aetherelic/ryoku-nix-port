@@ -58,6 +58,12 @@ func HermesStatus() HermesInfo {
 	info.Configured = hermesOnboarded()
 	info.Wired = fileHasBlock(hermesMemory())
 	info.Provider, info.Model, _ = hermesModel()
+	if saved := savedSessionModel(); saved != "" {
+		info.Model = saved
+		if i := strings.IndexByte(saved, ':'); i >= 0 {
+			info.Model = saved[i+1:]
+		}
+	}
 	return info
 }
 
@@ -106,6 +112,39 @@ func hermesModel() (provider, model string, ok bool) {
 		return provider, model, provider != "" || model != ""
 	}
 	return "", "", false
+}
+
+// The active session model is remembered here so a pick in any chat surface
+// survives daemon restarts and reads back consistently in status. The value is
+// the ACP model id (provider:model); empty until the first session or pick.
+func modelStatePath() string {
+	base := os.Getenv("RYOKU_STATE_PATH")
+	if base == "" {
+		sh := os.Getenv("XDG_STATE_HOME")
+		if sh == "" {
+			sh = filepath.Join(home(), ".local", "state")
+		}
+		base = filepath.Join(sh, "ryoku")
+	}
+	return filepath.Join(base, "rashin-model")
+}
+
+func savedSessionModel() string {
+	b, err := os.ReadFile(modelStatePath())
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func saveSessionModel(id string) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return
+	}
+	p := modelStatePath()
+	_ = os.MkdirAll(filepath.Dir(p), 0o755)
+	_ = os.WriteFile(p, []byte(id+"\n"), 0o644)
 }
 
 func hermesVersion(bin string) string {

@@ -194,6 +194,42 @@ func (c *acpConn) emitModels(res json.RawMessage) {
 	c.emit(AcpEvent{Type: "models", Models: ms, CurrentModel: out.Models.CurrentModelID})
 }
 
+// reconcileModel keeps a fresh session on the remembered model, and remembers
+// the live model when nothing is stored yet, so every surface and `status`
+// agree on one model that survives restarts.
+func (c *acpConn) reconcileModel(res json.RawMessage, method string) {
+	var out sessionResult
+	if json.Unmarshal(res, &out) != nil || out.Models == nil {
+		return
+	}
+	current := out.Models.CurrentModelID
+	saved := savedSessionModel()
+	avail := func(id string) bool {
+		for _, m := range out.Models.Available {
+			if m.ModelID == id {
+				return true
+			}
+		}
+		return false
+	}
+	// A remembered pick that is still on offer: apply it to this fresh session.
+	if method == "session/new" && saved != "" && saved != current && avail(saved) {
+		if err := c.SetModel(saved); err == nil {
+			ms := make([]ModelInfo, 0, len(out.Models.Available))
+			for _, m := range out.Models.Available {
+				ms = append(ms, ModelInfo{ID: m.ModelID, Name: m.Name, Description: m.Description})
+			}
+			c.emit(AcpEvent{Type: "models", Models: ms, CurrentModel: saved})
+			return
+		}
+	}
+	// Nothing stored (or the pick vanished): remember whatever the session runs
+	// so status and the pickers reflect the live model.
+	if current != "" && (saved == "" || !avail(saved)) {
+		saveSessionModel(current)
+	}
+}
+
 // Initialize performs the ACP handshake and opens the vault session.
 func (c *acpConn) Initialize(vault string) error {
 	c.vault = vault
@@ -223,6 +259,7 @@ func (c *acpConn) openSession(method string, params map[string]any) error {
 	c.sessionID = out.SessionID
 	c.mu.Unlock()
 	c.emitModels(res)
+	c.reconcileModel(res, method)
 	return nil
 }
 
