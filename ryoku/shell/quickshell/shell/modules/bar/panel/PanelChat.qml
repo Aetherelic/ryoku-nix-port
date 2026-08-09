@@ -845,66 +845,70 @@ Item {
         anchors.right: inputWrap.right
         anchors.bottom: inputWrap.top
         anchors.bottomMargin: 6 * root.s
-        height: Math.min(paletteCol.implicitHeight + 8 * root.s, 210 * root.s)
+        height: Math.min(root.slashMatches.length * 30 * root.s, 180 * root.s) + 8 * root.s
         radius: 10 * root.s
         color: Qt.rgba(Theme.effectiveSurface.r, Theme.effectiveSurface.g, Theme.effectiveSurface.b, 0.98)
         border.width: 1
         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.4)
-        Column {
-            id: paletteCol
+        ListView {
+            id: paletteList
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
+            anchors.bottom: parent.bottom
             anchors.margins: 4 * root.s
-            Repeater {
-                model: root.slashMatches
-                delegate: Rectangle {
-                    id: pRow
-                    required property var modelData
-                    required property int index
-                    width: paletteCol.width
-                    height: 30 * root.s
-                    radius: 6 * root.s
-                    color: root.paletteIdx === pRow.index ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16) : "transparent"
-                    Row {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.leftMargin: 8 * root.s
-                        anchors.rightMargin: 8 * root.s
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 8 * root.s
-                        MaterialIcon {
-                            text: pRow.modelData.skill ? "extension" : "bolt"
-                            font.pixelSize: 12 * root.s
-                            color: pRow.modelData.skill ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0) : Theme.primary
-                        }
-                        Text {
-                            text: "/" + pRow.modelData.name
-                            color: Theme.primary
-                            font.family: Theme.mono
-                            font.pixelSize: 11 * root.s
-                            width: 82 * root.s
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            text: pRow.modelData.description || ""
-                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
-                            font.family: Theme.fontPrimary
-                            font.pixelSize: 10.5 * root.s
-                            width: paletteCol.width - 128 * root.s
-                            elide: Text.ElideRight
-                        }
+            clip: true
+            model: root.slashMatches
+            currentIndex: root.paletteIdx
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            onCurrentIndexChanged: paletteList.positionViewAtIndex(paletteList.currentIndex, ListView.Contain)
+            delegate: Rectangle {
+                id: pRow
+                required property var modelData
+                required property int index
+                width: paletteList.width
+                height: 30 * root.s
+                radius: 6 * root.s
+                color: root.paletteIdx === pRow.index ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16) : "transparent"
+                Row {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 8 * root.s
+                    anchors.rightMargin: 8 * root.s
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8 * root.s
+                    MaterialIcon {
+                        text: pRow.modelData.skill ? "extension" : "bolt"
+                        font.pixelSize: 12 * root.s
+                        color: pRow.modelData.skill ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0) : Theme.primary
                     }
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onEntered: root.paletteIdx = pRow.index
-                        onClicked: {
-                            root.paletteIdx = pRow.index;
-                            root.acceptSlash();
-                            input.forceActiveFocus();
-                        }
+                    Text {
+                        text: "/" + pRow.modelData.name
+                        color: Theme.primary
+                        font.family: Theme.mono
+                        font.pixelSize: 11 * root.s
+                        width: 82 * root.s
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        text: pRow.modelData.description || ""
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                        font.family: Theme.fontPrimary
+                        font.pixelSize: 10.5 * root.s
+                        width: paletteList.width - 128 * root.s
+                        elide: Text.ElideRight
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onEntered: root.paletteIdx = pRow.index
+                    onClicked: {
+                        root.paletteIdx = pRow.index;
+                        root.acceptSlash();
+                        input.forceActiveFocus();
                     }
                 }
             }

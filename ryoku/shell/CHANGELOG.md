@@ -16,6 +16,11 @@
   closing and reopening the sidebar keeps the thread; a fresh chat starts only
   after the sidebar has been away ten minutes (`modules/bar/panel/PanelChat.qml`,
   `services/Needle.qml`, `rashin/backend/chatcli.go`).
+- **The chat survives a shell reload.** On load the sidebar restores the
+  conversation the persistent daemon session still holds (text), so a
+  `ryoku reload` or relogin lands back on the thread instead of an empty chat.
+  A new `ryoku-rashin chat --history` replays the session transcript
+  (`rashin/backend/chatcli.go`, `services/Needle.qml`).
 - **The chat answers as the Needle, not generic hermes.** The daemon rides a
   one-time identity preamble in front of a session's first turn, so the sidebar
   assistant introduces itself as the Needle, Ryoku's resident assistant, and
@@ -33,7 +38,8 @@
   session's commands float above the input (`/tools`, `/context`, `/compress`,
   `/steer`, `/model`, `/reset`, ...); type more and every installed hermes
   skill (`/humanizer`, `/architecture-diagram`, `/systematic-debugging`, ...)
-  joins the list, each invokable as a slash command. Arrows move, Tab or Enter
+  joins the list, each invokable as a slash command. Arrows move (the list
+  scrolls), Tab or Enter
   completes, Esc dismisses, and Enter runs it in the session. New
   `ryoku-rashin chat --commands` and `--skills` fetch the lists
   (`rashin/backend/chatcli.go`, `modules/bar/panel/PanelChat.qml`).

@@ -157,6 +157,49 @@ func emitSkillsFrame() {
 	emitChat(map[string]any{"type": "skills", "skills": arr})
 }
 
+// emitHistory replays the daemon's current session transcript into a single
+// history frame so a freshly loaded sidebar (after a shell reload) shows the
+// conversation the persistent session still holds. Text only; the live turns
+// that follow carry full activity.
+func emitHistory(ctx context.Context, c *websocket.Conn) {
+	msgs := []map[string]any{}
+	inReplay := false
+	var agent strings.Builder
+	flush := func() {
+		if agent.Len() > 0 {
+			msgs = append(msgs, map[string]any{"who": "agent", "body": agent.String()})
+			agent.Reset()
+		}
+	}
+	for {
+		var m wsOut
+		if wsjson.Read(ctx, c, &m) != nil {
+			break
+		}
+		if m.Type == "replay_start" {
+			inReplay = true
+			continue
+		}
+		if m.Type == "replay_end" {
+			break
+		}
+		if !inReplay {
+			continue
+		}
+		switch m.Type {
+		case "user_text":
+			flush()
+			msgs = append(msgs, map[string]any{"who": "user", "body": m.Text})
+		case "agent_text":
+			agent.WriteString(m.Text)
+		case "turn_end":
+			flush()
+		}
+	}
+	flush()
+	emitChat(map[string]any{"type": "history", "messages": msgs})
+}
+
 func cmdChat(args []string) error {
 	var images, words []string
 	var modelID string
@@ -173,6 +216,8 @@ func cmdChat(args []string) error {
 			mode = "commands"
 		case "--skills":
 			mode = "skills"
+		case "--history":
+			mode = "history"
 		case "--set-model":
 			mode = "setmodel"
 			if i+1 < len(args) {
@@ -213,6 +258,11 @@ func cmdChat(args []string) error {
 	case "new":
 		_ = wsjson.Write(ctx, c, wsIn{Type: "new"})
 		time.Sleep(200 * time.Millisecond)
+		return nil
+	case "history":
+		hctx, hcancel := context.WithTimeout(ctx, 3*time.Second)
+		defer hcancel()
+		emitHistory(hctx, c)
 		return nil
 	case "setmodel":
 		if modelID != "" {

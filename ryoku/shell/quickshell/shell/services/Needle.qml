@@ -278,4 +278,30 @@ Singleton {
             }
         }
     }
+
+    // Restore the conversation the persistent daemon session still holds, so a
+    // shell reload lands the sidebar back on its thread. Text only; new turns
+    // carry full activity. Only runs while the transcript is still empty.
+    Process {
+        id: historyProc
+        command: ["ryoku-rashin", "chat", "--history"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => {
+                var f;
+                try { f = JSON.parse(String(line)); } catch (e) { return; }
+                if (!f || f.type !== "history" || !f.messages || messages.count > 0)
+                    return;
+                for (var i = 0; i < f.messages.length; i++) {
+                    var m = f.messages[i];
+                    messages.append({ who: String(m.who), body: String(m.body),
+                        imagesJson: "[]", working: "", streaming: false, failed: false, activityJson: "[]" });
+                }
+                root.touched();
+            }
+        }
+    }
+    function loadHistory() { if (messages.count === 0 && !historyProc.running) historyProc.running = true; }
+
+    Component.onCompleted: root.loadHistory()
 }
