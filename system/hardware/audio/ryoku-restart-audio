@@ -1,10 +1,41 @@
 #!/usr/bin/env bash
-# Restart the PipeWire stack, and recover a stuck USB audio device, when sound
-# does not come back: a pipewire upgrade leaves stale daemons behind, or a device
-# hangs the graph. Ported from omarchy-restart-audio.
+# Recover audio when sound does not come back. Three failure modes:
+#  - a pipewire upgrade leaves stale daemons -> restart the PipeWire stack;
+#  - a USB audio device hangs the graph      -> reset the device;
+#  - the raw ALSA mixer is muted (EasyEffects, a codec that boots muted, a bad
+#    saved state) -> unmute it. This mute sits BELOW PipeWire, so restarting the
+#    graph never clears it; the hardware mixer has to be unmuted directly.
+# Ported from omarchy-restart-audio.
 set -u
 
 services=(wireplumber.service pipewire.service pipewire-pulse.service)
+
+# Standard analog playback controls. On a soft-mixer PipeWire system (see
+# wireplumber's 50-ryoku-alsa-soft-mixer.conf) the hardware mixer is meant to sit
+# wide open at 0 dB while WirePlumber does the volume, so recovery unmutes and
+# maxes these wherever a card exposes them.
+alsa_playback_controls=(Master Speaker Headphone PCM Front)
+
+# Unmute + open the ALSA hardware mixer on every card. A raw mute is invisible to
+# wpctl and survives a PipeWire restart, so this is the piece that fixes "audio is
+# dead even after restarting".
+unmute_alsa() {
+  command -v amixer >/dev/null 2>&1 || return 0
+  local n have ctl
+  for n in /sys/class/sound/card*; do
+    [[ $n =~ /card([0-9]+)$ ]] || continue
+    n=${BASH_REMATCH[1]}
+    have=$(amixer -c "$n" scontrols 2>/dev/null) || continue
+    for ctl in "${alsa_playback_controls[@]}"; do
+      [[ $have == *"'$ctl',"* ]] || continue
+      amixer -c "$n" -- sset "$ctl" 100% unmute >/dev/null 2>&1 || true
+    done
+  done
+  # Persist so a reboot's alsa-restore does not put the mute back. Needs root;
+  # best-effort and silent when no passwordless rule exists (the runtime unmute
+  # already fixed this session).
+  command -v alsactl >/dev/null 2>&1 && sudo -n alsactl store >/dev/null 2>&1 || true
+}
 
 restart_services() {
   echo "Restarting audio services..."
@@ -49,6 +80,7 @@ reset_usb() {
 }
 
 restart_services || true
+unmute_alsa
 
 if ! wpctl_ok && blocked_on_usb; then
   echo "PipeWire is wedged on a USB audio device; resetting..."
