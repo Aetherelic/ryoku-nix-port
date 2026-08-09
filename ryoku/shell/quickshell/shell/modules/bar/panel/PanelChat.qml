@@ -47,6 +47,38 @@ Item {
         var c = t.lastIndexOf(":");
         return c >= 0 ? t.slice(c + 1) : t;
     }
+    // Split an agent answer into text and fenced-code segments so code renders
+    // in a wrapped, copyable box instead of overflowing (mirrors iNiR).
+    function msgBlocks(md) {
+        if (!md) return [];
+        var re = /```(\w+)?\n([\s\S]*?)```/g;
+        var out = [];
+        var last = 0, m;
+        function pushText(t) { if (t && t.trim().length) out.push({ type: "text", content: t }); }
+        while ((m = re.exec(md)) !== null) {
+            if (m.index > last) pushText(md.slice(last, m.index));
+            if (m[2] && m[2].trim().length)
+                out.push({ type: "code", lang: m[1] || "", content: m[2].replace(/\n+$/, "") });
+            last = re.lastIndex;
+        }
+        if (last < md.length) {
+            var tail = md.slice(last);
+            var cs = tail.indexOf("```");
+            if (cs !== -1) {
+                pushText(tail.slice(0, cs));
+                var after = tail.slice(cs + 3);
+                var lm = after.match(/^(\w+)?\n/);
+                var lang = "", cstart = 0;
+                if (lm) { lang = lm[1] || ""; cstart = lm[0].length; }
+                var code = after.slice(cstart);
+                if (code.trim().length) out.push({ type: "code", lang: lang, content: code.replace(/\n+$/, "") });
+            } else {
+                pushText(tail);
+            }
+        }
+        if (out.length === 0) pushText(md);
+        return out;
+    }
 
     function submit() {
         var q = input.text.trim();
@@ -419,22 +451,156 @@ Item {
                         }
                     }
 
-                    // message body: Markdown for the agent, plain for the user.
+                    // message body: user stays plain; the agent's Markdown is
+                    // split into text and wrapped, copyable code blocks.
                     TextEdit {
                         id: bubbleText
                         width: parent.width
-                        visible: msg.body.length > 0
-                        text: msg.body
+                        visible: msg.isUser && msg.body.length > 0
+                        text: msg.isUser ? msg.body : ""
                         readOnly: true
                         selectByMouse: true
                         wrapMode: TextEdit.Wrap
-                        textFormat: msg.isUser ? TextEdit.PlainText : TextEdit.MarkdownText
+                        textFormat: TextEdit.PlainText
                         color: msg.failed ? Theme.vermLit : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                         selectionColor: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.35)
+                        selectedTextColor: color
                         font.family: Theme.fontPrimary
                         font.pixelSize: 12.5 * root.s
-                        selectedTextColor: color
-                        onLinkActivated: (url) => Quickshell.execDetached(["xdg-open", url])
+                    }
+
+                    Column {
+                        id: blockCol
+                        width: parent.width
+                        spacing: 6 * root.s
+                        visible: !msg.isUser && msg.body.length > 0
+                        Repeater {
+                            model: root.msgBlocks(msg.body)
+                            delegate: Item {
+                                id: blk
+                                required property var modelData
+                                readonly property bool isCode: blk.modelData.type === "code"
+                                width: blockCol.width
+                                implicitHeight: blk.isCode ? codeBox.implicitHeight : txt.implicitHeight
+
+                                TextEdit {
+                                    id: txt
+                                    visible: !blk.isCode
+                                    width: blk.width
+                                    text: blk.isCode ? "" : blk.modelData.content
+                                    readOnly: true
+                                    selectByMouse: true
+                                    wrapMode: TextEdit.Wrap
+                                    textFormat: TextEdit.MarkdownText
+                                    color: msg.failed ? Theme.vermLit : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                                    selectionColor: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.35)
+                                    selectedTextColor: color
+                                    font.family: Theme.fontPrimary
+                                    font.pixelSize: 12.5 * root.s
+                                    onLinkActivated: (url) => Quickshell.execDetached(["xdg-open", url])
+                                }
+
+                                Rectangle {
+                                    id: codeBox
+                                    visible: blk.isCode
+                                    width: blk.width
+                                    implicitHeight: codeInner.implicitHeight
+                                    radius: 6 * root.s
+                                    color: Qt.rgba(0, 0, 0, 0.30)
+                                    border.width: 1
+                                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.35)
+                                    property bool copied: false
+
+                                    Column {
+                                        id: codeInner
+                                        width: parent.width
+
+                                        Item {
+                                            width: parent.width
+                                            height: 24 * root.s
+
+                                            Text {
+                                                anchors.left: parent.left
+                                                anchors.leftMargin: 10 * root.s
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: (blk.modelData.lang && blk.modelData.lang.length) ? blk.modelData.lang : "code"
+                                                color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                                font.family: Theme.mono
+                                                font.pixelSize: 8 * root.s
+                                                font.letterSpacing: 0.8
+                                            }
+
+                                            Rectangle {
+                                                anchors.right: parent.right
+                                                anchors.rightMargin: 5 * root.s
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                height: 18 * root.s
+                                                width: copyRow.implicitWidth + 10 * root.s
+                                                radius: 5 * root.s
+                                                color: cpArea.containsMouse ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.12) : "transparent"
+
+                                                Row {
+                                                    id: copyRow
+                                                    anchors.centerIn: parent
+                                                    spacing: 3 * root.s
+                                                    MaterialIcon {
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        text: codeBox.copied ? "check" : "content_copy"
+                                                        font.pixelSize: 11 * root.s
+                                                        color: codeBox.copied ? Theme.primary : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                                    }
+                                                    Text {
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        text: codeBox.copied ? "COPIED" : "COPY"
+                                                        color: codeBox.copied ? Theme.primary : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                                                        font.family: Theme.mono
+                                                        font.pixelSize: 7.5 * root.s
+                                                        font.letterSpacing: 0.8
+                                                    }
+                                                }
+                                                MouseArea {
+                                                    id: cpArea
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        Needle.copyText(blk.modelData.content);
+                                                        codeBox.copied = true;
+                                                        copiedTimer.restart();
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            width: parent.width
+                                            height: 1
+                                            color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.25)
+                                        }
+
+                                        TextEdit {
+                                            width: parent.width
+                                            leftPadding: 10 * root.s
+                                            rightPadding: 10 * root.s
+                                            topPadding: 6 * root.s
+                                            bottomPadding: 8 * root.s
+                                            text: blk.isCode ? blk.modelData.content : ""
+                                            readOnly: true
+                                            selectByMouse: true
+                                            wrapMode: TextEdit.Wrap
+                                            textFormat: TextEdit.PlainText
+                                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                                            selectionColor: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.35)
+                                            selectedTextColor: color
+                                            font.family: Theme.mono
+                                            font.pixelSize: 11 * root.s
+                                        }
+                                    }
+
+                                    Timer { id: copiedTimer; interval: 1400; onTriggered: codeBox.copied = false }
+                                }
+                            }
+                        }
                     }
                 }
 
