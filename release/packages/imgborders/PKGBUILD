@@ -7,7 +7,7 @@
 # guarded there and degrades to off.
 #
 # Hyprland plugins are ABI-locked to the compositor. prepare() reads the build
-# host's Hyprland version and checks out the matching commit from upstream's
+# host's Hyprland version and checks out the matching commit from the vendored
 # hyprpm.toml (the same map hyprpm uses), so a [ryoku] rebuild always builds
 # against whatever Hyprland it ships, with no manual commit bumps. When that map
 # has no pin for the shipped Hyprland yet, prepare() falls back to the
@@ -16,6 +16,13 @@
 # currently flags image rendering as limited on Hyprland 0.55 (tiled-texture
 # support was removed); the plugin builds and loads, and the auto-resolve picks
 # up the fix as soon as upstream ships it for the running Hyprland.
+#
+# Built from a vendored git bundle committed beside this recipe
+# (imgborders.bundle = `git bundle create ... --all` of the upstream repo), so a
+# [ryoku] build never clones from Codeberg. The bundle carries the full history
+# and hyprpm.toml, so the ABI auto-resolve above still works offline. Refresh it
+# (new upstream commits or Hyprland pins) with: git clone the upstream repo, then
+# `git -C <checkout> bundle create imgborders.bundle --all`, and update sha256sums.
 pkgname=imgborders
 pkgver=${RYOKU_PKGVER:-0.1.0}
 pkgrel=1
@@ -25,10 +32,12 @@ url="https://codeberg.org/zacoons/imgborders"
 license=('GPL-3.0-or-later')
 depends=('hyprland')
 makedepends=('hyprland' 'cmake' 'pkgconf' 'git' 'libdrm' 'pixman' 'pango' 'cairo')
-source=("$pkgname::git+https://codeberg.org/zacoons/imgborders.git")
-sha256sums=('SKIP')
+source=("$pkgname.bundle")
+noextract=("$pkgname.bundle")
+sha256sums=('48187e72ca62fc0b8d12809ca02082b8d27016516d84527a19abb3ff007d6a7d')
 
 prepare() {
+  git clone -q "$srcdir/$pkgname.bundle" "$srcdir/$pkgname"
   cd "$srcdir/$pkgname"
   local hv commit
   hv="$(pkg-config --modversion hyprland)"
