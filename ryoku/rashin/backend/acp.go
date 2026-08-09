@@ -224,9 +224,11 @@ func (c *acpConn) reconcileModel(res json.RawMessage, method string) {
 			return
 		}
 	}
-	// Nothing stored (or the pick vanished): remember whatever the session runs
-	// so status and the pickers reflect the live model.
-	if current != "" && (saved == "" || !avail(saved)) {
+	// Nothing stored yet: remember whatever the fresh session runs so status and
+	// the pickers reflect the live model. A stored pick is left untouched even
+	// when this session's list lacks it, so a momentary or partial model list
+	// never clobbers the user's choice.
+	if current != "" && saved == "" {
 		saveSessionModel(current)
 	}
 }
