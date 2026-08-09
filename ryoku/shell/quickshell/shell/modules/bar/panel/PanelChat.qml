@@ -41,6 +41,12 @@ Item {
     function removeImage(i) {
         root.pendingImages = root.pendingImages.filter((_, idx) => idx !== i);
     }
+    property bool modelMenuOpen: false
+    function shortModel(id) {
+        var t = String(id);
+        var c = t.lastIndexOf(":");
+        return c >= 0 ? t.slice(c + 1) : t;
+    }
 
     function submit() {
         var q = input.text.trim();
@@ -137,6 +143,43 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4 * root.s
+            Rectangle {
+                id: modelChip
+                anchors.verticalCenter: parent.verticalCenter
+                height: 18 * root.s
+                width: chipRow.implicitWidth + 12 * root.s
+                radius: 9 * root.s
+                visible: Needle.currentModel.length > 0
+                color: chipArea.containsMouse || root.modelMenuOpen
+                    ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
+                    : Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.06)
+                Behavior on color { ColorAnimation { duration: Motion.fast } }
+                Row {
+                    id: chipRow
+                    anchors.centerIn: parent
+                    spacing: 3 * root.s
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.shortModel(Needle.currentModel)
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                        font.family: Theme.mono
+                        font.pixelSize: 8 * root.s
+                    }
+                    MaterialIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "expand_more"
+                        font.pixelSize: 10 * root.s
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                    }
+                }
+                MouseArea {
+                    id: chipArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.modelMenuOpen = !root.modelMenuOpen
+                }
+            }
 
             Repeater {
                 model: [
@@ -174,6 +217,72 @@ Item {
                                 Needle.openDashboard();
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    // model picker dropdown; the scrim behind it closes on an outside click.
+    MouseArea {
+        anchors.fill: parent
+        visible: root.modelMenuOpen
+        z: 20
+        onClicked: root.modelMenuOpen = false
+    }
+    Rectangle {
+        visible: root.modelMenuOpen
+        z: 21
+        anchors.top: header.bottom
+        anchors.right: parent.right
+        anchors.topMargin: 4 * root.s
+        anchors.rightMargin: 14 * root.s
+        width: 220 * root.s
+        height: Math.min(260 * root.s, modelList.contentHeight + 8 * root.s)
+        radius: Theme.radiusWidget
+        color: Theme.surfaceContainer
+        border.width: Theme.borderWidth
+        border.color: Theme.outline
+        SumiEdge { radius: Theme.radiusWidget }
+        ListView {
+            id: modelList
+            anchors.fill: parent
+            anchors.margins: 4 * root.s
+            clip: true
+            model: Needle.models
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            delegate: Rectangle {
+                id: mrow
+                required property int index
+                required property var modelData
+                width: ListView.view ? ListView.view.width : 0
+                height: 30 * root.s
+                radius: 6 * root.s
+                readonly property bool current: Needle.currentModel === mrow.modelData.id
+                color: mrowArea.containsMouse
+                    ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.10)
+                    : mrow.current ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.14)
+                    : "transparent"
+                Text {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 8 * root.s
+                    anchors.rightMargin: 8 * root.s
+                    text: mrow.modelData.name || mrow.modelData.id
+                    elide: Text.ElideRight
+                    color: mrow.current ? Theme.primary : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                    font.family: Theme.fontPrimary
+                    font.pixelSize: 10 * root.s
+                }
+                MouseArea {
+                    id: mrowArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        Needle.setModel(mrow.modelData.id);
+                        root.modelMenuOpen = false;
                     }
                 }
             }

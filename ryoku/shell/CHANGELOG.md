@@ -21,6 +21,12 @@
   defined", "what calls Y", or "what is the blast radius of Z" with cited
   results from the index instead of guessing. Absent prowl, the session opens
   unchanged (`rashin/backend/acp.go`, `rashin/backend/prowl.go`).
+- **Pick the model from the sidebar.** A chip in the chat header shows the
+  current model; opening it lists every model the hermes session offers (an
+  OpenAI model, a local endpoint, or whatever the provider config exposes) and
+  switching is one click. So the chat can talk to rashin's hermes, OpenAI, or a
+  local model without leaving the sidebar (`chat --models`, `chat --set-model`;
+  `modules/bar/panel/PanelChat.qml`, `services/Needle.qml`).
 
 ### Fixed
 - **Chat image upload no longer fails on all but the tiniest images.** The chat

@@ -20,6 +20,9 @@ Singleton {
     property int liveIdx: -1
     // Wall-clock ms of the last open/close/turn; drives the idle reset.
     property double lastSeen: 0
+    // Session model picker: the models hermes offers, and the current one.
+    property var models: []
+    property string currentModel: ""
 
     // Emitted whenever the transcript changes so the view can scroll to end.
     signal touched()
@@ -28,6 +31,7 @@ Singleton {
         if (!busy && messages.count > 0 && lastSeen > 0 && (Date.now() - lastSeen) > root.idleResetMs)
             root.newChat();
         root.lastSeen = Date.now();
+        root.loadModels();
     }
 
     function noteClosed() {
@@ -95,6 +99,15 @@ Singleton {
         Quickshell.execDetached(["xdg-open", "http://127.0.0.1:3600/#/chat"]);
     }
 
+    function loadModels() { modelsProc.running = true; }
+
+    function setModel(id) {
+        if (!id || id === root.currentModel)
+            return;
+        root.currentModel = String(id);
+        Quickshell.execDetached(["ryoku-rashin", "chat", "--set-model", String(id)]);
+    }
+
     ListModel { id: messages }
 
     Process {
@@ -125,6 +138,11 @@ Singleton {
                     break;
                 case "perm":
                     messages.setProperty(i, "working", "waiting for approval: " + String(f.title || ""));
+                    break;
+                case "models":
+                    root.models = f.models || [];
+                    if (f.current)
+                        root.currentModel = String(f.current);
                     break;
                 case "done":
                     var imgs = f.images || [];
@@ -168,6 +186,22 @@ Singleton {
             root.liveIdx = -1;
             root.lastSeen = Date.now();
             root.touched();
+        }
+    }
+
+    Process {
+        id: modelsProc
+        command: ["ryoku-rashin", "chat", "--models"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => {
+                var f;
+                try { f = JSON.parse(String(line)); } catch (e) { return; }
+                if (f && f.type === "models") {
+                    root.models = f.models || [];
+                    if (f.current) root.currentModel = String(f.current);
+                }
+            }
         }
     }
 }

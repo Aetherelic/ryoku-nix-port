@@ -73,8 +73,17 @@ func encodeImage(p string) (data, mime string) {
 	return base64.StdEncoding.EncodeToString(b), chatImageMime(p)
 }
 
+func emitModelsFrame(m wsOut) {
+	arr := make([]map[string]any, 0, len(m.Models))
+	for _, mi := range m.Models {
+		arr = append(arr, map[string]any{"id": mi.ID, "name": mi.Name})
+	}
+	emitChat(map[string]any{"type": "models", "models": arr, "current": m.Current})
+}
+
 func cmdChat(args []string) error {
 	var images, words []string
+	var modelID string
 	mode := "ask"
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -82,6 +91,14 @@ func cmdChat(args []string) error {
 			mode = "cancel"
 		case "--new":
 			mode = "new"
+		case "--models":
+			mode = "models"
+		case "--set-model":
+			mode = "setmodel"
+			if i+1 < len(args) {
+				i++
+				modelID = args[i]
+			}
 		case "--image":
 			if i+1 < len(args) {
 				i++
@@ -113,6 +130,26 @@ func cmdChat(args []string) error {
 		_ = wsjson.Write(ctx, c, wsIn{Type: "new"})
 		time.Sleep(200 * time.Millisecond)
 		return nil
+	case "setmodel":
+		if modelID != "" {
+			_ = wsjson.Write(ctx, c, wsIn{Type: "set_model", ModelID: modelID})
+			time.Sleep(200 * time.Millisecond)
+		}
+		return nil
+	case "models":
+		mctx, mcancel := context.WithTimeout(ctx, 4*time.Second)
+		defer mcancel()
+		for {
+			var m wsOut
+			if wsjson.Read(mctx, c, &m) != nil {
+				emitChat(map[string]any{"type": "models", "models": []any{}, "current": ""})
+				return nil
+			}
+			if m.Type == "models" {
+				emitModelsFrame(m)
+				return nil
+			}
+		}
 	}
 
 	if q == "" && len(images) == 0 {
@@ -174,6 +211,8 @@ func cmdChat(args []string) error {
 			emitChat(map[string]any{"type": "delta", "text": m.Text})
 		case "permission":
 			emitChat(map[string]any{"type": "perm", "title": m.Title, "requestId": m.RequestID})
+		case "models":
+			emitModelsFrame(m)
 		case "turn_end":
 			imgs := extractImages(full.String())
 			if imgs == nil {
