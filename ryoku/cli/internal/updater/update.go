@@ -50,8 +50,28 @@ var (
 // step still aborts first. Each stage is published to the run-state file so
 // the update island and Hub show real, determinate progress.
 func Update(args []string) error {
-	if len(args) >= 2 && args[0] == "--stage2" {
+	stage2 := len(args) >= 2 && args[0] == "--stage2"
+
+	// One update at a time: a second run mid-transaction (a double-click, a timer
+	// racing a manual update) can corrupt pacman or the config swap. Best-effort
+	// -- a lock we cannot even create never blocks an update, only a held one does.
+	lock, busy := acquireUpdateLock()
+	if busy != nil {
+		return busy
+	}
+	if lock != nil {
+		defer lock.Close()
+	}
+
+	if stage2 {
 		return updateStage2(args[1])
+	}
+
+	// Stop before starting if the disk is too full: a pacman transaction or a
+	// copy-on-write snapshot that runs out of space leaves the system half-upgraded.
+	if free, ok := enoughFreeSpace(); !ok {
+		return fmt.Errorf("only %s free on /; free up space before updating "+
+			"(an update that runs out of disk can leave the system half-upgraded)", free)
 	}
 
 	checkout := sys.ResolveRepo() != ""
@@ -62,7 +82,7 @@ func Update(args []string) error {
 	}
 
 	progress.at("snapshot")
-	pre := snapperPre("ryoku-update")
+	pre := snapperPre(snapshotDesc())
 	progress.setSnapshot(pre)
 
 	// checkout: update through the git channel. packaged: pacman + a hand-off
@@ -85,7 +105,7 @@ func Update(args []string) error {
 	progress.at("packages")
 	progress.logf("Updating system packages (pacman)")
 	clearStalePacmanLock()
-	if err := sys.Sudo("pacman", "-Syu", "--noconfirm"); err != nil {
+	if err := runSystemUpgrade(); err != nil {
 		// only advertise `ryoku rollback` when the pre snapshot it needs exists;
 		// snapperPre is best-effort and returns "" when it was skipped.
 		hint := "no pre-update snapshot exists (snapper was unavailable), so `ryoku rollback` cannot revert this; recover with pacman directly"
@@ -100,7 +120,7 @@ func Update(args []string) error {
 	if sys.Has("yay") {
 		progress.at("aur")
 		progress.logf("Updating AUR packages (yay)")
-		if err := sys.Run("yay", "-Sua", "--noconfirm"); err != nil {
+		if err := runAURUpgrade(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: yay update reported errors: %v\n", err)
 		}
 	} else {
@@ -115,6 +135,92 @@ func Update(args []string) error {
 		}
 	}
 	return updateStage2(pre)
+}
+
+// --- update safeguards (concurrency, disk, sleep, snapshot noise) -----------
+
+// acquireUpdateLock takes an exclusive, non-blocking flock so only one
+// `ryoku update` runs at a time. Returns (nil, err) when another update already
+// holds it (the caller aborts); (nil, nil) when the lock file cannot even be
+// created (proceed best-effort, like the snapshot); (f, nil) when acquired -- the
+// caller keeps f open for the update's lifetime and closes it to release. The fd
+// is close-on-exec, so the stage1->stage2 handoff re-acquires cleanly.
+func acquireUpdateLock() (*os.File, error) {
+	f, err := os.OpenFile(filepath.Join(sys.Xdg("XDG_RUNTIME_DIR", ".cache"), "ryoku-update.lock"),
+		os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, nil // cannot create a lock file -> never block the update
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("another ryoku update is already running; wait for it to finish")
+	}
+	return f, nil
+}
+
+// enoughFreeSpace reports whether / has room for an update (the download, the new
+// packages, and a copy-on-write snapshot). A statfs it cannot read never blocks.
+// The returned string is the human-readable free size, for the error message.
+func enoughFreeSpace() (string, bool) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs("/", &st); err != nil {
+		return "", true
+	}
+	free := st.Bavail * uint64(st.Bsize)
+	return humanBytes(free), free >= (1 << 30) // 1 GiB floor
+}
+
+func humanBytes(n uint64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GiB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%d MiB", n>>20)
+	default:
+		return fmt.Sprintf("%d bytes", n)
+	}
+}
+
+// snapshotDesc labels the pre-update snapshot (and its Limine boot-menu entry)
+// with the version being updated from, so a user restoring after a bad update can
+// tell the snapshots apart instead of a row of identical "ryoku-update".
+func snapshotDesc() string {
+	v := ""
+	if repo := sys.ResolveRepo(); repo != "" {
+		v = gitShort(repo, "HEAD")
+	} else {
+		v = shortCommit(sys.InstalledVersion())
+	}
+	if v == "" {
+		return "ryoku-update"
+	}
+	return "ryoku-update (from " + v + ")"
+}
+
+// runSystemUpgrade runs `pacman -Syu` sleep-inhibited (a lid-close or idle
+// suspend mid-transaction cannot corrupt it) and skips snap-pac's per-transaction
+// snapshot: `ryoku update` already brackets the whole run with one snapper
+// pre/post pair, so snap-pac's extra pair is pure noise in the list and the boot
+// menu. sudo resets the environment, so SNAP_PAC_SKIP rides inside via env(1).
+func runSystemUpgrade() error {
+	return runInhibited("System package upgrade",
+		[]string{"sudo", "env", "SNAP_PAC_SKIP=y", "pacman", "-Syu", "--noconfirm"})
+}
+
+// runAURUpgrade runs `yay -Sua` under the same sleep inhibitor.
+func runAURUpgrade() error {
+	return runInhibited("AUR package upgrade", []string{"yay", "-Sua", "--noconfirm"})
+}
+
+// runInhibited runs argv while holding a logind sleep+idle block, so a suspend
+// mid-upgrade cannot interrupt a package transaction. Degrades to running argv
+// directly when systemd-inhibit is unavailable.
+func runInhibited(why string, argv []string) error {
+	if sys.Has("systemd-inhibit") {
+		head := []string{"--what=sleep:idle", "--who=ryoku update", "--why=" + why, "--mode=block"}
+		return sys.Run("systemd-inhibit", append(head, argv...)...)
+	}
+	return sys.Run(argv[0], argv[1:]...)
 }
 
 // finishRun publishes the terminal "done" state, holds it briefly so a watching

@@ -15,6 +15,16 @@
   `internal/sys/repo.go`, `internal/doctor/reconcile_channel.go`).
 
 ### Added
+- **Safer updates: one at a time, sleep-inhibited, space-checked, fewer snapshots.**
+  `ryoku update` now holds an flock so a second run cannot race it, refuses to
+  start when `/` has under 1 GiB free (a mid-update disk-full leaves the system
+  half-upgraded), and runs pacman/yay under `systemd-inhibit` so a lid-close or
+  idle suspend cannot corrupt a transaction. It also skips snap-pac's redundant
+  per-transaction snapshot (the run is already bracketed by one snapper pre/post
+  pair, so a packaged update drops from about four snapshots to two) and labels
+  that snapshot with the version it updated from, so boot-menu rollback entries
+  are distinguishable. Adapted from omarchy's update pipeline
+  (`internal/updater/update.go`).
 - **Dropping a shipped WirePlumber config takes effect on update, not next login.**
   `materialize` now restarts `wireplumber.service` whenever a `wireplumber/`
   drop-in is pruned, not only when the bluetooth policy changes, so removing the
