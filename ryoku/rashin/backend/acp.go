@@ -299,9 +299,33 @@ func (c *acpConn) ListSessions() []SessionMeta {
 	}
 	list := make([]SessionMeta, 0, len(out.Sessions))
 	for _, s := range out.Sessions {
-		list = append(list, SessionMeta{ID: s.SessionID, Title: s.Title, Cwd: s.Cwd, UpdatedAt: s.UpdatedAt})
+		list = append(list, SessionMeta{ID: s.SessionID, Title: cleanTitle(s.Title), Cwd: s.Cwd, UpdatedAt: s.UpdatedAt})
 	}
 	return list
+}
+
+// cleanTitle drops a session title that is only the injected identity preamble;
+// hermes occasionally titles a fresh session from the whole first prompt.
+func cleanTitle(t string) string {
+	if len(t) >= 8 && t[:8] == "[system:" {
+		return ""
+	}
+	return t
+}
+
+// stripIdentityPreamble removes the injected Needle identity from a replayed
+// user message, so a loaded session shows the question the user actually typed
+// (hermes stores the full prompt, preamble and all, and replays it verbatim).
+func stripIdentityPreamble(s string) string {
+	if len(s) < 8 || s[:8] != "[system:" {
+		return s
+	}
+	for i := 0; i+1 < len(s); i++ {
+		if s[i] == ']' && s[i+1] == ' ' {
+			return s[i+2:]
+		}
+	}
+	return s
 }
 
 // SetModel switches the session's model.
@@ -535,7 +559,7 @@ func (c *acpConn) handleUpdate(params json.RawMessage) {
 	case "agent_thought_chunk":
 		c.emit(AcpEvent{Type: "agent_thought", Text: u.Content.Text})
 	case "user_message_chunk":
-		c.emit(AcpEvent{Type: "user_text", Text: u.Content.Text})
+		c.emit(AcpEvent{Type: "user_text", Text: stripIdentityPreamble(u.Content.Text)})
 	case "tool_call", "tool_call_update":
 		status := u.Status
 		if status == "" {
@@ -558,7 +582,7 @@ func (c *acpConn) handleUpdate(params json.RawMessage) {
 	case "usage_update":
 		c.emit(AcpEvent{Type: "usage", UsageSize: u.Size, UsageUsed: u.Used})
 	case "session_info_update":
-		c.emit(AcpEvent{Type: "session_info", SessionID: p.SessionID, SessionTitle: u.Title})
+		c.emit(AcpEvent{Type: "session_info", SessionID: p.SessionID, SessionTitle: cleanTitle(u.Title)})
 	}
 }
 

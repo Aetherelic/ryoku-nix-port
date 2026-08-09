@@ -92,6 +92,14 @@ func emitCommandsFrame(m wsOut) {
 	emitChat(map[string]any{"type": "commands", "commands": arr})
 }
 
+func emitSessionsFrame(m wsOut) {
+	arr := make([]map[string]any, 0, len(m.Sessions))
+	for _, s := range m.Sessions {
+		arr = append(arr, map[string]any{"id": s.ID, "title": s.Title, "updatedAt": s.UpdatedAt})
+	}
+	emitChat(map[string]any{"type": "sessions", "sessions": arr})
+}
+
 func skillMeta(path string) (name, desc string) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -202,7 +210,7 @@ func emitHistory(ctx context.Context, c *websocket.Conn) {
 
 func cmdChat(args []string) error {
 	var images, words []string
-	var modelID string
+	var modelID, sessionID string
 	mode := "ask"
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -218,6 +226,14 @@ func cmdChat(args []string) error {
 			mode = "skills"
 		case "--history":
 			mode = "history"
+		case "--sessions":
+			mode = "sessions"
+		case "--load":
+			mode = "load"
+			if i+1 < len(args) {
+				i++
+				sessionID = args[i]
+			}
 		case "--set-model":
 			mode = "setmodel"
 			if i+1 < len(args) {
@@ -264,6 +280,41 @@ func cmdChat(args []string) error {
 		defer hcancel()
 		emitHistory(hctx, c)
 		return nil
+	case "sessions":
+		sctx, scancel := context.WithTimeout(ctx, 4*time.Second)
+		defer scancel()
+		_ = wsjson.Write(sctx, c, wsIn{Type: "history"})
+		for {
+			var m wsOut
+			if wsjson.Read(sctx, c, &m) != nil {
+				emitChat(map[string]any{"type": "sessions", "sessions": []any{}})
+				return nil
+			}
+			if m.Type == "history" {
+				emitSessionsFrame(m)
+				return nil
+			}
+		}
+	case "load":
+		if sessionID == "" {
+			return nil
+		}
+		_ = wsjson.Write(ctx, c, wsIn{Type: "load", SessionID: sessionID})
+		lctx, lcancel := context.WithTimeout(ctx, 10*time.Second)
+		defer lcancel()
+		sawBusy := false
+		for {
+			var m wsOut
+			if wsjson.Read(lctx, c, &m) != nil {
+				return nil
+			}
+			if m.Type == "state" && m.State == "busy" {
+				sawBusy = true
+			}
+			if m.Type == "state" && m.State == "ready" && sawBusy {
+				return nil
+			}
+		}
 	case "setmodel":
 		if modelID != "" {
 			_ = wsjson.Write(ctx, c, wsIn{Type: "set_model", ModelID: modelID})

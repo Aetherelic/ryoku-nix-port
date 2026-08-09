@@ -303,5 +303,42 @@ Singleton {
     }
     function loadHistory() { if (messages.count === 0 && !historyProc.running) historyProc.running = true; }
 
+    // Past conversations, for the session drawer. `--sessions` lists them;
+    // switching loads one server-side, then loadHistory rebuilds the view.
+    property var sessions: []
+    Process {
+        id: sessionsProc
+        command: ["ryoku-rashin", "chat", "--sessions"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => {
+                var f;
+                try { f = JSON.parse(String(line)); } catch (e) { return; }
+                if (f && f.type === "sessions" && f.sessions)
+                    root.sessions = f.sessions;
+            }
+        }
+    }
+    function loadSessions() { if (!sessionsProc.running) sessionsProc.running = true; }
+
+    Process {
+        id: loadProc
+        onExited: {
+            root.busy = false;
+            root.liveIdx = -1;
+            historyProc.running = true; // repopulate from the now-current session
+        }
+    }
+    function switchSession(id) {
+        if (root.busy)
+            root.cancel();
+        messages.clear();
+        root.liveIdx = -1;
+        loadProc.command = ["ryoku-rashin", "chat", "--load", String(id)];
+        loadProc.running = true;
+        root.lastSeen = Date.now();
+        root.touched();
+    }
+
     Component.onCompleted: root.loadHistory()
 }

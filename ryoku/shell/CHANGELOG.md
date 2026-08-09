@@ -21,6 +21,14 @@
   `ryoku reload` or relogin lands back on the thread instead of an empty chat.
   A new `ryoku-rashin chat --history` replays the session transcript
   (`rashin/backend/chatcli.go`, `services/Needle.qml`).
+- **Browse and resume past conversations from the sidebar.** The chat header
+  gained a history button: it opens a drawer listing every stored session
+  (newest first, by title) plus New Chat. Picking one loads it into the
+  thread, matching the dashboard's session drawer. New
+  `ryoku-rashin chat --sessions` and `chat --load <id>` back it, and stored
+  titles that captured the identity preamble are cleaned
+  (`rashin/backend/chatcli.go`, `rashin/backend/acp.go`, `services/Needle.qml`,
+  `modules/bar/panel/PanelChat.qml`).
 - **The chat answers as the Needle, not generic hermes.** The daemon rides a
   one-time identity preamble in front of a session's first turn, so the sidebar
   assistant introduces itself as the Needle, Ryoku's resident assistant, and

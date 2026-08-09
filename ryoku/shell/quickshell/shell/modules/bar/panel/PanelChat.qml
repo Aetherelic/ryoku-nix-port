@@ -69,6 +69,7 @@ Item {
         root.pendingImages = root.pendingImages.filter((_, idx) => idx !== i);
     }
     property bool modelMenuOpen: false
+    property bool historyDrawerOpen: false
     function shortModel(id) {
         var t = String(id);
         var c = t.lastIndexOf(":");
@@ -285,6 +286,7 @@ Item {
 
             Repeater {
                 model: [
+                    { icon: "history", act: "history" },
                     { icon: "add_comment", act: "new" },
                     { icon: "open_in_new", act: "dash" }
                 ]
@@ -315,6 +317,10 @@ Item {
                                 Needle.newChat();
                                 root.pendingImages = [];
                                 Qt.callLater(input.forceActiveFocus);
+                            } else if (hbtn.modelData.act === "history") {
+                                root.historyDrawerOpen = !root.historyDrawerOpen;
+                                if (root.historyDrawerOpen)
+                                    Needle.loadSessions();
                             } else {
                                 Needle.openDashboard();
                             }
@@ -385,6 +391,109 @@ Item {
                     onClicked: {
                         Needle.setModel(mrow.modelData.id);
                         root.modelMenuOpen = false;
+                    }
+                }
+            }
+        }
+    }
+
+    // session history drawer: past conversations, resume on click.
+    MouseArea {
+        anchors.fill: parent
+        visible: root.historyDrawerOpen
+        z: 22
+        onClicked: root.historyDrawerOpen = false
+    }
+    Rectangle {
+        id: historyDrawer
+        visible: root.historyDrawerOpen
+        z: 23
+        anchors.top: header.bottom
+        anchors.right: parent.right
+        anchors.topMargin: 4 * root.s
+        anchors.rightMargin: 14 * root.s
+        width: 260 * root.s
+        height: Math.min((Needle.sessions.length + 1) * 34 * root.s + 8 * root.s, 340 * root.s)
+        radius: 10 * root.s
+        color: Qt.rgba(Theme.effectiveSurface.r, Theme.effectiveSurface.g, Theme.effectiveSurface.b, 0.98)
+        border.width: 1
+        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.4)
+        clip: true
+        Column {
+            anchors.fill: parent
+            anchors.margins: 4 * root.s
+            Rectangle {
+                width: parent.width
+                height: 32 * root.s
+                radius: 6 * root.s
+                color: ncArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16) : "transparent"
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 8 * root.s
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6 * root.s
+                    MaterialIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "add_comment"
+                        font.pixelSize: 12 * root.s
+                        color: Theme.primary
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "New chat"
+                        color: Theme.primary
+                        font.family: Theme.mono
+                        font.pixelSize: 9.5 * root.s
+                    }
+                }
+                MouseArea {
+                    id: ncArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        Needle.newChat();
+                        root.pendingImages = [];
+                        root.historyDrawerOpen = false;
+                        Qt.callLater(input.forceActiveFocus);
+                    }
+                }
+            }
+            ListView {
+                width: parent.width
+                height: parent.height - 34 * root.s
+                clip: true
+                model: Needle.sessions
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                delegate: Rectangle {
+                    id: sRow
+                    required property var modelData
+                    width: ListView.view ? ListView.view.width : 0
+                    height: 32 * root.s
+                    radius: 6 * root.s
+                    color: sArea.containsMouse ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.10) : "transparent"
+                    Text {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: 10 * root.s
+                        anchors.rightMargin: 8 * root.s
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (sRow.modelData.title && sRow.modelData.title.length) ? sRow.modelData.title : "untitled"
+                        elide: Text.ElideRight
+                        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                        font.family: Theme.fontPrimary
+                        font.pixelSize: 10.5 * root.s
+                    }
+                    MouseArea {
+                        id: sArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Needle.switchSession(sRow.modelData.id);
+                            root.historyDrawerOpen = false;
+                        }
                     }
                 }
             }
