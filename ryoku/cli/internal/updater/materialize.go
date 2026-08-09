@@ -116,9 +116,13 @@ func Materialize() error {
 			pruneEmptyParents(dest, filepath.Dir(full))
 		}
 	}
+	wpConfigPruned := false
 	for _, rel := range previous {
 		if curSet[rel] {
 			continue
+		}
+		if strings.HasPrefix(rel, "wireplumber/") {
+			wpConfigPruned = true
 		}
 		_ = os.Remove(filepath.Join(dest, rel))
 		pruneEmptyParents(dest, filepath.Dir(rel))
@@ -131,7 +135,7 @@ func Materialize() error {
 		return err
 	}
 	wirePlumberAfter, _ := os.ReadFile(filepath.Join(dest, wirePlumberPolicyRel))
-	if !bytes.Equal(wirePlumberBefore, wirePlumberAfter) {
+	if wpConfigPruned || !bytes.Equal(wirePlumberBefore, wirePlumberAfter) {
 		_ = exec.Command("systemctl", "--user", "try-restart", "wireplumber.service").Run()
 	}
 	fmt.Printf("materialized %d files -> %s\n", len(managed), dest)

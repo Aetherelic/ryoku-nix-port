@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Dropping a shipped WirePlumber config takes effect on update, not next login.**
+  `materialize` now restarts `wireplumber.service` whenever a `wireplumber/`
+  drop-in is pruned, not only when the bluetooth policy changes, so removing the
+  global ALSA soft-mixer override applies immediately
+  (`internal/updater/materialize.go`).
 - **Existing boxes land on the QS Bar default on update.** `ryoku doctor` no
   longer strips the live top-level `barStyle` (it was wrongly listed as a retired
   key, so an update stripped it and reseeded `sumi`, flipping every QS Bar user to

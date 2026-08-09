@@ -3,13 +3,6 @@
 ## Unreleased
 
 ### Added
-- `wireplumber/`: **Software volume on every ALSA card, ending the intermittent
-  "audio breaks" reports.** A new drop-in sets `api.alsa.soft-mixer = true` for
-  all ALSA cards, so volume and mute run in software rather than the hardware
-  mixer, whose quirks on Realtek and generic HD-audio codecs (a master that comes
-  up muted or muffled, coarse or dead steps) were the likely cause. Adapted from
-  Omarchy's audio setup; override in `~/.config/wireplumber/wireplumber.conf.d/`
-  (`apps/wireplumber/wireplumber.conf.d/50-ryoku-alsa-soft-mixer.conf`).
 - `ryotunes/`: **YouTube Music as a first-party Ryoku app, wired to the desktop
   now-playing widget.** A dedicated Chromium app-window on music.youtube.com,
   single-instanced by a flock and isolated in its own profile, so it carries its
