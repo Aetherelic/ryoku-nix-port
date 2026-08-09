@@ -76,6 +76,7 @@ func reconcileSpicetifyCanvas(checkOnly bool) recResult {
 	if !spicetifyExtensionEnabled() {
 		_ = spicetifyRun(60*time.Second, "config", "extensions", "ryoku-canvas.js")
 	}
+	spicetifyPointAtLauncher()
 	if err := spicetifyApply(); err != nil {
 		return warnRes("the Ryoku Canvas extension is in place and enabled, but `spicetify apply` did not complete: %v", err).
 			withFix("run `spicetify backup apply` once (a native /opt/spotify needs write access first: sudo chmod a+wr -R /opt/spotify /opt/spotify/Apps)")
@@ -154,6 +155,21 @@ func spicetifyApply() error {
 		return nil
 	}
 	return spicetifyRun(120*time.Second, "backup", "apply")
+}
+
+// spicetifyPointAtLauncher aims spicetify at a spotify-launcher install, which
+// lives per-user under $XDG_DATA_HOME (not root-owned /opt), so `apply` needs no
+// root. spicetify does not auto-detect that path, so set it when it exists; a
+// no-op for /opt or flatpak clients, which spicetify finds itself. Best-effort.
+func spicetifyPointAtLauncher() {
+	data := os.Getenv("XDG_DATA_HOME")
+	if data == "" {
+		data = filepath.Join(os.Getenv("HOME"), ".local", "share")
+	}
+	dir := filepath.Join(data, "spotify-launcher", "install", "usr", "share", "spotify")
+	if sys.Exists(dir) {
+		_ = spicetifyRun(30*time.Second, "config", "spotify_path", dir)
+	}
 }
 
 // sameBytes reports whether both paths exist with identical contents.

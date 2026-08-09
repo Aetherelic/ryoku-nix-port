@@ -12,6 +12,11 @@
   refresh. The persist now writes every key `applyStudioSettings` applies, from
   the live properties, so shell.json always matches the live bar and re-applying
   it is a no-op (`modules/bar/barstyles/qsbar/**/Theme.qml`).
+- **The music widget shows the Spotify Canvas by default.** The desktop music
+  widget's backdrop now defaults to the track's Spotify Canvas (was off), so the
+  looping art plays automatically when Spotify is up and a Canvas exists and falls
+  back to the album cover otherwise (`modules/desktop/Singletons/Config.qml`,
+  `modules/desktop/music/MusicWidget.qml`).
 - **The Bluetooth panel shows device details.** A connected device now has an
   info toggle that expands its battery, type, and address, read live from
   `Quickshell.Bluetooth` (`modules/bar/barstyles/qsbar/**/BluetoothPanel.qml`).

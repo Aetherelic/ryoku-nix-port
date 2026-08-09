@@ -139,7 +139,7 @@ Singleton {
             property real musicOpacity: 1.0
             property string musicApp: ""
             property string musicShape: "wide"
-            property string musicVideo: "off"
+            property string musicVideo: "canvas"
             property string musicVideoFile: ""
         }
     }

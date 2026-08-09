@@ -29,7 +29,7 @@ Item {
     property Item wallpaperSource: null
     property rect wallpaperRect: Qt.rect(0, 0, 0, 0)
     property string shape: "wide"           // wide | tall (9:16 canvas)
-    property string videoMode: "off"        // off | canvas | custom
+    property string videoMode: "canvas"     // off | canvas | custom (default: the track's Spotify Canvas, falls back to the cover when none)
     property string videoFile: ""           // custom backdrop file (video/gif)
     readonly property bool tall: root.shape === "tall"
     // the backdrop the surfaces play: the track's Spotify Canvas, a custom

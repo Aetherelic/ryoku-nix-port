@@ -8,6 +8,10 @@
   drop-in is pruned, not only when the bluetooth policy changes, so removing the
   global ALSA soft-mixer override applies immediately
   (`internal/updater/materialize.go`).
+- **The Spotify Canvas wires up against a per-user Spotify.** `reconcileSpicetifyCanvas`
+  now points spicetify at a `spotify-launcher` install (per-user, under
+  `$XDG_DATA_HOME`), so `spicetify apply` needs no root chmod of `/opt/spotify`
+  (`internal/doctor/reconcile_spicetify.go`).
 - **Existing boxes land on the QS Bar default on update.** `ryoku doctor` no
   longer strips the live top-level `barStyle` (it was wrongly listed as a retired
   key, so an update stripped it and reseeded `sumi`, flipping every QS Bar user to
