@@ -11,11 +11,12 @@
 ### Added
 - **A Global page collects the cross-cutting settings.** A new Global section
   (Overview -> Global) is the single home for the interface language, regional
-  formats, the machine location, the system font and text size. Language, the
-  system font and text size had no editor before (config-only); the location,
-  temperature units and regional formats moved here from Desktop, so each setting lives in exactly one
+  formats, the machine location and the system font. Language and the system
+  font had no editor before (config-only); the location, temperature units and
+  regional formats moved here from Desktop, so each setting lives in exactly one
   page -- no duplication. Regional formats stays separate from language, so an
-  English UI can pair with Brazilian (or any) date/number formats
+  English UI can pair with Brazilian (or any) date/number formats, and the system
+  font is a searchable drawer of the fonts installed on the machine (fc-list)
   (`quickshell/pages/GlobalPage.qml`, `quickshell/schema/GlobalPage.js`,
   `quickshell/Hub.qml`, `quickshell/schema/DesktopPage.js`).
 - **Appearance lists downloaded colour schemes.** The Colour scheme picker now

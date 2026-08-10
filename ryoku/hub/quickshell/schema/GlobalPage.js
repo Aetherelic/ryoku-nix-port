@@ -45,21 +45,12 @@ var rows = [
         "opts": ["auto", "celsius", "fahrenheit"]
     }, {
         "tab": "",
-        "group": "TYPOGRAPHY",
+        "group": "FONT",
         "key": "fontFamily",
         "label": "System font",
-        "desc": "The interface font, applied to the shell and to GTK/Qt apps live. Empty = Space Grotesk.",
-        "ctl": "text",
-        "src": "shell"
-    }, {
-        "tab": "",
-        "group": "TYPOGRAPHY",
-        "key": "fontScale",
-        "label": "Text size",
-        "desc": "Scales the shell's text; 1.0 is the design size.",
-        "ctl": "slid",
+        "desc": "The interface font, applied to the shell and to GTK/Qt apps live. Pick from the fonts installed on this machine.",
+        "ctl": "pick",
         "src": "shell",
-        "lo": 0.9,
-        "hi": 1.8
+        "opts": []
     }
 ];
