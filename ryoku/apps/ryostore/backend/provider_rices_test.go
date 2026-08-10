@@ -228,3 +228,37 @@ func TestRiceInstallSkipsMissingBundledAsset(t *testing.T) {
 		t.Fatalf("missing asset unexpectedly present: %v", err)
 	}
 }
+
+// The published registry names the manifest by bare filename ("rice.json"); it
+// must resolve under the rice's own directory (rices/<id>/rice.json), never the
+// repo root -- the "fetch manifest: .../main/rice.json: 404" regression.
+func TestRiceInstallResolvesBareManifest(t *testing.T) {
+	files := map[string]string{
+		"/rices/registry.json":     `{"version":1,"rices":[{"id":"demo","name":"Demo","manifest":"rice.json","palette":"rices/demo/palette.json","wallpaper":"rices/demo/wall.png"}]}`,
+		"/rices/demo/rice.json":    `{"schema":1,"slug":"demo","name":"Demo","color":{"palette":"palette.json"},"assets":{"wallpaper":"wall.png"}}`,
+		"/rices/demo/palette.json": `{"background":"#101010"}`,
+		"/rices/demo/wall.png":     "wallpaper",
+	}
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.Path)
+		if body, ok := files[r.URL.Path]; ok {
+			_, _ = w.Write([]byte(body))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	p := testRiceProvider(t, srv)
+	if err := p.Install(context.Background(), "demo"); err != nil {
+		t.Fatalf("install with bare manifest: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(p.ricesDir, "demo", "rice.json")); err != nil {
+		t.Fatalf("install did not write rice.json: %v", err)
+	}
+	for _, u := range got {
+		if u == "/rice.json" {
+			t.Fatalf("provider fetched repo-root /rice.json (the 404 bug); requests: %v", got)
+		}
+	}
+}

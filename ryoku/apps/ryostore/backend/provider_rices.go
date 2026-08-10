@@ -161,9 +161,16 @@ func (p riceProvider) Install(ctx context.Context, id string) error {
 	if entry == nil {
 		return fmt.Errorf("rice %q is not in the store", id)
 	}
+	// A rice's manifest lives at rices/<id>/rice.json. The registry may name it
+	// as a bare filename ("rice.json", the published convention) or omit it; both
+	// resolve under the rice's own directory. A value that already carries a path
+	// is honoured as-is (a repo-root path), so an explicit override still works.
 	manifestRel := entry.Manifest
 	if manifestRel == "" {
-		manifestRel = filepath.ToSlash(filepath.Join("rices", id, "rice.json"))
+		manifestRel = "rice.json"
+	}
+	if !strings.Contains(manifestRel, "/") {
+		manifestRel = filepath.ToSlash(filepath.Join("rices", id, manifestRel))
 	}
 	manifestRaw, err := p.fetchSmall(ctx, p.assetURL(manifestRel))
 	if err != nil {

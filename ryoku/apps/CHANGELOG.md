@@ -45,6 +45,13 @@
   the header field (`quickshell/StoreHeader.qml`, `quickshell/App.qml`).
 
 ### Fixed
+- `ryostore/`: **Installing a rice no longer 404s on the manifest.** The rice
+  provider used the registry's `manifest` value (the published bare `rice.json`)
+  as a repo-root path, fetching `.../main/rice.json` (404) instead of the rice's
+  own `rices/<id>/rice.json`. A bare filename now resolves under the rice's
+  directory -- matching every other extras category and the provider's own
+  empty-manifest fallback; a value that already carries a path is still honoured
+  (`ryoku/apps/ryostore/backend/provider_rices.go`).
 - `nautilus/`: **The right-click menu no longer shows duplicate "Compress with
   Ryoku" (or "Install with Ryoku") entries.** nautilus-python could register the
   stash extension twice in one nautilus process (an extension reload after a
