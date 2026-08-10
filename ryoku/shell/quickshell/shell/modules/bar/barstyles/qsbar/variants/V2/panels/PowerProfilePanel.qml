@@ -183,6 +183,27 @@ PanelWindow {
                     }
                 }
             }
+
+            Rectangle { width: parent.width; height: 1; color: root.sep; visible: root.barTemperatureAvailable }
+            Item {
+                width: parent.width
+                height: 26
+                visible: root.barTemperatureAvailable
+                UiText {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Thermal"
+                    color: root.sumiHi
+                    font.family: root.mono; font.pixelSize: 11; font.letterSpacing: 1
+                }
+                UiText {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.barTemperatureC + "\u00B0C"
+                    color: root.barTemperatureC >= 80 ? root.sealRaw : root.seal
+                    font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
+                }
+            }
         }
     }
 

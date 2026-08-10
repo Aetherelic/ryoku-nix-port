@@ -1284,7 +1284,7 @@ PanelWindow {
                 readonly property bool occupied: gid !== "" && barSlot.registry[gid] !== undefined
                 // workspace draws a pill 4px wider than its implicitWidth on each
                 // side; pad its slot symmetrically so inter-group gaps stay uniform.
-                readonly property int pad: slot.gid === "G2" ? barSlot.root.wsPillPad : 0
+                readonly property int pad: (slot.gid === "G2" ? barSlot.root.wsPillPad : 0) + barSlot.root.widgetPad(slot.gid)
                 readonly property var contentItem: ldr.item
                 readonly property bool hasContent: occupied && Math.round(ldr.implicitWidth) > 0.5
                 readonly property real contentLeftInset: contentItem
@@ -1322,7 +1322,7 @@ PanelWindow {
                 width: autoShown ? naturalSlotWidth : 0
                 height: 32
                 visible: placeholderShown || (hasContent && (autoShown || width > 0.5))
-                opacity: autoShown ? 1 : 0
+                opacity: (autoShown ? 1 : 0) * barSlot.root.widgetOpacity(slot.gid)
                 Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                 Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
@@ -1375,7 +1375,7 @@ PanelWindow {
                     // Keep every optional fill/border surface slightly inset from
                     // the bar edges so all widget treatments share one geometry.
                     height: 24
-                    radius: barSlot.root.panelButtonRadius
+                    radius: barSlot.root.widgetRadius(slot.gid)
                     clip: true
                     visible: slot.occupied && slot.hasContent && slot.autoShown
                         && (barSlot.root.widgetHasFill(slot.gid)

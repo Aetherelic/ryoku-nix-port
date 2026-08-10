@@ -136,6 +136,13 @@ PanelWindow {
                 }
             }
 
+            Sparkline {
+                width: parent.width
+                root: cpuPanel.root
+                value: cpuPanel.cpuPct
+                active: cpuPanel.visible && root.cpuVisible
+            }
+
             // ── GPU (label · bar · % on one row) ──
             Item {
                 width: parent.width

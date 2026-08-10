@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../kit"
 import "../../modules"
 
@@ -36,6 +37,7 @@ Item {
 
     // the four V2 bar forms + their captions (drives the header + the FORM grid)
     readonly property var formModel: [
+        { form: "islands", label: "Islands", detail: "Split pills" },
         { form: "full",  label: "Full",  detail: "Edge to edge" },
         { form: "fit",   label: "Fit",   detail: "Inset rounded frame" },
         { form: "dock",  label: "Dock",  detail: "Open desktop edge" },
@@ -48,9 +50,6 @@ Item {
     }
 
     // header strings, derived live off the running variant + active form
-    readonly property string variantLabel:
-        (page.root && page.root.variantHost && page.root.variantHost.runningVariant)
-            ? String(page.root.variantHost.runningVariant).toUpperCase() : ""
     readonly property string formCaption: {
         if (!page.root || !page.root.barShellStyle)
             return "Live bar surface"
@@ -58,9 +57,16 @@ Item {
         return fi ? (fi.label + " · " + fi.detail) : String(page.root.barShellStyle)
     }
 
-    // guard the validator: on a Theme that predates the shared shell-style tokens
-    // the function is absent, so this no-ops instead of throwing.
-    function setForm(f) {
+    // Unified form select over both engines: islands is the V1 split bar, the
+    // rest are V2 shell forms. Picking a form flips the variant (islands<->v2)
+    // and records the shell style, so the grid is one shape picker.
+    readonly property string activeForm:
+        page.isV1 ? "islands"
+                  : (page.root && page.root.barShellStyle ? String(page.root.barShellStyle) : "full")
+    function activate(v) { Quickshell.execDetached(["qs", "-c", "shell", "ipc", "call", "variant", "activate", v]) }
+    function selectForm(f) {
+        if (f === "islands") { if (!page.isV1) activate("v1"); return }
+        if (page.isV1) { activate("v2"); return }
         if (page.root && page.root.barShellStyleValid && page.root.barShellStyleValid(f))
             page.root.barShellStyle = f
     }
@@ -161,7 +167,7 @@ Item {
                     spacing: 3
 
                     UiText {
-                        text: (page.variantLabel === "" ? "BAR" : page.variantLabel) + " ACTIVE"
+                        text: page.activeForm.toUpperCase() + " ACTIVE"
                         color: page.cInk
                         font.family: page.fontMono
                         font.pixelSize: 18
@@ -193,29 +199,54 @@ Item {
                 }
             }
 
-            // ── STYLE (V1 island surface) ──
+            // ── SURFACE (one form-aware section over both engines) ──
             CcSection {
                 width: col.width
                 root: page.root
-                title: "STYLE"
-                visible: page.isV1
+                title: "SURFACE"
 
                 CcRow {
                     root: page.root
                     label: "Bar border"
-                    desc: "Outline the pill surfaces"
+                    desc: "Outline the bar"
                     controlWidth: 108
                     CcSeg {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         root: page.root
                         options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
-                        current: (page.root && page.root.styleBorder) ? "on" : "off"
-                        onChose: k => { if (page.root && page.root.styleBorder !== undefined) page.root.styleBorder = (k === "on") }
+                        current: (page.isV1 ? (page.root && page.root.styleBorder)
+                                            : (page.root && page.root.barBorderEnabled)) ? "on" : "off"
+                        onChose: k => {
+                            if (page.root && page.root.styleBorder !== undefined) page.root.styleBorder = (k === "on")
+                            if (page.root && page.root.barBorderEnabled !== undefined) page.root.barBorderEnabled = (k === "on")
+                        }
                     }
                 }
                 CcRow {
                     root: page.root
+                    label: "Corners"
+                    desc: "Round the bar's corners"
+                    controlWidth: 150
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "square", label: "Square" }, { key: "soft", label: "Soft" }, { key: "round", label: "Round" }]
+                        current: page.isV1
+                            ? ((page.root && page.root.styleRadiusSmall) ? "soft" : "round")
+                            : ((page.root && page.root.barCornerRadius <= 0) ? "square"
+                               : (page.root && page.root.barCornerRadius >= 16) ? "round" : "soft")
+                        onChose: k => {
+                            var px = (k === "square" ? 0 : k === "round" ? 16 : 8)
+                            if (page.root && page.root.barCornerRadius !== undefined) page.root.barCornerRadius = px
+                            if (page.root && page.root.styleRadiusSmall !== undefined) page.root.styleRadiusSmall = (px < 10)
+                        }
+                    }
+                }
+                CcRow {
+                    root: page.root
+                    visible: page.isV1
                     label: "Frost"
                     desc: "Lower the island opacity so blur shows through"
                     controlWidth: 108
@@ -230,6 +261,7 @@ Item {
                 }
                 CcRow {
                     root: page.root
+                    visible: page.isV1
                     label: "Shadow"
                     desc: "Cast a soft shadow under the pills"
                     controlWidth: 108
@@ -244,48 +276,10 @@ Item {
                 }
                 CcRow {
                     root: page.root
-                    label: "Corners"
-                    desc: "Round the island corners"
-                    controlWidth: 108
-                    CcSeg {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        root: page.root
-                        options: [{ key: "round", label: "Round" }, { key: "soft", label: "Soft" }]
-                        current: (page.root && page.root.styleRadiusSmall) ? "soft" : "round"
-                        onChose: k => { if (page.root && page.root.styleRadiusSmall !== undefined) page.root.styleRadiusSmall = (k === "soft") }
-                    }
-                }
-            }
-
-            // ── BAR SURFACE ──
-            CcSection {
-                width: col.width
-                root: page.root
-                title: "BAR SURFACE"
-                visible: page.isV2
-
-                CcRow {
-                    root: page.root
-                    label: "Bar border"
-                    desc: "Outline the bar shell"
-                    controlWidth: 108
-
-                    CcSeg {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        root: page.root
-                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
-                        current: (page.root && page.root.barBorderEnabled) ? "on" : "off"
-                        onChose: k => { if (page.root && page.root.barBorderEnabled !== undefined) page.root.barBorderEnabled = (k === "on") }
-                    }
-                }
-                CcRow {
-                    root: page.root
+                    visible: page.isV2
                     label: "Panel + tooltip"
                     desc: "Outline panels and tooltips"
                     controlWidth: 108
-
                     CcSeg {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
@@ -295,22 +289,6 @@ Item {
                         onChose: k => { if (page.root && page.root.panelTooltipBorderEnabled !== undefined) page.root.panelTooltipBorderEnabled = (k === "on") }
                     }
                 }
-                CcRow {
-                    root: page.root
-                    label: "Corners"
-                    desc: "Round the fitted bar shell's corners"
-                    controlWidth: 150
-
-                    CcSeg {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        root: page.root
-                        options: [{ key: "square", label: "Square" }, { key: "soft", label: "Soft" }, { key: "round", label: "Round" }]
-                        current: (page.root && page.root.barCornerRadius <= 0) ? "square"
-                                 : (page.root && page.root.barCornerRadius >= 16) ? "round" : "soft"
-                        onChose: k => { if (page.root && page.root.barCornerRadius !== undefined) page.root.barCornerRadius = (k === "square" ? 0 : k === "round" ? 16 : 8) }
-                    }
-                }
             }
 
             // ── BAR FORM (2×2 selectable silhouette cards) ──
@@ -318,7 +296,6 @@ Item {
                 width: col.width
                 root: page.root
                 title: "BAR FORM"
-                visible: page.isV2
 
                 Grid {
                     id: formGrid
@@ -333,8 +310,7 @@ Item {
                         delegate: Rectangle {
                             id: fcard
                             required property var modelData
-                            readonly property bool on:
-                                page.root && String(page.root.barShellStyle) === modelData.form
+                            readonly property bool on: page.activeForm === modelData.form
                             readonly property bool hovered: fma.containsMouse
 
                             width: (formGrid.width - formGrid.columnSpacing) / 2
@@ -413,7 +389,7 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: page.setForm(fcard.modelData.form)
+                                onClicked: page.selectForm(fcard.modelData.form)
                             }
                         }
                     }

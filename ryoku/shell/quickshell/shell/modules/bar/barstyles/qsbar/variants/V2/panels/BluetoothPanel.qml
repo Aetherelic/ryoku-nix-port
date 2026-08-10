@@ -55,6 +55,14 @@ PanelWindow {
         connProc.running = true
     }
 
+    function forgetDevice(device) {
+        if (!device || connProc.running) return
+        var mac = String(device.mac || "")
+        if (!/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(mac)) return
+        connCmd = "bluetoothctl remove " + mac
+        connProc.running = true
+    }
+
     // The bash model carries only {name,mac,connected,paired}; battery/icon/state
     // come live off Quickshell.Bluetooth, matched by MAC.
     function btDeviceFor(mac) {
@@ -253,7 +261,7 @@ PanelWindow {
                         property bool expanded: false
                         readonly property var nativeDev: btPanel.btDeviceFor(modelData.mac)
                         readonly property string batteryText: btPanel.batteryText(nativeDev)
-                        readonly property bool canExpand: modelData.connected
+                        readonly property bool canExpand: modelData.connected || modelData.paired
                         readonly property bool hovered: tileHover.containsMouse || actionMa.containsMouse || infoMa.containsMouse
                         readonly property int rowHeight: 42
                         width: col.width
@@ -384,6 +392,22 @@ PanelWindow {
                                 width: parent.width; height: 14
                                 UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Address"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
                                 UiText { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: String(devTile.modelData.mac || ""); color: root.ink; font.family: root.mono; font.pixelSize: 10 }
+                            }
+                            Item {
+                                width: parent.width; height: 24
+                                visible: devTile.modelData.paired
+                                Rectangle {
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: forgetLabel.implicitWidth + 16
+                                    height: 20; radius: root.panelButtonRadius
+                                    color: forgetMa.containsMouse ? root.fillPrimaryHover : root.fillIdle
+                                    border.color: forgetMa.containsMouse ? root.seal : root.sep
+                                    border.width: 1
+                                    opacity: connProc.running ? 0.45 : 1
+                                    UiText { id: forgetLabel; anchors.centerIn: parent; text: "Forget"; color: forgetMa.containsMouse ? root.seal : root.sumiHi; font.family: root.mono; font.pixelSize: 10 }
+                                    MouseArea { id: forgetMa; anchors.fill: parent; enabled: !connProc.running; hoverEnabled: true; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: btPanel.forgetDevice(devTile.modelData) }
+                                }
                             }
                         }
                     }

@@ -38,8 +38,8 @@ Item {
     function cap(s) { return s && s.length ? s.charAt(0).toUpperCase() + s.slice(1) : s }
 
     readonly property var barOptions: [
-        { id: "v1", label: "V1", detail: "Split islands", form: "islands" },
-        { id: "v2", label: "V2", detail: page.cap(page.v2Form) + " shell", form: page.v2Form }
+        { id: "v1", label: "Islands", detail: "Split pills", form: "islands" },
+        { id: "v2", label: page.cap(page.v2Form), detail: "Unified shell", form: page.v2Form }
     ]
     readonly property int activeBarIndex: runningVariant === "v2" ? 1 : 0
     readonly property int shownBar: hoveredBar >= 0 ? hoveredBar : activeBarIndex
@@ -300,9 +300,7 @@ Item {
                             font.family: page.mono; font.pixelSize: 10; font.letterSpacing: 1
                         }
                         UiText {
-                            text: page.barOptions[page.shownBar].id === "v2"
-                                  ? ("V2 · " + page.cap(page.v2Form))
-                                  : page.barOptions[page.shownBar].label
+                            text: page.barOptions[page.shownBar].label
                             color: page.fg
                             font.family: page.mono; font.pixelSize: 13; font.weight: Font.DemiBold
                         }

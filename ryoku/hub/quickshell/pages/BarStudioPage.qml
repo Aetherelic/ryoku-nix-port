@@ -202,6 +202,35 @@ Item {
     function qsbarSetVariant(v) {
         Quickshell.execDetached(["qs", "-c", "shell", "ipc", "call", "variant", "activate", v]);
     }
+    // One "Form" abstraction over the two engines: islands is the V1 split bar,
+    // the rest are V2 shell forms. Selecting a form flips the variant and (for a
+    // V2 form) records the shell style, so the user picks a shape, not a variant.
+    readonly property var qsbarForms: ["islands", "full", "fit", "dock", "notch"]
+    function qsbarForm() {
+        return page.qsbarVariant === "v1" ? "islands" : page.qval("barShellStyle", "full");
+    }
+    function qsbarSetForm(f) {
+        if (f === "islands") { page.qsbarSetVariant("v1"); return; }
+        if (page.qsbarVariant !== "v2") page.qsbarSetVariant("v2");
+        page.qset("barShellStyle", f);
+    }
+    // Border and corner radius are one control each, written to both engines'
+    // keys so the setting survives a form change; the active engine reads its own.
+    function qsbarBorder() {
+        return page.qsbarForm() === "islands" ? page.qval("styleBorder", true) : page.qval("barBorderEnabled", true);
+    }
+    function qsbarSetBorder(on) {
+        const q = Object.assign({}, page.fval("qsbar", ({})));
+        q.styleBorder = on;
+        q.barBorderEnabled = on;
+        page.fedit("qsbar", q);
+    }
+    function qsbarSetCorner(px) {
+        const q = Object.assign({}, page.fval("qsbar", ({})));
+        q.barCornerRadius = px;
+        q.styleRadiusSmall = (px < 10);
+        page.fedit("qsbar", q);
+    }
     FileView {
         id: qsbarVariantFile
         path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/quickshell-rise/active-variant"
@@ -476,33 +505,16 @@ Item {
                 SettingRow {
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    controlWidth: 120
-                    label: qsTr("Layout")
-                    desc: qsTr("V1 split islands with the animated stream, or the V2 unified top shell.")
-                    source: qsTr("state")
-                    Seg {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        options: ["v1", "v2"]
-                        current: page.qsbarVariant
-                        onChose: key => page.qsbarSetVariant(key)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
-                    controlWidth: 220
-                    visible: page.qsbarVariant === "v2"
-                    label: qsTr("Bar form")
-                    desc: qsTr("The full-width shell, a fitted island, a floating dock, or a notch.")
+                    block: true
+                    label: qsTr("Form")
+                    desc: qsTr("Split islands, or the unified shell as full, fit, dock or notch.")
                     source: "shell.json"
                     Seg {
-                        anchors.right: parent.right
+                        anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        options: ["full", "fit", "dock", "notch"]
-                        current: page.qval("barShellStyle", "full")
-                        onChose: key => page.qset("barShellStyle", key)
+                        options: ["islands", "full", "fit", "dock", "notch"]
+                        current: page.qsbarForm()
+                        onChose: key => page.qsbarSetForm(key)
                     }
                 }
                 SettingRow {
@@ -510,15 +522,14 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     controlWidth: 54
-                    visible: page.qsbarVariant === "v2"
                     label: qsTr("Bar border")
-                    desc: qsTr("Draw the outer border around the bar shell.")
+                    desc: qsTr("Draw the outer border around the bar.")
                     source: "shell.json"
                     Sw {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("barBorderEnabled", true)
-                        onToggled: value => page.qset("barBorderEnabled", value)
+                        on: page.qsbarBorder()
+                        onToggled: value => page.qsbarSetBorder(value)
                     }
                 }
                 SettingRow {
@@ -526,35 +537,17 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     controlWidth: 58
-                    visible: page.qsbarVariant === "v2"
                     label: qsTr("Corner radius")
                     unit: "px"
                     value: String(page.qval("barCornerRadius", 6))
-                    desc: qsTr("Round the fitted bar shell's corners.")
+                    desc: qsTr("Round the bar's corners.")
                     source: "shell.json"
                     Step {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         from: 0; to: 40
                         value: page.qval("barCornerRadius", 6)
-                        onModified: value => page.qset("barCornerRadius", value)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
-                    controlWidth: 120
-                    visible: page.qsbarVariant === "v1"
-                    label: qsTr("Corners")
-                    desc: qsTr("Round the island corners.")
-                    source: "shell.json"
-                    Seg {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        options: ["round", "soft"]
-                        current: page.qval("styleRadiusSmall", false) ? "soft" : "round"
-                        onChose: key => page.qset("styleRadiusSmall", key === "soft")
+                        onModified: value => page.qsbarSetCorner(value)
                     }
                 }
                 SettingRow {
@@ -562,7 +555,38 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     controlWidth: 54
-                    visible: page.qsbarVariant === "v2"
+                    visible: page.qsbarForm() === "islands"
+                    label: qsTr("Frost")
+                    desc: qsTr("Lower the island opacity so blur shows through.")
+                    source: "shell.json"
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.qval("styleFrost", false)
+                        onToggled: value => page.qset("styleFrost", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    visible: page.qsbarForm() === "islands"
+                    label: qsTr("Shadow")
+                    desc: qsTr("Cast a soft shadow under the islands.")
+                    source: "shell.json"
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.qval("styleShadow", false)
+                        onToggled: value => page.qset("styleShadow", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
                     label: qsTr("Panel + tooltip border")
                     desc: qsTr("Draw the outer border around popouts and tooltips.")
                     source: "shell.json"

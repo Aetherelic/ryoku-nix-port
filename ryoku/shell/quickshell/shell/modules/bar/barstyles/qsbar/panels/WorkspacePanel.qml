@@ -33,6 +33,14 @@ PanelWindow {
 
     Rectangle {
         id: card
+        property int navIndex: -1
+        readonly property var wsIds: {
+            var a = []
+            var vs = Hyprland.workspaces.values
+            for (var i = 0; i < vs.length; i++) if (vs[i].id > 0) a.push(vs[i].id)
+            a.sort(function(x, y) { return x - y })
+            return a
+        }
         width: 240
         height: col.implicitHeight + 24
         radius: reveal > 0.001 ? root.pillRadius : 0
@@ -48,6 +56,11 @@ PanelWindow {
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) { root.workspaceVisible = false; event.accepted = true }
+            else if (event.key === Qt.Key_Down) { card.navIndex = card.navIndex < 0 ? 0 : Math.min(card.navIndex + 1, card.wsIds.length - 1); event.accepted = true }
+            else if (event.key === Qt.Key_Up) { card.navIndex = card.navIndex <= 0 ? 0 : card.navIndex - 1; event.accepted = true }
+            else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && card.navIndex >= 0 && card.navIndex < card.wsIds.length) {
+                root.gotoWorkspace(card.wsIds[card.navIndex]); root.workspaceVisible = false; event.accepted = true
+            }
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -87,11 +100,12 @@ PanelWindow {
                         required property var modelData
                         visible: modelData.id > 0   // F13: hide special (negative-id) workspaces from the normal list
                         readonly property bool isActive: Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === modelData.id
+                        readonly property bool navOn: card.navIndex >= 0 && card.navIndex < card.wsIds.length && card.wsIds[card.navIndex] === modelData.id
                         width: col.width
                         height: 30; radius: root.tileRadius
                         color: isActive ? root.fillActive
-                                : ma.containsMouse ? root.fillHover : root.fillIdle
-                        border.color: (ma.containsMouse || isActive) ? root.seal : root.sep
+                                : (navOn || ma.containsMouse) ? root.fillHover : root.fillIdle
+                        border.color: (ma.containsMouse || isActive || navOn) ? root.seal : root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
 

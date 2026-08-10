@@ -9,7 +9,6 @@ Item {
     property var root
     implicitHeight: 34
 
-    readonly property string variant: root.variantHost ? String(root.variantHost.runningVariant).toUpperCase() : ""
     readonly property string form: root.barShellStyle ? String(root.barShellStyle).toUpperCase() : "ISLANDS"
 
     Rectangle {
@@ -24,7 +23,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
         UiText { anchors.verticalCenter: parent.verticalCenter; text: "BAR"; color: strip.root.sumiHi; font.family: strip.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: strip.variant + " · " + strip.form; color: strip.root.ink; font.family: strip.root.mono; font.pixelSize: 11 }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: strip.form; color: strip.root.ink; font.family: strip.root.mono; font.pixelSize: 11 }
     }
     Row {
         anchors.right: parent.right; anchors.rightMargin: 12

@@ -31,3 +31,4 @@ UpdateWidget UpdateWidget.qml
 VoxtypeWidget VoxtypeWidget.qml
 WeatherWidget WeatherWidget.qml
 WorkspaceWidget WorkspaceWidget.qml
+Sparkline Sparkline.qml

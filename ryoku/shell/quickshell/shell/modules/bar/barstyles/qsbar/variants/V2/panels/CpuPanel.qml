@@ -228,6 +228,13 @@ PanelWindow {
                 }
             }
 
+            Sparkline {
+                width: parent.width
+                root: cpuPanel.root
+                value: cpuPanel.cpuPct
+                active: cpuPanel.visible && root.cpuVisible
+            }
+
             InfoRow { label: "Clock"; value: cpuPanel.clockSummary }
             InfoRow { label: "Load 1 · 5 · 15"; value: cpuPanel.loadSummary }
             InfoRow {

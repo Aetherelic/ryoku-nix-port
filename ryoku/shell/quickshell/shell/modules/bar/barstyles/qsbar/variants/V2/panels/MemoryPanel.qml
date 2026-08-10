@@ -139,6 +139,13 @@ PanelWindow {
                 }
             }
 
+            Sparkline {
+                width: parent.width
+                root: memPanel.root
+                value: memPanel.pct
+                active: memPanel.visible && root.memVisible
+            }
+
             // ── stats ──
             Column {
                 width: parent.width

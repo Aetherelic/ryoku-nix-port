@@ -262,6 +262,22 @@ PanelWindow {
                             onClicked: root.aiUsageVisible = false
                         }
                     }
+                    UiText {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 22
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "\u21BB"
+                        color: refreshMa.containsMouse ? root.seal : root.sumi
+                        font.pixelSize: 13
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        MouseArea {
+                            id: refreshMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.refreshAiUsage()
+                        }
+                    }
                 }
 
                 // ── segmented switch: which tool the bar shows ──

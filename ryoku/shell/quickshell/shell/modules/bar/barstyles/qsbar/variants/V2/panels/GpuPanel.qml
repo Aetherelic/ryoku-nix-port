@@ -192,6 +192,14 @@ PanelWindow {
                 }
             }
 
+            Sparkline {
+                width: parent.width
+                root: gpuPanel.root
+                value: gpuPanel.gpuUtil
+                active: gpuPanel.visible && root.gpuVisible
+                visible: root.gpuAvailable
+            }
+
             InfoRow {
                 label: "Temperature"
                 value: gpuPanel.gpuTemp > 0 ? gpuPanel.gpuTemp + "°C" : ""

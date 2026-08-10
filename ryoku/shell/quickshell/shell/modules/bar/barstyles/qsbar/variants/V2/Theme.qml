@@ -2062,6 +2062,31 @@ Item {
         iconOnlyGids = a
         if (_widgetsLoaded) saveWidgets()
     }
+    // Per-widget geometry overrides (continuous bar), matching upstream Shibumi's
+    // bar.shibumi.widgets.Gx.appearance.v2: a per-GID {pad,radius,opacity}. Unset
+    // keys inherit the shared defaults, so the curated look is unchanged until a
+    // widget is deliberately customised in the Control Center.
+    property var widgetGeom: ({})
+    function widgetGeomOf(gid) { var g = widgetGeom[gid]; return g ? g : ({}) }
+    function widgetPad(gid) { var g = widgetGeomOf(gid); return g.pad !== undefined ? g.pad : 0 }
+    function widgetRadius(gid) { var g = widgetGeomOf(gid); return (g.radius !== undefined && g.radius >= 0) ? g.radius : panelButtonRadius }
+    function widgetOpacity(gid) { var g = widgetGeomOf(gid); return (g.opacity !== undefined && g.opacity >= 0) ? g.opacity : 1 }
+    function widgetGeomCustomized(gid) { return widgetGeom[gid] !== undefined }
+    function setWidgetGeom(gid, key, value) {
+        var m = Object.assign({}, widgetGeom)
+        var g = Object.assign({}, m[gid] || ({}))
+        g[key] = value
+        m[gid] = g
+        widgetGeom = m
+        if (_widgetsLoaded) persistWidgetsToConfig()
+    }
+    function resetWidgetGeom(gid) {
+        if (widgetGeom[gid] === undefined) return
+        var m = Object.assign({}, widgetGeom)
+        delete m[gid]
+        widgetGeom = m
+        if (_widgetsLoaded) persistWidgetsToConfig()
+    }
     function parseGidCsv(s) {
         if (!s || s === "-") return []
         var out = []
@@ -2529,6 +2554,7 @@ Item {
         q.barBorderEnabled = barBorderEnabled
         q.panelTooltipBorderEnabled = panelTooltipBorderEnabled
         q.barCornerRadius = barCornerRadius
+        q.widgetGeom = widgetGeom
         q.widgets = {
             "status": modStatus, "memory": modMemory, "cpu": modCpu, "volume": modVolume,
             "weather": modWeather, "network": modNetwork, "brightness": modBrightness,
@@ -2577,6 +2603,7 @@ Item {
         if (q.barBorderEnabled !== undefined) barBorderEnabled = q.barBorderEnabled
         if (q.panelTooltipBorderEnabled !== undefined) panelTooltipBorderEnabled = q.panelTooltipBorderEnabled
         if (q.barCornerRadius !== undefined) barCornerRadius = Math.max(0, Math.min(40, q.barCornerRadius))
+        if (q.widgetGeom !== undefined && q.widgetGeom !== null) widgetGeom = q.widgetGeom
         var w = q.widgets
         if (w) {
             if (w.status     !== undefined) modStatus     = w.status

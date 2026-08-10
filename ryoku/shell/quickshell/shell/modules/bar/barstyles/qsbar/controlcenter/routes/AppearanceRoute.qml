@@ -297,6 +297,52 @@ Item {
         Item {
             anchors.fill: parent
 
+            // preset row for a per-widget geometry knob (opacity/radius/pad)
+            component GeomRow: Column {
+                id: grow
+                property string glabel: ""
+                property string gkey: ""
+                property var opts: []
+                width: parent ? parent.width : 0
+                spacing: 3
+                UiText {
+                    text: grow.glabel
+                    color: page.root.sumiHi
+                    font.family: page.root.mono; font.pixelSize: 9; font.letterSpacing: 0.7
+                }
+                Row {
+                    width: parent.width
+                    spacing: 4
+                    Repeater {
+                        model: grow.opts
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property bool sel: page.root.widgetGeomOf(page.colorGid)[grow.gkey] === modelData.v
+                            width: page.root.evenW((grow.width - (grow.opts.length - 1) * 4) / grow.opts.length)
+                            height: 22
+                            radius: page.root.tileRadius
+                            color: sel ? page.root.fillActive : gma.containsMouse ? page.root.fillHover : "transparent"
+                            border.color: sel || gma.containsMouse ? page.root.seal : page.root.sep
+                            border.width: 1
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            UiText {
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                color: parent.sel ? page.root.seal : page.root.ink
+                                font.family: page.root.mono; font.pixelSize: 9
+                            }
+                            MouseArea {
+                                id: gma
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.root.setWidgetGeom(page.colorGid, grow.gkey, modelData.v)
+                            }
+                        }
+                    }
+                }
+            }
+
             // scrim: click anywhere outside to dismiss
             MouseArea { anchors.fill: parent; onClicked: { page.colorGid = ""; page.colorLabel = "" } }
 
@@ -325,7 +371,7 @@ Item {
                         UiText {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: page.colorLabel.toUpperCase() + " ACCENT"
+                            text: page.colorLabel.toUpperCase() + " APPEARANCE"
                             color: page.root.sumiHi
                             font.family: page.root.mono
                             font.pixelSize: 9
@@ -334,7 +380,7 @@ Item {
                         UiText {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: page.root.widgetPaletteId(page.colorGid) === "inherit" ? "INHERIT" : "RESET"
+                            text: (page.root.widgetPaletteId(page.colorGid) === "inherit" && !page.root.widgetGeomCustomized(page.colorGid)) ? "INHERIT" : "RESET"
                             color: resetMa.containsMouse ? page.root.seal : page.root.sumiHi
                             font.family: page.root.mono
                             font.pixelSize: 9
@@ -345,10 +391,10 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 48
                             height: parent.height
-                            enabled: page.root.widgetPaletteId(page.colorGid) !== "inherit"
+                            enabled: page.root.widgetPaletteId(page.colorGid) !== "inherit" || page.root.widgetGeomCustomized(page.colorGid)
                             hoverEnabled: enabled
                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: page.root.resetWidgetColor(page.colorGid)
+                            onClicked: { page.root.resetWidgetColor(page.colorGid); page.root.resetWidgetGeom(page.colorGid) }
                         }
                     }
 
@@ -469,6 +515,23 @@ Item {
                                 }
                             }
                         }
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: page.root.sep }
+                    GeomRow {
+                        glabel: "OPACITY"
+                        gkey: "opacity"
+                        opts: [{ v: 1, label: "100" }, { v: 0.85, label: "85" }, { v: 0.7, label: "70" }, { v: 0.5, label: "50" }]
+                    }
+                    GeomRow {
+                        glabel: "CORNERS"
+                        gkey: "radius"
+                        opts: [{ v: 0, label: "Sharp" }, { v: 4, label: "Soft" }, { v: 8, label: "Round" }, { v: 12, label: "Pill" }]
+                    }
+                    GeomRow {
+                        glabel: "PADDING"
+                        gkey: "pad"
+                        opts: [{ v: 0, label: "None" }, { v: 2, label: "S" }, { v: 4, label: "M" }, { v: 6, label: "L" }]
                     }
                 }
             }
