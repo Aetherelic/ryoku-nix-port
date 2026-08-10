@@ -280,6 +280,19 @@ func (p riceProvider) assetURLs(paths []string) []string {
 }
 
 func (p riceProvider) fetchSmall(ctx context.Context, url string) ([]byte, error) {
+	// A local (file://) base serves the tree straight off disk, the same as the
+	// catalogue fetch: read the file rather than sending it through the HTTP
+	// client, which rejects the file:// scheme.
+	if src, ok := localBase(url); ok {
+		body, err := os.ReadFile(src)
+		if err != nil {
+			return nil, err
+		}
+		if len(body) > maxBody {
+			return nil, fmt.Errorf("%s: response exceeds %d bytes", url, maxBody)
+		}
+		return body, nil
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -303,6 +316,25 @@ func (p riceProvider) fetchSmall(ctx context.Context, url string) ([]byte, error
 }
 
 func (p riceProvider) download(ctx context.Context, url, dst string) error {
+	if src, ok := localBase(url); ok {
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return err
+		}
+		in, err := os.Open(src)
+		if err != nil {
+			return err
+		}
+		defer in.Close()
+		out, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(out, in); err != nil {
+			out.Close()
+			return err
+		}
+		return out.Close()
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err

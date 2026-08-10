@@ -52,6 +52,13 @@
   directory -- matching every other extras category and the provider's own
   empty-manifest fallback; a value that already carries a path is still honoured
   (`ryoku/apps/ryostore/backend/provider_rices.go`).
+- `ryostore/`: **Installing a rice from a local (`file://`) extras base now works.**
+  The catalogue browse read a `file://` base straight off disk, but the rice
+  install still HTTP-fetched the manifest and bundled assets, so a local base
+  failed with "unsupported protocol scheme file". The install path now reads
+  `file://` sources from disk like the catalogue does, so a checkout under test
+  (`RYOKU_EXTRAS_BASE` or `~/.config/ryoku/ryostore-base`) installs end to end
+  (`ryoku/apps/ryostore/backend/provider_rices.go`).
 - `nautilus/`: **The right-click menu no longer shows duplicate "Compress with
   Ryoku" (or "Install with Ryoku") entries.** nautilus-python could register the
   stash extension twice in one nautilus process (an extension reload after a

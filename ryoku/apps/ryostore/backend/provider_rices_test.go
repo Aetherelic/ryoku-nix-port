@@ -262,3 +262,48 @@ func TestRiceInstallResolvesBareManifest(t *testing.T) {
 		}
 	}
 }
+
+// A file:// base (a local checkout under test) must install a rice straight off
+// disk: the manifest and every bundled asset are read from the tree, not fetched
+// over HTTP, which rejects the file:// scheme.
+func TestRiceInstallFromLocalBase(t *testing.T) {
+	root := t.TempDir()
+	extras := filepath.Join(root, "extras")
+	files := map[string]string{
+		"rices/registry.json":     `{"version":1,"rices":[{"id":"demo","name":"Demo Rice","author":"Ryoku","blurb":"local","tags":["warm"],"createdWith":"0.19.4","color":"fixed","manifest":"rice.json","preview":"assets/preview.webp","palette":"rices/demo/palette.json","wallpaper":"rices/demo/wall.png"}]}`,
+		"rices/demo/rice.json":    `{"schema":1,"slug":"demo","name":"Demo Rice","createdWith":"0.19.4","color":{"mode":"fixed","palette":"palette.json"},"assets":{"wallpaper":"wall.png"},"look":{}}`,
+		"rices/demo/palette.json": `{"background":"#101010"}`,
+		"rices/demo/wall.png":     "wallpaper",
+	}
+	for rel, body := range files {
+		full := filepath.Join(extras, rel)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	base := "file://" + extras
+	p := riceProvider{
+		cache: &Cache{
+			client: http.DefaultClient,
+			base:   base,
+			dir:    filepath.Join(root, "cache"),
+			memo:   map[string]memoEntry{},
+		},
+		downloadClient: http.DefaultClient,
+		base:           base,
+		ricesDir:       filepath.Join(root, "rices"),
+		activePath:     filepath.Join(root, "rices", ".active"),
+		runningVersion: func() string { return "0.19.1" },
+	}
+	if err := p.Install(context.Background(), "demo"); err != nil {
+		t.Fatalf("install from local base: %v", err)
+	}
+	for _, name := range []string{"rice.json", "palette.json", "wall.png"} {
+		if !isRegularFile(filepath.Join(p.ricesDir, "demo", name)) {
+			t.Fatalf("%s did not land from local base install", name)
+		}
+	}
+}
