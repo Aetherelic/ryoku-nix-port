@@ -397,7 +397,7 @@ Rectangle {
         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
         "fontFamily": "Space Grotesk", "fontScale": 1.3,
         "frameBars": FrameBars.defaultConfig(),
-        "weatherLocation": "", "weatherUnit": "auto",
+        "weatherLocation": "", "weatherUnit": "auto", "formatLocale": "",
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58, "bloom": 0.6,
         "reflection": 0.1, "idleWave": true, "style": "bars", "shape": "rounded",
         "position": "bottom", "mirror": false, "segments": 10, "fps": 30,

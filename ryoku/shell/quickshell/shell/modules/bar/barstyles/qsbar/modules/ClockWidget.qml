@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import shell.services as Svc
 
 Item {
     id: rootMod
@@ -18,11 +19,9 @@ Item {
         return pad(now.getHours()) + ":" + pad(now.getMinutes())
     }
 
-    readonly property var months: ["January","February","March","April","May","June",
-                                    "July","August","September","October","November","December"]
-    readonly property var days: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
-
-    readonly property string tooltipText: days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear()
+    // weekday/month names follow the shell's regional-formats locale (Hub ->
+    // Region), so a Brazilian desktop reads its own names with an English UI.
+    readonly property string tooltipText: rootMod.now.toLocaleDateString(Svc.Config.formatLoc, Locale.LongFormat)
 
     implicitWidth: label.implicitWidth
     implicitHeight: 28

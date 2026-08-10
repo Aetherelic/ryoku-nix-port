@@ -10,6 +10,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
 import "modules"
+import shell.services as Svc
 
 PanelWindow {
     id: barSlot
@@ -1102,9 +1103,8 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         text: {
                             clock.now;
-                            var days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
                             var d = new Date();
-                            return days[d.getDay()] + " " + d.getDate();
+                            return Svc.Config.formatLoc.standaloneDayName(d.getDay(), 1) + " " + d.getDate();
                         }
                         color: Qt.rgba(g8.contentColor.r, g8.contentColor.g, g8.contentColor.b, 0.5)
                         font.family: barSlot.root.mono

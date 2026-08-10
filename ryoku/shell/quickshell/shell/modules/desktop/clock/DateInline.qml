@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../Singletons"
 import "lib/clock.js" as Clk
+import shell.services as Svc
 
 // inline date: one quiet caption. weekday in accent, then month + day in soft
 // ink, split by a dot. default companion to the time, reads as one line, never
@@ -16,7 +17,7 @@ Item {
     readonly property color inkDim:  Theme.inkDimOn(date.underL)
     readonly property color inkSoft: Theme.inkSoftOn(date.underL)
 
-    readonly property var dp: Clk.dateParts(Now.date)
+    readonly property var dp: Clk.dateParts(Now.date, Svc.Config.formatLoc)
     readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(date.underL), Theme.brand, date.ink)
     readonly property real px: Math.round(22 * Config.clockScale)
 

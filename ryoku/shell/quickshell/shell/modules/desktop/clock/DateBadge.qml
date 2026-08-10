@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../Singletons"
 import "lib/clock.js" as Clk
+import shell.services as Svc
 
 // badge date = accent-tinted chip, big day number with weekday/month stacked
 // beside it. compact mark, pairs with the minimal and digital faces.
@@ -15,7 +16,7 @@ Item {
     readonly property color inkDim:  Theme.inkDimOn(date.underL)
     readonly property color inkSoft: Theme.inkSoftOn(date.underL)
 
-    readonly property var dp: Clk.dateParts(Now.date)
+    readonly property var dp: Clk.dateParts(Now.date, Svc.Config.formatLoc)
     readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(date.underL), Theme.brand, date.ink)
     readonly property real s: Config.clockScale
 

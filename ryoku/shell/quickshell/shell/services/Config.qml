@@ -57,6 +57,19 @@ Singleton {
     property alias weatherLocation: adapter.weatherLocation
     property alias weatherUnit:     adapter.weatherUnit
 
+    // formatLocale: the regional-formats locale (the LC_* equivalent) the shell
+    // uses for dates, month/day names, numbers and currency, kept SEPARATE from
+    // the UI language so an English desktop can still read Brazilian (or any)
+    // regional formats. Empty = follow the system locale. Set from the Hub's
+    // Region control; a plain passthrough key in shell.json.
+    property alias formatLocale: adapter.formatLocale
+    // resolved Qt locale: the chosen region, else the system default. the
+    // ".UTF-8" suffix and a BCP47 dash are normalised to what Qt.locale() wants.
+    readonly property var formatLoc: {
+        var f = ("" + formatLocale).trim();
+        return f.length > 0 ? Qt.locale(f.split(".")[0].replace("-", "_")) : Qt.locale();
+    }
+
     // matchWallpaper: when on, every shell surface (frame, bar, popouts, plus
     // desktop widgets, plugin tiles, the window switcher)
     // follows the live palette instead of the static Tokyo Night
@@ -117,6 +130,7 @@ Singleton {
             property real fontScale: 1.3
             property string weatherLocation: ""
             property string weatherUnit: "auto"
+            property string formatLocale: ""
             property var frameBars: FrameBars.defaultConfig()
             property string barStyle: "qsbar"
             property var obi: ({})

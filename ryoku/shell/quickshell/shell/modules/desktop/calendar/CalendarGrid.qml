@@ -8,6 +8,7 @@ Item {
     property var days: []
     property int weeks: 6
     property int firstDay: 1
+    property var loc: Qt.locale()
     property bool showWeekNumbers: true
     property bool paper: false
     property string selectedKey: ""
@@ -36,7 +37,7 @@ Item {
                 height: root.headerHeight
                 Text {
                     anchors.centerIn: parent
-                    text: Qt.locale().standaloneDayName((index + root.firstDay) % 7, Locale.NarrowFormat)
+                    text: root.loc.standaloneDayName((index + root.firstDay) % 7, Locale.NarrowFormat)
                     color: Theme.faint
                     font.family: Theme.mono
                     font.pixelSize: 9 * root.s

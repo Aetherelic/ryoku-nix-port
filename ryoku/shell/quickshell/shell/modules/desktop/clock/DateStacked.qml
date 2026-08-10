@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../Singletons"
 import "lib/clock.js" as Clk
+import shell.services as Svc
 
 // stacked date: big day number, weekday over month/year. the torn-calendar
 // look. most expressive of the date designs; stands on its own under analog
@@ -16,7 +17,7 @@ Item {
     readonly property color inkDim:  Theme.inkDimOn(date.underL)
     readonly property color inkSoft: Theme.inkSoftOn(date.underL)
 
-    readonly property var dp: Clk.dateParts(Now.date)
+    readonly property var dp: Clk.dateParts(Now.date, Svc.Config.formatLoc)
     readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(date.underL), Theme.brand, date.ink)
     readonly property real s: Config.clockScale
 

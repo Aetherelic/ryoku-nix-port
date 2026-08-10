@@ -34,10 +34,21 @@ function parts(date, is24) {
     };
 }
 
-// date fields for the date designs.
-function dateParts(date) {
+// date fields for the date designs. `loc` is an optional Qt.locale() object
+// (from the shell's regional-formats setting); when given, weekday and month
+// names come from that locale so a Brazilian (or any) desktop reads its own
+// names while the UI language is untouched. Absent -> the English fallback.
+// format ints match the QLocale enum: 0 = LongFormat, 1 = ShortFormat.
+function dateParts(date, loc) {
     var dow = date.getDay();
     var mon = date.getMonth();
+    if (loc && typeof loc.standaloneMonthName === "function") {
+        return {
+            dow: dow, dom: date.getDate(), mon: mon, year: date.getFullYear(),
+            weekday: loc.standaloneDayName(dow, 0), weekdayShort: loc.standaloneDayName(dow, 1),
+            month: loc.standaloneMonthName(mon, 0), monthShort: loc.standaloneMonthName(mon, 1)
+        };
+    }
     return {
         dow: dow, dom: date.getDate(), mon: mon, year: date.getFullYear(),
         weekday: WEEKDAY[dow], weekdayShort: WEEKDAY_SHORT[dow],

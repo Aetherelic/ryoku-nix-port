@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Added
+- **Regional formats, separate from the UI language.** A new Region control in
+  the Hub (Desktop -> General) sets a formats locale that the shell uses for
+  dates, weekday/month names and the calendar, while the interface language is
+  left untouched -- so a Brazilian (or any) desktop can run an English UI and
+  still read `dom. 9`, `dd/mm/yyyy` and localized month names. It is a plain
+  `formatLocale` passthrough key in `shell.json`; empty follows the system
+  locale. The bar clock and its date, the desktop clock faces, the calendar, and
+  the quick-settings clock all honour it live (they previously hardcoded English
+  names / US date order). Shared date formatting moved into a locale-aware
+  `dateParts(date, loc)` with a unit test (`services/Config.qml`,
+  `modules/desktop/clock/lib/clock.js` + `clock.test.mjs`,
+  `modules/desktop/clock/Date*.qml`, `modules/desktop/calendar/Calendar*.qml`,
+  `modules/bar/barstyles/qsbar/**/{BarSlot,modules/ClockWidget}.qml`,
+  `modules/bar/framebars/menus/MenuClockCard.qml`; Hub `Hub.qml` +
+  `schema/DesktopPage.js`).
 - **A chat with the Rashin agent lives in the Super+S sidebar.** A new Chat tab
   (the default) in the feature sidebar holds a multi-turn conversation with the
   `ryoku-rashin` agent: the answer streams in as it is written and renders as

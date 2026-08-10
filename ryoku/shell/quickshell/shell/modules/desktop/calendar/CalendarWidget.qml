@@ -5,6 +5,7 @@ import shell.services
 import "../../../services/lib/calendar.js" as CalendarModel
 import ".."
 import "../Singletons"
+import shell.services as Svc
 
 Item {
     id: root
@@ -20,7 +21,7 @@ Item {
     property rect wallpaperRect: Qt.rect(0, 0, 0, 0)
 
     readonly property bool paper: root.style === "paper"
-    readonly property var loc: Qt.locale()
+    readonly property var loc: Svc.Config.formatLoc
     readonly property int firstDay: root.loc.firstDayOfWeek === 7 ? 0 : root.loc.firstDayOfWeek
     readonly property date today: systemClock.date
     property int viewYear: today.getFullYear()
@@ -162,6 +163,7 @@ Item {
         days: root.days
         weeks: root.visibleWeeks
         firstDay: root.firstDay
+        loc: root.loc
         showWeekNumbers: root.showWeekNumbers
         paper: root.paper
         selectedKey: root.activeKey

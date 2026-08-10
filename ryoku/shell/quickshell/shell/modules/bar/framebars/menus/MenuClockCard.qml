@@ -16,7 +16,7 @@ Item {
     property real s: 1
     property bool open: false
 
-    readonly property var loc: Qt.locale()
+    readonly property var loc: Config.formatLoc
 
     implicitHeight: row.implicitHeight
 
@@ -45,7 +45,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0
             Text {
-                text: Qt.formatDate(clock.date, "M/dd/yyyy")
+                text: clock.date.toLocaleDateString(root.loc, Locale.ShortFormat)
                 color: Theme.onSurface
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontMd
