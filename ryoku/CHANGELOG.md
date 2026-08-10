@@ -19,6 +19,14 @@
   now re-runs it too, so undocking re-lays out and re-scales the monitors that
   stay instead of leaving one at the gone display's offset with a blank wallpaper
   (`hyprland/modules/displays.lua`).
+- **The Steam overlay and games no longer lag from the desktop compositor.** A
+  game window (Steam, `steam_app_*`, gamescope) already dropped blur and shadow
+  but still vsynced through the compositor, so opening the Steam overlay broke
+  direct scanout and tanked the frame rate. Game windows now take the low-latency
+  tearing path by default (`general.allow_tearing` plus an `immediate` rule on the
+  steam-native match), cutting input lag and the overlay's frame-time hit with no
+  Game Mode toggle; only an unthrottled fullscreen game tears, never the desktop
+  (`hyprland/modules/decoration.lua`, `hyprland/modules/window_rules.lua`).
 
 ### Added
 - **Setup verifies the chat backend before declaring success.** After enabling

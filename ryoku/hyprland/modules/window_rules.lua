@@ -161,6 +161,11 @@ hl.window_rule({
     no_shadow    = true,
     opaque       = true,
     idle_inhibit = "fullscreen",
+    -- low-latency presentation: let an unthrottled fullscreen game tear instead
+    -- of vsyncing through the compositor, which cuts input lag and the frame-time
+    -- hit when the Steam overlay composites on top. Pairs with
+    -- general.allow_tearing; Game Mode already forces this path at runtime.
+    immediate    = true,
 })
 
 -- ryotunes is YouTube Music as a Chromium app-window (apps/ryotunes); the

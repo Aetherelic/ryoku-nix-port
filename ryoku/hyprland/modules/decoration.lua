@@ -35,6 +35,11 @@ hl.config({
     border_size             = 2,
     layout                  = "dwindle",
     resize_on_border        = true,
+    -- low-latency path for fullscreen games: only windows carrying the
+    -- `immediate` rule (steam/games, see window_rules.lua) actually tear, so the
+    -- desktop never does -- an unthrottled game does, cutting input lag and the
+    -- Steam-overlay frame-time hit the vsynced compositor path adds.
+    allow_tearing           = true,
     ["col.active_border"]   = active,
     ["col.inactive_border"] = inactive,
   },
