@@ -525,6 +525,42 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     divider: true
+                    controlWidth: 58
+                    visible: page.qsbarVariant === "v2"
+                    label: qsTr("Corner radius")
+                    unit: "px"
+                    value: String(page.qval("barCornerRadius", 6))
+                    desc: qsTr("Round the fitted bar shell's corners.")
+                    source: "shell.json"
+                    Step {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0; to: 40
+                        value: page.qval("barCornerRadius", 6)
+                        onModified: value => page.qset("barCornerRadius", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 120
+                    visible: page.qsbarVariant === "v1"
+                    label: qsTr("Corners")
+                    desc: qsTr("Round the island corners.")
+                    source: "shell.json"
+                    Seg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["round", "soft"]
+                        current: page.qval("styleRadiusSmall", false) ? "soft" : "round"
+                        onChose: key => page.qset("styleRadiusSmall", key === "soft")
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
                     controlWidth: 54
                     visible: page.qsbarVariant === "v2"
                     label: qsTr("Panel + tooltip border")

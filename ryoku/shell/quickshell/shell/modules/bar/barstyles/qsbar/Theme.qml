@@ -1832,6 +1832,7 @@ Item {
         q.pickerStyle = pickerStyle
         q.launcherLogoMode = launcherLogoMode
         q.aiTool = aiTool
+        q.styleRadiusSmall = styleRadiusSmall
         q.widgets = {
             "status": modStatus, "memory": modMemory, "cpu": modCpu, "volume": modVolume,
             "weather": modWeather, "network": modNetwork, "brightness": modBrightness,
@@ -1874,6 +1875,7 @@ Item {
         if (q.pickerStyle     !== undefined) pickerStyle     = q.pickerStyle
         if (q.launcherLogoMode !== undefined) launcherLogoMode = q.launcherLogoMode
         if (q.aiTool === "claude" || q.aiTool === "codex" || q.aiTool === "opencode") aiTool = q.aiTool
+        if (q.styleRadiusSmall !== undefined) styleRadiusSmall = q.styleRadiusSmall
         var w = q.widgets
         if (w) {
             if (w.status     !== undefined) modStatus     = w.status

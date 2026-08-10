@@ -20,7 +20,7 @@ PanelWindow {
     readonly property int shellOuterMargin: 5
     readonly property int shellRadius: barSlot.root.barShellStyle === "dock"
         ? 8
-        : barSlot.root.barShellStyle === "notch" ? 0 : barSlot.root.panelRadius
+        : barSlot.root.barShellStyle === "notch" ? 0 : barSlot.root.barCornerRadius
     // The Notch is a content-width lobe flowing directly out of the screen edge.
     // One continuous cubic per side creates the soft diagonal run-out without
     // a neck, step or frame around the rest of the output.

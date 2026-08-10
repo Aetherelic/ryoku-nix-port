@@ -2025,6 +2025,9 @@ Item {
     // notch = attached content-width surface with desktop-facing side wings
     property string barShellStyle: "full"
     property bool barBorderEnabled: true
+    // Outer bar-shell corner radius in px, applied to the fitted shell forms.
+    // Persisted in shell.json .qsbar; set from the control center and Bar Studio.
+    property int barCornerRadius: 6
     property bool panelTooltipBorderEnabled: true
     function barShellStyleValid(value) {
         return value === "full" || value === "fit"
@@ -2280,6 +2283,7 @@ Item {
     onBarShellStyleChanged:    if (_widgetsLoaded) saveWidgets()
     onBarBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
     onPanelTooltipBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
+    onBarCornerRadiusChanged:  if (_widgetsLoaded) saveWidgets()
     onBarColorChanged:         if (_widgetsLoaded) saveWidgets()
     onWidgetIconsForegroundChanged: if (_widgetsLoaded) saveWidgets()
     onBarTemperatureSourceChanged: if (_widgetsLoaded) saveWidgets()
@@ -2524,6 +2528,7 @@ Item {
         q.barShellStyle = barShellStyle
         q.barBorderEnabled = barBorderEnabled
         q.panelTooltipBorderEnabled = panelTooltipBorderEnabled
+        q.barCornerRadius = barCornerRadius
         q.widgets = {
             "status": modStatus, "memory": modMemory, "cpu": modCpu, "volume": modVolume,
             "weather": modWeather, "network": modNetwork, "brightness": modBrightness,
@@ -2571,6 +2576,7 @@ Item {
         if (q.barShellStyle !== undefined && barShellStyleValid(q.barShellStyle)) barShellStyle = q.barShellStyle
         if (q.barBorderEnabled !== undefined) barBorderEnabled = q.barBorderEnabled
         if (q.panelTooltipBorderEnabled !== undefined) panelTooltipBorderEnabled = q.panelTooltipBorderEnabled
+        if (q.barCornerRadius !== undefined) barCornerRadius = Math.max(0, Math.min(40, q.barCornerRadius))
         var w = q.widgets
         if (w) {
             if (w.status     !== undefined) modStatus     = w.status

@@ -242,6 +242,20 @@ Item {
                         onChose: k => { if (page.root && page.root.styleShadow !== undefined) page.root.styleShadow = (k === "on") }
                     }
                 }
+                CcRow {
+                    root: page.root
+                    label: "Corners"
+                    desc: "Round the island corners"
+                    controlWidth: 108
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "round", label: "Round" }, { key: "soft", label: "Soft" }]
+                        current: (page.root && page.root.styleRadiusSmall) ? "soft" : "round"
+                        onChose: k => { if (page.root && page.root.styleRadiusSmall !== undefined) page.root.styleRadiusSmall = (k === "soft") }
+                    }
+                }
             }
 
             // ── BAR SURFACE ──
@@ -279,6 +293,22 @@ Item {
                         options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
                         current: (page.root && page.root.panelTooltipBorderEnabled) ? "on" : "off"
                         onChose: k => { if (page.root && page.root.panelTooltipBorderEnabled !== undefined) page.root.panelTooltipBorderEnabled = (k === "on") }
+                    }
+                }
+                CcRow {
+                    root: page.root
+                    label: "Corners"
+                    desc: "Round the fitted bar shell's corners"
+                    controlWidth: 150
+
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "square", label: "Square" }, { key: "soft", label: "Soft" }, { key: "round", label: "Round" }]
+                        current: (page.root && page.root.barCornerRadius <= 0) ? "square"
+                                 : (page.root && page.root.barCornerRadius >= 16) ? "round" : "soft"
+                        onChose: k => { if (page.root && page.root.barCornerRadius !== undefined) page.root.barCornerRadius = (k === "square" ? 0 : k === "round" ? 16 : 8) }
                     }
                 }
             }
