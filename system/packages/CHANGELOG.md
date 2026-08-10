@@ -14,6 +14,13 @@
   on first launch.
 - `aur.packages`: add `game-devices-udev` (PS4/PS5/DualSense/DualShock and Switch
   Pro udev rules + battery) and `xpadneo-dkms` (Xbox One/Series Bluetooth pads).
+- `base.packages`: add `linux-headers` and `dkms` (also hard `depends` of
+  `ryoku-desktop`, so `ryoku update` reaches existing boxes). `xpadneo-dkms` (the
+  Xbox One/Series Bluetooth driver above) is a DKMS module: without the kernel
+  headers and the DKMS build system its module silently fails to build, so an Xbox
+  controller was not detected at all until the user installed `linux-headers` +
+  `dkms` by hand. `dkms`'s alpm hooks rebuild the module whenever headers land, so
+  an existing box self-heals on the next update.
 - `aur.packages`: add `spicetify-cli`, the Spotify client patcher the desktop
   music widget's Spotify Canvas backdrop needs. `ryoku doctor` drops the bundled
   `ryoku-canvas.js` extension into the spicetified client and applies it, pointing

@@ -11,6 +11,13 @@ base-devel
 rust
 linux
 linux-firmware
+# linux-headers + dkms: the shipped kernel's headers and the DKMS build system,
+# so out-of-tree driver modules build. Ryoku installs xpadneo-dkms (Xbox
+# One/Series Bluetooth pads; see aur.packages), and a DKMS module silently fails
+# to build without matching headers -- an Xbox controller is then not detected at
+# all. dkms's alpm hooks rebuild modules on every kernel/header change.
+linux-headers
+dkms
 mkinitcpio
 sudo
 
