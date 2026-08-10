@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **A system font you can change without a logout.** The interface font is a
+  live setting now (Hub -> Global -> System font). The shell reads it through
+  `Theme.fontPrimary`, and the daemon mirrors it to the toolkits: GTK via
+  `gsettings font-name` (running apps re-read at once) and Qt via the qt6ct
+  general font (picked up on next launch), applied on the change and again on
+  startup. Empty keeps the shipped Space Grotesk; the old hardcoded autostart
+  font line is gone, so the daemon owns it (`services/Config.qml`,
+  `services/Theme.qml`, `ipc/matugen.go`, `ipc/settings.go`,
+  `hyprland/modules/autostart.lua`).
 - **Regional formats, separate from the UI language.** A new Region control in
   the Hub (Global) sets a formats locale that the shell uses for
   dates, weekday/month names and the calendar, while the interface language is

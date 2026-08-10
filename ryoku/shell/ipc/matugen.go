@@ -1064,6 +1064,57 @@ func matugenThemeSig(frame []byte) string {
 	return doc.Theme.Theme
 }
 
+// fontSig fingerprints the frame's system-font key, so a change to it re-applies
+// the font to the toolkits the same way a theme change retunes them.
+func fontSig(frame []byte) string {
+	var doc struct {
+		FontFamily string `json:"fontFamily"`
+	}
+	if json.Unmarshal(frame, &doc) != nil {
+		return ""
+	}
+	return doc.FontFamily
+}
+
+// applyFont pushes the chosen UI font to the toolkits so every surface matches
+// the shell without a logout: gsettings' font-name is read live by running GTK
+// apps, and the qt6ct general font is rewritten so Qt apps pick it up on their
+// next launch. Empty resolves to the shipped Space Grotesk.
+func applyFont(family string) {
+	family = strings.TrimSpace(family)
+	if family == "" {
+		family = "Space Grotesk"
+	}
+	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "font-name", family+" 11")
+	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "document-font-name", family+" 11")
+	writeQt6ctFont(family)
+}
+
+// writeQt6ctFont swaps the family in qt6ct's general font line, keeping the size
+// and style fields, so Qt apps under qt6ct render in the same face. Best-effort:
+// a missing file or an unexpected shape is left untouched.
+func writeQt6ctFont(family string) {
+	path := filepath.Join(matugenConfigHome(), "qt6ct", "qt6ct.conf")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	lines := strings.Split(string(b), "\n")
+	for i, ln := range lines {
+		if !strings.HasPrefix(ln, "general=") {
+			continue
+		}
+		rest := strings.Trim(strings.TrimPrefix(ln, "general="), "\"")
+		parts := strings.SplitN(rest, ",", 2)
+		if len(parts) != 2 {
+			return
+		}
+		lines[i] = "general=\"" + family + "," + parts[1] + "\""
+		_ = os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+		return
+	}
+}
+
 // watchMatugenKnobs retints the desktop whenever the knob store changes, so a Hub
 // appearance save (which writes matugen.json and renders nothing itself) takes
 // hold at once, exactly as a wallpaper change does. scheduleTheme coalesces, so

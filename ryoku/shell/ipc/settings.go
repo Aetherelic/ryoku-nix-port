@@ -981,15 +981,24 @@ func (d *daemon) startSettings() {
 	// desktop the same way a wallpaper change does. The publish is unchanged; this
 	// only layers the re-theme trigger on top of it.
 	lastThemeSig := matugenThemeSig(frame)
+	lastFontSig := fontSig(frame)
 	store.onChange = func(f []byte) {
 		t.publish(f)
 		if sig := matugenThemeSig(f); sig != lastThemeSig {
 			lastThemeSig = sig
 			d.scheduleTheme()
 		}
+		if fs := fontSig(f); fs != lastFontSig {
+			lastFontSig = fs
+			go applyFont(fs)
+		}
 	}
 	store.mu.Unlock()
 	t.publish(frame)
+	// Apply the configured system font on startup so a fresh login matches the
+	// saved choice without waiting for a change (this replaces the old autostart
+	// hardcode). Off the hot path, best-effort.
+	go applyFont(lastFontSig)
 
 	d.registerCall("settings.patch", func(raw json.RawMessage) (any, error) {
 		var a struct {

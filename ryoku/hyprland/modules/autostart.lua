@@ -6,7 +6,6 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("hyprctl setcursor Bibata-Modern-Ice 24")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme prefer-dark")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark")
-    hl.exec_cmd("gsettings set org.gnome.desktop.interface font-name 'Space Grotesk 11'")
     -- Folder icons follow the wallpaper accent: ryoku-cmd-folders builds a small
     -- Papirus-Dark overlay under ~/.local/share/icons tinted to the palette and
     -- selects it. Rebuilt on every palette change by the shell's matugen hook.

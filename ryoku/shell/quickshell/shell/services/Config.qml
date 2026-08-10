@@ -51,6 +51,11 @@ Singleton {
     // and the surfaces around it), keeping the readout legible without overflow.
     property alias fontScale:  adapter.fontScale
 
+    // fontFamily: the shell UI font, empty resolves to Space Grotesk. It is also
+    // the system font -- the daemon mirrors it to GTK (gsettings) and Qt (qt6ct)
+    // so apps match the shell. Set from Hub -> Global.
+    property alias fontFamily: adapter.fontFamily
+
     // weather: an explicit location override (a city name; blank = auto-locate by
     // IP) and the temperature unit ("auto" follows the locale, else "celsius" /
     // "fahrenheit"). the Weather singleton reads both.
@@ -128,6 +133,7 @@ Singleton {
             property real osdRadius: 0
             property real osdOpacity: 1
             property real fontScale: 1.3
+            property string fontFamily: "Space Grotesk"
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property string formatLocale: ""

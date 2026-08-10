@@ -338,6 +338,44 @@ func TestMatugenReload(t *testing.T) {
 	}
 }
 
+// TestApplyFont: the system font pushes to GTK live via gsettings font-name and
+// falls back to the shipped face when empty; fontSig reads the frame's key.
+func TestApplyFont(t *testing.T) {
+	var got [][]string
+	orig := runCommand
+	t.Cleanup(func() { runCommand = orig })
+	runCommand = func(name string, args ...string) error {
+		got = append(got, append([]string{name}, args...))
+		return nil
+	}
+	has := func(want ...string) bool {
+		for _, c := range got {
+			if slices.Equal(c, want) {
+				return true
+			}
+		}
+		return false
+	}
+
+	applyFont("Inter")
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "font-name", "Inter 11") {
+		t.Errorf("font-name not set to Inter; got %v", got)
+	}
+
+	got = nil
+	applyFont("")
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "font-name", "Space Grotesk 11") {
+		t.Errorf("empty font did not fall back to Space Grotesk; got %v", got)
+	}
+
+	if fontSig([]byte(`{"fontFamily":"Fira Sans"}`)) != "Fira Sans" {
+		t.Errorf("fontSig did not read fontFamily")
+	}
+	if fontSig([]byte(`{}`)) != "" {
+		t.Errorf("fontSig should be empty when the key is absent")
+	}
+}
+
 // TestMatugenFollows is the trigger rule: the dynamic pipeline runs only when
 // Match wallpaper is on and no fixed named theme is selected. Match off, or a
 // static theme active, leaves it idle so it never fights the theme daemon.
