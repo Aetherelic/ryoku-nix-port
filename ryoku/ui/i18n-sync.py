@@ -8,22 +8,42 @@ schema label/desc/group). This tool does the rest:
   sync     for each target language, translate ONLY the strings it is missing
            (keeping what is already translated and any human overrides), so a
            normal update translates a handful of new strings, never the file.
-  llm      generate translations via a user-configured LLM (higher quality, or
-           a language Ryoku doesn't ship) -> ~/.config/ryoku/i18n/<lang>.json
+           --engine google  keyless Google endpoint (default; free, no secret,
+                            but context-blind: "Shell" may become a seashell).
+           --engine llm     a configured LLM with a domain prompt + glossary,
+                            so word senses ("Shell" = the desktop shell) and
+                            length are honoured. Needs an API key.
+           --force          re-translate every string, not just the missing
+                            ones (a one-time pass to upgrade old translations),
+                            overrides still win.
+           --strict         exit non-zero if any missing string got no
+                            translation (so CI surfaces the gap instead of
+                            silently shipping English).
+  check    report translations that are much longer than their English source
+           (the cause of overflowing/overlapping UI). --strict to fail on them.
+  llm      generate a full language into the layered config dir
+           (~/.config/ryoku/i18n/<lang>.json), for a higher-quality pass or a
+           language Ryoku doesn't ship. Uses the same prompt + glossary.
   ensure   create ~/.config/ryoku/i18n-llm.json from a template if absent, so
-           the user has a key file to fill in
+           the user has a key file to fill in.
 
-Backend is Google's keyless endpoint, so this runs in CI or locally with no
-secret. Placeholders (%1, %2, ...) are shielded so they survive translation, and
+The LLM is configured either by ~/.config/ryoku/i18n-llm.json or by environment
+(RYOKU_I18N_PROVIDER / _KEY / _MODEL / _URL), env winning, so CI can drive it
+from a repository secret with no committed key. OpenRouter is the recommended
+backend (OpenAI-compatible, one key, cheap models); Anthropic and OpenAI work
+too. Placeholders (%1, %2, ...) are shielded so they survive translation, and
 overrides/<lang>.json always wins, so a human fix is never overwritten.
 
   python3 i18n-sync.py extract
-  python3 i18n-sync.py sync            # all targets
-  python3 i18n-sync.py sync es fr      # a subset
+  python3 i18n-sync.py sync                       # all targets, Google
+  python3 i18n-sync.py sync --engine llm          # all targets, LLM
+  python3 i18n-sync.py sync --engine llm --force  # full LLM re-translate
+  python3 i18n-sync.py check --strict             # length guard
 """
 
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -38,6 +58,14 @@ OVERRIDES = os.path.join(TRANS, "overrides")
 # file name -> Google target code. "pt" is Brazilian on the endpoint and "pt-PT"
 # is European, so the generic "pt" file takes European and "pt_BR" Brazilian.
 TARGETS = {"es": "es", "fr": "fr", "pt": "pt-PT", "pt_BR": "pt"}
+
+# human names for the LLM prompt (the endpoint code is meaningless to a model).
+LANG_NAMES = {
+    "es": "Spanish",
+    "fr": "French",
+    "pt": "European Portuguese (pt-PT)",
+    "pt_BR": "Brazilian Portuguese (pt-BR)",
+}
 
 QML_ROOT = os.path.join(REPO, "ryoku")
 SCHEMA_DIR = os.path.join(REPO, "ryoku", "hub", "quickshell", "schema")
@@ -180,7 +208,13 @@ def unshield(s):
     return "".join(out)
 
 
-def google_translate(text, tl, tries=3):
+def _sanitize(s):
+    # the repo's pre-commit forbids em-dashes in text files (and en-dashes read
+    # as machine-styled); translators emit both, so normalise them to a hyphen.
+    return s.replace("\u2014", "-").replace("\u2013", "-")
+
+
+def google_translate(text, tl, tries=4):
     q = shield(text)
     url = "https://translate.googleapis.com/translate_a/single?" + urllib.parse.urlencode(
         {"client": "gtx", "sl": "en", "tl": tl, "dt": "t", "q": q})
@@ -190,48 +224,78 @@ def google_translate(text, tl, tries=3):
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             out = "".join(seg[0] for seg in data[0] if seg and seg[0])
-            return unshield(out)
+            return _sanitize(unshield(out))
         except Exception as e:
             if attempt == tries - 1:
                 print(f"  ! translate failed ({tl}): {e}", file=sys.stderr)
                 return None
-            time.sleep(1.5 * (attempt + 1))
+            # exponential backoff + jitter: datacenter IPs (CI) get rate-limited
+            # by the keyless endpoint, and the block clears if we back off.
+            time.sleep(1.5 * (attempt + 1) + random.random())
     return None
 
 
-def cmd_sync(langs):
-    en = load_json(os.path.join(TRANS, "en.json"))
-    if not en:
-        print("sync: run extract first (translations/en.json is empty)", file=sys.stderr)
-        return 1
-    langs = langs or list(TARGETS)
-    for lang in langs:
-        tl = TARGETS.get(lang)
-        if not tl:
-            print(f"sync: unknown language {lang}", file=sys.stderr)
-            continue
-        existing = load_json(os.path.join(TRANS, f"{lang}.json"))
-        overrides = load_json(os.path.join(OVERRIDES, f"{lang}.json"))
-        out, new = {}, 0
-        for key in en:
-            if key in overrides:
-                out[key] = overrides[key]
-            elif key in existing and existing[key] != key:
-                out[key] = existing[key]          # already translated: keep, no call
-            else:
-                t = google_translate(key, tl)
-                out[key] = t if t else key        # fall back to English on failure
-                new += 1
-                time.sleep(0.25)                  # be gentle on the endpoint
-        write_json(os.path.join(TRANS, f"{lang}.json"), out)
-        print(f"sync {lang}: {len(out)} strings ({new} newly translated, {len(overrides)} overrides)")
-    return 0
+# ── glossary: the domain knowledge Google cannot have and an LLM can ──────────
+# Ryoku is a Linux/Wayland desktop shell, so its words carry software senses, not
+# everyday ones. KEEP stays verbatim in every language; SENSE disambiguates the
+# words a generic translator gets wrong ("Shell" -> command-line shell, never a
+# seashell). Both are injected into the LLM prompt.
+KEEP = [
+    "Ryoku", "Wi-Fi", "Bluetooth", "GPU", "CPU", "RAM", "VPN", "SSID", "DNS",
+    "IP", "MAC", "USB", "HDMI", "RGB", "PID", "OSD", "QR", "PipeWire",
+    "PulseAudio", "Wayland", "Hyprland", "Niri", "Sway", "systemd",
+    "opencode", "codex", "Whisper", "gpu-screen-recorder",
+]
+SENSE = {
+    "Shell": "the desktop shell / Unix command-line shell software, never a seashell",
+    "Bar": "the desktop top panel / status bar, not a place that serves drinks",
+    "Dock": "the application dock / taskbar",
+    "Tray": "the system tray (notification area)",
+    "Idle": "the session's idle / inactivity state",
+    "Lock": "locking the screen",
+    "Sink": "an audio output device",
+    "Source": "an audio input device",
+    "Mount": "mounting a filesystem / drive",
+    "Window": "an application window (window manager)",
+    "Workspace": "a virtual desktop / workspace",
+    "Tile": "a tiling window layout",
+    "Key": "a keyboard key or a config key, not a door key",
+    "Launcher": "the application launcher",
+    "Hero": "the large feature widget / image / clock area of a page, not a person or superhero",
+    "Deck": "a stacked panel of results (e.g. the launcher result deck), not a card deck or a ship deck",
+    "Frost": "a frosted-glass blur effect (also frosts / frosted), not weather or ice",
+    "Passthrough": "GPU passthrough (a VM gets direct GPU access), not a keyboard shortcut",
+    "Dictation": "voice dictation / speech to text, never dictatorship",
+    "Clockwork": "a clockwork gears mechanism, not a watchmaker",
+    "X-ray": "a see-through blur that reveals the wallpaper, not medical imaging",
+    "Snap": "snapping / aligning a window to a screen edge, not attaching",
+    "Reflection": "a visual mirror reflection, not contemplation",
+    "Passes": "rendering / blur passes (a count), not passages or walkways",
+    "Fade-in": "content appearing as opacity rises; fade-out is the reverse, never swap them",
+}
 
 
-# ── LLM generation (the "Noctalia approach"): higher-quality / extra-language ──
-# translations produced by a user-configured LLM, written to the layered config
-# dir (~/.config/ryoku/i18n/<lang>.json) where I18n layers them over the shipped
-# files. Config: ~/.config/ryoku/i18n-llm.json {"provider","key","model","name"}.
+def build_prompt(lang_name, chunk):
+    senses = "".join(f'    - "{t}": {d}\n' for t, d in SENSE.items())
+    return (
+        f"You translate UI strings for Ryoku, a Linux/Wayland desktop shell "
+        f"(status bars, launcher, control center, notifications, settings). "
+        f"Translate from English into {lang_name}.\n"
+        "Rules:\n"
+        "- Return ONLY a JSON object mapping each English source string to its "
+        "translation. No prose, no code fences.\n"
+        "- Match the terse tone of a settings app. Keep each translation as short "
+        "as the English, and never more than ~1.3x its character length, so the "
+        "UI does not overflow.\n"
+        "- Preserve %1 %2 ... placeholders exactly, including their order's meaning.\n"
+        "- Do not use em dashes or en dashes; use a comma, colon, or parentheses.\n"
+        f"- Keep these terms untranslated: {', '.join(KEEP)}.\n"
+        "- These words are desktop-software terms, not everyday language:\n"
+        f"{senses}"
+        "\nStrings to translate:\n"
+        + json.dumps({k: k for k in chunk}, ensure_ascii=False)
+    )
+
 
 def _cfg_home():
     return os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
@@ -241,13 +305,31 @@ LLM_CFG = os.path.join(_cfg_home(), "ryoku", "i18n-llm.json")
 GEN_DIR = os.path.join(_cfg_home(), "ryoku", "i18n")
 
 LLM_CFG_TEMPLATE = {
-    "_help": ("Paste your API key into \"key\". provider is \"anthropic\" or "
-              "\"openai\". Anthropic keys: https://console.anthropic.com/ , "
-              "OpenAI keys: https://platform.openai.com/api-keys ."),
-    "provider": "anthropic",
+    "_help": ("Paste your API key into \"key\". The default is OpenRouter "
+              "(OpenAI-compatible, one key for every model, cheap): get a key at "
+              "https://openrouter.ai/keys and pick a model at "
+              "https://openrouter.ai/models . For vanilla OpenAI set provider "
+              "\"openai\" and url \"\"; for Anthropic set provider \"anthropic\". "
+              "Any field can also be set via env: RYOKU_I18N_PROVIDER / _KEY / "
+              "_MODEL / _URL (env wins, used by CI)."),
+    "provider": "openai",
+    "url": "https://openrouter.ai/api/v1/chat/completions",
+    "model": "google/gemini-2.5-flash",
     "key": "",
-    "model": "claude-sonnet-5",
 }
+
+
+def load_llm_cfg():
+    """File config overlaid with environment (env wins), so CI drives it from a
+    secret with nothing committed."""
+    cfg = load_json(LLM_CFG)
+    env = os.environ
+    for field, var in (("provider", "RYOKU_I18N_PROVIDER"), ("key", "RYOKU_I18N_KEY"),
+                       ("model", "RYOKU_I18N_MODEL"), ("url", "RYOKU_I18N_URL")):
+        val = env.get(var)
+        if val:
+            cfg[field] = val
+    return cfg
 
 
 def seed_llm_cfg():
@@ -268,18 +350,21 @@ def cmd_ensure():
 
 
 def llm_call(cfg, prompt):
-    provider = cfg.get("provider", "anthropic")
+    provider = cfg.get("provider", "openai")
     key = cfg.get("key", "")
-    model = cfg.get("model") or ("claude-sonnet-5" if provider == "anthropic" else "gpt-4o-mini")
     if provider == "anthropic":
+        model = cfg.get("model") or "claude-3-5-haiku-latest"
         url = "https://api.anthropic.com/v1/messages"
         body = {"model": model, "max_tokens": 4096,
                 "messages": [{"role": "user", "content": prompt}]}
         headers = {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
-    else:  # openai-compatible
-        url = cfg.get("url", "https://api.openai.com/v1/chat/completions")
+    else:  # openai-compatible (OpenRouter by default, or vanilla OpenAI)
+        model = cfg.get("model") or "gpt-4o-mini"
+        url = cfg.get("url") or "https://api.openai.com/v1/chat/completions"
         body = {"model": model, "messages": [{"role": "user", "content": prompt}]}
-        headers = {"Authorization": "Bearer " + key, "content-type": "application/json"}
+        headers = {"Authorization": "Bearer " + key, "content-type": "application/json",
+                   "X-Title": "Ryoku i18n",
+                   "HTTP-Referer": "https://github.com/noctalia-dev"}
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)
     with urllib.request.urlopen(req, timeout=90) as resp:
         data = json.loads(resp.read().decode())
@@ -293,32 +378,168 @@ def _extract_json(text):
     return json.loads(text[a:b + 1]) if a >= 0 and b > a else {}
 
 
+def llm_translate(cfg, lang, keys, batch=40):
+    """Translate `keys` into `lang` (a file code or name) via the model, in
+    batches with the domain prompt + glossary. A batch whose reply is not valid
+    JSON is bisected and retried, so one malformed string never sinks a whole
+    batch. Returns {key: translation} for what came back; caller picks fallback."""
+    name = LANG_NAMES.get(lang, lang)
+    out = {}
+
+    def run(chunk, depth):
+        if not chunk:
+            return
+        try:
+            got = _extract_json(llm_call(cfg, build_prompt(name, chunk)))
+            out.update({k: _sanitize(v) for k, v in got.items()
+                        if k in chunk and isinstance(v, str) and v})
+        except Exception as e:
+            if len(chunk) > 1 and depth < 6:
+                mid = len(chunk) // 2
+                run(chunk[:mid], depth + 1)
+                run(chunk[mid:], depth + 1)
+            else:
+                print(f"  ! llm failed ({lang}) on {chunk!r}: {str(e)[:80]}", file=sys.stderr)
+
+    for i in range(0, len(keys), batch):
+        run(keys[i:i + batch], 0)
+        print(f"  {lang}: {len(out)}/{len(keys)}")
+    return out
+
+
+def _parse_sync_args(argv):
+    engine, force, strict, langs = "google", False, False, []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--engine":
+            engine = argv[i + 1]
+            i += 2
+        elif a == "--force":
+            force = True
+            i += 1
+        elif a == "--strict":
+            strict = True
+            i += 1
+        else:
+            langs.append(a)
+            i += 1
+    return engine, force, strict, langs
+
+
+def cmd_sync(argv):
+    engine, force, strict, langs = _parse_sync_args(argv)
+    if engine not in ("google", "llm"):
+        print(f"sync: unknown engine {engine} (google|llm)", file=sys.stderr)
+        return 2
+    en = load_json(os.path.join(TRANS, "en.json"))
+    if not en:
+        print("sync: run extract first (translations/en.json is empty)", file=sys.stderr)
+        return 1
+    langs = langs or list(TARGETS)
+
+    cfg = None
+    if engine == "llm":
+        cfg = load_llm_cfg()
+        if not cfg.get("key"):
+            print("sync --engine llm: no API key. Set RYOKU_I18N_KEY (CI) or edit "
+                  f"{LLM_CFG} (run `ensure` to create it).", file=sys.stderr)
+            return 1
+
+    unresolved = 0
+    for lang in langs:
+        tl = TARGETS.get(lang)
+        if not tl:
+            print(f"sync: unknown language {lang}", file=sys.stderr)
+            continue
+        existing = load_json(os.path.join(TRANS, f"{lang}.json"))
+        overrides = load_json(os.path.join(OVERRIDES, f"{lang}.json"))
+
+        # a string needs translating unless a human override covers it, or (when
+        # not forcing) it is already translated (present and not equal to English).
+        def done(k):
+            return k in overrides or (not force and k in existing and existing[k] != k)
+        missing = [k for k in en if not done(k)]
+
+        translated = {}
+        if missing:
+            if engine == "llm":
+                translated = llm_translate(cfg, lang, missing)
+            else:
+                for k in missing:
+                    t = google_translate(k, tl)
+                    if t:
+                        translated[k] = t
+                    time.sleep(0.25)                  # be gentle on the endpoint
+
+        out, failed = {}, []
+        for k in en:
+            if k in overrides:
+                out[k] = overrides[k]
+            elif not force and k in existing and existing[k] != k:
+                out[k] = existing[k]                  # keep prior translation
+            elif k in translated:
+                out[k] = translated[k]
+            else:
+                out[k] = _sanitize(k)                  # unresolved -> English source
+                if k in missing:
+                    failed.append(k)                  # a real miss, not a kept string
+        write_json(os.path.join(TRANS, f"{lang}.json"), out)
+        unresolved += len(failed)
+        print(f"sync[{engine}] {lang}: {len(out)} strings "
+              f"({len(translated)} newly translated, {len(overrides)} overrides, "
+              f"{len(failed)} unresolved)")
+
+    if strict and unresolved:
+        print(f"strict: {unresolved} string(s) left untranslated", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_check(argv):
+    """Flag translations far longer than their English source: the cause of
+    overflowing/overlapping UI. Advisory by default; --strict fails."""
+    strict = "--strict" in argv
+    factor, min_src = 1.5, 12
+    for a in argv:
+        if a.startswith("--factor="):
+            factor = float(a.split("=", 1)[1])
+    en = load_json(os.path.join(TRANS, "en.json"))
+    if not en:
+        print("check: run extract first (translations/en.json is empty)", file=sys.stderr)
+        return 1
+    offenders = []
+    for lang in TARGETS:
+        m = load_json(os.path.join(TRANS, f"{lang}.json"))
+        for k, src in en.items():
+            tr = m.get(k)
+            if not tr or tr == src or len(src) < min_src:
+                continue
+            if len(tr) > len(src) * factor:
+                offenders.append((len(tr) / len(src), lang, src, tr))
+    offenders.sort(reverse=True)
+    for ratio, lang, src, tr in offenders:
+        print(f"  {lang} {ratio:.2f}x  {src!r} -> {tr!r}")
+    print(f"check: {len(offenders)} translation(s) exceed {factor:.2f}x the "
+          f"English length (source >= {min_src} chars)")
+    return 1 if strict and offenders else 0
+
+
 def cmd_llm(langs):
+    """Full LLM generation into the layered config overlay (~/.config/ryoku/i18n)."""
     seed_llm_cfg()
-    cfg = load_json(LLM_CFG)
+    cfg = load_llm_cfg()
     if not cfg.get("key"):
-        print(f"llm: no API key set. Edit {LLM_CFG} and paste your "
-              "Anthropic or OpenAI key into the \"key\" field, then try again.",
-              file=sys.stderr)
+        print(f"llm: no API key set. Edit {LLM_CFG} and paste your key into the "
+              "\"key\" field (or set RYOKU_I18N_KEY), then try again.", file=sys.stderr)
         return 1
     en = load_json(os.path.join(TRANS, "en.json"))
     if not en:
-        cmd_extract(); en = load_json(os.path.join(TRANS, "en.json"))
+        cmd_extract()
+        en = load_json(os.path.join(TRANS, "en.json"))
     keys = list(en)
     for lang in (langs or [cfg.get("target", "es")]):
-        out, batch = {}, 60
-        for i in range(0, len(keys), batch):
-            chunk = keys[i:i + batch]
-            prompt = (f"Translate these UI strings to {lang}. Return ONLY a JSON object mapping each "
-                      "English source string to its translation. Preserve %1/%2 placeholders exactly, "
-                      "keep proper nouns (Wi-Fi, GPU, Ryoku, Bluetooth) untranslated, and match the "
-                      "terse tone of a settings app.\n\n" + json.dumps({k: k for k in chunk}, ensure_ascii=False))
-            try:
-                got = _extract_json(llm_call(cfg, prompt))
-                out.update({k: v for k, v in got.items() if k in en})
-            except Exception as e:
-                print(f"  ! llm batch failed ({lang}): {e}", file=sys.stderr)
-            print(f"  {lang}: {len(out)}/{len(keys)}")
+        out = llm_translate(cfg, lang, keys)
         os.makedirs(GEN_DIR, exist_ok=True)
         with open(os.path.join(GEN_DIR, f"{lang}.json"), "w", encoding="utf-8") as fh:
             json.dump(dict(sorted(out.items())), fh, ensure_ascii=False, indent=2)
@@ -328,7 +549,7 @@ def cmd_llm(langs):
 
 def main():
     args = sys.argv[1:]
-    if not args or args[0] not in ("extract", "sync", "llm", "ensure"):
+    if not args or args[0] not in ("extract", "sync", "check", "llm", "ensure"):
         print(__doc__)
         return 2
     if args[0] == "ensure":
@@ -336,6 +557,8 @@ def main():
     if args[0] == "extract":
         cmd_extract()
         return 0
+    if args[0] == "check":
+        return cmd_check(args[1:])
     if args[0] == "llm":
         return cmd_llm(args[1:])
     return cmd_sync(args[1:])

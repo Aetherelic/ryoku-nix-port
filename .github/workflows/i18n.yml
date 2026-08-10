@@ -21,6 +21,11 @@ on:
       - 'ryoku/ui/translations/overrides/**'
       - '.github/workflows/i18n.yml'
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Re-translate every string (upgrade existing), not just missing ones"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -43,9 +48,26 @@ jobs:
           python-version: '3.x'
 
       - name: Extract English + translate missing strings
+        # Prefer the LLM engine (domain prompt + glossary: correct word senses,
+        # length kept in check) when a key is configured; otherwise fall back to
+        # the free, keyless Google endpoint so the job still works with no secret.
+        env:
+          RYOKU_I18N_PROVIDER: openai
+          RYOKU_I18N_URL: https://openrouter.ai/api/v1/chat/completions
+          RYOKU_I18N_MODEL: ${{ vars.RYOKU_I18N_MODEL || 'google/gemini-2.5-flash' }}
+          RYOKU_I18N_KEY: ${{ secrets.RYOKU_I18N_KEY }}
+          FORCE: ${{ inputs.force }}
         run: |
           python3 ryoku/ui/i18n-sync.py extract
-          python3 ryoku/ui/i18n-sync.py sync
+          flag=""
+          [ "$FORCE" = "true" ] && flag="--force"
+          if [ -n "$RYOKU_I18N_KEY" ]; then
+            python3 ryoku/ui/i18n-sync.py sync --engine llm $flag
+          else
+            python3 ryoku/ui/i18n-sync.py sync $flag
+          fi
+          # advisory: surface translations that expand the UI (non-fatal).
+          python3 ryoku/ui/i18n-sync.py check || true
 
       - name: Commit updated translations
         run: |
