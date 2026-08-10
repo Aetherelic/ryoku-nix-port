@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `base.packages` + `ryoku-desktop` hard depends: add the Bazzite-style gaming
+  stack `gamescope`, `gamemode`, `mangohud`. gamescope runs a game in a nested
+  micro-compositor isolated from the desktop, sidestepping the XWayland
+  compositing that is the real source of in-game and Steam-overlay lag on Wayland
+  (`gamescope -- %command%`); gamemode is the perf governor Steam invokes via
+  `gamemoderun %command%`; mangohud is the FPS/frametime overlay. Hard depends so
+  the ISO and `ryoku update` both carry them; lib32 variants ride opt-in multilib.
 - `base.packages`: add `pciutils`. `lspci` is the GPU-detection path the driver
   scripts use during pacstrap; without it NVIDIA cards were silently missed.
 - `base.packages`: add `alsa-utils` (`alsamixer`, `amixer`, `alsactl`) so a muted

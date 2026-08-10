@@ -148,6 +148,17 @@ qemu-desktop
 edk2-ovmf
 virglrenderer
 
+# Gaming (Bazzite-style stack): gamescope is a nested micro-compositor that runs
+# a game isolated from the desktop, bypassing the XWayland compositing that is
+# the real source of in-game and Steam-overlay lag on Wayland (run a title with
+# `gamescope -f -- %command%` in Steam's launch options). gamemode (feral) is the
+# perf governor Steam/Lutris invoke via `gamemoderun %command%`. mangohud is the
+# FPS/frametime overlay (via gamescope's `--mangoapp`). 64-bit here; the lib32
+# variants for 32-bit titles ride the opt-in multilib set.
+gamescope
+gamemode
+mangohud
+
 # Shell + CLI
 bash-completion
 bat

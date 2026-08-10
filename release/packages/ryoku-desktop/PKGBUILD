@@ -199,6 +199,16 @@ depends=(
   # onto an existing box rebuilds an already-installed pad driver.
   'linux-headers'
   'dkms'
+  # Gaming stack (Bazzite-style): gamescope runs a game in a nested micro-
+  # compositor isolated from the desktop, sidestepping the XWayland compositing
+  # that is the real source of in-game and Steam-overlay lag on Wayland
+  # (`gamescope -- %command%`); gamemode is the perf governor Steam invokes via
+  # `gamemoderun %command%`; mangohud is the FPS/frametime overlay. Official extra
+  # repo, so a hard depend ships them in the ISO and reaches existing boxes on
+  # `ryoku update`.
+  'gamescope'
+  'gamemode'
+  'mangohud'
 )
 optdepends=(
   'chromium: web browser'
