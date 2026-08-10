@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `ryostore/`: **the store caches its imagery and flags real updates.** Previews
+  are pulled to a local cache (`~/.cache/ryoku/extras/assets`) by a detached
+  `ryostore warm` and served from disk, so the store opens instantly, works
+  offline, and stops re-downloading every launch. A new `ryostore check` compares
+  a content revision of the live registries against the last one the user pulled
+  and lights a red dot on Refresh only when ryoku-extras has actually changed
+  (`apps/ryostore/backend/{asset_cache.go,catalog_revision.go,main.go}`,
+  `apps/ryostore/quickshell/{Singletons/Store.qml,StoreHeader.qml}`).
 - `ryotunes/`: **YouTube Music as a first-party Ryoku app, wired to the desktop
   now-playing widget.** A dedicated Chromium app-window on music.youtube.com,
   single-instanced by a flock and isolated in its own profile, so it carries its
@@ -45,6 +53,13 @@
   the header field (`quickshell/StoreHeader.qml`, `quickshell/App.qml`).
 
 ### Fixed
+- `ryostore/`: **closing the store no longer crashes Quickshell.** Quitting
+  straight out of the window-close handler raced the QML engine teardown into a
+  pure-virtual delete (`std::terminate`) while remote image loads were still in
+  flight -- intermittent, but exactly the reported crash. The store now stops its
+  child processes and defers the quit past the close event and, with previews
+  served from the local cache, tears down with no network image loads
+  outstanding (`apps/ryostore/quickshell/{App.qml,Singletons/Store.qml}`).
 - `ryostore/`: **Installing a rice no longer 404s on the manifest.** The rice
   provider used the registry's `manifest` value (the published bare `rice.json`)
   as a repo-root path, fetching `.../main/rice.json` (404) instead of the rice's

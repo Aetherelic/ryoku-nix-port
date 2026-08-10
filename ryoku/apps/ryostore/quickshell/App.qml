@@ -274,11 +274,19 @@ Rectangle {
     }
 
     function requestQuit() {
-        if (Store.busyKey !== "" && !quitArm.running) {
-            quitArm.restart();
+        // An in-flight install runs a backend transaction that is not safe to
+        // interrupt: poll until the store is idle, then quit.
+        if (Store.busyKey !== "") {
+            if (!quitArm.running)
+                quitArm.start();
             return;
         }
-        Qt.quit();
+        quitArm.stop();
+        // Stop our child processes and defer the quit past this event, so the QML
+        // engine tears down with nothing in flight. Quitting straight out of the
+        // window close handler races that teardown into a pure-virtual crash.
+        Store.shutdown();
+        Qt.callLater(Qt.quit);
     }
 
     onCollectionChanged: reconcileSelection(0)
@@ -307,7 +315,7 @@ Rectangle {
     Shortcut { sequence: "Ctrl+K"; onActivated: header.focusSearch() }
     Shortcut { sequence: "Ctrl+Q"; onActivated: app.requestQuit() }
 
-    Timer { id: quitArm; interval: 3000 }
+    Timer { id: quitArm; interval: 400; repeat: true; onTriggered: app.requestQuit() }
     Timer {
         id: detailClear
         interval: Tokens.swap
@@ -338,6 +346,7 @@ Rectangle {
         query: app.query
         libraryCount: app.libraryCount
         updateCount: app.updateCount
+        updateAvailable: Store.updateAvailable
         offline: Store.offline
         refreshing: Store.refreshing
         searchActive: app.searchOpen

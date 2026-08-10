@@ -23,6 +23,10 @@ Singleton {
     property string _installError: ""
     property bool _clearBusyAfterRefresh: false
     property var _queue: []
+    property bool updateAvailable: false
+    property string revision: ""
+    property bool _forced: false
+    property string _checkOutput: ""
 
     function itemKey(item) {
         return item ? String(item.category || "") + ":" + String(item.id || "") : "";
@@ -38,12 +42,31 @@ Singleton {
     function refresh(force) {
         if (catalogProc.running)
             return;
+        root._forced = force === true;
         loading = true;
         error = "";
         _catalogOutput = "";
         _catalogError = "";
         catalogProc.command = force ? ["ryostore", "catalog", "--refresh"] : ["ryostore", "catalog"];
         catalogProc.running = true;
+    }
+
+    // A lightweight upstream probe (registries only, no downloads): it lights the
+    // refresh dot when ryoku-extras has advanced past what the user last pulled,
+    // without touching the shown catalogue.
+    function check() {
+        if (checkProc.running)
+            return;
+        root._checkOutput = "";
+        checkProc.running = true;
+    }
+
+    // Stop every child process before the window tears down, so no fetch is in
+    // flight when the QML engine is destroyed -- a shutdown-crash guard.
+    function shutdown() {
+        catalogProc.running = false;
+        installProc.running = false;
+        checkProc.running = false;
     }
 
     function install(item, dither, components) {
@@ -103,7 +126,10 @@ Singleton {
         Quickshell.execDetached(["ryostore", "settings", String(item.category), String(item.id)]);
     }
 
-    Component.onCompleted: refresh(false)
+    Component.onCompleted: {
+        refresh(false);
+        check();
+    }
 
     Process {
         id: catalogProc
@@ -129,6 +155,12 @@ Singleton {
                 root.offline = next.offline === true;
                 root.generatedAt = String(next.generatedAt || "");
                 root.error = "";
+                root.revision = String(next.revision || "");
+                if (root._forced)
+                    root.updateAvailable = false;
+                // Fill the on-disk asset cache out of band so the next open (and
+                // this session's later scrolling) renders previews from disk.
+                Quickshell.execDetached(["ryostore", "warm"]);
                 if (root._clearBusyAfterRefresh) {
                     root._clearBusyAfterRefresh = false;
                     root.installStage = "COMPLETE";
@@ -161,6 +193,22 @@ Singleton {
             root.installStage = "VERIFYING";
             root._clearBusyAfterRefresh = true;
             root.refresh(true);
+        }
+    }
+
+    Process {
+        id: checkProc
+        command: ["ryostore", "check"]
+        stdout: StdioCollector { onStreamFinished: root._checkOutput = text }
+        onExited: code => {
+            if (code !== 0)
+                return;
+            try {
+                const res = JSON.parse(root._checkOutput);
+                root.updateAvailable = res.updateAvailable === true;
+            } catch (e) {
+                // A malformed probe never asserts an update.
+            }
         }
     }
 }

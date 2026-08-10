@@ -10,6 +10,7 @@ package main
 // source is serving cached data or failed to load.
 type Catalog struct {
 	GeneratedAt string     `json:"generatedAt"`
+	Revision    string     `json:"revision,omitempty"`
 	Offline     bool       `json:"offline"`
 	Categories  []Category `json:"categories"`
 	Items       []Item     `json:"items"`

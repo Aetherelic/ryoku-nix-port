@@ -34,7 +34,7 @@ func main() {
 // the caller reports one useful line and exits nonzero.
 func dispatch(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("no command; expected catalog, install, remove, open, settings, or internal")
+		return fmt.Errorf("no command; expected catalog, install, remove, check, open, settings, or internal")
 	}
 	switch args[0] {
 	case "catalog":
@@ -43,6 +43,10 @@ func dispatch(args []string) error {
 		return runInstall(providers(), args[1:])
 	case "remove":
 		return runRemove(providers(), args[1:])
+	case "warm":
+		return runWarm(args[1:])
+	case "check":
+		return runCheck(os.Stdout, providers())
 	case "open":
 		return runOpen(args[1:])
 	case "settings":
@@ -50,7 +54,7 @@ func dispatch(args []string) error {
 	case "internal":
 		return runInternal(args[1:])
 	default:
-		return fmt.Errorf("unknown command %q; expected catalog, install, remove, open, settings, or internal", args[0])
+		return fmt.Errorf("unknown command %q; expected catalog, install, remove, check, warm, open, settings, or internal", args[0])
 	}
 }
 
@@ -75,6 +79,7 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 			return fmt.Errorf("unknown catalog flag %q", rest[0])
 		}
 	}
+	ctx := context.Background()
 	if haveCategory {
 		if category == "" {
 			return fmt.Errorf("--category needs a non-empty id")
@@ -84,7 +89,8 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 			return fmt.Errorf("unknown category %q", category)
 		}
 		// A single-category probe is a subset of the store, never the snapshot.
-		cat := BuildCatalog(context.Background(), []Provider{p}, refresh)
+		cat := BuildCatalog(ctx, []Provider{p}, refresh)
+		cat.Revision = catalogRevision(cat)
 		return json.NewEncoder(w).Encode(cat)
 	}
 	// The full catalogue is snapshotted so a launch is instant and works offline;
@@ -96,7 +102,13 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 			return err
 		}
 	}
-	cat := BuildCatalog(context.Background(), provs, refresh)
+	cat := BuildCatalog(ctx, provs, refresh)
+	cat.Revision = catalogRevision(cat)
+	// Rewrite items to any preview already in the cache (no downloads, so the
+	// catalogue stays instant); the detached `warm` command fills the rest, so
+	// the next open renders from disk with no network image loads to abort at
+	// close.
+	rewriteCachedAssets(cat.Items)
 	data, err := json.Marshal(cat)
 	if err != nil {
 		return err
@@ -106,9 +118,64 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 	// retried live next launch instead of caching an empty store.
 	if len(cat.Items) > 0 {
 		_ = atomicWrite(snapshot, data, 0o644)
+		// A freshly built catalogue is the baseline the user is now looking at,
+		// so acknowledge it: the refresh dot stays clear until upstream advances.
+		writeSeenRevision(cat.Revision)
 	}
 	_, err = w.Write(data)
 	return err
+}
+
+// runWarm is the detached background asset populator the store launches after a
+// catalogue load: it pulls every preview and screenshot in the current snapshot
+// into the cache and rewrites the snapshot to local file:// paths, so the next
+// open renders entirely from disk with no network image loads. Single-flight (a
+// non-blocking lock) and idempotent, so repeated launches converge without
+// duplicate downloads.
+func runWarm(_ []string) error {
+	unlock, ok := warmLock()
+	if !ok {
+		return nil
+	}
+	defer unlock()
+	snapshot := filepath.Join(extrasCacheDir(), "catalog.json")
+	data, err := os.ReadFile(snapshot)
+	if err != nil {
+		return nil
+	}
+	var cat Catalog
+	if err := json.Unmarshal(data, &cat); err != nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), warmBudget)
+	defer cancel()
+	warmAssets(ctx, assetHTTPClient(), cat.Items)
+	out, err := json.Marshal(cat)
+	if err != nil {
+		return err
+	}
+	return atomicWrite(snapshot, append(out, '\n'), 0o644)
+}
+
+// runCheck probes the live registries (no asset downloads, no snapshot rewrite)
+// and reports whether the catalogue has advanced past the last acknowledged
+// revision, so the store lights its refresh dot only on a real ryoku-extras
+// change. It never writes the seen revision: only viewing the fresh catalogue
+// (runCatalog) acknowledges it.
+func runCheck(w io.Writer, provs []Provider) error {
+	cat := BuildCatalog(context.Background(), provs, true)
+	revision := catalogRevision(cat)
+	seen := readSeenRevision()
+	out := struct {
+		Revision        string `json:"revision"`
+		UpdateAvailable bool   `json:"updateAvailable"`
+		Offline         bool   `json:"offline"`
+	}{
+		Revision:        revision,
+		UpdateAvailable: seen != "" && !cat.Offline && revision != seen,
+		Offline:         cat.Offline,
+	}
+	return json.NewEncoder(w).Encode(out)
 }
 
 func runInstall(provs []Provider, args []string) error {

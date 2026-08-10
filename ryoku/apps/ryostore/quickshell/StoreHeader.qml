@@ -19,6 +19,7 @@ Item {
     property bool refreshing: false
     property bool searchActive: false
     property int resultCount: 0
+    property bool updateAvailable: false
 
     signal routeRequested(string view, string categoryID)
     signal refreshRequested()
@@ -43,8 +44,9 @@ Item {
         id: act
         required property string label
         property bool current: false
+        property bool flagged: false
         signal triggered()
-        implicitWidth: actLabel.implicitWidth
+        implicitWidth: actLabel.implicitWidth + (act.flagged ? Tokens.s2 : 0)
         implicitHeight: actLabel.implicitHeight + Tokens.s3
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
@@ -71,6 +73,16 @@ Item {
             height: Tokens.border * 2
             color: Tokens.ink
             visible: act.current || act.activeFocus
+        }
+        // Attention dot: upstream (ryoku-extras) has advanced past what the user
+        // last pulled. Fixed alert red so it always reads as "something new".
+        Rectangle {
+            visible: act.flagged
+            width: 5
+            height: 5
+            radius: 2.5
+            color: Tokens.alert
+            anchors { left: actLabel.right; leftMargin: Tokens.s1; top: actLabel.top }
         }
         HoverHandler { cursorShape: Qt.PointingHandCursor }
         TapHandler { onTapped: act.triggered() }
@@ -254,6 +266,7 @@ Item {
                 objectName: "ryostore-header-refresh"
                 label: header.refreshing ? "SYNCING" : "REFRESH"
                 current: header.refreshing
+                flagged: header.updateAvailable && !header.refreshing
                 onTriggered: header.refreshRequested()
             }
         }
