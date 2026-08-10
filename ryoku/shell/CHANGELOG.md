@@ -4,7 +4,7 @@
 
 ### Added
 - **Regional formats, separate from the UI language.** A new Region control in
-  the Hub (Desktop -> General) sets a formats locale that the shell uses for
+  the Hub (Global) sets a formats locale that the shell uses for
   dates, weekday/month names and the calendar, while the interface language is
   left untouched -- so a Brazilian (or any) desktop can run an English UI and
   still read `dom. 9`, `dd/mm/yyyy` and localized month names. It is a plain

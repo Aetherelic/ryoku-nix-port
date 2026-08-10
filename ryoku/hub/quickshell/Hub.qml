@@ -71,7 +71,7 @@ Rectangle {
     // desktop internals, per-window rules, tools, system plumbing and the agent
     // OS stay out of the way until asked for.
     readonly property var groups: [
-        { name: "OVERVIEW", items: [ { key: "profile", name: "Profile" } ] },
+        { name: "OVERVIEW", items: [ { key: "profile", name: "Profile" }, { key: "global", name: "Global" } ] },
         { name: "DEVICES", items: [
             { key: "displays", name: "Displays" }, { key: "connections", name: "Connections" },
             { key: "input", name: "Input" }, { key: "cursor", name: "Cursor", adv: true }, { key: "gpu", name: "GPU", adv: true } ] },
@@ -105,7 +105,7 @@ Rectangle {
         "widgets": "部品", "lockscreen": "施錠", "animations": "動き",
         "addons": "拡張", "windowrules": "規則", "appoverrides": "上書", "layerrules": "階層",
         "autostart": "自動", "environment": "環境", "performance": "性能", "rashin": "羅針",
-        "updates": "更新", "credits": "謝辞"
+        "updates": "更新", "credits": "謝辞", "global": "全般"
     })
 
     // Extra search vocabulary per section: the words a user actually types that
@@ -113,6 +113,7 @@ Rectangle {
     // schema rows (Connections, Rashin) and cover synonyms the copy avoids
     // (transparency->opacity, startup->autostart, screensaver->lockscreen).
     readonly property var sectionKeywords: ({
+        "global": "language locale region formats format date time number currency text size font scale location city weather timezone international i18n l10n",
         "profile": "dashboard status overview telemetry hostname cpu gpu memory uptime specs",
         "displays": "monitor screen resolution refresh scale rotation arrange mirror hidpi dual second external multiple",
         "connections": "wifi wi-fi wireless bluetooth network hotspot tether internet ethernet pair pairing device",
@@ -125,7 +126,7 @@ Rectangle {
         "windows": "window windows rounding corners softness gaps border borders thickness colour tiling dwindle master scrolling layout opacity transparency transparent dim blur shadow glow glass wobble wobbly title bar titlebar float snap resize animation",
         "appearance": "theme palette accent color colour wallpaper background rice scheme dark light night bluelight comfort brightness backlight",
         "bar-studio": "bar frame rails zones widgets menus surfaces style catalogue layout framebars sidebar",
-        "desktop": "desktop visualizer visualiser spectrum weather brand logo mark name widget board wallpaper",
+        "desktop": "desktop visualizer visualiser spectrum brand logo mark name widget board wallpaper",
         "launcher": "launcher spotlight command palette greeting weather home",
         "fastfetch": "fetch neofetch terminal system info logo ascii emblem readout",
         "widgets": "desktop widget clock calendar weather face overlay wallpaper",
@@ -340,7 +341,7 @@ Rectangle {
     // `framed` pages keep the rail + bottom action bar; `ledger` pages also get
     // the right write-ledger column. Everything else is full-bleed.
     readonly property var framedSet: ({
-        "bar-studio": true, "desktop": true, "appearance": true, "windows": true, "input": true, "cursor": true, "animations": true,
+        "bar-studio": true, "desktop": true, "appearance": true, "windows": true, "input": true, "cursor": true, "animations": true, "global": true,
         "windowrules": true, "appoverrides": true, "layerrules": true,
         "autostart": true, "environment": true
     })
@@ -380,6 +381,7 @@ Rectangle {
     }
     function pageFile(s) {
         var map = { "windows": "WindowsPage", "profile": "ProfilePage", "bar-studio": "BarStudioPage", "desktop": "DesktopPage", "environment": "EnvironmentPage", "autostart": "AutostartPage", "layerrules": "LayerRulesPage", "windowrules": "WindowRulesPage", "appoverrides": "AppOverridesPage", "animations": "AnimationsPage", "appearance": "AppearancePage", "input": "InputPage", "cursor": "CursorPage", "keybinds": "KeybindsPage", "dictation": "DictationPage", "displays": "DisplaysPage", "connections": "ConnectionsPage", "gpu": "GpuPage", "updates": "UpdatesPage", "rashin": "RashinPage", "recording": "RecordingPage", "performance": "PerformancePage", "launcher": "LauncherPage", "lockscreen": "LockscreenPage", "fastfetch": "FastfetchPage", "addons": "AddonsPage", "widgets": "WidgetsPage", "credits": "CreditsPage" };
+        map.global = "GlobalPage";
         return map[s] ? Qt.resolvedUrl("pages/" + map[s] + ".qml") : "";
     }
     function openPick(r) { picker.openFor(r); }

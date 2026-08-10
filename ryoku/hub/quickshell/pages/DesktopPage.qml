@@ -14,7 +14,7 @@ Item {
 
     readonly property string pTitle: I18n.tr("Desktop")
     readonly property string pEyebrow: I18n.tr("DESKTOP")
-    readonly property string pBlurb: I18n.tr("What sits on your desktop: the brand mark, weather source, and the audio visualiser.")
+    readonly property string pBlurb: I18n.tr("What sits on your desktop: the brand mark and the audio visualiser.")
     function focusKey(k) { sp.focusKey(k) }
 
     SchemaPage {

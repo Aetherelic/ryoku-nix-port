@@ -9,6 +9,15 @@
   agree with the shell's new default look.
 
 ### Added
+- **A Global page collects the cross-cutting settings.** A new Global section
+  (Overview -> Global) is the single home for the interface language, regional
+  formats, the machine location and the shell text size. Language and text size
+  had no editor before (config-only); the location, temperature units and
+  regional formats moved here from Desktop, so each setting lives in exactly one
+  page -- no duplication. Regional formats stays separate from language, so an
+  English UI can pair with Brazilian (or any) date/number formats
+  (`quickshell/pages/GlobalPage.qml`, `quickshell/schema/GlobalPage.js`,
+  `quickshell/Hub.qml`, `quickshell/schema/DesktopPage.js`).
 - **Appearance lists downloaded colour schemes.** The Colour scheme picker now
   shows installed RyoStore themes beside the built-in palettes, read live from
   the daemon catalog (`ryoku-shell theme catalog`) and applied through the same

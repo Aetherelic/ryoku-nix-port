@@ -33,36 +33,6 @@ var rows = [{
         "ctl": "sw",
         "src": "brand"
     },{
-        "tab": "General",
-        "group": "WEATHER",
-        "key": "weatherLocation",
-        "label": "Location",
-        "desc": "Search a city; empty reads it from your IP",
-        "ctl": "location",
-        "src": "shell"
-    },{
-        "tab": "General",
-        "group": "WEATHER",
-        "key": "weatherUnit",
-        "label": "Units",
-        "desc": "Temperature units",
-        "ctl": "seg",
-        "src": "shell",
-        "opts": [
-            "auto",
-            "celsius",
-            "fahrenheit"
-        ]
-    },{
-        "tab": "General",
-        "group": "REGION",
-        "key": "formatLocale",
-        "label": "Regional formats",
-        "desc": "Dates, numbers and month names use this region; your UI language is untouched. None = follow the system.",
-        "ctl": "chips",
-        "src": "shell",
-        "opts": ["en_US","en_GB","pt_BR","pt_PT","es_ES","es_MX","de_DE","fr_FR","it_IT","nl_NL","sv_SE","ja_JP","zh_CN"]
-    },{
         "tab": "Visualizer",
         "group": "STYLE",
         "key": "enabled",
