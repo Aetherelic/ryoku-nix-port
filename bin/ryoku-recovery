@@ -11,20 +11,11 @@ REPO_URL="${RYOKU_RECOVERY_URL:-https://github.com/neur0map/ryoku-arch.git}"
 # maintainer shell) must never redirect the rescue onto unstable-dev, or the
 # panic button re-breaks the very box it should save.
 CHANNEL="main"
-# Repair the checkout this machine actually has, in place. The pre-rewrite ISO
-# kept the checkout at the data root and ran its commands from $DATA_ROOT/bin on
-# PATH; the current layout keeps it in $DATA_ROOT/repo. Resetting whichever one
-# exists back to main converts a box the old updater stranded on unstable-dev
-# into a clean main checkout (its stale bin/ scripts dropped by the reset),
-# instead of leaving the broken checkout beside a fresh clone.
+# Converge every box onto the one checkout `ryoku track` uses, so update and
+# recovery never track different trees; legacy checkouts are consolidated below.
 DATA_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/ryoku"
-if [[ -n ${RYOKU_RECOVERY_DIR:-} ]]; then
-  RECOVERY_DIR="$RYOKU_RECOVERY_DIR"
-elif git -C "$DATA_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
-  RECOVERY_DIR="$DATA_ROOT"
-else
-  RECOVERY_DIR="$DATA_ROOT/repo"
-fi
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku"
+RECOVERY_DIR="${RYOKU_RECOVERY_DIR:-$HOME/ryoku-arch}"
 ASSUME_YES=0
 DO_PACKAGES=1
 
@@ -89,6 +80,17 @@ if [[ $ASSUME_YES != 1 ]]; then
 fi
 
 say "Ryoku recovery starting on channel $CHANNEL"
+
+# The retired dev-switch layout symlinked the state dir into a per-channel tree;
+# a dangling one blocks recording the update pointer. Make it a real directory
+# (preserving contents) before deploy records repo/deployed.
+if [[ -L $STATE_DIR ]]; then
+  say "converting the state dir symlink to a real directory ($STATE_DIR)"
+  tgt="$(readlink -f "$STATE_DIR" 2>/dev/null || true)"
+  rm -f "$STATE_DIR"
+  mkdir -p "$STATE_DIR"
+  if [[ -n $tgt && -d $tgt ]]; then cp -a "$tgt/." "$STATE_DIR/" 2>/dev/null || true; fi
+fi
 
 if git -C "$RECOVERY_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   say "refreshing recovery checkout at $RECOVERY_DIR"
@@ -165,6 +167,11 @@ if pacman -Q ryoku-desktop >/dev/null 2>&1; then
   rm -f "$state_dir/repo" "$state_dir/deployed"
   say "packaged install detected: staying on the pacman update channel"
 fi
+
+# Consolidate: drop the retired dev-switch switcher and any stray recovery/ISO
+# checkout so only $RECOVERY_DIR remains and nothing re-strands the box.
+rm -rf "$DATA_ROOT/dev-switch"
+if [[ "$DATA_ROOT/repo" != "$RECOVERY_DIR" ]]; then rm -rf "$DATA_ROOT/repo"; fi
 
 # ensure the shell's wallpaper daemon + palette generator: awww ships from the
 # [ryoku] repo (a ryoku-desktop depend) and matugen from the official repos, but

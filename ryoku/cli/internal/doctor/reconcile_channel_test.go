@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"ryoku-cli/internal/sys"
 )
 
 func gitT(t *testing.T, dir string, args ...string) string {
@@ -77,5 +79,111 @@ func TestReconcileUpdateChannelSwitchesToTrackedBranch(t *testing.T) {
 	}
 	if head := strings.TrimSpace(gitT(t, work, "symbolic-ref", "--short", "HEAD")); head != "unstable-dev" {
 		t.Fatalf("checkout on %q, want unstable-dev", head)
+	}
+}
+
+// mkRyokuArch makes a git work tree at dst whose origin path contains
+// "ryoku-arch", so isRyokuArchTree accepts it.
+func mkRyokuArch(t *testing.T, root, dst string) {
+	t.Helper()
+	origin := filepath.Join(root, "ryoku-arch.git")
+	if out, err := exec.Command("git", "init", "--bare", "-b", "main", origin).CombinedOutput(); err != nil {
+		t.Fatalf("init bare: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("git", "clone", origin, dst).CombinedOutput(); err != nil {
+		t.Fatalf("clone: %v\n%s", err, out)
+	}
+	gitT(t, dst, "config", "user.email", "t@e")
+	gitT(t, dst, "config", "user.name", "t")
+	if err := os.WriteFile(filepath.Join(dst, "f"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitT(t, dst, "add", "-A")
+	gitT(t, dst, "commit", "-m", "c")
+}
+
+// A symlinked state dir (the retired dev-switch layout) becomes a real
+// directory, migrating whatever the target held.
+func TestReconcileRepoPointerDesymlinks(t *testing.T) {
+	t.Setenv("RYOKU_REPO", "")
+	root := t.TempDir()
+	t.Setenv("HOME", filepath.Join(root, "home")) // no ~/ryoku-arch: isolate the de-symlink
+	t.Setenv("XDG_STATE_HOME", filepath.Join(root, "state"))
+	state := sys.StateDir()
+	target := filepath.Join(root, "devswitch", "state", "ryoku")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(target, "repo"), []byte("/gone\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(state), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, state); err != nil {
+		t.Fatal(err)
+	}
+	if r := reconcileRepoPointer(false); r.status != recFixed {
+		t.Fatalf("got %s (%s), want fixed", r.status.label(), r.detail)
+	}
+	if fi, err := os.Lstat(state); err != nil || fi.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("state dir still a symlink (err=%v)", err)
+	}
+	if b, err := os.ReadFile(filepath.Join(state, "repo")); err != nil || strings.TrimSpace(string(b)) != "/gone" {
+		t.Fatalf("migrated pointer missing (%q, err=%v)", b, err)
+	}
+}
+
+// A stale pointer beside a healthy ~/ryoku-arch checkout is repointed.
+func TestReconcileRepoPointerRepoints(t *testing.T) {
+	t.Setenv("RYOKU_REPO", "")
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(root, "state"))
+	state := sys.StateDir()
+	if err := os.MkdirAll(state, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(state, "repo"), []byte("/gone\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	track := filepath.Join(home, "ryoku-arch")
+	mkRyokuArch(t, root, track)
+	if r := reconcileRepoPointer(true); r.status != recWouldFix {
+		t.Fatalf("checkOnly: got %s, want would-fix", r.status.label())
+	}
+	if r := reconcileRepoPointer(false); r.status != recFixed {
+		t.Fatalf("got %s (%s), want fixed", r.status.label(), r.detail)
+	}
+	if b, err := os.ReadFile(filepath.Join(state, "repo")); err != nil || strings.TrimSpace(string(b)) != track {
+		t.Fatalf("pointer = %q (err=%v), want %s", b, err, track)
+	}
+}
+
+// A real state dir whose pointer is a healthy ryoku-arch checkout is left alone.
+func TestReconcileRepoPointerHealthy(t *testing.T) {
+	t.Setenv("RYOKU_REPO", "")
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(root, "state"))
+	state := sys.StateDir()
+	if err := os.MkdirAll(state, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	track := filepath.Join(home, "ryoku-arch")
+	mkRyokuArch(t, root, track)
+	if err := os.WriteFile(filepath.Join(state, "repo"), []byte(track+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := reconcileRepoPointer(false); r.status != recOK {
+		t.Fatalf("got %s (%s), want ok", r.status.label(), r.detail)
 	}
 }

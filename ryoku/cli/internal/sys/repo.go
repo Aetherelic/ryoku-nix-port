@@ -32,6 +32,15 @@ func ResolveRepo() string {
 			return p
 		}
 	}
+	// Fallback: the checkout `ryoku track` clones to, so a lost or broken recorded
+	// pointer still self-heals. Gated on the origin so an unrelated repo at that
+	// path is never adopted as the update channel.
+	track := filepath.Join(Home(), "ryoku-arch")
+	if _, err := RunOut("git", "-C", track, "rev-parse", "--git-dir"); err == nil {
+		if url, e := RunOut("git", "-C", track, "remote", "get-url", "origin"); e == nil && strings.Contains(url, "ryoku-arch") {
+			return track
+		}
+	}
 	return ""
 }
 

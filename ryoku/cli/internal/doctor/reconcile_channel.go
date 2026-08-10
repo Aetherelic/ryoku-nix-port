@@ -1,6 +1,8 @@
 package doctor
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	"ryoku-cli/internal/sys"
@@ -44,4 +46,94 @@ func reconcileUpdateChannel(checkOnly bool) recResult {
 	}
 	_, _ = sys.RunOut("git", "-C", repo, "reset", "--hard", "origin/"+ch)
 	return fixedRes("switched the update checkout onto the tracked channel %q; run `ryoku update` to redeploy", ch)
+}
+
+// reconcileRepoPointer unsticks a box whose update-checkout record broke: it
+// converts a symlinked state dir (the retired dev-switch layout) to a real
+// directory and repoints a stale repo pointer at the ~/ryoku-arch checkout.
+// Packaged installs carry no pointer, so the repoint needs a real checkout.
+func reconcileRepoPointer(checkOnly bool) recResult {
+	state := sys.StateDir()
+	var actions []string
+
+	if fi, err := os.Lstat(state); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		if checkOnly {
+			return wouldRes("the state dir %s is a symlink (retired dev-switch layout); it must be a real directory or the update pointer cannot be recorded", state).
+				withFix("ryoku doctor")
+		}
+		if err := desymlinkStateDir(state); err != nil {
+			return failRes("could not convert the state dir symlink %s to a directory: %v", state, err).
+				withFix("remove the symlink and recreate %s as a directory by hand", state)
+		}
+		actions = append(actions, "converted the state dir symlink to a real directory")
+	}
+
+	repoFile := filepath.Join(state, "repo")
+	recorded := ""
+	if b, err := os.ReadFile(repoFile); err == nil {
+		recorded = strings.TrimSpace(string(b))
+	}
+	track := filepath.Join(sys.Home(), "ryoku-arch")
+	if !isRyokuArchTree(recorded) && isRyokuArchTree(track) {
+		if checkOnly {
+			what := "missing"
+			if recorded != "" {
+				what = "stale (" + recorded + ")"
+			}
+			return wouldRes("the update-checkout pointer is %s but the tracking checkout at %s is healthy; update/status report no channel and never advance", what, track).
+				withFix("ryoku doctor")
+		}
+		if err := os.MkdirAll(state, 0o755); err != nil {
+			return failRes("could not create the state dir %s: %v", state, err)
+		}
+		if err := os.WriteFile(repoFile, []byte(track+"\n"), 0o644); err != nil {
+			return failRes("could not record the update-checkout pointer at %s: %v", repoFile, err)
+		}
+		actions = append(actions, "repointed the update checkout to "+track)
+	}
+
+	if len(actions) == 0 {
+		return okRes("update-checkout pointer and state dir are healthy")
+	}
+	return fixedRes("%s; run `ryoku update` to advance", strings.Join(actions, "; "))
+}
+
+// isRyokuArchTree reports whether p is a git work tree whose origin is a
+// ryoku-arch remote, so a stray unrelated repo is never adopted as the channel.
+func isRyokuArchTree(p string) bool {
+	if p == "" {
+		return false
+	}
+	if _, err := sys.RunOut("git", "-C", p, "rev-parse", "--git-dir"); err != nil {
+		return false
+	}
+	url, err := sys.RunOut("git", "-C", p, "remote", "get-url", "origin")
+	return err == nil && strings.Contains(url, "ryoku-arch")
+}
+
+// desymlinkStateDir turns a symlinked state dir into a real one, migrating the
+// (possibly dangling) target's contents so the recorded pointer is not lost.
+func desymlinkStateDir(state string) error {
+	target, _ := filepath.EvalSymlinks(state)
+	if err := os.Remove(state); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(state, 0o755); err != nil {
+		return err
+	}
+	if target == "" || target == state {
+		return nil
+	}
+	entries, err := os.ReadDir(target)
+	if err != nil {
+		return nil
+	}
+	for _, e := range entries {
+		dst := filepath.Join(state, e.Name())
+		if sys.Exists(dst) {
+			continue
+		}
+		_ = sys.Run("cp", "-a", filepath.Join(target, e.Name()), dst)
+	}
+	return nil
 }
