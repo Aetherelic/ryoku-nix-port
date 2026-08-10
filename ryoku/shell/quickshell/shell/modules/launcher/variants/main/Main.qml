@@ -9,6 +9,7 @@ import Quickshell.Hyprland
 import "../../shared/Singletons"
 import "../../shared/providers" as SharedProviders
 import "." as MainVariant
+import "../../../../services/lib/screens.js" as Screens
 
 // Main's compact command palette: a separate search row over an image-backed
 // dashboard, loaded behind the stable launcher selector.
@@ -130,7 +131,7 @@ Scope {
 
 
     Variants {
-        model: Quickshell.screens
+        model: Screens.uniqueByName(Quickshell.screens)
 
         PanelWindow {
             id: win

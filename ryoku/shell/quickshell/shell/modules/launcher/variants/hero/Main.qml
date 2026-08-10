@@ -8,6 +8,7 @@ import "../../shared/Singletons"
 import "../../shared/providers" as SharedProviders
 import "../../shared/lib/lifecycle.js" as Lifecycle
 import "." as HeroVariant
+import "../../../../services/lib/screens.js" as Screens
 
 Scope {
     id: root
@@ -440,7 +441,7 @@ Scope {
     }
 
     Variants {
-        model: Quickshell.screens
+        model: Screens.uniqueByName(Quickshell.screens)
 
         HeroVariant.LauncherSurface {
             providerSet: sharedProviders
@@ -462,7 +463,7 @@ Scope {
     }
 
     Variants {
-        model: Quickshell.screens
+        model: Screens.uniqueByName(Quickshell.screens)
 
         HeroVariant.WindowRailSurface {
             launcher: root.activeLauncher

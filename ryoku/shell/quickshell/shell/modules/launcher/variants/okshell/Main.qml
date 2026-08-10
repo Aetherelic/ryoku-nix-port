@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Io
+import "../../../../services/lib/screens.js" as Screens
 
 // OkShell's applications-only launcher in Ryoku's live palette. It deliberately
 // stays independent of the shared command-palette providers.
@@ -190,7 +191,7 @@ Scope {
     }
 
     Variants {
-        model: Quickshell.screens
+        model: Screens.uniqueByName(Quickshell.screens)
 
         PanelWindow {
             id: win

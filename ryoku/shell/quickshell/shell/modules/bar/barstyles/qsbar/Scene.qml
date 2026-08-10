@@ -11,6 +11,7 @@
 
 import Quickshell
 import QtQuick
+import "../../../../services/lib/screens.js" as Screens
 import "core"
 // Quickshell's virtual filesystem scanner follows declared directory imports,
 // not arbitrary Loader URLs; the alias registers the complete V2 bundle while
@@ -26,14 +27,15 @@ Item {
     width: 0
     height: 0
 
-    // Host the single shell system on exactly one Scene: the first valid output.
+    // Host the single shell system on exactly one Scene: the primary output, the
+    // first entry of the shared deduped screen list (services/lib/screens.js).
+    // Matching by name (not object identity) keeps exactly one Scene primary even
+    // when a duplicate output announce briefly swaps the ShellScreen object, so
+    // the bar system is never hosted twice.
     readonly property bool isPrimary: {
-        for (var i = 0; i < Quickshell.screens.length; i++) {
-            var s = Quickshell.screens[i]
-            if (s && s.name !== "" && s.width > 0 && s.height > 0)
-                return s === sceneRoot.modelData
-        }
-        return false
+        var list = Screens.uniqueByName(Quickshell.screens)
+        return list.length > 0 && !!sceneRoot.modelData
+            && list[0].name === sceneRoot.modelData.name
     }
 
     Loader {

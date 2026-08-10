@@ -10,6 +10,7 @@ import Quickshell.Wayland
 import QtQuick
 import "panels"
 import "../../controlcenter"
+import "../../../../../../services/lib/screens.js" as Screens
 
 Item {
     id: root
@@ -41,22 +42,12 @@ Item {
     function reloadTheme() { theme.ipcReloadTheme() }
     function openPicker(mode) { theme.ipcOpenPicker(mode) }
 
-    // QtWayland creates a nameless 0x0 placeholder screen while no real output
-    // exists; exclude it so no unusable layer surface is created. A new real
-    // ShellScreen identity makes Variants destroy the old BarSlot and
-    // instantiate a fresh one.
-    readonly property var barScreens: {
-        var valid = []
-
-        for (var i = 0; i < Quickshell.screens.length; i++) {
-            var candidate = Quickshell.screens[i]
-            if (candidate.name !== "" && candidate.width > 0 && candidate.height > 0) {
-                valid.push(candidate)
-            }
-        }
-
-        return valid
-    }
+    // One bar per physical output, from the shared deduped screen list
+    // (services/lib/screens.js): it drops the transient nameless/0x0 placeholder
+    // and collapses a duplicate output announce, so a monitor re-add can never
+    // stack a second BarSlot on the same output. A genuinely new ShellScreen still
+    // makes Variants destroy the old BarSlot and instantiate a fresh one.
+    readonly property var barScreens: Screens.uniqueByName(Quickshell.screens)
 
     function lifecycleReady() {
         if (!theme._widgetsLoaded || barScreens.length === 0) return false

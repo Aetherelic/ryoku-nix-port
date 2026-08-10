@@ -61,7 +61,7 @@ ShellRoot {
     // or hides this monitor's copy. The order here reads top-to-bottom only; the
     // Wayland layer each surface maps on decides the real stacking.
     Variants {
-        model: Quickshell.screens
+        model: ShellState.screens
 
         Scope {
             id: perScreen
@@ -353,7 +353,7 @@ ShellRoot {
             Keyring.apply(payload);
             ShellState.keyringPromptChanged(Keyring.promptId);
             ShellState.requestSurface("keyring", Keyring.mon !== "" ? Keyring.mon
-                : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""),
+                : (ShellState.screens.length > 0 ? ShellState.screens[0].name : ""),
                 { promptId: Keyring.promptId });
         }
         function keyringHide(): void {

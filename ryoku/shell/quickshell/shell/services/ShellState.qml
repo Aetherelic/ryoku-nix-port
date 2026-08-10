@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 
 import Quickshell
 import Quickshell.Hyprland
+import "lib/screens.js" as Screens
 
 // Shared per-monitor open/close state for every shell surface: the single source
 // of truth the CustomShortcut handlers flip and each resident surface binds its
@@ -13,6 +14,16 @@ import Quickshell.Hyprland
 // fly. Surfaces read forScreen(modelData); keybinds usually target forActive().
 Singleton {
     id: root
+
+    // The compositor's screen list deduped to one entry per physical output (see
+    // lib/screens.js). A duplicate output announce -- e.g. the modeset a GPU app
+    // triggers on first launch -- would otherwise fan two of every per-monitor
+    // surface: two bars, two OSDs, two state slices ("the desktop tweaks out").
+    // Every consumer (shell.qml, the bar's VariantRoot, the launchers) reads this
+    // one list so they agree on the same ShellScreen object, which keeps the
+    // identity match in forScreen() stable. Reactive to Quickshell.screens, so a
+    // genuine hotplug still flows through.
+    readonly property var screens: Screens.uniqueByName(Quickshell.screens)
 
     // State for a specific screen, or null before its per-monitor instance is
     // built (a binding can evaluate ahead of screen hotplug).
@@ -55,7 +66,7 @@ Singleton {
 
     function askSessionAction(id, mon) {
         root.sessionActionMonitor = (mon && mon !== "") ? mon
-            : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
+            : (root.screens.length > 0 ? root.screens[0].name : "");
         root.sessionAction = id;
     }
     function clearSessionAction() {
@@ -93,7 +104,7 @@ Singleton {
 
     Variants {
         id: states
-        model: Quickshell.screens
+        model: root.screens
 
         PersistentProperties {
             required property var modelData
