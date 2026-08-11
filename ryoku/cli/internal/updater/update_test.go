@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -144,5 +145,46 @@ func TestPackagedStatusUpToDateOfflineEmptyRecent(t *testing.T) {
 	}
 	if len(r.Recent) != 0 {
 		t.Errorf("recent = %d, want 0 on a failed lookup", len(r.Recent))
+	}
+}
+
+// systemUpgradeArgs must run an unattended -Syu and --overwrite the Ryoku system
+// paths deploy.sh seeds unowned (ryoku-dns / ryoku-wifi-powersave + their polkit
+// rules). Once ryoku-desktop packages those paths a file conflict otherwise
+// aborts the whole -Syu and blocks every user update; dropping the glob silently
+// reintroduces that outage, so pin it here.
+func TestSystemUpgradeAdoptsSeededRyokuFiles(t *testing.T) {
+	args := systemUpgradeArgs()
+	joined := strings.Join(args, " ")
+	for _, want := range []string{"pacman -Syu", "--noconfirm", "--overwrite"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("systemUpgradeArgs missing %q: %v", want, args)
+		}
+	}
+	var glob string
+	for i, a := range args {
+		if a == "--overwrite" && i+1 < len(args) {
+			glob = args[i+1]
+		}
+	}
+	if glob == "" {
+		t.Fatalf("no --overwrite glob in %v", args)
+	}
+	for _, p := range []string{
+		"/usr/bin/ryoku-dns",
+		"/usr/bin/ryoku-wifi-powersave",
+		"/usr/share/polkit-1/rules.d/50-ryoku-dns.rules",
+		"/usr/share/polkit-1/rules.d/49-ryoku-wifi-powersave.rules",
+	} {
+		covered := false
+		for _, g := range strings.Split(glob, ",") {
+			if ok, _ := filepath.Match(g, p); ok {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			t.Errorf("--overwrite %q does not cover deploy.sh-seeded path %q", glob, p)
+		}
 	}
 }

@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Fixed
+- **`ryoku update` no longer wedges on a `ryoku-dns`/`ryoku-wifi-powersave` file
+  conflict.** `deploy.sh` seeds those privileged helpers and their polkit rules
+  into `/usr/bin` and `/usr/share/polkit-1/rules.d` unowned; once `ryoku-desktop`
+  packaged the same paths, `pacman -Syu` aborted the whole transaction ("exists in
+  filesystem", no packages upgraded), silently blocking every update until the
+  files were deleted by hand. The upgrade now passes `--overwrite` scoped to those
+  Ryoku paths so the package adopts them, with a regression test on the glob
+  (`internal/updater/update.go`).
 - **`ryoku doctor` heals an NVIDIA box left without `fbdev=1`.** The config check
   passed on any drop-in containing `nvidia_drm modeset=1`, so an install that had
   modeset but not `fbdev=1` never got it added, and external displays could come

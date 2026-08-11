@@ -203,8 +203,17 @@ func snapshotDesc() string {
 // pre/post pair, so snap-pac's extra pair is pure noise in the list and the boot
 // menu. sudo resets the environment, so SNAP_PAC_SKIP rides inside via env(1).
 func runSystemUpgrade() error {
-	return runInhibited("System package upgrade",
-		[]string{"sudo", "env", "SNAP_PAC_SKIP=y", "pacman", "-Syu", "--noconfirm"})
+	return runInhibited("System package upgrade", systemUpgradeArgs())
+}
+
+// systemUpgradeArgs is the packaged-box upgrade command. --overwrite adopts the
+// privileged helpers + polkit rules deploy.sh seeds unowned (ryoku-dns,
+// ryoku-wifi-powersave) once ryoku-desktop packages those paths; without it a
+// pacman file conflict aborts the whole -Syu and blocks every update until the
+// files are deleted by hand.
+func systemUpgradeArgs() []string {
+	return []string{"sudo", "env", "SNAP_PAC_SKIP=y", "pacman", "-Syu", "--noconfirm",
+		"--overwrite", "/usr/bin/ryoku-*,/usr/share/polkit-1/rules.d/*ryoku*.rules"}
 }
 
 // runAURUpgrade runs `yay -Sua` under the same sleep inhibitor.
