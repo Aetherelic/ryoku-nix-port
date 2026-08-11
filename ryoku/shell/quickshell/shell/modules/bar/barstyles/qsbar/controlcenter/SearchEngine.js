@@ -7,7 +7,7 @@
 // best-matching entries; `ghostText(query, target)` builds the type-ahead hint.
 //
 // Entry shape (see ControlCenter.qml): { id, name, route, category, searchTags,
-// description }. Missing fields simply never match - the scorer skips them.
+// description }. Missing fields simply never match — the scorer skips them.
 
 function normalize(value) {
   return String(value || "").trim().toLocaleLowerCase()

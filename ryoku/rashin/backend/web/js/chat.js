@@ -364,7 +364,7 @@ if (typeof document !== "undefined") {
       if (model) txt += " / " + model;
       if (b.state === "dead") {
         txt += b.error ? " / " + b.error : " / offline";
-        txt += " - send to reconnect";
+        txt += " \u2014 send to reconnect";
       } else if (b.error) {
         txt += " / " + b.error;
       }
