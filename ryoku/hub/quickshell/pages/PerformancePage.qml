@@ -40,6 +40,7 @@ Item {
     // source RESET walks back to; it mirrors the JsonAdapter defaults below.
     readonly property var factory: ({
         "lowPowerMode": false,
+        "powerProfileEffects": true,
         "reduceMotion": false,
         "disableBlur": false,
         "disableShadows": false,
@@ -92,6 +93,7 @@ Item {
     function fromAdapter() {
         return {
             "lowPowerMode": cfgA.lowPowerMode,
+            "powerProfileEffects": cfgA.powerProfileEffects,
             "reduceMotion": cfgA.reduceMotion,
             "disableBlur": cfgA.disableBlur,
             "disableShadows": cfgA.disableShadows,
@@ -140,6 +142,7 @@ Item {
                 needsReload = true;
         }
         cfgA.lowPowerMode = pg.draft.lowPowerMode;
+        cfgA.powerProfileEffects = pg.draft.powerProfileEffects;
         cfgA.reduceMotion = pg.draft.reduceMotion;
         cfgA.disableBlur = pg.draft.disableBlur;
         cfgA.disableShadows = pg.draft.disableShadows;
@@ -184,6 +187,7 @@ Item {
         JsonAdapter {
             id: cfgA
             property bool lowPowerMode: false
+            property bool powerProfileEffects: true
             property bool reduceMotion: false
             property bool disableBlur: false
             property bool disableShadows: false
@@ -205,6 +209,9 @@ Item {
     // MEMORY (surfaces unloaded to reclaim RAM). Labels are short; the cost of
     // each tweak lives in its description, the cell's slot for explanatory prose.
     readonly property var schema: [
+        { "tab": "", "group": "POWER PROFILE", "key": "powerProfileEffects", "ctl": "sw", "src": "performance",
+          "label": "Follow the power profile",
+          "desc": "Let the system power profile shape the shell. Power Saver strips motion, blur and shadows and eases off background polling, like Low power mode; Balanced and Performance leave your switches untouched. Battery already slows polling on its own." },
         { "tab": "", "group": "EYE CANDY", "key": "lowPowerMode", "ctl": "sw", "src": "performance",
           "label": "Low power mode",
           "desc": "The potato switch: forces every freeze, reduce and disable tweak on. Unloads stay manual." },

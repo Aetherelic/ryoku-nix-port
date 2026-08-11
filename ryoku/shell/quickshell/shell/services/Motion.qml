@@ -1,42 +1,22 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 Singleton {
     id: root
 
-    // reduceMotion (or the lowPowerMode master) collapses every animation to an
-    // instant cut: durations go to 0, so Behaviors and transitions stop forcing
-    // per-frame repaints -- the single biggest shell-animation win on a weak GPU.
-    // Read straight from performance.json (the same file Performance and Ryoku
-    // Settings use) so Motion stays a self-contained duration source. Dwell and
-    // scheduling timers below (osdHide, notifHide, startupReveal) are functional,
-    // not motion, so they are deliberately not gated -- reduce removes animation,
-    // never the time a surface stays up or waits before appearing.
-    readonly property bool reduce: perf.lowPowerMode || perf.reduceMotion
+    // reduceMotion (or the lowPowerMode master, or the Power Saver profile) collapses
+    // every animation to an instant cut: durations go to 0, so Behaviors and
+    // transitions stop forcing per-frame repaints -- the single biggest shell-animation
+    // win on a weak GPU. The decision is Perf's (it reads performance.json and the power
+    // profile once for the whole shell); the dwell and scheduling timers below (osdHide,
+    // notifHide, startupReveal) are functional, not motion, so reduce never gates them.
+    readonly property bool reduce: Perf.reduceMotion
 
-    FileView {
-        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/performance.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        JsonAdapter {
-            id: perf
-            property bool lowPowerMode: false
-            property bool reduceMotion: false
-            property real motionSpeed: 1.0
-        }
-    }
-
-    // Global animation tempo. A user multiplier (performance.json, default 1.0)
-    // scales every motion duration below, so the whole shell speeds up or eases
-    // off in one place; reduce still wins by collapsing to an instant cut. An
-    // absent or out-of-range value falls back to 1.0.
-    readonly property real speed: {
-        const v = perf.motionSpeed;
-        return (typeof v === "number" && v > 0 && v <= 8) ? v : 1.0;
-    }
+    // Global animation tempo: Perf's user multiplier (performance.json motionSpeed,
+    // default 1.0) scales every duration below, so the whole shell speeds up or eases
+    // off in one place; reduce still wins by collapsing to an instant cut.
+    readonly property real speed: Perf.motionSpeed
     function dur(ms) { return root.reduce ? 0 : Math.round(ms * root.speed); }
 
     // Bar, spacer, hover and startup reveal/hide. Measured ease-out-cubic over

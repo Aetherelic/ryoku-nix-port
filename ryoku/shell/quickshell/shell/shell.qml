@@ -55,6 +55,33 @@ ShellRoot {
         services: [ShellState, ScreenTime]
     }
 
+    // Power Saver strips compositor blur and shadow too (the heaviest present-time
+    // GPU cost), reusing the decoration.lua path lowPowerMode already takes. Perf
+    // folds the active power profile into its switches; mirror the profile-driven
+    // "saver" flag to a cache decoration.lua reads, and reload Hyprland when it
+    // flips so the compositor re-reads it live. Seeded once at load with no reload
+    // (login already parsed the right value); only a later profile change reloads.
+    FileView {
+        id: hyprPerf
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/hypr-perf.json"
+        printErrors: false
+        property bool armed: false
+        onSaved: if (hyprPerf.armed) Quickshell.execDetached(["hyprctl", "reload"])
+        JsonAdapter { id: hyprPerfA; property bool saver: false }
+        Component.onCompleted: {
+            hyprPerfA.saver = Perf.saver;
+            hyprPerf.writeAdapter();
+        }
+    }
+    Connections {
+        target: Perf
+        function onSaverChanged() {
+            hyprPerf.armed = true;
+            hyprPerfA.saver = Perf.saver;
+            hyprPerf.writeAdapter();
+        }
+    }
+
     // One per-monitor surface stack. Each screen gets a Scope carrying its
     // ShellState slice (st); every resident surface binds its screen and its
     // visibility to that slice, so flipping a flag on the active monitor reveals

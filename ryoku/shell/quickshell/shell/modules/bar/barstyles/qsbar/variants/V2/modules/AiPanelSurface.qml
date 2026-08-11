@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import shell.services
 
 // Shared AI/Volume prototype: one filled/stroked silhouette renders the complete
 // card outline and caret. There are no masks or separately joined border objects.
@@ -39,7 +40,7 @@ Item {
         antialiasing: true
         preferredRendererType: Shape.CurveRenderer
         layer.enabled: true
-        layer.samples: 8
+        layer.samples: Perf.msaa
         layer.smooth: true
         layer.mipmap: true
         layer.textureSize: Qt.size(Math.ceil(width * surface.renderScale),
@@ -92,7 +93,7 @@ Item {
         antialiasing: true
         preferredRendererType: Shape.CurveRenderer
         layer.enabled: true
-        layer.samples: 8
+        layer.samples: Perf.msaa
         layer.smooth: true
         layer.mipmap: true
         layer.textureSize: Qt.size(Math.ceil(width * surface.renderScale),

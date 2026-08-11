@@ -9,6 +9,11 @@
   agree with the shell's new default look.
 
 ### Added
+- **The Performance page can follow the power profile.** A new POWER PROFILE
+  switch (on by default) lets the active power profile shape the shell: Power
+  Saver strips motion, blur and shadows while Balanced and Performance leave the
+  page's own switches untouched. It writes the `powerProfileEffects` key the
+  shell's `Perf` policy reads (`quickshell/pages/PerformancePage.qml`).
 - **A Global page collects the cross-cutting settings.** A new Global section
   (Overview -> Global) is the single home for the interface language, regional
   formats, the machine location and the system font. Language and the system

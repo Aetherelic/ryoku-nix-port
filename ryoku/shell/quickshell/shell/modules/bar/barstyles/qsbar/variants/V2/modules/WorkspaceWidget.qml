@@ -1,6 +1,7 @@
 import Quickshell.Hyprland
 import QtQuick
 import QtQuick.Shapes
+import shell.services
 
 Item {
     id: wsWidget
@@ -304,7 +305,7 @@ Item {
             antialiasing: true
             preferredRendererType: Shape.CurveRenderer
             layer.enabled: true
-            layer.samples: 8
+            layer.samples: Perf.msaa
             layer.smooth: true
             layer.mipmap: true
             layer.textureSize: Qt.size(Math.ceil(width * 4), height * 4)

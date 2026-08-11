@@ -51,6 +51,12 @@ require("modules.autostart")
 -- hand-written user file still wins.
 optional("settings")
 
+-- Power Saver strips compositor blur and shadow (the heaviest present-time GPU
+-- cost). After settings so the active power profile wins over the Hub's
+-- decoration tweaks; before user.lua so a hand file still wins. Gated by the
+-- shell-written cache, which reflects Performance's "Follow the power profile".
+optional("modules.perf_saver")
+
 optional("modules.private")
 
 -- GhostType hotkey (the app owns it)

@@ -1,7 +1,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Io
+import shell.services
 
 // Overview motion budget, matched to the shell's tokens so the open/close and
 // the window glides read like the rest of the desktop (docs/ui-ux.md: keep
@@ -9,22 +9,10 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    // reduceMotion / lowPowerMode collapse every duration to an instant cut so a
-    // weak GPU stops repainting through the expo reveal. Read from
-    // performance.json, the same file Ryoku Settings and Performance use.
-    readonly property bool reduce: perf.lowPowerMode || perf.reduceMotion
-
-    FileView {
-        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/performance.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        JsonAdapter {
-            id: perf
-            property bool lowPowerMode: false
-            property bool reduceMotion: false
-        }
-    }
+    // reduceMotion, lowPowerMode or the Power Saver profile collapse every duration
+    // to an instant cut so a weak GPU stops repainting through the expo reveal. The
+    // decision is Perf's, shared with the rest of the shell (services/Perf.qml).
+    readonly property bool reduce: Perf.reduceMotion
 
     readonly property int fast:     reduce ? 0 : 140
     readonly property int standard: reduce ? 0 : 300

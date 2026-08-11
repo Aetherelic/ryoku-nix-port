@@ -50,7 +50,7 @@ PanelWindow {
     }
 
     Timer {
-        interval: 45
+        interval: 45 * Perf.pollFactor
         repeat: true
         running: root.volVisible && volPanel.micMeterAvailable
         onTriggered: {

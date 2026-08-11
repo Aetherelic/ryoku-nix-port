@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import shell.services
 
 // Shared counterpart to AiPanelSurface's caret. The complete curved section is
 // one stroked path so the horizontal tangents have no joined border fragments.
@@ -28,7 +29,7 @@ Item {
         antialiasing: true
         preferredRendererType: Shape.CurveRenderer
         layer.enabled: true
-        layer.samples: 8
+        layer.samples: Perf.msaa
         layer.smooth: true
         layer.mipmap: true
         layer.textureSize: Qt.size(Math.ceil(width * inset.renderScale),
