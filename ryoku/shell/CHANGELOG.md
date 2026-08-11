@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **The bar clock stops waking the CPU every second.** `ClockWidget` (both bar
+  variants) shows only `HH:mm` but drove a 1s `Timer`, waking the CPU 60x a minute
+  on an always-visible surface and blocking deep CPU sleep states. It now reads
+  Quickshell's `SystemClock` at minute precision (like `RailClock` already does),
+  so it ticks once a minute. Identical display, far fewer idle wakeups (a battery
+  win). The desktop analog face keeps its per-second tick for the sweeping second
+  hand (`qsbar/modules/ClockWidget.qml` and its V2 variant).
 - **Power Saver drops the desktop glass blur.** The frosted-glass backdrop behind
   desktop widgets ran a `blurMax: 64` `MultiEffect` pass unconditionally, unlike the
   launcher and visualiser blurs that already gate on the derived switches. The

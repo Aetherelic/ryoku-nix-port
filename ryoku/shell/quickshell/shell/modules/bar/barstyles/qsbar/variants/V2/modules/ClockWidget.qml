@@ -7,7 +7,7 @@ Item {
     id: rootMod
     required property var root
 
-    property date now: new Date()
+    readonly property date now: clk.date
     readonly property color contentColor: root.widgetContentColor("G8", root.ink)
 
     function pad(n) { return n < 10 ? "0" + n : String(n) }
@@ -27,11 +27,9 @@ Item {
     implicitWidth: label.implicitWidth
     implicitHeight: 28
 
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: rootMod.now = new Date()
+    SystemClock {
+        id: clk
+        precision: SystemClock.Minutes
     }
 
     UiText {
