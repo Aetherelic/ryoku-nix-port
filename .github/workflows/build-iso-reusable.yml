@@ -362,8 +362,12 @@ jobs:
           # but curl and any other reader sees stale data). short-cache them; the
           # per-ISO files above are immutable (named by tracking id) and keep the
           # default long cache.
-          rclone copy "$d/latest.json" "Ryoku:$dest/" -P --header-upload "Cache-Control: no-cache, must-revalidate"
-          rclone copy "$d/latest.js"   "Ryoku:$dest/" -P --header-upload "Cache-Control: no-cache, must-revalidate"
+          # plain writes latest.json/latest.js; cachyos writes latest-cachyos.*.
+          # upload whichever this variant produced (the site reads both).
+          latest_base=latest
+          [[ "$RYOKU_VARIANT" == cachyos ]] && latest_base=latest-cachyos
+          rclone copy "$d/$latest_base.json" "Ryoku:$dest/" -P --header-upload "Cache-Control: no-cache, must-revalidate"
+          rclone copy "$d/$latest_base.js"   "Ryoku:$dest/" -P --header-upload "Cache-Control: no-cache, must-revalidate"
           rclone copy "$pubkey"        "Ryoku:$dest/" -P
 
           echo "::notice::Uploaded ISO + manifests to R2 path Ryoku:$dest/"
