@@ -3,6 +3,7 @@ import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Wayland
 import "lib/coords.js" as Coords
+import Ryoku.Ui.Singletons
 
 Item {
     id: overlay
@@ -283,7 +284,7 @@ Item {
 
         Text {
             text: overlay.globalSel
-                ? "ryoshot · " + Math.round(overlay.globalSel.w) + "×" + Math.round(overlay.globalSel.h)
+                ? I18n.tr("ryoshot · ") + Math.round(overlay.globalSel.w) + "×" + Math.round(overlay.globalSel.h)
                 : ""
             color: overlay.vermilion
             font.family: "JetBrains Mono"

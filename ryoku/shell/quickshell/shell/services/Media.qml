@@ -14,7 +14,7 @@ Singleton {
         return /\.(mp4|webm|mkv|gif)$/i.test(p.trackTitle || "");
     }
     // the ryoku live radio (launcher "@"): an mpv whose forced title carries
-    // the LIVE prefix. Same signature the launcher matches on — a broadcast
+    // the LIVE prefix. Same signature the launcher matches on - a broadcast
     // gets a tally lamp instead of a seek bar (it has no position to show).
     function isRadio(p) {
         return !!p && String(p.dbusName || "").indexOf(".mpv") !== -1

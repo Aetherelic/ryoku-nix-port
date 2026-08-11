@@ -129,7 +129,7 @@ var rows = [
     },
     {
         "tab": "",
-        "group": "(no SettingSection \u2014 floating error column under the hero card)",
+        "group": "(no SettingSection - floating error column under the hero card)",
         "key": "",
         "label": "Retry",
         "desc": "",

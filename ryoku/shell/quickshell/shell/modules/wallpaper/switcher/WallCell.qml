@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // One wallpaper tile: a rounded thumbnail whose outline lifts to the on-surface
 // ink on hover and the primary accent on the pick, matching the shell's menu
@@ -104,7 +105,7 @@ Item {
         Text {
             id: liveLabel
             anchors.centerIn: parent
-            text: "LIVE"
+            text: I18n.tr("LIVE")
             color: Theme.onSurface
             font.family: Theme.fontPrimary
             font.pixelSize: Math.round(9 * cell.s)

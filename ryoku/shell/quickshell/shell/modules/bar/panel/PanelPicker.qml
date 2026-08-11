@@ -5,6 +5,7 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import shell.services
 import "../../../components"
+import Ryoku.Ui.Singletons
 
 // In-shell multi-file picker for the Compress / Install tools. A compact
 // paper-and-ink file browser that lives inside the sidebar: navigate folders,
@@ -255,7 +256,7 @@ Item {
             MaterialIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 font.pixelSize: 14 * root.s
-                text: root.mode === "install" ? "install_desktop" : "compress"
+                text: root.mode === "install" ? I18n.tr("install_desktop") : "compress"
                 color: footer.ready ? Theme.inkOn(Theme.primary, Theme.onPrimary) : root.ink
             }
             Text {

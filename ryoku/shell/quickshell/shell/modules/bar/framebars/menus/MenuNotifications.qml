@@ -5,6 +5,7 @@ import "../.." as Pill
 import shell.services
 import "../../../../components"
 import "../../../notifications"
+import Ryoku.Ui.Singletons
 
 // Notification history panel (contract 07 sec 2.3/4.3): a DND toggle, a
 // "Notification History" title and a "Clear all" action, an "Empty" placeholder,
@@ -48,7 +49,7 @@ Item {
 
                 MaterialIcon {
                     anchors.centerIn: parent
-                    text: Flags.dnd ? "do_not_disturb_on" : "notifications"
+                    text: Flags.dnd ? I18n.tr("do_not_disturb_on") : "notifications"
                     font.pixelSize: Theme.iconSm
                     color: Flags.dnd ? Theme.primary : (dndHov.hovered ? Theme.onSurface : Theme.onSurfaceVariant)
                 }

@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Widgets
 import "../../shared/Singletons"
+import Ryoku.Ui.Singletons
 
 Item {
     id: root
@@ -125,8 +126,8 @@ Item {
         Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: "OPEN WINDOWS  /  " + root.windows.length + " WINDOW"
-                + (root.windows.length === 1 ? "" : "S")
+            text: I18n.tr("OPEN WINDOWS  /  ") + root.windows.length + I18n.tr(" WINDOW")
+                + (root.windows.length === 1 ? "" : I18n.tr("S"))
             color: Theme.subtle
             font.family: Theme.mono
             font.pixelSize: 7.5 * root.s
@@ -138,8 +139,8 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: root.focusActive
-                ? "LEFT / RIGHT  ·  ENTER  SWITCH"
-                : "TAB  ·  FOCUS WINDOWS"
+                ? I18n.tr("LEFT / RIGHT  ·  ENTER  SWITCH")
+                : I18n.tr("TAB  ·  FOCUS WINDOWS")
             color: root.focusActive ? Theme.bright : Theme.faint
             font.family: Theme.mono
             font.pixelSize: 7 * root.s
@@ -221,7 +222,7 @@ Item {
 
                 Text {
                     width: parent.width
-                    text: "OPEN · " + String(tile.modelData.workspace)
+                    text: I18n.tr("OPEN · ") + String(tile.modelData.workspace)
                         .toUpperCase()
                     color: Theme.faint
                     font.family: Theme.mono

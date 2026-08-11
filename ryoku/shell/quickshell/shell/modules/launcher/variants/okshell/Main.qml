@@ -7,6 +7,7 @@ import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Io
 import "../../../../services/lib/screens.js" as Screens
+import Ryoku.Ui.Singletons
 
 // OkShell's applications-only launcher in Ryoku's live palette. It deliberately
 // stays independent of the shared command-palette providers.
@@ -274,7 +275,7 @@ Scope {
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
                                     visible: field.text.length === 0
-                                    text: "Search"
+                                    text: I18n.tr("Search")
                                     color: root.dimInk
                                     font: field.font
                                 }
@@ -407,7 +408,7 @@ Scope {
                                     }
                                     Text {
                                         visible: li.on
-                                        text: "Run"
+                                        text: I18n.tr("Run")
                                         color: root.dimInk
                                         font.pixelSize: root.fontSm - 2
                                     }

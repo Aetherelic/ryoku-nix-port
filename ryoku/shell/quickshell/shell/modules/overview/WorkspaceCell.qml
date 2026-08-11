@@ -6,6 +6,7 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 /**
  * One workspace as a scaled mini-desktop. A large Fraunces workspace numeral is
@@ -251,7 +252,7 @@ Item {
         Text {
             anchors.centerIn: parent
             visible: !cell.isAdd && cell.full && cell.cards.length === 0
-            text: "EMPTY"
+            text: I18n.tr("EMPTY")
             color: Theme.faint
             font.family: Theme.mono
             font.pixelSize: 10 * cell.s

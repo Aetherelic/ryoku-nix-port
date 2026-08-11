@@ -26,7 +26,7 @@ function isWallpaperTitle(title) {
 }
 
 // What the collision watcher counts as music: a player with a real track
-// title. No title yet (a player still registering — the radio's own mpv sits
+// title. No title yet (a player still registering - the radio's own mpv sits
 // titleless for a beat mid-tune-in and must not assassinate itself), the
 // radio's own LIVE prefix, wallpaper scenery, and bare URL titles (a stream
 // still resolving) all don't count; the moment a real title lands, the
@@ -69,9 +69,9 @@ function stationRows(stations, query, status) {
             // the stream still resolves (state on, no player yet) the silence
             // must read as tuning, not as a broken start.
             note: on
-                ? (st.tuning === true ? "tuning in — a few quiet seconds is normal"
+                ? (st.tuning === true ? "tuning in - a few quiet seconds is normal"
                     : (st.fellBack === true ? "on air · fallback station" : "on air"))
-                : (aside ? "set aside — resume picks it back up"
+                : (aside ? "set aside - resume picks it back up"
                     : (s.fallback ? "live radio · falls back to " + s.fallback : "live radio")),
             score: on ? -20 : (aside ? -15 : i)
         });

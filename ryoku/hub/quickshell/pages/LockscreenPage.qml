@@ -508,7 +508,7 @@ Item {
                     }
                     Btn {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: pg.kconfirmReset ? I18n.tr("CONFIRM \u2014 START FRESH") : I18n.tr("START FRESH (KEEPS A BACKUP)")
+                        text: pg.kconfirmReset ? I18n.tr("CONFIRM - START FRESH") : I18n.tr("START FRESH (KEEPS A BACKUP)")
                         compact: true
                         armed: pg.kpending === ""
                         onAct: { if (pg.kconfirmReset) pg.kreset(); else pg.kconfirmReset = true; }

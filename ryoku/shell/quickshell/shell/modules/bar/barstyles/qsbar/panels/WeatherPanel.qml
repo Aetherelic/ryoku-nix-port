@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: wxPanel
@@ -156,7 +157,7 @@ PanelWindow {
                 height: 24
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "Weather"
+                    text: I18n.tr("Weather")
                     color: root.ink; font.family: root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
@@ -175,12 +176,12 @@ PanelWindow {
                 height: 36
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: wxPanel.temp !== "" ? wxPanel.tConv(wxPanel.temp) + "°" + (root.weatherImperial ? "F" : "C") : "—"
+                    text: wxPanel.temp !== "" ? wxPanel.tConv(wxPanel.temp) + "°" + (root.weatherImperial ? I18n.tr("F") : I18n.tr("C")) : "-"
                     color: root.seal; font.family: root.mono; font.pixelSize: 26; font.weight: Font.Medium
                 }
                 UiText {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: wxPanel.desc
+                    text: I18n.tr(wxPanel.desc)
                     color: root.ink; font.family: root.mono; font.pixelSize: 11
                     horizontalAlignment: Text.AlignRight
                     width: parent.width * 0.55; wrapMode: Text.WordWrap
@@ -193,25 +194,25 @@ PanelWindow {
                 Row {
                     width: parent.width
                     visible: wxPanel.location !== ""
-                    UiText { text: "Location"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Location"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: wxPanel.location; color: root.ink; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.6; elide: Text.ElideRight }
                 }
                 Row {
                     width: parent.width
                     visible: wxPanel.feels !== ""
-                    UiText { text: "Feels like"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
-                    UiText { text: wxPanel.tConv(wxPanel.feels) + "°" + (root.weatherImperial ? "F" : "C"); color: root.ink; font.family: root.mono; font.pixelSize: 11 }
+                    UiText { text: I18n.tr("Feels like"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: wxPanel.tConv(wxPanel.feels) + "°" + (root.weatherImperial ? I18n.tr("F") : I18n.tr("C")); color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: wxPanel.humidity !== ""
-                    UiText { text: "Humidity"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Humidity"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: wxPanel.humidity + "%"; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: wxPanel.wind !== ""
-                    UiText { text: "Wind"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Wind"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: wxPanel.wConv(wxPanel.wind); color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
             }
@@ -224,7 +225,7 @@ PanelWindow {
                 visible: wxPanel.forecastDays.length > 0
 
                 UiText {
-                    text: "3-DAY FORECAST"
+                    text: I18n.tr("3-DAY FORECAST")
                     color: root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 10
@@ -271,7 +272,7 @@ PanelWindow {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             width: 76
-                            text: (day.rain !== undefined ? Math.round(day.rain) + "% rain" : "")
+                            text: (day.rain !== undefined ? Math.round(day.rain) + I18n.tr("% rain") : "")
                             color: root.sumiHi
                             font.family: root.mono
                             font.pixelSize: 10
@@ -296,7 +297,7 @@ PanelWindow {
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
                         anchors.centerIn: parent
-                        text: wxPanel.refreshing ? "Refreshing…" : "Refresh"
+                        text: wxPanel.refreshing ? I18n.tr("Refreshing…") : I18n.tr("Refresh")
                         color: root.paper; font.family: root.mono; font.pixelSize: 11
                     }
                     MouseArea {

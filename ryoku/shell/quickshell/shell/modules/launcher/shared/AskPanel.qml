@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // Quick-ask body panel for the "\" prefix: a terse question to the Rashin
 // agent (hermes), answered inline. `ryoku-rashin ask` streams marker lines;
@@ -262,7 +263,7 @@ Item {
 
         Text {
             width: parent.width
-            text: root.resumeMode ? "RASHIN \u00b7 RECENT ASKS" : "RASHIN"
+            text: root.resumeMode ? I18n.tr("RASHIN \u00b7 RECENT ASKS") : I18n.tr("RASHIN")
             color: Theme.faint
             font.family: Theme.mono
             font.pixelSize: Metrics.fontEyebrow * root.s
@@ -274,8 +275,8 @@ Item {
             width: parent.width
             visible: root.phase === "idle" && !root.resumeMode
             text: root.question.trim().length === 0
-                ? "Ask the needle anything. ENTER sends; \\resume recalls recent asks."
-                : "ENTER to ask: " + root.question.trim()
+                ? I18n.tr("Ask the needle anything. ENTER sends; \\resume recalls recent asks.")
+                : I18n.tr("ENTER to ask: ") + root.question.trim()
             color: Theme.subtle
             font.family: Theme.font
             font.pixelSize: Metrics.fontSubtitle * root.s
@@ -292,7 +293,7 @@ Item {
 
             Text {
                 visible: root.recent.length === 0
-                text: "no recent asks yet"
+                text: I18n.tr("no recent asks yet")
                 color: Theme.faint
                 font.family: Theme.font
                 font.pixelSize: Metrics.fontSubtitle * root.s
@@ -390,7 +391,7 @@ Item {
 
         Text {
             visible: root.phase === "done" && root.fromHistory
-            text: "from history"
+            text: I18n.tr("from history")
             color: Theme.faint
             font.family: Theme.mono
             font.pixelSize: Metrics.fontEyebrow * root.s
@@ -491,10 +492,10 @@ Item {
         Text {
             visible: (root.chips.length > 0 && !root.permPending) || root.resumeMode
             text: root.resumeMode
-                ? "\u2191\u2193 pick \u00b7 ENTER recall \u00b7 ESC back"
+                ? I18n.tr("\u2191\u2193 pick \u00b7 ENTER recall \u00b7 ESC back")
                 : (root.busy
-                    ? "\u2191\u2193 pick \u00b7 ENTER fires \u00b7 ESC cancels"
-                    : "\u2191\u2193 walk chips \u00b7 ENTER fires \u00b7 type to re-ask \u00b7 ESC dismisses")
+                    ? I18n.tr("\u2191\u2193 pick \u00b7 ENTER fires \u00b7 ESC cancels")
+                    : I18n.tr("\u2191\u2193 walk chips \u00b7 ENTER fires \u00b7 type to re-ask \u00b7 ESC dismisses"))
             color: Theme.faint
             font.family: Theme.mono
             font.pixelSize: Metrics.fontEyebrow * root.s

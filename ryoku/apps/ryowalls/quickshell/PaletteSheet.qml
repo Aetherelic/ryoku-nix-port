@@ -32,7 +32,7 @@ Item {
                 width: parent.width
                 visible: !Wallhaven.selected
                 wrapMode: Text.WordWrap
-                text: "Pick a wallpaper to preview its palette."
+                text: I18n.tr("Pick a wallpaper to preview its palette.")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui
                 font.pixelSize: 12
@@ -42,15 +42,15 @@ Item {
             SheetSection {
                 id: sampleSec
                 width: parent.width
-                title: "SAMPLING"
+                title: I18n.tr("SAMPLING")
                 visible: sheet.videoMode
                 Cell {
                     width: sampleSec.span(12)
-                    label: "Frame"
+                    label: I18n.tr("Frame")
                     source: "ryowalls.json"
                     value: Wallhaven.settings.frame.toFixed(1) + "s"
                     def: "1.0s"
-                    desc: "The second of the clip matugen samples for colour."
+                    desc: I18n.tr("The second of the clip matugen samples for colour.")
                     controlWidth: Spans.inlineWidth("slid", 0, width)
                     // the module Slid seats integers, so scrub in half-second steps.
                     Slid {
@@ -68,7 +68,7 @@ Item {
                 width: parent.width
                 visible: !!Wallhaven.selected
                 wrapMode: Text.WordWrap
-                text: "Colours follow Appearance → Wallpaper tuning."
+                text: I18n.tr("Colours follow Appearance → Wallpaper tuning.")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui
                 font.pixelSize: 12

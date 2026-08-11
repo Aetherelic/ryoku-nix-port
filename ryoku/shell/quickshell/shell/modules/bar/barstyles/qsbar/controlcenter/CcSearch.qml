@@ -1,6 +1,7 @@
 import QtQuick
 import "../modules"
 import "SearchEngine.js" as SearchEngine
+import Ryoku.Ui.Singletons
 
 // Predictive settings search. Faithful port of Shibumi's PredictiveSearchInput
 // wearing qsbar's dark skin: a focusable field with the CTRL K hint, ghost-text
@@ -88,19 +89,19 @@ Item {
             cursorShape: Qt.IBeamCursor
             onClicked: search.focusInput()
         }
-        // placeholder — shown only when empty
+        // placeholder - shown only when empty
         UiText {
             anchors.left: input.left; anchors.right: input.right
             anchors.verticalCenter: parent.verticalCenter
             visible: input.text === ""
-            text: "Search settings, options, or routes\u2026"
+            text: I18n.tr("Search settings, options, or routes\u2026")
             color: search.root ? search.root.sumi : "#888888"
             opacity: 0.7
             elide: Text.ElideRight
             font.family: search.root ? search.root.mono : "monospace"
             font.pixelSize: 12
         }
-        // ghost completion — drawn under the caret; the real text overlays it
+        // ghost completion - drawn under the caret; the real text overlays it
         Text {
             anchors.left: input.left; anchors.right: input.right
             anchors.verticalCenter: parent.verticalCenter
@@ -164,7 +165,7 @@ Item {
                 UiText {
                     id: kb
                     anchors.centerIn: parent
-                    text: "CTRL K"
+                    text: I18n.tr("CTRL K")
                     color: search.root ? search.root.sumi : "#888888"
                     font.family: search.root ? search.root.mono : "monospace"
                     font.pixelSize: 9
@@ -190,7 +191,7 @@ Item {
         }
     }
 
-    // ── suggestions popup — lives inside the reserved area, never overlaps below ──
+    // ── suggestions popup - lives inside the reserved area, never overlaps below ──
     Rectangle {
         id: popup
         visible: search.suggestionsVisible
@@ -247,7 +248,7 @@ Item {
                         UiText {
                             id: meta
                             anchors.verticalCenter: parent.verticalCenter
-                            text: String(row.modelData.category || "").toUpperCase() + " \u00b7 TAB"
+                            text: String(row.modelData.category || "").toUpperCase() + I18n.tr(" \u00b7 TAB")
                             color: search.root ? search.root.sumi : "#888888"
                             opacity: 0.6
                             font.family: search.root ? search.root.mono : "monospace"

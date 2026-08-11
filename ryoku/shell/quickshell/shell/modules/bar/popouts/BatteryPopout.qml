@@ -83,7 +83,7 @@ Item {
             }
         }
 
-        // absent battery (desktop) — the widget self-hides, but stay honest.
+        // absent battery (desktop) - the widget self-hides, but stay honest.
         Column {
             width: parent.width
             spacing: 6 * root.s

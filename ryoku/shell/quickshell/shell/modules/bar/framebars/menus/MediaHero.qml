@@ -308,7 +308,7 @@ Item {
                         font.family: Theme.fontPrimary; font.pixelSize: Theme.fontSm; elide: Text.ElideRight
                     }
 
-                    // Progress: elapsed | ——2px track—— | total
+                    // Progress: elapsed | --2px track-- | total
                     Item {
                         id: progressRow; width: parent.width; height: 18
                         Text {

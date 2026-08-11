@@ -29,7 +29,7 @@ Item {
     property bool answerMode: false
     property bool actionBrowse: false
     property bool searching: false
-    property string emptyText: "NO MATCHES"
+    property string emptyText: I18n.tr("NO MATCHES")
     property string errorText: ""
     property int windowCount: 0
     property bool windowFocusActive: false
@@ -285,7 +285,7 @@ Item {
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "UPDATING"
+                            text: I18n.tr("UPDATING")
                             color: Theme.faint
                             font.family: Theme.mono
                             font.pixelSize: 7.5 * root.s
@@ -357,7 +357,7 @@ Item {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.searching ? "SEARCHING" : root.emptyText
+                    text: root.searching ? I18n.tr("SEARCHING") : root.emptyText
                     color: Theme.faint
                     font.family: Theme.mono
                     font.pixelSize: 9 * root.s

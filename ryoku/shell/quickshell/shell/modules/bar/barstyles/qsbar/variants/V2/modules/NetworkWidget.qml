@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../IconMap.js" as IconMap
+import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -76,7 +77,7 @@ Item {
         return "Offline"
     }
 
-    // hideable via modNetwork — but only on ethernet/none; on WiFi always shown
+    // hideable via modNetwork - but only on ethernet/none; on WiFi always shown
     implicitWidth: (root.modNetwork || mode === "wifi") ? (row.implicitWidth + 18) : 0
     // mirror the connection type so the ControlPanel can gate the Network toggle
     Binding { target: rootMod.root; property: "networkMode"; value: rootMod.mode }
@@ -112,7 +113,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi" && !root.iconOnly("G11")
             width: visible ? Math.min(88, implicitWidth) : 0
-            text: rootMod.ssid !== "" ? rootMod.ssid : "Wi-Fi"
+            text: rootMod.ssid !== "" ? rootMod.ssid : I18n.tr("Wi-Fi")
             color: rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 11
@@ -132,7 +133,7 @@ Item {
             UiText {
                 x: 0; y: 0
                 width: 8; height: 8
-                text: "RX"
+                text: I18n.tr("RX")
                 color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
                 font.family: root.mono
                 font.pixelSize: 7
@@ -173,7 +174,7 @@ Item {
             UiText {
                 x: 8; y: 13
                 width: 8; height: 8
-                text: "TX"
+                text: I18n.tr("TX")
                 color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
                 font.family: root.mono
                 font.pixelSize: 7
@@ -227,10 +228,10 @@ Item {
     }
 
     // Dynamic poll cadence. Fast (2 s) whenever something needs fresh data: the pill is shown
-    // (root.modNetwork), the panel is open (root.networkVisible — also covers a running speed
+    // (root.modNetwork), the panel is open (root.networkVisible - also covers a running speed
     // test, which keeps the panel open), or we're on Wi-Fi (signal % moves; the Wi-Fi branch is
     // also the only one that spawns `iw`). Slow (15 s) ONLY when the module is hidden AND the
-    // panel is closed AND we're on Ethernet or offline — so the saving (fewer idle bash/ip/awk
+    // panel is closed AND we're on Ethernet or offline - so the saving (fewer idle bash/ip/awk
     // spawns) is limited to a hidden Ethernet module or the offline state; Wi-Fi always polls
     // fast. When hidden on Ethernet/offline, poll only once per minute to catch a later Wi-Fi
     // connection without keeping the old high-rate hidden poller alive. Changing a Timer's

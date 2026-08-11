@@ -19,7 +19,7 @@ Grid {
             { "name": "The bar",       "reach": "Screen edges", "desc": qsTr("Frame bars carry the launcher, workspaces, clock, tray and status.") },
             { "name": "The launcher",  "reach": "Super + Space", "desc": "Search apps, run commands, or ask a quick question." },
             { "name": "The frame",     "reach": "Screen edge",   "desc": "The rounded border holds the power and service surfaces." },
-            { "name": "Ryoku Settings","reach": "Super + ,",     "desc": "Displays, appearance, keybinds, the shell \u2014 every knob in one place." }
+            { "name": "Ryoku Settings","reach": "Super + ,",     "desc": "Displays, appearance, keybinds, the shell - every knob in one place." }
         ]
 
         delegate: Rectangle {
@@ -64,7 +64,7 @@ Grid {
                 Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: card.modelData.desc
+                    text: I18n.tr(card.modelData.desc)
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: Tokens.fSmall

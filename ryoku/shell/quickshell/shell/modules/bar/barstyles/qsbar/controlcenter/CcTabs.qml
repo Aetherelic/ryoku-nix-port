@@ -1,5 +1,6 @@
 import QtQuick
 import "../modules"
+import Ryoku.Ui.Singletons
 
 // QUICK | CONFIGURE mode switch. Neutral hover; accent only on the selected tab.
 Row {
@@ -30,7 +31,7 @@ Row {
             UiText {
                 id: lbl
                 anchors.centerIn: parent
-                text: tab.modelData.label
+                text: I18n.tr(tab.modelData.label)
                 color: tab.on ? tabs.root.seal : tabs.root.ink
                 font.family: tabs.root.mono
                 font.pixelSize: 11

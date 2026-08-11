@@ -1,8 +1,9 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
-// Wallpaper switcher — a shelf of tall wallpaper columns filling the screen and a
+// Wallpaper switcher - a shelf of tall wallpaper columns filling the screen and a
 // single compact instrument pill floating at top-centre (力 · mode · layout · the
 // colour rail · sort · search · counter). No card, no bottom chrome. It runs the
 // live-canvas model: browsing applies the focused wallpaper to the real desktop
@@ -223,7 +224,7 @@ Item {
             Text {
                 id: segTxt
                 anchors.centerIn: parent
-                text: seg.label
+                text: I18n.tr(seg.label)
                 color: seg.on ? Theme.inkOnBone : (segHov.hovered ? Theme.onSurface : Theme.sumi)
                 font.family: Theme.ui
                 font.pixelSize: Math.round(12 * body.s)
@@ -263,7 +264,7 @@ Item {
                 Text {
                     visible: ib.label.length > 0
                     anchors.verticalCenter: parent.verticalCenter
-                    text: ib.label
+                    text: I18n.tr(ib.label)
                     color: ib.on ? Theme.onSurface : (ibHov.hovered ? Theme.onSurface : Theme.sumi)
                     font.family: Theme.ui
                     font.pixelSize: Math.round(11.5 * body.s)
@@ -346,11 +347,11 @@ Item {
         visible: body.shown.length === 0
         horizontalAlignment: Text.AlignHCenter
         text: body.themesMode
-            ? (Themes.loading ? "Reading colour schemes" : (body.search.length > 0 ? "No schemes match \u201c" + body.search + "\u201d" : "No colour schemes"))
-            : Walls.loading ? "Reading wallpapers"
-            : (body.search.length > 0 ? "No wallpapers match \u201c" + body.search + "\u201d"
-                : (body.colorFilter !== -1 || body.typeFilter !== "all") ? "Nothing in this filter"
-                : "No wallpapers in ~/Pictures/Wallpapers")
+            ? (Themes.loading ? I18n.tr("Reading colour schemes") : (body.search.length > 0 ? I18n.tr("No schemes match \u201c") + body.search + "\u201d" : I18n.tr("No colour schemes")))
+            : Walls.loading ? I18n.tr("Reading wallpapers")
+            : (body.search.length > 0 ? I18n.tr("No wallpapers match \u201c") + body.search + "\u201d"
+                : (body.colorFilter !== -1 || body.typeFilter !== "all") ? I18n.tr("Nothing in this filter")
+                : I18n.tr("No wallpapers in ~/Pictures/Wallpapers"))
         color: Theme.onSurface
         font.family: Theme.ui
         font.pixelSize: Math.round(16 * body.s)
@@ -386,10 +387,10 @@ Item {
             anchors.centerIn: parent
             spacing: Math.round(4 * body.s)
             visible: body.drawer === "layout"
-            IconBtn { label: "Strips"; on: View.layout === "strips"; onClicked: { View.layout = "strips"; body.drawer = ""; } }
-            IconBtn { label: "Hearthstone"; on: View.layout === "hearthstone"; onClicked: { View.layout = "hearthstone"; body.drawer = ""; } }
-            IconBtn { label: "Drift"; on: View.layout === "drift"; onClicked: { View.layout = "drift"; body.drawer = ""; } }
-            IconBtn { label: "Grid"; on: View.layout === "grid"; onClicked: { View.layout = "grid"; body.drawer = ""; } }
+            IconBtn { label: I18n.tr("Strips"); on: View.layout === "strips"; onClicked: { View.layout = "strips"; body.drawer = ""; } }
+            IconBtn { label: I18n.tr("Hearthstone"); on: View.layout === "hearthstone"; onClicked: { View.layout = "hearthstone"; body.drawer = ""; } }
+            IconBtn { label: I18n.tr("Drift"); on: View.layout === "drift"; onClicked: { View.layout = "drift"; body.drawer = ""; } }
+            IconBtn { label: I18n.tr("Grid"); on: View.layout === "grid"; onClicked: { View.layout = "grid"; body.drawer = ""; } }
         }
         Row {
             id: filterRow
@@ -399,9 +400,9 @@ Item {
             Row {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Math.round(2 * body.s)
-                IconBtn { label: "All"; on: body.typeFilter === "all"; onClicked: body.setType("all") }
-                IconBtn { label: "Img"; on: body.typeFilter === "image"; onClicked: body.setType("image") }
-                IconBtn { label: "Live"; on: body.typeFilter === "live"; onClicked: body.setType("live") }
+                IconBtn { label: I18n.tr("All"); on: body.typeFilter === "all"; onClicked: body.setType("all") }
+                IconBtn { label: I18n.tr("Img"); on: body.typeFilter === "image"; onClicked: body.setType("image") }
+                IconBtn { label: I18n.tr("Live"); on: body.typeFilter === "live"; onClicked: body.setType("live") }
             }
             Sep {}
             ColorStrip {
@@ -415,7 +416,7 @@ Item {
             Sep {}
             IconBtn { glyph: "\u21c5"; label: View.sortLabel(View.sort); onClicked: View.cycleSort() }
             Sep {}
-            IconBtn { glyph: View.livePreview ? "\u25c9" : "\u25cb"; label: "Preview"; on: View.livePreview; onClicked: View.livePreview = !View.livePreview }
+            IconBtn { glyph: View.livePreview ? "\u25c9" : "\u25cb"; label: I18n.tr("Preview"); on: View.livePreview; onClicked: View.livePreview = !View.livePreview }
         }
     }
 
@@ -449,8 +450,8 @@ Item {
             Row {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Math.round(2 * body.s)
-                Seg { label: "Walls"; on: !body.themesMode; onClicked: body.setMode("walls") }
-                Seg { label: "Themes"; on: body.themesMode; onClicked: body.setMode("themes") }
+                Seg { label: I18n.tr("Walls"); on: !body.themesMode; onClicked: body.setMode("walls") }
+                Seg { label: I18n.tr("Themes"); on: body.themesMode; onClicked: body.setMode("themes") }
             }
             Sep {}
             IconBtn {
@@ -462,7 +463,7 @@ Item {
             IconBtn {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !body.themesMode
-                glyph: "\u25b4"; label: "Filter"
+                glyph: "\u25b4"; label: I18n.tr("Filter")
                 on: body.drawer === "filter"
                 onClicked: body.drawer = (body.drawer === "filter" ? "" : "filter")
             }
@@ -470,7 +471,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Math.round(2 * body.s)
                 visible: body.themesMode
-                IconBtn { glyph: body.following ? "\u25c9" : "\u25cb"; label: "Follow"; on: body.following; onClicked: body.toggleFollow() }
+                IconBtn { glyph: body.following ? "\u25c9" : "\u25cb"; label: I18n.tr("Follow"); on: body.following; onClicked: body.toggleFollow() }
                 IconBtn { label: "Default"; on: Themes.active === "Default"; onClicked: { Themes.apply("Default"); body.touchedTheme = true; } }
             }
             Sep {}

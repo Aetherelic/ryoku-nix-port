@@ -6,7 +6,7 @@ import QtQuick
 // tip.show() / tip.hide(); show() is a no-op while `text` is empty.
 Item {
     id: mixin
-    required property var root      // Theme — provides showTooltip()/hideTooltip()
+    required property var root      // Theme - provides showTooltip()/hideTooltip()
     required property var owner     // the widget Item: anchor + tooltip owner key
     property string text: ""
     property int    delay: 320
@@ -15,7 +15,7 @@ Item {
     function hide() { delayTimer.stop(); root.hideTooltip(owner) }
 
     // live-update the visible tooltip while THIS widget owns it (e.g. volume %
-    // changing under the cursor) — showTooltip() only captures a snapshot.
+    // changing under the cursor) - showTooltip() only captures a snapshot.
     onTextChanged: if (root && root.tooltipOwner === owner) root.tooltipText = text
 
     Timer {

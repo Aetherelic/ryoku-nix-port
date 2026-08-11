@@ -3,7 +3,7 @@ import QtQuick
 // True idle inhibitor (Waybar-style). Toggles root.idleInhibited, which drives
 // the Quickshell.Wayland.IdleInhibitor attached to the bar window in BarSlot.qml.
 // While ON, Hyprland suppresses idle (no lock/dpms) via the idle-inhibit
-// protocol — the hypridle daemon keeps running, it just isn't told to idle.
+// protocol - the hypridle daemon keeps running, it just isn't told to idle.
 Item {
     id: rootMod
     required property var root

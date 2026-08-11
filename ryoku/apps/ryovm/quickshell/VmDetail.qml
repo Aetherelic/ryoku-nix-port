@@ -70,7 +70,7 @@ Item {
         Mark { anchors.horizontalCenter: parent.horizontalCenter; size: 96 }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Pick a machine to manage it"
+            text: I18n.tr("Pick a machine to manage it")
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: 12
@@ -124,7 +124,7 @@ Item {
                     spacing: Tokens.s3
                     Btn {
                         primary: true
-                        text: pane.disposableRun ? "LAUNCH · BURN" : "LAUNCH"
+                        text: pane.disposableRun ? I18n.tr("LAUNCH · BURN") : I18n.tr("LAUNCH")
                         armed: !Vm.busy && Vm.caps.quickemu === true
                             && !(pane.launchMode === "spice" && Vm.caps.spice !== true)
                         onAct: Vm.launch(pane.name, pane.launchMode, pane.disposableRun)
@@ -150,7 +150,7 @@ Item {
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "DISPOSABLE"
+                            text: I18n.tr("DISPOSABLE")
                             color: pane.disposableRun ? Tokens.ink : Tokens.inkFaint
                             font.family: Tokens.ui
                             font.pixelSize: 9
@@ -166,11 +166,11 @@ Item {
                     maximumLineCount: 2
                     elide: Text.ElideRight
                     text: pane.det && pane.det.installed !== true
-                        ? "First launch boots the OS installer: install onto the virtual disk, then power off. After that it boots from disk."
+                        ? I18n.tr("First launch boots the OS installer: install onto the virtual disk, then power off. After that it boots from disk.")
                         : pane.launchMode === "spice" && Vm.caps.spice !== true
-                        ? "SPICE needs its viewer: install the spice-gtk package, then relaunch"
+                        ? I18n.tr("SPICE needs its viewer: install the spice-gtk package, then relaunch")
                         : pane.disposableRun
-                        ? "Disposable session: every disk write burns up at power-off. The machine boots identical next time"
+                        ? I18n.tr("Disposable session: every disk write burns up at power-off. The machine boots identical next time")
                         : ({
                             "window": "Plain window · host↔guest clipboard is OFF in this mode",
                             "spice": "SPICE viewer · shared clipboard, USB redirect, best desktop fidelity",
@@ -187,18 +187,18 @@ Item {
                 visible: pane.running
                 spacing: Tokens.s3
                 Btn {
-                    text: "STOP"
+                    text: I18n.tr("STOP")
                     armed: !Vm.busy
                     onAct: Vm.stop(pane.name)
                 }
                 Btn {
                     primary: true
-                    text: "CONSOLE"
+                    text: I18n.tr("CONSOLE")
                     armed: (pane.vm && (pane.vm.spice || "").length > 0) && Vm.caps.spice === true
                     onAct: Vm.openConsole(pane.name)
                 }
                 Btn {
-                    text: "SSH"
+                    text: I18n.tr("SSH")
                     armed: (pane.vm && (pane.vm.ssh || "").length > 0)
                     onAct: Vm.openSsh(pane.name)
                 }
@@ -229,7 +229,7 @@ Item {
                     width: parent.width
                     spacing: Tokens.s3
                     visible: pane.running
-                    Head { text: "REACH IT" }
+                    Head { text: I18n.tr("REACH IT") }
                     Rectangle {
                         width: parent.width
                         color: "transparent"
@@ -267,7 +267,7 @@ Item {
                                         anchors.rightMargin: 9
                                         anchors.verticalCenter: parent.verticalCenter
                                         elide: Text.ElideRight
-                                        text: "ssh -p " + (pane.vm ? pane.vm.ssh : "")
+                                        text: I18n.tr("ssh -p ") + (pane.vm ? pane.vm.ssh : "")
                                             + " " + (pane.det && pane.det.sshUser ? pane.det.sshUser + "@" : "") + "localhost"
                                         color: Tokens.ink
                                         font.family: Tokens.mono
@@ -278,8 +278,8 @@ Item {
                                     id: sshBtns
                                     spacing: Tokens.s2
                                     anchors.verticalCenter: parent.verticalCenter
-                                    Btn { text: "OPEN"; onAct: Vm.openSsh(pane.name) }
-                                    Btn { text: "COPY"; onAct: Vm.copySsh(pane.name) }
+                                    Btn { text: I18n.tr("OPEN"); onAct: Vm.openSsh(pane.name) }
+                                    Btn { text: I18n.tr("COPY"); onAct: Vm.copySsh(pane.name) }
                                 }
                             }
                             Text {
@@ -287,8 +287,8 @@ Item {
                                 wrapMode: Text.WordWrap
                                 visible: pane.vm && (pane.vm.ssh || "").length > 0
                                 text: pane.det && pane.det.sshReady === true
-                                    ? "Guest is answering: connect away."
-                                    : "Port is forwarded but the guest isn't answering yet: still booting, or no SSH server inside (live ISOs never have one)."
+                                    ? I18n.tr("Guest is answering: connect away.")
+                                    : I18n.tr("Port is forwarded but the guest isn't answering yet: still booting, or no SSH server inside (live ISOs never have one).")
                                 color: pane.det && pane.det.sshReady === true ? Tokens.ink : Tokens.inkMuted
                                 font.family: Tokens.ui
                                 font.pixelSize: 11
@@ -299,7 +299,7 @@ Item {
                                 width: parent.width
                                 spacing: Tokens.s3
                                 visible: pane.vm && (pane.vm.ssh || "").length > 0
-                                FieldLabel { anchors.verticalCenter: parent.verticalCenter; text: "Login as" }
+                                FieldLabel { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Login as") }
                                 Field {
                                     id: sshUserField
                                     width: 170
@@ -316,7 +316,7 @@ Item {
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: "the guest account ssh signs in with"
+                                    text: I18n.tr("the guest account ssh signs in with")
                                     color: Tokens.inkFaint
                                     font.family: Tokens.ui
                                     font.pixelSize: 11
@@ -328,15 +328,15 @@ Item {
                                 spacing: Tokens.s3
                                 visible: pane.vm && (pane.vm.spice || "").length > 0
                                 Btn {
-                                    text: "ATTACH CONSOLE"
+                                    text: I18n.tr("ATTACH CONSOLE")
                                     armed: Vm.caps.spice === true
                                     onAct: Vm.openConsole(pane.name)
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: Vm.caps.spice === true
-                                        ? "SPICE screen on localhost:" + (pane.vm ? pane.vm.spice : "")
-                                        : "needs the SPICE viewer: install the spice-gtk package"
+                                        ? I18n.tr("SPICE screen on localhost:") + (pane.vm ? pane.vm.spice : "")
+                                        : I18n.tr("needs the SPICE viewer: install the spice-gtk package")
                                     color: Tokens.inkMuted
                                     font.family: Tokens.ui
                                     font.pixelSize: 11
@@ -358,8 +358,8 @@ Item {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 text: pane.vm && pane.vm.display === "none"
-                                    ? "Headless: no window exists. This panel is the machine's only door."
-                                    : "Stuck with the cursor grabbed? The Stop button above always powers the machine off."
+                                    ? I18n.tr("Headless: no window exists. This panel is the machine's only door.")
+                                    : I18n.tr("Stuck with the cursor grabbed? The Stop button above always powers the machine off.")
                                 color: Tokens.inkMuted
                                 font.family: Tokens.ui
                                 font.pixelSize: 12
@@ -373,7 +373,7 @@ Item {
                     width: parent.width
                     spacing: Tokens.s3
                     visible: pane.running
-                    Head { text: "POWER" }
+                    Head { text: I18n.tr("POWER") }
                     Rectangle {
                         width: parent.width
                         color: "transparent"
@@ -408,10 +408,10 @@ Item {
                                 width: parent.width
                                 Repeater {
                                     model: [
-                                        { k: "HOST CPU", v: powerBody.parent.live ? Math.round(powerBody.parent.mon.hostCpuPct) + "%" : "—" },
-                                        { k: "HOST RAM", v: powerBody.parent.live && powerBody.parent.mon.hostRssMB > 0 ? Vm.human(powerBody.parent.mon.hostRssMB * 1024 * 1024) : "—" },
-                                        { k: "GUEST IP", v: powerBody.parent.live && powerBody.parent.mon.guestIp ? powerBody.parent.mon.guestIp : "—" },
-                                        { k: "VCPUS", v: powerBody.parent.live && powerBody.parent.mon.vcpus > 0 ? String(powerBody.parent.mon.vcpus) : "—" }
+                                        { k: "HOST CPU", v: powerBody.parent.live ? Math.round(powerBody.parent.mon.hostCpuPct) + "%" : "-" },
+                                        { k: "HOST RAM", v: powerBody.parent.live && powerBody.parent.mon.hostRssMB > 0 ? Vm.human(powerBody.parent.mon.hostRssMB * 1024 * 1024) : "-" },
+                                        { k: "GUEST IP", v: powerBody.parent.live && powerBody.parent.mon.guestIp ? powerBody.parent.mon.guestIp : "-" },
+                                        { k: "VCPUS", v: powerBody.parent.live && powerBody.parent.mon.vcpus > 0 ? String(powerBody.parent.mon.vcpus) : "-" }
                                     ]
                                     Column {
                                         required property var modelData
@@ -438,7 +438,7 @@ Item {
                                 spacing: Tokens.s3
                                 readonly property bool paused: powerBody.parent.live && powerBody.parent.mon.status === "paused"
                                 Btn {
-                                    text: parent.paused ? "RESUME" : "PAUSE"
+                                    text: parent.paused ? I18n.tr("RESUME") : I18n.tr("PAUSE")
                                     onAct: Vm.power(pane.name, parent.paused ? "resume" : "pause")
                                 }
                                 ConfirmBtn {
@@ -456,7 +456,7 @@ Item {
                                 Row {
                                     width: parent.width
                                     Text {
-                                        text: "LIVE MEMORY"; color: Tokens.inkMuted
+                                        text: I18n.tr("LIVE MEMORY"); color: Tokens.inkMuted
                                         font.family: Tokens.mono; font.pixelSize: 9; font.letterSpacing: 1.3
                                     }
                                     Item { width: parent.width - 220; height: 1 }
@@ -497,13 +497,13 @@ Item {
                                     width: parent.width - 70
                                     spacing: 1
                                     Text {
-                                        text: "PIN VCPUS"; color: Tokens.ink
+                                        text: I18n.tr("PIN VCPUS"); color: Tokens.ink
                                         font.family: Tokens.ui; font.pixelSize: 11; font.weight: Font.Medium; font.letterSpacing: 1.4
                                     }
                                     Text {
                                         width: parent.width
                                         wrapMode: Text.WordWrap
-                                        text: "Nail each vCPU to its own host core: steadier latency for games and real-time work."
+                                        text: I18n.tr("Nail each vCPU to its own host core: steadier latency for games and real-time work.")
                                         color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: 11
                                     }
                                 }
@@ -513,7 +513,7 @@ Item {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 visible: !powerBody.parent.live
-                                text: "Waiting for the machine's live monitor. If it never arrives, the ryovm-mon helper may not be installed."
+                                text: I18n.tr("Waiting for the machine's live monitor. If it never arrives, the ryovm-mon helper may not be installed.")
                                 color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: 11
                             }
                         }
@@ -524,8 +524,8 @@ Item {
                 Column {
                     width: parent.width
                     spacing: Tokens.s3
-                    Head { text: "IDENTITY" }
-                    Note { visible: pane.running; text: "Stop the machine to rename it." }
+                    Head { text: I18n.tr("IDENTITY") }
+                    Note { visible: pane.running; text: I18n.tr("Stop the machine to rename it.") }
                     Row {
                         width: parent.width
                         spacing: Tokens.s3
@@ -543,7 +543,7 @@ Item {
                         Btn {
                             id: renameBtn
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "RENAME"
+                            text: I18n.tr("RENAME")
                             primary: true
                             armed: !Vm.busy && renameField.text.trim().length > 0 && renameField.text.trim() !== pane.name
                             onAct: Vm.renameVm(pane.name, renameField.text.trim())
@@ -555,11 +555,11 @@ Item {
                 Column {
                     width: parent.width
                     spacing: Tokens.s3
-                    Head { text: "RESOURCES" }
+                    Head { text: I18n.tr("RESOURCES") }
                     Note {
                         text: pane.running
-                            ? "Stop the machine to change its hardware."
-                            : "AUTO means quickemu tunes it to your hardware at launch. Set a number here to pin it."
+                            ? I18n.tr("Stop the machine to change its hardware.")
+                            : I18n.tr("AUTO means quickemu tunes it to your hardware at launch. Set a number here to pin it.")
                     }
                     Item {
                         width: parent.width
@@ -572,10 +572,10 @@ Item {
                             Cell {
                                 width: pane.span(6)
                                 controlWidth: Spans.inlineWidth("step", 0, width)
-                                label: "CPU cores"
+                                label: I18n.tr("CPU cores")
                                 value: pane.vm && pane.vm.cores !== "auto" ? String(pane.coresNum) : "AUTO"
                                 def: "AUTO"
-                                desc: "How many host cores the guest gets."
+                                desc: I18n.tr("How many host cores the guest gets.")
                                 Column {
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
@@ -590,7 +590,7 @@ Item {
                                         anchors.right: parent.right
                                         visible: pane.vm && pane.vm.cores !== "auto"
                                         compact: true
-                                        text: "AUTO"
+                                        text: I18n.tr("AUTO")
                                         armed: !pane.running
                                         onAct: Vm.setConfig(pane.name, "cpu_cores", "auto")
                                     }
@@ -599,11 +599,11 @@ Item {
                             Cell {
                                 width: pane.span(6)
                                 controlWidth: Spans.inlineWidth("step", 0, width)
-                                label: "Memory"
+                                label: I18n.tr("Memory")
                                 unit: "GB"
                                 value: pane.vm && pane.vm.ram !== "auto" ? String(pane.ramNum) : "AUTO"
                                 def: "AUTO"
-                                desc: "RAM handed to the guest."
+                                desc: I18n.tr("RAM handed to the guest.")
                                 Column {
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
@@ -618,7 +618,7 @@ Item {
                                         anchors.right: parent.right
                                         visible: pane.vm && pane.vm.ram !== "auto"
                                         compact: true
-                                        text: "AUTO"
+                                        text: I18n.tr("AUTO")
                                         armed: !pane.running
                                         onAct: Vm.setConfig(pane.name, "ram", "auto")
                                     }
@@ -634,7 +634,7 @@ Item {
                         visible: pane.det && pane.det.installed
                         Row {
                             spacing: Tokens.s2
-                            FieldLabel { anchors.verticalCenter: parent.verticalCenter; text: "Disk" }
+                            FieldLabel { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Disk") }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: (pane.vm ? Vm.human(pane.vm.diskUsed || 0) : "0") + " used"
@@ -654,7 +654,7 @@ Item {
                                 Cell {
                                     anchors.fill: parent
                                     controlWidth: Spans.inlineWidth("step", 0, width)
-                                    label: "Disk size"
+                                    label: I18n.tr("Disk size")
                                     unit: "GB"
                                     value: String(pane.diskTarget)
                                     Step {
@@ -670,13 +670,13 @@ Item {
                             Btn {
                                 id: growBtn
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "GROW TO " + pane.diskTarget + " GB"
+                                text: I18n.tr("GROW TO ") + pane.diskTarget + I18n.tr(" GB")
                                 primary: true
                                 armed: !pane.running && !Vm.busy && pane.diskTarget > pane.capGb
                                 onAct: Vm.resizeDisk(pane.name, pane.diskTarget + "G")
                             }
                         }
-                        Note { text: "Grow only; the guest extends its partition afterwards." }
+                        Note { text: I18n.tr("Grow only; the guest extends its partition afterwards.") }
                     }
                 }
 
@@ -685,8 +685,8 @@ Item {
                     width: parent.width
                     spacing: Tokens.s3
                     visible: pane.det && pane.det.installed === true
-                    Head { text: "SEAL" }
-                    Note { visible: pane.running; text: "Stop the machine to seal or restore it." }
+                    Head { text: I18n.tr("SEAL") }
+                    Note { visible: pane.running; text: I18n.tr("Stop the machine to seal or restore it.") }
                     Column {
                         width: parent.width
                         spacing: Tokens.s3
@@ -695,8 +695,8 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             text: pane.sealSnap !== null
-                                ? "Sealed " + pane.sealSnap.date + ". Disposable runs never touch the seal; a normal run that dirties the machine can be rolled back to it."
-                                : "Set the machine up the way you want it (packages, users, config) then seal that state. Disposable runs will boot from it forever; restore brings a dirtied machine back."
+                                ? I18n.tr("Sealed ") + pane.sealSnap.date + I18n.tr(". Disposable runs never touch the seal; a normal run that dirties the machine can be rolled back to it.")
+                                : I18n.tr("Set the machine up the way you want it (packages, users, config) then seal that state. Disposable runs will boot from it forever; restore brings a dirtied machine back.")
                             color: Tokens.inkMuted
                             font.family: Tokens.ui
                             font.pixelSize: 12
@@ -705,7 +705,7 @@ Item {
                             spacing: Tokens.s3
                             Btn {
                                 visible: pane.sealSnap === null
-                                text: "SEAL MACHINE"
+                                text: I18n.tr("SEAL MACHINE")
                                 primary: true
                                 armed: !Vm.busy
                                 onAct: Vm.seal(pane.name)
@@ -722,7 +722,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: pane.sealSnap !== null
                                 enabled: !Vm.busy
-                                label: "RESTORE SEAL"
+                                label: I18n.tr("RESTORE SEAL")
                                 armedLabel: "ROLL BACK"
                                 onFired: Vm.restoreSeal(pane.name)
                             }
@@ -734,15 +734,15 @@ Item {
                 Column {
                     width: parent.width
                     spacing: Tokens.s3
-                    Head { text: "USB DEVICES" }
+                    Head { text: I18n.tr("USB DEVICES") }
                     Note {
                         text: pane.running
-                            ? "Stop the machine to change assignments: devices attach at the next launch."
-                            : "Engaged devices are handed to the guest when it boots."
+                            ? I18n.tr("Stop the machine to change assignments: devices attach at the next launch.")
+                            : I18n.tr("Engaged devices are handed to the guest when it boots.")
                     }
                     Text {
                         visible: Vm.usb.length === 0
-                        text: "No USB devices detected on the host."
+                        text: I18n.tr("No USB devices detected on the host.")
                         color: Tokens.inkFaint
                         font.family: Tokens.ui
                         font.pixelSize: 12
@@ -799,15 +799,15 @@ Item {
                 Column {
                     width: parent.width
                     spacing: Tokens.s3
-                    Head { text: "PORTS" }
+                    Head { text: I18n.tr("PORTS") }
                     Note {
                         text: pane.running
-                            ? "Stop the machine to change forwards: they bind at the next launch."
-                            : "Forward a host port to a guest port, reachable at localhost."
+                            ? I18n.tr("Stop the machine to change forwards: they bind at the next launch.")
+                            : I18n.tr("Forward a host port to a guest port, reachable at localhost.")
                     }
                     Text {
                         visible: Vm.portfwds.length === 0
-                        text: "No port forwards yet."
+                        text: I18n.tr("No port forwards yet.")
                         color: Tokens.inkFaint
                         font.family: Tokens.ui
                         font.pixelSize: 12
@@ -828,7 +828,7 @@ Item {
                                 anchors.left: parent.left
                                 anchors.leftMargin: Tokens.s3
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "localhost:" + fwdRow.modelData.host + "   \u2192   :" + fwdRow.modelData.guest
+                                text: I18n.tr("localhost:") + fwdRow.modelData.host + "   \u2192   :" + fwdRow.modelData.guest
                                 color: Tokens.ink
                                 font.family: Tokens.mono
                                 font.pixelSize: 12
@@ -854,7 +854,7 @@ Item {
                             id: addFwd
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "ADD"
+                            text: I18n.tr("ADD")
                             primary: true
                             armed: fwdHost.text.trim().length > 0 && fwdGuest.text.trim().length > 0
                             onAct: {
@@ -869,7 +869,7 @@ Item {
                             anchors.rightMargin: Tokens.s2
                             anchors.verticalCenter: parent.verticalCenter
                             tabular: true
-                            placeholder: "host port"
+                            placeholder: I18n.tr("host port")
                         }
                         Field {
                             id: fwdGuest
@@ -878,7 +878,7 @@ Item {
                             anchors.rightMargin: Tokens.s3
                             anchors.verticalCenter: parent.verticalCenter
                             tabular: true
-                            placeholder: "guest port"
+                            placeholder: I18n.tr("guest port")
                             onAccepted: if (addFwd.armed) addFwd.act()
                         }
                     }
@@ -888,7 +888,7 @@ Item {
                 Column {
                     width: parent.width
                     spacing: Tokens.s3
-                    Head { text: "SNAPSHOTS" }
+                    Head { text: I18n.tr("SNAPSHOTS") }
                     // no disk yet: a dark annunciator and the exact next step.
                     Rectangle {
                         visible: !(pane.det && pane.det.installed)
@@ -906,19 +906,19 @@ Item {
                             anchors.rightMargin: Tokens.s4
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: Tokens.s3
-                            Annunciator { anchors.verticalCenter: parent.verticalCenter; label: "NO DISK"; lit: false; tileW: 60 }
+                            Annunciator { anchors.verticalCenter: parent.verticalCenter; label: I18n.tr("NO DISK"); lit: false; tileW: 60 }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: parent.width - 72
                                 wrapMode: Text.WordWrap
-                                text: "Snapshots capture the disk: press Launch once to create it, then save states here."
+                                text: I18n.tr("Snapshots capture the disk: press Launch once to create it, then save states here.")
                                 color: Tokens.inkMuted
                                 font.family: Tokens.ui
                                 font.pixelSize: 12
                             }
                         }
                     }
-                    Note { visible: pane.running; text: "Stop the machine to manage snapshots." }
+                    Note { visible: pane.running; text: I18n.tr("Stop the machine to manage snapshots.") }
                     Row {
                         width: parent.width
                         spacing: Tokens.s3
@@ -927,13 +927,13 @@ Item {
                             id: snapIn
                             width: parent.width - addSnap.width - Tokens.s3
                             anchors.verticalCenter: parent.verticalCenter
-                            placeholder: "Snapshot name (e.g. clean install)"
+                            placeholder: I18n.tr("Snapshot name (e.g. clean install)")
                             onCommitted: if (addSnap.armed) addSnap.act()
                         }
                         Btn {
                             id: addSnap
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "SAVE"
+                            text: I18n.tr("SAVE")
                             primary: true
                             armed: snapIn.text.trim().length > 0
                             onAct: { Vm.snapshot(pane.name, "create", snapIn.text.trim()); snapIn.clear(); }
@@ -945,7 +945,7 @@ Item {
                         visible: pane.det && pane.det.installed
                         Text {
                             visible: pane.det && (!pane.det.snapshots || pane.det.snapshots.length === 0) && !pane.running
-                            text: "No snapshots yet."
+                            text: I18n.tr("No snapshots yet.")
                             color: Tokens.inkFaint
                             font.family: Tokens.ui
                             font.pixelSize: 12
@@ -994,7 +994,7 @@ Item {
                                     GuardSwitch {
                                         anchors.verticalCenter: parent.verticalCenter
                                         enabled: !pane.running && !Vm.busy
-                                        label: "RESTORE"
+                                        label: I18n.tr("RESTORE")
                                         armedLabel: "ROLL BACK"
                                         onFired: Vm.snapshot(pane.name, "restore", snapRow.modelData.name)
                                     }
@@ -1016,19 +1016,19 @@ Item {
                     width: parent.width
                     spacing: Tokens.s3
                     visible: pane.det && pane.det.installed === true
-                    Head { text: "TEMPLATE" }
+                    Head { text: I18n.tr("TEMPLATE") }
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
                         text: pane.running
-                            ? "Stop the machine to template it."
-                            : "Freeze this machine (tools and all) into a golden base, then spawn instant clones off it (ryovm spawn). A disposable spawn boots in seconds with everything already baked."
+                            ? I18n.tr("Stop the machine to template it.")
+                            : I18n.tr("Freeze this machine (tools and all) into a golden base, then spawn instant clones off it (ryovm spawn). A disposable spawn boots in seconds with everything already baked.")
                         color: Tokens.inkMuted
                         font.family: Tokens.ui
                         font.pixelSize: pane.running ? 12 : 11
                     }
                     Btn {
-                        text: "SAVE AS TEMPLATE"
+                        text: I18n.tr("SAVE AS TEMPLATE")
                         armed: !pane.running && !Vm.busy
                         onAct: Vm.template(pane.name)
                     }
@@ -1038,40 +1038,40 @@ Item {
                 Column {
                     width: parent.width
                     spacing: Tokens.s3
-                    Head { text: "DANGER ZONE" }
+                    Head { text: I18n.tr("DANGER ZONE") }
                     Row {
                         spacing: Tokens.s3
                         Btn {
-                            text: "OPEN FOLDER"
+                            text: I18n.tr("OPEN FOLDER")
                             onAct: Vm.openFolder(pane.name)
                         }
                         GuardSwitch {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: pane.det && pane.det.installed === true
                             enabled: !pane.running && !Vm.busy
-                            label: "RECLAIM DISK"
+                            label: I18n.tr("RECLAIM DISK")
                             armedLabel: "WIPE DISK"
                             onFired: Vm.reclaimDisk(pane.name)
                         }
                         GuardSwitch {
                             anchors.verticalCenter: parent.verticalCenter
                             enabled: !pane.running && !Vm.busy
-                            label: "DELETE MACHINE"
+                            label: I18n.tr("DELETE MACHINE")
                             armedLabel: "DESTROY"
                             onFired: Vm.deleteVm(pane.name)
                         }
                     }
-                    Note { text: "Reclaim deletes the disk image but keeps the machine and its setup, ready to reinstall. Delete removes everything." }
+                    Note { text: I18n.tr("Reclaim deletes the disk image but keeps the machine and its setup, ready to reinstall. Delete removes everything.") }
                 }
 
                 // ── LOG (the yard's flight recorder) ─────────────────────────
                 Column {
                     width: parent.width
                     spacing: Tokens.s3
-                    Head { text: "LOG" }
+                    Head { text: I18n.tr("LOG") }
                     Text {
                         visible: pane.logEvents.length === 0
-                        text: "No activity yet."
+                        text: I18n.tr("No activity yet.")
                         color: Tokens.inkFaint
                         font.family: Tokens.ui
                         font.pixelSize: 12
@@ -1107,7 +1107,7 @@ Item {
                                     Text {
                                         id: fltLab
                                         anchors.centerIn: parent
-                                        text: "FAULT"
+                                        text: I18n.tr("FAULT")
                                         color: Tokens.inkOnBone
                                         font.family: Tokens.ui
                                         font.pixelSize: 9
@@ -1128,7 +1128,7 @@ Item {
                                     id: detTag
                                     visible: logRow.hasDetail
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: logRow.expanded ? "LESS" : "DETAIL"
+                                    text: logRow.expanded ? I18n.tr("LESS") : I18n.tr("DETAIL")
                                     color: dth.hovered ? Tokens.ink : Tokens.inkFaint
                                     font.family: Tokens.mono
                                     font.pixelSize: 9
@@ -1183,21 +1183,21 @@ Item {
                         anchors.centerIn: parent
                         spacing: 26
                         Text {
-                            text: "RYOKU RYOPORT · TYPE V-01"
+                            text: I18n.tr("RYOKU RYOPORT · TYPE V-01")
                             color: Tokens.inkMuted
                             font.family: Tokens.mono
                             font.pixelSize: 10
                             font.letterSpacing: 2
                         }
                         Text {
-                            text: "GUEST " + (pane.vm ? (pane.vm.guest || "linux").toUpperCase() : "-")
+                            text: I18n.tr("GUEST ") + (pane.vm ? (pane.vm.guest || "linux").toUpperCase() : "-")
                             color: Tokens.inkFaint
                             font.family: Tokens.mono
                             font.pixelSize: 10
                             font.letterSpacing: 2
                         }
                         Text {
-                            text: "CARRIER QEMU·KVM"
+                            text: I18n.tr("CARRIER QEMU·KVM")
                             color: Tokens.inkFaint
                             font.family: Tokens.mono
                             font.pixelSize: 10

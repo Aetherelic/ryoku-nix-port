@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell.Io
 import QtQuick.Dialogs
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // The right-click menu for a plugin desktop tile, built on the shared
 // DesktopMenu chrome in the quick-settings sidebar idiom. Beyond Lock + Hide it
@@ -75,7 +76,7 @@ Item {
         cardWidth: menu.schema.length > 0 ? 300 : 248
 
         MenuRow {
-            label: "Lock"
+            label: I18n.tr("Lock")
             value: menu.locked ? "On" : "Off"
             on: menu.locked
             closeOnTrigger: false
@@ -85,7 +86,7 @@ Item {
             }
         }
         MenuRow {
-            label: "Hide"
+            label: I18n.tr("Hide")
             onTriggered: menu.hideRequested(menu.scope)
         }
 
@@ -143,7 +144,7 @@ Item {
                                     id: opt
                                     required property var modelData
                                     selected: String(menu.val(fieldWrap.f)) === String(opt.modelData.value)
-                                    label: opt.modelData.label
+                                    label: I18n.tr(opt.modelData.label)
                                     onClicked: menu.set(fieldWrap.f.key, opt.modelData.value)
                                 }
                             }
@@ -297,7 +298,7 @@ Item {
                                     border.color: String(menu.val(fieldWrap.f)).length === 0 ? Theme.accent : Theme.line
                                     Text {
                                         anchors.centerIn: parent
-                                        text: "Default"
+                                        text: I18n.tr("Default")
                                         color: Theme.inkDim
                                         font.family: Theme.font
                                         font.pixelSize: 12
@@ -317,7 +318,7 @@ Item {
                                     Behavior on color { ColorAnimation { duration: Theme.quick } }
                                     Text {
                                         anchors.centerIn: parent
-                                        text: "+ Browse"
+                                        text: I18n.tr("+ Browse")
                                         color: brHov.hovered ? Theme.ink : Theme.inkDim
                                         font.family: Theme.font
                                         font.pixelSize: 12
@@ -356,7 +357,7 @@ Item {
                         }
                         FileDialog {
                             id: imgFileDlg
-                            title: "Choose an image"
+                            title: I18n.tr("Choose an image")
                             nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp)", "All files (*)"]
                             onAccepted: menu.set(fieldWrap.f.key, "" + imgFileDlg.selectedFile)
                         }

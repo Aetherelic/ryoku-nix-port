@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell.Hyprland
 import Quickshell.Wayland
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 /**
  * The overview body for one monitor. Two levels, macOS-style:
@@ -428,7 +429,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 1 * root.s
             Text {
-                text: "OVERVIEW"
+                text: I18n.tr("OVERVIEW")
                 color: Theme.cream
                 font.family: Theme.mono
                 font.pixelSize: 12 * root.s
@@ -436,7 +437,7 @@ Item {
                 font.weight: Font.DemiBold
             }
             Text {
-                text: "DESKTOP " + ("0" + (root.viewedDesktop + 1)).slice(-2)
+                text: I18n.tr("DESKTOP ") + ("0" + (root.viewedDesktop + 1)).slice(-2)
                 color: Theme.faint
                 font.family: Theme.mono
                 font.pixelSize: 9 * root.s
@@ -498,7 +499,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 38 * root.s
-        text: "SCROLL / TAB  CYCLE      ALT+TAB  DESKTOP      DRAG  MOVE      \u2715  CLOSE      R-CLICK / ENTER  GO      ESC  DISMISS"
+        text: I18n.tr("SCROLL / TAB  CYCLE      ALT+TAB  DESKTOP      DRAG  MOVE      \u2715  CLOSE      R-CLICK / ENTER  GO      ESC  DISMISS")
         color: Theme.faint
         font.family: Theme.mono
         font.pixelSize: 10 * root.s

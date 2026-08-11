@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import shell.services
+import Ryoku.Ui.Singletons
 
 // The shared card action: a bone-plate primary (Connect / Turn on / Scan) or,
 // with `destructive`, a hairline-outlined word (Forget). Sizes to its label but
@@ -32,7 +33,7 @@ Item {
     Text {
         id: lbl
         anchors.centerIn: parent
-        text: root.label
+        text: I18n.tr(root.label)
         color: root.destructive ? root.ink : Theme.inverseOnSurface
         font.family: Theme.fontPrimary
         font.pixelSize: 11 * root.s

@@ -124,7 +124,7 @@ var rows = [
     {
         "tab": "",
         "group": "POSITION",
-        "key": "position (serialised jointly as \"<x>x<y>\", e.g. \"2560x0\" \u2014 X and Y are NOT separate disk keys)",
+        "key": "position (serialised jointly as \"<x>x<y>\", e.g. \"2560x0\" - X and Y are NOT separate disk keys)",
         "label": "X",
         "desc": "Distance from the layout's left edge; dragging the tile sets it too",
         "ctl": "step",
@@ -136,7 +136,7 @@ var rows = [
     {
         "tab": "",
         "group": "POSITION",
-        "key": "position (serialised jointly as \"<x>x<y>\" \u2014 X and Y are NOT separate disk keys)",
+        "key": "position (serialised jointly as \"<x>x<y>\" - X and Y are NOT separate disk keys)",
         "label": "Y",
         "desc": "Distance from the layout's top edge; dragging the tile sets it too",
         "ctl": "step",
@@ -148,7 +148,7 @@ var rows = [
     {
         "tab": "",
         "group": "PROFILES",
-        "key": "filename \u2014 becomes ~/.config/ryoku/monitors/<name>.json",
+        "key": "filename - becomes ~/.config/ryoku/monitors/<name>.json",
         "label": "Profile name",
         "desc": "Name for the new profile; Enter saves it, blank names are ignored",
         "ctl": "text",
@@ -165,7 +165,7 @@ var rows = [
     },
     {
         "tab": "",
-        "group": "(header quick-actions Row \u2014 outside any SettingSection, top-right, aligned to the \"N displays detected\" text)",
+        "group": "(header quick-actions Row - outside any SettingSection, top-right, aligned to the \"N displays detected\" text)",
         "key": "",
         "label": "Mirror (quick action)",
         "desc": "",
@@ -174,7 +174,7 @@ var rows = [
     },
     {
         "tab": "",
-        "group": "(header quick-actions Row \u2014 outside any SettingSection)",
+        "group": "(header quick-actions Row - outside any SettingSection)",
         "key": "",
         "label": "Extend (quick action)",
         "desc": "",
@@ -183,7 +183,7 @@ var rows = [
     },
     {
         "tab": "",
-        "group": "(header quick-actions Row \u2014 outside any SettingSection)",
+        "group": "(header quick-actions Row - outside any SettingSection)",
         "key": "",
         "label": "DPI auto-scale (quick action)",
         "desc": "",
@@ -192,7 +192,7 @@ var rows = [
     },
     {
         "tab": "",
-        "group": "(bottom action bar \u2014 outside any SettingSection)",
+        "group": "(bottom action bar - outside any SettingSection)",
         "key": "",
         "label": "Apply (action bar)",
         "desc": "",
@@ -201,7 +201,7 @@ var rows = [
     },
     {
         "tab": "",
-        "group": "(bottom action bar \u2014 outside any SettingSection)",
+        "group": "(bottom action bar - outside any SettingSection)",
         "key": "",
         "label": "Revert (action bar)",
         "desc": "",

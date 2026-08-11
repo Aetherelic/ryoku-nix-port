@@ -61,7 +61,7 @@ Item {
         Text {
             id: actLabel
             anchors { horizontalCenter: parent.horizontalCenter; top: parent.top }
-            text: act.label
+            text: I18n.tr(act.label)
             color: act.current || act.activeFocus ? Tokens.ink : Tokens.inkDim
             font.family: Tokens.mono
             font.pixelSize: Tokens.fMicro
@@ -124,7 +124,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
-                text: plate.label
+                text: I18n.tr(plate.label)
                 color: plate.active ? Tokens.inkOnBone : (plate.activeFocus ? Tokens.ink : Tokens.inkDim)
                 font.family: Tokens.ui
                 font.pixelSize: 11
@@ -155,7 +155,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
-                text: "RYOSTORE"
+                text: I18n.tr("RYOSTORE")
                 color: Tokens.ink
                 font.family: Tokens.mono
                 font.pixelSize: 15
@@ -229,7 +229,7 @@ Item {
                 Text {
                     anchors.fill: parent
                     visible: searchField.text === ""
-                    text: header.offline ? "Search the store (offline)" : "Search the store"
+                    text: header.offline ? I18n.tr("Search the store (offline)") : I18n.tr("Search the store")
                     color: Tokens.inkMuted
                     font: searchField.font
                     verticalAlignment: Text.AlignVCenter
@@ -241,7 +241,7 @@ Item {
                 id: countLabel
                 anchors { right: parent.right; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
                 visible: header.searchActive && header.query !== ""
-                text: header.resultCount + (header.resultCount === 1 ? " RESULT" : " RESULTS")
+                text: header.resultCount + (header.resultCount === 1 ? I18n.tr(" RESULT") : I18n.tr(" RESULTS"))
                 color: Tokens.inkDim
                 font.family: Tokens.mono
                 font.pixelSize: Tokens.fMicro
@@ -264,7 +264,7 @@ Item {
             }
             HeaderAction {
                 objectName: "ryostore-header-refresh"
-                label: header.refreshing ? "SYNCING" : "REFRESH"
+                label: header.refreshing ? I18n.tr("SYNCING") : I18n.tr("REFRESH")
                 current: header.refreshing
                 flagged: header.updateAvailable && !header.refreshing
                 onTriggered: header.refreshRequested()
@@ -309,7 +309,7 @@ Item {
 
                 NavPlate {
                     objectName: "ryostore-header-discover"
-                    label: "DISCOVER"
+                    label: I18n.tr("DISCOVER")
                     active: header.view === "discover" && header.categoryID === "" && !header.searchActive
                     anchors.verticalCenter: parent.verticalCenter
                     onChose: header.activateDiscover()

@@ -64,7 +64,7 @@ Column {
         visible: !p.indeterminate
         horizontalAlignment: Text.AlignRight
         text: Math.round(p.progress * 100) + "%"
-            + (p.bps > 0 ? "  ·  " + (p.bps / 1048576).toFixed(1) + " MB/s" : "")
+            + (p.bps > 0 ? "  ·  " + (p.bps / 1048576).toFixed(1) + I18n.tr(" MB/s") : "")
         color: Tokens.inkMuted
         font.family: Tokens.ui
         font.pixelSize: 12
@@ -94,7 +94,7 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - 14
             elide: Text.ElideRight
-            text: p.log.length > 0 ? p.log : "Working…"
+            text: p.log.length > 0 ? p.log : I18n.tr("Working…")
             color: Tokens.inkMuted
             font.family: Tokens.mono
             font.pixelSize: 11
@@ -103,7 +103,7 @@ Column {
 
     Btn {
         anchors.horizontalCenter: parent.horizontalCenter
-        text: "CANCEL"
+        text: I18n.tr("CANCEL")
         onAct: p.cancelled()
     }
 }

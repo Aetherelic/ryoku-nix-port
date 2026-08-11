@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // The desktop right-click menu, built on the shared DesktopMenu chrome in the
 // quick-settings sidebar idiom. Two scopes:
@@ -78,7 +79,7 @@ Item {
         // ── desktop scope ──────────────────────────────────────────────
         MenuRow {
             visible: !menu.isWidget
-            label: "Clock"
+            label: I18n.tr("Clock")
             value: Config.clockEnabled ? "On" : "Off"
             on: Config.clockEnabled
             closeOnTrigger: false
@@ -86,7 +87,7 @@ Item {
         }
         MenuRow {
             visible: !menu.isWidget
-            label: "Calendar"
+            label: I18n.tr("Calendar")
             value: Config.calendarEnabled ? "On" : "Off"
             on: Config.calendarEnabled
             closeOnTrigger: false
@@ -94,7 +95,7 @@ Item {
         }
         MenuRow {
             visible: !menu.isWidget
-            label: "Music"
+            label: I18n.tr("Music")
             value: Config.musicEnabled ? "On" : "Off"
             on: Config.musicEnabled
             closeOnTrigger: false
@@ -104,14 +105,14 @@ Item {
         // ── widget scope ───────────────────────────────────────────────
         MenuRow {
             visible: menu.isWidget
-            label: "Design"
+            label: I18n.tr("Design")
             value: menu.cap(menu.curDesign)
             closeOnTrigger: false
             onTriggered: menu.cycleDesign()
         }
         MenuRow {
             visible: menu.isClock
-            label: "Date"
+            label: I18n.tr("Date")
             value: Config.dateShow ? "On" : "Off"
             on: Config.dateShow
             closeOnTrigger: false
@@ -119,7 +120,7 @@ Item {
         }
         MenuRow {
             visible: menu.isMusic
-            label: "Lyrics"
+            label: I18n.tr("Lyrics")
             value: Config.musicLyrics ? "On" : "Off"
             on: Config.musicLyrics
             closeOnTrigger: false
@@ -127,7 +128,7 @@ Item {
         }
         MenuRow {
             visible: menu.isMusic
-            label: "Canvas"
+            label: I18n.tr("Canvas")
             value: Config.musicShape === "tall" ? "9:16" : "Wide"
             on: Config.musicShape === "tall"
             closeOnTrigger: false
@@ -135,7 +136,7 @@ Item {
         }
         MenuRow {
             visible: menu.isMusic
-            label: "Backdrop"
+            label: I18n.tr("Backdrop")
             value: menu.videoLabel(Config.musicVideo)
             on: Config.musicVideo !== "off"
             closeOnTrigger: false
@@ -143,20 +144,20 @@ Item {
         }
         MenuRow {
             visible: menu.isMusic
-            label: "Video / GIF…"
+            label: I18n.tr("Video / GIF…")
             value: menu.videoName(Config.musicVideoFile)
             onTriggered: videoPicker.open = true
         }
         MenuRow {
             visible: menu.isWidget
-            label: "Lock"
+            label: I18n.tr("Lock")
             value: menu.locked ? "On" : "Off"
             on: menu.locked
             closeOnTrigger: false
             onTriggered: Config.toggle(menu.scope + "Locked")
         }
 
-        MenuSection { visible: menu.isWidget; label: "Snap" }
+        MenuSection { visible: menu.isWidget; label: I18n.tr("Snap") }
 
         // snap-to-zone pad (widget scope): a compass of chip targets.
         Item {
@@ -193,14 +194,14 @@ Item {
 
         MenuRow {
             visible: menu.isWidget
-            label: "Hide"
+            label: I18n.tr("Hide")
             onTriggered: Config.set(menu.scope + "Enabled", false)
         }
 
         // ── globals ────────────────────────────────────────────────────
         MenuSection {}
-        MenuRow { label: "Settings"; accent: true; closeOnTrigger: false; onTriggered: menu.openSettings() }
-        MenuRow { label: "Reload shell"; closeOnTrigger: false; onTriggered: menu.refreshShell() }
+        MenuRow { label: I18n.tr("Settings"); accent: true; closeOnTrigger: false; onTriggered: menu.openSettings() }
+        MenuRow { label: I18n.tr("Reload shell"); closeOnTrigger: false; onTriggered: menu.refreshShell() }
     }
 
     MusicVideoPicker {

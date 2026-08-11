@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: notifPanel
@@ -78,7 +79,7 @@ PanelWindow {
             notifPanel.poll()
         }
     }
-    // force the initial load (don't rely on implicit auto-load) — the whole panel
+    // force the initial load (don't rely on implicit auto-load) - the whole panel
     // is gated on cacheLoaded, so a missed load would mean no notifications ever
     Component.onCompleted: cacheFile.reload()
 
@@ -99,7 +100,7 @@ PanelWindow {
     // pid-guarded: with an empty pid, /proc//stat collapses to /proc/stat (a
     // multi-line file) and awk would inject raw newlines into the token → broken
     // JSON. So build the token ONLY when mako's pid is known; else token="" (the
-    // merge then keeps the current generation untouched — a safe no-op).
+    // merge then keeps the current generation untouched - a safe no-op).
     readonly property string pollScript: "pid=$(pidof mako 2>/dev/null | awk '{print $1}'); if [ -n \"$pid\" ]; then bid=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null); st=$(awk '{print $22}' /proc/$pid/stat 2>/dev/null); tok=\"$bid-$pid-$st\"; else tok=\"\"; fi; lst=$(makoctl list -j 2>/dev/null); [ -z \"$lst\" ] && lst='[]'; his=$(makoctl history -j 2>/dev/null); [ -z \"$his\" ] && his='[]'; printf '{\"token\":\"%s\",\"list\":%s,\"history\":%s}' \"$tok\" \"$lst\" \"$his\""
 
     Process {
@@ -283,7 +284,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: notifPanel.unreadCount > 0 ? "Notifications · " + notifPanel.unreadCount : "Notifications"
+                    text: notifPanel.unreadCount > 0 ? I18n.tr("Notifications · ") + notifPanel.unreadCount : I18n.tr("Notifications")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -412,7 +413,7 @@ PanelWindow {
                         visible: notifPanel.pending.length === 0
                         width: listCol.width
                         horizontalAlignment: Text.AlignHCenter
-                        text: "No notifications"
+                        text: I18n.tr("No notifications")
                         color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.3)
                         font.family: root.mono
                         font.pixelSize: 11
@@ -432,7 +433,7 @@ PanelWindow {
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
-                    text: "Clear all"
+                    text: I18n.tr("Clear all")
                     color: clearMa.containsMouse ? root.seal : root.sumi
                     font.family: root.mono; font.pixelSize: 11
                 }

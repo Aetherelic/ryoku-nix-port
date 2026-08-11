@@ -1,4 +1,5 @@
 import QtQuick
+import Ryoku.Ui.Singletons
 
 // A labelled value slider: name on the left, live numeric readout on the right,
 // a track with a filled portion and a draggable knob below. Click or drag
@@ -32,7 +33,7 @@ Item {
         id: lab
         anchors.left: parent.left
         anchors.top: parent.top
-        text: sl.label
+        text: I18n.tr(sl.label)
         color: sl.idle
         font.family: "Space Grotesk"
         font.pixelSize: 12

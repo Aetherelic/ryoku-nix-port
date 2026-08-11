@@ -3,10 +3,10 @@ import Ryoku.Ui.Singletons
 import "Singletons"
 
 // The walkthrough's CTA, in the house Btn vocabulary. Three kinds:
-//   solid   — a bone plate with black ink (inversion is the emphasis, the
+//   solid   - a bone plate with black ink (inversion is the emphasis, the
 //             primary act; there is no accent fill)
-//   outline — a hairline that answers hover with a surface tint
-//   ghost   — label only, faint->ink (Skip, tertiary)
+//   outline - a hairline that answers hover with a surface tint
+//   ghost   - label only, faint->ink (Skip, tertiary)
 // Space Grotesk label with the tracked-label spacing; a machine snaps, so the
 // states flip on Motion.snap with no scale theatrics.
 Item {
@@ -41,7 +41,7 @@ Item {
     Text {
         id: label_
         anchors.centerIn: parent
-        text: btn.label
+        text: I18n.tr(btn.label)
         color: btn.solid ? Tokens.inkOnBone
              : btn.ghost ? (hover.hovered ? Tokens.ink : Tokens.inkMuted)
              : (hover.hovered ? Tokens.ink : Tokens.inkDim)

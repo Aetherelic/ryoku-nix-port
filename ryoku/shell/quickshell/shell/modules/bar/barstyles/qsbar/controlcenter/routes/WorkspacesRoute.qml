@@ -1,6 +1,7 @@
 import QtQuick
 import "../kit"
 import "../../modules"
+import Ryoku.Ui.Singletons
 
 // Workspaces editor: pick how many workspaces the bar shows (COUNT) and how
 // their markers look (MARKER), with a live preview row that mirrors the bar's
@@ -37,10 +38,10 @@ Item {
             CcSection {
                 width: parent.width
                 root: page.root
-                title: "COUNT"
+                title: I18n.tr("COUNT")
                 CcSeg {
                     root: page.root
-                    options: [{ key: "active", label: "Active" }, { key: "5", label: "1–5" }, { key: "10", label: "1–10" }]
+                    options: [{ key: "active", label: "Active" }, { key: "5", label: "1-5" }, { key: "10", label: "1-10" }]
                     current: page.root ? page.root.workspaceMode : ""
                     onChose: (key) => { if (page.root) page.root.workspaceMode = key }
                 }
@@ -49,7 +50,7 @@ Item {
             CcSection {
                 width: parent.width
                 root: page.root
-                title: "MARKER"
+                title: I18n.tr("MARKER")
                 CcSeg {
                     root: page.root
                     options: page.root ? page.root.workspaceStyleOptions : []
@@ -61,7 +62,7 @@ Item {
             CcSection {
                 width: parent.width
                 root: page.root
-                title: "PREVIEW"
+                title: I18n.tr("PREVIEW")
 
                 // A bar-like pill wrapping the live marker row, mirroring the
                 // real WorkspaceWidget (default glow+dot / numbers badge / magic glyph).
@@ -97,7 +98,7 @@ Item {
 
                                 Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
-                                // DEFAULT — glow + dot
+                                // DEFAULT - glow + dot
                                 Rectangle {
                                     visible: cell.style === "default"
                                     anchors.centerIn: parent
@@ -121,7 +122,7 @@ Item {
                                     Behavior on color { ColorAnimation { duration: 200 } }
                                 }
 
-                                // NUMBERS — digit on a rounded badge
+                                // NUMBERS - digit on a rounded badge
                                 Rectangle {
                                     visible: cell.style === "numbers"
                                     anchors.centerIn: parent
@@ -144,7 +145,7 @@ Item {
                                     }
                                 }
 
-                                // MAGIC — sparkle glyphs (filled / hollow / dot)
+                                // MAGIC - sparkle glyphs (filled / hollow / dot)
                                 Text {
                                     visible: cell.style === "magic"
                                     anchors.centerIn: parent

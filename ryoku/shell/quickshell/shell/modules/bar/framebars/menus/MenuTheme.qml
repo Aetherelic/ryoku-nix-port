@@ -6,6 +6,7 @@ import Quickshell.Io
 import "../.." as Pill
 import shell.services
 import "../../../../components"
+import Ryoku.Ui.Singletons
 
 // The colour-scheme picker (contract 08 sec 2.2/2.3/4.2): a horizontally
 // scrolling row of theme cards. Each card is a 100-wide, 120-tall rounded
@@ -183,7 +184,7 @@ Item {
                 anchors { top: parent.top; left: parent.left; right: parent.right; margins: 4 }
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                text: card.modelData.label
+                text: I18n.tr(card.modelData.label)
                 color: card.dynamic ? Theme.onSurface : card.sw[1]
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import shell.services
+import Ryoku.Ui.Singletons
 
 // A detail line shared by the "!" panels: a dim label with a right-aligned mono
 // value, or -- with `toggle` -- a boxy switch. The caller sets `width`.
@@ -24,7 +25,7 @@ Item {
     Text {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        text: root.label
+        text: I18n.tr(root.label)
         color: root.inkDim
         font.family: Theme.fontPrimary
         font.pixelSize: 10 * root.s

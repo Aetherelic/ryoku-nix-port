@@ -44,7 +44,7 @@ Item {
         Text {
             id: plateText
             anchors.centerIn: parent
-            text: plate.label
+            text: I18n.tr(plate.label)
             color: plate.on ? Tokens.inkOnBone : (plate.activeFocus ? Tokens.ink : Tokens.inkDim)
             font.family: Tokens.ui
             font.pixelSize: 11
@@ -77,7 +77,7 @@ Item {
 
             Plate {
                 objectName: "ryostore-provider-all"
-                label: "ALL"
+                label: I18n.tr("ALL")
                 on: tabs.active === ""
                 onChose: tabs.picked("")
             }
@@ -92,7 +92,7 @@ Item {
             }
             Plate {
                 objectName: "ryostore-provider-mine"
-                label: "MY THEMES"
+                label: I18n.tr("MY THEMES")
                 on: tabs.active === "__mine__"
                 onChose: tabs.picked("__mine__")
             }
@@ -104,7 +104,7 @@ Item {
         objectName: "ryostore-provider-install-all"
         anchors { right: parent.right; rightMargin: Tokens.s6; verticalCenter: parent.verticalCenter }
         visible: tabs.active !== "" && tabs.active !== "__mine__" && tabs.installableCount > 0
-        text: tabs.busy ? "INSTALLING" : ("INSTALL ALL / " + tabs.installableCount)
+        text: tabs.busy ? I18n.tr("INSTALLING") : (I18n.tr("INSTALL ALL / ") + tabs.installableCount)
         armed: !tabs.busy
         onAct: tabs.installAll()
         Accessible.role: Accessible.Button

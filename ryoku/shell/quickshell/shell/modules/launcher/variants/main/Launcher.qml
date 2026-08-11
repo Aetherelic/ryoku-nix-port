@@ -5,6 +5,7 @@ import "../../shared/Singletons"
 import "metrics.js" as MainMetrics
 import "../../shared" as Shared
 import "." as MainVariant
+import Ryoku.Ui.Singletons
 
 // The command palette body: a search row over the rest dashboard (empty query),
 // the all-apps grid (Ctrl+A from rest), the action-mode tabs + list ("/" prefix),
@@ -184,7 +185,7 @@ Item {
         + (hasMedia && mediaSources.sources.length > 0 ? mediaSources.implicitHeight + 6 * s : 0)
         + (radioParked ? radioAside.implicitHeight + 6 * s : 0)
     // the radio's between-states chip: a station the watcher parked, or a
-    // tune-in still resolving (state on air, no player yet) — both need a
+    // tune-in still resolving (state on air, no player yet) - both need a
     // visible line or the radio reads as vanished/failed.
     readonly property bool radioParked: (Radio.aside !== null && !Radio.on) || Radio.tuning
     // Extra body slice for the instant-answer panel; padRow separates it from
@@ -507,7 +508,7 @@ Item {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: "Searching\u2026"
+            text: I18n.tr("Searching\u2026")
             color: Theme.faint
             font.family: Theme.font
             font.pixelSize: 12 * root.s
@@ -520,7 +521,7 @@ Item {
         anchors.top: root.answerMode ? answerPanel.bottom : (root.actionBrowse ? tabs.bottom : divider.bottom)
         anchors.topMargin: MainMetrics.padRow * root.s
         anchors.horizontalCenter: parent.horizontalCenter
-        text: "No matches"
+        text: I18n.tr("No matches")
         color: Theme.faint
         font.family: Theme.font
         font.pixelSize: 12 * root.s

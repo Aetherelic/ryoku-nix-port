@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
 import "ImagePickerModel.js" as Model
+import Ryoku.Ui.Singletons
 
 // Hearthstone (card-deck) variant of the screenshot/video browser. Original felt
 // look + fanned cards on the same fast data layer as the Tanzaku media browser
@@ -231,7 +232,7 @@ PanelWindow {
         id: deleteProc
         command: []
         onExited: function(code) {       // rescan only on success; on trash failure keep the file + warn (no silent rm)
-            if (code !== 0) { console.warn("MediaBrowser: trash failed (gio/trash-put unavailable) — file KEPT, not deleted"); return }
+            if (code !== 0) { console.warn("MediaBrowser: trash failed (gio/trash-put unavailable) - file KEPT, not deleted"); return }
             scanProc.command = panel.liveScanCmd()
             scanProc.running = false; scanProc.running = true
         }
@@ -289,7 +290,7 @@ PanelWindow {
         }
     }
 
-    // ── empty/loading — also catches Esc to close when the hand isn't focused ──
+    // ── empty/loading - also catches Esc to close when the hand isn't focused ──
     Item {
         anchors.fill: parent
         focus: panel.visible && !(panel.ready && panel.filtered.length > 0)
@@ -314,7 +315,7 @@ PanelWindow {
         visible: root.mediaBrowserVisible && panel.active && panel.ready && panel.filtered.length === 0
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
-        text: "No matches: " + panel.filterText + "\n\nBackspace to edit, or Esc to clear"
+        text: I18n.tr("No matches: ") + panel.filterText + I18n.tr("\n\nBackspace to edit, or Esc to clear")
         color: root.ink
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -323,8 +324,8 @@ PanelWindow {
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: panel.layoutSettled && !panel.loaded
-              ? (panel.isVideos ? "No recordings in ~/Videos/Recordings" : "No screenshots in ~/Pictures/Screenshots") + "\n\nEsc or click to close"
-              : "Loading…"
+              ? (panel.isVideos ? I18n.tr("No recordings in ~/Videos/Recordings") : I18n.tr("No screenshots in ~/Pictures/Screenshots")) + I18n.tr("\n\nEsc or click to close")
+              : I18n.tr("Loading…")
         color: panel.textLight
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -335,7 +336,7 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top; anchors.topMargin: 40
         opacity: panel.reveal
-        text: (panel.isVideos ? "VIDEOS" : "SCREENSHOTS") + "      " + (panel.selFilt + 1) + " / " + panel.filtered.length
+        text: (panel.isVideos ? I18n.tr("VIDEOS") : I18n.tr("SCREENSHOTS")) + "      " + (panel.selFilt + 1) + " / " + panel.filtered.length
         color: panel.textDim
         font.family: root.mono; font.pixelSize: 12; font.letterSpacing: 2
     }
@@ -417,7 +418,7 @@ PanelWindow {
                 Behavior on rotation { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
                 Behavior on scale    { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
 
-                // photo/poster (raster) — edges hidden behind the passepartout
+                // photo/poster (raster) - edges hidden behind the passepartout
                 Item {
                     anchors.fill: parent
                     anchors.margins: 6
@@ -451,7 +452,7 @@ PanelWindow {
                     }
                     Text {
                         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 12 }
-                        text: card.entry ? card.entry.label : ""
+                        text: card.entry ? I18n.tr(card.entry.label) : ""
                         color: panel.textLight
                         font.family: root.mono; font.pixelSize: 12; font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
@@ -462,7 +463,7 @@ PanelWindow {
                         Behavior on opacity { NumberAnimation { duration: 180 } }
                     }
                 }
-                // passepartout — crisp rounded outer + inner hole over the photo
+                // passepartout - crisp rounded outer + inner hole over the photo
                 Shape {
                     id: frameShape
                     anchors.fill: parent
@@ -496,7 +497,7 @@ PanelWindow {
                         PathLine { x: frameShape.m; y: frameShape.m + frameShape.ri }
                         PathArc  { x: frameShape.m + frameShape.ri; y: frameShape.m; radiusX: frameShape.ri; radiusY: frameShape.ri }
                     }
-                    // focus accent — OUTER outline only (one border, not two)
+                    // focus accent - OUTER outline only (one border, not two)
                     ShapePath {
                         fillColor: "transparent"
                         strokeColor: card.focused ? root.seal : "transparent"
@@ -533,7 +534,7 @@ PanelWindow {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 820
-            text: (panel.isVideos ? "Videos · " : "Screenshots · ") + panel.currentLabel
+            text: (panel.isVideos ? I18n.tr("Videos · ") : I18n.tr("Screenshots · ")) + panel.currentLabel
             color: panel.textLight
             font.family: root.mono; font.pixelSize: 24; font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
@@ -551,8 +552,8 @@ PanelWindow {
         Text {
             visible: panel.confirmDelete
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Delete this " + (panel.isVideos ? "video" : "screenshot")
-                  + "?   Del again to confirm   ·   Esc cancel"
+            text: I18n.tr("Delete this ") + (panel.isVideos ? "video" : "screenshot")
+                  + I18n.tr("?   Del again to confirm   ·   Esc cancel")
             color: root.seal
             font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
             horizontalAlignment: Text.AlignHCenter
@@ -561,7 +562,7 @@ PanelWindow {
         Text {
             visible: !panel.confirmDelete
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "← →  scroll navigate     Enter open     Del delete     Ctrl+C copy     Esc"
+            text: I18n.tr("← →  scroll navigate     Enter open     Del delete     Ctrl+C copy     Esc")
             color: panel.textDim
             font.family: root.mono; font.pixelSize: 11
             horizontalAlignment: Text.AlignHCenter

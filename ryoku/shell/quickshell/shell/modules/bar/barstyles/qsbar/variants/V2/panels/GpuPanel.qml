@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: gpuPanel
@@ -115,7 +116,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "GPU"
+                    text: I18n.tr("GPU")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -142,7 +143,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
             InfoRow {
-                label: "Model"
+                label: I18n.tr("Model")
                 value: root.gpuAvailable
                     ? (root.gpuName !== "" ? root.gpuName
                         : (root.gpuBackend === "nvidia" ? "NVIDIA GPU" : "GPU"))
@@ -157,7 +158,7 @@ PanelWindow {
                     id: gpuLbl
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "USAGE"
+                    text: I18n.tr("USAGE")
                     color: root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 11
@@ -193,39 +194,39 @@ PanelWindow {
             }
 
             InfoRow {
-                label: "Temperature"
+                label: I18n.tr("Temperature")
                 value: gpuPanel.gpuTemp > 0 ? gpuPanel.gpuTemp + "°C" : ""
             }
             InfoRow {
-                label: "VRAM"
+                label: I18n.tr("VRAM")
                 value: gpuPanel.gpuMemTotal > 0
                     ? gpuPanel.gib(gpuPanel.gpuMemUsed) + " / " + gpuPanel.gib(gpuPanel.gpuMemTotal)
                     : ""
             }
             InfoRow {
-                label: "Graphics clock"
+                label: I18n.tr("Graphics clock")
                 value: root.gpuClockMHz > 0 ? root.gpuClockMHz + " MHz" : ""
             }
             InfoRow {
-                label: "Power"
+                label: I18n.tr("Power")
                 value: root.gpuPowerW > 0
                     ? root.gpuPowerW.toFixed(0) + " W"
                         + (root.gpuPowerLimitW > 0 ? " / " + root.gpuPowerLimitW.toFixed(0) + " W" : "")
                     : ""
             }
             InfoRow {
-                label: "Fan · state"
+                label: I18n.tr("Fan · state")
                 value: root.gpuFanPercent > 0 || root.gpuPerformanceState !== ""
-                    ? (root.gpuFanPercent > 0 ? root.gpuFanPercent + "%" : "—")
+                    ? (root.gpuFanPercent > 0 ? root.gpuFanPercent + "%" : "-")
                         + (root.gpuPerformanceState !== "" ? " · " + root.gpuPerformanceState : "")
                     : ""
             }
-            InfoRow { label: "Driver"; value: root.gpuDriverVersion }
+            InfoRow { label: I18n.tr("Driver"); value: root.gpuDriverVersion }
 
             UiText {
                 width: parent.width
                 visible: !root.gpuAvailable
-                text: "GPU telemetry unavailable"
+                text: I18n.tr("GPU telemetry unavailable")
                 color: root.sumiHi
                 font.family: root.mono
                 font.pixelSize: 10
@@ -242,7 +243,7 @@ PanelWindow {
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
-                    text: "Open btop"
+                    text: I18n.tr("Open btop")
                     color: root.paper
                     font.family: root.mono
                     font.pixelSize: 11

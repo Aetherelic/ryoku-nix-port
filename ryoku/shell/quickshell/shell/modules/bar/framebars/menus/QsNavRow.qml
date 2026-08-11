@@ -4,6 +4,7 @@ import QtQuick
 import "../.." as Pill
 import shell.services
 import "../../../../components"
+import Ryoku.Ui.Singletons
 
 // A full-width sidebar navigation row: an icon disc, a label with live
 // sub-state, and a trailing chevron. The whole face presses in and opens a
@@ -75,7 +76,7 @@ Item {
             Text {
                 width: parent.width
                 elide: Text.ElideRight
-                text: root.label
+                text: I18n.tr(root.label)
                 color: Theme.inkOn(root.effBg, Theme.onSurface)
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm

@@ -68,16 +68,16 @@ Item {
             SheetSection {
                 id: lookSec
                 width: parent.width
-                title: "LOOK"
+                title: I18n.tr("LOOK")
                 visible: sheet.imageMode
                 Cell {
                     width: lookSec.span(10)
                     height: 2 * Tokens.cellH + Tokens.s2
-                    label: "Look"
+                    label: I18n.tr("Look")
                     value: ""
                     block: true
                     changed: Wallhaven.adjustActive
-                    desc: "A one-tap grade. Baked into the file when you set it."
+                    desc: I18n.tr("A one-tap grade. Baked into the file when you set it.")
                     Chips {
                         width: parent.width
                         options: sheet.looks.map(l => l.label)
@@ -91,19 +91,19 @@ Item {
             SheetSection {
                 id: gradeSec
                 width: parent.width
-                title: "GRADE"
+                title: I18n.tr("GRADE")
                 visible: sheet.imageMode
                 action: Btn {
-                    text: "RESET EDITS"
+                    text: I18n.tr("RESET EDITS")
                     armed: Wallhaven.adjustActive
                     onAct: Wallhaven.resetAdjust()
                 }
                 Cell {
                     width: gradeSec.span(6)
-                    label: "Brightness"
+                    label: I18n.tr("Brightness")
                     value: sheet.signed(Wallhaven.adjust.brightness)
                     def: "0"
-                    desc: "Baked into the file when you set it."
+                    desc: I18n.tr("Baked into the file when you set it.")
                     controlWidth: Spans.inlineWidth("slid", 0, width)
                     Slid {
                         anchors.fill: parent
@@ -114,10 +114,10 @@ Item {
                 }
                 Cell {
                     width: gradeSec.span(6)
-                    label: "Contrast"
+                    label: I18n.tr("Contrast")
                     value: sheet.signed(Wallhaven.adjust.contrast)
                     def: "0"
-                    desc: "Baked into the file when you set it."
+                    desc: I18n.tr("Baked into the file when you set it.")
                     controlWidth: Spans.inlineWidth("slid", 0, width)
                     Slid {
                         anchors.fill: parent
@@ -128,10 +128,10 @@ Item {
                 }
                 Cell {
                     width: gradeSec.span(6)
-                    label: "Saturation"
+                    label: I18n.tr("Saturation")
                     value: sheet.signed(Wallhaven.adjust.saturation)
                     def: "0"
-                    desc: "Baked into the file when you set it."
+                    desc: I18n.tr("Baked into the file when you set it.")
                     controlWidth: Spans.inlineWidth("slid", 0, width)
                     Slid {
                         anchors.fill: parent
@@ -142,10 +142,10 @@ Item {
                 }
                 Cell {
                     width: gradeSec.span(6)
-                    label: "Warmth"
+                    label: I18n.tr("Warmth")
                     value: sheet.signed(Wallhaven.adjust.warmth)
                     def: "0"
-                    desc: "Baked into the file when you set it."
+                    desc: I18n.tr("Baked into the file when you set it.")
                     controlWidth: Spans.inlineWidth("slid", 0, width)
                     Slid {
                         anchors.fill: parent
@@ -156,10 +156,10 @@ Item {
                 }
                 Cell {
                     width: gradeSec.span(4)
-                    label: "Vignette"
+                    label: I18n.tr("Vignette")
                     value: Wallhaven.adjust.vignette ? "ON" : "OFF"
                     def: "OFF"
-                    desc: "Darken the edges. Baked in on Set."
+                    desc: I18n.tr("Darken the edges. Baked in on Set.")
                     controlWidth: Spans.inlineWidth("sw", 0, width)
                     Sw {
                         anchors.verticalCenter: parent.verticalCenter
@@ -174,16 +174,16 @@ Item {
             SheetSection {
                 id: motionSec
                 width: parent.width
-                title: "MOTION"
+                title: I18n.tr("MOTION")
                 visible: sheet.videoMode
                 Cell {
                     width: motionSec.span(12)
-                    label: "Fit"
+                    label: I18n.tr("Fit")
                     // one immediate-persist control on this lane, so it keeps a tag.
                     source: "ryowalls.json"
                     value: Wallhaven.settings.liveFit === "fit" ? "Fit" : "Fill"
                     def: "Fill"
-                    desc: "Cover the screen, or letterbox the clip."
+                    desc: I18n.tr("Cover the screen, or letterbox the clip.")
                     // pad the shared seg reservation so Fill|Fit stays one row.
                     controlWidth: Spans.inlineWidth("seg", 2, width) + Tokens.s3
                     Seg {
@@ -200,7 +200,7 @@ Item {
             SheetSection {
                 id: enhSec
                 width: parent.width
-                title: "ENHANCE"
+                title: I18n.tr("ENHANCE")
                 visible: !!Wallhaven.selected
                 Item {
                     width: enhSec.span(12)
@@ -215,7 +215,7 @@ Item {
                             width: parent.width
                             visible: !Wallhaven.upscaleSupported
                             wrapMode: Text.WordWrap
-                            text: "AI enhance needs a Vulkan-capable GPU. None detected on this machine."
+                            text: I18n.tr("AI enhance needs a Vulkan-capable GPU. None detected on this machine.")
                             color: Tokens.inkMuted
                             font.family: Tokens.ui
                             font.pixelSize: 12
@@ -226,11 +226,11 @@ Item {
                             width: parent.width
                             spacing: Tokens.s2
                             visible: Wallhaven.upscaleSupported && !Wallhaven.upscaler
-                            Btn { text: "INSTALL ENHANCER"; onAct: Wallhaven.installUpscaler() }
+                            Btn { text: I18n.tr("INSTALL ENHANCER"); onAct: Wallhaven.installUpscaler() }
                             Text {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
-                                text: "Opens gpk to install waifu2x (Vulkan). It doubles resolution and denoises images and, frame by frame, video."
+                                text: I18n.tr("Opens gpk to install waifu2x (Vulkan). It doubles resolution and denoises images and, frame by frame, video.")
                                 color: Tokens.inkMuted
                                 font.family: Tokens.ui
                                 font.pixelSize: 12
@@ -249,7 +249,7 @@ Item {
                             Btn {
                                 visible: !Wallhaven.enhancing && Wallhaven.enhancePhase !== "done"
                                 primary: true
-                                text: sheet.videoMode ? "ENHANCE CLIP" : "ENHANCE IMAGE"
+                                text: sheet.videoMode ? I18n.tr("ENHANCE CLIP") : I18n.tr("ENHANCE IMAGE")
                                 armed: !!Wallhaven.selected && !Wallhaven.busy && !Wallhaven.enhancing
                                 onAct: Wallhaven.enhance()
                             }
@@ -366,8 +366,8 @@ Item {
                                 visible: !Wallhaven.enhancing && Wallhaven.enhancePhase === ""
                                 wrapMode: Text.WordWrap
                                 text: sheet.videoMode
-                                    ? "Doubles the clip's resolution on the GPU, frame by frame. It takes a while and only swaps in if this clip is still your wallpaper when it finishes."
-                                    : "Doubles the image resolution and denoises on the GPU, then saves it sharper."
+                                    ? I18n.tr("Doubles the clip's resolution on the GPU, frame by frame. It takes a while and only swaps in if this clip is still your wallpaper when it finishes.")
+                                    : I18n.tr("Doubles the image resolution and denoises on the GPU, then saves it sharper.")
                                 color: Tokens.inkMuted
                                 font.family: Tokens.ui
                                 font.pixelSize: 12
@@ -389,8 +389,8 @@ Item {
         visible: !Wallhaven.selected
         code: "GRADE-00"
         title: "調色"
-        sub: "NO PICK"
-        quote: "Pick a wallpaper to grade — look, colour, vignette, and Enhance."
+        sub: I18n.tr("NO PICK")
+        quote: I18n.tr("Pick a wallpaper to grade - look, colour, vignette, and Enhance.")
         tate: "色を練る"
         seal: "調"
         art: "laocoon.png"

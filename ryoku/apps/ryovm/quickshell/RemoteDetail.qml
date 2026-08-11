@@ -36,11 +36,11 @@ Item {
         width: (berth.width - Tokens.s3 - Tokens.s5 * 2) / 3
         spacing: 3
         Text {
-            text: ro.label; color: ro.warn ? Tokens.ink : Tokens.inkMuted
+            text: I18n.tr(ro.label); color: ro.warn ? Tokens.ink : Tokens.inkMuted
             font.family: Tokens.mono; font.pixelSize: 9; font.letterSpacing: 1.3
         }
         Text {
-            text: ro.value.length > 0 ? ro.value : "—"
+            text: ro.value.length > 0 ? ro.value : "-"
             color: Tokens.ink
             font.family: Tokens.ui; font.pixelSize: 24; font.weight: ro.warn ? Font.DemiBold : Font.Light
         }
@@ -89,7 +89,7 @@ Item {
                     }
                     Text {
                         visible: berth.host && berth.host.auth === "password"
-                        text: "saved password · used for probes and connect"
+                        text: I18n.tr("saved password · used for probes and connect")
                         color: Tokens.inkFaint
                         font.family: Tokens.mono; font.pixelSize: 10
                     }
@@ -126,7 +126,7 @@ Item {
                     Text {
                         anchors.right: parent.right
                         visible: berth.reach && berth.reach.up === true
-                        text: berth.reach ? berth.reach.rttMs + " ms round trip" : ""
+                        text: berth.reach ? berth.reach.rttMs + I18n.tr(" ms round trip") : ""
                         color: Tokens.inkFaint
                         font.family: Tokens.mono; font.pixelSize: 10
                     }
@@ -154,17 +154,17 @@ Item {
                 Row {
                     spacing: Tokens.s5
                     Readout {
-                        label: "UPTIME"
+                        label: I18n.tr("UPTIME")
                         value: berth.probed ? Remotes.uptimeShort(berth.health.uptimeS) : ""
                     }
                     Readout {
-                        label: "LOAD"
+                        label: I18n.tr("LOAD")
                         value: berth.probed ? Number(berth.health.load1).toFixed(2) : ""
                         unit: berth.probed ? Number(berth.health.load5).toFixed(2) + " · " + Number(berth.health.load15).toFixed(2) : ""
                         warn: berth.probed && berth.health.cpus > 0 && berth.health.load1 > berth.health.cpus
                     }
                     Readout {
-                        label: "CPU"
+                        label: I18n.tr("CPU")
                         value: berth.probed ? String(berth.health.cpus) : ""
                         unit: "cores"
                     }
@@ -172,7 +172,7 @@ Item {
                 Row {
                     spacing: Tokens.s5
                     Readout {
-                        label: "MEMORY"
+                        label: I18n.tr("MEMORY")
                         value: berth.probed && berth.health.memTotalKb > 0
                             ? Math.round(100 * (berth.health.memTotalKb - berth.health.memAvailKb) / berth.health.memTotalKb) + "%"
                             : ""
@@ -181,13 +181,13 @@ Item {
                             && (berth.health.memTotalKb - berth.health.memAvailKb) / berth.health.memTotalKb >= 0.9
                     }
                     Readout {
-                        label: "DISK /"
+                        label: I18n.tr("DISK /")
                         value: berth.probed ? berth.health.diskPct + "%" : ""
                         unit: berth.probed ? Remotes.human(berth.health.diskUsedKb * 1024) + " / " + Remotes.human(berth.health.diskTotalKb * 1024) : ""
                         warn: berth.probed && berth.health.diskPct >= 90
                     }
                     Readout {
-                        label: "FAILED"
+                        label: I18n.tr("FAILED")
                         value: berth.probed ? String(berth.health.failedUnits) : ""
                         unit: "units"
                         warn: berth.probed && berth.health.failedUnits > 0
@@ -204,7 +204,7 @@ Item {
                     spacing: Tokens.s2
                     Text { text: "//"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fMicro; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                        text: "APPS_"; color: Tokens.ink
+                        text: I18n.tr("APPS_"); color: Tokens.ink
                         font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
                         font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
                         anchors.verticalCenter: parent.verticalCenter
@@ -278,7 +278,7 @@ Item {
                     spacing: Tokens.s2
                     Text { text: "//"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fMicro; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                        text: "GUESTS_"; color: Tokens.ink
+                        text: I18n.tr("GUESTS_"); color: Tokens.ink
                         font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
                         font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
                         anchors.verticalCenter: parent.verticalCenter
@@ -348,7 +348,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 compact: true
                                 armed: !guestRow.busy
-                                text: guestRow.busy ? "···" : (guestRow.running ? "STOP" : "START")
+                                text: guestRow.busy ? "···" : (guestRow.running ? I18n.tr("STOP") : I18n.tr("START"))
                                 primary: !guestRow.running && !guestRow.busy
                                 onAct: Remotes.pveAct(berth.alias, guestRow.modelData.node, guestRow.modelData.type, guestRow.modelData.vmid, guestRow.running ? "shutdown" : "start")
                             }
@@ -359,7 +359,7 @@ Item {
                     visible: Remotes.isProxmox(berth.host) && Remotes.guestsOf(berth.alias).length === 0
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: "No guests yet, or the API token can't read the cluster."
+                    text: I18n.tr("No guests yet, or the API token can't read the cluster.")
                     color: Tokens.inkFaint
                     font.family: Tokens.mono; font.pixelSize: 11
                 }
@@ -425,7 +425,7 @@ Item {
                     anchors.margins: Tokens.s4
                     spacing: Tokens.s2
                     Text {
-                        text: berth.state === "down" ? "Not reachable" : "No health reading yet"
+                        text: berth.state === "down" ? I18n.tr("Not reachable") : I18n.tr("No health reading yet")
                         color: Tokens.ink
                         font.family: Tokens.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                     }
@@ -435,8 +435,8 @@ Item {
                         text: berth.health && berth.health.error
                             ? berth.health.error
                             : (berth.state === "down"
-                                ? "The host did not answer on its SSH port. Check it is up and the address is right."
-                                : "Run a probe to read uptime, load, memory and disk. A key-authenticated login is needed for the full reading; use COPY KEY to deploy one.")
+                                ? I18n.tr("The host did not answer on its SSH port. Check it is up and the address is right.")
+                                : I18n.tr("Run a probe to read uptime, load, memory and disk. A key-authenticated login is needed for the full reading; use COPY KEY to deploy one."))
                         color: Tokens.inkMuted
                         font.family: Tokens.mono; font.pixelSize: 11
                     }
@@ -453,7 +453,7 @@ Item {
                     spacing: Tokens.s2
                     Text { text: "//"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fMicro; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                        text: "LOOK_"; color: Tokens.ink
+                        text: I18n.tr("LOOK_"); color: Tokens.ink
                         font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
                         font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
                         anchors.verticalCenter: parent.verticalCenter
@@ -463,10 +463,10 @@ Item {
                 Flow {
                     width: parent.width
                     spacing: Tokens.s2
-                    Btn { height: 24; text: "HTOP"; onAct: Remotes.runOn(berth.alias, "htop") }
-                    Btn { height: 24; text: "LOGS"; onAct: Remotes.runOn(berth.alias, "journalctl -n 200 -f") }
-                    Btn { height: 24; text: "DISK"; onAct: Remotes.runOn(berth.alias, "df -h") }
-                    Btn { height: 24; text: "PORTS"; onAct: Remotes.runOn(berth.alias, "ss -tulpn") }
+                    Btn { height: 24; text: I18n.tr("HTOP"); onAct: Remotes.runOn(berth.alias, "htop") }
+                    Btn { height: 24; text: I18n.tr("LOGS"); onAct: Remotes.runOn(berth.alias, "journalctl -n 200 -f") }
+                    Btn { height: 24; text: I18n.tr("DISK"); onAct: Remotes.runOn(berth.alias, "df -h") }
+                    Btn { height: 24; text: I18n.tr("PORTS"); onAct: Remotes.runOn(berth.alias, "ss -tulpn") }
                 }
             }
 
@@ -490,7 +490,7 @@ Item {
                     spacing: Tokens.s2
                     Text { text: "//"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fMicro; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                        text: "TUNNELS_"; color: Tokens.ink
+                        text: I18n.tr("TUNNELS_"); color: Tokens.ink
                         font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
                         font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
                         anchors.verticalCenter: parent.verticalCenter
@@ -547,7 +547,7 @@ Item {
                     Btn {
                         id: openTun
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        text: "OPEN"
+                        text: I18n.tr("OPEN")
                         armed: tunSpec.text.trim().length > 0
                         onAct: tun.doOpen()
                     }
@@ -557,7 +557,7 @@ Item {
                         anchors.right: openTun.left; anchors.rightMargin: Tokens.s2
                         anchors.verticalCenter: parent.verticalCenter
                         tabular: true
-                        placeholder: tun.kind === "SOCKS" ? "1080  (a local SOCKS proxy)" : "9090:localhost:5432"
+                        placeholder: tun.kind === "SOCKS" ? I18n.tr("1080  (a local SOCKS proxy)") : I18n.tr("9090:localhost:5432")
                         onAccepted: tun.doOpen()
                     }
                 }
@@ -569,19 +569,19 @@ Item {
             Flow {
                 width: parent.width
                 spacing: Tokens.s2
-                Btn { text: "CONNECT"; primary: true; onAct: Remotes.connect(berth.alias) }
-                Btn { text: "PROBE"; onAct: Remotes.probe(berth.alias) }
-                Btn { text: "FILES"; onAct: Remotes.openFiles(berth.host) }
-                Btn { text: "COPY KEY"; onAct: Remotes.copyId(berth.alias) }
-                Btn { text: "EDIT"; onAct: berth.edit(berth.alias) }
-                Btn { text: "FORGET"; onAct: forget.armed ? Remotes.removeHost(berth.alias) : forget.arm() }
+                Btn { text: I18n.tr("CONNECT"); primary: true; onAct: Remotes.connect(berth.alias) }
+                Btn { text: I18n.tr("PROBE"); onAct: Remotes.probe(berth.alias) }
+                Btn { text: I18n.tr("FILES"); onAct: Remotes.openFiles(berth.host) }
+                Btn { text: I18n.tr("COPY KEY"); onAct: Remotes.copyId(berth.alias) }
+                Btn { text: I18n.tr("EDIT"); onAct: berth.edit(berth.alias) }
+                Btn { text: I18n.tr("FORGET"); onAct: forget.armed ? Remotes.removeHost(berth.alias) : forget.arm() }
             }
             Text {
                 id: forget
                 property bool armed: false
                 function arm() { armed = true; forgetDisarm.restart(); }
                 visible: armed
-                text: "Tap FORGET again to remove " + berth.alias + " (its ~/.ssh/config entry stays)."
+                text: I18n.tr("Tap FORGET again to remove ") + berth.alias + I18n.tr(" (its ~/.ssh/config entry stays).")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui; font.pixelSize: 11
                 Timer { id: forgetDisarm; interval: 3000; onTriggered: forget.armed = false }

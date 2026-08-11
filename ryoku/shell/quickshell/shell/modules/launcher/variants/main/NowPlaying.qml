@@ -6,6 +6,7 @@ import "../../shared/Singletons"
 import "metrics.js" as MainMetrics
 import "../../shared/lib/radio.js" as RadioLib
 import "." as MainVariant
+import Ryoku.Ui.Singletons
 
 // Now-playing detail: cover art over a blurred bleed backdrop, title/artist, a
 // compact prev/play-pause/next transport row, and the signature wavy seekbar (a
@@ -24,7 +25,7 @@ Item {
     readonly property bool hasPlayer: player !== null && player !== undefined
     readonly property bool playing: hasPlayer && player.isPlaying
     // The ryoku radio wears a different coat: ON AIR eyebrow, station name, a
-    // LIVE pulse where a track would show elapsed/total, and no seekbar — a
+    // LIVE pulse where a track would show elapsed/total, and no seekbar - a
     // broadcast has no position to scrub.
     readonly property bool radio: hasPlayer && RadioLib.isRadioPlayer(player.dbusName, player.trackTitle)
     // The player's own title, but a raw URL-ish stream title (a browser tab, or an
@@ -33,7 +34,7 @@ Item {
     readonly property bool rawIsUrl: rawTitle.indexOf("watch?v=") !== -1
         || /^(https?:\/\/|www\.)/i.test(rawTitle)
     readonly property string title: radio ? rawTitle.slice(RadioLib.TITLE_PREFIX.length)
-        : (rawTitle.length > 0 && !rawIsUrl ? rawTitle : "Nothing playing")
+        : (rawTitle.length > 0 && !rawIsUrl ? rawTitle : I18n.tr("Nothing playing"))
     readonly property string artist: radio
         ? (Radio.fellBack ? "internet radio · fallback station" : "internet radio · 24/7 live")
         : (hasPlayer ? Theme.joinArtists(player.trackArtists, player.trackArtist) : "")
@@ -129,7 +130,7 @@ Item {
                 font.family: Theme.font
                 font.pixelSize: 28 * root.s
             }
-            // The radio's station plate: a broadcast mark instead of a cover \u2014
+            // The radio's station plate: a broadcast mark instead of a cover -
             // no album exists, and an iTunes guess would be someone else's.
             Column {
                 anchors.centerIn: parent
@@ -144,7 +145,7 @@ Item {
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "ON AIR"
+                    text: I18n.tr("ON AIR")
                     color: Theme.vermLit
                     font.family: Theme.mono
                     font.pixelSize: 9 * root.s
@@ -191,7 +192,7 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.radio ? "ON AIR · LIVE RADIO" : " NOW PLAYING"
+                    text: root.radio ? I18n.tr("ON AIR · LIVE RADIO") : I18n.tr(" NOW PLAYING")
                     color: Theme.vermLit
                     font.family: Theme.font
                     font.pixelSize: Metrics.fontEyebrow * root.s
@@ -250,7 +251,7 @@ Item {
             anchors.verticalCenter: transport.verticalCenter
             // a broadcast has no elapsed: the corner carries the LIVE tally
             // instead, pulsing while on air, steady when paused.
-            text: root.radio ? "● LIVE" : root.fmt(root.scrubbing ? root.scrubFrac * root.lengthSec : root.positionSec)
+            text: root.radio ? I18n.tr("● LIVE") : root.fmt(root.scrubbing ? root.scrubFrac * root.lengthSec : root.positionSec)
             color: root.radio ? Theme.vermLit : Theme.faint
             font.family: Theme.mono
             font.pixelSize: Metrics.fontEyebrow * root.s

@@ -3,8 +3,8 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "Singletons"
 
-// The right column and the star of the app: the live rice preview — your chosen
-// wallpaper wearing the terminal and the cava spectrum in its own colours — kept
+// The right column and the star of the app: the live rice preview - your chosen
+// wallpaper wearing the terminal and the cava spectrum in its own colours - kept
 // as tall as the column allows, over a slim footer of the candidate palette and
 // the pick's identity. The pending-vs-applied verdict lives in the commit bar
 // below, so the preview owns this space instead of repeating it.
@@ -52,7 +52,7 @@ Item {
         anchors.bottom: foot.top
         anchors.bottomMargin: Tokens.s3
         visible: Wallhaven.selected !== null || stack.busyNow
-        label: stack.busyNow ? stack.opWord() : "LIVE PREVIEW"
+        label: stack.busyNow ? stack.opWord() : I18n.tr("LIVE PREVIEW")
         tag: stack.resTag
 
         MockDesktop {
@@ -71,7 +71,7 @@ Item {
         title: "壁紙"
         sub: "プレビュー"
         tate: "壁を選べ"
-        caption: "Pick a wallpaper — the live rice preview lands right here."
+        caption: I18n.tr("Pick a wallpaper - the live rice preview lands right here.")
         seal: "壁"
         images: ["earth.gif", "disc.gif", "wave.gif", "cradle.gif", "spring.gif", "sphere.gif", "torus.gif", "moon.png"]
         seed: 0
@@ -126,7 +126,7 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: stack.lowRes
-                text: "· LOW-RES"
+                text: I18n.tr("· LOW-RES")
                 color: Tokens.inkFaint
                 font.family: Tokens.mono
                 font.pixelSize: 11

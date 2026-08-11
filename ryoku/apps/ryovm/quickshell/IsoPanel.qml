@@ -50,7 +50,7 @@ Item {
                 width: hero.width - 2 * Tokens.s6
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
-                text: pane.vmName.trim().length > 0 ? pane.vmName : "New machine from ISO"
+                text: pane.vmName.trim().length > 0 ? pane.vmName : I18n.tr("New machine from ISO")
                 color: Tokens.ink
                 font.family: Tokens.display
                 font.pixelSize: 22
@@ -80,7 +80,7 @@ Item {
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Build a machine from an ISO on disk. quickemu picks tuned defaults; set cores, memory and the display after it's created."
+                text: I18n.tr("Build a machine from an ISO on disk. quickemu picks tuned defaults; set cores, memory and the display after it's created.")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui
                 font.pixelSize: 12
@@ -89,7 +89,7 @@ Item {
             Column {
                 width: parent.width
                 spacing: Tokens.s2
-                FieldLabel { text: "Name" }
+                FieldLabel { text: I18n.tr("Name") }
                 Field {
                     width: parent.width
                     text: pane.vmName
@@ -102,7 +102,7 @@ Item {
             Column {
                 width: parent.width
                 spacing: Tokens.s2
-                FieldLabel { text: "ISO file" }
+                FieldLabel { text: I18n.tr("ISO file") }
                 Row {
                     width: parent.width
                     spacing: Tokens.s3
@@ -117,7 +117,7 @@ Item {
                     Btn {
                         id: browse
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "BROWSE"
+                        text: I18n.tr("BROWSE")
                         onAct: pickProc.running = true
                     }
                 }
@@ -126,7 +126,7 @@ Item {
             Column {
                 width: parent.width
                 spacing: Tokens.s2
-                FieldLabel { text: "Guest type" }
+                FieldLabel { text: I18n.tr("Guest type") }
                 Seg {
                     options: ["LINUX", "WINDOWS", "MACOS"]
                     current: pane.guest.toUpperCase()
@@ -136,7 +136,7 @@ Item {
                     width: parent.width
                     visible: pane.guest === "windows"
                     wrapMode: Text.WordWrap
-                    text: "Windows enables a TPM and fetches the VirtIO driver CD, attached so setup sees the disk. Secure Boot stays off (Arch ships no MS-key firmware). Grab the ISO from microsoft.com/software-download."
+                    text: I18n.tr("Windows enables a TPM and fetches the VirtIO driver CD, attached so setup sees the disk. Secure Boot stays off (Arch ships no MS-key firmware). Grab the ISO from microsoft.com/software-download.")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: 11
@@ -154,7 +154,7 @@ Item {
         spacing: Tokens.s3
         Btn {
             primary: true
-            text: "CREATE"
+            text: I18n.tr("CREATE")
             armed: pane.valid && !Vm.busy
             onAct: {
                 Vm.importVm(pane.vmName.trim(), pane.isoPath.trim(), pane.guest, pane.guest);

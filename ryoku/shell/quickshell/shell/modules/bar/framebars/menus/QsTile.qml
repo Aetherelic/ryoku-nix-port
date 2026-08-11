@@ -4,6 +4,7 @@ import QtQuick
 import "../.." as Pill
 import shell.services
 import "../../../../components"
+import Ryoku.Ui.Singletons
 
 // One quick-settings toggle tile: icon in a state circle, label + live
 // sub-state, whole face toggles, the chevron (when a detail page exists)
@@ -91,7 +92,7 @@ Item {
             Text {
                 width: parent.width
                 elide: Text.ElideRight
-                text: root.label
+                text: I18n.tr(root.label)
                 color: Theme.inkOn(root.effBg, Theme.onSurface)
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm

@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import shell.services
 import "../modules"
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: volPanel
@@ -115,7 +116,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Volume"
+                    text: I18n.tr("Volume")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -143,7 +144,7 @@ PanelWindow {
 
             // ── volume bar ──
             UiText {
-                text: "OUTPUT"
+                text: I18n.tr("OUTPUT")
                 color: root.sumiHi
                 font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -154,7 +155,7 @@ PanelWindow {
                 UiText {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
-                    text: volPanel.muted ? "Muted" : volPanel.volume + "%"
+                    text: volPanel.muted ? I18n.tr("Muted") : volPanel.volume + "%"
                     color: volPanel.muted
                         ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.4)
                         : root.seal
@@ -175,7 +176,7 @@ PanelWindow {
 
             // ── output device switcher ──
             UiText {
-                text: "OUTPUT DEVICE"
+                text: I18n.tr("OUTPUT DEVICE")
                 color: root.sumiHi
                 font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -242,7 +243,7 @@ PanelWindow {
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
-                    text: volPanel.muted ? "Unmute volume" : "Mute volume"
+                    text: volPanel.muted ? I18n.tr("Unmute volume") : I18n.tr("Mute volume")
                     color: (muteMa.containsMouse || volPanel.muted) ? root.seal : root.sumi
                     font.family: root.mono; font.pixelSize: 11
                 }
@@ -261,7 +262,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: root.sep; visible: Audio.streams.length > 0 }
             UiText {
                 visible: Audio.streams.length > 0
-                text: "APPS"
+                text: I18n.tr("APPS")
                 color: root.sumiHi
                 font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -348,7 +349,7 @@ PanelWindow {
 
             // ── mic section ──
             UiText {
-                text: "INPUT"
+                text: I18n.tr("INPUT")
                 color: root.sumiHi
                 font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -403,13 +404,13 @@ PanelWindow {
             Row {
                 width: parent.width
                 UiText {
-                    text: "Microphone"
+                    text: I18n.tr("Microphone")
                     color: root.sumiHi
                     font.family: root.mono; font.pixelSize: 11
                     width: parent.width * 0.5
                 }
                 UiText {
-                    text: volPanel.micMuted ? "Muted" : "Active"
+                    text: volPanel.micMuted ? I18n.tr("Muted") : I18n.tr("Active")
                     color: volPanel.micMuted
                         ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.5)
                         : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.7)
@@ -458,7 +459,7 @@ PanelWindow {
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
-                    text: volPanel.micMuted ? "Unmute mic" : "Mute mic"
+                    text: volPanel.micMuted ? I18n.tr("Unmute mic") : I18n.tr("Mute mic")
                     color: (micMuteMa.containsMouse || volPanel.micMuted) ? root.seal : root.sumi
                     font.family: root.mono; font.pixelSize: 11
                 }
@@ -483,7 +484,7 @@ PanelWindow {
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
-                    text: "Open audio"
+                    text: I18n.tr("Open audio")
                     color: root.paper
                     font.family: root.mono; font.pixelSize: 11
                 }

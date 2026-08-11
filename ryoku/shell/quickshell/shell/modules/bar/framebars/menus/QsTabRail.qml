@@ -21,7 +21,7 @@ Item {
 
     implicitWidth: 44
 
-    // Right-edge hairline only — no fill rect, no seam
+    // Right-edge hairline only - no fill rect, no seam
     Rectangle {
         anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.right: parent.right
         width: 1
@@ -114,7 +114,7 @@ Item {
 
             Behavior on color { ColorAnimation { duration: Motion.fast } }
 
-            // Sumi edge — lit top line on the active disc surface
+            // Sumi edge - lit top line on the active disc surface
             Rectangle {
                 anchors.top: parent.top
                 anchors.left: parent.left; anchors.right: parent.right
@@ -164,7 +164,7 @@ Item {
         QsTip { text: rt.tipText; side: true; hovered: rtTap.containsMouse && !rtTap.pressed }
     }
 
-    // Utility icon button (Hub, colour picker) — same side tip.
+    // Utility icon button (Hub, colour picker) - same side tip.
     component RailIconBtn: Item {
         id: rib
         property string icon: ""

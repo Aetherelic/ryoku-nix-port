@@ -129,7 +129,7 @@ Item {
     readonly property color fillActive:      Qt.rgba(seal.r, seal.g, seal.b, fillActiveAlpha) // selected/active OR ghost-action hover
     readonly property color fillHover:        Qt.rgba(seal.r, seal.g, seal.b, fillHoverAlpha)  // light-seal hover (idle chip → this → fillActive)
     readonly property color fillIdle:         Qt.rgba(0, 0, 0, 0.12)              // resting chip (slight darken)
-    // faint, NEUTRAL backdrop behind picker thumbnails — NOT an interactive fill.
+    // faint, NEUTRAL backdrop behind picker thumbnails - NOT an interactive fill.
     // ink-tinted and much weaker than fillIdle so a thumbnail sits on a quiet frame,
     // not on a dark interactive-looking box.
     readonly property color frameWeak:        Qt.rgba(ink.r, ink.g, ink.b, 0.05)
@@ -551,7 +551,7 @@ Item {
 
     // safety net: if the owning widget disappears while its tooltip is shown
     // (e.g. ScreenRecord stops mid-hover, or a slot widget gets disabled), force-hide.
-    // Via Connections — NOT a `_visible` property whose change-handler writes
+    // Via Connections - NOT a `_visible` property whose change-handler writes
     // tooltipOwner (that property read tooltipOwner → binding loop).
     Connections {
         target: theme.tooltipOwner
@@ -634,10 +634,10 @@ Item {
         popupOpened("aiUsageVisible")
         if (aiUsageVisible) refreshAiUsage()
     }
-    property string aiTool: "claude"   // "claude", "codex", or "opencode" — icon shown in the bar
+    property string aiTool: "claude"   // "claude", "codex", or "opencode" - icon shown in the bar
 
     // ── AI usage data (single source of truth) ───────────────────
-    // The bar pill (ClaudeWidget) and the AiUsagePanel both render from these —
+    // The bar pill (ClaudeWidget) and the AiUsagePanel both render from these -
     // the cache parsing lives ONLY here so the two views can never drift apart.
     // Token strings are bare "X.XXM / Y.YM"; the pill tooltip appends " tokens".
     property bool   aiClHas: false
@@ -683,7 +683,7 @@ Item {
     property var    aiOcModels: []
     property int    aiClockTick: 0
 
-    // F15: clamp an external 0..1 utilization to a 0–100 int (a negative/over-range value would
+    // F15: clamp an external 0..1 utilization to a 0-100 int (a negative/over-range value would
     // otherwise produce wrong text and negative/overwide usage bars)
     function aiPct(v) { return Math.max(0, Math.min(100, Math.round((parseFloat(v) || 0) * 100))) }
 
@@ -1962,7 +1962,7 @@ Item {
         triggeredOnStart: true
         onTriggered: theme.refreshVoxtypeStatus()
     }
-    // battery presence (laptop) — drives the Battery indicator tile's visibility (shown only
+    // battery presence (laptop) - drives the Battery indicator tile's visibility (shown only
     // where a battery exists, like Brightness uses hasBacklight). Direct UPower check, event-driven.
     readonly property bool hasBattery: UPower.displayDevice !== null && UPower.displayDevice.isLaptopBattery
     // NetworkManager active (Ryoku 4.0) → the panel's iwctl scan/connect won't work,
@@ -1989,7 +1989,7 @@ Item {
     property string mprisBarStyle: "default" // "default" or "full"
     property bool modClaude:     false   // default off (toggle in ControlPanel)
 
-    // backlight presence — set by BrightnessWidget once it probes /sys/class/backlight.
+    // backlight presence - set by BrightnessWidget once it probes /sys/class/backlight.
     // ControlPanel uses this to hide the Brightness toggle on desktops without one.
     property bool hasBacklight:  false
 
@@ -2392,7 +2392,7 @@ Item {
                     theme.modPower     = parts[3] !== "0"
                 }
                 // parts[4] is the bluetooth flag in the new format, but in the OLD
-                // format it was the workspace mode ("10"/"5"/"active") — detect which.
+                // format it was the workspace mode ("10"/"5"/"active") - detect which.
                 var wsField = -1
                 if (parts.length >= 5) {
                     if (parts[4] === "5" || parts[4] === "active" || parts[4] === "10") {
@@ -2415,7 +2415,7 @@ Item {
                     if (parts.length > wsField + 2) theme.weatherImperial = parts[wsField + 2] === "1"
                     if (parts.length > wsField + 3) theme.clock12h        = parts[wsField + 3] === "1"
                     if (parts.length > wsField + 4) theme.modNetwork      = parts[wsField + 4] === "1"
-                    // style tokens — appended after modNetwork, each guarded
+                    // style tokens - appended after modNetwork, each guarded
                     // +5 is the retired V2 shadow field and is intentionally ignored.
                     // +6..+7 are retired V2 Style fields, retained only so older
                     // cache layouts keep stable offsets.
@@ -2683,11 +2683,11 @@ Item {
 
     // ── Hyprland workspace dispatch (config-mode-aware) ──
     // Hyprland 0.55 added Lua configs but still supports classic hyprlang, and
-    // BOTH ship the same version number — so the dispatch form depends on which
+    // BOTH ship the same version number - so the dispatch form depends on which
     // config is ACTIVE, not the version: classic wants "workspace N", Lua wants
     // hl.dsp.focus({ workspace = N }). Probe the mode once with a harmless token:
     // "hl.dsp" alone yields the Lua error "hl.dispatch: expected a dispatcher"
-    // under Lua, or "Invalid dispatcher" under classic — neither switches.
+    // under Lua, or "Invalid dispatcher" under classic - neither switches.
     property bool hyprUsesLua: false
     Process {
         id: hyprDispatchProbe
@@ -2736,8 +2736,8 @@ Item {
 
     // Ryoku has no per-package security gate: applying is owned by `ryoku update`
     // (the panel's Ryoku-updater backend), and upstream's qs-arch-security-gate.sh
-    // is not shipped. Keep the advisory gate benignly "clean" — mirror each pending
-    // update as an OK verdict — so the panel never shows a false scanning/degraded
+    // is not shipped. Keep the advisory gate benignly "clean" - mirror each pending
+    // update as an OK verdict - so the panel never shows a false scanning/degraded
     // state from a scan that no longer runs.
     onArchUpdatesChanged: theme.applyBenignArchGate()
     function applyBenignArchGate() {
@@ -3223,7 +3223,7 @@ Item {
     function ipcApplyTheme(payload) {
         let p;
         try { p = JSON.parse(payload); }
-        catch (e) { console.warn("theme.apply: bad payload —", e); return; }
+        catch (e) { console.warn("theme.apply: bad payload -", e); return; }
         if (!p || !p.colors) return;
         Palette.apply(theme, Palette.mapKeys(p.colors));
         theme.lastAppliedName = p.name || "";
@@ -3232,7 +3232,7 @@ Item {
     function ipcApplyLauncher(payload) {
         let p;
         try { p = JSON.parse(payload); }
-        catch (e) { console.warn("theme.applyLauncher: bad payload —", e); return; }
+        catch (e) { console.warn("theme.applyLauncher: bad payload -", e); return; }
         theme.applyLauncherConfig(p);
     }
 

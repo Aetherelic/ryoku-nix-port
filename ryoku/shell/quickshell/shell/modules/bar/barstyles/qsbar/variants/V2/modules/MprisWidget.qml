@@ -8,7 +8,7 @@ Item {
     id: rootMod
     required property var root
 
-    // shared player selection (ghost-filtering) — see MprisSelect.qml
+    // shared player selection (ghost-filtering) - see MprisSelect.qml
     MprisSelect { id: sel }
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
@@ -65,12 +65,12 @@ Item {
         }
     }
 
-    // ── equalizer bar heights (0.0 – 1.0) ──
+    // ── equalizer bar heights (0.0 - 1.0) ──
     property real barH1: 0.08
     property real barH2: 0.08
     property real barH3: 0.08
 
-    // bounce sequences — regular animations with explicit target, no PVS conflict
+    // bounce sequences - regular animations with explicit target, no PVS conflict
     SequentialAnimation {
         id: anim1
         running: rootMod.visible && rootMod.playing && !rootMod.fullMode; loops: Animation.Infinite   // don't animate the EQ while the widget is hidden (toggle off)
@@ -193,7 +193,7 @@ Item {
             }
         }
 
-        // hidden alpha-mask source for the marquee fade — defined BEFORE the masked
+        // hidden alpha-mask source for the marquee fade - defined BEFORE the masked
         // item so the layer.effect can resolve the id; visible:false → no Row layout.
         Item {
             id: marqueeFadeMask
@@ -509,7 +509,7 @@ Item {
     }
 
     readonly property string tooltipText: player
-        ? (player.trackArtist ? player.trackArtist + " — " + player.trackTitle : player.trackTitle)
+        ? (player.trackArtist ? player.trackArtist + " - " + player.trackTitle : player.trackTitle)
         : ""
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }

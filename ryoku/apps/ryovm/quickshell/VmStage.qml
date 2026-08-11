@@ -114,7 +114,7 @@ Item {
 
             FlapWord {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: stage.running ? (stage.disposable ? "BURNING" : "RUNNING") : "STOPPED"
+                text: stage.running ? (stage.disposable ? I18n.tr("BURNING") : I18n.tr("RUNNING")) : I18n.tr("STOPPED")
                 pad: 7
                 cellW: 13; cellH: 20; fontPx: 11
                 ink: stage.running ? Tokens.ink : Tokens.inkDim
@@ -125,7 +125,7 @@ Item {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 10
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "RYOPORT · PASS"
+            text: I18n.tr("RYOPORT · PASS")
             color: Tokens.inkFaint
             font.family: Tokens.mono
             font.pixelSize: 9
@@ -182,7 +182,7 @@ Item {
             Text {
                 width: parent.width
                 elide: Text.ElideRight
-                text: (stage.guest || "linux").toUpperCase() + " GUEST · QEMU/KVM CARRIER"
+                text: (stage.guest || "linux").toUpperCase() + I18n.tr(" GUEST · QEMU/KVM CARRIER")
                 color: Tokens.inkFaint
                 font.family: Tokens.mono
                 font.pixelSize: 9
@@ -224,15 +224,15 @@ Item {
             columns: Math.max(3, Math.floor((parent.width + 5) / 59))
             columnSpacing: 5
             rowSpacing: 5
-            Annunciator { label: "KVM"; lit: Vm.caps.kvm === true }
-            Annunciator { label: "UEFI"; lit: stage.uefiOn }
-            Annunciator { label: "TPM"; lit: stage.tpmOn }
-            Annunciator { label: "DISK"; lit: stage.installed }
-            Annunciator { label: "NET"; lit: stage.running }
-            Annunciator { label: "SSH"; lit: stage.running && stage.sshReady }
-            Annunciator { label: "SPICE"; lit: stage.running && stage.spice.length > 0 }
-            Annunciator { label: "SEALED"; lit: stage.sealed }
-            Annunciator { label: "BURN"; lit: stage.running && stage.disposable; warn: true }
+            Annunciator { label: I18n.tr("KVM"); lit: Vm.caps.kvm === true }
+            Annunciator { label: I18n.tr("UEFI"); lit: stage.uefiOn }
+            Annunciator { label: I18n.tr("TPM"); lit: stage.tpmOn }
+            Annunciator { label: I18n.tr("DISK"); lit: stage.installed }
+            Annunciator { label: I18n.tr("NET"); lit: stage.running }
+            Annunciator { label: I18n.tr("SSH"); lit: stage.running && stage.sshReady }
+            Annunciator { label: I18n.tr("SPICE"); lit: stage.running && stage.spice.length > 0 }
+            Annunciator { label: I18n.tr("SEALED"); lit: stage.sealed }
+            Annunciator { label: I18n.tr("BURN"); lit: stage.running && stage.disposable; warn: true }
         }
     }
 }

@@ -1,5 +1,6 @@
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // Instant-answer body panel, rendered under the divider when the "?" prefix
 // has produced a DuckDuckGo instant answer for the current query. A small
@@ -19,7 +20,7 @@ Item {
     // "ANSWER" eyebrow fits calc/random-number answers that carry no source.
     readonly property string eyebrow: (answer && answer.source && String(answer.source).length > 0)
         ? "via " + answer.source
-        : "ANSWER"
+        : I18n.tr("ANSWER")
     readonly property string heading: (answer && answer.heading) ? String(answer.heading) : ""
     readonly property string bodyText: (answer && answer.text) ? String(answer.text) : ""
 

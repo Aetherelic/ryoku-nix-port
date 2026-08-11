@@ -230,10 +230,10 @@ Rectangle {
             Text {
                 anchors.right: parent.right
                 text: parent.parent.visualPrimary
-                    ? (root.windowCount > 0 ? "OPEN NEW"
+                    ? (root.windowCount > 0 ? I18n.tr("OPEN NEW")
                         : String(parent.parent.visualPrimary.name || "OPEN")
                             .toUpperCase())
-                    : "INFO"
+                    : I18n.tr("INFO")
                 color: Theme.onLead
                 font.family: Theme.mono
                 font.pixelSize: 9 * parent.parent.scaleFactor
@@ -243,12 +243,12 @@ Rectangle {
 
             Text {
                 anchors.right: parent.right
-                text: !parent.parent.visualExecutable ? "NO ACTION"
+                text: !parent.parent.visualExecutable ? I18n.tr("NO ACTION")
                     : (root.windowCount > 0
                         ? (root.windowFocusActive
-                            ? "WINDOW FOCUS  ·  ENTER"
-                            : "ENTER NEW  ·  TAB WINDOWS")
-                        : "\u23ce  ENTER")
+                            ? I18n.tr("WINDOW FOCUS  ·  ENTER")
+                            : I18n.tr("ENTER NEW  ·  TAB WINDOWS"))
+                        : I18n.tr("\u23ce  ENTER"))
                 color: Theme.onLeadDim
                 font.family: Theme.mono
                 font.pixelSize: 8 * parent.parent.scaleFactor
@@ -259,7 +259,7 @@ Rectangle {
                 anchors.right: parent.right
                 visible: parent.parent.visualSecondaries.length > 0
                 text: "+" + parent.parent.visualSecondaries.length
-                    + " MORE  \u00b7  CTRL+K"
+                    + I18n.tr(" MORE  \u00b7  CTRL+K")
                 color: Theme.onLead
                 font.family: Theme.mono
                 font.pixelSize: 8 * parent.parent.scaleFactor

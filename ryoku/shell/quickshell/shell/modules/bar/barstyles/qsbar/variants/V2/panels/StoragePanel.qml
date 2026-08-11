@@ -2,6 +2,7 @@ import QtQuick
 import "../modules"
 import Quickshell
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: storagePanel
@@ -152,7 +153,7 @@ PanelWindow {
                 id: usageLabel
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: "USAGE"
+                text: I18n.tr("USAGE")
                 color: storagePanel.root.sumiHi
                 font.family: storagePanel.root.mono
                 font.pixelSize: 10
@@ -209,7 +210,7 @@ PanelWindow {
                     height: 28
                     UiText {
                         anchors.top: parent.top
-                        text: modelData.label
+                        text: I18n.tr(modelData.label)
                         color: storagePanel.root.sumi
                         font.family: storagePanel.root.mono
                         font.pixelSize: 9
@@ -285,7 +286,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "STORAGE"
+                    text: I18n.tr("STORAGE")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -296,7 +297,7 @@ PanelWindow {
                     anchors.right: closeText.left
                     anchors.rightMargin: 16
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "DRIVES: " + root.storageDrives.length
+                    text: I18n.tr("DRIVES: ") + root.storageDrives.length
                     color: root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 9
@@ -329,7 +330,7 @@ PanelWindow {
                     id: fsLbl
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "ROOT"
+                    text: I18n.tr("ROOT")
                     color: root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 11
@@ -380,7 +381,7 @@ PanelWindow {
                         height: 30
                         UiText {
                             anchors.top: parent.top
-                            text: modelData.label
+                            text: I18n.tr(modelData.label)
                             color: root.sumi
                             font.family: root.mono
                             font.pixelSize: 9
@@ -418,7 +419,7 @@ PanelWindow {
             UiText {
                 width: parent.width
                 visible: root.storageDrives.length === 0
-                text: root.storageInventoryAvailable ? "No physical drives found" : "Reading drive information…"
+                text: root.storageInventoryAvailable ? I18n.tr("No physical drives found") : I18n.tr("Reading drive information…")
                 color: root.sumiHi
                 font.family: root.mono
                 font.pixelSize: 10

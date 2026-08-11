@@ -223,7 +223,7 @@ FocusScope {
                     spacing: 0
                     Text {
                         width: parent.width
-                        text: compRow.cname + (compRow.isinstalled ? "  \u00b7 INSTALLED" : "")
+                        text: compRow.cname + (compRow.isinstalled ? I18n.tr("  \u00b7 INSTALLED") : "")
                         color: Tokens.ink
                         font.family: Tokens.mono
                         font.pixelSize: Tokens.fMicro
@@ -345,7 +345,7 @@ FocusScope {
                 objectName: "ryostore-detail-selected"
                 width: parent.width
                 visible: detail.isBundle && detail.components.length > 0
-                text: detail.selectedNames.length + " / " + detail.components.length + " SELECTED"
+                text: detail.selectedNames.length + " / " + detail.components.length + I18n.tr(" SELECTED")
                 color: Tokens.inkDim
                 font.family: Tokens.mono
                 font.pixelSize: Tokens.fMicro
@@ -379,7 +379,7 @@ FocusScope {
                 Btn {
                     objectName: "ryostore-detail-dither"
                     visible: detail.hasDither
-                    text: detail.ditherOn ? "DITHER / ON" : "DITHER / OFF"
+                    text: detail.ditherOn ? I18n.tr("DITHER / ON") : I18n.tr("DITHER / OFF")
                     armed: detail.busyKey === ""
                     Accessible.role: Accessible.Button
                     Accessible.name: text
@@ -392,7 +392,7 @@ FocusScope {
                     visible: detail.isBundle
                     text: detail.busyKey === detail.actionKey && detail.installStage !== ""
                             ? detail.installStage
-                            : "INSTALL SELECTED"
+                            : I18n.tr("INSTALL SELECTED")
                     primary: true
                     armed: detail.item !== null && detail.busyKey === "" && detail.selectedNames.length > 0
                     Accessible.role: Accessible.Button
@@ -404,7 +404,7 @@ FocusScope {
                 Btn {
                     objectName: "ryostore-detail-install-all"
                     visible: detail.isBundle
-                    text: "INSTALL ALL"
+                    text: I18n.tr("INSTALL ALL")
                     armed: detail.item !== null && detail.busyKey === ""
                     Accessible.role: Accessible.Button
                     Accessible.name: text
@@ -429,7 +429,7 @@ FocusScope {
 
                 Btn {
                     objectName: "ryostore-detail-retry"
-                    text: "RETRY"
+                    text: I18n.tr("RETRY")
                     visible: detail.errorText !== ""
                     armed: visible && detail.busyKey === ""
                     Accessible.role: Accessible.Button
@@ -440,7 +440,7 @@ FocusScope {
 
                 Btn {
                     objectName: "ryostore-detail-settings"
-                    text: "OPEN IN SETTINGS"
+                    text: I18n.tr("OPEN IN SETTINGS")
                     visible: StoreLogic.secondaryAction(detail.actionItem) !== ""
                     armed: visible
                     Accessible.role: Accessible.Button
@@ -453,7 +453,7 @@ FocusScope {
                     id: closeButton
                     objectName: "ryostore-detail-close"
                     focus: detail.open
-                    text: "BACK"
+                    text: I18n.tr("BACK")
                     Accessible.role: Accessible.Button
                     Accessible.name: text
                     onAct: detail.triggerClose()
@@ -495,7 +495,7 @@ FocusScope {
 
                     Text {
                         visible: detail.coreComponents.length > 0
-                        text: "CORE"
+                        text: I18n.tr("CORE")
                         color: Tokens.inkDim
                         font.family: Tokens.mono
                         font.pixelSize: Tokens.fMicro
@@ -505,7 +505,7 @@ FocusScope {
 
                     Text {
                         visible: detail.optionalComponents.length > 0
-                        text: "OPTIONAL"
+                        text: I18n.tr("OPTIONAL")
                         color: Tokens.inkDim
                         font.family: Tokens.mono
                         font.pixelSize: Tokens.fMicro
@@ -619,7 +619,7 @@ FocusScope {
 
         Btn {
             anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: Tokens.s4 }
-            text: "PREV"
+            text: I18n.tr("PREV")
             visible: detail.screenshotCount > 1
             armed: visible
             onAct: detail.stepLightbox(-1)
@@ -630,7 +630,7 @@ FocusScope {
 
         Btn {
             anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Tokens.s4 }
-            text: "NEXT"
+            text: I18n.tr("NEXT")
             visible: detail.screenshotCount > 1
             armed: visible
             onAct: detail.stepLightbox(1)

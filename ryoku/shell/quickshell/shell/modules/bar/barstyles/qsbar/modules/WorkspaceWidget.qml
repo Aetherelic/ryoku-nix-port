@@ -9,7 +9,7 @@ Item {
     implicitHeight: 28
 
     // The focused workspace's id ONLY when it's a real (positive) workspace beyond
-    // the persist range — else 0. An int signals on value change only, so switching
+    // the persist range - else 0. An int signals on value change only, so switching
     // between in-range workspaces does NOT renotify → workspaceList stays identical
     // → the Repeater model is stable → the per-delegate width/colour Behaviors keep
     // animating instead of the whole model rebuilding (B2). `id > n` (n≥5) also
@@ -93,7 +93,7 @@ Item {
                 }
 
                 // ── DEFAULT style: glow + dot ──
-                // glow — alle states, nur opacity variiert
+                // glow - alle states, nur opacity variiert
                 Rectangle {
                     visible: root.workspaceStyle === "default"
                     anchors.centerIn: parent

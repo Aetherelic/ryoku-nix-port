@@ -51,7 +51,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             horizontalAlignment: Text.AlignHCenter
-            text: Vm.dlCount > 0 ? "Pick another OS to build alongside" : "Pick an OS to build a new machine"
+            text: Vm.dlCount > 0 ? I18n.tr("Pick another OS to build alongside") : I18n.tr("Pick an OS to build a new machine")
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: 12
@@ -132,7 +132,7 @@ Item {
                     width: parent.width
                     spacing: Tokens.s2
                     Text {
-                        text: "RELEASE"
+                        text: I18n.tr("RELEASE")
                         color: Tokens.inkMuted
                         font.family: Tokens.ui; font.pixelSize: 10; font.weight: Font.Medium
                         font.letterSpacing: Tokens.trackLabel; font.capitalization: Font.AllUppercase
@@ -150,7 +150,7 @@ Item {
                     spacing: Tokens.s2
                     visible: pane.editions.length > 0
                     Text {
-                        text: "EDITION"
+                        text: I18n.tr("EDITION")
                         color: Tokens.inkMuted
                         font.family: Tokens.ui; font.pixelSize: 10; font.weight: Font.Medium
                         font.letterSpacing: Tokens.trackLabel; font.capitalization: Font.AllUppercase
@@ -166,7 +166,7 @@ Item {
                 Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: "quickemu downloads the official image and tunes the machine to your hardware. You can change cores, memory and the display mode after it lands in your Library."
+                    text: I18n.tr("quickemu downloads the official image and tunes the machine to your hardware. You can change cores, memory and the display mode after it lands in your Library.")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: 12
@@ -183,7 +183,7 @@ Item {
             spacing: Tokens.s3
             Btn {
                 primary: true
-                text: "CREATE MACHINE"
+                text: I18n.tr("CREATE MACHINE")
                 armed: pane.release.length > 0
                 onAct: { Vm.createVm(pane.os.os, pane.release, pane.edition); Vm.selectedOs = null; }
             }

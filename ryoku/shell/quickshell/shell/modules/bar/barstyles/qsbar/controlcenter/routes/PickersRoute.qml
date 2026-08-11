@@ -1,8 +1,9 @@
 import QtQuick
 import "../kit"
 import "../../modules"
+import Ryoku.Ui.Singletons
 
-// PICKERS route — port of Shibumi's PickerSettingsPage + PickerPreviewCard.
+// PICKERS route - port of Shibumi's PickerSettingsPage + PickerPreviewCard.
 // Choose the media/image browser layout used by the next wallpaper/screenshot
 // picker. The style is written straight to root.pickerStyle. Three selectable
 // cards, each with a small schematic of its layout drawn from root tokens:
@@ -35,11 +36,11 @@ Item {
             CcSection {
                 width: parent.width
                 root: page.root
-                title: "PICKER STYLE"
+                title: I18n.tr("PICKER STYLE")
 
                 UiText {
                     width: parent.width
-                    text: "The layout the wallpaper and screenshot pickers use."
+                    text: I18n.tr("The layout the wallpaper and screenshot pickers use.")
                     color: page.root ? page.root.sumi : "#888888"
                     font.family: page.root ? page.root.mono : "monospace"
                     font.pixelSize: 10

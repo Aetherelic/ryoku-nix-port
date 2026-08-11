@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // One colour-scheme tile: a rounded preview filled with the theme's own surface
 // colour, its name, and a two-by-three grid of role swatches, matching the
@@ -45,7 +46,7 @@ Item {
             anchors.topMargin: Math.round(14 * cell.s)
             anchors.leftMargin: Math.round(10 * cell.s)
             anchors.rightMargin: Math.round(10 * cell.s)
-            text: cell.item ? cell.item.label : ""
+            text: cell.item ? I18n.tr(cell.item.label) : ""
             color: cell.onSurface
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap

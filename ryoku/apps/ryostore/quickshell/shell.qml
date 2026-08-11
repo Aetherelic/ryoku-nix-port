@@ -6,7 +6,7 @@ import Ryoku.Ui.Singletons
 ShellRoot {
     FloatingWindow {
         id: win
-        title: "Ryostore"
+        title: I18n.tr("Ryostore")
         readonly property int fitW: win.screen ? Math.min(1180, win.screen.width - Tokens.s5) : 1180
         readonly property int fitH: win.screen ? Math.min(760, win.screen.height - Tokens.s7) : 760
         readonly property bool cramped: win.fitW < 1180 || win.fitH < 760

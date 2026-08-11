@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -17,7 +18,7 @@ Item {
     NumberAnimation on phase {
         from: 0; to: 2 * Math.PI
         duration: 2600; loops: Animation.Infinite
-        // gate: only animate while hovered or control panel open — otherwise the
+        // gate: only animate while hovered or control panel open - otherwise the
         // Canvas repainted 24/7 via onPhaseChanged even when nobody looks
         running: ma.containsMouse || root.controlVisible
     }
@@ -91,7 +92,7 @@ Item {
     Text {
         id: logo
         anchors.centerIn: parent
-        text: root.launcherLogoMode === "icon" ? "力" : "RYOKU"
+        text: root.launcherLogoMode === "icon" ? "力" : I18n.tr("RYOKU")
         color: root.seal
         renderType: Text.NativeRendering
         font.family: root.launcherLogoMode === "icon" ? "Noto Sans CJK JP" : root.mono

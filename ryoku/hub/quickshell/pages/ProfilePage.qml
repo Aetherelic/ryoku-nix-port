@@ -695,7 +695,7 @@ Item {
             InlineText {
                 width: parent.width
                 field: "text.tagline"
-                value: pg.f("text.tagline", "A live specimen — cracked, shot on black.")
+                value: pg.f("text.tagline", "A live specimen - cracked, shot on black.")
                 color: Tokens.inkDim
                 font.family: Tokens.display
                 font.italic: true

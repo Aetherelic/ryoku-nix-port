@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import shell.services
+import Ryoku.Ui.Singletons
 
 // One wallpaper tile for the wallpaper belt: a rounded thumbnail whose outline
 // lifts to the on-surface ink on hover and the primary accent on the pick,
@@ -94,7 +95,7 @@ Item {
         Text {
             id: liveLabel
             anchors.centerIn: parent
-            text: "LIVE"
+            text: I18n.tr("LIVE")
             color: Theme.onSurface
             font.family: Theme.fontPrimary
             font.pixelSize: 9

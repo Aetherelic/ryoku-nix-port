@@ -14,7 +14,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     // "quickshell" (not "ryoku-tooltip") so the theme's match:namespace quickshell
-    // blur rule frosts the tooltip too — same ride-the-theme mechanism as the bar.
+    // blur rule frosts the tooltip too - same ride-the-theme mechanism as the bar.
     WlrLayershell.namespace: "quickshell"
     mask: Region {}
 

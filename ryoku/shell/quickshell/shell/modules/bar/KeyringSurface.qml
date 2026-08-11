@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import shell.services
 import "../../components"
+import Ryoku.Ui.Singletons
 
 // keyring password island, grown from the pill centre. renders the GNOME
 // keyring prompt the ryoku-shell daemon receives as the system prompter:
@@ -288,7 +289,7 @@ PillSurface {
 
                 Text {
                     anchors.centerIn: parent
-                    text: Keyring.busy ? "Checking\u2026" : root.continueText
+                    text: Keyring.busy ? I18n.tr("Checking\u2026") : root.continueText
                     color: "#fdeee6"
                     font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s

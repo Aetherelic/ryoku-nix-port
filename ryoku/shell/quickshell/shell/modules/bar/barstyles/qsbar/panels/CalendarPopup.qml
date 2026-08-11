@@ -89,7 +89,7 @@ PanelWindow {
                     }
                 }
 
-                // month + year — click to jump back to today
+                // month + year - click to jump back to today
                 UiText {
                     anchors.centerIn: parent
                     text: root.calendarMonthName + "  " + root.calendarYear

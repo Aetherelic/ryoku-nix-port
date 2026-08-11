@@ -5,6 +5,7 @@ import "../.." as Pill
 import shell.services
 import "../../../../components"
 import "../../../../services/lib/weather.js" as Wx
+import Ryoku.Ui.Singletons
 
 // The weather surface: the single implementation the Weather quick-settings tab,
 // the clock menu and the weather frame widget all embed. The daemon (weather.go)
@@ -193,7 +194,7 @@ Item {
                                 Behavior on color { ColorAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
                                 Text {
                                     anchors.centerIn: parent
-                                    text: unitSeg.modelData.label
+                                    text: I18n.tr(unitSeg.modelData.label)
                                     color: unitSeg.active ? Theme.inkOn(Theme.primary, Theme.onPrimary) : root.inkVar
                                     font.family: Theme.fontPrimary
                                     font.pixelSize: (Theme.fontSm - 2) * root.s
@@ -344,7 +345,7 @@ Item {
                             color: root.glyphInk
                         }
                     }
-                    // Low temp: 44px right-aligned — wide enough for "64.86°F".
+                    // Low temp: 44px right-aligned - wide enough for "64.86°F".
                     Text {
                         id: dLow
                         anchors.left: dGlyphSlot.right
@@ -673,7 +674,7 @@ Item {
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: "\u00b5g/m\u00b3"
+                            text: I18n.tr("\u00b5g/m\u00b3")
                             color: root.inkVar
                             font.family: Theme.fontPrimary
                             font.pixelSize: (Theme.fontSm - 3) * root.s

@@ -4,6 +4,7 @@ import QtQuick
 import "../.." as Pill
 import shell.services
 import "../../../../components"
+import Ryoku.Ui.Singletons
 
 // The collapsed header content of a RevealerButton (contract 16 sec 2.4,
 // contract 06 sec 2.2): a leading icon, an elided label that takes the slack,
@@ -39,7 +40,7 @@ Item {
         anchors.right: secondary.visible ? secondary.left : parent.right
         anchors.rightMargin: secondary.visible ? 12 : 0
         anchors.verticalCenter: parent.verticalCenter
-        text: root.label
+        text: I18n.tr(root.label)
         elide: Text.ElideRight
         color: root.iconColor
         font.family: Theme.fontPrimary

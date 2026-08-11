@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -23,7 +24,7 @@ Item {
 
     TooltipMixin {
         id: tip; root: rootMod.root; owner: rootMod
-        text: "Wallpaper"
+        text: I18n.tr("Wallpaper")
     }
 
     MouseArea {

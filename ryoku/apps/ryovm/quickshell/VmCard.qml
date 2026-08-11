@@ -86,7 +86,7 @@ Item {
             anchors.right: parent.right
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            text: card.running ? "RUN" : "OFF"
+            text: card.running ? I18n.tr("RUN") : I18n.tr("OFF")
             pad: 3
             cellW: 13; cellH: 20; fontPx: 11
             ink: card.running ? Tokens.sun : Tokens.inkDim

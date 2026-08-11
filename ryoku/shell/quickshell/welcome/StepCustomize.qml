@@ -82,11 +82,11 @@ Flickable {
             width: parent.width
             spacing: 10
 
-            GroupMark { width: parent.width; text: "Interface scale" }
+            GroupMark { width: parent.width; text: I18n.tr("Interface scale") }
 
             SliderRow {
                 width: parent.width
-                label: "Scale"
+                label: I18n.tr("Scale")
                 unit: "%"
                 from: 80; to: 150; step: 5
                 value: step.uiScale
@@ -97,7 +97,7 @@ Flickable {
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "If everything looks oversized, ease this down \u2014 the whole shell resizes as you let go."
+                text: I18n.tr("If everything looks oversized, ease this down - the whole shell resizes as you let go.")
                 color: Tokens.inkFaint
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fSmall
@@ -110,7 +110,7 @@ Flickable {
             width: parent.width
             spacing: 12
 
-            GroupMark { width: parent.width; text: "Bar" }
+            GroupMark { width: parent.width; text: I18n.tr("Bar") }
 
             ChipRow {
                 width: parent.width
@@ -127,7 +127,7 @@ Flickable {
                 spacing: 16
                 WelcomeButton {
                     kind: "outline"
-                    label: "Open Bar Studio"
+                    label: I18n.tr("Open Bar Studio")
                     anchors.verticalCenter: parent.verticalCenter
                     onClicked: barStudioProc.running = true
                 }
@@ -135,7 +135,7 @@ Flickable {
                     width: parent.width - 190
                     anchors.verticalCenter: parent.verticalCenter
                     wrapMode: Text.WordWrap
-                    text: "QS Bar is the full top bar; Sumi is a minimal left rail. Arrange rails and widgets in Bar Studio."
+                    text: I18n.tr("QS Bar is the full top bar; Sumi is a minimal left rail. Arrange rails and widgets in Bar Studio.")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: Tokens.fSmall
@@ -149,7 +149,7 @@ Flickable {
             width: parent.width
             spacing: 8
 
-            GroupMark { width: parent.width; text: "Desktop widgets" }
+            GroupMark { width: parent.width; text: I18n.tr("Desktop widgets") }
 
             Repeater {
                 model: [
@@ -168,7 +168,7 @@ Flickable {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - toggle.width
-                        text: wr.modelData.label
+                        text: I18n.tr(wr.modelData.label)
                         color: Tokens.inkDim
                         font.family: Tokens.ui
                         font.pixelSize: Tokens.fBody
@@ -203,7 +203,7 @@ Flickable {
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Turn one on and it lands on the desktop straight away; drag to place it later."
+                text: I18n.tr("Turn one on and it lands on the desktop straight away; drag to place it later.")
                 color: Tokens.inkFaint
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fSmall
@@ -216,14 +216,14 @@ Flickable {
             width: parent.width
             spacing: 12
 
-            GroupMark { width: parent.width; text: "Wallpaper" }
+            GroupMark { width: parent.width; text: I18n.tr("Wallpaper") }
 
             Row {
                 width: parent.width
                 spacing: 16
                 WelcomeButton {
                     kind: "solid"
-                    label: "Shuffle"
+                    label: I18n.tr("Shuffle")
                     anchors.verticalCenter: parent.verticalCenter
                     onClicked: wallProc.running = true
                 }
@@ -231,7 +231,7 @@ Flickable {
                     width: parent.width - 130
                     anchors.verticalCenter: parent.verticalCenter
                     wrapMode: Text.WordWrap
-                    text: "Roll a new wallpaper \u2014 the whole desktop rethemes, and your palette follows it."
+                    text: I18n.tr("Roll a new wallpaper - the whole desktop rethemes, and your palette follows it.")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: Tokens.fSmall
@@ -249,7 +249,7 @@ Flickable {
                 id: hint
                 width: col.width - 24
                 wrapMode: Text.WordWrap
-                text: "Colours, window rounding and the deeper shell knobs wait for you in Ryoku Settings."
+                text: I18n.tr("Colours, window rounding and the deeper shell knobs wait for you in Ryoku Settings.")
                 color: Tokens.inkFaint
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fSmall

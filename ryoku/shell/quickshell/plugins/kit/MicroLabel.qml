@@ -1,5 +1,6 @@
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // section eyebrow, dossier idiom: vermilion reg dot then a mono uppercase
 // letterspaced label. scales with `s`.
@@ -21,7 +22,7 @@ Row {
 
     Text {
         anchors.verticalCenter: parent.verticalCenter
-        text: ml.label
+        text: I18n.tr(ml.label)
         color: Theme.faint
         font.family: Theme.mono
         font.pixelSize: 10 * ml.s

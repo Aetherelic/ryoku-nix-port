@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import shell.services
 import "../../../components"
+import Ryoku.Ui.Singletons
 
 // Screen-time overview: today's active total, a seven-day trend, and the apps
 // used most, all from the local ScreenTime tracker. Data only, no toggles or
@@ -47,7 +48,7 @@ Item {
                     Text {
                         id: eyebrow
                         anchors.left: parent.left
-                        text: "SCREEN TIME"
+                        text: I18n.tr("SCREEN TIME")
                         color: root.dim
                         font.family: Theme.fontPrimary
                         font.pixelSize: 6.5 * root.s
@@ -85,7 +86,7 @@ Item {
                 spacing: 10 * root.s
 
                 Text {
-                    text: "THIS WEEK"
+                    text: I18n.tr("THIS WEEK")
                     color: root.dim
                     font.family: Theme.fontPrimary
                     font.pixelSize: 6.5 * root.s
@@ -124,7 +125,7 @@ Item {
                                 id: dayLabel
                                 anchors.bottom: parent.bottom
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: cell.modelData.label
+                                text: I18n.tr(cell.modelData.label)
                                 color: cell.modelData.isToday ? root.ink : root.dim
                                 font.family: Theme.mono
                                 font.pixelSize: 6.5 * root.s
@@ -141,7 +142,7 @@ Item {
                 spacing: 7 * root.s
 
                 Text {
-                    text: "MOST USED"
+                    text: I18n.tr("MOST USED")
                     color: root.dim
                     font.family: Theme.fontPrimary
                     font.pixelSize: 6.5 * root.s

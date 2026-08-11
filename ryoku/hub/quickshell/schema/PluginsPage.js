@@ -7,7 +7,7 @@
 var rows = [
     {
         "tab": "Installed",
-        "group": "(none \u2014 this page uses NO SettingSection at all; every control is a bespoke inline Rectangle + TapHandler inside the per-plugin card)",
+        "group": "(none - this page uses NO SettingSection at all; every control is a bespoke inline Rectangle + TapHandler inside the per-plugin card)",
         "key": "<pluginId>.enabled",
         "label": "Enabled",
         "desc": "Loads the plugin into the running shell; applies live, no restart",
@@ -29,7 +29,7 @@ var rows = [
     },
     {
         "tab": "Installed",
-        "group": "(none \u2014 inside the embedded PluginPlacementEditor, visible only when card.on && card.host === \"framePopout\")",
+        "group": "(none - inside the embedded PluginPlacementEditor, visible only when card.on && card.host === \"framePopout\")",
         "key": "<pluginId>.framePopout.edge",
         "label": "Edge",
         "desc": "Screen edge the popout opens from (right until first placed)",
@@ -44,7 +44,7 @@ var rows = [
     },
     {
         "tab": "Installed",
-        "group": "(none \u2014 inside PluginPlacementEditor)",
+        "group": "(none - inside PluginPlacementEditor)",
         "key": "<pluginId>.framePopout.align",
         "label": "Position along edge",
         "desc": "Which end of the edge the popout docks at; the centre is always reserved",
@@ -57,7 +57,7 @@ var rows = [
     },
     {
         "tab": "Installed",
-        "group": "(none \u2014 inside PluginPlacementEditor)",
+        "group": "(none - inside PluginPlacementEditor)",
         "key": "<pluginId>.framePopout.hoverW",
         "label": "Hover strip length",
         "desc": "Length of the hover strip that opens the popout; unset saves as 320",
@@ -67,7 +67,7 @@ var rows = [
     },
     {
         "tab": "Installed",
-        "group": "(none \u2014 inside PluginPlacementEditor)",
+        "group": "(none - inside PluginPlacementEditor)",
         "key": "<pluginId>.framePopout.hoverH",
         "label": "Hover strip depth",
         "desc": "How far the hover strip reaches in from the edge; unset saves as 16",

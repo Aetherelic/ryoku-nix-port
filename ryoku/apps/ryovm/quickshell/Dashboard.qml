@@ -95,7 +95,7 @@ Item {
                     Rectangle { width: 16; height: 1; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
                     Text { text: "力"; color: Tokens.ink; font.family: Tokens.jp; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                        text: "HARBOUR · COMMAND"
+                        text: I18n.tr("HARBOUR · COMMAND")
                         color: Tokens.inkMuted
                         font.family: Tokens.ui; font.pixelSize: 9
                         font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
@@ -142,7 +142,7 @@ Item {
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        text: "The fleet at a glance: machines berthed here, remotes reached from here."
+                        text: I18n.tr("The fleet at a glance: machines berthed here, remotes reached from here.")
                         color: Tokens.inkMuted
                         font.family: Tokens.ui
                         font.pixelSize: 13
@@ -190,7 +190,7 @@ Item {
                     title: "港"
                     sub: "みなと"
                     tate: "力 を 統 べ る"
-                    caption: "A working harbour: local iron and distant ports, one console."
+                    caption: I18n.tr("A working harbour: local iron and distant ports, one console.")
                     code: "RYOPORT-COMMAND"
                     seal: "力"
                     seed: 0
@@ -201,7 +201,7 @@ Item {
             // ── MACHINES ──
             Section {
                 width: parent.width
-                title: "MACHINES"
+                title: I18n.tr("MACHINES")
 
                 Item {
                     width: parent.width
@@ -214,7 +214,7 @@ Item {
                         spacing: Tokens.s3
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: String(dash.runningCount).padStart(2, "0") + " RUNNING · " + String(Vm.vms.length).padStart(2, "0") + " TOTAL"
+                            text: String(dash.runningCount).padStart(2, "0") + I18n.tr(" RUNNING · ") + String(Vm.vms.length).padStart(2, "0") + I18n.tr(" TOTAL")
                             color: Tokens.inkMuted
                             font.family: Tokens.mono; font.pixelSize: 10; font.letterSpacing: 1.2
                         }
@@ -223,7 +223,7 @@ Item {
                     Btn {
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        text: "NEW MACHINE"
+                        text: I18n.tr("NEW MACHINE")
                         onAct: dash.newMachine()
                     }
 
@@ -240,7 +240,7 @@ Item {
                                 required property var modelData
                                 width: (machBody.width - Tokens.s2 * 2) / 3
                                 title: modelData.name
-                                sub: (modelData.running ? "RUNNING" : "STOPPED")
+                                sub: (modelData.running ? I18n.tr("RUNNING") : I18n.tr("STOPPED"))
                                     + "  ·  " + (modelData.cores === "auto" || !modelData.cores ? "auto" : modelData.cores + "c")
                                     + " · " + (modelData.ram || "auto")
                                 on: modelData.running === true
@@ -266,7 +266,7 @@ Item {
                         Text {
                             visible: Vm.vms.length === 0 && !Vm.vmsLoading
                             width: machBody.width
-                            text: "No machines yet. Build one from the catalogue."
+                            text: I18n.tr("No machines yet. Build one from the catalogue.")
                             color: Tokens.inkFaint
                             font.family: Tokens.ui; font.pixelSize: 12
                         }
@@ -277,7 +277,7 @@ Item {
             // ── REMOTES ──
             Section {
                 width: parent.width
-                title: "REMOTES"
+                title: I18n.tr("REMOTES")
 
                 Item {
                     width: parent.width
@@ -290,7 +290,7 @@ Item {
                         spacing: Tokens.s3
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: String(Remotes.upCount).padStart(2, "0") + " UP · " + String(Remotes.hostCount).padStart(2, "0") + " HOSTS"
+                            text: String(Remotes.upCount).padStart(2, "0") + I18n.tr(" UP · ") + String(Remotes.hostCount).padStart(2, "0") + I18n.tr(" HOSTS")
                             color: Tokens.inkMuted
                             font.family: Tokens.mono; font.pixelSize: 10; font.letterSpacing: 1.2
                         }
@@ -299,7 +299,7 @@ Item {
                     Btn {
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        text: "NEW CONNECTION"
+                        text: I18n.tr("NEW CONNECTION")
                         onAct: dash.newRemote()
                     }
 
@@ -331,8 +331,8 @@ Item {
                             visible: Remotes.hosts.length === 0 && !Remotes.loading
                             width: remBody.width
                             text: Remotes.engineOk
-                                ? "No remotes yet. Add a VPS, or drop hosts in ~/.ssh/config."
-                                : "The remote engine (ryossh) is not installed."
+                                ? I18n.tr("No remotes yet. Add a VPS, or drop hosts in ~/.ssh/config.")
+                                : I18n.tr("The remote engine (ryossh) is not installed.")
                             color: Tokens.inkFaint
                             font.family: Tokens.ui; font.pixelSize: 12
                         }
@@ -343,7 +343,7 @@ Item {
             // ── ACTIVITY ──
             Section {
                 width: parent.width
-                title: "ACTIVITY"
+                title: I18n.tr("ACTIVITY")
 
                 Item {
                     id: actItem
@@ -367,7 +367,7 @@ Item {
 
                     Text {
                         visible: actItem.feed.length === 0
-                        text: "Nothing yet. Launch a machine or open a connection."
+                        text: I18n.tr("Nothing yet. Launch a machine or open a connection.")
                         color: Tokens.inkFaint
                         font.family: Tokens.ui; font.pixelSize: 12
                     }
@@ -420,7 +420,7 @@ Item {
                 Barcode {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "RYOPORT-HARBOUR-" + Qt.formatDateTime(dash.now, "yyyyMMdd")
+                    text: I18n.tr("RYOPORT-HARBOUR-") + Qt.formatDateTime(dash.now, "yyyyMMdd")
                     unit: 1.0
                     barHeight: 16
                 }

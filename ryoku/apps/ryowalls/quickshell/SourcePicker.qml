@@ -22,7 +22,7 @@ Item {
     visible: opacity > 0
     opacity: open ? 1 : 0
     // claim keyboard focus while open (the app root holds it otherwise, and its
-    // key map would eat what you type into the filter) — the ryovm sheet pattern.
+    // key map would eat what you type into the filter) - the ryovm sheet pattern.
     focus: open
     Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
 
@@ -103,7 +103,7 @@ Item {
             Row {
                 width: parent.width
                 Text {
-                    text: "SOURCE"
+                    text: I18n.tr("SOURCE")
                     color: Tokens.ink
                     font.family: Tokens.ui
                     font.pixelSize: 10
@@ -124,7 +124,7 @@ Item {
             Field {
                 id: filterField
                 width: parent.width
-                placeholder: "Filter sources…"
+                placeholder: I18n.tr("Filter sources…")
                 onEdited: (v) => picker.filter = v
                 // Enter picks the top match -- Field's `accepted` (Return only),
                 // never `committed`: committed rides editingFinished, which also
@@ -165,7 +165,7 @@ Item {
                                 spacing: 1
                                 Text {
                                     width: parent.width
-                                    text: row.modelData.label
+                                    text: I18n.tr(row.modelData.label)
                                     color: rh.hovered ? Tokens.inkOnBone : (row.current ? Tokens.ink : Tokens.inkDim)
                                     font.family: Tokens.ui
                                     font.pixelSize: 13

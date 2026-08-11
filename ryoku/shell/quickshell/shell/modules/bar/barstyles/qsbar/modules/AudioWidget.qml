@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -40,7 +41,7 @@ Item {
         UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !root.compactVolume
-            text: "VOL"
+            text: I18n.tr("VOL")
             color: rootMod.muted
                 ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.25)
                 : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
@@ -68,7 +69,7 @@ Item {
                 color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.18)
             }
 
-            // fill capsule — seal pill like the active workspace
+            // fill capsule - seal pill like the active workspace
             Rectangle {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter

@@ -1,6 +1,7 @@
 import QtQuick
 import shell.services
 import "../modules"
+import Ryoku.Ui.Singletons
 
 Column {
     id: section
@@ -139,7 +140,7 @@ Column {
 
                 UiText {
                     anchors.centerIn: parent
-                    text: providerButton.modelData.label
+                    text: I18n.tr(providerButton.modelData.label)
                     color: providerButton.active ? section.theme.seal : section.theme.ink
                     font.family: section.theme.mono
                     font.pixelSize: 9

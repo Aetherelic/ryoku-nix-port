@@ -241,7 +241,7 @@ Item {
 
             Btn {
                 objectName: "ryostore-stage-details"
-                text: "VIEW DETAILS"
+                text: I18n.tr("VIEW DETAILS")
                 armed: stage.hasActionItem
                 Accessible.role: Accessible.Button
                 Accessible.name: text

@@ -23,9 +23,9 @@ var rows = [
         "ctl": "multi",
         "src": "shell",
         "opts": [
-            "(row) key combo \u2014 placeholder \"SUPER + J\"",
+            "(row) key combo - placeholder \"SUPER + J\"",
             "exec",
-            "(row) command \u2014 placeholder \"command to run\""
+            "(row) command - placeholder \"command to run\""
         ]
     },
     {

@@ -91,7 +91,7 @@ Item {
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
 
-            // count badge — top-right
+            // count badge - top-right
             Rectangle {
                 id: toggleBadge
                 visible: toggleBtn.hiddenCount > 0

@@ -3,6 +3,7 @@ import "../modules"
 import shell.services
 import Quickshell.Wayland
 import QtQuick
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: trayPanel
@@ -89,7 +90,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Tray Apps"
+                    text: I18n.tr("Tray Apps")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -101,8 +102,8 @@ PanelWindow {
                     anchors.right: closeX.left
                     anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
-                    text: trayPanel.hiddenCount + (trayPanel.hiddenCount === 1 ? " APP" : " APPS")
-                        + (trayPanel.attentionCount > 0 ? "  ·  " + trayPanel.attentionCount + " ATTENTION" : "")
+                    text: trayPanel.hiddenCount + (trayPanel.hiddenCount === 1 ? I18n.tr(" APP") : I18n.tr(" APPS"))
+                        + (trayPanel.attentionCount > 0 ? "  ·  " + trayPanel.attentionCount + I18n.tr(" ATTENTION") : "")
                     color: trayPanel.attentionCount > 0 ? root.seal : root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 10
@@ -269,7 +270,7 @@ PanelWindow {
 
                                     UiText {
                                         anchors.centerIn: parent
-                                        text: "Pin"
+                                        text: I18n.tr("Pin")
                                         color: pinMa.containsMouse ? root.seal : root.ink
                                         font.family: root.mono
                                         font.pixelSize: 11
@@ -304,7 +305,7 @@ PanelWindow {
 
                                     UiText {
                                         anchors.centerIn: parent
-                                        text: appRow.hasMenu ? "AppMenu" : "No Menu"
+                                        text: appRow.hasMenu ? I18n.tr("AppMenu") : I18n.tr("No Menu")
                                         color: menuMa.containsMouse && appRow.hasMenu ? root.seal : root.ink
                                         font.family: root.mono
                                         font.pixelSize: 11

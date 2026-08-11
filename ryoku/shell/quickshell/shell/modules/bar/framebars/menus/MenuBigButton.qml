@@ -4,6 +4,7 @@ import QtQuick
 import "../.." as Pill
 import shell.services
 import "../../../../components"
+import Ryoku.Ui.Singletons
 
 // Shared primary capture tile (contract 09 sec 2): a primary-filled 116x72 tile
 // carrying a 32px icon above a 14px label, both in the on-primary tone. Hover
@@ -48,7 +49,7 @@ Item {
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: root.label
+                text: I18n.tr(root.label)
                 color: root.content
                 font.family: Theme.fontPrimary
                 font.pixelSize: Theme.fontSm

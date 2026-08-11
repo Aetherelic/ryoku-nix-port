@@ -6,6 +6,7 @@ import Quickshell
 import shell.services
 import "../services/lib/events.js" as EventsModel
 import "../services/lib/calendar.js" as CalendarModel
+import Ryoku.Ui.Singletons
 
 // calendar surface content. header (month/year + prev/next), weekday strip,
 // day grid sized to exactly the rows the month needs. today gets a warm
@@ -102,7 +103,7 @@ PillSurface {
             spacing: 5 * root.s
 
             Eyebrow {
-                label: "Calendar"
+                label: I18n.tr("Calendar")
                 s: root.s
             }
 

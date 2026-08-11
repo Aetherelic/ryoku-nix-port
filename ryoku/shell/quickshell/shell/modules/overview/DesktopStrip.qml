@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 /**
  * The desktop strip along the top: each card is a "desktop", a block of
@@ -70,7 +71,7 @@ Row {
 
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: dcard.isNew ? "NEW" : ("0" + (dcard.deskIdx + 1)).slice(-2)
+                        text: dcard.isNew ? I18n.tr("NEW") : ("0" + (dcard.deskIdx + 1)).slice(-2)
                         color: dcard.activeD ? Theme.brand : (dcard.isNew ? Theme.faint : Theme.cream)
                         font.family: Theme.mono
                         font.pixelSize: 13 * strip.s

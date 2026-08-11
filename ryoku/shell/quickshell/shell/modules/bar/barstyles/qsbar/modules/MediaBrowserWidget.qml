@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Ryoku.Ui.Singletons
 
 // Combined screenshots/videos browser launcher.
 // Left-click = screenshots, right-click = videos. Sits left of the theme icon.
@@ -24,7 +25,7 @@ Item {
 
     TooltipMixin {
         id: tip; root: rootMod.root; owner: rootMod
-        text: "L: Screenshots  R: Videos"
+        text: I18n.tr("L: Screenshots  R: Videos")
     }
 
     MouseArea {

@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: profilePanel
@@ -95,7 +96,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Power Profile"
+                    text: I18n.tr("Power Profile")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -159,7 +160,7 @@ PanelWindow {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         UiText {
-                            text: modelData.label
+                            text: I18n.tr(modelData.label)
                             color: (ma.containsMouse || isActive) ? root.seal : root.ink
                             font.family: root.mono
                             font.pixelSize: 12

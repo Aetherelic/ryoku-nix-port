@@ -4,6 +4,7 @@ import "../../../components"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: netPanel
@@ -80,12 +81,12 @@ PanelWindow {
     }
 
     function formatMbps(value) {
-        if (!(value > 0)) return "—"
+        if (!(value > 0)) return "-"
         return (value >= 100 ? value.toFixed(0) : value.toFixed(1)) + " Mbps"
     }
 
     function formatPing(value) {
-        if (!(value > 0)) return "—"
+        if (!(value > 0)) return "-"
         return (value < 10 ? value.toFixed(1) : value.toFixed(0)) + " ms"
     }
 
@@ -99,7 +100,7 @@ PanelWindow {
         return edge + (flag !== "" ? " " + flag : "")
     }
 
-    // timestamp captured when a run completes — shown in the green "done" footer
+    // timestamp captured when a run completes - shown in the green "done" footer
     property string lastTestStamp: ""
     property bool speedTestAttempted: false
 
@@ -120,7 +121,7 @@ PanelWindow {
         }
     }
 
-    // ✓ marks show only on a healthy run (in progress or finished ok) — never on error/cancel/offline
+    // ✓ marks show only on a healthy run (in progress or finished ok) - never on error/cancel/offline
     readonly property bool speedRunOk: speedTest.running || speedTest.phase === "success"
     readonly property bool speedDetailsVisible: speedTestAttempted
         && speedTest.phase !== "idle"
@@ -177,7 +178,7 @@ PanelWindow {
             // re-scan shortly to reflect new connection
             rescanTimer.restart()
         } else {
-            // unknown secured network — needs passphrase → open impala
+            // unknown secured network - needs passphrase → open impala
             root.networkVisible = false
             wifiRunner.running = false
             wifiRunner.running = true
@@ -453,7 +454,7 @@ PanelWindow {
                 height: 24
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "Network"
+                    text: I18n.tr("Network")
                     color: root.ink; font.family: root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
@@ -501,39 +502,39 @@ PanelWindow {
                 Row {
                     width: parent.width
                     visible: netPanel.mode === "wifi"
-                    UiText { text: "SSID"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("SSID"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: netPanel.ssid; color: root.ink; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.6; elide: Text.ElideRight }
                 }
                 Row {
                     width: parent.width
-                    UiText { text: "Type"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Type"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText {
-                        text: netPanel.mode === "wifi" ? "Wi-Fi" : (netPanel.mode === "ethernet" ? "Ethernet" : "—")
+                        text: netPanel.mode === "wifi" ? I18n.tr("Wi-Fi") : (netPanel.mode === "ethernet" ? I18n.tr("Ethernet") : "-")
                         color: root.ink; font.family: root.mono; font.pixelSize: 11
                     }
                 }
                 Row {
                     width: parent.width
                     visible: netPanel.iface !== ""
-                    UiText { text: "Interface"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Interface"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: netPanel.iface; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: netPanel.ipAddr !== ""
-                    UiText { text: "IP"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("IP"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: netPanel.ipAddr; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: netPanel.mode === "wifi" && netPanel.freq !== ""
-                    UiText { text: "Frequency"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Frequency"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: netPanel.freq; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: netPanel.linkSpeed !== ""
-                    UiText { text: "Link speed"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Link speed"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: netPanel.linkSpeed; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
             }
@@ -551,7 +552,7 @@ PanelWindow {
                     UiText {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "SPEED TEST"
+                        text: I18n.tr("SPEED TEST")
                         color: root.sumiHi
                         font.family: root.mono
                         font.pixelSize: 10
@@ -600,7 +601,7 @@ PanelWindow {
                 Row {
                     width: parent.width
                     visible: netPanel.speedDetailsVisible
-                    UiText { text: "Edge"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Edge"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: netPanel.edgeText(); color: root.ink; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.6; elide: Text.ElideRight }
                 }
                 Item {
@@ -609,13 +610,13 @@ PanelWindow {
                     UiText {
                         id: pingLabel
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "Ping"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                        text: I18n.tr("Ping"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
                         width: parent.width * 0.4
                     }
                     UiText {
                         anchors.left: pingLabel.right; anchors.right: pingCheck.left; anchors.rightMargin: 6
                         anchors.verticalCenter: parent.verticalCenter
-                        text: speedTest.phase === "latency" ? "Testing…" : (netPanel.speedRunOk ? netPanel.formatPing(speedTest.pingMs) : "—")
+                        text: speedTest.phase === "latency" ? I18n.tr("Testing…") : (netPanel.speedRunOk ? netPanel.formatPing(speedTest.pingMs) : "-")
                         color: root.ink; font.family: root.mono; font.pixelSize: 11; elide: Text.ElideRight
                     }
                     UiText {
@@ -631,13 +632,13 @@ PanelWindow {
                     UiText {
                         id: dlLabel
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "Download"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                        text: I18n.tr("Download"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
                         width: parent.width * 0.4
                     }
                     UiText {
                         anchors.left: dlLabel.right; anchors.right: dlCheck.left; anchors.rightMargin: 6
                         anchors.verticalCenter: parent.verticalCenter
-                        text: speedTest.phase === "download" ? "Testing…" : (netPanel.speedRunOk ? netPanel.formatMbps(speedTest.downloadMbps) : "—")
+                        text: speedTest.phase === "download" ? I18n.tr("Testing…") : (netPanel.speedRunOk ? netPanel.formatMbps(speedTest.downloadMbps) : "-")
                         color: (speedTest.downloadMbps > 0 && netPanel.speedRunOk) ? root.seal : root.ink
                         font.family: root.mono; font.pixelSize: 11; elide: Text.ElideRight
                     }
@@ -654,13 +655,13 @@ PanelWindow {
                     UiText {
                         id: ulLabel
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "Upload"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                        text: I18n.tr("Upload"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
                         width: parent.width * 0.4
                     }
                     UiText {
                         anchors.left: ulLabel.right; anchors.right: ulCheck.left; anchors.rightMargin: 6
                         anchors.verticalCenter: parent.verticalCenter
-                        text: speedTest.phase === "upload" ? "Testing…" : (netPanel.speedRunOk ? netPanel.formatMbps(speedTest.uploadMbps) : "—")
+                        text: speedTest.phase === "upload" ? I18n.tr("Testing…") : (netPanel.speedRunOk ? netPanel.formatMbps(speedTest.uploadMbps) : "-")
                         color: (speedTest.uploadMbps > 0 && netPanel.speedRunOk) ? root.indigo : root.ink
                         font.family: root.mono; font.pixelSize: 11; elide: Text.ElideRight
                     }
@@ -683,7 +684,7 @@ PanelWindow {
                         id: speedFooter
                         width: parent.width
                         visible: speedTest.phase === "success" && netPanel.lastTestStamp !== ""
-                        text: "done · " + netPanel.lastTestStamp
+                        text: I18n.tr("done · ") + netPanel.lastTestStamp
                         color: root.green
                         font.family: root.mono
                         font.pixelSize: 10
@@ -709,7 +710,7 @@ PanelWindow {
                 visible: netPanel.hasWifi
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "Wi-Fi"
+                    text: I18n.tr("Wi-Fi")
                     color: root.ink; font.family: root.mono; font.pixelSize: 11
                 }
                 Rectangle {
@@ -723,7 +724,7 @@ PanelWindow {
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
                         anchors.centerIn: parent
-                        text: netPanel.wifiBlocked ? "OFF" : "ON"
+                        text: netPanel.wifiBlocked ? I18n.tr("OFF") : I18n.tr("ON")
                         color: !netPanel.wifiBlocked ? root.seal : root.sumi
                         font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
                     }
@@ -763,7 +764,7 @@ PanelWindow {
 
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData.label
+                            text: I18n.tr(modelData.label)
                             color: parent.active ? root.seal : root.ink
                             font.family: root.mono
                             font.pixelSize: 10
@@ -788,13 +789,13 @@ PanelWindow {
                 visible: netPanel.hasWifi && !netPanel.wifiBlocked && (!root.useNM || netPanel.nmAdapterReady)
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: netPanel.savedOnly ? "SAVED NETWORKS" : "AVAILABLE NETWORKS"
+                    text: netPanel.savedOnly ? I18n.tr("SAVED NETWORKS") : I18n.tr("AVAILABLE NETWORKS")
                     color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
                 UiText {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     visible: !netPanel.savedOnly
-                    text: netPanel.scanning ? "scanning…" : "rescan"
+                    text: netPanel.scanning ? I18n.tr("scanning…") : "rescan"
                     color: rescanMa.containsMouse ? root.fillPrimaryHover : root.seal
                     font.family: root.mono; font.pixelSize: 10
                     Behavior on color { ColorAnimation { duration: 120 } }
@@ -876,7 +877,7 @@ PanelWindow {
                                     }
                                     UiText {
                                         visible: modelData.conn
-                                        text: "· Connected"
+                                        text: I18n.tr("· Connected")
                                         color: root.seal
                                         font.family: root.mono; font.pixelSize: 9
                                         anchors.verticalCenter: parent.verticalCenter
@@ -992,8 +993,8 @@ PanelWindow {
                                             UiText {
                                                 anchors.centerIn: parent
                                                 text: netTile.confirmingForget
-                                                    ? "Cancel"
-                                                    : modelData.conn ? "Disconnect" : modelData.known ? "Reconnect" : "Connect"
+                                                    ? I18n.tr("Cancel")
+                                                    : modelData.conn ? I18n.tr("Disconnect") : modelData.known ? I18n.tr("Reconnect") : I18n.tr("Connect")
                                                 color: root.ink
                                                 font.family: root.mono; font.pixelSize: 10
                                             }
@@ -1021,7 +1022,7 @@ PanelWindow {
                                             border.width: 1
                                             UiText {
                                                 anchors.centerIn: parent
-                                                text: netTile.confirmingForget ? "Confirm" : "Forget"
+                                                text: netTile.confirmingForget ? I18n.tr("Confirm") : I18n.tr("Forget")
                                                 color: forgetMa.containsMouse ? root.seal : root.ink
                                                 font.family: root.mono; font.pixelSize: 10
                                             }
@@ -1042,7 +1043,7 @@ PanelWindow {
                     UiText {
                         visible: !netPanel.scanning && netPanel.shownNetworks.length === 0
                         width: netList.width; horizontalAlignment: Text.AlignHCenter
-                        text: netPanel.savedOnly ? "No saved networks" : "No networks found"
+                        text: netPanel.savedOnly ? I18n.tr("No saved networks") : I18n.tr("No networks found")
                         color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.3)
                         font.family: root.mono; font.pixelSize: 11
                     }
@@ -1076,7 +1077,7 @@ PanelWindow {
                         width: parent.width
                         text: netPanel.nmConnectionError !== ""
                             ? netPanel.nmConnectionError
-                            : "Password for " + netPanel.nmPasswordSsid
+                            : I18n.tr("Password for ") + netPanel.nmPasswordSsid
                         color: netPanel.nmConnectionError !== "" ? root.sealRaw : root.ink
                         font.family: root.mono
                         font.pixelSize: 10
@@ -1136,7 +1137,7 @@ PanelWindow {
                             Behavior on color { ColorAnimation { duration: 120 } }
                             UiText {
                                 anchors.centerIn: parent
-                                text: netPanel.nmConnecting ? "connecting…" : "connect"
+                                text: netPanel.nmConnecting ? I18n.tr("connecting…") : "connect"
                                 color: passwordSubmitMa.enabled ? root.paper : root.sumi
                                 font.family: root.mono
                                 font.pixelSize: 10
@@ -1191,12 +1192,12 @@ PanelWindow {
                     anchors.centerIn: parent; spacing: 3; width: parent.width - 24
                     UiText {
                         width: parent.width; horizontalAlignment: Text.AlignHCenter
-                        text: "Managed by NetworkManager"
+                        text: I18n.tr("Managed by NetworkManager")
                         color: root.ink; font.family: root.mono; font.pixelSize: 11
                     }
                     UiText {
                         width: parent.width; horizontalAlignment: Text.AlignHCenter
-                        text: "click to open nmtui"
+                        text: I18n.tr("click to open nmtui")
                         color: root.seal; font.family: root.mono; font.pixelSize: 10
                     }
                 }
@@ -1215,7 +1216,7 @@ PanelWindow {
                 height: 28; radius: root.panelButtonRadius
                 color: netSetMa.containsMouse ? root.fillPrimaryHover : root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
-                UiText { anchors.centerIn: parent; text: "Network settings"; color: root.paper; font.family: root.mono; font.pixelSize: 11 }
+                UiText { anchors.centerIn: parent; text: I18n.tr("Network settings"); color: root.paper; font.family: root.mono; font.pixelSize: 11 }
                 MouseArea {
                     id: netSetMa
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

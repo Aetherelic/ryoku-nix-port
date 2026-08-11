@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 // AI usage panel: shows Claude Code, OpenAI Codex, and OpenCode usage and lets the user
 // switch which tool's icon the bar pill displays (root.aiTool). Opened from the
@@ -22,7 +23,7 @@ PanelWindow {
     readonly property int barBottom: root.v2BarHeight
     readonly property int gap: 6
 
-    // ── usage data: rendered from root.ai* — the single shared parse in Theme.qml
+    // ── usage data: rendered from root.ai* - the single shared parse in Theme.qml
     //    that the bar pill uses too, so the two views can never drift apart. ──
     readonly property int    clPct5h:     root.aiClPct5h
     readonly property int    clPct7d:     root.aiClPct7d
@@ -176,10 +177,10 @@ PanelWindow {
         }
         UiText {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            text: "I " + inputLabel + "  O " + outputLabel
-                + (reasoningLabel !== "0" ? "  R " + reasoningLabel : "")
-                + (cacheReadLabel !== "0" ? "  CR " + cacheReadLabel : "")
-                + (cacheWriteLabel !== "0" ? "  CW " + cacheWriteLabel : "")
+            text: I18n.tr("I ") + inputLabel + I18n.tr("  O ") + outputLabel
+                + (reasoningLabel !== "0" ? I18n.tr("  R ") + reasoningLabel : "")
+                + (cacheReadLabel !== "0" ? I18n.tr("  CR ") + cacheReadLabel : "")
+                + (cacheWriteLabel !== "0" ? I18n.tr("  CW ") + cacheWriteLabel : "")
                 + (todayLabel !== "0" ? "  today " + todayLabel : "")
             elide: Text.ElideRight
             color: aiPanel.root.sumiHi
@@ -240,7 +241,7 @@ PanelWindow {
                     UiText {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "AI USAGE"
+                        text: I18n.tr("AI USAGE")
                         color: root.ink
                         font.family: root.mono
                         font.pixelSize: 13
@@ -283,7 +284,7 @@ PanelWindow {
                             Behavior on color { ColorAnimation { duration: 120 } }
                             UiText {
                                 anchors.centerIn: parent
-                                text: modelData.label
+                                text: I18n.tr(modelData.label)
                                 color: (parent.active || segMa.containsMouse) ? root.seal : root.ink
                                 font.family: root.mono; font.pixelSize: 11
                                 font.weight: parent.active ? Font.Medium : Font.Normal
@@ -307,7 +308,7 @@ PanelWindow {
                     width: parent.width; height: 16
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "Claude Code"; color: root.ink
+                        text: I18n.tr("Claude Code"); color: root.ink
                         font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
                     UiText {
@@ -320,13 +321,13 @@ PanelWindow {
                 UiText {
                     visible: aiPanel.showClaude && !aiPanel.clHas
                     width: parent.width
-                    text: "no data — run claude"
+                    text: I18n.tr("no data - run claude")
                     color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
                 }
                 UsageRow { visible: aiPanel.showClaude && aiPanel.clHas; label: "5h"; pct: aiPanel.clPct5h; dim: !aiPanel.clFresh }
                 UsageRow { visible: aiPanel.showClaude && aiPanel.clHas; label: "7d"; pct: aiPanel.clPct7d; dim: !aiPanel.clFresh }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "5h resets in"; v: root.aiFmtResetDetail(aiPanel.clReset5hTs) || "—" }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "7d resets in"; v: root.aiFmtResetDetail(aiPanel.clReset7dTs) || "—" }
+                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "5h resets in"; v: root.aiFmtResetDetail(aiPanel.clReset5hTs) || "-" }
+                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "7d resets in"; v: root.aiFmtResetDetail(aiPanel.clReset7dTs) || "-" }
                 DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clTokens !== ""; k: "Tokens"; v: aiPanel.clTokens }
                 DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clRate !== "";   k: "Rate"; v: aiPanel.clRate }
                 DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clToday > 0; k: "Today"; v: (aiPanel.clToday / 1e6).toFixed(2) + "M tok" }
@@ -339,7 +340,7 @@ PanelWindow {
                     width: parent.width; height: 16
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "OpenAI Codex" + (aiPanel.cxPlan ? "  · " + aiPanel.cxPlan : "")
+                        text: I18n.tr("OpenAI Codex") + (aiPanel.cxPlan ? "  · " + aiPanel.cxPlan : "")
                         color: root.ink
                         font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
@@ -353,13 +354,13 @@ PanelWindow {
                 UiText {
                     visible: aiPanel.showCodex && !aiPanel.cxHas
                     width: parent.width
-                    text: "no data — run codex"
+                    text: I18n.tr("no data - run codex")
                     color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
                 }
-                UsageRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; label: aiPanel.cxWin0 ? aiPanel.cxWin0.label : ""; pct: aiPanel.cxWin0 ? aiPanel.cxWin0.pct : 0; dim: !aiPanel.cxFresh }
-                UsageRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; label: aiPanel.cxWin1 ? aiPanel.cxWin1.label : ""; pct: aiPanel.cxWin1 ? aiPanel.cxWin1.pct : 0; dim: !aiPanel.cxFresh }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; k: (aiPanel.cxWin0 ? aiPanel.cxWin0.label : "") + " resets in"; v: root.aiFmtResetDetail(aiPanel.cxWin0 ? aiPanel.cxWin0.resetTs : 0) || "—" }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; k: (aiPanel.cxWin1 ? aiPanel.cxWin1.label : "") + " resets in"; v: root.aiFmtResetDetail(aiPanel.cxWin1 ? aiPanel.cxWin1.resetTs : 0) || "—" }
+                UsageRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; label: aiPanel.cxWin0 ? I18n.tr(aiPanel.cxWin0.label) : ""; pct: aiPanel.cxWin0 ? aiPanel.cxWin0.pct : 0; dim: !aiPanel.cxFresh }
+                UsageRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; label: aiPanel.cxWin1 ? I18n.tr(aiPanel.cxWin1.label) : ""; pct: aiPanel.cxWin1 ? aiPanel.cxWin1.pct : 0; dim: !aiPanel.cxFresh }
+                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; k: (aiPanel.cxWin0 ? aiPanel.cxWin0.label : "") + " resets in"; v: root.aiFmtResetDetail(aiPanel.cxWin0 ? aiPanel.cxWin0.resetTs : 0) || "-" }
+                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; k: (aiPanel.cxWin1 ? aiPanel.cxWin1.label : "") + " resets in"; v: root.aiFmtResetDetail(aiPanel.cxWin1 ? aiPanel.cxWin1.resetTs : 0) || "-" }
                 DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas; k: "General limit"; v: root.aiCodexStatusLabel(aiPanel.cxLimitStatus, aiPanel.cxLimitReachedType) }
                 DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas && aiPanel.cxRate !== "";   k: "Local activity (1h, incl. cached)"; v: aiPanel.cxRate }
                 DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas && aiPanel.cxToday > 0; k: "Today"; v: (aiPanel.cxToday / 1e6).toFixed(2) + "M tok" }
@@ -372,7 +373,7 @@ PanelWindow {
                     width: parent.width; height: 16
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "OpenCode" + (aiPanel.ocPlan ? "  · " + aiPanel.ocPlan : "")
+                        text: I18n.tr("OpenCode") + (aiPanel.ocPlan ? "  · " + aiPanel.ocPlan : "")
                         color: root.ink
                         font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
@@ -386,7 +387,7 @@ PanelWindow {
                 UiText {
                     visible: aiPanel.showOpenCode && !aiPanel.ocHas
                     width: parent.width
-                    text: "no data — run opencode"
+                    text: I18n.tr("no data - run opencode")
                     color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
                 }
                 UsageRow { visible: aiPanel.showOpenCode && aiPanel.ocHas; label: "5h"; pct: aiPanel.ocPct5h; dim: !aiPanel.ocFresh }
@@ -401,7 +402,7 @@ PanelWindow {
                     width: parent.width; height: 16
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "MODELS"
+                        text: I18n.tr("MODELS")
                         color: root.sumiHi
                         font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
                     }

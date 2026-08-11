@@ -1,12 +1,13 @@
 import QtQuick
 import "../kit"
 import "../../modules"
+import Ryoku.Ui.Singletons
 
 // The CONFIGURE landing's right-hand preview: a compact, live semantic sketch of
 // whichever route is hovered/selected, keyed by `routeId`. Ported from Shibumi's
 // SemanticPreviewImage, reduced to Ryoku's five routes and re-skinned in qsbar's
 // dark technical palette. Every colour/geometry value is read off `root` (the
-// qsbar Theme) — no hardcoded hexes (fallbacks only apply while root is null),
+// qsbar Theme) - no hardcoded hexes (fallbacks only apply while root is null),
 // no Ryoku.Ui imports. Guards barShellStyle by value since that token lives on
 // the V2 Theme only.
 Item {
@@ -95,7 +96,7 @@ Item {
         UiText {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !wordmark.iconMode
-            text: "RYOKU"
+            text: I18n.tr("RYOKU")
             color: sp.fg
             font.family: sp.mono
             font.pixelSize: 24

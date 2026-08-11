@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Ryoku.Ui.Singletons
 
 // Ryoku first-run welcome. A normal floating window (not a layer-shell surface);
 // the Hyprland window rule floats and centres it by its title. `qs -c welcome`
@@ -11,7 +12,7 @@ import Quickshell
 ShellRoot {
     FloatingWindow {
         id: win
-        title: "Welcome to Ryoku"
+        title: I18n.tr("Welcome to Ryoku")
         // Same fit-clamp as the hub window: the rule floats this at 1180x760,
         // which a 720p-class screen cannot hold. Hyprland clamps the rule's
         // size into maximumSize and centres the result, so a small screen gets

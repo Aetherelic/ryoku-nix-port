@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // A selectable chip: an option in a choice group, a style swatch, a snap-zone
 // target. Soft accent-tint fill with an accent border when selected, a quiet
@@ -44,7 +45,7 @@ Item {
         id: lbl
         visible: chip.label.length > 0
         anchors.centerIn: parent
-        text: chip.label
+        text: I18n.tr(chip.label)
         color: chip.contentColor
         font.family: Theme.font
         font.pixelSize: 13

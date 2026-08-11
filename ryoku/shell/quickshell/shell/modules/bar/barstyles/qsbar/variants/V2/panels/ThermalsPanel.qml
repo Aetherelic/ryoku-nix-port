@@ -2,6 +2,7 @@ import QtQuick
 import "../modules"
 import Quickshell
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: thermalPanel
@@ -71,7 +72,7 @@ PanelWindow {
             id: sensorValue
             anchors.right: parent.right
             anchors.top: parent.top
-            text: value + "°C · " + thermalPanel.status(value, maximum, critical)
+            text: value + I18n.tr("°C · ") + thermalPanel.status(value, maximum, critical)
             color: meterColor
             font.family: thermalPanel.root.mono
             font.pixelSize: 10
@@ -114,7 +115,7 @@ PanelWindow {
             width: 48
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            text: scaleMax + "° limit"
+            text: scaleMax + I18n.tr("° limit")
             color: thermalPanel.root.sumi
             font.family: thermalPanel.root.mono
             font.pixelSize: 8
@@ -171,7 +172,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "THERMALS"
+                    text: I18n.tr("THERMALS")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -203,7 +204,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "BAR SENSOR"
+                    text: I18n.tr("BAR SENSOR")
                     color: root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 9
@@ -254,7 +255,7 @@ PanelWindow {
 
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData.label
+                            text: I18n.tr(modelData.label)
                             color: (selected || hovered) ? root.seal : root.ink
                             font.family: root.mono
                             font.pixelSize: 9
@@ -276,29 +277,29 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
             ThermalRow {
-                label: "CPU package"
+                label: I18n.tr("CPU package")
                 value: root.cpuTemperatureC
                 maximum: root.cpuTemperatureMaxC
                 critical: root.cpuTemperatureCriticalC
             }
             ThermalRow {
-                label: "Hottest CPU core"
+                label: I18n.tr("Hottest CPU core")
                 value: root.cpuCoreMaxTemperatureC
                 maximum: root.cpuTemperatureMaxC
                 critical: root.cpuTemperatureCriticalC
             }
             ThermalRow {
-                label: root.gpuName !== "" ? "GPU · " + root.gpuName : "GPU"
+                label: root.gpuName !== "" ? I18n.tr("GPU · ") + root.gpuName : I18n.tr("GPU")
                 value: root.gpuTemperatureC
             }
             ThermalRow {
-                label: "NVMe composite"
+                label: I18n.tr("NVMe composite")
                 value: root.nvmeTemperatureC
                 maximum: root.nvmeTemperatureMaxC
                 critical: root.nvmeTemperatureCriticalC
             }
             ThermalRow {
-                label: "Memory sensor"
+                label: I18n.tr("Memory sensor")
                 value: root.memoryTemperatureC
             }
 
@@ -306,7 +307,7 @@ PanelWindow {
                 width: parent.width
                 visible: !root.cpuTemperatureAvailable && root.gpuTemperatureC <= 0
                     && root.nvmeTemperatureC <= 0 && root.memoryTemperatureC <= 0
-                text: "No temperature sensors available"
+                text: I18n.tr("No temperature sensors available")
                 color: root.sumiHi
                 font.family: root.mono
                 font.pixelSize: 10

@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import Quickshell.Widgets
 import "ImagePickerModel.js" as Model
+import Ryoku.Ui.Singletons
 
 // Tanzaku filmstrip picker for theme & wallpaper.
 // sumi-e language: lots of empty space (ma), the focused image centred & full,
@@ -306,7 +307,7 @@ PanelWindow {
     function warmAll() { panel.startWarm(warmProc, panel.backgroundSourcePaths(), 19) }
 
     // ── lazy meta (author/repo/palette) for the FOCUSED theme only, cached by
-    // dir — keeps the scan instant; enrichment lands ~110ms after the focus settles
+    // dir - keeps the scan instant; enrichment lands ~110ms after the focus settles
     property var metaCache: ({})
     property string _metaDir: ""
     readonly property var selMeta: (sel && sel.dir && metaCache[sel.dir]) ? metaCache[sel.dir] : null
@@ -385,8 +386,8 @@ PanelWindow {
     // ── geometry ──
     readonly property int  focusedW:   460
     readonly property int  focusedH:   259      // 16:9
-    readonly property int  peekW:      104      // ONLY the immediate neighbour — preview peek
-    readonly property int  stripW:     24       // every other strip — thin tanzaku (unchanged)
+    readonly property int  peekW:      104      // ONLY the immediate neighbour - preview peek
+    readonly property int  stripW:     24       // every other strip - thin tanzaku (unchanged)
     readonly property int  gap:        8
     readonly property int  maxVisible: 5
 
@@ -418,7 +419,7 @@ PanelWindow {
         }
     }
 
-    // ── empty/loading state — also catches Esc to close when the stage isn't focused ──
+    // ── empty/loading state - also catches Esc to close when the stage isn't focused ──
     Item {
         anchors.fill: parent
         focus: panel.visible && !(panel.ready && panel.filtered.length > 0)
@@ -442,7 +443,7 @@ PanelWindow {
         visible: root.imagePickerVisible && panel.active && panel.ready && panel.filtered.length === 0
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
-        text: "No matches: " + panel.filterText + "\n\nBackspace to edit, or Esc to clear"
+        text: I18n.tr("No matches: ") + panel.filterText + I18n.tr("\n\nBackspace to edit, or Esc to clear")
         color: root.ink
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -451,8 +452,8 @@ PanelWindow {
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: panel.scanDone
-              ? (panel.isThemeMode ? "No themes found" : "No wallpapers found") + "\n\nEsc or click to close"
-              : "Loading…"
+              ? (panel.isThemeMode ? I18n.tr("No themes found") : I18n.tr("No wallpapers found")) + I18n.tr("\n\nEsc or click to close")
+              : I18n.tr("Loading…")
         color: root.ink
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -464,7 +465,7 @@ PanelWindow {
         anchors.bottom: stage.top
         anchors.bottomMargin: 22
         opacity: panel.reveal
-        text: panel.isThemeMode ? "THEME" : "WALLPAPER"
+        text: panel.isThemeMode ? I18n.tr("THEME") : I18n.tr("WALLPAPER")
         color: root.sumiHi
         font.family: root.mono; font.pixelSize: 12; font.letterSpacing: 3; font.weight: Font.Medium
         horizontalAlignment: Text.AlignHCenter
@@ -580,7 +581,7 @@ PanelWindow {
                         radius: 5
                         color: "transparent"
 
-                        // image — clipped to the rounded shape above
+                        // image - clipped to the rounded shape above
                         Image {
                             id: thumbImage
                             anchors.fill: parent
@@ -614,7 +615,7 @@ PanelWindow {
                     }
                 }
 
-                // "current" marker — seal dot on the active theme/wallpaper
+                // "current" marker - seal dot on the active theme/wallpaper
                 Rectangle {
                     visible: item.entry && item.entry.current === true
                     width: 8; height: 8; radius: 4
@@ -641,7 +642,7 @@ PanelWindow {
         anchors.horizontalCenter: stage.horizontalCenter
         spacing: 12
 
-        // the single confident accent line — tapered like a brush stroke
+        // the single confident accent line - tapered like a brush stroke
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             width: panel.focusedW * 0.42
@@ -663,7 +664,7 @@ PanelWindow {
             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
         }
 
-        // palette swatch — the focused theme's vivid colours (lazy, theme mode)
+        // palette swatch - the focused theme's vivid colours (lazy, theme mode)
         Row {
             visible: panel.isThemeMode && panel.selMeta && panel.selMeta.palette.length > 0
             anchors.horizontalCenter: parent.horizontalCenter
@@ -680,7 +681,7 @@ PanelWindow {
             }
         }
 
-        // meta — current badge · author (click → open repo)
+        // meta - current badge · author (click → open repo)
         Row {
             visible: (panel.sel && panel.sel.current)
                      || (panel.isThemeMode && panel.selMeta && panel.selMeta.author.length > 0)
@@ -689,7 +690,7 @@ PanelWindow {
             Text {
                 visible: panel.sel && panel.sel.current
                 anchors.verticalCenter: parent.verticalCenter
-                text: "● current"
+                text: I18n.tr("● current")
                 color: root.seal
                 font.family: root.mono; font.pixelSize: 11
             }
@@ -721,7 +722,7 @@ PanelWindow {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "← →  scroll navigate     Enter apply     Esc cancel     type to filter"
+            text: I18n.tr("← →  scroll navigate     Enter apply     Esc cancel     type to filter")
             color: panel.uiDim
             font.family: root.mono; font.pixelSize: 11
             horizontalAlignment: Text.AlignHCenter

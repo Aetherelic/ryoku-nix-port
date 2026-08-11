@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import shell.services
 import "../../components"
+import Ryoku.Ui.Singletons
 
 // Visual edit-handle indicators for the camera bubble. The drag logic lives in
 // CameraOverlay's single DragHandler, which moves / resizes / rounds by press
@@ -43,7 +44,7 @@ Item {
         Text {
             id: rL
             anchors.centerIn: parent
-            text: "Radius " + Math.round(handles.rad)
+            text: I18n.tr("Radius ") + Math.round(handles.rad)
             color: Theme.onSurface
             font.family: Theme.mono
             font.pixelSize: 11

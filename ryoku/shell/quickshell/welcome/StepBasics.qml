@@ -11,12 +11,12 @@ Column {
 
     Repeater {
         model: [
-            { "combo": "Super + ,",      "desc": "Ryoku Settings \u2014 every knob, in one place" },
+            { "combo": "Super + ,",      "desc": "Ryoku Settings - every knob, in one place" },
             { "combo": "Super + Space",  "desc": "App launcher & command palette" },
             { "combo": "Super + Return", "desc": "A terminal" },
-            { "combo": "Super + Tab",    "desc": "Overview \u2014 every workspace at a glance" },
+            { "combo": "Super + Tab",    "desc": "Overview - every workspace at a glance" },
             { "combo": "Super + Escape", "desc": "Power & quick settings" },
-            { "combo": "Super + S",      "desc": "Feature sidebar \u2014 screen time & downloads" },
+            { "combo": "Super + S",      "desc": "Feature sidebar - screen time & downloads" },
             { "combo": "Super + W",      "desc": "Wallpaper & theme menu" }
         ]
 
@@ -59,7 +59,7 @@ Column {
                 anchors.verticalCenter: caps.verticalCenter
                 width: sc.width - caps.width - sc.spacing
                 wrapMode: Text.WordWrap
-                text: sc.modelData.desc
+                text: I18n.tr(sc.modelData.desc)
                 color: Tokens.inkDim
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fBody
@@ -83,7 +83,7 @@ Column {
             id: note
             width: step.width - 26
             wrapMode: Text.WordWrap
-            text: "Open Ryoku Settings (Super + ,) for the full shortcut list \u2014 and to rebind any of them."
+            text: I18n.tr("Open Ryoku Settings (Super + ,) for the full shortcut list - and to rebind any of them.")
             color: Tokens.inkFaint
             font.family: Tokens.ui
             font.pixelSize: Tokens.fSmall

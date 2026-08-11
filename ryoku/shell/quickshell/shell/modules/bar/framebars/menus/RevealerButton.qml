@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import shell.services
+import Ryoku.Ui.Singletons
 
 // A collapsible surface row (contract 16 sec 2.4, contract 06 sec 2.1): a full
 // width `ok-button-surface` header whose whole face toggles a revealed card
@@ -37,7 +38,7 @@ Item {
             id: headerContent
             anchors.fill: parent
             iconName: root.iconName
-            label: root.label
+            label: I18n.tr(root.label)
             secondaryIconName: root.secondaryIconName
             iconColor: root.iconColor
         }

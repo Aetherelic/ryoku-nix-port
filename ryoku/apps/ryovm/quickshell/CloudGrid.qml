@@ -68,7 +68,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             width: parent.width
             wrapMode: Text.WordWrap
-            text: Vm.cloudLoading ? "Loading the image list" : (g.filter.length > 0 ? "No images match" : "No cloud images")
+            text: Vm.cloudLoading ? I18n.tr("Loading the image list") : (g.filter.length > 0 ? I18n.tr("No images match") : I18n.tr("No cloud images"))
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: 12

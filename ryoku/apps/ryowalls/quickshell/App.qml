@@ -181,7 +181,7 @@ Rectangle {
                 Rectangle { width: 16; height: 1; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
                 Text { text: "力"; color: Tokens.inkMuted; font.family: Tokens.jp; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
                 Text {
-                    text: "RYOKU WALLS"
+                    text: I18n.tr("RYOKU WALLS")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: 9
@@ -208,7 +208,7 @@ Rectangle {
                         anchors.centerIn: parent
                         spacing: Tokens.s2
                         Text {
-                            text: "SOURCE"
+                            text: I18n.tr("SOURCE")
                             color: openHover.hovered ? Tokens.ink : Tokens.inkDim
                             font.family: Tokens.ui
                             font.pixelSize: 9
@@ -231,7 +231,7 @@ Rectangle {
                 }
             }
 
-            // the page title — the current source, set in the serif.
+            // the page title - the current source, set in the serif.
             Row {
                 spacing: Tokens.s3
                 Text {
@@ -245,7 +245,7 @@ Rectangle {
             }
 
             Text {
-                text: "Find a wallpaper, preview the rice, set it."
+                text: I18n.tr("Find a wallpaper, preview the rice, set it.")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui
                 font.pixelSize: 12
@@ -268,7 +268,7 @@ Rectangle {
             title: "壁紙"
             sub: "画廊"
             tate: "壁を選ぶ"
-            caption: "Every wall this machine can wear — preview the whole rice, then commit."
+            caption: I18n.tr("Every wall this machine can wear - preview the whole rice, then commit.")
             seal: "壁"
             images: ["wave.gif", "compass.gif", "disc.gif", "torus.gif", "render.gif", "sphere.gif", "cube.gif"]
             seed: 0
@@ -307,7 +307,7 @@ Rectangle {
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
                 compact: true
-                text: "‹ BROWSE"
+                text: I18n.tr("‹ BROWSE")
                 onAct: app.lane = "browse"
             }
             Seg {
@@ -327,12 +327,12 @@ Rectangle {
             visible: app.lane === "browse"
             enabled: Wallhaven.source !== "live"
             opacity: Wallhaven.source === "live" ? 0.4 : 1
-            placeholder: Wallhaven.source === "local" ? "Search saved wallpapers"
-                : (Wallhaven.source === "moewalls" ? "Search MoeWalls anime"
-                : (Wallhaven.source === "motionbgs" ? "Search motionbgs"
-                : (Wallhaven.source === "ryoku" ? "Search Ryoku wallpapers"
-                : (Wallhaven.source === "lib" ? "Search " + Wallhaven.libraryName
-                : (Wallhaven.source === "live" ? "Live wallpapers are local" : "Search wallhaven")))))
+            placeholder: Wallhaven.source === "local" ? I18n.tr("Search saved wallpapers")
+                : (Wallhaven.source === "moewalls" ? I18n.tr("Search MoeWalls anime")
+                : (Wallhaven.source === "motionbgs" ? I18n.tr("Search motionbgs")
+                : (Wallhaven.source === "ryoku" ? I18n.tr("Search Ryoku wallpapers")
+                : (Wallhaven.source === "lib" ? I18n.tr("Search ") + Wallhaven.libraryName
+                : (Wallhaven.source === "live" ? I18n.tr("Live wallpapers are local") : I18n.tr("Search wallhaven"))))))
             onCommitted: (v) => { app.lane = "browse"; Wallhaven.searchLatest(v); }
         }
 
@@ -361,14 +361,14 @@ Rectangle {
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Wallhaven.source === "wallhaven"
-                text: "FIT SCREEN"
+                text: I18n.tr("FIT SCREEN")
                 primary: app.fitOn
                 onAct: Wallhaven.setRatios(app.fitOn ? "" : app.screenRatio)
             }
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Wallhaven.source === "live"
-                text: "ADD MP4"
+                text: I18n.tr("ADD MP4")
                 onAct: addDialog.open()
             }
 
@@ -402,13 +402,13 @@ Rectangle {
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Wallhaven.source === "local"
-                text: Wallhaven.localSelection.length > 0 ? "CLEAR" : "SELECT ALL"
+                text: Wallhaven.localSelection.length > 0 ? I18n.tr("CLEAR") : I18n.tr("SELECT ALL")
                 onAct: Wallhaven.localSelection.length > 0 ? Wallhaven.clearLocalSelection() : Wallhaven.selectAllLocal()
             }
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Wallhaven.source === "local" && Wallhaven.localSelection.length > 0
-                text: "DELETE " + Wallhaven.localSelection.length
+                text: I18n.tr("DELETE ") + Wallhaven.localSelection.length
                 onAct: app.confirmOpen = true
             }
             // a hairline divider, then the secondary way into editing: it needs a
@@ -523,11 +523,11 @@ Rectangle {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: app.quitArmed ? "PRESS CTRL+Q AGAIN TO QUIT"
-                    : (Wallhaven.enhancing ? "ENHANCING"
-                    : (Wallhaven.busy ? (Wallhaven.status.length ? Wallhaven.status.toUpperCase() : "WORKING")
-                    : (app.clean ? "WALLPAPER SET · LIVE ON YOUR DESKTOP"
-                    : (Wallhaven.selected ? "PREVIEWING · NOT SET" : "NO PICK"))))
+                text: app.quitArmed ? I18n.tr("PRESS CTRL+Q AGAIN TO QUIT")
+                    : (Wallhaven.enhancing ? I18n.tr("ENHANCING")
+                    : (Wallhaven.busy ? (Wallhaven.status.length ? Wallhaven.status.toUpperCase() : I18n.tr("WORKING"))
+                    : (app.clean ? I18n.tr("WALLPAPER SET · LIVE ON YOUR DESKTOP")
+                    : (Wallhaven.selected ? I18n.tr("PREVIEWING · NOT SET") : I18n.tr("NO PICK")))))
                 color: app.armed || app.busyNow ? Tokens.ink : Tokens.inkDim
                 font.family: Tokens.ui
                 font.pixelSize: 11
@@ -542,12 +542,12 @@ Rectangle {
             anchors.right: parent.right
             anchors.rightMargin: Tokens.s6
             anchors.verticalCenter: parent.verticalCenter
-            text: Wallhaven.source === "moewalls" ? "moewalls.com"
-                : (Wallhaven.source === "motionbgs" ? "motionbgs.com"
+            text: Wallhaven.source === "moewalls" ? I18n.tr("moewalls.com")
+                : (Wallhaven.source === "motionbgs" ? I18n.tr("motionbgs.com")
                 : (Wallhaven.source === "ryoku" ? "ryoku-extras"
-                : (Wallhaven.source === "live" ? "~/Pictures/livewalls"
-                : (Wallhaven.source === "local" ? "~/Pictures"
-                : (Wallhaven.source === "lib" ? "github.com/" + Wallhaven.libraryRepo : "wallhaven.cc")))))
+                : (Wallhaven.source === "live" ? I18n.tr("~/Pictures/livewalls")
+                : (Wallhaven.source === "local" ? I18n.tr("~/Pictures")
+                : (Wallhaven.source === "lib" ? I18n.tr("github.com/") + Wallhaven.libraryRepo : I18n.tr("wallhaven.cc"))))))
             color: Tokens.inkFaint
             font.family: Tokens.mono
             font.pixelSize: 9
@@ -562,7 +562,7 @@ Rectangle {
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Wallhaven.source === "wallhaven"
-                text: "SAVE COPY"
+                text: I18n.tr("SAVE COPY")
                 armed: Wallhaven.selected !== null && !Wallhaven.busy
                 onAct: Wallhaven.download()
             }
@@ -575,13 +575,13 @@ Rectangle {
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Wallhaven.source !== "live" && Wallhaven.source !== "local"
-                text: "OPEN"
+                text: I18n.tr("OPEN")
                 armed: Wallhaven.selected !== null
                 onAct: Wallhaven.openWeb()
             }
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "SET WALLPAPER"
+                text: I18n.tr("SET WALLPAPER")
                 primary: true
                 armed: app.armed && !Wallhaven.busy
                 onAct: Wallhaven.apply()
@@ -636,7 +636,7 @@ Rectangle {
                 anchors.margins: Tokens.s5
                 spacing: Tokens.s4
                 Text {
-                    text: "Delete wallpapers"
+                    text: I18n.tr("Delete wallpapers")
                     color: Tokens.inkOnBone
                     font.family: Tokens.ui
                     font.pixelSize: 16
@@ -645,7 +645,7 @@ Rectangle {
                 Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: "Remove " + Wallhaven.localSelection.length + " wallpaper(s) from disk. This cannot be undone."
+                    text: I18n.tr("Remove ") + Wallhaven.localSelection.length + I18n.tr(" wallpaper(s) from disk. This cannot be undone.")
                     color: Tokens.inkOnBoneDim
                     font.family: Tokens.ui
                     font.pixelSize: 12
@@ -661,7 +661,7 @@ Rectangle {
                         color: cancelH.hovered ? Qt.rgba(0, 0, 0, 0.08) : "transparent"
                         border.width: Tokens.border
                         border.color: Tokens.lineOnBone
-                        Text { id: cancelT; anchors.centerIn: parent; text: "CANCEL"; color: Tokens.inkOnBone; font.family: Tokens.ui; font.pixelSize: 11; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel }
+                        Text { id: cancelT; anchors.centerIn: parent; text: I18n.tr("CANCEL"); color: Tokens.inkOnBone; font.family: Tokens.ui; font.pixelSize: 11; font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel }
                         HoverHandler { id: cancelH; cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: app.confirmOpen = false }
                     }
@@ -671,7 +671,7 @@ Rectangle {
                         color: delH.hovered ? Qt.rgba(0, 0, 0, 0.12) : "transparent"
                         border.width: 2
                         border.color: Tokens.inkOnBone
-                        Text { id: delT; anchors.centerIn: parent; text: "DELETE " + Wallhaven.localSelection.length + " FILES"; color: Tokens.inkOnBone; font.family: Tokens.ui; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: Tokens.trackLabel }
+                        Text { id: delT; anchors.centerIn: parent; text: I18n.tr("DELETE ") + Wallhaven.localSelection.length + I18n.tr(" FILES"); color: Tokens.inkOnBone; font.family: Tokens.ui; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: Tokens.trackLabel }
                         HoverHandler { id: delH; cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: { Wallhaven.removeLocalSelected(); app.confirmOpen = false; } }
                     }
@@ -683,7 +683,7 @@ Rectangle {
     // add a live wallpaper (mp4) into ~/Pictures/livewalls.
     FileDialog {
         id: addDialog
-        title: "Add a live wallpaper"
+        title: I18n.tr("Add a live wallpaper")
         nameFilters: ["Video (*.mp4 *.mkv *.mov)"]
         onAccepted: Wallhaven.importLive(selectedFile)
     }

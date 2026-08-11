@@ -16,7 +16,7 @@ Item {
     readonly property color contentColor: root.widgetContentColor("G2", root.seal)
 
     // The focused workspace's id ONLY when it's a real (positive) workspace beyond
-    // the persist range — else 0. An int signals on value change only, so switching
+    // the persist range - else 0. An int signals on value change only, so switching
     // between in-range workspaces does NOT renotify → workspaceList stays identical
     // → the Repeater model is stable → the per-delegate width/colour Behaviors keep
     // animating instead of the whole model rebuilding (B2). `id > n` (n≥5) also
@@ -95,7 +95,7 @@ Item {
                 }
 
                 // ── DEFAULT style: glow + dot ──
-                // glow — alle states, nur opacity variiert
+                // glow - alle states, nur opacity variiert
                 Rectangle {
                     visible: root.workspaceStyle === "default"
                     anchors.centerIn: parent
@@ -174,7 +174,7 @@ Item {
                     Behavior on color { ColorAnimation { duration: 200 } }
                 }
 
-                // ── KANJI style: 一–十 numerals (waybar V7.2a format-icons), same
+                // ── KANJI style: 一-十 numerals (waybar V7.2a format-icons), same
                 //    focused/occupied/empty treatment as the other styles; ids >10
                 //    fall back to the Arabic number ──
                 Text {

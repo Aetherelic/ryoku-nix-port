@@ -6,7 +6,7 @@ Item {
     id: rootMod
     required property var root
 
-    // event-driven UPower data — updates instantly on plug / unplug
+    // event-driven UPower data - updates instantly on plug / unplug
     readonly property var dev: UPower.displayDevice
     readonly property bool hasBattery: dev !== null && dev.isLaptopBattery
     readonly property int percent: {
@@ -55,7 +55,7 @@ Item {
         anchors.centerIn: parent
         spacing: 4
 
-        // drawn landscape battery — body + stepless fill + terminal nub
+        // drawn landscape battery - body + stepless fill + terminal nub
         Item {
             id: batt
             width: 19
@@ -127,7 +127,7 @@ Item {
                     }
                 }
 
-                // charging bolt overlay — clear "is charging" cue
+                // charging bolt overlay - clear "is charging" cue
                 Canvas {
                     id: bolt
                     visible: rootMod.charging || rootMod.full

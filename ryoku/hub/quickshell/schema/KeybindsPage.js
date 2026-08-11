@@ -23,9 +23,9 @@ var rows = [
         "ctl": "multi",
         "src": "shell",
         "opts": [
-            "(no visible label \u2014 key combo field; placeholder \"SUPER + J\")",
+            "(no visible label - key combo field; placeholder \"SUPER + J\")",
             "exec",
-            "(no visible label \u2014 command field; placeholder \"command to run\")"
+            "(no visible label - command field; placeholder \"command to run\")"
         ]
     }
 ];

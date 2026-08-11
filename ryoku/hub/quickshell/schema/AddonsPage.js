@@ -30,7 +30,7 @@ var rows = [
     },
     {
         "tab": "detail",
-        "group": "(plugin-declared, from manifest.metadata.settings[].group \u2014 group headers are rendered by PluginSettingsForm itself, one per distinct `group` string, in schema order; fields with group \"\" get no header)",
+        "group": "(plugin-declared, from manifest.metadata.settings[].group - group headers are rendered by PluginSettingsForm itself, one per distinct `group` string, in schema order; fields with group \"\" get no header)",
         "key": "<pluginId>.settings.<field.key>",
         "label": "(plugin-declared, field.label, falling back to field.key)",
         "desc": "Each add-on defines its own; changes apply to the desktop live",

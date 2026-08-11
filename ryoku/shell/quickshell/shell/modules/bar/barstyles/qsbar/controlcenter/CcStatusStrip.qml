@@ -1,5 +1,6 @@
 import QtQuick
 import "../modules"
+import Ryoku.Ui.Singletons
 
 // A quiet summary of the running bar: form · variant on the left, position ·
 // accent on the right. Ryoku has no plugin/health counts to show here (those
@@ -23,7 +24,7 @@ Item {
         anchors.left: parent.left; anchors.leftMargin: 12
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: "BAR"; color: strip.root.sumiHi; font.family: strip.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("BAR"); color: strip.root.sumiHi; font.family: strip.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
         UiText { anchors.verticalCenter: parent.verticalCenter; text: strip.variant + " · " + strip.form; color: strip.root.ink; font.family: strip.root.mono; font.pixelSize: 11 }
     }
     Row {

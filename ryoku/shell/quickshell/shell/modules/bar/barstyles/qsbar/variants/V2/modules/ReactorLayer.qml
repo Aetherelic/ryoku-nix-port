@@ -8,7 +8,7 @@
 // deliberately excludes the tapered notch shoulders: the surface fill falls away
 // under the shoulder run-outs, so a gap opened there would strand particles off
 // the lit surface. Keeping the field inside the body is how we "account for" the
-// notch shoulders — they stay chrome, never a stream channel.
+// notch shoulders - they stay chrome, never a stream channel.
 //
 // This mirrors V1's `island` run-geometry shim (pillRuns / runLeftEdge /
 // runRightEdge) so the shared ParticleStream drives every mode 1-8 (incl.

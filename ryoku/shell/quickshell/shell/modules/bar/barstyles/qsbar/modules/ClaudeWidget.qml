@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 // Combined AI-usage pill (Claude Code + OpenAI Codex + OpenCode). The bar shows ONE tool
 // (root.aiTool) as a themed-tinted SVG with a bottom-up usage fill; the tooltip
@@ -22,7 +23,7 @@ Item {
     readonly property int  ocMarkH: 12
 
     // ── Claude: process detection is local (drives the pill's visibility); all
-    //    usage data comes from root.ai* — the single shared parse in Theme.qml that
+    //    usage data comes from root.ai* - the single shared parse in Theme.qml that
     //    AiUsagePanel renders from too, so the two views can't drift apart. ──
     property bool clActive: false
     readonly property bool   clFresh:     root.aiClFresh
@@ -84,7 +85,7 @@ Item {
     readonly property bool selSignal: isOpenCode ? ocSignal : (isCodex ? cxSignal : clSignal)
     readonly property bool blocked:  (isCodex || isOpenCode) ? false : clBlocked
 
-    // show whenever the gate is on AND either tool has a signal — the pill stays
+    // show whenever the gate is on AND either tool has a signal - the pill stays
     // reachable (to open the panel + switch) even if the selected tool is idle
     readonly property bool shown: (clSignal || cxSignal || ocSignal) && root.modClaude
 
@@ -274,7 +275,7 @@ Item {
         UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.blocked
-                ? "BLK"
+                ? I18n.tr("BLK")
                 : (rootMod.selSignal ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
             color: rootMod.blocked
                 ? root.seal

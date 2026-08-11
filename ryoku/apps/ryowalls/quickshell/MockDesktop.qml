@@ -186,9 +186,9 @@ Item {
             Row {
                 spacing: 0
                 Text { text: "ryoku"; color: mock.cGreen; font.family: Tokens.mono; font.pixelSize: 11 * mock.s; font.weight: Font.DemiBold; Behavior on color { ColorAnimation { duration: Tokens.swap } } }
-                Text { text: "@arch"; color: mock.cMag; font.family: Tokens.mono; font.pixelSize: 11 * mock.s; Behavior on color { ColorAnimation { duration: Tokens.swap } } }
+                Text { text: I18n.tr("@arch"); color: mock.cMag; font.family: Tokens.mono; font.pixelSize: 11 * mock.s; Behavior on color { ColorAnimation { duration: Tokens.swap } } }
                 Text { text: " ~ "; color: mock.cBlue; font.family: Tokens.mono; font.pixelSize: 11 * mock.s; Behavior on color { ColorAnimation { duration: Tokens.swap } } }
-                Text { text: "❯ fastfetch"; color: mock.cFg; font.family: Tokens.mono; font.pixelSize: 11 * mock.s; Behavior on color { ColorAnimation { duration: Tokens.swap } } }
+                Text { text: I18n.tr("❯ fastfetch"); color: mock.cFg; font.family: Tokens.mono; font.pixelSize: 11 * mock.s; Behavior on color { ColorAnimation { duration: Tokens.swap } } }
             }
 
             Repeater {

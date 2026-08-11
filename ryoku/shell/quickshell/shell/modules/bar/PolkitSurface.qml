@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import shell.services
 import "../../components"
+import Ryoku.Ui.Singletons
 
 // polkit authentication island, grown from the pill centre. Renders the PAM
 // conversation the ryoku-shell daemon runs as the PolicyKit1 agent, in place of
@@ -90,7 +91,7 @@ PillSurface {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - 40 * root.s
-                text: "Administrator access"
+                text: I18n.tr("Administrator access")
                 color: Theme.onSurface
                 font.family: Theme.fontPrimary
                 font.pixelSize: 14 * root.s
@@ -180,7 +181,7 @@ PillSurface {
 
                 Text {
                     anchors.centerIn: parent
-                    text: Polkit.busy ? "Checking…" : "Authenticate"
+                    text: Polkit.busy ? I18n.tr("Checking…") : I18n.tr("Authenticate")
                     color: "#fdeee6"
                     font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s
@@ -208,7 +209,7 @@ PillSurface {
 
                 Text {
                     anchors.centerIn: parent
-                    text: "Cancel"
+                    text: I18n.tr("Cancel")
                     color: Theme.onSurface
                     font.family: Theme.fontPrimary
                     font.pixelSize: 12 * root.s

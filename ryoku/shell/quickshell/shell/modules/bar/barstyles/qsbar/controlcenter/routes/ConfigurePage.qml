@@ -1,6 +1,7 @@
 import QtQuick
 import "../../modules"
 import "../kit/Routes.js" as Routes
+import Ryoku.Ui.Singletons
 
 // The CONFIGURE landing. Ported from Shibumi's ConfigureLandingPage: a left route
 // list (icon + title + desc, with hover/selected states) wired to a live Canvas
@@ -59,7 +60,7 @@ Item {
         id: intro
         anchors.top: parent.top
         anchors.left: parent.left
-        text: "CHOOSE WHAT TO CONFIGURE"
+        text: I18n.tr("CHOOSE WHAT TO CONFIGURE")
         color: page.root ? page.root.sumiHi : "#888888"
         font.family: page.root ? page.root.mono : "monospace"
         font.pixelSize: 10
@@ -114,7 +115,7 @@ Item {
                     ctx.fillStyle = col
                     ctx.fill()
                 }
-                // destination port — always accent
+                // destination port - always accent
                 ctx.beginPath()
                 ctx.arc(endX, endY, 4.4, 0, Math.PI * 2)
                 ctx.fillStyle = acc
@@ -191,7 +192,7 @@ Item {
 
                             UiText {
                                 width: parent.width
-                                text: card.modelData.label
+                                text: I18n.tr(card.modelData.label)
                                 elide: Text.ElideRight
                                 color: (card.selected || card.hovered) ? card.acc
                                     : (page.root ? page.root.ink : "#c5c9c5")
@@ -201,7 +202,7 @@ Item {
                             }
                             UiText {
                                 width: parent.width
-                                text: card.modelData.desc
+                                text: I18n.tr(card.modelData.desc)
                                 elide: Text.ElideRight
                                 color: page.root ? page.root.sumi : "#888888"
                                 font.family: page.root ? page.root.mono : "monospace"
@@ -256,7 +257,7 @@ Item {
                 UiText {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
-                    text: page.previewRoute ? page.previewRoute.label : ""
+                    text: page.previewRoute ? I18n.tr(page.previewRoute.label) : ""
                     color: page.root ? page.root.ink : "#c5c9c5"
                     font.family: page.root ? page.root.mono : "monospace"
                     font.pixelSize: 12
@@ -266,7 +267,7 @@ Item {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
-                    text: page.previewRoute ? page.previewRoute.desc : ""
+                    text: page.previewRoute ? I18n.tr(page.previewRoute.desc) : ""
                     color: page.root ? page.root.sumi : "#888888"
                     font.family: page.root ? page.root.mono : "monospace"
                     font.pixelSize: 9

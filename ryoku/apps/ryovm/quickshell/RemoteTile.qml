@@ -41,7 +41,7 @@ Item {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             width: 30
-            text: mtr.label
+            text: I18n.tr(mtr.label)
             color: Tokens.inkFaint
             font.family: Tokens.mono; font.pixelSize: 8; font.letterSpacing: 0.8
         }
@@ -115,7 +115,7 @@ Item {
             Text {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: ({ "up": "UP", "warn": "WARN", "down": "DOWN", "unknown": "—" })[tile.state] || "—"
+                text: ({ "up": "UP", "warn": "WARN", "down": "DOWN", "unknown": "-" })[tile.state] || "-"
                 color: tile.state === "warn" || tile.state === "down" ? Tokens.ink : Tokens.inkFaint
                 font.family: Tokens.mono; font.pixelSize: 9; font.letterSpacing: 1.4
             }
@@ -157,14 +157,14 @@ Item {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 3
-                Meter { label: "LOAD"; frac: tile.loadFrac }
-                Meter { label: "DISK"; frac: tile.diskFrac }
+                Meter { label: I18n.tr("LOAD"); frac: tile.loadFrac }
+                Meter { label: I18n.tr("DISK"); frac: tile.diskFrac }
             }
             Btn {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 height: 24
-                text: "CONNECT"
+                text: I18n.tr("CONNECT")
                 onAct: tile.connect()
             }
         }

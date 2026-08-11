@@ -196,7 +196,7 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: I18n.tr("The roots we grow from \u2014 every project, distro, and hand this build stands on.")
+                    text: I18n.tr("The roots we grow from - every project, distro, and hand this build stands on.")
                     color: Tokens.inkMuted
                     font.family: Tokens.display
                     font.italic: true

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// BarSlot — slot-based bar (WIP port). Step 3: full static layout, all 15 groups
+// BarSlot - slot-based bar (WIP port). Step 3: full static layout, all 15 groups
 // in 3 regions on one continuous section-pill (matches the default no-split look).
 // Real widgets via a component registry. Splits + unlock/drag + slot-aware panel
 // bindings come next. Runs as the real TOP bar (shell.qml: Bar → BarSlot).
@@ -152,7 +152,7 @@ PanelWindow {
         if (parts.length !== 3) return
         var l = parts[0].split(","), c = parts[1].split(","), r = parts[2].split(",")
         // F12: only apply a cache that is a valid permutation of all registry ids (correct region
-        // sizes, every id known, no duplicate, none missing) — a corrupt cache would otherwise
+        // sizes, every id known, no duplicate, none missing) - a corrupt cache would otherwise
         // duplicate one widget and silently drop another. On reject, keep the default order.
         if (l.length !== leftModel.count || c.length !== centerModel.count || r.length !== rightModel.count) return
         var all = l.concat(c, r), seen = {}
@@ -308,10 +308,10 @@ PanelWindow {
             implicitHeight: 28
 
             // ── responsive stage (narrow-monitor overlap fix) ──
-            // Presentation-only inside G8 — never touches root.mod* user toggles.
+            // Presentation-only inside G8 - never touches root.mod* user toggles.
             // Mutable state with hysteresis, NOT a computed property: downshift when
             // the CURRENT stage no longer fits (24px slack), upshift only when the
-            // LARGER stage would fit with 48px slack — measured against that stage's
+            // LARGER stage would fit with 48px slack - measured against that stage's
             // own needed width, else minimal⇄compact oscillates.
             property int stage: 0                        // 0 normal · 1 compact · 2 minimal
             readonly property bool showWeather: stage <= 1
@@ -328,7 +328,7 @@ PanelWindow {
                 + (dateLabel.implicitWidth > 0.5 ? 8 + dateLabel.implicitWidth : 0)
             function updateStage() {
                 // compact only while G8 actually occupies the center slot: after a
-                // drag swap G8 can sit in a SIDE row — its own width then feeds the
+                // drag swap G8 can sit in a SIDE row - its own width then feeds the
                 // very side-row width that centerAvail is measured from, and the
                 // stage delta (~weather+date) exceeds the 24/48px hysteresis window
                 // → boundary-width flutter. As a side widget G8 stays at normal.
@@ -500,7 +500,7 @@ PanelWindow {
         spacing: 6
         height: 32
         // index of the LAST currently shown slot (skips disabled and auto-hidden
-        // narrow-stage widgets) —
+        // narrow-stage widgets) -
         // a split/grow only makes sense BEFORE this (else it opens a gap to nowhere)
         readonly property int lastVisibleIndex: {
             void(width)
@@ -524,7 +524,7 @@ PanelWindow {
                 readonly property bool hasContent: Math.round(ldr.implicitWidth) > 0.5
                 readonly property bool hasGapAfter: splitsArr ? (index < splitsArr.length) : false
                 // split AFTER this slot → grow it so the group separates (gap opens).
-                // ONLY for widgets with content — a 0-width widget (battery/brightness on
+                // ONLY for widgets with content - a 0-width widget (battery/brightness on
                 // a desktop) must NOT grow, else it shows up as an empty pill.
                 readonly property bool splitAfter: autoShown && hasGapAfter && splitsArr[index]
                 readonly property real grow: (splitAfter && hasContent && index < lastVisibleIndex) ? 16 : 0
@@ -659,13 +659,13 @@ PanelWindow {
         // ── split state (positional, per within-region gap) ──
         property var leftSplits:  [false, false, false, false, false, false]   // gaps in leftModel
         property var rightSplits: [false, false, false, false, false, false]   // gaps in rightModel
-        property var boundarySplits: [true, true]   // [left↔center, center↔right] — split by default so the animated gap shows
+        property var boundarySplits: [true, true]   // [left↔center, center↔right] - split by default so the animated gap shows
 
         readonly property real lcBoundaryX: leftRowItem.x + leftRowItem.width + 9    // just right of Claude
         readonly property real crBoundaryX: rightRowItem.x - 9                       // just left of Mpris
 
         // ── G8 collision handling (narrow-monitor overlap fix) ──
-        // free span between the side rows; the only stage-decision input — reads
+        // free span between the side rows; the only stage-decision input - reads
         // ONLY left/right geometry (never the center row), so stage changes that
         // resize G8 cannot feed back into this value (no binding loop).
         readonly property int centerGap: 12
@@ -673,7 +673,7 @@ PanelWindow {
         readonly property real centerAvail: rightRowItem.x - (leftRowItem.x + leftRowItem.width) - 2 * centerGap
         // centered while space allows; clamped between the rows when squeezed.
         // If even the current G8 width cannot fit (max < min), fall back to the
-        // screen-clamped ideal — the documented extreme case may overlap.
+        // screen-clamped ideal - the documented extreme case may overlap.
         readonly property real idealCenterX: Math.round((width - centerRowItem.width) / 2)
         readonly property real minCenterX: Math.round(leftRowItem.x + leftRowItem.width + centerGap)
         readonly property real maxCenterX: Math.round(rightRowItem.x - centerGap - centerRowItem.width)
@@ -685,7 +685,7 @@ PanelWindow {
         // Presentation-only stages that hide low-priority side groups when the bar
         // would otherwise overflow. Never touches root.mod* toggles, models, order
         // or split persistence. Budgets are summed from stage-independent budgetSlotWidth
-        // values — never from the collapsed row widths — so hiding a group cannot
+        // values - never from the collapsed row widths - so hiding a group cannot
         // feed back into its own decision (same anti-flutter rule as the G8 stage).
         property int narrowStage: 0            // 0 normal · 1 compact · 2 portrait · 3 emergency
         property real g8FloorWidth: 80         // published by G8: its clock-only minimal width
@@ -792,7 +792,7 @@ PanelWindow {
             for (var j = 0; j < rightSplits.length; j++)
                 if (rightSplits[j]) { var cj = gapInterval(rightRowItem.rep, j); if (cj) cuts.push(cj) }
             // boundary: cut out the WHOLE empty whitespace so the pill hugs the content
-            // center boundaries — if the center is empty (its widget disabled) AND both
+            // center boundaries - if the center is empty (its widget disabled) AND both
             // sides are split, merge into ONE cut so no thin center pill is left over
             // right edge for boundary cuts: if the right region is empty, cut all the
             // way to the island edge so no thin pill is left at the right margin

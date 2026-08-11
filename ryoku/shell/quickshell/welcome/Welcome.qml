@@ -122,7 +122,7 @@ Rectangle {
                 font.letterSpacing: Tokens.trackMark
             }
             Text {
-                text: "FIRST LIGHT"
+                text: I18n.tr("FIRST LIGHT")
                 color: Tokens.inkFaint
                 font.family: Tokens.mono
                 font.pixelSize: Tokens.fTiny
@@ -259,7 +259,7 @@ Rectangle {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 kind: "ghost"
-                label: "Skip the tour"
+                label: I18n.tr("Skip the tour")
                 visible: root.step < root.lastStep
                 onClicked: root.finish()
             }
@@ -271,7 +271,7 @@ Rectangle {
 
                 WelcomeButton {
                     kind: "ghost"
-                    label: "Back"
+                    label: I18n.tr("Back")
                     visible: root.step > 0
                     onClicked: root.back()
                 }

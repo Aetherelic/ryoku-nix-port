@@ -1,5 +1,6 @@
 import QtQuick
 import shell.services
+import Ryoku.Ui.Singletons
 
 // section eyebrow, the website's `.eyebrow`: a short vermilion tick, then the
 // 力 seal, then a mono uppercase label with wide tracking. the pill surfaces'
@@ -32,7 +33,7 @@ Row {
 
     Text {
         anchors.verticalCenter: parent.verticalCenter
-        text: eye.label
+        text: I18n.tr(eye.label)
         color: eye.labelColor
         font.family: Theme.mono
         font.pixelSize: 9.5 * eye.s

@@ -49,7 +49,7 @@ Column {
                         anchors.verticalCenter: parent.verticalCenter
                         text: dlRow.model.indet
                             ? (({ "resolve": "FINDING MIRROR", "download": "DOWNLOADING", "config": "PREPARING" })[dlRow.model.phase] || "WORKING")
-                            : Math.round(dlRow.model.progress * 100) + "%" + (dlRow.model.bps > 0 ? "  ·  " + (dlRow.model.bps / 1048576).toFixed(1) + " MB/s" : "")
+                            : Math.round(dlRow.model.progress * 100) + "%" + (dlRow.model.bps > 0 ? "  ·  " + (dlRow.model.bps / 1048576).toFixed(1) + I18n.tr(" MB/s") : "")
                         color: Tokens.inkMuted
                         font.family: Tokens.mono; font.pixelSize: 10
                     }
@@ -57,7 +57,7 @@ Column {
                         id: xBtn
                         anchors.verticalCenter: parent.verticalCenter
                         compact: true
-                        text: "CANCEL"
+                        text: I18n.tr("CANCEL")
                         onAct: Vm.cancelJob(dlRow.model.key)
                     }
                 }
@@ -79,7 +79,7 @@ Column {
                     width: parent.width
                     visible: dlRow.model.indet
                     elide: Text.ElideRight
-                    text: dlRow.model.log.length > 0 ? dlRow.model.log : "Working…"
+                    text: dlRow.model.log.length > 0 ? dlRow.model.log : I18n.tr("Working…")
                     color: Tokens.inkFaint
                     font.family: Tokens.mono; font.pixelSize: 10
                 }

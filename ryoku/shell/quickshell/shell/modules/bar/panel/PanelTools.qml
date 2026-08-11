@@ -4,6 +4,7 @@ import QtQuick
 import shell.services
 import "../../../components"
 import "../framebars/menus" as Menus
+import Ryoku.Ui.Singletons
 
 // Tools: the kept download / convert / install backends with a clean face.
 // Paste a link to fetch it into the stash (cobalt drives a sequential queue);
@@ -127,7 +128,7 @@ Item {
 
                         Text {
                             anchors.centerIn: parent
-                            text: modelData.label
+                            text: I18n.tr(modelData.label)
                             color: parent.on ? Theme.inkOn(Theme.primary, Theme.onPrimary)
                                 : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                             font.family: Theme.fontPrimary
@@ -445,7 +446,7 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: btn.label
+                    text: I18n.tr(btn.label)
                     color: btn.primary ? Theme.inkOn(Theme.primary, Theme.onPrimary)
                         : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                     font.family: Theme.fontPrimary
