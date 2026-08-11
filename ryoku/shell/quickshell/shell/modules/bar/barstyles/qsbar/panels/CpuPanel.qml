@@ -241,6 +241,7 @@ PanelWindow {
     Process {
         id: dataProc
         command: ["bash", "-c",
+            "for st in /sys/bus/pci/drivers/nvidia/*/power/runtime_status; do [ -r \"$st\" ] || continue; read -r s < \"$st\"; [ \"$s\" = suspended ] && { echo 'GPU 0 0 0 0'; exit 0; }; break; done; " +
             "if command -v nvidia-smi &>/dev/null; then " +
             "  nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | " +
             "  awk -F', ' '{printf \"GPU %s %s %s %s\\n\", $1, $2, $3, $4}'; " +
