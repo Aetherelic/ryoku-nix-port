@@ -84,7 +84,8 @@ func (d *daemon) idlePark() {
 		case <-tick.C:
 		}
 		for _, name := range []string{"launcher", "overview"} {
-			if !unloadPaletteWhenIdle(name) {
+			// Power Saver forces the park too (like the QML freezes), reclaiming RAM.
+			if !unloadPaletteWhenIdle(name) && !d.saverActive() {
 				continue
 			}
 			d.parkMu.Lock()

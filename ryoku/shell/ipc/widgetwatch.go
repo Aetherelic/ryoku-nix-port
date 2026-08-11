@@ -150,7 +150,8 @@ func (d *daemon) widgetGateWorker() {
 	const grace = 3 * time.Second
 	var coveredSince time.Time
 	reeval := func() {
-		if !unloadWidgetsWhenCovered() || desktopVisible() {
+		// Power Saver forces the unload too (like the QML freezes), reclaiming RAM.
+		if (!unloadWidgetsWhenCovered() && !d.saverActive()) || desktopVisible() {
 			coveredSince = time.Time{}
 			d.setGate("widgets", true)
 			return

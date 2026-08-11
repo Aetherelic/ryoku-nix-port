@@ -48,7 +48,8 @@ func (d *daemon) watchAudio() {
 	var silentSince time.Time
 
 	reeval := func() {
-		if !unloadVisualizerWhenSilent() {
+		// Power Saver forces the unload too (like the QML freezes), reclaiming RAM.
+		if !unloadVisualizerWhenSilent() && !d.saverActive() {
 			silentSince = time.Time{}
 			d.setGate("visualizer", true)
 			return

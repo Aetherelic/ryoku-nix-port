@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Power Saver reclaims resident-surface RAM.** The daemon's idle-unload workers
+  (the launcher/overview palettes, the audio visualiser, and the covered-desktop
+  widget layer) now unload under the Power Saver profile even when the user turned
+  the per-surface `unload*` toggles off, matching how the QML side already forces
+  its idle freezes under Saver. Someone who keeps surfaces warm for speed still
+  gets a one-switch RAM reclaim by choosing Saver, and Balanced/Performance leave
+  the toggles untouched (`ipc/{audiowatch,idlewatch,widgetwatch}.go` via the shared
+  `saverActive`).
 - **Resident panels drop their off-screen list delegates.** The Arch updater and
   notification panels are always-resident `PanelWindow`s whose lists are fed by
   background polls (the update badge, the notification badge), so their `Repeater`s
