@@ -106,6 +106,7 @@ func reconcilers() []reconciler {
 		{"limine autoboot", reconcileLimineAutoboot},
 		{"limine snapshot sync", reconcileLimineOSName},
 		{"pacman database lock", reconcilePacmanLock},
+		{"conflicting Ryoku files", reconcileConflictingRyokuFiles},
 		{"stale update run-state", reconcileStaleUpdateRun},
 		{"stale install crypt mapper", reconcileStaleCryptMapper},
 		{"ryoku package channel", reconcileRyokuChannel},
@@ -2682,21 +2683,30 @@ func liveConfigErrors(live bool) string {
 
 // ---- reconciler: failed systemd units ----------------------------------------
 
-func reconcileFailedUnits(_ bool) recResult {
-	var failed []string
-	out, _ := sys.RunOut("systemctl", "--failed", "--no-legend", "--plain")
-	for _, l := range nonEmptyLines(out) {
-		if f := strings.Fields(l); len(f) > 0 {
-			failed = append(failed, f[0])
+func reconcileFailedUnits(checkOnly bool) recResult {
+	// Clear the lingering transient app scopes (safe: the app is already gone),
+	// then report whatever real failures remain.
+	var reset int
+	if !checkOnly {
+		for _, u := range failedUnits("--user") {
+			if transientAppScope(u) && sys.Run("systemctl", "--user", "reset-failed", u) == nil {
+				reset++
+			}
 		}
 	}
-	usr, _ := sys.RunOut("systemctl", "--user", "--failed", "--no-legend", "--plain")
-	for _, l := range nonEmptyLines(usr) {
-		if f := strings.Fields(l); len(f) > 0 {
-			failed = append(failed, f[0]+" (user)")
+	var failed []string
+	failed = append(failed, failedUnits()...)
+	for _, u := range failedUnits("--user") {
+		if checkOnly && transientAppScope(u) {
+			failed = append(failed, u+" (user, clearable)")
+		} else {
+			failed = append(failed, u+" (user)")
 		}
 	}
 	if len(failed) == 0 {
+		if reset > 0 {
+			return fixedRes("reset %d stale app scope(s)", reset)
+		}
 		return okRes("no failed services")
 	}
 	return warnRes("failed: %s", strings.Join(failed, ", ")).
@@ -2978,4 +2988,90 @@ func tailLines(s string, n int) string {
 		lines = lines[len(lines)-n:]
 	}
 	return strings.Join(lines, "\n")
+}
+
+// ---- reconciler: unowned Ryoku system files (deploy-seeded) -------------------
+
+// ryokuSystemGlobs are the paths ryoku-desktop packages that ryoku/shell
+// deploy.sh also seeds unowned (privileged helpers + their polkit rules, so a dev
+// checkout's pkexec has a rule to match). On a packaged box an unowned copy from
+// an earlier dev deploy or `ryoku recovery` collides with the package on
+// `pacman -Syu` ("exists in filesystem") and aborts the whole atomic transaction,
+// so no update lands. `ryoku update` now passes --overwrite for these, but a box
+// already wedged cannot reach that fixed binary; clearing the copies here lets the
+// next update adopt them.
+var ryokuSystemGlobs = []string{
+	"/usr/bin/ryoku-*",
+	"/usr/share/polkit-1/rules.d/*ryoku*.rules",
+}
+
+// pkgOwnsFile reports whether an installed package owns path. A var so tests stub
+// the probe without a real pacman database.
+var pkgOwnsFile = func(path string) bool {
+	return sys.Run("pacman", "-Qo", path) == nil
+}
+
+// strayRyokuFiles returns the files matching globs that pacman does not own: the
+// deploy-seeded leftovers that block -Syu. Pure over its injected probes, so the
+// selection is unit-testable without a real filesystem or pacman.
+func strayRyokuFiles(globs []string, glob func(string) ([]string, error), owned func(string) bool) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, g := range globs {
+		matches, _ := glob(g)
+		for _, m := range matches {
+			if seen[m] || owned(m) {
+				continue
+			}
+			seen[m] = true
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func reconcileConflictingRyokuFiles(checkOnly bool) recResult {
+	// Only a packaged box hits the conflict. A dev checkout has no ryoku-desktop,
+	// and deploy.sh's unowned helpers there are correct, so leave them be.
+	if !sys.PkgInstalled("ryoku-desktop") {
+		return okRes("dev checkout (no ryoku-desktop); deploy-seeded helpers are expected")
+	}
+	stray := strayRyokuFiles(ryokuSystemGlobs, filepath.Glob, pkgOwnsFile)
+	if len(stray) == 0 {
+		return okRes("no unowned Ryoku files blocking pacman")
+	}
+	if checkOnly {
+		return wouldRes("%d unowned Ryoku file(s) block `pacman -Syu` (deploy-seeded): %s",
+			len(stray), strings.Join(stray, ", ")).
+			withFix("sudo rm -f %s", strings.Join(stray, " "))
+	}
+	for _, f := range stray {
+		if err := sys.Sudo("rm", "-f", f); err != nil {
+			return failRes("could not remove %s: %v", f, err).
+				withFix("sudo rm -f %s", strings.Join(stray, " "))
+		}
+	}
+	return fixedRes("removed %d unowned Ryoku file(s) so the next update adopts them: %s",
+		len(stray), strings.Join(stray, ", "))
+}
+
+// transientAppScope reports whether a --user unit is a transient GUI app-launch
+// scope (app-<id>-<n>.scope). systemd creates one per app launch; it lingers
+// "failed" after the app exits or is killed, and reset-failed clears the dead
+// record. A real .service failure never matches, so it stays reported.
+func transientAppScope(unit string) bool {
+	return strings.HasPrefix(unit, "app-") && strings.HasSuffix(unit, ".scope")
+}
+
+// failedUnits lists failed unit names from `systemctl [extra] --failed`.
+func failedUnits(extra ...string) []string {
+	args := append(append([]string{}, extra...), "--failed", "--no-legend", "--plain")
+	out, _ := sys.RunOut("systemctl", args...)
+	var names []string
+	for _, l := range nonEmptyLines(out) {
+		if f := strings.Fields(l); len(f) > 0 {
+			names = append(names, f[0])
+		}
+	}
+	return names
 }

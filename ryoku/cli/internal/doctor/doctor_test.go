@@ -2089,3 +2089,48 @@ func TestReconcileHyprlandConfigRepairsCorruptKeyboard(t *testing.T) {
 		t.Fatalf("reseeded keyboard.lua must still set a layout, got %q", b)
 	}
 }
+
+// transientAppScope must match systemd's per-launch GUI scopes (app-*.scope) so
+// doctor auto-clears their lingering failed state, and must never match a real
+// service, which stays reported.
+func TestTransientAppScope(t *testing.T) {
+	for _, u := range []string{"app-discord-155691.scope", "app-firefox-8043.scope", "app-org.foo.Bar-1.scope"} {
+		if !transientAppScope(u) {
+			t.Errorf("transientAppScope(%q) = false, want true", u)
+		}
+	}
+	for _, u := range []string{"app-daemon.service", "ryoku-shell.service", "session-2.scope", "user@1000.service", "sshd.service"} {
+		if transientAppScope(u) {
+			t.Errorf("transientAppScope(%q) = true, want false", u)
+		}
+	}
+}
+
+// strayRyokuFiles must return only the deploy-seeded paths pacman does not own:
+// removing a package-owned file would break the install, and missing an unowned
+// one leaves the -Syu conflict that wedges every update.
+func TestStrayRyokuFilesSelectsUnownedOnly(t *testing.T) {
+	glob := func(pat string) ([]string, error) {
+		switch pat {
+		case "/usr/bin/ryoku-*":
+			return []string{"/usr/bin/ryoku-dns", "/usr/bin/ryoku-gpu"}, nil
+		case "/usr/share/polkit-1/rules.d/*ryoku*.rules":
+			return []string{"/usr/share/polkit-1/rules.d/50-ryoku-dns.rules"}, nil
+		}
+		return nil, nil
+	}
+	owned := func(p string) bool { return p == "/usr/bin/ryoku-gpu" } // packaged; the rest are deploy-seeded
+	got := strayRyokuFiles(ryokuSystemGlobs, glob, owned)
+	want := map[string]bool{
+		"/usr/bin/ryoku-dns":                             true,
+		"/usr/share/polkit-1/rules.d/50-ryoku-dns.rules": true,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("strayRyokuFiles = %v, want exactly the two unowned paths", got)
+	}
+	for _, g := range got {
+		if !want[g] {
+			t.Errorf("strayRyokuFiles returned %q; package-owned files must be excluded", g)
+		}
+	}
+}

@@ -11,6 +11,13 @@
   files were deleted by hand. The upgrade now passes `--overwrite` scoped to those
   Ryoku paths so the package adopts them, with a regression test on the glob
   (`internal/updater/update.go`).
+- **`ryoku doctor` self-heals a box already wedged by that conflict.** The
+  `--overwrite` fix rides in the `ryoku` binary, which a stuck `-Syu` can't
+  install, so a new "conflicting Ryoku files" reconciler removes any unowned
+  `/usr/bin/ryoku-*` or `*ryoku*.rules` left by a dev deploy or `ryoku recovery`
+  (packaged boxes only), letting the next update adopt them. "failed services"
+  also now auto-clears the lingering transient GUI app scopes (`app-*.scope`)
+  instead of only reporting them (`internal/doctor/doctor.go`).
 - **`ryoku doctor` heals an NVIDIA box left without `fbdev=1`.** The config check
   passed on any drop-in containing `nvidia_drm modeset=1`, so an install that had
   modeset but not `fbdev=1` never got it added, and external displays could come
