@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+- **The Limine boot stack now ships from `[ryoku]`, so offline installs detect
+  other OSes and get the Snapshots submenu.** `limine-mkinitcpio-hook` (bundling
+  `limine-entry-tool`) and `limine-snapper-sync` were AUR-only, so a fully
+  offline install skipped them and booted a frozen flat menu: no
+  `FIND_BOOTLOADERS` other-OS detection, no UKI tree, no rollback snapshots, and
+  `ryoku doctor` failed its limine reconciler every update. Vendored as GraalVM
+  `nativeCompile` PKGBUILDs (`packages/limine-mkinitcpio-hook`,
+  `packages/limine-snapper-sync`) and pacstrapped via `base.packages`, so
+  `bootloader.sh` runs `limine-update` on every install and both ISO variants
+  converge with online. `gradle` joins the build toolchain (`repo/build-repo.sh`,
+  `.github/workflows/publish-repo.yml`, `installation/tests/container-install.sh`).
+
 ### Fixed
 - **The desktop shell now loads on a packaged install (no more grey screen).**
   Every shell config root and `shell/services/Config.qml` import `Ryoku.FrameBars`

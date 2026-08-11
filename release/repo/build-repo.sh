@@ -16,7 +16,8 @@
 # + the Hyprland compositor plugins): base-devel, go, cmake, ninja,
 # qt6-shadertools, qt6-declarative, and hyprland +
 # hyprcursor + pango + cairo + pkgconf (the plugin packages build against
-# Hyprland's headers).
+# Hyprland's headers), plus gradle for the vendored limine-entry-tool stack
+# (limine-mkinitcpio-hook + limine-snapper-sync, GraalVM nativeCompile).
 # makepkg runs --nodeps on purpose: runtime depends (and AUR depends) aren't
 # needed to compile the artifacts and aren't resolvable here anyway.
 #

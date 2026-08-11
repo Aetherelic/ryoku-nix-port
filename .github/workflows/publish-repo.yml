@@ -100,9 +100,10 @@ jobs:
           # here. rust (cargo) builds awww and hyprland-preview-share-picker from
           # source (awww's common/build.rs probes liblz4, hence lz4; the picker is
           # a gtk4 app, so gtk4 + gtk4-layer-shell). gnupg signs, rclone uploads,
-          # git backs checkout.
+          # git backs checkout. gradle native-compiles the vendored limine-entry-tool
+          # stack (limine-mkinitcpio-hook + limine-snapper-sync, GraalVM nativeCompile).
           pacman -Syu --noconfirm --needed \
-            base-devel git go rust cmake ninja gnupg rclone \
+            base-devel git go rust cmake ninja gnupg rclone gradle \
             qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
             hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4 gtk4 gtk4-layer-shell
 
