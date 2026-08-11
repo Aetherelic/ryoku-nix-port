@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Power Saver freezes the bar stream animation.** The bar-gap particle stream
+  (`barAnim` 1-6, and 1/stream is the default) drove a threaded `Canvas` at
+  30-60fps whenever the gap was on screen, with a continuous cava (PipeWire FFT)
+  claim, and never backed off, its own code noting the tick machinery costs
+  ~23% CPU. It now reads `Perf`: reduce-motion (its toggle, lowPowerMode, or the
+  Power Saver profile) freezes the canvas to its last frame and releases cava, and
+  on battery the repaint rate halves via `Perf.pollFactor`. The default look on AC
+  is unchanged (`modules/bar/barstyles/qsbar/modules/ParticleStream.qml`).
 - **Power Saver pauses the video wallpaper.** The live-wallpaper gate stops the
   video decode while the Power Saver profile is active (with Follow the power
   profile on), not just under a fullscreen window. The still frame stays on

@@ -12,10 +12,16 @@ Item {
     required property Item  layout   // island: exposes pillRuns, runRightEdge(), runLeftEdge()
     property bool active: false
     // Ryoku CAVA feed: the stream flows on a passive sine when idle and swells
-    // with playback energy when music plays. Claimed only while active so cava
-    // (owner-refcounted) runs solely when the gap animation is on screen.
+    // with playback energy when music plays. Claimed only while the stream is
+    // live so cava (owner-refcounted) runs solely when the gap animation is on
+    // screen and unfrozen.
     readonly property real audioLevel: AudioBars.active ? Math.min(1, AudioBars.energy) : 0
-    Component.onCompleted: AudioBars.setActive(root, root.active)
+    // streamLive gates the whole animation on motion policy: reduce-motion (its
+    // toggle, lowPowerMode, or the Power Saver profile) freezes the canvas to its
+    // last frame and releases cava, so the always-on bar-gap repaint costs nothing.
+    readonly property bool streamLive: active && !Perf.reduceMotion
+    onStreamLiveChanged: AudioBars.setActive(root, streamLive)
+    Component.onCompleted: AudioBars.setActive(root, root.streamLive)
     Component.onDestruction: AudioBars.setActive(root, false)
     property int  mode:   1          // 1=stream, 2=surge, 3=bolt, 4=bolt2, 5=stream2, 6=surge2, 7=reactor, 8=quotes
     property string monitor: ""      // this bar's output (for monitor-focus pulses)
@@ -132,7 +138,6 @@ Item {
     }
 
     onActiveChanged: {
-        AudioBars.setActive(root, active)
         if (!active) {
             animating7 = false
             animating8 = false
@@ -994,9 +999,9 @@ Item {
         // upload, both screens) costs ~23% CPU — so full rate only during
         // fast motion while events form; ambient idle runs at ~8Hz, and fully
         // dark/no-gap states back off to ~4Hz or stop (tick7 is set from onPaint)
-        interval: (root.reactorMode7 || root.mode === 8) ? canvas.tick7 : ((root.mode === 5 || root.mode === 6) ? 16 : 33)
+        interval: ((root.reactorMode7 || root.mode === 8) ? canvas.tick7 : ((root.mode === 5 || root.mode === 6) ? 16 : 33)) * Perf.pollFactor
         repeat: true
-        running: root.active && ((root.reactorMode7 && root.animating7)
+        running: root.active && !Perf.reduceMotion && ((root.reactorMode7 && root.animating7)
                                  || (root.mode === 8 && root.animating8)
                                  || (!root.reactorMode7 && root.mode !== 8))
         onTriggered: root.requestFrame()
