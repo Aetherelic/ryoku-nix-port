@@ -949,7 +949,8 @@ PanelWindow {
                     spacing: 2
 
                     Repeater {
-                        model: root.archUpdates
+                        // a bar widget polls updates in the background, so hold the row delegates only while the panel is open (visible spans the close animation)
+                        model: archPanel.visible ? root.archUpdates : []
 
                         delegate: Item {
                             required property var modelData
@@ -1260,7 +1261,8 @@ PanelWindow {
                         spacing: 2
 
                         Repeater {
-                            model: root.themeUpdList
+                            // hold the heavy theme-update rows only while the panel is open (visible spans the close animation)
+                            model: archPanel.visible ? root.themeUpdList : []
 
                             delegate: Item {
                                 id: themeRow

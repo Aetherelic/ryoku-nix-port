@@ -325,7 +325,8 @@ PanelWindow {
                     spacing: 6
 
                     Repeater {
-                        model: notifPanel.pending
+                        // pending is polled in the background (it drives the badge too); hold the row delegates only while the panel is open
+                        model: notifPanel.visible ? notifPanel.pending : []
 
                         delegate: Rectangle {
                             required property var modelData

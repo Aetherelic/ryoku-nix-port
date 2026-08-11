@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Resident panels drop their off-screen list delegates.** The Arch updater and
+  notification panels are always-resident `PanelWindow`s whose lists are fed by
+  background polls (the update badge, the notification badge), so their `Repeater`s
+  held a QML delegate for every package and notification even while the panel was
+  closed. Each list's model now yields its rows only while the panel is open
+  (gated on `panel.visible`, which spans the close animation, so the badges and the
+  close transition are unaffected), freeing the row delegates the rest of the time
+  (`qsbar/panels/{ArchUpdaterPanel,NotificationPanel}.qml` and their V2 variants).
 - **Power Saver freezes the bar stream animation.** The bar-gap particle stream
   (`barAnim` 1-6, and 1/stream is the default) drove a threaded `Canvas` at
   30-60fps whenever the gap was on screen, with a continuous cava (PipeWire FFT)
