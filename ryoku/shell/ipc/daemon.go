@@ -102,6 +102,7 @@ type daemon struct {
 	lastTransition int                      // previous wallpaper transition preset index (-1 = none); guarded by wallMu
 	polkit         *polkitAgent             // PolicyKit1 authentication agent (nil until started)
 	settings       *settingsStore           // shell.json store (nil until startSettings); theme apply patches through it
+	pp             *powerProfilesState      // power-profiles-daemon bus state; nil until startPowerProfiles
 }
 
 func runDaemon() error {
@@ -293,6 +294,7 @@ func (d *daemon) bootstrap() {
 	go d.watchHyprland()
 	go d.watchAudio()
 	go d.watchPowerSounds()
+	go d.watchAutoPowerSaver()
 	go d.widgetGateWorker()
 	go d.idlePark()
 	go func() {

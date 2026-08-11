@@ -45,6 +45,7 @@ func (d *daemon) startPowerProfiles() {
 		obj:   conn.Object(ppBusName, dbus.ObjectPath(ppPath)),
 		topic: d.registerTopic("powerprofiles"),
 	}
+	d.pp = p
 
 	if err := conn.AddMatchSignal(
 		dbus.WithMatchObjectPath(dbus.ObjectPath(ppPath)),

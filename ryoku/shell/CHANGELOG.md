@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Auto power saver on battery.** A new opt-in (Hub -> System -> Performance)
+  has the ryoku-shell daemon switch to the Power Saver profile when you unplug and
+  restore your profile when you plug back in, through power-profiles-daemon. It
+  acts once per battery episode, so a manual profile change while unplugged is left
+  alone, and a machine with no power-profiles-daemon or no battery is unaffected.
+  The switch rides the normal PowerProfiles stream, so Follow the power profile
+  then lightens the shell too. The AC/battery transition logic is a pure,
+  unit-tested step (`ipc/autoprofile.go` + test, `ipc/daemon.go`,
+  `ipc/powerprofiles.go`, Hub `pages/PerformancePage.qml`).
 - **Power Saver reduces motion in the launcher, overview and wallpaper too.**
   Their `Motion` singletons take `reduce` from `shell.services.Perf` now (like the
   shell's shared Motion), so the power profile collapses their transitions to an

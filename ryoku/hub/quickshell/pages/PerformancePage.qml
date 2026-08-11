@@ -41,6 +41,7 @@ Item {
     readonly property var factory: ({
         "lowPowerMode": false,
         "powerProfileEffects": true,
+        "autoPowerSaverOnBattery": false,
         "reduceMotion": false,
         "disableBlur": false,
         "disableShadows": false,
@@ -94,6 +95,7 @@ Item {
         return {
             "lowPowerMode": cfgA.lowPowerMode,
             "powerProfileEffects": cfgA.powerProfileEffects,
+            "autoPowerSaverOnBattery": cfgA.autoPowerSaverOnBattery,
             "reduceMotion": cfgA.reduceMotion,
             "disableBlur": cfgA.disableBlur,
             "disableShadows": cfgA.disableShadows,
@@ -143,6 +145,7 @@ Item {
         }
         cfgA.lowPowerMode = pg.draft.lowPowerMode;
         cfgA.powerProfileEffects = pg.draft.powerProfileEffects;
+        cfgA.autoPowerSaverOnBattery = pg.draft.autoPowerSaverOnBattery;
         cfgA.reduceMotion = pg.draft.reduceMotion;
         cfgA.disableBlur = pg.draft.disableBlur;
         cfgA.disableShadows = pg.draft.disableShadows;
@@ -188,6 +191,7 @@ Item {
             id: cfgA
             property bool lowPowerMode: false
             property bool powerProfileEffects: true
+            property bool autoPowerSaverOnBattery: false
             property bool reduceMotion: false
             property bool disableBlur: false
             property bool disableShadows: false
@@ -212,6 +216,9 @@ Item {
         { "tab": "", "group": "POWER PROFILE", "key": "powerProfileEffects", "ctl": "sw", "src": "performance",
           "label": "Follow the power profile",
           "desc": "Let the system power profile shape the shell. Power Saver strips motion, blur and shadows and eases off background polling, like Low power mode; Balanced and Performance leave your switches untouched. Battery already slows polling on its own." },
+        { "tab": "", "group": "POWER PROFILE", "key": "autoPowerSaverOnBattery", "ctl": "sw", "src": "performance",
+          "label": "Auto power saver on battery",
+          "desc": "Switch to the Power Saver profile automatically when you unplug, and restore your profile when you plug back in. Needs power-profiles-daemon; a manual profile change while on battery is left alone." },
         { "tab": "", "group": "EYE CANDY", "key": "lowPowerMode", "ctl": "sw", "src": "performance",
           "label": "Low power mode",
           "desc": "The potato switch: forces every freeze, reduce and disable tweak on. Unloads stay manual." },
