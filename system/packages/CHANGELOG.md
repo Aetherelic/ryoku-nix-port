@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: ship the Limine boot stack `limine-mkinitcpio-hook` (bundles
+  `limine-entry-tool`) and `limine-snapper-sync` from `[ryoku]`, moved out of
+  `aur.packages`. As AUR packages they were skipped on offline installs, so a
+  fully offline box booted a frozen flat menu: no other-OS detection
+  (`FIND_BOOTLOADERS`), no UKI tree, no boot-menu snapshots. Now they pacstrap
+  with the base set, so `bootloader.sh`'s tool-managed path runs on every
+  install. See `release/packages/limine-mkinitcpio-hook`.
 - `base.packages` + `ryoku-desktop` hard depends: add the Bazzite-style gaming
   stack `gamescope`, `gamemode`, `mangohud`. gamescope runs a game in a nested
   micro-compositor isolated from the desktop, sidestepping the XWayland

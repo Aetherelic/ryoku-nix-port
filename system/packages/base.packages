@@ -28,6 +28,10 @@ cryptsetup
 dosfstools
 efibootmgr
 limine
+# limine-entry-tool stack ([ryoku]): the hook regenerates the menu, detects other
+# OSes (FIND_BOOTLOADERS), builds the UKI tree; sync adds the Snapshots submenu.
+limine-mkinitcpio-hook
+limine-snapper-sync
 plymouth
 snapper
 # snap-pac: automatic pre/post snapshots around pacman transactions, wired to the
