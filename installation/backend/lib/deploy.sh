@@ -258,6 +258,20 @@ ryoku_deploy_qylock() {
   log "deploying qylock bundle + SDDM clockwork theme"
   deploy_dir "$RYOKU_REPO/ryoku/lockscreen/qylock" /mnt/usr/share/ryoku/qylock
 
+  # offline skew bridge: the greeter imports Ryoku.Ui (its DecorStore singleton).
+  # /usr/lib/qt6/qml/Ryoku/Ui is owned by the ryoku-desktop package, but an
+  # offline ISO bakes whatever [ryoku] last published, which can predate the
+  # payload and lack a singleton the payload's greeter needs. Lay the payload's
+  # current Ryoku.Ui over it so the offline system is self-consistent; a no-op
+  # online (the fresh package already matches), and the first `ryoku update`
+  # restores the packaged copy once it has caught up.
+  if declare -f ryoku_offline_active >/dev/null && ryoku_offline_active; then
+    log "offline: laying the payload Ryoku.Ui onto the qt6 import path (greeter dependency)"
+    deploy_dir "$RYOKU_REPO/ryoku/ui" /mnt/usr/lib/qt6/qml/Ryoku/Ui
+    run rm -f /mnt/usr/lib/qt6/qml/Ryoku/Ui/install.sh
+    run_sh "rm -rf /mnt/usr/lib/qt6/qml/Ryoku/Ui/__pycache__ /mnt/usr/lib/qt6/qml/Ryoku/Ui/i18n-*.py"
+  fi
+
   # stage the two installers in the chroot, run, drop.
   run cp "$RYOKU_REPO/ryoku/lockscreen/sddm/setup" /mnt/root/ryoku-sddm-setup
   run cp "$RYOKU_REPO/ryoku/lockscreen/install-qylock" /mnt/root/ryoku-install-qylock
