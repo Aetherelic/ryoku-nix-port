@@ -17,6 +17,7 @@ Singleton {
     readonly property string dir: home + "/Downloads/Stash"
     readonly property string scriptDir: home + "/.config/hypr/scripts"
     readonly property string cobaltScript: scriptDir + "/stash-cobalt.sh"
+    readonly property string serverScript: scriptDir + "/stash-cobalt-server.sh"
 
     readonly property alias files: files
     readonly property int count: files.count
@@ -39,6 +40,21 @@ Singleton {
     property string dlMode: "auto"        // auto | audio | mute
     property int activeJob: -1            // index of the running queue entry, -1 idle
     property var supportedSites: []       // cobalt's supported services (for the Tools bubble)
+
+    // ── Cobalt engine (Docker) ──────────────────────────────────────────
+    // Off = yt-dlp only (the fallback). On = a local cobalt container drives
+    // downloads, with yt-dlp still catching whatever cobalt declines. cobalt
+    // ships only as a Docker image, so the switch manages a container via
+    // stash-cobalt-server.sh; dockerState gates whether it can turn on at all.
+    property string dockerState: "unknown"   // unknown | missing | denied | ready
+    property string cobaltState: "off"       // off | starting | running | error
+    property string cobaltMsg: ""
+    property alias cobaltEnabled: engineAdapter.cobaltEnabled
+    // Passed to the download worker as COBALT_API_URL; empty means yt-dlp-only.
+    // No trailing slash: stash-cobalt.sh appends one ("$COBALT/"), and a double
+    // slash 404s cobalt's POST endpoint.
+    readonly property string cobaltUrl: (cobaltEnabled && cobaltState === "running")
+        ? "http://localhost:9000" : ""
 
     function openFile(path) {
         Quickshell.execDetached(["xdg-open", path]);
@@ -90,9 +106,10 @@ Singleton {
                 root.activeJob = i;
                 queueModel.setProperty(i, "state", "running");
                 var e = queueModel.get(i);
+                var envp = "COBALT_API_URL=" + root.cobaltUrl;
                 workerProc.command = e.kind === "remux"
-                    ? ["bash", root.cobaltScript, "remux", e.arg]
-                    : ["bash", root.cobaltScript, "download", e.arg, e.mode];
+                    ? ["env", envp, "bash", root.cobaltScript, "remux", e.arg]
+                    : ["env", envp, "bash", root.cobaltScript, "download", e.arg, e.mode];
                 workerProc.running = true;
                 return;
             }
@@ -147,6 +164,48 @@ Singleton {
         }
     }
 
+    // ── Cobalt engine control ───────────────────────────────────────────
+    function refreshDocker() {
+        dockerProc.running = false;
+        dockerProc.running = true;
+    }
+
+    // Flip the engine. On: bring the container up (first run pulls the image, so
+    // cobaltState passes through "starting"). Off: stop it. State is persisted so
+    // the switch survives a shell restart.
+    function setEngine(on) {
+        engineAdapter.cobaltEnabled = on;
+        engineFile.writeAdapter();
+        root.cobaltMsg = "";
+        root.cobaltState = on ? "starting" : "off";
+        serverProc.command = ["bash", root.serverScript, on ? "up" : "down"];
+        serverProc.running = true;
+    }
+
+    function onServerLine(line) {
+        var t = ("" + line).split("\t");
+        if (t[0] === "docker") {
+            root.dockerState = t[1] || "unknown";
+        } else if (t[0] === "cobalt") {
+            // status probe: reconcile the switch to the real container state.
+            if (t[1] === "running")
+                root.cobaltState = "running";
+        } else if (t[0] === "STATUS") {
+            root.cobaltState = "starting";
+            root.cobaltMsg = t[1] || "";
+        } else if (t[0] === "READY") {
+            root.cobaltState = "running";
+            root.cobaltMsg = "";
+            sitesProc.running = true;   // refresh the live services list
+        } else if (t[0] === "STOPPED") {
+            root.cobaltState = "off";
+            root.cobaltMsg = "";
+        } else if (t[0] === "ERROR") {
+            root.cobaltState = "error";
+            root.cobaltMsg = t[1] || "failed";
+        }
+    }
+
     FolderListModel {
         id: files
         folder: "file://" + root.dir
@@ -197,8 +256,48 @@ Singleton {
         }
     }
 
+    Process {
+        id: serverProc
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => root.onServerLine(line)
+        }
+    }
+
+    // Docker + container probe on load. Reconciles the persisted switch: if the
+    // engine was left on but the container isn't up, bring it back.
+    Process {
+        id: dockerProc
+        command: ["bash", root.serverScript, "status"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => root.onServerLine(line)
+        }
+        onExited: {
+            if (root.cobaltEnabled && root.dockerState === "ready" && root.cobaltState !== "running")
+                root.setEngine(true);
+        }
+    }
+
+    FileView {
+        id: engineFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/stash.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        atomicWrites: true
+        onFileChanged: reload()
+        JsonAdapter {
+            id: engineAdapter
+            property bool cobaltEnabled: false
+        }
+    }
+
     Component.onCompleted: {
         Quickshell.execDetached(["mkdir", "-p", root.dir]);
+        if (!engineFile.text())
+            engineFile.writeAdapter();
         sitesProc.running = true;
+        dockerProc.running = true;
     }
 }

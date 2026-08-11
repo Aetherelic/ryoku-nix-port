@@ -14,7 +14,9 @@
 set -u
 
 STASH="${STASH_DIR:-$HOME/Downloads/Stash}"
-COBALT="${COBALT_API_URL:-http://localhost:9000}"
+# `-` (not `:-`): only an *unset* var falls back to the default. The shell passes
+# COBALT_API_URL="" to mean engine-off (yt-dlp only), and that empty stays empty.
+COBALT="${COBALT_API_URL-http://localhost:9000}"
 mkdir -p "$STASH"
 
 emit() { printf '%s\t%s\n' "$1" "${2:-}"; }
@@ -146,7 +148,9 @@ download)
   [ -n "$url" ] || { emit ERROR "no link"; exit 2; }
   case "$mode" in auto | audio | mute) ;; *) mode="auto" ;; esac
   emit START "fetching link"
-  if cobalt_up && cobalt_get "$url" "$mode"; then
+  # engine toggle: only try cobalt when the shell configured a URL (engine on).
+  # empty COBALT_API_URL means yt-dlp-only, so skip the probe entirely.
+  if [ -n "$COBALT" ] && cobalt_up && cobalt_get "$url" "$mode"; then
     notify-send "Stash" "Downloaded via cobalt" -i emblem-ok-symbolic 2>/dev/null || true
     exit 0
   fi

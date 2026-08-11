@@ -43,6 +43,20 @@ Item {
         { id: "mute", label: qsTr("Mute") }
     ]
 
+    // Sub-label under the engine switch, driven by docker + cobalt state.
+    readonly property string engineSub: {
+        if (Stash.dockerState === "missing") return qsTr("Install Docker to use cobalt");
+        if (Stash.dockerState === "denied") return qsTr("Start docker.service or add yourself to the docker group");
+        switch (Stash.cobaltState) {
+        case "starting": return Stash.cobaltMsg === "pulling"
+            ? qsTr("Downloading cobalt image — first launch takes a minute and uses some memory & CPU")
+            : qsTr("Starting cobalt…");
+        case "running": return qsTr("On — downloads run through your local cobalt");
+        case "error": return Stash.cobaltMsg.length > 0 ? Stash.cobaltMsg : qsTr("Failed to start");
+        default: return qsTr("Off — using yt-dlp");
+        }
+    }
+
     Flickable {
         anchors.fill: parent
         anchors.leftMargin: 18 * root.s
@@ -61,6 +75,83 @@ Item {
             spacing: 10 * root.s
 
             Menus.QsSection { width: parent.width; label: qsTr("Download") }
+
+            // Engine switch: local cobalt (Docker) vs the yt-dlp fallback.
+            Rectangle {
+                width: parent.width
+                radius: Theme.radiusWidget
+                color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.05)
+                implicitHeight: engineRow.implicitHeight + 16 * root.s
+
+                Item {
+                    id: engineRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 9 * root.s
+                    anchors.rightMargin: 9 * root.s
+                    implicitHeight: Math.max(engineText.implicitHeight, 18 * root.s)
+
+                    Column {
+                        id: engineText
+                        anchors.left: parent.left
+                        anchors.right: engineRight.left
+                        anchors.rightMargin: 8 * root.s
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 1 * root.s
+
+                        Text {
+                            text: qsTr("Cobalt engine")
+                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
+                            font.family: Theme.fontPrimary
+                            font.pixelSize: 10 * root.s
+                            font.weight: Font.DemiBold
+                        }
+                        Text {
+                            width: parent.width
+                            text: root.engineSub
+                            wrapMode: Text.WordWrap
+                            color: Stash.cobaltState === "error" ? Theme.vermLit
+                                : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                            font.family: Theme.fontPrimary
+                            font.pixelSize: 8 * root.s
+                        }
+                    }
+
+                    Row {
+                        id: engineRight
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 7 * root.s
+
+                        MaterialIcon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: Stash.cobaltState === "starting"
+                            text: "progress_activity"
+                            font.pixelSize: 13 * root.s
+                            color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+                            RotationAnimation on rotation {
+                                running: Stash.cobaltState === "starting"
+                                loops: Animation.Infinite
+                                from: 0; to: 360; duration: 900
+                            }
+                        }
+                        LinkToggle {
+                            id: engineSwitch
+                            anchors.verticalCenter: parent.verticalCenter
+                            s: root.s
+                            readonly property bool engineOn: Stash.cobaltState === "running" || Stash.cobaltState === "starting"
+                            on: engineOn
+                            opacity: Stash.dockerState === "missing" ? 0.4 : 1
+                            onToggled: {
+                                if (Stash.dockerState === "missing")
+                                    return;
+                                Stash.setEngine(!engineSwitch.engineOn);
+                            }
+                        }
+                    }
+                }
+            }
 
             Rectangle {
                 width: parent.width
@@ -156,7 +247,7 @@ Item {
             // what cobalt can pull from, live from the instance (built-in list otherwise).
             Rectangle {
                 width: parent.width
-                visible: Stash.supportedSites.length > 0
+                visible: true
                 radius: Theme.radiusWidget
                 color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.04)
                 border.width: Theme.borderWidth
@@ -181,7 +272,9 @@ Item {
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("WORKS WITH %1 SITES").arg(Stash.supportedSites.length)
+                            text: Stash.cobaltState === "running"
+                                ? qsTr("WORKS WITH %1 SITES").arg(Stash.supportedSites.length)
+                                : qsTr("POWERED BY YT-DLP")
                             color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                             font.family: Theme.fontPrimary
                             font.pixelSize: 6.5 * root.s
@@ -192,7 +285,9 @@ Item {
 
                     Text {
                         width: parent.width
-                        text: Stash.supportedSites.map(s => s === "twitter" ? "x" : s).join("  ·  ")
+                        text: Stash.cobaltState === "running"
+                            ? Stash.supportedSites.map(s => s === "twitter" ? "x" : s).join("  ·  ")
+                            : qsTr("Works with 1000+ sites, including YouTube, Twitter/X, Reddit, TikTok, and more.")
                         wrapMode: Text.WordWrap
                         color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                         font.family: Theme.mono

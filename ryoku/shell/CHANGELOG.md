@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Added
+- **The stash download section gets a cobalt engine switch.** The Super+S Tools
+  "Download" section silently probed a non-existent cobalt at `localhost:9000`
+  and fell back to yt-dlp, whose TikTok extractor is broken upstream, so TikTok
+  links failed. A new "Cobalt engine (Docker)" switch runs a local cobalt
+  container (`ghcr.io/imputnet/cobalt:11`, loopback-only) on demand: off = yt-dlp
+  only, on = downloads route through cobalt with yt-dlp still catching whatever
+  it declines. Docker is detected (not force-installed) — the switch is disabled
+  with an install hint when it is missing, and shows a starting/resource loader
+  on first launch (image pull). State persists in `~/.config/ryoku/stash.json`
+  and reconciles to the real container state on shell start; the "works with"
+  bubble now reflects the active engine. New `stash-cobalt-server.sh` manages the
+  container; `stash-cobalt.sh` skips the cobalt probe when the engine is off
+  (`services/Stash.qml`, `modules/bar/panel/PanelTools.qml`,
+  `hyprland/scripts/stash-cobalt{,-server}.sh`).
 - **The bar clock stops waking the CPU every second.** `ClockWidget` (both bar
   variants) shows only `HH:mm` but drove a 1s `Timer`, waking the CPU 60x a minute
   on an always-visible surface and blocking deep CPU sleep states. It now reads
