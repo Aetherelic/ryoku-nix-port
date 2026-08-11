@@ -936,13 +936,15 @@ Rectangle {
             anchors.bottomMargin: Tokens.s4
             height: Tokens.ctlH
             Text {
-                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                anchors { left: parent.left; right: advSw.left; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                elide: Text.ElideRight
                 text: I18n.tr("Advanced settings")
                 color: hub.advanced ? Tokens.ink : Tokens.inkMuted
                 font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                 font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
             }
             Sw {
+                id: advSw
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                 on: hub.advanced
                 onToggled: (v) => hub.advanced = v
