@@ -15,6 +15,16 @@ Item {
     property bool omarchyCurrentRootResolved: false
     readonly property string themeNamePath: omarchyCurrentRoot + "/theme.name"
     readonly property string colorsPath: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/ryoku/colors.json"
+    readonly property string shellConfigPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+    readonly property string themeJsonPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/theme.json"
+    // Palette resolution state (the desktop Scheme's chain): the live wallpaper
+    // roles, the fixed named scheme, the follow-the-wallpaper master, and the
+    // compiled base captured before the daemon's first write so turning the
+    // wallpaper off reverts to the shipped look.
+    property var _wallColors: ({})
+    property var _namedPalette: null
+    property bool _followWallpaper: true
+    property var _basePalette: null
     readonly property string currentBackgroundPath: omarchyCurrentRoot + "/background"
     property string currentThemeName: ""
     readonly property var wallpaperSourcePaths: [
@@ -1221,6 +1231,18 @@ Item {
 
     function parseGpuTelemetry(text) {
         var fields = String(text || "").trim().split("|")
+        // A runtime-suspended NVIDIA dGPU is doing no work; the poll below skips
+        // nvidia-smi so the card stays asleep and emits "suspended". Keep the
+        // last-known identity/VRAM and zero only the live load, so the widget reads
+        // 0% rather than vanishing or waking the card (a ~9-10W idle drain).
+        if (fields[0] === "suspended") {
+            gpuPercent = 0
+            gpuTemperatureC = 0
+            gpuClockMHz = 0
+            gpuPowerW = 0
+            gpuFanPercent = 0
+            return
+        }
         if (fields.length < 12 || fields[0] === "none") {
             gpuBackend = ""
             gpuName = ""
@@ -1459,7 +1481,8 @@ Item {
     Process {
         id: gpuTelemetryProc
         command: ["bash", "-c",
-            "if command -v nvidia-smi >/dev/null 2>&1; then "
+            "for st in /sys/bus/pci/drivers/nvidia/*/power/runtime_status; do [[ -r $st ]] || continue; IFS= read -r s < \"$st\"; [[ $s == suspended ]] && { printf 'suspended|||||||||||\\n'; exit 0; }; break; done; "
+            + "if command -v nvidia-smi >/dev/null 2>&1; then "
             + "IFS=, read -r name driver util temp used total clock power limit pstate fan < <(nvidia-smi --query-gpu=name,driver_version,utilization.gpu,temperature.gpu,memory.used,memory.total,clocks.current.graphics,power.draw,power.limit,pstate,fan.speed --format=csv,noheader,nounits 2>/dev/null | head -n1); "
             + "if [[ $util =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $temp =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $used =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $total =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then "
             + "printf 'nvidia|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\\n' \"$name\" \"$driver\" \"$util\" \"$temp\" \"$used\" \"$total\" \"$clock\" \"$power\" \"$limit\" \"$pstate\" \"$fan\"; exit 0; fi; "
@@ -1513,7 +1536,7 @@ Item {
     }
 
     Timer {
-        interval: (theme.modCpu || theme.cpuVisible || theme.modMemory || theme.memVisible) ? 2000 : 10000
+        interval: ((theme.modCpu || theme.cpuVisible || theme.modMemory || theme.memVisible) ? 2000 : 10000) * Perf.pollFactor
         running: true; repeat: true; triggeredOnStart: true
         onTriggered: {
             systemCpuFile.reload()
@@ -1523,7 +1546,7 @@ Item {
     }
 
     Timer {
-        interval: 2500
+        interval: 2500 * Perf.pollFactor
         running: theme.cpuVisible
         repeat: true
         triggeredOnStart: true
@@ -1531,7 +1554,7 @@ Item {
     }
 
     Timer {
-        interval: 3000
+        interval: 3000 * Perf.pollFactor
         running: theme.cpuVisible
         repeat: true
         triggeredOnStart: true
@@ -1539,7 +1562,7 @@ Item {
     }
 
     Timer {
-        interval: 2500
+        interval: 2500 * Perf.pollFactor
         running: theme.modGpu || theme.gpuVisible || theme.thermalVisible
         repeat: true
         triggeredOnStart: true
@@ -1547,7 +1570,7 @@ Item {
     }
 
     Timer {
-        interval: 5000
+        interval: 5000 * Perf.pollFactor
         running: theme.modCpuTemperature || theme.cpuVisible || theme.thermalVisible
         repeat: true
         triggeredOnStart: true
@@ -1555,7 +1578,7 @@ Item {
     }
 
     Timer {
-        interval: 30000
+        interval: 30000 * Perf.pollFactor
         running: theme.modStorage || theme.storageVisible
         repeat: true
         triggeredOnStart: true
@@ -1563,7 +1586,7 @@ Item {
     }
 
     Timer {
-        interval: theme.storageVisible ? 5000 : 60000
+        interval: (theme.storageVisible ? 5000 : 60000) * Perf.pollFactor
         running: theme.modStorage || theme.storageVisible
         repeat: true
         triggeredOnStart: true
@@ -1974,12 +1997,13 @@ Item {
         stdout: StdioCollector { onStreamFinished: theme.useNM = this.text.trim() === "1" }
     }
 
-    // ── wifi/bluetooth settings launchers (Ryoku way, via uwsm-app) ──
-    // iwd (Ryoku 3.8.x) → impala/bluetui through kitty *; if NetworkManager
-    // is the active backend (Ryoku 4.0) → nmtui instead. Quattro removed the
-    // dedicated Bluetooth launcher; prefer a retained bluetui, then bluetoothctl.
-    readonly property string launchWifiCmd: "ryoku-shell hub open"
-    readonly property string launchBtCmd:   "if command -v kitty bluetoothctl >/dev/null 2>&1; then exec kitty bluetoothctl; elif command -v kitty >/dev/null 2>&1; then if command -v bluetui >/dev/null 2>&1; then command -v rfkill >/dev/null 2>&1 && rfkill unblock bluetooth >/dev/null 2>&1 || true; exec kitty bluetui; elif command -v bluetoothctl >/dev/null 2>&1; then command -v rfkill >/dev/null 2>&1 && rfkill unblock bluetooth >/dev/null 2>&1 || true; exec kitty bluetoothctl; fi; fi; command -v notify-send >/dev/null 2>&1 && notify-send -a QS-Shell -u critical 'Bluetooth settings unavailable' 'No supported Bluetooth settings backend was found' || true; exit 0"
+    // ── wifi/bluetooth settings launchers ──
+    // Both open Ryoku Hub's Connections page (Wi-Fi, Bluetooth and Hotspot all
+    // live there); the daemon spawns or navigates the single Hub instance. This
+    // replaces the old terminal launchers (impala / bluetui / bluetoothctl) that
+    // predate the Hub owning connection settings.
+    readonly property string launchWifiCmd: "ryoku-shell hub open connections"
+    readonly property string launchBtCmd:   "ryoku-shell hub open connections"
     property bool modPower:      false   // default off (toggle in ControlPanel)
     property bool modBluetooth:  false   // default off (toggle in ControlPanel)
     property bool modBrightness: true
@@ -3227,13 +3251,33 @@ Item {
         }
     }
 
+    // Snapshot the compiled palette once, before any daemon write, so the base
+    // layer can revert slots the wallpaper/named scheme does not supply.
+    function _captureBase() {
+        if (theme._basePalette)
+            return;
+        theme._basePalette = {
+            paper: theme.paper.toString(), ink: theme.ink.toString(), sumi: theme.sumi.toString(),
+            color01: theme.color01.toString(), color02: theme.color02.toString(),
+            color03: theme.color03.toString(), color04: theme.color04.toString(),
+            color05: theme.color05.toString(), color06: theme.color06.toString(),
+            color07: theme.color07.toString(), accentHint: theme.accentHint.toString()
+        };
+    }
+
+    function _applyPalette() {
+        theme._captureBase();
+        Palette.applyResolved(theme, theme._basePalette, theme._namedPalette, theme._wallColors, theme._followWallpaper);
+    }
+
     Process {
         id: paletteReader
         command: ["cat", theme.colorsPath]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
-                Palette.apply(theme, Palette.parse(this.text));
+                theme._wallColors = Palette.parseAll(this.text);
+                theme._applyPalette();
             }
         }
     }
@@ -3245,6 +3289,28 @@ Item {
         watchChanges: true
         printErrors: false
         onFileChanged: { paletteWatcher.reload(); theme.reloadCurrentThemeFiles() }
+    }
+
+    // A fixed named theme publishes its palette here; retint when it changes.
+    FileView {
+        id: namedPaletteWatcher
+        path: theme.shellConfigPath
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: { theme._namedPalette = Palette.parseNamed(namedPaletteWatcher.text()); theme._applyPalette(); }
+    }
+
+    // The follow-the-wallpaper master gates whether the live palette applies.
+    FileView {
+        id: followWallpaperWatcher
+        path: theme.themeJsonPath
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: { theme._followWallpaper = Palette.parseFollow(followWallpaperWatcher.text()); theme._applyPalette(); }
     }
 
     function ipcApplyTheme(payload) {
