@@ -53,6 +53,8 @@ source "$LIB_DIR/aur.sh"
 source "$LIB_DIR/snapshots.sh"
 # shellcheck source=lib/offline.sh
 source "$LIB_DIR/offline.sh"
+# shellcheck source=lib/cachyos.sh
+source "$LIB_DIR/cachyos.sh"
 
 # probe: read-only disk inspection for the TUI. no RYOKU_* contract, no disk
 # writes, so it runs BEFORE the install-answer validation below (which dies on a
@@ -89,6 +91,11 @@ fi
 : "${RYOKU_SUBVOL_HOME:=1}"
 : "${RYOKU_SUBVOL_BACKUPS:=0}"
 : "${RYOKU_REPO:=/usr/share/ryoku}"
+# variant: plain (stock Arch) or cachyos (the full CachyOS layer). build.sh bakes
+# the marker into the ISO airootfs; it drives the cachy pacstrap set (pacstrap.sh),
+# the linux-cachyos boot entry (bootloader.sh), and the CachyOS repo wiring below.
+: "${RYOKU_VARIANT:=$(cat "$RYOKU_REPO/variant" 2>/dev/null || echo plain)}"
+export RYOKU_VARIANT
 : "${RYOKU_ONLINE:=1}"
 # offline install (this ISO): the baked package closure the backend pacstraps
 # from. present only on an offline ISO; ryoku_offline_active also requires
@@ -162,6 +169,10 @@ main() {
 
   step configure
   ryoku_configure
+  # cachyos variant: wire the CachyOS repos into the target's pacman.conf and
+  # trust the key (offline-safe: cachyos-keyring was pacstrapped), so the
+  # installed box tracks CachyOS on future updates. a no-op on plain.
+  [[ $RYOKU_VARIANT == cachyos ]] && ryoku_cachyos_repo
   # offline: make the baked repo resolvable in the chroot so the per-hardware
   # driver step installs with no network (a no-op online); torn down below.
   ryoku_offline_chroot_on

@@ -323,6 +323,9 @@ ryoku_boot_default_limine() {
 # limine hook. shadowing candidates are removed either way.
 ryoku_boot_limine_conf() {
   local mode=$1
+  # variant kernel: cachyos boots linux-cachyos (stock linux stays installed and
+  # the limine hook lists it as fallback); plain boots stock linux.
+  local kver=linux; [[ ${RYOKU_VARIANT:-plain} == cachyos ]] && kver=linux-cachyos
   local src="$RYOKU_REPO/system/boot/limine/limine.conf"
   local branding
   if [[ -f $src ]]; then
@@ -342,9 +345,9 @@ ryoku_boot_limine_conf() {
 
 /Ryoku Linux
     protocol: linux
-    kernel_path: boot():/vmlinuz-linux
+    kernel_path: boot():/vmlinuz-$kver
     cmdline: $CMDLINE quiet splash
-    module_path: boot():/initramfs-linux.img
+    module_path: boot():/initramfs-$kver.img
 EOF
     fi
   } | write_file /mnt/boot/limine.conf
@@ -560,6 +563,7 @@ EOF
 # guid() explicit, never boot():/EFI/... .
 ryoku_alongside_conf_text() {
   local esp_kind=$1 esp_boot=$2 esp_partuuid=$3 branding src="$RYOKU_REPO/system/boot/limine/limine.conf"
+  local kver=linux; [[ ${RYOKU_VARIANT:-plain} == cachyos ]] && kver=linux-cachyos
   local label=${RYOKU_ALONGSIDE_BOOT_LABEL:-RYOKUBOOT}
   if [[ -f $src ]]; then
     branding=$(sed '/^\/Ryoku Linux/,$d' "$src")
@@ -572,9 +576,9 @@ ryoku_alongside_conf_text() {
 
 /Ryoku Linux
     protocol: linux
-    kernel_path: fslabel($label):/vmlinuz-linux
+    kernel_path: fslabel($label):/vmlinuz-$kver
     cmdline: $CMDLINE quiet splash
-    module_path: fslabel($label):/initramfs-linux.img
+    module_path: fslabel($label):/initramfs-$kver.img
 EOF
   ryoku_alongside_existing_entry "$esp_kind" "$esp_boot" "$esp_partuuid"
 }

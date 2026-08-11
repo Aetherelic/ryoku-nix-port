@@ -1,0 +1,41 @@
+# CachyOS layer. Installed by pacstrap on every target, on top of base.packages,
+# so a Ryoku install IS a CachyOS install: the CachyOS-optimized kernel, the
+# system performance tuning, the auto-nice daemon, the sched-ext schedulers, and
+# the CachyOS Proton build. One package per line; '#' and blank lines are ignored.
+#
+# These live in the CachyOS repositories (added to the target's pacman.conf above
+# [core] by the installer, mirroring system/extras/ryoku-pkg-cachyos). The offline
+# ISO bakes them into the [offline] file:// repo so the whole set installs with no
+# network (installation/iso/build.sh, offline-repo.sh).
+
+# CachyOS-optimized kernel (sched-ext / BORE) + its headers for DKMS. The stock
+# `linux` kernel stays in base.packages as a fallback; the bootloader boots this
+# one by default (installation/backend/lib/bootloader.sh).
+linux-cachyos
+linux-cachyos-headers
+
+# Trust + mirror packages so the installed system updates from CachyOS. Installed
+# here so `pacman-key --populate cachyos` can trust the repo offline (no keyserver
+# round-trip), and the mirrorlists exist for the [cachyos*] Include lines.
+cachyos-keyring
+cachyos-mirrorlist
+cachyos-v3-mirrorlist
+cachyos-v4-mirrorlist
+
+# The CachyOS performance layer: sysctl, udev, modprobe, and systemd tuning that
+# makes the desktop (Hyprland) and games run the CachyOS way.
+cachyos-settings
+
+# Auto-nice daemon + CachyOS's ruleset: reprioritizes processes so the compositor
+# and foreground apps stay responsive under load.
+ananicy-cpp
+cachyos-ananicy-rules
+
+# sched-ext userspace schedulers (needs the CachyOS kernel). cachyos-settings
+# selects and starts one; this ships the scheduler binaries it runs.
+scx-scheds
+
+# CachyOS Proton: the CachyOS-tuned Proton build for Steam/Lutris, dropped into
+# the system compatibility-tools path so it works out of the box with the gaming
+# stack already in base.packages (gamescope, gamemode, mangohud).
+proton-cachyos

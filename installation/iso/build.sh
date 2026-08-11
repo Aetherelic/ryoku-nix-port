@@ -49,8 +49,16 @@ PAYLOAD_VERSION=$(tr -d '[:space:]' <"$REPO_ROOT/VERSION" 2>/dev/null || echo un
 STAGE_ONLY=0
 [[ ${1:-} == --stage-only ]] && STAGE_ONLY=1
 
+# variant selector: plain (stock Arch) or cachyos (the full CachyOS layer baked
+# into the offline closure). baked into the airootfs as a marker the installer
+# reads (ryoku-install), and passed to offline-repo.sh so the closure carries
+# the cachy packages. one flag, gated reads: the two ISOs share every path but
+# this switch.
+VARIANT=${RYOKU_VARIANT:-plain}
+
 log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
 die() { printf 'build.sh: error: %s\n' "$*" >&2; exit 1; }
+case $VARIANT in plain | cachyos) ;; *) die "RYOKU_VARIANT must be plain or cachyos, got: $VARIANT" ;; esac
 
 # bake the repo from tracked files only (git archive at HEAD), so gitignored
 # dev cruft (editor / AI-tooling configs, build dirs, ISOs) never ships.
@@ -170,6 +178,10 @@ date=$PAYLOAD_DATE
 version=$PAYLOAD_VERSION
 EOF
 
+# variant marker: the installer (ryoku-install) reads this to decide whether to
+# pull the CachyOS layer, boot linux-cachyos, and wire the CachyOS repos.
+printf '%s\n' "$VARIANT" >"$AIROOTFS/usr/share/ryoku/variant"
+
 # fill the motd placeholders on the STAGED copy only (the committed motd keeps
 # the @...@ tokens), so the live shell greets with the baked version + commit.
 sed -i \
@@ -205,8 +217,9 @@ RYOKU_BLOBS_BUILD="$STAGE_DIR/blobs-build" \
 #     offline.sh). the download is cached under offline-cache/ (gitignored) and
 #     reused across builds; RYOKU_OFFLINE_SKIP=1 builds a networked ISO instead.
 if [[ ${RYOKU_OFFLINE_SKIP:-0} != 1 ]]; then
-  log "Baking offline package closure -> /usr/share/ryoku/offline/repo"
-  RYOKU_OFFLINE_CACHE=${RYOKU_OFFLINE_CACHE:-$PROFILE_DIR/offline-cache} \
+  log "Baking offline package closure ($VARIANT) -> /usr/share/ryoku/offline/repo"
+  RYOKU_OFFLINE_CACHE=${RYOKU_OFFLINE_CACHE:-$PROFILE_DIR/offline-cache-$VARIANT} \
+  RYOKU_VARIANT="$VARIANT" \
     "$PROFILE_DIR/offline-repo.sh" "$REPO_ROOT" "$AIROOTFS/usr/share/ryoku/offline/repo"
 else
   log "RYOKU_OFFLINE_SKIP=1: skipping the offline repo bake (networked ISO)"

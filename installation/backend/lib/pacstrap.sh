@@ -68,6 +68,16 @@ ryoku_pacstrap() {
   [[ -f $dev_file ]] && mapfile -t dev < <(grep -vE '^[[:space:]]*(#|$)' "$dev_file")
   (( ${#dev[@]} )) && pkgs+=("${dev[@]}")
 
+  # cachyos variant: the full CachyOS layer (kernel, settings, schedulers,
+  # proton), baked into the offline closure and pacstrapped in this same
+  # transaction. plain installs stop at base + dev + drivers.
+  if [[ ${RYOKU_VARIANT:-plain} == cachyos ]]; then
+    local cachy_file="$RYOKU_REPO/system/packages/cachyos.packages"
+    local -a cachy=()
+    [[ -f $cachy_file ]] && mapfile -t cachy < <(grep -vE '^[[:space:]]*(#|$)' "$cachy_file")
+    (( ${#cachy[@]} )) && pkgs+=("${cachy[@]}")
+  fi
+
   # Broadcom wifi (BCM43xx) needs the out-of-tree broadcom-wl driver; the
   # in-kernel b43/brcmsmac often can't associate. add it only when a Broadcom
   # network controller (PCI vendor 14e4) is present. guard lspci's absence.

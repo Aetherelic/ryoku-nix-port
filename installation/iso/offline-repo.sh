@@ -24,6 +24,8 @@ RYOKU_REPO_URL=${3:-https://repo.ryoku.dev/stable/x86_64}
 ARCH_MIRROR=${RYOKU_ARCH_MIRROR:-https://geo.mirror.pkgbuild.com}
 CACHE=${RYOKU_OFFLINE_CACHE:-$REPO_ROOT/installation/iso/offline-cache}
 REPO_NAME=offline
+VARIANT=${RYOKU_VARIANT:-plain}
+CACHY_MIRROR=${RYOKU_CACHYOS_MIRROR:-https://mirror.cachyos.org/repo}
 
 log() { printf '\033[1;36moffline-repo:\033[0m %s\n' "$*"; }
 die() { printf 'offline-repo: error: %s\n' "$*" >&2; exit 1; }
@@ -49,6 +51,8 @@ hw="$pkgdir/hardware.packages"
 mapfile -t PKGS < <(
   read_list "$pkgdir/base.packages"
   read_list "$pkgdir/dev.packages"
+  # cachyos variant: the full CachyOS layer (kernel, settings, schedulers, proton).
+  [[ $VARIANT == cachyos ]] && read_list "$pkgdir/cachyos.packages"
   # every hardware profile so any machine installs offline (the ISO carries all).
   read_section "$hw" amd
   read_section "$hw" intel
@@ -95,6 +99,17 @@ Server = $ARCH_MIRROR/multilib/os/x86_64
 Server = $RYOKU_REPO_URL
 EOF
 
+# cachyos variant: add the generic [cachyos] repo (x86_64) so the closure can
+# resolve linux-cachyos + the whole layer offline. the installed target wires the
+# arch-optimized [cachyos-v3] repos itself (lib/cachyos.sh) for future updates.
+if [[ $VARIANT == cachyos ]]; then
+  cat >>"$conf" <<EOF
+
+[cachyos]
+Server = $CACHY_MIRROR/x86_64/cachyos
+EOF
+fi
+
 # pacman -Sy/-Sw need root even with an isolated dbpath/cachedir. use sudo when
 # not already root (the ISO build runs mkarchiso under sudo too); --dbpath and
 # --cachedir keep the host's real pacman state untouched.
@@ -129,7 +144,9 @@ log "downloading the closure into $CACHE (this is the long pole; cached for reus
 #   nvidia-open-dkms  Turing+ (GSP) custom kernel    nvidia-dkms  pre-Turing
 #   nvidia-open/nvidia  prebuilt stock-linux modules.
 # best-effort per variant (a name absent from the current repos must not abort).
-for v in nvidia-open-dkms nvidia-dkms nvidia-open nvidia; do
+nv=(nvidia-open-dkms nvidia-dkms nvidia-open nvidia)
+[[ $VARIANT == cachyos ]] && nv+=(linux-cachyos-nvidia-open)
+for v in "${nv[@]}"; do
   "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "$v" \
     || log "note: could not fetch nvidia variant '$v' (not in the current repos?); continuing"
 done
