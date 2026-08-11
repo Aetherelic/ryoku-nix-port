@@ -11,6 +11,10 @@
   Power Saver profile) freezes the canvas to its last frame and releases cava, and
   on battery the repaint rate halves via `Perf.pollFactor`. The default look on AC
   is unchanged (`modules/bar/barstyles/qsbar/modules/ParticleStream.qml`).
+- The V2 bar's AI-usage poll now backs off on battery and Power Saver like V1: its
+  interval reads `Perf.pollFactor`, so the 30s subprocess sampler (claude/codex/
+  opencode usage) halves while discharging. Completes poll-backoff parity across
+  both bar variants (`variants/V2/Theme.qml`).
 - **Power Saver pauses the video wallpaper.** The live-wallpaper gate stops the
   video decode while the Power Saver profile is active (with Follow the power
   profile on), not just under a fullscreen window. The still frame stays on

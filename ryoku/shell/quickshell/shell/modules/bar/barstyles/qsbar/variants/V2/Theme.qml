@@ -978,7 +978,7 @@ Item {
 
     Timer {
         // 30s normally; 5s while the AI panel is open (responsive when looked at)
-        interval: theme.aiUsageVisible ? 5000 : 30000
+        interval: (theme.aiUsageVisible ? 5000 : 30000) * Perf.pollFactor
         running: true; repeat: true; triggeredOnStart: true
         onTriggered: theme.refreshAiUsage(theme.aiUsageVisible)
     }
