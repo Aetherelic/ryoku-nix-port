@@ -50,11 +50,17 @@ trap 'rm -rf "$tmp"' EXIT
 
 # each run gets its own STAGE/OUT/WORK so nothing bleeds between them; --stage-only
 # never reaches OUT/WORK, but isolating them keeps the runs independent.
+# RYOKU_OFFLINE_SKIP=1: the baked [offline] repo is a downloaded package closure
+# plus a repo-add db with embedded timestamps -- external content, inherently
+# non-reproducible, and not what this check covers (the prebuilt binaries + the
+# tracked repo payload). Skipping it keeps the check meaningful and fast (no
+# gigabyte closure download, twice).
 run_stage() {
   local n=$1
   if ! RYOKU_ISO_STAGE="$tmp/stage$n" \
        RYOKU_ISO_OUT="$tmp/out$n" \
        RYOKU_ISO_WORK="$tmp/work$n" \
+       RYOKU_OFFLINE_SKIP=1 \
          "$BUILD" --stage-only >"$tmp/log$n" 2>&1; then
     printf 'iso-stage-check: FAIL (staging run %s errored)\n' "$n" >&2
     cat "$tmp/log$n" >&2
