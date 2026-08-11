@@ -512,11 +512,15 @@ func (n *networkState) globalDnsServers() []string {
 	if !ok {
 		return nil
 	}
-	domains, ok := domainsValue.Value().(map[string]map[string]dbus.Variant)
+	domains, ok := domainsValue.Value().(map[string]dbus.Variant)
 	if !ok {
 		return nil
 	}
-	defaultDomain, ok := domains["*"]
+	defaultDomainValue, ok := domains["*"]
+	if !ok {
+		return nil
+	}
+	defaultDomain, ok := defaultDomainValue.Value().(map[string]dbus.Variant)
 	if !ok {
 		return nil
 	}
