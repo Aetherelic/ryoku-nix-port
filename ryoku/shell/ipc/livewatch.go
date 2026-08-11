@@ -14,6 +14,24 @@ func pauseLiveWallpaperWhenFullscreen() bool {
 	return perfFlagDefault("pauseLiveWallpaperWhenFullscreen", true)
 }
 
+// liveShouldStop decides whether to pause the video wallpaper: while a window is
+// fullscreen (its still frame stays under it, so nothing on screen changes) or
+// whenever Power Saver is shaping the desktop, to drop the decode drain.
+func liveShouldStop(pauseOnFullscreen, fullscreen, saver bool) bool {
+	return (pauseOnFullscreen && fullscreen) || saver
+}
+
+// saverActive reports whether Power Saver should shape the desktop: the active
+// power profile is power-saver and the user left "Follow the power profile" on
+// (performance.json powerProfileEffects, default on). Without a power-profiles
+// connection it reads false, so the wallpaper keeps playing.
+func (d *daemon) saverActive() bool {
+	if d.pp == nil || !perfFlagDefault("powerProfileEffects", true) {
+		return false
+	}
+	return d.pp.activeProfile() == ppSaver
+}
+
 // parseAnyFullscreen reports whether any client is fullscreen, from the JSON of
 // `hyprctl clients`. Unparseable input returns false, so the wallpaper is only
 // ever stopped on a confident reading.
@@ -55,20 +73,11 @@ func anyFullscreen() bool {
 func (d *daemon) liveGateWorker() {
 	stopped := false
 	reeval := func() {
-		if !pauseLiveWallpaperWhenFullscreen() {
-			if stopped {
-				d.resumeLive()
-				stopped = false
-			}
-			return
-		}
-		full := anyFullscreen()
-		if full && !stopped {
+		want := liveShouldStop(pauseLiveWallpaperWhenFullscreen(), anyFullscreen(), d.saverActive())
+		if want && !stopped {
 			stopLive()
 			stopped = true
-			return
-		}
-		if !full && stopped {
+		} else if !want && stopped {
 			d.resumeLive()
 			stopped = false
 		}

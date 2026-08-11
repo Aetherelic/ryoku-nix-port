@@ -25,3 +25,27 @@ func TestParseAnyFullscreen(t *testing.T) {
 		}
 	}
 }
+
+// liveShouldStop pauses the video wallpaper on a real fullscreen (pause enabled)
+// or whenever Power Saver is shaping the desktop, regardless of the fullscreen
+// toggle.
+func TestLiveShouldStop(t *testing.T) {
+	cases := []struct {
+		name              string
+		pauseOnFullscreen bool
+		fullscreen        bool
+		saver             bool
+		want              bool
+	}{
+		{"idle desktop", true, false, false, false},
+		{"fullscreen, pause on", true, true, false, true},
+		{"fullscreen, pause off", false, true, false, false},
+		{"power saver, no fullscreen", true, false, true, true},
+		{"power saver overrides pause-off", false, false, true, true},
+	}
+	for _, c := range cases {
+		if got := liveShouldStop(c.pauseOnFullscreen, c.fullscreen, c.saver); got != c.want {
+			t.Errorf("%s: got %v want %v", c.name, got, c.want)
+		}
+	}
+}

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Power Saver pauses the video wallpaper.** The live-wallpaper gate stops the
+  video decode while the Power Saver profile is active (with Follow the power
+  profile on), not just under a fullscreen window. The still frame stays on
+  screen, so the desktop looks the same while the decode drain is gone; the
+  fullscreen/saver decision is a pure, unit-tested `liveShouldStop`
+  (`ipc/livewatch.go` + test).
 - **Auto power saver on battery.** A new opt-in (Hub -> System -> Performance)
   has the ryoku-shell daemon switch to the Power Saver profile when you unplug and
   restore your profile when you plug back in, through power-profiles-daemon. It
