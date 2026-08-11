@@ -54,7 +54,7 @@ ClippingRectangle {
         height: backdropCrop.height
         source: backdropCrop
         autoPaddingEnabled: false
-        blurEnabled: true
+        blurEnabled: !Performance.blurDisabled
         blur: 1
         blurMax: 64
         blurMultiplier: 1.7

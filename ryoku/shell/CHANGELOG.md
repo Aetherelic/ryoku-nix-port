@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Power Saver drops the desktop glass blur.** The frosted-glass backdrop behind
+  desktop widgets ran a `blurMax: 64` `MultiEffect` pass unconditionally, unlike the
+  launcher and visualiser blurs that already gate on the derived switches. The
+  desktop `Performance` forwarder now exposes `blurDisabled`, and `WidgetGlass`
+  gates its blur on it, so Power Saver (or lowPowerMode) drops the pass and its blur
+  buffers, leaving a flat dimmed plate. Completes the saver blur policy across the
+  compositor, launcher, visualiser, and desktop layers
+  (`modules/desktop/{WidgetGlass,Singletons/Performance}.qml`).
 - **Power Saver reclaims resident-surface RAM.** The daemon's idle-unload workers
   (the launcher/overview palettes, the audio visualiser, and the covered-desktop
   widget layer) now unload under the Power Saver profile even when the user turned
