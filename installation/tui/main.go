@@ -944,6 +944,10 @@ func (m *model) loadStep() {
 			m.pick = newPicker(ssids(), true)
 			m.pick.height = 5
 		}
+	case kInput:
+		// returning to a text step (esc back, or Review edit) shows what was
+		// entered before, not a blank field.
+		m.input, m.inputErr = m.picks[s.key], ""
 	default:
 		m.input, m.yes = "", false
 		m.inputErr, m.encStage, m.pass1, m.encErr = "", 0, "", ""
@@ -1251,7 +1255,14 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 			m.netStage, m.input, m.netErr = 1, "", ""
 		}
 	case kInput:
-		if k == "enter" {
+		switch k {
+		case "esc":
+			// input steps set `typing`, so the global esc->back above is skipped.
+			// Handle it here (as kPass/kNet do) so the footer's "esc back" works
+			// and hostname/username are not one-way dead ends.
+			m.inputErr, m.input = "", ""
+			m.back()
+		case "enter":
 			v := m.input
 			if v == "" {
 				v = s.deflt
@@ -1262,7 +1273,7 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 			}
 			m.inputErr, m.picks[s.key] = "", v
 			m.advance()
-		} else {
+		default:
 			m.inputErr = ""
 			m.editInput(k, &m.input)
 		}
