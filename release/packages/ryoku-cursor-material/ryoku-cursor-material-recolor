@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Recolour the Material Bibata pointer to the live wallpaper accent.
+
+Ryoku's matugen post-hook calls this on every palette change. It only acts
+when the Material Bibata cursor is the selected theme (cursor.theme in
+~/.config/ryoku/hypr.json); otherwise it exits immediately so an unrelated
+wallpaper change costs nothing.
+
+Speed matters: the on-screen Hyprland pointer is the hyprcursor, which is
+SVG-based and rebuilds in a fifth of a second, so the fast path recolours only
+that and applies it at once (live, like the bar). The X11 bitmap set (for
+XWayland / GTK apps, 11 sizes rasterised) is the slow part, so it is rebuilt in
+a detached background pass that fills cursors/ a few seconds later without
+holding up the live update. --full does both synchronously (used when the
+toggle is first enabled, so XWayland matches from the start).
+
+Accent: the primary role in ~/.cache/ryoku/colors.json (a hex arg overrides).
+Bibata SVG source: /usr/share/ryoku-cursor-material/bibata (RYOKU_BIBATA_SRC
+overrides, for running from a checkout).
+"""
+
+import colorsys
+import fcntl
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+THEME = "Bibata-Material-Ryoku"
+HOME = Path(os.path.expanduser("~"))
+SRC = Path(os.environ.get("RYOKU_BIBATA_SRC", "/usr/share/ryoku-cursor-material/bibata"))
+INSTALL = HOME / ".local/share/icons"
+CFG = HOME / ".config/ryoku/hypr.json"
+COLORS = HOME / ".cache/ryoku/colors.json"
+LOCK = Path(os.environ.get("XDG_CACHE_HOME", str(HOME / ".cache"))) / "ryoku" / "cursor-material.lock"
+INDEX = ("[Icon Theme]\nName=Material Bibata Cursor Ryoku\n"
+         "Comment=Material Bibata Cursor, wallpaper accent\nInherits=Adwaita\n")
+
+
+def read_json(p):
+    try:
+        return json.loads(Path(p).read_text())
+    except Exception:
+        return {}
+
+
+def active_theme():
+    return str(read_json(CFG).get("cursor", {}).get("theme", ""))
+
+
+def cursor_size():
+    try:
+        return int(read_json(CFG).get("cursor", {}).get("size", 24))
+    except Exception:
+        return 24
+
+
+def hexval(h):
+    h = str(h).strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if len(h) != 6:
+        return None
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def tohex(rgb):
+    return "#%02x%02x%02x" % tuple(max(0, min(255, round(c))) for c in rgb)
+
+
+def relit(rgb, lightness, sat_cap):
+    r, g, b = (c / 255 for c in rgb)
+    hh, ll, ss = colorsys.rgb_to_hls(r, g, b)
+    return tohex(tuple(c * 255 for c in colorsys.hls_to_rgb(hh, lightness, min(ss, sat_cap))))
+
+
+def accent():
+    for a in sys.argv[1:]:
+        if hexval(a):
+            return tohex(hexval(a))
+    p = read_json(COLORS).get("primary")
+    return tohex(hexval(p)) if p and hexval(p) else "#e2342a"
+
+
+def compile_theme(flags, body, primary, watch):
+    """Compile the recoloured theme with the given cursor_utils flags; returns
+    (workdir, compiled_theme_dir). Caller removes workdir."""
+    if not (SRC / "src/cursor_utils.py").is_file():
+        sys.exit(f"bibata source missing at {SRC}")
+    work = Path(tempfile.mkdtemp(prefix="ryoku-cursor-"))
+    for sub in ("src", "svg", "config"):
+        shutil.copytree(SRC / sub, work / sub)
+    render = work / "config/render.json"
+    d = json.loads(render.read_text())
+    t = "Bibata-Modern-Classic"
+    d[t]["colors"][0]["replace"] = body
+    d[t]["colors"][1]["replace"] = primary
+    d[t]["colors"][2]["replace"] = watch
+    render.write_text(json.dumps(d, indent=2))
+    subprocess.run([sys.executable, "src/cursor_utils.py", *flags,
+                    "--theme", t, "--out-dir", "out"],
+                   cwd=work, check=True,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return work, work / "out" / t
+
+
+def install_parts(compiled, parts):
+    """Replace the named parts inside the installed theme dir in place, so a
+    hypr-only pass keeps the existing X11 cursors/ and vice versa."""
+    final = INSTALL / THEME
+    final.mkdir(parents=True, exist_ok=True)
+    (final / "index.theme").write_text(INDEX)
+    for name in parts:
+        src = compiled / name
+        if not src.exists():
+            continue
+        dst = final / name
+        if dst.is_dir():
+            shutil.rmtree(dst, ignore_errors=True)
+        elif dst.exists():
+            dst.unlink()
+        shutil.move(str(src), str(dst))
+
+
+def build_hypr(body, primary, watch):
+    work, compiled = compile_theme(["--hypr"], body, primary, watch)
+    try:
+        install_parts(compiled, ["hyprcursors", "manifest.hl", "index.theme"])
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def build_x11(body, primary, watch):
+    work, compiled = compile_theme(["--x11"], body, primary, watch)
+    try:
+        install_parts(compiled, ["cursors"])
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def apply_live():
+    subprocess.run(["hyprctl", "setcursor", THEME, str(cursor_size())],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def colors_from(acc):
+    rgb = hexval(acc)
+    return relit(rgb, 0.16, 0.35), acc, relit(rgb, 0.06, 0.40)
+
+
+def x11_locked(fn):
+    """Run fn holding a non-blocking lock; skip if an X11 build already runs, so
+    rapid palette changes never stack the slow rasterising pass (cursor_utils
+    renders PNGs through a fixed /tmp path, so two at once would collide)."""
+    LOCK.parent.mkdir(parents=True, exist_ok=True)
+    fh = open(LOCK, "w")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        return
+    try:
+        fn()
+    finally:
+        fcntl.flock(fh, fcntl.LOCK_UN)
+        fh.close()
+
+
+def main():
+    args = sys.argv[1:]
+    # internal: background X11-only pass spawned by the fast path.
+    if "--x11only" in args:
+        body, primary, watch = colors_from(accent())
+        x11_locked(lambda: build_x11(body, primary, watch))
+        return
+
+    if "--force" not in args and active_theme() != THEME:
+        return
+
+    body, primary, watch = colors_from(accent())
+    # fast + lock-free: the hyprcursor pointer writes SVGs directly (no /tmp
+    # collision) and rebuilds in ~0.2s, so it applies at once and never waits.
+    build_hypr(body, primary, watch)
+    apply_live()
+    # the slow X11 set for XWayland/GTK: synchronous with --full (first enable),
+    # otherwise a detached background pass so the live update never waits on it.
+    if "--full" in args:
+        x11_locked(lambda: build_x11(body, primary, watch))
+        apply_live()
+    else:
+        subprocess.Popen([sys.executable, os.path.abspath(__file__), "--x11only", primary],
+                         start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+if __name__ == "__main__":
+    main()

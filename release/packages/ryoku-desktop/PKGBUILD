@@ -74,6 +74,11 @@ depends=(
   # fallback bitmap. fixed upstream version, so unpinned like awww; see
   # release/packages/ryoku-cursors/PKGBUILD.
   'ryoku-cursors'
+  # the optional "Material Bibata" pointer in the Ryoku accent, offered as a
+  # toggle on the Hub Cursor page. shipped so the toggle always resolves to an
+  # installed theme, offline and after `ryoku update`, like ryoku-cursors above.
+  # see release/packages/ryoku-cursor-material/PKGBUILD.
+  'ryoku-cursor-material'
   # shell + apps configured here
   'quickshell'
   # KSyntaxHighlighting (org.kde.syntaxhighlighting QML module) colours code

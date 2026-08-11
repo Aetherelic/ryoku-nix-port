@@ -1,0 +1,69 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# ryoku-cursor-material = the optional "Material Bibata" pointer the Cursor page
+# offers as a toggle. It is a Bibata cursor whose outline follows the live
+# wallpaper accent (matugen primary) over a dark Material-Design-3 container
+# body, so the pointer tracks the palette like the rest of the desktop instead
+# of sitting on a fixed colour.
+#
+# Bundled, not pulled from the AUR. The recipe (themes.json + the two build
+# scripts) is vendored in this package directory straight from
+# SakibShahariar/material-bibata-cursor (MIT); the cursor SVG source is
+# rtgiskard/bibata_cursor, pinned to a commit and fetched at build like the
+# Bibata release tarball ryoku-cursors already fetches. The build recolors that
+# source with the "Ryoku" entry in themes.json and compiles one fixed variant
+# (Bibata-Material-Ryoku) as the offline fallback. At runtime the shipped
+# ryoku-cursor-material-recolor tool, fired from matugen's post-hook, rebuilds
+# that same theme into ~/.local/share/icons using the live accent, so the
+# pointer follows the wallpaper whenever this cursor is the selected theme.
+#
+# fixed-version package: it tracks the recipe, not the monorepo RYOKU_PKGVER.
+# Bump pkgver when the vendored recipe changes; bump pkgrel alone for a rebuild.
+pkgname=ryoku-cursor-material
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Material Bibata pointer in the Ryoku accent (optional cursor theme)"
+arch=('any')
+url="https://github.com/SakibShahariar/material-bibata-cursor"
+# Recipe (themes.json + scripts) is MIT; the compiled cursors are derivative of
+# Bibata_Cursor, which is GPL-3.0-or-later, so the shipped theme is GPLv3.
+license=('GPL-3.0-or-later' 'MIT')
+makedepends=('fish' 'jq' 'librsvg' 'xorg-xcursorgen' 'python' 'git')
+# runtime: the recolor tool rebuilds the theme from the bundled Bibata SVGs on
+# every palette change, so librsvg + xcursorgen + python must be present.
+depends=('python' 'librsvg' 'xorg-xcursorgen')
+_bibata_commit=f4ccfe8abb63fddc7b3ce51a866fd8378395cb3d
+source=(
+  'themes.json'
+  'compile_bibata_material.fish'
+  'metadata_generator.py'
+  'ryoku-cursor-material-recolor'
+  "bibata_cursor::git+https://github.com/rtgiskard/bibata_cursor.git#commit=$_bibata_commit"
+)
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+build() {
+  cd "$srcdir"
+  # Rebuild the layout the fish recipe expects: scripts/ beside themes.json,
+  # with the pinned bibata_cursor checkout already in place so the recipe never
+  # reaches the network during the build.
+  mkdir -p scripts
+  cp compile_bibata_material.fish metadata_generator.py scripts/
+  cp -r bibata_cursor scripts/bibata_cursor
+
+  export BIBATA_MATERIAL_INSTALL_DIR="$srcdir/out"
+  fish scripts/compile_bibata_material.fish Ryoku
+  test -d "$srcdir/out/Bibata-Material-Ryoku"
+}
+
+package() {
+  # the offline fallback: the fixed Ryoku-accent variant, in the system path.
+  install -d "$pkgdir/usr/share/icons"
+  cp -r "$srcdir/out/Bibata-Material-Ryoku" "$pkgdir/usr/share/icons/"
+
+  # the Bibata SVG source the runtime recolor rebuilds from, and the tool + its
+  # matugen post-hook entry (config.toml) that make the cursor follow the accent.
+  install -d "$pkgdir/usr/share/ryoku-cursor-material/bibata"
+  cp -r "$srcdir/bibata_cursor/src" "$srcdir/bibata_cursor/svg" "$srcdir/bibata_cursor/config" \
+        "$pkgdir/usr/share/ryoku-cursor-material/bibata/"
+  install -Dm755 "$srcdir/ryoku-cursor-material-recolor" "$pkgdir/usr/bin/ryoku-cursor-material-recolor"
+}

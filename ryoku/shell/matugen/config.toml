@@ -23,9 +23,10 @@ output_path = "~/.config/btop/themes/ryoku.theme"
 [templates.qt6ct]
 input_path = "~/.config/matugen/templates/qt6ct-colors.conf"
 output_path = "~/.config/qt6ct/colors/ryoku.conf"
-# Once the palette is fanned out, retint the file-manager folder icons to the
-# same accent: ryoku-cmd-folders rebuilds the Papirus-Dark overlay and nudges
-# running GTK apps to reload. Riding matugen's post_hook fires it on every
-# palette change from either path (follow-wallpaper and fixed schemes), so it
-# needs no wiring in the Go daemon.
-post_hook = "command -v ryoku-cmd-folders >/dev/null && ryoku-cmd-folders; true"
+    # Once the palette is fanned out, retint the file-manager folder icons to the
+    # same accent (ryoku-cmd-folders), then recolour the Material Bibata pointer
+    # to the same primary (ryoku-cursor-material-recolor, a no-op unless that
+    # cursor is selected). Riding matugen's post_hook fires both on every palette
+    # change from either path (follow-wallpaper and fixed schemes), so they need
+    # no wiring in the Go daemon.
+    post_hook = "command -v ryoku-cmd-folders >/dev/null && ryoku-cmd-folders; command -v ryoku-cursor-material-recolor >/dev/null && ryoku-cursor-material-recolor; true"

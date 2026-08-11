@@ -18,6 +18,14 @@ var rows = [{
     },{
         "tab": "Pointer",
         "group": "CURSOR",
+        "key": "cursor.material",
+        "label": "Material Bibata",
+        "desc": "Swap the pointer for the Bibata cursor recolored in the Ryoku vermillion accent",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },{
+        "tab": "Pointer",
+        "group": "CURSOR",
         "key": "cursor.size",
         "label": "Size",
         "desc": "How large the pointer is drawn",
