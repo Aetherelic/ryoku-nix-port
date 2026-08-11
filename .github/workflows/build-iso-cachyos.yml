@@ -1,0 +1,37 @@
+name: Build ISO (CachyOS)
+
+# cachyos variant: the full CachyOS layer (linux-cachyos kernel, cachyos-settings,
+# schedulers, proton) baked into the offline closure. fires on a cachyos-v*
+# release tag or a manual dispatch, and calls the reusable builder with
+# variant=cachyos. a separate workflow means its own run counter, so the cachyos
+# tracking id is independent of the plain one ("R1" on the first build). it
+# publishes latest-cachyos.json/latest-cachyos.js to the same R2 bucket, which the
+# website reads alongside the plain latest.json.
+on:
+  workflow_dispatch:
+    inputs:
+      release_stage:
+        description: 'Public release stage'
+        required: true
+        default: 'beta'
+        type: choice
+        options:
+          - alpha
+          - beta
+          - stable
+  push:
+    tags:
+      - 'cachyos-v*'
+
+permissions:
+  contents: read
+  # the reusable builder's Trivy step uploads the ISO scan as SARIF.
+  security-events: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-iso-reusable.yml
+    with:
+      variant: cachyos
+      release_stage: ${{ github.event.inputs.release_stage || 'beta' }}
+    secrets: inherit

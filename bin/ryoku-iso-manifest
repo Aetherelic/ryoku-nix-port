@@ -49,6 +49,7 @@ else
 fi
 
 channel=${RYOKU_ISO_CHANNEL:-${CHANNEL:-main}}
+variant=${RYOKU_ISO_VARIANT:-plain}
 commit=${RYOKU_ISO_COMMIT:-unknown}
 run_id=${RYOKU_ISO_RUN_ID:-}
 run_number=${RYOKU_ISO_RUN_NUMBER:-}
@@ -74,9 +75,15 @@ iso_sha=$(sha256sum "$iso" | awk '{print $1}')
 sig_sha=$(sha256sum "$sig" | awk '{print $1}')
 
 manifest="$iso_dir/$manifest_name"
-latest="$iso_dir/latest.json"
 manifest_js="$iso_dir/$script_name"
-latest_js="$iso_dir/latest.js"
+# variant pointer: plain keeps latest.json/latest.js + window.RYOKU_ISO_RELEASE
+# (backcompat); cachyos writes its own latest-cachyos.* + a distinct global, so
+# the two variant workflows publish to the same bucket without clobbering.
+if [[ $variant == plain ]]; then
+  latest="$iso_dir/latest.json"; latest_js="$iso_dir/latest.js"; js_global=RYOKU_ISO_RELEASE
+else
+  latest="$iso_dir/latest-$variant.json"; latest_js="$iso_dir/latest-$variant.js"; js_global="RYOKU_ISO_RELEASE_${variant^^}"
+fi
 
 cat >"$manifest" <<JSON
 {
@@ -84,6 +91,7 @@ cat >"$manifest" <<JSON
   "project": "ryoku",
   "channel": $(json_string "$channel"),
   "tracking_id": $(json_string "$tracking_id"),
+  "variant": $(json_string "$variant"),
   "date": $(json_string "$iso_date"),
   "arch": "x86_64",
   "installer_ref": $(json_string "$installer_ref"),
@@ -120,7 +128,7 @@ JSON
 
 cp "$manifest" "$latest"
 {
-  printf 'window.RYOKU_ISO_RELEASE = '
+  printf 'window.%s = ' "$js_global"
   cat "$manifest"
   printf ';\n'
 } >"$manifest_js"
