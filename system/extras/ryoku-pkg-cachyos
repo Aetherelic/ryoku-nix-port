@@ -59,10 +59,10 @@ sudo pacman-key --lsign-key "$key"
 echo "==> Adding the CachyOS repositories above [core]"
 block="[cachyos-v3]\nServer = $mirror/x86_64_v3/cachyos-v3\n\n[cachyos-core-v3]\nServer = $mirror/x86_64_v3/cachyos-core-v3\n\n[cachyos-extra-v3]\nServer = $mirror/x86_64_v3/cachyos-extra-v3\n\n[cachyos]\nServer = $mirror/x86_64/cachyos\n\n[core]"
 sudo sed -i "0,/^\[core\]/ s|^\[core\]|$block|" "$conf"
-grep -qE '^\[cachyos-v3\]' "$conf" && grep -qE '^\[cachyos\]' "$conf" || {
+if ! { grep -qE '^\[cachyos-v3\]' "$conf" && grep -qE '^\[cachyos\]' "$conf"; }; then
   echo "ryoku-pkg-cachyos: could not add the CachyOS repositories to $conf" >&2
   exit 1
-}
+fi
 
 echo "==> Synchronizing package databases"
 sudo pacman -Sy
