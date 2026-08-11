@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- Battery-aware idle: `power/ryoku-idle` gains `on-battery`/`on-ac` (exit-status
+  guards read the `/sys/class/power_supply` mains state), and `hypridle.conf` now
+  pairs a battery-aggressive listener with an AC-relaxed one at each stage, gated
+  by those guards. On battery the backlight dims at 2 min, the session locks at 5,
+  the screen (DPMS) turns off at 5.5 and the machine suspends at 15; on AC the
+  prior 5/10/11/30 hold. An unknown or absent mains reads as AC, so a desktop or an
+  unreadable laptop keeps the relaxed policy.
 - `audio/ryoku-restart-audio`: recover sound when it does not come back. Restarts
   the PipeWire stack (wireplumber, pipewire, pipewire-pulse) and resets a stuck
   USB audio device. Bound to Super+Shift+A. Ported from omarchy.

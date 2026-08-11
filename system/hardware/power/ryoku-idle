@@ -16,6 +16,21 @@ hw_laptop() {
   fi
 }
 
+# on_battery: exit 0 when running on battery, i.e. a mains supply exists and reads
+# offline. An unknown or absent mains reads as AC, so idle stays relaxed rather
+# than aggressively dimming or suspending an unreadable machine. Feeds the
+# AC/battery-gated hypridle timeouts (aggressive on battery, relaxed on AC).
+on_battery() {
+  local ps_dir="${RYOKU_POWER_SUPPLY_DIR:-/sys/class/power_supply}"
+  local ps online=1
+  for ps in "$ps_dir"/*; do
+    [[ -r $ps/type && $(<"$ps/type") == "Mains" && -r $ps/online ]] || continue
+    online="$(<"$ps/online")"
+    break
+  done
+  [[ $online == "0" ]]
+}
+
 hypridle_pids() {
   local proc state uid key value self_uid
   self_uid="$(id -u)"
@@ -50,9 +65,12 @@ Usage: ryoku-idle [start|status|is-laptop]
 start      launch hypridle only when this host is detected as a laptop
 status     print device class, hypridle availability/running state, and config
 is-laptop  return ryoku-hw-laptop's laptop detection status
+on-battery return 0 on battery, 1 on AC (gates the battery idle timeouts)
+on-ac      return 0 on AC, 1 on battery (gates the AC idle timeouts)
 
 Env:
   RYOKU_HYPRIDLE_CONF=/path/to/hypridle.conf
+  RYOKU_POWER_SUPPLY_DIR=/path/to/power_supply
   RYOKU_IDLE_VERBOSE=1   print why start exits without launching hypridle
 USAGE
 }
@@ -95,6 +113,12 @@ case "$cmd" in
     ;;
   is-laptop)
     hw_laptop
+    ;;
+  on-battery)
+    on_battery
+    ;;
+  on-ac)
+    ! on_battery
     ;;
   -h|--help|help)
     usage
