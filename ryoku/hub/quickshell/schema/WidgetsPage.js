@@ -19,7 +19,7 @@ var rows = [
         "group": "WIDGET",
         "key": "clockDesign",
         "label": "Face",
-        "desc": "How the time is drawn: digits, analog hands, flip cards or rings",
+        "desc": "How the time is drawn: digits, analog hands, flip cards, rings, a big hour, a metal readout or a good-night card",
         "ctl": "chips",
         "src": "widgets.json",
         "opts": [
@@ -27,7 +27,10 @@ var rows = [
             "minimal",
             "analog",
             "flip",
-            "rings"
+            "rings",
+            "bighour",
+            "metal",
+            "goodnight"
         ]
     },
     {
@@ -407,5 +410,82 @@ var rows = [
         "desc": "Stops accidental moves and resizes",
         "ctl": "sw",
         "src": "widgets.json"
+    },
+    {
+        "tab": "aio", "group": "WIDGET", "key": "aioEnabled", "label": "Enabled",
+        "desc": "Shows the all-in-one weather + clock card on your wallpaper; settings are kept while off",
+        "ctl": "sw", "src": "widgets.json"
+    },
+    {
+        "tab": "aio", "group": "WIDGET", "key": "aioStyle", "label": "Layout",
+        "desc": "Wide is the landscape card; Tall is the portrait day-number panel",
+        "ctl": "seg", "src": "widgets.json", "opts": ["wide", "tall"]
+    },
+    {
+        "tab": "aio", "group": "SIZE & SHAPE", "key": "aioScale", "label": "Size",
+        "desc": "Multiplies the card's designed size",
+        "ctl": "step", "src": "widgets.json", "lo": 0.5, "hi": 2.0
+    },
+    {
+        "tab": "aio", "group": "SIZE & SHAPE", "key": "aioOpacity", "label": "Opacity",
+        "desc": "Fades the card while keeping it readable",
+        "ctl": "slid", "src": "widgets.json", "lo": 0.2, "hi": 1.0, "unit": "%", "pct": true
+    },
+    {
+        "tab": "aio", "group": "PLACEMENT", "key": "aioAnchor", "label": "Anchor",
+        "desc": "Snaps the card to a screen edge or corner; free uses X/Y or dragging",
+        "ctl": "pick", "src": "widgets.json",
+        "opts": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+    },
+    {
+        "tab": "aio", "group": "PLACEMENT", "key": "aioX", "label": "X",
+        "desc": "Pixels from the left edge when Anchor is free",
+        "ctl": "step", "src": "widgets.json", "lo": 0, "hi": 5000, "unit": "px"
+    },
+    {
+        "tab": "aio", "group": "PLACEMENT", "key": "aioY", "label": "Y",
+        "desc": "Pixels from the top edge when Anchor is free",
+        "ctl": "step", "src": "widgets.json", "lo": 0, "hi": 5000, "unit": "px"
+    },
+    {
+        "tab": "aio", "group": "PLACEMENT", "key": "aioLocked", "label": "Lock on desktop",
+        "desc": "Stops accidental moves and resizes",
+        "ctl": "sw", "src": "widgets.json"
+    },
+    {
+        "tab": "stats", "group": "WIDGET", "key": "statsEnabled", "label": "Enabled",
+        "desc": "Shows the system-stats panel on your wallpaper; settings are kept while off",
+        "ctl": "sw", "src": "widgets.json"
+    },
+    {
+        "tab": "stats", "group": "SIZE & SHAPE", "key": "statsScale", "label": "Size",
+        "desc": "Multiplies the panel's designed size",
+        "ctl": "step", "src": "widgets.json", "lo": 0.5, "hi": 2.0
+    },
+    {
+        "tab": "stats", "group": "SIZE & SHAPE", "key": "statsOpacity", "label": "Opacity",
+        "desc": "Fades the panel while keeping it readable",
+        "ctl": "slid", "src": "widgets.json", "lo": 0.2, "hi": 1.0, "unit": "%", "pct": true
+    },
+    {
+        "tab": "stats", "group": "PLACEMENT", "key": "statsAnchor", "label": "Anchor",
+        "desc": "Snaps the panel to a screen edge or corner; free uses X/Y or dragging",
+        "ctl": "pick", "src": "widgets.json",
+        "opts": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+    },
+    {
+        "tab": "stats", "group": "PLACEMENT", "key": "statsX", "label": "X",
+        "desc": "Pixels from the left edge when Anchor is free",
+        "ctl": "step", "src": "widgets.json", "lo": 0, "hi": 5000, "unit": "px"
+    },
+    {
+        "tab": "stats", "group": "PLACEMENT", "key": "statsY", "label": "Y",
+        "desc": "Pixels from the top edge when Anchor is free",
+        "ctl": "step", "src": "widgets.json", "lo": 0, "hi": 5000, "unit": "px"
+    },
+    {
+        "tab": "stats", "group": "PLACEMENT", "key": "statsLocked", "label": "Lock on desktop",
+        "desc": "Stops accidental moves and resizes",
+        "ctl": "sw", "src": "widgets.json"
     }
 ];

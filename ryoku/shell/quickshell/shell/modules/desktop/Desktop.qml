@@ -7,6 +7,8 @@ import "Singletons"
 import "clock"
 import "calendar"
 import "music"
+import "aio"
+import "stats"
 import Ryoku.PluginKit
 
 // desktop widgets layer: WlrLayer.Bottom (below windows), instantiated once per
@@ -159,8 +161,11 @@ Scope {
         WidgetGrid {
             anchors.fill: parent
             active: clockSlot.dragging || calendarSlot.dragging || musicSlot.dragging
+                || aioSlot.dragging || statsSlot.dragging
             gridSize: clockSlot.dragging ? clockSlot.gridSize
-                : (calendarSlot.dragging ? calendarSlot.gridSize : musicSlot.gridSize)
+                : (calendarSlot.dragging ? calendarSlot.gridSize
+                : (musicSlot.dragging ? musicSlot.gridSize
+                : (aioSlot.dragging ? aioSlot.gridSize : statsSlot.gridSize)))
         }
 
         WidgetSlot {
@@ -229,6 +234,43 @@ Scope {
                 wallpaperSource: glassBackdrop
                 wallpaperRect: Qt.rect(musicSlot.x, musicSlot.y,
                     musicSlot.width, musicSlot.height)
+            }
+        }
+
+        WidgetSlot {
+            id: aioSlot
+            widget: "aio"
+            visible: Config.aioEnabled
+            anchor: Config.aioAnchor
+            freeX: Config.aioX
+            freeY: Config.aioY
+            locked: Config.aioLocked
+            bg: "none"
+            scaleCfg: Config.aioScale
+            opacity: Config.aioOpacity
+            onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            AioWidget {
+                style: Config.aioStyle
+                s: Config.aioScale
+                active: aioSlot.visible
+            }
+        }
+
+        WidgetSlot {
+            id: statsSlot
+            widget: "stats"
+            visible: Config.statsEnabled
+            anchor: Config.statsAnchor
+            freeX: Config.statsX
+            freeY: Config.statsY
+            locked: Config.statsLocked
+            bg: "none"
+            scaleCfg: Config.statsScale
+            opacity: Config.statsOpacity
+            onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            StatsWidget {
+                s: Config.statsScale
+                active: statsSlot.visible
             }
         }
 

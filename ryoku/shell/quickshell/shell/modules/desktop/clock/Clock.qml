@@ -48,6 +48,9 @@ Item {
         case "analog":  return analogComp;
         case "flip":    return flipComp;
         case "rings":   return ringsComp;
+        case "bighour": return bigHourComp;
+        case "metal":   return metalComp;
+        case "goodnight": return goodNightComp;
         default:        return digitalComp;
         }
     }
@@ -64,6 +67,9 @@ Item {
     Component { id: analogComp;  ClockAnalog { underL: clock.underL } }
     Component { id: flipComp;    ClockFlip { underL: clock.underL } }
     Component { id: ringsComp;   ClockRings { underL: clock.underL } }
+    Component { id: bigHourComp; ClockBigHour { underL: clock.underL } }
+    Component { id: metalComp;   ClockMetal { underL: clock.underL } }
+    Component { id: goodNightComp; ClockGoodNight { underL: clock.underL } }
 
     Component { id: dateInlineComp;  DateInline { underL: clock.underL } }
     Component { id: dateBadgeComp;   DateBadge { underL: clock.underL } }

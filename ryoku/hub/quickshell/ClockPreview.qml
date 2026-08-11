@@ -67,6 +67,9 @@ Item {
         case "analog":  return analogC;
         case "flip":    return flipC;
         case "rings":   return ringsC;
+        case "bighour": return bighourC;
+        case "metal":   return metalC;
+        case "goodnight": return goodnightC;
         default:        return digitalC;
         }
     }
@@ -200,6 +203,137 @@ Item {
                 }
             }
             Text { anchors.centerIn: parent; text: preview.hh + ":" + preview.mm; color: preview.ink; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 22; font.weight: Font.Bold }
+        }
+    }
+
+    // hollow outlined text via Canvas strokeText (big-hour month + seconds),
+    // copied from the tuned preview /tmp/refimg/p1_bighour.qml.
+    component Hollow: Canvas {
+        property string txt: ""
+        property real ps: 90
+        property real lw: 2.2
+        property real track: 0
+        readonly property string fam: "Inter Display"
+        implicitWidth: _measure()
+        implicitHeight: ps * 1.02
+        function _measure() {
+            var c = getContext("2d"); if (!c) return ps * txt.length * 0.6;
+            c.font = "900 " + ps + "px '" + fam + "'";
+            var wd = 0; for (var i = 0; i < txt.length; i++) { wd += c.measureText(txt[i]).width + track; }
+            return Math.ceil(wd + lw * 2 + ps * 0.08);
+        }
+        readonly property var key: [txt, ps, lw, track]
+        onKeyChanged: requestPaint()
+        onPaint: {
+            var c = getContext("2d"); c.reset(); c.clearRect(0, 0, width, height);
+            c.font = "900 " + ps + "px '" + fam + "'";
+            c.textBaseline = "alphabetic"; c.lineWidth = lw; c.strokeStyle = preview.ink;
+            c.lineJoin = "round";
+            var x = 0, y = ps * 0.82;
+            for (var i = 0; i < txt.length; i++) { c.strokeText(txt[i], x, y); x += c.measureText(txt[i]).width + track; }
+        }
+        Component.onCompleted: requestPaint()
+    }
+
+    // big-hour: weekday/day + hollow month | giant hour | minute + hollow second
+    Component {
+        id: bighourC
+        Row {
+            spacing: 22
+            Column {
+                anchors.bottom: parent.bottom
+                spacing: 2
+                Text {
+                    text: (preview.weekdaysShort[preview.dow] + ", " + preview.pad2(preview.dom)).toUpperCase()
+                    color: preview.ink; font.family: "Inter Display"; font.weight: Font.Bold
+                    font.pixelSize: 33; font.letterSpacing: 2
+                }
+                Hollow { txt: preview.months[preview.monIdx].toUpperCase(); ps: 74; lw: 2.0; track: 1 }
+                Item { width: 1; height: 30 }
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: preview.hh; color: preview.ink
+                font.family: "Inter Display"; font.weight: Font.Black
+                font.pixelSize: 300; font.letterSpacing: -8
+            }
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 0
+                Text {
+                    text: preview.mm; color: preview.ink
+                    font.family: "Inter Display"; font.weight: Font.Black
+                    font.pixelSize: 116; font.letterSpacing: -4
+                }
+                Hollow { visible: preview.seconds; txt: preview.ss; ps: 116; lw: 2.6 }
+            }
+        }
+    }
+
+    // metal: heavy condensed time over a "Weekday | Clear · 23°" sample line
+    Component {
+        id: metalC
+        Column {
+            spacing: 12
+            Text {
+                text: preview.hh + ":" + preview.mm; color: preview.ink
+                font.family: "Inter Display"; font.weight: Font.Black
+                font.pixelSize: 132; font.letterSpacing: -2
+            }
+            Text {
+                text: (preview.is24 ? "" : preview.ampm + "  |  ")
+                    + preview.weekdays[preview.dow] + "  |  Clear  \u00b7  23\u00b0"
+                color: preview.ink; font.family: "Inter Display"; font.weight: Font.Bold
+                font.pixelSize: 25; font.letterSpacing: 0.5
+            }
+        }
+    }
+
+    // good-night: greeting card with vertical rules; the faux-kana weekday is
+    // approximated by a heavy, wide-tracked weekday (exact kana isn't needed in
+    // a thumbnail).
+    Component {
+        id: goodnightC
+        Column {
+            spacing: 26
+            Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: 2; height: 70; color: preview.ink; opacity: 0.85 }
+            Column {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 12
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "GOOD"; color: preview.ink
+                    font.family: "Inter Display"; font.weight: Font.Medium
+                    font.pixelSize: 26; font.letterSpacing: 10
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: preview.h >= 5 && preview.h < 12 ? "MORNING"
+                        : preview.h >= 12 && preview.h < 17 ? "AFTERNOON"
+                        : preview.h >= 17 && preview.h < 21 ? "EVENING" : "NIGHT"
+                    color: preview.ink; font.family: "Inter Display"; font.weight: Font.Medium
+                    font.pixelSize: 26; font.letterSpacing: 10
+                }
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: preview.weekdaysShort[preview.dow].toUpperCase(); color: preview.ink
+                font.family: "Inter Display"; font.weight: Font.Black
+                font.pixelSize: 54; font.letterSpacing: 12
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: preview.pad2(preview.dom) + " " + preview.months[preview.monIdx].toUpperCase()
+                color: preview.ink; font.family: "Inter Display"; font.weight: Font.DemiBold
+                font.pixelSize: 22; font.letterSpacing: 4
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: preview.hh + ":" + preview.mm + (preview.is24 ? "" : " " + preview.ampm)
+                color: preview.ink; font.family: "Inter Display"; font.weight: Font.Medium
+                font.pixelSize: 22; font.letterSpacing: 3
+            }
+            Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: 2; height: 70; color: preview.ink; opacity: 0.85 }
         }
     }
 

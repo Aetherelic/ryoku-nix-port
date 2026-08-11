@@ -52,6 +52,23 @@ Singleton {
     property alias musicVideo:     adapter.musicVideo      // off | canvas | custom
     property alias musicVideoFile: adapter.musicVideoFile  // custom backdrop file
 
+    property alias aioEnabled: adapter.aioEnabled
+    property alias aioStyle:   adapter.aioStyle     // wide | tall
+    property alias aioScale:   adapter.aioScale
+    property alias aioAnchor:  adapter.aioAnchor
+    property alias aioX:       adapter.aioX
+    property alias aioY:       adapter.aioY
+    property alias aioLocked:  adapter.aioLocked
+    property alias aioOpacity: adapter.aioOpacity
+
+    property alias statsEnabled: adapter.statsEnabled
+    property alias statsScale:   adapter.statsScale
+    property alias statsAnchor:  adapter.statsAnchor
+    property alias statsX:       adapter.statsX
+    property alias statsY:       adapter.statsY
+    property alias statsLocked:  adapter.statsLocked
+    property alias statsOpacity: adapter.statsOpacity
+
     // brand: the desktop's mark + name, user-overridable from Ryoku Settings ->
     // Shell -> Global. a small cross-cutting identity master (like theme.json).
     // markText is the glyph/short-text seal (default 力); markImage an optional
@@ -141,6 +158,21 @@ Singleton {
             property string musicShape: "wide"
             property string musicVideo: "canvas"
             property string musicVideoFile: ""
+            property bool aioEnabled: false
+            property string aioStyle: "wide"
+            property real aioScale: 1.0
+            property string aioAnchor: "top-right"
+            property int aioX: 80
+            property int aioY: 80
+            property bool aioLocked: false
+            property real aioOpacity: 1.0
+            property bool statsEnabled: false
+            property real statsScale: 1.0
+            property string statsAnchor: "bottom-right"
+            property int statsX: 80
+            property int statsY: 80
+            property bool statsLocked: false
+            property real statsOpacity: 1.0
         }
     }
 

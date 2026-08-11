@@ -31,7 +31,9 @@ Item {
         "calendarHolidayRegion", "calendarScale", "calendarOpacity", "calendarAnchor",
         "calendarX", "calendarY", "calendarLocked",
         "musicEnabled", "musicStyle", "musicLyrics", "musicScale", "musicOpacity",
-        "musicAnchor", "musicX", "musicY", "musicLocked", "musicApp"
+        "musicAnchor", "musicX", "musicY", "musicLocked", "musicApp",
+        "aioEnabled", "aioStyle", "aioScale", "aioOpacity", "aioAnchor", "aioX", "aioY", "aioLocked",
+        "statsEnabled", "statsScale", "statsOpacity", "statsAnchor", "statsX", "statsY", "statsLocked"
     ]
 
     // Factory values mirror the wallpaper clock's canonical Config defaults.
@@ -46,15 +48,21 @@ Item {
         "calendarY": 80, "calendarLocked": false,
         "musicEnabled": false, "musicStyle": "cover", "musicLyrics": true,
         "musicScale": 1.0, "musicOpacity": 1.0, "musicAnchor": "bottom-left",
-        "musicX": 80, "musicY": 80, "musicLocked": false, "musicApp": ""
+        "musicX": 80, "musicY": 80, "musicLocked": false, "musicApp": "",
+        "aioEnabled": false, "aioStyle": "wide", "aioScale": 1.0, "aioOpacity": 1.0,
+        "aioAnchor": "top-right", "aioX": 80, "aioY": 80, "aioLocked": false,
+        "statsEnabled": false, "statsScale": 1.0, "statsOpacity": 1.0,
+        "statsAnchor": "bottom-right", "statsX": 80, "statsY": 80, "statsLocked": false
     })
 
     // Scale and opacity persist as ratios; the sheet edits integer percents.
     readonly property var pctKeys: ({
-        "clockOpacity": true, "calendarOpacity": true, "musicOpacity": true
+        "clockOpacity": true, "calendarOpacity": true, "musicOpacity": true,
+        "aioOpacity": true, "statsOpacity": true
     })
     readonly property var scaleKeys: ({
-        "clockScale": true, "calendarScale": true, "musicScale": true
+        "clockScale": true, "calendarScale": true, "musicScale": true,
+        "aioScale": true, "statsScale": true
     })
 
     property var draft: ({})
@@ -124,33 +132,23 @@ Item {
     }
     readonly property bool dirty: pg.dirtyCount > 0
 
-    // The clock and its date rows share one synthetic tab; ratio rows become
-    // integer-percent sliders at the sheet boundary.
-    function groupOf(k) {
-        if (k.indexOf("calendar") === 0) return "CALENDAR";
-        if (k.indexOf("music") === 0) return "MUSIC";
-        return k.indexOf("date") === 0 ? "DATE" : "CLOCK";
-    }
+    // Each widget keeps its own tab and its natural groups (WIDGET, FORMAT, DATE,
+    // SIZE & SHAPE, PLACEMENT); the open subpage sets the sheet's tab so only that
+    // widget's cards show. Ratio rows (scale, opacity) become integer-percent
+    // sliders at the sheet boundary.
     readonly property var schemaRows: {
-        var order = ["CLOCK", "DATE", "CALENDAR", "MUSIC"];
         var out = [];
-        for (var gi = 0; gi < order.length; gi++) {
-            for (var i = 0; i < Schema.rows.length; i++) {
-                var r = Schema.rows[i];
-                if (pg.groupOf(r.key) !== order[gi])
-                    continue;
-                var c = {};
-                for (var p in r)
-                    c[p] = r[p];
-                c.tab = "widgets";
-                c.group = order[gi];
-                if (pg.pctKeys[r.key]) {
-                    c.ctl = "slid"; c.lo = 20; c.hi = 100; c.unit = "%"; c.pct = false;
-                } else if (pg.scaleKeys[r.key]) {
-                    c.ctl = "slid"; c.lo = 50; c.hi = 250; c.unit = "%"; c.pct = false;
-                }
-                out.push(c);
+        for (var i = 0; i < Schema.rows.length; i++) {
+            var r = Schema.rows[i];
+            var c = {};
+            for (var p in r)
+                c[p] = r[p];
+            if (pg.pctKeys[r.key]) {
+                c.ctl = "slid"; c.lo = 20; c.hi = 100; c.unit = "%"; c.pct = false;
+            } else if (pg.scaleKeys[r.key]) {
+                c.ctl = "slid"; c.lo = 50; c.hi = 250; c.unit = "%"; c.pct = false;
             }
+            out.push(c);
         }
         return out;
     }
@@ -316,6 +314,21 @@ Item {
             property int musicY: 80
             property bool musicLocked: false
             property string musicApp: ""
+            property bool aioEnabled: false
+            property string aioStyle: "wide"
+            property real aioScale: 1.0
+            property real aioOpacity: 1.0
+            property string aioAnchor: "top-right"
+            property int aioX: 80
+            property int aioY: 80
+            property bool aioLocked: false
+            property bool statsEnabled: false
+            property real statsScale: 1.0
+            property real statsOpacity: 1.0
+            property string statsAnchor: "bottom-right"
+            property int statsX: 80
+            property int statsY: 80
+            property bool statsLocked: false
         }
     }
 
@@ -348,7 +361,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("The clock, calendar and now-playing sheet on your wallpaper, previewed live on the right. Choose each look, density, size, opacity and position; nothing lands on the desktop until you save.")
+            text: I18n.tr("Every widget that rides your wallpaper — the clock, the all-in-one card, system stats, calendar and now-playing. Pick a card to preview it live and open its settings; nothing lands on the desktop until you save.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -363,124 +376,188 @@ Item {
         glyph: "wave"; glyph2: "column"
     }
 
-    // ── the live clock preview: a pinned specimen card whose corner map marks
-    // placement on the wallpaper. ────────────────────────────────────────────
-    Item {
-        id: previewCol
-        anchors { right: parent.right; top: head.bottom; bottom: bar.top }
-        anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s5; anchors.bottomMargin: Tokens.s4
-        width: Math.round(Math.min(400, Math.max(300, pg.width * 0.34)))
+    // ── the widget catalogue: a card per widget; a card opens its settings ────
+    // Grid view lists every desktop widget as a live-preview card with an on/off
+    // toggle; clicking a card slides in that widget's settings subpage. One draft,
+    // one Save bar for all of them (unchanged below).
+    property string selected: ""   // "" = grid; else the open widget's tab
 
-        Item {
-            id: pvHead
-            anchors { left: parent.left; right: parent.right; top: parent.top }
-            height: 14
-            Text {
-                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                text: I18n.tr("LIVE PREVIEW"); color: Tokens.inkMuted
-                font.family: Tokens.mono; font.pixelSize: Tokens.fTiny; font.letterSpacing: 1.4
-            }
-            Text {
-                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                text: ((pg.draft.clockEnabled ? 1 : 0) + (pg.draft.calendarEnabled ? 1 : 0)
-                    + (pg.draft.musicEnabled ? 1 : 0)) + " / 3 ON"
-                color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
-            }
-        }
+    readonly property var widgets: [
+        { "tab": "clock",    "title": "Clock",        "jp": "時計", "enable": "clockEnabled",    "anchor": "clockAnchor",    "natW": 300, "natH": 150 },
+        { "tab": "aio",      "title": "All-in-one",   "jp": "一体", "enable": "aioEnabled",      "anchor": "aioAnchor",      "natW": 354, "natH": 227 },
+        { "tab": "stats",    "title": "System Stats", "jp": "統計", "enable": "statsEnabled",    "anchor": "statsAnchor",    "natW": 261, "natH": 458 },
+        { "tab": "calendar", "title": "Calendar",     "jp": "暦",   "enable": "calendarEnabled", "anchor": "calendarAnchor", "natW": 330, "natH": 210 },
+        { "tab": "music",    "title": "Music",        "jp": "音楽", "enable": "musicEnabled",    "anchor": "musicAnchor",    "natW": 400, "natH": 216 }
+    ]
+    function widgetOf(tab) { for (var i = 0; i < pg.widgets.length; i++) if (pg.widgets[i].tab === tab) return pg.widgets[i]; return null; }
+    readonly property var curWidget: pg.selected === "" ? null : pg.widgetOf(pg.selected)
 
-        Column {
-            id: pvCards
-            anchors { left: parent.left; right: parent.right; top: pvHead.bottom; bottom: parent.bottom }
-            anchors.topMargin: Tokens.s3
-            spacing: Tokens.s4
-            readonly property real cardH: Math.max(130, (height - spacing * 2) / 3)
-
-            SpecimenCard {
-                width: parent.width; height: pvCards.cardH
-                title: I18n.tr("CLOCK")
-                on: pg.draft.clockEnabled === true
-                anchor: pg.draft.clockAnchor || "top-left"
-                userScale: pg.draft.clockScale || 1
-                userOpacity: pg.draft.clockOpacity === undefined ? 1 : pg.draft.clockOpacity
-                natW: 210; natH: 150
-                preview: Component {
-                    Loader {
-                        anchors.fill: parent
-                        source: Qt.resolvedUrl("../ClockPreview.qml")
-                        onLoaded: {
-                            item.design = Qt.binding(() => pg.draft.clockDesign || "digital");
-                            item.is24 = Qt.binding(() => pg.draft.clock24h === true);
-                            item.seconds = Qt.binding(() => pg.draft.clockSeconds === true);
-                            item.accentChoice = Qt.binding(() => pg.draft.clockAccent || "palette");
-                            item.dateShow = Qt.binding(() => pg.draft.dateShow === true);
-                            item.dateDesign = Qt.binding(() => pg.draft.dateDesign || "inline");
-                        }
-                    }
-                }
-            }
-
-            SpecimenCard {
-                width: parent.width; height: pvCards.cardH
-                title: I18n.tr("CALENDAR")
-                on: pg.draft.calendarEnabled === true
-                anchor: pg.draft.calendarAnchor || "bottom-right"
-                userScale: Math.min(1, pg.draft.calendarScale || 1)
-                userOpacity: pg.draft.calendarOpacity === undefined ? 1 : pg.draft.calendarOpacity
-                natW: 330; natH: 210
-                preview: Component {
-                    Loader {
-                        anchors.fill: parent
-                        source: Qt.resolvedUrl("../CalendarPreview.qml")
-                        onLoaded: {
-                            item.style = Qt.binding(() => pg.draft.calendarStyle || "glass");
-                            item.weeks = Qt.binding(() => pg.draft.calendarWeeks || 6);
-                            item.showWeekNumbers = Qt.binding(() => pg.draft.calendarWeekNumbers === true);
-                        }
-                    }
-                }
-            }
-
-            SpecimenCard {
-                width: parent.width; height: pvCards.cardH
-                title: I18n.tr("MUSIC")
-                on: pg.draft.musicEnabled === true
-                anchor: pg.draft.musicAnchor || "bottom-left"
-                userScale: Math.min(1, pg.draft.musicScale || 1)
-                userOpacity: pg.draft.musicOpacity === undefined ? 1 : pg.draft.musicOpacity
-                natW: 400; natH: 216
-                preview: Component {
-                    Loader {
-                        anchors.fill: parent
-                        source: Qt.resolvedUrl("../MusicPreview.qml")
-                        onLoaded: {
-                            item.style = Qt.binding(() => pg.draft.musicStyle || "cover");
-                            item.lyrics = Qt.binding(() => pg.draft.musicLyrics === true);
-                        }
-                    }
-                }
-            }
-        }
+    // one preview per widget, reused by the grid card and the subpage specimen.
+    Component { id: clockPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../ClockPreview.qml")
+        onLoaded: { item.design = Qt.binding(() => pg.draft.clockDesign || "digital"); item.is24 = Qt.binding(() => pg.draft.clock24h === true); item.seconds = Qt.binding(() => pg.draft.clockSeconds === true); item.accentChoice = Qt.binding(() => pg.draft.clockAccent || "palette"); item.dateShow = Qt.binding(() => pg.draft.dateShow === true); item.dateDesign = Qt.binding(() => pg.draft.dateDesign || "inline"); } } }
+    Component { id: aioPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../AioPreview.qml")
+        onLoaded: { item.style = Qt.binding(() => pg.draft.aioStyle || "wide"); } } }
+    Component { id: statsPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../StatsPreview.qml") } }
+    Component { id: calPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../CalendarPreview.qml")
+        onLoaded: { item.style = Qt.binding(() => pg.draft.calendarStyle || "glass"); item.weeks = Qt.binding(() => pg.draft.calendarWeeks || 6); item.showWeekNumbers = Qt.binding(() => pg.draft.calendarWeekNumbers === true); } } }
+    Component { id: musicPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../MusicPreview.qml")
+        onLoaded: { item.style = Qt.binding(() => pg.draft.musicStyle || "cover"); item.lyrics = Qt.binding(() => pg.draft.musicLyrics === true); } } }
+    function previewFor(tab) {
+        switch (tab) { case "aio": return aioPrevC; case "stats": return statsPrevC; case "calendar": return calPrevC; case "music": return musicPrevC; default: return clockPrevC; }
     }
 
-    // ── the settings, grouped by meaning and driven by the shared renderer ──
-    Loader {
-        id: sheetLoader
-        anchors {
-            left: parent.left; right: previewCol.left
-            top: head.bottom; bottom: bar.top
-            leftMargin: Tokens.s6; rightMargin: Tokens.s5
-            topMargin: Tokens.s5; bottomMargin: Tokens.s4
+    Item {
+        id: content
+        anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: bar.top }
+        anchors.leftMargin: Tokens.s6; anchors.rightMargin: Tokens.s6
+        anchors.topMargin: Tokens.s5; anchors.bottomMargin: Tokens.s4
+
+        // ── grid of widget cards ──────────────────────────────────────────────
+        Flickable {
+            id: gridFlick
+            anchors.fill: parent
+            contentHeight: grid.height + Tokens.s5
+            clip: true
+            interactive: pg.selected === ""
+            opacity: pg.selected === "" ? 1 : 0
+            visible: opacity > 0.01
+            enabled: pg.selected === ""
+            Behavior on opacity { NumberAnimation { duration: Tokens.swap; easing.type: Tokens.ease } }
+            ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
+
+            Flow {
+                id: grid
+                width: gridFlick.width
+                spacing: Tokens.s4
+
+                Repeater {
+                    model: pg.widgets
+                    delegate: Rectangle {
+                        id: wcard
+                        required property var modelData
+                        readonly property bool on: pg.draft[wcard.modelData.enable] === true
+                        width: Math.max(280, Math.min(360, (grid.width - Tokens.s4 * 2) / 3))
+                        height: 236
+                        radius: Tokens.radius
+                        color: Tokens.paperLift
+                        border.width: Tokens.border
+                        border.color: wcHover.hovered ? Tokens.sun : (wcard.on ? Tokens.line : Tokens.lineSoft)
+                        Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+
+                        HoverHandler { id: wcHover }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: pg.selected = wcard.modelData.tab
+                        }
+
+                        Item {
+                            id: pbody
+                            anchors { left: parent.left; right: parent.right; top: parent.top }
+                            anchors.margins: Tokens.s3
+                            height: wcard.height - footer.height - Tokens.s3 * 2
+                            clip: true
+                            opacity: wcard.on ? 1 : 0.45
+                            Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                            Item {
+                                width: wcard.modelData.natW; height: wcard.modelData.natH
+                                anchors.centerIn: parent
+                                scale: Math.min(pbody.width / wcard.modelData.natW, pbody.height / wcard.modelData.natH, 1.25)
+                                Loader { anchors.fill: parent; sourceComponent: pg.previewFor(wcard.modelData.tab) }
+                            }
+                        }
+
+                        Item {
+                            id: footer
+                            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                            anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s3; anchors.bottomMargin: Tokens.s3
+                            height: 34
+                            Column {
+                                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                                spacing: 2
+                                Text { text: I18n.tr(wcard.modelData.title); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fRow; font.weight: Font.Medium }
+                                Text {
+                                    text: (wcard.on ? I18n.tr("On") : I18n.tr("Off")).toUpperCase() + "  ·  " + String(pg.draft[wcard.modelData.anchor] || "").toUpperCase()
+                                    color: wcard.on ? Tokens.inkMuted : Tokens.inkFaint
+                                    font.family: Tokens.mono; font.pixelSize: Tokens.fTiny; font.letterSpacing: 0.6
+                                }
+                            }
+                            Sw {
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                on: wcard.on
+                                onToggled: (v) => pg.edit(wcard.modelData.enable, v)
+                            }
+                        }
+                    }
+                }
+            }
         }
-        source: Qt.resolvedUrl("../SettingsSheet.qml")
-        onLoaded: {
-            item.schema = Qt.binding(() => pg.schemaRows);
-            item.draft = Qt.binding(() => pg.sheetDraft);
-            item.defaults = Qt.binding(() => pg.sheetDefaults);
-            item.tab = "widgets";
-            item.query = Qt.binding(() => pg.query);
-            item.edited.connect(pg.onSheetEdited);
-            item.pickRequested.connect(pg.onSheetPick);
-            item.appPickRequested.connect(pg.onSheetAppPick);
+
+        // ── a widget's settings subpage ───────────────────────────────────────
+        Item {
+            id: sub
+            anchors.fill: parent
+            opacity: pg.selected !== "" ? 1 : 0
+            visible: opacity > 0.01
+            enabled: pg.selected !== ""
+            Behavior on opacity { NumberAnimation { duration: Tokens.swap; easing.type: Tokens.ease } }
+
+            Item {
+                id: backRow
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                height: 30
+                Row {
+                    id: crumb
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    spacing: Tokens.s2
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "‹  " + I18n.tr("All widgets")
+                        color: backHover.hovered ? Tokens.ink : Tokens.inkMuted
+                        font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.Medium
+                    }
+                    HoverHandler { id: backHover }
+                }
+                MouseArea { anchors.fill: crumb; cursorShape: Qt.PointingHandCursor; onClicked: pg.selected = "" }
+                Text {
+                    anchors { left: crumb.right; leftMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                    text: pg.curWidget ? I18n.tr(pg.curWidget.title) : ""
+                    color: Tokens.ink; font.family: Tokens.display; font.pixelSize: Tokens.fHero
+                }
+            }
+
+            Loader {
+                id: sheetLoader
+                anchors {
+                    left: parent.left; right: subPreview.left
+                    top: backRow.bottom; bottom: parent.bottom
+                    rightMargin: Tokens.s5; topMargin: Tokens.s4
+                }
+                source: Qt.resolvedUrl("../SettingsSheet.qml")
+                onLoaded: {
+                    item.schema = Qt.binding(() => pg.schemaRows);
+                    item.draft = Qt.binding(() => pg.sheetDraft);
+                    item.defaults = Qt.binding(() => pg.sheetDefaults);
+                    item.tab = Qt.binding(() => pg.selected);
+                    item.query = Qt.binding(() => pg.query);
+                    item.edited.connect(pg.onSheetEdited);
+                    item.pickRequested.connect(pg.onSheetPick);
+                    item.appPickRequested.connect(pg.onSheetAppPick);
+                }
+            }
+
+            SpecimenCard {
+                id: subPreview
+                anchors { right: parent.right; top: backRow.bottom; bottom: parent.bottom }
+                anchors.topMargin: Tokens.s4
+                width: Math.round(Math.min(420, Math.max(300, pg.width * 0.34)))
+                title: pg.curWidget ? I18n.tr("LIVE PREVIEW") : ""
+                on: pg.curWidget ? (pg.draft[pg.curWidget.enable] === true) : false
+                anchor: pg.curWidget ? (pg.draft[pg.curWidget.anchor] || "center") : "center"
+                natW: pg.curWidget ? pg.curWidget.natW : 300
+                natH: pg.curWidget ? pg.curWidget.natH : 200
+                preview: pg.selected !== "" ? pg.previewFor(pg.selected) : null
+            }
         }
     }
 

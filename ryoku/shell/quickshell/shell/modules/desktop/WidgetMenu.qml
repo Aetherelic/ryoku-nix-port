@@ -22,11 +22,13 @@ Item {
     readonly property bool isClock: menu.scope === "clock"
     readonly property bool isCalendar: menu.scope === "calendar"
     readonly property bool isMusic: menu.scope === "music"
+    readonly property bool isAio: menu.scope === "aio"
+    readonly property bool isStats: menu.scope === "stats"
     readonly property bool locked: menu.isWidget ? Config[menu.scope + "Locked"] : false
     readonly property string curAnchor: menu.isWidget ? Config[menu.scope + "Anchor"] : ""
     // clock faces persist as <scope>Design; the calendar and the music sheet
     // persist their look as <scope>Style.
-    readonly property string designKey: menu.isCalendar || menu.isMusic
+    readonly property string designKey: menu.isCalendar || menu.isMusic || menu.isAio
         ? menu.scope + "Style" : menu.scope + "Design"
     readonly property string curDesign: menu.isWidget ? Config[menu.designKey] : ""
 
@@ -43,9 +45,10 @@ Item {
 
     function cycleDesign() {
         const lists = {
-            clock: ["digital", "minimal", "analog", "flip", "rings"],
+            clock: ["digital", "minimal", "analog", "flip", "rings", "bighour", "metal", "goodnight"],
             calendar: ["glass", "paper"],
-            music: ["cover", "glass"]
+            music: ["cover", "glass"],
+            aio: ["wide", "tall"]
         };
         const d = lists[menu.scope];
         if (!d)
@@ -101,10 +104,26 @@ Item {
             closeOnTrigger: false
             onTriggered: Config.set("musicEnabled", !Config.musicEnabled)
         }
+        MenuRow {
+            visible: !menu.isWidget
+            label: I18n.tr("All-in-one")
+            value: Config.aioEnabled ? "On" : "Off"
+            on: Config.aioEnabled
+            closeOnTrigger: false
+            onTriggered: Config.set("aioEnabled", !Config.aioEnabled)
+        }
+        MenuRow {
+            visible: !menu.isWidget
+            label: I18n.tr("System stats")
+            value: Config.statsEnabled ? "On" : "Off"
+            on: Config.statsEnabled
+            closeOnTrigger: false
+            onTriggered: Config.set("statsEnabled", !Config.statsEnabled)
+        }
 
         // ── widget scope ───────────────────────────────────────────────
         MenuRow {
-            visible: menu.isWidget
+            visible: menu.isWidget && !menu.isStats
             label: I18n.tr("Design")
             value: menu.cap(menu.curDesign)
             closeOnTrigger: false
