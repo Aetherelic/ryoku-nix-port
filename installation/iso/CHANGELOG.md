@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Two ISO variants from one tree (`RYOKU_VARIANT` plain|cachyos), both fully
+  offline.** `build.sh` bakes the whole package closure into a `file://`
+  `[offline]` repo so the installer pacstraps with no network, and a
+  `/usr/share/ryoku/variant` marker selects the layer: plain is stock Arch;
+  cachyos bakes the CachyOS kernel, tuning, schedulers and Proton in, boots
+  `linux-cachyos`, and wires the CachyOS repos into the target. `build-iso.yml`
+  and `build-iso-cachyos.yml` call a shared reusable workflow; each keeps its own
+  run counter (plain `r164`, cachyos `r1`) and publishes its own `latest*.json`.
 - **The live installer kiosk now shows the Ryoku (Bibata) cursor.** The live set
   gains `ryoku-cursors` from the `[ryoku]` repo and `ryoku-installer-session`
   exports `XCURSOR_THEME=Bibata-Modern-Ice`, so cage/wlroots draws the real

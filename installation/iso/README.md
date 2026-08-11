@@ -31,6 +31,28 @@ The serial console (ttyS0) and any other VT stay a plain root shell, so headless
 or recovery use still works: set the `RYOKU_*` answers and run `ryoku-install`
 by hand (the payload it reads is at `/usr/share/ryoku`).
 
+## Variants: plain and CachyOS
+
+`build.sh` takes `RYOKU_VARIANT` (default `plain`) and bakes the choice into the
+airootfs at `/usr/share/ryoku/variant`. Both variants are fully offline (the
+package closure is baked into a `file://` `[offline]` repo) and share every code
+path; the switch only decides what the closure carries and what the installer
+does with it:
+
+- **plain** stock Arch: the `linux` kernel, base + drivers + the Ryoku desktop.
+- **cachyos** everything in plain, plus the CachyOS layer baked in
+  (`system/packages/cachyos.packages`: `linux-cachyos` + headers,
+  `cachyos-settings`, `ananicy-cpp` + rules, `scx-scheds`, `proton-cachyos`). The
+  installer boots `linux-cachyos` (stock `linux` stays as the fallback the Limine
+  hook lists) and wires the CachyOS repositories into the target
+  (`lib/cachyos.sh`), so the box tracks CachyOS on future updates.
+
+CI builds both from the same tree: `build-iso.yml` (plain) and
+`build-iso-cachyos.yml` (cachyos) each call the reusable `build-iso-reusable.yml`.
+Separate workflows keep independent run counters, so the tracking id is
+per-variant (plain `r164`, cachyos `r1`), and each publishes its own
+`latest*.json` pointer to R2.
+
 ## What is baked in
 
 The committed profile holds only the live environment definition. The installer
