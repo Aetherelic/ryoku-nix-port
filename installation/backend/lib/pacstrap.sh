@@ -76,6 +76,13 @@ ryoku_pacstrap() {
     pkgs+=(broadcom-wl)
   fi
 
+  # offline install: fold the Ryoku desktop set into this one transaction so the
+  # whole system installs in a single offline pass (no second chroot pacman -S).
+  # a no-op on an online install, where deploy.sh pulls the desktop from [ryoku].
+  if declare -f ryoku_offline_pacstrap_extra >/dev/null; then
+    mapfile -t -O "${#pkgs[@]}" pkgs < <(ryoku_offline_pacstrap_extra)
+  fi
+
   ryoku_ensure_keyring
   log "installing ${#pkgs[@]} packages (profile=$RYOKU_PROFILE)"
   ryoku_pacstrap_install "${pkgs[@]}"
@@ -94,7 +101,11 @@ ryoku_pacstrap() {
 # testable with stubs.
 ryoku_pacstrap_install() {
   local -a pkgs=("$@")
-  if run pacstrap -K /mnt "${pkgs[@]}"; then
+  # offline install: pacstrap from the baked file:// repo via the offline
+  # pacman.conf (RYOKU_PACMAN_CONF), so the whole set installs with no network.
+  local -a pconf=()
+  [[ -n ${RYOKU_PACMAN_CONF:-} ]] && pconf=(-C "$RYOKU_PACMAN_CONF")
+  if run pacstrap "${pconf[@]}" -K /mnt "${pkgs[@]}"; then
     return 0
   fi
 
@@ -104,7 +115,7 @@ ryoku_pacstrap_install() {
 
   local paclog
   paclog=$(mktemp) || paclog=/dev/null
-  if run pacstrap -K --needed /mnt "${pkgs[@]}" >"$paclog" 2>&1; then
+  if run pacstrap "${pconf[@]}" -K --needed /mnt "${pkgs[@]}" >"$paclog" 2>&1; then
     [[ $paclog == /dev/null ]] || { cat -- "$paclog"; rm -f -- "$paclog"; }
     return 0
   fi

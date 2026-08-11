@@ -11,7 +11,10 @@
 # of @:
 #   @ @home @log @pkg @snapshots @backups @swap
 
-RYOKU_BTRFS_OPTS="compress=zstd,noatime"
+# zstd:1 (fastest level): the install writes ~13 GiB, so level 1 cuts the
+# compress-on-write CPU markedly vs the default (3) while keeping a solid ratio.
+# genfstab carries this into the target fstab, so runtime writes stay fast too.
+RYOKU_BTRFS_OPTS="compress=zstd:1,noatime"
 
 ryoku_filesystems() {
   # ESP_DEV is our own /boot partition in both strategies (whole: the ESP;

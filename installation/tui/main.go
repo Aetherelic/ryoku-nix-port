@@ -1212,6 +1212,9 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 		if m.netOnline {
 			if k == "enter" {
 				m.picks["network"] = "online"
+				if offlineRepo() {
+					m.picks["network"] = "offline"
+				}
 				m.advance()
 			}
 		} else if m.netStage == 1 { // Wi-Fi passphrase entry (offline flow)
@@ -2403,6 +2406,14 @@ func (m model) partBody(inner int) string {
 }
 
 func (m model) netBody(inner int) string {
+	if offlineRepo() {
+		return strings.Join([]string{
+			fg(cGreen, gOKtxt+" Offline") + fg(cSub, "   bundled image"), "",
+			fg(cSub, "The whole system is bundled on this image, so no network"),
+			fg(cSub, "connection is needed. You're good to go."),
+			"", fg(cDim, "enter to continue · esc back"),
+		}, "\n")
+	}
 	if m.netOnline {
 		return strings.Join([]string{
 			fg(cGreen, gOKtxt+" Connected") + fg(cSub, "   "+netInterface()), "",

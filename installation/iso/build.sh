@@ -199,6 +199,19 @@ RYOKU_BLOBS_BUILD="$STAGE_DIR/blobs-build" \
   "$REPO_ROOT/ryoku/shell/plugin/build.sh" \
   "$AIROOTFS/usr/share/ryoku/ryoku/shell/plugin/dist"
 
+# 4e. bake the full offline package closure into a [offline] file:// repo, so the
+#     installer pacstraps the whole system (base + every hardware profile +
+#     CachyOS + the desktop set) with NO network (installation/backend/lib/
+#     offline.sh). the download is cached under offline-cache/ (gitignored) and
+#     reused across builds; RYOKU_OFFLINE_SKIP=1 builds a networked ISO instead.
+if [[ ${RYOKU_OFFLINE_SKIP:-0} != 1 ]]; then
+  log "Baking offline package closure -> /usr/share/ryoku/offline/repo"
+  RYOKU_OFFLINE_CACHE=${RYOKU_OFFLINE_CACHE:-$PROFILE_DIR/offline-cache} \
+    "$PROFILE_DIR/offline-repo.sh" "$REPO_ROOT" "$AIROOTFS/usr/share/ryoku/offline/repo"
+else
+  log "RYOKU_OFFLINE_SKIP=1: skipping the offline repo bake (networked ISO)"
+fi
+
 # 5. keep the staged launchers executable. profiledef file_permissions also
 #    sets these at build time, but this keeps the staged tree consistent now.
 chmod 0755 \

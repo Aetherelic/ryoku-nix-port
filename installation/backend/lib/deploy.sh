@@ -129,7 +129,16 @@ ryoku_deploy_packages() {
     return 0
   fi
   if [[ ${RYOKU_ONLINE:-1} != 1 ]]; then
-    log "packages: offline install, skipping the Ryoku desktop set (run 'ryoku update' once online)"
+    # offline: the desktop set was folded into the pacstrap transaction and
+    # installed from the baked [offline] repo (lib/offline.sh), so it is already
+    # present. confirm it, and skip the network fetch. only a no-repo offline
+    # install (the old degraded fallback) has no desktop to configure.
+    if declare -f ryoku_offline_active >/dev/null && ryoku_offline_active \
+       && arch-chroot /mnt pacman -Qq ryoku-desktop >/dev/null 2>&1; then
+      log "packages: offline install, the Ryoku desktop set is already installed from the baked [offline] repo"
+      return 0
+    fi
+    log "packages: offline install with no baked desktop set; skipping (run 'ryoku update' once online)"
     return 0
   fi
 

@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
-# add the CachyOS x86-64-v3 repository so the CachyOS kernel (linux-cachyos)
-# installs and updates through pacman. idempotent and additive: it never edits
-# [core]/[extra] and never touches the stock kernel. only [cachyos-v3] is added,
-# not the core/extra rebuilds, so the rest of the userland stays Arch and a
-# later -Syu cannot silently convert the system. the baseline [cachyos] repo
-# (the one carrying CachyOS's forked pacman) is deliberately left out. the
-# cachyos-kernel extras bundle declares "requires": ["cachyos"] and the actuator
-# shells out here before routing the kernel packages. needs a TTY for sudo.
+# Make the box a CachyOS box: add the full CachyOS repositories (the x86-64-v3
+# core/extra/cachyos rebuilds plus the baseline [cachyos]) ABOVE [core], and
+# trust the CachyOS key. A later `pacman -Syu` then tracks CachyOS's optimized
+# rebuilds and its pacman fork: opting in is going full CachyOS by design. The
+# stock kernel stays installed as the boot fallback (pick it at the boot menu to
+# roll back). The CachyOS Layer extras bundle declares "requires": ["cachyos"]
+# and the actuator shells out here before routing its packages (the kernel,
+# cachyos-settings, ananicy, proton). needs a TTY for sudo.
 
 set -euo pipefail
 
 conf=/etc/pacman.conf
 key=F3B607488DB35A47
-server=https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3
+mirror=https://mirror.cachyos.org/repo
 
 # serialize the pacman.conf + keyring mutation below: a double-fired bundle
 # install (two Hub terminals racing) could otherwise duplicate the repo
@@ -56,10 +56,11 @@ sudo pacman-key --recv-keys "$key" --keyserver keyserver.ubuntu.com \
   || sudo pacman-key --recv-keys "$key" --keyserver hkps://keys.openpgp.org
 sudo pacman-key --lsign-key "$key"
 
-echo "==> Adding the [cachyos-v3] repository above [core]"
-sudo sed -i "0,/^\[core\]/ s|^\[core\]|[cachyos-v3]\nServer = $server\n\n[core]|" "$conf"
-grep -qE '^\[cachyos-v3\]' "$conf" || {
-  echo "ryoku-pkg-cachyos: could not add [cachyos-v3] to $conf" >&2
+echo "==> Adding the CachyOS repositories above [core]"
+block="[cachyos-v3]\nServer = $mirror/x86_64_v3/cachyos-v3\n\n[cachyos-core-v3]\nServer = $mirror/x86_64_v3/cachyos-core-v3\n\n[cachyos-extra-v3]\nServer = $mirror/x86_64_v3/cachyos-extra-v3\n\n[cachyos]\nServer = $mirror/x86_64/cachyos\n\n[core]"
+sudo sed -i "0,/^\[core\]/ s|^\[core\]|$block|" "$conf"
+grep -qE '^\[cachyos-v3\]' "$conf" && grep -qE '^\[cachyos\]' "$conf" || {
+  echo "ryoku-pkg-cachyos: could not add the CachyOS repositories to $conf" >&2
   exit 1
 }
 

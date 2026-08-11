@@ -69,7 +69,12 @@ EOF
 ryoku_cfg_timezone() {
   local tz=$RYOKU_TIMEZONE
   if [[ $tz == auto ]]; then
-    if [[ -n ${RYOKU_DRYRUN:-} ]]; then
+    if [[ ${RYOKU_ONLINE:-1} != 1 ]]; then
+      # offline install: IP geolocation can't resolve, so skip the curl (which
+      # would only time out) and use UTC. saves ~20s on every offline install.
+      log "timezone: offline install, using UTC (auto needs network to geolocate)"
+      tz=UTC
+    elif [[ -n ${RYOKU_DRYRUN:-} ]]; then
       printf 'DRYRUN: curl -fsSL https://ipinfo.io/timezone\n'
       tz='<auto-timezone>'
     else
@@ -168,6 +173,25 @@ EOF
 # symlink is pacman's documented way to disable a hook by name.
 RYOKU_MASKED_HOOKS=(05-snap-pac-pre.hook zz-snap-pac-post.hook)
 
+# mkinitcpio's install hooks rebuild the initramfs on every kernel/module
+# package. During pacstrap the kernel install triggers one build, which the
+# bootloader step then discards and rebuilds anyway, because the ryoku HOOKS
+# (plymouth/kms/resume) and the nvidia/VMD MODULES drop-ins only land after
+# pacstrap. Mask these hooks from before pacstrap through the end so no
+# throwaway initramfs is built; the single explicit `mkinitcpio -P` in the
+# bootloader step (a direct command, unaffected by hook masking) produces the
+# one correct image. Restored with the rest so kernel updates rebuild normally.
+RYOKU_MKINITCPIO_HOOKS=(90-mkinitcpio-install.hook 60-mkinitcpio-remove.hook)
+
+ryoku_hooks_defer_mkinitcpio() {
+  run mkdir -p /mnt/etc/pacman.d/hooks
+  local h
+  for h in "${RYOKU_MKINITCPIO_HOOKS[@]}"; do
+    log "deferring the initramfs build past pacstrap: masking $h"
+    run ln -sf /dev/null "/mnt/etc/pacman.d/hooks/$h"
+  done
+}
+
 ryoku_hooks_quiet() {
   run mkdir -p /mnt/etc/pacman.d/hooks
   local h
@@ -180,7 +204,7 @@ ryoku_hooks_quiet() {
 
 ryoku_hooks_restore() {
   local h
-  for h in "${RYOKU_MASKED_HOOKS[@]}"; do
+  for h in "${RYOKU_MASKED_HOOKS[@]}" "${RYOKU_MKINITCPIO_HOOKS[@]}"; do
     [[ -n ${RYOKU_DRYRUN:-} || -L /mnt/etc/pacman.d/hooks/$h ]] || continue
     log "restoring pacman hook: $h"
     run rm -f "/mnt/etc/pacman.d/hooks/$h"

@@ -51,6 +51,8 @@ source "$LIB_DIR/bootloader.sh"
 source "$LIB_DIR/aur.sh"
 # shellcheck source=lib/snapshots.sh
 source "$LIB_DIR/snapshots.sh"
+# shellcheck source=lib/offline.sh
+source "$LIB_DIR/offline.sh"
 
 # probe: read-only disk inspection for the TUI. no RYOKU_* contract, no disk
 # writes, so it runs BEFORE the install-answer validation below (which dies on a
@@ -88,6 +90,11 @@ fi
 : "${RYOKU_SUBVOL_BACKUPS:=0}"
 : "${RYOKU_REPO:=/usr/share/ryoku}"
 : "${RYOKU_ONLINE:=1}"
+# offline install (this ISO): the baked package closure the backend pacstraps
+# from. present only on an offline ISO; ryoku_offline_active also requires
+# RYOKU_ONLINE != 1, so a normal online install ignores it.
+: "${RYOKU_OFFLINE_REPO:=/usr/share/ryoku/offline/repo}"
+: "${RYOKU_PACMAN_CONF:=}"
 # normalize the env-only switches so set -u + shellcheck stay quiet.
 : "${RYOKU_DISK:=}"
 : "${RYOKU_PASSWORD_HASH:=}"
@@ -141,6 +148,11 @@ main() {
   ryoku_mount
 
   step pacstrap
+  # offline install: point pacstrap at the baked [offline] repo (no-op online).
+  ryoku_offline_prepare
+  # build the initramfs once (in the bootloader step), not also during the
+  # kernel's pacstrap where it would be discarded. mask before pacstrap.
+  ryoku_hooks_defer_mkinitcpio
   ryoku_rank_mirrors
   ryoku_pacstrap
 
@@ -150,9 +162,13 @@ main() {
 
   step configure
   ryoku_configure
+  # offline: make the baked repo resolvable in the chroot so the per-hardware
+  # driver step installs with no network (a no-op online); torn down below.
+  ryoku_offline_chroot_on
   ryoku_deploy
   ryoku_network
   ryoku_drivers
+  ryoku_offline_chroot_off
 
   step bootloader
   ryoku_bootloader
@@ -197,6 +213,7 @@ ryoku_on_exit() {
   trap - EXIT
   printf 'ERROR: install failed at stage "%s" (exit %d)\n' "${RYOKU_STAGE:-startup}" "$rc" >&2
   ryoku_hooks_restore || true
+  ryoku_offline_chroot_off || true
   sync || true
   printf 'log: /var/log/ryoku-install.log & journalctl -b\n' >&2
   exit "$rc"

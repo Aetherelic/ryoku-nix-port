@@ -975,9 +975,15 @@ func (m model) installEnv() []string {
 		"RYOKU_SUBVOL_SNAPSHOTS=" + b(m.snapshots),
 		"RYOKU_SUBVOL_HOME=" + b(m.sepHome),
 		"RYOKU_SUBVOL_BACKUPS=" + b(m.backups),
-		// Installs are online-only: there is no offline package source. The TUI
-		// also blocks Review when netOnline() is false, so 1 is always correct.
-		"RYOKU_ONLINE=1",
+		// package source (RYOKU_ONLINE / RYOKU_OFFLINE_REPO) is appended after the
+		// literal, since it depends on whether this ISO baked an offline repo.
+	}
+	if offlineRepo() {
+		// offline ISO: the whole closure is baked into a file:// repo and the
+		// backend pacstraps from it with no network (see lib/offline.sh).
+		env = append(env, "RYOKU_ONLINE=0", "RYOKU_OFFLINE_REPO="+offlineRepoPath)
+	} else {
+		env = append(env, "RYOKU_ONLINE=1")
 	}
 	if m.picks["gpu"] != "" {
 		env = append(env, "RYOKU_GPU_MODE="+m.picks["gpu"])
@@ -1166,6 +1172,11 @@ func (m *model) startInstall() tea.Cmd {
 
 // netOnline reports whether the live system already has internet. WIRE target.
 func netOnline() bool {
+	// an offline ISO needs no network to install: the whole package closure is
+	// baked onto it, so the install can always proceed.
+	if offlineRepo() {
+		return true
+	}
 	if out, ok := run("ip", "-4", "route"); ok && strings.Contains(out, "default") {
 		return true
 	}
@@ -1175,6 +1186,18 @@ func netOnline() bool {
 	// fetch of a canonical Arch endpoint does not.
 	return exec.Command("curl", "-fsS", "--max-time", "4", "-o", "/dev/null",
 		"https://geo.mirror.pkgbuild.com/").Run() == nil
+}
+
+// offlineRepoPath is where an offline ISO bakes the full package closure
+// (installation/iso/build.sh + offline-repo.sh).
+const offlineRepoPath = "/usr/share/ryoku/offline/repo"
+
+// offlineRepo reports whether this live ISO carries the baked offline package
+// repo. On such an ISO the install needs no network at all, so it also makes
+// netOnline() return true (nothing to set up) and installEnv emit RYOKU_ONLINE=0.
+func offlineRepo() bool {
+	fi, err := os.Stat(offlineRepoPath)
+	return err == nil && fi.IsDir()
 }
 
 // netInterface returns the active default-route interface name, for the
