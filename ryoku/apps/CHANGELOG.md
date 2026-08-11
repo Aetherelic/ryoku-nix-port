@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `mimeapps.list`: **videos and audio open in mpv, not HandBrake.** Installing
+  HandBrake made it the default handler for `video/*`, so clicking a stashed
+  download (or any video) opened the transcoder instead of playing. The default
+  map now routes the common video and audio types to `mpv.desktop` (the shipped
+  player), so `xdg-open` — and the stash's file-open — plays them
+  (`apps/mimeapps.list`).
 - `ryostore/`: **the store caches its imagery and flags real updates.** Previews
   are pulled to a local cache (`~/.cache/ryoku/extras/assets`) by a detached
   `ryostore warm` and served from disk, so the store opens instantly, works
