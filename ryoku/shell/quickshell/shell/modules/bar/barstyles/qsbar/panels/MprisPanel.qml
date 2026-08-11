@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import "../modules"
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: mprisPanel
@@ -88,7 +89,7 @@ PanelWindow {
     WlrLayershell.keyboardFocus: root.mprisVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // ── cava: real system-audio spectrum (runs only while playing) ──
-    // Captures the DEFAULT SINK's monitor explicitly — otherwise cava's "auto"
+    // Captures the DEFAULT SINK's monitor explicitly - otherwise cava's "auto"
     // can grab the microphone on this PipeWire box, so the bars react to room
     // noise instead of the music. 60fps + direct drive = tight sync.
     Process {
@@ -185,7 +186,7 @@ PanelWindow {
                 height: 24
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "NOW PLAYING"
+                    text: I18n.tr("NOW PLAYING")
                     color: root.ink; font.family: root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
@@ -349,13 +350,13 @@ PanelWindow {
                     visible: !mprisPanel.active
                     UiText {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "No song playing"
+                        text: I18n.tr("No song playing")
                         color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.55)
                         font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
                     UiText {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "no active player"
+                        text: I18n.tr("no active player")
                         color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.3)
                         font.family: root.mono; font.pixelSize: 10
                     }

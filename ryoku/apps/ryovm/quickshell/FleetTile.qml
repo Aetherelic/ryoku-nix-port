@@ -83,7 +83,7 @@ Item {
                 id: flap
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: tile.on ? "RUN" : "OFF"
+                text: tile.on ? I18n.tr("RUN") : I18n.tr("OFF")
                 pad: 3
                 cellW: 12; cellH: 18; fontPx: 10
                 ink: tile.on ? Tokens.sun : Tokens.inkDim

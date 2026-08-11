@@ -59,7 +59,7 @@ Singleton {
     // borders, hard offset shadows. Panels/cards/inputs use radius 0; only true
     // circles (badges, dots, toggle knobs) stay round. The outer Hyprland window
     // rounding is the user's; inside our surfaces we are sharp.
-    readonly property int radius:      0     // was 8–14; now sharp everywhere
+    readonly property int radius:      0     // was 8-14; now sharp everywhere
     readonly property int radiusChip:  0     // chips/buttons, sharp too
     readonly property real border:     1     // hairline border width
     readonly property int shadowStep:  6     // hard offset shadow distance (px)

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import shell.services
+import Ryoku.Ui.Singletons
 
 // Segmented choice row: equal-width options in one bordered track, the active
 // one filled with the primary tint. Used for power profiles.
@@ -40,7 +41,7 @@ Rectangle {
                 Behavior on color { ColorAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
                 Text {
                     anchors.centerIn: parent
-                    text: seg.modelData.label
+                    text: I18n.tr(seg.modelData.label)
                     color: seg.active ? Theme.inkOn(Theme.primary, Theme.onPrimary) : Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                     font.family: Theme.fontPrimary
                     font.pixelSize: Theme.fontSm - 1

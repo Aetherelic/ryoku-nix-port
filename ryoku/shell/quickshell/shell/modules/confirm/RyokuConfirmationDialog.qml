@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import shell.services
+import Ryoku.Ui.Singletons
 
 // Session-action confirmation dialog (contract 13 sec 2c). A ryoku-dialog layer
 // surface holding one centred box: a 2px outline, radiusWindow corners, a centred
@@ -68,7 +69,7 @@ PanelWindow {
         Text {
             id: btnLabel
             anchors.centerIn: parent
-            text: btn.label
+            text: I18n.tr(btn.label)
             color: Theme.onSurface
             font.family: Theme.fontPrimary
             font.pixelSize: Theme.fontSm

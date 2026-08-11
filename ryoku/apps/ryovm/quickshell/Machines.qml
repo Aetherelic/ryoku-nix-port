@@ -99,8 +99,8 @@ Item {
         anchors.leftMargin: Tokens.s6
         anchors.rightMargin: Tokens.s6
         anchors.topMargin: Tokens.s5
-        eyebrow: "FLEET"
-        title: "Machines"
+        eyebrow: I18n.tr("FLEET")
+        title: I18n.tr("Machines")
     }
 
     // ---- toolbar -----------------------------------------------------------
@@ -132,10 +132,10 @@ Item {
             width: 200
             toolbar: true
             text: mach.query
-            placeholder: mach.mode === "library" ? "Filter your machines"
-                : mach.channel === "instant" ? "Search instant images"
-                : mach.channel === "iso" ? "Load ISO"
-                : "Search 90+ operating systems"
+            placeholder: mach.mode === "library" ? I18n.tr("Filter your machines")
+                : mach.channel === "instant" ? I18n.tr("Search instant images")
+                : mach.channel === "iso" ? I18n.tr("Load ISO")
+                : I18n.tr("Search 90+ operating systems")
             onEdited: (v) => mach.query = v
         }
 
@@ -181,7 +181,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Virtualization is off"
+                text: I18n.tr("Virtualization is off")
                 color: Tokens.ink
                 font.family: Tokens.ui
                 font.pixelSize: 18
@@ -192,7 +192,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "A virtual machine needs hardware virtualization. Turn on SVM / AMD-V (AMD) or VT-x (Intel) in your BIOS/firmware, then reboot."
+                text: I18n.tr("A virtual machine needs hardware virtualization. Turn on SVM / AMD-V (AMD) or VT-x (Intel) in your BIOS/firmware, then reboot.")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui
                 font.pixelSize: 13
@@ -222,10 +222,10 @@ Item {
             anchors.leftMargin: Tokens.s3
             anchors.verticalCenter: parent.verticalCenter
             spacing: Tokens.s3
-            Annunciator { anchors.verticalCenter: parent.verticalCenter; label: "ENGINE"; lit: true; tileW: 60 }
+            Annunciator { anchors.verticalCenter: parent.verticalCenter; label: I18n.tr("ENGINE"); lit: true; tileW: 60 }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "quickemu is not installed: machines can be imported and configured, not launched."
+                text: I18n.tr("quickemu is not installed: machines can be imported and configured, not launched.")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui
                 font.pixelSize: 12
@@ -235,7 +235,7 @@ Item {
             anchors.right: parent.right
             anchors.rightMargin: Tokens.s2
             anchors.verticalCenter: parent.verticalCenter
-            text: "INSTALL ENGINE"
+            text: I18n.tr("INSTALL ENGINE")
             primary: true
             onAct: mach.installEngineRequested()
         }
@@ -304,7 +304,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: "Build a machine from any ISO on disk: off-catalogue, the full QEMU reach. Fill in the sheet on the right."
+                    text: I18n.tr("Build a machine from any ISO on disk: off-catalogue, the full QEMU reach. Fill in the sheet on the right.")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: 12
@@ -393,7 +393,7 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Tokens.s3
-                    Annunciator { anchors.verticalCenter: parent.verticalCenter; label: "FAULT"; lit: true; warn: true; tileW: 52 }
+                    Annunciator { anchors.verticalCenter: parent.verticalCenter; label: I18n.tr("FAULT"); lit: true; warn: true; tileW: 52 }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         width: faultStrip.width - 240
@@ -411,7 +411,7 @@ Item {
                     Text {
                         visible: Vm.faultDetail.indexOf("\n") >= 0
                         anchors.verticalCenter: parent.verticalCenter
-                        text: faultStrip.expanded ? "LESS" : "DETAIL"
+                        text: faultStrip.expanded ? I18n.tr("LESS") : I18n.tr("DETAIL")
                         color: fdh.hovered ? Tokens.ink : Tokens.inkMuted
                         font.family: Tokens.mono
                         font.pixelSize: 9
@@ -421,7 +421,7 @@ Item {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "DISMISS"
+                        text: I18n.tr("DISMISS")
                         color: fxh.hovered ? Tokens.ink : Tokens.inkMuted
                         font.family: Tokens.mono
                         font.pixelSize: 9
@@ -480,10 +480,10 @@ Item {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Vm.downloading ? (Vm.dlCount > 1 ? "BUILDING " + Vm.dlCount + " MACHINES" : "BUILDING · " + Vm.dlName)
-                    : Vm.busy ? "WORKING"
+                text: Vm.downloading ? (Vm.dlCount > 1 ? I18n.tr("BUILDING ") + Vm.dlCount + I18n.tr(" MACHINES") : I18n.tr("BUILDING · ") + Vm.dlName)
+                    : Vm.busy ? I18n.tr("WORKING")
                     : Vm.status.length > 0 ? Vm.status
-                    : (mach.runningCount > 0 ? mach.runningCount + " RUNNING" : "READY")
+                    : (mach.runningCount > 0 ? mach.runningCount + I18n.tr(" RUNNING") : I18n.tr("READY"))
                 color: Vm.status.length > 0 || mach.pending ? Tokens.ink : Tokens.inkDim
                 font.family: Tokens.ui
                 font.pixelSize: 11
@@ -501,7 +501,7 @@ Item {
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Vm.downloading
-                text: Vm.dlCount > 1 ? "CANCEL ALL" : "CANCEL"
+                text: Vm.dlCount > 1 ? I18n.tr("CANCEL ALL") : I18n.tr("CANCEL")
                 onAct: Vm.cancelCreate()
             }
             Text {

@@ -1,6 +1,7 @@
 import QtQuick
 import "../../shared/Singletons"
 import "metrics.js" as MainMetrics
+import Ryoku.Ui.Singletons
 
 // The per-item action panel (Ctrl+K): a small list of the selected result's verbs
 // over the bottom of the card, itself keyboard-navigable. The first action is the
@@ -55,7 +56,7 @@ Item {
             spacing: 1 * root.s
 
             Text {
-                text: "Actions"
+                text: I18n.tr("Actions")
                 color: Theme.faint
                 font.family: Theme.font
                 font.pixelSize: Metrics.fontEyebrow * root.s

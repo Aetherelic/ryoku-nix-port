@@ -12,7 +12,7 @@ import Ryoku.Ui.Singletons
 Item {
     id: gs
 
-    property string label: "DELETE"
+    property string label: I18n.tr("DELETE")
     property string armedLabel: "CONFIRM"
     property bool enabled: true
     signal fired()
@@ -93,7 +93,7 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                text: gs.label
+                text: I18n.tr(gs.label)
                 color: gh.hovered && gs.enabled ? Tokens.ink : Tokens.inkDim
                 font.family: Tokens.ui
                 font.pixelSize: 11

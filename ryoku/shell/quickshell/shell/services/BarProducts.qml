@@ -32,7 +32,7 @@ Singleton {
     function fail(id) {
         // A builtin style (qsbar) ships with the shell and cannot be legitimately
         // broken; a load error is a transient hiccup (an update's config/plugin
-        // swap, a cold-start import race), so never record it as failed — Frame
+        // swap, a cold-start import race), so never record it as failed - Frame
         // retries it instead of permanently dropping the bar to the sumi rail.
         if (!id || root.builtins[id] || root.failedStyles[id])
             return;

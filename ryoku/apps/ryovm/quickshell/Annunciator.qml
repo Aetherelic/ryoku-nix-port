@@ -32,7 +32,7 @@ Item {
 
         Text {
             anchors.centerIn: parent
-            text: tile.label
+            text: I18n.tr(tile.label)
             color: tile.alarm ? Tokens.inkOnBone : (tile.lit ? Tokens.ink : Tokens.inkFaint)
             font.family: Tokens.ui
             font.pixelSize: 9

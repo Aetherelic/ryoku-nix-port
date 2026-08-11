@@ -42,9 +42,9 @@ Item {
         id: header
         anchors { top: parent.top; left: parent.left; right: parent.right }
         anchors.leftMargin: Tokens.s6; anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s5
-        eyebrow: "FLEET"
-        title: "Remotes"
-        blurb: "Saved hosts and VPS, reachable at a glance. Connect in a tap, or read a live health probe before you do."
+        eyebrow: I18n.tr("FLEET")
+        title: I18n.tr("Remotes")
+        blurb: I18n.tr("Saved hosts and VPS, reachable at a glance. Connect in a tap, or read a live health probe before you do.")
     }
 
     // ---- toolbar -----------------------------------------------------------
@@ -60,7 +60,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 280
             toolbar: true
-            placeholder: "Filter hosts"
+            placeholder: I18n.tr("Filter hosts")
             onEdited: (v) => rem.query = v
         }
 
@@ -70,12 +70,12 @@ Item {
             spacing: Tokens.s2
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: String(Remotes.upCount).padStart(2, "0") + " UP · " + String(Remotes.hostCount).padStart(2, "0") + " HOSTS"
+                text: String(Remotes.upCount).padStart(2, "0") + I18n.tr(" UP · ") + String(Remotes.hostCount).padStart(2, "0") + I18n.tr(" HOSTS")
                 color: Tokens.inkMuted
                 font.family: Tokens.mono; font.pixelSize: 10; font.letterSpacing: 1.2
             }
-            Btn { anchors.verticalCenter: parent.verticalCenter; text: "PROBE ALL"; onAct: Remotes.probeAll() }
-            Btn { anchors.verticalCenter: parent.verticalCenter; text: "NEW"; primary: true; onAct: rem.newRemote() }
+            Btn { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("PROBE ALL"); onAct: Remotes.probeAll() }
+            Btn { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("NEW"); primary: true; onAct: rem.newRemote() }
         }
     }
 
@@ -139,10 +139,10 @@ Item {
                 width: parent.width
                 visible: rem.shown.length === 0 && !Remotes.loading
                 caption: !Remotes.engineOk
-                    ? "The remote engine (ryossh) is not installed. Build it from ryoku/apps/ryovm/remote."
+                    ? I18n.tr("The remote engine (ryossh) is not installed. Build it from ryoku/apps/ryovm/remote.")
                     : Remotes.hosts.length === 0
-                        ? "No remotes yet. Add a VPS with NEW, or drop hosts in ~/.ssh/config."
-                        : "No host matches that filter."
+                        ? I18n.tr("No remotes yet. Add a VPS with NEW, or drop hosts in ~/.ssh/config.")
+                        : I18n.tr("No host matches that filter.")
             }
         }
 
@@ -187,7 +187,7 @@ Item {
                     title: "遠隔"
                     sub: "えんかく"
                     tate: "糸 を 手 繰 る"
-                    caption: "Every distant machine on one line you can pull."
+                    caption: I18n.tr("Every distant machine on one line you can pull.")
                     code: "RYOPORT-LINK"
                     seal: "力"
                     images: ["earth.gif", "moon.png", "compass.gif", "render.gif"]
@@ -210,7 +210,7 @@ Item {
                             spacing: Tokens.s2
                             Text { text: "//"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fMicro }
                             Text {
-                                text: "KEYS_"; color: Tokens.ink
+                                text: I18n.tr("KEYS_"); color: Tokens.ink
                                 font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
                                 font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
                             }
@@ -220,8 +220,8 @@ Item {
                             }
                         }
                         Text {
-                            text: (Remotes.keysData.agent ? Remotes.keysData.agent.length : 0) + " in the agent · "
-                                + (Remotes.keysData.files ? Remotes.keysData.files.length : 0) + " on disk"
+                            text: (Remotes.keysData.agent ? Remotes.keysData.agent.length : 0) + I18n.tr(" in the agent · ")
+                                + (Remotes.keysData.files ? Remotes.keysData.files.length : 0) + I18n.tr(" on disk")
                             color: Tokens.inkMuted
                             font.family: Tokens.mono; font.pixelSize: 11
                         }

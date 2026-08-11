@@ -3,6 +3,7 @@ import Quickshell
 import "../../shared/Singletons"
 import "metrics.js" as MainMetrics
 import "../../shared/lib/results.js" as Results
+import Ryoku.Ui.Singletons
 
 // All-apps grid: every desktop entry in alphabetical sections (A, B, C...), each
 // a row of icon tiles with two-line labels, the inir all-apps view. Shown from
@@ -152,14 +153,14 @@ Flickable {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 0
                 Text {
-                    text: "All apps"
+                    text: I18n.tr("All apps")
                     color: Theme.verm
                     font.family: Theme.font
                     font.pixelSize: MainMetrics.fontSection * grid.s
                     font.weight: Font.DemiBold
                 }
                 Text {
-                    text: "Alphabetical index"
+                    text: I18n.tr("Alphabetical index")
                     color: Theme.faint
                     font.family: Theme.font
                     font.pixelSize: Metrics.fontEyebrow * grid.s

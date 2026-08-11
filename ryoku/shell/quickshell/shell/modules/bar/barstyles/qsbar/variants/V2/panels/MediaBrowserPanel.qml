@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import Quickshell.Widgets
 import "ImagePickerModel.js" as Model
+import Ryoku.Ui.Singletons
 
 // Tanzaku filmstrip browser for screenshots & videos. Same language as the
 // theme/wallpaper picker: focused media centred & full, thin paper strips for
@@ -229,7 +230,7 @@ PanelWindow {
         id: deleteProc
         command: []
         onExited: function(code) {       // rescan only on success; on trash failure keep the file + warn (no silent rm)
-            if (code !== 0) { console.warn("MediaBrowser: trash failed (gio/trash-put unavailable) — file KEPT, not deleted"); return }
+            if (code !== 0) { console.warn("MediaBrowser: trash failed (gio/trash-put unavailable) - file KEPT, not deleted"); return }
             scanProc.command = panel.liveScanCmd()
             scanProc.running = false; scanProc.running = true
         }
@@ -292,7 +293,7 @@ PanelWindow {
         }
     }
 
-    // ── empty/loading — also catches Esc to close when the stage isn't focused ──
+    // ── empty/loading - also catches Esc to close when the stage isn't focused ──
     Item {
         anchors.fill: parent
         focus: panel.visible && !(panel.ready && panel.filtered.length > 0)
@@ -317,7 +318,7 @@ PanelWindow {
         visible: root.mediaBrowserVisible && panel.active && panel.ready && panel.filtered.length === 0
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
-        text: "No matches: " + panel.filterText + "\n\nBackspace to edit, or Esc to clear"
+        text: I18n.tr("No matches: ") + panel.filterText + I18n.tr("\n\nBackspace to edit, or Esc to clear")
         color: root.ink
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -326,8 +327,8 @@ PanelWindow {
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: panel.layoutSettled && !panel.loaded
-              ? (panel.isVideos ? "No recordings in ~/Videos/Recordings" : "No screenshots in ~/Pictures/Screenshots") + "\n\nEsc or click to close"
-              : "Loading…"
+              ? (panel.isVideos ? I18n.tr("No recordings in ~/Videos/Recordings") : I18n.tr("No screenshots in ~/Pictures/Screenshots")) + I18n.tr("\n\nEsc or click to close")
+              : I18n.tr("Loading…")
         color: root.ink
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -339,7 +340,7 @@ PanelWindow {
         anchors.bottom: stage.top
         anchors.bottomMargin: 22
         opacity: panel.reveal
-        text: panel.isVideos ? "VIDEOS" : "SCREENSHOTS"
+        text: panel.isVideos ? I18n.tr("VIDEOS") : I18n.tr("SCREENSHOTS")
         color: root.sumiHi
         font.family: root.mono; font.pixelSize: 12; font.letterSpacing: 3; font.weight: Font.Medium
         horizontalAlignment: Text.AlignHCenter
@@ -429,7 +430,7 @@ PanelWindow {
                 Behavior on width   { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
                 Behavior on opacity { NumberAnimation { duration: 200 } }
 
-                // ── lazy cached thumbnail (480px jpg) — videos via ffmpegthumbnailer,
+                // ── lazy cached thumbnail (480px jpg) - videos via ffmpegthumbnailer,
                 // screenshots via magick; full-size sources are never decoded live ──
                 readonly property string thumbPath: {
                     if (!entry) return ""
@@ -457,7 +458,7 @@ PanelWindow {
                         radius: 5
                         color: "transparent"
 
-                        // image / poster — clipped to the rounded shape above
+                        // image / poster - clipped to the rounded shape above
                         Image {
                             id: thumbImage
                             anchors.fill: parent
@@ -523,7 +524,7 @@ PanelWindow {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             width: panel.focusedW + 160
-            text: (panel.isVideos ? "Videos · " : "Screenshots · ") + panel.currentLabel
+            text: (panel.isVideos ? I18n.tr("Videos · ") : I18n.tr("Screenshots · ")) + panel.currentLabel
             color: root.ink
             font.family: root.mono; font.pixelSize: 22; font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
@@ -542,8 +543,8 @@ PanelWindow {
         Text {
             visible: panel.confirmDelete
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Delete this " + (panel.isVideos ? "video" : "screenshot")
-                  + "?   Del again to confirm   ·   Esc cancel"
+            text: I18n.tr("Delete this ") + (panel.isVideos ? "video" : "screenshot")
+                  + I18n.tr("?   Del again to confirm   ·   Esc cancel")
             color: root.seal
             font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
             horizontalAlignment: Text.AlignHCenter
@@ -552,7 +553,7 @@ PanelWindow {
         Text {
             visible: !panel.confirmDelete
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "← →  scroll navigate     Enter open     Del delete     Ctrl+C copy     Esc"
+            text: I18n.tr("← →  scroll navigate     Enter open     Del delete     Ctrl+C copy     Esc")
             color: panel.uiDim
             font.family: root.mono; font.pixelSize: 11
             horizontalAlignment: Text.AlignHCenter

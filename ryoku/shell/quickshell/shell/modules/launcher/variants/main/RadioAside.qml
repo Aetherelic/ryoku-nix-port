@@ -1,12 +1,13 @@
 import QtQuick
 import "../../shared/Singletons"
 import "metrics.js" as MainMetrics
+import Ryoku.Ui.Singletons
 
 // The radio's between-states chip, two coats:
 //  - tuning: the engine says on air but the player hasn't sounded yet (yt-dlp
-//    can take a long moment) — without this strip, Enter looks like it did
+//    can take a long moment) - without this strip, Enter looks like it did
 //    nothing and a confused second Enter would stop the still-resolving radio.
-//  - parked: other music started, the watcher set the radio aside — one tap
+//  - parked: other music started, the watcher set the radio aside - one tap
 //    (or RESUME) tunes it back in; the small × lets it go.
 Rectangle {
     id: chip
@@ -14,7 +15,7 @@ Rectangle {
     property real s: 1
     readonly property bool tuningMode: Radio.tuning
     readonly property string label: tuningMode ? (Radio.label || "radio")
-        : (Radio.aside && Radio.aside.label ? Radio.aside.label : "radio")
+        : (Radio.aside && Radio.aside.label ? I18n.tr(Radio.aside.label) : "radio")
 
     implicitHeight: 34 * s
     radius: MainMetrics.radiusRow * s
@@ -49,8 +50,8 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         textFormat: Text.StyledText
         text: chip.tuningMode
-            ? chip.label + "  <font color=\"" + Theme.faint + "\">·  tuning in — a few quiet seconds is normal</font>"
-            : chip.label + "  <font color=\"" + Theme.faint + "\">·  set aside for your music</font>"
+            ? I18n.tr(chip.label) + I18n.tr("  <font color=\"") + Theme.faint + I18n.tr("\">·  tuning in - a few quiet seconds is normal</font>")
+            : I18n.tr(chip.label) + I18n.tr("  <font color=\"") + Theme.faint + I18n.tr("\">·  set aside for your music</font>")
         color: Theme.cream
         font.family: Theme.font
         font.pixelSize: Metrics.fontSubtitle * chip.s
@@ -72,7 +73,7 @@ Rectangle {
         Text {
             id: resumeLabel
             anchors.centerIn: parent
-            text: "RESUME"
+            text: I18n.tr("RESUME")
             color: Theme.vermLit
             font.family: Theme.mono
             font.pixelSize: 9 * chip.s

@@ -5,6 +5,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Bluetooth
 import "../IconMap.js" as IconMap
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: btPanel
@@ -153,7 +154,7 @@ PanelWindow {
                     spacing: 8
                     UiText {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Bluetooth"
+                        text: I18n.tr("Bluetooth")
                         color: root.ink; font.family: root.mono; font.pixelSize: 13
                         font.letterSpacing: 2; font.weight: Font.Medium
                     }
@@ -215,7 +216,7 @@ PanelWindow {
             UiText {
                 visible: !btPanel.btOn
                 width: parent.width; horizontalAlignment: Text.AlignHCenter
-                text: "Bluetooth is off"
+                text: I18n.tr("Bluetooth is off")
                 color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.35)
                 font.family: root.mono; font.pixelSize: 11
                 topPadding: 4; bottomPadding: 4
@@ -234,7 +235,7 @@ PanelWindow {
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
-                    text: btPanel.scanning ? "Scanning…" : "Scan for devices"
+                    text: btPanel.scanning ? I18n.tr("Scanning…") : I18n.tr("Scan for devices")
                     color: btPanel.scanning ? root.seal : root.ink
                     font.family: root.mono; font.pixelSize: 11
                 }
@@ -303,8 +304,8 @@ PanelWindow {
                                 UiText {
                                     width: parent.width
                                     text: devTile.modelData.connected
-                                          ? (devTile.batteryText !== "" ? "Connected · " + devTile.batteryText : "Connected")
-                                          : (devTile.modelData.paired ? "Paired" : "Available")
+                                          ? (devTile.batteryText !== "" ? I18n.tr("Connected · ") + devTile.batteryText : I18n.tr("Connected"))
+                                          : (devTile.modelData.paired ? I18n.tr("Paired") : I18n.tr("Available"))
                                     color: root.ink
                                     font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
                                     elide: Text.ElideRight
@@ -351,7 +352,7 @@ PanelWindow {
                                 UiText {
                                     id: actionLabel
                                     anchors.centerIn: parent
-                                    text: devTile.modelData.connected ? "Disconnect" : "Connect"
+                                    text: devTile.modelData.connected ? I18n.tr("Disconnect") : I18n.tr("Connect")
                                     color: actionMa.containsMouse ? root.seal : root.ink
                                     font.family: root.mono; font.pixelSize: 10
                                 }
@@ -380,17 +381,17 @@ PanelWindow {
                             Item {
                                 width: parent.width; height: 14
                                 visible: devTile.batteryText !== ""
-                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Battery"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Battery"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
                                 UiText { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: devTile.batteryText; color: root.ink; font.family: root.mono; font.pixelSize: 10 }
                             }
                             Item {
                                 width: parent.width; height: 14
-                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Type"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Type"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
                                 UiText { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: btPanel.typeLabel(devTile.nativeDev); color: root.ink; font.family: root.mono; font.pixelSize: 10; elide: Text.ElideRight }
                             }
                             Item {
                                 width: parent.width; height: 14
-                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Address"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                                UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Address"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
                                 UiText { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: String(devTile.modelData.mac || ""); color: root.ink; font.family: root.mono; font.pixelSize: 10 }
                             }
                             Item {
@@ -415,7 +416,7 @@ PanelWindow {
                 UiText {
                     visible: btPanel.btOn && btPanel.devices.length === 0
                     width: parent.width; horizontalAlignment: Text.AlignHCenter
-                    text: btPanel.scanning ? "Searching…" : "No devices, tap Scan"
+                    text: btPanel.scanning ? I18n.tr("Searching…") : I18n.tr("No devices, tap Scan")
                     color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.3)
                     font.family: root.mono; font.pixelSize: 11
                     topPadding: 2; bottomPadding: 2
@@ -429,7 +430,7 @@ PanelWindow {
                 height: 28; radius: root.panelButtonRadius
                 color: btSetMa.containsMouse ? root.fillPrimaryHover : root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
-                UiText { anchors.centerIn: parent; text: "Bluetooth settings"; color: root.paper; font.family: root.mono; font.pixelSize: 11 }
+                UiText { anchors.centerIn: parent; text: I18n.tr("Bluetooth settings"); color: root.paper; font.family: root.mono; font.pixelSize: 11 }
                 MouseArea {
                     id: btSetMa
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

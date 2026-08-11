@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: archPanel
@@ -233,7 +234,7 @@ PanelWindow {
     }
 
     // Packages tab only: show the blacklist/protection status instantly (the gate
-    // only reads a local file — no need to wait for the slow package check), and
+    // only reads a local file - no need to wait for the slow package check), and
     // kick a package check if there is no data yet. Opening Themes/Shell must not
     // start package work as a side effect.
     Connections {
@@ -593,7 +594,7 @@ PanelWindow {
     // Re-apply the CURRENT theme (a separate, explicit action). A pinned update
     // only advances the theme's REPO; the live copy under current/theme is a
     // generated copy, so it stays stale until re-applied. Reads the name from
-    // disk — no user-controlled string reaches the shell.
+    // disk - no user-controlled string reaches the shell.
     function reapplyCurrentTheme() {
         var nameFile = root.themeNamePath
         var omarchyPath = root.omarchyInstallRoot || (Quickshell.env("HOME") + "/.local/share/ryoku")
@@ -610,7 +611,7 @@ PanelWindow {
 
     // Reusable scroll-position thumb for the update lists: appears ONLY when the
     // list overflows, height is proportional to the visible fraction, tracks
-    // contentY, AND is draggable with the mouse (drag translates to contentY —
+    // contentY, AND is draggable with the mouse (drag translates to contentY -
     // we never bind-fight the y). One definition used by both tabs so they can
     // never drift apart (the F2 "fixed one variant, missed the sibling" lesson).
     component ScrollThumb: Item {
@@ -701,7 +702,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Updates"
+                    text: I18n.tr("Updates")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -733,7 +734,7 @@ PanelWindow {
                     UiText {
                         id: badgeToggleLabel
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Badge Toggle:"
+                        text: I18n.tr("Badge Toggle:")
                         color: root.ink
                         font.family: root.mono
                         font.pixelSize: 11
@@ -756,7 +757,7 @@ PanelWindow {
                                 id: badgeToggleText
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: badgeToggleItem.modelData.label
+                                text: I18n.tr(badgeToggleItem.modelData.label)
                                 color: root.ink
                                 font.family: root.mono
                                 font.pixelSize: 11
@@ -826,7 +827,7 @@ PanelWindow {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData.label
+                            text: I18n.tr(modelData.label)
                             color: (parent.active || tabMa.containsMouse) ? root.seal : root.ink
                             font.family: root.mono; font.pixelSize: 11
                             font.weight: parent.active ? Font.Medium : Font.Normal
@@ -851,7 +852,7 @@ PanelWindow {
 
             // ── one status line: counts + protection, "·"-separated, colored.
             //    A single RichText Text (NOT a Repeater) so it re-renders reliably
-            //    whenever the gate state changes — a Repeater over a JS-array model
+            //    whenever the gate state changes - a Repeater over a JS-array model
             //    failed to update segments when the array changed in place. The
             //    blacklist part is a link that opens the local list. ──
             Text {
@@ -891,7 +892,7 @@ PanelWindow {
                     "kitty 'less ~/.local/share/qs-aur-blacklist.txt'"])
                 MouseArea {
                     anchors.fill: parent
-                    acceptedButtons: Qt.NoButton   // cursor only — the Text handles the link click
+                    acceptedButtons: Qt.NoButton   // cursor only - the Text handles the link click
                     hoverEnabled: true
                     cursorShape: statusLine.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor
                 }
@@ -902,7 +903,7 @@ PanelWindow {
             UiText {
                 visible: root.archGateFail > 0
                 width: parent.width
-                text: "⚠ installed copy may be compromised — run the infection checker"
+                text: I18n.tr("⚠ installed copy may be compromised - run the infection checker")
                 color: root.seal
                 font.family: root.mono; font.pixelSize: 10
                 wrapMode: Text.WordWrap
@@ -914,19 +915,19 @@ PanelWindow {
                 spacing: 4
                 UiText {
                     width: parent.width * 0.4
-                    text: "Package"
+                    text: I18n.tr("Package")
                     color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
                     font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
                 UiText {
                     width: parent.width * 0.3
-                    text: "Installed"
+                    text: I18n.tr("Installed")
                     color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
                     font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
                 UiText {
                     width: parent.width * 0.3
-                    text: "Available"
+                    text: I18n.tr("Available")
                     color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
                     font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
@@ -980,7 +981,7 @@ PanelWindow {
                                 spacing: 4
                                 UiText {
                                     width: 14
-                                    // neutral · until the gate has actually vouched —
+                                    // neutral · until the gate has actually vouched -
                                     // unknown/scanning must NOT look like a green pass
                                     text: vBlocked ? "✗" : vReview ? "⚠" : vOk ? "✓" : "·"
                                     color: vBlocked ? root.seal : vReview ? root.inkDeep : vOk ? root.green : root.sumi
@@ -1034,7 +1035,7 @@ PanelWindow {
                     UiText {
                         width: parent.width
                         visible: root.archUpdates.length === 0
-                        text: "No updates available"
+                        text: I18n.tr("No updates available")
                         color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.5)
                         font.family: root.mono; font.pixelSize: 11
                         horizontalAlignment: Text.AlignHCenter
@@ -1062,7 +1063,7 @@ PanelWindow {
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
                         anchors.centerIn: parent
-                        text: "Refresh"
+                        text: I18n.tr("Refresh")
                         color: refreshMa.containsMouse ? root.seal : root.ink
                         font.family: root.mono; font.pixelSize: 11
                     }
@@ -1075,7 +1076,7 @@ PanelWindow {
                     }
                 }
 
-                // Update — Ryoku owns its full pipeline when present; plain Arch
+                // Update - Ryoku owns its full pipeline when present; plain Arch
                 // keeps the checked all-or-nothing repository transaction.
                 Rectangle {
                     width: (parent.width - 8 * (archPanel.btnCount - 1)) / archPanel.btnCount
@@ -1120,7 +1121,7 @@ PanelWindow {
                     }
                 }
 
-                // Review — AUR needs a manual PKGBUILD look; this view installs nothing.
+                // Review - AUR needs a manual PKGBUILD look; this view installs nothing.
                 Rectangle {
                     visible: archPanel.aurReviewPackages > 0
                     width: (parent.width - 8 * (archPanel.btnCount - 1)) / archPanel.btnCount
@@ -1131,7 +1132,7 @@ PanelWindow {
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
                         anchors.centerIn: parent
-                        text: "Review " + archPanel.aurReviewPackages + " AUR"
+                        text: I18n.tr("Review ") + archPanel.aurReviewPackages + I18n.tr(" AUR")
                         color: reviewMa.containsMouse ? root.seal : root.ink
                         font.family: root.mono; font.pixelSize: 11
                     }
@@ -1143,7 +1144,7 @@ PanelWindow {
                         onClicked: {
                             // Display-only: list AUR updates, install nothing.
                             panelUpdateRunner.command = ["bash", "-c",
-                                "kitty 'echo \"AUR review — no packages are installed by this view.\"; echo; AUR=$(command -v paru || command -v yay || echo yay); \"$AUR\" -Qum; echo; echo \"Review each PKGBUILD before building these manually.\"'"];
+                                "kitty 'echo \"AUR review - no packages are installed by this view.\"; echo; AUR=$(command -v paru || command -v yay || echo yay); \"$AUR\" -Qum; echo; echo \"Review each PKGBUILD before building these manually.\"'"];
                             root.archVisible = false;
                             panelUpdateRunner.running = false;
                             panelUpdateRunner.running = true;
@@ -1172,7 +1173,7 @@ PanelWindow {
                     text: {
                         function hx(c) { function h(v){var x=Math.round(v*255).toString(16); return x.length<2?"0"+x:x} return "#"+h(c.r)+h(c.g)+h(c.b) }
                         function seg(t,c){ return '<font color="'+hx(c)+'">'+t+'</font>' }
-                        if (root.themeUpdChecked === "") return seg("never checked — run a scan", root.sumi)
+                        if (root.themeUpdChecked === "") return seg("never checked - run a scan", root.sumi)
                         var p = []
                         p.push(seg(root.themeUpdOutdated + (root.themeUpdOutdated === 1 ? " update found" : " updates found"),
                                    root.themeUpdOutdated>0?root.ink:root.sumi))
@@ -1187,7 +1188,7 @@ PanelWindow {
                 UiText {
                     visible: archPanel.removeError !== ""
                     width: parent.width
-                    text: "Remove failed · " + archPanel.removeError
+                    text: I18n.tr("Remove failed · ") + archPanel.removeError
                     color: root.seal
                     font.family: root.mono
                     font.pixelSize: 10
@@ -1203,7 +1204,7 @@ PanelWindow {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - 84
-                        text: "⟳ current theme updated — live copy is stale"
+                        text: I18n.tr("⟳ current theme updated - live copy is stale")
                         color: root.inkDeep
                         font.family: root.mono; font.pixelSize: 10
                         elide: Text.ElideRight
@@ -1219,7 +1220,7 @@ PanelWindow {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: "Re-apply"
+                            text: I18n.tr("Re-apply")
                             color: reapplyMa.containsMouse ? root.seal : root.ink
                             font.family: root.mono; font.pixelSize: 9
                         }
@@ -1237,11 +1238,11 @@ PanelWindow {
                 Row {
                     width: parent.width
                     spacing: archPanel.themeGridGap
-                    UiText { width: parent.width - archPanel.themeRightBlockWidth - archPanel.themeGridGap; text: "Theme";  color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                    UiText { width: parent.width - archPanel.themeRightBlockWidth - archPanel.themeGridGap; text: I18n.tr("Theme");  color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
                     // Intentionally blank: row actions (update, reinstall, remove).
                     Item { width: archPanel.themeActionsWidth; height: 1 }
-                    UiText { width: archPanel.themeBehindWidth; text: "Behind"; color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
-                    UiText { width: archPanel.themeStateWidth; text: "State"; color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                    UiText { width: archPanel.themeBehindWidth; text: I18n.tr("Behind"); color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                    UiText { width: archPanel.themeStateWidth; text: I18n.tr("State"); color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
                 }
 
                 // ── theme list (only outdated + unreachable themes are in the model) ──
@@ -1365,16 +1366,16 @@ PanelWindow {
                                                         owner: primaryAction
                                                         text: themeRow.confirmingRemove
                                                             ? archPanel.removeBusy
-                                                                ? "Removing theme · " + modelData.name
+                                                                ? I18n.tr("Removing theme · ") + modelData.name
                                                                 : archPanel.removeError !== ""
-                                                                    ? "Retry removal · " + archPanel.removeError
-                                                                    : "Confirm removal · " + modelData.name
-                                                            : "Update theme · " + modelData.name
+                                                                    ? I18n.tr("Retry removal · ") + archPanel.removeError
+                                                                    : I18n.tr("Confirm removal · ") + modelData.name
+                                                            : I18n.tr("Update theme · ") + modelData.name
                                                     }
                                                     UiText {
                                                         anchors.centerIn: parent
                                                         text: themeRow.confirmingRemove
-                                                            ? archPanel.removeBusy ? "removing…"
+                                                            ? archPanel.removeBusy ? I18n.tr("removing…")
                                                                 : archPanel.removeError !== "" ? "retry" : "remove"
                                                             : "update"
                                                         color: root.paper
@@ -1423,8 +1424,8 @@ PanelWindow {
                                                     root: archPanel.root
                                                     owner: secondaryAction
                                                     text: themeRow.confirmingRemove
-                                                        ? "Cancel removal · " + modelData.name
-                                                        : "Reinstall theme · " + modelData.name
+                                                        ? I18n.tr("Cancel removal · ") + modelData.name
+                                                        : I18n.tr("Reinstall theme · ") + modelData.name
                                                 }
                                                 UiText {
                                                     anchors.centerIn: parent
@@ -1480,8 +1481,8 @@ PanelWindow {
                                                     root: archPanel.root
                                                     owner: tertiaryAction
                                                     text: themeRow.confirmingRemove
-                                                        ? "Reinstall theme · " + modelData.name
-                                                        : "Remove theme · " + modelData.name
+                                                        ? I18n.tr("Reinstall theme · ") + modelData.name
+                                                        : I18n.tr("Remove theme · ") + modelData.name
                                                 }
                                                 IconText {
                                                     anchors.centerIn: parent
@@ -1518,7 +1519,7 @@ PanelWindow {
                                         UiText {
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: parent.width
-                                            text: isUnreach ? "—" : (modelData.behind + (modelData.behind === 1 ? " commit" : " commits"))
+                                            text: isUnreach ? "-" : (modelData.behind + (modelData.behind === 1 ? " commit" : " commits"))
                                             color: behindMa.containsMouse && themeRow.canViewChanges ? root.seal : Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.7)
                                             font.family: root.mono; font.pixelSize: 10
                                             elide: Text.ElideRight
@@ -1580,7 +1581,7 @@ PanelWindow {
                         UiText {
                             width: parent.width
                             visible: root.themeUpdList.length === 0
-                            text: root.themeUpdChecked === "" ? "Not checked yet" : "All themes up to date"
+                            text: root.themeUpdChecked === "" ? I18n.tr("Not checked yet") : I18n.tr("All themes up to date")
                             color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.5)
                             font.family: root.mono; font.pixelSize: 11
                             horizontalAlignment: Text.AlignHCenter
@@ -1598,7 +1599,7 @@ PanelWindow {
                     width: parent.width
                     spacing: 8
 
-                    // Check themes — runs the read-only check script; disabled while scanning
+                    // Check themes - runs the read-only check script; disabled while scanning
                     Rectangle {
                         width: (parent.width - 8) / 2
                         height: 28; radius: root.tileRadius
@@ -1609,7 +1610,7 @@ PanelWindow {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: root.themeUpdChecking ? "Checking…" : "Check themes"
+                            text: root.themeUpdChecking ? I18n.tr("Checking…") : I18n.tr("Check themes")
                             color: (checkMa.containsMouse && !root.themeUpdChecking) ? root.seal : root.ink
                             font.family: root.mono; font.pixelSize: 11
                         }
@@ -1623,7 +1624,7 @@ PanelWindow {
                         }
                     }
 
-                    // Update clean — applies only clean themes with a saved target
+                    // Update clean - applies only clean themes with a saved target
                     // commit; blocked/local-edits stay untouched for review.
                     Rectangle {
                         readonly property int cleanCount: archPanel.cleanThemeUpdateCount()
@@ -1636,9 +1637,9 @@ PanelWindow {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: root.themeUpdChecking ? "Checking…"
-                                                  : parent.canApply ? (root.themeUpdLocalEdits > 0 ? "Update clean" : "Update all")
-                                                  : root.themeUpdOutdated > 0 ? "Review first" : "No updates"
+                            text: root.themeUpdChecking ? I18n.tr("Checking…")
+                                                  : parent.canApply ? (root.themeUpdLocalEdits > 0 ? I18n.tr("Update clean") : I18n.tr("Update all"))
+                                                  : root.themeUpdOutdated > 0 ? I18n.tr("Review first") : I18n.tr("No updates")
                             color: root.paper
                             font.family: root.mono; font.pixelSize: 11
                         }

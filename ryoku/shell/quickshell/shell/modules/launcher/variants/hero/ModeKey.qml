@@ -37,7 +37,7 @@ Rectangle {
     Text {
         id: caption
         anchors.centerIn: parent
-        text: root.label
+        text: I18n.tr(root.label)
         color: root.active ? Theme.onModeActive : Theme.bright
         font.family: Theme.mono
         font.pixelSize: 9 * root.s

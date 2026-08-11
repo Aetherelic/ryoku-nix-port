@@ -2,11 +2,12 @@ import QtQuick
 import Quickshell
 import "../kit"
 import "../../modules"
+import Ryoku.Ui.Singletons
 
 // Bars editor route: a scrollable live bar-surface panel ported from Shibumi's
 // ActiveBarSettingsPage / BarSurfaceSettings / BarStylePreviewCard, wearing
 // qsbar's dark skin. Every control writes straight to `root` (the qsbar Theme),
-// so the running bar updates live and mirrors to Bar Studio. Null-guarded — the
+// so the running bar updates live and mirrors to Bar Studio. Null-guarded - the
 // page may briefly exist before `root` is assigned, and some tokens live on the
 // V2 Theme first (guard the barShellStyleValid function call in particular).
 Item {
@@ -149,7 +150,7 @@ Item {
                     }
                     UiText {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "LIVE"
+                        text: I18n.tr("LIVE")
                         color: page.cAccent
                         font.family: page.fontMono
                         font.pixelSize: 10
@@ -167,7 +168,7 @@ Item {
                     spacing: 3
 
                     UiText {
-                        text: page.activeForm.toUpperCase() + " ACTIVE"
+                        text: page.activeForm.toUpperCase() + I18n.tr(" ACTIVE")
                         color: page.cInk
                         font.family: page.fontMono
                         font.pixelSize: 18
@@ -189,7 +190,7 @@ Item {
             CcSection {
                 width: col.width
                 root: page.root
-                title: "POSITION"
+                title: I18n.tr("POSITION")
 
                 CcSeg {
                     root: page.root
@@ -203,12 +204,12 @@ Item {
             CcSection {
                 width: col.width
                 root: page.root
-                title: "SURFACE"
+                title: I18n.tr("SURFACE")
 
                 CcRow {
                     root: page.root
-                    label: "Bar border"
-                    desc: "Outline the bar"
+                    label: I18n.tr("Bar border")
+                    desc: I18n.tr("Outline the bar")
                     controlWidth: 108
                     CcSeg {
                         anchors.right: parent.right
@@ -225,8 +226,8 @@ Item {
                 }
                 CcRow {
                     root: page.root
-                    label: "Corners"
-                    desc: "Round the bar's corners"
+                    label: I18n.tr("Corners")
+                    desc: I18n.tr("Round the bar's corners")
                     controlWidth: 150
                     CcSeg {
                         anchors.right: parent.right
@@ -247,8 +248,8 @@ Item {
                 CcRow {
                     root: page.root
                     visible: page.isV1
-                    label: "Frost"
-                    desc: "Lower the island opacity so blur shows through"
+                    label: I18n.tr("Frost")
+                    desc: I18n.tr("Lower the island opacity so blur shows through")
                     controlWidth: 108
                     CcSeg {
                         anchors.right: parent.right
@@ -262,8 +263,8 @@ Item {
                 CcRow {
                     root: page.root
                     visible: page.isV1
-                    label: "Shadow"
-                    desc: "Cast a soft shadow under the pills"
+                    label: I18n.tr("Shadow")
+                    desc: I18n.tr("Cast a soft shadow under the pills")
                     controlWidth: 108
                     CcSeg {
                         anchors.right: parent.right
@@ -277,8 +278,8 @@ Item {
                 CcRow {
                     root: page.root
                     visible: page.isV2
-                    label: "Panel + tooltip"
-                    desc: "Outline panels and tooltips"
+                    label: I18n.tr("Panel + tooltip")
+                    desc: I18n.tr("Outline panels and tooltips")
                     controlWidth: 108
                     CcSeg {
                         anchors.right: parent.right
@@ -289,13 +290,14 @@ Item {
                         onChose: k => { if (page.root && page.root.panelTooltipBorderEnabled !== undefined) page.root.panelTooltipBorderEnabled = (k === "on") }
                     }
                 }
+
             }
 
             // ── BAR FORM (2×2 selectable silhouette cards) ──
             CcSection {
                 width: col.width
                 root: page.root
-                title: "BAR FORM"
+                title: I18n.tr("BAR FORM")
 
                 Grid {
                     id: formGrid
@@ -358,7 +360,7 @@ Item {
 
                                     UiText {
                                         width: parent.width
-                                        text: fcard.modelData.label
+                                        text: I18n.tr(fcard.modelData.label)
                                         color: fcard.on ? page.cAccent : page.cInk
                                         elide: Text.ElideRight
                                         font.family: page.fontMono
@@ -400,7 +402,7 @@ Item {
             CcSection {
                 width: col.width
                 root: page.root
-                title: "BAR ACCENT"
+                title: I18n.tr("BAR ACCENT")
 
                 CcSwatchGrid {
                     root: page.root
@@ -414,11 +416,11 @@ Item {
             CcSection {
                 width: col.width
                 root: page.root
-                title: "GAP ANIMATION"
+                title: I18n.tr("GAP ANIMATION")
 
                 UiText {
                     width: col.width
-                    text: "The stream flowing in the gaps between widgets · pick a mode"
+                    text: I18n.tr("The stream flowing in the gaps between widgets · pick a mode")
                     color: page.cSumi
                     font.family: page.fontMono
                     font.pixelSize: 10
@@ -428,15 +430,15 @@ Item {
                 Flow {
                     width: col.width
                     spacing: page.gap
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Off";        on: page.curAnim === 0; onAct: page.setAnim(0) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Stream";     on: page.curAnim === 1; onAct: page.setAnim(1) }
-                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: "Stream · 2"; on: page.curAnim === 5; onAct: page.setAnim(5) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Surge";      on: page.curAnim === 2; onAct: page.setAnim(2) }
-                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: "Surge · 2";  on: page.curAnim === 6; onAct: page.setAnim(6) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Bolt";       on: page.curAnim === 3; onAct: page.setAnim(3) }
-                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: "Bolt · 2";   on: page.curAnim === 4; onAct: page.setAnim(4) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Reactor";    on: page.curAnim === 7; onAct: page.setAnim(7) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: "Quotes";     on: page.curAnim === 8; onAct: page.setAnim(8) }
+                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Off");        on: page.curAnim === 0; onAct: page.setAnim(0) }
+                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Stream");     on: page.curAnim === 1; onAct: page.setAnim(1) }
+                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Stream · 2"); on: page.curAnim === 5; onAct: page.setAnim(5) }
+                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Surge");      on: page.curAnim === 2; onAct: page.setAnim(2) }
+                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Surge · 2");  on: page.curAnim === 6; onAct: page.setAnim(6) }
+                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Bolt");       on: page.curAnim === 3; onAct: page.setAnim(3) }
+                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Bolt · 2");   on: page.curAnim === 4; onAct: page.setAnim(4) }
+                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Reactor");    on: page.curAnim === 7; onAct: page.setAnim(7) }
+                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Quotes");     on: page.curAnim === 8; onAct: page.setAnim(8) }
                 }
             }
 
@@ -449,8 +451,8 @@ Item {
                     width: (parent.width - parent.spacing) / 2
                     root: page.root
                     icon: "splitscreen"
-                    label: "Edit layout"
-                    sub: "Unlock the bar to drag & arrange"
+                    label: I18n.tr("Edit layout")
+                    sub: I18n.tr("Unlock the bar to drag & arrange")
                     onActivated: {
                         if (page.root) page.root.barUnlocked = true
                         if (page.cc) page.cc.close()
@@ -460,8 +462,8 @@ Item {
                     width: (parent.width - parent.spacing) / 2
                     root: page.root
                     icon: "restart_alt"
-                    label: "Restore layout"
-                    sub: "Reset slots, order & splits"
+                    label: I18n.tr("Restore layout")
+                    sub: I18n.tr("Reset slots, order & splits")
                     onActivated: {
                         if (page.root && page.root.resetAllBarLayouts) page.root.resetAllBarLayouts()
                     }

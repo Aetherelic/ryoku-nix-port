@@ -367,7 +367,7 @@ Item {
             anchors.left: field.left
             anchors.verticalCenter: field.verticalCenter
             visible: field.text.length === 0 && field.preeditText.length === 0
-            text: "TYPE TO SEARCH"
+            text: I18n.tr("TYPE TO SEARCH")
             color: Qt.rgba(1, 1, 1, 0.70)
             style: Text.Raised
             styleColor: Qt.rgba(0, 0, 0, 0.86)
@@ -394,25 +394,25 @@ Item {
 
         HeroVariant.ModeKey {
             s: root.s
-            label: "ALL"
+            label: I18n.tr("ALL")
             active: root.activeMode === "all"
             onActivated: root.modeRequested("all")
         }
         HeroVariant.ModeKey {
             s: root.s
-            label: "IMG"
+            label: I18n.tr("IMG")
             active: root.activeMode === "image"
             onActivated: root.modeRequested("image")
         }
         HeroVariant.ModeKey {
             s: root.s
-            label: "FILE"
+            label: I18n.tr("FILE")
             active: root.activeMode === "file"
             onActivated: root.modeRequested("file")
         }
         HeroVariant.ModeKey {
             s: root.s
-            label: "REC"
+            label: I18n.tr("REC")
             active: root.activeMode === "recent"
             onActivated: root.modeRequested("recent")
         }

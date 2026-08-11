@@ -393,7 +393,7 @@ Item {
             Text {
                 width: parent.width
                 text: I18n.tr("The optional local agent OS. A resident Hermes agent keeps a living map of this ")
-                    + I18n.tr("machine \u2014 hardware, packages, every config beside the binary that owns it \u2014 so your ")
+                    + I18n.tr("machine - hardware, packages, every config beside the binary that owns it - so your ")
                     + I18n.tr("coding agents read the terrain instead of rediscovering it. Nothing ever leaves the box.")
                 color: hx.ink; font.family: pg.fMono; font.pixelSize: 14
                 wrapMode: Text.WordWrap; lineHeight: 1.5
@@ -466,7 +466,7 @@ Item {
                         }
                         Text {
                             width: parent.width
-                            text: pg.hermesConfigured ? (pg.hermesModel || "configured") : "\u2014"
+                            text: pg.hermesConfigured ? (pg.hermesModel || "configured") : "-"
                             color: hx.ink; font.family: pg.fDisplay
                             font.pixelSize: pg.hermesConfigured ? 30 : 26
                             elide: Text.ElideRight
@@ -498,7 +498,7 @@ Item {
 
                     FnCard {
                         width: fnGrid.cellW; index: "01"; kanji: "\u66f8\u5eab"; name: "VAULT"; accent: hx.teal
-                        desc: I18n.tr("The living map your agents read \u2014 every config beside the binary that owns it.")
+                        desc: I18n.tr("The living map your agents read - every config beside the binary that owns it.")
                         stat: pg.vaultExists ? (pg.vaultFiles + " files") : ""
                     }
                     FnCard {
@@ -507,7 +507,7 @@ Item {
                     }
                     FnCard {
                         width: fnGrid.cellW; index: "03"; kanji: "\u6280"; name: "SKILLS"; accent: hx.slate
-                        desc: I18n.tr("Toolsets Hermes wields on demand \u2014 search, files, the web, more.")
+                        desc: I18n.tr("Toolsets Hermes wields on demand - search, files, the web, more.")
                     }
                     FnCard {
                         width: fnGrid.cellW; index: "04"; kanji: "\u4e94\u4eba\u8846"; name: "AGENTS"; accent: hx.tan
@@ -516,11 +516,11 @@ Item {
                     }
                     FnCard {
                         width: fnGrid.cellW; index: "05"; kanji: "\u5bfe\u8a71"; name: "CHAT"; accent: hx.red
-                        desc: I18n.tr("Talk to Hermes \u2014 in the dashboard, or run it in any terminal.")
+                        desc: I18n.tr("Talk to Hermes - in the dashboard, or run it in any terminal.")
                     }
                     FnCard {
                         width: fnGrid.cellW; index: "06"; kanji: "\u7f85\u91dd"; name: "CODE"; accent: hx.teal
-                        desc: I18n.tr("prowl-agent code intelligence \u2014 cited answers over your repos.")
+                        desc: I18n.tr("prowl-agent code intelligence - cited answers over your repos.")
                     }
                 }
             }
@@ -587,7 +587,7 @@ Item {
                 Rectangle { width: 8; height: 8; radius: 4; color: hx.red; anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     width: parent.width - Tokens.s3 - 8
-                    text: I18n.tr("Everything runs on this machine. The daemon binds 127.0.0.1 only \u2014 nothing you do here leaves the box.")
+                    text: I18n.tr("Everything runs on this machine. The daemon binds 127.0.0.1 only - nothing you do here leaves the box.")
                     color: hx.inkDim; font.family: pg.fMono; font.pixelSize: 11; wrapMode: Text.WordWrap
                     anchors.verticalCenter: parent.verticalCenter
                 }

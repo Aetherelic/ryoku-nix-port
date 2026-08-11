@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../RyokuPower.js" as RyokuPower
+import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -61,14 +62,14 @@ Item {
         UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !root.compactBrightness
-            text: "BRI"
+            text: I18n.tr("BRI")
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono
             font.pixelSize: 12
             font.letterSpacing: 0.5
         }
 
-        // drawn sun — core + rays that grow/brighten with the level
+        // drawn sun - core + rays that grow/brighten with the level
         Item {
             id: sun
             width: 13

@@ -32,7 +32,7 @@ var rows = [
         "tab": "",
         "group": "ENGINE & MODEL",
         "key": "whisper.model = \"base.en\" + whisper.language = \"en\"",
-        "label": "Whisper \u2014 Fast",
+        "label": "Whisper - Fast",
         "desc": "Transcribes English offline with the small base.en model, quick to load",
         "ctl": "action",
         "src": "ggml-base.en.bin"
@@ -41,7 +41,7 @@ var rows = [
         "tab": "",
         "group": "ENGINE & MODEL",
         "key": "whisper.model = \"large-v3-turbo\" + whisper.language = \"auto\"",
-        "label": "Whisper \u2014 Accurate",
+        "label": "Whisper - Accurate",
         "desc": "Transcribes any language offline with large-v3-turbo, a 1.6 GB download",
         "ctl": "action",
         "src": "ggml-large-v3-turbo.bin"

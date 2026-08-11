@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -39,7 +40,7 @@ Item {
         UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !root.compactMemory
-            text: "MEM"
+            text: I18n.tr("MEM")
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono
             font.pixelSize: 12

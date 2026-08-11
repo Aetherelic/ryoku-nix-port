@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import "../RyokuPower.js" as RyokuPower
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: batPanel
@@ -84,7 +85,7 @@ PanelWindow {
                 height: 24
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "Battery"
+                    text: I18n.tr("Battery")
                     color: root.ink; font.family: root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
@@ -126,7 +127,7 @@ PanelWindow {
                 spacing: 4
                 Row {
                     width: parent.width
-                    UiText { text: "Status"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Status"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText {
                         text: batPanel.statusTitle(batPanel.status)
                         color: batPanel.charging ? root.indigo : root.ink
@@ -148,19 +149,19 @@ PanelWindow {
                 Row {
                     width: parent.width
                     visible: batPanel.powerRate !== ""
-                    UiText { text: batPanel.charging ? "Charge rate" : "Power draw"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
-                    UiText { text: batPanel.powerRate + " W"; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
+                    UiText { text: batPanel.charging ? I18n.tr("Charge rate") : I18n.tr("Power draw"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: batPanel.powerRate + I18n.tr(" W"); color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: batPanel.sizeText !== ""
-                    UiText { text: "Battery size"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Battery size"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: batPanel.sizeText; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: batPanel.cycles > 0
-                    UiText { text: "Charge cycles"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: I18n.tr("Charge cycles"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText { text: String(batPanel.cycles); color: root.ink; font.family: root.mono; font.pixelSize: 11 }
                 }
             }
@@ -172,7 +173,7 @@ PanelWindow {
                 height: 28; radius: root.tileRadius
                 color: btopMa.containsMouse ? root.fillPrimaryHover : root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
-                UiText { anchors.centerIn: parent; text: "Open btop"; color: root.paper; font.family: root.mono; font.pixelSize: 11 }
+                UiText { anchors.centerIn: parent; text: I18n.tr("Open btop"); color: root.paper; font.family: root.mono; font.pixelSize: 11 }
                 MouseArea {
                     id: btopMa
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

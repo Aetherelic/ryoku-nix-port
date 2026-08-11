@@ -15,8 +15,8 @@ Column {
     Text {
         width: parent.width
         wrapMode: Text.WordWrap
-        text: "That's the tour. The desktop is yours now \u2014 explore, break things, tune them "
-            + "back. Nothing here is locked."
+        text: I18n.tr("That's the tour. The desktop is yours now - explore, break things, tune them ")
+            + I18n.tr("back. Nothing here is locked.")
         color: Tokens.inkDim
         font.family: Tokens.ui
         font.pixelSize: Tokens.fRow
@@ -57,7 +57,7 @@ Column {
 
     WelcomeButton {
         kind: "outline"
-        label: "Open Ryoku Settings"
+        label: I18n.tr("Open Ryoku Settings")
         onClicked: step.openSettings()
     }
 }

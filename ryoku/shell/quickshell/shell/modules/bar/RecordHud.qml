@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import shell.services
 import "../../components"
+import Ryoku.Ui.Singletons
 
 // Draggable recording control that lives just inside the frame. At rest it is a
 // crisp card fused near a frame edge -- the frame's own surface + 2px outline,
@@ -142,7 +143,7 @@ Item {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: act.label
+                text: I18n.tr(act.label)
                 color: act.tint
                 font.family: Theme.mono
                 font.pixelSize: 9.5 * act.s
@@ -426,9 +427,9 @@ Item {
                     opacity: 0.35
                 }
 
-                Action { s: hud.s; glyph: "record"; label: "Quick"; tint: Theme.vermLit; primary: true; onTapped: hud.startQuick() }
-                Action { s: hud.s; glyph: "film"; label: "Studio"; onTapped: hud.startStudio() }
-                Action { s: hud.s; glyph: "folder"; label: "Edit"; onTapped: hud.launchRyomotion() }
+                Action { s: hud.s; glyph: "record"; label: I18n.tr("Quick"); tint: Theme.vermLit; primary: true; onTapped: hud.startQuick() }
+                Action { s: hud.s; glyph: "film"; label: I18n.tr("Studio"); onTapped: hud.startStudio() }
+                Action { s: hud.s; glyph: "folder"; label: I18n.tr("Edit"); onTapped: hud.launchRyomotion() }
 
                 RecordButton { s: hud.s; glyph: "close"; tint: Theme.onSurfaceVariant; onTapped: Recorder.chooserOpen = false }
             }

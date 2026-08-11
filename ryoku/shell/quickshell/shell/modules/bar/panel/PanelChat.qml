@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import shell.services
 import "../../../components"
+import Ryoku.Ui.Singletons
 
 // Chat: the Super+S sidebar's view onto the Needle singleton (which owns the
 // thread and the running turn). Renders streamed Markdown over a growing input;
@@ -240,7 +241,7 @@ Item {
         Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: "RASHIN"
+            text: I18n.tr("RASHIN")
             color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
             font.family: Theme.mono
             font.pixelSize: 9 * root.s
@@ -446,7 +447,7 @@ Item {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "New chat"
+                        text: I18n.tr("New chat")
                         color: Theme.primary
                         font.family: Theme.mono
                         font.pixelSize: 9.5 * root.s
@@ -545,7 +546,7 @@ Item {
 
             // role tag
             Text {
-                text: msg.isUser ? "YOU" : "NEEDLE"
+                text: msg.isUser ? I18n.tr("YOU") : I18n.tr("NEEDLE")
                 color: msg.isUser
                     ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                     : Theme.primary
@@ -818,7 +819,7 @@ Item {
                                                     }
                                                     Text {
                                                         anchors.verticalCenter: parent.verticalCenter
-                                                        text: codeBox.copied ? "COPIED" : "COPY"
+                                                        text: codeBox.copied ? I18n.tr("COPIED") : I18n.tr("COPY")
                                                         color: codeBox.copied ? Theme.primary : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                                                         font.family: Theme.mono
                                                         font.pixelSize: 7.5 * root.s
@@ -903,7 +904,7 @@ Item {
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: actBtn.modelData.label
+                                        text: I18n.tr(actBtn.modelData.label)
                                         color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                                         font.family: Theme.mono
                                         font.pixelSize: 7.5 * root.s
@@ -943,7 +944,7 @@ Item {
         Text {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
-            text: "Ask the needle anything. It knows this machine, your desktop, and the Ryoku source. Drop or paste an image to ask about it."
+            text: I18n.tr("Ask the needle anything. It knows this machine, your desktop, and the Ryoku source. Drop or paste an image to ask about it.")
             wrapMode: Text.WordWrap
             color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
             font.family: Theme.fontPrimary
@@ -1119,7 +1120,7 @@ Item {
                     Behavior on color { ColorAnimation { duration: Motion.fast } }
                     MaterialIcon {
                         anchors.centerIn: parent
-                        text: "add_photo_alternate"
+                        text: I18n.tr("add_photo_alternate")
                         font.pixelSize: 15 * root.s
                         color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                     }

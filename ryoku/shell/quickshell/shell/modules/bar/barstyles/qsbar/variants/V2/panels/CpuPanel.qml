@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: cpuPanel
@@ -125,7 +126,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "CPU"
+                    text: I18n.tr("CPU")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -136,7 +137,7 @@ PanelWindow {
                     anchors.right: closeText.left
                     anchors.rightMargin: 16
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "KERNEL " + root.kernelRelease
+                    text: I18n.tr("KERNEL ") + root.kernelRelease
                     color: root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 9
@@ -193,7 +194,7 @@ PanelWindow {
                     id: cpuLbl
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "USAGE"
+                    text: I18n.tr("USAGE")
                     color: root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 11
@@ -235,16 +236,16 @@ PanelWindow {
                 active: cpuPanel.visible && root.cpuVisible
             }
 
-            InfoRow { label: "Clock"; value: cpuPanel.clockSummary }
-            InfoRow { label: "Load 1 · 5 · 15"; value: cpuPanel.loadSummary }
+            InfoRow { label: I18n.tr("Clock"); value: cpuPanel.clockSummary }
+            InfoRow { label: I18n.tr("Load 1 · 5 · 15"); value: cpuPanel.loadSummary }
             InfoRow {
-                label: "Breakdown"
+                label: I18n.tr("Breakdown")
                 value: "User " + root.systemCpuUserPercent + "% · System "
                     + root.systemCpuSystemPercent + "% · I/O " + root.systemCpuIoWaitPercent + "%"
             }
-            InfoRow { label: "Power mode"; value: cpuPanel.powerMode }
+            InfoRow { label: I18n.tr("Power mode"); value: cpuPanel.powerMode }
             InfoRow {
-                label: "Throttling"
+                label: I18n.tr("Throttling")
                 value: root.cpuThrottleCount > 0 ? root.cpuThrottleCount + " events" : ""
                 valueColor: root.sealRaw
             }
@@ -257,7 +258,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "TOP PROCESSES"
+                    text: I18n.tr("TOP PROCESSES")
                     color: root.sumiHi
                     font.family: root.mono
                     font.pixelSize: 9
@@ -266,7 +267,7 @@ PanelWindow {
                 UiText {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "CPU"
+                    text: I18n.tr("CPU")
                     color: root.sumi
                     font.family: root.mono
                     font.pixelSize: 9
@@ -301,7 +302,7 @@ PanelWindow {
                             anchors.right: processValue.left
                             anchors.rightMargin: 8
                             anchors.verticalCenter: parent.verticalCenter
-                            text: process ? process.name : (index === 0 ? "Collecting…" : "—")
+                            text: process ? process.name : (index === 0 ? I18n.tr("Collecting…") : "-")
                             color: process ? root.ink : root.sumi
                             font.family: root.mono
                             font.pixelSize: 10
@@ -312,7 +313,7 @@ PanelWindow {
                             width: 52
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: process ? Number(process.percent).toFixed(1) + "%" : "—"
+                            text: process ? Number(process.percent).toFixed(1) + "%" : "-"
                             color: process ? root.ink : root.sumi
                             font.family: root.mono
                             font.pixelSize: 10
@@ -332,7 +333,7 @@ PanelWindow {
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
-                    text: "Open btop"
+                    text: I18n.tr("Open btop")
                     color: root.paper
                     font.family: root.mono
                     font.pixelSize: 11

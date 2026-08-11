@@ -1,9 +1,10 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
-// Strips: the focused wallpaper opens to a large preview at centre — the whole
-// image, in its own aspect — while the rest flank it as thin portrait strips, a
+// Strips: the focused wallpaper opens to a large preview at centre - the whole
+// image, in its own aspect - while the rest flank it as thin portrait strips, a
 // hero plus a shelf. A wheel or arrow steps the focus; the preview and strips
 // glide and morph on an OutCubic slide. A pointer-move gate stops a strip that
 // slides under a still cursor from stealing the keyboard focus. Cells reuse
@@ -154,7 +155,7 @@ Item {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: strip.kind === "theme"
-                            ? (slot.modelData ? slot.modelData.label : "")
+                            ? (slot.modelData ? I18n.tr(slot.modelData.label) : "")
                             : (slot.modelData ? slot.modelData.name : "")
                         color: "white"
                         font.family: Theme.mono

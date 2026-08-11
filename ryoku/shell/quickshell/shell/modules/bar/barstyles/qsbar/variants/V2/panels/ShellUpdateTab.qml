@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../modules"
+import Ryoku.Ui.Singletons
 
 Column {
     id: tab
@@ -68,7 +69,7 @@ Column {
     }
 
     function shortSha(s) {
-        if (!s) return "—"
+        if (!s) return "-"
         return String(s).substring(0, 12)
     }
 
@@ -195,7 +196,7 @@ Column {
         Behavior on color { ColorAnimation { duration: 120 } }
         UiText {
             anchors.centerIn: parent
-            text: btn.label
+            text: I18n.tr(btn.label)
             color: btn.primary ? tab.root.paper : (ma.containsMouse && btn.buttonEnabled ? tab.root.seal : tab.root.ink)
             font.family: tab.root.mono
             font.pixelSize: 11
@@ -236,7 +237,7 @@ Column {
         spacing: 8
         UiText {
             width: (parent.width - 8) / 2
-            text: "Installed: " + shortSha(root.shellInstalledCommit || root.shellUpdateBaseCommit)
+            text: I18n.tr("Installed: ") + shortSha(root.shellInstalledCommit || root.shellUpdateBaseCommit)
             color: root.sumi
             font.family: root.mono
             font.pixelSize: 10
@@ -244,7 +245,7 @@ Column {
         }
         UiText {
             width: (parent.width - 8) / 2
-            text: "Target: " + shortSha(root.shellUpdateTargetCommit || root.shellProgressTargetCommit)
+            text: I18n.tr("Target: ") + shortSha(root.shellUpdateTargetCommit || root.shellProgressTargetCommit)
             color: root.sumi
             font.family: root.mono
             font.pixelSize: 10
@@ -347,7 +348,7 @@ Column {
                 UiText {
                     width: parent.width
                     visible: root.shellUpdateSummary.length === 0
-                    text: root.shellUpdateBehind > 0 ? "No changelog available" : "No shell update available"
+                    text: root.shellUpdateBehind > 0 ? I18n.tr("No changelog available") : I18n.tr("No shell update available")
                     color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.5)
                     font.family: root.mono
                     font.pixelSize: 11
@@ -361,8 +362,8 @@ Column {
     UiText {
         width: parent.width
         text: progressRunning
-            ? "You can hide this panel; the update continues in the background."
-            : "Shell updates are applied separately from packages and themes."
+            ? I18n.tr("You can hide this panel; the update continues in the background.")
+            : I18n.tr("Shell updates are applied separately from packages and themes.")
         color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.45)
         font.family: root.mono
         font.pixelSize: 9
@@ -380,14 +381,14 @@ Column {
 
         ActionButton {
             width: (parent.width - 8) / 2
-            label: root.shellUpdateChecking ? "Checking…" : "Check shell"
+            label: root.shellUpdateChecking ? I18n.tr("Checking…") : I18n.tr("Check shell")
             buttonEnabled: !root.shellUpdateChecking && !progressRunning
             onClicked: tab.checkShell()
         }
 
         ActionButton {
             width: (parent.width - 8) / 2
-            label: "Update & restart"
+            label: I18n.tr("Update & restart")
             primary: true
             buttonEnabled: tab.canApply
             onClicked: tab.startApply()
@@ -401,7 +402,7 @@ Column {
         spacing: 8
         ActionButton {
             width: parent.width
-            label: "Hide"
+            label: I18n.tr("Hide")
             onClicked: root.closeArchUpdatesPanel()
         }
     }
@@ -413,7 +414,7 @@ Column {
         spacing: 8
         ActionButton {
             width: (parent.width - 8) / 2
-            label: "Dismiss"
+            label: I18n.tr("Dismiss")
             onClicked: {
                 root.ackShellProgress()
                 root.archVisible = false
@@ -421,7 +422,7 @@ Column {
         }
         ActionButton {
             width: (parent.width - 8) / 2
-            label: "Retry"
+            label: I18n.tr("Retry")
             primary: true
             buttonEnabled: tab.canApply
             onClicked: tab.startApply()
@@ -435,7 +436,7 @@ Column {
         spacing: 8
         ActionButton {
             width: parent.width
-            label: "Done"
+            label: I18n.tr("Done")
             primary: true
             onClicked: root.ackShellProgress()
         }

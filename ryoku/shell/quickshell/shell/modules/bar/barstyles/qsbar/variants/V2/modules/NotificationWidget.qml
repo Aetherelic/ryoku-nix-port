@@ -24,7 +24,7 @@ Item {
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 
-    // count badge — top-right, theme red with high-contrast text
+    // count badge - top-right, theme red with high-contrast text
     Rectangle {
         visible: root.notifCount > 0
         width: Math.max(12, badgeTxt.implicitWidth + 6)

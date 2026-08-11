@@ -75,7 +75,7 @@ Item {
 
     function doRefresh() {
         // Ryoku-native: the bar reads the same seam the Hub and update island do
-        // (`ryoku status --json`) — the channel commits behind plus, when
+        // (`ryoku status --json`) - the channel commits behind plus, when
         // checkupdates is present, pending pacman packages. No qs-arch-* scripts.
         rootMod.refreshing = true
         refreshWatchdog.restart()

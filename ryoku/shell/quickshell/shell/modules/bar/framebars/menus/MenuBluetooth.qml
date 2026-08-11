@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Bluetooth
 import shell.services
+import Ryoku.Ui.Singletons
 
 // Bluetooth entry (contract 06 sec 2.7): a RevealerRow whose inert action button
 // carries the adapter-state icon and whose label reports adapter presence and
@@ -260,7 +261,7 @@ Item {
                             anchors.fill: parent
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
-                            text: actionButton.modelData.label
+                            text: I18n.tr(actionButton.modelData.label)
                             color: actionButton.contentColor
                             font.family: Theme.fontPrimary
                             font.pixelSize: Theme.fontMd

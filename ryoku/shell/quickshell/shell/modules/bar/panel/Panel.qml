@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import shell.services
 import "../../../components"
+import Ryoku.Ui.Singletons
 
 // Feature sidebar behind Super+S: a framed floating card with a left activity
 // rail over pluggable pages (Usage, Tools). The Tools "Compress video" and
@@ -114,7 +115,7 @@ Item {
                     Text {
                         anchors.bottom: parent.bottom
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: tab.modelData.label
+                        text: I18n.tr(tab.modelData.label)
                         color: tab.on ? Theme.inkOn(Theme.effectiveSurface, Theme.onSurface)
                             : Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
                         font.family: Theme.fontPrimary

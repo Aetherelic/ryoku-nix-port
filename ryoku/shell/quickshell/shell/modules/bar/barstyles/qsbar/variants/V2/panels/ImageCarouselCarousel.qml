@@ -5,8 +5,9 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
 import "ImagePickerModel.js" as Model
+import Ryoku.Ui.Singletons
 
-// Carousel variant of the theme/wallpaper picker — skewed slices, one expands in
+// Carousel variant of the theme/wallpaper picker - skewed slices, one expands in
 // the centre. Crisp Shape/CurveRenderer slices, red/accent via root.seal, shared
 // thumbnail cache (no wallpaper stutter), and NO scrim (floats over the desktop).
 // Active only while root.pickerStyle === "carousel".
@@ -154,7 +155,7 @@ PanelWindow {
                 cacheProc.requestMode = mode
                 cacheProc.command = ["cat", panel.scanCachePathFor(mode)]
                 cacheProc.running = false; cacheProc.running = true
-                // live refresh — tee the output into the cache for next time
+                // live refresh - tee the output into the cache for next time
                 var cmd = panel.buildScanCmd(mode)
                 cmd[2] = cmd[2] + " | tee " + panel.shq(panel.scanCachePathFor(mode))
                 scanProc.requestMode = mode
@@ -473,7 +474,7 @@ PanelWindow {
         return c
     }
 
-    // NO scrim — the carousel floats over the live desktop (no extra background).
+    // NO scrim - the carousel floats over the live desktop (no extra background).
     MouseArea {
         anchors.fill: parent
         enabled: panel.visible
@@ -484,7 +485,7 @@ PanelWindow {
         }
     }
 
-    // ── empty/loading — also catches Esc to close when the carousel isn't focused ──
+    // ── empty/loading - also catches Esc to close when the carousel isn't focused ──
     Item {
         anchors.fill: parent
         focus: panel.visible && !(panel.ready && panel.imageArray.length > 0)
@@ -508,7 +509,7 @@ PanelWindow {
         visible: root.imagePickerVisible && panel.active && panel.ready && Model.matchCount(panel.imageArray, panel.filterText) === 0
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
-        text: "No matches: " + panel.filterText + "\n\nBackspace to edit, or Esc to clear"
+        text: I18n.tr("No matches: ") + panel.filterText + I18n.tr("\n\nBackspace to edit, or Esc to clear")
         color: root.ink
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -517,8 +518,8 @@ PanelWindow {
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: panel.scanDone
-              ? (panel.isThemeMode ? "No themes found" : "No wallpapers found") + "\n\nEsc or click to close"
-              : "Loading…"
+              ? (panel.isThemeMode ? I18n.tr("No themes found") : I18n.tr("No wallpapers found")) + I18n.tr("\n\nEsc or click to close")
+              : I18n.tr("Loading…")
         color: root.ink
         style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.6)
         font.family: root.mono; font.pixelSize: 18
@@ -716,7 +717,7 @@ PanelWindow {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             width: parent.width
-            text: "← → navigate   Enter apply   Esc cancel   type to filter"
+            text: I18n.tr("← → navigate   Enter apply   Esc cancel   type to filter")
             color: panel.footerDim
             renderType: Text.NativeRendering
             font.family: root.mono; font.pixelSize: 11

@@ -53,7 +53,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             width: 320
             wrapMode: Text.WordWrap
-            text: "Pick a system for an instant machine: prebuilt, no installer, logs in as ryoku."
+            text: I18n.tr("Pick a system for an instant machine: prebuilt, no installer, logs in as ryoku.")
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: 12
@@ -110,7 +110,7 @@ Item {
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: (pane.os ? "~" + pane.os.size + " · " : "") + "logs in as ryoku / ryoku"
+                    text: (pane.os ? "~" + pane.os.size + " · " : "") + I18n.tr("logs in as ryoku / ryoku")
                     color: Tokens.inkFaint
                     font.family: Tokens.mono
                     font.pixelSize: 10
@@ -140,17 +140,17 @@ Item {
                 Section {
                     id: sect
                     width: parent.width
-                    title: "Provision"
+                    title: I18n.tr("Provision")
 
                     Cell {
                         width: sect.span(Spans.of("sw"))
                         block: false
                         controlWidth: Spans.inlineWidth("sw", 0, width)
-                        label: "Disposable"
+                        label: I18n.tr("Disposable")
                         value: pane.disposableRun ? "BURN" : "KEEP"
                         desc: pane.disposableRun
-                            ? "Every boot re-provisions the ryoku account, factory-fresh."
-                            : "A normal machine you can seal and reuse."
+                            ? I18n.tr("Every boot re-provisions the ryoku account, factory-fresh.")
+                            : I18n.tr("A normal machine you can seal and reuse.")
                         Sw {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
@@ -163,10 +163,10 @@ Item {
                         width: sect.span(Spans.of("multi"))
                         height: Spans.rows("multi") * Tokens.cellH + (Spans.rows("multi") - 1) * Tokens.s2
                         block: true
-                        label: "Toolset"
+                        label: I18n.tr("Toolset")
                         value: String(pane.pickedIds.length)
                         unit: "baked"
-                        desc: "Tools baked in on first boot, clip is always on."
+                        desc: I18n.tr("Tools baked in on first boot, clip is always on.")
                         Multi {
                             anchors.fill: parent
                             options: pane.toolLabels
@@ -181,7 +181,7 @@ Item {
                     width: parent.width
                     spacing: Tokens.s2
                     Text {
-                        text: "EXTRA PACKAGES"
+                        text: I18n.tr("EXTRA PACKAGES")
                         color: Tokens.inkMuted
                         font.family: Tokens.ui; font.pixelSize: 10; font.weight: Font.Medium
                         font.letterSpacing: Tokens.trackLabel; font.capitalization: Font.AllUppercase
@@ -190,7 +190,7 @@ Item {
                         width: parent.width
                         tabular: true
                         text: Vm.settings.extraPkgs || ""
-                        placeholder: "…and any other packages, comma-separated (e.g. postgresql, redis)"
+                        placeholder: I18n.tr("…and any other packages, comma-separated (e.g. postgresql, redis)")
                         onEdited: (v) => { Vm.settings.extraPkgs = v; Vm.saveSettings(); }
                     }
                 }
@@ -199,7 +199,7 @@ Item {
                     width: parent.width
                     wrapMode: Text.WordWrap
                     visible: pane.heavyDisposable
-                    text: "Heavy tools reinstall on every disposable boot (~a minute). For a fast throwaway with these baked in, make this a keeper, then \u201cSave as template\u201d in its detail pane and spawn clones: tools baked, boot in seconds."
+                    text: I18n.tr("Heavy tools reinstall on every disposable boot (~a minute). For a fast throwaway with these baked in, make this a keeper, then \u201cSave as template\u201d in its detail pane and spawn clones: tools baked, boot in seconds.")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: 11
@@ -218,7 +218,7 @@ Item {
             spacing: Tokens.s3
             Btn {
                 primary: true
-                text: pane.disposableRun ? "CREATE · BURN" : "CREATE MACHINE"
+                text: pane.disposableRun ? I18n.tr("CREATE · BURN") : I18n.tr("CREATE MACHINE")
                 armed: pane.os !== null && Vm.caps.quickemu === true
                 onAct: { Vm.instant(pane.os.os, "", pane.disposableRun, pane.pickedIds.join(","), Vm.settings.extraPkgs || ""); pane.os = null; }
             }

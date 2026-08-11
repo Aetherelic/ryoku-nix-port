@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // One action / value row in a desktop context menu: a label on the left, an
 // optional value or live state on the right, a full-width hover wash and a
@@ -44,7 +45,7 @@ Item {
 
     Text {
         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
-        text: row.label
+        text: I18n.tr(row.label)
         color: row.accent ? Theme.accent : (ma.containsMouse ? Theme.ink : Theme.inkSoft)
         font.family: Theme.font
         font.pixelSize: 14

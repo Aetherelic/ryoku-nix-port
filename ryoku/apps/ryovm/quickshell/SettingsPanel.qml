@@ -48,7 +48,7 @@ Item {
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Settings"
+                    text: I18n.tr("Settings")
                     color: Tokens.ink
                     font.family: Tokens.ui
                     font.pixelSize: 18
@@ -70,9 +70,9 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
-                    Text { text: "Engine"; color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
+                    Text { text: I18n.tr("Engine"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
                     Text {
-                        text: Vm.caps.quickemu ? ("quickemu " + (Vm.caps.version || "")) : "quickemu not installed"
+                        text: Vm.caps.quickemu ? ("quickemu " + (Vm.caps.version || "")) : I18n.tr("quickemu not installed")
                         color: Vm.caps.quickemu ? Tokens.inkDim : Tokens.ink
                         font.family: Tokens.mono
                         font.pixelSize: 11
@@ -83,7 +83,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !Vm.caps.quickemu
                     primary: true
-                    text: "INSTALL"
+                    text: I18n.tr("INSTALL")
                     onAct: sp.installEngine()
                 }
             }
@@ -93,11 +93,11 @@ Item {
             Section {
                 id: defs
                 width: parent.width
-                title: "New machine defaults"
+                title: I18n.tr("New machine defaults")
                 Cell {
                     width: defs.span(Spans.of("step"))
                     controlWidth: Spans.inlineWidth("step", 0, width)
-                    label: "CPU cores"
+                    label: I18n.tr("CPU cores")
                     value: String(Vm.settings.defaultCores)
                     Step {
                         anchors.right: parent.right
@@ -110,7 +110,7 @@ Item {
                 Cell {
                     width: defs.span(Spans.of("step"))
                     controlWidth: Spans.inlineWidth("step", 0, width)
-                    label: "Memory"
+                    label: I18n.tr("Memory")
                     unit: "GB"
                     value: String(Vm.settings.defaultRam)
                     Step {
@@ -135,7 +135,7 @@ Item {
                     anchors.rightMargin: Tokens.s3
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
-                    Text { text: "Machines"; color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
+                    Text { text: I18n.tr("Machines"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
                     Text {
                         width: parent.width
                         elide: Text.ElideMiddle
@@ -149,7 +149,7 @@ Item {
                     id: openBtn
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "OPEN"
+                    text: I18n.tr("OPEN")
                     onAct: Vm.openFolder("")
                 }
             }
@@ -161,7 +161,7 @@ Item {
                 width: parent.width
                 spacing: Tokens.s2
                 Text {
-                    text: "Catalogue"
+                    text: I18n.tr("Catalogue")
                     color: Tokens.ink
                     font.family: Tokens.ui; font.pixelSize: 11; font.weight: Font.Medium
                     font.letterSpacing: Tokens.trackMark; font.capitalization: Font.AllUppercase

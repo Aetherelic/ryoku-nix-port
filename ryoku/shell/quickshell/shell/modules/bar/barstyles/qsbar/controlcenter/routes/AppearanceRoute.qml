@@ -1,6 +1,7 @@
 import QtQuick
 import "../kit"
 import "../../modules"
+import Ryoku.Ui.Singletons
 
 // APPEARANCE route: a scrollable per-widget list. One row per bar widget group
 // with a visibility toggle (the mod* booleans), an assigned-accent control (the
@@ -35,7 +36,7 @@ Item {
             page.root[prop] = !page.root[prop]
     }
 
-    // ── density (compact) — drive whichever mechanism the live Theme consumes ──
+    // ── density (compact) - drive whichever mechanism the live Theme consumes ──
     // V2 renders one presentation toggled per-group via iconOnly()/mprisBarStyle;
     // V1 reads plain compact* booleans. `flag` is the V1 property name.
     function compactOf(gid, flag) {
@@ -217,33 +218,33 @@ Item {
             CcSection {
                 width: contentCol.width
                 root: page.root
-                title: "WIDGETS"
+                title: I18n.tr("WIDGETS")
 
                 UiText {
                     width: parent.width
-                    text: "palette assigns an accent · eye toggles visibility · label toggles density"
+                    text: I18n.tr("palette assigns an accent · eye toggles visibility · label toggles density")
                     color: page.root ? page.root.sumi : "#888888"
                     font.family: page.root ? page.root.mono : "monospace"
                     font.pixelSize: 10
                     elide: Text.ElideRight
                 }
 
-                WidgetRow { modProp: "modStatus";     gid: "G3";  title: "Status" }
-                WidgetRow { modProp: "modMemory";     gid: "G4";  flag: "compactMemory";     title: "Memory" }
-                WidgetRow { modProp: "modCpu";        gid: "G5";  flag: "compactCpu";        title: "CPU" }
-                WidgetRow { modProp: "modVolume";     gid: "G6";  flag: "compactVolume";     title: "Volume" }
-                WidgetRow { modProp: "modClaude";     gid: "G7";  title: "AI Usage" }
-                WidgetRow { modProp: "modWeather";    gid: "G8";  title: "Clock / Weather" }
-                WidgetRow { modProp: "modMpris";      gid: "G9";  flag: "compactMpris";      title: "Now Playing"; offLabel: "Def"; onLabel: "Full" }
-                WidgetRow { modProp: "modQuick";      gid: "G10"; title: "Quick Tools" }
-                WidgetRow { modProp: "modMedia";                  title: "Media" }
-                WidgetRow { modProp: "modNetwork";    gid: "G11"; flag: "compactNetwork";    title: "Network" }
-                WidgetRow { modProp: "modBrightness"; gid: "G13"; flag: "compactBrightness"; title: "Brightness" }
-                WidgetRow { modProp: "modPower";      gid: "G14"; flag: "compactPower";      title: "Power Profile" }
-                WidgetRow { modProp: "modBluetooth";  gid: "G15"; flag: "compactBluetooth";  title: "Bluetooth" }
-                WidgetRow { visible: page.root && page.root.modGpu !== undefined;            modProp: "modGpu";            gid: "G17"; flag: "compactGpu";            title: "GPU" }
-                WidgetRow { visible: page.root && page.root.modCpuTemperature !== undefined; modProp: "modCpuTemperature"; gid: "G16"; flag: "compactCpuTemperature"; title: "CPU Temp" }
-                WidgetRow { visible: page.root && page.root.modStorage !== undefined;        modProp: "modStorage";        gid: "G18"; flag: "compactStorage";        title: "Storage" }
+                WidgetRow { modProp: "modStatus";     gid: "G3";  title: I18n.tr("Status") }
+                WidgetRow { modProp: "modMemory";     gid: "G4";  flag: "compactMemory";     title: I18n.tr("Memory") }
+                WidgetRow { modProp: "modCpu";        gid: "G5";  flag: "compactCpu";        title: I18n.tr("CPU") }
+                WidgetRow { modProp: "modVolume";     gid: "G6";  flag: "compactVolume";     title: I18n.tr("Volume") }
+                WidgetRow { modProp: "modClaude";     gid: "G7";  title: I18n.tr("AI Usage") }
+                WidgetRow { modProp: "modWeather";    gid: "G8";  title: I18n.tr("Clock / Weather") }
+                WidgetRow { modProp: "modMpris";      gid: "G9";  flag: "compactMpris";      title: I18n.tr("Now Playing"); offLabel: "Def"; onLabel: "Full" }
+                WidgetRow { modProp: "modQuick";      gid: "G10"; title: I18n.tr("Quick Tools") }
+                WidgetRow { modProp: "modMedia";                  title: I18n.tr("Media") }
+                WidgetRow { modProp: "modNetwork";    gid: "G11"; flag: "compactNetwork";    title: I18n.tr("Network") }
+                WidgetRow { modProp: "modBrightness"; gid: "G13"; flag: "compactBrightness"; title: I18n.tr("Brightness") }
+                WidgetRow { modProp: "modPower";      gid: "G14"; flag: "compactPower";      title: I18n.tr("Power Profile") }
+                WidgetRow { modProp: "modBluetooth";  gid: "G15"; flag: "compactBluetooth";  title: I18n.tr("Bluetooth") }
+                WidgetRow { visible: page.root && page.root.modGpu !== undefined;            modProp: "modGpu";            gid: "G17"; flag: "compactGpu";            title: I18n.tr("GPU") }
+                WidgetRow { visible: page.root && page.root.modCpuTemperature !== undefined; modProp: "modCpuTemperature"; gid: "G16"; flag: "compactCpuTemperature"; title: I18n.tr("CPU Temp") }
+                WidgetRow { visible: page.root && page.root.modStorage !== undefined;        modProp: "modStorage";        gid: "G18"; flag: "compactStorage";        title: I18n.tr("Storage") }
             }
 
             // AI-usage tool: which coding-agent meter the pill shows. A per-widget
@@ -252,7 +253,7 @@ Item {
             CcSection {
                 width: contentCol.width
                 root: page.root
-                title: "AI USAGE"
+                title: I18n.tr("AI USAGE")
                 visible: page.boolOf("modClaude")
 
                 CcSeg {
@@ -269,7 +270,7 @@ Item {
             CcSection {
                 width: contentCol.width
                 root: page.root
-                title: "TEMPERATURE"
+                title: I18n.tr("TEMPERATURE")
                 visible: page.boolOf("modCpuTemperature")
 
                 CcSeg {
@@ -371,7 +372,7 @@ Item {
                         UiText {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: page.colorLabel.toUpperCase() + " APPEARANCE"
+                            text: page.colorLabel.toUpperCase() + I18n.tr(" APPEARANCE")
                             color: page.root.sumiHi
                             font.family: page.root.mono
                             font.pixelSize: 9
@@ -380,7 +381,7 @@ Item {
                         UiText {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: (page.root.widgetPaletteId(page.colorGid) === "inherit" && !page.root.widgetGeomCustomized(page.colorGid)) ? "INHERIT" : "RESET"
+                            text: (page.root.widgetPaletteId(page.colorGid) === "inherit" && !page.root.widgetGeomCustomized(page.colorGid)) ? I18n.tr("INHERIT") : I18n.tr("RESET")
                             color: resetMa.containsMouse ? page.root.seal : page.root.sumiHi
                             font.family: page.root.mono
                             font.pixelSize: 9
@@ -421,7 +422,7 @@ Item {
                                 Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                                 UiText {
                                     anchors.centerIn: parent
-                                    text: modelData === "foreground" ? "F" : modelData.slice(-1)
+                                    text: modelData === "foreground" ? I18n.tr("F") : modelData.slice(-1)
                                     color: page.root.paletteContrastColor(modelData)
                                     font.family: page.root.mono
                                     font.pixelSize: 8
@@ -461,7 +462,7 @@ Item {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: "Outline"
+                            text: I18n.tr("Outline")
                             color: parent.outlineOn || borderMa.containsMouse ? page.root.seal : page.root.ink
                             font.family: page.root.mono
                             font.pixelSize: 10
@@ -476,7 +477,7 @@ Item {
                         }
                     }
 
-                    // content tone — only meaningful when the group carries a fill
+                    // content tone - only meaningful when the group carries a fill
                     Row {
                         width: parent.width
                         spacing: 4
@@ -501,7 +502,7 @@ Item {
                                 Behavior on color { ColorAnimation { duration: 120 } }
                                 UiText {
                                     anchors.centerIn: parent
-                                    text: modelData.label
+                                    text: I18n.tr(modelData.label)
                                     color: parent.selected ? page.root.seal : page.root.ink
                                     font.family: page.root.mono
                                     font.pixelSize: 9

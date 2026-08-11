@@ -60,7 +60,7 @@ Item {
         return kmap.capsFn === "caps:escape" ? "Esc"
             : kmap.capsFn === "ctrl:nocaps" ? "Ctrl"
             : kmap.capsFn === "caps:swapescape" ? "\u21c4Esc"
-            : kmap.capsFn === "caps:none" ? "\u2014"
+            : kmap.capsFn === "caps:none" ? "-"
             : "Caps";
     }
 

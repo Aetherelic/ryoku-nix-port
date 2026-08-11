@@ -48,7 +48,7 @@ Item {
         anchors.centerIn: parent
         spacing: 4
 
-        // drawn sun — core + rays that grow/brighten with the level
+        // drawn sun - core + rays that grow/brighten with the level
         Item {
             id: sun
             width: 13

@@ -1,5 +1,6 @@
 import QtQuick
 import "../../modules"
+import Ryoku.Ui.Singletons
 
 // The wallpaper-palette accent picker: color01..07 + foreground. Selecting emits
 // `chose(id)`; the caller writes root.barColor. Lifted from the old ControlPanel
@@ -33,7 +34,7 @@ Grid {
 
             UiText {
                 anchors.centerIn: parent
-                text: cell.modelData === "foreground" ? "FG" : cell.modelData.slice(-2)
+                text: cell.modelData === "foreground" ? I18n.tr("FG") : cell.modelData.slice(-2)
                 color: sw.root.paletteContrastColor(cell.modelData)
                 font.family: sw.root.mono
                 font.pixelSize: 9

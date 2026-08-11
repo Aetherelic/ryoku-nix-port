@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../../../../components"
 import shell.services
+import Ryoku.Ui.Singletons
 
 // Shared rail bar-widget button. Parity geometry (contract 02 sec 2, contract 04
 // sec 2.1): on a vertical bar (left/right) 48x36, on a horizontal bar
@@ -82,7 +83,7 @@ Item {
 
         Text {
             visible: root.label.length > 0
-            text: root.label
+            text: I18n.tr(root.label)
             horizontalAlignment: Text.AlignHCenter
             color: root.iconColor
             lineHeightMode: root.labelLineHeight > 0 ? Text.FixedHeight : Text.ProportionalHeight

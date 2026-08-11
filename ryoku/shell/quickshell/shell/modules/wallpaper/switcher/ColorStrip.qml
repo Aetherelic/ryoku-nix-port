@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
+import Ryoku.Ui.Singletons
 
 // Colour filter: one rounded swatch per hue group present, led by an ALL chip
 // that clears the filter. The pick wears a primary ring; hover lightens; the
@@ -35,7 +36,7 @@ Item {
             Text {
                 id: allTxt
                 anchors.centerIn: parent
-                text: "All"
+                text: I18n.tr("All")
                 color: all.on ? Theme.seal : Theme.onSurface
                 font.family: Theme.mono
                 font.pixelSize: Math.round(11 * strip.s)

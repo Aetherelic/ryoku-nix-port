@@ -48,7 +48,7 @@ Item {
                     spacing: 1
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
-                        text: "RYOPORT"; color: Tokens.ink; font.family: Tokens.ui
+                        text: I18n.tr("RYOPORT"); color: Tokens.ink; font.family: Tokens.ui
                         font.pixelSize: 14; font.weight: Font.Medium; font.letterSpacing: 2.4
                     }
                     Text {
@@ -195,7 +195,7 @@ Item {
         Barcode {
             id: plate
             anchors { left: parent.left; bottom: parent.bottom }
-            text: "RYOPORT"
+            text: I18n.tr("RYOPORT")
             unit: 1.1
             barHeight: 14
         }

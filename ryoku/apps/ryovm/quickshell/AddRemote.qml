@@ -119,7 +119,7 @@ Item {
                 spacing: Tokens.s2
                 Text { text: "//"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fMicro; anchors.verticalCenter: parent.verticalCenter }
                 Text {
-                    text: (sheet.editing ? "EDIT" : "NEW") + " CONNECTION"
+                    text: (sheet.editing ? I18n.tr("EDIT") : I18n.tr("NEW")) + I18n.tr(" CONNECTION")
                     color: Tokens.ink
                     font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
                     font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
@@ -153,21 +153,21 @@ Item {
                     Column {
                         width: (fields.width - Tokens.s3) * 0.5
                         spacing: 4
-                        LabelText { text: "ALIAS" }
+                        LabelText { text: I18n.tr("ALIAS") }
                         Field { id: aliasF; width: parent.width; tabular: true; placeholder: "vps-fra" }
                     }
                     Column {
                         width: (fields.width - Tokens.s3) * 0.5
                         spacing: 4
-                        LabelText { text: "GROUP" }
-                        Field { id: groupF; width: parent.width; tabular: true; placeholder: "Production" }
+                        LabelText { text: I18n.tr("GROUP") }
+                        Field { id: groupF; width: parent.width; tabular: true; placeholder: I18n.tr("Production") }
                     }
                 }
                 Column {
                     width: parent.width
                     spacing: 4
-                    LabelText { text: "HOST" }
-                    Field { id: hostF; width: parent.width; tabular: true; placeholder: "203.0.113.9 or box.example.com" }
+                    LabelText { text: I18n.tr("HOST") }
+                    Field { id: hostF; width: parent.width; tabular: true; placeholder: I18n.tr("203.0.113.9 or box.example.com") }
                 }
                 Row {
                     width: parent.width
@@ -175,31 +175,31 @@ Item {
                     Column {
                         width: (fields.width - Tokens.s3) * 0.66
                         spacing: 4
-                        LabelText { text: "USER" }
+                        LabelText { text: I18n.tr("USER") }
                         Field { id: userF; width: parent.width; tabular: true; placeholder: "root" }
                     }
                     Column {
                         width: (fields.width - Tokens.s3) * 0.34
                         spacing: 4
-                        LabelText { text: "PORT" }
+                        LabelText { text: I18n.tr("PORT") }
                         Field { id: portF; width: parent.width; tabular: true; placeholder: "22" }
                     }
                 }
                 Column {
                     width: parent.width
                     spacing: 4
-                    LabelText { text: "IDENTITY FILE" }
-                    Field { id: keyF; width: parent.width; tabular: true; placeholder: "~/.ssh/id_ed25519 (optional)" }
+                    LabelText { text: I18n.tr("IDENTITY FILE") }
+                    Field { id: keyF; width: parent.width; tabular: true; placeholder: I18n.tr("~/.ssh/id_ed25519 (optional)") }
                 }
                 Column {
                     width: parent.width
                     spacing: 4
                     Row {
                         spacing: Tokens.s2
-                        LabelText { text: "PASSWORD"; anchors.verticalCenter: parent.verticalCenter }
+                        LabelText { text: I18n.tr("PASSWORD"); anchors.verticalCenter: parent.verticalCenter }
                         Text {
                             visible: sheet.hadPassword
-                            text: sheet.clearPassword ? "· clears on save" : "· saved — ✕ forget"
+                            text: sheet.clearPassword ? I18n.tr("· clears on save") : I18n.tr("· saved - ✕ forget")
                             color: sheet.clearPassword ? Tokens.ink : Tokens.inkFaint
                             font.family: Tokens.mono; font.pixelSize: 9; font.letterSpacing: 1.0
                             anchors.verticalCenter: parent.verticalCenter
@@ -211,38 +211,38 @@ Item {
                     }
                     Field {
                         id: pwF; width: parent.width; tabular: true; secret: true
-                        placeholder: sheet.hadPassword ? "type to replace the saved password" : "optional — stored in your keyring"
+                        placeholder: sheet.hadPassword ? I18n.tr("type to replace the saved password") : I18n.tr("optional - stored in your keyring")
                     }
                 }
                 Column {
                     width: parent.width
                     spacing: 4
-                    LabelText { text: "PROXY JUMP" }
-                    Field { id: jumpF; width: parent.width; tabular: true; placeholder: "bastion.example.com (optional)" }
+                    LabelText { text: I18n.tr("PROXY JUMP") }
+                    Field { id: jumpF; width: parent.width; tabular: true; placeholder: I18n.tr("bastion.example.com (optional)") }
                 }
                 Column {
                     width: parent.width
                     spacing: 4
-                    LabelText { text: "TAGS" }
-                    Field { id: tagsF; width: parent.width; tabular: true; placeholder: "web, eu (comma separated)" }
+                    LabelText { text: I18n.tr("TAGS") }
+                    Field { id: tagsF; width: parent.width; tabular: true; placeholder: I18n.tr("web, eu (comma separated)") }
                 }
                 Column {
                     width: parent.width
                     spacing: 4
-                    LabelText { text: "WATCH SERVICES" }
-                    Field { id: watchF; width: parent.width; tabular: true; placeholder: "nginx, postgresql (probe reports each)" }
+                    LabelText { text: I18n.tr("WATCH SERVICES") }
+                    Field { id: watchF; width: parent.width; tabular: true; placeholder: I18n.tr("nginx, postgresql (probe reports each)") }
                 }
                 Column {
                     width: parent.width
                     spacing: 4
-                    LabelText { text: "APPS" }
+                    LabelText { text: I18n.tr("APPS") }
                     Field { id: appsF; width: parent.width; tabular: true; placeholder: "grafana=http://host:3000, proxmox=https://host:8006" }
                 }
                 Column {
                     width: parent.width
                     spacing: 4
-                    LabelText { text: "NOTES" }
-                    Field { id: notesF; width: parent.width; placeholder: "what this box is for (optional)" }
+                    LabelText { text: I18n.tr("NOTES") }
+                    Field { id: notesF; width: parent.width; placeholder: I18n.tr("what this box is for (optional)") }
                 }
                 Rectangle { width: parent.width; height: 1; color: Tokens.lineSoft }
                 Row {
@@ -251,14 +251,14 @@ Item {
                     Column {
                         width: (fields.width - Tokens.s3) * 0.5
                         spacing: 4
-                        LabelText { text: "PROXMOX URL" }
+                        LabelText { text: I18n.tr("PROXMOX URL") }
                         Field { id: pveUrlF; width: parent.width; tabular: true; placeholder: "https://host:8006" }
                     }
                     Column {
                         width: (fields.width - Tokens.s3) * 0.5
                         spacing: 4
-                        LabelText { text: "PROXMOX TOKEN" }
-                        Field { id: pveTokenF; width: parent.width; tabular: true; placeholder: "user@pam!id=secret" }
+                        LabelText { text: I18n.tr("PROXMOX TOKEN") }
+                        Field { id: pveTokenF; width: parent.width; tabular: true; placeholder: I18n.tr("user@pam!id=secret") }
                     }
                 }
             }
@@ -273,15 +273,15 @@ Item {
                 visible: sheet.spaced
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Alias and host must be a single token, no spaces."
+                text: I18n.tr("Alias and host must be a single token, no spaces.")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui; font.pixelSize: 11
             }
             Row {
                 anchors.right: parent.right
                 spacing: Tokens.s2
-                Btn { text: "CANCEL"; onAct: sheet.closed() }
-                Btn { text: "SAVE"; primary: true; armed: sheet.valid; onAct: sheet.save() }
+                Btn { text: I18n.tr("CANCEL"); onAct: sheet.closed() }
+                Btn { text: I18n.tr("SAVE"); primary: true; armed: sheet.valid; onAct: sheet.save() }
             }
         }
     }

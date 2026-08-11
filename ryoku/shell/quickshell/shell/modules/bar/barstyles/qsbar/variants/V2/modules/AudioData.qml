@@ -1,14 +1,14 @@
 import QtQuick
 import Quickshell.Services.Pipewire
 
-// Default-sink volume / mute, read natively from PipeWire — event-driven, no
+// Default-sink volume / mute, read natively from PipeWire - event-driven, no
 // subprocess. Replaces the old 3s `pactl` bash poll (the bar's most frequent
 // idle fork). PipeWire pushes changes, so `volume`/`muted` update instantly.
 //
 // Public API kept identical so AudioWidget + VolumePanel need no changes:
 //   volume (0-100), muted, refresh(), poll, interval.
 // refresh()/poll/interval are now inert (event-driven, nothing to poll).
-// portType was dropped — both consumers read it but never rendered it.
+// portType was dropped - both consumers read it but never rendered it.
 Item {
     id: audio
 

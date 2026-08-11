@@ -75,9 +75,9 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             width: parent.width
             wrapMode: Text.WordWrap
-            text: Vm.vmsLoading ? "Loading your machines"
-                : (g.filter.length > 0 ? "No machines match"
-                : "No machines yet.")
+            text: Vm.vmsLoading ? I18n.tr("Loading your machines")
+                : (g.filter.length > 0 ? I18n.tr("No machines match")
+                : I18n.tr("No machines yet."))
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: 12
@@ -86,7 +86,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !Vm.vmsLoading && g.filter.length === 0
             primary: true
-            text: "OPEN CATALOG"
+            text: I18n.tr("OPEN CATALOG")
             onAct: g.buildRequested()
         }
     }

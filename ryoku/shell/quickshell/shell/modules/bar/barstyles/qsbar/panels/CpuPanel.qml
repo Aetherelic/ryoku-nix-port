@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: cpuPanel
@@ -79,7 +80,7 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "CPU \u00B7 GPU"
+                    text: I18n.tr("CPU \u00B7 GPU")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -112,7 +113,7 @@ PanelWindow {
                 UiText {
                     id: cpuLbl
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "CPU"; color: root.sumiHi
+                    text: I18n.tr("CPU"); color: root.sumiHi
                     font.family: root.mono; font.pixelSize: 11; font.letterSpacing: 1
                 }
                 UiText {
@@ -179,13 +180,13 @@ PanelWindow {
                 width: parent.width
                 visible: cpuPanel.hasGpu && cpuPanel.gpuTemp > 0
                 UiText {
-                    text: "Temperature"
+                    text: I18n.tr("Temperature")
                     color: root.sumiHi
                     font.family: root.mono; font.pixelSize: 11
                     width: parent.width * 0.4
                 }
                 UiText {
-                    text: cpuPanel.gpuTemp + "\u00B0C"
+                    text: cpuPanel.gpuTemp + I18n.tr("\u00B0C")
                     color: root.ink
                     font.family: root.mono; font.pixelSize: 11
                     width: parent.width * 0.3
@@ -196,13 +197,13 @@ PanelWindow {
                 width: parent.width
                 visible: cpuPanel.hasGpu && cpuPanel.gpuMemTotal > 0
                 UiText {
-                    text: "VRAM"
+                    text: I18n.tr("VRAM")
                     color: root.sumiHi
                     font.family: root.mono; font.pixelSize: 11
                     width: parent.width * 0.4
                 }
                 UiText {
-                    text: cpuPanel.gpuMemUsed + " / " + cpuPanel.gpuMemTotal + " MiB"
+                    text: cpuPanel.gpuMemUsed + " / " + cpuPanel.gpuMemTotal + I18n.tr(" MiB")
                     color: root.ink
                     font.family: root.mono; font.pixelSize: 11
                     width: parent.width * 0.3
@@ -219,7 +220,7 @@ PanelWindow {
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
-                    text: "Open btop"
+                    text: I18n.tr("Open btop")
                     color: root.paper
                     font.family: root.mono; font.pixelSize: 11
                 }

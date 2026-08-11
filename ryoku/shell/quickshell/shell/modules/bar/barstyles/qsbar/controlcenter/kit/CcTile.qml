@@ -1,5 +1,6 @@
 import QtQuick
 import "../../modules"
+import Ryoku.Ui.Singletons
 
 // A thin action row (Shibumi ActionTile 1:1): leading icon glyph, label, detail.
 // Neutral at rest AND on hover; accent only when `active`. Colours from root.
@@ -45,7 +46,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0
             UiText {
-                text: tile.label
+                text: I18n.tr(tile.label)
                 color: tile.active ? tile.accent : (tile.root ? tile.root.ink : "#cccccc")
                 font.family: tile.root ? tile.root.mono : "monospace"
                 font.pixelSize: 12

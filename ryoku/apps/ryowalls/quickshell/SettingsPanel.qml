@@ -55,7 +55,7 @@ Item {
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "SETTINGS"
+                    text: I18n.tr("SETTINGS")
                     color: Tokens.ink
                     font.family: Tokens.ui
                     font.pixelSize: 11
@@ -73,11 +73,11 @@ Item {
             Column {
                 width: parent.width
                 spacing: Tokens.s2
-                Text { text: "Wallhaven API key"; color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
+                Text { text: I18n.tr("Wallhaven API key"); color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
                 Field {
                     width: parent.width
                     tabular: true
-                    placeholder: "paste your key"
+                    placeholder: I18n.tr("paste your key")
                     text: Wallhaven.settings.apiKey
                     onEdited: (v) => Wallhaven.settings.apiKey = v
                     onCommitted: Wallhaven.saveSettings()
@@ -85,7 +85,7 @@ Item {
                 Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: "Optional, from wallhaven.cc/settings/account. Raises rate limits and unlocks NSFW."
+                    text: I18n.tr("Optional, from wallhaven.cc/settings/account. Raises rate limits and unlocks NSFW.")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: 12
@@ -95,7 +95,7 @@ Item {
             Item {
                 width: parent.width
                 height: 24
-                Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Show NSFW"; color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
+                Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Show NSFW"); color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
                 Sw {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -118,11 +118,11 @@ Item {
             Column {
                 width: parent.width
                 spacing: Tokens.s2
-                Text { text: "Wallpaper libraries"; color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
+                Text { text: I18n.tr("Wallpaper libraries"); color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
                 Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: "Add any GitHub repo of wallpapers, then pick it from the SOURCE drawer. Accepts owner/repo, owner/repo@branch, or a github.com URL."
+                    text: I18n.tr("Add any GitHub repo of wallpapers, then pick it from the SOURCE drawer. Accepts owner/repo, owner/repo@branch, or a github.com URL.")
                     color: Tokens.inkMuted
                     font.family: Tokens.ui
                     font.pixelSize: 12
@@ -131,7 +131,7 @@ Item {
                     id: addLib
                     width: parent.width
                     tabular: true
-                    placeholder: "owner/repo@branch"
+                    placeholder: I18n.tr("owner/repo@branch")
                     onCommitted: (v) => { if (v.trim().length > 0) { Wallhaven.addLibrary(v); addLib.clear(); } }
                 }
                 Flickable {
@@ -172,7 +172,7 @@ Item {
                                     anchors.rightMargin: Tokens.s2
                                     anchors.verticalCenter: parent.verticalCenter
                                     compact: true
-                                    text: "REMOVE"
+                                    text: I18n.tr("REMOVE")
                                     onAct: Wallhaven.removeLibrary(modelData.repo)
                                 }
                                 HoverHandler { id: lh }
@@ -183,7 +183,7 @@ Item {
                 Text {
                     width: parent.width
                     visible: Wallhaven.libraries.length === 0
-                    text: "No libraries added yet."
+                    text: I18n.tr("No libraries added yet.")
                     color: Tokens.inkFaint
                     font.family: Tokens.ui
                     font.pixelSize: 12
@@ -199,13 +199,13 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
-                    Text { text: "Downloads"; color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
-                    Text { text: "~/Pictures/Wallpapers"; color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 11 }
+                    Text { text: I18n.tr("Downloads"); color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 13; font.weight: Font.Medium }
+                    Text { text: I18n.tr("~/Pictures/Wallpapers"); color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: 11 }
                 }
                 Btn {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "OPEN"
+                    text: I18n.tr("OPEN")
                     onAct: Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/Pictures/Wallpapers"])
                 }
             }

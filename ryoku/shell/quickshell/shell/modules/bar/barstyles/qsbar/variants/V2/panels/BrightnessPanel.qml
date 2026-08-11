@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import "../RyokuPower.js" as RyokuPower
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: briPanel
@@ -107,7 +108,7 @@ PanelWindow {
                 height: 24
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "Brightness"
+                    text: I18n.tr("Brightness")
                     color: root.ink; font.family: root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }

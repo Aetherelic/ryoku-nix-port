@@ -1,4 +1,5 @@
 import QtQuick
+import Ryoku.Ui.Singletons
 
 // A small circular direction picker for the drop-shadow angle. 0 deg points
 // right, 90 points down (screen coordinates), so the handle sits where the
@@ -19,7 +20,7 @@ Item {
     Text {
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
-        text: dial.label
+        text: I18n.tr(dial.label)
         color: dial.idle
         font.family: "Space Grotesk"
         font.pixelSize: 12

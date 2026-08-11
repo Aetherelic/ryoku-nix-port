@@ -47,8 +47,8 @@ Item {
             width: flick.width
             spacing: Tokens.s3
 
-            Group { title: "Popular"; entries: g.popular; visible: g.popular.length > 0 }
-            Group { title: g.popular.length > 0 ? "All systems" : ""; entries: g.rest; visible: g.rest.length > 0 }
+            Group { title: I18n.tr("Popular"); entries: g.popular; visible: g.popular.length > 0 }
+            Group { title: g.popular.length > 0 ? I18n.tr("All systems") : ""; entries: g.rest; visible: g.rest.length > 0 }
         }
     }
 
@@ -64,10 +64,10 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             width: parent.width
             wrapMode: Text.WordWrap
-            text: Vm.catalogLoading ? "Fetching the OS catalogue"
-                : (Vm.caps.quickget !== true ? "The catalogue needs the engine (quickget): install it and the 90+ systems appear here."
+            text: Vm.catalogLoading ? I18n.tr("Fetching the OS catalogue")
+                : (Vm.caps.quickget !== true ? I18n.tr("The catalogue needs the engine (quickget): install it and the 90+ systems appear here.")
                 : (Vm.catalogError.length > 0 ? Vm.catalogError
-                : (g.filter.length > 0 ? "No systems match" : "No catalogue")))
+                : (g.filter.length > 0 ? I18n.tr("No systems match") : I18n.tr("No catalogue"))))
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: 12
@@ -76,13 +76,13 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !Vm.catalogLoading && Vm.caps.quickget !== true
             primary: true
-            text: "INSTALL ENGINE"
+            text: I18n.tr("INSTALL ENGINE")
             onAct: g.installRequested()
         }
         Btn {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !Vm.catalogLoading && Vm.caps.quickget === true && Vm.catalogError.length > 0
-            text: "RETRY"
+            text: I18n.tr("RETRY")
             onAct: Vm.loadCatalog(true)
         }
     }

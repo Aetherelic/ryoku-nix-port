@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import Quickshell
+import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -17,12 +18,12 @@ Item {
     NumberAnimation on phase {
         from: 0; to: 2 * Math.PI
         duration: 2600; loops: Animation.Infinite
-        // gate: only animate while hovered or control panel open — otherwise the
+        // gate: only animate while hovered or control panel open - otherwise the
         // Canvas repainted 24/7 via onPhaseChanged even when nobody looks
         running: ma.containsMouse || root.controlVisible
     }
 
-    // shadow as a SIBLING of the pill (the pill itself clips, for the wave —
+    // shadow as a SIBLING of the pill (the pill itself clips, for the wave -
     // a shadow child would be clipped away). rootMod doesn't clip, so this shows.
     RectangularShadow {
         anchors.fill: pill
@@ -105,7 +106,7 @@ Item {
     Text {
         id: logo
         anchors.centerIn: parent
-        text: root.launcherLogoMode === "icon" ? "力" : "RYOKU"
+        text: root.launcherLogoMode === "icon" ? "力" : I18n.tr("RYOKU")
         color: root.seal
         renderType: Text.NativeRendering
         font.family: root.launcherLogoMode === "icon" ? "Noto Sans CJK JP" : root.mono

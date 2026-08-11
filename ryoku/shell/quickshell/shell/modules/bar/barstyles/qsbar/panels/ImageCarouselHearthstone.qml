@@ -4,8 +4,9 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
 import "ImagePickerModel.js" as Model
+import Ryoku.Ui.Singletons
 
-// Hearthstone (card-deck) variant — original felt look (dark table, dark card
+// Hearthstone (card-deck) variant - original felt look (dark table, dark card
 // frame, fanned cards dealt via GPU transforms) on top of the SAME fast data
 // layer as the Tanzaku picker: fast glob scan, cached 512px thumbnails, niced
 // pre-warm, lazy author/palette meta. Active only while pickerStyle=="hearthstone".
@@ -440,7 +441,7 @@ PanelWindow {
         visible: root.imagePickerVisible && panel.active && panel.ready && panel.filtered.length === 0
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
-        text: "No matches: " + panel.filterText + "\n\nBackspace to edit, or Esc to clear"
+        text: I18n.tr("No matches: ") + panel.filterText + I18n.tr("\n\nBackspace to edit, or Esc to clear")
         color: root.ink
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -449,8 +450,8 @@ PanelWindow {
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: panel.scanDone
-              ? (panel.isThemeMode ? "No themes found" : "No wallpapers found") + "\n\nEsc or click to close"
-              : "Loading…"
+              ? (panel.isThemeMode ? I18n.tr("No themes found") : I18n.tr("No wallpapers found")) + I18n.tr("\n\nEsc or click to close")
+              : I18n.tr("Loading…")
         color: panel.textLight
         font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
@@ -461,7 +462,7 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top; anchors.topMargin: 40
         opacity: panel.reveal
-        text: (panel.isThemeMode ? "THEME" : "WALLPAPER") + "      " + (panel.selFilt + 1) + " / " + panel.filtered.length
+        text: (panel.isThemeMode ? I18n.tr("THEME") : I18n.tr("WALLPAPER")) + "      " + (panel.selFilt + 1) + " / " + panel.filtered.length
         color: panel.textDim
         font.family: root.mono; font.pixelSize: 12; font.letterSpacing: 2
     }
@@ -532,7 +533,7 @@ PanelWindow {
                 Behavior on rotation { enabled: panel.dealSettled; NumberAnimation { duration: panel.cardMotionDuration; easing.type: Easing.OutCubic } }
                 Behavior on scale    { enabled: panel.dealSettled; NumberAnimation { duration: panel.cardMotionDuration; easing.type: Easing.OutCubic } }
 
-                // photo (raster) — its edges are hidden behind the passepartout's
+                // photo (raster) - its edges are hidden behind the passepartout's
                 // crisp Shape inner edge, so no rotated raster edge ever shows
                 Item {
                     anchors.fill: parent
@@ -568,7 +569,7 @@ PanelWindow {
                     }
                     Text {
                         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 12 }
-                        text: card.entry ? card.entry.label : ""
+                        text: card.entry ? I18n.tr(card.entry.label) : ""
                         color: panel.textLight
                         font.family: root.mono; font.pixelSize: 13; font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
@@ -579,7 +580,7 @@ PanelWindow {
                         Behavior on opacity { NumberAnimation { duration: 180 } }
                     }
                 }
-                // passepartout — rounded outer + rounded inner hole (OddEven), drawn
+                // passepartout - rounded outer + rounded inner hole (OddEven), drawn
                 // OVER the photo; only its CurveRenderer edges are visible → crisp
                 // rounded card AND crisp rounded photo cut-out, even when rotated
                 Shape {
@@ -617,7 +618,7 @@ PanelWindow {
                         PathLine { x: frameShape.m; y: frameShape.m + frameShape.ri }
                         PathArc  { x: frameShape.m + frameShape.ri; y: frameShape.m; radiusX: frameShape.ri; radiusY: frameShape.ri }
                     }
-                    // focus accent — OUTER outline only (one border, not two)
+                    // focus accent - OUTER outline only (one border, not two)
                     ShapePath {
                         fillColor: "transparent"
                         strokeColor: card.focused ? root.seal : "transparent"
@@ -693,7 +694,7 @@ PanelWindow {
             Text {
                 visible: panel.sel && panel.sel.current
                 anchors.verticalCenter: parent.verticalCenter
-                text: "● current"
+                text: I18n.tr("● current")
                 color: root.seal
                 font.family: root.mono; font.pixelSize: 11
             }
@@ -724,7 +725,7 @@ PanelWindow {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "← →  scroll navigate     Enter apply     Esc cancel     type to filter"
+            text: I18n.tr("← →  scroll navigate     Enter apply     Esc cancel     type to filter")
             color: panel.textDim
             font.family: root.mono; font.pixelSize: 11
             horizontalAlignment: Text.AlignHCenter

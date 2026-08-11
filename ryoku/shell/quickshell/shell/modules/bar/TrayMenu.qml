@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import shell.services
 import "../../components"
+import Ryoku.Ui.Singletons
 
 // In-shell context menu for a system-tray item. Right-clicking a tray icon draws
 // the item's own dbusmenu here, rendered and driven by the shell, instead of
@@ -277,8 +278,8 @@ Item {
                                     anchors.leftMargin: row.indent
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: row.toggleType === "radio"
-                                        ? (row.toggled ? "radio_button_checked" : "radio_button_unchecked")
-                                        : (row.toggled ? "check_box" : "check_box_outline_blank")
+                                        ? (row.toggled ? I18n.tr("radio_button_checked") : I18n.tr("radio_button_unchecked"))
+                                        : (row.toggled ? "check_box" : I18n.tr("check_box_outline_blank"))
                                     fill: row.toggled ? 1 : 0
                                     font.pixelSize: Theme.iconSm * root.scale
                                     color: !row.rowEnabled
@@ -310,7 +311,7 @@ Item {
                                     anchors.right: parent.right
                                     anchors.rightMargin: row.hasKids ? row.chevW : 10 * root.scale
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: row.label
+                                    text: I18n.tr(row.label)
                                     elide: Text.ElideRight
                                     color: row.rowEnabled ? Theme.onSurface
                                         : Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.38)

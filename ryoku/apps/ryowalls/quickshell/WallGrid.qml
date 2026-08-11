@@ -62,11 +62,11 @@ Item {
         Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
         code: "WALL-02"
         title: Wallhaven.searching ? "検索" : (Wallhaven.error.length > 0 ? "圏外" : "無")
-        sub: Wallhaven.searching ? "SEARCHING" : (Wallhaven.error.length > 0 ? "NO SIGNAL" : "NO WALLPAPERS")
-        quote: Wallhaven.searching ? "Fetching the latest wallpapers."
+        sub: Wallhaven.searching ? I18n.tr("SEARCHING") : (Wallhaven.error.length > 0 ? I18n.tr("NO SIGNAL") : I18n.tr("NO WALLPAPERS"))
+        quote: Wallhaven.searching ? I18n.tr("Fetching the latest wallpapers.")
             : (Wallhaven.error.length > 0 ? Wallhaven.error
-            : (Wallhaven.source === "live" ? "No live wallpapers yet — add an MP4 to begin."
-            : "Nothing here yet. Search above, or switch the source."))
+            : (Wallhaven.source === "live" ? I18n.tr("No live wallpapers yet - add an MP4 to begin.")
+            : I18n.tr("Nothing here yet. Search above, or switch the source.")))
         tate: "壁を探す"
         seal: "壁"
         art: "aurelius.png"
@@ -76,7 +76,7 @@ Item {
     // MoeWalls only serves its ~720p preview loops (soft on a large screen), and
     // the exact size varies per clip, so instead of a per-tile number (a hardcoded
     // one made Enhance read as broken) the source carries one honest note, in the
-    // house emphasis grammar — a bone plate, black ink, no red — pointing at the
+    // house emphasis grammar - a bone plate, black ink, no red - pointing at the
     // Enhance that upscales the pick.
     Rectangle {
         id: moeNote
@@ -95,7 +95,7 @@ Item {
             anchors.rightMargin: Tokens.s3
             anchors.verticalCenter: parent.verticalCenter
             wrapMode: Text.WordWrap
-            text: "MoeWalls shows ~720p preview loops — soft on a large screen. Pick one and use Enhance (GRADE tab) to upscale it on the GPU."
+            text: I18n.tr("MoeWalls shows ~720p preview loops - soft on a large screen. Pick one and use Enhance (GRADE tab) to upscale it on the GPU.")
             color: Tokens.inkOnBone
             font.family: Tokens.ui
             font.pixelSize: 11

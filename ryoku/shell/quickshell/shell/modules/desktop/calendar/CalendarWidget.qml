@@ -6,6 +6,7 @@ import "../../../services/lib/calendar.js" as CalendarModel
 import ".."
 import "../Singletons"
 import shell.services as Svc
+import Ryoku.Ui.Singletons
 
 Item {
     id: root
@@ -141,7 +142,7 @@ Item {
                     Accessible.name: modelData.name
                     Text {
                         anchors.centerIn: parent
-                        text: modelData.label
+                        text: I18n.tr(modelData.label)
                         color: root.paper && (navHover.hovered || parent.activeFocus) ? Theme.surface : Theme.ink
                         font.family: Theme.font
                         font.pixelSize: modelData.delta === 0 ? 10 * root.s : 18 * root.s

@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Bluetooth
 import "../../shared/Singletons"
+import Ryoku.Ui.Singletons
 
 // Live Bluetooth bubbles for the palette: one compact card per CONNECTED
 // device, floating detached under the launcher window, the Android quick-pair
@@ -140,7 +141,7 @@ Flow {
                 anchors.rightMargin: 13 * root.s
                 text: card.modelData
                     ? (card.modelData.deviceName || card.modelData.name || card.modelData.address || "Unknown")
-                    : "Unknown"
+                    : I18n.tr("Unknown")
                 color: Theme.bright
                 font.family: Theme.font
                 font.pixelSize: 13 * root.s

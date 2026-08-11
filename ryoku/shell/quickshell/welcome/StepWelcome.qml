@@ -14,9 +14,9 @@ Column {
     Text {
         width: parent.width
         wrapMode: Text.WordWrap
-        text: "You've arrived. " + Theme.brandName + " is a single, hand-built desktop \u2014 one bar, one "
-            + "launcher, one control plane \u2014 carved on Arch and Hyprland. This is a "
-            + "two-minute tour of where things live and how to make it yours."
+        text: I18n.tr("You've arrived. ") + Theme.brandName + I18n.tr(" is a single, hand-built desktop - one bar, one ")
+            + I18n.tr("launcher, one control plane - carved on Arch and Hyprland. This is a ")
+            + I18n.tr("two-minute tour of where things live and how to make it yours.")
         color: Tokens.inkDim
         font.family: Tokens.ui
         font.pixelSize: Tokens.fRow
@@ -29,7 +29,7 @@ Column {
 
         Repeater {
             model: [
-                "One shell, one look \u2014 the bar, panels, and launcher all speak the same language.",
+                "One shell, one look - the bar, panels, and launcher all speak the same language.",
                 "Your colours follow your wallpaper, automatically.",
                 "Every choice lives in Ryoku Settings, a keystroke away."
             ]

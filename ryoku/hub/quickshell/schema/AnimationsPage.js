@@ -82,7 +82,7 @@ var rows = [
         "label": "Curve (selector)",
         "desc": "Picks which curve the editor edits; the choice itself is not saved",
         "ctl": "pick",
-        "src": "(none \u2014 transient page state: page.selectedCurve)",
+        "src": "(none - transient page state: page.selectedCurve)",
         "opts": [
             "ryokuWobble",
             "dynamic-cursors-magnification",

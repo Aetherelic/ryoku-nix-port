@@ -30,7 +30,7 @@ var rows = [
         "label": "Password",
         "desc": "WPA2 key for joining; entries under 8 characters are silently dropped",
         "ctl": "text",
-        "src": "RyokuHotspot.nmconnection (written via `nmcli connection add|modify`, read back via `nmcli -t -s -g \u2026802-11-wireless-security.psk connection show RyokuHotspot` \u2014 the -s secrets flag is required)",
+        "src": "RyokuHotspot.nmconnection (written via `nmcli connection add|modify`, read back via `nmcli -t -s -g \u2026802-11-wireless-security.psk connection show RyokuHotspot` - the -s secrets flag is required)",
         "lo": 8.0,
         "unit": "characters"
     }

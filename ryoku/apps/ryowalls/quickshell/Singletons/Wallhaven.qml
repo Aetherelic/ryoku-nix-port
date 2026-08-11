@@ -92,7 +92,7 @@ Singleton {
     property real enhanceFrac: 0
     // the verdict line enhance prints on exit: what was measured (px) against
     // which threshold (cap), so a skip can say why. 0/"" on an engine too old
-    // to print one — the panel then falls back to a generic explanation.
+    // to print one - the panel then falls back to a generic explanation.
     property string enhanceKind: ""      // image|video
     property int enhancePx: 0
     property int enhanceCap: 0
@@ -100,7 +100,7 @@ Singleton {
     property bool _enhanceAfterDl: false
     // the pick the running enhance belongs to: a run can outlive its selection
     // (a download-then-enhance, or minutes of frame-by-frame work), and its
-    // verdict must not pin itself — numbers, hidden button and all — under a
+    // verdict must not pin itself - numbers, hidden button and all - under a
     // wallpaper it never touched.
     property var _enhItem: null
     function _enhReset() {
@@ -171,7 +171,7 @@ Singleton {
             } else {
                 // "done" fades after a moment; a skip or a failure stays put until
                 // the pick changes, so the reason is on screen whenever the user
-                // looks. The bar's fraction is zeroed for them — a frozen 60% bar
+                // looks. The bar's fraction is zeroed for them - a frozen 60% bar
                 // under a failure note reads as a hang, not an explanation.
                 root.enhancePhase = phase;
                 if (phase === "done") root._enhClear.restart();
@@ -180,7 +180,7 @@ Singleton {
             // a finished enhance is new bits on disk (a crisp .mp4 beside the
             // source, or the image itself): the Live and Local grids list from
             // disk, so refresh them or the result stays invisible until the app
-            // reopens. reload() re-picks the newest file — the fresh enhance —
+            // reopens. reload() re-picks the newest file - the fresh enhance -
             // and the toast keeps the confirmation through that selection change.
             if (code === 0 && (root.source === "live" || root.source === "local")) {
                 root.status = "Enhanced";

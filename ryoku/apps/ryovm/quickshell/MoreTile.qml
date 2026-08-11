@@ -33,7 +33,7 @@ Item {
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: "MORE →"
+                text: I18n.tr("MORE →")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui; font.pixelSize: 10
                 font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel

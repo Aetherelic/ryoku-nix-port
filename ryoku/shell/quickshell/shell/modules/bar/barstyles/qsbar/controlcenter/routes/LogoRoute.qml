@@ -1,8 +1,9 @@
 import QtQuick
 import "../kit"
 import "../../modules"
+import Ryoku.Ui.Singletons
 
-// Logo route — choose the launcher mark shown on the bar. The one real qsbar
+// Logo route - choose the launcher mark shown on the bar. The one real qsbar
 // knob: root.launcherLogoMode = "text" (RYOKU wordmark) | "icon" (力 kanji).
 // Two selectable preview cards each render the ACTUAL launcher pill (see
 // modules/LauncherWidget.qml), so the choice is live and honest.
@@ -28,11 +29,11 @@ Item {
             CcSection {
                 width: parent.width
                 root: page.root
-                title: "LAUNCHER MARK"
+                title: I18n.tr("LAUNCHER MARK")
 
                 UiText {
                     width: parent.width
-                    text: "Pick the mark shown in the bar launcher pill."
+                    text: I18n.tr("Pick the mark shown in the bar launcher pill.")
                     color: page.root ? page.root.sumi : "#888888"
                     font.family: page.root ? page.root.mono : "monospace"
                     font.pixelSize: 11
@@ -101,7 +102,7 @@ Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.bottom: parent.bottom
                                 anchors.bottomMargin: 14
-                                text: markCard.modelData.label
+                                text: I18n.tr(markCard.modelData.label)
                                 color: page.root
                                     ? (markCard.selected ? page.root.seal : page.root.ink)
                                     : "#cccccc"

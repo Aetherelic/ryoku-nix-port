@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Wayland
 import shell.services
+import Ryoku.Ui.Singletons
 
 // Themed system-tray context menu, rendered from the daemon's dbusmenu tree so
 // it matches the bar. The daemon (Tray) is the StatusNotifier host: it streams
@@ -146,7 +147,7 @@ PanelWindow {
                     anchors.right: closeX.left
                     anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.trayMenuTitle !== "" ? root.trayMenuTitle : "App Menu"
+                    text: root.trayMenuTitle !== "" ? root.trayMenuTitle : I18n.tr("App Menu")
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 12
@@ -244,7 +245,7 @@ PanelWindow {
                             anchors.left: entryIcon.right; anchors.leftMargin: 6
                             anchors.right: arrow.left; anchors.rightMargin: 4
                             anchors.verticalCenter: parent.verticalCenter
-                            text: entry.label
+                            text: I18n.tr(entry.label)
                             color: entry.rowEnabled ? root.ink
                                  : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.35)
                             font.family: root.mono; font.pixelSize: 11

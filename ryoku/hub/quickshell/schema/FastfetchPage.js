@@ -93,7 +93,7 @@ var rows = [
     {
         "tab": "",
         "group": "INFO",
-        "key": "(none \u2014 derived, not persisted)",
+        "key": "(none - derived, not persisted)",
         "label": "Row name",
         "desc": "Name shown for the row in this list; display only, nothing is stored",
         "ctl": "readout",

@@ -8,6 +8,7 @@ import ".."
 import shell.services
 import "../../../components"
 import "../../../utils/artcolor.js" as ArtColor
+import Ryoku.Ui.Singletons
 
 // Music card popout: grown from the frame edge off the rail's spectrum widget,
 // framed like a bar blob (a crisp surface tile with the frame's own outline).
@@ -317,7 +318,7 @@ Item {
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Nothing playing"
+            text: I18n.tr("Nothing playing")
             color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
             font.family: Theme.fontPrimary
             font.pixelSize: Theme.fontSm * root.s

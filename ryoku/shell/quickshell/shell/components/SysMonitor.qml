@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import shell.services
+import Ryoku.Ui.Singletons
 
 // The quick-settings system monitor under the calendar: CPU, memory and (when a
 // sensor is found) temperature as eased ring gauges, a CPU-history sparkline
@@ -35,14 +36,14 @@ Column {
 
         SysRing {
             s: root.s
-            label: "CPU"
+            label: I18n.tr("CPU")
             value: Sysinfo.cpu
             readout: Math.round(Sysinfo.cpu * 100) + "%"
             ringColor: Theme.primary
         }
         SysRing {
             s: root.s
-            label: "MEMORY"
+            label: I18n.tr("MEMORY")
             value: Sysinfo.mem
             readout: Math.round(Sysinfo.mem * 100) + "%"
             ringColor: Theme.tertiary
@@ -50,7 +51,7 @@ Column {
         SysRing {
             visible: Sysinfo.hasTemp
             s: root.s
-            label: "TEMP"
+            label: I18n.tr("TEMP")
             value: Math.min(1, Sysinfo.tempC / 100)
             readout: Math.round(Sysinfo.tempC) + "\u00b0"
             ringColor: Theme.vermLit
@@ -112,7 +113,7 @@ Column {
             id: upText
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: "UP " + Session.uptimeText
+            text: I18n.tr("UP ") + Session.uptimeText
             color: Theme.onSurfaceVariant
             font.family: Theme.mono
             font.pixelSize: 9.5 * root.s
@@ -123,7 +124,7 @@ Column {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             visible: Sysinfo.memTotalGiB > 0
-            text: Sysinfo.memUsedGiB.toFixed(1) + " / " + Sysinfo.memTotalGiB.toFixed(1) + " GiB"
+            text: Sysinfo.memUsedGiB.toFixed(1) + " / " + Sysinfo.memTotalGiB.toFixed(1) + I18n.tr(" GiB")
             color: Theme.onSurfaceVariant
             font.family: Theme.mono
             font.pixelSize: 9.5 * root.s

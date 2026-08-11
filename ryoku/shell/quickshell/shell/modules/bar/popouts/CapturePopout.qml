@@ -8,6 +8,7 @@ import "../framebars/menus" as Tips
 import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 // Capture card: the Super+S surface, a frame-edge card on the shared PopoutCard
 // skin so it opens, melts and dismisses exactly like the music / bluetooth cards.
@@ -204,7 +205,7 @@ Item {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: chip.label
+                text: I18n.tr(chip.label)
                 color: root.ink
                 font.family: Theme.mono
                 font.pixelSize: 9.5 * root.s
@@ -279,7 +280,7 @@ Item {
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: tile.label
+                text: I18n.tr(tile.label)
                 color: root.inkDim
                 font.family: Theme.fontPrimary
                 font.pixelSize: (root.roomy ? 10 : 8.5) * root.s
@@ -316,7 +317,7 @@ Item {
             anchors.right: itSwitch.left
             anchors.rightMargin: 8 * root.s
             anchors.verticalCenter: parent.verticalCenter
-            text: it.label
+            text: I18n.tr(it.label)
             color: root.ink
             font.family: Theme.fontPrimary
             font.pixelSize: 11.5 * root.s
@@ -635,7 +636,7 @@ Item {
             onToggled: Recorder.discordMode = !Recorder.discordMode
         }
 
-        // RECENT — screenshots and recordings in separate labelled groups; a click
+        // RECENT - screenshots and recordings in separate labelled groups; a click
         // on any tile opens that group's folder.
         Rule { width: parent.width; visible: root.recentShots.length > 0 || root.recentClips.length > 0 }
 

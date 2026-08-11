@@ -423,7 +423,7 @@ Rectangle {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "LOADING CATALOGUE"
+            text: I18n.tr("LOADING CATALOGUE")
             color: Tokens.inkDim
             font.family: Tokens.mono
             font.pixelSize: Tokens.fSmall
@@ -463,7 +463,7 @@ Rectangle {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "CATALOGUE UNAVAILABLE"
+            text: I18n.tr("CATALOGUE UNAVAILABLE")
             color: Tokens.ink
             font.family: Tokens.mono
             font.pixelSize: Tokens.fSmall
@@ -486,7 +486,7 @@ Rectangle {
 
         Btn {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "RETRY"
+            text: I18n.tr("RETRY")
             armed: true
             onAct: Store.refresh(true)
             Accessible.role: Accessible.Button
@@ -503,8 +503,8 @@ Rectangle {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: app.view === "library" ? "YOUR LIBRARY IS EMPTY"
-                  : (app.query !== "" ? "NO SEARCH RESULTS" : "NO PRODUCTS AVAILABLE")
+            text: app.view === "library" ? I18n.tr("YOUR LIBRARY IS EMPTY")
+                  : (app.query !== "" ? I18n.tr("NO SEARCH RESULTS") : I18n.tr("NO PRODUCTS AVAILABLE"))
             color: Tokens.inkDim
             font.family: Tokens.mono
             font.pixelSize: Tokens.fSmall
@@ -513,7 +513,7 @@ Rectangle {
 
         Btn {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "RETURN TO DISCOVER"
+            text: I18n.tr("RETURN TO DISCOVER")
             visible: app.view === "library"
             armed: visible
             onAct: app.openRoute("discover")

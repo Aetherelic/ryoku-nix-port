@@ -2,11 +2,12 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Io
 import "lib/keymap.js" as Keymap
+import Ryoku.Ui.Singletons
 
 Item {
     id: panel
     property string luaPath: ""
-    property string hotkey: "\u2014"
+    property string hotkey: "-"
     property bool listening: false
 
     signal closeRequested()
@@ -83,7 +84,7 @@ Item {
                 Text {
                     id: recLabel
                     anchors.centerIn: parent
-                    text: panel.listening ? "Press a key…" : "Record"
+                    text: panel.listening ? I18n.tr("Press a key…") : I18n.tr("Record")
                     color: panel.listening ? "#ffffff" : panel.idle
                     font.family: "JetBrains Mono"
                     font.pixelSize: 13

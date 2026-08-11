@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell.Io
 import shell.services
 import "../../components"
+import Ryoku.Ui.Singletons
 
 // Brightness controls for the Super+Escape home module: one fader for the
 // internal backlight (brightnessctl) plus one per external ddc monitor
@@ -63,7 +64,7 @@ Column {
         spacing: 3 * root.s
         visible: Devices.backlightAvailable
         MicroLabel {
-            label: "Built-in"
+            label: I18n.tr("Built-in")
             s: root.s
             visible: root.labelled
         }
@@ -96,7 +97,7 @@ Column {
             property real pendingPct: -1
 
             MicroLabel {
-                label: mon.modelData.label
+                label: I18n.tr(mon.modelData.label)
                 s: root.s
                 visible: root.labelled
             }

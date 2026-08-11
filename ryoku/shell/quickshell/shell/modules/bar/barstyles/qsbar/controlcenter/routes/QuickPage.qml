@@ -2,8 +2,9 @@ import QtQuick
 import Quickshell
 import "../kit"
 import "../../modules"
+import Ryoku.Ui.Singletons
 
-// QUICK page — 1:1 port of Shibumi's QuickControlPage, in qsbar's palette.
+// QUICK page - 1:1 port of Shibumi's QuickControlPage, in qsbar's palette.
 //   barLanding: thin V1/V2 variant rows (label + status badge + detail) on the
 //   left, joined by a live bezier canvas to a single ACTIVE BAR preview card on
 //   the right. actionDeck: two 4-row columns of thin action rows (icon + label +
@@ -113,7 +114,7 @@ Item {
                 UiText {
                     id: label
                     anchors.left: parent.left
-                    text: vr.modelData.label
+                    text: I18n.tr(vr.modelData.label)
                     color: page.fg
                     opacity: vr.active ? 1 : 0.76
                     font.family: page.mono; font.pixelSize: 12; font.weight: Font.DemiBold
@@ -178,12 +179,12 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 0
                 UiText {
-                    text: ar.confirming ? ("Confirm " + ar.modelData.label) : ar.modelData.label
+                    text: ar.confirming ? (I18n.tr("Confirm ") + I18n.tr(ar.modelData.label)) : I18n.tr(ar.modelData.label)
                     color: ar.confirming ? page.danger : page.fg
                     font.family: page.mono; font.pixelSize: 12; font.weight: Font.DemiBold
                 }
                 UiText {
-                    text: ar.confirming ? "Click again" : ar.modelData.detail
+                    text: ar.confirming ? I18n.tr("Click again") : ar.modelData.detail
                     color: page.fg; opacity: 0.42
                     font.family: page.mono; font.pixelSize: 10
                 }
@@ -295,12 +296,12 @@ Item {
                         anchors.right: parent.right; anchors.rightMargin: 14
                         spacing: 1
                         UiText {
-                            text: page.switching ? "SWITCHING" : (page.hoveredBar >= 0 ? "BAR PREVIEW" : "ACTIVE BAR")
+                            text: page.switching ? I18n.tr("SWITCHING") : (page.hoveredBar >= 0 ? I18n.tr("BAR PREVIEW") : I18n.tr("ACTIVE BAR"))
                             color: page.fg; opacity: 0.5
                             font.family: page.mono; font.pixelSize: 10; font.letterSpacing: 1
                         }
                         UiText {
-                            text: page.barOptions[page.shownBar].label
+                            text: I18n.tr(page.barOptions[page.shownBar].label)
                             color: page.fg
                             font.family: page.mono; font.pixelSize: 13; font.weight: Font.DemiBold
                         }

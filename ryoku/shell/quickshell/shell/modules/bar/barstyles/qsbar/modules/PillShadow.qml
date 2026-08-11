@@ -4,7 +4,7 @@ import QtQuick.Effects
 // Dark analytic drop-shadow for a widget pill, shown only in border-less style.
 // Placed as a CHILD of the pill Rectangle: z:-1 renders it behind the parent,
 // anchors.fill matches the pill, and the blur spreads outside the (unclipped)
-// parent bounds. RectangularShadow is analytic — no offscreen FBO per pill,
+// parent bounds. RectangularShadow is analytic - no offscreen FBO per pill,
 // which is why it's safe at 144 Hz on this NVIDIA/Wayland setup (see P0).
 RectangularShadow {
     required property var theme

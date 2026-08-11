@@ -4,6 +4,7 @@ import QtQuick
 import ".."
 import shell.services
 import "../../../components"
+import Ryoku.Ui.Singletons
 
 // A hairline mono chip shared by the popout cards. `act` makes it a tappable,
 // hoverable control; `on` fills it to a bone plate for the selected state (an
@@ -49,7 +50,7 @@ Item {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: root.label
+            text: I18n.tr(root.label)
             color: root.on ? Theme.inverseOnSurface : root.ink
             font.family: Theme.mono
             font.pixelSize: 9 * root.s

@@ -3,6 +3,7 @@ import QtQuick.Effects
 import QtQuick.Controls as QQC
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 // Beautify: a sharing-first image editor for a capture. Frosted, textured chrome
 // (the launcher's grainy look: a warm translucent surface over a square-grid
@@ -306,17 +307,17 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 11
             Text { anchors.verticalCenter: parent.verticalCenter; text: beautify.mark; color: beautify.vermilion; font.family: "Noto Sans CJK JP"; font.pixelSize: 21; font.weight: Font.DemiBold }
-            Text { anchors.verticalCenter: parent.verticalCenter; text: "Beautify"; color: beautify.bright; font.family: "Space Grotesk"; font.pixelSize: 16; font.weight: Font.DemiBold }
-            Text { anchors.verticalCenter: parent.verticalCenter; text: "ready to share"; color: beautify.dim; font.family: "Space Grotesk"; font.pixelSize: 12 }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Beautify"); color: beautify.bright; font.family: "Space Grotesk"; font.pixelSize: 16; font.weight: Font.DemiBold }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("ready to share"); color: beautify.dim; font.family: "Space Grotesk"; font.pixelSize: 12 }
         }
         Row {
             anchors.right: parent.right
             anchors.rightMargin: 18
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
-            TopBtn { label: "Back"; onTapped: beautify.closeRequested() }
-            TopBtn { label: beautify.busy ? "Working\u2026" : "Copy"; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.copyRequested(beautify.exportTmp); }); } }
-            TopBtn { label: beautify.busy ? "Working\u2026" : "Save image"; accent: true; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.saveRequested(beautify.exportTmp); }); } }
+            TopBtn { label: I18n.tr("Back"); onTapped: beautify.closeRequested() }
+            TopBtn { label: beautify.busy ? I18n.tr("Working\u2026") : I18n.tr("Copy"); onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.copyRequested(beautify.exportTmp); }); } }
+            TopBtn { label: beautify.busy ? I18n.tr("Working\u2026") : I18n.tr("Save image"); accent: true; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.saveRequested(beautify.exportTmp); }); } }
         }
     }
 
@@ -364,7 +365,7 @@ Item {
 
                 // ---------- PRESETS ----------
                 Group {
-                    title: "PRESETS"
+                    title: I18n.tr("PRESETS")
                     Flow {
                         width: parent.width
                         spacing: 7
@@ -381,11 +382,11 @@ Item {
                         width: parent.width
                         spacing: 8
                         TopBtn {
-                            label: beautify.hasDefault ? "\u2605 Update default" : "\u2605 Set as default"
+                            label: beautify.hasDefault ? I18n.tr("\u2605 Update default") : I18n.tr("\u2605 Set as default")
                             onTapped: beautify.saveDefault()
                         }
                         TopBtn {
-                            label: "Reset"
+                            label: I18n.tr("Reset")
                             onTapped: beautify.resetDefault()
                         }
                     }
@@ -393,7 +394,7 @@ Item {
 
                 // ---------- BACKGROUND ----------
                 Group {
-                    title: "BACKGROUND"
+                    title: I18n.tr("BACKGROUND")
                     Grid {
                         width: parent.width
                         columns: 6
@@ -422,10 +423,10 @@ Item {
                     Row {
                         width: parent.width
                         spacing: 8
-                        BgType { label: "Solid"; on: beautify.bgKind === "solid"; onTapped: beautify.bgKind = "solid" }
-                        BgType { label: "Gradient"; on: beautify.bgKind === "gradient"; onTapped: beautify.bgKind = "gradient" }
-                        BgType { label: "Image"; on: beautify.bgKind === "image"; onTapped: { beautify.bgKind = "image"; beautify.pickImageRequested(); } }
-                        BgType { label: "None"; on: beautify.bgKind === "none"; onTapped: beautify.bgKind = "none" }
+                        BgType { label: I18n.tr("Solid"); on: beautify.bgKind === "solid"; onTapped: beautify.bgKind = "solid" }
+                        BgType { label: I18n.tr("Gradient"); on: beautify.bgKind === "gradient"; onTapped: beautify.bgKind = "gradient" }
+                        BgType { label: I18n.tr("Image"); on: beautify.bgKind === "image"; onTapped: { beautify.bgKind = "image"; beautify.pickImageRequested(); } }
+                        BgType { label: I18n.tr("None"); on: beautify.bgKind === "none"; onTapped: beautify.bgKind = "none" }
                     }
                     ColorRow { visible: beautify.bgKind === "solid"; width: parent.width; current: beautify.bgSolid; onPicked: (c) => beautify.bgSolid = c }
                     Column {
@@ -434,13 +435,13 @@ Item {
                         spacing: 10
                         ColorRow { width: parent.width; current: beautify.bgGradA; onPicked: (c) => beautify.bgGradA = c }
                         ColorRow { width: parent.width; current: beautify.bgGradB; onPicked: (c) => beautify.bgGradB = c }
-                        Slider { width: parent.width; label: "Angle"; from: 0; to: 360; suffix: "\u00b0"; value: beautify.bgGradAngle; onMoved: (v) => beautify.bgGradAngle = v }
+                        Slider { width: parent.width; label: I18n.tr("Angle"); from: 0; to: 360; suffix: "\u00b0"; value: beautify.bgGradAngle; onMoved: (v) => beautify.bgGradAngle = v }
                     }
                     Text {
                         visible: beautify.bgKind === "image"
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        text: beautify.bgImagePath ? beautify.bgImagePath : "Click Image again to choose a file\u2026"
+                        text: beautify.bgImagePath ? beautify.bgImagePath : I18n.tr("Click Image again to choose a file\u2026")
                         color: beautify.dim
                         font.family: "Space Grotesk"
                         font.pixelSize: 11
@@ -450,29 +451,29 @@ Item {
 
                 // ---------- FRAME ----------
                 Group {
-                    title: "FRAME"
-                    Slider { width: parent.width; label: "Padding"; from: 0; to: 240; value: beautify.padding; onMoved: (v) => beautify.padding = v }
-                    Slider { width: parent.width; label: "Roundness"; from: 0; to: 80; value: beautify.roundness; onMoved: (v) => beautify.roundness = v }
-                    Slider { width: parent.width; label: "Border"; from: 0; to: 16; value: beautify.borderW; onMoved: (v) => beautify.borderW = v }
+                    title: I18n.tr("FRAME")
+                    Slider { width: parent.width; label: I18n.tr("Padding"); from: 0; to: 240; value: beautify.padding; onMoved: (v) => beautify.padding = v }
+                    Slider { width: parent.width; label: I18n.tr("Roundness"); from: 0; to: 80; value: beautify.roundness; onMoved: (v) => beautify.roundness = v }
+                    Slider { width: parent.width; label: I18n.tr("Border"); from: 0; to: 16; value: beautify.borderW; onMoved: (v) => beautify.borderW = v }
                     ColorRow { visible: beautify.borderW > 0; width: parent.width; current: beautify.borderColor; onPicked: (c) => beautify.borderColor = c }
                 }
 
                 // ---------- SHADOW ----------
                 Group {
-                    title: "SHADOW"
+                    title: I18n.tr("SHADOW")
                     Row {
                         width: parent.width
                         spacing: 16
                         Column {
                             width: parent.width - 56 - 16
                             spacing: 16
-                            Slider { width: parent.width; label: "Strength"; from: 0; to: 100; suffix: "%"; value: beautify.shadowStrength; onMoved: (v) => beautify.shadowStrength = v }
-                            Slider { width: parent.width; label: "Blur"; from: 0; to: 100; value: beautify.shadowBlur; onMoved: (v) => beautify.shadowBlur = v }
-                            Slider { width: parent.width; label: "Distance"; from: 0; to: 80; value: beautify.shadowDist; onMoved: (v) => beautify.shadowDist = v }
+                            Slider { width: parent.width; label: I18n.tr("Strength"); from: 0; to: 100; suffix: "%"; value: beautify.shadowStrength; onMoved: (v) => beautify.shadowStrength = v }
+                            Slider { width: parent.width; label: I18n.tr("Blur"); from: 0; to: 100; value: beautify.shadowBlur; onMoved: (v) => beautify.shadowBlur = v }
+                            Slider { width: parent.width; label: I18n.tr("Distance"); from: 0; to: 80; value: beautify.shadowDist; onMoved: (v) => beautify.shadowDist = v }
                         }
                         Dial {
                             anchors.verticalCenter: parent.verticalCenter
-                            label: "Angle"
+                            label: I18n.tr("Angle")
                             angle: beautify.shadowAngle
                             onMoved: (a) => beautify.shadowAngle = a
                         }
@@ -481,15 +482,15 @@ Item {
 
                 // ---------- ADJUST ----------
                 Group {
-                    title: "ADJUST"
-                    Slider { width: parent.width; label: "Brightness"; bipolar: true; from: -100; to: 100; value: beautify.adjBright; onMoved: (v) => beautify.adjBright = v }
-                    Slider { width: parent.width; label: "Contrast"; bipolar: true; from: -100; to: 100; value: beautify.adjContrast; onMoved: (v) => beautify.adjContrast = v }
-                    Slider { width: parent.width; label: "Saturation"; bipolar: true; from: -100; to: 100; value: beautify.adjSat; onMoved: (v) => beautify.adjSat = v }
+                    title: I18n.tr("ADJUST")
+                    Slider { width: parent.width; label: I18n.tr("Brightness"); bipolar: true; from: -100; to: 100; value: beautify.adjBright; onMoved: (v) => beautify.adjBright = v }
+                    Slider { width: parent.width; label: I18n.tr("Contrast"); bipolar: true; from: -100; to: 100; value: beautify.adjContrast; onMoved: (v) => beautify.adjContrast = v }
+                    Slider { width: parent.width; label: I18n.tr("Saturation"); bipolar: true; from: -100; to: 100; value: beautify.adjSat; onMoved: (v) => beautify.adjSat = v }
                 }
 
                 // ---------- RATIO / SIZE ----------
                 Group {
-                    title: "RATIO / SIZE"
+                    title: I18n.tr("RATIO / SIZE")
                     Flow {
                         width: parent.width
                         spacing: 6
@@ -510,9 +511,9 @@ Item {
 
                 // ---------- SHARE ----------
                 Group {
-                    title: "SHARE"
-                    ToggleRow { width: parent.width; label: "Watermark (" + beautify.mark + " handle)"; on: beautify.watermark; onToggled: (v) => beautify.watermark = v }
-                    ToggleRow { width: parent.width; label: "HD \u00d72 (AI upscale)"; on: beautify.hd; onToggled: (v) => beautify.hd = v }
+                    title: I18n.tr("SHARE")
+                    ToggleRow { width: parent.width; label: I18n.tr("Watermark (") + beautify.mark + I18n.tr(" handle)"); on: beautify.watermark; onToggled: (v) => beautify.watermark = v }
+                    ToggleRow { width: parent.width; label: I18n.tr("HD \u00d72 (AI upscale)"); on: beautify.hd; onToggled: (v) => beautify.hd = v }
                 }
             }
         }
@@ -658,7 +659,7 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "<b>" + beautify.userName + "</b><font color=\"#f5b53f\">@RyokuArch</font>"
+                    text: I18n.tr("<b>") + beautify.userName + I18n.tr("</b><font color=\"#f5b53f\">@RyokuArch</font>")
                     textFormat: Text.StyledText
                     color: "#ffffff"
                     font.family: "Space Grotesk"
@@ -718,7 +719,7 @@ Item {
         color: tbn.accent ? (tbnMa.containsMouse ? Qt.lighter(beautify.vermilion, 1.12) : beautify.vermilion) : (tbnMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
         border.width: tbn.accent ? 0 : 1
         border.color: beautify.hair
-        Text { id: tl; anchors.centerIn: parent; text: tbn.label; color: tbn.accent ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.DemiBold }
+        Text { id: tl; anchors.centerIn: parent; text: I18n.tr(tbn.label); color: tbn.accent ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.DemiBold }
         MouseArea { id: tbnMa; anchors.fill: parent; hoverEnabled: true; onClicked: tbn.tapped() }
     }
 
@@ -731,7 +732,7 @@ Item {
         height: 30
         radius: 8
         color: bgt.on ? beautify.vermilion : (btMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : beautify.fieldBg)
-        Text { anchors.centerIn: parent; text: bgt.label; color: bgt.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: bgt.on ? Font.DemiBold : Font.Medium }
+        Text { anchors.centerIn: parent; text: I18n.tr(bgt.label); color: bgt.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: bgt.on ? Font.DemiBold : Font.Medium }
         MouseArea { id: btMa; anchors.fill: parent; hoverEnabled: true; onClicked: bgt.tapped() }
     }
 
@@ -744,7 +745,7 @@ Item {
         height: 28
         radius: 8
         color: pill.on ? beautify.vermilion : (plMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : beautify.fieldBg)
-        Text { id: pl; anchors.centerIn: parent; text: pill.label; color: pill.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: pill.on ? Font.DemiBold : Font.Medium }
+        Text { id: pl; anchors.centerIn: parent; text: I18n.tr(pill.label); color: pill.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: pill.on ? Font.DemiBold : Font.Medium }
         MouseArea { id: plMa; anchors.fill: parent; hoverEnabled: true; onClicked: pill.tapped() }
     }
 
@@ -779,7 +780,7 @@ Item {
         signal toggled(bool v)
         width: parent.width
         height: 28
-        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: tr.label; color: beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.Medium }
+        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr(tr.label); color: beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.Medium }
         Rectangle {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter

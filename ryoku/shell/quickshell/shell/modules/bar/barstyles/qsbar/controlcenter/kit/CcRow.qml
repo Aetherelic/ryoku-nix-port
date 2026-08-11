@@ -1,5 +1,6 @@
 import QtQuick
 import "../../modules"
+import Ryoku.Ui.Singletons
 
 // One setting row: a label (+ optional description) on the left, a control slot
 // on the right. Put the control as a child; it is reparented into the slot.
@@ -23,7 +24,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 2
         UiText {
-            text: row.label
+            text: I18n.tr(row.label)
             color: row.root.ink
             font.family: row.root.mono
             font.pixelSize: 12
@@ -31,7 +32,7 @@ Item {
         UiText {
             visible: row.desc !== ""
             width: txt.width
-            text: row.desc
+            text: I18n.tr(row.desc)
             color: row.root.sumi
             font.family: row.root.mono
             font.pixelSize: 10

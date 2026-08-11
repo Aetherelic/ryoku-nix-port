@@ -203,7 +203,7 @@ Item {
         s = String(s || "").toUpperCase()
         s = s.replace(/\u2018|\u2019|\u0060|\u00b4/g, "'")
              .replace(/\u201c|\u201d/g, "")
-             .replace(/\u2014|\u2013|\u2015/g, "-")
+             .replace(/-|-|\u2015/g, "-")
              .replace(/\u2026/g, ".")
         var ok = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,'!-/; "
         var out = ""
@@ -599,7 +599,7 @@ Item {
         s = (s || "").toUpperCase()
         s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         s = s.replace(/ß/g, "SS").replace(/Ø/g, "O").replace(/Æ/g, "AE")
-             .replace(/[—–]/g, "-").replace(/[’`´]/g, "'")
+             .replace(/[--]/g, "-").replace(/[’`´]/g, "'")
         var ok = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,'!-/;+< "
         var out = ""
         for (var i = 0; i < s.length && out.length < cap; i++)
@@ -740,7 +740,7 @@ Item {
         }
     }
 
-    // ── warning engine: warnings are STATES, not events — they re-announce
+    // ── warning engine: warnings are STATES, not events - they re-announce
     //    themselves while the state lasts, and stop the moment it ends ──
     property var warnNext: ({ offline: 0, batt: 0, aicl: 0, aicx: 0, aioc: 0, urgent: 0 })
     property var warnQueue7: []
@@ -974,7 +974,7 @@ Item {
         else if (aiOc7 < aiQuotaReset7) aiOcHot = false
     }
 
-    // pacman transaction finished (streaming log tail — no helper script)
+    // pacman transaction finished (streaming log tail - no helper script)
     Process {
         id: pacTail
         running: root.active && root.reactorMode7 && root.ownsGlobalHelpers7
@@ -996,7 +996,7 @@ Item {
 
     Timer {
         // mode 7 self-paces: the 60fps tick machinery alone (clear + texture
-        // upload, both screens) costs ~23% CPU — so full rate only during
+        // upload, both screens) costs ~23% CPU - so full rate only during
         // fast motion while events form; ambient idle runs at ~8Hz, and fully
         // dark/no-gap states back off to ~4Hz or stop (tick7 is set from onPaint)
         interval: ((root.reactorMode7 || root.mode === 8) ? canvas.tick7 : ((root.mode === 5 || root.mode === 6) ? 16 : 33)) * Perf.pollFactor
@@ -1545,7 +1545,7 @@ Item {
                     // murmuration, not a line: the flock moves as ONE body
                     // along a slow serpentine, breathing wider and tighter,
                     // while each dot only drifts gently around the moving
-                    // centre and twinkles — that coherence is what makes it
+                    // centre and twinkles - that coherence is what makes it
                     // read as a swarm instead of scattered noise
                     var sdp = p.t % 86400000
                     var fade = age > life - 600 ? (life - age) / 600 : 1
@@ -1773,7 +1773,7 @@ Item {
                         else if (age > p.s0) { var uT = (age - p.s0) / (p.s1 - p.s0); qT = uT * uT * (3 - 2 * uT) }
                         if (age > p.r0) { var rT = Math.min(1, (age - p.r0) / (p.r1 - p.r0)); rT = rT * rT * (3 - 2 * rT); qT *= 1 - rT }
                         var alT = Math.min(1, age / 450) * Math.min(1, (p.life - age) / (p.fade || 900))
-                        // warnings throb while held — the whole text breathes
+                        // warnings throb while held - the whole text breathes
                         // in brightness and size as one body
                         var wA = 1, wS = 1
                         if (p.w && qT > 0.9) {
@@ -1876,7 +1876,7 @@ Item {
                     var off1 = (now / 1000 * (70 + aud * 160)) % sp1
                     var off2 = (now / 1000 * 38) % sp2
 
-                    // fast layer — cap at 60 iterations (60×65 = 3900 px)
+                    // fast layer - cap at 60 iterations (60×65 = 3900 px)
                     var k1 = Math.ceil((x1 - off1) / sp1)
                     for (var di = 0; di < 60; di++) {
                         var fx = off1 + (k1 + di) * sp1
@@ -1975,7 +1975,7 @@ Item {
                     var amp     = (0.22 + 0.78 * waveI) * baseAmp          // original swell toward discharge
                     var stepw   = Math.max(2, Math.round(gw / 120))        // original smooth sampling
                     var waveT   = now / 1300                               // original drift, just slowed down
-                    // (freq, drift, phase, weight) — opposite drifts → the two lines cross and overlap
+                    // (freq, drift, phase, weight) - opposite drifts → the two lines cross and overlap
                     var waves = [ [0.055, -3.0, 0.0, 1.00],
                                   [0.072,  3.6, 2.4, 0.78] ]
                     for (var wi = 0; wi < waves.length; wi++) {
@@ -2055,7 +2055,7 @@ Item {
                     }
                 } else if (root.mode === 4) {
                     // ══ SPARK GAP (Bolt2): the pill edges are electrodes ══
-                    // Tiny arcs crackle sporadically at the edges — barely-there
+                    // Tiny arcs crackle sporadically at the edges - barely-there
                     // life, no rails, no orbs. Every several seconds the gap
                     // breaks down and ONE full bolt arcs across as the payoff,
                     // flickering twice before it dies.
@@ -2063,7 +2063,7 @@ Item {
 
                     // ── micro sparks: short-lived arcs at random edge spots ──
                     // time is sliced into slots; each slot rolls a few spark
-                    // candidates per gap (deterministic — no state kept)
+                    // candidates per gap (deterministic - no state kept)
                     var slot = Math.floor(now / 300)
                     var sIn  = (now % 300) / 300            // 0..1 inside the slot
                     for (var sk = 0; sk < 2; sk++) {
@@ -2148,12 +2148,12 @@ Item {
                             dx5 = x1
                             sc5 = p5 / 0.40
                         } else if (p5 < 0.85) {
-                            // detached: glide over, eased — slow exit, fast arrival
+                            // detached: glide over, eased - slow exit, fast arrival
                             var u5 = (p5 - 0.40) / 0.45
                             u5  = u5 * u5 * (3 - 2 * u5)       // smoothstep
                             dx5 = x1 + u5 * gw
                         } else {
-                            dx5 = -1                            // absorbed — flash phase below
+                            dx5 = -1                            // absorbed - flash phase below
                         }
 
                         if (dx5 >= 0) {
@@ -2190,7 +2190,7 @@ Item {
                 } else if (root.mode === 6) {
                     // ══ COLLIDER (Surge2): two particles smash mid-gap ══
                     // Surge's converge-DNA, but with punch: two bright points
-                    // accelerate from the pill edges, collide in the middle —
+                    // accelerate from the pill edges, collide in the middle -
                     // impact flash, debris sparks fly off and burn out. Then
                     // darkness until the next shot.
                     var T6  = 3800
