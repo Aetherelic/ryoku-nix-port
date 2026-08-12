@@ -141,13 +141,12 @@ log "downloading the closure into $CACHE (this is the long pole; cached for reus
 # the nvidia kernel-module packages all provide NVIDIA-MODULE and conflict
 # pairwise, so a single resolve keeps only one. fetch each in its own pass so
 # every variant lands in the repo and the installer's nvidia.sh can pick per-GPU
-# offline. the full matrix is REQUIRED so no NVIDIA target installs driverless
-# (issue #30): nvidia-open / nvidia-open-dkms for Turing+ (GSP firmware), and the
-# proprietary nvidia / nvidia-dkms for pre-Turing Maxwell/Pascal/Volta -- which
-# nvidia.sh installs for those cards, so a missing one is the black-screen desktop
-# a GTX 9xx/10xx user hits offline, not a warning. -open/-dkms split is stock
-# linux vs custom kernels. the rest stay optional per kernel/variant.
-nv_required=(nvidia-open nvidia-open-dkms nvidia nvidia-dkms)
+# offline. nvidia-open (prebuilt, stock linux) and nvidia-open-dkms (custom
+# kernels) are what every supported card installs (Turing+, the only GPUs the
+# open module and the current repos cover), so they are REQUIRED: a missing one
+# is the driverless NVIDIA desktop from issue #30 and must fail the build, not
+# slip through a warning. the rest are genuinely optional per kernel/variant.
+nv_required=(nvidia-open nvidia-open-dkms)
 nv_optional=(nvidia-open-lts)
 [[ $VARIANT == cachyos ]] && nv_optional+=(linux-cachyos-nvidia-open)
 for v in "${nv_required[@]}"; do
@@ -268,7 +267,7 @@ pkgfile_for() {
 }
 repo_has_pkg() { pkgfile_for "$1" >/dev/null; }
 missing=()
-for req in nvidia-open nvidia-open-dkms nvidia nvidia-dkms nvidia-utils libva-nvidia-driver \
+for req in nvidia-open nvidia-open-dkms nvidia-utils libva-nvidia-driver \
            mesa vulkan-radeon vulkan-intel vulkan-icd-loader \
            ryoku-keyring ryoku-desktop; do
   repo_has_pkg "$req" || missing+=("$req")
