@@ -167,15 +167,28 @@ pkgs=("$CACHE"/*.pkg.tar.zst "$CACHE"/*.pkg.tar.xz)
 (( ${#pkgs[@]} )) || die "no packages in $CACHE after download"
 cp -a --reflink=auto "${pkgs[@]}" "$DEST"/
 
-# double-check the GPU drivers and the desktop set actually landed: a silent gap
-# here is the driverless NVIDIA or half-installed shell class of bug. match the
-# exact name (trailing "-<digit>" so nvidia-open never matches nvidia-open-dkms).
-have_pkg() { compgen -G "$DEST/$1-[0-9]*.pkg.tar.*" >/dev/null; }
+# repo_has_pkg / pkgfile_for NAME: is package NAME baked into the repo, and which
+# file is it? a package filename is NAME-VER-REL-ARCH.pkg.tar.*; VER and REL never
+# contain '-', so stripping the three trailing '-' fields recovers NAME exactly.
+# matching by that stem (not a "NAME-<digit>" glob) is correct for a version that
+# starts with a letter (libyuv-r2426+..., a git r<rev> build) and still keeps a
+# name that is a prefix of another apart (nvidia-open vs nvidia-open-dkms).
+pkgfile_for() {
+  local want=$1 f base stem
+  for f in "$DEST/$want"-*.pkg.tar.*; do
+    [[ -e $f ]] || continue
+    base=${f##*/}; base=${base%.pkg.tar.*}            # NAME-VER-REL-ARCH
+    stem=${base%-*}; stem=${stem%-*}; stem=${stem%-*} # drop ARCH, REL, VER
+    [[ $stem == "$want" ]] && { printf '%s\n' "$f"; return 0; }
+  done
+  return 1
+}
+repo_has_pkg() { pkgfile_for "$1" >/dev/null; }
 missing=()
 for req in nvidia-open nvidia-open-dkms nvidia-utils libva-nvidia-driver \
            mesa vulkan-radeon vulkan-intel vulkan-icd-loader \
            ryoku-keyring ryoku-desktop; do
-  have_pkg "$req" || missing+=("$req")
+  repo_has_pkg "$req" || missing+=("$req")
 done
 (( ${#missing[@]} == 0 )) || die "offline repo is missing required packages: ${missing[*]}. the install would leave a driverless or incomplete desktop."
 # repo-add builds offline.db(.tar.zst) + offline.files; lib/offline.sh globs it.
@@ -208,7 +221,7 @@ EOF
   # [cachy] + BOTH microcodes (they never conflict) + the desktop set folded in
   # by ryoku_offline_pacstrap_extra. GPU drivers are the in-chroot driver step,
   # NOT pacstrap, and the nvidia module variants conflict pairwise, so they are
-  # excluded here (have_pkg above already proved them present in the repo).
+  # excluded here (repo_has_pkg above already proved them present in the repo).
   local -a pset=()
   mapfile -t pset < <( {
     read_list "$pkgdir/base.packages"
@@ -229,7 +242,7 @@ $(sed 's/^/  /' "$work/verify.err")"
   local -a pkgfiles=()
   while IFS= read -r name; do
     [[ -n $name ]] || continue
-    f=$(compgen -G "$DEST/$name-[0-9]*.pkg.tar.*" | head -1) \
+    f=$(pkgfile_for "$name") \
       || die "offline verify: resolved package '$name' is not in the baked repo (closure is incomplete)"
     pkgfiles+=("$f")
   done <<<"$resolved"
