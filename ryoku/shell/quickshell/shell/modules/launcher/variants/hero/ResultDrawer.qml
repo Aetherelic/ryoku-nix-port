@@ -1,6 +1,6 @@
 import QtQuick
 import Ryoku.Ui
-import Ryoku.Ui.Singletons as Ui
+import Ryoku.Ui.Singletons
 import "../../shared/Singletons"
 import "../../shared/lib/results.js" as Results
 import "../../shared/lib/lifecycle.js" as Lifecycle

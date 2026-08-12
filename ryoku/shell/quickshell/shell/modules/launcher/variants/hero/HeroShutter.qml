@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell
 import Ryoku.Ui
-import Ryoku.Ui.Singletons as Ui
+import Ryoku.Ui.Singletons
 import "../../shared/Singletons"
 import "../../shared/lib/launcherstate.js" as LauncherState
 import "../../shared/lib/weather.js" as WeatherMath
