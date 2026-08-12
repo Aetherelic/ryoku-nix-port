@@ -90,11 +90,11 @@ func TestBarProviderUsesRegistryReceiptsAndDerivedIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 2 || items[0].ID != "sumi" || !items[0].Installed || !items[0].Active {
+	if len(items) != 3 || items[0].ID != "sumi" || !items[0].Installed || !items[0].Active {
 		t.Fatalf("initial items = %+v", items)
 	}
-	if items[1].ID != "obi" || items[1].Installed || items[1].Active {
-		t.Fatalf("initial external item = %+v", items[1])
+	if items[2].ID != "obi" || items[2].Installed || items[2].Active {
+		t.Fatalf("initial external item = %+v", items[2])
 	}
 
 	if err := provider.Install(context.Background(), "obi"); err != nil {
@@ -131,8 +131,8 @@ func TestBarProviderUsesRegistryReceiptsAndDerivedIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !items[1].Installed || !items[1].Active {
-		t.Fatalf("installed item = %+v", items[1])
+	if !items[2].Installed || !items[2].Active {
+		t.Fatalf("installed item = %+v", items[2])
 	}
 
 	if err := provider.Remove(context.Background(), "obi"); err != nil {
@@ -185,7 +185,7 @@ func TestBarProviderKeepsReceiptOwnedStyleUsableOffline(t *testing.T) {
 	if !state.Offline {
 		t.Fatal("cold offline load was not marked offline")
 	}
-	if len(items) != 2 || items[1].ID != "obi" || !items[1].Installed || !items[1].Active {
+	if len(items) != 3 || items[2].ID != "obi" || !items[2].Installed || !items[2].Active {
 		t.Fatalf("offline items = %+v", items)
 	}
 	if err := provider.Remove(context.Background(), "obi"); err != nil {
@@ -260,7 +260,7 @@ func TestBarProviderLoadRecoversInterruptedTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 2 || items[1].Installed {
+	if len(items) != 3 || items[2].Installed {
 		t.Fatalf("catalog after recovery = %+v", items)
 	}
 	destination, _, err := productDestination("barstyles", "obi")
