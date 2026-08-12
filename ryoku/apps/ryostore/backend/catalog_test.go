@@ -216,6 +216,41 @@ func TestRunCatalogDoesNotSnapshotEmpty(t *testing.T) {
 	}
 }
 
+// TestRunCatalogRebuildsOfflineSnapshot proves a snapshot written while a source
+// was failing is not served forever: the next non-refresh launch rebuilds live
+// and comes back online once the source is reachable, so the store self-heals
+// instead of pinning "offline" on every launch until a manual refresh.
+func TestRunCatalogRebuildsOfflineSnapshot(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	offline := []Provider{fakeProvider{
+		category: Category{ID: "rices", Name: "Rices", Group: "wear"},
+		items:    []Item{{ID: "demo", Category: "rices"}},
+		state:    SourceState{Offline: true, CachedAt: "2026-07-01T00:00:00Z"},
+	}}
+	if err := runCatalog(io.Discard, offline, nil); err != nil {
+		t.Fatalf("offline launch: %v", err)
+	}
+	var loads int32
+	healthy := []Provider{countingProvider{
+		fakeProvider{category: Category{ID: "rices", Name: "Rices", Group: "wear"}, items: []Item{{ID: "demo", Category: "rices"}}},
+		&loads,
+	}}
+	var buf bytes.Buffer
+	if err := runCatalog(&buf, healthy, nil); err != nil {
+		t.Fatalf("relaunch: %v", err)
+	}
+	if got := atomic.LoadInt32(&loads); got != 1 {
+		t.Fatalf("offline snapshot served instead of rebuilt: loads = %d, want 1", got)
+	}
+	var cat Catalog
+	if err := json.Unmarshal(buf.Bytes(), &cat); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if cat.Offline {
+		t.Fatalf("store stayed offline after a healthy relaunch")
+	}
+}
+
 // TestDispatchErrors covers the argument and category errors the CLI must
 // surface: every one returns a non-nil error carrying a useful phrase.
 func TestDispatchErrors(t *testing.T) {

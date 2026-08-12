@@ -97,7 +97,12 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 	// the store's refresh button (--refresh) rebuilds it live and rewrites it.
 	snapshot := filepath.Join(extrasCacheDir(), "catalog.json")
 	if !refresh {
-		if data, err := os.ReadFile(snapshot); err == nil && len(data) > 0 {
+		// A healthy snapshot answers instantly. One flagged offline came from a
+		// transient source failure; serving it again pins the store to "offline"
+		// forever, so fall through to a live rebuild that self-heals once the
+		// source is reachable. A rebuild that still fails falls back to the same
+		// cache, so this never does worse than serving the snapshot.
+		if data, err := os.ReadFile(snapshot); err == nil && len(data) > 0 && !snapshotOffline(data) {
 			_, err := w.Write(data)
 			return err
 		}
@@ -124,6 +129,16 @@ func runCatalog(w io.Writer, provs []Provider, args []string) error {
 	}
 	_, err = w.Write(data)
 	return err
+}
+
+// snapshotOffline reports whether a cached catalogue was written while a source
+// was failing, so a stale offline snapshot is retried live instead of pinning
+// the store offline on every launch.
+func snapshotOffline(data []byte) bool {
+	var s struct {
+		Offline bool `json:"offline"`
+	}
+	return json.Unmarshal(data, &s) == nil && s.Offline
 }
 
 // runWarm is the detached background asset populator the store launches after a
