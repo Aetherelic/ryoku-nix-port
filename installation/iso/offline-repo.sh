@@ -140,15 +140,22 @@ log "downloading the closure into $CACHE (this is the long pole; cached for reus
 
 # the nvidia kernel-module packages all provide NVIDIA-MODULE and conflict
 # pairwise, so a single resolve keeps only one. fetch each in its own pass so
-# ALL land in the repo and the installer's nvidia.sh can pick per-GPU offline:
-#   nvidia-open-dkms  Turing+ (GSP) custom kernel    nvidia-dkms  pre-Turing
-#   nvidia-open/nvidia  prebuilt stock-linux modules.
-# best-effort per variant (a name absent from the current repos must not abort).
-nv=(nvidia-open-dkms nvidia-dkms nvidia-open nvidia)
-[[ $VARIANT == cachyos ]] && nv+=(linux-cachyos-nvidia-open)
-for v in "${nv[@]}"; do
+# every variant lands in the repo and the installer's nvidia.sh can pick per-GPU
+# offline. nvidia-open (prebuilt, stock linux) and nvidia-open-dkms (custom
+# kernels) are what every supported card installs (Turing+, the only GPUs the
+# open module and the current repos cover), so they are REQUIRED: a missing one
+# is the driverless NVIDIA desktop from issue #30 and must fail the build, not
+# slip through a warning. the rest are genuinely optional per kernel/variant.
+nv_required=(nvidia-open nvidia-open-dkms)
+nv_optional=(nvidia-open-lts)
+[[ $VARIANT == cachyos ]] && nv_optional+=(linux-cachyos-nvidia-open)
+for v in "${nv_required[@]}"; do
   "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "$v" \
-    || log "note: could not fetch nvidia variant '$v' (not in the current repos?); continuing"
+    || die "required NVIDIA driver '$v' could not be fetched; an NVIDIA target would install to a driverless desktop. check the [extra] mirror and that the package still exists."
+done
+for v in "${nv_optional[@]}"; do
+  "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "$v" \
+    || log "note: optional nvidia variant '$v' not fetched (absent from the current repos?); continuing"
 done
 
 # assemble the [offline] repo: reflink every cached package into DEST (btrfs COW,
@@ -159,6 +166,18 @@ shopt -s nullglob
 pkgs=("$CACHE"/*.pkg.tar.zst "$CACHE"/*.pkg.tar.xz)
 (( ${#pkgs[@]} )) || die "no packages in $CACHE after download"
 cp -a --reflink=auto "${pkgs[@]}" "$DEST"/
+
+# double-check the GPU drivers and the desktop set actually landed: a silent gap
+# here is the driverless NVIDIA or half-installed shell class of bug. match the
+# exact name (trailing "-<digit>" so nvidia-open never matches nvidia-open-dkms).
+have_pkg() { compgen -G "$DEST/$1-[0-9]*.pkg.tar.*" >/dev/null; }
+missing=()
+for req in nvidia-open nvidia-open-dkms nvidia-utils libva-nvidia-driver \
+           mesa vulkan-radeon vulkan-intel vulkan-icd-loader \
+           ryoku-keyring ryoku-desktop; do
+  have_pkg "$req" || missing+=("$req")
+done
+(( ${#missing[@]} == 0 )) || die "offline repo is missing required packages: ${missing[*]}. the install would leave a driverless or incomplete desktop."
 # repo-add builds offline.db(.tar.zst) + offline.files; lib/offline.sh globs it.
 repo-add --quiet "$DEST/$REPO_NAME.db.tar.zst" "$DEST"/*.pkg.tar.* >/dev/null
 
