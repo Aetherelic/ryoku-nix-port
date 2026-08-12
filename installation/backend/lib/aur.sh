@@ -41,7 +41,7 @@ ryoku_aur() {
     return 0
   fi
   if [[ ${RYOKU_ONLINE:-1} != 1 ]]; then
-    log "AUR: offline install, skipping (bootstrap yay with an AUR helper once online)"
+    log "AUR: offline install, the AUR set is installed from the baked [offline] repo by ryoku_offline_aur (lib/offline.sh); nothing to build here"
     return 0
   fi
   [[ -f $aur_file ]] || { log "AUR: no $aur_file, skipping"; return 0; }

@@ -179,6 +179,9 @@ main() {
   ryoku_deploy
   ryoku_network
   ryoku_drivers
+  # bundled AUR toolset: install it from [offline] while the repo is still bound
+  # (before chroot_off). online installs build these later in ryoku_aur instead.
+  ryoku_offline_aur
   ryoku_offline_chroot_off
 
   step bootloader

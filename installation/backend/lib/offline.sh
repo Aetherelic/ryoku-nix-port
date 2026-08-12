@@ -107,3 +107,31 @@ ryoku_offline_chroot_off() {
   fi
   rmdir "/mnt$RYOKU_OFFLINE_REPO" 2>/dev/null || true
 }
+
+# ryoku_offline_aur: install the AUR toolset bundled into the baked [offline] repo
+# (offline-repo.sh bake_aur_set). every ISO install is offline, so this is the only
+# place the AUR set an online install builds actually lands. runs inside the
+# [offline] window (repo bound + db synced by pacstrap), best-effort: a tool that
+# did not bake is filtered out (one unknown name would abort the whole -S batch),
+# and a failed install (e.g. a DKMS module) warns instead of aborting the install.
+ryoku_offline_aur() {
+  ryoku_offline_active || return 0
+  local aur_file="$RYOKU_REPO/system/packages/aur.packages"
+  [[ -f $aur_file ]] || return 0
+  if [[ -n ${RYOKU_DRYRUN:-} ]]; then
+    log "DRYRUN: install the bundled AUR toolset from the baked [offline] repo (best-effort)"
+    return 0
+  fi
+  local -a want=() have=()
+  mapfile -t want < <(grep -vE '^[[:space:]]*(#|$)' "$aur_file")
+  (( ${#want[@]} )) || return 0
+  local p
+  for p in "${want[@]}"; do
+    arch-chroot /mnt pacman -Sp "$p" >/dev/null 2>&1 && have+=("$p")
+  done
+  (( ${#have[@]} )) || { log "AUR: no bundled tools found in the offline repo (built best-effort at ISO time); skipping"; return 0; }
+  log "AUR: installing ${#have[@]} bundled tool(s) from the baked [offline] repo"
+  arch-chroot /mnt pacman -S --noconfirm --needed "${have[@]}" \
+    || log "AUR: warning, some bundled tools did not install (e.g. a DKMS module); continuing"
+  return 0
+}

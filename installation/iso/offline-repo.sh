@@ -141,12 +141,13 @@ log "downloading the closure into $CACHE (this is the long pole; cached for reus
 # the nvidia kernel-module packages all provide NVIDIA-MODULE and conflict
 # pairwise, so a single resolve keeps only one. fetch each in its own pass so
 # every variant lands in the repo and the installer's nvidia.sh can pick per-GPU
-# offline. nvidia-open (prebuilt, stock linux) and nvidia-open-dkms (custom
-# kernels) are what every supported card installs (Turing+, the only GPUs the
-# open module and the current repos cover), so they are REQUIRED: a missing one
-# is the driverless NVIDIA desktop from issue #30 and must fail the build, not
-# slip through a warning. the rest are genuinely optional per kernel/variant.
-nv_required=(nvidia-open nvidia-open-dkms)
+# offline. the full matrix is REQUIRED so no NVIDIA target installs driverless
+# (issue #30): nvidia-open / nvidia-open-dkms for Turing+ (GSP firmware), and the
+# proprietary nvidia / nvidia-dkms for pre-Turing Maxwell/Pascal/Volta -- which
+# nvidia.sh installs for those cards, so a missing one is the black-screen desktop
+# a GTX 9xx/10xx user hits offline, not a warning. -open/-dkms split is stock
+# linux vs custom kernels. the rest stay optional per kernel/variant.
+nv_required=(nvidia-open nvidia-open-dkms nvidia nvidia-dkms)
 nv_optional=(nvidia-open-lts)
 [[ $VARIANT == cachyos ]] && nv_optional+=(linux-cachyos-nvidia-open)
 for v in "${nv_required[@]}"; do
@@ -157,6 +158,88 @@ for v in "${nv_optional[@]}"; do
   "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "$v" \
     || log "note: optional nvidia variant '$v' not fetched (absent from the current repos?); continuing"
 done
+
+# Bundle the AUR toolset into the offline repo. Every ISO install is offline, so
+# the AUR set an online install builds (voxtype, brand fonts, extra cursors, game
+# controllers, localsend, ...) never lands otherwise: system/packages/aur.packages
+# is skipped on an offline install. Build each with makepkg on the networked build
+# host (the target has no toolchain), pull its runtime deps into the closure so it
+# resolves offline, and cache the result in $CACHE so a rebuild is a delta. Best
+# effort per package: a flaky AUR source or heavy build warns and is skipped
+# rather than failing the release, and lib/offline.sh installs the set best-effort
+# too. This is how omarchy bakes its packages into its offline mirror.
+bake_aur_set() {
+  local aur_file="$REPO_ROOT/system/packages/aur.packages"
+  [[ -f $aur_file ]] || return 0
+  if ! { command -v makepkg && command -v git && command -v curl; } >/dev/null 2>&1; then
+    log "AUR bake: makepkg/git/curl missing; skipping (base-devel not installed on the build host)"
+    return 0
+  fi
+
+  local -a names=()
+  mapfile -t names < <(read_list "$aur_file")
+  (( ${#names[@]} )) || return 0
+
+  # makepkg refuses to run as root: build as an unprivileged user with passwordless
+  # pacman so -s can sync build deps. a non-root build host builds as itself.
+  local builder="" 
+  local -a as=()
+  if (( EUID == 0 )); then
+    builder=ryoku-aurbuild
+    id "$builder" &>/dev/null || useradd -m -s /bin/bash "$builder"
+    printf '%s ALL=(ALL) NOPASSWD: /usr/bin/pacman\n' "$builder" >/etc/sudoers.d/99-ryoku-aurbuild
+    chmod 0440 /etc/sudoers.d/99-ryoku-aurbuild
+    as=(runuser -u "$builder" --)
+  fi
+
+  local bdir out n base src f dep
+  bdir=$(mktemp -d); out="$bdir/out"; mkdir -p "$out"; chmod -R 0777 "$bdir"
+  local -a built=() failed=() deps=()
+  log "AUR bake: building ${#names[@]} package(s) into the offline repo"
+  for n in "${names[@]}"; do
+    # cache hit from a prior build (clear $CACHE to force a fresh build).
+    if compgen -G "$CACHE/$n-*.pkg.tar.*" >/dev/null 2>&1; then built+=("$n(cached)"); continue; fi
+    # split packages: the AUR git is keyed by PackageBase, not the pkgname.
+    base=$(curl -fsSL "https://aur.archlinux.org/rpc/v5/info?arg[]=$n" 2>/dev/null \
+      | grep -oE '"PackageBase":[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\1/')
+    [[ -n $base ]] || base=$n
+    src="$bdir/$base"; rm -rf "$src"
+    if ! git clone -q --depth 1 "https://aur.archlinux.org/$base.git" "$src" 2>/dev/null || [[ ! -f $src/PKGBUILD ]]; then
+      log "AUR bake: skip $n (could not fetch '$base' from the AUR)"; failed+=("$n"); continue
+    fi
+    (( EUID == 0 )) && chown -R "$builder:$builder" "$src"
+    local -a envv=(env "PKGDEST=$out")
+    [[ -n $builder ]] && envv=(env "HOME=/home/$builder" "PKGDEST=$out")
+    if ( cd "$src" && "${as[@]}" "${envv[@]}" makepkg -s --noconfirm --skippgpcheck --needed >/dev/null 2>&1 ); then
+      built+=("$n")
+    else
+      log "AUR bake: skip $n (build failed)"; failed+=("$n")
+    fi
+  done
+
+  # move built packages into the cache and pull each one's runtime deps into the
+  # closure, so it installs conflict-free from the baked repo on the target.
+  shopt -s nullglob
+  for f in "$out"/*.pkg.tar.*; do
+    [[ $f == *.sig ]] && continue
+    while IFS= read -r dep; do [[ -n $dep ]] && deps+=("$dep"); done \
+      < <(bsdtar -xOf "$f" .PKGINFO 2>/dev/null | sed -n 's/^depend = //p' | sed 's/[<>=:].*//')
+    cp -a "$f" "$CACHE"/
+  done
+  if (( ${#deps[@]} )); then
+    mapfile -t deps < <(printf '%s\n' "${deps[@]}" | awk 'NF && !seen[$0]++')
+    "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "${deps[@]}" \
+      || log "AUR bake: note, some runtime deps did not fetch; those tools may not install offline"
+  fi
+
+  (( EUID == 0 )) && rm -f /etc/sudoers.d/99-ryoku-aurbuild
+  rm -rf "$bdir"
+  log "AUR bake: bundled ${#built[@]} (${built[*]:-none}); skipped ${#failed[@]} (${failed[*]:-none})"
+}
+# best-effort: the AUR bake must never fail the release build. calling it in a
+# `||` context also disables `set -e` inside it, so any unhandled error there
+# degrades to a pacman-closure-only offline repo instead of bricking the ISO.
+bake_aur_set || log "AUR bake: unexpected error; continuing with the pacman closure only"
 
 # assemble the [offline] repo: reflink every cached package into DEST (btrfs COW,
 # so no extra space), then build the db.
@@ -185,7 +268,7 @@ pkgfile_for() {
 }
 repo_has_pkg() { pkgfile_for "$1" >/dev/null; }
 missing=()
-for req in nvidia-open nvidia-open-dkms nvidia-utils libva-nvidia-driver \
+for req in nvidia-open nvidia-open-dkms nvidia nvidia-dkms nvidia-utils libva-nvidia-driver \
            mesa vulkan-radeon vulkan-intel vulkan-icd-loader \
            ryoku-keyring ryoku-desktop; do
   repo_has_pkg "$req" || missing+=("$req")
