@@ -231,21 +231,29 @@ EOF
   } | awk '!seen[$0]++' )
 
   local resolved
-  resolved=$("${PAC[@]}" -Sp --print-format '%n' --config "$vconf" --dbpath "$vdb" "${pset[@]}" 2>"$work/verify.err") \
-    || die "offline verify: the pacstrap set does not resolve from the baked repo (a dependency is missing from the closure):
+  if ! resolved=$("${PAC[@]}" -Sp --print-format '%n' --config "$vconf" --dbpath "$vdb" "${pset[@]}" 2>"$work/verify.err"); then
+    log "offline verify: the pacstrap set does not yet resolve from the baked repo (a dependency is missing from the closure):
 $(sed 's/^/  /' "$work/verify.err")"
+    return 1
+  fi
 
   # map each resolved name to its .pkg in the repo, then list every package's
   # files in ONE pass (pacman -Qlp = "pkgname /path", metadata excluded). a path
   # owned by more than one package is the pacstrap file conflict.
   local name f
-  local -a pkgfiles=()
+  local -a pkgfiles=() vmissing=()
   while IFS= read -r name; do
     [[ -n $name ]] || continue
-    f=$(pkgfile_for "$name") \
-      || die "offline verify: resolved package '$name' is not in the baked repo (closure is incomplete)"
-    pkgfiles+=("$f")
+    if f=$(pkgfile_for "$name"); then
+      pkgfiles+=("$f")
+    else
+      vmissing+=("$name")
+    fi
   done <<<"$resolved"
+  if (( ${#vmissing[@]} )); then
+    log "offline verify: ${#vmissing[@]} resolved package(s) not yet in the baked repo: ${vmissing[*]}"
+    return 1
+  fi
 
   local conflicts
   conflicts=$(pacman -Qlp "${pkgfiles[@]}" 2>/dev/null | awk '$2 !~ /\/$/ {print $2" "$1}' | sort | awk '
@@ -259,7 +267,22 @@ This is usually a transient upstream churn window (one package taking over a fil
 
   log "offline verify: pacstrap set resolves ($(grep -c . <<<"$resolved") packages) with no file conflicts"
 }
-verify_offline_closure
+# A resolved dependency can be missing from the freshly baked repo when a mirror
+# is mid-sync: its db lists a package before that package's file has propagated,
+# so the closure reads as incomplete through no fault of ours. Retry with a db
+# refresh and a re-download a few times, so a transient mirror window self-heals
+# instead of bricking the release build; a genuinely absent package still fails.
+for _vattempt in 1 2 3; do
+  verify_offline_closure && break
+  (( _vattempt == 3 )) && die "offline verify: the baked closure is still incomplete after $_vattempt attempts; a mirror is likely mid-sync (a dependency's db entry is ahead of its package file). Re-run the bake once the mirrors settle."
+  log "offline verify: closure incomplete (attempt $_vattempt); re-syncing the db and re-downloading before retrying"
+  "${PAC[@]}" -Sy --config "$conf" --dbpath "$work/db" --noconfirm >/dev/null
+  "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "${PKGS[@]}"
+  rpkgs=("$CACHE"/*.pkg.tar.zst "$CACHE"/*.pkg.tar.xz)
+  (( ${#rpkgs[@]} )) && cp -a --reflink=auto "${rpkgs[@]}" "$DEST"/
+  repo-add --quiet "$DEST/$REPO_NAME.db.tar.zst" "$DEST"/*.pkg.tar.* >/dev/null
+  sleep 20
+done
 
 n=$(find "$DEST" -maxdepth 1 -name '*.pkg.tar.*' | wc -l)
 sz=$(du -sh "$DEST" | cut -f1)
