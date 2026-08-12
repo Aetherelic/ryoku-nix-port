@@ -235,7 +235,8 @@ Item {
                         root: page.root
                         options: [{ key: "square", label: "Square" }, { key: "soft", label: "Soft" }, { key: "round", label: "Round" }]
                         current: page.isV1
-                            ? ((page.root && page.root.styleRadiusSmall) ? "soft" : "round")
+                            ? ((page.root && page.root.barCornerRadius === 0) ? "square"
+                               : (page.root && page.root.styleRadiusSmall) ? "soft" : "round")
                             : ((page.root && page.root.barCornerRadius <= 0) ? "square"
                                : (page.root && page.root.barCornerRadius >= 16) ? "round" : "soft")
                         onChose: k => {

@@ -508,11 +508,12 @@ Item {
     property bool styleShadow:      false   // box-shadow on/off
     property bool styleFrost:       false   // lower bar-island opacity; theme blur may show through
     property bool styleRadiusSmall: false   // radius 12 ⇄ 6
+    property int  barCornerRadius:  -1      // 0 = square bar; <0 follows styleRadiusSmall (soft/round)
     property bool styleHeightMin:   false   // inner pill 24 ⇄ 20 (slot stays 28)
-    readonly property int   pillRadius:   styleRadiusSmall ? 6 : 12
+    readonly property int   pillRadius:   barCornerRadius === 0 ? 0 : (styleRadiusSmall ? 6 : 12)
     readonly property int   pillH:        styleHeightMin ? 20 : 24
     readonly property int   pillBorderW:  styleBorder ? 1 : 0
-    readonly property int   islandRadius: styleRadiusSmall ? 8 : 16
+    readonly property int   islandRadius: barCornerRadius === 0 ? 0 : (styleRadiusSmall ? 8 : 16)
     readonly property int   tileRadius:   pillRadius - 2   // inner panel buttons: 2 less than global (10 ⇄ 4)
     // horizontal padding of the workspace pill (overhang each side, mirrored by the
     // G2 slot pad). In "numbers" the wide digit badges should nestle concentrically
@@ -1627,6 +1628,7 @@ Item {
     onStyleShadowChanged:      if (_widgetsLoaded) saveWidgets()
     onStyleFrostChanged:       if (_widgetsLoaded) saveWidgets()
     onStyleRadiusSmallChanged: if (_widgetsLoaded) saveWidgets()
+    onBarCornerRadiusChanged:  if (_widgetsLoaded) saveWidgets()
     onWorkspaceStyleChanged:   if (_widgetsLoaded) saveWidgets()
     onBarPositionChanged:      if (_widgetsLoaded) saveWidgets()
 
@@ -1844,6 +1846,8 @@ Item {
         q.launcherLogoMode = launcherLogoMode
         q.aiTool = aiTool
         q.styleRadiusSmall = styleRadiusSmall
+        q.styleFrost = styleFrost
+        q.barCornerRadius = barCornerRadius
         q.widgets = {
             "status": modStatus, "memory": modMemory, "cpu": modCpu, "volume": modVolume,
             "weather": modWeather, "network": modNetwork, "brightness": modBrightness,
@@ -1887,6 +1891,8 @@ Item {
         if (q.launcherLogoMode !== undefined) launcherLogoMode = q.launcherLogoMode
         if (q.aiTool === "claude" || q.aiTool === "codex" || q.aiTool === "opencode") aiTool = q.aiTool
         if (q.styleRadiusSmall !== undefined) styleRadiusSmall = q.styleRadiusSmall
+        if (q.styleFrost !== undefined) styleFrost = q.styleFrost
+        if (q.barCornerRadius !== undefined) barCornerRadius = q.barCornerRadius
         var w = q.widgets
         if (w) {
             if (w.status     !== undefined) modStatus     = w.status
