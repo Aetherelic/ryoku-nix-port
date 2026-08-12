@@ -507,6 +507,8 @@ library-list)
 	auth=(); [ -n "$tok" ] && auth=(-H "Authorization: Bearer $tok")
 	[ -z "$branch" ] && branch="$(curl -fsSL -A "$ua" "${auth[@]}" "https://api.github.com/repos/$repo" 2>/dev/null | jq -r '.default_branch // "main"')"
 	rawb="https://raw.githubusercontent.com/$repo/$branch"
+	# Git-LFS files serve a tiny pointer from raw; their bytes live on the media host.
+	mediab="https://media.githubusercontent.com/media/$repo/$branch"
 	cache="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/ryowalls"; mkdir -p "$cache"
 	ck="$cache/tree-$(printf '%s' "$repo@$branch" | tr -c '[:alnum:]' '_').json"
 	# cache the tree for an hour so paging/searching does not re-hit the API.
@@ -530,10 +532,12 @@ library-list)
 	fi
 	# a repo can hold videos (item dir = clip + sibling poster) AND standalone image
 	# wallpapers. Emit both with a kind, filtered by --type (all | live | images).
-	jq -c --arg rawb "$rawb" --arg sub "$subpath" --arg q "$ql" --arg type "$ltype" --argjson from "$from" --argjson to "$to" '
+	jq -c --arg rawb "$rawb" --arg mediab "$mediab" --arg sub "$subpath" --arg q "$ql" --arg type "$ltype" --argjson from "$from" --argjson to "$to" '
 		def enc: split("/") | map(@uri) | join("/");
 		def humanize: sub("-[0-9]+$";"") | gsub("[-_]";" ");
 		def tproxy(u): if u == "" then "" else "https://wsrv.nl/?url=" + (u | sub("^https?://";"")) + "&w=480&output=webp&q=80" end;
+		(reduce (.tree[]? | select(.type=="blob" and (.size // 1e9) < 1024) | .path) as $p ({}; .[$p]=true)) as $lfs
+		| def host($p): if $lfs[$p] then $mediab else $rawb end;
 		[.tree[].path] as $all
 		| ($all | map(select($sub == "" or startswith($sub)))) as $scoped
 		| ($scoped | map(select(test("\\.(mp4|webm|mkv|mov)$";"i")))) as $vids
@@ -555,7 +559,7 @@ library-list)
 		| map(select($type=="all" or ($type=="live" and .kind=="video") or ($type=="images" and .kind=="image")))
 		| map(select($q=="" or (.path|ascii_downcase|contains($q))))
 		| .[$from:$to][]
-		| { id:.path, kind:.kind, thumb:tproxy(if .thumb=="" then "" else ($rawb+"/"+(.thumb|enc)) end), large:(if .thumb=="" then "" else ($rawb+"/"+(.thumb|enc)) end), video:(if .kind=="video" then ($rawb+"/"+(.media|enc)) else "" end), dl:($rawb+"/"+(.media|enc)), resolution:"", name:.name }' "$ck"
+		| { id:.path, kind:.kind, thumb:tproxy(if .thumb=="" then "" else (host(.thumb)+"/"+(.thumb|enc)) end), large:(if .thumb=="" then "" else (host(.thumb)+"/"+(.thumb|enc)) end), video:(if .kind=="video" then (host(.media)+"/"+(.media|enc)) else "" end), dl:(host(.media)+"/"+(.media|enc)), resolution:"", name:.name }' "$ck"
 	;;
 library-download)
 	# Full-quality download on Save. Videos land in livewalls, images in
