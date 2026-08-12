@@ -40,6 +40,13 @@
   `ryoku doctor`, and `ryoku materialize` all manage.
 
 ### Fixed
+- `lib/pacstrap.sh`: an offline install that fails no longer misreports a
+  baked-closure defect as a mirror problem. Offline pacstrap draws only from the
+  `file://` `[offline]` repo, so a failure is a file conflict or a corrupt
+  package, never the network. It now retries once with `--needed` and then
+  surfaces the real pacman error (naming the conflicting path) instead of running
+  the mirror-tier fallback and dying with "across mirror tiers (tried: tier 3
+  (shipped list))", which sent users chasing a connection that was never at fault.
 - `lib/mirrors.sh` + `lib/pacstrap.sh`: mirror handling is now a bounded
   four-tier fallback so a user far from every shipped origin no longer stalls the
   install at "failed to install packages to new root" (issue #21). Ranking tries

@@ -54,9 +54,12 @@ that would destroy data unintentionally:
   `ryoku_partition_whole` demands. A blank disk skips the extra step. The
   strategy picker also lists the non-destructive "alongside" first so a quick
   Enter is never a wipe.
-- **Online-only.** Review gates on `netOnline()`, and `installEnv` always emits
-  `RYOKU_ONLINE=1`: there is no offline package source, so a box with no route
-  cannot reach the install handoff.
+- **Offline-first, online fallback.** An offline ISO bakes the whole package
+  closure into a `file://` `[offline]` repo (`offlineRepo()`), so `netOnline()`
+  returns true with nothing to set up and `installEnv` emits `RYOKU_ONLINE=0` plus
+  `RYOKU_OFFLINE_REPO`: the install needs no network at all. A networked ISO
+  (built `RYOKU_OFFLINE_SKIP=1`, no baked repo) gates Review on `netOnline()` and
+  emits `RYOKU_ONLINE=1`, so a box with no route cannot reach the install handoff.
 
 ## Layout math, and how it mirrors the backend
 

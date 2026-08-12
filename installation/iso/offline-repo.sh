@@ -181,6 +181,73 @@ done
 # repo-add builds offline.db(.tar.zst) + offline.files; lib/offline.sh globs it.
 repo-add --quiet "$DEST/$REPO_NAME.db.tar.zst" "$DEST"/*.pkg.tar.* >/dev/null
 
+# verify the exact pacstrap transaction resolves and installs conflict-free from
+# ONLY the baked repo. the installer folds the whole desktop set into one offline
+# pacstrap (lib/offline.sh), so any two packages shipping the same path -- an
+# upstream churn window like default-cursors taking over an icon file another
+# package still owns -- makes pacman abort "conflicting files ... exists in
+# filesystem", and offline there is no network to recover with: the ISO is a
+# brick. catch it HERE, on the networked build host where a rebuild is cheap,
+# not at install time. doubles as a closure-completeness check: every resolved
+# dependency must be in the repo (a missing dep is the same dead end offline).
+verify_offline_closure() {
+  local vconf="$work/verify.conf" vdb="$work/verify-db"
+  mkdir -p "$vdb"
+  cat >"$vconf" <<EOF
+[options]
+Architecture = x86_64 x86_64_v3
+SigLevel = Never
+[$REPO_NAME]
+SigLevel = Never
+Server = file://$DEST
+EOF
+  "${PAC[@]}" -Sy --config "$vconf" --dbpath "$vdb" --noconfirm >/dev/null 2>&1 \
+    || die "offline verify: cannot read the baked [$REPO_NAME] db at $DEST"
+
+  # the installer's pacstrap set (lib/pacstrap.sh ryoku_pacstrap): base + dev +
+  # [cachy] + BOTH microcodes (they never conflict) + the desktop set folded in
+  # by ryoku_offline_pacstrap_extra. GPU drivers are the in-chroot driver step,
+  # NOT pacstrap, and the nvidia module variants conflict pairwise, so they are
+  # excluded here (have_pkg above already proved them present in the repo).
+  local -a pset=()
+  mapfile -t pset < <( {
+    read_list "$pkgdir/base.packages"
+    read_list "$pkgdir/dev.packages"
+    [[ $VARIANT == cachyos ]] && read_list "$pkgdir/cachyos.packages"
+    printf '%s\n' amd-ucode intel-ucode ryoku-keyring ryoku-desktop
+  } | awk '!seen[$0]++' )
+
+  local resolved
+  resolved=$("${PAC[@]}" -Sp --print-format '%n' --config "$vconf" --dbpath "$vdb" "${pset[@]}" 2>"$work/verify.err") \
+    || die "offline verify: the pacstrap set does not resolve from the baked repo (a dependency is missing from the closure):
+$(sed 's/^/  /' "$work/verify.err")"
+
+  # map each resolved name to its .pkg in the repo, then list every package's
+  # files in ONE pass (pacman -Qlp = "pkgname /path", metadata excluded). a path
+  # owned by more than one package is the pacstrap file conflict.
+  local name f
+  local -a pkgfiles=()
+  while IFS= read -r name; do
+    [[ -n $name ]] || continue
+    f=$(compgen -G "$DEST/$name-[0-9]*.pkg.tar.*" | head -1) \
+      || die "offline verify: resolved package '$name' is not in the baked repo (closure is incomplete)"
+    pkgfiles+=("$f")
+  done <<<"$resolved"
+
+  local conflicts
+  conflicts=$(pacman -Qlp "${pkgfiles[@]}" 2>/dev/null | awk '$2 !~ /\/$/ {print $2" "$1}' | sort | awk '
+    { p=$1; k=$2
+      if (p!=q){ if(c>1) print q"  <=  "o; q=p; o=k; c=1; s=" "k" " }
+      else if (index(s," "k" ")==0){ o=o", "k; c++; s=s k" " } }
+    END{ if(c>1) print q"  <=  "o }')
+  [[ -z $conflicts ]] || die "offline verify: the baked closure has file conflicts -- pacstrap would abort on the target, offline, with no way to recover:
+$(printf '%s\n' "$conflicts" | sed 's/^/  /')
+This is usually a transient upstream churn window (one package taking over a file another still ships). Re-run the bake once the mirrors settle, or pin/patch the offending package."
+
+  log "offline verify: pacstrap set resolves ($(grep -c . <<<"$resolved") packages) with no file conflicts"
+}
+verify_offline_closure
+
 n=$(find "$DEST" -maxdepth 1 -name '*.pkg.tar.*' | wc -l)
 sz=$(du -sh "$DEST" | cut -f1)
 log "baked $n packages into the [offline] repo ($sz) at $DEST"

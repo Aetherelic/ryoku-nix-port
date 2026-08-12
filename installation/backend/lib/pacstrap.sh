@@ -101,14 +101,16 @@ ryoku_pacstrap() {
   run_sh "genfstab -U /mnt >> /mnt/etc/fstab"
 }
 
-# install the package set, retrying once from the NEXT mirror tier on failure.
-# a wifi drop, a slow mirror, or a package that downloaded corrupt otherwise
-# kills the install with raw pacman errors. the retry drops the poisoned cache
-# (a bad-signature package makes non-interactive pacstrap fail identically on the
-# reused cache), regenerates the mirrorlist from a different source, and adds
-# --needed so it resumes over the already-installed packages (issue #21) instead
-# of redoing the whole set. separated from ryoku_pacstrap so the retry path is
-# testable with stubs.
+# install the base package set. separated from ryoku_pacstrap so the retry paths
+# are testable with stubs. two failure regimes, split by install type:
+#   offline -- pacstrap draws only from the baked [offline] file:// repo, so a
+#     failure is a closure defect (file conflict / corrupt package), never the
+#     network. retry once with --needed, then surface the real pacman error; the
+#     mirror fallback would only misreport a file conflict as a mirror problem.
+#   online  -- a wifi drop, slow mirror, or corrupt download. drop the poisoned
+#     cache, fall to the next mirror tier, and retry once with --needed (resuming
+#     over the packages already installed, issue #21); a second failure lists the
+#     tiers tried and the failing mirror URL.
 ryoku_pacstrap_install() {
   local -a pkgs=("$@")
   # offline install: pacstrap from the baked file:// repo via the offline
@@ -119,6 +121,32 @@ ryoku_pacstrap_install() {
     return 0
   fi
 
+  # offline install: pacstrap draws ONLY from the baked [offline] file:// repo, so
+  # a failure is never a network problem -- it is a defect in the baked closure (a
+  # file conflict or a corrupt package). the mirror fallback below would be a
+  # no-op that misreports the cause: users saw "across mirror tiers" for what was
+  # really a "conflicting files ... exists in filesystem" abort. retry once with
+  # --needed (resumes over what already extracted), then surface the REAL error.
+  if declare -f ryoku_offline_active >/dev/null && ryoku_offline_active; then
+    local olog; olog=$(mktemp) || olog=/dev/null
+    log "pacstrap failed on the offline install; retrying once with --needed from the baked [offline] repo (no network involved)"
+    if run pacstrap "${pconf[@]}" -K --needed /mnt "${pkgs[@]}" >"$olog" 2>&1; then
+      [[ $olog == /dev/null ]] || { cat -- "$olog"; rm -f -- "$olog"; }
+      return 0
+    fi
+    [[ $olog == /dev/null ]] || cat -- "$olog"
+    local conflict=""
+    [[ $olog == /dev/null ]] \
+      || conflict=$(grep -aoE "[^ ]+ exists in filesystem" "$olog" 2>/dev/null | tail -n1) || conflict=""
+    rm -f -- "$olog" 2>/dev/null || true
+    die "the offline install could not lay the base system from the ISO's baked package set.${conflict:+ File conflict: $conflict.} This is a defect in the ISO image, not a network or mirror problem (every package is on the disc); rebuild the ISO from a current build (the build now verifies the closure) or report this image. Re-running the installer will not help."
+  fi
+
+  # online install: a wifi drop, a slow mirror, or a package that downloaded
+  # corrupt kills the install with raw pacman errors. drop the poisoned cache (a
+  # bad-signature package makes non-interactive pacstrap fail identically on the
+  # reused cache), regenerate the mirrorlist from a different source, and add
+  # --needed so it resumes over the already-installed packages (issue #21).
   log "pacstrap failed (connection drop, slow mirror, or a package corrupt under load); clearing the target cache, dropping to the next mirror tier, and retrying once with --needed"
   run_sh 'rm -f /mnt/var/cache/pacman/pkg/*.pkg.tar.* 2>/dev/null || true'
   ryoku_mirrors_fallback || true

@@ -24,6 +24,16 @@
   normalizes the per-run repo path so the reproducibility diff stays clean.
 
 ### Fixed
+- **A file conflict in the baked closure now fails the build, not the offline
+  install.** `offline-repo.sh` verifies the exact pacstrap set resolves and that
+  no two packages own the same path before the ISO is assembled. An upstream
+  churn window (e.g. `default-cursors` taking over
+  `/usr/share/icons/default/index.theme` while an older cursor package still
+  shipped it) otherwise froze a file conflict into the `[offline]` repo; the
+  target then aborted at pacstrap ("conflicting files ... exists in filesystem")
+  with no network to recover from, bricking the install. The check runs on the
+  networked build host where a rebuild is cheap, and also asserts every resolved
+  dependency is present (a missing one is the same offline dead end).
 - **The live ISO no longer hangs at boot; Ventoy boots reliably.** The
   `cow_label=vtoycow` parameter (added for Ventoy persistence) made archiso wait
   30 s for a `/dev/disk/by-label/vtoycow` device and then drop to an initramfs

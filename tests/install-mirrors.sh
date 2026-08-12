@@ -169,4 +169,53 @@ grep -qF 'tier 2 (mirror-status API)' <<<"$pout" || fail "final message did not 
 grep -qF 'Last mirror error' <<<"$pout" || fail "final message did not extract the failing mirror URL"
 grep -qF 't2low.example' <<<"$pout" || fail "final message did not name the failing mirror"
 
+# ============================================================================
+# offline pacstrap failure (installation/backend/lib/{pacstrap,offline}.sh)
+# ============================================================================
+
+# run_pacstrap_offline <stub>: the offline path -- source offline.sh, point
+# RYOKU_OFFLINE_REPO at a fake baked repo (a stub offline.db makes
+# ryoku_offline_active true) and set RYOKU_ONLINE=0, so ryoku_pacstrap_install
+# takes the offline branch. ryoku_mirrors_fallback is stubbed to a tripwire: the
+# offline path must never call it. output in $opout, exit in $oprc, calls in $ocalls.
+run_pacstrap_offline() {
+  local stub=$1 d
+  d="$(mktemp -d)"
+  mkdir -p "$d/repo"; : >"$d/repo/offline.db"        # glob target for ryoku_offline_active
+  printf '[offline]\nServer = file://%s/repo\n' "$d" >"$d/off.conf"
+  set +e
+  opout="$(CALLS="$d/calls" ROOT="$root" STUB="$stub" REPO="$d/repo" OFFCONF="$d/off.conf" bash -c '
+    source "$ROOT/installation/backend/lib/common.sh"
+    source "$ROOT/installation/backend/lib/mirrors.sh"
+    source "$ROOT/installation/backend/lib/offline.sh"
+    source "$ROOT/installation/backend/lib/pacstrap.sh"
+    run_sh() { :; }
+    ryoku_mirrors_fallback() { echo "MIRROR-FALLBACK-RAN"; }   # tripwire: never offline
+    RYOKU_ONLINE=0
+    RYOKU_OFFLINE_REPO="$REPO"
+    RYOKU_PACMAN_CONF="$OFFCONF"
+    eval "$STUB"
+    set -euo pipefail
+    ryoku_pacstrap_install fake-base fake-linux
+  ' 2>&1)"
+  oprc=$?
+  set -e
+  ocalls="$(cat "$d/calls" 2>/dev/null || true)"
+  rm -rf "$d"
+}
+
+# a pacstrap that always fails with a pacman-style file-conflict (no owner form).
+stub_conflict=$'pacstrap() { echo "$*" >>"$CALLS"; echo "error: failed to commit transaction (conflicting files)" >&2; echo "default-cursors: /usr/share/icons/default/index.theme exists in filesystem" >&2; return 1; }'
+
+# --- offline failure: retry once with --needed, surface the REAL error, and
+#     never run the mirror fallback or blame the mirror tiers ------------------
+run_pacstrap_offline "$stub_conflict"
+[[ $oprc -ne 0 ]] || fail "an offline pacstrap file conflict must abort the install"
+[[ $(grep -c -- '--needed' <<<"$ocalls") -eq 1 ]] || fail "offline path should retry exactly once with --needed, got: [$ocalls]"
+grep -qF 'MIRROR-FALLBACK-RAN' <<<"$opout" && fail "offline path must not run the mirror-tier fallback"
+grep -qF 'across mirror tiers' <<<"$opout" && fail "offline failure must not blame the mirror tiers"
+grep -qF 'next mirror tier' <<<"$opout" && fail "offline failure must not announce a mirror-tier drop"
+grep -qF 'defect in the ISO image' <<<"$opout" || fail "offline failure must name the ISO image as the defect"
+grep -qF 'exists in filesystem' <<<"$opout" || fail "offline failure must surface the real file-conflict line"
+
 echo "install-mirrors: all checks passed"
