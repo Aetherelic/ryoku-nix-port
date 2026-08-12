@@ -85,9 +85,8 @@ Item {
     readonly property bool selSignal: isOpenCode ? ocSignal : (isCodex ? cxSignal : clSignal)
     readonly property bool blocked:  (isCodex || isOpenCode) ? false : clBlocked
 
-    // show whenever the gate is on AND either tool has a signal - the pill stays
-    // reachable (to open the panel + switch) even if the selected tool is idle
-    readonly property bool shown: (clSignal || cxSignal || ocSignal) && root.modClaude
+    // enabled ⇒ visible: show whenever the toggle is on and any tool has data or is running.
+    readonly property bool shown: root.modClaude && (clHas || cxHas || ocHas || clActive || cxActive || ocActive)
 
     readonly property string tooltipText: {
         var lines = []
