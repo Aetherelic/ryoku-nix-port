@@ -137,35 +137,34 @@ else
   (( ${#kernels[@]} )) || kernels=(linux)
   mapfile -t kernels < <(printf '%s\n' "${kernels[@]}" | sort -u)
 
-  # the stock `linux` kernel ships a PREBUILT nvidia module (nvidia-open /
-  # nvidia) kept in step with it, so there is no DKMS build to fail on a fresh
-  # kernel. any custom kernel (zen/lts/cachyos) needs DKMS + its headers.
-  base=(nvidia-utils libva-nvidia-driver)
-  # lib32-nvidia-utils: 32-bit userspace driver (Steam/Wine); add only when the
-  # [multilib] repo is on, else pacman can't resolve it. mirrors omarchy.
-  if pacman-conf --repo-list 2>/dev/null | grep -qx multilib; then
-    base+=(lib32-nvidia-utils)
-  fi
-  if [[ ${#kernels[@]} -eq 1 && ${kernels[0]} == linux ]]; then
-    if nvidia_has_gsp; then
+  # NVIDIA driver by GPU generation. Turing+ (GSP firmware) runs the open modules:
+  # the prebuilt nvidia-open on stock linux (no DKMS build to fail on a fresh
+  # kernel), nvidia-open-dkms on a custom kernel, both with the official
+  # nvidia-utils. Pre-Turing cards (Maxwell/Pascal/Volta) are not covered by the
+  # open modules and Arch dropped the closed `nvidia`, so they run the AUR-legacy
+  # 580xx branch (nvidia-580xx-dkms pulls its own nvidia-580xx-utils), DKMS on
+  # every kernel. The ISO bakes 580xx (and 470xx for Kepler) into the offline
+  # repo, so these install with no network. headers cover the DKMS build.
+  headers=()
+  for kb in "${kernels[@]}"; do headers+=("${kb}-headers"); done
+  multilib=0
+  if pacman-conf --repo-list 2>/dev/null | grep -qx multilib; then multilib=1; fi
+  if nvidia_has_gsp; then
+    base=(nvidia-utils libva-nvidia-driver)
+    if (( multilib )); then base+=(lib32-nvidia-utils); fi
+    if [[ ${#kernels[@]} -eq 1 && ${kernels[0]} == linux ]]; then
       echo "nvidia.sh: Turing+ GPU on stock linux, using the prebuilt open module (nvidia-open)."
       pkgs=(nvidia-open "${base[@]}")
     else
-      echo "nvidia.sh: pre-Turing GPU on stock linux, using the prebuilt proprietary module (nvidia)."
-      pkgs=(nvidia "${base[@]}")
-    fi
-  else
-    headers=()
-    for kb in "${kernels[@]}"; do headers+=("${kb}-headers"); done
-    if nvidia_has_gsp; then
       echo "nvidia.sh: Turing+ GPU, custom kernel(s), using nvidia-open-dkms."
       pkgs=(nvidia-open-dkms "${base[@]}" "${headers[@]}")
-    else
-      echo "nvidia.sh: pre-Turing GPU, custom kernel(s), using nvidia-dkms."
-      pkgs=(nvidia-dkms "${base[@]}" "${headers[@]}")
     fi
+  else
+    echo "nvidia.sh: pre-Turing GPU, using the legacy 580xx branch (nvidia-580xx-dkms)."
+    pkgs=(nvidia-580xx-dkms libva-nvidia-driver "${headers[@]}")
+    if (( multilib )); then pkgs+=(lib32-nvidia-580xx-utils); fi
   fi
-  install_pkgs "${pkgs[@]}" || echo "nvidia.sh: WARNING: NVIDIA driver install failed (a pre-Turing card may need an AUR legacy driver such as nvidia-580xx-dkms; a Turing+ card needs a matching kernel/driver). The desktop will run on the integrated GPU; install a working driver and run 'mkinitcpio -P' to enable it."
+  install_pkgs "${pkgs[@]}" || echo "nvidia.sh: WARNING: NVIDIA driver install failed. A Kepler or older card needs the 470xx branch (nvidia-470xx-dkms, bundled in the offline repo); a Turing+ card needs a matching kernel/driver. The desktop runs on the integrated GPU if present; install a working driver and run 'mkinitcpio -P' to enable it."
 fi
 
 # early KMS + the boot-race fix. DRM modeset is mandatory for a working
