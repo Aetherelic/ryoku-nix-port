@@ -36,6 +36,10 @@ Item {
     property string monitor: ""
     // Gate: idle whenever the bar surface is not actually on screen.
     property bool shellVisible: true
+    // In islands mode the pills extend `islandsPad` past the widget rows, so the
+    // gap channels inset by that much to stay strictly in the desktop gaps between
+    // pills; 0 for the continuous shell, whose runs already end at the widget edges.
+    property int gapInset: 0
 
     visible: reactor.theme && reactor.theme.barAnim > 0
 
@@ -67,8 +71,8 @@ Item {
             a.push({ s: i, e: i })
         return a
     }
-    function runRightEdge(i) { return runs[i].x + runs[i].w }
-    function runLeftEdge(i)  { return runs[i].x }
+    function runRightEdge(i) { return runs[i].x + runs[i].w + reactor.gapInset }
+    function runLeftEdge(i)  { return runs[i].x - reactor.gapInset }
 
     // Load the stream only while it can actually flow: an animation is selected,
     // the bar is on screen, and there is at least one gap between clusters.

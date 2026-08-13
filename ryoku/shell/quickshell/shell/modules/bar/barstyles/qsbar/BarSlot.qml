@@ -21,6 +21,10 @@ PanelWindow {
     readonly property bool islandsShell: barSlot.root.barShellStyle === "islands"
     readonly property bool compactShell: barSlot.root.barShellStyle !== "full"
         && !barSlot.islandsShell
+    // Islands: each populated region gets a pill this many px wider than its
+    // widget row on each side; the reactor gap channels inset by the same amount
+    // so the stream stays strictly in the desktop gaps between pills.
+    readonly property int islandsPad: 8
     readonly property int shellOuterMargin: 5
     readonly property int shellRadius: barSlot.root.barShellStyle === "dock"
         ? 8
@@ -1957,7 +1961,7 @@ PanelWindow {
                 : []
             delegate: Rectangle {
                 required property var modelData
-                readonly property int islandsPad: 8
+                readonly property int islandsPad: barSlot.islandsPad
                 readonly property real rawLeft: modelData ? modelData.x - islandsPad : 0
                 readonly property real rawRight: modelData
                     ? modelData.x + modelData.implicitWidth + islandsPad : 0
@@ -1967,7 +1971,7 @@ PanelWindow {
                 width: Math.max(0,
                     Math.min(island.width - barSlot.shellOuterMargin, rawRight) - x)
                 height: island.height
-                radius: barSlot.root.islandRadius
+                radius: barSlot.root.barCornerRadius
                 color: barSlot.root.barBg
                 border.color: barSlot.root.v2BarBorder
                 border.width: barSlot.root.barBorderEnabled ? 1 : 0
@@ -2130,6 +2134,7 @@ PanelWindow {
             rightRow: rightRowItem
             monitor: barSlot.screenName
             shellVisible: barSlot.visible
+            gapInset: barSlot.islandsShell ? barSlot.islandsPad : 0
         }
 
     }

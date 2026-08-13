@@ -519,7 +519,6 @@ Item {
     readonly property int   pillRadius:   12
     readonly property int   pillH:        24
     readonly property int   pillBorderW:  1
-    readonly property int   islandRadius: 16
     readonly property int   tileRadius:   10
     readonly property int   wsPillPad:    0
     readonly property color pillShadow:   Qt.rgba(0, 0, 0, 0.55)   // dark, theme-independent

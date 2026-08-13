@@ -212,6 +212,17 @@
   `modules/bar/panel/PanelChat.qml`, `services/Needle.qml`).
 
 ### Fixed
+- **The islands bar honours the corner and gap-animation settings.** Merging the
+  two variants left the split-pill `"islands"` form reading a fixed
+  `islandRadius`, so the control center and Bar Studio "Corners" control (which
+  writes `barCornerRadius`) never reshaped the pills, and the reactor gap-stream
+  measured its channels from the widget-row edges instead of the pills, so the
+  stream drew over each pill's rounded corners. The island pill radius now
+  follows `barCornerRadius` (square, soft or round, applied live from both
+  surfaces), and the reactor insets its gap channels by the pill padding so the
+  stream stays strictly in the desktop gaps between pills for every animation
+  mode (`modules/bar/barstyles/qsbar/BarSlot.qml`, `Theme.qml`,
+  `modules/bar/barstyles/qsbar/modules/ReactorLayer.qml`).
 - **The sidebar chat no longer goes dark when KSyntaxHighlighting is absent.**
   The code-block highlighter imported `org.kde.syntaxhighlighting` at the top
   of the chat panel, so a machine without the `syntax-highlighting` module
