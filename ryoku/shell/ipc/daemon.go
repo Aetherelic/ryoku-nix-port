@@ -106,6 +106,10 @@ type daemon struct {
 }
 
 func runDaemon() error {
+	// Bind hyprctl and the event watcher to the running compositor before
+	// anything forks or the take-over check reads the signature: a systemd
+	// Restart= can launch us under a stale one (see hyprsig.go).
+	ensureLiveHyprSignature()
 	path := sockPath()
 	if c, err := net.DialTimeout("unix", path, 300*time.Millisecond); err == nil {
 		c.Close()

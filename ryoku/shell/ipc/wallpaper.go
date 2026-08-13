@@ -437,6 +437,10 @@ func (d *daemon) scheduleTheme() {
 // wallpaper. runs for the life of the daemon.
 func (d *daemon) paintWorker() {
 	for range d.paintSig {
+		// Self-heal a stale signature before any hyprctl fork: if Hyprland
+		// restarted under this persisted daemon, re-bind so the border reload
+		// and the cursor recolour reach the live compositor (see hyprsig.go).
+		ensureLiveHyprSignature()
 		// Before deciding who owns the palette: the surfaces floating on the
 		// picture need its luminance map either way, named theme or not.
 		writeWallpaperTone(readState())
