@@ -37,8 +37,12 @@ recovery_notice() {
 	cat >&2 <<'EOF'
 
 ryoku: the installer has exited; you are at a plain root shell.
+If the install FAILED, the backend log with the actual error is at
+  /var/log/ryoku-install.log      (read it with 'cat', or share it for help)
+/var/log/ryoku-session.log is only the graphical session's own output (cage /
+foot), never the install error -- do not report that one.
 To install by hand: set the RYOKU_* answers and run `ryoku-install`
-(see /etc/motd and /usr/share/ryoku). Graphical diagnostics: /var/log/ryoku-session.log
+(see /etc/motd and /usr/share/ryoku).
 
 EOF
 }
