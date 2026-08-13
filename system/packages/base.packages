@@ -58,6 +58,12 @@ pipewire
 pipewire-alsa
 pipewire-pulse
 wireplumber
+# pipewire-audio pulls the Bluetooth A2DP codec libraries (LDAC, AAC, aptX via
+# libfreeaptx, LC3) as hard deps. Without it a fresh install has only the SBC
+# fallback, so headsets sound muffled and 51-ryoku-bluetooth.conf's codec list
+# has nothing to select. (libopenaptx was dropped from the repos; libfreeaptx
+# is its successor and rides in here.)
+pipewire-audio
 # alsa-utils: alsamixer / amixer / alsactl, the standard tools for inspecting and
 # unsticking a muted hardware codec by hand. Not used by the desktop at runtime
 # (PipeWire owns volume on stock defaults); shipped so audio stays diagnosable, as
