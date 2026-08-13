@@ -20,9 +20,13 @@ import (
 type Cache struct {
 	client *http.Client
 	base   string
-	dir    string
-	mu     sync.Mutex
-	memo   map[string]memoEntry
+	// fallback is a second source tried when base fails, set only for the
+	// persistent ryostore-base override so a stale or dead configured source
+	// self-heals to the canonical default instead of stranding the store.
+	fallback string
+	dir      string
+	mu       sync.Mutex
+	memo     map[string]memoEntry
 }
 
 // memoEntry is a path's answer for this process: the bytes plus the source state
@@ -42,11 +46,21 @@ const (
 )
 
 func newCache() *Cache {
+	base := extrasBase()
+	fallback := ""
+	// A persistent ryostore-base override that has gone stale or dead would
+	// otherwise pin the store to a source that never answers. Fall back to the
+	// canonical default so it self-heals. An explicit RYOKU_EXTRAS_BASE
+	// (dev/test/CI) stays authoritative, and the default needs no fallback.
+	if base != defaultExtrasBase && os.Getenv("RYOKU_EXTRAS_BASE") == "" {
+		fallback = defaultExtrasBase
+	}
 	return &Cache{
-		client: &http.Client{Timeout: cacheTimeout},
-		base:   extrasBase(),
-		dir:    extrasCacheDir(),
-		memo:   map[string]memoEntry{},
+		client:   &http.Client{Timeout: cacheTimeout},
+		base:     base,
+		fallback: fallback,
+		dir:      extrasCacheDir(),
+		memo:     map[string]memoEntry{},
 	}
 }
 
@@ -76,6 +90,16 @@ func (c *Cache) Fetch(ctx context.Context, rel string, refresh bool) ([]byte, So
 		c.setMemo(rel, b, SourceState{})
 		return b, SourceState{}, nil
 	}
+	// A dead or stale configured override self-heals to the canonical source
+	// before the (possibly wrong) disk archive, so the store shows fresh, correct
+	// data instead of getting stranded on a source that no longer answers.
+	if c.fallback != "" {
+		if fb, err := getFrom(ctx, c.client, c.fallback, rel); err == nil {
+			c.writeDisk(rel, fb)
+			c.setMemo(rel, fb, SourceState{})
+			return fb, SourceState{}, nil
+		}
+	}
 	if disk, state, ok := c.readDisk(rel); ok {
 		c.setMemo(rel, disk, state)
 		return disk, state, nil
@@ -104,12 +128,17 @@ func (c *Cache) readDisk(rel string) ([]byte, SourceState, bool) {
 	return b, state, true
 }
 
-// get pulls rel live. A unique query parameter and a no-cache header defeat the
-// raw GitHub (Fastly) CDN, which otherwise keeps serving a pre-push copy for
-// minutes and makes a refresh look broken. A body past maxBody is an error, not
-// a truncated success, so it never replaces a valid cache.
+// get pulls rel live from the configured base. A unique query parameter and a
+// no-cache header defeat the raw GitHub (Fastly) CDN, which otherwise keeps
+// serving a pre-push copy for minutes and makes a refresh look broken. A body
+// past maxBody is an error, not a truncated success, so it never replaces a
+// valid cache. Fetch layers the fallback source and disk archive on top.
 func (c *Cache) get(ctx context.Context, rel string) ([]byte, error) {
-	if root, ok := localBase(c.base); ok {
+	return getFrom(ctx, c.client, c.base, rel)
+}
+
+func getFrom(ctx context.Context, client *http.Client, base, rel string) ([]byte, error) {
+	if root, ok := localBase(base); ok {
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
 		if err != nil {
 			return nil, err
@@ -119,7 +148,7 @@ func (c *Cache) get(ctx context.Context, rel string) ([]byte, error) {
 		}
 		return data, nil
 	}
-	url := c.base + "/" + rel
+	url := base + "/" + rel
 	sep := "?"
 	if strings.Contains(url, "?") {
 		sep = "&"
@@ -129,7 +158,7 @@ func (c *Cache) get(ctx context.Context, rel string) ([]byte, error) {
 		return nil, err
 	}
 	req.Header.Set("Cache-Control", "no-cache")
-	resp, err := c.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

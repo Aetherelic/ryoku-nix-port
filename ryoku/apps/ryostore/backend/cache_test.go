@@ -312,3 +312,68 @@ func TestCachePreservesLiveErrorWithoutDisk(t *testing.T) {
 		t.Fatalf("network failure must not look like an HTTP status error: %v", err)
 	}
 }
+
+// TestCacheHealsToFallbackWhenBaseDead proves a dead configured base self-heals
+// to the fallback source instead of stranding the store: the fetch comes back
+// online with the fallback's bytes.
+func TestCacheHealsToFallbackWhenBaseDead(t *testing.T) {
+	body := []byte(`{"registry":true}`)
+	live := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(body)
+	}))
+	defer live.Close()
+	dead := httptest.NewServer(http.NotFoundHandler())
+	deadURL := dead.URL
+	dead.Close() // an unreachable configured base
+
+	c := &Cache{
+		client:   live.Client(),
+		base:     deadURL,
+		fallback: live.URL,
+		dir:      t.TempDir(),
+		memo:     map[string]memoEntry{},
+	}
+	got, state, err := c.Fetch(context.Background(), "plugins/registry.json", false)
+	if err != nil {
+		t.Fatalf("fallback fetch: %v", err)
+	}
+	if state.Offline {
+		t.Fatal("a fetch healed from the fallback source must not be offline")
+	}
+	if !bytes.Equal(got, body) {
+		t.Fatalf("bytes = %q, want %q", got, body)
+	}
+}
+
+// TestNewCacheFallbackScoping proves the fallback is armed only for the
+// persistent ryostore-base override: an explicit env base and the default
+// source stay authoritative (no fallback), so hermetic env-based tests and dev
+// overrides never silently reach the canonical default.
+func TestNewCacheFallbackScoping(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	t.Setenv("RYOKU_EXTRAS_BASE", "https://example.test/fork")
+	if fb := newCache().fallback; fb != "" {
+		t.Fatalf("env override must stay authoritative, got fallback %q", fb)
+	}
+
+	t.Setenv("RYOKU_EXTRAS_BASE", "")
+	dir := filepath.Join(configHome(), "ryoku")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ryostore-base"), []byte("https://example.test/fork\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if fb := newCache().fallback; fb != defaultExtrasBase {
+		t.Fatalf("stale config override must fall back to the default, got %q", fb)
+	}
+
+	if err := os.Remove(filepath.Join(dir, "ryostore-base")); err != nil {
+		t.Fatal(err)
+	}
+	if fb := newCache().fallback; fb != "" {
+		t.Fatalf("default source needs no fallback, got %q", fb)
+	}
+}

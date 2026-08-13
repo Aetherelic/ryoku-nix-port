@@ -172,22 +172,26 @@ func installedBarStyleRows() ([]barStyleIndexRow, error) {
 			continue
 		}
 		id := strings.TrimSuffix(entry.Name(), ".json")
+		// A broken barstyle receipt (bad name, unreadable, missing Scene.qml, or
+		// drifted from disk) is quarantined: skipped so it can't error the
+		// provider and report the store offline. It reads as installable again
+		// and a reinstall heals it.
 		if !productIDPattern.MatchString(id) {
-			return nil, fmt.Errorf("invalid barstyle receipt name %q", entry.Name())
+			continue
 		}
 		receipt, err := readReceipt("barstyles", id)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		dst, _, err := productDestination("barstyles", id)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		if !receiptOwnsFile(receipt, barStyleScene) {
-			return nil, fmt.Errorf("barstyles/%s: receipt does not own Scene.qml", id)
+			continue
 		}
 		if err := verifyInstalledReceipt(dst, receipt); err != nil {
-			return nil, fmt.Errorf("barstyles/%s: %w", id, err)
+			continue
 		}
 		row := barStyleIndexRow{ID: id, Version: receipt.Version, Scene: barStyleScene}
 		row.View = barStyleView(row, receipt)

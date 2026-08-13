@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 )
 
@@ -61,13 +60,14 @@ func productEntryItem(base, category string, entry ProductEntry) (Item, error) {
 		Screenshots: resolveAssets(base, entry.Path, entry.Screenshots),
 		Tags:        entry.Tags, Accent: entry.Accent, Surface: entry.Surface,
 	}
-	receipt, err := readReceipt(category, entry.ID)
-	if err == nil {
+	// A missing receipt means not installed. A corrupt or unreadable one is a
+	// local problem, not a source outage: leave the product installable
+	// (reinstalling rewrites the receipt) rather than erroring the provider,
+	// which BuildCatalog would fold into a misleading store-wide "offline".
+	if receipt, err := readReceipt(category, entry.ID); err == nil {
 		item.Installed = true
 		item.InstalledVersion = receipt.Version
 		item.UpdateAvailable = receipt.Version != entry.Version
-	} else if !os.IsNotExist(err) {
-		return Item{}, err
 	}
 	return item, nil
 }

@@ -360,3 +360,83 @@ func TestFreshPluginFailureRestoresPlacement(t *testing.T) {
 		t.Fatalf("placement transaction calls = %q", calls)
 	}
 }
+
+func TestPluginIndexQuarantinesBrokenReceipt(t *testing.T) {
+	fixture := newPluginProductFixture(t)
+	stubPlaceTool(t)
+	provider := pluginProvider{cache: fixture.cache}
+
+	// A healthy install whose receipt verifies on disk.
+	if err := provider.Install(context.Background(), "fixture"); err != nil {
+		t.Fatalf("install fixture: %v", err)
+	}
+
+	// A drifted receipt claiming a file that never landed on disk (as the
+	// receipt-owned-products migration could leave). It used to fail the whole
+	// rebuild, blanking the plugins tab.
+	broken := Receipt{
+		Category: "plugins", ID: "ghost", Version: "1.0.0",
+		Destination: "ryoku/plugins/ghost",
+		Files: []ReceiptFile{{
+			Source: "manifest.json", Destination: "manifest.json",
+			SHA256: strings.Repeat("a", 64), Mode: "0644", Size: 1,
+		}},
+	}
+	if err := writeReceipt(broken); err != nil {
+		t.Fatalf("write broken receipt: %v", err)
+	}
+
+	rows, err := rebuildPluginIndex()
+	if err != nil {
+		t.Fatalf("rebuild must quarantine a broken receipt, not fail: %v", err)
+	}
+	indexed := map[string]bool{}
+	for _, row := range rows {
+		indexed[row.ID] = true
+	}
+	if !indexed["fixture"] {
+		t.Fatalf("healthy plugin dropped from index: %+v", rows)
+	}
+	if indexed["ghost"] {
+		t.Fatalf("broken plugin was indexed instead of quarantined: %+v", rows)
+	}
+
+	// The load path the plugins tab calls must stay healthy too.
+	items, _, err := provider.Load(context.Background(), false)
+	if err != nil {
+		t.Fatalf("Load must not fail with a broken receipt present: %v", err)
+	}
+	if item := itemsByID(items)["fixture"]; !item.Installed {
+		t.Fatalf("healthy fixture not reported installed alongside broken receipt: %+v", item)
+	}
+}
+
+func TestBrokenReceiptDoesNotReportStoreOffline(t *testing.T) {
+	fixture := newPluginProductFixture(t)
+	stubPlaceTool(t)
+	provider := pluginProvider{cache: fixture.cache}
+
+	if err := provider.Install(context.Background(), "fixture"); err != nil {
+		t.Fatalf("install fixture: %v", err)
+	}
+	// Corrupt the installed receipt on disk. A local receipt problem used to
+	// error the provider, which BuildCatalog folds into a store-wide "offline"
+	// even though the source is reachable (the users' `ryostore check` returned
+	// offline:true while online).
+	if err := os.WriteFile(receiptPath("plugins", "fixture"), []byte("{ not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cat := BuildCatalog(context.Background(), []Provider{provider}, true)
+	if cat.Offline {
+		t.Fatal("a corrupt local receipt must not report the store offline")
+	}
+	for _, c := range cat.Categories {
+		if c.ID == "plugins" && c.Error != "" {
+			t.Fatalf("plugins category errored on a corrupt receipt: %q", c.Error)
+		}
+	}
+	if _, ok := itemsByID(cat.Items)["fixture"]; !ok {
+		t.Fatalf("fixture dropped from catalogue: %+v", cat.Items)
+	}
+}

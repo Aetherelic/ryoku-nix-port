@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -77,8 +79,29 @@ func TestBuildCatalogCountsAndOffline(t *testing.T) {
 	if !cat.Offline || cat.CachedAt != "2026-07-01T00:00:00Z" {
 		t.Fatalf("offline state not carried onto category: %+v", cat)
 	}
-	if !got.Offline {
-		t.Fatalf("catalogue should aggregate offline from its sources")
+	if got.Offline {
+		t.Fatalf("a source serving cached items must not flag the store offline: %+v", got)
+	}
+}
+
+func TestBuildCatalogOfflineOnlyWhenEmpty(t *testing.T) {
+	// The store is offline to the user only when a source failed AND there is
+	// nothing to show. A source still serving items (live or cached) keeps the
+	// store online; a failed source with no items trips it.
+	serving := BuildCatalog(context.Background(), []Provider{fakeProvider{
+		category: Category{ID: "rices", Name: "Rices", Group: "wear"},
+		items:    []Item{{ID: "cached", Category: "rices"}},
+		state:    SourceState{Offline: true},
+	}}, false)
+	if serving.Offline {
+		t.Fatalf("serving cached items must keep the store online: %+v", serving)
+	}
+	empty := BuildCatalog(context.Background(), []Provider{fakeProvider{
+		category: Category{ID: "rices", Name: "Rices", Group: "wear"},
+		err:      errors.New("source unreachable"),
+	}}, false)
+	if !empty.Offline {
+		t.Fatal("a failed source with no items must flag the store offline")
 	}
 }
 
@@ -222,13 +245,16 @@ func TestRunCatalogDoesNotSnapshotEmpty(t *testing.T) {
 // instead of pinning "offline" on every launch until a manual refresh.
 func TestRunCatalogRebuildsOfflineSnapshot(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	offline := []Provider{fakeProvider{
-		category: Category{ID: "rices", Name: "Rices", Group: "wear"},
-		items:    []Item{{ID: "demo", Category: "rices"}},
-		state:    SourceState{Offline: true, CachedAt: "2026-07-01T00:00:00Z"},
-	}}
-	if err := runCatalog(io.Discard, offline, nil); err != nil {
-		t.Fatalf("offline launch: %v", err)
+	// A snapshot flagged offline (however it arose) must not be served forever:
+	// the next non-refresh launch rebuilds live and comes back online, so the
+	// store self-heals instead of pinning "offline" until a manual refresh.
+	snapshot := filepath.Join(extrasCacheDir(), "catalog.json")
+	if err := os.MkdirAll(filepath.Dir(snapshot), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	seed := []byte(`{"offline":true,"categories":[],"items":[{"id":"demo","category":"rices"}]}` + "\n")
+	if err := os.WriteFile(snapshot, seed, 0o644); err != nil {
+		t.Fatal(err)
 	}
 	var loads int32
 	healthy := []Provider{countingProvider{

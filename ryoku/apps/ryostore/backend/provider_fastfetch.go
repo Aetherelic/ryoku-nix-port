@@ -47,11 +47,12 @@ func (p fastfetchProvider) Load(ctx context.Context, refresh bool) ([]Item, Sour
 			return nil, state, err
 		}
 		if item.Installed && currentErr == nil {
-			active, err := fastfetchStyleMatchesCurrent(entry.ID, current)
-			if err != nil {
-				return nil, state, err
+			// A drifted or unreadable installed style is a local problem, not a
+			// source outage: leave it un-highlighted rather than erroring the
+			// provider, which would report the store offline.
+			if active, err := fastfetchStyleMatchesCurrent(entry.ID, current); err == nil {
+				item.Active = active
 			}
-			item.Active = active
 		}
 		items = append(items, item)
 	}

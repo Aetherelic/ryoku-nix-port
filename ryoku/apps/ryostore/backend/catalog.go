@@ -68,6 +68,7 @@ func BuildCatalog(ctx context.Context, provs []Provider, refresh bool) Catalog {
 		Categories:  make([]Category, len(provs)),
 		Items:       []Item{},
 	}
+	anyFailure := false
 	for i, p := range provs {
 		c := p.Category()
 		r := results[i]
@@ -87,10 +88,15 @@ func BuildCatalog(ctx context.Context, provs []Provider, refresh bool) Catalog {
 			cat.Items = append(cat.Items, r.items...)
 		}
 		if c.Offline || c.Error != "" {
-			cat.Offline = true
+			anyFailure = true
 		}
 		cat.Categories[i] = c
 	}
+	// The store is "offline" to the user only when a source failed AND there is
+	// nothing at all to show. Serving cached or partial data is normal
+	// resilience, not an offline state, so a stale-but-reachable source (or one
+	// category falling back to cache) never blanks the store or trips the banner.
+	cat.Offline = anyFailure && len(cat.Items) == 0
 	return cat
 }
 

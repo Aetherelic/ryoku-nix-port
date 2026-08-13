@@ -51,27 +51,31 @@ func rebuildPluginIndexLocked() ([]pluginIndexRow, error) {
 			continue
 		}
 		id := strings.TrimSuffix(entry.Name(), ".json")
+		// A broken receipt (unreadable, malformed, or drifted from disk) is
+		// quarantined: skipped so it can't blank the whole plugins tab. It then
+		// reads as installable and a reinstall heals it; only index writes below
+		// are fatal.
 		if !productIDPattern.MatchString(id) {
-			return nil, fmt.Errorf("invalid plugin receipt name %q", entry.Name())
+			continue
 		}
 		receipt, err := readReceipt("plugins", id)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		destination, _, err := productDestination("plugins", id)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		if !receiptOwnsFile(receipt, "manifest.json") {
-			return nil, fmt.Errorf("plugins/%s: receipt does not own manifest.json", id)
+			continue
 		}
 		if err := verifyInstalledReceipt(destination, receipt); err != nil {
-			return nil, fmt.Errorf("plugins/%s: %w", id, err)
+			continue
 		}
 		row := pluginIndexRow{ID: id, Version: receipt.Version}
 		row.View = pluginView(row, receipt)
 		if err := ensurePluginView(row, receipt); err != nil {
-			return nil, err
+			continue
 		}
 		rows = append(rows, row)
 	}
