@@ -18,8 +18,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-brightness"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     property int percent: 0
     property int queuedSetPercent: -1
@@ -72,14 +72,22 @@ PanelWindow {
         id: card
         width: 280
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: briPanel.root
+            ownerActive: briPanel.root.brightnessVisible
+            targetX: briPanel.root.brightnessBarX
+            reveal: briPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.brightnessBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - briPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - briPanel.reveal)
         opacity: briPanel.reveal
         focus: root.brightnessVisible
 
@@ -156,7 +164,7 @@ PanelWindow {
                 spacing: 8
                 Rectangle {
                     id: btnDown
-                    width: root.evenW((parent.width - 8) / 2); height: 28; radius: root.tileRadius
+                    width: root.evenW((parent.width - 8) / 2); height: 28; radius: root.panelButtonRadius
                     color: _dn.containsMouse ? root.fillHover : root.fillIdle
                     border.color: _dn.containsMouse ? root.seal : root.sep
                     border.width: 1
@@ -175,7 +183,7 @@ PanelWindow {
                 }
                 Rectangle {
                     id: btnUp
-                    width: root.evenW((parent.width - 8) / 2); height: 28; radius: root.tileRadius
+                    width: root.evenW((parent.width - 8) / 2); height: 28; radius: root.panelButtonRadius
                     color: _up.containsMouse ? root.fillHover : root.fillIdle
                     border.color: _up.containsMouse ? root.seal : root.sep
                     border.width: 1

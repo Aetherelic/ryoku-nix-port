@@ -18,8 +18,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-volume"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     AudioData { id: audio }
     readonly property int    volume:   audio.volume
@@ -51,7 +51,7 @@ PanelWindow {
     }
 
     Timer {
-        interval: 45
+        interval: 45 * Perf.pollFactor
         repeat: true
         running: root.volVisible && volPanel.micMeterAvailable
         onTriggered: {
@@ -62,13 +62,7 @@ PanelWindow {
         onRunningChanged: if (!running) volPanel.micLevel = 0
     }
 
-    property real reveal: root.volVisible ? 1 : 0
-    Behavior on reveal {
-        NumberAnimation {
-            duration: root.volVisible ? 160 : 120
-            easing.type: root.volVisible ? Easing.OutCubic : Easing.InCubic
-        }
-    }
+    readonly property real reveal: root.volReveal
     visible: reveal > 0.001
     WlrLayershell.keyboardFocus: root.volVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
@@ -81,14 +75,22 @@ PanelWindow {
         id: card
         width: 280
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: volPanel.root
+            ownerActive: volPanel.root.volVisible
+            targetX: volPanel.root.volumeBarX
+            reveal: volPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.volumeBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - volPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - volPanel.reveal)
         opacity: volPanel.reveal
         focus: root.volVisible
 
@@ -189,7 +191,7 @@ PanelWindow {
                         readonly property bool isDef:   Audio.sink && devTile.modelData.name === Audio.sink.name
                         readonly property bool hovered: devMa.containsMouse
                         width: parent.width
-                        height: 26; radius: root.tileRadius
+                        height: 26; radius: root.panelButtonRadius
                         color: isDef     ? root.fillActive
                              : hovered ? root.fillHover : root.fillIdle
                         border.color: (isDef || hovered) ? root.seal : root.sep
@@ -232,7 +234,7 @@ PanelWindow {
             // ── mute toggle ──
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28; radius: root.panelButtonRadius
                 color: volPanel.muted ? root.fillActive
                     : muteMa.containsMouse ? root.fillHover
                     : root.fillIdle
@@ -363,7 +365,7 @@ PanelWindow {
                         readonly property bool isDef:   Audio.source && inTile.modelData.name === Audio.source.name
                         readonly property bool hovered: inMa.containsMouse
                         width: parent.width
-                        height: 26; radius: root.tileRadius
+                        height: 26; radius: root.panelButtonRadius
                         color: isDef     ? root.fillActive
                              : hovered ? root.fillHover : root.fillIdle
                         border.color: (isDef || hovered) ? root.seal : root.sep
@@ -448,7 +450,7 @@ PanelWindow {
 
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28; radius: root.panelButtonRadius
                 color: volPanel.micMuted ? root.fillActive
                     : micMuteMa.containsMouse ? root.fillHover
                     : root.fillIdle
@@ -477,7 +479,7 @@ PanelWindow {
             // ── open audio ──
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28; radius: root.panelButtonRadius
                 color: audioBtnMa.containsMouse ? root.fillPrimaryHover : root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {

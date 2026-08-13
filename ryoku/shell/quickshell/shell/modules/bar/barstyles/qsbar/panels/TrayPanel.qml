@@ -18,8 +18,8 @@ PanelWindow {
     WlrLayershell.namespace: "ryoku-tray"
     // no mask → whole overlay is interactive (modal): click-outside + ESC work
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
     readonly property int popupW: 328
     readonly property int maxListH: 320
 
@@ -56,14 +56,22 @@ PanelWindow {
         id: card
         width: popupW
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: trayPanel.root
+            ownerActive: trayPanel.root.trayVisible
+            targetX: trayPanel.root.trayCaretBarX
+            reveal: trayPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.trayBarX, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - trayPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - trayPanel.reveal)
         opacity: trayPanel.reveal
         focus: root.trayVisible
 
@@ -194,7 +202,7 @@ PanelWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: appRow.cellWidth
                                     height: 28
-                                    radius: root.tileRadius
+                                    radius: root.panelButtonRadius
                                     color: activateMa.containsMouse ? root.fillHover : root.fillIdle
                                     border.color: activateMa.containsMouse ? root.seal : root.sep
                                     border.width: 1
@@ -262,7 +270,7 @@ PanelWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: appRow.cellWidth
                                     height: 28
-                                    radius: root.tileRadius
+                                    radius: root.panelButtonRadius
                                     color: pinMa.containsMouse ? root.fillHover : root.fillIdle
                                     border.color: pinMa.containsMouse ? root.seal : root.sep
                                     border.width: 1
@@ -292,7 +300,7 @@ PanelWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: appRow.cellWidth
                                     height: 28
-                                    radius: root.tileRadius
+                                    radius: root.panelButtonRadius
                                     color: appRow.hasMenu
                                         ? (menuMa.containsMouse ? root.fillHover : root.fillIdle)
                                         : "transparent"

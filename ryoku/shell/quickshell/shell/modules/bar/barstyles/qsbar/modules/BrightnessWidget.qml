@@ -2,11 +2,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../RyokuPower.js" as RyokuPower
-import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
     required property var root
+    readonly property color contentColor: root.widgetContentColor("G13", root.ink)
 
     property bool   hasBacklight: false
     property int    percent:      0
@@ -43,31 +43,10 @@ Item {
         brightnessErrNotify.running = true
     }
 
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
-
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 5
-
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactBrightness
-            text: I18n.tr("BRI")
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 0.5
-        }
+        spacing: 4
 
         // drawn sun - core + rays that grow/brighten with the level
         Item {
@@ -79,8 +58,8 @@ Item {
             readonly property real ratio: Math.max(0, Math.min(1, rootMod.percent / 100))
             // turns theme-red at full brightness, like the battery's full state
             readonly property color sunColor: rootMod.percent >= 100
-                ? root.seal
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
+                ? (root.widgetHasFill("G13") ? rootMod.contentColor : root.seal)
+                : rootMod.contentColor
 
             Rectangle {
                 anchors.centerIn: parent
@@ -115,11 +94,12 @@ Item {
         }
 
         UiText {
+            visible: !root.iconOnly("G13")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
             color: rootMod.percent >= 100
-                ? root.seal
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
+                ? (root.widgetHasFill("G13") ? rootMod.contentColor : root.seal)
+                : rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }

@@ -2,9 +2,9 @@ import QtQuick
 import "../modules"
 import Ryoku.Ui.Singletons
 
-// A quiet summary of the running bar: form · variant on the left, position ·
-// accent on the right. Ryoku has no plugin/health counts to show here (those
-// live in ryostore and `ryoku doctor`), so this strip stays informational.
+// A quiet summary of the running bar: form on the left, position · accent on
+// the right. Ryoku has no plugin/health counts to show here (those live in
+// ryostore and `ryoku doctor`), so this strip stays informational.
 Item {
     id: strip
     property var root

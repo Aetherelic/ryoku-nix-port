@@ -5,15 +5,11 @@ import Ryoku.Ui.Singletons
 
 // APPEARANCE route: a scrollable per-widget list. One row per bar widget group
 // with a visibility toggle (the mod* booleans), an assigned-accent control (the
-// V2 per-widget colour system, reached through a small palette popover) and a
+// per-widget colour system, reached through a small palette popover) and a
 // density toggle where the widget supports it. Ported from Shibumi's
 // WidgetAppearanceWorkbench, wearing qsbar's dark skin and driving `root` (the
-// Theme) directly the same way the old V2 ControlPanel's WidgetStateTile did.
-//
-// The colour + density backends differ per variant: V2 exposes widget*() /
-// iconOnly() / mprisBarStyle; V1 exposes plain compact* booleans and no colour
-// system. Every helper call is capability-gated so the page loads clean under
-// the V1 Theme (the offscreen probe) and drives live state under either variant.
+// Theme) directly. Every helper call is capability-gated so the page also loads
+// clean under the offscreen probe Theme.
 Item {
     id: page
     property var root: null
@@ -23,11 +19,11 @@ Item {
     property string colorGid: ""
     property string colorLabel: ""
 
-    // Per-widget colour is a V2-only capability: the V1 Theme has no widget*()
-    // helpers. Gate the whole accent affordance on it so V1 stays error-free.
+    // Per-widget colour is gated on widgetHasFill so the page stays error-free
+    // if the live Theme (or the offscreen probe) does not expose the helpers.
     readonly property bool colorSupported: !!(page.root && page.root.widgetHasFill)
 
-    // ── visibility (mod* booleans; present on both V1 and V2) ──
+    // ── visibility (mod* booleans) ──
     function boolOf(prop) {
         return (page.root && prop !== "") ? page.root[prop] === true : false
     }
@@ -37,8 +33,8 @@ Item {
     }
 
     // ── density (compact) - drive whichever mechanism the live Theme consumes ──
-    // V2 renders one presentation toggled per-group via iconOnly()/mprisBarStyle;
-    // V1 reads plain compact* booleans. `flag` is the V1 property name.
+    // The bar renders one presentation toggled per-group via iconOnly() /
+    // mprisBarStyle; `flag` is an optional legacy per-group compact property.
     function compactOf(gid, flag) {
         if (!page.root || flag === "") return false
         if (gid === "G9" && page.root.mprisBarStyle !== undefined)
@@ -109,7 +105,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
 
-            // palette chip → opens the accent popover for this group (V2 only)
+            // palette chip → opens the accent popover for this group
             Item {
                 width: 26; height: 26
                 visible: wr.colorable
@@ -264,9 +260,9 @@ Item {
                 }
             }
 
-            // Temperature source for the V2 CPU-temperature widget: the same
-            // sensor picker the Thermals panel carries, surfaced while the widget
-            // is enabled (V1 has no CPU-temp widget, so this never shows there).
+            // Temperature source for the CPU-temperature widget: the same sensor
+            // picker the Thermals panel carries, surfaced while the widget is
+            // enabled (hidden when the widget has no temperature source).
             CcSection {
                 width: contentCol.width
                 root: page.root
@@ -284,8 +280,8 @@ Item {
     }
 
     // ── accent popover ── floats above the list, addressed by page.colorGid.
-    // Only instantiated when the Theme supports per-widget colour (V2), so its
-    // widget*() bindings never evaluate under the V1 probe Theme.
+    // Only instantiated when the Theme supports per-widget colour, so its
+    // widget*() bindings never evaluate under the offscreen probe Theme.
     Loader {
         anchors.fill: parent
         z: 50

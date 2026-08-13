@@ -18,7 +18,7 @@ PanelWindow {
     WlrLayershell.namespace: "quickshell"
     mask: Region {}
 
-    readonly property int barBottom: 35
+    readonly property int barBottom: root.v2BarHeight
     readonly property int gap: 6
 
     property real reveal: root.tooltipShown ? 1 : 0
@@ -59,13 +59,12 @@ PanelWindow {
             return Math.max(4, Math.min(maxY, candidate))
         }
 
-        color: root.barBg   // frosts with the bar's Frost toggle (0.68 ⇄ 0.94)
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        radius: 6
+        color: root.barBg
+        border.color: root.panelOuterBorderColor
+        border.width: root.panelOuterBorderW
+        radius: root.panelRadius
         opacity: overlay.reveal
 
-        // border-less style → drop the border, drop a dark shadow (same as pills)
         PillShadow { theme: root }
 
         UiText {

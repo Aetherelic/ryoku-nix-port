@@ -17,8 +17,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-memory"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     readonly property int memTotal: root.systemMemTotalMiB
     readonly property int memAvail: root.systemMemAvailMiB
@@ -49,14 +49,22 @@ PanelWindow {
         id: card
         width: 320
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: memPanel.root
+            ownerActive: memPanel.root.memVisible
+            targetX: memPanel.root.memoryBarX
+            reveal: memPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.memoryBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - memPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - memPanel.reveal)
         opacity: memPanel.reveal
         focus: root.memVisible
 
@@ -161,6 +169,13 @@ PanelWindow {
                     UiText { text: memPanel.totalGiB.toFixed(1) + I18n.tr(" GiB"); color: root.ink; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.3 }
                     UiText { text: memPanel.memTotal + I18n.tr(" MiB"); color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6); font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.3 }
                 }
+                Row {
+                    width: parent.width
+                    visible: root.memorySpeedMTs > 0
+                    UiText { text: I18n.tr("Speed"); color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: root.memorySpeedMTs + I18n.tr(" MT/s"); color: root.ink; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.3 }
+                    UiText { text: root.memoryType; color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6); font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.3 }
+                }
             }
 
             Rectangle { width: parent.width; height: 1; color: root.sep }
@@ -168,7 +183,7 @@ PanelWindow {
             // ── button ──
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28; radius: root.panelButtonRadius
                 color: btopMa.containsMouse ? root.fillPrimaryHover : root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {

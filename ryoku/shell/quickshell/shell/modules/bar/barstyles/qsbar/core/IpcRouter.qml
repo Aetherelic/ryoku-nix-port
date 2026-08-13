@@ -1,10 +1,13 @@
 import QtQuick
 import Quickshell.Io
 
+// External IPC surface for the single qsbar. Dispatches to the one VariantRoot
+// (barRoot); a call that arrives before the bar is ready is queued and flushed
+// once it becomes ready, so early theme/launcher pushes are never lost.
 Item {
     id: router
 
-    required property var variantHost
+    required property var barRoot
 
     property var pendingThemePayload: undefined
     property var pendingLauncherPayload: undefined
@@ -16,12 +19,12 @@ Item {
     height: 0
 
     function canDispatch() {
-        return variantHost.ready && variantHost.activeItem !== null
+        return barRoot !== null && barRoot.ready
     }
 
     function invoke(method, first, second) {
         if (!canDispatch()) return false
-        var fn = variantHost.activeItem[method]
+        var fn = barRoot[method]
         if (!fn) return false
 
         if (second !== undefined) fn(first, second)
@@ -77,18 +80,7 @@ Item {
 
     IpcHandler {
         target: "lifecycle"
-        function version(): string {
-            return router.variantHost.runningVariant === "v2" ? "V2" : "V1"
-        }
-        function ready(): bool { return router.variantHost.ready }
-    }
-
-    IpcHandler {
-        target: "variant"
-        function current(): string { return router.variantHost.runningVariant }
-        function state(): string { return router.variantHost.phase }
-        function error(): string { return router.variantHost.lastError }
-        function activate(version: string): void { router.variantHost.requestSwitch(version) }
+        function ready(): bool { return router.canDispatch() }
     }
 
     IpcHandler {
@@ -125,9 +117,9 @@ Item {
     }
 
     Connections {
-        target: router.variantHost
-        function onPhaseChanged() {
-            if (router.variantHost.ready) router.flush()
+        target: router.barRoot
+        function onReadyChanged() {
+            if (router.barRoot && router.barRoot.ready) router.flush()
         }
     }
 }

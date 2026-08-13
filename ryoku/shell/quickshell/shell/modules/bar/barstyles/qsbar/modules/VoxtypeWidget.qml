@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property color contentColor: root.widgetContentColor("G8", root.ink)
 
     readonly property string state: root.voxState   // idle | recording | transcribing
     readonly property string hint:  root.voxHint
@@ -27,7 +28,9 @@ Item {
         id: ico
         anchors.centerIn: parent
         text: rootMod.displayIcon
-        color: rootMod.state === "recording" ? root.seal : root.ink
+        color: root.widgetHasFill("G8")
+            ? rootMod.contentColor
+            : (rootMod.state === "recording" ? root.seal : root.ink)
         font.pixelSize: 14
 
         // pulse while recording

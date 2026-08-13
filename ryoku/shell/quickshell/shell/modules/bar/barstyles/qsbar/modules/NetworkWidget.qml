@@ -7,6 +7,7 @@ import Ryoku.Ui.Singletons
 Item {
     id: rootMod
     required property var root
+    readonly property color contentColor: root.widgetContentColor("G11", root.widgetIconColor)
 
     property string mode:   "none"  // "wifi" | "ethernet" | "none"
     property string ssid:   ""
@@ -19,14 +20,36 @@ Item {
     property real prevMs:   0
     property real dlRate:   0
     property real ulRate:   0
-    property var  dlHistory: []
-    property var  ulHistory: []
-    readonly property int maxSamples: 30
 
     function formatSpeed(bps) {
         var mb = bps / 1048576
         var s = mb < 10 ? mb.toFixed(2) : mb.toFixed(1)
         return s.padStart(5) + "M"  // always 6 chars: " 0.00M" … "100.0M"
+    }
+
+    function formatBarRate(bps) {
+        var value = Math.max(0, Number(bps) || 0)
+        if (value >= 1073741824) {
+            var gib = value / 1073741824
+            return (gib < 10 ? gib.toFixed(1) : gib.toFixed(0)) + "G"
+        }
+        if (value >= 1048576) {
+            var mib = value / 1048576
+            return (mib < 10 ? mib.toFixed(1) : mib.toFixed(0)) + "M"
+        }
+        if (value >= 1024) {
+            var kib = value / 1024
+            return (kib < 10 ? kib.toFixed(1) : kib.toFixed(0)) + "K"
+        }
+        return "0K"
+    }
+
+    function trafficLevel(bps) {
+        var value = Math.max(0, Number(bps) || 0)
+        if (value <= 0) return 0
+        // Log scale keeps ordinary KiB traffic visible while still leaving
+        // headroom up to roughly a saturated gigabit link.
+        return Math.min(1, Math.log(1 + value / 1024) / Math.log(1 + 102400))
     }
 
     function updateSpeeds(rx, tx, now) {
@@ -35,8 +58,6 @@ Item {
             if (dt > 0) {
                 dlRate = Math.max(0, (rx - prevRx) / dt)
                 ulRate = Math.max(0, (tx - prevTx) / dt)
-                var dh = dlHistory.slice(); dh.push(dlRate); if (dh.length > maxSamples) dh.shift(); dlHistory = dh
-                var uh = ulHistory.slice(); uh.push(ulRate); if (uh.length > maxSamples) uh.shift(); ulHistory = uh
             }
         }
         prevRx = rx; prevTx = tx; prevMs = now
@@ -62,161 +83,106 @@ Item {
     Binding { target: rootMod.root; property: "networkMode"; value: rootMod.mode }
     implicitHeight: 28
 
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.implicitWidth) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
-
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 5
-
-        // ── label ──
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactNetwork
-            text: I18n.tr("NET")
-            color: mode === "none"
-                ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.7)
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 0.5
-        }
-
-        // ── ethernet: dual sparkline ──
-        Canvas {
-            id: netGraph
-            visible: rootMod.mode === "ethernet" && !root.compactNetwork
-            width: 36; height: 14
-            anchors.verticalCenter: parent.verticalCenter
-
-            property color tint: root.seal
-            onTintChanged: requestPaint()
-
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-
-                var dl = rootMod.dlHistory
-                var ul = rootMod.ulHistory
-                if (dl.length < 2 && ul.length < 2) return
-
-                // shared scale so both lines are visually comparable
-                var maxV = 1
-                for (var n = 0; n < dl.length; n++) if (dl[n] > maxV) maxV = dl[n]
-                for (var n = 0; n < ul.length; n++) if (ul[n] > maxV) maxV = ul[n]
-                maxV *= 1.15
-
-                function drawLine(history, color, fillAlpha, strokeW) {
-                    if (history.length < 2) return
-                    var pts = []
-                    for (var i = 0; i < history.length; i++) {
-                        pts.push({
-                            x: (i / (rootMod.maxSamples - 1)) * width,
-                            y: height - (history[i] / maxV) * height
-                        })
-                    }
-                    // fill
-                    ctx.beginPath()
-                    ctx.moveTo(pts[0].x, height)
-                    ctx.lineTo(pts[0].x, pts[0].y)
-                    for (var j = 1; j < pts.length; j++) {
-                        var cx = (pts[j-1].x + pts[j].x) / 2
-                        ctx.bezierCurveTo(cx, pts[j-1].y, cx, pts[j].y, pts[j].x, pts[j].y)
-                    }
-                    ctx.lineTo(pts[pts.length-1].x, height)
-                    ctx.closePath()
-                    ctx.fillStyle = Qt.rgba(color.r, color.g, color.b, fillAlpha)
-                    ctx.fill()
-                    // stroke
-                    ctx.beginPath()
-                    ctx.moveTo(pts[0].x, pts[0].y)
-                    for (var k = 1; k < pts.length; k++) {
-                        var mx = (pts[k-1].x + pts[k].x) / 2
-                        ctx.bezierCurveTo(mx, pts[k-1].y, mx, pts[k].y, pts[k].x, pts[k].y)
-                    }
-                    ctx.strokeStyle = color
-                    ctx.lineWidth = strokeW
-                    ctx.lineCap = "round"; ctx.lineJoin = "round"
-                    ctx.stroke()
-                }
-
-                drawLine(dl, root.seal,   0.12, 1.5)   // download - seal
-                drawLine(ul, root.indigo, 0.10, 1.0)   // upload   - indigo
-            }
-
-            Connections {
-                target: rootMod
-                function onDlHistoryChanged() { netGraph.requestPaint() }
-                function onUlHistoryChanged() { netGraph.requestPaint() }
-            }
-            Component.onCompleted: requestPaint()
-        }
-
-        // ── ethernet: down/up speed, stacked to save width ──
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.mode === "ethernet" && !root.compactNetwork
-            spacing: 0
-            UiText {
-                width: 54; height: 11
-                verticalAlignment: Text.AlignVCenter
-                horizontalAlignment: Text.AlignRight
-                text: "↓" + rootMod.formatSpeed(rootMod.dlRate)
-                color: root.seal
-                font.family: root.mono
-                font.pixelSize: 10
-            }
-            UiText {
-                width: 54; height: 11
-                verticalAlignment: Text.AlignVCenter
-                horizontalAlignment: Text.AlignRight
-                text: "↑" + rootMod.formatSpeed(rootMod.ulRate)
-                color: root.indigo
-                font.family: root.mono
-                font.pixelSize: 10
-            }
-        }
+        spacing: 4
 
         // ── wifi: icon ──
         IconText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi"
             text: IconMap.icon(rootMod.wifiIconName)
-            color: root.compactNetwork ? root.seal : root.ink
-            font.pixelSize: root.compactNetwork ? 15 : 14
+            color: rootMod.contentColor
+            font.pixelSize: 15
             Behavior on color { ColorAnimation { duration: 160 } }
         }
 
         IconText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactNetwork && rootMod.mode !== "wifi"
+            visible: rootMod.mode !== "wifi"
             text: IconMap.icon(rootMod.mode === "ethernet" ? "lan" : "signal_wifi_off")
             color: rootMod.mode === "ethernet"
-                ? root.seal
-                : Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.65)
+                ? rootMod.contentColor
+                : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.65)
             font.pixelSize: rootMod.mode === "ethernet" ? 14 : 15
             Behavior on color { ColorAnimation { duration: 160 } }
         }
 
-        // ── wifi: ssid ──
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.mode === "wifi" && !root.compactNetwork
-            text: rootMod.ssid
-            color: root.seal
+            visible: rootMod.mode === "wifi" && !root.iconOnly("G11")
+            width: visible ? Math.min(88, implicitWidth) : 0
+            text: rootMod.ssid !== "" ? rootMod.ssid : I18n.tr("Wi-Fi")
+            color: rootMod.contentColor
             font.family: root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 1
+            font.pixelSize: 11
+            elide: Text.ElideRight
         }
+
+        Item {
+            id: trafficMeter
+            anchors.verticalCenter: parent.verticalCenter
+            visible: rootMod.mode === "ethernet" && !root.iconOnly("G11")
+            width: visible ? 16 : 0
+            height: 20
+
+            readonly property real rxLevel: rootMod.trafficLevel(rootMod.dlRate)
+            readonly property real txLevel: rootMod.trafficLevel(rootMod.ulRate)
+
+            UiText {
+                x: 0; y: 0
+                width: 8; height: 8
+                text: I18n.tr("RX")
+                color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
+                font.family: root.mono
+                font.pixelSize: 7
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            Column {
+                x: 2; y: 8
+                spacing: 1
+                Repeater {
+                    model: 4
+                    delegate: Rectangle {
+                        required property int index
+                        width: 4; height: 2; radius: 1
+                        color: trafficMeter.rxLevel > index / 4
+                            ? rootMod.contentColor
+                            : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.18)
+                        Behavior on color { ColorAnimation { duration: 160 } }
+                    }
+                }
+            }
+
+            Column {
+                x: 10; y: 1
+                spacing: 1
+                Repeater {
+                    model: 4
+                    delegate: Rectangle {
+                        required property int index
+                        width: 4; height: 2; radius: 1
+                        color: trafficMeter.txLevel > (3 - index) / 4
+                            ? rootMod.contentColor
+                            : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.18)
+                        Behavior on color { ColorAnimation { duration: 160 } }
+                    }
+                }
+            }
+            UiText {
+                x: 8; y: 13
+                width: 8; height: 8
+                text: I18n.tr("TX")
+                color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
+                font.family: root.mono
+                font.pixelSize: 7
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+
     }
 
     Process {

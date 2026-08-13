@@ -8,6 +8,7 @@ Item {
     required property var root
 
     readonly property date now: clk.date
+    readonly property color contentColor: root.widgetContentColor("G8", root.ink)
 
     function pad(n) { return n < 10 ? "0" + n : String(n) }
 
@@ -35,7 +36,7 @@ Item {
         id: label
         anchors.centerIn: parent
         text: rootMod.timeStr
-        color: root.ink
+        color: rootMod.contentColor
         font.family: root.mono
         font.pixelSize: 12
         font.letterSpacing: 1

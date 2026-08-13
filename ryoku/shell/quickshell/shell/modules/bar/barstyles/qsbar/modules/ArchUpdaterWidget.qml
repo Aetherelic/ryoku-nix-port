@@ -6,12 +6,14 @@ import "../IconMap.js" as IconMap
 Item {
     id: rootMod
     required property var root
+    property string colorGid: "G3"
 
     property int updateCount: 0
     property int systemCount: 0
     property int aurCount: 0
     property bool refreshing: false
     property bool preferShell: false
+    readonly property color contentColor: root.widgetContentColor(colorGid, root.ink)
 
     readonly property bool hasUpdates: rootMod.updateCount > 0
     readonly property bool badgePrefsLoaded: root._widgetsLoaded
@@ -121,8 +123,11 @@ Item {
             anchors.centerIn: parent
             text: rootMod.refreshing ? "\uE5D5" : IconMap.icon("package_2")
             color: rootMod.refreshing
-                ? Qt.rgba(root.sumi.r, root.sumi.g, root.sumi.b, 1)
-                : (rootMod.hasNotice ? root.seal : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4))
+                ? rootMod.contentColor
+                : (rootMod.hasNotice && !root.widgetHasFill(rootMod.colorGid)
+                    ? root.seal
+                    : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b,
+                        rootMod.hasNotice ? 1.0 : 0.4))
             font.pixelSize: 14
         }
 
@@ -135,13 +140,15 @@ Item {
             width: Math.max(12, badgeText.implicitWidth + 6)
             height: 12
             radius: 6
-            color: root.seal
+            color: root.widgetHasFill(rootMod.colorGid) ? rootMod.contentColor : root.seal
 
             Text {
                 id: badgeText
                 anchors.centerIn: parent
                 text: rootMod.badgeCount > 99 ? "99+" : String(rootMod.badgeCount)
-                color: root.paper
+                color: root.widgetHasFill(rootMod.colorGid)
+                    ? root.widgetAssignedColor(rootMod.colorGid)
+                    : root.paper
                 font.family: root.mono
                 font.pixelSize: 7
                 font.weight: Font.Bold

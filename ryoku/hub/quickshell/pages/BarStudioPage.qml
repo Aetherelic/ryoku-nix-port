@@ -151,9 +151,7 @@ Item {
 
     // ── QS Bar (Hancore top bar) settings ────────────────────────────────────
     // Stored in the `qsbar` map in shell.json and applied live by the bar's
-    // Theme; an absent key keeps the bar's own default. The V1/V2 variant is
-    // owned by the bar's StateService, so it rides the bar's IPC and is mirrored
-    // back from the persisted state file.
+    // Theme; an absent key keeps the bar's own default.
     function qval(key, fall) {
         const q = page.fval("qsbar", ({}));
         return q && q[key] !== undefined ? q[key] : fall;
@@ -177,8 +175,8 @@ Item {
     }
 
     // The gap animation is stored as an int mode in the qsbar map. Bar Studio
-    // exposes a labelled subset (the V1 stream's usable presets); each label maps
-    // to the mode int the running bar reads. Off is the sentinel 0.
+    // exposes a labelled subset of the usable presets; each label maps to the
+    // mode int the running bar reads. Off is the sentinel 0.
     readonly property var qsbarAnimModes: [
         { v: 0, label: qsTr("Off") },
         { v: 1, label: qsTr("Stream") },
@@ -198,46 +196,30 @@ Item {
         return 0;
     }
 
-    property string qsbarVariant: "v1"
-    function qsbarSetVariant(v) {
-        Quickshell.execDetached(["qs", "-c", "shell", "ipc", "call", "variant", "activate", v]);
-    }
-    // One "Form" abstraction over the two engines: islands is the V1 split bar,
-    // the rest are V2 shell forms. Selecting a form flips the variant and (for a
-    // V2 form) records the shell style, so the user picks a shape, not a variant.
+    // The bar form is one Theme property, `barShellStyle`: "islands" is the split
+    // pills, the rest are unified shell surfaces. Selecting a form writes the
+    // value into the qsbar map like every other setting, so the user picks a
+    // shape directly and the bar's Theme persists it to shell.json.
     readonly property var qsbarForms: ["islands", "full", "fit", "dock", "notch"]
     function qsbarForm() {
-        return page.qsbarVariant === "v1" ? "islands" : page.qval("barShellStyle", "full");
+        return page.qval("barShellStyle", "full");
     }
     function qsbarSetForm(f) {
-        if (f === "islands") { page.qsbarSetVariant("v1"); return; }
-        if (page.qsbarVariant !== "v2") page.qsbarSetVariant("v2");
         page.qset("barShellStyle", f);
     }
-    // Border and corner radius are one control each, written to both engines'
-    // keys so the setting survives a form change; the active engine reads its own.
+    // Border and corner radius apply to every bar form.
     function qsbarBorder() {
-        return page.qsbarForm() === "islands" ? page.qval("styleBorder", true) : page.qval("barBorderEnabled", true);
+        return page.qval("barBorderEnabled", true);
     }
     function qsbarSetBorder(on) {
         const q = Object.assign({}, page.fval("qsbar", ({})));
-        q.styleBorder = on;
         q.barBorderEnabled = on;
         page.fedit("qsbar", q);
     }
     function qsbarSetCorner(px) {
         const q = Object.assign({}, page.fval("qsbar", ({})));
         q.barCornerRadius = px;
-        q.styleRadiusSmall = (px < 10);
         page.fedit("qsbar", q);
-    }
-    FileView {
-        id: qsbarVariantFile
-        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/quickshell-rise/active-variant"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: page.qsbarVariant = (qsbarVariantFile.text() || "v1").trim() || "v1"
     }
 
     readonly property var qsbarWidgets: [
@@ -254,9 +236,9 @@ Item {
         { id: "claude", label: qsTr("AI usage"), def: false, desc: qsTr("Coding-agent usage meter.") },
         { id: "power", label: qsTr("Power profile"), def: false, desc: qsTr("Power-profile pill.") },
         { id: "bluetooth", label: qsTr("Bluetooth"), def: false, desc: qsTr("Bluetooth pill.") },
-        { id: "gpu", label: qsTr("GPU"), def: true, desc: qsTr("GPU load."), v2: true },
-        { id: "cpuTemperature", label: qsTr("CPU temperature"), def: true, desc: qsTr("CPU temperature."), v2: true },
-        { id: "storage", label: qsTr("Storage"), def: true, desc: qsTr("Root filesystem usage."), v2: true }
+        { id: "gpu", label: qsTr("GPU"), def: true, desc: qsTr("GPU load.") },
+        { id: "cpuTemperature", label: qsTr("CPU temperature"), def: true, desc: qsTr("CPU temperature.") },
+        { id: "storage", label: qsTr("Storage"), def: true, desc: qsTr("Root filesystem usage.") }
     ]
     readonly property var qsbarColors: ["color01", "color02", "color03", "color04", "color05", "color06", "color07", "foreground"]
     property var qsbarPalette: ({})
@@ -512,7 +494,7 @@ Item {
                     Seg {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        options: ["islands", "full", "fit", "dock", "notch"]
+                        options: page.qsbarForms
                         current: page.qsbarForm()
                         onChose: key => page.qsbarSetForm(key)
                     }
@@ -548,38 +530,6 @@ Item {
                         from: 0; to: 40
                         value: page.qval("barCornerRadius", 6)
                         onModified: value => page.qsbarSetCorner(value)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
-                    controlWidth: 54
-                    visible: page.qsbarForm() === "islands"
-                    label: qsTr("Frost")
-                    desc: qsTr("Lower the island opacity so blur shows through.")
-                    source: "shell.json"
-                    Sw {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("styleFrost", false)
-                        onToggled: value => page.qset("styleFrost", value)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
-                    controlWidth: 54
-                    visible: page.qsbarForm() === "islands"
-                    label: qsTr("Shadow")
-                    desc: qsTr("Cast a soft shadow under the islands.")
-                    source: "shell.json"
-                    Sw {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("styleShadow", false)
-                        onToggled: value => page.qset("styleShadow", value)
                     }
                 }
                 SettingRow {
@@ -656,7 +606,7 @@ Item {
                     Seg {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        options: page.qsbarVariant === "v2" ? ["default", "numbers", "magic", "kanji", "rings", "aurora"] : ["default", "numbers", "magic"]
+                        options: ["default", "numbers", "magic", "kanji", "rings", "aurora"]
                         current: page.qval("workspaceStyle", "default")
                         onChose: key => page.qset("workspaceStyle", key)
                     }
@@ -711,7 +661,6 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     block: true
-                    visible: page.qsbarVariant === "v2"
                     label: qsTr("Temperature source")
                     desc: qsTr("Which sensor the CPU-temperature widget reads.")
                     source: "shell.json"
@@ -759,7 +708,6 @@ Item {
                     model: page.qsbarWidgets
                     delegate: SettingRow {
                         required property var modelData
-                        visible: !modelData.v2 || page.qsbarVariant === "v2"
                         anchors.left: parent.left
                         anchors.right: parent.right
                         divider: true

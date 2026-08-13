@@ -12,6 +12,7 @@ Item {
     property string weatherDesc: ""
     property bool weatherLoaded: false
     property bool weatherUnavailable: false
+    readonly property color contentColor: root.widgetContentColor("G8", root.ink)
 
     // honor the global imperial toggle in the widget tooltip too (the panel already converts);
     // the fetch stores temp in °C, so convert here when imperial is set
@@ -130,8 +131,8 @@ Item {
         text: rootMod.weatherLoaded ? rootMod.weatherIcon
               : (rootMod.weatherUnavailable ? "?" : "·")
         color: rootMod.weatherUnavailable && !rootMod.weatherLoaded
-               ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4)
-               : root.ink
+               ? Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.4)
+               : rootMod.contentColor
         font.family: root.mono
         font.pixelSize: 14
     }

@@ -20,8 +20,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-ai-usage"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     // ── usage data: rendered from root.ai* - the single shared parse in Theme.qml
     //    that the bar pill uses too, so the two views can never drift apart. ──
@@ -71,13 +71,7 @@ PanelWindow {
     readonly property bool   showCodex:   root.aiTool === "codex"
     readonly property bool   showOpenCode: root.aiTool === "opencode"
 
-    property real reveal: root.aiUsageVisible ? 1 : 0
-    Behavior on reveal {
-        NumberAnimation {
-            duration: root.aiUsageVisible ? 160 : 120
-            easing.type: root.aiUsageVisible ? Easing.OutCubic : Easing.InCubic
-        }
-    }
+    readonly property real reveal: root.aiUsageReveal
     visible: reveal > 0.001
     WlrLayershell.keyboardFocus: root.aiUsageVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
@@ -198,14 +192,22 @@ PanelWindow {
         id: card
         width: 360
         height: Math.min(col.implicitHeight + 24, parent.height - 2 * (barBottom + gap))
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: aiPanel.root
+            ownerActive: aiPanel.root.aiUsageVisible
+            targetX: aiPanel.root.aiBarX
+            reveal: aiPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.aiBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - aiPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - aiPanel.reveal)
         opacity: aiPanel.reveal
         focus: root.aiUsageVisible
 
@@ -262,19 +264,28 @@ PanelWindow {
                         }
                     }
                     UiText {
+                        id: refreshGlyph
                         anchors.right: parent.right
                         anchors.rightMargin: 22
                         anchors.verticalCenter: parent.verticalCenter
                         text: "\u21BB"
-                        color: refreshMa.containsMouse ? root.seal : root.sumi
+                        color: (refreshMa.containsMouse || root.aiRefreshing) ? root.seal : root.sumi
                         font.pixelSize: 13
                         Behavior on color { ColorAnimation { duration: 120 } }
+                        transformOrigin: Item.Center
+                        RotationAnimation on rotation {
+                            running: root.aiRefreshing
+                            loops: Animation.Infinite
+                            from: 0; to: 360
+                            duration: 900
+                            onRunningChanged: if (!running) refreshGlyph.rotation = 0
+                        }
                         MouseArea {
                             id: refreshMa
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.refreshAiUsage()
+                            onClicked: root.regenerateAiUsage()
                         }
                     }
                 }
@@ -289,7 +300,7 @@ PanelWindow {
                         Rectangle {
                             required property var modelData
                             width: root.evenW((parent.width - 12) / 3)
-                            height: 28; radius: root.tileRadius
+                            height: 28; radius: root.panelButtonRadius
                             readonly property bool active: root.aiTool === modelData.id
                             color: active ? root.fillActive
                                   : segMa.containsMouse ? root.fillHover : root.fillIdle

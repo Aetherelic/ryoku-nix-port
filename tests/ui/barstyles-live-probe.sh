@@ -50,22 +50,22 @@ wait_for() {
     return 1
 }
 
-v1_digest="$(printf 'a%.0s' {1..64})"
-v2_digest="$(printf 'b%.0s' {1..64})"
-write_scene 1 v1 "$v1_digest"
-write_index 1.0.1 "$v1_digest"
+initial_digest="$(printf 'a%.0s' {1..64})"
+updated_digest="$(printf 'b%.0s' {1..64})"
+write_scene 1 initial "$initial_digest"
+write_index 1.0.1 "$initial_digest"
 write_revision 1
 XDG_STATE_HOME="$work/state" \
 QML_IMPORT_PATH="$repo/ryoku/shell/quickshell:${QML_IMPORT_PATH:-$HOME/.local/lib/qt6/qml}" \
 QT_QPA_PLATFORM=offscreen qs -p "$work/probe.qml" >"$work/log" 2>&1 &
 pid=$!
 
-wait_for 'BARSTYLE-MARKER:v1'
+wait_for 'BARSTYLE-MARKER:initial'
 original_pid=$pid
-write_scene 2 v2 "$v2_digest"
-write_index 1.0.2 "$v2_digest"
+write_scene 2 updated "$updated_digest"
+write_index 1.0.2 "$updated_digest"
 write_revision 2
-wait_for 'BARSTYLE-MARKER:v2'
+wait_for 'BARSTYLE-MARKER:updated'
 [[ $pid == "$original_pid" ]] && kill -0 "$pid"
 
 printf '[]\n' >"$state/.barstyles.json.tmp"
@@ -79,4 +79,4 @@ if grep -Eq '(^|[[:space:]])(ERROR|TypeError|ReferenceError)|Failed to load' "$w
     exit 1
 fi
 
-echo "barstyles-live-probe: v1 -> v2 -> Sumi in pid $pid"
+echo "barstyles-live-probe: initial -> updated -> Sumi in pid $pid"

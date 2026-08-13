@@ -6,8 +6,9 @@ Item {
     id: rootMod
     required property var root
     property var screen: null
+    readonly property color contentColor: root.widgetContentColor("G10", root.widgetIconColor)
 
-    implicitWidth: 22
+    implicitWidth: root.v2ActionIconCellWidth
     implicitHeight: 28
 
     IconText {
@@ -16,8 +17,8 @@ Item {
         font.pixelSize: 14
         font.weight: Font.Normal
         color: root.imagePickerVisible
-            ? root.seal
-            : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.65)
+            ? (root.widgetHasFill("G10") ? rootMod.contentColor : root.seal)
+            : rootMod.contentColor
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 

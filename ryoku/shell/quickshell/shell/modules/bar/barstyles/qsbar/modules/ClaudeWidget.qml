@@ -84,6 +84,7 @@ Item {
     readonly property bool selFresh: isOpenCode ? ocFresh : (isCodex ? cxFresh : clFresh)
     readonly property bool selSignal: isOpenCode ? ocSignal : (isCodex ? cxSignal : clSignal)
     readonly property bool blocked:  (isCodex || isOpenCode) ? false : clBlocked
+    readonly property color contentColor: root.widgetContentColor("G7", root.widgetIconColor)
 
     // enabled ⇒ visible: show whenever the toggle is on and any tool has data or is running.
     readonly property bool shown: root.modClaude && (clHas || cxHas || ocHas || clActive || cxActive || ocActive)
@@ -158,17 +159,6 @@ Item {
         }
     }
 
-    // ── background pill ──
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: root.pillH; radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
-
     Row {
         id: row
         anchors.centerIn: parent
@@ -197,7 +187,7 @@ Item {
                     id: glyphBase
                     text: String.fromCodePoint(0xF167A)
                     renderType: Text.QtRendering
-                    color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.25)
+                    color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.25)
                     font.family: root.mono
                     font.pixelSize: 14
                 }
@@ -213,7 +203,7 @@ Item {
                         anchors.bottom: parent.bottom
                         text: String.fromCodePoint(0xF167A)
                         renderType: Text.QtRendering
-                        color: root.seal
+                        color: rootMod.contentColor
                         font.family: root.mono
                         font.pixelSize: 14
                         Behavior on color { ColorAnimation { duration: 200 } }
@@ -240,7 +230,7 @@ Item {
                     layer.enabled: true
                     layer.smooth: !rootMod.isCodex
                     layer.effect: ShaderEffect {
-                        property color tintColor: root.ink
+                        property color tintColor: rootMod.contentColor
                         fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
                     }
                 }
@@ -263,7 +253,7 @@ Item {
                         layer.enabled: true
                         layer.smooth: !rootMod.isCodex
                         layer.effect: ShaderEffect {
-                            property color tintColor: root.seal
+                            property color tintColor: rootMod.contentColor
                             fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
                         }
                     }
@@ -272,13 +262,12 @@ Item {
         }
 
         UiText {
+            visible: !root.iconOnly("G7")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.blocked
                 ? I18n.tr("BLK")
                 : (rootMod.selSignal ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
-            color: rootMod.blocked
-                ? root.seal
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
+            color: rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }

@@ -112,7 +112,7 @@ PanelWindow {
 
     CcTokens { id: tk; root: cc.root }
 
-    readonly property int barH: (cc.root.variantHost && cc.root.variantHost.runningVariant === "v2") ? 33 : 35
+    readonly property int barH: cc.root.v2BarHeight
     readonly property int cardW: Math.min(tk.cardW, cc.width - 2 * tk.screenMargin)
     readonly property int cardH: Math.min(tk.cardH, cc.height - cc.barH - 2 * tk.screenMargin - 8)
 

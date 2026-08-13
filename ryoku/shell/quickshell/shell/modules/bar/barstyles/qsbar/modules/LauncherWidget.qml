@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Ryoku.Ui.Singletons
 
@@ -12,6 +11,7 @@ Item {
 
     readonly property string tooltipText: "Control center"
     readonly property real logoPadding: 12
+    readonly property color contentColor: root.widgetContentColor("G1", root.seal)
 
     // animated wave phase
     property real phase: 0
@@ -23,29 +23,14 @@ Item {
         running: ma.containsMouse || root.controlVisible
     }
 
-    // shadow as a SIBLING of the pill (the pill itself clips, for the wave -
-    // a shadow child would be clipped away). rootMod doesn't clip, so this shows.
-    RectangularShadow {
-        anchors.fill: pill
-        radius: pill.radius
-        visible: root.styleShadow
-        blur: 8
-        spread: 0
-        offset: Qt.vector2d(0, root.barPosition === "bottom" ? -1 : 1)
-        color: root.pillShadow
-        z: -1
-    }
-
-    // ── pill background (same style as other widgets) with the wave inside ──
+    // ── hover-wave container (invisible surface, clips the wave to the logo area) ──
     Rectangle {
         id: pill
         anchors.centerIn: parent
         width: logo.implicitWidth + rootMod.logoPadding
         height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        color: "transparent"
+        border.width: 0
         clip: true
 
         Canvas {
@@ -71,9 +56,9 @@ Item {
                         if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
                     }
                     // fade the ends so the wave doesn't hard-clip at the pill edge
-                    var r = Math.round(root.seal.r * 255)
-                    var g = Math.round(root.seal.g * 255)
-                    var b = Math.round(root.seal.b * 255)
+                    var r = Math.round(rootMod.contentColor.r * 255)
+                    var g = Math.round(rootMod.contentColor.g * 255)
+                    var b = Math.round(rootMod.contentColor.b * 255)
                     var lit = "rgba(" + r + "," + g + "," + b + "," + alpha + ")"
                     var grad = ctx.createLinearGradient(0, 0, width, 0)
                     grad.addColorStop(0,    "rgba(" + r + "," + g + "," + b + ",0)")
@@ -97,6 +82,7 @@ Item {
             Connections {
                 target: root
                 function onSealChanged() { wave.requestPaint() }
+                function onWidgetColorStylesChanged() { wave.requestPaint() }
             }
             Component.onCompleted: requestPaint()
         }

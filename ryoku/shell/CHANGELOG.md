@@ -3,13 +3,25 @@
 ## Unreleased
 
 ### Added
+- **qsbar's two bar variants merge into one.** The V1 (split-pill) and V2
+  (continuous-surface) bars were separate engines swapped at runtime by a
+  variant host, so the shell carried both trees plus a state file recording the
+  live choice. They are now a single bar: `variants/V2/` was promoted up, the
+  runtime variant switch (`core/VariantHost.qml` and `core/StateService.qml`)
+  and the active-variant state file were removed, and there is one
+  `VariantRoot`, one `Theme`, and one `BarSlot`. The bar form is now a single
+  `barShellStyle` setting: `"islands"` (the split-pill form that replaced the
+  V1 engine), `"full"`, `"fit"`, `"dock"`, or `"notch"`, set on the qsbar
+  `Theme` and persisted to `shell.json`; the IPC `variant` (activate) and
+  `lifecycle.version` targets are gone (`lifecycle.ready()` stays)
+  (`modules/bar/barstyles/qsbar/`).
 - **The stash download section gets a cobalt engine switch.** The Super+S Tools
   "Download" section silently probed a non-existent cobalt at `localhost:9000`
   and fell back to yt-dlp, whose TikTok extractor is broken upstream, so TikTok
   links failed. A new "Cobalt engine (Docker)" switch runs a local cobalt
   container (`ghcr.io/imputnet/cobalt:11`, loopback-only) on demand: off = yt-dlp
   only, on = downloads route through cobalt with yt-dlp still catching whatever
-  it declines. Docker is detected (not force-installed) — the switch is disabled
+  it declines. Docker is detected (not force-installed), so the switch is disabled
   with an install hint when it is missing, and shows a starting/resource loader
   on first launch (image pull). State persists in `~/.config/ryoku/stash.json`
   and reconciles to the real container state on shell start; the "works with"

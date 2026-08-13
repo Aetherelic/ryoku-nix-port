@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -14,124 +13,28 @@ Item {
     Behavior on opacity      { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
     readonly property int percent: root.systemCpuPercent
-    readonly property var history: root.systemCpuHistory
-    readonly property int maxSamples: 30
     readonly property string tooltipText: percent + "%"
-
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
+    readonly property color contentColor: root.widgetContentColor("G5", root.widgetIconColor)
 
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: root.compactCpu ? 4 : 5
-
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactCpu
-            text: I18n.tr("CPU")
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 0.5
-        }
-
-        Canvas {
-            id: wave
-            visible: !root.compactCpu
-            width: 36
-            height: 14
-            anchors.verticalCenter: parent.verticalCenter
-
-            property color tint: root.seal
-            onTintChanged: requestPaint()
-
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                var h = rootMod.history
-                if (h.length < 2) return
-
-                var maxV = 0.25
-                for (var n = 0; n < h.length; n++) {
-                    if (h[n] > maxV) maxV = h[n]
-                }
-                maxV = Math.min(1, Math.max(0.25, maxV * 1.15))
-
-                var pts = []
-                for (var i = 0; i < h.length; i++) {
-                    var x = (i / (maxSamples - 1)) * width
-                    var y = height - (h[i] / maxV) * height
-                    pts.push({ x: x, y: y })
-                }
-
-                // fill
-                ctx.beginPath()
-                ctx.moveTo(pts[0].x, height)
-                ctx.lineTo(pts[0].x, pts[0].y)
-                for (var j = 1; j < pts.length; j++) {
-                    var cx = (pts[j-1].x + pts[j].x) / 2
-                    ctx.bezierCurveTo(cx, pts[j-1].y, cx, pts[j].y, pts[j].x, pts[j].y)
-                }
-                ctx.lineTo(pts[pts.length-1].x, height)
-                ctx.closePath()
-                ctx.fillStyle = Qt.rgba(tint.r, tint.g, tint.b, 0.12)
-                ctx.fill()
-
-                // stroke
-                ctx.beginPath()
-                ctx.moveTo(pts[0].x, pts[0].y)
-                for (var k = 1; k < pts.length; k++) {
-                    var mx = (pts[k-1].x + pts[k].x) / 2
-                    ctx.bezierCurveTo(mx, pts[k-1].y, mx, pts[k].y, pts[k].x, pts[k].y)
-                }
-                ctx.strokeStyle = tint
-                ctx.lineWidth = 1.5
-                ctx.lineCap = "round"
-                ctx.lineJoin = "round"
-                ctx.stroke()
-            }
-
-            Component.onCompleted: requestPaint()
-            Connections {
-                target: rootMod
-                function onHistoryChanged() { wave.requestPaint() }
-            }
-        }
-
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactCpu
-            text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
-            color: root.seal
-            font.family: root.mono
-            font.pixelSize: 12
-        }
+        spacing: 4
 
         IconText {
-            id: compactCpuGlyph
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactCpu
             text: "planner_review"
-            color: root.seal
+            color: rootMod.contentColor
             font.pixelSize: 15
             font.weight: Font.DemiBold
             fill: 1
         }
 
         UiText {
+            visible: !root.iconOnly("G5")
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactCpu
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
-            color: root.seal
+            color: rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 12
         }

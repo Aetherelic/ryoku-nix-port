@@ -5,11 +5,11 @@ import "../../modules"
 import Ryoku.Ui.Singletons
 
 // QUICK page - 1:1 port of Shibumi's QuickControlPage, in qsbar's palette.
-//   barLanding: thin V1/V2 variant rows (label + status badge + detail) on the
-//   left, joined by a live bezier canvas to a single ACTIVE BAR preview card on
-//   the right. actionDeck: two 4-row columns of thin action rows (icon + label +
-//   detail) with a dotted rail canvas between them. Hover is neutral; the seal
-//   accent marks only the active row, the routes, and destructive confirms.
+//   barLanding: a live bar-surface preview card (the active barShellStyle form)
+//   that opens the Bars route on click. actionDeck: two 4-row columns of thin
+//   action rows (icon + label + detail) with a dotted rail canvas between them.
+//   Hover is neutral; the seal accent marks only the active row, the routes,
+//   and destructive confirms.
 Item {
     id: page
     property var root: null
@@ -28,22 +28,13 @@ Item {
     readonly property string mono: root ? root.mono : "monospace"
 
     // ── state ──
-    property int hoveredBar: -1
     property int hoveredLeft: -1
     property int hoveredRight: -1
     property string pending: ""
 
-    readonly property string runningVariant: (root && root.variantHost) ? String(root.variantHost.runningVariant) : "v1"
-    readonly property bool switching: (root && root.variantHost) ? root.variantHost.switching === true : false
-    readonly property string v2Form: root ? String(root.barShellStyle || "full") : "full"
+    readonly property string activeForm: root ? String(root.barShellStyle || "full") : "full"
     function cap(s) { return s && s.length ? s.charAt(0).toUpperCase() + s.slice(1) : s }
-
-    readonly property var barOptions: [
-        { id: "v1", label: "Islands", detail: "Split pills", form: "islands" },
-        { id: "v2", label: page.cap(page.v2Form), detail: "Unified shell", form: page.v2Form }
-    ]
-    readonly property int activeBarIndex: runningVariant === "v2" ? 1 : 0
-    readonly property int shownBar: hoveredBar >= 0 ? hoveredBar : activeBarIndex
+    readonly property string formLabel: page.cap(page.activeForm)
 
     readonly property var leftActions: [
         { id: "reload",     label: "Reload",     detail: "Reload the shell", glyph: "refresh" },
@@ -58,14 +49,6 @@ Item {
         { id: "shutdown", label: "Shutdown", detail: "Power off",    glyph: "power_settings_new", destructive: true }
     ]
 
-    function barStatus(o, active) {
-        if (page.switching && root && root.variantHost && String(root.variantHost.switchTarget || "") === o.id) return "SWITCHING"
-        return active ? "ACTIVE" : ""
-    }
-    function activateBar(id) {
-        if (page.switching || id === page.runningVariant) return
-        if (root && root.variantHost) root.variantHost.requestSwitch(id)
-    }
     function activateAction(id) {
         if (id === "reboot" || id === "shutdown") {
             if (page.pending === id) { page.confirm(); return }
@@ -88,63 +71,6 @@ Item {
     }
     Timer { id: confirmTimer; interval: 5000; onTriggered: page.pending = "" }
 
-    // ── a thin variant row (V1/V2) ──
-    component VariantRow: Rectangle {
-        id: vr
-        required property var modelData
-        required property int index
-        readonly property bool active: page.activeBarIndex === vr.index
-        readonly property string status: page.barStatus(vr.modelData, vr.active)
-        width: parent ? parent.width : 0
-        radius: page.ctlR
-        color: vr.active ? Qt.rgba(page.acc.r, page.acc.g, page.acc.b, 0.09)
-                         : (vrMa.containsMouse ? page.hoverFill : page.idleFill)
-        border.width: 1
-        border.color: vr.active ? Qt.rgba(page.acc.r, page.acc.g, page.acc.b, 0.52)
-                                : (vrMa.containsMouse ? page.hoverBorder : page.idleBorder)
-        Behavior on color { ColorAnimation { duration: 120 } }
-
-        Column {
-            anchors.left: parent.left; anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 11; anchors.rightMargin: 10
-            spacing: 0
-            Item {
-                width: parent.width; height: label.implicitHeight
-                UiText {
-                    id: label
-                    anchors.left: parent.left
-                    text: I18n.tr(vr.modelData.label)
-                    color: page.fg
-                    opacity: vr.active ? 1 : 0.76
-                    font.family: page.mono; font.pixelSize: 12; font.weight: Font.DemiBold
-                }
-                UiText {
-                    anchors.right: parent.right
-                    text: vr.status
-                    color: page.acc
-                    opacity: vr.status === "" ? 0 : 0.82
-                    font.family: page.mono; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 0.7
-                }
-            }
-            UiText {
-                width: parent.width
-                text: vr.modelData.detail
-                color: page.fg; opacity: 0.42
-                elide: Text.ElideRight
-                font.family: page.mono; font.pixelSize: 10
-            }
-        }
-        MouseArea {
-            id: vrMa
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: (page.switching || vr.active) ? Qt.ArrowCursor : Qt.PointingHandCursor
-            onEntered: page.hoveredBar = vr.index
-            onExited: if (page.hoveredBar === vr.index) page.hoveredBar = -1
-            onClicked: page.activateBar(vr.modelData.id)
-        }
-    }
 
     // ── a thin action row (icon + label + detail; destructive → 2-tap confirm) ──
     component ActionRow: Rectangle {
@@ -216,74 +142,15 @@ Item {
             width: parent.width
             spacing: 12
 
-            // ── barLanding: variant rows + bezier routes + preview ──
+            // ── barLanding: live preview of the active bar form → opens Bars ──
             Item {
                 id: barLanding
                 width: parent.width
                 height: 116
-                readonly property real routeGap: 34
-                readonly property real portOffset: 6
-
-                Canvas {
-                    id: routeCanvas
-                    anchors.fill: parent
-                    z: 2
-                    antialiasing: true
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.reset(); ctx.clearRect(0, 0, width, height)
-                        var n = page.barOptions.length
-                        var rowH = (barCol.height - barCol.spacing * (n - 1)) / n
-                        var startX = barCol.width + barLanding.portOffset
-                        var endX = preview.x
-                        var endY = preview.y + preview.height / 2
-                        function route(i, emph) {
-                            var sy = i * (rowH + barCol.spacing) + rowH / 2
-                            var preview2 = (i === page.hoveredBar)
-                            var c = emph ? page.acc
-                                : preview2 ? Qt.rgba(page.acc.r, page.acc.g, page.acc.b, 0.54)
-                                : Qt.rgba(page.fg.r, page.fg.g, page.fg.b, 0.16)
-                            ctx.beginPath(); ctx.moveTo(startX, sy)
-                            ctx.bezierCurveTo(startX + (endX - startX) * 0.55, sy, endX - (endX - startX) * 0.55, endY, endX, endY)
-                            ctx.strokeStyle = c; ctx.lineWidth = emph ? 1.7 : preview2 ? 1.25 : 1; ctx.stroke()
-                            ctx.beginPath(); ctx.arc(startX, sy, 3.6, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill()
-                        }
-                        for (var i = 0; i < n; i++) if (i !== page.activeBarIndex) route(i, false)
-                        route(page.activeBarIndex, true)
-                        ctx.beginPath(); ctx.arc(endX, endY, 4.4, 0, Math.PI * 2); ctx.fillStyle = page.acc; ctx.fill()
-                    }
-                    Connections {
-                        target: page
-                        function onHoveredBarChanged() { routeCanvas.requestPaint() }
-                        function onActiveBarIndexChanged() { routeCanvas.requestPaint() }
-                        function onAccChanged() { routeCanvas.requestPaint() }
-                    }
-                    onWidthChanged: requestPaint()
-                    onHeightChanged: requestPaint()
-                    Component.onCompleted: requestPaint()
-                }
-
-                Column {
-                    id: barCol
-                    z: 1
-                    anchors.left: parent.left
-                    width: Math.min(270, parent.width * 0.42)
-                    height: parent.height
-                    spacing: 7
-                    Repeater {
-                        model: page.barOptions
-                        delegate: VariantRow {
-                            height: (barCol.height - barCol.spacing * (page.barOptions.length - 1)) / page.barOptions.length
-                        }
-                    }
-                }
 
                 Rectangle {
                     id: preview
-                    z: 1
-                    anchors.right: parent.right
-                    width: parent.width - barCol.width - barLanding.routeGap
-                    height: parent.height
+                    anchors.fill: parent
                     radius: page.ctlR
                     color: pvMa.containsMouse ? page.hoverFill : page.idleFill
                     border.width: 1
@@ -296,12 +163,12 @@ Item {
                         anchors.right: parent.right; anchors.rightMargin: 14
                         spacing: 1
                         UiText {
-                            text: page.switching ? I18n.tr("SWITCHING") : (page.hoveredBar >= 0 ? I18n.tr("BAR PREVIEW") : I18n.tr("ACTIVE BAR"))
+                            text: I18n.tr("ACTIVE BAR")
                             color: page.fg; opacity: 0.5
                             font.family: page.mono; font.pixelSize: 10; font.letterSpacing: 1
                         }
                         UiText {
-                            text: I18n.tr(page.barOptions[page.shownBar].label)
+                            text: page.formLabel
                             color: page.fg
                             font.family: page.mono; font.pixelSize: 13; font.weight: Font.DemiBold
                         }
@@ -312,7 +179,7 @@ Item {
                         anchors.margins: 12
                         height: 44
                         root: page.root
-                        form: page.barOptions[page.shownBar].form
+                        form: page.activeForm
                     }
                     MouseArea {
                         id: pvMa

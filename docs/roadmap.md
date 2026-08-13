@@ -65,7 +65,7 @@ These changes reduce contradictory state, duplicated work, and monitor-specific 
 - `shell/Ui/KeyboardPanel.qml:80-101,248-260,333-378`
 - `shell/plugins/bar/Bar.qml:391-446`
 
-**Cost:** Medium to high because both QSBar variants and applicable FrameBars menus require compositor and multi-monitor interaction testing.
+**Cost:** Medium to high because the QSBar (across its `barShellStyle` forms) and applicable FrameBars menus require compositor and multi-monitor interaction testing.
 
 ### Centralize screen-fitted popup geometry
 

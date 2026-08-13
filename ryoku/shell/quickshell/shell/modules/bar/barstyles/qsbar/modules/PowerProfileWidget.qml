@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -13,12 +12,6 @@ Item {
     readonly property bool isBalanced:    profile === "balanced"
     readonly property bool isPerformance: profile === "performance"
 
-    readonly property string shortName: {
-        if (isPowerSaver)  return "SAV"
-        if (isPerformance) return "PRF"
-        return "BAL"
-    }
-
     readonly property string profileIcon: {
         if (isPowerSaver)  return "\uF06C"
         if (isPerformance) return "\uF0E7"
@@ -26,6 +19,7 @@ Item {
     }
 
     readonly property color profileColor: {
+        if (root.widgetHasFill("G14")) return root.widgetContrastColor("G14")
         if (isPowerSaver)  return root.indigo
         if (isPerformance) return root.seal
         return root.seal
@@ -44,35 +38,13 @@ Item {
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
-
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 5
+        spacing: 4
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactPower
-            text: I18n.tr("PWR")
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 0.5
-        }
-
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactPower
             text: rootMod.profileIcon
             renderType: Text.QtRendering
             color: rootMod.profileColor
@@ -81,15 +53,6 @@ Item {
             Behavior on color { ColorAnimation { duration: 200 } }
         }
 
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactPower
-            text: rootMod.shortName
-            color: rootMod.profileColor
-            font.family: root.mono
-            font.pixelSize: 12
-            Behavior on color { ColorAnimation { duration: 200 } }
-        }
     }
 
     Process {

@@ -352,4 +352,3 @@ Item {
         onTriggered: root.finishFailure("timeout", "Test timed out")
     }
 }
-

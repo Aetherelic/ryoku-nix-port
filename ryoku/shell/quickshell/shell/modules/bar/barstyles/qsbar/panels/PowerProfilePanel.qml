@@ -17,8 +17,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-power-profile"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     readonly property var allProfiles: [
         { key: "power-saver",  icon: "\uF06C",  label: "Power Saver" },
@@ -55,14 +55,22 @@ PanelWindow {
         id: card
         width: 220
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: profilePanel.root
+            ownerActive: profilePanel.root.powerProfileVisible
+            targetX: profilePanel.root.powerBarX
+            reveal: profilePanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.powerBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - profilePanel.reveal)
+            : (barBottom + gap) - 2 * (1 - profilePanel.reveal)
         opacity: profilePanel.reveal
         focus: root.powerProfileVisible
 
@@ -129,7 +137,7 @@ PanelWindow {
 
                     Rectangle {
                         anchors.fill: parent
-                        radius: root.tileRadius
+                        radius: root.panelButtonRadius
                         color: isActive ? root.fillActive
                                : ma.containsMouse ? root.fillHover : root.fillIdle
                         border.color: (ma.containsMouse || isActive) ? root.seal : root.sep
@@ -174,6 +182,27 @@ PanelWindow {
                             root.powerProfileVisible = false
                         }
                     }
+                }
+            }
+
+            Rectangle { width: parent.width; height: 1; color: root.sep; visible: root.barTemperatureAvailable }
+            Item {
+                width: parent.width
+                height: 26
+                visible: root.barTemperatureAvailable
+                UiText {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Thermal"
+                    color: root.sumiHi
+                    font.family: root.mono; font.pixelSize: 11; font.letterSpacing: 1
+                }
+                UiText {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.barTemperatureC + "\u00B0C"
+                    color: root.barTemperatureC >= 80 ? root.sealRaw : root.seal
+                    font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
                 }
             }
         }

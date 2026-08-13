@@ -8,11 +8,12 @@ Item {
     id: rootMod
     required property var root
 
-    implicitWidth: 22
+    implicitWidth: root.v2ActionIconCellWidth
     implicitHeight: 28
 
     readonly property bool on: root.idleInhibited
     readonly property string tooltipText: on ? "Idle inhibited: ON" : "Idle inhibited: OFF"
+    readonly property color contentColor: root.widgetContentColor("G10", root.widgetIconColor)
 
     UiText {
         anchors.centerIn: parent
@@ -22,8 +23,8 @@ Item {
         font.family: root.mono
         font.pixelSize: 14
         color: rootMod.on
-            ? root.seal
-            : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.45)
+            ? (root.widgetHasFill("G10") ? rootMod.contentColor : root.seal)
+            : rootMod.contentColor
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 

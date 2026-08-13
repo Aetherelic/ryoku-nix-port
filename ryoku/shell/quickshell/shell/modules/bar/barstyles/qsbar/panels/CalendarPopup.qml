@@ -15,8 +15,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-calendar"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     property real reveal: root.calendarVisible ? 1 : 0
     Behavior on reveal {
@@ -37,14 +37,22 @@ PanelWindow {
         id: card
         width: 280
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: calPopup.root
+            ownerActive: calPopup.root.calendarVisible
+            targetX: calPopup.root.calendarBarX
+            reveal: calPopup.reveal
+        }
 
         x: Math.round((parent.width - width) / 2)
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - calPopup.reveal)
+            : (barBottom + gap) - 2 * (1 - calPopup.reveal)
         opacity: calPopup.reveal
         focus: root.calendarVisible
 
@@ -72,7 +80,7 @@ PanelWindow {
                 Rectangle {
                     id: prevBtn
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    width: 24; height: 24; radius: root.tileRadius
+                    width: 24; height: 24; radius: root.panelButtonRadius
                     color: "transparent"
                     UiText {
                         anchors.centerIn: parent
@@ -111,7 +119,7 @@ PanelWindow {
                 Rectangle {
                     id: nextBtn
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    width: 24; height: 24; radius: root.tileRadius
+                    width: 24; height: 24; radius: root.panelButtonRadius
                     color: "transparent"
                     UiText {
                         anchors.centerIn: parent

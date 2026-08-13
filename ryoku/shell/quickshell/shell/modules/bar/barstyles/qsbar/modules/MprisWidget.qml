@@ -13,7 +13,11 @@ Item {
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
     readonly property bool playing: sel.playing
-    readonly property bool fullMode: root.compactMpris
+    readonly property bool fullMode: root.mprisBarStyle === "full"
+    readonly property color contentColor: root.widgetContentColor("G9", root.ink)
+    readonly property color accentColor: root.widgetHasFill("G9")
+        ? contentColor
+        : root.seal
 
     readonly property string trackLabel: {
         if (!player) return ""
@@ -125,19 +129,6 @@ Item {
         NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
     }
 
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: rootMod.active
-            ? (Math.round(rootMod.fullMode ? fullRow.implicitWidth : defaultRow.implicitWidth) + 18)
-            : (Math.round(idleNote.implicitWidth) + 16)
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
-
     // ── idle: a single music-note, clickable to open the no-song panel ──
     IconText {
         id: idleNote
@@ -145,7 +136,7 @@ Item {
         visible: !rootMod.active
         text: ""   // music_note
         font.pixelSize: 15
-        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.45)
+        color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.45)
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton
@@ -166,8 +157,8 @@ Item {
             text: ""
             font.pixelSize: 13
             color: (rootMod.player && rootMod.player.canGoPrevious)
-                ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.7)
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.22)
+                ? Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.7)
+                : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.22)
             Behavior on color { ColorAnimation { duration: 150 } }
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -180,7 +171,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.playing ? "" : ""
             font.pixelSize: 13
-            color: root.seal
+            color: rootMod.accentColor
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                 onClicked: if (rootMod.player) rootMod.player.togglePlaying()
@@ -193,8 +184,8 @@ Item {
             text: ""
             font.pixelSize: 13
             color: (rootMod.player && rootMod.player.canGoNext)
-                ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.7)
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.22)
+                ? Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.7)
+                : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.22)
             Behavior on color { ColorAnimation { duration: 150 } }
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -242,9 +233,7 @@ Item {
                 id: marqueeText
                 anchors.verticalCenter: parent.verticalCenter
                 text: rootMod.trackLabel
-                color: rootMod.playing
-                    ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
-                    : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4)
+                color: rootMod.contentColor
                 font.family: root.mono
                 font.pixelSize: 12
                 x: 0
@@ -288,7 +277,7 @@ Item {
             height: 14
             anchors.verticalCenter: parent.verticalCenter
 
-            property color tint: root.seal
+            property color tint: rootMod.accentColor
             onTintChanged: requestPaint()
 
             onPaint: {
@@ -365,7 +354,7 @@ Item {
                         id: vinylCanvas
                         anchors.fill: parent
                         antialiasing: true
-                        property color tint: root.seal
+                        property color tint: rootMod.accentColor
                         onTintChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")
@@ -411,7 +400,7 @@ Item {
                         id: museCanvas
                         anchors.fill: parent
                         antialiasing: true
-                        property color tint: root.seal
+                        property color tint: rootMod.accentColor
                         onTintChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")
@@ -469,7 +458,7 @@ Item {
                                 width: 3
                                 height: 10
                                 radius: 1
-                                color: root.seal
+                                color: rootMod.accentColor
                             }
                         }
                     }
@@ -481,7 +470,7 @@ Item {
                         height: 12
                         visible: !rootMod.playing
                         antialiasing: true
-                        property color tint: root.seal
+                        property color tint: rootMod.accentColor
                         onTintChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")

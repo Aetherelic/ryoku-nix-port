@@ -5,6 +5,7 @@ BluetoothPanel BluetoothPanel.qml
 BrightnessPanel BrightnessPanel.qml
 CalendarPopup CalendarPopup.qml
 CpuPanel CpuPanel.qml
+GpuPanel GpuPanel.qml
 ImageCarouselCarousel ImageCarouselCarousel.qml
 ImageCarouselHearthstone ImageCarouselHearthstone.qml
 ImageCarouselPanel ImageCarouselPanel.qml
@@ -19,6 +20,8 @@ NetworkPanel NetworkPanel.qml
 NotificationPanel NotificationPanel.qml
 PowerProfilePanel PowerProfilePanel.qml
 ShellUpdateTab ShellUpdateTab.qml
+StoragePanel StoragePanel.qml
+ThermalsPanel ThermalsPanel.qml
 TooltipOverlay TooltipOverlay.qml
 TrayMenu TrayMenu.qml
 TrayPanel TrayPanel.qml

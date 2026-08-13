@@ -17,8 +17,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-notifications"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     // ── quickshell-owned notification history ────────────────────────────────
     // Mako's history is capped (default max-history 5), so polling it and
@@ -251,14 +251,22 @@ PanelWindow {
         id: card
         width: 320
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: notifPanel.root
+            ownerActive: notifPanel.root.notifVisible
+            targetX: notifPanel.root.notifCaretBarX
+            reveal: notifPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.notifBarX, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - notifPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - notifPanel.reveal)
         opacity: notifPanel.reveal
         focus: root.notifVisible
 
@@ -333,7 +341,7 @@ PanelWindow {
                             required property var modelData
                             width: listCol.width
                             height: entryCol.implicitHeight + 16
-                            radius: root.tileRadius
+                            radius: root.panelButtonRadius
                             color: entryMa.containsMouse ? root.fillHover : root.fillIdle
                             border.color: entryMa.containsMouse ? root.seal : root.sep
                             border.width: 1
@@ -425,7 +433,7 @@ PanelWindow {
             // ── clear all ──
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28; radius: root.panelButtonRadius
                 visible: notifPanel.pending.length > 0
                 readonly property bool hovered: clearMa.containsMouse
                 color: hovered ? root.fillHover : root.fillIdle

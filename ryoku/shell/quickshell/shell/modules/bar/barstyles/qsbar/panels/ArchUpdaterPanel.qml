@@ -17,8 +17,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-arch-updater"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
     // Shared theme-table grid. Keeping the header and delegate on these exact
     // tokens makes the five-part action/info block a stable right-aligned unit.
     readonly property int themeGridGap: 6
@@ -28,7 +28,7 @@ PanelWindow {
     readonly property int themeRightBlockWidth: themeActionsWidth
         + themeBehindWidth + themeStateWidth + themeGridGap * 2
 
-    readonly property url packageFrontendUrl: Qt.resolvedUrl("../core/qs-system-update.sh")
+    readonly property url packageFrontendUrl: Qt.resolvedUrl("../../../core/qs-system-update.sh")
     readonly property string packageFrontendScript: decodeURIComponent(
         String(packageFrontendUrl).replace(/^file:\/\//, ""))
     readonly property string packageApplyScript: Quickshell.env("HOME") + "/.local/bin/qs-arch-apply-update.sh"
@@ -669,14 +669,22 @@ PanelWindow {
         id: card
         width: 520
         height: Math.min(col.implicitHeight + 24, 460)
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: archPanel.root
+            ownerActive: archPanel.root.archVisible
+            targetX: archPanel.root.archCaretBarX
+            reveal: archPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.archBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - archPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - archPanel.reveal)
         opacity: archPanel.reveal
         focus: root.archVisible
 
@@ -819,7 +827,7 @@ PanelWindow {
                     Rectangle {
                         required property var modelData
                         width: (parent.width - 12) / 3
-                        height: 26; radius: root.tileRadius
+                        height: 26; radius: root.panelButtonRadius
                         readonly property bool active: root.activeUpdateTab === modelData.id
                         color: active ? root.fillActive : tabMa.containsMouse ? root.fillHover : root.fillIdle
                         border.color: (active || tabMa.containsMouse) ? root.seal : root.sep
@@ -1056,7 +1064,7 @@ PanelWindow {
                 // Refresh
                 Rectangle {
                     width: (parent.width - 8 * (archPanel.btnCount - 1)) / archPanel.btnCount
-                    height: 28; radius: root.tileRadius
+                    height: 28; radius: root.panelButtonRadius
                     color: refreshMa.containsMouse ? root.fillHover : root.fillIdle
                     border.color: refreshMa.containsMouse ? root.seal : root.sep
                     border.width: 1
@@ -1080,7 +1088,7 @@ PanelWindow {
                 // keeps the checked all-or-nothing repository transaction.
                 Rectangle {
                     width: (parent.width - 8 * (archPanel.btnCount - 1)) / archPanel.btnCount
-                    height: 28; radius: root.tileRadius
+                    height: 28; radius: root.panelButtonRadius
                     opacity: archPanel.canUpdate ? 1.0 : 0.45
                     color: (updateMa.containsMouse && archPanel.canUpdate) ? root.fillPrimaryHover : root.seal
                     border.color: "transparent"
@@ -1125,7 +1133,7 @@ PanelWindow {
                 Rectangle {
                     visible: archPanel.aurReviewPackages > 0
                     width: (parent.width - 8 * (archPanel.btnCount - 1)) / archPanel.btnCount
-                    height: 28; radius: root.tileRadius
+                    height: 28; radius: root.panelButtonRadius
                     color: reviewMa.containsMouse ? root.fillHover : root.fillIdle
                     border.color: reviewMa.containsMouse ? root.seal : root.sep
                     border.width: 1
@@ -1213,7 +1221,7 @@ PanelWindow {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.verticalCenterOffset: -2   // match the update chip: onto the text's optical centre
-                        width: 78; height: 18; radius: root.tileRadius
+                        width: 78; height: 18; radius: root.panelButtonRadius
                         color: reapplyMa.containsMouse ? root.fillHover : root.fillIdle
                         border.color: reapplyMa.containsMouse ? root.seal : root.sep
                         border.width: 1
@@ -1355,7 +1363,7 @@ PanelWindow {
                                                         || (themeRow.removeFlowIdle && themeRow.canPull)
                                                     anchors.verticalCenter: parent.verticalCenter
                                                     anchors.verticalCenterOffset: -2
-                                                    width: parent.width; height: 18; radius: root.tileRadius
+                                                    width: parent.width; height: 18; radius: root.panelButtonRadius
                                                     color: (primaryMa.containsMouse && actionEnabled)
                                                         ? root.fillPrimaryHover : root.seal
                                                     opacity: archPanel.removeBusy && themeRow.confirmingRemove ? 0.65 : 1.0
@@ -1411,7 +1419,7 @@ PanelWindow {
                                                     : themeRow.removeFlowIdle && themeRow.canReinstall
                                                 visible: !themeRow.confirmingRemove || !archPanel.removeBusy
                                                 width: themeRow.confirmingRemove ? 52 : 20
-                                                height: 18; radius: root.tileRadius
+                                                height: 18; radius: root.panelButtonRadius
                                                 color: themeRow.confirmingRemove
                                                     ? (secondaryMa.containsMouse && actionEnabled)
                                                         ? root.fillPrimaryHover : root.seal
@@ -1468,7 +1476,7 @@ PanelWindow {
                                                 readonly property bool actionEnabled: themeRow.confirmingRemove
                                                     ? !archPanel.removeBusy && themeRow.canReinstall
                                                     : themeRow.removeFlowIdle && themeRow.canRemove
-                                                width: 20; height: 18; radius: root.tileRadius
+                                                width: 20; height: 18; radius: root.panelButtonRadius
                                                 color: {
                                                     if (!tertiaryMa.containsMouse || !actionEnabled) return "transparent"
                                                     if (themeRow.confirmingRemove) return root.fillHover
@@ -1602,7 +1610,7 @@ PanelWindow {
                     // Check themes - runs the read-only check script; disabled while scanning
                     Rectangle {
                         width: (parent.width - 8) / 2
-                        height: 28; radius: root.tileRadius
+                        height: 28; radius: root.panelButtonRadius
                         color: (checkMa.containsMouse && !root.themeUpdChecking) ? root.fillHover : root.fillIdle
                         border.color: (checkMa.containsMouse && !root.themeUpdChecking) ? root.seal : root.sep
                         border.width: 1
@@ -1630,7 +1638,7 @@ PanelWindow {
                         readonly property int cleanCount: archPanel.cleanThemeUpdateCount()
                         readonly property bool canApply: cleanCount > 0 && !root.themeUpdChecking
                         width: (parent.width - 8) / 2
-                        height: 28; radius: root.tileRadius
+                        height: 28; radius: root.panelButtonRadius
                         opacity: canApply ? 1.0 : 0.45
                         color: (allMa.containsMouse && canApply) ? root.fillPrimaryHover : root.seal
                         border.color: "transparent"

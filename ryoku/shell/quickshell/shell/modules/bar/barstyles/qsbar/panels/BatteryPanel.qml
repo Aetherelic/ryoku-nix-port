@@ -18,8 +18,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-battery"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     property int    percent: 0
     property string status:  "unknown"
@@ -57,14 +57,22 @@ PanelWindow {
         id: card
         width: 300
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: batPanel.root
+            ownerActive: batPanel.root.batteryVisible
+            targetX: batPanel.root.batteryBarX
+            reveal: batPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.batteryBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - batPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - batPanel.reveal)
         opacity: batPanel.reveal
         focus: root.batteryVisible
 
@@ -170,7 +178,7 @@ PanelWindow {
 
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28; radius: root.panelButtonRadius
                 color: btopMa.containsMouse ? root.fillPrimaryHover : root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText { anchors.centerIn: parent; text: I18n.tr("Open btop"); color: root.paper; font.family: root.mono; font.pixelSize: 11 }

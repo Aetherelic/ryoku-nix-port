@@ -186,7 +186,7 @@ Column {
         signal clicked()
 
         height: 28
-        radius: tab.root.tileRadius
+        radius: tab.root.panelButtonRadius
         opacity: buttonEnabled ? 1.0 : 0.45
         color: primary
             ? (ma.containsMouse && buttonEnabled ? tab.root.fillPrimaryHover : tab.root.seal)

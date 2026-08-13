@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -19,104 +18,25 @@ Item {
     readonly property real totalGiB: root.systemMemTotalGiB
     readonly property string usedLabel: String(Math.round(usedGiB)).padStart(2, '0') + "G"
     readonly property string tooltipText: usedGiB.toFixed(1) + "/" + totalGiB.toFixed(0) + "G"
-
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
+    readonly property color contentColor: root.widgetContentColor("G4", root.widgetIconColor)
 
     Row {
         id: row
         anchors.centerIn: parent
-        anchors.horizontalCenterOffset: root.compactMemory ? -1 : 0
-        spacing: root.compactMemory ? 4 : 5
-
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactMemory
-            text: I18n.tr("MEM")
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 0.5
-        }
-
-        Canvas {
-            id: ring
-            visible: !root.compactMemory
-            width: 16
-            height: 16
-            anchors.verticalCenter: parent.verticalCenter
-
-            property color tint: root.seal
-            onTintChanged: requestPaint()
-
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                var cx = width / 2
-                var cy = height / 2
-                var r = (width / 2) - 1.5
-                var ratio = rootMod.totalGiB > 0 ? rootMod.usedGiB / rootMod.totalGiB : 0
-                var start = -Math.PI / 2
-                var end = start + (2 * Math.PI * ratio)
-
-                ctx.beginPath()
-                ctx.arc(cx, cy, r, 0, 2 * Math.PI)
-                ctx.strokeStyle = Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.18)
-                ctx.lineWidth = 2
-                ctx.lineCap = "round"
-                ctx.stroke()
-
-                if (ratio > 0) {
-                    ctx.beginPath()
-                    ctx.arc(cx, cy, r, start, end)
-                    ctx.strokeStyle = tint
-                    ctx.lineWidth = 2
-                    ctx.lineCap = "round"
-                    ctx.stroke()
-                }
-            }
-
-            Component.onCompleted: requestPaint()
-            Connections {
-                target: rootMod
-                function onUsedGiBChanged() { ring.requestPaint() }
-            }
-        }
-
-        Row {
-            visible: !root.compactMemory
-            spacing: 0
-            anchors.verticalCenter: parent.verticalCenter
-
-            UiText {
-                text: rootMod.usedLabel
-                color: root.seal
-                font.family: root.mono
-                font.pixelSize: 12
-            }
-        }
+        anchors.horizontalCenterOffset: -1
+        spacing: 4
 
         Item {
-            id: compactMemGlyph
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactMemory
             width: 16
             height: 16
 
             Canvas {
-                id: compactMemRing
+                id: memoryRing
                 anchors.fill: parent
 
-                property color tint: root.seal
-                property color base: root.ink
+                property color tint: rootMod.contentColor
+                property color base: rootMod.contentColor
                 onTintChanged: requestPaint()
                 onBaseChanged: requestPaint()
 
@@ -149,16 +69,16 @@ Item {
                 Component.onCompleted: requestPaint()
                 Connections {
                     target: rootMod
-                    function onPercentChanged() { compactMemRing.requestPaint() }
+                    function onPercentChanged() { memoryRing.requestPaint() }
                 }
             }
         }
 
         UiText {
+            visible: !root.iconOnly("G4")
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactMemory
             text: rootMod.usedLabel
-            color: root.seal
+            color: rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 12
         }

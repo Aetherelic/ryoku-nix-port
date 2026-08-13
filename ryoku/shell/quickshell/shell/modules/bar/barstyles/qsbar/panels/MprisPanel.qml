@@ -18,8 +18,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-mpris"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     // ── pick a REAL active player ───────────────────────────────────
     // Selection (incl. ghost-filtering) lives in MprisSelect so the bar
@@ -28,6 +28,7 @@ PanelWindow {
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
     readonly property bool playing: sel.playing
+    MprisArtwork { id: artwork; player: mprisPanel.player }
 
     readonly property string playerName: {
         if (!player) return ""
@@ -71,11 +72,43 @@ PanelWindow {
     property var levels:  []     // smoothed, what we draw
     property var targets: []     // raw cava input
     property real phase: 0       // drives the synthetic idle wave
+    property var cavaPalette: []
+
+    function fallbackCavaPalette() {
+        cavaPalette = [
+            root.color06, root.color04, root.color05, root.color07,
+            root.color03, root.color01
+        ]
+    }
+
+    function parseCavaTheme(raw) {
+        var text = String(raw || "")
+        var colors = []
+        for (var i = 1; i <= 16; i++) {
+            var re = new RegExp("^\\s*gradient_color_" + i
+                + "\\s*=\\s*['\\\"]?\\s*(#[0-9a-fA-F]{6,8})", "m")
+            var match = text.match(re)
+            if (match) colors.push(match[1])
+        }
+        if (colors.length >= 2) cavaPalette = colors
+        else fallbackCavaPalette()
+    }
 
     Component.onCompleted: {
         var a = [], b = []
         for (var i = 0; i < bands; i++) { a.push(0.06); b.push(0.0) }
         levels = a; targets = b
+        fallbackCavaPalette()
+    }
+
+    FileView {
+        id: cavaThemeFile
+        path: root.omarchyCurrentRoot + "/theme/cava_theme"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: mprisPanel.parseCavaTheme(cavaThemeFile.text())
+        onLoadFailed: mprisPanel.fallbackCavaPalette()
     }
 
     property real reveal: root.mprisVisible ? 1 : 0
@@ -89,34 +122,36 @@ PanelWindow {
     WlrLayershell.keyboardFocus: root.mprisVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // ── cava: real system-audio spectrum (runs only while playing) ──
-    // Captures the DEFAULT SINK's monitor explicitly - otherwise cava's "auto"
-    // can grab the microphone on this PipeWire box, so the bars react to room
-    // noise instead of the music. 60fps + direct drive = tight sync.
+    // Native PipeWire capture avoids the Pulse compatibility buffer. CAVA's
+    // default noise reduction is intentionally very slow (77); a lower value
+    // plus direct samples keeps the panel visually close to the audible beat.
     Process {
         id: cava
         running: mprisPanel.visible && mprisPanel.playing
         command: ["bash", "-c",
             "command -v cava >/dev/null 2>&1 || exit 0; " +
-            "sink=$(pactl get-default-sink 2>/dev/null); " +
-            "src=auto; [ -n \"$sink\" ] && src=\"${sink}.monitor\"; " +
             "exec cava -p <(printf '%s\\n' " +
-            "'[general]' 'bars = 12' 'framerate = 60' " +
-            "'[input]' 'method = pulse' \"source = $src\" " +
+            "'[general]' 'bars = 12' 'framerate = 30' 'autosens = 1' 'sleep_timer = 0' " +
+            "'[input]' 'method = pipewire' 'source = auto' " +
             "'[output]' 'method = raw' 'raw_target = /dev/stdout' " +
-            "'data_format = ascii' 'ascii_max_range = 100')"
+            "'data_format = ascii' 'ascii_max_range = 100' " +
+            "'[smoothing]' 'monstercat = 0' 'waves = 0' 'noise_reduction = 20')"
         ]
         stdout: SplitParser {
             splitMarker: "\n"
-            // drive the bars DIRECTLY from cava (light smoothing only) → low lag
+            // Drive the bars directly from CAVA; no extra QML smoothing or lag.
             onRead: function(line) {
                 if (!mprisPanel.playing) return
                 var parts = line.split(";")
-                var lv = mprisPanel.levels
+                var previous = mprisPanel.levels
                 var out = []
                 for (var i = 0; i < mprisPanel.bands; i++) {
                     var v = parseInt(parts[i]); v = isNaN(v) ? 0 : Math.min(1, v / 100)
-                    var prev = (lv[i] === undefined) ? 0 : lv[i]
-                    out.push(prev * 0.3 + v * 0.7)
+                    var current = previous[i] === undefined ? 0 : previous[i]
+                    // Fast attack keeps the beat punctual; a gentler release
+                    // removes the nervous sample-to-sample flicker.
+                    var response = v >= current ? 0.72 : 0.24
+                    out.push(current + (v - current) * response)
                 }
                 mprisPanel.levels = out
             }
@@ -154,14 +189,22 @@ PanelWindow {
         id: card
         width: 320
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: mprisPanel.root
+            ownerActive: mprisPanel.root.mprisVisible
+            targetX: mprisPanel.root.mprisBarX
+            reveal: mprisPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.mprisBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - mprisPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - mprisPanel.reveal)
         opacity: mprisPanel.reveal
         focus: root.mprisVisible
 
@@ -223,15 +266,16 @@ PanelWindow {
                     color: root.fillActive
                     clip: true
                     Image {
+                        id: panelCoverArt
                         anchors.fill: parent
-                        source: mprisPanel.player ? (mprisPanel.player.trackArtUrl || "") : ""
+                        source: artwork.source
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         visible: status === Image.Ready
                     }
                     IconText {
                         anchors.centerIn: parent
-                        visible: !mprisPanel.player || mprisPanel.player.trackArtUrl === ""
+                        visible: panelCoverArt.status !== Image.Ready
                         text: ""   // music_note
                         font.pixelSize: 26
                         color: root.seal
@@ -307,20 +351,26 @@ PanelWindow {
                     anchors.fill: parent
                     visible: mprisPanel.active
                     opacity: mprisPanel.playing ? 1.0 : 0.5
-                    property color tint: root.seal
-                    onTintChanged: requestPaint()
                     onPaint: {
                         var ctx = getContext("2d")
                         ctx.clearRect(0, 0, width, height)
                         var lv = mprisPanel.levels
                         if (!lv || lv.length === 0) return
                         var n = lv.length
-                        var bw = 4
+                        var bw = 5
                         var totalGap = width - n * bw
                         var gap = totalGap / (n + 1)
                         var maxH = height - 2
                         var r = bw / 2
-                        ctx.fillStyle = viz.tint
+                        var palette = mprisPanel.cavaPalette
+                        var gradient = ctx.createLinearGradient(0, height, 0, 0)
+                        if (palette && palette.length > 1) {
+                            for (var stop = 0; stop < palette.length; stop++)
+                                gradient.addColorStop(stop / (palette.length - 1), palette[stop])
+                            ctx.fillStyle = gradient
+                        } else {
+                            ctx.fillStyle = root.seal
+                        }
                         for (var i = 0; i < n; i++) {
                             var bh = Math.max(bw, lv[i] * maxH)
                             var x = gap + i * (bw + gap)
@@ -340,6 +390,7 @@ PanelWindow {
                     Connections {
                         target: mprisPanel
                         function onLevelsChanged() { viz.requestPaint() }
+                        function onCavaPaletteChanged() { viz.requestPaint() }
                     }
                 }
 

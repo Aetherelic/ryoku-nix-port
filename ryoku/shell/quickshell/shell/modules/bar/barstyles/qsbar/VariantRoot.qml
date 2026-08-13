@@ -1,8 +1,9 @@
-// V1 variant adapter: bind one bar to each real Wayland output, skip
-// transient nameless/0x0 placeholder screens, and recreate a BarSlot when that
-// output disappears and returns. If a screen remains valid but the layer window
-// loses resources or closes, recreate only that window instead of reloading the
-// complete Quickshell configuration.
+// qsbar bar root: bind one bar to each real Wayland output, skip transient
+// nameless/0x0 placeholder screens, and recreate a BarSlot when that output
+// disappears and returns. If a screen remains valid but the layer window loses
+// resources or closes, recreate only that window instead of reloading the
+// complete Quickshell configuration. This is the single qsbar; the bar form
+// (islands · full · fit · dock · notch) is selected via Theme.barShellStyle.
 
 import Quickshell
 import Quickshell.Io
@@ -10,17 +11,11 @@ import Quickshell.Wayland
 import QtQuick
 import "panels"
 import "controlcenter"
-// Compatibility bridge for already-installed integrated updaters whose smoke
-// wrapper loads this adapter directly. Register the lazy V2 bundle here as well
-// so Quickshell's virtual filesystem scanner can resolve its complete type graph.
-import "variants/V2" as V2Bundle
 import "../../../../services/lib/screens.js" as Screens
 
 Item {
     id: root
 
-    required property var variantHost
-    readonly property string variantId: "v1"
     readonly property bool ready: lifecycleReady()
 
     width: 0
@@ -28,15 +23,9 @@ Item {
 
     Theme {
         id: theme
-        variantHost: root.variantHost
     }
 
     function closePopups() { theme.closePopups() }
-    function prepareDeactivate() {
-        theme.barUnlocked = false
-        theme.closePopups()
-    }
-    function deactivationReady() { return !theme.anyPopupVisible }
     function layoutLock() { theme.barUnlocked = false }
     function layoutUnlock() { theme.barUnlocked = true }
     function systemUpdateRefresh() { theme.archRefreshTick++ }
@@ -54,8 +43,7 @@ Item {
     readonly property var barScreens: Screens.uniqueByName(Quickshell.screens)
 
     function lifecycleReady() {
-        if (!theme._widgetsLoaded || !theme._splitsLoaded || barScreens.length === 0)
-            return false
+        if (!theme._widgetsLoaded || barScreens.length === 0) return false
 
         var controllers = theme.barLayoutControllerKeys()
         if (controllers.length !== barScreens.length) return false
@@ -245,6 +233,9 @@ Item {
     PowerProfilePanel { root: theme }
     MemoryPanel { root: theme }
     CpuPanel { root: theme }
+    GpuPanel { root: theme }
+    ThermalsPanel { root: theme }
+    StoragePanel { root: theme }
     AiUsagePanel { root: theme }
     VolumePanel { root: theme }
     TrayPanel { root: theme }

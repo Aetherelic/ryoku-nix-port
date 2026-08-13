@@ -22,7 +22,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-traymenu"
 
-    readonly property int barBottom: 35
+    readonly property int barBottom: root.v2BarHeight
     readonly property int gap: 8
 
     // Relocate the live item by its stable service key so the card re-renders
@@ -98,10 +98,10 @@ PanelWindow {
         id: card
         width: 220
         height: col.implicitHeight + 16
-        radius: reveal > 0.001 ? root.pillRadius : 0
+        radius: reveal > 0.001 ? root.panelRadius : 0
         color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        border.color: root.panelOuterBorderColor
+        border.width: root.panelOuterBorderW
         PillShadow { theme: root }
 
         x: parent ? Math.max(6, Math.min(root.trayMenuX, parent.width - width - 6)) : 6
@@ -214,7 +214,7 @@ PanelWindow {
                     Rectangle {
                         visible: !entry.sep
                         anchors.fill: parent
-                        radius: root.tileRadius
+                        radius: root.panelButtonRadius
                         color: (entryMa.containsMouse && entry.rowEnabled) ? root.fillActive : "transparent"
                         Behavior on color { ColorAnimation { duration: 100 } }
 

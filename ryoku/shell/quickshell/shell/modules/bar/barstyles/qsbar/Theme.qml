@@ -8,8 +8,7 @@ import "Palette.js" as Palette
 
 Item {
     id: theme
-    property var variantHost: null
-    signal reactorTest(string kind, string arg)
+    // The single qsbar bar system; the bar form lives in `barShellStyle`.
 
     property string omarchyCurrentRoot: Quickshell.env("HOME") + "/.config/ryoku/current"
     property string omarchyInstallRoot: Quickshell.env("HOME") + "/.local/share/ryoku"
@@ -67,6 +66,7 @@ Item {
         ink.b * 0.88 + paper.b * 0.12,
         1.0)
     property string barColor: "color01"
+    property bool widgetIconsForeground: false
     readonly property bool barColorIsAccent: barColor === "accent"
     // Compatibility alias for older local code/reviews that still use the
     // previous boolean name.
@@ -88,6 +88,9 @@ Item {
         return paletteColorValid(id) ? id : "color01"
     }
     readonly property color seal: paletteColor(barColor)
+    // Legacy global foreground switch is retained only for cache compatibility.
+    // Widget colors now inherit Bar Color or use a per-GID palette style.
+    readonly property color widgetIconColor: seal
     readonly property var barColorOptions: [
         "color01", "color02", "color03", "color04",
         "color05", "color06", "color07", "foreground"
@@ -111,36 +114,16 @@ Item {
         if (id === "foreground") return "Foreground"
         return "Color 01"
     }
-    function _linearColorChannel(v) {
-        return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
-    }
-    function _relativeLuminance(c) {
-        return 0.2126 * _linearColorChannel(c.r)
-             + 0.7152 * _linearColorChannel(c.g)
-             + 0.0722 * _linearColorChannel(c.b)
-    }
-    function _contrastRatio(a, b) {
-        var la = _relativeLuminance(a)
-        var lb = _relativeLuminance(b)
-        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
-    }
-    function paletteContrastColor(id) {
-        var fill = paletteColor(id)
-        return _contrastRatio(fill, paper) >= _contrastRatio(fill, ink) ? paper : ink
-    }
 
     readonly property string mono:  "JetBrainsMono Nerd Font"
 
     // ── transparency knobs (0.0 = fully transparent, 1.0 = opaque) ──
-    property real barOpacity:  0.94   // große Insel / Split-Sektionen
+    property real barOpacity:  0.94   // durchgehende V2-Leiste
     property real pillOpacity: 0.18   // einzelne Widget-Pillen (workspace, mem, cpu, …)
 
-    readonly property color bg:     Qt.rgba(paper.r, paper.g, paper.b, barOpacity)
-    // bar island/section bg ONLY (NOT the shared bg -> panels keep their opacity): Frost
-    // lowers the island alpha; compositor blur appears automatically when the theme
-    // already blurs Quickshell layer surfaces.
-    readonly property color barBg:  Qt.rgba(paper.r, paper.g, paper.b,
-                                            styleFrost ? Math.min(barOpacity, 0.68) : barOpacity)
+    readonly property real surfaceOpacity: barOpacity
+    readonly property color bg:     Qt.rgba(paper.r, paper.g, paper.b, surfaceOpacity)
+    readonly property color barBg:  Qt.rgba(paper.r, paper.g, paper.b, surfaceOpacity)
     readonly property color pill:   Qt.rgba(paper.r, paper.g, paper.b, pillOpacity)
     readonly property color fg:     ink
     readonly property color muted:  sumi
@@ -174,11 +157,12 @@ Item {
     property var barLayoutControllers: ({})
     property bool _barLayoutSyncing: false
 
-    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || aiUsageVisible
+    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || gpuVisible
+        || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
-        || powerProfileVisible || archVisible || trayVisible || trayMenuVisible
+        || powerProfileVisible || storageVisible || archVisible || trayVisible || trayMenuVisible
     readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible
 
     function registerBarLayoutController(screenName, controller) {
@@ -234,22 +218,6 @@ Item {
         }
     }
 
-    function syncBarSplits(sourceScreenName, serialized) {
-        if (_barLayoutSyncing || !serialized) return
-
-        _barLayoutSyncing = true
-        try {
-            var keys = barLayoutControllerKeys()
-            for (var i = 0; i < keys.length; i++) {
-                if (keys[i] === sourceScreenName) continue
-                var controller = barLayoutControllers[keys[i]]
-                if (controller && controller.applySplits) controller.applySplits(serialized)
-            }
-        } finally {
-            _barLayoutSyncing = false
-        }
-    }
-
     function syncBarOrder(sourceScreenName, serialized) {
         if (_barLayoutSyncing || !serialized) return
 
@@ -266,35 +234,25 @@ Item {
         }
     }
 
-    function splitAllBars() {
-        applyToBarLayoutControllers("splitAll")
-    }
-
-    function mergeAllBars() {
-        applyToBarLayoutControllers("mergeAll")
-    }
-
     function resetAllBarLayouts() {
         applyToBarLayoutControllers("defaultLayout")
-        resetCompactDisplayModes()
+        resetBarLayoutPresentation()
     }
 
-    function resetCompactDisplayModes() {
-        var changed = compactNetwork || compactBattery || compactBrightness || compactCpu
-                   || compactMemory || compactVolume || compactBluetooth || compactPower
-                   || compactMpris
-        _compactResetting = true
-        compactNetwork = false
-        compactBattery = false
-        compactBrightness = false
-        compactCpu = false
-        compactMemory = false
-        compactVolume = false
-        compactBluetooth = false
-        compactPower = false
-        compactMpris = false
-        _compactResetting = false
-        if (changed && _widgetsLoaded) saveWidgets()
+    function resetBarLayoutPresentation() {
+        var separatorsChanged = barSeps.length > 0
+        var densityChanged = iconOnlyGids.length > 0
+        var widgetFillsChanged = resetAllWidgetFillColors()
+        var mprisChanged = mprisBarStyle !== "default"
+
+        if (separatorsChanged) barSeps = []
+        if (densityChanged) iconOnlyGids = []
+
+        // mprisBarStyle has its own persistence handler. If it was already at
+        // the default, persist the other layout-only resets explicitly.
+        if (mprisChanged) mprisBarStyle = "default"
+        else if ((separatorsChanged || densityChanged || widgetFillsChanged)
+                && _widgetsLoaded) saveWidgets()
     }
 
     function activatePopupScreen(screen) {
@@ -370,21 +328,28 @@ Item {
 
     function applyAnchor(name, x) {
         if (name === "tray") trayBarX = x
+        else if (name === "trayCaret") trayCaretBarX = x
         else if (name === "notif") notifBarX = x
+        else if (name === "notifCaret") notifCaretBarX = x
         else if (name === "quickActions") quickActionsBarX = x
         else if (name === "volume") volumeBarX = x
         else if (name === "network") networkBarX = x
         else if (name === "battery") batteryBarX = x
         else if (name === "memory") memoryBarX = x
         else if (name === "cpu") cpuBarX = x
+        else if (name === "gpu") gpuBarX = x
+        else if (name === "thermal") thermalBarX = x
+        else if (name === "storage") storageBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
         else if (name === "arch") archBarX = x
+        else if (name === "archCaret") archCaretBarX = x
         else if (name === "bluetooth") bluetoothBarX = x
         else if (name === "brightness") brightnessBarX = x
         else if (name === "power") powerBarX = x
         else if (name === "mpris") mprisBarX = x
         else if (name === "weather") weatherBarX = x
+        else if (name === "calendar") calendarBarX = x
         else if (name === "launcher") launcherBarX = x
         else if (name === "trayMenu") trayMenuX = x
     }
@@ -428,6 +393,8 @@ Item {
         _closingPopups = true
         if (except !== "calendarVisible") calendarVisible = false
         if (except !== "cpuVisible") cpuVisible = false
+        if (except !== "gpuVisible") gpuVisible = false
+        if (except !== "thermalVisible") thermalVisible = false
         if (except !== "aiUsageVisible") aiUsageVisible = false
         if (except !== "memVisible") memVisible = false
         if (except !== "volVisible") volVisible = false
@@ -443,6 +410,7 @@ Item {
         if (except !== "mediaBrowserVisible") mediaBrowserVisible = false
         if (except !== "notifVisible") notifVisible = false
         if (except !== "powerProfileVisible") powerProfileVisible = false
+        if (except !== "storageVisible") storageVisible = false
         if (except !== "archVisible") archVisible = false
         if (except !== "trayVisible") trayVisible = false
         if (except !== "trayMenuVisible") trayMenuVisible = false
@@ -450,8 +418,20 @@ Item {
         _closingPopups = false
     }
 
+    function popupUsesConnectedInset(prop) {
+        return prop !== "imagePickerVisible"
+            && prop !== "mediaBrowserVisible"
+            && prop !== "trayMenuVisible"
+    }
+
     function popupOpened(prop) {
-        if (!_closingPopups && theme[prop]) closePopups(prop)
+        if (!_closingPopups && theme[prop]) {
+            // The new panel surface publishes its clamped caret position on the
+            // first reveal tick. Invalidate the previous panel's cached position
+            // now so the bar cannot render one frame at that stale anchor.
+            if (popupUsesConnectedInset(prop)) panelInsetReady = false
+            closePopups(prop)
+        }
     }
 
     function openImagePicker(mode, screen) {
@@ -500,27 +480,48 @@ Item {
         paper.g * (1 - islandBorderMix) + ink.g * islandBorderMix,
         paper.b * (1 - islandBorderMix) + ink.b * islandBorderMix, 1.0)
 
-    // ── bar style tokens (persisted; consumed by every pill/card surface) ──
-    // Single source for the pill recipe; consumed by 37 surfaces (12 widgets +
-    // 3 group pills + island + 20 cards + tooltip) - change the recipe here once.
-    // border on/off and shadow on/off are INDEPENDENT (4 combos possible).
-    property bool styleBorder:      true    // pill/card 1px border on/off
-    property bool styleShadow:      false   // box-shadow on/off
-    property bool styleFrost:       false   // lower bar-island opacity; theme blur may show through
-    property bool styleRadiusSmall: false   // radius 12 ⇄ 6
-    property int  barCornerRadius:  -1      // 0 = square bar; <0 follows styleRadiusSmall (soft/round)
-    property bool styleHeightMin:   false   // inner pill 24 ⇄ 20 (slot stays 28)
-    readonly property int   pillRadius:   barCornerRadius === 0 ? 0 : (styleRadiusSmall ? 6 : 12)
-    readonly property int   pillH:        styleHeightMin ? 20 : 24
-    readonly property int   pillBorderW:  styleBorder ? 1 : 0
-    readonly property int   islandRadius: barCornerRadius === 0 ? 0 : (styleRadiusSmall ? 8 : 16)
-    readonly property int   tileRadius:   pillRadius - 2   // inner panel buttons: 2 less than global (10 ⇄ 4)
-    // horizontal padding of the workspace pill (overhang each side, mirrored by the
-    // G2 slot pad). In "numbers" the wide digit badges should nestle concentrically
-    // into the pill's inner radius → pad = pillRadius - badgeRadius; else a fixed 4.
-    readonly property int   wsPillPad:    workspaceStyle === "numbers"
-                                          ? Math.max(1, pillRadius - (styleRadiusSmall ? 5 : 10))
-                                          : 4
+    // ── V2 continuous edge-bar tokens ──
+    // The compact visible strip uses one full-width surface, one quiet
+    // screen-facing edge and a shadow cast away from that edge. Keeping these
+    // separate from the pill recipe lets widgets and panels retain their
+    // established hierarchy.
+    readonly property int v2BarHeight: 33
+    readonly property int v2NotchFrameThickness: 6
+    readonly property int v2NotchFrameRadius: 14
+    // Horizontal rhythm for the bar. Closely related icon buttons use the
+    // 2px cluster step; icon+text pairs use 4px; independent widgets use 6px;
+    // distinct information sections use 8px. A compact action cell stays 22px
+    // wide, yielding a calm 24px centre-to-centre pitch inside icon clusters.
+    readonly property int v2IconClusterSpacing: 2
+    readonly property int v2InlineSpacing: 4
+    readonly property int v2WidgetSpacing: 6
+    readonly property int v2SectionSpacing: 8
+    readonly property int v2ActionIconCellWidth: 22
+    readonly property int v2IconGroupPadding: 5
+    property real v2BarBorderMix: 0.22
+    readonly property color v2BarBorder: Qt.rgba(
+        paper.r * (1 - v2BarBorderMix) + ink.r * v2BarBorderMix,
+        paper.g * (1 - v2BarBorderMix) + ink.g * v2BarBorderMix,
+        paper.b * (1 - v2BarBorderMix) + ink.b * v2BarBorderMix, 1.0)
+    readonly property color v2BarShadow: Qt.rgba(0, 0, 0, 0.46)
+    // Popovers, tooltips and their interactive tiles share the calmer V2 shape;
+    // bar-widget pills remain independently configurable below.
+    readonly property int panelRadius: 6
+    readonly property int panelButtonRadius: 6
+    readonly property color panelBorder: v2BarBorder
+    readonly property int panelBorderW: 1
+    readonly property color panelOuterBorderColor: panelTooltipBorderEnabled
+        ? panelBorder : Qt.rgba(0, 0, 0, 0)
+    readonly property int panelOuterBorderW: panelTooltipBorderEnabled ? panelBorderW : 0
+
+    // Fixed V2 geometry. The former Style section was removed; keeping these
+    // shared constants avoids duplicating the established dimensions.
+    readonly property int   pillRadius:   12
+    readonly property int   pillH:        24
+    readonly property int   pillBorderW:  1
+    readonly property int   islandRadius: 16
+    readonly property int   tileRadius:   10
+    readonly property int   wsPillPad:    0
     readonly property color pillShadow:   Qt.rgba(0, 0, 0, 0.55)   // dark, theme-independent
 
     property string lastAppliedName: ""
@@ -622,8 +623,23 @@ Item {
     property bool cpuVisible: false
     onCpuVisibleChanged: popupOpened("cpuVisible")
 
+    // ── GPU panel state ──
+    property bool gpuVisible: false
+    onGpuVisibleChanged: popupOpened("gpuVisible")
+
+    // ── Thermal panel state ──
+    property bool thermalVisible: false
+    onThermalVisibleChanged: popupOpened("thermalVisible")
+
     // ── AI usage panel state + which tool the bar pill shows ──
     property bool   aiUsageVisible: false
+    property real   aiUsageReveal: aiUsageVisible ? 1 : 0
+    Behavior on aiUsageReveal {
+        NumberAnimation {
+            duration: theme.aiUsageVisible ? 160 : 120
+            easing.type: theme.aiUsageVisible ? Easing.OutCubic : Easing.InCubic
+        }
+    }
     onAiUsageVisibleChanged: {
         popupOpened("aiUsageVisible")
         if (aiUsageVisible) refreshAiUsage()
@@ -676,6 +692,9 @@ Item {
     property int    aiOcToday: 0
     property var    aiOcModels: []
     property int    aiClockTick: 0
+    // Drives the AI panel's refresh spinner while the collectors regenerate the
+    // on-disk caches (see regenerateAiUsage).
+    property bool   aiRefreshing: false
 
     // F15: clamp an external 0..1 utilization to a 0-100 int (a negative/over-range value would
     // otherwise produce wrong text and negative/overwide usage bars)
@@ -960,6 +979,34 @@ Item {
         }
     }
 
+    // Manual refresh: actually regenerate the on-disk caches by running the
+    // collector service (claude/codex/opencode usage), then re-read them. The
+    // periodic Timer below only re-reads; this is the only path that refetches.
+    Process {
+        id: aiCollectProc
+        command: ["systemctl", "--user", "start", "ryoku-ai-usage.service"]
+        onExited: {
+            aiRefreshTimeout.stop()
+            theme.refreshAiUsage(false)
+            theme.aiRefreshing = false
+        }
+    }
+    Timer {
+        // Safety net so the spinner can never spin forever if the collector
+        // stalls (claude-usage does a network fetch with its own timeout).
+        id: aiRefreshTimeout
+        interval: 30000
+        onTriggered: theme.aiRefreshing = false
+    }
+    function regenerateAiUsage() {
+        if (theme.aiRefreshing) return
+        theme.aiRefreshing = true
+        theme.aiClockTick++
+        aiRefreshTimeout.restart()
+        aiCollectProc.running = false
+        aiCollectProc.running = true
+    }
+
     Timer {
         // 30s normally; 5s while the AI panel is open (responsive when looked at)
         interval: (theme.aiUsageVisible ? 5000 : 30000) * Perf.pollFactor
@@ -972,16 +1019,35 @@ Item {
     // per-widget bash/awk polling for CPU and memory, so adding monitors does not
     // multiply these status process chains.
     property int systemCpuPercent: 0
-    property var systemCpuHistory: []
-    readonly property int systemCpuMaxSamples: 30
+    property int systemCpuUserPercent: 0
+    property int systemCpuSystemPercent: 0
+    property int systemCpuIoWaitPercent: 0
     property real _systemCpuPrevIdle: -1
     property real _systemCpuPrevTotal: -1
+    property real _systemCpuPrevUser: -1
+    property real _systemCpuPrevSystem: -1
+    property real _systemCpuPrevIoWait: -1
+    property string cpuModelName: ""
+    property int cpuCoreCount: 0
+    property int cpuThreadCount: 0
+    property int cpuClockMHz: 0
+    property int cpuMaxClockMHz: 0
+    property string cpuEnergyPreference: ""
+    property string cpuScalingGovernor: ""
+    property int cpuThrottleCount: 0
+    property real systemLoad1: 0
+    property real systemLoad5: 0
+    property real systemLoad15: 0
+    property string kernelRelease: ""
+    property var cpuTopProcesses: []
 
     property int systemMemTotalMiB: 0
     property int systemMemAvailMiB: 0
     property int systemMemFreeMiB: 0
     property int systemMemBuffersMiB: 0
     property int systemMemCachedMiB: 0
+    property string memoryType: ""
+    property int memorySpeedMTs: 0
     readonly property int systemMemUsedMiB: Math.max(0, systemMemTotalMiB - systemMemAvailMiB)
     readonly property int systemMemPercent: systemMemTotalMiB > 0
         ? Math.max(0, Math.min(100, Math.round(systemMemUsedMiB / systemMemTotalMiB * 100)))
@@ -989,13 +1055,82 @@ Item {
     readonly property real systemMemUsedGiB: systemMemUsedMiB / 1024
     readonly property real systemMemTotalGiB: systemMemTotalMiB / 1024
 
+    // Compact V2 telemetry. These samplers live on the singleton Theme so a
+    // second monitor adds another view, not another nvidia-smi/df/hwmon poller.
+    property string gpuBackend: ""
+    property string gpuName: ""
+    property string gpuDriverVersion: ""
+    property int gpuPercent: 0
+    property int gpuTemperatureC: 0
+    property int gpuMemoryUsedMiB: 0
+    property int gpuMemoryTotalMiB: 0
+    property int gpuClockMHz: 0
+    property real gpuPowerW: 0
+    property real gpuPowerLimitW: 0
+    property string gpuPerformanceState: ""
+    property int gpuFanPercent: 0
+    readonly property bool gpuAvailable: gpuBackend !== ""
+
+    property int cpuTemperatureC: 0
+    property int cpuCoreMaxTemperatureC: 0
+    property int cpuTemperatureMaxC: 0
+    property int cpuTemperatureCriticalC: 0
+    property int nvmeTemperatureC: 0
+    property int nvmeTemperatureMaxC: 0
+    property int nvmeTemperatureCriticalC: 0
+    property int memoryTemperatureC: 0
+    readonly property bool cpuTemperatureAvailable: cpuTemperatureC > 0
+
+    property string barTemperatureSource: "cpu"
+    readonly property int barTemperatureC: barTemperatureSource === "core" ? cpuCoreMaxTemperatureC
+        : barTemperatureSource === "gpu" ? gpuTemperatureC
+        : barTemperatureSource === "nvme" ? nvmeTemperatureC
+        : barTemperatureSource === "memory" ? memoryTemperatureC
+        : cpuTemperatureC
+    readonly property bool barTemperatureAvailable: barTemperatureC > 0
+
+    function barTemperatureSourceValid(source) {
+        return source === "cpu" || source === "core" || source === "gpu"
+            || source === "nvme" || source === "memory"
+    }
+    function barTemperatureSourceLabel(source) {
+        if (source === "core") return "Hottest CPU core"
+        if (source === "gpu") return "GPU"
+        if (source === "nvme") return "NVMe"
+        if (source === "memory") return "Memory"
+        return "CPU package"
+    }
+    function barTemperatureSourceAvailable(source) {
+        if (source === "core") return cpuCoreMaxTemperatureC > 0
+        if (source === "gpu") return gpuTemperatureC > 0
+        if (source === "nvme") return nvmeTemperatureC > 0
+        if (source === "memory") return memoryTemperatureC > 0
+        return cpuTemperatureC > 0
+    }
+
+    property int storagePercent: 0
+    property real storageUsedBytes: 0
+    property real storageTotalBytes: 0
+    property bool storageAvailable: false
+    readonly property real storageUsedGiB: storageUsedBytes / 1073741824
+    readonly property real storageTotalGiB: storageTotalBytes / 1073741824
+    property var storageDrives: []
+    property bool storageInventoryAvailable: false
+
     function parseSystemCpu(text) {
         var lines = String(text || "").split("\n")
         if (lines.length === 0 || lines[0].indexOf("cpu ") !== 0) return
         var parts = lines[0].trim().split(/\s+/)
         if (parts.length < 8) return
 
-        var idle = parseFloat(parts[4]) + parseFloat(parts[5])
+        function field(index) {
+            var value = parseFloat(parts[index])
+            return isNaN(value) ? 0 : value
+        }
+        var user = field(1) + field(2)
+        var system = field(3) + field(6) + field(7) + field(8)
+        var ioWait = field(5)
+        var idle = field(4) + ioWait
         var total = 0
         for (var i = 1; i < parts.length; i++) {
             var v = parseFloat(parts[i])
@@ -1008,15 +1143,84 @@ Item {
             var idleDelta = idle - _systemCpuPrevIdle
             var busy = totalDelta > 0 ? Math.round((totalDelta - idleDelta) / totalDelta * 100) : 0
             systemCpuPercent = Math.max(0, Math.min(100, busy))
-
-            var h = systemCpuHistory.slice()
-            h.push(systemCpuPercent / 100)
-            if (h.length > systemCpuMaxSamples) h.shift()
-            systemCpuHistory = h
+            systemCpuUserPercent = Math.max(0, Math.min(100,
+                Math.round((user - _systemCpuPrevUser) / totalDelta * 100)))
+            systemCpuSystemPercent = Math.max(0, Math.min(100,
+                Math.round((system - _systemCpuPrevSystem) / totalDelta * 100)))
+            systemCpuIoWaitPercent = Math.max(0, Math.min(100,
+                Math.round((ioWait - _systemCpuPrevIoWait) / totalDelta * 100)))
         }
 
         _systemCpuPrevIdle = idle
         _systemCpuPrevTotal = total
+        _systemCpuPrevUser = user
+        _systemCpuPrevSystem = system
+        _systemCpuPrevIoWait = ioWait
+    }
+
+    function parseCpuInfo(text) {
+        var blocks = String(text || "").trim().split(/\n\s*\n/)
+        var model = ""
+        var threads = 0
+        var cores = {}
+        var fallbackCores = 0
+
+        for (var i = 0; i < blocks.length; i++) {
+            var lines = blocks[i].split("\n")
+            var physical = "0"
+            var core = ""
+            var processorFound = false
+            for (var j = 0; j < lines.length; j++) {
+                var splitAt = lines[j].indexOf(":")
+                if (splitAt < 0) continue
+                var key = lines[j].slice(0, splitAt).trim()
+                var value = lines[j].slice(splitAt + 1).trim()
+                if (key === "processor") processorFound = true
+                else if ((key === "model name" || key === "Hardware") && model === "") model = value
+                else if (key === "physical id") physical = value
+                else if (key === "core id") core = value
+                else if (key === "cpu cores" && fallbackCores === 0) fallbackCores = parseInt(value) || 0
+            }
+            if (processorFound) threads++
+            if (core !== "") cores[physical + ":" + core] = true
+        }
+
+        cpuModelName = model.replace(/\(R\)|\(TM\)/g, "")
+            .replace(/\s+CPU\s+@\s+.*$/, "").replace(/\s+/g, " ").trim()
+        cpuThreadCount = threads
+        var coreKeys = Object.keys(cores)
+        cpuCoreCount = coreKeys.length > 0 ? coreKeys.length : fallbackCores
+    }
+
+    function parseSystemLoad(text) {
+        var fields = String(text || "").trim().split(/\s+/)
+        if (fields.length < 3) return
+        systemLoad1 = parseFloat(fields[0]) || 0
+        systemLoad5 = parseFloat(fields[1]) || 0
+        systemLoad15 = parseFloat(fields[2]) || 0
+    }
+
+    function parseCpuDetail(text) {
+        var fields = String(text || "").trim().split("|")
+        if (fields.length < 5) return
+        cpuClockMHz = Math.max(0, parseInt(fields[0]) || 0)
+        cpuMaxClockMHz = Math.max(0, parseInt(fields[1]) || 0)
+        cpuEnergyPreference = String(fields[2] || "").trim()
+        cpuScalingGovernor = String(fields[3] || "").trim()
+        cpuThrottleCount = Math.max(0, parseInt(fields[4]) || 0)
+    }
+
+    function parseCpuTopProcesses(text) {
+        var lines = String(text || "").split("\n")
+        var processes = []
+        for (var i = 0; i < lines.length && processes.length < 3; i++) {
+            var match = lines[i].trim().match(/^(.*\S)\s+([0-9]+(?:[.,][0-9]+)?)$/)
+            if (!match || match[1] === "ps") continue
+            var percent = parseFloat(match[2].replace(",", "."))
+            if (isNaN(percent)) continue
+            processes.push({ name: match[1], percent: percent })
+        }
+        cpuTopProcesses = processes
     }
 
     function parseSystemMem(text) {
@@ -1041,10 +1245,233 @@ Item {
         systemMemCachedMiB = Math.round(cached / 1024)
     }
 
+    function parseMemoryHardware(text) {
+        var raw = String(text || "")
+        var matcher = /type:\s*(DDR[0-9]+)\b[^\n]*\bspeed:\s*([0-9]+)\s*MT\/s/gi
+        var match
+        var type = ""
+        var speed = 0
+        while ((match = matcher.exec(raw)) !== null) {
+            var candidate = parseInt(match[2]) || 0
+            if (type === "") type = match[1].toUpperCase()
+            if (candidate > 0 && (speed === 0 || candidate < speed)) speed = candidate
+        }
+        memoryType = type
+        memorySpeedMTs = speed
+    }
+
+    function parseGpuTelemetry(text) {
+        var fields = String(text || "").trim().split("|")
+        // A runtime-suspended NVIDIA dGPU is doing no work; the poll below skips
+        // nvidia-smi so the card stays asleep and emits "suspended". Keep the
+        // last-known identity/VRAM and zero only the live load, so the widget reads
+        // 0% rather than vanishing or waking the card (a ~9-10W idle drain).
+        if (fields[0] === "suspended") {
+            gpuPercent = 0
+            gpuTemperatureC = 0
+            gpuClockMHz = 0
+            gpuPowerW = 0
+            gpuFanPercent = 0
+            return
+        }
+        if (fields.length < 12 || fields[0] === "none") {
+            gpuBackend = ""
+            gpuName = ""
+            gpuDriverVersion = ""
+            gpuPercent = 0
+            gpuTemperatureC = 0
+            gpuMemoryUsedMiB = 0
+            gpuMemoryTotalMiB = 0
+            gpuClockMHz = 0
+            gpuPowerW = 0
+            gpuPowerLimitW = 0
+            gpuPerformanceState = ""
+            gpuFanPercent = 0
+            return
+        }
+
+        function clean(value) { return String(value || "").trim() }
+        function number(value) {
+            var parsed = parseFloat(clean(value))
+            return isNaN(parsed) ? 0 : parsed
+        }
+
+        gpuBackend = clean(fields[0])
+        gpuName = clean(fields[1])
+        gpuDriverVersion = clean(fields[2])
+        gpuPercent = Math.max(0, Math.min(100, Math.round(number(fields[3]))))
+        gpuTemperatureC = Math.max(0, Math.round(number(fields[4])))
+        gpuMemoryUsedMiB = Math.max(0, Math.round(number(fields[5])))
+        gpuMemoryTotalMiB = Math.max(0, Math.round(number(fields[6])))
+        gpuClockMHz = Math.max(0, Math.round(number(fields[7])))
+        gpuPowerW = Math.max(0, number(fields[8]))
+        gpuPowerLimitW = Math.max(0, number(fields[9]))
+        gpuPerformanceState = clean(fields[10])
+        gpuFanPercent = Math.max(0, Math.min(100, Math.round(number(fields[11]))))
+    }
+
+    function parseThermalTelemetry(text) {
+        var fields = String(text || "").trim().split("|")
+        function thermal(index) {
+            var value = parseInt(fields[index])
+            return isNaN(value) ? 0 : Math.max(0, Math.min(150, value))
+        }
+        cpuTemperatureC = thermal(0)
+        cpuCoreMaxTemperatureC = thermal(1)
+        cpuTemperatureMaxC = thermal(2)
+        cpuTemperatureCriticalC = thermal(3)
+        nvmeTemperatureC = thermal(4)
+        nvmeTemperatureMaxC = thermal(5)
+        nvmeTemperatureCriticalC = thermal(6)
+        memoryTemperatureC = thermal(7)
+    }
+
+    function parseStorageInventory(text) {
+        var parsed
+        try {
+            parsed = JSON.parse(String(text || ""))
+        } catch (error) {
+            storageInventoryAvailable = false
+            storageDrives = []
+            return
+        }
+
+        var devices = parsed && parsed.blockdevices ? parsed.blockdevices : []
+        var drives = []
+
+        function textValue(value) {
+            return value === null || value === undefined ? "" : String(value).trim()
+        }
+        function collectVolumes(node, target) {
+            var fs = textValue(node.fstype)
+            var mounts = node.mountpoints || []
+            var mountedAt = ""
+            for (var m = 0; m < mounts.length; m++) {
+                var candidate = textValue(mounts[m])
+                if (candidate !== "" && candidate !== "[SWAP]") {
+                    mountedAt = candidate
+                    break
+                }
+            }
+            if (fs !== "") {
+                var pct = parseInt(textValue(node["fsuse%"]).replace("%", ""))
+                var freeText = textValue(node.fsavail)
+                var freeBytes = freeText === "" ? -1 : Number(freeText)
+                var usedText = textValue(node.fsused)
+                var usedBytes = usedText === "" ? -1 : Number(usedText)
+                target.push({
+                    fs: fs,
+                    mount: mountedAt,
+                    percent: isNaN(pct) ? -1 : Math.max(0, Math.min(100, pct)),
+                    freeBytes: isNaN(freeBytes) ? -1 : Math.max(0, freeBytes),
+                    usedBytes: isNaN(usedBytes) ? -1 : Math.max(0, usedBytes)
+                })
+            }
+            var children = node.children || []
+            for (var c = 0; c < children.length; c++) collectVolumes(children[c], target)
+        }
+
+        for (var i = 0; i < devices.length; i++) {
+            var device = devices[i]
+            var name = textValue(device.name)
+            if (device.type !== "disk" || name.indexOf("loop") === 0
+                    || name.indexOf("ram") === 0 || name.indexOf("zram") === 0)
+                continue
+
+            var volumes = []
+            collectVolumes(device, volumes)
+            var fileSystems = []
+            var mountedAt = ""
+            var usage = -1
+            var freeBytes = -1
+            var usedBytes = -1
+            for (var v = 0; v < volumes.length; v++) {
+                if (fileSystems.indexOf(volumes[v].fs) < 0) fileSystems.push(volumes[v].fs)
+                if (mountedAt === "" && volumes[v].mount !== "") {
+                    mountedAt = volumes[v].mount
+                    usage = volumes[v].percent
+                    freeBytes = volumes[v].freeBytes
+                    usedBytes = volumes[v].usedBytes
+                }
+            }
+
+            var transport = textValue(device.tran).toUpperCase()
+            var removable = device.rm === true || device.hotplug === true || transport === "USB"
+            var driveType = transport === "NVME" ? "nvme"
+                : device.rota === true ? "hdd"
+                : "ssd"
+            var media = removable ? "USB DRIVE"
+                : transport === "NVME" ? "NVME SSD"
+                : device.rota === true ? (transport !== "" ? transport + " HDD" : "HDD")
+                : (transport !== "" ? transport + " SSD" : "SSD")
+            var state = mountedAt !== "" ? mountedAt
+                : (fileSystems.length > 0 ? "Not mounted" : "No filesystem")
+
+            drives.push({
+                name: name,
+                model: textValue(device.model) || name,
+                size: Number(device.size) || 0,
+                driveType: driveType,
+                media: media,
+                fileSystems: fileSystems.join(" + ").toUpperCase(),
+                state: state,
+                percent: usage,
+                freeBytes: freeBytes,
+                usedBytes: usedBytes,
+                totalBytes: usedBytes >= 0 && freeBytes >= 0 ? usedBytes + freeBytes : -1
+            })
+        }
+
+        storageDrives = drives
+        storageInventoryAvailable = true
+    }
+
+    function parseStorageTelemetry(text) {
+        var fields = String(text || "").trim().split("|")
+        if (fields.length < 3) {
+            storageAvailable = false
+            storagePercent = 0
+            storageUsedBytes = 0
+            storageTotalBytes = 0
+            return
+        }
+
+        var percent = parseInt(fields[0])
+        var used = parseFloat(fields[1])
+        var total = parseFloat(fields[2])
+        if (isNaN(percent) || isNaN(used) || isNaN(total) || total <= 0) {
+            storageAvailable = false
+            return
+        }
+
+        storageAvailable = true
+        storagePercent = Math.max(0, Math.min(100, percent))
+        storageUsedBytes = Math.max(0, used)
+        storageTotalBytes = Math.max(0, total)
+    }
+
     FileView {
         id: systemCpuFile
         path: "/proc/stat"
         onLoaded: theme.parseSystemCpu(systemCpuFile.text())
+    }
+
+    FileView {
+        id: systemCpuInfoFile
+        path: "/proc/cpuinfo"
+        onLoaded: theme.parseCpuInfo(systemCpuInfoFile.text())
+    }
+
+    FileView {
+        id: systemLoadFile
+        path: "/proc/loadavg"
+        onLoaded: theme.parseSystemLoad(systemLoadFile.text())
+    }
+
+    FileView {
+        id: kernelReleaseFile
+        path: "/proc/sys/kernel/osrelease"
+        onLoaded: theme.kernelRelease = String(kernelReleaseFile.text() || "").trim()
     }
 
     FileView {
@@ -1053,13 +1480,148 @@ Item {
         onLoaded: theme.parseSystemMem(systemMemFile.text())
     }
 
+    Process {
+        id: cpuDetailProc
+        command: ["bash", "-c",
+            "sum=0; count=0; max=0; epp=''; governor=''; throttle=0; "
+            + "for f in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq; do [[ -r $f ]] || continue; IFS= read -r v < \"$f\"; "
+            + "[[ $v =~ ^[0-9]+$ ]] || continue; sum=$((sum + v)); count=$((count + 1)); done; "
+            + "(( count > 0 )) && avg=$((sum / count / 1000)) || avg=0; "
+            + "f=/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq; [[ -r $f ]] && { IFS= read -r v < \"$f\"; [[ $v =~ ^[0-9]+$ ]] && max=$((v / 1000)); }; "
+            + "f=/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference; [[ -r $f ]] && IFS= read -r epp < \"$f\"; "
+            + "f=/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor; [[ -r $f ]] && IFS= read -r governor < \"$f\"; "
+            + "f=/sys/devices/system/cpu/cpu0/thermal_throttle/package_throttle_count; [[ -r $f ]] && { IFS= read -r v < \"$f\"; [[ $v =~ ^[0-9]+$ ]] && throttle=$v; }; "
+            + "printf '%s|%s|%s|%s|%s\\n' \"$avg\" \"$max\" \"$epp\" \"$governor\" \"$throttle\""]
+        stdout: StdioCollector { onStreamFinished: theme.parseCpuDetail(this.text) }
+    }
+
+    Process {
+        id: memoryHardwareProc
+        command: ["bash", "-c",
+            "if command -v inxi >/dev/null 2>&1; then LC_ALL=C inxi -m -c 0 --no-host 2>/dev/null; fi"]
+        running: true
+        stdout: StdioCollector { onStreamFinished: theme.parseMemoryHardware(this.text) }
+    }
+
+    Process {
+        id: cpuTopProcessesProc
+        command: ["ps", "-eo", "comm=,%cpu=", "--sort=-%cpu"]
+        stdout: StdioCollector { onStreamFinished: theme.parseCpuTopProcesses(this.text) }
+    }
+
+    Process {
+        id: gpuTelemetryProc
+        command: ["bash", "-c",
+            "for st in /sys/bus/pci/drivers/nvidia/*/power/runtime_status; do [[ -r $st ]] || continue; IFS= read -r s < \"$st\"; [[ $s == suspended ]] && { printf 'suspended|||||||||||\\n'; exit 0; }; break; done; "
+            + "if command -v nvidia-smi >/dev/null 2>&1; then "
+            + "IFS=, read -r name driver util temp used total clock power limit pstate fan < <(nvidia-smi --query-gpu=name,driver_version,utilization.gpu,temperature.gpu,memory.used,memory.total,clocks.current.graphics,power.draw,power.limit,pstate,fan.speed --format=csv,noheader,nounits 2>/dev/null | head -n1); "
+            + "if [[ $util =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $temp =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $used =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $total =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then "
+            + "printf 'nvidia|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\\n' \"$name\" \"$driver\" \"$util\" \"$temp\" \"$used\" \"$total\" \"$clock\" \"$power\" \"$limit\" \"$pstate\" \"$fan\"; exit 0; fi; "
+            + "fi; "
+            + "for busy in /sys/class/drm/card*/device/gpu_busy_percent; do "
+            + "[[ -r $busy ]] || continue; read -r util < \"$busy\"; temp=0; "
+            + "for sensor in \"${busy%/gpu_busy_percent}\"/hwmon/hwmon*/temp1_input; do "
+            + "[[ -r $sensor ]] || continue; read -r raw < \"$sensor\"; temp=$((raw / 1000)); break; done; "
+            + "printf 'sysfs|GPU||%s|%s|0|0|0|0|0||0\\n' \"$util\" \"$temp\"; exit 0; done; "
+            + "printf 'none|||||||||||\\n'"]
+        stdout: StdioCollector { onStreamFinished: theme.parseGpuTelemetry(this.text) }
+    }
+
+    Process {
+        id: cpuTemperatureProc
+        command: ["bash", "-c",
+            "cpu=0; core=0; cpu_max=0; cpu_crit=0; nvme=0; nvme_max=0; nvme_crit=0; dimm=0; "
+            + "for d in /sys/class/hwmon/hwmon*; do [[ -r $d/name ]] || continue; IFS= read -r name < \"$d/name\"; "
+            + "case $name in coretemp|k10temp|zenpower|cpu_thermal) "
+            + "for input in \"$d\"/temp*_input; do [[ -r $input ]] || continue; raw=0; IFS= read -r raw < \"$input\"; [[ $raw =~ ^[0-9]+$ ]] || continue; "
+            + "label_file=${input%_input}_label; label=''; [[ -r $label_file ]] && IFS= read -r label < \"$label_file\"; value=$((raw / 1000)); "
+            + "case $label in 'Package id 0'|Tctl|Tdie|'CPU Package'|CPU) cpu=$value; max_file=${input%_input}_max; crit_file=${input%_input}_crit; "
+            + "[[ -r $max_file ]] && { IFS= read -r v < \"$max_file\"; [[ $v =~ ^[0-9]+$ ]] && cpu_max=$((v / 1000)); }; "
+            + "[[ -r $crit_file ]] && { IFS= read -r v < \"$crit_file\"; [[ $v =~ ^[0-9]+$ ]] && cpu_crit=$((v / 1000)); };; "
+            + "Core*) (( value > core )) && core=$value;; esac; (( cpu == 0 )) && cpu=$value; done;; "
+            + "nvme) for label_file in \"$d\"/temp*_label; do [[ -r $label_file ]] || continue; IFS= read -r label < \"$label_file\"; [[ $label == Composite ]] || continue; "
+            + "input=${label_file%_label}_input; [[ -r $input ]] || continue; IFS= read -r raw < \"$input\"; [[ $raw =~ ^[0-9]+$ ]] || continue; nvme=$((raw / 1000)); "
+            + "max_file=${input%_input}_max; crit_file=${input%_input}_crit; [[ -r $max_file ]] && { IFS= read -r v < \"$max_file\"; [[ $v =~ ^[0-9]+$ ]] && nvme_max=$((v / 1000)); }; "
+            + "[[ -r $crit_file ]] && { IFS= read -r v < \"$crit_file\"; [[ $v =~ ^[0-9]+$ ]] && nvme_crit=$((v / 1000)); }; break; done;; "
+            + "jc42) for input in \"$d\"/temp*_input; do [[ -r $input ]] || continue; IFS= read -r raw < \"$input\"; [[ $raw =~ ^[0-9]+$ ]] || continue; "
+            + "value=$((raw / 1000)); (( value > dimm )) && dimm=$value; done;; esac; done; "
+            + "if (( cpu == 0 )); then for zone in /sys/class/thermal/thermal_zone*; do [[ -r $zone/type && -r $zone/temp ]] || continue; "
+            + "IFS= read -r type < \"$zone/type\"; case $type in x86_pkg_temp|cpu-thermal|cpu_thermal) IFS= read -r raw < \"$zone/temp\"; "
+            + "[[ $raw =~ ^[0-9]+$ ]] && { cpu=$((raw / 1000)); break; };; esac; done; fi; "
+            + "printf '%s|%s|%s|%s|%s|%s|%s|%s\\n' \"$cpu\" \"$core\" \"$cpu_max\" \"$cpu_crit\" \"$nvme\" \"$nvme_max\" \"$nvme_crit\" \"$dimm\""]
+        stdout: StdioCollector { onStreamFinished: theme.parseThermalTelemetry(this.text) }
+    }
+
+    Process {
+        id: storageTelemetryProc
+        command: ["bash", "-c",
+            "LC_ALL=C df -P -B1 / 2>/dev/null | awk 'NR == 2 { gsub(/%/, \"\", $5); printf \"%s|%s|%s\\n\", $5, $3, $2 }'"]
+        stdout: StdioCollector { onStreamFinished: theme.parseStorageTelemetry(this.text) }
+    }
+
+    Process {
+        id: storageInventoryProc
+        command: ["lsblk", "-J", "-b", "-o",
+            "NAME,PATH,TYPE,SIZE,FSTYPE,FSUSED,FSAVAIL,FSUSE%,MOUNTPOINTS,MODEL,TRAN,ROTA,RM,HOTPLUG"]
+        stdout: StdioCollector { onStreamFinished: theme.parseStorageInventory(this.text) }
+    }
+
     Timer {
         interval: ((theme.modCpu || theme.cpuVisible || theme.modMemory || theme.memVisible) ? 2000 : 10000) * Perf.pollFactor
         running: true; repeat: true; triggeredOnStart: true
         onTriggered: {
             systemCpuFile.reload()
+            systemLoadFile.reload()
             systemMemFile.reload()
         }
+    }
+
+    Timer {
+        interval: 2500 * Perf.pollFactor
+        running: theme.cpuVisible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!cpuDetailProc.running) cpuDetailProc.running = true
+    }
+
+    Timer {
+        interval: 3000 * Perf.pollFactor
+        running: theme.cpuVisible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!cpuTopProcessesProc.running) cpuTopProcessesProc.running = true
+    }
+
+    Timer {
+        interval: 2500 * Perf.pollFactor
+        running: theme.modGpu || theme.gpuVisible || theme.thermalVisible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!gpuTelemetryProc.running) gpuTelemetryProc.running = true
+    }
+
+    Timer {
+        interval: 5000 * Perf.pollFactor
+        running: theme.modCpuTemperature || theme.cpuVisible || theme.thermalVisible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!cpuTemperatureProc.running) cpuTemperatureProc.running = true
+    }
+
+    Timer {
+        interval: 30000 * Perf.pollFactor
+        running: theme.modStorage || theme.storageVisible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!storageTelemetryProc.running) storageTelemetryProc.running = true
+    }
+
+    Timer {
+        interval: (theme.storageVisible ? 5000 : 60000) * Perf.pollFactor
+        running: theme.modStorage || theme.storageVisible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!storageInventoryProc.running) storageInventoryProc.running = true
     }
 
     // ── Memory panel state ──
@@ -1068,107 +1630,38 @@ Item {
 
     // ── Volume panel state ──
     property bool volVisible: false
+    property real volReveal: volVisible ? 1 : 0
+    Behavior on volReveal {
+        NumberAnimation {
+            duration: theme.volVisible ? 160 : 120
+            easing.type: theme.volVisible ? Easing.OutCubic : Easing.InCubic
+        }
+    }
     onVolVisibleChanged: popupOpened("volVisible")
 
     // ── Control center state ──
     property bool controlVisible: false
     onControlVisibleChanged: {
         popupOpened("controlVisible")
-        if (!controlVisible) { splitsSubVisible = false; wwSubVisible = false }
+        if (!controlVisible) wwSubVisible = false
     }
-
-    // ── Split state (controlled by Bar + ControlPanel) ──
-    property bool splitLeft:   false
-    property bool splitRight:  false
-    property bool splitArch:   false
-    property bool splitMon:    false
-    property bool splitNet:    false
-    property bool splitMprisL: false
-    property int barAnim: 1   // 0=off, 1=stream, 2=surge, 3=bolt, 4=bolt2, 5=stream2, 6=surge2, 7=reactor, 8=quotes
 
     // ── Bar layout / unlock (drag&drop reorder). barUnlocked is transient. ──
     property bool barUnlocked: false
-    // split-control hooks called by the ControlPanel split sub-panel.
-    property var  fnSplitAll:      function () { theme.splitAllBars() }
-    property var  fnMergeAll:      function () { theme.mergeAllBars() }
     property var  fnDefaultLayout: function () { theme.resetAllBarLayouts() }
-    property bool splitsSubVisible: false
     property bool wwSubVisible: false   // "Widgets & Workspaces" fly-out
-
-    // Legacy split booleans are kept only for cache compatibility. The active
-    // split system lives in BarSlot's per-gap arrays; ParticleStream is gated by
-    // the real run count there, so barAnim no longer follows these old flags.
-    function mergeAllSplits() {
-        splitLeft = false; splitRight = false; splitArch = false;
-        splitMon = false; splitNet = false; splitMprisL = false;
-    }
-
-    // ── Control-panel state persistence (splits / anim / accent) ──
-    // Survives bar restarts via a tiny cache file; no extra deps (same Process+cat
-    // pattern used elsewhere). _splitsLoaded gates saving so the initial restore
-    // doesn't immediately write back over itself.
-    readonly property string splitsCachePath: Quickshell.env("HOME") + "/.cache/quickshell_splits"
-    property bool _splitsLoaded: false
-
-    onSplitArchChanged:      if (_splitsLoaded) saveSplits()
-    onSplitMonChanged:       if (_splitsLoaded) saveSplits()
-    onSplitNetChanged:       if (_splitsLoaded) saveSplits()
-    onSplitMprisLChanged:    if (_splitsLoaded) saveSplits()
-    onBarAnimChanged:        if (_splitsLoaded) saveSplits()
-    onBarColorChanged:       if (_splitsLoaded) saveSplits()
-
-    // Build the command imperatively (not as a binding): a bound `command` can
-    // still hold the pre-toggle value when the Process runs, saving stale state.
-    function saveSplits() {
-        var line = (splitArch   ? "1" : "0") + " "
-                 + (splitMon     ? "1" : "0") + " "
-                 + (splitMprisL  ? "1" : "0") + " "
-                 + (splitNet     ? "1" : "0") + " "
-                 + barAnim + " "
-                 + barColor
-        splitSaveProc.command = ["bash", "-c",
-            "mkdir -p \"$(dirname '" + splitsCachePath + "')\" && echo '" + line + "' > '" + splitsCachePath + "'"]
-        splitSaveProc.running = false
-        splitSaveProc.running = true
-    }
-
-    Process {
-        id: splitLoadProc
-        command: ["cat", theme.splitsCachePath]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var parts = this.text.trim().split(" ")
-                if (parts.length >= 5) {
-                    theme.splitArch      = parts[0] === "1"
-                    theme.splitMon       = parts[1] === "1"
-                    theme.splitMprisL    = parts[2] === "1"
-                    theme.splitNet       = parts[3] === "1"
-                    var ba = parseInt(parts[4]); theme.barAnim = (ba >= 0 && ba <= 8) ? ba : 0
-                    if (parts.length >= 6) {
-                        var bc = parts[5]
-                        if (bc === "1" || bc === "0") theme.barColor = "color01"
-                        else if (bc === "green" || bc === "color2") theme.barColor = "color02"
-                        else if (bc === "yellow" || bc === "color3") theme.barColor = "color03"
-                        else if (theme.barColorValid(bc)) theme.barColor = theme.normalizedPaletteId(bc)
-                    }
-                }
-                theme._splitsLoaded = true
-            }
-        }
-    }
-
-    Process { id: splitSaveProc }   // command is set imperatively in saveSplits()
 
     // ── module enable flags (controlled by ControlPanel) ──
     property bool modStatus:     true
     property bool modMemory:     true
     property bool modCpu:        true
+    property bool modCpuTemperature: true
+    property bool modGpu:        true
+    property bool modStorage:    true
     property bool modVolume:     true
     property bool modWeather:    true
     property bool modNetwork:    true
     property string networkMode: "none"   // mirrored from NetworkWidget: wifi/ethernet/none
-    property bool omarchyUpdateAvail: false   // mirrored from UpdateWidget (6h poll)
     // Centralized status indicators. These live on Theme so BarSlot-per-monitor
     // widgets don't each spawn their own status poller.
     property bool stayAwake: false            // idle lock disabled / stay-awake indicator
@@ -1197,7 +1690,7 @@ Item {
     property string voxState: "idle"          // idle/recording/transcribing
     property string voxHint: ""
     property bool voxAvailable: true
-    readonly property bool _statusPollingWanted: modStatus || barAnim === 7
+    readonly property bool _statusPollingWanted: modStatus
     readonly property bool _voxActive: voxState === "recording" || voxState === "transcribing"
 
     function refreshIdleStatus() {
@@ -1305,7 +1798,7 @@ Item {
         screenRecordingElapsed = _screenRecordingBaseElapsed + Math.floor((Date.now() - _screenRecordingBaseMs) / 1000)
     }
     function refreshVoxtypeStatus() {
-        if (!voxAvailable && !modStatus && barAnim !== 7) return
+        if (!voxAvailable && !modStatus) return
         if (voxProc.running) return
         voxProc.running = true
     }
@@ -1470,7 +1963,7 @@ Item {
     }
 
     Timer {
-        interval: 1500 * Perf.pollFactor
+        interval: 1500
         running: theme._statusPollingWanted
         repeat: true
         triggeredOnStart: true
@@ -1478,7 +1971,7 @@ Item {
     }
 
     Timer {
-        interval: 45000 * Perf.pollFactor
+        interval: 45000
         running: theme._statusPollingWanted
         repeat: true
         triggeredOnStart: true
@@ -1517,7 +2010,7 @@ Item {
         }
     }
     Timer {
-        interval: (theme._voxActive ? 1000 : (theme.voxAvailable ? 10000 : 60000)) * Perf.pollFactor
+        interval: theme._voxActive ? 1000 : (theme.voxAvailable ? 10000 : 60000)
         running: theme._statusPollingWanted
         repeat: true
         triggeredOnStart: true
@@ -1548,19 +2041,8 @@ Item {
     property bool modMedia:      true
     property bool modQuick:      true    // G10 group pill (idle-inhibitor · media · theme)
     property bool modMpris:      true    // G9 now-playing / mpris pill
+    property string mprisBarStyle: "default" // "default" or "full"
     property bool modClaude:     false   // default off (toggle in ControlPanel)
-
-    // Per-widget compact display modes. Defaults are full-width for backwards
-    // compatibility; ControlPanel toggles persist these below.
-    property bool compactNetwork:    false
-    property bool compactBattery:    false
-    property bool compactBrightness: false
-    property bool compactCpu:        false
-    property bool compactMemory:     false
-    property bool compactVolume:     false
-    property bool compactBluetooth:  false
-    property bool compactPower:      false
-    property bool compactMpris:      false
 
     // backlight presence - set by BrightnessWidget once it probes /sys/class/backlight.
     // ControlPanel uses this to hide the Brightness toggle on desktops without one.
@@ -1569,16 +2051,44 @@ Item {
     // ── workspace display mode ──
     property string workspaceMode: "active"   // "10", "5", "active"
     // ── workspace display style (orthogonal to mode; persisted) ──
-    property string workspaceStyle: "default"   // "default", "numbers", "magic"
-    // The marker styles this variant offers (island V1: the original three).
+    // "rings" is the stable cache token for the user-facing Frame style.
+    property string workspaceStyle: "default"   // default, numbers, magic, kanji, rings, aurora
+    // The marker styles this variant offers (continuous V2 adds Kanji, Frame,
+    // Aurora; "rings" is the persisted cache token for the Frame style).
     readonly property var workspaceStyleOptions: [
         { key: "default", label: "Dots" },
         { key: "numbers", label: "Numbers" },
-        { key: "magic",   label: "Glyph" }
+        { key: "magic",   label: "Glyph" },
+        { key: "kanji",   label: "Kanji" },
+        { key: "rings",   label: "Frame" },
+        { key: "aurora",  label: "Aurora" }
     ]
 
     // ── bar screen position (persisted) ──
     property string barPosition: "top"   // "top" or "bottom"
+    // ── gap animation mode (Bar Studio; drives the V2 gap/reactor layer) ──
+    // 0=off, 1=stream, 2=surge, 3=bolt, 7=reactor, 8=quotes.
+    property int barAnim: 1
+    onBarAnimChanged: if (_widgetsLoaded) saveWidgets()
+    // Reactor IPC (barAnim modes 7/8): ParticleStream listens via onReactorTest.
+    signal reactorTest(string kind, string arg)
+    // ── outer bar shell (persisted) ──
+    // islands = split pills: each populated region (left · center · right) is its
+    //           own rounded pill, with the reactor stream flowing in the gaps
+    // full    = edge-to-edge strip
+    // fit     = centered content-width capsule
+    // dock    = centered content-width surface attached to the screen edge
+    // notch   = attached content-width surface with desktop-facing side wings
+    property string barShellStyle: "full"
+    property bool barBorderEnabled: true
+    // Outer bar-shell corner radius in px, applied to the fitted shell forms.
+    // Persisted in shell.json .qsbar; set from the control center and Bar Studio.
+    property int barCornerRadius: 6
+    property bool panelTooltipBorderEnabled: true
+    function barShellStyleValid(value) {
+        return value === "islands" || value === "full" || value === "fit"
+            || value === "dock" || value === "notch"
+    }
 
     // ── picker visual style (theme/wallpaper/screenshot/video pickers) ──
     property string pickerStyle: "tanzaku"   // "tanzaku", "hearthstone", "carousel"
@@ -1589,11 +2099,244 @@ Item {
     property bool   clock12h:        false   // false = 24h, true = 12h (AM/PM)
 
     // ── widget/workspace state persistence ──
-    readonly property string widgetsCachePath: Quickshell.env("HOME") + "/.cache/quickshell_widgets"
+    property var barSeps: []
+    property var iconOnlyGids: []
+    function sepAfter(gid) { return barSeps.indexOf(gid) >= 0 }
+    function iconOnly(gid) { return iconOnlyGids.indexOf(gid) >= 0 }
+    function toggleSep(gid) {
+        var a = barSeps.slice()
+        var i = a.indexOf(gid)
+        if (i >= 0) a.splice(i, 1); else a.push(gid)
+        barSeps = a
+        if (_widgetsLoaded) saveWidgets()
+    }
+    function toggleIconOnly(gid) {
+        if (gid === "G3") return // Status is an icon-only group by design.
+        var a = iconOnlyGids.slice()
+        var i = a.indexOf(gid)
+        if (i >= 0) a.splice(i, 1); else a.push(gid)
+        iconOnlyGids = a
+        if (_widgetsLoaded) saveWidgets()
+    }
+    // Per-widget geometry overrides (continuous bar), matching upstream Shibumi's
+    // bar.shibumi.widgets.Gx.appearance.v2: a per-GID {pad,radius,opacity}. Unset
+    // keys inherit the shared defaults, so the curated look is unchanged until a
+    // widget is deliberately customised in the Control Center.
+    property var widgetGeom: ({})
+    function widgetGeomOf(gid) { var g = widgetGeom[gid]; return g ? g : ({}) }
+    function widgetPad(gid) { var g = widgetGeomOf(gid); return g.pad !== undefined ? g.pad : 0 }
+    function widgetRadius(gid) { var g = widgetGeomOf(gid); return (g.radius !== undefined && g.radius >= 0) ? g.radius : panelButtonRadius }
+    function widgetOpacity(gid) { var g = widgetGeomOf(gid); return (g.opacity !== undefined && g.opacity >= 0) ? g.opacity : 1 }
+    function widgetGeomCustomized(gid) { return widgetGeom[gid] !== undefined }
+    function setWidgetGeom(gid, key, value) {
+        var m = Object.assign({}, widgetGeom)
+        var g = Object.assign({}, m[gid] || ({}))
+        g[key] = value
+        m[gid] = g
+        widgetGeom = m
+        if (_widgetsLoaded) persistWidgetsToConfig()
+    }
+    function resetWidgetGeom(gid) {
+        if (widgetGeom[gid] === undefined) return
+        var m = Object.assign({}, widgetGeom)
+        delete m[gid]
+        widgetGeom = m
+        if (_widgetsLoaded) persistWidgetsToConfig()
+    }
+    function parseGidCsv(s) {
+        if (!s || s === "-") return []
+        var out = []
+        var toks = s.split(",")
+        for (var i = 0; i < toks.length; i++)
+            if (/^G\d{1,2}$/.test(toks[i]) && toks[i] !== "G3") out.push(toks[i])
+        return out
+    }
+
+    // ── per-widget palette styles ──
+    // Stored by stable GID, so slot reordering and temporarily hidden widgets
+    // never lose their visual assignment.
+    property var widgetColorStyles: ({})
+    function widgetGidValid(gid) {
+        var m = String(gid || "").match(/^G(\d{1,2})$/)
+        if (!m) return false
+        var n = Number(m[1])
+        return n >= 1 && n <= 18
+    }
+    function widgetColorModeValid(mode) {
+        return mode === "fill" || mode === "border" || mode === "both"
+    }
+    function normalizedWidgetColorMode(mode, colorId) {
+        var borderOn = mode === "both" || mode === "border"
+        if (!borderOn) return "fill"
+        return colorId === "inherit" ? "border" : "both"
+    }
+    function widgetToneValid(tone) {
+        return tone === "auto" || tone === "background" || tone === "foreground"
+    }
+    function widgetColorStyle(gid) {
+        var raw = widgetColorStyles[gid]
+        var colorId = raw && (raw.color === "inherit" || paletteColorValid(raw.color))
+            ? raw.color
+            : "inherit"
+        return {
+            color: colorId,
+            mode: raw && widgetColorModeValid(raw.mode)
+                ? normalizedWidgetColorMode(raw.mode, colorId)
+                : "fill",
+            tone: raw && widgetToneValid(raw.tone) ? raw.tone : "auto"
+        }
+    }
+    function setWidgetColorStyle(gid, colorId, mode, tone) {
+        if (!widgetGidValid(gid)) return
+        var next = {}
+        for (var key in widgetColorStyles) next[key] = widgetColorStyles[key]
+
+        var storedColor = colorId === "inherit"
+            ? "inherit"
+            : (paletteColorValid(colorId) ? colorId : "color01")
+        var storedMode = normalizedWidgetColorMode(mode, storedColor)
+        if (storedColor === "inherit" && storedMode !== "border") {
+            delete next[gid]
+        } else {
+            next[gid] = {
+                color: storedColor,
+                mode: storedMode,
+                tone: widgetToneValid(tone) ? tone : "auto"
+            }
+        }
+        widgetColorStyles = next
+        if (_widgetsLoaded) saveWidgets()
+    }
+    function setWidgetPaletteColor(gid, colorId) {
+        var style = widgetColorStyle(gid)
+        setWidgetColorStyle(gid, colorId, style.mode, style.tone)
+    }
+    function setWidgetColorMode(gid, mode) {
+        var style = widgetColorStyle(gid)
+        setWidgetColorStyle(gid, style.color, mode, style.tone)
+    }
+    function setWidgetBorderEnabled(gid, enabled) {
+        var style = widgetColorStyle(gid)
+        setWidgetColorStyle(gid, style.color,
+            enabled ? (style.color === "inherit" ? "border" : "both") : "fill",
+            style.tone)
+    }
+    function setWidgetTone(gid, tone) {
+        var style = widgetColorStyle(gid)
+        if (style.color !== "inherit") setWidgetColorStyle(gid, style.color, style.mode, tone)
+    }
+    function resetWidgetColor(gid) {
+        var style = widgetColorStyle(gid)
+        setWidgetColorStyle(gid, "inherit",
+            style.mode === "both" || style.mode === "border" ? "border" : "fill",
+            "auto")
+    }
+    function resetAllWidgetFillColors() {
+        var next = {}
+        var changed = false
+
+        for (var n = 1; n <= 18; n++) {
+            var gid = "G" + n
+            var style = widgetColorStyle(gid)
+
+            if (style.color !== "inherit") changed = true
+            if (style.mode === "border" || style.mode === "both") {
+                next[gid] = {
+                    color: "inherit",
+                    mode: "border",
+                    tone: "auto"
+                }
+            }
+        }
+
+        if (changed) widgetColorStyles = next
+        return changed
+    }
+    function widgetPaletteId(gid) { return widgetColorStyle(gid).color }
+    function widgetColorMode(gid) { return widgetColorStyle(gid).mode }
+    function widgetTone(gid) { return widgetColorStyle(gid).tone }
+    function widgetHasFill(gid) {
+        var style = widgetColorStyle(gid)
+        return style.color !== "inherit"
+    }
+    function widgetHasBorder(gid) {
+        var style = widgetColorStyle(gid)
+        return style.mode === "border" || style.mode === "both"
+    }
+    function widgetAssignedColor(gid) {
+        var id = widgetPaletteId(gid)
+        return id === "inherit" ? seal : paletteColor(id)
+    }
+    function _linearColorChannel(v) {
+        return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+    }
+    function _relativeLuminance(c) {
+        return 0.2126 * _linearColorChannel(c.r)
+             + 0.7152 * _linearColorChannel(c.g)
+             + 0.0722 * _linearColorChannel(c.b)
+    }
+    function _contrastRatio(a, b) {
+        var la = _relativeLuminance(a)
+        var lb = _relativeLuminance(b)
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+    }
+    function paletteContrastColor(id) {
+        var fill = paletteColor(id)
+        return _contrastRatio(fill, paper) >= _contrastRatio(fill, ink) ? paper : ink
+    }
+    function widgetContrastColor(gid) {
+        var fill = widgetAssignedColor(gid)
+        var tone = widgetTone(gid)
+        if (tone === "background") return paper
+        if (tone === "foreground") return ink
+        return _contrastRatio(fill, paper) >= _contrastRatio(fill, ink) ? paper : ink
+    }
+    function widgetContentColor(gid, fallback) {
+        return widgetHasFill(gid) ? widgetContrastColor(gid) : fallback
+    }
+    function widgetFillColor(gid) {
+        return widgetHasFill(gid) ? widgetAssignedColor(gid) : Qt.rgba(0, 0, 0, 0)
+    }
+    function widgetBorderColor(gid) {
+        if (!widgetHasBorder(gid)) return Qt.rgba(0, 0, 0, 0)
+        return panelBorder
+    }
+    function serializeWidgetColorStyles() {
+        var out = []
+        for (var n = 1; n <= 18; n++) {
+            var gid = "G" + n
+            var style = widgetColorStyle(gid)
+            if (style.color !== "inherit" || style.mode === "border")
+                out.push(gid + "~" + style.color + "~" + style.mode + "~" + style.tone)
+        }
+        return out.length ? out.join(",") : "-"
+    }
+    function parseWidgetColorStyles(raw) {
+        var out = {}
+        if (!raw || raw === "-") return out
+        var entries = String(raw).split(",")
+        for (var i = 0; i < entries.length; i++) {
+            var fields = entries[i].split("~")
+            if (fields.length !== 4 || !widgetGidValid(fields[0])
+                    || (fields[1] !== "inherit" && !paletteColorValid(fields[1]))
+                    || !widgetColorModeValid(fields[2])
+                    || !widgetToneValid(fields[3])) continue
+            out[fields[0]] = {
+                color: fields[1],
+                mode: normalizedWidgetColorMode(fields[2], fields[1]),
+                tone: fields[3]
+            }
+        }
+        return out
+    }
+
+    readonly property string widgetsCachePath: Quickshell.env("HOME") + "/.cache/quickshell_widgets_v2"
     property bool _widgetsLoaded: false
-    property bool _compactResetting: false
 
     onModMemoryChanged:     if (_widgetsLoaded) saveWidgets()
+    onModCpuTemperatureChanged: if (_widgetsLoaded) saveWidgets()
+    onModGpuChanged:        if (_widgetsLoaded) saveWidgets()
+    onModStorageChanged:    if (_widgetsLoaded) saveWidgets()
     onModBrightnessChanged: if (_widgetsLoaded) saveWidgets()
     onModClaudeChanged:     if (_widgetsLoaded) saveWidgets()
     onModPowerChanged:      if (_widgetsLoaded) saveWidgets()
@@ -1604,6 +2347,7 @@ Item {
     onModCpuChanged:        if (_widgetsLoaded) saveWidgets()
     onModVolumeChanged:     if (_widgetsLoaded) saveWidgets()
     onModMprisChanged:      if (_widgetsLoaded) saveWidgets()
+    onMprisBarStyleChanged: if (_widgetsLoaded) saveWidgets()
     onAiToolChanged:        if (_widgetsLoaded) saveWidgets()
     onWorkspaceModeChanged: if (_widgetsLoaded) saveWidgets()
     onPickerStyleChanged:   if (_widgetsLoaded) saveWidgets()
@@ -1615,22 +2359,15 @@ Item {
     onArchBadgePackagesChanged: if (_widgetsLoaded) saveWidgets()
     onArchBadgeThemesChanged:   if (_widgetsLoaded) saveWidgets()
     onArchBadgeShellChanged:    if (_widgetsLoaded) saveWidgets()
-    onCompactNetworkChanged:    if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onCompactBatteryChanged:    if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onCompactBrightnessChanged: if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onCompactCpuChanged:        if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onCompactMemoryChanged:     if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onCompactVolumeChanged:     if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onCompactBluetoothChanged:  if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onCompactPowerChanged:      if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onCompactMprisChanged:      if (_widgetsLoaded && !_compactResetting) saveWidgets()
-    onStyleBorderChanged:      if (_widgetsLoaded) saveWidgets()
-    onStyleShadowChanged:      if (_widgetsLoaded) saveWidgets()
-    onStyleFrostChanged:       if (_widgetsLoaded) saveWidgets()
-    onStyleRadiusSmallChanged: if (_widgetsLoaded) saveWidgets()
-    onBarCornerRadiusChanged:  if (_widgetsLoaded) saveWidgets()
     onWorkspaceStyleChanged:   if (_widgetsLoaded) saveWidgets()
     onBarPositionChanged:      if (_widgetsLoaded) saveWidgets()
+    onBarShellStyleChanged:    if (_widgetsLoaded) saveWidgets()
+    onBarBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
+    onPanelTooltipBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
+    onBarCornerRadiusChanged:  if (_widgetsLoaded) saveWidgets()
+    onBarColorChanged:         if (_widgetsLoaded) saveWidgets()
+    onWidgetIconsForegroundChanged: if (_widgetsLoaded) saveWidgets()
+    onBarTemperatureSourceChanged: if (_widgetsLoaded) saveWidgets()
 
     function saveWidgets() {
         var line = (modMemory    ? "1" : "0") + " "
@@ -1643,34 +2380,39 @@ Item {
                  + (weatherImperial ? "1" : "0") + " "
                  + (clock12h        ? "1" : "0") + " "
                  + (modNetwork      ? "1" : "0") + " "
-                 + (styleShadow      ? "1" : "0") + " "   // field +5 (was styleBorderless; value-compatible)
-                 + (styleRadiusSmall ? "1" : "0") + " "
-                 + (styleHeightMin   ? "1" : "0") + " "
+                 + "0 "                                     // +5 legacy shadow field (V2 disabled)
+                 + "0 0 "                                     // +6..+7 retired V2 Style fields
                  + workspaceStyle + " "
                  + barPosition + " "
-                 + (styleBorder      ? "1" : "0") + " "   // +10 (new; old caches → derived from styleShadow)
+                 + "1 "                                     // +10 legacy border field (V2 always on)
                  + (modStatus ? "1" : "0") + " "          // +11 group pill: status (arch/tray/notif)
                  + (modQuick  ? "1" : "0") + " "          // +12 group pill: quick (idle/media/theme)
                  + (modCpu    ? "1" : "0") + " "          // +13
                  + (modVolume ? "1" : "0") + " "          // +14
                  + (modMpris  ? "1" : "0") + " "          // +15 now-playing / mpris
                  + aiTool + " "                           // +16 AI tool shown in bar (claude/codex/opencode)
-                 + (styleFrost ? "1" : "0") + " "         // +17 frost / lowered island opacity
+                 + "0 "                                     // +17 retired transparent/frost field
                  + launcherLogoMode + " "                 // +18 launcher logo mode (text/icon)
                  + launcherLogoText + " "                 // +19 text logo id
                  + launcherLogoIcon + " "                 // +20 icon logo id
                  + (archBadgePackages ? "1" : "0") + " "  // +21 updater package badge
                  + (archBadgeThemes   ? "1" : "0") + " "  // +22 updater clean-theme badge
-                 + (compactNetwork    ? "1" : "0") + " "  // +23 compact network pill
-                 + (compactBattery    ? "1" : "0") + " "  // +24
-                 + (compactBrightness ? "1" : "0") + " "  // +25
-                 + (compactCpu        ? "1" : "0") + " "  // +26
-                 + (compactMemory     ? "1" : "0") + " "  // +27
-                 + (compactVolume     ? "1" : "0") + " "  // +28
-                 + (compactBluetooth  ? "1" : "0") + " "  // +29
-                 + (compactPower      ? "1" : "0") + " "  // +30
+                 + "1 1 1 1 1 1 1 1 "                       // +23..+30 legacy compact fields; V2 is always compact
                  + (archBadgeShell    ? "1" : "0") + " "  // +31 updater shell badge
-                 + (compactMpris      ? "1" : "0")        // +32 V2 FULL / muse presentation
+                 + barColor + " "                            // +32 V2 bar accent source
+                 + (modGpu            ? "1" : "0") + " "  // +33 GPU load
+                 + (modCpuTemperature ? "1" : "0") + " "  // +34 CPU temperature
+                 + (modStorage        ? "1" : "0") + " "  // +35 root-filesystem usage
+                 + (barSeps.length ? barSeps.join(",") : "-") + " "         // +36 separator gids (CSV, "-" = none)
+                 + (iconOnlyGids.length ? iconOnlyGids.join(",") : "-") + " " // +37 icon-only gids (CSV, "-" = none)
+                 + barTemperatureSource + " "                            // +38 temperature sensor shown in bar
+                 + "0 "                                                  // +39 retired global widget-foreground switch
+                 + serializeWidgetColorStyles() + " "                   // +40 per-GID palette styles
+                 + mprisBarStyle + " "                                  // +41 now-playing bar presentation
+                 + barShellStyle + " "                                  // +42 outer bar shell
+                 + (barBorderEnabled ? "1" : "0") + " "                 // +43 outer bar border
+                 + (panelTooltipBorderEnabled ? "1" : "0") + " "        // +44 panel + tooltip outer border
+                 + barAnim                                              // +45 gap-animation mode
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1755,26 +2497,20 @@ Item {
                     if (parts.length > wsField + 3) theme.clock12h        = parts[wsField + 3] === "1"
                     if (parts.length > wsField + 4) theme.modNetwork      = parts[wsField + 4] === "1"
                     // style tokens - appended after modNetwork, each guarded
-                    if (parts.length > wsField + 5) theme.styleShadow      = parts[wsField + 5] === "1"
-                    if (parts.length > wsField + 6) theme.styleRadiusSmall = parts[wsField + 6] === "1"
-                    // field wsField+7 (styleHeightMin) is reserved for offset
-                    // stability only - the Height toggle was removed (plan §1.4), so
-                    // it is intentionally NOT parsed: a stray "1" must not shrink pills
-                    // when there is no UI to undo it. (saveWidgets still writes "0".)
+                    // +5 is the retired V2 shadow field and is intentionally ignored.
+                    // +6..+7 are retired V2 Style fields, retained only so older
+                    // cache layouts keep stable offsets.
                     if (parts.length > wsField + 8) {
                         var wss = parts[wsField + 8]
-                        if (wss === "numbers" || wss === "magic" || wss === "default")
+                        if (wss === "numbers" || wss === "magic" || wss === "kanji"
+                                || wss === "rings" || wss === "aurora" || wss === "default")
                             theme.workspaceStyle = wss
                     }
                     if (parts.length > wsField + 9) {
                         var bp = parts[wsField + 9]
                         if (bp === "top" || bp === "bottom") theme.barPosition = bp
                     }
-                    // +10 styleBorder (independent border on/off). Old caches lack it →
-                    // migrate from the old coupled meaning: border = NOT shadow.
-                    // Default-true → parse "!== 0" so a corrupted token keeps borders ON.
-                    if (parts.length > wsField + 10) theme.styleBorder = parts[wsField + 10] !== "0"
-                    else if (parts.length > wsField + 5) theme.styleBorder = !theme.styleShadow
+                    // +10 is the retired V2 border toggle; structural borders stay on.
                     // +11..+15 widget-group toggles (default ON → only an explicit "0"
                     // hides; old caches lack these fields → groups stay visible)
                     if (parts.length > wsField + 11) theme.modStatus = parts[wsField + 11] !== "0"
@@ -1786,7 +2522,7 @@ Item {
                         var at = parts[wsField + 16]
                         if (at === "claude" || at === "codex" || at === "opencode") theme.aiTool = at
                     }
-                    if (parts.length > wsField + 17) theme.styleFrost = parts[wsField + 17] === "1"
+                    // +17 is the retired transparent/frost field.
                     if (parts.length > wsField + 18) {
                         var lm = parts[wsField + 18]
                         if (lm === "text" || lm === "icon") {
@@ -1803,16 +2539,39 @@ Item {
                     }
                     if (parts.length > wsField + 21) theme.archBadgePackages = parts[wsField + 21] !== "0"
                     if (parts.length > wsField + 22) theme.archBadgeThemes   = parts[wsField + 22] !== "0"
-                    if (parts.length > wsField + 23) theme.compactNetwork    = parts[wsField + 23] === "1"
-                    if (parts.length > wsField + 24) theme.compactBattery    = parts[wsField + 24] === "1"
-                    if (parts.length > wsField + 25) theme.compactBrightness = parts[wsField + 25] === "1"
-                    if (parts.length > wsField + 26) theme.compactCpu        = parts[wsField + 26] === "1"
-                    if (parts.length > wsField + 27) theme.compactMemory     = parts[wsField + 27] === "1"
-                    if (parts.length > wsField + 28) theme.compactVolume     = parts[wsField + 28] === "1"
-                    if (parts.length > wsField + 29) theme.compactBluetooth  = parts[wsField + 29] === "1"
-                    if (parts.length > wsField + 30) theme.compactPower      = parts[wsField + 30] === "1"
+                    // +23..+30 are retained only as cache-schema placeholders.
+                    // V2 has one compact presentation and deliberately ignores them.
                     if (parts.length > wsField + 31) theme.archBadgeShell    = parts[wsField + 31] !== "0"
-                    if (parts.length > wsField + 32) theme.compactMpris      = parts[wsField + 32] === "1"
+                    if (parts.length > wsField + 32 && theme.barColorValid(parts[wsField + 32]))
+                        theme.barColor = theme.normalizedPaletteId(parts[wsField + 32])
+                    if (parts.length > wsField + 33) theme.modGpu = parts[wsField + 33] !== "0"
+                    if (parts.length > wsField + 34) theme.modCpuTemperature = parts[wsField + 34] !== "0"
+                    if (parts.length > wsField + 35) theme.modStorage = parts[wsField + 35] !== "0"
+                    if (parts.length > wsField + 36) theme.barSeps      = theme.parseGidCsv(parts[wsField + 36])
+                    if (parts.length > wsField + 37) theme.iconOnlyGids = theme.parseGidCsv(parts[wsField + 37])
+                    if (parts.length > wsField + 38 && theme.barTemperatureSourceValid(parts[wsField + 38]))
+                        theme.barTemperatureSource = parts[wsField + 38]
+                    // +39 was the retired global foreground override. Bar Color
+                    // now includes Foreground and per-widget styles provide local overrides.
+                    theme.widgetIconsForeground = false
+                    if (parts.length > wsField + 40)
+                        theme.widgetColorStyles = theme.parseWidgetColorStyles(parts[wsField + 40])
+                    if (parts.length > wsField + 41) {
+                        var mbs = parts[wsField + 41]
+                        if (mbs === "default" || mbs === "full") theme.mprisBarStyle = mbs
+                    }
+                    if (parts.length > wsField + 42) {
+                        var bss = parts[wsField + 42]
+                        if (theme.barShellStyleValid(bss)) theme.barShellStyle = bss
+                    }
+                    if (parts.length > wsField + 43)
+                        theme.barBorderEnabled = parts[wsField + 43] !== "0"
+                    if (parts.length > wsField + 44)
+                        theme.panelTooltipBorderEnabled = parts[wsField + 44] !== "0"
+                    if (parts.length > wsField + 45) {
+                        var ba = parseInt(parts[wsField + 45], 10)
+                        if (isFinite(ba) && ba >= 0 && ba <= 8) theme.barAnim = ba
+                    }
                 }
                 theme._widgetsLoaded = true
                 theme.applyStudioSettings()
@@ -1833,10 +2592,11 @@ Item {
         var q = ({})
         for (var k in cur) q[k] = cur[k]
         // Mirror EVERY key applyStudioSettings() applies, from the LIVE
-        // properties, so Config.qsbar always equals the live state. Persisting
-        // only `widgets` let applyStudioSettings re-apply a stale Config value
-        // over an unpersisted control-center change on the next qsbar change or
-        // reload (the reset). Keep this in lockstep with applyStudioSettings.
+        // properties. Persisting only `widgets` (and copying the rest from the
+        // stale Config frame) let applyStudioSettings re-apply an old value over
+        // an unpersisted control-center change on the next qsbar change or
+        // reload, resetting the user's choice. Keep this set in lockstep with
+        // applyStudioSettings below.
         q.barColor = barColor
         q.barAnim = barAnim
         q.barPosition = barPosition
@@ -1845,14 +2605,18 @@ Item {
         q.pickerStyle = pickerStyle
         q.launcherLogoMode = launcherLogoMode
         q.aiTool = aiTool
-        q.styleRadiusSmall = styleRadiusSmall
-        q.styleFrost = styleFrost
+        q.barTemperatureSource = barTemperatureSource
+        q.barShellStyle = barShellStyle
+        q.barBorderEnabled = barBorderEnabled
+        q.panelTooltipBorderEnabled = panelTooltipBorderEnabled
         q.barCornerRadius = barCornerRadius
+        q.widgetGeom = widgetGeom
         q.widgets = {
             "status": modStatus, "memory": modMemory, "cpu": modCpu, "volume": modVolume,
             "weather": modWeather, "network": modNetwork, "brightness": modBrightness,
             "media": modMedia, "mpris": modMpris, "quick": modQuick, "claude": modClaude,
-            "power": modPower, "bluetooth": modBluetooth
+            "power": modPower, "bluetooth": modBluetooth, "gpu": modGpu,
+            "cpuTemperature": modCpuTemperature, "storage": modStorage
         }
         _cfgCtl.queued += "call settings.patch " + JSON.stringify({ path: "qsbar", value: q }) + "\n"
         if (_cfgCtl.connected) _cfgCtl.flushQueued()
@@ -1870,18 +2634,18 @@ Item {
     }
 
     // ── Bar Studio bridge ──
-    // Ryoku Hub (Bar Studio) writes a `qsbar` map into shell.json; the shell's
-    // Config watches it, so these settings apply live and win over the local
+    // Ryoku Hub (Bar Studio) writes a `qsbar` map into shell.json; the Config
+    // singleton watches it, so these settings apply live and win over the local
     // widget cache. Only keys the user set are present; the rest keep defaults.
     function applyStudioSettings() {
         var q = Config.qsbar
         if (!q) return
         // Config is the source of truth for these keys, so suppress the widget
-        // and split cache writes the property-change handlers would make (both
-        // gated on their *Loaded flags). Clearing a key in Bar Studio then
-        // reverts to the cache/default on the next load instead of sticking.
-        var wl = _widgetsLoaded, sl = _splitsLoaded
-        _widgetsLoaded = false; _splitsLoaded = false
+        // cache writes the property-change handlers would make (all gated on
+        // _widgetsLoaded). Clearing a key in Bar Studio then reverts to the
+        // cache/default on the next load instead of sticking.
+        var wl = _widgetsLoaded
+        _widgetsLoaded = false
         if (q.barColor !== undefined && barColorValid(q.barColor)) barColor = q.barColor
         if (q.barAnim !== undefined) barAnim = q.barAnim
         if (q.barPosition === "top" || q.barPosition === "bottom") barPosition = q.barPosition
@@ -1890,9 +2654,12 @@ Item {
         if (q.pickerStyle     !== undefined) pickerStyle     = q.pickerStyle
         if (q.launcherLogoMode !== undefined) launcherLogoMode = q.launcherLogoMode
         if (q.aiTool === "claude" || q.aiTool === "codex" || q.aiTool === "opencode") aiTool = q.aiTool
-        if (q.styleRadiusSmall !== undefined) styleRadiusSmall = q.styleRadiusSmall
-        if (q.styleFrost !== undefined) styleFrost = q.styleFrost
-        if (q.barCornerRadius !== undefined) barCornerRadius = q.barCornerRadius
+        if (q.barTemperatureSource !== undefined && barTemperatureSourceValid(q.barTemperatureSource)) barTemperatureSource = q.barTemperatureSource
+        if (q.barShellStyle !== undefined && barShellStyleValid(q.barShellStyle)) barShellStyle = q.barShellStyle
+        if (q.barBorderEnabled !== undefined) barBorderEnabled = q.barBorderEnabled
+        if (q.panelTooltipBorderEnabled !== undefined) panelTooltipBorderEnabled = q.panelTooltipBorderEnabled
+        if (q.barCornerRadius !== undefined) barCornerRadius = Math.max(0, Math.min(40, q.barCornerRadius))
+        if (q.widgetGeom !== undefined && q.widgetGeom !== null) widgetGeom = q.widgetGeom
         var w = q.widgets
         if (w) {
             if (w.status     !== undefined) modStatus     = w.status
@@ -1908,8 +2675,11 @@ Item {
             if (w.claude     !== undefined) modClaude     = w.claude
             if (w.power      !== undefined) modPower      = w.power
             if (w.bluetooth  !== undefined) modBluetooth  = w.bluetooth
+            if (w.gpu            !== undefined) modGpu            = w.gpu
+            if (w.cpuTemperature !== undefined) modCpuTemperature = w.cpuTemperature
+            if (w.storage        !== undefined) modStorage        = w.storage
         }
-        _widgetsLoaded = wl; _splitsLoaded = sl
+        _widgetsLoaded = wl
     }
     Connections {
         target: Config
@@ -1920,6 +2690,8 @@ Item {
     // ── New widget panel states ──
     property bool networkVisible:   false
     onNetworkVisibleChanged: popupOpened("networkVisible")
+    property bool storageVisible:   false
+    onStorageVisibleChanged: popupOpened("storageVisible")
     property bool bluetoothVisible: false
     onBluetoothVisibleChanged: popupOpened("bluetoothVisible")
     property bool batteryVisible:   false
@@ -2335,6 +3107,7 @@ Item {
     onTrayVisibleChanged: popupOpened("trayVisible")
     property var trayPinned: []
     property real trayBarX: 10
+    property real trayCaretBarX: trayBarX
 
     // ── slot-aware panel X anchors (center-X of each group; set by BarSlot) ──
     property real volumeBarX:     0
@@ -2342,15 +3115,56 @@ Item {
     property real batteryBarX:    0
     property real memoryBarX:     0
     property real cpuBarX:        0
+    property real gpuBarX:        0
+    property real thermalBarX:    0
+    property real storageBarX:    0
     property real aiBarX:         0
     property real workspaceBarX:  0
     property real archBarX:       0
+    property real archCaretBarX:  archBarX
+    property real notifCaretBarX: notifBarX
     property real bluetoothBarX:  0
     property real brightnessBarX: 0
     property real powerBarX:      0
     property real mprisBarX:      0
     property real weatherBarX:    0
+    property real calendarBarX:   weatherBarX
     property real launcherBarX:   6   // ControlPanel follows the Launcher/Control group
+
+    // One connected popover at a time: the active panel publishes the exact
+    // bar-widget center used by both the caret and the small border opening.
+    readonly property bool anchoredPanelVisible: calendarVisible || cpuVisible || gpuVisible
+        || thermalVisible || aiUsageVisible
+        || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
+        || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
+        || workspaceVisible || notifVisible || powerProfileVisible || storageVisible
+        || archVisible || trayVisible
+
+    // Preserve the panel surface's actually rendered tip while it closes so
+    // the matching bar notch retracts at the same point. Edge panels clamp the
+    // tip away from their rounded corner, so the raw widget center is not
+    // always the final rendered position.
+    property real panelInsetX: 0
+    property bool panelInsetReady: false
+    function setPanelInsetX(x) {
+        if (!anchoredPanelVisible) return
+
+        if (isFinite(x) && x > 0) {
+            panelInsetX = x
+            panelInsetReady = true
+        }
+    }
+    property real panelInsetReveal: anchoredPanelVisible ? 1 : 0
+    onPanelInsetRevealChanged: {
+        if (!anchoredPanelVisible && panelInsetReveal <= 0.001)
+            panelInsetReady = false
+    }
+    Behavior on panelInsetReveal {
+        NumberAnimation {
+            duration: theme.anchoredPanelVisible ? 160 : 120
+            easing.type: theme.anchoredPanelVisible ? Easing.OutCubic : Easing.InCubic
+        }
+    }
 
     // ── Tray context-menu state (themed menu, rendered by TrayMenu.qml) ──
     property bool trayMenuVisible: false
@@ -2557,27 +3371,4 @@ Item {
         else if (mode === "screenshots" || mode === "videos") openMediaBrowser(mode)
     }
 
-    // Standalone compatibility while the integrated bootstrap is being rolled
-    // out. VariantRoot supplies variantHost, so only the common IPC router owns
-    // these targets in integrated mode.
-    LazyLoader {
-        active: theme.variantHost === null
-        IpcHandler {
-            target: "theme"
-            function apply(payload: string): void { theme.ipcApplyTheme(payload) }
-            function applyLauncher(payload: string): void { theme.ipcApplyLauncher(payload) }
-            function reload(): void { theme.ipcReloadTheme() }
-        }
-    }
-
-    LazyLoader {
-        active: theme.variantHost === null
-        IpcHandler {
-            target: "picker"
-            function theme(): void { ipcOpenPicker("theme") }
-            function wallpaper(): void { ipcOpenPicker("wallpaper") }
-            function screenshots(): void { ipcOpenPicker("screenshots") }
-            function videos(): void { ipcOpenPicker("videos") }
-        }
-    }
 }

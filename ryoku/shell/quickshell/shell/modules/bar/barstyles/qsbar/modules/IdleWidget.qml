@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property color contentColor: root.widgetContentColor("G8", root.seal)
 
     // "Stay awake" mode active; Theme maps this to the active Ryoku idle backend.
     readonly property bool awake: root.stayAwake
@@ -19,7 +20,7 @@ Item {
     Text {
         anchors.centerIn: parent
         text: "\uDB86\uDED6"   // coffee (Nerd Font / JetBrainsMono)
-        color: root.seal
+        color: rootMod.contentColor
         font.family: root.mono
         font.pixelSize: 13
     }

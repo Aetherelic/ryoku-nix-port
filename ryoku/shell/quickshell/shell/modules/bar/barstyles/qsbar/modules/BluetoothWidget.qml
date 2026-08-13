@@ -2,11 +2,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../IconMap.js" as IconMap
-import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
     required property var root
+    readonly property color contentColor: root.widgetContentColor("G15", root.ink)
 
     property bool btOn:       false
     property bool connected:  false
@@ -35,47 +35,26 @@ Item {
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
-
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 5
-
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactBluetooth
-            text: I18n.tr("BT")
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 0.5
-        }
+        spacing: 4
 
         IconText {
             anchors.verticalCenter: parent.verticalCenter
             text: IconMap.icon(rootMod.iconN)
             color: rootMod.connected
-                ? root.seal
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, rootMod.btOn ? 0.7 : 0.3)
+                ? (root.widgetHasFill("G15") ? rootMod.contentColor : root.seal)
+                : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, rootMod.btOn ? 0.7 : 0.3)
             font.pixelSize: 14
             Behavior on color { ColorAnimation { duration: 200 } }
         }
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.connected
+            visible: rootMod.connected && !root.iconOnly("G15")
             text: String(rootMod.numConnected)
-            color: root.seal
+            color: root.widgetHasFill("G15") ? rootMod.contentColor : root.seal
             font.family: root.mono
             font.pixelSize: 12
         }

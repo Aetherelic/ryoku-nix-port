@@ -17,8 +17,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-workspace"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     property real reveal: root.workspaceVisible ? 1 : 0
     Behavior on reveal {
@@ -44,14 +44,22 @@ PanelWindow {
         }
         width: 240
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: wsPanel.root
+            ownerActive: wsPanel.root.workspaceVisible
+            targetX: wsPanel.root.workspaceBarX
+            reveal: wsPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.workspaceBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - wsPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - wsPanel.reveal)
         opacity: wsPanel.reveal
         focus: root.workspaceVisible
 
@@ -103,7 +111,7 @@ PanelWindow {
                         readonly property bool isActive: Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === modelData.id
                         readonly property bool navOn: card.navIndex >= 0 && card.navIndex < card.wsIds.length && card.wsIds[card.navIndex] === modelData.id
                         width: col.width
-                        height: 30; radius: root.tileRadius
+                        height: 30; radius: root.panelButtonRadius
                         color: isActive ? root.fillActive
                                 : (navOn || ma.containsMouse) ? root.fillHover : root.fillIdle
                         border.color: (ma.containsMouse || isActive || navOn) ? root.seal : root.sep

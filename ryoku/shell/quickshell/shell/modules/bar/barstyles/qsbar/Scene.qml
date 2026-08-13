@@ -1,22 +1,19 @@
 // QS Bar (Quickshell Rise) entry, adapted to Ryoku's barstyle contract.
 //
-// HANCORE's shell.qml is a ShellRoot that owns StateService + VariantHost +
-// IpcRouter and lets the active VariantRoot draw one bar per output. Ryoku loads
-// a barstyle Scene once per monitor via Frame's Loader, so this Scene replicates
-// that ShellRoot body verbatim but as a plain Item, instantiated a single time
-// on the primary output. The VariantRoot inside still fans a bar across every
-// screen itself, exactly as upstream, so multi-monitor behaviour is unchanged.
+// Ryoku loads a barstyle Scene once per monitor via Frame's Loader, so this
+// Scene hosts the single bar system a single time on the primary output. The
+// VariantRoot inside fans one bar across every screen itself, so multi-monitor
+// behaviour is unchanged.
 //
-// Everything below the integration seam is HANCORE's own system, 1:1.
+// There is a single qsbar now: no V1/V2 variants, no runtime switch. The bar
+// form (islands · full · fit · dock · notch) is a Theme property, not a
+// separate implementation. IpcRouter owns the external IPC surface.
 
 import Quickshell
 import QtQuick
 import "../../../../services/lib/screens.js" as Screens
+import "."
 import "core"
-// Quickshell's virtual filesystem scanner follows declared directory imports,
-// not arbitrary Loader URLs; the alias registers the complete V2 bundle while
-// keeping every V2 type uninstantiated until VariantHost selects it.
-import "variants/V2" as V2Bundle
 
 Item {
     id: sceneRoot
@@ -42,19 +39,12 @@ Item {
         active: sceneRoot.isPrimary
         sourceComponent: Component {
             Item {
-                StateService {
-                    id: variantState
-                }
-
-                VariantHost {
-                    id: variantHost
-                    stateService: variantState
-                    v1Source: Qt.resolvedUrl("VariantRoot.qml")
-                    v2Source: Qt.resolvedUrl("variants/V2/VariantRoot.qml")
+                VariantRoot {
+                    id: barRoot
                 }
 
                 IpcRouter {
-                    variantHost: variantHost
+                    barRoot: barRoot
                 }
             }
         }

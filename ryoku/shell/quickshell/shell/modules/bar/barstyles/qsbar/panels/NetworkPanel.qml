@@ -18,8 +18,8 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ryoku-network"
 
-    readonly property int barBottom: 35
-    readonly property int gap: 8
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
 
     property string mode:  "none"   // wifi | ethernet | none
     property string ssid:  ""
@@ -378,14 +378,22 @@ PanelWindow {
         id: card
         width: 300
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        radius: reveal > 0.001 ? root.panelRadius : 0
+        color: "transparent"
+        border.color: root.panelBorder
+        border.width: 0
         PillShadow { theme: root }
+        ConnectedPanelSurface {
+            root: netPanel.root
+            ownerActive: netPanel.root.networkVisible
+            targetX: netPanel.root.networkBarX
+            reveal: netPanel.reveal
+        }
 
         x: Math.round(Math.max(6, Math.min(root.networkBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - netPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - netPanel.reveal)
         opacity: netPanel.reveal
         focus: root.networkVisible
 
@@ -557,7 +565,7 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 54
                         height: 22
-                        radius: root.tileRadius
+                        radius: root.panelButtonRadius
                         color: speedTestMa.containsMouse ? root.fillHover : root.fillIdle
                         border.color: speedTestMa.containsMouse ? root.seal : root.sep
                         border.width: 1
@@ -690,7 +698,7 @@ PanelWindow {
             DnsProviderSection {
                 width: parent.width
                 theme: root
-                buttonRadius: root.tileRadius
+                buttonRadius: root.panelButtonRadius
             }
 
             Rectangle { width: parent.width; height: 1; color: root.sep; visible: netPanel.hasWifi }
@@ -747,7 +755,7 @@ PanelWindow {
                         required property var modelData
                         width: (parent.width - 6) / 2
                         height: 28
-                        radius: root.tileRadius
+                        radius: root.panelButtonRadius
                         readonly property bool active: netPanel.savedOnly === modelData.saved
                         color: active ? root.fillActive : tabMa.containsMouse ? root.fillHover : root.fillIdle
                         border.color: active || tabMa.containsMouse ? root.seal : root.sep
@@ -842,7 +850,7 @@ PanelWindow {
                             Rectangle {
                                 width: parent.width
                                 height: 30
-                                radius: root.tileRadius
+                                radius: root.panelButtonRadius
                                 readonly property bool active: nma.containsMouse || netTile.expanded || netTile.keyboardSelected
                                 color: modelData.conn ? root.fillActive : active ? root.fillHover : root.fillIdle
                                 border.color: modelData.conn || active ? root.seal : root.sep
@@ -938,7 +946,7 @@ PanelWindow {
                                 height: netTile.expanded ? detailColumn.implicitHeight + 16 : 0
                                 visible: height > 0
                                 clip: true
-                                radius: root.tileRadius
+                                radius: root.panelButtonRadius
                                 color: root.fillIdle
                                 border.color: root.sep
                                 border.width: netTile.expanded ? 1 : 0
@@ -978,7 +986,7 @@ PanelWindow {
                                         Rectangle {
                                             width: modelData.known ? (parent.width - 6) / 2 : parent.width
                                             height: parent.height
-                                            radius: root.tileRadius
+                                            radius: root.panelButtonRadius
                                             color: networkActionMa.containsMouse ? root.fillHover : root.fillIdle
                                             border.color: networkActionMa.containsMouse ? root.seal : root.sep
                                             border.width: 1
@@ -1008,7 +1016,7 @@ PanelWindow {
                                             visible: modelData.known
                                             width: (parent.width - 6) / 2
                                             height: parent.height
-                                            radius: root.tileRadius
+                                            radius: root.panelButtonRadius
                                             color: forgetMa.containsMouse ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.18) : root.fillIdle
                                             border.color: forgetMa.containsMouse ? root.seal : root.sep
                                             border.width: 1
@@ -1054,7 +1062,7 @@ PanelWindow {
                 width: parent.width
                 height: visible ? 92 : 0
                 visible: root.useNM && netPanel.nmAdapterReady && netPanel.nmPasswordSsid !== ""
-                radius: root.tileRadius
+                radius: root.panelButtonRadius
                 color: root.fillIdle
                 border.color: netPanel.nmConnectionError !== "" ? root.sealRaw : root.seal
                 border.width: 1
@@ -1079,7 +1087,7 @@ PanelWindow {
                     Rectangle {
                         width: parent.width
                         height: 24
-                        radius: root.tileRadius
+                        radius: root.panelButtonRadius
                         color: root.bg
                         border.color: nmPasswordInput.activeFocus ? root.seal : root.sep
                         border.width: 1
@@ -1120,7 +1128,7 @@ PanelWindow {
                         Rectangle {
                             width: (parent.width - 6) / 2
                             height: parent.height
-                            radius: root.tileRadius
+                            radius: root.panelButtonRadius
                             color: passwordSubmitMa.enabled
                                 ? (passwordSubmitMa.containsMouse ? root.fillPrimaryHover : root.seal)
                                 : root.fillIdle
@@ -1147,7 +1155,7 @@ PanelWindow {
                         Rectangle {
                             width: (parent.width - 6) / 2
                             height: parent.height
-                            radius: root.tileRadius
+                            radius: root.panelButtonRadius
                             color: passwordCancelMa.containsMouse ? root.fillHover : root.fillIdle
                             border.color: passwordCancelMa.containsMouse ? root.seal : root.sep
                             border.width: 1
@@ -1205,7 +1213,7 @@ PanelWindow {
             // ── button ──
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28; radius: root.panelButtonRadius
                 color: netSetMa.containsMouse ? root.fillPrimaryHover : root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText { anchors.centerIn: parent; text: I18n.tr("Network settings"); color: root.paper; font.family: root.mono; font.pixelSize: 11 }

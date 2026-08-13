@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property color contentColor: root.widgetContentColor("G8", root.seal)
 
     readonly property bool recording: root.screenRecording
     readonly property int  elapsed:   root.screenRecordingElapsed   // seconds
@@ -34,7 +35,7 @@ Item {
             id: dot
             anchors.verticalCenter: parent.verticalCenter
             text: "\uE061"   // fiber_manual_record
-            color: root.seal
+            color: rootMod.contentColor
             font.pixelSize: 13
 
             SequentialAnimation on opacity {
@@ -51,7 +52,7 @@ Item {
         UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.elapsedStr
-            color: root.seal
+            color: rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 11
         }

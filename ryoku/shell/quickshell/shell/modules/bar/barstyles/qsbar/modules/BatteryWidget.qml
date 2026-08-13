@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
-import Ryoku.Ui.Singletons
 
 Item {
     id: rootMod
@@ -39,42 +38,22 @@ Item {
         : "On battery"
     readonly property string tooltipText: statusText + " · " + percent + "%"
                                           + (timeText ? " · " + timeText : "")
+    readonly property color contentColor: root.widgetContentColor("G12", root.ink)
 
     // colour shared by the drawn battery body, fill and nub
     readonly property color battColor:
-        (charging || full) ? root.indigo
-        : root.seal
+        root.widgetHasFill("G12") ? contentColor
+        : ((charging || full) ? root.indigo : root.seal)
 
     implicitWidth:  hasBattery ? (row.implicitWidth + 18) : 0
     implicitHeight: 28
     visible: hasBattery
 
 
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
-    }
-
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 5
-
-        UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactBattery
-            text: I18n.tr("BAT")
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 0.5
-        }
+        spacing: 4
 
         // drawn landscape battery - body + stepless fill + terminal nub
         Item {
@@ -113,7 +92,7 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 1.8
                     radius: 1.2
-                    color: Qt.rgba(root.indigo.r, root.indigo.g, root.indigo.b, 0.28)
+                    color: Qt.rgba(rootMod.battColor.r, rootMod.battColor.g, rootMod.battColor.b, 0.28)
                 }
 
                 Rectangle {
@@ -155,6 +134,10 @@ Item {
                     anchors.centerIn: parent
                     width: 6
                     height: 8
+                    property color boltColor: root.widgetHasFill("G12")
+                        ? root.widgetAssignedColor("G12")
+                        : root.paper
+                    onBoltColorChanged: requestPaint()
                     onPaint: {
                         var ctx = getContext("2d")
                         ctx.clearRect(0, 0, width, height)
@@ -166,14 +149,10 @@ Item {
                         ctx.lineTo(width * 0.88, height * 0.45)
                         ctx.lineTo(width * 0.55, height * 0.45)
                         ctx.closePath()
-                        ctx.fillStyle = root.paper
+                        ctx.fillStyle = bolt.boltColor
                         ctx.fill()
                     }
                     Component.onCompleted: requestPaint()
-                    Connections {
-                        target: root
-                        function onPaperChanged() { bolt.requestPaint() }
-                    }
                 }
             }
 
@@ -191,6 +170,7 @@ Item {
         }
 
         UiText {
+            visible: !root.iconOnly("G12")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
             color: rootMod.battColor

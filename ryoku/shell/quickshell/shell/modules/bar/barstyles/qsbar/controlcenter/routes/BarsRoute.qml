@@ -29,14 +29,7 @@ Item {
     readonly property int gap: (page.cc && page.cc.tokens) ? page.cc.tokens.gap : 10
     readonly property int sectionGap: (page.cc && page.cc.tokens) ? page.cc.tokens.sectionGap : 16
 
-    // Variant capability gates. V1 (island) exposes the style* surface toggles;
-    // V2 (continuous) exposes the shell forms and the two-border surface. Each
-    // section gates on these so a control only shows under the variant it drives,
-    // matching upstream Rise: V2-only forms/borders never render under V1.
-    readonly property bool isV1: !!(page.root && page.root.styleFrost !== undefined)
-    readonly property bool isV2: !!(page.root && page.root.barShellStyleValid !== undefined)
-
-    // the four V2 bar forms + their captions (drives the header + the FORM grid)
+    // the five bar forms + their captions (drives the header + the FORM grid)
     readonly property var formModel: [
         { form: "islands", label: "Islands", detail: "Split pills" },
         { form: "full",  label: "Full",  detail: "Edge to edge" },
@@ -50,7 +43,7 @@ Item {
         return null
     }
 
-    // header strings, derived live off the running variant + active form
+    // header strings, derived live off the active form
     readonly property string formCaption: {
         if (!page.root || !page.root.barShellStyle)
             return "Live bar surface"
@@ -58,16 +51,11 @@ Item {
         return fi ? (fi.label + " · " + fi.detail) : String(page.root.barShellStyle)
     }
 
-    // Unified form select over both engines: islands is the V1 split bar, the
-    // rest are V2 shell forms. Picking a form flips the variant (islands<->v2)
-    // and records the shell style, so the grid is one shape picker.
+    // One shape picker over the single bar: islands is the split-pill form, the
+    // rest are the continuous shell forms. Selecting a form just records it.
     readonly property string activeForm:
-        page.isV1 ? "islands"
-                  : (page.root && page.root.barShellStyle ? String(page.root.barShellStyle) : "full")
-    function activate(v) { Quickshell.execDetached(["qs", "-c", "shell", "ipc", "call", "variant", "activate", v]) }
+        page.root && page.root.barShellStyle ? String(page.root.barShellStyle) : "full"
     function selectForm(f) {
-        if (f === "islands") { if (!page.isV1) activate("v1"); return }
-        if (page.isV1) { activate("v2"); return }
         if (page.root && page.root.barShellStyleValid && page.root.barShellStyleValid(f))
             page.root.barShellStyle = f
     }
@@ -216,10 +204,8 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         root: page.root
                         options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
-                        current: (page.isV1 ? (page.root && page.root.styleBorder)
-                                            : (page.root && page.root.barBorderEnabled)) ? "on" : "off"
+                        current: (page.root && page.root.barBorderEnabled) ? "on" : "off"
                         onChose: k => {
-                            if (page.root && page.root.styleBorder !== undefined) page.root.styleBorder = (k === "on")
                             if (page.root && page.root.barBorderEnabled !== undefined) page.root.barBorderEnabled = (k === "on")
                         }
                     }
@@ -234,51 +220,16 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         root: page.root
                         options: [{ key: "square", label: "Square" }, { key: "soft", label: "Soft" }, { key: "round", label: "Round" }]
-                        current: page.isV1
-                            ? ((page.root && page.root.barCornerRadius === 0) ? "square"
-                               : (page.root && page.root.styleRadiusSmall) ? "soft" : "round")
-                            : ((page.root && page.root.barCornerRadius <= 0) ? "square"
-                               : (page.root && page.root.barCornerRadius >= 16) ? "round" : "soft")
+                        current: (page.root && page.root.barCornerRadius <= 0) ? "square"
+                            : (page.root && page.root.barCornerRadius >= 16) ? "round" : "soft"
                         onChose: k => {
                             var px = (k === "square" ? 0 : k === "round" ? 16 : 8)
                             if (page.root && page.root.barCornerRadius !== undefined) page.root.barCornerRadius = px
-                            if (page.root && page.root.styleRadiusSmall !== undefined) page.root.styleRadiusSmall = (px < 10)
                         }
                     }
                 }
                 CcRow {
                     root: page.root
-                    visible: page.isV1
-                    label: I18n.tr("Frost")
-                    desc: I18n.tr("Lower the island opacity so blur shows through")
-                    controlWidth: 108
-                    CcSeg {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        root: page.root
-                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
-                        current: (page.root && page.root.styleFrost) ? "on" : "off"
-                        onChose: k => { if (page.root && page.root.styleFrost !== undefined) page.root.styleFrost = (k === "on") }
-                    }
-                }
-                CcRow {
-                    root: page.root
-                    visible: page.isV1
-                    label: I18n.tr("Shadow")
-                    desc: I18n.tr("Cast a soft shadow under the pills")
-                    controlWidth: 108
-                    CcSeg {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        root: page.root
-                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
-                        current: (page.root && page.root.styleShadow) ? "on" : "off"
-                        onChose: k => { if (page.root && page.root.styleShadow !== undefined) page.root.styleShadow = (k === "on") }
-                    }
-                }
-                CcRow {
-                    root: page.root
-                    visible: page.isV2
                     label: I18n.tr("Panel + tooltip")
                     desc: I18n.tr("Outline panels and tooltips")
                     controlWidth: 108
@@ -433,11 +384,8 @@ Item {
                     spacing: page.gap
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Off");        on: page.curAnim === 0; onAct: page.setAnim(0) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Stream");     on: page.curAnim === 1; onAct: page.setAnim(1) }
-                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Stream · 2"); on: page.curAnim === 5; onAct: page.setAnim(5) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Surge");      on: page.curAnim === 2; onAct: page.setAnim(2) }
-                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Surge · 2");  on: page.curAnim === 6; onAct: page.setAnim(6) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Bolt");       on: page.curAnim === 3; onAct: page.setAnim(3) }
-                    AnimTile { visible: page.isV1; width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Bolt · 2");   on: page.curAnim === 4; onAct: page.setAnim(4) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Reactor");    on: page.curAnim === 7; onAct: page.setAnim(7) }
                     AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Quotes");     on: page.curAnim === 8; onAct: page.setAnim(8) }
                 }

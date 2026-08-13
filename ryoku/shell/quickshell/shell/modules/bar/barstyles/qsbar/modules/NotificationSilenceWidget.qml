@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property color contentColor: root.widgetContentColor("G8", root.seal)
 
     readonly property bool silenced: root.notifSilenced
 
@@ -18,7 +19,7 @@ Item {
     IconText {
         anchors.centerIn: parent
         text: "\uE7F6"   // notifications_off
-        color: root.seal
+        color: rootMod.contentColor
         font.pixelSize: 14
     }
 

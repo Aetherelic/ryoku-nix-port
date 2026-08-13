@@ -5,6 +5,7 @@ import QtQuick
 Item {
     id: rootMod
     required property var root
+    readonly property color contentColor: root.widgetContentColor("G3", root.ink)
 
     implicitWidth: trayRow.implicitWidth
     implicitHeight: 28
@@ -17,7 +18,7 @@ Item {
     Row {
         id: trayRow
         anchors.centerIn: parent
-        spacing: 2
+        spacing: root.v2IconClusterSpacing
 
         Repeater {
             model: Tray.items
@@ -26,10 +27,9 @@ Item {
                 id: trayDelegate
                 required property var modelData
 
-                // Tray glyphs are visually smaller than the adjacent package/bell
-                // icons. Keep their cell compact so pinning does not open a large
-                // apparent gap inside the shared status pill.
-                implicitWidth: 18
+                // System-tray actions share the bar's compact 24px centre pitch:
+                // 22px action cell plus the surrounding Row's 2px cluster gap.
+                implicitWidth: root.v2ActionIconCellWidth
                 implicitHeight: 28
                 visible: root.trayPinned.indexOf(modelData.service) >= 0
 
@@ -63,7 +63,7 @@ Item {
         // ── toggle: more_horiz icon + seal count badge ──
         Item {
             id: toggleBtn
-            implicitWidth: 22
+            implicitWidth: root.v2ActionIconCellWidth
             implicitHeight: 28
             visible: hiddenCount > 0
 
@@ -86,8 +86,8 @@ Item {
                 text: "\uE5D3"   // more_horiz
                 font.pixelSize: 16
                 color: toggleMa.containsMouse
-                    ? root.ink
-                    : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.7)
+                    ? rootMod.contentColor
+                    : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.7)
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
 
@@ -98,7 +98,7 @@ Item {
                 width: Math.max(12, toggleBadgeTxt.implicitWidth + 6)
                 height: 12
                 radius: 6
-                color: root.seal
+                color: root.widgetHasFill("G3") ? rootMod.contentColor : root.seal
                 anchors.verticalCenter: moreIcon.verticalCenter
                 anchors.verticalCenterOffset: -6
                 anchors.horizontalCenter: moreIcon.horizontalCenter
@@ -107,7 +107,7 @@ Item {
                     id: toggleBadgeTxt
                     anchors.centerIn: parent
                     text: toggleBtn.hiddenCount
-                    color: root.paper
+                    color: root.widgetHasFill("G3") ? root.widgetAssignedColor("G3") : root.paper
                     font.family: root.mono
                     font.pixelSize: 7
                     font.weight: Font.Bold
