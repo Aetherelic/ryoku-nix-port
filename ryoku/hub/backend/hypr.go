@@ -564,6 +564,11 @@ func runHypr(args []string) error {
 			return err
 		}
 		hyprReload()
+		// reload restores config keywords but not the cursor, which is imperative
+		// state set via setcursor rather than a keyword. Without this a saved
+		// theme change only lands live if a preview happened to run for the final
+		// value first, so a quick pick-then-save left the old pointer on screen.
+		setLiveCursor(o.Cursor)
 		return nil
 	case "preview":
 		if len(args) < 2 {
@@ -582,7 +587,7 @@ func runHypr(args []string) error {
 		// reload alone would leave a previewed cursor live; re-assert the saved one.
 		hyprReload()
 		o := loadOverrides()
-		_ = exec.Command("hyprctl", "setcursor", o.Cursor.Theme, fmt.Sprintf("%d", o.Cursor.Size)).Run()
+		setLiveCursor(o.Cursor)
 		return nil
 	case "cursors":
 		return printJSON(listCursorThemes())
@@ -631,6 +636,13 @@ func hyprEval(lua string) {
 
 func hyprReload() {
 	_ = exec.Command("hyprctl", "reload").Run()
+}
+
+// setLiveCursor applies the pointer theme imperatively. hyprctl reload restores
+// config keywords but not the cursor (setcursor is not a keyword), so both save
+// and restore re-assert it for a theme change to land on screen at once.
+func setLiveCursor(c Cursor) {
+	_ = exec.Command("hyprctl", "setcursor", c.Theme, fmt.Sprintf("%d", c.Size)).Run()
 }
 
 // writeOverlayLua authors a generated overlay file in the user_edits tree (the
