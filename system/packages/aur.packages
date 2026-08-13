@@ -16,8 +16,9 @@ yay-bin
 # These prebuilt extras are best-effort, like every package in this set.
 # phinger: clean rounded set, light and dark, from a prebuilt release.
 phinger-cursors
-# volantes: minimal modern set, light and dark; the base Catppuccin is built on.
-volantes-cursors
+# volantes intentionally omitted: it renders its cursors from SVG via inkscape
+# with no prebuilt release, so it cannot bake headless in CI. The desktop still
+# ships Bibata, vimix, phinger, catppuccin and apple cursor sets.
 # catppuccin (Mocha): soft pastel set with several accent variants.
 catppuccin-cursors-mocha
 # apple_cursor (macOS style): builds from source via clickgen, so it can be slow or
@@ -49,12 +50,12 @@ voxtype-bin
 # applies it when Spotify is installed; inert for anyone who does not use Spotify.
 spicetify-cli
 
-# Display + UI fonts the shell/Hub use to match the Ryoku brand (the website's
-# type stack): Fraunces (variable serif, editorial headlines) and Space Grotesk
-# (UI sans). Inter, JetBrains Mono and Noto CJK ship from the official repo (see
-# base.packages). AUR-only, so built post-install.
+# Display + UI fonts for the Ryoku brand type stack: Fraunces (variable serif,
+# editorial headlines). Space Grotesk (the UI sans) now ships from the [ryoku]
+# repo (base.packages + release/packages/otf-space-grotesk) because its AUR
+# pkgbase builds from source with fontforge and failed headless in the ISO CI.
+# Inter, JetBrains Mono and Noto ship from the official repo (base.packages).
 ttf-fraunces-variable
-otf-space-grotesk
 
 # Game controllers over Bluetooth. game-devices-udev ships the udev rules +
 # battery reporting for DualSense/DualShock and Switch Pro pads; xpadneo-dkms is

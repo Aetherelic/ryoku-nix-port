@@ -244,3 +244,9 @@ ttf-jetbrains-mono-nerd
 ttf-firacode-nerd
 ttf-hack-nerd
 ttf-material-symbols-variable
+# otf-space-grotesk: the Space Grotesk UI sans the shell/Hub render for the brand
+# type stack. Ships from [ryoku] (release/packages/otf-space-grotesk), built from
+# the upstream prebuilt OTF release, so it is pacstrapped on every install and
+# kept current by `ryoku update`. Its AUR pkgbase builds with fontforge and could
+# not bake headless in the ISO CI, so it lives here as a reliable repo package.
+otf-space-grotesk

@@ -1,0 +1,32 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# otf-space-grotesk = the Space Grotesk UI sans the Ryoku shell and Hub render to
+# match the brand type stack (Fraunces headlines + Space Grotesk UI).
+#
+# Shipped from [ryoku], not the AUR, on purpose. The AUR otf-space-grotesk builds
+# from source through the 38c3-styles pkgbase (fontforge + html2markdown), which
+# does not build headless in the ISO CI, so an offline box came up with the brand
+# sans missing and the UI on a fallback face. This package installs the upstream
+# prebuilt OTF release instead: no build to fail, it always resolves, and it
+# reaches every box on install (pacstrapped from base.packages) and on
+# `ryoku update`. Same prebuilt-release model as ryoku-cursors.
+#
+# fixed-version package: it tracks the upstream Space Grotesk release, not the
+# monorepo RYOKU_PKGVER. GitHub release assets are immutable, so the checksum is
+# pinned for real. bump pkgver + sha256sums for a new upstream release.
+pkgname=otf-space-grotesk
+pkgver=2.0.0
+pkgrel=1
+pkgdesc="Space Grotesk OTF (the Ryoku shell/Hub brand UI font)"
+arch=('any')
+url="https://github.com/floriankarsten/space-grotesk"
+license=('OFL-1.1')
+source=("SpaceGrotesk-$pkgver.zip::$url/releases/download/$pkgver/SpaceGrotesk-$pkgver.zip")
+sha256sums=('53b415577d4139248555300710bea0d268c7a5be67b93de53b716a9736cabffd')
+
+package() {
+  # the release unpacks static OTF weights under SpaceGrotesk-<ver>/otf/; ship
+  # them into the system font dir. the __MACOSX cruft in the zip is left behind
+  # by the explicit otf/ glob.
+  install -Dm644 "SpaceGrotesk-$pkgver/otf/"*.otf -t "$pkgdir/usr/share/fonts/OTF"
+}
