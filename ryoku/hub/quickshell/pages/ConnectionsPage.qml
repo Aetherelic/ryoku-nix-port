@@ -397,6 +397,13 @@ Item {
         property bool connectFailed: false
         property bool scanning: false
 
+        // NetworkManager's Wi-Fi backend, read live from `ryoku-wifi-backend get`.
+        // iwd is the default; wpa_supplicant is the escape hatch for WPA3 / phone
+        // hotspots iwd stumbles on. backendBusy gates the segment while pkexec
+        // rewrites the NM drop-in and restarts the service.
+        property string wifiBackend: "iwd"
+        property bool backendBusy: false
+
         // NM rescan = fresh model array, so the delegate tears down mid-typing.
         // draft lives on the body; the password field re-fills from it on rebuild.
         property string pwDraft: ""
@@ -414,6 +421,16 @@ Item {
         function refresh() {
             secProc.running = true;
             profProc.running = true;
+        }
+
+        // flip the NM backend. no-op if unchanged or already switching; the
+        // shipped polkit rule lets wheel run this via pkexec with no prompt.
+        function setBackend(choice) {
+            if (wifi.backendBusy || choice === wifi.wifiBackend)
+                return;
+            wifi.backendBusy = true;
+            backendSetProc.command = ["pkexec", "ryoku-wifi-backend", choice];
+            backendSetProc.running = true;
         }
 
         // split one `nmcli -t` line at its last unescaped colon, unescape the
@@ -482,7 +499,7 @@ Item {
             scanTimer.stop();
         }
 
-        Component.onCompleted: wifi.refresh()
+        Component.onCompleted: { wifi.refresh(); backendGetProc.running = true; }
 
         onWifiOnChanged: if (!wifi.wifiOn) wifi.stopScan()
 
@@ -580,6 +597,42 @@ Item {
             id: secRefresh
             interval: 1200
             onTriggered: if (wifi.active) secProc.running = true
+        }
+
+        // read the current NM Wi-Fi backend (read-only, unprivileged).
+        Process {
+            id: backendGetProc
+            command: ["ryoku-wifi-backend", "get"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    var v = this.text.trim();
+                    if (v === "iwd" || v === "wpa_supplicant")
+                        wifi.wifiBackend = v;
+                }
+            }
+        }
+
+        // apply the switch via pkexec; the polkit rule grants wheel passwordless.
+        // NetworkManager restarts, so on exit re-read state and, once it settles,
+        // refresh + rescan so the list repopulates on the new backend.
+        Process {
+            id: backendSetProc
+            stdout: StdioCollector {}
+            stderr: StdioCollector {}
+            onExited: {
+                wifi.backendBusy = false;
+                backendGetProc.running = true;
+                backendSettle.restart();
+            }
+        }
+
+        Timer {
+            id: backendSettle
+            interval: 1500
+            onTriggered: {
+                wifi.refresh();
+                wifi.startScan();
+            }
         }
 
         Item {
@@ -702,7 +755,8 @@ Item {
                 anchors.topMargin: Tokens.s2
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.bottom: parent.bottom
+                anchors.bottom: backendRow.top
+                anchors.bottomMargin: Tokens.s2
                 visible: wifi.wifiOn && wifi.netsSorted.length > 0
                 contentWidth: width
                 contentHeight: netCol.implicitHeight + 16
@@ -925,6 +979,77 @@ Item {
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // advanced: NetworkManager's Wi-Fi backend. an unobtrusive footer
+            // beneath the list; the selected engine inverts to bone, the other is
+            // tappable. rare enough to sit out of the way, but reachable when a
+            // WPA3 AP or phone hotspot won't associate under iwd.
+            Item {
+                id: backendRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 54
+
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: 1
+                    color: Tokens.lineSoft
+                }
+
+                Column {
+                    anchors.left: parent.left
+                    anchors.right: backendSeg.left
+                    anchors.rightMargin: Tokens.s3
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+
+                    Text {
+                        text: I18n.tr("Wi-Fi backend")
+                        color: Tokens.ink
+                        font.family: Tokens.ui
+                        font.pixelSize: Tokens.fRow
+                        font.weight: Font.Medium
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: I18n.tr("Switch to wpa_supplicant if a WPA3 network or Android hotspot won\u2019t connect.")
+                        color: Tokens.inkMuted
+                        font.family: Tokens.ui
+                        font.pixelSize: Tokens.fMicro
+                        font.weight: Font.Medium
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                Row {
+                    id: backendSeg
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Tokens.s2
+
+                    Btn {
+                        anchors.verticalCenter: parent.verticalCenter
+                        compact: true
+                        text: I18n.tr("iwd")
+                        primary: wifi.wifiBackend === "iwd"
+                        armed: !wifi.backendBusy
+                        onAct: wifi.setBackend("iwd")
+                    }
+
+                    Btn {
+                        anchors.verticalCenter: parent.verticalCenter
+                        compact: true
+                        text: I18n.tr("wpa_supplicant")
+                        primary: wifi.wifiBackend === "wpa_supplicant"
+                        armed: !wifi.backendBusy
+                        onAct: wifi.setBackend("wpa_supplicant")
                     }
                 }
             }

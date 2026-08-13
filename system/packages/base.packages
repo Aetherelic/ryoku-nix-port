@@ -41,6 +41,11 @@ snap-pac
 # Networking
 networkmanager
 iwd
+# wpa_supplicant: the alternate NetworkManager Wi-Fi backend. iwd stays the
+# default, but its WPA3-SAE support is incomplete (WPA3 / mixed networks like
+# Android phone hotspots fail to associate); Settings -> Connections can flip
+# the backend to this one via ryoku-wifi-backend.
+wpa_supplicant
 # wireless-regdb: regulatory database; without it the WiFi domain caps at world-00 (low TX power)
 wireless-regdb
 # iw: ryoku-wifi-powersave (Game Mode) disables 802.11 power-save for low latency

@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# NetworkManager Wi-Fi backend switch, driven by Settings -> Connections.
+#
+# Ryoku defaults to iwd, but iwd's WPA3-SAE support is incomplete: WPA3-only and
+# mixed WPA2/WPA3 networks -- which most Android phone hotspots now are -- fail
+# to associate under iwd while wpa_supplicant (>= 2.10) handles SAE fine. This
+# flips NetworkManager's backend for the whole system so a user who hits such a
+# network can get online without reinstalling.
+#
+# Privileged: it rewrites the NM drop-in and restarts NetworkManager.
+# 51-ryoku-wifi-backend.rules grants exactly this binary to the wheel group
+# without a password, so the toggle stays one click (the DNS switch works the
+# same way). `get` is read-only and needs no privilege.
+#
+#   get              print the active backend: iwd | wpa_supplicant
+#   iwd              use iwd (the Ryoku default)
+#   wpa_supplicant   use wpa_supplicant (WPA3 / Android hotspots)
+set -u
+
+CONF="${RYOKU_WIFI_BACKEND_CONF:-/etc/NetworkManager/conf.d/wifi-backend.conf}"
+
+current() {
+  if [[ -r $CONF ]] && grep -qiE '^[[:space:]]*wifi\.backend[[:space:]]*=[[:space:]]*wpa_supplicant' "$CONF"; then
+    echo wpa_supplicant
+  else
+    # No drop-in, or it names iwd: iwd is both the Ryoku default and what the
+    # installer pins, so treat anything that is not wpa_supplicant as iwd.
+    echo iwd
+  fi
+}
+
+apply() {
+  local backend=$1
+  mkdir -p "$(dirname "$CONF")"
+  cat >"$CONF" <<EOF
+# Managed by ryoku-wifi-backend (Settings -> Connections). NetworkManager's
+# Wi-Fi backend: iwd is the Ryoku default; wpa_supplicant handles the WPA3-SAE
+# networks (Android phone hotspots) that iwd cannot yet associate with.
+[device]
+wifi.backend=$backend
+EOF
+  # Only one supplicant may own the radio at a time. Stop the one we are leaving;
+  # NetworkManager D-Bus-activates the one we keep when it restarts below.
+  if [[ $backend == wpa_supplicant ]]; then
+    systemctl stop iwd.service 2>/dev/null || true
+  else
+    systemctl stop wpa_supplicant.service 2>/dev/null || true
+  fi
+  systemctl restart NetworkManager.service
+}
+
+case "${1:-get}" in
+  get)
+    current
+    ;;
+  iwd | wpa_supplicant)
+    apply "$1"
+    ;;
+  *)
+    echo "usage: ryoku-wifi-backend [get | iwd | wpa_supplicant]" >&2
+    exit 2
+    ;;
+esac

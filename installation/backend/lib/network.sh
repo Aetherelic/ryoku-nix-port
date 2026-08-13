@@ -24,17 +24,26 @@ ryoku_network() {
   ryoku_network_connections
 }
 
-# ryoku_network_backend writes the iwd backend pin into the target, mirroring
-# the live ISO's drop-in.
+# ryoku_network_backend carries the live session's NM Wi-Fi backend into the
+# target. iwd is the Ryoku default, but the installer falls back to
+# wpa_supplicant when iwd cannot associate (WPA3-SAE / phone hotspots), so pin
+# whichever backend is live here; otherwise a machine that needed wpa_supplicant
+# to get online would drop offline on first boot. Defaults to iwd when the live
+# session left no drop-in.
 ryoku_network_backend() {
-  log "pinning NetworkManager Wi-Fi backend to iwd"
+  local backend=iwd
+  local live=/etc/NetworkManager/conf.d/wifi-backend.conf
+  if [[ -r $live ]] && grep -qiE '^[[:space:]]*wifi\.backend[[:space:]]*=[[:space:]]*wpa_supplicant' "$live"; then
+    backend=wpa_supplicant
+  fi
+  log "pinning NetworkManager Wi-Fi backend to $backend (carried from the live session)"
   run mkdir -p /mnt/etc/NetworkManager/conf.d
-  write_file /mnt/etc/NetworkManager/conf.d/wifi-backend.conf <<'EOF'
-# Ryoku ships iwd, not wpa_supplicant; point NM at iwd. NM dbus-activates iwd
-# on demand. mirrors the live ISO drop-in
-# installation/iso/airootfs/etc/NetworkManager/conf.d/wifi-backend.conf.
+  write_file /mnt/etc/NetworkManager/conf.d/wifi-backend.conf <<EOF
+# Ryoku pins NetworkManager's Wi-Fi backend. iwd is the default; wpa_supplicant
+# is carried over when the install needed it (WPA3-SAE / phone hotspots iwd can
+# not associate with). Switch it in Settings -> Connections (ryoku-wifi-backend).
 [device]
-wifi.backend=iwd
+wifi.backend=$backend
 EOF
 }
 

@@ -41,9 +41,12 @@ limine
 reflector
 
 # Networking. The TUI scans and joins Wi-Fi with nmcli; NetworkManager drives
-# iwd as its Wi-Fi backend (configured in airootfs).
+# iwd as its Wi-Fi backend by default (configured in airootfs). wpa_supplicant
+# ships too: iwd can't associate with WPA3-SAE networks (phone hotspots), so the
+# TUI falls back to it, and the working backend is carried into the target.
 networkmanager
 iwd
+wpa_supplicant
 wireless-regdb
 
 # Console keymaps for the keyboard step (localectl list-keymaps + loadkeys).

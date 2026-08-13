@@ -935,8 +935,73 @@ func hashPassword(pw string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// wifiConnect joins a network with nmcli. WIRE target.
+// wifiBackendConf is NetworkManager's Wi-Fi backend drop-in in the live session.
+// var (not const) so a test can point it at a temp file. The installer carries
+// whatever this ends up set to into the target (backend/lib/network.sh), so the
+// installed machine's first boot uses the backend that actually associated here.
+var wifiBackendConf = "/etc/NetworkManager/conf.d/wifi-backend.conf"
+
+var wpaBackendRe = regexp.MustCompile(`(?mi)^\s*wifi\.backend\s*=\s*wpa_supplicant`)
+
+// activeWifiBackend reports the live session's NM Wi-Fi backend. Anything that is
+// not an explicit wpa_supplicant pin reads as iwd, the Ryoku/ISO default.
+func activeWifiBackend() string {
+	if b, err := os.ReadFile(wifiBackendConf); err == nil && wpaBackendRe.Match(b) {
+		return "wpa_supplicant"
+	}
+	return "iwd"
+}
+
+// otherWifiBackend is the backend we have not tried yet.
+func otherWifiBackend(cur string) string {
+	if cur == "wpa_supplicant" {
+		return "iwd"
+	}
+	return "wpa_supplicant"
+}
+
+// switchWifiBackend repoints NetworkManager at backend and restarts it (root, in
+// the live session), then waits, bounded, for the Wi-Fi device to come back.
+// iwd cannot associate with WPA3-SAE networks (many Android phone hotspots), so
+// the connect path falls back through here. It only runs after the current
+// backend already failed, so it can only help.
+func switchWifiBackend(backend string) bool {
+	body := "# Set by the Ryoku installer: the Wi-Fi backend that associated in the\n" +
+		"# live session, carried into the target so first boot stays online.\n" +
+		"[device]\nwifi.backend=" + backend + "\n"
+	if err := os.WriteFile(wifiBackendConf, []byte(body), 0o644); err != nil {
+		return false
+	}
+	leaving := "wpa_supplicant.service"
+	if backend == "wpa_supplicant" {
+		leaving = "iwd.service"
+	}
+	_ = exec.Command("systemctl", "stop", leaving).Run()
+	if err := exec.Command("systemctl", "restart", "NetworkManager.service").Run(); err != nil {
+		return false
+	}
+	for range 20 {
+		if out, ok := run("nmcli", "-t", "-f", "TYPE,STATE", "dev"); ok && strings.Contains(out, "wifi:") {
+			break
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return true
+}
+
+// wifiConnect joins a network with nmcli. If the live backend (iwd by default)
+// cannot associate -- WPA3-SAE networks and many phone hotspots, which iwd does
+// not yet support -- it switches to the other backend and retries once, so more
+// networks work during install. Whichever backend succeeds is left in place for
+// the installer to carry into the target.
 func wifiConnect(ssid, pass string) bool {
+	if nmWifiConnect(ssid, pass) {
+		return true
+	}
+	return switchWifiBackend(otherWifiBackend(activeWifiBackend())) && nmWifiConnect(ssid, pass)
+}
+
+func nmWifiConnect(ssid, pass string) bool {
 	args := []string{"dev", "wifi", "connect", ssid}
 	if pass != "" {
 		args = append(args, "password", pass)
