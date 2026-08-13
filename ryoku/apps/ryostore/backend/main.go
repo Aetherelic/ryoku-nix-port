@@ -174,7 +174,7 @@ func runWarm(_ []string) error {
 
 // runCheck probes the live registries (no asset downloads, no snapshot rewrite)
 // and reports whether the catalogue has advanced past the last acknowledged
-// revision, so the store lights its refresh dot only on a real ryoku-extras
+// revision, so the store lights its refresh dot only on a real ryostore
 // change. It never writes the seen revision: only viewing the fresh catalogue
 // (runCatalog) acknowledges it.
 func runCheck(w io.Writer, provs []Provider) error {

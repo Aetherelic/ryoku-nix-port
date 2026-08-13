@@ -5,21 +5,21 @@ The extras subsystem: the helpers that install, remove, and report the optional
 `ryoku-desktop` and are driven by the Hub; nothing here runs at boot.
 
 A bundle is a curated set of tools (packages, small installer scripts, and shell
-plugins) defined in the `ryoku-extras` catalogue
-(`https://github.com/neur0map/ryoku-extras`, under `bundles/`). `ryoku-hub`
+plugins) defined in the `ryostore` catalogue
+(`https://github.com/neur0map/ryostore`, under `bundles/`). `ryoku-hub`
 fetches and caches that catalogue; the helpers here do the work.
 
 ## The helpers
 
-- `ryoku-extras-install` the actuator. Reads a bundle definition from the
+- `ryostore-install` the actuator. Reads a bundle definition from the
   catalogue cache (`ryoku-hub extras cache`), then installs, removes, or reports
   its items. Routes each `package` item to the official repos or the AUR, runs
   each `script` item's installer from the catalogue, and leaves `plugin` items to
   the shell's plugin path. It publishes a per-bundle JSON report under
-  `$XDG_RUNTIME_DIR/ryoku-extras/<id>.json` that the Hub watches for live state.
+  `$XDG_RUNTIME_DIR/ryostore/<id>.json` that the Hub watches for live state.
   `status` reports presence without changing anything; `install`/`remove` mutate
   and so run from the Hub's floating terminal, where `sudo` and the AUR helper
-  have a TTY. `RYOKU_EXTRAS_DRYRUN=1` prints the plan and changes nothing.
+  have a TTY. `RYOSTORE_DRYRUN=1` prints the plan and changes nothing.
 - `ryoku-pkg-add` install official-repo packages (`pacman -S`).
 - `ryoku-pkg-aur-add` install AUR packages with the system AUR helper (yay/paru).
 - `ryoku-pkg-remove` remove packages and their now-orphaned dependencies.

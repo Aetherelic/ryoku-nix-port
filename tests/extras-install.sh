@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# hermetic test for ryoku-extras-install: the tsv parser carries tier+interactive,
+# hermetic test for ryostore-install: the tsv parser carries tier+interactive,
 # nautilus-pack and plugin items install/detect through Ryostore's internal guest
 # commands, optional-tier items are skipped in a whole-bundle install, and a
 # plugin install places the plugin without enabling it (install never activates).
@@ -8,7 +8,7 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$here/.."
-act="$repo/system/extras/ryoku-extras-install"
+act="$repo/system/extras/ryostore-install"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 fail() { echo "FAIL: $1" >&2; exit 1; }
@@ -82,7 +82,7 @@ out="$(bash "$act" status bundle default)"
 grep -q '"name": *"defaultpkg"' <<<"$out" || fail "empty registry path did not use canonical bundle path"
 
 # --- whole-bundle DRYRUN install: core planned, optional skipped --------------
-out="$(RYOKU_EXTRAS_DRYRUN=1 bash "$act" install bundle demo 2>&1)"
+out="$(RYOSTORE_DRYRUN=1 bash "$act" install bundle demo 2>&1)"
 grep -q 'corepkg' <<<"$out" || fail "core package not planned"
 grep -q 'optpkg' <<<"$out" && fail "optional package planned in whole-bundle install"
 grep -qi 'nautilus pack video-reformat' <<<"$out" || fail "nautilus pack not planned"
@@ -90,7 +90,7 @@ grep -qi 'plugin creator-deck' <<<"$out" || fail "plugin not planned"
 grep -q 'DRYRUN: ensure the 32-bit' <<<"$out" || fail "gpu-lib32 requirement not ensured before install"
 
 # --- optional installs when named as a single item ----------------------------
-out="$(RYOKU_EXTRAS_DRYRUN=1 bash "$act" install item demo optpkg 2>&1)"
+out="$(RYOSTORE_DRYRUN=1 bash "$act" install item demo optpkg 2>&1)"
 grep -q 'optpkg' <<<"$out" || fail "optional package not installed at item scope"
 
 # --- real (non-dryrun) plugin install places the plugin, install-only ---------

@@ -39,7 +39,7 @@ bolted-on instead of native.
 ```
 
 - **Installed** to `~/.local/share/ryoku/plugins/<id>/`.
-- **For local dev**, point `RYOKU_PLUGINS_DIR` at a folder of plugins (colon-
+- **For local dev**, point `RYOSTORE_PLUGINS_DIR` at a folder of plugins (colon-
   separated for several) and the dev shell discovers them live.
 
 ---
@@ -232,7 +232,7 @@ to `plugins.json`; read the live values from `pluginApi.pluginSettings`.
 ## Install, enable, place
 
 - **Install**: drop your folder in `~/.local/share/ryoku/plugins/<id>/`, or ship
-  it through an `ryoku-extras` bundle (`ryoku-extras-install` fetches the source).
+  it through an `ryostore` bundle (`ryostore-install` fetches the source).
 - **Enable & place**: Ryoku Settings → Plugins. The user toggles it on, picks a
   host, and (for a frame popout) the edge. Placement saves to
   `~/.config/ryoku/plugins.json`; the shell watches that file and retunes live -

@@ -52,7 +52,7 @@ Singleton {
     }
 
     // A lightweight upstream probe (registries only, no downloads): it lights the
-    // refresh dot when ryoku-extras has advanced past what the user last pulled,
+    // refresh dot when ryostore has advanced past what the user last pulled,
     // without touching the shown catalogue.
     function check() {
         if (checkProc.running)

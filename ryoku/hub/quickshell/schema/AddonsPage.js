@@ -54,7 +54,7 @@ var rows = [
         "label": "Remove component / bundle",
         "desc": "Shows every component state and opens the extras actuator in a terminal for removal",
         "ctl": "action",
-        "src": "ryoku-extras-install remove item|bundle"
+        "src": "ryostore-install remove item|bundle"
     },
     {
         "tab": "",

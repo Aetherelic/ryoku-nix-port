@@ -3,7 +3,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$here/../.."
-extras="${RYOKU_EXTRAS_ROOT:-$repo/../ryoku-extras-catalogue}"
+extras="${RYOSTORE_ROOT:-$repo/../ryostore-catalogue}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

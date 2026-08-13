@@ -50,9 +50,10 @@ func newCache() *Cache {
 	fallback := ""
 	// A persistent ryostore-base override that has gone stale or dead would
 	// otherwise pin the store to a source that never answers. Fall back to the
-	// canonical default so it self-heals. An explicit RYOKU_EXTRAS_BASE
-	// (dev/test/CI) stays authoritative, and the default needs no fallback.
-	if base != defaultExtrasBase && os.Getenv("RYOKU_EXTRAS_BASE") == "" {
+	// canonical default so it self-heals. An explicit env override
+	// (RYOSTORE_BASE, or legacy RYOKU_EXTRAS_BASE, for dev/test/CI) stays
+	// authoritative, and the default needs no fallback.
+	if base != defaultExtrasBase && extrasBaseOverride() == "" {
 		fallback = defaultExtrasBase
 	}
 	return &Cache{

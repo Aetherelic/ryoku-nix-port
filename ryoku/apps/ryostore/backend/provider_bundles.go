@@ -1,8 +1,8 @@
-// The bundles provider adapts the ryoku-extras bundle registry into the store
+// The bundles provider adapts the ryostore bundle registry into the store
 // contract. Browsing fetches bundles/registry.json only: each entry carries its
 // inline components (type, name, detect, tier, interactive, summary), so no
 // per-bundle definition or installer is fetched to render the catalogue.
-// Installed state is joined from `ryoku-extras-install status`, which reads the
+// Installed state is joined from `ryostore-install status`, which reads the
 // same inline components. Install launches the actuator in a floating terminal,
 // which fetches the selected bundle's full definition on demand and owns the
 // privileged package work; Settings owns installed bundle status and removal.
@@ -172,7 +172,7 @@ func (p bundleProvider) InstallComponents(ctx context.Context, id string, only [
 // indexes it by bundle id then item name. Any failure yields no status rather
 // than an error, so a broken actuator cannot blank the catalogue.
 func defaultBundleStatus(ctx context.Context) map[string]map[string]bool {
-	out, err := exec.CommandContext(ctx, "ryoku-extras-install", "status").Output()
+	out, err := exec.CommandContext(ctx, "ryostore-install", "status").Output()
 	if err != nil {
 		return nil
 	}
@@ -203,7 +203,7 @@ func defaultBundleStatus(ctx context.Context) map[string]map[string]bool {
 // terminal, detached into its own session so it owns the sudo prompt and
 // long-running output independently of this short-lived process.
 func launchBundleInstall(id string, only []string) error {
-	args := []string{"--class", "ryoku-extras", "-e", "ryoku-extras-install", "install", "bundle", id}
+	args := []string{"--class", "ryostore", "-e", "ryostore-install", "install", "bundle", id}
 	if len(only) > 0 {
 		args = append(args, "--only", strings.Join(only, ","))
 	}

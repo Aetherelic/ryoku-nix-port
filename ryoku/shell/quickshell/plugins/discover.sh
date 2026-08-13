@@ -4,7 +4,7 @@
 # entries also require their Store receipt, whose version is authoritative:
 #   { "id", "dir", "version", "manifest": {...}, "placement": {...} }
 # sources, first wins on duplicate id:
-#   $RYOKU_PLUGINS_DIR (dev override, colon-separated, no receipt required)
+#   $RYOSTORE_PLUGINS_DIR (dev override, colon-separated; legacy RYOKU_PLUGINS_DIR still read)
 #   ~/.local/share/ryoku/plugins (receipt-owned Store products only)
 # placement + per-plugin settings live in ~/.config/ryoku/plugins.json:
 #   { "<id>": { "enabled": bool, "host": "...", "<host>": {...}, "key": "...",
@@ -35,8 +35,9 @@ if [ -s "$user_json" ]; then
 fi
 
 dirs=()
-if [ -n "${RYOKU_PLUGINS_DIR:-}" ]; then
-	IFS=':' read -r -a extra <<<"$RYOKU_PLUGINS_DIR"
+plugins_dir="${RYOSTORE_PLUGINS_DIR:-${RYOKU_PLUGINS_DIR:-}}"
+if [ -n "$plugins_dir" ]; then
+	IFS=':' read -r -a extra <<<"$plugins_dir"
 	dirs+=("${extra[@]}")
 fi
 installed_root="$data_home/ryoku/plugins"

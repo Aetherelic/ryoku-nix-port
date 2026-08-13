@@ -1,4 +1,4 @@
-// The lockscreen provider adapts the canonical ryoku-extras registry into the
+// The lockscreen provider adapts the canonical ryostore registry into the
 // Store contract. The built-in clockwork/orbital fallback never enters this
 // catalogue; only receipt-owned optional themes can be installed or removed.
 package main

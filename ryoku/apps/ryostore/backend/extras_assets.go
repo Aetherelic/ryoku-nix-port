@@ -231,7 +231,7 @@ func removeGuest(kind, id string) error {
 }
 
 // pluginDataDir is where an installed plugin's source lives; the shell runtime
-// and Ryoku Settings both read it. Mirrors plugin_dir() in ryoku-extras-install.
+// and Ryoku Settings both read it. Mirrors plugin_dir() in ryostore-install.
 func pluginDataDir(id string) string {
 	return filepath.Join(dataHome(), "ryoku", "plugins", id)
 }

@@ -13,21 +13,21 @@
 #      (shell/modules/bar/popouts/Popout.qml) and the Media singleton
 #      (shell/services/Media.qml). This MUST pass; a failure exits non-zero.
 #   2. EXTERNAL (nacre-popup-probe.barstyles.qml) - the nacre/obi barstyle
-#      PRODUCTS from ryoku-extras, copied into the built-in barstyle dir.
+#      PRODUCTS from ryostore, copied into the built-in barstyle dir.
 #
 # Both halves MUST pass. The external products import the shell.services +
 # shell.barkit SDK (docs/barstyles.md): shell.services shares the shell's live
 # singletons (so a product's Notifs is the one notification server, never a
 # second), and shell.barkit re-exports the non-singleton primitives (icon and
 # brand types, MusicBars, TrayMenu, NotificationCard, the Popout bases, the
-# audio/notification menus). When ryoku-extras is absent half 2 is skipped; when
+# audio/notification menus). When ryostore is absent half 2 is skipped; when
 # present it must load or the probe exits non-zero. Commit nothing.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$here/../.."
 src="$repo/ryoku/shell/quickshell/shell"
-extras="${RYOKU_EXTRAS_ROOT:-$repo/../ryoku-extras-catalogue}"
+extras="${RYOSTORE_ROOT:-$repo/../ryostore-catalogue}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -89,7 +89,7 @@ if [[ -f "$extras/barstyles/nacre/manifest.json" && -f "$extras/barstyles/obi/ma
     fi
     echo "nacre-popup-probe: external nacre/obi barstyle products load"
 else
-    echo "SKIP: external barstyle products not present at $extras (set RYOKU_EXTRAS_ROOT)"
+    echo "SKIP: external barstyle products not present at $extras (set RYOSTORE_ROOT)"
 fi
 
 echo "nacre-popup-probe: built-in Popout and Media load"

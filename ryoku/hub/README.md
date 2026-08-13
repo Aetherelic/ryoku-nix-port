@@ -77,7 +77,7 @@ changing a page's look.
   login/auth flow is untouched. RyoStore owns browsing and installation.
 - **Add-ons** manages installed shell plugins and bundle components. Plugin
   enablement, placement, and settings remain live here; RyoStore owns plugin
-  updates/removal assets and all browsing, while `ryoku-extras-install` owns
+  updates/removal assets and all browsing, while `ryostore-install` owns
   bundle component state and removal.
 - **Animations** the live Hyprland animation tree (read via `hyprctl animations`)
   with per-leaf enable, speed, bezier, and style (pop-in, slide, fade variants),

@@ -232,7 +232,7 @@ func TestCacheIsolatesPerSourceBase(t *testing.T) {
 	cacheHome := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	root := filepath.Join(cacheHome, "ryoku", "extras")
+	root := filepath.Join(cacheHome, "ryoku", "ryostore")
 	ctx := context.Background()
 
 	srvA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

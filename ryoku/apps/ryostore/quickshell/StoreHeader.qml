@@ -74,7 +74,7 @@ Item {
             color: Tokens.ink
             visible: act.current || act.activeFocus
         }
-        // Attention dot: upstream (ryoku-extras) has advanced past what the user
+        // Attention dot: upstream (ryostore) has advanced past what the user
         // last pulled. Fixed alert red so it always reads as "something new".
         Rectangle {
             visible: act.flagged

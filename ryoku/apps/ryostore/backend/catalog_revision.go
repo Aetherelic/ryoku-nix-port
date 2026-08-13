@@ -14,7 +14,7 @@ import (
 // ignores volatile fields (generatedAt, offline flags, local install state) so
 // it changes only when upstream content does -- a new item, a version bump, or a
 // changed manifest. The store compares it against the last acknowledged revision
-// to light the refresh dot only on a genuine ryoku-extras change.
+// to light the refresh dot only on a genuine ryostore change.
 func catalogRevision(cat Catalog) string {
 	lines := make([]string, 0, len(cat.Items))
 	for i := range cat.Items {

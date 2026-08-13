@@ -108,8 +108,8 @@ hl.window_rule({
 })
 
 hl.window_rule({
-    name   = "float-ryoku-extras",
-    match  = { class = "ryoku-extras" },
+    name   = "float-ryostore",
+    match  = { class = "ryostore" },
     float  = true,
     size   = { 900, 600 },
     center = true,

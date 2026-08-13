@@ -41,7 +41,8 @@ id="${1:?id required}"; field="${2:?field required}"; shift 2
 manifest_for() {
 	local pid="$1" d
 	local -a dirs=()
-	[ -n "${RYOKU_PLUGINS_DIR:-}" ] && IFS=':' read -r -a dirs <<<"$RYOKU_PLUGINS_DIR"
+	local pdir="${RYOSTORE_PLUGINS_DIR:-${RYOKU_PLUGINS_DIR:-}}"
+	[ -n "$pdir" ] && IFS=':' read -r -a dirs <<<"$pdir"
 	dirs+=("$data_home/ryoku/plugins")
 	for d in "${dirs[@]}"; do
 		[ -n "$d" ] && [ -f "$d/$pid/manifest.json" ] && { printf '%s\n' "$d/$pid/manifest.json"; return 0; }

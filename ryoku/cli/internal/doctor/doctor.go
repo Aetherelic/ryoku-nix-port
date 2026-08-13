@@ -113,6 +113,7 @@ func reconcilers() []reconciler {
 		{"update channel checkout", reconcileUpdateChannel},
 		{"update checkout pointer", reconcileRepoPointer},
 		{"stale dev residue", reconcileDevResidue},
+		{"ryostore cache location", reconcileRyostoreCache},
 		{"desktop session components", reconcileSessionComponents},
 		{"desktop portal routing", reconcilePortalRouting},
 		{"audio playback routing", reconcileAudioRouting},
@@ -954,6 +955,36 @@ func reconcileDevResidue(checkOnly bool) recResult {
 			withFix("remove them by hand (check ownership/permissions), then `ryoku reload`")
 	}
 	return fixedRes("removed %d home-deployed artifact(s) shadowing the packaged install; `ryoku reload` switches to the packaged shell", len(residue))
+}
+
+// ---- reconciler: ryostore cache directory ------------------------------------
+
+// reconcileRyostoreCache migrates the fetched-catalogue cache from its former
+// ryoku/extras location to ryoku/ryostore after the ryostore rename. It is a
+// same-filesystem rename, so the archive survives with no re-download and the
+// store still renders offline right after the upgrade. Idempotent: it acts only
+// when the old directory exists and the new one does not.
+func reconcileRyostoreCache(checkOnly bool) recResult {
+	cacheHome := os.Getenv("XDG_CACHE_HOME")
+	if cacheHome == "" {
+		cacheHome = filepath.Join(sys.Home(), ".cache")
+	}
+	old := filepath.Join(cacheHome, "ryoku", "extras")
+	cur := filepath.Join(cacheHome, "ryoku", "ryostore")
+	if !sys.Exists(old) || sys.Exists(cur) {
+		return okRes("ryostore cache is on the current path")
+	}
+	if checkOnly {
+		return wouldRes("the store cache still lives at the pre-rename %s", old).
+			withFix("ryoku doctor moves it to %s", cur)
+	}
+	if err := os.MkdirAll(filepath.Dir(cur), 0o755); err != nil {
+		return failRes("could not create %s: %v", filepath.Dir(cur), err)
+	}
+	if err := os.Rename(old, cur); err != nil {
+		return failRes("could not move %s to %s: %v", old, cur, err)
+	}
+	return fixedRes("moved the store cache from %s to %s", old, cur)
 }
 
 // ---- reconciler: shell config schema -------------------------------------------

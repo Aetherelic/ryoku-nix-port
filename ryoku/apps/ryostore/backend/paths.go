@@ -9,12 +9,23 @@ import (
 	"strings"
 )
 
-// The extras catalogue lives in the ryoku-extras repo, fetched from raw GitHub.
-// RYOKU_EXTRAS_BASE overrides the base for a fork or a local tree under test.
-const defaultExtrasBase = "https://raw.githubusercontent.com/neur0map/ryoku-extras/main"
+// The catalogue lives in the Ryostore repo (neur0map/ryostore), fetched from
+// raw GitHub. RYOSTORE_BASE overrides the base for a fork or a local tree under
+// test; the former RYOKU_EXTRAS_BASE is still honoured for one release so a dev
+// with it already exported keeps working.
+const defaultExtrasBase = "https://raw.githubusercontent.com/neur0map/ryostore/main"
+
+// extrasBaseOverride returns the environment source override, preferring the
+// current RYOSTORE_BASE and falling back to the legacy RYOKU_EXTRAS_BASE.
+func extrasBaseOverride() string {
+	if b := os.Getenv("RYOSTORE_BASE"); b != "" {
+		return b
+	}
+	return os.Getenv("RYOKU_EXTRAS_BASE")
+}
 
 func extrasBase() string {
-	if b := os.Getenv("RYOKU_EXTRAS_BASE"); b != "" {
+	if b := extrasBaseOverride(); b != "" {
 		return strings.TrimRight(b, "/")
 	}
 	if b := configuredExtrasBase(); b != "" {
@@ -54,13 +65,15 @@ func xdgCacheHome() string {
 }
 
 // extrasCacheDir is where fetched registries and assets are cached so the
-// catalogue still renders offline. The default source keeps the legacy
-// ${XDG_CACHE_HOME:-~/.cache}/ryoku/extras location for upgrade and offline
-// continuity; an explicit RYOKU_EXTRAS_BASE override caches under a stable
-// per-source subdirectory so a fork or local tree never serves its bytes as the
-// default source's archive.
+// catalogue still renders offline: ${XDG_CACHE_HOME:-~/.cache}/ryoku/ryostore.
+// An install that predates the ryostore rename keeps a cache under the old
+// ryoku/extras path; `ryoku doctor` renames it across (reconcileRyostoreCache)
+// so the archive survives the upgrade with no re-download. An explicit source
+// override (RYOSTORE_BASE / ryostore-base) caches under a stable per-source
+// subdirectory so a fork or local tree never serves its bytes as the default
+// source's archive.
 func extrasCacheDir() string {
-	root := filepath.Join(xdgCacheHome(), "ryoku", "extras")
+	root := filepath.Join(xdgCacheHome(), "ryoku", "ryostore")
 	if extrasBase() == defaultExtrasBase {
 		return root
 	}

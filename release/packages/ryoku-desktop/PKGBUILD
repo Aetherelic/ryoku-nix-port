@@ -45,7 +45,7 @@ depends=(
   'qt6-5compat'
   'qt6-svg'
   # WebP/AVIF/etc image decoders (libqwebp.so and friends). qt6-base ships only
-  # PNG/JPEG/GIF, but RyoStore and the ryoku-extras catalogue deliver product
+  # PNG/JPEG/GIF, but RyoStore and the ryostore catalogue deliver product
   # previews and screenshots as WebP; without this every rice, bundle, bar-style
   # and Fastfetch cover renders blank. A hard depend so the art shows on the ISO
   # and on existing boxes after `ryoku update`.
@@ -446,6 +446,9 @@ package() {
   for s in "$_repo"/system/extras/ryoku-*; do
     install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
   done
+  # the extras actuator (renamed from ryoku-extras-install); the ryoku-* glob
+  # above no longer matches it, so install it by name.
+  install -Dm755 "$_repo/system/extras/ryostore-install" "$pkgdir/usr/bin/ryostore-install"
   install -Dm755 "$_repo/ryoku/apps/fastfetch/ryoku-fastfetch" \
     "$pkgdir/usr/bin/ryoku-fastfetch"
 

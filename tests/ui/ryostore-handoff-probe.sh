@@ -105,6 +105,6 @@ fi
 for category in rices lockscreens plugins bundles barstyles fastfetch; do
     grep -q "^ryostore open $category$" "$work/commands" || { echo "missing RyoStore handoff: $category"; cat "$work/commands"; exit 1; }
 done
-grep -q '^kitty --class ryoku-extras -e ryoku-extras-install remove item creator editor$' "$work/commands" || { cat "$work/commands"; exit 1; }
-grep -q '^kitty --class ryoku-extras -e ryoku-extras-install remove bundle creator$' "$work/commands" || { cat "$work/commands"; exit 1; }
+grep -q '^kitty --class ryostore -e ryostore-install remove item creator editor$' "$work/commands" || { cat "$work/commands"; exit 1; }
+grep -q '^kitty --class ryostore -e ryostore-install remove bundle creator$' "$work/commands" || { cat "$work/commands"; exit 1; }
 echo "ryostore-handoff-probe: Settings manages installed state through RyoStore"

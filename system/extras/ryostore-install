@@ -1,28 +1,28 @@
 #!/usr/bin/env bash
 
 # Extras actuator: installs, removes, and reports state for bundles in the
-# ryoku-extras catalogue. The Hub's Extras section drives it; a bundle is a
+# ryostore catalogue. The Hub's Extras section drives it; a bundle is a
 # list of items, each a `package` (auto-routed to official repos or AUR), a
-# `script` (small installer from ryoku-extras/installers), or a `plugin`
+# `script` (small installer from ryostore/installers), or a `plugin`
 # (shell plugin fetched to ~/.local/share/ryoku/plugins; place via Settings,
 # Plugins).
 #
-#   ryoku-extras-install status [bundle <id>]   print item state as JSON, no change
-#   ryoku-extras-install install bundle <id>    install every absent item
-#   ryoku-extras-install install item <id> <n>  install one item
-#   ryoku-extras-install remove bundle <id>     remove the bundle's package items
-#   ryoku-extras-install remove item <id> <n>   remove one package item
+#   ryostore-install status [bundle <id>]   print item state as JSON, no change
+#   ryostore-install install bundle <id>    install every absent item
+#   ryostore-install install item <id> <n>  install one item
+#   ryostore-install remove bundle <id>     remove the bundle's package items
+#   ryostore-install remove item <id> <n>   remove one package item
 #
 # Ryostore owns the network and the cache; this reads the cached catalogue under
 # `ryostore internal cache` and asks Ryostore for an installer path or a guest
 # install/removal on demand, so fetching lives in one place. Package installs
 # need a TTY for the sudo prompt, so the store launches install/remove in a
 # floating terminal; status is a silent query the UI calls inline.
-# RYOKU_EXTRAS_DRYRUN=1 prints the planned actions without touching the system.
+# RYOSTORE_DRYRUN=1 prints the planned actions without touching the system.
 
 set -uo pipefail
 
-DRYRUN=${RYOKU_EXTRAS_DRYRUN:-}
+DRYRUN=${RYOSTORE_DRYRUN:-}
 
 # Script installers drop tools into ~/.local/bin (npm prefix, GOBIN, pipx).
 # The graphical session doesn't always carry that on PATH, so prepend it
@@ -30,7 +30,7 @@ DRYRUN=${RYOKU_EXTRAS_DRYRUN:-}
 export PATH="$HOME/.local/bin:$PATH"
 
 die() {
-  echo "ryoku-extras-install: $1" >&2
+  echo "ryostore-install: $1" >&2
   exit 1
 }
 
@@ -68,7 +68,7 @@ registry_ids() {
 }
 
 report_dir() {
-  printf '%s/ryoku-extras\n' "${XDG_RUNTIME_DIR:-/tmp}"
+  printf '%s/ryostore\n' "${XDG_RUNTIME_DIR:-/tmp}"
 }
 
 # --- detection (one implementation, used by status and the install path) ------
@@ -524,11 +524,11 @@ case "${1:-}" in
   *)
     cat >&2 <<'USAGE'
 usage:
-  ryoku-extras-install status [bundle <id>]
-  ryoku-extras-install install bundle <id> [--only name1,name2,...]
-  ryoku-extras-install install item <id> <name>
-  ryoku-extras-install remove bundle <id>
-  ryoku-extras-install remove item <id> <name>
+  ryostore-install status [bundle <id>]
+  ryostore-install install bundle <id> [--only name1,name2,...]
+  ryostore-install install item <id> <name>
+  ryostore-install remove bundle <id>
+  ryostore-install remove item <id> <name>
 USAGE
     exit 2
     ;;

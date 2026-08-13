@@ -86,9 +86,9 @@ carries a second kernel image and initramfs, so it uses more space.
 
 ## How it is wired
 
-- **Vehicle.** A `ryoku-extras` bundle (`cachyos-kernel`) with
+- **Vehicle.** A `ryostore` bundle (`cachyos-kernel`) with
   `requires: ["cachyos"]` and the `linux-cachyos` and `linux-cachyos-headers`
-  package items. The Hub installs it through `ryoku-extras-install` like any other
+  package items. The Hub installs it through `ryostore-install` like any other
   bundle.
 - **Repository setup.** `ryoku-pkg-cachyos` (in `system/extras/`) adds the repo
   idempotently and additively: it recv/lsigns the CachyOS key
@@ -112,7 +112,7 @@ carries a second kernel image and initramfs, so it uses more space.
 - **Conflict-free, with a deploy note for maintainers.** The bundle is safe to
   re-run and never edits `[core]`/`[extra]` or the stock kernel. One ordering
   caveat: the `requires: ["cachyos"]` line needs an actuator that understands it.
-  The catalogue is served from `ryoku-extras@main` to every client, while the
+  The catalogue is served from `ryostore@main` to every client, while the
   actuator ships in `ryoku-desktop`. Publish the registry entry only once a
   `ryoku-desktop` release carrying the `cachyos` requires-case has shipped; an
   older actuator would otherwise mis-route `linux-cachyos` to an AUR source build.

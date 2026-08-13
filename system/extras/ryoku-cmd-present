@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
 # is this command on $PATH. one helper, shared between the extras actuator
-# and the ryoku-extras installers, so "is X here?" has one answer.
+# and the ryostore installers, so "is X here?" has one answer.
 
 command -v "${1:?usage: ryoku-cmd-present <command>}" >/dev/null 2>&1

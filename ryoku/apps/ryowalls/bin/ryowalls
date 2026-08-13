@@ -486,7 +486,7 @@ motionbgs-download)
 	;;
 library-list)
 	# Browse any GitHub repo of wallpapers the user added. Two shapes, auto-detected
-	# off the repo tree: a livewalls/registry.json (curated, like ryoku-extras) or a
+	# off the repo tree: a livewalls/registry.json (curated, like ryostore) or a
 	# plain folder tree (each item dir = a video + a sibling poster, like Taiizor/Store).
 	# Smart: emits poster + stream URL + full-download URL; nothing is pulled here.
 	repo=""; branch=""; subpath=""; query=""; page=1; ltype="all"
@@ -577,7 +577,7 @@ library-download)
 	finish "$out"
 	;;
 extras-search)
-	# Curated live wallpapers from the ryoku-extras repo (livewalls/registry.json).
+	# Curated live wallpapers from the ryostore repo (livewalls/registry.json).
 	# Posters are in-repo (raw), clips are Release assets (absolute URLs in the
 	# registry). No key. --query filters by name/tag client-side (small catalogue).
 	query=""
@@ -589,7 +589,7 @@ extras-search)
 		*) shift ;;
 		esac
 	done
-	xbase="${RYOKU_EXTRAS_BASE:-https://raw.githubusercontent.com/neur0map/ryoku-extras/main}"
+	xbase="${RYOSTORE_BASE:-${RYOKU_EXTRAS_BASE:-https://raw.githubusercontent.com/neur0map/ryostore/main}}"
 	xbase="${xbase%/}"
 	resp="$(curl -fsSL -A "$ua" "$xbase/livewalls/registry.json")"
 	q="$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]')"

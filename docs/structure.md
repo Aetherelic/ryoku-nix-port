@@ -100,8 +100,8 @@ System-level definition installed into the target.
   `nvidia`/`intel`/`amd`/`vulkan` install scripts), `power/` (`ryoku-hw-laptop`,
   the shared laptop detector; `ryoku-idle`, the laptop-gated `hypridle` launcher).
 - `extras/` the helpers behind the Hub's Extras section, shipped to `/usr/bin` by
-  `ryoku-desktop`: `ryoku-extras-install` (installs, removes, and reports the
-  optional bundles from the `ryoku-extras` catalogue), the `ryoku-pkg-*` routing
+  `ryoku-desktop`: `ryostore-install` (installs, removes, and reports the
+  optional bundles from the `ryostore` catalogue), the `ryoku-pkg-*` routing
   wrappers (repo, AUR, remove, multilib), and `ryoku-cmd-present`.
 - `packages/` the package sets: `base.packages` (every machine, pacstrapped),
   `hardware.packages` (per-profile microcode and GPU drivers), `dev.packages`

@@ -7,7 +7,7 @@ import "modules/bar/barstyles/nacre/components" as NacreComponents
 import "modules/bar/barstyles/nacre/widgets" as NacreWidgets
 
 // External half of the nacre popup probe: exercises the nacre and obi barstyle
-// PRODUCTS shipped by ryoku-extras, copied into the built-in barstyle dir
+// PRODUCTS shipped by ryostore, copied into the built-in barstyle dir
 // (modules/bar/barstyles) of the scaffold. These products still import the
 // RETIRED pill.* namespace (pill.Singletons, pill as Pill, pill.popouts,
 // pill.framebars.menus), so until they are migrated to the consolidated tree

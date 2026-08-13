@@ -3,15 +3,15 @@
 Ryoku's extras are delivered through **RyoStore**: a browsable catalogue of
 rices, lockscreens, bar styles, fastfetch styles, plugins, and bundles that
 install into the running desktop without activating themselves. Remote
-catalogues live in `ryoku-extras`; RyoStore owns discovery and installation;
+catalogues live in `ryostore`; RyoStore owns discovery and installation;
 Ryoku Settings manages what is already present.
 
 ## How it works today
 
-- **Catalogue = `ryoku-extras`.** Each kind of thing (bundles, plugins,
+- **Catalogue = `ryostore`.** Each kind of thing (bundles, plugins,
   nautilus packs, livewalls, colorschemes) is a folder with a `registry.json`.
   An item is invisible to RyoStore until it is listed there. RyoStore fetches
-  the repo at runtime (`RYOKU_EXTRAS_BASE`, default the GitHub `main` raw tree)
+  the repo at runtime (`RYOSTORE_BASE`, default the GitHub `main` raw tree)
   and caches it under `~/.cache/ryoku/extras`, so the catalogue still renders
   offline.
 - **Store UI = RyoStore.** The standalone Quickshell app presents every
@@ -19,7 +19,7 @@ Ryoku Settings manages what is already present.
   reversible details, explicit local status, and install-only actions. Ryoku
   Settings remains the destination for activation, configuration, updates,
   placement, and removal.
-- **Install = the actuator.** `ryoku-extras-install` routes each bundle item by
+- **Install = the actuator.** `ryostore-install` routes each bundle item by
   type: `package` through `pacman -Syu` / the AUR helper (one package at a time,
   so one failure never strands the rest), `script` through `installers/<name>.sh`,
   and `plugin` / `nautilus-pack` through the shell's guest paths. It runs in a
@@ -29,7 +29,7 @@ Ryoku Settings manages what is already present.
   (a plugin that renders in a widget or frame-popout host, a nautilus pack that
   drops right-click scripts). A guest declares its host and mounts on install,
   reload, and use with no extra setup; removing the bundle takes the guest and
-  its state with it. All the guest's code lives in `ryoku-extras`, not here, so
+  its state with it. All the guest's code lives in `ryostore`, not here, so
   the shell stays a host and the catalogue stays independent.
 
 ## Decision: build Ryostore
@@ -219,13 +219,13 @@ and installation, not a second runtime copy.
   Install never enables a plugin, removal preserves that user state, and the
   running shell watches Store revisions and keys Loader URLs by installed
   version so updated content and services replace themselves without a reload.
-- **Bundles:** fetch the `ryoku-extras` bundle registry and join it with
-  `ryoku-extras-install status`. Partial counts are first-class. Settings owns
+- **Bundles:** fetch the `ryostore` bundle registry and join it with
+  `ryostore-install status`. Partial counts are first-class. Settings owns
   installed bundle status and removal.
-- **Rices:** fetch and install the `ryoku-extras` rice registry. Installed and
+- **Rices:** fetch and install the `ryostore` rice registry. Installed and
   active state come from the local rices tree and active marker. Appearance
   retains apply, capture, fork, export, delete, and local rice management.
-- **Color schemes (Themes):** fetch the `ryoku-extras` colorschemes registry and
+- **Color schemes (Themes):** fetch the `ryostore` colorschemes registry and
   present it through a per-provider subtab strip (HANCORE-linux, Noctalia) with a
   My themes tab for the installed library. Install copies the entry's Noctalia
   palette into `~/.local/share/ryoku/themes/<id>` (install-only); the shell daemon

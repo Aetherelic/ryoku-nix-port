@@ -544,7 +544,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: Wallhaven.source === "moewalls" ? I18n.tr("moewalls.com")
                 : (Wallhaven.source === "motionbgs" ? I18n.tr("motionbgs.com")
-                : (Wallhaven.source === "ryoku" ? "ryoku-extras"
+                : (Wallhaven.source === "ryoku" ? "ryostore"
                 : (Wallhaven.source === "live" ? I18n.tr("~/Pictures/livewalls")
                 : (Wallhaven.source === "local" ? I18n.tr("~/Pictures")
                 : (Wallhaven.source === "lib" ? I18n.tr("github.com/") + Wallhaven.libraryRepo : I18n.tr("wallhaven.cc"))))))

@@ -11,7 +11,7 @@ LICENSE in this directory.
 
 The vendored core skin carries `themes/clockwork/orbital/preview.gif`, the
 dark-mode segment of upstream `Assets/clockwork.gif`. Optional skins and their
-catalogue previews are owned by `ryoku-extras`; they are not duplicated here.
+catalogue previews are owned by `ryostore`; they are not duplicated here.
 
 The in-session shim diverges from upstream in one place to keep the lock usable
 with every skin: `quickshell-lockscreen/shim/SddmShim.qml` (plus the matching

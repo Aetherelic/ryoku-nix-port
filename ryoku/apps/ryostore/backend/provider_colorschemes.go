@@ -1,4 +1,4 @@
-// The colorscheme provider serves the ryoku-extras colorschemes catalogue as the
+// The colorscheme provider serves the ryostore colorschemes catalogue as the
 // Themes category. It installs a scheme install-only into the shell's theme
 // library (dataHome/ryoku/themes/<id>), where the shell daemon converts it into a
 // live palette and the Color-scheme picker (Super+W / Hub) applies it. Each
