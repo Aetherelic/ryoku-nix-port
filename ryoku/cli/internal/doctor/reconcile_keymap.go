@@ -45,28 +45,44 @@ func reconcileKeymap(checkOnly bool) recResult {
 	// differently (uk for gb) is not reported as drift.
 	consoleDrifted := km != "" && keyboard.ConsoleAsXkb(km) != layout
 	stale, imgPath := keyboard.BootStale()
+	if !consoleDrifted && !stale {
+		return okRes("keyboard layout %q matches on the session, login screen, console, and boot prompt", layout)
+	}
 
-	switch {
-	case consoleDrifted && stale:
-		return warnRes("console keymap is %q but the session uses %q, and the boot image predates %s so the disk passphrase prompt is older still",
-			km, layout, keyboard.VconsolePath).
-			withFix("ryoku keyboard apply")
-	case consoleDrifted:
-		if checkOnly {
+	if checkOnly {
+		switch {
+		case consoleDrifted && stale:
+			return wouldRes("console keymap is %q but the session uses %q, and %s predates %s so the disk passphrase prompt is older still",
+				km, layout, filepath.Base(imgPath), keyboard.VconsolePath).
+				withFix("ryoku keyboard apply")
+		case consoleDrifted:
 			return wouldRes("console keymap is %q but the session uses %q, so the login screen and TTYs disagree with the desktop", km, layout).
 				withFix("ryoku keyboard apply")
+		default:
+			return wouldRes("%s predates %s, so the disk passphrase prompt still uses the keymap baked in when it was built",
+				filepath.Base(imgPath), keyboard.VconsolePath).
+				withFix("ryoku keyboard apply")
 		}
+	}
+
+	// Apply mode: make the layout global. Push the desktop's layout onto the
+	// console and greeter, then rebuild the boot image so the disk passphrase
+	// prompt follows too. Reconcile used to fix the console but only warn about
+	// the prompt, so AZERTY (and any non-QWERTY layout) silently reverted to
+	// QWERTY at the LUKS unlock and never went fully global. ApplySystem rewrites
+	// vconsole.conf, so a rebuild is needed whenever we touched it or the image
+	// was already stale; one unconditional rebuild covers both.
+	if consoleDrifted {
 		if err := keyboard.ApplySystem(keyboard.Layout{Layout: layout}); err != nil {
 			return warnRes("console keymap is %q but the session uses %q", km, layout).
 				withFix("ryoku keyboard apply")
 		}
-		return fixedRes("set the login screen and TTY keymap to %q; the disk passphrase prompt follows after `ryoku keyboard apply`", layout)
-	case stale:
-		return warnRes("%s predates %s, so the disk passphrase prompt still uses the keymap baked in when it was built",
-			filepath.Base(imgPath), keyboard.VconsolePath).
+	}
+	if err := keyboard.RebuildBootImage(); err != nil {
+		return warnRes("set the console and greeter to %q, but could not rebuild the boot image so the passphrase prompt still lags: %v", layout, err).
 			withFix("ryoku keyboard apply")
 	}
-	return okRes("keyboard layout %q matches on the session, login screen, console, and boot prompt", layout)
+	return fixedRes("set the boot prompt, greeter, console, and desktop to %q", layout)
 }
 
 // ---- reconciler: adopt the keyboard the installer was told about --------------
