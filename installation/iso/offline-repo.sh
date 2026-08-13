@@ -177,12 +177,6 @@ bake_aur_set() {
 
   local -a names=()
   mapfile -t names < <(read_list "$aur_file")
-  # bundle the AUR-legacy NVIDIA drivers alongside the toolset: pre-Turing cards
-  # (Maxwell/Pascal/Volta -> 580xx, Kepler -> 470xx) are not covered by nvidia-open
-  # and Arch dropped the closed driver, so without these an offline install of a
-  # GTX 9xx/10xx box comes up with no driver and no desktop. building a -dkms
-  # pkgbase also produces its -utils; lib32 is its own base.
-  names+=(nvidia-580xx-dkms lib32-nvidia-580xx-utils nvidia-470xx-dkms)
   (( ${#names[@]} )) || return 0
 
   # makepkg refuses to run as root: build as an unprivileged user with passwordless
@@ -279,12 +273,6 @@ for req in nvidia-open nvidia-open-dkms nvidia-utils libva-nvidia-driver \
   repo_has_pkg "$req" || missing+=("$req")
 done
 (( ${#missing[@]} == 0 )) || die "offline repo is missing required packages: ${missing[*]}. the install would leave a driverless or incomplete desktop."
-# pre-Turing NVIDIA (Maxwell/Pascal/Volta) needs the AUR-legacy 580xx driver,
-# built best-effort above. warn loudly if it did not land: those cards then
-# install offline with no driver and no desktop. not fatal -- Turing+ and
-# non-NVIDIA targets are unaffected, so a transient AUR outage must not block
-# an otherwise-complete release.
-repo_has_pkg nvidia-580xx-dkms || log "WARNING: nvidia-580xx-dkms did not bake into the offline repo; pre-Turing NVIDIA targets (GTX 9xx/10xx) will install with no driver. Check the AUR bake log above."
 # repo-add builds offline.db(.tar.zst) + offline.files; lib/offline.sh globs it.
 repo-add --quiet "$DEST/$REPO_NAME.db.tar.zst" "$DEST"/*.pkg.tar.* >/dev/null
 
