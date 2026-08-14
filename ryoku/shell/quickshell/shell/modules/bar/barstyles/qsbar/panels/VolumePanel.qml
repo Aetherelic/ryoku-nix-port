@@ -174,6 +174,46 @@ PanelWindow {
                 }
             }
 
+            // ── boost toggle: lift the safe 100% cap to 150% for quiet hardware ──
+            Rectangle {
+                id: boostTile
+                width: parent.width
+                height: 26; radius: root.panelButtonRadius
+                readonly property bool on: !!(Config.qsbar && Config.qsbar.audioBoost)
+                color: on ? root.fillActive : (boostMa.containsMouse ? root.fillHover : root.fillIdle)
+                border.color: (on || boostMa.containsMouse) ? root.seal : root.sep
+                border.width: 1
+                Behavior on color { ColorAnimation { duration: 120 } }
+                UiText {
+                    anchors.left: parent.left; anchors.leftMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: I18n.tr("BOOST ABOVE 100%")
+                    color: root.seal
+                    font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                }
+                UiText {
+                    anchors.right: parent.right; anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: boostTile.on ? I18n.tr("ON") : I18n.tr("OFF")
+                    color: boostTile.on ? root.seal : Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.4)
+                    font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
+                }
+                MouseArea {
+                    id: boostMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        var q = Object.assign({}, Config.qsbar || {})
+                        q.audioBoost = !boostTile.on
+                        Config.qsbar = q
+                        // dropping the cap while boosted pulls the sink back to 0 dB
+                        if (!q.audioBoost && audio.sink && audio.sink.audio && audio.sink.audio.volume > 1)
+                            audio.sink.audio.volume = 1
+                    }
+                }
+            }
+
             // ── output device switcher ──
             UiText {
                 text: I18n.tr("OUTPUT DEVICE")

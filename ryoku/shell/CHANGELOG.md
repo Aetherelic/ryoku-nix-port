@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **The volume panel can boost past 100% for quiet hardware.** The bar's audio
+  controls capped at 100% (0 dB), so a machine that is simply quiet at unity had
+  no way to get louder from the shell. A **BOOST ABOVE 100%** toggle in the
+  volume panel lifts the ceiling to 150% (about +10.5 dB); off by default, so
+  nothing over-drives unless asked. The pill wheel and the Volume-Up key both
+  honour it (`Config.qsbar.audioBoost` in `shell.json`), so raising volume by
+  key also boosts when it is on and stays capped at 100% when it is off
+  (`modules/bar/barstyles/qsbar/panels/VolumePanel.qml`,
+  `modules/bar/barstyles/qsbar/modules/AudioWidget.qml`,
+  `hyprland/modules/binds.lua`).
 - **qsbar's two bar variants merge into one.** The V1 (split-pill) and V2
   (continuous-surface) bars were separate engines swapped at runtime by a
   variant host, so the shell carried both trees plus a state file recording the

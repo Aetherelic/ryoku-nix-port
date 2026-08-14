@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import shell.services
 
 Item {
     id: rootMod
@@ -61,7 +62,8 @@ Item {
     function stepVolume(up) {
         var s = audio.sink
         if (!s || !s.audio) return
-        s.audio.volume = Math.max(0, Math.min(1, s.audio.volume + (up ? 0.05 : -0.05)))
+        var max = (Config.qsbar && Config.qsbar.audioBoost) ? 1.5 : 1.0
+        s.audio.volume = Math.max(0, Math.min(max, s.audio.volume + (up ? 0.05 : -0.05)))
     }
     function toggleMute() {
         var s = audio.sink

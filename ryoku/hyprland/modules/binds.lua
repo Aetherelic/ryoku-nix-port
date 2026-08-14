@@ -81,8 +81,9 @@ for i = 1, 10 do
     hl.bind(K(mod .. " + ALT + " .. key),    hl.dsp.exec_cmd(ws_helper .. " move " .. i))  -- send active window to slot i of the current desktop
 end
 
--- Media and volume keys
-hl.bind(K("XF86AudioRaiseVolume"), hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
+-- Media and volume keys. Raise honours the volume panel's BOOST toggle
+-- (Config.qsbar.audioBoost in shell.json): off = safe 100% cap, on = 150%.
+hl.bind(K("XF86AudioRaiseVolume"), hl.dsp.exec_cmd([[bash -c 'lim=1; jq -e ".qsbar.audioBoost == true" "$HOME/.config/ryoku/shell.json" >/dev/null 2>&1 && lim=1.5; wpctl set-volume -l "$lim" @DEFAULT_AUDIO_SINK@ 5%+']]), { locked = true, repeating = true })
 hl.bind(K("XF86AudioLowerVolume"), hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),      { locked = true, repeating = true })
 hl.bind(K("XF86AudioMute"),        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     { locked = true })
 hl.bind(K("XF86AudioPlay"),        hl.dsp.exec_cmd("playerctl play-pause"),                           { locked = true })
