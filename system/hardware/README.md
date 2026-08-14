@@ -38,9 +38,12 @@ in the machine.
     panel on close and restore it on open. Autostarted like `ryoku-idle`; a
     desktop start exits at once.
   - `logind-ryoku-lid.conf` The logind drop-in (installed to
-    `/etc/systemd/logind.conf.d/10-ryoku-lid.conf`) that makes logind suspend on
+    `/etc/systemd/logind.conf.d/10-ryoku-lid.conf`). It makes logind suspend on
     lid close in every case, so `ryoku-clamshell` is the only thing that keeps a
-    closed lid awake, and only on AC power with an external display.
+    closed lid awake, and only on AC power with an external display. It also
+    raises `InhibitDelayMaxSec` to 15s: `hypridle` delays sleep while it runs
+    `ryoku-shell lock`, and logind's 5s default let the machine suspend before
+    the lockscreen was up.
 - `leds/`
   - `ryoku-leds` Applies the current palette accent color to OpenRGB-compatible
     keyboards and attached lighting devices. It is best-effort: missing OpenRGB,

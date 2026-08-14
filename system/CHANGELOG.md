@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Fixed
+- `hardware/power/logind-ryoku-lid.conf`: raise `InhibitDelayMaxSec` to 15s.
+  `hypridle` holds a `sleep` delay inhibitor while it runs `ryoku-shell lock`,
+  and logind's 5s default expired first on a Quickshell lock that also had to
+  wait out a display reconfigure (undocking as the lid shuts), so the machine
+  suspended with the session unlocked. logind logged it and went ahead anyway:
+  "Delay lock is active (hypridle) but inhibitor timeout is reached". The
+  inhibitor is released the moment the lock is up, so a normal lid close still
+  suspends immediately.
 - `boot/limine/limine.conf`: ship `default_entry: 1` (the bootable flat
   placeholder) plus `remember_last_entry: yes`, not the bare `2`. Limine's
   numeric `default_entry` counts top-level entries, so once
