@@ -5,4 +5,5 @@ CcSeg CcSeg.qml
 CcStepper CcStepper.qml
 CcTile CcTile.qml
 CcSwatchGrid CcSwatchGrid.qml
+CcScrollRail CcScrollRail.qml
 BarSilhouette BarSilhouette.qml

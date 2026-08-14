@@ -24,13 +24,13 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
         UiText { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("BAR"); color: strip.root.sumiHi; font.family: strip.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: strip.form; color: strip.root.ink; font.family: strip.root.mono; font.pixelSize: 11 }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: strip.form; color: strip.root.ink; font.family: strip.root.mono; font.pixelSize: 12 }
     }
     Row {
         anchors.right: parent.right; anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: String(strip.root.barPosition).toUpperCase(); color: strip.root.sumi; font.family: strip.root.mono; font.pixelSize: 11 }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: String(strip.root.barPosition).toUpperCase(); color: strip.root.sumi; font.family: strip.root.mono; font.pixelSize: 10 }
         Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 12; height: 12; radius: strip.root.tileRadius; color: strip.root.seal; border.width: 1; border.color: strip.root.sep }
     }
 }

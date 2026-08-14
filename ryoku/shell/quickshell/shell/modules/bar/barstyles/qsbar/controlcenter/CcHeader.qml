@@ -25,11 +25,11 @@ Item {
             text: "力"; color: hdr.root.seal
             font.family: "Noto Sans CJK JP"; font.pixelSize: 13
         }
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("RYOKU"); color: hdr.root.ink; font.family: hdr.root.mono; font.pixelSize: 11; font.letterSpacing: 2; font.weight: Font.Medium }
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: "/"; color: hdr.root.sumi; font.family: hdr.root.mono; font.pixelSize: 11 }
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("CONTROL CENTER"); color: hdr.root.ink; font.family: hdr.root.mono; font.pixelSize: 11; font.letterSpacing: 2 }
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: "/"; color: hdr.root.sumi; font.family: hdr.root.mono; font.pixelSize: 11 }
-        UiText { anchors.verticalCenter: parent.verticalCenter; text: hdr.crumb; color: hdr.root.sumiHi; font.family: hdr.root.mono; font.pixelSize: 11; font.letterSpacing: 2 }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("RYOKU"); color: hdr.root.ink; font.family: hdr.root.mono; font.pixelSize: 10; font.letterSpacing: 2; font.weight: Font.Medium }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: "/"; color: hdr.root.sumi; font.family: hdr.root.mono; font.pixelSize: 10 }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("CONTROL CENTER"); color: hdr.root.ink; font.family: hdr.root.mono; font.pixelSize: 10; font.letterSpacing: 2 }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: "/"; color: hdr.root.sumi; font.family: hdr.root.mono; font.pixelSize: 10 }
+        UiText { anchors.verticalCenter: parent.verticalCenter; text: hdr.crumb; color: hdr.root.sumiHi; font.family: hdr.root.mono; font.pixelSize: 10; font.letterSpacing: 2 }
     }
 
     Row {

@@ -22,6 +22,7 @@ Item {
     ]
 
     Flickable {
+        id: flick
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight
@@ -37,15 +38,7 @@ Item {
                 width: parent.width
                 root: page.root
                 title: I18n.tr("PICKER STYLE")
-
-                UiText {
-                    width: parent.width
-                    text: I18n.tr("The layout the wallpaper and screenshot pickers use.")
-                    color: page.root ? page.root.sumi : "#888888"
-                    font.family: page.root ? page.root.mono : "monospace"
-                    font.pixelSize: 10
-                    wrapMode: Text.WordWrap
-                }
+                desc: I18n.tr("The layout the wallpaper and screenshot pickers use")
 
                 Row {
                     width: parent.width
@@ -86,7 +79,9 @@ Item {
                             : (ma.containsMouse ? (cardRoot.root ? Qt.rgba(accent.r, accent.g, accent.b, cardRoot.root.fillHoverAlpha) : "#22ffffff")
                                                 : (cardRoot.root ? cardRoot.root.fillIdle : "#1affffff"))
         border.width: cardRoot.sel ? 2 : 1
-        border.color: (cardRoot.sel || ma.containsMouse) ? accent : (cardRoot.root ? cardRoot.root.sep : "#444444")
+        border.color: cardRoot.sel ? accent
+                    : (ma.containsMouse ? (cardRoot.root ? Qt.rgba(cardRoot.root.ink.r, cardRoot.root.ink.g, cardRoot.root.ink.b, 0.28) : "#444444")
+                                        : (cardRoot.root ? cardRoot.root.sep : "#444444"))
         Behavior on color { ColorAnimation { duration: 120 } }
         Behavior on border.color { ColorAnimation { duration: 120 } }
 
@@ -193,7 +188,7 @@ Item {
                 text: cardRoot.item.sub || ""
                 color: cardRoot.root ? cardRoot.root.sumi : "#888888"
                 font.family: cardRoot.root ? cardRoot.root.mono : "monospace"
-                font.pixelSize: 9
+                font.pixelSize: 10
             }
         }
 
@@ -203,7 +198,7 @@ Item {
             anchors { right: parent.right; top: parent.top; margins: 6 }
             text: "check"
             color: cardRoot.accent
-            font.pixelSize: 14
+            font.pixelSize: 12
         }
 
         MouseArea {
@@ -214,4 +209,6 @@ Item {
             onClicked: if (cardRoot.root) cardRoot.root.pickerStyle = cardRoot.key
         }
     }
+
+    CcScrollRail { root: page.root; flick: flick; z: 5 }
 }

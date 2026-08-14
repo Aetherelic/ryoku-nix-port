@@ -28,7 +28,7 @@ Item {
     readonly property string previewRouteId: previewRoute ? previewRoute.id : ""
 
     // ── layout + graph geometry ──
-    readonly property int rowH: 56
+    readonly property int rowH: 44
     readonly property int rowGap: 10
     readonly property int graphGap: 46       // horizontal run for the bezier fan
     readonly property int portOffset: 8      // source-port overhang past the cards
@@ -96,10 +96,8 @@ Item {
                 for (var i = 0; i < page.routes.length; i++) {
                     var startY = routeColumn.y + i * (page.rowH + page.rowGap) + page.rowH / 2
                     var selected = i === page.selectedIndex
-                    var hovered = i === page.hoveredIndex
                     var col = selected ? acc
-                        : hovered ? Qt.rgba(acc.r, acc.g, acc.b, 0.58)
-                            : Qt.rgba(ink.r, ink.g, ink.b, 0.15)
+                        : Qt.rgba(ink.r, ink.g, ink.b, 0.15)
                     ctx.beginPath()
                     ctx.moveTo(startX, startY)
                     ctx.bezierCurveTo(
@@ -107,7 +105,7 @@ Item {
                         endX - (endX - startX) * 0.55, endY,
                         endX, endY)
                     ctx.strokeStyle = col
-                    ctx.lineWidth = selected ? 1.7 : hovered ? 1.25 : 1
+                    ctx.lineWidth = selected ? 1.7 : 1
                     ctx.stroke()
 
                     ctx.beginPath()
@@ -124,7 +122,6 @@ Item {
 
             Connections {
                 target: page
-                function onHoveredIndexChanged() { graphCanvas.requestPaint() }
                 function onSelectedIndexChanged() { graphCanvas.requestPaint() }
                 function onGraphAccentChanged() { graphCanvas.requestPaint() }
                 function onGraphInkChanged() { graphCanvas.requestPaint() }
@@ -177,11 +174,11 @@ Item {
 
                         IconText {
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 20
+                            width: 24
                             text: card.modelData.icon
                             color: (card.selected || card.hovered) ? card.acc
                                 : (page.root ? page.root.sumiHi : "#888888")
-                            font.pixelSize: 19
+                            font.pixelSize: 24
                             fill: card.selected ? 1 : 0
                         }
 
@@ -197,7 +194,7 @@ Item {
                                 color: (card.selected || card.hovered) ? card.acc
                                     : (page.root ? page.root.ink : "#c5c9c5")
                                 font.family: page.root ? page.root.mono : "monospace"
-                                font.pixelSize: 13
+                                font.pixelSize: 12
                                 font.weight: Font.DemiBold
                             }
                             UiText {
@@ -206,7 +203,7 @@ Item {
                                 elide: Text.ElideRight
                                 color: page.root ? page.root.sumi : "#888888"
                                 font.family: page.root ? page.root.mono : "monospace"
-                                font.pixelSize: 9
+                                font.pixelSize: 10
                             }
                         }
                     }
@@ -228,8 +225,10 @@ Item {
             id: previewStage
             z: 1
             anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
+            // Match the route list instead of stretching the full page, or the
+            // stage is mostly empty.
+            anchors.verticalCenter: parent.verticalCenter
+            height: routeColumn.height
             width: Math.max(1, graph.width - routeColumn.width - page.graphGap)
             radius: page.root ? page.root.tileRadius : 6
             color: page.root ? page.root.frameWeak : "#11ffffff"
@@ -270,7 +269,7 @@ Item {
                     text: page.previewRoute ? I18n.tr(page.previewRoute.desc) : ""
                     color: page.root ? page.root.sumi : "#888888"
                     font.family: page.root ? page.root.mono : "monospace"
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                 }
             }
         }

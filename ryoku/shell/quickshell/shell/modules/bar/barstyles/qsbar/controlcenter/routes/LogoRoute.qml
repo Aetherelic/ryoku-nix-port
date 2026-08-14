@@ -15,6 +15,7 @@ Item {
     readonly property string mode: page.root ? String(page.root.launcherLogoMode || "text") : "text"
 
     Flickable {
+        id: flick
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight
@@ -30,15 +31,7 @@ Item {
                 width: parent.width
                 root: page.root
                 title: I18n.tr("LAUNCHER MARK")
-
-                UiText {
-                    width: parent.width
-                    text: I18n.tr("Pick the mark shown in the bar launcher pill.")
-                    color: page.root ? page.root.sumi : "#888888"
-                    font.family: page.root ? page.root.mono : "monospace"
-                    font.pixelSize: 11
-                    wrapMode: Text.WordWrap
-                }
+                desc: I18n.tr("Pick the mark shown in the bar launcher pill")
 
                 Row {
                     width: parent.width
@@ -62,9 +55,10 @@ Item {
                             color: page.root
                                 ? (selected || cardMa.containsMouse ? page.root.fillHover : page.root.fillIdle)
                                 : "#1a1a1a"
-                            border.width: selected ? 1.5 : 1
+                            border.width: selected ? 2 : 1
                             border.color: page.root
-                                ? (selected ? page.root.seal : page.root.frameWeak)
+                                ? (selected ? page.root.seal
+                                   : (cardMa.containsMouse ? Qt.rgba(page.root.ink.r, page.root.ink.g, page.root.ink.b, 0.28) : page.root.sep))
                                 : "#333333"
 
                             Behavior on border.color { ColorAnimation { duration: 160 } }
@@ -92,6 +86,7 @@ Item {
                                     font.family: markCard.iconMode
                                         ? "Noto Sans CJK JP"
                                         : (page.root ? page.root.mono : "monospace")
+                                    // Matches LauncherWidget's real mark size per mode.
                                     font.pixelSize: markCard.iconMode ? 15 : 12
                                     font.weight: Font.Bold
                                     font.letterSpacing: markCard.iconMode ? 0 : 2
@@ -107,9 +102,9 @@ Item {
                                     ? (markCard.selected ? page.root.seal : page.root.ink)
                                     : "#cccccc"
                                 font.family: page.root ? page.root.mono : "monospace"
-                                font.pixelSize: 11
+                                font.pixelSize: 12
                                 font.letterSpacing: 1
-                                font.weight: Font.DemiBold
+                                font.weight: markCard.selected ? Font.DemiBold : Font.Normal
                             }
 
                             MouseArea {
@@ -127,4 +122,6 @@ Item {
             }
         }
     }
+
+    CcScrollRail { root: page.root; flick: flick; z: 5 }
 }

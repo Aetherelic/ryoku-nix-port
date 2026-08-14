@@ -152,7 +152,7 @@ Item {
                 : (wc.colorable && page.root.widgetHasFill(wc.gid))
                     ? page.root.widgetAssignedColor(wc.gid)
                     : (wc.shown ? page.root.ink : page.root.sumi)
-            font.pixelSize: 15
+            font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 120 } }
         }
 
@@ -175,7 +175,7 @@ Item {
         }
 
         // palette chip → opens the accent popover for this group
-        Item {
+        Rectangle {
             id: colorChipHolder
             anchors.right: parent.right
             anchors.rightMargin: 7
@@ -184,19 +184,28 @@ Item {
             width: 24
             height: 24
             visible: wc.colorable
+            readonly property bool assigned: wc.colorable && page.root && page.root.widgetHasFill(wc.gid)
+            radius: page.root ? page.root.tileRadius : 4
+            color: !page.root ? "transparent"
+                : assigned
+                    ? Qt.rgba(page.root.seal.r, page.root.seal.g, page.root.seal.b, 0.16)
+                    : (colorMa.containsMouse || wc.menuOpen) ? page.root.fillHover : page.root.fillIdle
+            border.width: 1
+            border.color: !page.root ? "transparent"
+                : (assigned || wc.menuOpen) ? page.root.seal : page.root.sep
+            Behavior on color { ColorAnimation { duration: 120 } }
+            Behavior on border.color { ColorAnimation { duration: 120 } }
 
             IconText {
                 anchors.centerIn: parent
                 text: "palette"
-                color: (wc.colorable && page.root.widgetHasFill(wc.gid))
+                color: colorChipHolder.assigned
                     ? page.root.widgetAssignedColor(wc.gid)
                     : (page.root
                         ? (colorMa.containsMouse || wc.menuOpen ? page.root.seal : page.root.sumiHi)
                         : "#888888")
-                font.pixelSize: 14
-                scale: colorMa.containsMouse ? 1.08 : 1.0
+                font.pixelSize: 12
                 Behavior on color { ColorAnimation { duration: 120 } }
-                Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
             }
             MouseArea {
                 id: colorMa
@@ -263,15 +272,7 @@ Item {
                 width: contentCol.width
                 root: page.root
                 title: I18n.tr("WIDGETS")
-
-                UiText {
-                    width: parent.width
-                    text: I18n.tr("On · Off sets visibility · palette assigns an accent · density chip · Split gives the widget its own island")
-                    color: page.root ? page.root.sumi : "#888888"
-                    font.family: page.root ? page.root.mono : "monospace"
-                    font.pixelSize: 10
-                    elide: Text.ElideRight
-                }
+                desc: I18n.tr("On · Off sets visibility · palette assigns an accent · density chip · Split gives the widget its own island")
 
                 // Bento: as many equal-width cards per row as the panel can hold.
                 Grid {
@@ -311,6 +312,7 @@ Item {
                 width: contentCol.width
                 root: page.root
                 title: I18n.tr("AI USAGE")
+                desc: I18n.tr("Which coding-agent meter the AI pill tracks")
                 visible: page.boolOf("modClaude")
 
                 CcSeg {
@@ -328,6 +330,7 @@ Item {
                 width: contentCol.width
                 root: page.root
                 title: I18n.tr("TEMPERATURE")
+                desc: I18n.tr("Which sensor the CPU temperature widget reads")
                 visible: page.boolOf("modCpuTemperature")
 
                 CcSeg {
@@ -366,7 +369,7 @@ Item {
                 UiText {
                     text: grow.glabel
                     color: page.root.sumiHi
-                    font.family: page.root.mono; font.pixelSize: 9; font.letterSpacing: 0.7
+                    font.family: page.root.mono; font.pixelSize: 10; font.letterSpacing: 0.7
                 }
                 Row {
                     width: parent.width
@@ -377,17 +380,18 @@ Item {
                             required property var modelData
                             readonly property bool sel: page.root.widgetGeomOf(page.colorGid)[grow.gkey] === modelData.v
                             width: page.root.evenW((grow.width - (grow.opts.length - 1) * 4) / grow.opts.length)
-                            height: 22
+                            height: 28
                             radius: page.root.tileRadius
-                            color: sel ? page.root.fillActive : gma.containsMouse ? page.root.fillHover : "transparent"
-                            border.color: sel || gma.containsMouse ? page.root.seal : page.root.sep
+                            color: sel ? Qt.rgba(page.root.seal.r, page.root.seal.g, page.root.seal.b, 0.16)
+                                : gma.containsMouse ? page.root.fillHover : "transparent"
+                            border.color: sel ? page.root.seal : page.root.sep
                             border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
                             UiText {
                                 anchors.centerIn: parent
                                 text: modelData.label
                                 color: parent.sel ? page.root.seal : page.root.ink
-                                font.family: page.root.mono; font.pixelSize: 9
+                                font.family: page.root.mono; font.pixelSize: 10
                             }
                             MouseArea {
                                 id: gma
@@ -401,8 +405,12 @@ Item {
                 }
             }
 
-            // scrim: click anywhere outside to dismiss
-            MouseArea { anchors.fill: parent; onClicked: { page.colorGid = ""; page.colorLabel = "" } }
+            // dim backdrop: click outside to dismiss
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.38)
+                MouseArea { anchors.fill: parent; onClicked: { page.colorGid = ""; page.colorLabel = "" } }
+            }
 
             Rectangle {
                 id: menu
@@ -432,7 +440,7 @@ Item {
                             text: page.colorLabel.toUpperCase() + I18n.tr(" APPEARANCE")
                             color: page.root.sumiHi
                             font.family: page.root.mono
-                            font.pixelSize: 9
+                            font.pixelSize: 12
                             font.letterSpacing: 0.7
                         }
                         UiText {
@@ -441,7 +449,7 @@ Item {
                             text: (page.root.widgetPaletteId(page.colorGid) === "inherit" && !page.root.widgetGeomCustomized(page.colorGid)) ? I18n.tr("INHERIT") : I18n.tr("RESET")
                             color: resetMa.containsMouse ? page.root.seal : page.root.sumiHi
                             font.family: page.root.mono
-                            font.pixelSize: 9
+                            font.pixelSize: 10
                         }
                         MouseArea {
                             id: resetMa
@@ -482,7 +490,7 @@ Item {
                                     text: modelData === "foreground" ? I18n.tr("F") : modelData.slice(-1)
                                     color: page.root.paletteContrastColor(modelData)
                                     font.family: page.root.mono
-                                    font.pixelSize: 8
+                                    font.pixelSize: 10
                                     font.weight: Font.Medium
                                 }
                                 Rectangle {
@@ -562,7 +570,7 @@ Item {
                                     text: I18n.tr(modelData.label)
                                     color: parent.selected ? page.root.seal : page.root.ink
                                     font.family: page.root.mono
-                                    font.pixelSize: 9
+                                    font.pixelSize: 10
                                 }
                                 MouseArea {
                                     id: toneMa
@@ -584,15 +592,17 @@ Item {
                     GeomRow {
                         glabel: "CORNERS"
                         gkey: "radius"
-                        opts: [{ v: 0, label: "Sharp" }, { v: 4, label: "Soft" }, { v: 8, label: "Round" }, { v: 12, label: "Pill" }]
+                        opts: [{ v: 0, label: "0" }, { v: 4, label: "4" }, { v: 8, label: "8" }, { v: 12, label: "12" }]
                     }
                     GeomRow {
                         glabel: "PADDING"
                         gkey: "pad"
-                        opts: [{ v: 0, label: "None" }, { v: 2, label: "S" }, { v: 4, label: "M" }, { v: 6, label: "L" }]
+                        opts: [{ v: 0, label: "0" }, { v: 2, label: "2" }, { v: 4, label: "4" }, { v: 6, label: "6" }]
                     }
                 }
             }
         }
     }
+
+    CcScrollRail { root: page.root; flick: flick; z: 5 }
 }

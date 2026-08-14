@@ -19,13 +19,17 @@ Item {
     // ── token shortcuts (all from root; fallbacks only while root is null) ──
     readonly property color fg: root ? root.ink : "#cccccc"
     readonly property color acc: root ? root.seal : "#c4746e"
-    readonly property color danger: root ? root.color01 : "#c4746e"
+    readonly property color danger: root ? root.sealRaw : "#c4746e"
     readonly property color idleFill: root ? root.fillIdle : "#111111"
     readonly property color hoverFill: root ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.06) : "#161616"
     readonly property color idleBorder: root ? root.sep : "#333333"
     readonly property color hoverBorder: root ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.28) : "#444444"
     readonly property int ctlR: root ? root.tileRadius : 6
     readonly property string mono: root ? root.mono : "monospace"
+    readonly property int rowH: 44
+    readonly property int gap: 8
+    readonly property int pad: 12
+    readonly property int deckH: rowH * 4 + gap * 3
 
     // ── state ──
     property int hoveredLeft: -1
@@ -99,7 +103,7 @@ Item {
                 text: ar.modelData.glyph
                 color: ar.confirming ? page.danger : page.fg
                 opacity: 0.88
-                font.pixelSize: 17
+                font.pixelSize: 12
             }
             Column {
                 anchors.verticalCenter: parent.verticalCenter
@@ -131,6 +135,7 @@ Item {
     }
 
     Flickable {
+        id: flick
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.height
@@ -140,13 +145,13 @@ Item {
         Column {
             id: col
             width: parent.width
-            spacing: 12
+            spacing: page.gap
 
             // ── barLanding: live preview of the active bar form → opens Bars ──
             Item {
                 id: barLanding
                 width: parent.width
-                height: 116
+                height: page.rowH * 2 + page.gap * 2
 
                 Rectangle {
                     id: preview
@@ -159,8 +164,8 @@ Item {
 
                     Column {
                         anchors.left: parent.left; anchors.top: parent.top
-                        anchors.leftMargin: 14; anchors.topMargin: 12
-                        anchors.right: parent.right; anchors.rightMargin: 14
+                        anchors.leftMargin: page.pad; anchors.topMargin: page.pad
+                        anchors.right: parent.right; anchors.rightMargin: page.pad
                         spacing: 1
                         UiText {
                             text: I18n.tr("ACTIVE BAR")
@@ -170,14 +175,14 @@ Item {
                         UiText {
                             text: page.formLabel
                             color: page.fg
-                            font.family: page.mono; font.pixelSize: 13; font.weight: Font.DemiBold
+                            font.family: page.mono; font.pixelSize: 12; font.weight: Font.DemiBold
                         }
                     }
                     BarSilhouette {
                         anchors.left: parent.left; anchors.right: parent.right
                         anchors.bottom: parent.bottom
-                        anchors.margins: 12
-                        height: 44
+                        anchors.margins: page.pad
+                        height: page.rowH
                         root: page.root
                         form: page.activeForm
                     }
@@ -195,19 +200,19 @@ Item {
             Item {
                 id: actionDeck
                 width: parent.width
-                height: 176
+                height: page.deckH
 
                 Column {
                     id: leftCol
                     anchors.left: parent.left
                     width: Math.min(270, parent.width * 0.42)
                     height: parent.height
-                    spacing: 5
+                    spacing: page.gap
                     Repeater {
                         model: page.leftActions
                         delegate: ActionRow {
                             side: "left"
-                            height: (leftCol.height - leftCol.spacing * 3) / 4
+                            height: page.rowH
                         }
                     }
                 }
@@ -222,13 +227,13 @@ Item {
                     onPaint: {
                         var ctx = getContext("2d")
                         ctx.reset(); ctx.clearRect(0, 0, width, height)
-                        var rowH = (height - 5 * 3) / 4
+                        var rowH = page.rowH
                         var cx = width / 2
                         var idle = Qt.rgba(page.fg.r, page.fg.g, page.fg.b, 0.18)
                         ctx.beginPath(); ctx.moveTo(cx, rowH / 2); ctx.lineTo(cx, height - rowH / 2)
                         ctx.strokeStyle = idle; ctx.lineWidth = 1; ctx.stroke()
                         for (var i = 0; i < 4; i++) {
-                            var y = rowH / 2 + i * (rowH + 5)
+                            var y = rowH / 2 + i * (rowH + page.gap)
                             var lh = page.hoveredLeft === i
                             var rh = page.hoveredRight === i
                             if (lh) {
@@ -261,16 +266,18 @@ Item {
                     anchors.right: parent.right
                     width: actionDeck.width - leftCol.width - railCanvas.width
                     height: parent.height
-                    spacing: 5
+                    spacing: page.gap
                     Repeater {
                         model: page.rightActions
                         delegate: ActionRow {
                             side: "right"
-                            height: (rightCol.height - rightCol.spacing * 3) / 4
+                            height: page.rowH
                         }
                     }
                 }
             }
         }
     }
+
+    CcScrollRail { root: page.root; flick: flick; z: 5 }
 }

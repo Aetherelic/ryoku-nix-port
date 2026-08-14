@@ -37,7 +37,7 @@ Grid {
                 text: cell.modelData === "foreground" ? I18n.tr("FG") : cell.modelData.slice(-2)
                 color: sw.root.paletteContrastColor(cell.modelData)
                 font.family: sw.root.mono
-                font.pixelSize: 9
+                font.pixelSize: 10
                 font.weight: Font.Medium
             }
             MouseArea {

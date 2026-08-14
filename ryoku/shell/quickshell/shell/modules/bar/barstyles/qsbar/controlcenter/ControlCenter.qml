@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import "../modules"
 import "kit"
 import "kit/Routes.js" as Routes
+import Ryoku.Ui.Singletons
 
 // The Control Center: a large route-based panel that replaces the old compact
 // ControlPanel on BOTH variants. It reads/writes state straight off `root` (the
@@ -180,12 +181,74 @@ PanelWindow {
             }
         }
 
+        // Compact route rail beside an open editor, so every route stays one click
+        // away instead of the editor being a dead end.
+        Column {
+            id: routeRail
+            visible: cc.mode === "configure" && cc.route !== ""
+            anchors {
+                top: chromeCol.bottom; topMargin: tk.gap
+                left: parent.left; leftMargin: tk.pad
+            }
+            width: visible ? 148 : 0
+            spacing: 4
+
+            Repeater {
+                model: Routes.ROUTES
+                delegate: Rectangle {
+                    id: railCard
+                    required property var modelData
+                    readonly property bool on: cc.route === railCard.modelData.id
+                    width: routeRail.width
+                    height: 34
+                    radius: cc.root.tileRadius
+                    color: railCard.on ? cc.root.fillActive
+                        : (railMa.containsMouse ? cc.root.fillHover : "transparent")
+                    border.width: 1
+                    border.color: railCard.on ? cc.root.seal
+                        : (railMa.containsMouse ? cc.root.sep : "transparent")
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+
+                    IconText {
+                        id: railIcon
+                        anchors.left: parent.left
+                        anchors.leftMargin: 9
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: railCard.modelData.icon
+                        color: railCard.on ? cc.root.seal : cc.root.sumiHi
+                        font.pixelSize: 15
+                    }
+                    UiText {
+                        anchors.left: railIcon.right
+                        anchors.leftMargin: 8
+                        anchors.right: parent.right
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: I18n.tr(railCard.modelData.label)
+                        color: railCard.on ? cc.root.ink : cc.root.sumi
+                        font.family: cc.root.mono
+                        font.pixelSize: 12
+                        font.weight: railCard.on ? Font.DemiBold : Font.Normal
+                        elide: Text.ElideRight
+                    }
+                    MouseArea {
+                        id: railMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: cc.route = railCard.modelData.id
+                    }
+                }
+            }
+        }
         PageMotionStage {
             id: stage
             anchors {
                 top: chromeCol.bottom; topMargin: tk.gap
                 left: parent.left; right: parent.right; bottom: parent.bottom
-                leftMargin: tk.pad; rightMargin: tk.pad; bottomMargin: tk.pad
+                leftMargin: tk.pad + (routeRail.visible ? routeRail.width + tk.gap : 0)
+                rightMargin: tk.pad; bottomMargin: tk.pad
             }
             root: cc.root
             cc: cc

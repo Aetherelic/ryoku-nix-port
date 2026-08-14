@@ -1,53 +1,83 @@
 import QtQuick
 import "../../modules"
 
-// A segmented choice. Neutral hover; accent only on the selected option.
-// `options` is a list of strings, or of {key,label} objects.
-Row {
+// A segmented choice. One rounded outer border with clipped one-pixel internal
+// separators, so adjacent options never draw doubled seams. `options` is a list
+// of strings, or of {key,label} objects.
+Rectangle {
     id: seg
+
     property var root
     property var options: []
     property string current: ""
+    property int controlHeight: 28
+
     signal chose(string key)
 
-    spacing: 4
+    implicitWidth: row.implicitWidth
+    implicitHeight: seg.controlHeight
+    width: implicitWidth
+    height: implicitHeight
+    radius: seg.root ? seg.root.tileRadius : 6
+    color: seg.root ? seg.root.fillIdle : "transparent"
+    border.width: 1
+    border.color: seg.root ? seg.root.sep : "transparent"
+    clip: true
 
-    Repeater {
-        model: seg.options
-        delegate: Rectangle {
-            id: opt
-            required property var modelData
-            readonly property string key: (typeof modelData === "string") ? modelData : modelData.key
-            readonly property string lbl: (typeof modelData === "string") ? modelData : (modelData.label || modelData.key)
-            readonly property bool on: seg.current === key
-            readonly property color hf: Qt.rgba(seg.root.ink.r, seg.root.ink.g, seg.root.ink.b, 0.06)
-            readonly property color hb: Qt.rgba(seg.root.ink.r, seg.root.ink.g, seg.root.ink.b, 0.28)
+    Row {
+        id: row
+        height: seg.height
 
-            width: Math.max(46, lblText.implicitWidth + 20)
-            height: 28
-            radius: seg.root.tileRadius
-            color: on ? Qt.rgba(seg.root.seal.r, seg.root.seal.g, seg.root.seal.b, 0.14)
-                      : (ma.containsMouse ? opt.hf : seg.root.fillIdle)
-            border.width: 1
-            border.color: on ? Qt.rgba(seg.root.seal.r, seg.root.seal.g, seg.root.seal.b, 0.52)
-                             : (ma.containsMouse ? opt.hb : seg.root.sep)
-            Behavior on color { ColorAnimation { duration: 120 } }
+        Repeater {
+            model: seg.options
 
-            UiText {
-                id: lblText
-                anchors.centerIn: parent
-                text: opt.lbl
-                color: opt.on ? seg.root.seal : seg.root.ink
-                font.family: seg.root.mono
-                font.pixelSize: 11
-                font.weight: opt.on ? Font.DemiBold : Font.Normal
-            }
-            MouseArea {
-                id: ma
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: seg.chose(opt.key)
+            delegate: Row {
+                id: cell
+                required property var modelData
+                required property int index
+                readonly property string key: (typeof modelData === "string") ? modelData : modelData.key
+                readonly property string lbl: (typeof modelData === "string")
+                    ? modelData : (modelData.label || modelData.key)
+                readonly property bool on: seg.current === cell.key
+
+                height: seg.height
+
+                Rectangle {
+                    visible: cell.index > 0
+                    width: 1
+                    height: seg.height
+                    color: seg.root ? seg.root.sep : "transparent"
+                }
+
+                Rectangle {
+                    height: seg.height
+                    width: Math.max(46, lblText.implicitWidth + 20)
+                    color: !seg.root ? "transparent"
+                        : cell.on
+                            ? Qt.rgba(seg.root.seal.r, seg.root.seal.g, seg.root.seal.b, 0.16)
+                            : (ma.containsMouse
+                                ? Qt.rgba(seg.root.ink.r, seg.root.ink.g, seg.root.ink.b, 0.06)
+                                : "transparent")
+                    Behavior on color { ColorAnimation { duration: 120 } }
+
+                    UiText {
+                        id: lblText
+                        anchors.centerIn: parent
+                        text: cell.lbl
+                        color: !seg.root ? "#888888" : (cell.on ? seg.root.seal : seg.root.ink)
+                        font.family: seg.root ? seg.root.mono : "monospace"
+                        font.pixelSize: 12
+                        font.weight: cell.on ? Font.DemiBold : Font.Normal
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    MouseArea {
+                        id: ma
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: seg.chose(cell.key)
+                    }
+                }
             }
         }
     }

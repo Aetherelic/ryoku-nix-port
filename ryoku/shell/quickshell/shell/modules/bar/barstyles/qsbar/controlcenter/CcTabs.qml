@@ -34,7 +34,7 @@ Row {
                 text: I18n.tr(tab.modelData.label)
                 color: tab.on ? tabs.root.seal : tabs.root.ink
                 font.family: tabs.root.mono
-                font.pixelSize: 11
+                font.pixelSize: 12
                 font.letterSpacing: 1
                 font.weight: tab.on ? Font.DemiBold : Font.Normal
             }

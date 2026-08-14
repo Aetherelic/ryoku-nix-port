@@ -168,7 +168,7 @@ Item {
                     text: I18n.tr("CTRL K")
                     color: search.root ? search.root.sumi : "#888888"
                     font.family: search.root ? search.root.mono : "monospace"
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                     font.letterSpacing: 1
                 }
             }
@@ -252,7 +252,7 @@ Item {
                             color: search.root ? search.root.sumi : "#888888"
                             opacity: 0.6
                             font.family: search.root ? search.root.mono : "monospace"
-                            font.pixelSize: 9
+                            font.pixelSize: 10
                             font.letterSpacing: 0.4
                         }
                     }

@@ -41,7 +41,7 @@ Row {
             text: btn.glyph
             color: stepper.root.ink
             font.family: stepper.root.mono
-            font.pixelSize: 13
+            font.pixelSize: 12
         }
         MouseArea {
             id: btnMa

@@ -71,7 +71,7 @@ Item {
         signal act()
         readonly property color hf: Qt.rgba(page.cInk.r, page.cInk.g, page.cInk.b, 0.06)
         readonly property color hb: Qt.rgba(page.cInk.r, page.cInk.g, page.cInk.b, 0.28)
-        height: 32
+        height: 28
         radius: page.rTile
         color: on ? Qt.rgba(page.cAccent.r, page.cAccent.g, page.cAccent.b, 0.14)
                   : (tileMa.containsMouse ? hf : page.cIdle)
@@ -84,7 +84,7 @@ Item {
             text: parent.caption
             color: parent.on ? page.cAccent : page.cInk
             font.family: page.fontMono
-            font.pixelSize: 11
+            font.pixelSize: 12
             font.weight: parent.on ? Font.DemiBold : Font.Normal
         }
         MouseArea { id: tileMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: parent.act() }
@@ -106,7 +106,7 @@ Item {
             // ── header card: V<n> ACTIVE + active form caption + LIVE dot ──
             Rectangle {
                 width: col.width
-                height: 62
+                height: 64
                 radius: page.rTile
                 color: page.root
                     ? Qt.rgba(page.cAccent.r, page.cAccent.g, page.cAccent.b, 0.09)
@@ -159,7 +159,7 @@ Item {
                         text: page.activeForm.toUpperCase() + I18n.tr(" ACTIVE")
                         color: page.cInk
                         font.family: page.fontMono
-                        font.pixelSize: 18
+                        font.pixelSize: 24
                         font.weight: Font.DemiBold
                         font.letterSpacing: 1
                     }
@@ -169,7 +169,7 @@ Item {
                         color: page.cSumi
                         elide: Text.ElideRight
                         font.family: page.fontMono
-                        font.pixelSize: 11
+                        font.pixelSize: 10
                     }
                 }
             }
@@ -179,6 +179,7 @@ Item {
                 width: col.width
                 root: page.root
                 title: I18n.tr("POSITION")
+                desc: I18n.tr("Anchor the bar to the top or bottom edge")
 
                 CcSeg {
                     root: page.root
@@ -193,6 +194,7 @@ Item {
                 width: col.width
                 root: page.root
                 title: I18n.tr("SURFACE")
+                desc: I18n.tr("Borders, corners, shadow and frost on the bar")
 
                 CcRow {
                     root: page.root
@@ -213,7 +215,7 @@ Item {
                 CcRow {
                     root: page.root
                     label: I18n.tr("Corners")
-                    desc: I18n.tr("Round the bar's corners")
+                    desc: I18n.tr("Round the bar's corners") + " · " + (page.root ? page.root.barCornerRadius : 0) + "px"
                     controlWidth: 150
                     CcSeg {
                         anchors.right: parent.right
@@ -282,6 +284,7 @@ Item {
                 width: col.width
                 root: page.root
                 title: I18n.tr("GAPS")
+                desc: I18n.tr("How far the shell stays off each output edge")
 
                 CcRow {
                     root: page.root
@@ -346,6 +349,7 @@ Item {
                 width: col.width
                 root: page.root
                 title: I18n.tr("BAR FORM")
+                desc: I18n.tr("Pick the bar silhouette")
 
                 Grid {
                     id: formGrid
@@ -451,6 +455,7 @@ Item {
                 width: col.width
                 root: page.root
                 title: I18n.tr("BAR ACCENT")
+                desc: I18n.tr("Tint the bar surface")
 
                 CcSwatchGrid {
                     root: page.root
@@ -465,25 +470,21 @@ Item {
                 width: col.width
                 root: page.root
                 title: I18n.tr("GAP ANIMATION")
+                desc: I18n.tr("The stream flowing in the gaps between widgets")
 
-                UiText {
+                Grid {
+                    id: animGrid
                     width: col.width
-                    text: I18n.tr("The stream flowing in the gaps between widgets · pick a mode")
-                    color: page.cSumi
-                    font.family: page.fontMono
-                    font.pixelSize: 10
-                    wrapMode: Text.WordWrap
-                }
-
-                Flow {
-                    width: col.width
-                    spacing: page.gap
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Off");        on: page.curAnim === 0; onAct: page.setAnim(0) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Stream");     on: page.curAnim === 1; onAct: page.setAnim(1) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Surge");      on: page.curAnim === 2; onAct: page.setAnim(2) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Bolt");       on: page.curAnim === 3; onAct: page.setAnim(3) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Reactor");    on: page.curAnim === 7; onAct: page.setAnim(7) }
-                    AnimTile { width: (col.width - 2 * page.gap) / 3; caption: I18n.tr("Quotes");     on: page.curAnim === 8; onAct: page.setAnim(8) }
+                    columns: 3
+                    columnSpacing: page.gap
+                    rowSpacing: page.gap
+                    readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
+                    AnimTile { width: animGrid.cellW; caption: I18n.tr("Off");        on: page.curAnim === 0; onAct: page.setAnim(0) }
+                    AnimTile { width: animGrid.cellW; caption: I18n.tr("Stream");     on: page.curAnim === 1; onAct: page.setAnim(1) }
+                    AnimTile { width: animGrid.cellW; caption: I18n.tr("Surge");      on: page.curAnim === 2; onAct: page.setAnim(2) }
+                    AnimTile { width: animGrid.cellW; caption: I18n.tr("Bolt");       on: page.curAnim === 3; onAct: page.setAnim(3) }
+                    AnimTile { width: animGrid.cellW; caption: I18n.tr("Reactor");    on: page.curAnim === 7; onAct: page.setAnim(7) }
+                    AnimTile { width: animGrid.cellW; caption: I18n.tr("Quotes");     on: page.curAnim === 8; onAct: page.setAnim(8) }
                 }
             }
 
@@ -516,4 +517,6 @@ Item {
             }
         }
     }
+
+    CcScrollRail { root: page.root; flick: flick; z: 5 }
 }

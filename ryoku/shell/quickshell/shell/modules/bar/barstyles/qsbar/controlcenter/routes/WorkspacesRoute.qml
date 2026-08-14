@@ -24,6 +24,7 @@ Item {
     }
 
     Flickable {
+        id: flick
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight
@@ -39,6 +40,7 @@ Item {
                 width: parent.width
                 root: page.root
                 title: I18n.tr("COUNT")
+                desc: I18n.tr("How many workspaces the bar shows")
                 CcSeg {
                     root: page.root
                     options: [{ key: "active", label: "Active" }, { key: "5", label: "1-5" }, { key: "10", label: "1-10" }]
@@ -51,6 +53,7 @@ Item {
                 width: parent.width
                 root: page.root
                 title: I18n.tr("MARKER")
+                desc: I18n.tr("The shape each workspace uses in the bar")
                 CcSeg {
                     root: page.root
                     options: page.root ? page.root.workspaceStyleOptions : []
@@ -67,7 +70,7 @@ Item {
                 // A bar-like pill wrapping the live marker row, mirroring the
                 // real WorkspaceWidget (default glow+dot / numbers badge / magic glyph).
                 Rectangle {
-                    height: 40
+                    height: 44
                     width: Math.round(previewRow.implicitWidth) + 24
                     radius: page.root ? page.root.pillRadius : 12
                     color: page.root ? page.root.pill : "transparent"
@@ -85,6 +88,7 @@ Item {
                             delegate: Item {
                                 id: cell
                                 required property int modelData
+                                required property int index
                                 readonly property string style: page.root ? page.root.workspaceStyle : "default"
                                 readonly property color seal: page.root ? page.root.seal : "#888888"
                                 readonly property bool isFocused: modelData === 1
@@ -93,6 +97,9 @@ Item {
 
                                 implicitWidth: style === "numbers" ? 22
                                              : style === "magic"   ? (isFocused ? 20 : 18)
+                                             : style === "kanji"   ? 22
+                                             : style === "rings"   ? 20
+                                             : style === "aurora"  ? (isFocused ? 34 : 12)
                                              : (isFocused ? 32 : 16)
                                 implicitHeight: 28
 
@@ -157,9 +164,58 @@ Item {
                                          : cell.isOccupied ? Qt.rgba(cell.seal.r, cell.seal.g, cell.seal.b, 0.7)
                                                            : Qt.rgba(cell.seal.r, cell.seal.g, cell.seal.b, 0.3)
                                     font.family: "Adwaita Mono"
+                                    // Mirrors WorkspaceWidget's real marker sizes; a
+                                    // preview that drifts from the bar is worse than none.
                                     font.pixelSize: cell.isFocused ? 22 : 18
                                     renderType: Text.NativeRendering
                                     Behavior on color { ColorAnimation { duration: 200 } }
+                                }
+
+                                // KANJI - 一..十 numerals
+                                Text {
+                                    visible: cell.style === "kanji"
+                                    anchors.centerIn: parent
+                                    text: ["一", "二", "三", "四", "五"][cell.index] || ""
+                                    color: cell.isFocused  ? cell.seal
+                                         : cell.isOccupied ? Qt.rgba(cell.seal.r, cell.seal.g, cell.seal.b, 0.7)
+                                                           : Qt.rgba(cell.seal.r, cell.seal.g, cell.seal.b, 0.3)
+                                    font.family: "Noto Sans CJK JP"
+                                    font.pixelSize: cell.isFocused ? 15 : 13
+                                    renderType: Text.NativeRendering
+                                }
+
+                                // FRAME - numerals with an outline behind the focused cell
+                                Rectangle {
+                                    visible: cell.style === "rings"
+                                    anchors.centerIn: parent
+                                    width: 20
+                                    height: 20
+                                    radius: page.root ? page.root.tileRadius : 6
+                                    color: "transparent"
+                                    border.width: cell.isFocused ? 1 : 0
+                                    border.color: cell.seal
+                                }
+                                Text {
+                                    visible: cell.style === "rings"
+                                    anchors.centerIn: parent
+                                    text: String(cell.index + 1)
+                                    color: cell.seal
+                                    opacity: cell.isFocused ? 1.0 : cell.isOccupied ? 0.64 : 0.24
+                                    font.family: page.root ? page.root.mono : "monospace"
+                                    font.pixelSize: 12
+                                    renderType: Text.QtRendering
+                                }
+
+                                // AURORA - one flat light streak
+                                Rectangle {
+                                    visible: cell.style === "aurora"
+                                    anchors.centerIn: parent
+                                    width: cell.isFocused ? 28 : (cell.isOccupied ? 6 : 4)
+                                    height: cell.isFocused ? 3 : (cell.isOccupied ? 6 : 4)
+                                    radius: height / 2
+                                    color: cell.seal
+                                    opacity: cell.isFocused ? 0.92 : cell.isOccupied ? 0.62 : 0.18
+                                    antialiasing: true
                                 }
                             }
                         }
@@ -168,4 +224,6 @@ Item {
             }
         }
     }
+
+    CcScrollRail { root: page.root; flick: flick; z: 5 }
 }
