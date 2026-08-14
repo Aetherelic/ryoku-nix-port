@@ -70,9 +70,9 @@ hl.bind(K(mod .. " + mouse:273"), hl.dsp.window.resize(), { mouse = true })
 -- on. Super+Alt+N sends the active window to that slot, staying on this desktop.
 local ws_helper = (os.getenv("HOME") or "") .. "/.config/hypr/scripts/ryoku-workspace"
 
-hl.bind(K(mod .. " + H"),          hl.dsp.workspace.toggle_special("scratch"))     -- toggle the scratchpad (special workspace)
+hl.bind(K(mod .. " + H"),          hl.dsp.exec_cmd(ws_helper .. " hide"))          -- hide the focused window in the scratchpad (press again on it to bring it back)
+hl.bind(K(mod .. " + ALT + H"),    hl.dsp.workspace.toggle_special("scratch"))     -- show or hide the scratchpad (special workspace)
 hl.bind(K(mod .. " + J"),          hl.dsp.workspace.toggle_special("music"))       -- toggle the music scratchpad (special workspace)
-hl.bind(K(mod .. " + SHIFT + H"),  function() hl.dispatch(hl.dsp.window.float({ action = "enable" })); hl.dispatch(hl.dsp.window.resize({ x = 1280, y = 800, exact = true })); hl.dispatch(hl.dsp.window.center()); hl.dispatch(hl.dsp.window.move({ workspace = "special:scratch", silent = true })) end) -- stash the active window in the scratchpad
 hl.bind(K(mod .. " + mouse_up"),   hl.dsp.focus({ workspace = "r-1" }))            -- previous workspace
 hl.bind(K(mod .. " + mouse_down"), hl.dsp.focus({ workspace = "r+1" }))            -- next workspace
 for i = 1, 10 do

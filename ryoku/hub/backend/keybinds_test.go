@@ -53,6 +53,33 @@ func TestParseCategories(t *testing.T) {
 	}
 }
 
+// A section whose comment runs over several lines is one category, titled from
+// its first sentence. Taking every comment line made an empty category per line
+// and filed the real binds under the paragraph's closing sentence, which is what
+// Ryoku Settings showed for Workspaces and the media keys.
+func TestMultiLineSectionHeader(t *testing.T) {
+	l := parseBinds(`
+-- Workspaces. Super+N focuses the Nth workspace OF THE CURRENT DESKTOP (a
+-- desktop is a block of 10 ids; see scripts/ryoku-workspace and the overview).
+-- Super+Alt+N sends the active window to that slot, staying on this desktop.
+local ws_helper = "/x"
+
+hl.bind(K(mod .. " + H"), hl.dsp.exec_cmd(ws_helper .. " hide")) -- hide the focused window
+`)
+	if len(l.Categories) != 1 {
+		t.Fatalf("got %d categories, want 1: %+v", len(l.Categories), l.Categories)
+	}
+	if got := l.Categories[0].Name; got != "Workspaces" {
+		t.Errorf("category = %q, want %q", got, "Workspaces")
+	}
+	if n := len(l.Categories[0].Binds); n != 1 {
+		t.Fatalf("got %d binds, want 1", n)
+	}
+	if got := l.Categories[0].Binds[0].Desc; got != "Hide the focused window" {
+		t.Errorf("desc = %q", got)
+	}
+}
+
 func TestModifiedComboKeys(t *testing.T) {
 	w := find(parseBinds(sampleBinds), "Windows")
 	if w == nil || len(w.Binds) != 2 {

@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Fixed
+- **Ryoku Settings groups keybinds under real section names again.** The legend
+  read binds.lua a line at a time and opened a category on every comment line, so
+  a section whose comment ran over several lines produced one empty category per
+  line and filed its binds under the closing sentence of the paragraph. The
+  Keybinds page listed eight empty groups and put the workspace binds under "on.
+  Super+Alt+N sends the active window to that slot, staying on this desktop."
+  Only the line that opens a comment block titles a category now, cut at its
+  first sentence (`hub/backend/keybinds.go`).
 - **Screen sharing asks which window or display to share again.** Nothing ever
   stops `graphical-session.target`, so `xdg-desktop-portal`, which is only
   `PartOf=` it, survived logout and kept answering for a compositor that had
@@ -72,6 +80,14 @@
   when it does not come back after an update (`hyprland/modules/binds.lua`).
 
 ### Changed
+- **Super+H hides the focused window, Super+Alt+H peeks the scratchpad.** Super+H
+  was the peek and Super+Shift+H the stash, and the stash forced the window
+  floating at 1280x800 centred, so a tiled window never came back to its slot.
+  Super+H is now a round trip: it sends the focused window to the scratchpad, or
+  brings it back when pressed on one already there, leaving geometry alone so
+  hiding works as the minimise Hyprland does not have. Peeking moves to
+  Super+Alt+H and Super+Shift+H is retired
+  (`hyprland/modules/binds.lua`, `hyprland/scripts/ryoku-workspace`).
 - **Super+T opens the Stash Features sidebar.** The floating Features page (the
   Stash board, with room for more panes) now has a keybind, growing from the
   right edge (`ryoku-shell menu stash`); Super+Shift+T (terminal) is unchanged

@@ -50,6 +50,16 @@ var (
 	reExec   = regexp.MustCompile(`exec_cmd\("([^"]*)"`)
 )
 
+// sectionName titles a category from its section comment, cut at the first
+// sentence so a header that goes on to explain itself ("Workspaces. Super+N
+// focuses...") still reads as "Workspaces".
+func sectionName(s string) string {
+	if i := strings.Index(s, ". "); i > 0 {
+		return s[:i]
+	}
+	return strings.TrimSuffix(s, ".")
+}
+
 // parseBinds walks binds.lua a line at a time. section comments (`-- Apps`)
 // open a category; each hl.bind adds an entry, description = the trailing
 // comment if present, else derived from the dispatcher. the 1..0 workspace
@@ -58,6 +68,7 @@ func parseBinds(src string) legend {
 	var cats []category
 	cur := -1
 	inLoop := false
+	prevComment := false
 
 	add := func(b bind) {
 		if cur < 0 {
@@ -80,12 +91,19 @@ func parseBinds(src string) legend {
 		}
 
 		if !strings.Contains(trimmed, "hl.bind(") {
-			if m := reHeader.FindStringSubmatch(trimmed); m != nil {
-				cats = append(cats, category{Name: m[1]})
+			m := reHeader.FindStringSubmatch(trimmed)
+			// Only the line that OPENS a comment block titles a category: the
+			// continuation lines of a section's explanation are prose, and taking
+			// each one made empty categories and left the real binds under the
+			// last sentence of the paragraph above them.
+			if m != nil && !prevComment {
+				cats = append(cats, category{Name: sectionName(m[1])})
 				cur = len(cats) - 1
 			}
+			prevComment = m != nil
 			continue
 		}
+		prevComment = false
 
 		comment := ""
 		if m := reTrail.FindStringSubmatch(line); m != nil {
