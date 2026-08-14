@@ -942,7 +942,6 @@ PanelWindow {
             id: statusGroup
             readonly property real barContentLeftInset: barSlot.root.v2IconGroupPadding
             readonly property real barContentRightInset: barSlot.root.v2IconGroupPadding
-            readonly property real archCaretX: statusRow.x + archWidget.x + archWidget.width / 2
             readonly property real trayCaretX: statusRow.x + statusTrayRow.x + trayWidget.x + trayWidget.width / 2
             readonly property real notifCaretX: statusRow.x + statusTrayRow.x + notifWidget.x + notifWidget.width / 2
             visible: implicitWidth > 0.5
@@ -958,7 +957,6 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 x: Math.round((parent.width - width) / 2)
                 spacing: barSlot.root.v2InlineSpacing
-                ArchUpdaterWidget  { id: archWidget; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                 Row {
                     id: statusTrayRow
                     anchors.verticalCenter: parent.verticalCenter
@@ -1023,19 +1021,6 @@ PanelWindow {
             root: barSlot.root
             readonly property real barContentLeftInset: 9
             readonly property real barContentRightInset: 9
-        }
-    }
-    Component {
-        id: compShellFallbackUpdater
-        Item {
-            width: 26
-            height: 28
-            ArchUpdaterWidget {
-                root: barSlot.root
-                colorGid: "G8"
-                preferShell: true
-                anchors.centerIn: parent
-            }
         }
     }
 
@@ -1165,28 +1150,17 @@ PanelWindow {
                         id: iconsRow
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: barSlot.root.v2InlineSpacing
-                        readonly property bool shellFallbackActive: !barSlot.root.modStatus
-                            && (barSlot.root.shellUpdateBehind > 0 || barSlot.root.shellUpdateProgressVisible)
                         readonly property bool hasActive: idleInd.awake
                             || dndInd.silenced
                             || screenRecInd.recording
                             || voxInd.state === "recording"
                             || voxInd.state === "transcribing"
                             || omarchyUpdateInd.updateAvailable
-                            || shellFallbackActive
                         IdleWidget               { id: idleInd;          root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         NotificationSilenceWidget{ id: dndInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         ScreenRecordWidget       { id: screenRecInd;     root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         VoxtypeWidget            { id: voxInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         UpdateWidget             { id: omarchyUpdateInd; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
-                        Loader {
-                            visible: iconsRow.shellFallbackActive || width > 0.5
-                            active: iconsRow.shellFallbackActive
-                            width: iconsRow.shellFallbackActive ? 26 : 0
-                            height: 28
-                            sourceComponent: compShellFallbackUpdater
-                            Behavior on width { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-                        }
                     }
                 }
             }
@@ -2238,8 +2212,6 @@ PanelWindow {
                 storage:      island.groupX("G18", 0.5),
                 ai:           island.groupX("G7",  0.5),
                 workspace:    island.groupX("G2",  0.5),
-                arch:         island.groupX("G3",  0.5),
-                archCaret:    island.groupContentX("G3", "archCaretX", 0.5),
                 bluetooth:    island.groupX("G15", 0.5),
                 brightness:   island.groupX("G13", 0.5),
                 power:        island.groupX("G14", 0.5),

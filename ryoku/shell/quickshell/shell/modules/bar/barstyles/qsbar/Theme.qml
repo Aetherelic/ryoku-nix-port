@@ -167,7 +167,7 @@ Item {
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
-        || powerProfileVisible || storageVisible || archVisible || trayVisible || trayMenuVisible
+        || powerProfileVisible || storageVisible || trayVisible || trayMenuVisible
     readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible
 
     function registerBarLayoutController(screenName, controller) {
@@ -347,8 +347,6 @@ Item {
         else if (name === "storage") storageBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
-        else if (name === "arch") archBarX = x
-        else if (name === "archCaret") archCaretBarX = x
         else if (name === "bluetooth") bluetoothBarX = x
         else if (name === "brightness") brightnessBarX = x
         else if (name === "power") powerBarX = x
@@ -416,7 +414,6 @@ Item {
         if (except !== "notifVisible") notifVisible = false
         if (except !== "powerProfileVisible") powerProfileVisible = false
         if (except !== "storageVisible") storageVisible = false
-        if (except !== "archVisible") archVisible = false
         if (except !== "trayVisible") trayVisible = false
         if (except !== "trayMenuVisible") trayMenuVisible = false
         hideTooltip()
@@ -2536,9 +2533,6 @@ Item {
     onLauncherLogoIconChanged: if (_widgetsLoaded) saveWidgets()
     onWeatherImperialChanged: if (_widgetsLoaded) saveWidgets()
     onClock12hChanged:        if (_widgetsLoaded) saveWidgets()
-    onArchBadgePackagesChanged: if (_widgetsLoaded) saveWidgets()
-    onArchBadgeThemesChanged:   if (_widgetsLoaded) saveWidgets()
-    onArchBadgeShellChanged:    if (_widgetsLoaded) saveWidgets()
     onWorkspaceStyleChanged:   if (_widgetsLoaded) saveWidgets()
     onBarPositionChanged:      if (_widgetsLoaded) saveWidgets()
     onBarShellStyleChanged:    if (_widgetsLoaded) saveWidgets()
@@ -2581,10 +2575,10 @@ Item {
                  + launcherLogoMode + " "                 // +18 launcher logo mode (text/icon)
                  + launcherLogoText + " "                 // +19 text logo id
                  + launcherLogoIcon + " "                 // +20 icon logo id
-                 + (archBadgePackages ? "1" : "0") + " "  // +21 updater package badge
-                 + (archBadgeThemes   ? "1" : "0") + " "  // +22 updater clean-theme badge
+                 + "0 "                                     // +21 retired updater package badge
+                 + "0 "                                     // +22 retired updater clean-theme badge
                  + "1 1 1 1 1 1 1 1 "                       // +23..+30 legacy compact fields; V2 is always compact
-                 + (archBadgeShell    ? "1" : "0") + " "  // +31 updater shell badge
+                 + "0 "                                     // +31 retired updater shell badge
                  + barColor + " "                            // +32 V2 bar accent source
                  + (modGpu            ? "1" : "0") + " "  // +33 GPU load
                  + (modCpuTemperature ? "1" : "0") + " "  // +34 CPU temperature
@@ -2761,11 +2755,10 @@ Item {
                             theme.launcherLogoText = lm
                         }
                     }
-                    if (parts.length > wsField + 21) theme.archBadgePackages = parts[wsField + 21] !== "0"
-                    if (parts.length > wsField + 22) theme.archBadgeThemes   = parts[wsField + 22] !== "0"
+                    // +21/+22 retired updater package/clean-theme badges.
                     // +23..+30 are retained only as cache-schema placeholders.
                     // V2 has one compact presentation and deliberately ignores them.
-                    if (parts.length > wsField + 31) theme.archBadgeShell    = parts[wsField + 31] !== "0"
+                    // +31 retired updater shell badge.
                     if (parts.length > wsField + 32 && theme.barColorValid(parts[wsField + 32]))
                         theme.barColor = theme.normalizedPaletteId(parts[wsField + 32])
                     if (parts.length > wsField + 33) theme.modGpu = parts[wsField + 33] !== "0"
@@ -3032,320 +3025,9 @@ Item {
             Hyprland.dispatch("workspace " + id)
     }
 
-    // ── Arch Updater state ──
-    property bool archVisible: false
-    onArchVisibleChanged: popupOpened("archVisible")
-    property var archUpdates: []
-    property int archRefreshTick: 0
-    property string archScanId: ""
-    property int archScanCheckedEpoch: 0
-    property string archScanHash: ""
-    property int archScanSystemCount: 0
-    readonly property int archScanMaxAge: 900
-
-    // ── Arch security gate (pre-install verdict per package) ──
-    // idle | scanning | clean | warn | blocked | degraded
-    property string archGateState: "idle"
-    property var    archGateResults: []   // [{pkg,repo,old,new,verdict,reason}]
-    property int    archGateOk: 0
-    property int    archGateWarn: 0
-    property int    archGateFail: 0
-    property int    archGateBlacklist: 0
-    property bool   archGateDegraded: false
-    property string archGateListDate: ""   // freshest blacklist date (meta updated_at, else mtime)
-    property bool   archGateStale: false          // protection list older than the gate's stale window
-    property bool   archGateMirrorsAgree: false   // both feed mirrors produced an identical list
-    property bool   archGateMirrorMismatch: false // feeds diverged → using their union, flagged
-
-    // Manual retry, e.g. on panel open: a degraded verdict can be a transient
-    // (blacklist file mid-update at scan time) and must not stick until the
-    // next refresh.
-    function archGateRescan() { theme.applyBenignArchGate() }
-
-    // Ryoku has no per-package security gate: applying is owned by `ryoku update`
-    // (the panel's Ryoku-updater backend), and upstream's qs-arch-security-gate.sh
-    // is not shipped. Keep the advisory gate benignly "clean" - mirror each pending
-    // update as an OK verdict - so the panel never shows a false scanning/degraded
-    // state from a scan that no longer runs.
-    onArchUpdatesChanged: theme.applyBenignArchGate()
-    function applyBenignArchGate() {
-        var ups = theme.archUpdates || []
-        var results = []
-        for (var i = 0; i < ups.length; i++) {
-            var u = ups[i] || {}
-            results.push({ pkg: u.name, repo: (u.source === "aur") ? "aur" : "system",
-                           old: u.oldVer || "", new: u.newVer || "", verdict: "OK", reason: "" })
-        }
-        theme.archGateResults = results
-        theme.archGateOk = ups.length
-        theme.archGateWarn = 0
-        theme.archGateFail = 0
-        theme.archGateBlacklist = 0
-        theme.archGateDegraded = false
-        theme.archGateStale = false
-        theme.archGateMirrorsAgree = false
-        theme.archGateMirrorMismatch = false
-        theme.archGateState = "clean"
-    }
-
-    // ── Shell Updater state (shared by ArchUpdaterWidget and ShellUpdateTab) ──
-    property int  shellUpdateBehind: 0
-    property var  shellUpdateSummary: []
-    property string shellUpdateVersion: ""
-    property string shellUpdateChecked: ""
-    property string shellUpdateBaseCommit: ""
-    property string shellUpdateTargetCommit: ""
-    property string shellUpdateRepository: ""
-    property string shellUpdateUpstreamRef: ""
-    property string shellInstalledCommit: ""
-    property bool shellUpdateChecking: false
-    property string shellProgressRunId: ""
-    property string shellProgressState: "idle"
-    property string shellProgressPhase: ""
-    property int shellProgressStep: 0
-    property int shellProgressTotalSteps: 5
-    property string shellProgressTargetCommit: ""
-    property int shellProgressStartedEpoch: 0
-    property int shellProgressUpdatedEpoch: 0
-    property string shellProgressScreenName: ""
-    property string shellProgressError: ""
-    property bool shellProgressAcknowledged: true
-    property bool shellProgressPanelOpen: true
-    property int shellProgressNowEpoch: Math.floor(Date.now() / 1000)
-    property string _shellProgressCompleteRunId: ""
-    readonly property bool shellProgressInterrupted: shellProgressState === "running"
-        && shellProgressUpdatedEpoch > 0
-        && shellProgressNowEpoch - shellProgressUpdatedEpoch > 600
-    readonly property bool shellProgressRunning: shellProgressState === "running" && !shellProgressInterrupted
-    readonly property bool shellProgressFailed: shellProgressState === "failed"
-    readonly property bool shellProgressCompleted: shellProgressState === "completed" && !shellProgressAcknowledged
-    readonly property bool shellUpdateProgressVisible: shellProgressRunning
-        || shellProgressFailed || shellProgressCompleted || shellProgressInterrupted
-
-    function updateShellProgressClock() {
-        shellProgressNowEpoch = Math.floor(Date.now() / 1000)
-    }
-
-    function resetShellProgress() {
-        shellProgressRunId = ""
-        shellProgressState = "idle"
-        shellProgressPhase = ""
-        shellProgressStep = 0
-        shellProgressTotalSteps = 5
-        shellProgressTargetCommit = ""
-        shellProgressStartedEpoch = 0
-        shellProgressUpdatedEpoch = 0
-        shellProgressScreenName = ""
-        shellProgressError = ""
-        shellProgressAcknowledged = true
-        shellProgressPanelOpen = true
-    }
-
-    function openShellProgressPanel() {
-        activatePopupScreenByName(shellProgressScreenName)
-        activeUpdateTab = "shell"
-        archVisible = true
-    }
-
-    function resetShellUpdateState() {
-        shellUpdateBehind = 0
-        shellUpdateSummary = []
-        shellUpdateVersion = ""
-        shellUpdateChecked = ""
-        shellUpdateBaseCommit = ""
-        shellUpdateTargetCommit = ""
-        shellUpdateRepository = ""
-        shellUpdateUpstreamRef = ""
-    }
-
-    function parseShellUpdateState(raw) {
-        try {
-            var j = JSON.parse(raw)
-            if (j.schemaVersion !== 5) {
-                resetShellUpdateState()
-                return
-            }
-            shellUpdateBehind = j.behind || 0
-            shellUpdateSummary = j.summary || []
-            shellUpdateVersion = j.version || ""
-            shellUpdateChecked = j.checked || ""
-            shellUpdateBaseCommit = j.baseCommit || ""
-            shellUpdateTargetCommit = j.targetCommit || ""
-            shellUpdateRepository = j.repository || ""
-            shellUpdateUpstreamRef = j.upstreamRef || ""
-        } catch (e) {
-            resetShellUpdateState()
-        }
-    }
-
-    function parseShellInstalledCommit(raw) {
-        shellInstalledCommit = raw.trim()
-    }
-
-    function parseShellProgress(raw) {
-        try {
-            var j = JSON.parse(raw)
-            if (j.schemaVersion !== 1) {
-                resetShellProgress()
-                return
-            }
-
-            shellProgressRunId = j.runId || ""
-            shellProgressState = j.state || "idle"
-            shellProgressPhase = j.phase || ""
-            shellProgressStep = j.step || 0
-            shellProgressTotalSteps = j.totalSteps || 5
-            shellProgressTargetCommit = j.targetCommit || ""
-            shellProgressStartedEpoch = j.startedEpoch || 0
-            shellProgressUpdatedEpoch = j.updatedEpoch || 0
-            shellProgressScreenName = j.screenName || ""
-            shellProgressError = j.error || ""
-            shellProgressAcknowledged = j.acknowledged === true
-            shellProgressPanelOpen = j.panelOpen !== false
-            updateShellProgressClock()
-
-            if (shellUpdateProgressVisible && shellProgressPanelOpen) openShellProgressPanel()
-            if (shellProgressRunning
-                    && shellProgressPhase === "restarting"
-                    && shellProgressRunId !== ""
-                    && _shellProgressCompleteRunId !== shellProgressRunId) {
-                _shellProgressCompleteRunId = shellProgressRunId
-                shellProgressCompleteProc.command = [
-                    "bash",
-                    Quickshell.env("HOME") + "/.config/quickshell/bin/qs-shell-apply-update.sh",
-                    "--complete-progress",
-                    shellProgressRunId
-                ]
-                shellProgressCompleteProc.running = false
-                shellProgressCompleteProc.running = true
-            }
-        } catch (e) {
-            resetShellProgress()
-        }
-    }
-
-    function ackShellProgress() {
-        if (!shellProgressRunId) return
-        shellProgressAckProc.command = [
-            "bash",
-            Quickshell.env("HOME") + "/.config/quickshell/bin/qs-shell-apply-update.sh",
-            "--ack-progress",
-            shellProgressRunId
-        ]
-        shellProgressAckProc.running = false
-        shellProgressAckProc.running = true
-    }
-
-    function setShellProgressPanelOpen(open) {
-        if (!shellProgressRunId || !shellUpdateProgressVisible) return
-        shellProgressPanelOpen = open
-        shellProgressPanelProc.command = [
-            "bash",
-            Quickshell.env("HOME") + "/.config/quickshell/bin/qs-shell-apply-update.sh",
-            "--progress-panel",
-            shellProgressRunId,
-            open ? "open" : "closed"
-        ]
-        shellProgressPanelProc.running = false
-        shellProgressPanelProc.running = true
-    }
-
-    function closeArchUpdatesPanel() {
-        if (shellUpdateProgressVisible) setShellProgressPanelOpen(false)
-        archVisible = false
-    }
-
-    function showShellUpdateTabFromWidget() {
-        if (shellUpdateProgressVisible) setShellProgressPanelOpen(true)
-        activeUpdateTab = "shell"
-        archVisible = true
-    }
-
-    function reloadShellUpdateState() {
-        shellUpdateStateFile.reload()
-        shellInstalledCommitFile.reload()
-        shellProgressFile.reload()
-    }
-
-    Timer {
-        interval: 15000
-        running: shellProgressState === "running"
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: updateShellProgressClock()
-    }
-
-    FileView {
-        id: shellUpdateStateFile
-        path: Quickshell.env("HOME") + "/.cache/qs-shell/update-available.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: shellUpdateStateFile.reload()
-        onLoaded: parseShellUpdateState(shellUpdateStateFile.text())
-        onLoadFailed: resetShellUpdateState()
-    }
-
-    FileView {
-        id: shellInstalledCommitFile
-        path: Quickshell.env("HOME") + "/.config/quickshell/bar/.qsrise-commit"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: shellInstalledCommitFile.reload()
-        onLoaded: parseShellInstalledCommit(shellInstalledCommitFile.text())
-        onLoadFailed: shellInstalledCommit = ""
-    }
-
-    FileView {
-        id: shellProgressFile
-        path: Quickshell.env("HOME") + "/.cache/qs-shell/apply-status.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: shellProgressFile.reload()
-        onLoaded: parseShellProgress(shellProgressFile.text())
-        onLoadFailed: resetShellProgress()
-    }
-
-    Process {
-        id: shellProgressCompleteProc
-        command: ["true"]
-        onExited: shellProgressFile.reload()
-    }
-
-    Process {
-        id: shellProgressAckProc
-        command: ["true"]
-        onExited: {
-            shellProgressFile.reload()
-            archVisible = false
-        }
-    }
-
-    Process {
-        id: shellProgressPanelProc
-        command: ["true"]
-        onExited: shellProgressFile.reload()
-    }
-
-    // ── Theme Updater state (fed by ArchUpdaterPanel's FileView over
-    //    ~/.cache/qs-theme-updates.json; the panel owns the check Process so it
-    //    runs ONCE, not per-monitor). The bar/tooltip only read these counts;
-    //    the panel renders themeUpdList. Theme updates run in a visible terminal
-    //    through qs-theme-apply-update.sh and are pinned to the checked target
-    //    commit. ──
-    property int    themeUpdOutdated: 0
-    property int    themeUpdLocalEdits: 0
-    property int    themeUpdTotal: 0
-    property int    themeUpdReachable: 0
-    property bool   themeUpdDegraded: false
-    property bool   themeUpdCurrentStale: false
-    property string themeUpdChecked: ""      // ISO timestamp of the last check, "" = never
-    property var    themeUpdList: []          // outdated/unreachable entries shown in the panel
-    property bool   themeUpdChecking: false   // a check is in flight (button disabled)
-    property int    themeCheckTick: 0         // ++ from the panel button to trigger a check
-    property string activeUpdateTab: "packages"   // which ArchUpdaterPanel tab is shown
-    property bool   archBadgePackages: true   // package count badge on the bar updater icon
-    property bool   archBadgeThemes: true     // clean-theme count badge on the bar updater icon
-    property bool   archBadgeShell: true      // shell-update badge on the bar updater icon
+    // Bumped by the ryoku.system-update IPC after `ryoku update` finishes so the
+    // clock's UpdateWidget re-polls its status instead of waiting for its cycle.
+    property int updateRefreshTick: 0
 
     // ── Tray state ──
     property bool trayVisible: false
@@ -3365,8 +3047,6 @@ Item {
     property real storageBarX:    0
     property real aiBarX:         0
     property real workspaceBarX:  0
-    property real archBarX:       0
-    property real archCaretBarX:  archBarX
     property real notifCaretBarX: notifBarX
     property real bluetoothBarX:  0
     property real brightnessBarX: 0
@@ -3383,7 +3063,7 @@ Item {
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || notifVisible || powerProfileVisible || storageVisible
-        || archVisible || trayVisible
+        || trayVisible
 
     // Preserve the panel surface's actually rendered tip while it closes so
     // the matching bar notch retracts at the same point. Edge panels clamp the

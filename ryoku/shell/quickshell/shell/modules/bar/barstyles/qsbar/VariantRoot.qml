@@ -28,7 +28,7 @@ Item {
     function closePopups() { theme.closePopups() }
     function layoutLock() { theme.barUnlocked = false }
     function layoutUnlock() { theme.barUnlocked = true }
-    function systemUpdateRefresh() { theme.archRefreshTick++ }
+    function systemUpdateRefresh() { theme.updateRefreshTick++ }
     function runReactor(kind, arg) { theme.reactorTest(kind, arg) }
     function applyTheme(payload) { theme.ipcApplyTheme(payload) }
     function applyLauncher(payload) { theme.ipcApplyLauncher(payload) }
@@ -229,7 +229,6 @@ Item {
 
     TooltipOverlay { root: theme }
     CalendarPopup { root: theme }
-    ArchUpdaterPanel { root: theme }
     PowerProfilePanel { root: theme }
     MemoryPanel { root: theme }
     CpuPanel { root: theme }

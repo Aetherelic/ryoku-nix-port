@@ -1,6 +1,5 @@
 AiBarInset AiBarInset.qml
 AiPanelSurface AiPanelSurface.qml
-ArchUpdaterWidget ArchUpdaterWidget.qml
 AudioData AudioData.qml
 AudioWidget AudioWidget.qml
 BatteryWidget BatteryWidget.qml

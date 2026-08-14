@@ -1,5 +1,4 @@
 AiUsagePanel AiUsagePanel.qml
-ArchUpdaterPanel ArchUpdaterPanel.qml
 BatteryPanel BatteryPanel.qml
 BluetoothPanel BluetoothPanel.qml
 BrightnessPanel BrightnessPanel.qml
@@ -19,7 +18,6 @@ NetworkManagerAdapter NetworkManagerAdapter.qml
 NetworkPanel NetworkPanel.qml
 NotificationPanel NotificationPanel.qml
 PowerProfilePanel PowerProfilePanel.qml
-ShellUpdateTab ShellUpdateTab.qml
 StoragePanel StoragePanel.qml
 ThermalsPanel ThermalsPanel.qml
 TooltipOverlay TooltipOverlay.qml
