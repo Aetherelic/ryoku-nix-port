@@ -314,14 +314,14 @@ Item {
                 width: contentCol.width
                 root: page.root
                 title: I18n.tr("AI USAGE")
-                desc: I18n.tr("Which coding-agent meter the AI pill tracks")
+                desc: I18n.tr("Which agents the AI pill shows · one chip each")
                 visible: page.boolOf("modClaude")
 
-                CcSeg {
+                CcSegMulti {
                     root: page.root
                     options: [{ key: "claude", label: "Claude" }, { key: "codex", label: "Codex" }, { key: "opencode", label: "OpenCode" }]
-                    current: page.root ? page.root.aiTool : ""
-                    onChose: (key) => { if (page.root) page.root.aiTool = key }
+                    selected: page.root ? page.root.aiTools : []
+                    onToggled: (key) => { if (page.root) page.root.toggleAiTool(key) }
                 }
             }
 

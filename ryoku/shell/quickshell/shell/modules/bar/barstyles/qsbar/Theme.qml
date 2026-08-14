@@ -643,7 +643,38 @@ Item {
         popupOpened("aiUsageVisible")
         if (aiUsageVisible) refreshAiUsage()
     }
-    property string aiTool: "claude"   // "claude", "codex", or "opencode" - icon shown in the bar
+    // Which agents the AI pill shows on the bar. A set, not a pick: the pill draws
+    // one chip per provider, so several can ride the bar at once. A chosen provider
+    // still needs data (or a live session) to earn its chip, so this narrows what
+    // may appear rather than forcing an empty chip into the row. Persisted through
+    // the shell.json bridge only - the legacy widgets cache is a positional record
+    // and this set has no field there.
+    readonly property var aiToolOptions: ["claude", "codex", "opencode"]
+    property var aiTools: ["claude", "codex", "opencode"]
+    function aiToolShown(id) { return (aiTools || []).indexOf(id) >= 0 }
+    function toggleAiTool(id) {
+        if (aiToolOptions.indexOf(id) < 0) return
+        var next = (aiTools || []).slice()
+        var at = next.indexOf(id)
+        // The last chosen provider stays chosen: an empty set would hide the pill
+        // while its widget still reads as On, and the widget's own toggle already
+        // means off. Like any segmented control, one option is always chosen.
+        if (at >= 0 && next.length <= 1) return
+        if (at >= 0) next.splice(at, 1)
+        else next.push(id)
+        // keep the row in the order the pill draws, never click order
+        aiTools = aiToolOptions.filter(function (o) { return next.indexOf(o) >= 0 })
+    }
+    function serializeAiTools() { return (aiTools || []).join(",") }
+    function parseAiTools(csv) {
+        var raw = String(csv || "").split(",")
+        var next = aiToolOptions.filter(function (o) { return raw.indexOf(o) >= 0 })
+        if (next.length === 0) next = aiToolOptions.slice()
+        // A `var` handed a fresh array always reports a change, and that change
+        // saves, and the save re-applies the config back through here. Assign only
+        // on a real difference, or the two chase each other until the shell dies.
+        if (next.join(",") !== (aiTools || []).join(",")) aiTools = next
+    }
 
     // ── AI usage data (single source of truth) ───────────────────
     // The bar pill (ClaudeWidget) and the AiUsagePanel both render from these -
@@ -1032,13 +1063,13 @@ Item {
     function refreshAiUsage(selectedOnly) {
         aiClockTick++
         var only = selectedOnly === true
-        if (!only || aiTool === "claude") {
+        if (!only || aiToolShown("claude")) {
             aiReadClaude.running = false; aiReadClaude.running = true
         }
-        if (!only || aiTool === "codex") {
+        if (!only || aiToolShown("codex")) {
             aiReadCodex.running = false;  aiReadCodex.running = true
         }
-        if (!only || aiTool === "opencode") {
+        if (!only || aiToolShown("opencode")) {
             aiReadOpenCode.running = false; aiReadOpenCode.running = true
         }
     }
@@ -2466,7 +2497,7 @@ Item {
     onModVolumeChanged:     if (_widgetsLoaded) saveWidgets()
     onModMprisChanged:      if (_widgetsLoaded) saveWidgets()
     onMprisBarStyleChanged: if (_widgetsLoaded) saveWidgets()
-    onAiToolChanged:        if (_widgetsLoaded) saveWidgets()
+    onAiToolsChanged:       if (_widgetsLoaded) saveWidgets()
     onWorkspaceModeChanged: if (_widgetsLoaded) saveWidgets()
     onPickerStyleChanged:   if (_widgetsLoaded) saveWidgets()
     onLauncherLogoModeChanged: if (_widgetsLoaded) saveWidgets()
@@ -2514,7 +2545,7 @@ Item {
                  + (modCpu    ? "1" : "0") + " "          // +13
                  + (modVolume ? "1" : "0") + " "          // +14
                  + (modMpris  ? "1" : "0") + " "          // +15 now-playing / mpris
-                 + aiTool + " "                           // +16 AI tool shown in bar (claude/codex/opencode)
+                 + "- "                                   // +16 retired single-AI-tool field
                  + "0 "                                     // +17 retired transparent/frost field
                  + launcherLogoMode + " "                 // +18 launcher logo mode (text/icon)
                  + launcherLogoText + " "                 // +19 text logo id
@@ -2682,10 +2713,8 @@ Item {
                     if (parts.length > wsField + 13) theme.modCpu    = parts[wsField + 13] !== "0"
                     if (parts.length > wsField + 14) theme.modVolume = parts[wsField + 14] !== "0"
                     if (parts.length > wsField + 15) theme.modMpris  = parts[wsField + 15] !== "0"
-                    if (parts.length > wsField + 16) {
-                        var at = parts[wsField + 16]
-                        if (at === "claude" || at === "codex" || at === "opencode") theme.aiTool = at
-                    }
+                    // +16 is the retired single-AI-tool field: the pill's provider
+                    // set lives in shell.json, not in this positional record.
                     // +17 is the retired transparent/frost field.
                     if (parts.length > wsField + 18) {
                         var lm = parts[wsField + 18]
@@ -2767,7 +2796,7 @@ Item {
         q.workspaceStyle = workspaceStyle
         q.pickerStyle = pickerStyle
         q.launcherLogoMode = launcherLogoMode
-        q.aiTool = aiTool
+        q.aiTools = serializeAiTools()
         q.barTemperatureSource = barTemperatureSource
         q.barShellStyle = barShellStyle
         q.barBorderEnabled = barBorderEnabled
@@ -2826,7 +2855,7 @@ Item {
         if (q.workspaceStyle  !== undefined) workspaceStyle  = q.workspaceStyle
         if (q.pickerStyle     !== undefined) pickerStyle     = q.pickerStyle
         if (q.launcherLogoMode !== undefined) launcherLogoMode = q.launcherLogoMode
-        if (q.aiTool === "claude" || q.aiTool === "codex" || q.aiTool === "opencode") aiTool = q.aiTool
+        if (q.aiTools !== undefined) parseAiTools(q.aiTools)
         if (q.barTemperatureSource !== undefined && barTemperatureSourceValid(q.barTemperatureSource)) barTemperatureSource = q.barTemperatureSource
         if (q.barShellStyle !== undefined && barShellStyleValid(q.barShellStyle)) barShellStyle = q.barShellStyle
         if (q.barBorderEnabled !== undefined) barBorderEnabled = q.barBorderEnabled

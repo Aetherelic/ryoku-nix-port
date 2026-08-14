@@ -2,6 +2,7 @@ CcTokens CcTokens.qml
 CcSection CcSection.qml
 CcRow CcRow.qml
 CcSeg CcSeg.qml
+CcSegMulti CcSegMulti.qml
 CcStepper CcStepper.qml
 CcTile CcTile.qml
 CcSwatchGrid CcSwatchGrid.qml

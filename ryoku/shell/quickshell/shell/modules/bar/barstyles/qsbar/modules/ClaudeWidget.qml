@@ -55,10 +55,12 @@ Item {
     readonly property int  ocToday:  root.aiOcToday
     readonly property bool ocHas:    root.aiOcHas
 
-    // ── which providers earn a chip (have data OR are running) ──
-    readonly property bool showCl: clHas || clActive
-    readonly property bool showCx: cxHas || cxActive
-    readonly property bool showOc: ocHas || ocActive
+    // ── which providers earn a chip ──
+    // the user chooses which agents ride the bar; a chosen one still has to have
+    // data (or a live session) before it takes up room.
+    readonly property bool showCl: root.aiToolShown("claude")   && (clHas || clActive)
+    readonly property bool showCx: root.aiToolShown("codex")    && (cxHas || cxActive)
+    readonly property bool showOc: root.aiToolShown("opencode") && (ocHas || ocActive)
 
     // codex reports its weekly window only sometimes; fall back to the primary
     // window for the number, but only flag pace off a genuine 7-day window.
