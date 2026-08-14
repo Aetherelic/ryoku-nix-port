@@ -12,7 +12,13 @@ pkgrel=1
 pkgdesc="Integrates Limine boot entries with Snapper snapshots."
 arch=('x86_64')
 url="https://gitlab.com/Zesko/limine-snapper-sync"
-source=("${pkgname}::git+${url}.git#tag=${pkgver}")
+# Gradle is vendored for the same reason as limine-mkinitcpio-hook: Arch's 9.7.0
+# stopped resolving the gradle-public-api-legacy module the graalvm buildtools
+# plugin wants, which failed nativeCompile and blocked every user update. Both
+# halves of the Limine stack pin the same version, so bump them together.
+_gradlever=9.6.1
+source=("${pkgname}::git+${url}.git#tag=${pkgver}"
+	"https://services.gradle.org/distributions/gradle-${_gradlever}-bin.zip")
 source_x86_64=("https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-25.0.2/graalvm-community-jdk-25.0.2_linux-x64_bin.tar.gz")
 license=("GPL3")
 options=(!debug !strip)
@@ -30,10 +36,11 @@ optdepends=(
 	'b3sum: Fast Blake3 hash function to prevent duplication.'
 	'xxhash: Fast hashing utility for deduplication with shorter hashes.'
 )
-makedepends=('git' 'gradle')
+makedepends=('git')
 backup=(etc/limine-snapper-sync.conf)
 conflicts=('limine-snapper-cli' 'limine-snapper-sync-git')
-sha256sums=('SKIP')
+sha256sums=('SKIP'
+	'9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14')
 sha256sums_x86_64=('e0be791c8fda4d03b6b0a0cb824fef3149736170057b3a515252b44419606af0')
 
 prepare() {
@@ -50,7 +57,7 @@ build() {
 	export GRAALVM_HOME="$srcdir/${_graalvm_version}"
 	export JAVA_HOME="${GRAALVM_HOME}"
 	export NATIVE_IMAGE_OPTIONS="-march=compatibility"
-	/usr/bin/gradle clean nativeCompile -Dorg.gradle.java.home="${JAVA_HOME}"
+	"$srcdir/gradle-${_gradlever}/bin/gradle" clean nativeCompile -Dorg.gradle.java.home="${JAVA_HOME}"
 }
 
 package() {
