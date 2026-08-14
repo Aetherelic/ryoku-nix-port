@@ -180,6 +180,23 @@ aur_bake_extra=(
   nvidia-470xx-dkms lib32-nvidia-470xx-utils
 )
 
+# pkgfile_in DIR NAME: which file in DIR is package NAME? A package filename is
+# NAME-VER-REL-ARCH.pkg.tar.*, and VER and REL never contain '-', so stripping the
+# three trailing '-' fields recovers NAME exactly. Matching that stem (rather than
+# a "NAME-<digit>" glob) is correct for a version starting with a letter
+# (libyuv-r2426+..., a git r<rev> build) and still tells a name apart from one it
+# is a prefix of (nvidia-open vs nvidia-open-dkms).
+pkgfile_in() {
+  local dir=$1 want=$2 f base stem
+  for f in "$dir/$want"-*.pkg.tar.*; do
+    [[ -e $f ]] || continue
+    base=${f##*/}; base=${base%.pkg.tar.*}            # NAME-VER-REL-ARCH
+    stem=${base%-*}; stem=${stem%-*}; stem=${stem%-*} # drop ARCH, REL, VER
+    [[ $stem == "$want" ]] && { printf '%s\n' "$f"; return 0; }
+  done
+  return 1
+}
+
 # Bundle the AUR toolset into the offline repo. Every ISO install is offline, so
 # the AUR set an online install builds (voxtype, brand fonts, extra cursors, game
 # controllers, localsend, the legacy NVIDIA branches, ...) never lands otherwise:
@@ -195,6 +212,7 @@ aur_bake_extra=(
 # that everything is on them, so a missing package has to stop the release rather
 # than ship a desktop with holes. RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 restores the
 # old warn-and-continue for local builds that only need a bootable image.
+
 bake_aur_set() {
   local aur_file="$REPO_ROOT/system/packages/aur.packages"
   local lax=${RYOKU_OFFLINE_ALLOW_INCOMPLETE:-0}
@@ -259,10 +277,22 @@ bake_aur_set() {
     cp -a "$f" "$CACHE"/
   done
   if (( ${#deps[@]} )); then
-    mapfile -t deps < <(printf '%s\n' "${deps[@]}" | awk 'NF && !seen[$0]++')
-    "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "${deps[@]}" \
-      || { [[ $lax == 1 ]] && log "AUR bake: note, some runtime deps did not fetch (RYOKU_OFFLINE_ALLOW_INCOMPLETE=1)"; } \
-      || die "AUR bake: a bundled tool's runtime dependency could not be fetched, so it would fail to install offline. Check the mirror, or set RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 for a local build."
+    # Some of these deps are themselves AUR packages that this very bake produced:
+    # nvidia-580xx-dkms depends on nvidia-580xx-utils, which is another package
+    # from the same pkgbase and is already sitting in the cache. pacman cannot
+    # fetch those (`target not found`), so ask it only for the ones no built
+    # package already provides.
+    local -a want=()
+    while IFS= read -r dep; do
+      [[ -n $dep ]] || continue
+      pkgfile_in "$CACHE" "$dep" >/dev/null && continue
+      want+=("$dep")
+    done < <(printf '%s\n' "${deps[@]}" | awk 'NF && !seen[$0]++')
+    if (( ${#want[@]} )); then
+      "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "${want[@]}" \
+        || { [[ $lax == 1 ]] && log "AUR bake: note, some runtime deps did not fetch (RYOKU_OFFLINE_ALLOW_INCOMPLETE=1)"; } \
+        || die "AUR bake: a bundled tool's runtime dependency could not be fetched, so it would fail to install offline. Check the mirror, or set RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 for a local build."
+    fi
   fi
 
   (( EUID == 0 )) && rm -f /etc/sudoers.d/99-ryoku-aurbuild
@@ -302,22 +332,10 @@ pkgs=("$CACHE"/*.pkg.tar.zst "$CACHE"/*.pkg.tar.xz)
 (( ${#pkgs[@]} )) || die "no packages in $CACHE after download"
 cp -a --reflink=auto "${pkgs[@]}" "$DEST"/
 
-# repo_has_pkg / pkgfile_for NAME: is package NAME baked into the repo, and which
-# file is it? a package filename is NAME-VER-REL-ARCH.pkg.tar.*; VER and REL never
-# contain '-', so stripping the three trailing '-' fields recovers NAME exactly.
-# matching by that stem (not a "NAME-<digit>" glob) is correct for a version that
-# starts with a letter (libyuv-r2426+..., a git r<rev> build) and still keeps a
-# name that is a prefix of another apart (nvidia-open vs nvidia-open-dkms).
-pkgfile_for() {
-  local want=$1 f base stem
-  for f in "$DEST/$want"-*.pkg.tar.*; do
-    [[ -e $f ]] || continue
-    base=${f##*/}; base=${base%.pkg.tar.*}            # NAME-VER-REL-ARCH
-    stem=${base%-*}; stem=${stem%-*}; stem=${stem%-*} # drop ARCH, REL, VER
-    [[ $stem == "$want" ]] && { printf '%s\n' "$f"; return 0; }
-  done
-  return 1
-}
+# pkgfile_for / repo_has_pkg NAME: is package NAME baked into the repo? See
+# pkgfile_in, defined above the AUR bake because the bake needs the same lookup
+# against its cache.
+pkgfile_for() { pkgfile_in "$DEST" "$1"; }
 repo_has_pkg() { pkgfile_for "$1" >/dev/null; }
 # Everything the installed system can reach has to be IN the repo, so check it
 # rather than trust that the download and the AUR bake both did their jobs. The
