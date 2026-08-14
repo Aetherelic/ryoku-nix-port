@@ -122,6 +122,7 @@ Item {
 
         readonly property bool shown: page.boolOf(modProp)
         readonly property bool colorable: page.colorSupported && gid !== ""
+        readonly property bool framed: colorable && page.root && page.root.widgetHasBorder(gid)
         readonly property bool compactable: flag !== ""
         readonly property bool compactOn: page.compactOf(gid, flag)
         readonly property bool menuOpen: gid !== "" && page.colorGid === gid
@@ -133,6 +134,7 @@ Item {
         border.width: 1
         border.color: !page.root ? "transparent"
             : (cardHover.hovered || wc.menuOpen) ? page.root.seal
+            : wc.framed ? Qt.rgba(page.root.seal.r, page.root.seal.g, page.root.seal.b, 0.55)
             : wc.shown ? Qt.rgba(page.root.seal.r, page.root.seal.g, page.root.seal.b, 0.34)
             : page.root.sep
         Behavior on color { ColorAnimation { duration: 120 } }
@@ -405,6 +407,122 @@ Item {
                 }
             }
 
+            // frame width preset row - GeomRow's language, wired to the border
+            // width instead of the widgetGeom map.
+            component FrameWidthRow: Column {
+                id: fwrow
+                property string glabel: ""
+                property var opts: []
+                width: parent ? parent.width : 0
+                spacing: 3
+                UiText {
+                    text: fwrow.glabel
+                    color: page.root.sumiHi
+                    font.family: page.root.mono; font.pixelSize: 10; font.letterSpacing: 0.7
+                }
+                Row {
+                    width: parent.width
+                    spacing: 4
+                    Repeater {
+                        model: fwrow.opts
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property bool sel: page.root.widgetBorderWidth(page.colorGid) === modelData.v
+                            width: page.root.evenW((fwrow.width - (fwrow.opts.length - 1) * 4) / fwrow.opts.length)
+                            height: 28
+                            radius: page.root.tileRadius
+                            color: sel ? Qt.rgba(page.root.seal.r, page.root.seal.g, page.root.seal.b, 0.16)
+                                : fwma.containsMouse ? page.root.fillHover : "transparent"
+                            border.color: sel ? page.root.seal : page.root.sep
+                            border.width: 1
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            UiText {
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                color: parent.sel ? page.root.seal : page.root.ink
+                                font.family: page.root.mono; font.pixelSize: 10
+                            }
+                            MouseArea {
+                                id: fwma
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.root.setWidgetBorderWidth(page.colorGid, modelData.v)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // frame colour row - swatches for the border key. inherit/surface are
+            // labelled chips (not fixed palette colours); the rest render as the
+            // palette swatches do.
+            component FrameColorRow: Column {
+                id: fcrow
+                property string glabel: ""
+                width: parent ? parent.width : 0
+                spacing: 3
+                UiText {
+                    text: fcrow.glabel
+                    color: page.root.sumiHi
+                    font.family: page.root.mono; font.pixelSize: 10; font.letterSpacing: 0.7
+                }
+                Grid {
+                    width: parent.width
+                    columns: 8
+                    columnSpacing: 4
+                    rowSpacing: 4
+                    Repeater {
+                        model: ["inherit", "surface"].concat(page.root.barColorOptions)
+                        delegate: Rectangle {
+                            required property string modelData
+                            readonly property bool labelled: modelData === "inherit" || modelData === "surface"
+                            readonly property bool selected: page.root.widgetBorderColorKey(page.colorGid) === modelData
+                            width: page.root.evenW((fcrow.width - 28) / 8)
+                            height: 22
+                            radius: page.root.tileRadius
+                            color: labelled
+                                ? (selected ? page.root.fillActive : fcma.containsMouse ? page.root.fillHover : "transparent")
+                                : page.root.paletteColor(modelData)
+                            border.color: labelled
+                                ? (selected || fcma.containsMouse ? page.root.seal : page.root.sep)
+                                : page.root.sep
+                            border.width: 1
+                            scale: fcma.containsMouse ? 1.06 : 1.0
+                            z: fcma.containsMouse ? 1 : 0
+                            Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                            UiText {
+                                anchors.centerIn: parent
+                                text: parent.labelled
+                                    ? (modelData === "inherit" ? I18n.tr("Auto") : I18n.tr("Fill"))
+                                    : (modelData === "foreground" ? I18n.tr("F") : modelData.slice(-1))
+                                color: parent.labelled
+                                    ? (parent.selected || fcma.containsMouse ? page.root.seal : page.root.ink)
+                                    : page.root.paletteContrastColor(modelData)
+                                font.family: page.root.mono
+                                font.pixelSize: 10
+                                font.weight: Font.Medium
+                            }
+                            Rectangle {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 2
+                                width: 12; height: 2; radius: 1
+                                visible: parent.selected && !parent.labelled
+                                color: page.root.paletteContrastColor(modelData)
+                            }
+                            MouseArea {
+                                id: fcma
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.root.setWidgetBorderColorKey(page.colorGid, modelData)
+                            }
+                        }
+                    }
+                }
+            }
+
             // dim backdrop: click outside to dismiss
             Rectangle {
                 anchors.fill: parent
@@ -515,7 +633,7 @@ Item {
                         }
                     }
 
-                    // outline (border) toggle
+                    // frame (border) toggle
                     Rectangle {
                         width: parent.width
                         height: 24
@@ -527,7 +645,7 @@ Item {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: I18n.tr("Outline")
+                            text: I18n.tr("Frame")
                             color: parent.outlineOn || borderMa.containsMouse ? page.root.seal : page.root.ink
                             font.family: page.root.mono
                             font.pixelSize: 10
@@ -540,6 +658,16 @@ Item {
                             onClicked: page.root.setWidgetBorderEnabled(
                                 page.colorGid, !page.root.widgetHasBorder(page.colorGid))
                         }
+                    }
+
+                    FrameWidthRow {
+                        glabel: I18n.tr("WIDTH")
+                        visible: page.root.widgetHasBorder(page.colorGid)
+                        opts: [{ v: 0.5, label: "0.5" }, { v: 1, label: "1" }, { v: 1.5, label: "1.5" }, { v: 2, label: "2" }]
+                    }
+                    FrameColorRow {
+                        glabel: I18n.tr("COLOUR")
+                        visible: page.root.widgetHasBorder(page.colorGid)
                     }
 
                     // content tone - only meaningful when the group carries a fill

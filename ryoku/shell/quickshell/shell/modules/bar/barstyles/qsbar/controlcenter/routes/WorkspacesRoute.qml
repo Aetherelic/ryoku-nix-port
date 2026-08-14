@@ -100,6 +100,7 @@ Item {
                                              : style === "kanji"   ? 22
                                              : style === "rings"   ? 20
                                              : style === "aurora"  ? (isFocused ? 34 : 12)
+                                             : style === "pacman"  ? 22
                                              : (isFocused ? 32 : 16)
                                 implicitHeight: 28
 
@@ -216,6 +217,18 @@ Item {
                                     color: cell.seal
                                     opacity: cell.isFocused ? 0.92 : cell.isOccupied ? 0.62 : 0.18
                                     antialiasing: true
+                                }
+
+                                // PACMAN - resting pacman on focused, pellets elsewhere
+                                PacmanMarker {
+                                    visible: cell.style === "pacman"
+                                    anchors.centerIn: parent
+                                    focused: cell.isFocused
+                                    occupied: cell.isOccupied
+                                    activeColor: cell.seal
+                                    occupiedColor: cell.seal
+                                    emptyColor: cell.seal
+                                    hoverColor: cell.seal
                                 }
                             }
                         }

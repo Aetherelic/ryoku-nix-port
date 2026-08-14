@@ -115,18 +115,27 @@ PanelWindow {
             : barSlot.gapLead
         width: barSlot.shellTargetWidth
         height: barSlot.shellVisibleHeight
-        radius: barSlot.compactShell ? barSlot.shellRadius : 0
+        radius: barSlot.shellRadius
         color: "transparent"
         z: 0
 
-        readonly property real topCornerRadius:
-            !barSlot.compactShell ? 0
-            : barSlot.root.barShellStyle === "fit" ? radius
-            : barSlot.root.barPosition === "bottom" ? radius : 0
-        readonly property real bottomCornerRadius:
-            !barSlot.compactShell ? 0
-            : barSlot.root.barShellStyle === "fit" ? radius
-            : barSlot.root.barPosition === "top" ? radius : 0
+        // A corner stays square only where it sits in a screen corner, with both
+        // of its edges flush against the output. A gap lifts or insets the shell,
+        // so a gapped bar rounds like any floating slab: that is why `full`, which
+        // spans the whole edge, only answers the Corners control once it is given
+        // a gap. A flush edge-to-edge bar has no visible corners and stays square.
+        readonly property bool shellFloats: barSlot.compactShell
+            || barSlot.gapLead > 0
+            || (barSlot.gapLeft > 0 && barSlot.gapRight > 0)
+        // the edge the bar is anchored to; rounds only once lifted off it.
+        readonly property real anchoredCornerRadius:
+            !shellFloats ? 0
+            : barSlot.root.barShellStyle === "fit" || barSlot.gapLead > 0 ? radius : 0
+        readonly property real desktopCornerRadius: shellFloats ? radius : 0
+        readonly property real topCornerRadius: barSlot.root.barPosition === "bottom"
+            ? desktopCornerRadius : anchoredCornerRadius
+        readonly property real bottomCornerRadius: barSlot.root.barPosition === "top"
+            ? desktopCornerRadius : anchoredCornerRadius
         readonly property real insetProgress: edgeBorder.curvedInsetRendering
             ? edgeBorder.curvedInsetReveal
             : 0
@@ -1409,7 +1418,7 @@ PanelWindow {
                     border.color: barSlot.root.widgetBorderColor(slot.gid)
                     border.width: barSlot.root.widgetHasBorder(slot.gid)
                         && !connectedBorderCut
-                        ? barSlot.root.panelBorderW
+                        ? barSlot.root.widgetBorderWidth(slot.gid)
                         : 0
                     Behavior on color {
                         enabled: !edgeBorder.curvedInsetRendering
@@ -1558,7 +1567,7 @@ PanelWindow {
 
                         ShapePath {
                             strokeColor: barSlot.root.widgetBorderColor(slot.gid)
-                            strokeWidth: barSlot.root.panelBorderW
+                            strokeWidth: barSlot.root.widgetBorderWidth(slot.gid)
                             fillColor: "transparent"
                             capStyle: ShapePath.FlatCap
                             joinStyle: ShapePath.RoundJoin
@@ -1612,7 +1621,7 @@ PanelWindow {
 
                         ShapePath {
                             strokeColor: barSlot.root.widgetBorderColor(slot.gid)
-                            strokeWidth: barSlot.root.panelBorderW
+                            strokeWidth: barSlot.root.widgetBorderWidth(slot.gid)
                             fillColor: "transparent"
                             capStyle: ShapePath.FlatCap
                             joinStyle: ShapePath.RoundJoin
@@ -1841,7 +1850,7 @@ PanelWindow {
         // edit-mode frame around the bar while unlocked (gentle pulse)
         Rectangle {
             anchors.fill: parent
-            radius: barSlot.compactShell ? barSlot.shellRadius : 0
+            radius: continuousBarSurface.desktopCornerRadius
             color: "transparent"
             border.color: barSlot.accent
             border.width: barSlot.root.barUnlocked ? 1 : 0    // width 0 hides it when locked

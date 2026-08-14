@@ -26,6 +26,7 @@ MprisWidget MprisWidget.qml
 NetworkWidget NetworkWidget.qml
 NotificationSilenceWidget NotificationSilenceWidget.qml
 NotificationWidget NotificationWidget.qml
+PacmanMarker PacmanMarker.qml
 PanelPointer PanelPointer.qml
 ParticleStream ParticleStream.qml
 PillShadow PillShadow.qml

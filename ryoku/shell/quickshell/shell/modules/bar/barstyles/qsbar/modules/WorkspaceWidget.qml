@@ -43,6 +43,112 @@ Item {
         return list
     }
 
+    // ── PACMAN style state: pacman rests on the focused cell, pellet glyphs
+    //    mark occupied cells, dimmed dots the empty ones. On a focus change a
+    //    runner pacman travels from the old cell to the new one, chomping as it
+    //    goes; the destination pellet is eaten (fades/shrinks) as it arrives. ──
+    readonly property int focusedWorkspaceId: Hyprland.focusedWorkspace
+        && Hyprland.focusedWorkspace.id > 0 ? Hyprland.focusedWorkspace.id : -1
+
+    property int pacmanLastFocusedWorkspaceId: -1
+    property int pacmanTargetWorkspaceId: -1
+    property bool pacmanTraveling: false
+    property real pacmanMouthClosure: 0
+    property int pacmanTravelDirection: 1
+    property int pacmanTravelSteps: 1
+    property real pacmanTravelFromX: 0
+    property real pacmanTravelTargetX: 0
+    property real pacmanTravelX: 0
+    property real pacmanEatProgress: 0
+    readonly property int pacmanTravelDuration: Math.min(720, 320 + pacmanTravelSteps * 100)
+    readonly property int pacmanBiteCount: Math.max(3, Math.min(5, pacmanTravelSteps + 2))
+    readonly property int pacmanBiteHalfDuration: Math.max(60,
+        Math.round(pacmanTravelDuration / (pacmanBiteCount * 2)))
+    readonly property real pacmanMaxMouthClosure: 0.82
+    readonly property int pacmanEatDuration: 240
+    readonly property int pacmanEatLeadIn: Math.max(0, pacmanTravelDuration - pacmanEatDuration)
+
+    function pacmanCell(id) {
+        for (var i = 0; i < wsRepeater.count; i++) {
+            var it = wsRepeater.itemAt(i)
+            if (it && it.wsId === id) return it
+        }
+        return null
+    }
+    function pacmanCellIndex(id) {
+        for (var i = 0; i < wsRepeater.count; i++) {
+            var it = wsRepeater.itemAt(i)
+            if (it && it.wsId === id) return i
+        }
+        return -1
+    }
+    function pacmanCenterX(id) {
+        var it = pacmanCell(id)
+        return it ? wsRow.x + it.x + it.width / 2 : -1
+    }
+    function finishPacmanTravel() {
+        pacmanTraveling = false
+        pacmanMouthClosure = 0
+        pacmanEatProgress = 0
+        pacmanTargetWorkspaceId = -1
+    }
+    function resetPacmanTravel() {
+        pacmanTravel.stop()
+        finishPacmanTravel()
+        pacmanLastFocusedWorkspaceId = focusedWorkspaceId
+    }
+    function beginPacmanTravel(sourceId, targetId) {
+        if (root.workspaceStyle !== "pacman" || focusedWorkspaceId !== targetId) {
+            resetPacmanTravel()
+            return
+        }
+        // Freshly rebound Row delegates can sit at x=0 until the next polish
+        // pass; resolve the positioner before measuring so a real focus change
+        // is not mistaken for a zero-distance transition.
+        if (typeof wsRow.forceLayout === "function") wsRow.forceLayout()
+        var sourceX = pacmanTraveling ? pacmanTravelX : pacmanCenterX(sourceId)
+        var targetX = pacmanCenterX(targetId)
+        if (sourceX < 0 || targetX < 0 || sourceX === targetX) {
+            finishPacmanTravel()
+            return
+        }
+        pacmanTravel.stop()
+        pacmanTravelFromX = sourceX
+        pacmanTravelTargetX = targetX
+        pacmanTravelX = sourceX
+        pacmanTravelDirection = targetX >= sourceX ? 1 : -1
+        var sourceIndex = pacmanCellIndex(sourceId)
+        var targetIndex = pacmanCellIndex(targetId)
+        pacmanTravelSteps = sourceIndex >= 0 && targetIndex >= 0
+            ? Math.max(1, Math.abs(targetIndex - sourceIndex)) : 1
+        pacmanTargetWorkspaceId = targetId
+        pacmanEatProgress = 0
+        pacmanMouthClosure = 0
+        pacmanTraveling = true
+        pacmanTravel.restart()
+    }
+    function observePacmanFocus() {
+        var targetId = focusedWorkspaceId
+        if (targetId < 1) return
+        if (root.workspaceStyle !== "pacman" || pacmanLastFocusedWorkspaceId < 1) {
+            resetPacmanTravel()
+            pacmanLastFocusedWorkspaceId = targetId
+            return
+        }
+        if (targetId === pacmanLastFocusedWorkspaceId) return
+        var sourceId = pacmanLastFocusedWorkspaceId
+        pacmanLastFocusedWorkspaceId = targetId
+        Qt.callLater(function() { wsWidget.beginPacmanTravel(sourceId, targetId) })
+    }
+
+    onFocusedWorkspaceIdChanged: observePacmanFocus()
+    Component.onCompleted: pacmanLastFocusedWorkspaceId = focusedWorkspaceId
+
+    Connections {
+        target: root
+        function onWorkspaceStyleChanged() { wsWidget.resetPacmanTravel() }
+    }
+
     // right-click anywhere opens the workspace panel
     MouseArea {
         anchors.fill: parent
@@ -57,9 +163,11 @@ Item {
         z: 1
         spacing: root.workspaceStyle === "rings" ? 3
                : root.workspaceStyle === "aurora" ? 4
+               : root.workspaceStyle === "pacman" ? 2
                : 5
 
         Repeater {
+            id: wsRepeater
             model: wsWidget.workspaceList
 
             delegate: Item {
@@ -88,6 +196,7 @@ Item {
                              : root.workspaceStyle === "magic"   ? (isFocused ? 20 : 18)
                              : root.workspaceStyle === "rings"   ? 20
                              : root.workspaceStyle === "aurora"  ? (isFocused ? 34 : 12)
+                             : root.workspaceStyle === "pacman"  ? 22
                              : (isFocused ? 32 : 16)
                 implicitHeight: 28
 
@@ -257,6 +366,27 @@ Item {
                     }
                 }
 
+                // ── PACMAN style: focused pacman / occupied pellet / empty dot.
+                //    The travelling runner overlay (below) rides between cells;
+                //    the focused cell hides its glyph while a runner is in flight
+                //    so the runner appears to become the resting pacman. ──
+                PacmanMarker {
+                    visible: root.workspaceStyle === "pacman"
+                    anchors.centerIn: parent
+                    focused: wsCell.isFocused && !(wsWidget.pacmanTraveling
+                        && wsCell.wsId === wsWidget.pacmanTargetWorkspaceId)
+                    occupied: wsCell.isOccupied
+                    hovered: wsMa.containsMouse
+                    eatProgress: wsWidget.pacmanTraveling
+                        && wsCell.wsId === wsWidget.pacmanTargetWorkspaceId
+                        ? wsWidget.pacmanEatProgress : 0
+                    eatDirection: wsWidget.pacmanTravelDirection
+                    activeColor: wsWidget.contentColor
+                    occupiedColor: wsWidget.contentColor
+                    emptyColor: wsWidget.contentColor
+                    hoverColor: wsWidget.contentColor
+                }
+
                 MouseArea {
                     id: wsMa
                     anchors.fill: parent
@@ -264,6 +394,7 @@ Item {
                     hoverEnabled: true
                     onClicked: root.gotoWorkspace(wsId)
                     onEntered: wsCell.scale = root.workspaceStyle === "rings" ? 1.0
+                        : root.workspaceStyle === "pacman" ? 1.0
                         : root.workspaceStyle === "aurora" ? 1.04 : 1.15
                     onExited:  wsCell.scale = 1.0
                 }
@@ -342,6 +473,118 @@ Item {
                 }
             }
         }
+    }
+
+    // The travelling pacman that chomps between cells. It rides above the row in
+    // the same coordinate space as the cells (wsRow.x + cell.x), so its resting
+    // position lines up with the focused cell's marker once travel finishes.
+    Item {
+        id: pacmanRunner
+        visible: wsWidget.pacmanTraveling && root.workspaceStyle === "pacman"
+        z: 4
+        x: wsWidget.pacmanTravelX - width / 2
+        y: Math.round((parent.height - height) / 2)
+        width: 22
+        height: 18
+
+        Item {
+            id: pacmanRunnerVisual
+            anchors.fill: parent
+            transform: Scale {
+                origin.x: pacmanRunnerVisual.width / 2
+                origin.y: pacmanRunnerVisual.height / 2
+                xScale: wsWidget.pacmanTravelDirection
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: String.fromCodePoint(0xF0BAF)
+                color: wsWidget.contentColor
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 14
+                font.weight: Font.Bold
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                renderType: Text.NativeRendering
+            }
+
+            Canvas {
+                id: pacmanMouthFill
+                anchors.centerIn: parent
+                width: 16
+                height: width
+                property real closure: wsWidget.pacmanMouthClosure
+                property color fillColor: wsWidget.contentColor
+
+                onClosureChanged: requestPaint()
+                onFillColorChanged: requestPaint()
+                onPaint: {
+                    var context = getContext("2d")
+                    var centerX = width / 2
+                    var centerY = height / 2
+                    var radius = Math.min(width, height) * 0.38
+                    var angle = 0.70 * Math.max(0, Math.min(1, closure))
+                    context.clearRect(0, 0, width, height)
+                    if (angle <= 0.001) return
+                    context.fillStyle = String(fillColor)
+                    context.beginPath()
+                    context.moveTo(centerX, centerY)
+                    context.arc(centerX, centerY, radius, -angle, angle, false)
+                    context.closePath()
+                    context.fill()
+                }
+            }
+        }
+    }
+
+    SequentialAnimation {
+        id: pacmanTravel
+        running: false
+
+        ParallelAnimation {
+            NumberAnimation {
+                target: wsWidget
+                property: "pacmanTravelX"
+                from: wsWidget.pacmanTravelFromX
+                to: wsWidget.pacmanTravelTargetX
+                duration: wsWidget.pacmanTravelDuration
+                easing.type: Easing.InOutSine
+            }
+
+            SequentialAnimation {
+                loops: wsWidget.pacmanBiteCount
+                NumberAnimation {
+                    target: wsWidget
+                    property: "pacmanMouthClosure"
+                    from: 0
+                    to: wsWidget.pacmanMaxMouthClosure
+                    duration: wsWidget.pacmanBiteHalfDuration
+                    easing.type: Easing.InOutSine
+                }
+                NumberAnimation {
+                    target: wsWidget
+                    property: "pacmanMouthClosure"
+                    from: wsWidget.pacmanMaxMouthClosure
+                    to: 0
+                    duration: wsWidget.pacmanBiteHalfDuration
+                    easing.type: Easing.InOutSine
+                }
+            }
+
+            SequentialAnimation {
+                PauseAnimation { duration: wsWidget.pacmanEatLeadIn }
+                NumberAnimation {
+                    target: wsWidget
+                    property: "pacmanEatProgress"
+                    from: 0
+                    to: 1
+                    duration: wsWidget.pacmanEatDuration
+                    easing.type: Easing.InCubic
+                }
+            }
+        }
+
+        ScriptAction { script: wsWidget.finishPacmanTravel() }
     }
 
 }

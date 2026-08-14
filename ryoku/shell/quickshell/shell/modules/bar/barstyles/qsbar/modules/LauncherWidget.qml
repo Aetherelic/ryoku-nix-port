@@ -88,15 +88,22 @@ Item {
         }
     }
 
-    // Ryoku brand mark: the RYOKU wordmark, or the 力 kanji, themed with the seal.
+    // Ryoku brand mark by default; the chosen wordmark or icon option otherwise,
+    // themed with the seal. Resolvers live in Theme so the picker and bar agree.
     Text {
         id: logo
         anchors.centerIn: parent
-        text: root.launcherLogoMode === "icon" ? "力" : I18n.tr("RYOKU")
+        anchors.horizontalCenterOffset: root.launcherLogoMode === "icon"
+            ? root.launcherLogoIconXOffset(root.launcherLogoIcon) : 0
+        text: root.launcherLogoMode === "icon"
+            ? root.launcherLogoIconGlyph(root.launcherLogoIcon)
+            : root.launcherLogoTextLabel(root.launcherLogoText)
         color: root.seal
         renderType: Text.NativeRendering
-        font.family: root.launcherLogoMode === "icon" ? "Noto Sans CJK JP" : root.mono
-        font.pixelSize: root.launcherLogoMode === "icon" ? 15 : 12
+        font.family: root.launcherLogoMode === "icon"
+            ? root.launcherLogoIconFont(root.launcherLogoIcon) : root.mono
+        font.pixelSize: root.launcherLogoMode === "icon"
+            ? root.launcherLogoIconSize(root.launcherLogoIcon) : 12
         font.weight: Font.Bold
         font.letterSpacing: root.launcherLogoMode === "icon" ? 0 : 2
         Behavior on color { ColorAnimation { duration: 200 } }

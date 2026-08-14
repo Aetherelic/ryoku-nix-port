@@ -66,7 +66,6 @@ Item {
         ink.b * 0.88 + paper.b * 0.12,
         1.0)
     property string barColor: "color01"
-    property bool widgetIconsForeground: false
     readonly property bool barColorIsAccent: barColor === "accent"
     // Compatibility alias for older local code/reviews that still use the
     // previous boolean name.
@@ -2127,7 +2126,8 @@ Item {
         { key: "magic",   label: "Glyph" },
         { key: "kanji",   label: "Kanji" },
         { key: "rings",   label: "Frame" },
-        { key: "aurora",  label: "Aurora" }
+        { key: "aurora",  label: "Aurora" },
+        { key: "pacman",  label: "Pacman" }
     ]
 
     // ── bar screen position (persisted) ──
@@ -2177,8 +2177,8 @@ Item {
     // ── picker visual style (theme/wallpaper/screenshot/video pickers) ──
     property string pickerStyle: "tanzaku"   // "tanzaku", "hearthstone", "carousel"
     property string launcherLogoMode: "text"     // "text" or "icon"
-    property string launcherLogoText: "omarchy"  // "omarchy", "hyprland", "arch", or "omacom"
-    property string launcherLogoIcon: "omarchy"  // see launcherLogoIconGlyph()
+    property string launcherLogoText: "ryoku"    // "ryoku", "omarchy", "hyprland", "arch", or "omacom"
+    property string launcherLogoIcon: "ryoku"    // see launcherLogoIconGlyph()
     property bool   weatherImperial: false   // false = °C / km·h, true = °F / mph
     property bool   clock12h:        false   // false = 24h, true = 12h (AM/PM)
 
@@ -2257,6 +2257,12 @@ Item {
     function widgetToneValid(tone) {
         return tone === "auto" || tone === "background" || tone === "foreground"
     }
+    function widgetBorderWidthValid(w) {
+        return w === 0.5 || w === 1 || w === 1.5 || w === 2
+    }
+    function widgetBorderColorKeyValid(key) {
+        return key === "inherit" || key === "surface" || paletteColorValid(key)
+    }
     function widgetColorStyle(gid) {
         var raw = widgetColorStyles[gid]
         var colorId = raw && (raw.color === "inherit" || paletteColorValid(raw.color))
@@ -2267,10 +2273,12 @@ Item {
             mode: raw && widgetColorModeValid(raw.mode)
                 ? normalizedWidgetColorMode(raw.mode, colorId)
                 : "fill",
-            tone: raw && widgetToneValid(raw.tone) ? raw.tone : "auto"
+            tone: raw && widgetToneValid(raw.tone) ? raw.tone : "auto",
+            borderWidth: raw && widgetBorderWidthValid(raw.borderWidth) ? raw.borderWidth : 1,
+            borderColorKey: raw && widgetBorderColorKeyValid(raw.borderColorKey) ? raw.borderColorKey : "inherit"
         }
     }
-    function setWidgetColorStyle(gid, colorId, mode, tone) {
+    function _storeWidgetColorStyle(gid, colorId, mode, tone, borderWidth, borderColorKey) {
         if (!widgetGidValid(gid)) return
         var next = {}
         for (var key in widgetColorStyles) next[key] = widgetColorStyles[key]
@@ -2285,11 +2293,25 @@ Item {
             next[gid] = {
                 color: storedColor,
                 mode: storedMode,
-                tone: widgetToneValid(tone) ? tone : "auto"
+                tone: widgetToneValid(tone) ? tone : "auto",
+                borderWidth: widgetBorderWidthValid(borderWidth) ? borderWidth : 1,
+                borderColorKey: widgetBorderColorKeyValid(borderColorKey) ? borderColorKey : "inherit"
             }
         }
         widgetColorStyles = next
         if (_widgetsLoaded) saveWidgets()
+    }
+    function setWidgetColorStyle(gid, colorId, mode, tone) {
+        var cur = widgetColorStyle(gid)
+        _storeWidgetColorStyle(gid, colorId, mode, tone, cur.borderWidth, cur.borderColorKey)
+    }
+    function setWidgetBorderWidth(gid, w) {
+        var cur = widgetColorStyle(gid)
+        _storeWidgetColorStyle(gid, cur.color, cur.mode, cur.tone, w, cur.borderColorKey)
+    }
+    function setWidgetBorderColorKey(gid, key) {
+        var cur = widgetColorStyle(gid)
+        _storeWidgetColorStyle(gid, cur.color, cur.mode, cur.tone, cur.borderWidth, key)
     }
     function setWidgetPaletteColor(gid, colorId) {
         var style = widgetColorStyle(gid)
@@ -2328,7 +2350,9 @@ Item {
                 next[gid] = {
                     color: "inherit",
                     mode: "border",
-                    tone: "auto"
+                    tone: "auto",
+                    borderWidth: style.borderWidth,
+                    borderColorKey: style.borderColorKey
                 }
             }
         }
@@ -2339,6 +2363,8 @@ Item {
     function widgetPaletteId(gid) { return widgetColorStyle(gid).color }
     function widgetColorMode(gid) { return widgetColorStyle(gid).mode }
     function widgetTone(gid) { return widgetColorStyle(gid).tone }
+    function widgetBorderWidth(gid) { return widgetColorStyle(gid).borderWidth }
+    function widgetBorderColorKey(gid) { return widgetColorStyle(gid).borderColorKey }
     function widgetHasFill(gid) {
         var style = widgetColorStyle(gid)
         return style.color !== "inherit"
@@ -2383,7 +2409,10 @@ Item {
     }
     function widgetBorderColor(gid) {
         if (!widgetHasBorder(gid)) return Qt.rgba(0, 0, 0, 0)
-        return panelBorder
+        var key = widgetBorderColorKey(gid)
+        if (key === "inherit") return panelBorder
+        if (key === "surface") return widgetAssignedColor(gid)
+        return paletteColor(key)
     }
     function serializeWidgetColorStyles() {
         var out = []
@@ -2391,7 +2420,8 @@ Item {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
             if (style.color !== "inherit" || style.mode === "border")
-                out.push(gid + "~" + style.color + "~" + style.mode + "~" + style.tone)
+                out.push(gid + "~" + style.color + "~" + style.mode + "~" + style.tone
+                    + "~" + style.borderWidth + "~" + style.borderColorKey)
         }
         return out.length ? out.join(",") : "-"
     }
@@ -2401,14 +2431,18 @@ Item {
         var entries = String(raw).split(",")
         for (var i = 0; i < entries.length; i++) {
             var fields = entries[i].split("~")
-            if (fields.length !== 4 || !widgetGidValid(fields[0])
+            if ((fields.length !== 4 && fields.length !== 6) || !widgetGidValid(fields[0])
                     || (fields[1] !== "inherit" && !paletteColorValid(fields[1]))
                     || !widgetColorModeValid(fields[2])
                     || !widgetToneValid(fields[3])) continue
+            var bw = fields.length === 6 && widgetBorderWidthValid(Number(fields[4])) ? Number(fields[4]) : 1
+            var bck = fields.length === 6 && widgetBorderColorKeyValid(fields[5]) ? fields[5] : "inherit"
             out[fields[0]] = {
                 color: fields[1],
                 mode: normalizedWidgetColorMode(fields[2], fields[1]),
-                tone: fields[3]
+                tone: fields[3],
+                borderWidth: bw,
+                borderColorKey: bck
             }
         }
         return out
@@ -2450,7 +2484,6 @@ Item {
     onPanelTooltipBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
     onBarCornerRadiusChanged:  if (_widgetsLoaded) saveWidgets()
     onBarColorChanged:         if (_widgetsLoaded) saveWidgets()
-    onWidgetIconsForegroundChanged: if (_widgetsLoaded) saveWidgets()
     onBarTemperatureSourceChanged: if (_widgetsLoaded) saveWidgets()
     onModBatteryChanged:       if (_widgetsLoaded) saveWidgets()
     onBarShadowEnabledChanged: if (_widgetsLoaded) saveWidgets()
@@ -2511,8 +2544,14 @@ Item {
         persistWidgetsToConfig()
     }
 
-    readonly property var launcherLogoTextOptions: ["omarchy", "hyprland", "arch", "omacom"]
-    readonly property var launcherLogoIconOptions: ["omarchy", "hyprland", "arch", "grid", "spark", "power", "dragon", "mark", "nix", "branch", "rebel"]
+    // Ryoku's own marks, plus the neighbours whose wordmarks we actually ship.
+    // "omarchy" is deliberately absent from both lists: its mark is a Private Use
+    // Area glyph in a font we do not ship, and it was also the dead default these
+    // ids carried while the launcher drew a hardcoded mark. Leaving it out makes
+    // every one of those stale records fail validation and land on "ryoku", so an
+    // existing desktop keeps its own brand instead of being silently rebranded.
+    readonly property var launcherLogoTextOptions: ["ryoku", "hyprland", "arch", "omacom"]
+    readonly property var launcherLogoIconOptions: ["ryoku", "hyprland", "arch", "grid", "spark", "power", "dragon", "mark", "nix", "branch", "rebel"]
 
     function launcherLogoTextIndex(id) {
         for (var i = 0; i < launcherLogoTextOptions.length; i++)
@@ -2522,6 +2561,40 @@ Item {
     function launcherLogoIconIndex(id) {
         for (var i = 0; i < launcherLogoIconOptions.length; i++)
             if (launcherLogoIconOptions[i] === id) return i
+        return 0
+    }
+    function launcherLogoTextLabel(id) {
+        return String(id).toUpperCase()
+    }
+    // omarchy's U+E900 needs a font Ryoku doesn't ship, so it's absent here and
+    // any stale "omarchy" icon id falls back to ryoku via the validators below.
+    function launcherLogoIconGlyph(id) {
+        if (id === "ryoku") return "力"
+        if (id === "hyprland") return String.fromCodePoint(0xF359)
+        if (id === "arch") return String.fromCodePoint(0xE732)
+        if (id === "grid") return String.fromCodePoint(0xEEED)
+        if (id === "spark") return String.fromCodePoint(0xE6A4)
+        if (id === "power") return String.fromCodePoint(0xF011)
+        if (id === "dragon") return String.fromCodePoint(0x2EEF)
+        if (id === "mark") return String.fromCodePoint(0xEE99)
+        if (id === "nix") return String.fromCodePoint(0xF30C)
+        if (id === "branch") return String.fromCodePoint(0xE666)
+        if (id === "rebel") return String.fromCodePoint(0xF1D0)
+        return "力"
+    }
+    function launcherLogoIconFont(id) {
+        return id === "ryoku" ? "Noto Sans CJK JP" : mono
+    }
+    function launcherLogoIconSize(id) {
+        if (id === "arch") return 17
+        if (id === "dragon") return 16
+        if (id === "ryoku") return 15
+        return 16
+    }
+    function launcherLogoIconXOffset(id) {
+        if (id === "mark") return 0.5
+        if (id === "arch") return 1
+        if (id === "grid") return -1
         return 0
     }
     function launcherLogoTextValid(id) {
@@ -2644,7 +2717,6 @@ Item {
                         theme.barTemperatureSource = parts[wsField + 38]
                     // +39 was the retired global foreground override. Bar Color
                     // now includes Foreground and per-widget styles provide local overrides.
-                    theme.widgetIconsForeground = false
                     if (parts.length > wsField + 40)
                         theme.widgetColorStyles = theme.parseWidgetColorStyles(parts[wsField + 40])
                     if (parts.length > wsField + 41) {
@@ -2708,6 +2780,7 @@ Item {
         q.barGapLeft = barGapLeft
         q.barGapRight = barGapRight
         q.widgetGeom = widgetGeom
+        q.widgetColorStyles = serializeWidgetColorStyles()
         q.barSeps = barSeps
         q.iconOnlyGids = iconOnlyGids
         q.widgets = {
@@ -2766,6 +2839,7 @@ Item {
         if (q.barGapLeft !== undefined) barGapLeft = clampGap(q.barGapLeft)
         if (q.barGapRight !== undefined) barGapRight = clampGap(q.barGapRight)
         if (q.widgetGeom !== undefined && q.widgetGeom !== null) widgetGeom = q.widgetGeom
+        if (q.widgetColorStyles !== undefined && q.widgetColorStyles !== null) widgetColorStyles = parseWidgetColorStyles(q.widgetColorStyles)
         if (q.barSeps !== undefined && q.barSeps !== null) barSeps = q.barSeps
         if (q.iconOnlyGids !== undefined && q.iconOnlyGids !== null) iconOnlyGids = q.iconOnlyGids
         var w = q.widgets
