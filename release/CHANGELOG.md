@@ -16,6 +16,16 @@
   `.github/workflows/publish-repo.yml`, `installation/tests/container-install.sh`).
 
 ### Fixed
+- **`limine-mkinitcpio-hook` builds against a vendored Gradle, so a distro bump
+  cannot block every user update again.** Arch shipped `gradle 9.7.0-1` on
+  2026-08-14, and it no longer resolves the `gradle-public-api-legacy` module the
+  graalvm buildtools plugin (1.1.3, pinned by upstream's `build.gradle.kts`) asks
+  for. `nativeCompile` died during configuration, `makepkg` failed after all three
+  retries, and the container-install gate correctly held the publish: no broken
+  update reached anyone, but no good one did either. The PKGBUILD now carries
+  `gradle-9.6.1-bin.zip` as a checksummed source beside the GraalVM tarball and
+  builds with that, the version the last green publish used, so the toolchain is
+  hermetic and `gradle` is no longer a makedepend.
 - **The desktop shell now loads on a packaged install (no more grey screen).**
   Every shell config root and `shell/services/Config.qml` import `Ryoku.FrameBars`
   (the shared frame-bar schema and menu/bar catalogs), so it is load-bearing.

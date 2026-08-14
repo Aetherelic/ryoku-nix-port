@@ -15,7 +15,16 @@ pkgrel=1
 pkgdesc="Install kernels for the Limine bootloader."
 arch=('x86_64')
 url="https://gitlab.com/Zesko/limine-entry-tool"
-source=("${_pkgname}::git+${url}.git#tag=${pkgver}")
+# Gradle is vendored, not taken from the distro. Arch shipped 9.7.0 on
+# 2026-08-14 and it no longer resolves the gradle-public-api-legacy module the
+# graalvm buildtools plugin (1.1.3, pinned by upstream's build.gradle.kts) asks
+# for, so nativeCompile died in configuration and the publish gate blocked every
+# user update. 9.6.1 is the version the last green publish built with; pinning it
+# beside the GraalVM tarball makes the toolchain hermetic, so the next distro
+# gradle bump cannot break the boot stack again.
+_gradlever=9.6.1
+source=("${_pkgname}::git+${url}.git#tag=${pkgver}"
+	"https://services.gradle.org/distributions/gradle-${_gradlever}-bin.zip")
 source_x86_64=("https://github.com/graalvm/graalvm-ce-builds/releases/download/graal-25.1.3/graalvm-community-jdk-25i1-25.0.3_linux-x64_bin.tar.gz")
 license=("GPL3")
 provides=('limine-entry-tool')
@@ -33,10 +42,11 @@ optdepends=(
 	'sbctl: Signs UEFI boot files for Secure Boot when enabled'
 	'journalctl-desktop-notification: Sends desktop notifications when errors occur'
 )
-makedepends=('git' 'gradle')
+makedepends=('git')
 backup=(etc/limine-entry-tool.conf)
 conflicts=('limine-entry-tool')
-sha256sums=('SKIP')
+sha256sums=('SKIP'
+	'9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14')
 sha256sums_x86_64=('e9cd1637be853e105f8b09125b4b19fbce385696465d782cbca8bb80e1df8f0d')
 
 prepare() {
@@ -53,7 +63,7 @@ build() {
 	export GRAALVM_HOME="$srcdir/${_graalvm_version}"
 	export JAVA_HOME="${GRAALVM_HOME}"
 	export NATIVE_IMAGE_OPTIONS="-march=compatibility --future-defaults=all"
-	/usr/bin/gradle clean nativeCompile -Dorg.gradle.java.home="${JAVA_HOME}"
+	"$srcdir/gradle-${_gradlever}/bin/gradle" clean nativeCompile -Dorg.gradle.java.home="${JAVA_HOME}"
 }
 
 package() {
