@@ -205,13 +205,17 @@ pkgfile_in() {
 # runtime deps into the closure so it resolves offline, and cache the result in
 # $CACHE so a rebuild is a delta. This is how omarchy bakes its packages too.
 #
-# An incomplete bake FAILS THE BUILD. It used to warn and continue, at three
-# separate levels (no toolchain, a clone failure, a build failure), which meant a
-# build host without base-devel published an ISO carrying zero AUR packages and
-# said so only in a log line nobody reads. The whole promise of these images is
-# that everything is on them, so a missing package has to stop the release rather
-# than ship a desktop with holes. RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 restores the
-# old warn-and-continue for local builds that only need a bootable image.
+# The bake itself is best-effort; COMPLETENESS IS ENFORCED AFTER IT, by checking
+# the assembled repo for every name in aur.packages. That split is deliberate. It
+# used to warn and continue everywhere, so a build host without base-devel
+# published an ISO carrying zero AUR packages and said so only in a log line
+# nobody reads (the last released image shipped without its UI font exactly that
+# way). But making the bake itself fatal is worse: its body is a pile of
+# best-effort probes whose non-zero exits are normal, and under errexit those
+# aborted the build mid-bake with no message. So the probes stay tolerant and the
+# outcome is checked once, where it can be checked honestly.
+# RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 downgrades that check for local builds that
+# only need a bootable image.
 
 bake_aur_set() {
   local aur_file="$REPO_ROOT/system/packages/aur.packages"
@@ -249,9 +253,13 @@ bake_aur_set() {
   for n in "${names[@]}"; do
     # cache hit from a prior build (clear $CACHE to force a fresh build).
     if compgen -G "$CACHE/$n-*.pkg.tar.*" >/dev/null 2>&1; then built+=("$n(cached)"); continue; fi
-    # split packages: the AUR git is keyed by PackageBase, not the pkgname.
+    # split packages: the AUR git is keyed by PackageBase, not the pkgname. The
+    # `|| base=""` matters: under `set -o pipefail` a lookup that finds nothing
+    # (a transient RPC hiccup) makes the whole pipeline non-zero, which with
+    # errexit aborts the build mid-bake with no message at all. Fall back to the
+    # pkgname, which is the right guess for a non-split package anyway.
     base=$(curl -fsSL "https://aur.archlinux.org/rpc/v5/info?arg[]=$n" 2>/dev/null \
-      | grep -oE '"PackageBase":[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\1/')
+      | grep -oE '"PackageBase":[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\1/') || base=""
     [[ -n $base ]] || base=$n
     src="$bdir/$base"; rm -rf "$src"
     if ! git clone -q --depth 1 "https://aur.archlinux.org/$base.git" "$src" 2>/dev/null || [[ ! -f $src/PKGBUILD ]]; then
@@ -290,38 +298,22 @@ bake_aur_set() {
     done < <(printf '%s\n' "${deps[@]}" | awk 'NF && !seen[$0]++')
     if (( ${#want[@]} )); then
       "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "${want[@]}" \
-        || { [[ $lax == 1 ]] && log "AUR bake: note, some runtime deps did not fetch (RYOKU_OFFLINE_ALLOW_INCOMPLETE=1)"; } \
-        || die "AUR bake: a bundled tool's runtime dependency could not be fetched, so it would fail to install offline. Check the mirror, or set RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 for a local build."
+        || log "AUR bake: note, some runtime deps did not fetch; the repo check below decides whether that matters"
     fi
   fi
 
   (( EUID == 0 )) && rm -f /etc/sudoers.d/99-ryoku-aurbuild
   rm -rf "$bdir"
   log "AUR bake: bundled ${#built[@]} (${built[*]:-none}); skipped ${#failed[@]} (${failed[*]:-none})"
-
-  # Two classes, two verdicts. The desktop set (aur.packages) is small, proven to
-  # build headless, and its absence is a desktop with holes, so a miss fails the
-  # build. The legacy NVIDIA branches are several hundred MB of vendor blobs whose
-  # absence costs one hardware class its accelerated driver (mesa/nouveau still
-  # brings the desktop up), so a miss is loud but not fatal: a build host that ran
-  # out of disk should still ship an otherwise complete image.
-  local -a hard=() soft=()
-  local f e
-  for f in "${failed[@]}"; do
-    local extra=0
-    for e in "${aur_bake_extra[@]}"; do [[ $f == "$e" ]] && extra=1; done
-    if (( extra )); then soft+=("$f"); else hard+=("$f"); fi
-  done
-  (( ${#soft[@]} )) && log "WARNING: legacy NVIDIA driver(s) not baked: ${soft[*]}. Pre-Turing (Maxwell/Pascal/Volta) and Kepler cards will fall back to nouveau/mesa on an offline install."
-  if (( ${#hard[@]} )); then
-    [[ $lax == 1 ]] || die "AUR bake incomplete: ${hard[*]}. These ship only on the ISO, so the image would install a desktop missing them. Re-run (the cache makes it a delta), fix the package, or set RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 for a local build."
-    log "AUR bake: continuing without ${hard[*]} (RYOKU_OFFLINE_ALLOW_INCOMPLETE=1)"
-  fi
 }
-# Called plainly, NOT in a `||` list: a `||` context would also disable `set -e`
-# inside the function, which is how an unexpected error used to degrade into a
-# silently AUR-less ISO.
-bake_aur_set
+# Called in a `||` context ON PURPOSE. That disables `set -e` inside the function,
+# which is what this body needs: it is full of best-effort probes (an AUR RPC
+# lookup that finds nothing, a clone of a package that moved) whose non-zero exit
+# is normal and, under errexit + pipefail, aborted the whole build mid-bake with
+# no message. Completeness is NOT enforced here for that reason: the repo check
+# below asks the only question that matters -- is every package actually in the
+# assembled repo -- and it runs with errexit intact, whatever this function did.
+bake_aur_set || log "AUR bake: stopped early; the repo check below will catch anything missing"
 
 # assemble the [offline] repo: reflink every cached package into DEST (btrfs COW,
 # so no extra space), then build the db.
