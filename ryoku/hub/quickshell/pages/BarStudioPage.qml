@@ -228,6 +228,7 @@ Item {
         { id: "memory", label: qsTr("Memory"), def: true, desc: qsTr("Memory use.") },
         { id: "volume", label: qsTr("Volume"), def: true, desc: qsTr("Output volume and mixer.") },
         { id: "network", label: qsTr("Network"), def: true, desc: qsTr("Wi-Fi and Ethernet.") },
+        { id: "battery", label: qsTr("Battery"), def: true, desc: qsTr("Battery level and charge state.") },
         { id: "brightness", label: qsTr("Brightness"), def: true, desc: qsTr("Backlight level.") },
         { id: "weather", label: qsTr("Weather"), def: true, desc: qsTr("Current conditions.") },
         { id: "media", label: qsTr("Media"), def: true, desc: qsTr("Now-playing controls.") },
@@ -545,6 +546,108 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         on: page.qval("panelTooltipBorderEnabled", true)
                         onToggled: value => page.qset("panelTooltipBorderEnabled", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Depth")
+                    desc: qsTr("Soft shadow behind pills, panels and tooltips.")
+                    source: "shell.json"
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.qval("barShadowEnabled", false)
+                        onToggled: value => page.qset("barShadowEnabled", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Frost")
+                    desc: qsTr("Make the bar surfaces translucent.")
+                    source: "shell.json"
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.qval("barFrostEnabled", false)
+                        onToggled: value => page.qset("barFrostEnabled", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 58
+                    label: qsTr("Gap: top")
+                    unit: "px"
+                    value: String(page.qval("barGapTop", 3))
+                    desc: qsTr("Hold the bar off the top edge of the screen.")
+                    source: "shell.json"
+                    Step {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0; to: 64
+                        value: page.qval("barGapTop", 3)
+                        onModified: value => page.qset("barGapTop", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 58
+                    label: qsTr("Gap: bottom")
+                    unit: "px"
+                    value: String(page.qval("barGapBottom", 0))
+                    desc: qsTr("Reserve extra room below the bar.")
+                    source: "shell.json"
+                    Step {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0; to: 64
+                        value: page.qval("barGapBottom", 0)
+                        onModified: value => page.qset("barGapBottom", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 58
+                    label: qsTr("Gap: left")
+                    unit: "px"
+                    value: String(page.qval("barGapLeft", 0))
+                    desc: qsTr("Inset the bar from the left edge.")
+                    source: "shell.json"
+                    Step {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0; to: 64
+                        value: page.qval("barGapLeft", 0)
+                        onModified: value => page.qset("barGapLeft", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 58
+                    label: qsTr("Gap: right")
+                    unit: "px"
+                    value: String(page.qval("barGapRight", 0))
+                    desc: qsTr("Inset the bar from the right edge.")
+                    source: "shell.json"
+                    Step {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0; to: 64
+                        value: page.qval("barGapRight", 0)
+                        onModified: value => page.qset("barGapRight", value)
                     }
                 }
                 SettingRow {

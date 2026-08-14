@@ -242,7 +242,103 @@ Item {
                         onChose: k => { if (page.root && page.root.panelTooltipBorderEnabled !== undefined) page.root.panelTooltipBorderEnabled = (k === "on") }
                     }
                 }
+                CcRow {
+                    root: page.root
+                    label: I18n.tr("Depth")
+                    desc: I18n.tr("Soft shadow behind pills, panels and tooltips")
+                    controlWidth: 108
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
+                        current: (page.root && page.root.barShadowEnabled) ? "on" : "off"
+                        onChose: k => {
+                            if (page.root && page.root.barShadowEnabled !== undefined) page.root.barShadowEnabled = (k === "on")
+                        }
+                    }
+                }
+                CcRow {
+                    root: page.root
+                    label: I18n.tr("Frost")
+                    desc: I18n.tr("Translucent bar surfaces")
+                    controlWidth: 108
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
+                        current: (page.root && page.root.barFrostEnabled) ? "on" : "off"
+                        onChose: k => {
+                            if (page.root && page.root.barFrostEnabled !== undefined) page.root.barFrostEnabled = (k === "on")
+                        }
+                    }
+                }
 
+            }
+
+            // ── GAPS: how far the shell stays off each output edge ──
+            CcSection {
+                width: col.width
+                root: page.root
+                title: I18n.tr("GAPS")
+
+                CcRow {
+                    root: page.root
+                    label: I18n.tr("Top")
+                    desc: I18n.tr("Lift the bar off the top edge")
+                    controlWidth: 104
+                    CcStepper {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        suffix: "px"
+                        value: page.root && page.root.barGapTop !== undefined ? page.root.barGapTop : 0
+                        onCommit: v => { if (page.root && page.root.barGapTop !== undefined) page.root.barGapTop = v }
+                    }
+                }
+                CcRow {
+                    root: page.root
+                    label: I18n.tr("Bottom")
+                    desc: I18n.tr("Reserve extra room below the bar")
+                    controlWidth: 104
+                    CcStepper {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        suffix: "px"
+                        value: page.root && page.root.barGapBottom !== undefined ? page.root.barGapBottom : 0
+                        onCommit: v => { if (page.root && page.root.barGapBottom !== undefined) page.root.barGapBottom = v }
+                    }
+                }
+                CcRow {
+                    root: page.root
+                    label: I18n.tr("Left")
+                    desc: I18n.tr("Inset the shell from the left edge")
+                    controlWidth: 104
+                    CcStepper {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        suffix: "px"
+                        value: page.root && page.root.barGapLeft !== undefined ? page.root.barGapLeft : 0
+                        onCommit: v => { if (page.root && page.root.barGapLeft !== undefined) page.root.barGapLeft = v }
+                    }
+                }
+                CcRow {
+                    root: page.root
+                    label: I18n.tr("Right")
+                    desc: I18n.tr("Inset the shell from the right edge")
+                    controlWidth: 104
+                    CcStepper {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        suffix: "px"
+                        value: page.root && page.root.barGapRight !== undefined ? page.root.barGapRight : 0
+                        onCommit: v => { if (page.root && page.root.barGapRight !== undefined) page.root.barGapRight = v }
+                    }
+                }
             }
 
             // ── BAR FORM (2×2 selectable silhouette cards) ──

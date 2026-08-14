@@ -53,147 +53,195 @@ Item {
         if (page.root[flag] !== undefined) page.root[flag] = !page.root[flag]
     }
 
-    // ── one widget row: label, then a right cluster of palette / eye / density.
-    // Lifted from the old ControlPanel WidgetStateTile, stretched full-width and
-    // made capability-aware. Kept in THIS file per the route contract.
-    component WidgetRow: Rectangle {
-        id: wr
+    // Separator: ends the widget's island run, so it stands alone in islands form.
+    function sepOf(gid) {
+        return (page.root && gid !== "" && page.root.sepAfter !== undefined)
+            ? page.root.sepAfter(gid) === true : false
+    }
+    function toggleSep(gid) {
+        if (page.root && gid !== "" && page.root.toggleSep !== undefined)
+            page.root.toggleSep(gid)
+    }
+
+    // Labelled chip for the On/Off pair and the density switch.
+    component StateChip: Rectangle {
+        id: chip
+        property string label: ""
+        property bool active: false
+        property bool live: true
+        signal act
+
+        width: Math.max(38, chipText.implicitWidth + 16)
+        height: 24
+        radius: page.root ? page.root.tileRadius : 4
+        color: !page.root ? "transparent"
+            : chip.active
+                ? Qt.rgba(page.root.seal.r, page.root.seal.g, page.root.seal.b, 0.18)
+                : (chipMa.containsMouse && chip.live
+                    ? Qt.rgba(page.root.ink.r, page.root.ink.g, page.root.ink.b, 0.07)
+                    : page.root.fillIdle)
+        border.width: 1
+        border.color: !page.root ? "transparent"
+            : chip.active
+                ? Qt.rgba(page.root.seal.r, page.root.seal.g, page.root.seal.b, 0.55)
+                : page.root.sep
+        opacity: chip.live ? 1 : 0.4
+        Behavior on color { ColorAnimation { duration: 120 } }
+
+        UiText {
+            id: chipText
+            anchors.centerIn: parent
+            text: chip.label
+            color: page.root ? (chip.active ? page.root.seal : page.root.sumiHi) : "#888888"
+            font.family: page.root ? page.root.mono : "monospace"
+            font.pixelSize: 10
+            font.weight: chip.active ? Font.DemiBold : Font.Normal
+            Behavior on color { ColorAnimation { duration: 120 } }
+        }
+        MouseArea {
+            id: chipMa
+            anchors.fill: parent
+            enabled: chip.live
+            hoverEnabled: true
+            cursorShape: chip.live ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: chip.act()
+        }
+    }
+
+    // One widget as a state card: mark and accent on top, On/Off and density below.
+    component WidgetCard: Rectangle {
+        id: wc
         property string modProp: ""
         property string gid: ""
         property string flag: ""
         property string title: ""
         property string offLabel: "Full"
         property string onLabel: "Icon"
+        // The mark the widget draws in the bar, so the card previews it.
+        property string icon: ""
 
         readonly property bool shown: page.boolOf(modProp)
         readonly property bool colorable: page.colorSupported && gid !== ""
         readonly property bool compactable: flag !== ""
         readonly property bool compactOn: page.compactOf(gid, flag)
         readonly property bool menuOpen: gid !== "" && page.colorGid === gid
-        readonly property bool hovered: bodyMa.containsMouse || colorMa.containsMouse
-            || eyeMa.containsMouse || modeMa.containsMouse
+        readonly property bool sepOn: page.sepOf(gid)
 
-        width: parent ? parent.width : 0
-        height: 34
+        height: 68
         radius: page.root ? page.root.tileRadius : 4
-        color: page.root ? page.root.fillIdle : "transparent"
-        border.color: page.root ? (hovered || menuOpen ? page.root.seal : page.root.sep) : "transparent"
+        color: page.root ? (wc.shown ? page.root.fillActive : page.root.fillIdle) : "transparent"
         border.width: 1
+        border.color: !page.root ? "transparent"
+            : (cardHover.hovered || wc.menuOpen) ? page.root.seal
+            : wc.shown ? Qt.rgba(page.root.seal.r, page.root.seal.g, page.root.seal.b, 0.34)
+            : page.root.sep
+        Behavior on color { ColorAnimation { duration: 120 } }
         Behavior on border.color { ColorAnimation { duration: 120 } }
 
-        UiText {
-            id: nameLabel
+        HoverHandler { id: cardHover }
+
+        IconText {
+            id: cardIcon
             anchors.left: parent.left
-            anchors.leftMargin: 12
-            anchors.right: stateArea.left
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            text: wr.title
-            color: page.root ? (wr.shown ? page.root.ink : page.root.sumi) : "#888888"
+            anchors.leftMargin: 10
+            anchors.top: parent.top
+            anchors.topMargin: 8
+            visible: wc.icon !== ""
+            text: wc.icon
+            color: !page.root ? "#888888"
+                : (wc.colorable && page.root.widgetHasFill(wc.gid))
+                    ? page.root.widgetAssignedColor(wc.gid)
+                    : (wc.shown ? page.root.ink : page.root.sumi)
+            font.pixelSize: 15
+            Behavior on color { ColorAnimation { duration: 120 } }
+        }
+
+        UiText {
+            id: cardName
+            anchors.left: cardIcon.visible ? cardIcon.right : parent.left
+            anchors.leftMargin: cardIcon.visible ? 7 : 10
+            anchors.right: colorChipHolder.visible ? colorChipHolder.left : parent.right
+            anchors.rightMargin: 6
+            anchors.verticalCenter: cardIcon.visible ? cardIcon.verticalCenter : undefined
+            anchors.top: cardIcon.visible ? undefined : parent.top
+            anchors.topMargin: cardIcon.visible ? 0 : 9
+            text: wc.title
+            color: page.root ? (wc.shown ? page.root.ink : page.root.sumi) : "#888888"
             font.family: page.root ? page.root.mono : "monospace"
             font.pixelSize: 12
+            font.weight: wc.shown ? Font.Medium : Font.Normal
             elide: Text.ElideRight
             Behavior on color { ColorAnimation { duration: 120 } }
         }
 
-        // Right control cluster. A Row skips invisible children, so unsupported
-        // controls collapse and the visible ones stay flush-right.
-        Row {
-            id: stateArea
+        // palette chip → opens the accent popover for this group
+        Item {
+            id: colorChipHolder
             anchors.right: parent.right
-            anchors.rightMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
+            anchors.rightMargin: 7
+            anchors.top: parent.top
+            anchors.topMargin: 5
+            width: 24
+            height: 24
+            visible: wc.colorable
 
-            // palette chip → opens the accent popover for this group
-            Item {
-                width: 26; height: 26
-                visible: wr.colorable
-                IconText {
-                    id: colorChip
-                    anchors.centerIn: parent
-                    text: "palette"
-                    color: (wr.colorable && page.root.widgetHasFill(wr.gid))
-                        ? page.root.widgetAssignedColor(wr.gid)
-                        : (page.root
-                            ? (colorMa.containsMouse || wr.menuOpen ? page.root.seal : page.root.sumiHi)
-                            : "#888888")
-                    font.pixelSize: 15
-                    scale: colorMa.containsMouse ? 1.06 : 1.0
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                    Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-                }
-                MouseArea {
-                    id: colorMa
-                    anchors.fill: parent
-                    enabled: wr.colorable
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (page.colorGid === wr.gid) { page.colorGid = ""; page.colorLabel = "" }
-                        else { page.colorGid = wr.gid; page.colorLabel = wr.title }
-                    }
-                }
+            IconText {
+                anchors.centerIn: parent
+                text: "palette"
+                color: (wc.colorable && page.root.widgetHasFill(wc.gid))
+                    ? page.root.widgetAssignedColor(wc.gid)
+                    : (page.root
+                        ? (colorMa.containsMouse || wc.menuOpen ? page.root.seal : page.root.sumiHi)
+                        : "#888888")
+                font.pixelSize: 14
+                scale: colorMa.containsMouse ? 1.08 : 1.0
+                Behavior on color { ColorAnimation { duration: 120 } }
+                Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
             }
-
-            // visibility toggle (always present; the mod* boolean)
-            Item {
-                width: 26; height: 26
-                IconText {
-                    anchors.centerIn: parent
-                    text: wr.shown ? "visibility" : "visibility_off"
-                    color: page.root
-                        ? (eyeMa.containsMouse ? page.root.seal
-                            : wr.shown ? page.root.sumiHi : page.root.sumi)
-                        : "#888888"
-                    font.pixelSize: 15
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                MouseArea {
-                    id: eyeMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: page.toggleMod(wr.modProp)
-                }
-            }
-
-            // density toggle (only where a compact mode exists for the group)
-            Item {
-                width: 38; height: 26
-                visible: wr.compactable
-                opacity: wr.shown ? 1 : 0.4
-                UiText {
-                    anchors.centerIn: parent
-                    text: wr.compactOn ? wr.onLabel : wr.offLabel
-                    color: page.root
-                        ? (modeMa.containsMouse || (wr.shown && wr.compactOn) ? page.root.seal : page.root.sumiHi)
-                        : "#888888"
-                    font.family: page.root ? page.root.mono : "monospace"
-                    font.pixelSize: 10
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                MouseArea {
-                    id: modeMa
-                    anchors.fill: parent
-                    enabled: wr.shown && wr.compactable
-                    hoverEnabled: true
-                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onClicked: page.toggleCompact(wr.gid, wr.flag)
+            MouseArea {
+                id: colorMa
+                anchors.fill: parent
+                enabled: wc.colorable
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (page.colorGid === wc.gid) { page.colorGid = ""; page.colorLabel = "" }
+                    else { page.colorGid = wc.gid; page.colorLabel = wc.title }
                 }
             }
         }
 
-        // clicking the label body toggles visibility too (matches the old tile)
-        MouseArea {
-            id: bodyMa
+        Row {
             anchors.left: parent.left
-            anchors.right: stateArea.left
-            anchors.top: parent.top
+            anchors.leftMargin: 10
             anchors.bottom: parent.bottom
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: page.toggleMod(wr.modProp)
+            anchors.bottomMargin: 9
+            spacing: 4
+
+            StateChip {
+                label: I18n.tr("On")
+                active: wc.shown
+                onAct: if (!wc.shown) page.toggleMod(wc.modProp)
+            }
+            StateChip {
+                label: I18n.tr("Off")
+                active: !wc.shown
+                onAct: if (wc.shown) page.toggleMod(wc.modProp)
+            }
+            StateChip {
+                visible: wc.compactable
+                label: wc.compactOn ? wc.onLabel : wc.offLabel
+                active: wc.shown && wc.compactOn
+                live: wc.shown
+                onAct: page.toggleCompact(wc.gid, wc.flag)
+            }
+            StateChip {
+                visible: wc.gid !== ""
+                label: I18n.tr("Split")
+                active: wc.shown && wc.sepOn
+                live: wc.shown
+                onAct: page.toggleSep(wc.gid)
+            }
         }
     }
 
@@ -218,29 +266,42 @@ Item {
 
                 UiText {
                     width: parent.width
-                    text: I18n.tr("palette assigns an accent · eye toggles visibility · label toggles density")
+                    text: I18n.tr("On · Off sets visibility · palette assigns an accent · density chip · Split gives the widget its own island")
                     color: page.root ? page.root.sumi : "#888888"
                     font.family: page.root ? page.root.mono : "monospace"
                     font.pixelSize: 10
                     elide: Text.ElideRight
                 }
 
-                WidgetRow { modProp: "modStatus";     gid: "G3";  title: I18n.tr("Status") }
-                WidgetRow { modProp: "modMemory";     gid: "G4";  flag: "compactMemory";     title: I18n.tr("Memory") }
-                WidgetRow { modProp: "modCpu";        gid: "G5";  flag: "compactCpu";        title: I18n.tr("CPU") }
-                WidgetRow { modProp: "modVolume";     gid: "G6";  flag: "compactVolume";     title: I18n.tr("Volume") }
-                WidgetRow { modProp: "modClaude";     gid: "G7";  title: I18n.tr("AI Usage") }
-                WidgetRow { modProp: "modWeather";    gid: "G8";  title: I18n.tr("Clock / Weather") }
-                WidgetRow { modProp: "modMpris";      gid: "G9";  flag: "compactMpris";      title: I18n.tr("Now Playing"); offLabel: "Def"; onLabel: "Full" }
-                WidgetRow { modProp: "modQuick";      gid: "G10"; title: I18n.tr("Quick Tools") }
-                WidgetRow { modProp: "modMedia";                  title: I18n.tr("Media") }
-                WidgetRow { modProp: "modNetwork";    gid: "G11"; flag: "compactNetwork";    title: I18n.tr("Network") }
-                WidgetRow { modProp: "modBrightness"; gid: "G13"; flag: "compactBrightness"; title: I18n.tr("Brightness") }
-                WidgetRow { modProp: "modPower";      gid: "G14"; flag: "compactPower";      title: I18n.tr("Power Profile") }
-                WidgetRow { modProp: "modBluetooth";  gid: "G15"; flag: "compactBluetooth";  title: I18n.tr("Bluetooth") }
-                WidgetRow { visible: page.root && page.root.modGpu !== undefined;            modProp: "modGpu";            gid: "G17"; flag: "compactGpu";            title: I18n.tr("GPU") }
-                WidgetRow { visible: page.root && page.root.modCpuTemperature !== undefined; modProp: "modCpuTemperature"; gid: "G16"; flag: "compactCpuTemperature"; title: I18n.tr("CPU Temp") }
-                WidgetRow { visible: page.root && page.root.modStorage !== undefined;        modProp: "modStorage";        gid: "G18"; flag: "compactStorage";        title: I18n.tr("Storage") }
+                // Bento: as many equal-width cards per row as the panel can hold.
+                Grid {
+                    id: widgetGrid
+                    width: parent.width
+                    columnSpacing: 8
+                    rowSpacing: 8
+                    columns: Math.max(1,
+                        Math.floor((width + columnSpacing) / (232 + columnSpacing)))
+                    readonly property real cellW: columns > 0
+                        ? (width - columnSpacing * (columns - 1)) / columns : width
+
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modStatus";     gid: "G3";  icon: "notifications";     title: I18n.tr("Status") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modMemory";     gid: "G4";  icon: "memory";            flag: "compactMemory";     title: I18n.tr("Memory") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modCpu";        gid: "G5";  icon: "planner_review";    flag: "compactCpu";        title: I18n.tr("CPU") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modVolume";     gid: "G6";  icon: "graphic_eq";        flag: "compactVolume";     title: I18n.tr("Volume") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modClaude";     gid: "G7";  icon: "smart_toy";         title: I18n.tr("AI Usage") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modWeather";    gid: "G8";  icon: "schedule";          title: I18n.tr("Clock / Weather") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modMpris";      gid: "G9";  icon: "music_note";        flag: "compactMpris";      title: I18n.tr("Now Playing"); offLabel: "Def"; onLabel: "Full" }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modQuick";      gid: "G10"; icon: "tune";              title: I18n.tr("Quick Tools") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modMedia";                  icon: "collections";       title: I18n.tr("Media") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modNetwork";    gid: "G11"; icon: "wifi";              flag: "compactNetwork";    title: I18n.tr("Network") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modBattery";    gid: "G12"; icon: "battery_5_bar";     flag: "compactBattery";    title: I18n.tr("Battery") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modBrightness"; gid: "G13"; icon: "brightness_6";      flag: "compactBrightness"; title: I18n.tr("Brightness") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modPower";      gid: "G14"; icon: "bolt";              flag: "compactPower";      title: I18n.tr("Power Profile") }
+                    WidgetCard { width: widgetGrid.cellW; modProp: "modBluetooth";  gid: "G15"; icon: "bluetooth";         flag: "compactBluetooth";  title: I18n.tr("Bluetooth") }
+                    WidgetCard { width: widgetGrid.cellW; visible: page.root && page.root.modGpu !== undefined;            modProp: "modGpu";            gid: "G17"; icon: "developer_board";   flag: "compactGpu";            title: I18n.tr("GPU") }
+                    WidgetCard { width: widgetGrid.cellW; visible: page.root && page.root.modCpuTemperature !== undefined; modProp: "modCpuTemperature"; gid: "G16"; icon: "device_thermostat"; flag: "compactCpuTemperature"; title: I18n.tr("CPU Temp") }
+                    WidgetCard { width: widgetGrid.cellW; visible: page.root && page.root.modStorage !== undefined;        modProp: "modStorage";        gid: "G18"; icon: "hard_drive_2";      flag: "compactStorage";        title: I18n.tr("Storage") }
+                }
             }
 
             // AI-usage tool: which coding-agent meter the pill shows. A per-widget

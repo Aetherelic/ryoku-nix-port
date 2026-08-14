@@ -37,11 +37,17 @@ PanelWindow {
     readonly property int notchBodyRadius: 9
     readonly property real notchCurveKappa: 0.55228475
     readonly property int shellVisibleHeight: barSlot.root.v2BarHeight
+    // Side gaps shrink the span before the shell is sized, so a fitted form
+    // never reaches into the reserved edge strips.
+    readonly property int gapLeft: barSlot.root.barGapLeft
+    readonly property int gapRight: barSlot.root.barGapRight
+    readonly property int gapLead: barSlot.root.barGapLead
+    readonly property real shellSpan: Math.max(1, barSlot.width - gapLeft - gapRight)
     readonly property real shellTargetWidth: compactShell
         ? Math.max(80,
-            Math.min(barSlot.width - 2 * shellOuterMargin,
+            Math.min(shellSpan - 2 * shellOuterMargin,
                 island.fitNaturalWidth))
-        : barSlot.width
+        : shellSpan
 
     color: "transparent"
     // ALWAYS screen-tall → window never resizes → NO compositor resize animation.
@@ -56,16 +62,20 @@ PanelWindow {
     }
     implicitHeight: barSlot.screen ? barSlot.screen.height : 1440
     exclusionMode: ExclusionMode.Normal
-    // Keep the same compositor reservation for every shell style: clients must
-    // never slide behind a content-width Fit/Dock/Notch bar.
-    exclusiveZone: barSlot.root.v2BarHeight + 3
+    // Same reservation for every shell style, widened by the gaps so a client
+    // never slides behind the bar.
+    exclusiveZone: barSlot.gapLead + barSlot.root.v2BarHeight
+        + barSlot.root.barGapTrail + 3
     mask: Region {
         x: barSlot.root.barUnlocked ? 0 : Math.round(continuousBarSurface.x)
+        // The lead gap stays clickable; otherwise slamming the pointer at the
+        // screen edge would hit the window behind the bar.
         y: barSlot.root.barUnlocked ? 0
            : (barSlot.root.barPosition === "bottom"
-                ? barSlot.height - barSlot.shellVisibleHeight : 0)
+                ? barSlot.height - barSlot.shellVisibleHeight - barSlot.gapLead : 0)
         width: barSlot.root.barUnlocked ? barSlot.width : Math.round(continuousBarSurface.width)
-        height: barSlot.root.barUnlocked ? barSlot.height : barSlot.shellVisibleHeight
+        height: barSlot.root.barUnlocked ? barSlot.height
+                : barSlot.shellVisibleHeight + barSlot.gapLead
     }
     // grab keyboard while unlocked so ESC can exit
     WlrLayershell.keyboardFocus: barSlot.root.barUnlocked ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -94,10 +104,12 @@ PanelWindow {
     // bottom placement mirrors it so the shadow still opens toward the desktop.
     Rectangle {
         id: continuousBarSurface
-        x: barSlot.compactShell ? Math.round((barSlot.width - width) / 2) : 0
+        x: barSlot.compactShell
+            ? Math.round(barSlot.gapLeft + (barSlot.shellSpan - width) / 2)
+            : barSlot.gapLeft
         y: barSlot.root.barPosition === "bottom"
-            ? barSlot.height - height
-            : 0
+            ? barSlot.height - height - barSlot.gapLead
+            : barSlot.gapLead
         width: barSlot.shellTargetWidth
         height: barSlot.shellVisibleHeight
         radius: barSlot.compactShell ? barSlot.shellRadius : 0
@@ -1652,9 +1664,11 @@ PanelWindow {
                     opacity: (barSlot.dragItem === ldr && barSlot.dragActive) ? 0.25 : 1.0
                 }
 
-                // thin vertical divider, centered in the widened right gap
+                // Thin vertical divider centered in the widened right gap. Islands
+                // express the same split as a pill break, so it is redundant there.
                 Rectangle {
                     visible: slot.sepOn && slot.hasContent && slot.autoShown
+                        && !barSlot.islandsShell
                     x: slot.width - slot.pad - 5
                     width: 1
                     height: 14
@@ -1801,7 +1815,9 @@ PanelWindow {
         x: continuousBarSurface.x
         width: continuousBarSurface.width
         height: barSlot.root.v2BarHeight
-        y: barSlot.root.barPosition === "bottom" ? parent.height - height : 0
+        y: barSlot.root.barPosition === "bottom"
+            ? parent.height - height - barSlot.gapLead
+            : barSlot.gapLead
         z: 2                                  // above the dim backdrop
         focus: barSlot.root.barUnlocked       // receive keys while unlocked
         Keys.onEscapePressed: barSlot.root.barUnlocked = false
@@ -1849,6 +1865,11 @@ PanelWindow {
         readonly property int centerGap: 12
         // Pull the first and last groups 2px closer to the physical screen edge.
         readonly property int rowMargin: 5
+        // Islands clamp their pill to shellOuterMargin, so the row must start a
+        // full pad inside it or the pill collapses onto its own content.
+        readonly property int rowInset: barSlot.islandsShell
+            ? barSlot.shellOuterMargin + barSlot.islandsPad
+            : rowMargin
         readonly property real centerAvail: barSlot.compactShell
             ? Math.max(0, barSlot.width - 2 * barSlot.shellOuterMargin
                 - 2 * fitPadding - leftRowItem.implicitWidth - rightRowItem.implicitWidth
@@ -1951,21 +1972,44 @@ PanelWindow {
             function onBarShellStyleChanged() { island.scheduleNarrowUpdate() }
         }
 
-        // ── islands form: one rounded pill behind each populated region ──
+        // One entry per contiguous run of widgets, split wherever a separator is
+        // set, so a separated widget becomes its own island.
+        readonly property var islandRuns: {
+            void(barSlot.root.barSeps)
+            var rows = [leftRowItem, centerRowItem, rightRowItem]
+            var runs = []
+            for (var r = 0; r < rows.length; r++) {
+                var row = rows[r]
+                if (!row) continue
+                void(row.x); void(row.implicitWidth)
+                var rep = row.rep
+                if (!rep) continue
+                var start = -1, end = -1
+                for (var k = 0; k < rep.count; k++) {
+                    var it = rep.itemAt(k)
+                    if (!it) continue
+                    void(it.x); void(it.width); void(it.sepOn)
+                    if (!it.hasContent || !it.autoShown) continue
+                    if (start < 0) start = row.x + it.x + it.visualLeftEdge
+                    end = row.x + it.x + it.visualRightEdge
+                    if (it.sepOn) { runs.push({ a: start, b: end }); start = -1 }
+                }
+                if (start >= 0) runs.push({ a: start, b: end })
+            }
+            return runs
+        }
+        // ── islands form: one rounded pill per widget run ──
         // Only rendered for barShellStyle "islands"; the continuous surface fills
         // are hidden in that mode. The reactor stream (ReactorLayer, z:1) still
         // flows through the gaps between the pills, exactly as the old split bar.
         Repeater {
-            model: barSlot.islandsShell
-                ? [leftRowItem, centerRowItem, rightRowItem]
-                : []
+            model: barSlot.islandsShell ? island.islandRuns : []
             delegate: Rectangle {
                 required property var modelData
                 readonly property int islandsPad: barSlot.islandsPad
-                readonly property real rawLeft: modelData ? modelData.x - islandsPad : 0
-                readonly property real rawRight: modelData
-                    ? modelData.x + modelData.implicitWidth + islandsPad : 0
-                visible: modelData && modelData.implicitWidth > 0.5
+                readonly property real rawLeft: modelData ? modelData.a - islandsPad : 0
+                readonly property real rawRight: modelData ? modelData.b + islandsPad : 0
+                visible: modelData && (modelData.b - modelData.a) > 0.5
                 x: Math.max(barSlot.shellOuterMargin, rawLeft)
                 y: 0
                 width: Math.max(0,
@@ -2009,7 +2053,7 @@ PanelWindow {
         SlotRow {
             id: leftRowItem
             anchors.verticalCenter: parent.verticalCenter
-            x: barSlot.compactShell ? island.fitPadding : island.rowMargin
+            x: barSlot.compactShell ? island.fitPadding : island.rowInset
             rmodel: leftModel
             baseCount: barSlot.leftBaseSlotCount
             maxExtraCount: barSlot.leftExtraSlotLimit
@@ -2039,7 +2083,7 @@ PanelWindow {
                     + (leftRowItem.implicitWidth > 0.5 ? island.fitRegionGap : 0)
                     + centerRowItem.implicitWidth
                     + (centerRowItem.implicitWidth > 0.5 ? island.fitRegionGap : 0)
-                : island.width - island.rowMargin - implicitWidth
+                : island.width - island.rowInset - implicitWidth
             rmodel: rightModel
             baseCount: barSlot.rightBaseSlotCount
             maxExtraCount: barSlot.rightExtraSlotLimit

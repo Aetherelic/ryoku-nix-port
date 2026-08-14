@@ -45,9 +45,11 @@ Item {
         root.widgetHasFill("G12") ? contentColor
         : ((charging || full) ? root.indigo : root.seal)
 
-    implicitWidth:  hasBattery ? (row.implicitWidth + 18) : 0
+    // Both gates: the toggle only matters where a laptop battery is reported.
+    readonly property bool shown: hasBattery && root.modBattery
+    implicitWidth:  shown ? (row.implicitWidth + 18) : 0
     implicitHeight: 28
-    visible: hasBattery
+    visible: shown
 
 
     Row {

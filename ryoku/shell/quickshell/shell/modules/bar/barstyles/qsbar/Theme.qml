@@ -121,7 +121,8 @@ Item {
     property real barOpacity:  0.94   // durchgehende V2-Leiste
     property real pillOpacity: 0.18   // einzelne Widget-Pillen (workspace, mem, cpu, …)
 
-    readonly property real surfaceOpacity: barOpacity
+    // Frost overrides the user's barOpacity with the reference's island alpha.
+    readonly property real surfaceOpacity: barFrostEnabled ? 0.68 : barOpacity
     readonly property color bg:     Qt.rgba(paper.r, paper.g, paper.b, surfaceOpacity)
     readonly property color barBg:  Qt.rgba(paper.r, paper.g, paper.b, surfaceOpacity)
     readonly property color pill:   Qt.rgba(paper.r, paper.g, paper.b, pillOpacity)
@@ -2107,6 +2108,7 @@ Item {
     property bool modMpris:      true    // G9 now-playing / mpris pill
     property string mprisBarStyle: "default" // "default" or "full"
     property bool modClaude:     false   // default off (toggle in ControlPanel)
+    property bool modBattery:    true    // G12 battery pill (laptop batteries only)
 
     // backlight presence - set by BrightnessWidget once it probes /sys/class/backlight.
     // ControlPanel uses this to hide the Brightness toggle on desktops without one.
@@ -2149,6 +2151,24 @@ Item {
     // Persisted in shell.json .qsbar; set from the control center and Bar Studio.
     property int barCornerRadius: 6
     property bool panelTooltipBorderEnabled: true
+
+    // Depth is the pill/panel/tooltip shadow; the bar shell keeps its own either way.
+    property bool barShadowEnabled: false
+    property bool barFrostEnabled: false
+
+    // Gaps hold the shell off each output edge. Default top 3 matches the
+    // reference's island offset.
+    property int barGapTop: 3
+    property int barGapBottom: 0
+    property int barGapLeft: 0
+    property int barGapRight: 0
+    function clampGap(value) {
+        var n = Math.round(Number(value) || 0)
+        return Math.max(0, Math.min(64, n))
+    }
+    // Lead faces the anchored edge, trail the desktop, so consumers skip barPosition.
+    readonly property int barGapLead: barPosition === "bottom" ? barGapBottom : barGapTop
+    readonly property int barGapTrail: barPosition === "bottom" ? barGapTop : barGapBottom
     function barShellStyleValid(value) {
         return value === "islands" || value === "full" || value === "fit"
             || value === "dock" || value === "notch"
@@ -2432,6 +2452,13 @@ Item {
     onBarColorChanged:         if (_widgetsLoaded) saveWidgets()
     onWidgetIconsForegroundChanged: if (_widgetsLoaded) saveWidgets()
     onBarTemperatureSourceChanged: if (_widgetsLoaded) saveWidgets()
+    onModBatteryChanged:       if (_widgetsLoaded) saveWidgets()
+    onBarShadowEnabledChanged: if (_widgetsLoaded) saveWidgets()
+    onBarFrostEnabledChanged:  if (_widgetsLoaded) saveWidgets()
+    onBarGapTopChanged:        if (_widgetsLoaded) saveWidgets()
+    onBarGapBottomChanged:     if (_widgetsLoaded) saveWidgets()
+    onBarGapLeftChanged:       if (_widgetsLoaded) saveWidgets()
+    onBarGapRightChanged:      if (_widgetsLoaded) saveWidgets()
 
     function saveWidgets() {
         var line = (modMemory    ? "1" : "0") + " "
@@ -2674,13 +2701,22 @@ Item {
         q.barBorderEnabled = barBorderEnabled
         q.panelTooltipBorderEnabled = panelTooltipBorderEnabled
         q.barCornerRadius = barCornerRadius
+        q.barShadowEnabled = barShadowEnabled
+        q.barFrostEnabled = barFrostEnabled
+        q.barGapTop = barGapTop
+        q.barGapBottom = barGapBottom
+        q.barGapLeft = barGapLeft
+        q.barGapRight = barGapRight
         q.widgetGeom = widgetGeom
+        q.barSeps = barSeps
+        q.iconOnlyGids = iconOnlyGids
         q.widgets = {
             "status": modStatus, "memory": modMemory, "cpu": modCpu, "volume": modVolume,
             "weather": modWeather, "network": modNetwork, "brightness": modBrightness,
             "media": modMedia, "mpris": modMpris, "quick": modQuick, "claude": modClaude,
             "power": modPower, "bluetooth": modBluetooth, "gpu": modGpu,
-            "cpuTemperature": modCpuTemperature, "storage": modStorage
+            "cpuTemperature": modCpuTemperature, "storage": modStorage,
+            "battery": modBattery
         }
         _cfgCtl.queued += "call settings.patch " + JSON.stringify({ path: "qsbar", value: q }) + "\n"
         if (_cfgCtl.connected) _cfgCtl.flushQueued()
@@ -2723,7 +2759,15 @@ Item {
         if (q.barBorderEnabled !== undefined) barBorderEnabled = q.barBorderEnabled
         if (q.panelTooltipBorderEnabled !== undefined) panelTooltipBorderEnabled = q.panelTooltipBorderEnabled
         if (q.barCornerRadius !== undefined) barCornerRadius = Math.max(0, Math.min(40, q.barCornerRadius))
+        if (q.barShadowEnabled !== undefined) barShadowEnabled = q.barShadowEnabled
+        if (q.barFrostEnabled !== undefined) barFrostEnabled = q.barFrostEnabled
+        if (q.barGapTop !== undefined) barGapTop = clampGap(q.barGapTop)
+        if (q.barGapBottom !== undefined) barGapBottom = clampGap(q.barGapBottom)
+        if (q.barGapLeft !== undefined) barGapLeft = clampGap(q.barGapLeft)
+        if (q.barGapRight !== undefined) barGapRight = clampGap(q.barGapRight)
         if (q.widgetGeom !== undefined && q.widgetGeom !== null) widgetGeom = q.widgetGeom
+        if (q.barSeps !== undefined && q.barSeps !== null) barSeps = q.barSeps
+        if (q.iconOnlyGids !== undefined && q.iconOnlyGids !== null) iconOnlyGids = q.iconOnlyGids
         var w = q.widgets
         if (w) {
             if (w.status     !== undefined) modStatus     = w.status
@@ -2742,6 +2786,7 @@ Item {
             if (w.gpu            !== undefined) modGpu            = w.gpu
             if (w.cpuTemperature !== undefined) modCpuTemperature = w.cpuTemperature
             if (w.storage        !== undefined) modStorage        = w.storage
+            if (w.battery        !== undefined) modBattery        = w.battery
         }
         _widgetsLoaded = wl
     }
