@@ -638,9 +638,14 @@ PanelWindow {
             readonly property real curvedInsetX: Math.max(0, Math.min(width,
                 curvedInsetAnchor - continuousBarSurface.x))
             readonly property int curvedInsetPixel: Math.round(curvedInsetX)
+            // The border is a straight line, so it has to stop where the silhouette
+            // starts curving or it carries on past the corner as a stray hairline.
+            // It draws on the desktop-facing edge, so it answers that edge's radius.
             readonly property int endInset: barSlot.root.barShellStyle === "notch"
                 ? barSlot.notchBodyRadius
-                : barSlot.compactShell ? continuousBarSurface.radius : 0
+                : Math.round(barSlot.root.barPosition === "bottom"
+                    ? continuousBarSurface.topCornerRadius
+                    : continuousBarSurface.bottomCornerRadius)
 
             x: 0
             y: 0
