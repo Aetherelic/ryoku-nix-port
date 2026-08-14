@@ -11,7 +11,7 @@ percentages come straight from the server; the token breakdown shown in the
 tooltip is a lightweight local count over the current 5h window.
 """
 import json, re, subprocess, sys, urllib.request, urllib.error
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 CRED_FILE  = Path.home() / ".claude" / ".credentials.json"
@@ -63,14 +63,20 @@ def iso_ts(s: str) -> int:
         return 0
 
 
-def count_tokens_since(since_ts: int) -> tuple[int, int, int]:
-    """(tokens_in_window, tokens_in_last_hour, tokens_today) from local JSONL."""
+def count_tokens_since(since_ts: int, days: int = 7) -> tuple[int, int, int, dict]:
+    """(tokens_in_window, tokens_in_last_hour, tokens_today, tokens_by_utc_day).
+
+    One pass over the local JSONL feeds both the 5h-window token count and a
+    per-day bucket for the last `days` days (the LAST 7 DAYS chart)."""
     now = datetime.now(timezone.utc).timestamp()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    seven_start = now - days * 86400
+    scan_since = min(since_ts, seven_start)
     total = recent = today_total = 0
+    by_day: dict[str, int] = {}
     for f in PROJECTS.glob("**/*.jsonl"):
         try:
-            if f.stat().st_mtime < since_ts:      # untouched before the window → skip fast
+            if f.stat().st_mtime < scan_since:      # untouched before the window → skip fast
                 continue
             for line in f.read_text().splitlines():
                 if '"usage"' not in line:
@@ -79,21 +85,36 @@ def count_tokens_since(since_ts: int) -> tuple[int, int, int]:
                 msg = e.get("message", {})
                 if msg.get("role") != "assistant":
                     continue
-                ts = iso_ts(e.get("timestamp", ""))
-                if ts < since_ts:
+                stamp = e.get("timestamp", "")
+                ts = iso_ts(stamp)
+                if ts < scan_since:
                     continue
                 u = msg.get("usage", {})
                 tok = (u.get("input_tokens", 0) + u.get("output_tokens", 0)
                        + u.get("cache_read_input_tokens", 0)
                        + u.get("cache_creation_input_tokens", 0))
+                if ts >= seven_start and stamp[:10]:
+                    by_day[stamp[:10]] = by_day.get(stamp[:10], 0) + tok
+                if ts < since_ts:                     # outside the 5h window
+                    continue
                 total += tok
                 if ts >= now - 3600:
                     recent += tok
-                if e.get("timestamp", "")[:10] == today:
+                if stamp[:10] == today:
                     today_total += tok
         except Exception:
             continue
-    return total, recent, today_total
+    return total, recent, today_total, by_day
+
+
+def recent_days(by_day: dict, days: int = 7) -> list[dict]:
+    """The last `days` calendar days, oldest→newest, as {date, tokens}."""
+    out = []
+    today = datetime.now(timezone.utc).date()
+    for i in range(days - 1, -1, -1):
+        key = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        out.append({"date": key, "tokens": int(by_day.get(key, 0))})
+    return out
 
 
 def main():
@@ -117,7 +138,7 @@ def main():
     reset7d = iso_ts(sd.get("resets_at", ""))
 
     window_start = reset5h - 5 * 3600 if reset5h else int(datetime.now().timestamp()) - 5 * 3600
-    tokens, recent, today_tokens = count_tokens_since(window_start)
+    tokens, recent, today_tokens, by_day = count_tokens_since(window_start)
     limit = int(tokens / util5h) if util5h > 0 and tokens else 0
 
     out = {
@@ -131,6 +152,7 @@ def main():
         "_window_limit":  limit,
         "_rate_per_hour": recent,
         "_today_tokens":  today_tokens,
+        "_recent_days":   recent_days(by_day),
         "status": "rejected" if util5h >= 1.0
                   else "allowed_warning" if util5h >= 0.9
                   else "allowed",

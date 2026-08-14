@@ -5,9 +5,13 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Ryoku.Ui.Singletons
 
-// AI usage panel: shows Claude Code, OpenAI Codex, and OpenCode usage and lets the user
-// switch which tool's icon the bar pill displays (root.aiTool). Opened from the
-// combined AI pill (ClaudeWidget). Reads the same caches the bar widget reads.
+// AI usage panel in the omarchy-agent-usage presentation: one stacked card per
+// provider (Claude Code · OpenAI Codex · OpenCode). Each card carries the
+// provider mark, its weekly allowance used and reset countdown, a full-width
+// weekly meter, the prorated-pace line with the expected-used figure, a LAST 7
+// DAYS token bar chart, and the remaining limit windows. A provider reddens
+// when it is behind pace. Rendered from root.ai* — the single shared parse in
+// Theme.qml that the bar chips read too, so the two views can never drift.
 PanelWindow {
     id: aiPanel
     required property var root
@@ -23,53 +27,53 @@ PanelWindow {
     readonly property int barBottom: root.v2BarHeight
     readonly property int gap: 6
 
-    // ── usage data: rendered from root.ai* - the single shared parse in Theme.qml
-    //    that the bar pill uses too, so the two views can never drift apart. ──
+    // ── Claude ──
+    readonly property bool   clHas:       root.aiClHas
+    readonly property bool   clFresh:     root.aiClFresh
     readonly property int    clPct5h:     root.aiClPct5h
     readonly property int    clPct7d:     root.aiClPct7d
     readonly property int    clReset5hTs: root.aiClReset5hTs
     readonly property int    clReset7dTs: root.aiClReset7dTs
-    readonly property string clTokens:    root.aiClTokens
-    readonly property string clRate:      root.aiClRate
-    readonly property int    clToday:     root.aiClToday
-    readonly property bool   clFresh:     root.aiClFresh
-    readonly property bool   clHas:       root.aiClHas
+    readonly property var    clRecent:    root.aiClRecent
+    readonly property var    clExtras:    clHas ? [{ label: "5h", pct: clPct5h, resetTs: clReset5hTs }] : []
 
-    readonly property int    cxPct5h:     root.aiCxPct5h
-    readonly property int    cxPct7d:     root.aiCxPct7d
-    readonly property int    cxReset5hTs: root.aiCxReset5hTs
-    readonly property int    cxReset7dTs: root.aiCxReset7dTs
-    readonly property string cxPlan:      root.aiCxPlan
-    readonly property string cxTokens:    root.aiCxTokens
-    readonly property string cxRate:      root.aiCxRate
-    readonly property int    cxToday:     root.aiCxToday
-    readonly property bool   cxFresh:     root.aiCxFresh
+    // ── Codex ──
     readonly property bool   cxHas:       root.aiCxHas
+    readonly property bool   cxFresh:     root.aiCxFresh
+    readonly property int    cxPct7d:     root.aiCxPct7d
+    readonly property int    cxReset7dTs: root.aiCxReset7dTs
+    readonly property int    cxPrimaryPct: root.aiCxPrimaryPct
+    readonly property int    cxPrimaryResetTs: root.aiCxPrimaryResetTs
+    readonly property string cxPlan:      root.aiCxPlan
     readonly property var    cxWindows:   root.aiCxWindows || []
+    readonly property var    cxRecent:    root.aiCxRecent
     readonly property string cxLimitStatus: root.aiCxLimitStatus
     readonly property string cxLimitReachedType: root.aiCxLimitReachedType
-    readonly property var    cxWin0:      cxWindows.length > 0 ? cxWindows[0] : null
-    readonly property var    cxWin1:      cxWindows.length > 1 ? cxWindows[1] : null
-    readonly property bool   cxHasGeneral5h: {
+    // number/countdown shown in the header: weekly when reported, else primary.
+    readonly property int    cxPct:       cxReset7dTs > 0 ? cxPct7d : cxPrimaryPct
+    readonly property int    cxResetTs:   cxReset7dTs > 0 ? cxReset7dTs : cxPrimaryResetTs
+    readonly property var    cxExtras: {
+        var a = []
         for (var i = 0; i < cxWindows.length; i++) {
-            if ((cxWindows[i] || {}).minutes === 300) return true
+            var w = cxWindows[i] || {}
+            if (w.minutes !== 10080)
+                a.push({ label: String(w.label || "window"), pct: w.pct || 0, resetTs: w.resetTs || 0 })
         }
-        return false
+        return a
     }
 
+    // ── OpenCode ──
+    readonly property bool   ocHas:       root.aiOcHas
+    readonly property bool   ocFresh:     root.aiOcFresh
     readonly property int    ocPct5h:     root.aiOcPct5h
     readonly property int    ocPct7d:     root.aiOcPct7d
     readonly property string ocPlan:      root.aiOcPlan
-    readonly property string ocTokens:    root.aiOcTokens
-    readonly property string ocRate:      root.aiOcRate
     readonly property string ocModel:     root.aiOcModel
-    readonly property int    ocToday:     root.aiOcToday
-    readonly property bool   ocFresh:     root.aiOcFresh
-    readonly property bool   ocHas:       root.aiOcHas
     readonly property var    ocModels:    root.aiOcModels
-    readonly property bool   showClaude:  root.aiTool === "claude"
-    readonly property bool   showCodex:   root.aiTool === "codex"
-    readonly property bool   showOpenCode: root.aiTool === "opencode"
+    readonly property var    ocRecent:    root.aiOcRecent
+    readonly property var    ocExtras:    ocHas ? [{ label: "5h", pct: ocPct5h, resetTs: 0 }] : []
+
+    readonly property bool   anyHas:      clHas || cxHas || ocHas
 
     readonly property real reveal: root.aiUsageReveal
     visible: reveal > 0.001
@@ -80,60 +84,193 @@ PanelWindow {
         onClicked: root.aiUsageVisible = false
     }
 
-    // ── reusable label · bar · % row ──
-    component UsageRow: Item {
-        property string label: ""
-        property int pct: 0
-        property bool dim: false
+    // ── one provider card ──────────────────────────────────────────────
+    component ProviderCard: Column {
+        id: pcard
+        property string name: ""
+        property bool has: false
+        property bool fresh: true
+        property bool tinted: true   // false ⇒ show the logo in its own colours (Claude)
+        property url logo: ""
+        property size logoSize: Qt.size(18, 18)
+        property real markW: 18
+        property real markH: 18
+        property int pct: 0          // weekly (or best) percent used
+        property int resetTs: 0      // reset shown in the header countdown
+        property int paceTs: 0       // genuine weekly reset for pace (0 ⇒ none)
+        property string plan: ""
+        property string emptyText: "no data"
+        property var recent: []
+        property var extras: []      // [{label, pct, resetTs}] of the other windows
+
+        readonly property bool behind: aiPanel.root.aiBehindPace(pct, paceTs)
+        readonly property color hi:  behind ? aiPanel.root.sealRaw : aiPanel.root.ink
+        readonly property color sub: behind ? aiPanel.root.sealRaw : aiPanel.root.sumi
+
         width: parent ? parent.width : 0
-        height: 16
-        UiText {
-            id: rowLbl
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            text: label; color: aiPanel.root.sumiHi
-            font.family: aiPanel.root.mono; font.pixelSize: 11; font.letterSpacing: 1
+        spacing: 8
+
+        // header: mark + name + "NN% used · resets in …"
+        Row {
+            width: parent.width
+            spacing: 9
+            Item {
+                anchors.verticalCenter: parent.verticalCenter
+                width: pcard.markW; height: pcard.markH
+                Image {
+                    anchors.fill: parent
+                    visible: !pcard.tinted && String(pcard.logo) !== ""
+                    source: pcard.logo
+                    sourceSize: pcard.logoSize
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true; mipmap: true
+                }
+                Image {
+                    anchors.fill: parent
+                    visible: pcard.tinted && String(pcard.logo) !== ""
+                    source: pcard.logo
+                    sourceSize: pcard.logoSize
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true; mipmap: true
+                    layer.enabled: true
+                    layer.effect: ShaderEffect {
+                        property color tintColor: pcard.hi
+                        fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
+                    }
+                }
+            }
+            Column {
+                spacing: 2
+                UiText {
+                    text: pcard.name + (pcard.plan ? "  · " + pcard.plan : "")
+                    color: pcard.hi
+                    font.family: aiPanel.root.mono; font.pixelSize: 14; font.weight: Font.Medium
+                }
+                UiText {
+                    text: pcard.has
+                        ? (pcard.pct + "% used"
+                           + (pcard.resetTs > 0 ? " · resets in " + aiPanel.root.aiFmtReset(pcard.resetTs) : "")
+                           + (pcard.fresh ? "" : "  (stale)"))
+                        : pcard.emptyText
+                    color: pcard.sub
+                    font.family: aiPanel.root.mono; font.pixelSize: 11
+                }
+            }
         }
-        UiText {
-            id: rowVal
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-            text: pct + "%"
-            color: dim ? aiPanel.root.sumi : aiPanel.root.seal
-            font.family: aiPanel.root.mono; font.pixelSize: 11; font.weight: Font.Medium
-        }
+
+        // weekly meter
         Rectangle {
-            anchors.left: rowLbl.right; anchors.leftMargin: 8
-            anchors.right: rowVal.left; anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            height: 8; radius: 4
+            visible: pcard.has
+            width: parent.width; height: 6; radius: 3
             color: Qt.rgba(aiPanel.root.seal.r, aiPanel.root.seal.g, aiPanel.root.seal.b, 0.15)
             Rectangle {
-                width: parent.width * Math.min(100, parent ? pct : 0) / 100
-                height: parent.height; radius: 4
-                color: pct >= 90 ? aiPanel.root.sealRaw : aiPanel.root.seal
+                width: parent.width * Math.max(0, Math.min(100, pcard.pct)) / 100
+                height: parent.height; radius: parent.radius
+                color: pcard.behind ? aiPanel.root.sealRaw : aiPanel.root.seal
                 Behavior on width { NumberAnimation { duration: 300 } }
+            }
+        }
+
+        // prorated pace · expected-used
+        Item {
+            visible: pcard.has && pcard.paceTs > 0
+            width: parent.width; height: 14
+            UiText {
+                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                text: aiPanel.root.aiPaceText(pcard.pct, pcard.paceTs)
+                color: pcard.behind ? aiPanel.root.sealRaw : aiPanel.root.green
+                font.family: aiPanel.root.mono; font.pixelSize: 11
+            }
+            UiText {
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                text: I18n.tr("Expected ") + (100 - aiPanel.root.aiExpectedPct(pcard.paceTs)) + "% used"
+                color: aiPanel.root.sumi
+                font.family: aiPanel.root.mono; font.pixelSize: 11
+            }
+        }
+
+        // LAST 7 DAYS token bar chart
+        Column {
+            visible: pcard.has && pcard.recent && pcard.recent.length > 0
+                     && aiPanel.root.aiRecentTotal(pcard.recent) > 0
+            width: parent.width
+            spacing: 5
+            UiText {
+                text: I18n.tr("LAST 7 DAYS · ")
+                      + aiPanel.root.aiTokenCount(aiPanel.root.aiRecentTotal(pcard.recent))
+                      + I18n.tr(" TOKENS")
+                color: aiPanel.root.sumiHi
+                font.family: aiPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1; font.weight: Font.Medium
+            }
+            Row {
+                id: chartRow
+                width: parent.width
+                spacing: 4
+                Repeater {
+                    model: pcard.recent
+                    delegate: Column {
+                        id: dayCol
+                        required property var modelData
+                        readonly property real tokens: aiPanel.root.aiDayTokens(modelData)
+                        readonly property real peak: Math.max(1, aiPanel.root.aiRecentPeak(pcard.recent))
+                        width: (chartRow.width - chartRow.spacing * 6) / 7
+                        spacing: 2
+                        UiText {
+                            width: parent.width
+                            text: dayCol.tokens > 0 ? aiPanel.root.aiTokenCount(dayCol.tokens) : "0"
+                            color: aiPanel.root.sumi
+                            font.family: aiPanel.root.mono; font.pixelSize: 9
+                            horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
+                        }
+                        Item {
+                            width: parent.width; height: 28
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: Math.max(8, parent.width - 8)
+                                height: dayCol.tokens > 0 ? Math.max(2, parent.height * dayCol.tokens / dayCol.peak) : 0
+                                radius: 2
+                                color: pcard.behind ? aiPanel.root.sealRaw : aiPanel.root.seal
+                                opacity: 0.75
+                                Behavior on height { NumberAnimation { duration: 300 } }
+                            }
+                        }
+                        UiText {
+                            width: parent.width
+                            text: aiPanel.root.aiDayLabel(dayCol.modelData.date)
+                            color: aiPanel.root.sumi
+                            font.family: aiPanel.root.mono; font.pixelSize: 9
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                    }
+                }
+            }
+        }
+
+        // additional limit windows
+        Repeater {
+            model: pcard.extras
+            delegate: Item {
+                required property var modelData
+                width: pcard.width; height: 14
+                UiText {
+                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                    text: modelData.label
+                    color: aiPanel.root.sumiHi
+                    font.family: aiPanel.root.mono; font.pixelSize: 11
+                }
+                UiText {
+                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                    text: (modelData.pct || 0) + "% used"
+                          + (modelData.resetTs > 0 ? " · " + aiPanel.root.aiFmtReset(modelData.resetTs) : "")
+                    color: aiPanel.root.sumi
+                    font.family: aiPanel.root.mono; font.pixelSize: 11
+                }
             }
         }
     }
 
-    // ── reusable key/value detail row ──
-    component DetailRow: Row {
-        property string k: ""
-        property string v: ""
-        width: parent ? parent.width : 0
-        UiText {
-            text: k; color: aiPanel.root.sumiHi
-            font.family: aiPanel.root.mono; font.pixelSize: 11
-            width: parent.width * 0.45
-        }
-        UiText {
-            text: v; color: aiPanel.root.ink
-            font.family: aiPanel.root.mono; font.pixelSize: 11
-            width: parent.width * 0.55; horizontalAlignment: Text.AlignRight
-            elide: Text.ElideRight
-        }
-    }
-
-    // ── compact OpenCode per-model usage row ──
+    // ── compact OpenCode per-model usage row (kept from the qsbar widget) ──
     component ModelUsageRow: Item {
         property string name: ""
         property string totalLabel: ""
@@ -190,7 +327,7 @@ PanelWindow {
 
     Rectangle {
         id: card
-        width: 360
+        width: 372
         height: Math.min(col.implicitHeight + 24, parent.height - 2 * (barBottom + gap))
         radius: reveal > 0.001 ? root.panelRadius : 0
         color: "transparent"
@@ -215,6 +352,9 @@ PanelWindow {
             if (event.key === Qt.Key_Escape) {
                 root.aiUsageVisible = false;
                 event.accepted = true;
+            } else if (event.key === Qt.Key_R) {
+                root.regenerateAiUsage();
+                event.accepted = true;
             }
         }
 
@@ -232,7 +372,7 @@ PanelWindow {
             Column {
                 id: col
                 width: scroller.width
-                spacing: 8
+                spacing: 12
 
                 // ── header ──
                 Item {
@@ -290,140 +430,54 @@ PanelWindow {
                     }
                 }
 
-                // ── segmented switch: which tool the bar shows ──
-                Row {
-                    width: parent.width
-                    height: 28
-                    spacing: 6
-                    Repeater {
-                        model: [ { id: "claude", label: "Claude" }, { id: "codex", label: "Codex" }, { id: "opencode", label: "OpenCode" } ]
-                        Rectangle {
-                            required property var modelData
-                            width: root.evenW((parent.width - 12) / 3)
-                            height: 28; radius: root.panelButtonRadius
-                            readonly property bool active: root.aiTool === modelData.id
-                            color: active ? root.fillActive
-                                  : segMa.containsMouse ? root.fillHover : root.fillIdle
-                            border.color: (active || segMa.containsMouse) ? root.seal : root.sep
-                            border.width: 1
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            UiText {
-                                anchors.centerIn: parent
-                                text: I18n.tr(modelData.label)
-                                color: (parent.active || segMa.containsMouse) ? root.seal : root.ink
-                                font.family: root.mono; font.pixelSize: 11
-                                font.weight: parent.active ? Font.Medium : Font.Normal
-                            }
-                            MouseArea {
-                                id: segMa
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.aiTool = parent.modelData.id
-                            }
-                        }
-                    }
-                }
-
                 Rectangle { width: parent.width; height: 1; color: root.sep }
 
-                // ── Claude Code ──
-                Item {
-                    visible: aiPanel.showClaude
-                    width: parent.width; height: 16
-                    UiText {
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: I18n.tr("Claude Code"); color: root.ink
-                        font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
-                    }
-                    UiText {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        text: aiPanel.clFresh ? "live" : "stale"
-                        color: aiPanel.clFresh ? root.sumi : root.sealRaw
-                        font.family: root.mono; font.pixelSize: 10
-                    }
-                }
                 UiText {
-                    visible: aiPanel.showClaude && !aiPanel.clHas
+                    visible: !aiPanel.anyHas
                     width: parent.width
-                    text: I18n.tr("no data - run claude")
-                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                    text: I18n.tr("no AI usage yet — run claude, codex or opencode")
+                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; wrapMode: Text.WordWrap
                 }
-                UsageRow { visible: aiPanel.showClaude && aiPanel.clHas; label: "5h"; pct: aiPanel.clPct5h; dim: !aiPanel.clFresh }
-                UsageRow { visible: aiPanel.showClaude && aiPanel.clHas; label: "7d"; pct: aiPanel.clPct7d; dim: !aiPanel.clFresh }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "5h resets in"; v: root.aiFmtResetDetail(aiPanel.clReset5hTs) || "-" }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "7d resets in"; v: root.aiFmtResetDetail(aiPanel.clReset7dTs) || "-" }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clTokens !== ""; k: "Tokens"; v: aiPanel.clTokens }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clRate !== "";   k: "Rate"; v: aiPanel.clRate }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clToday > 0; k: "Today"; v: (aiPanel.clToday / 1e6).toFixed(2) + "M tok" }
 
-                Rectangle { visible: false; width: parent.width; height: 1; color: root.sep }
+                // ── Claude ──
+                ProviderCard {
+                    visible: aiPanel.clHas
+                    name: "Claude"; tinted: false
+                    logo: Qt.resolvedUrl("../assets/claude.svg"); logoSize: Qt.size(36, 36)
+                    has: aiPanel.clHas; fresh: aiPanel.clFresh
+                    pct: aiPanel.clPct7d; resetTs: aiPanel.clReset7dTs; paceTs: aiPanel.clReset7dTs
+                    recent: aiPanel.clRecent; extras: aiPanel.clExtras
+                }
+
+                Rectangle { visible: aiPanel.clHas && (aiPanel.cxHas || aiPanel.ocHas); width: parent.width; height: 1; color: root.sep }
 
                 // ── OpenAI Codex ──
-                Item {
-                    visible: aiPanel.showCodex
-                    width: parent.width; height: 16
-                    UiText {
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: I18n.tr("OpenAI Codex") + (aiPanel.cxPlan ? "  · " + aiPanel.cxPlan : "")
-                        color: root.ink
-                        font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
-                    }
-                    UiText {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        text: aiPanel.cxFresh ? "live" : "stale"
-                        color: aiPanel.cxFresh ? root.sumi : root.sealRaw
-                        font.family: root.mono; font.pixelSize: 10
-                    }
+                ProviderCard {
+                    visible: aiPanel.cxHas
+                    name: "Codex"
+                    logo: Qt.resolvedUrl("../assets/codex-cli.svg"); logoSize: Qt.size(36, 36)
+                    has: aiPanel.cxHas; fresh: aiPanel.cxFresh; plan: aiPanel.cxPlan
+                    pct: aiPanel.cxPct; resetTs: aiPanel.cxResetTs; paceTs: aiPanel.cxReset7dTs
+                    recent: aiPanel.cxRecent; extras: aiPanel.cxExtras
                 }
-                UiText {
-                    visible: aiPanel.showCodex && !aiPanel.cxHas
-                    width: parent.width
-                    text: I18n.tr("no data - run codex")
-                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
-                }
-                UsageRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; label: aiPanel.cxWin0 ? I18n.tr(aiPanel.cxWin0.label) : ""; pct: aiPanel.cxWin0 ? aiPanel.cxWin0.pct : 0; dim: !aiPanel.cxFresh }
-                UsageRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; label: aiPanel.cxWin1 ? I18n.tr(aiPanel.cxWin1.label) : ""; pct: aiPanel.cxWin1 ? aiPanel.cxWin1.pct : 0; dim: !aiPanel.cxFresh }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; k: (aiPanel.cxWin0 ? aiPanel.cxWin0.label : "") + " resets in"; v: root.aiFmtResetDetail(aiPanel.cxWin0 ? aiPanel.cxWin0.resetTs : 0) || "-" }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; k: (aiPanel.cxWin1 ? aiPanel.cxWin1.label : "") + " resets in"; v: root.aiFmtResetDetail(aiPanel.cxWin1 ? aiPanel.cxWin1.resetTs : 0) || "-" }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas; k: "General limit"; v: root.aiCodexStatusLabel(aiPanel.cxLimitStatus, aiPanel.cxLimitReachedType) }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas && aiPanel.cxRate !== "";   k: "Local activity (1h, incl. cached)"; v: aiPanel.cxRate }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas && aiPanel.cxToday > 0; k: "Today"; v: (aiPanel.cxToday / 1e6).toFixed(2) + "M tok" }
 
-                Rectangle { visible: false; width: parent.width; height: 1; color: root.sep }
+                Rectangle { visible: aiPanel.cxHas && aiPanel.ocHas; width: parent.width; height: 1; color: root.sep }
 
                 // ── OpenCode ──
-                Item {
-                    visible: aiPanel.showOpenCode
-                    width: parent.width; height: 16
-                    UiText {
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: I18n.tr("OpenCode") + (aiPanel.ocPlan ? "  · " + aiPanel.ocPlan : "")
-                        color: root.ink
-                        font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
-                    }
-                    UiText {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        text: aiPanel.ocFresh ? "live" : "stale"
-                        color: aiPanel.ocFresh ? root.sumi : root.sealRaw
-                        font.family: root.mono; font.pixelSize: 10
-                    }
+                ProviderCard {
+                    id: ocCard
+                    visible: aiPanel.ocHas
+                    name: "OpenCode"
+                    logo: Qt.resolvedUrl("../assets/opencode-mark.svg"); logoSize: Qt.size(20, 12)
+                    markW: 20; markH: 12
+                    has: aiPanel.ocHas; fresh: aiPanel.ocFresh; plan: aiPanel.ocPlan
+                    pct: aiPanel.ocPct7d; resetTs: 0; paceTs: 0
+                    recent: aiPanel.ocRecent; extras: aiPanel.ocExtras
                 }
-                UiText {
-                    visible: aiPanel.showOpenCode && !aiPanel.ocHas
-                    width: parent.width
-                    text: I18n.tr("no data - run opencode")
-                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
-                }
-                UsageRow { visible: aiPanel.showOpenCode && aiPanel.ocHas; label: "5h"; pct: aiPanel.ocPct5h; dim: !aiPanel.ocFresh }
-                UsageRow { visible: aiPanel.showOpenCode && aiPanel.ocHas; label: "7d"; pct: aiPanel.ocPct7d; dim: !aiPanel.ocFresh }
-                DetailRow { visible: aiPanel.showOpenCode && aiPanel.ocHas && aiPanel.ocTokens !== ""; k: "Tokens"; v: aiPanel.ocTokens }
-                DetailRow { visible: aiPanel.showOpenCode && aiPanel.ocHas && aiPanel.ocRate !== "";   k: "Rate"; v: aiPanel.ocRate }
-                DetailRow { visible: aiPanel.showOpenCode && aiPanel.ocHas && aiPanel.ocToday > 0; k: "Today"; v: (aiPanel.ocToday / 1e6).toFixed(2) + "M tok" }
-                DetailRow { visible: aiPanel.showOpenCode && aiPanel.ocHas && aiPanel.ocModel !== ""; k: "Latest"; v: aiPanel.ocModel }
 
+                // OpenCode per-model breakdown (no omarchy equivalent; kept)
                 Item {
-                    visible: aiPanel.showOpenCode && aiPanel.ocHas && aiPanel.ocModels.length > 0
+                    visible: aiPanel.ocHas && aiPanel.ocModels.length > 0
                     width: parent.width; height: 16
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
@@ -439,7 +493,7 @@ PanelWindow {
                     }
                 }
                 Repeater {
-                    model: (aiPanel.showOpenCode && aiPanel.ocHas) ? aiPanel.ocModels : []
+                    model: (aiPanel.ocHas) ? aiPanel.ocModels : []
                     ModelUsageRow {
                         width: col.width
                         name: modelData.name || ""
@@ -457,6 +511,7 @@ PanelWindow {
         }
     }
 
-    // Usage data + polling live in Theme.qml (shared with the bar pill); this panel
-    // only renders from root.ai* and bumps the refresh cadence via root.aiUsageVisible.
+    // Usage data + polling live in Theme.qml (shared with the bar chips); this
+    // panel only renders from root.ai* and bumps the refresh cadence via
+    // root.aiUsageVisible.
 }

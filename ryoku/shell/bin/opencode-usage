@@ -11,7 +11,7 @@ import json
 import os
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 DATA_DIR = Path(os.environ.get("OPENCODE_DATA_DIR") or (Path.home() / ".local" / "share" / "opencode"))
@@ -210,6 +210,22 @@ def pct(tokens: int, limit: int) -> float:
     return min(1.0, max(0.0, tokens / float(limit)))
 
 
+def recent_days(con: sqlite3.Connection, days: int = 7) -> list[dict]:
+    """Per-day assistant-token totals for the last `days` days, oldest→newest."""
+    now = datetime.now().astimezone()
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days - 1)
+    by_day: dict[str, int] = {}
+    for msg in assistant_messages(con, int(start.timestamp() * 1000)):
+        key = datetime.fromtimestamp(msg["time"] / 1000).strftime("%Y-%m-%d")
+        by_day[key] = by_day.get(key, 0) + msg["total"]
+    out = []
+    today = now.date()
+    for i in range(days - 1, -1, -1):
+        key = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        out.append({"date": key, "tokens": int(by_day.get(key, 0))})
+    return out
+
+
 def main() -> None:
     if not DB_FILE.exists():
         stale_last()
@@ -231,6 +247,7 @@ def main() -> None:
             tok_today, cost_today, tok_today_with_cache = sum_since(con, today_ms)
             model = newest_model(con)
             models = model_rows(con, today_ms)
+            recent_days_list = recent_days(con)
     except sqlite3.Error:
         stale_last()
         return
@@ -252,6 +269,7 @@ def main() -> None:
         "_rate_per_hour_with_cache_read": tok_1h_with_cache,
         "_today_tokens": tok_today,
         "_today_tokens_with_cache_read": tok_today_with_cache,
+        "_recent_days": recent_days_list,
         "_7d_tokens": tok_7d,
         "_7d_tokens_with_cache_read": tok_7d_with_cache,
         "_7d_limit": LIMIT_7D,

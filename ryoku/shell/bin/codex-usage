@@ -9,13 +9,13 @@ so the cache stores bucket/window metadata instead of assuming Claude's fixed
 5h/7d model.
 """
 import json, os, select, shutil, subprocess, sys, time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 CODEX_HOME = Path(os.environ.get("CODEX_HOME") or (Path.home() / ".codex"))
 CACHE_FILE = Path(os.environ.get("CODEX_USAGE_CACHE_FILE") or (Path.home() / ".cache" / "codex-usage.json"))
 ACTIVITY_FILE = Path(os.environ.get("CODEX_USAGE_ACTIVITY_FILE") or (Path.home() / ".cache" / "codex-usage-activity.json"))
-ACTIVITY_SCHEMA_VERSION = 2
+ACTIVITY_SCHEMA_VERSION = 3
 RESET_PLAUSIBILITY_SLOP_SECS = 600
 EVENT_CLOCK_SKEW_SECS = 120
 
@@ -485,7 +485,7 @@ def load_activity_state() -> dict:
             return state
     except Exception:
         pass
-    return {"schemaVersion": ACTIVITY_SCHEMA_VERSION, "files": {}, "events": [], "rateLimitEvents": []}
+    return {"schemaVersion": ACTIVITY_SCHEMA_VERSION, "files": {}, "events": [], "rateLimitEvents": [], "dailyTokens": {}}
 
 
 def scan_activity() -> tuple[int, int, dict[int, dict]]:
@@ -505,6 +505,7 @@ def scan_activity() -> tuple[int, int, dict[int, dict]]:
     files = state.get("files") if isinstance(state.get("files"), dict) else {}
     events = state.get("events") if isinstance(state.get("events"), list) else []
     rate_limit_events = state.get("rateLimitEvents") if isinstance(state.get("rateLimitEvents"), list) else []
+    daily = state.get("dailyTokens") if isinstance(state.get("dailyTokens"), dict) else {}
     initial_rate_limit_scan = not files and not rate_limit_events
 
     pruned_events = []
@@ -622,6 +623,8 @@ def scan_activity() -> tuple[int, int, dict[int, dict]]:
                             delta = token_last(info)
                         if delta > 0:
                             events.append([ts, int(delta)])
+                            day = datetime.fromtimestamp(ts).astimezone().strftime("%Y-%m-%d")
+                            daily[day] = daily.get(day, 0) + int(delta)
                     pos = fh.tell()
             except OSError:
                 continue
@@ -634,6 +637,14 @@ def scan_activity() -> tuple[int, int, dict[int, dict]]:
             recent += int(tok)
         if datetime.fromtimestamp(ts).astimezone().date() == today_date:
             today += int(tok)
+
+    today_local = datetime.fromtimestamp(now).astimezone().date()
+    cutoff = (today_local - timedelta(days=8)).strftime("%Y-%m-%d")
+    daily = {d: int(t) for d, t in daily.items() if str(d) >= cutoff}
+    recent_days_list = []
+    for i in range(6, -1, -1):
+        key = (today_local - timedelta(days=i)).strftime("%Y-%m-%d")
+        recent_days_list.append({"date": key, "tokens": int(daily.get(key, 0))})
 
     best_windows: dict[int, dict] = {}
     for item in rate_limit_events:
@@ -658,12 +669,13 @@ def scan_activity() -> tuple[int, int, dict[int, dict]]:
         "files": files,
         "events": events,
         "rateLimitEvents": rate_limit_events,
+        "dailyTokens": daily,
     }
     try:
         atomic_write_json(ACTIVITY_FILE, state)
     except Exception as e:
         sys.stderr.write(f"activity cache write failed: {e}\n")
-    return recent, today, best_windows
+    return recent, today, best_windows, recent_days_list
 
 
 def main():
@@ -681,7 +693,7 @@ def main():
         return
 
     buckets = normalize_buckets(data)
-    recent_tok, today_tok, session_windows = scan_activity()
+    recent_tok, today_tok, session_windows, recent_days_list = scan_activity()
     supplement_missing_general_windows_from_sessions(buckets, session_windows)
     general = general_bucket(buckets)
     windows = general.get("windows") or []
@@ -705,6 +717,7 @@ def main():
         "_rate_per_hour": recent_tok,
         "_rate_label":    "Local activity (1h, incl. cached)",
         "_today_tokens":  today_tok,
+        "_recent_days":   recent_days_list,
         "status": "rejected" if reached_type or max_util >= 1.0
                   else "allowed_warning" if max_util >= 0.9
                   else "allowed",

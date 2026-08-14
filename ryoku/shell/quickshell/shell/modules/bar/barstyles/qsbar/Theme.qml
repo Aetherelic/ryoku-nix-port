@@ -659,6 +659,7 @@ Item {
     property int    aiClReset5hTs: 0
     property int    aiClReset7dTs: 0
     property int    aiClToday: 0
+    property var    aiClRecent: []
 
     property bool   aiCxHas: false
     property bool   aiCxFresh: false
@@ -670,6 +671,7 @@ Item {
     property int    aiCxReset5hTs: 0
     property int    aiCxReset7dTs: 0
     property int    aiCxToday: 0
+    property var    aiCxRecent: []
     property var    aiCxBuckets: []
     property var    aiCxWindows: []
     property int    aiCxPrimaryPct: 0
@@ -689,6 +691,7 @@ Item {
     property string aiOcRate: ""
     property string aiOcModel: ""
     property int    aiOcToday: 0
+    property var    aiOcRecent: []
     property var    aiOcModels: []
     property int    aiClockTick: 0
     // Drives the AI panel's refresh spinner while the collectors regenerate the
@@ -710,7 +713,7 @@ Item {
     function aiResetCodexUsage() {
         aiCxHas = false; aiCxFresh = false
         aiCxPct5h = 0; aiCxPct7d = 0
-        aiCxPlan = ""; aiCxTokens = ""; aiCxRate = ""; aiCxToday = 0
+        aiCxPlan = ""; aiCxTokens = ""; aiCxRate = ""; aiCxToday = 0; aiCxRecent = []
         aiCxReset5hTs = 0; aiCxReset7dTs = 0
         aiCxBuckets = []; aiCxWindows = []
         aiCxPrimaryPct = 0; aiCxPrimaryLabel = ""; aiCxPrimaryResetTs = 0
@@ -835,6 +838,7 @@ Item {
         var cxRateH = Math.round((d["_rate_per_hour"] || 0) / 1000)
         theme.aiCxRate = cxRateH > 0 ? cxRateH + "k tok/h" : ""
         theme.aiCxToday = parseInt(d._today_tokens) || 0
+        theme.aiCxRecent = d._recent_days instanceof Array ? d._recent_days : []
         theme.aiCxTokens = ""
     }
 
@@ -879,6 +883,65 @@ Item {
         return rel && clock ? rel + " • " + clock : (rel || clock)
     }
 
+    // ── prorated pace on the 7-day window (ported from omarchy-agent-usage) ──
+    //   weighs the allowance still left against the fraction of the seven-day
+    //   window still ahead in time. burning faster than the clock ⇒ behind pace
+    //   (the provider turns red). pct7d is 0..100; resetTs is the weekly reset
+    //   in UNIX seconds (0 ⇒ no weekly window, so pace is undefined).
+    readonly property real aiWeekMs: 7 * 24 * 60 * 60 * 1000
+    function aiExpectedRemaining(resetTs) {
+        aiClockTick
+        if (!(resetTs > 0)) return -1
+        return Math.max(0, Math.min(1, (resetTs * 1000 - Date.now()) / aiWeekMs))
+    }
+    function aiExpectedPct(resetTs) {
+        var e = aiExpectedRemaining(resetTs)
+        return e < 0 ? 0 : Math.round(e * 100)
+    }
+    function aiPaceDiff(pct7d, resetTs) {
+        var e = aiExpectedRemaining(resetTs)
+        if (e < 0) return 0
+        return (1 - Math.max(0, Math.min(100, pct7d)) / 100) - e
+    }
+    function aiBehindPace(pct7d, resetTs) {
+        var e = aiExpectedRemaining(resetTs)
+        if (e < 0) return false
+        return (1 - Math.max(0, Math.min(100, pct7d)) / 100) + 0.0005 < e
+    }
+    function aiPaceText(pct7d, resetTs) {
+        if (!(resetTs > 0)) return ""
+        var pts = Math.round(Math.abs(aiPaceDiff(pct7d, resetTs)) * 100)
+        if (pts === 0) return "on pace"
+        return pts + "% " + (aiBehindPace(pct7d, resetTs) ? "behind pace" : "ahead of pace")
+    }
+
+    // ── LAST 7 DAYS token chart helpers (ported from omarchy-agent-usage) ──
+    //   _recent_days is [{date:"YYYY-MM-DD", tokens:int}] oldest→newest.
+    function aiDayTokens(day) { return Math.max(0, (day && day.tokens) || 0) }
+    function aiRecentTotal(days) {
+        var list = days instanceof Array ? days : [], t = 0
+        for (var i = 0; i < list.length; i++) t += aiDayTokens(list[i])
+        return t
+    }
+    function aiRecentPeak(days) {
+        var list = days instanceof Array ? days : [], p = 0
+        for (var i = 0; i < list.length; i++) p = Math.max(p, aiDayTokens(list[i]))
+        return p
+    }
+    function aiTokenCount(v) {
+        var a = Math.max(0, v || 0)
+        if (a >= 1e9) return (a / 1e9).toFixed(a >= 1e10 ? 0 : 1).replace(/\.0$/, "") + "B"
+        if (a >= 1e6) return (a / 1e6).toFixed(a >= 1e8 ? 0 : 1).replace(/\.0$/, "") + "M"
+        if (a >= 1e3) return (a / 1e3).toFixed(a >= 1e5 ? 0 : 1).replace(/\.0$/, "") + "K"
+        return String(Math.round(a))
+    }
+    function aiDayLabel(dateStr) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || ""))
+        if (!m) return "—"
+        var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+        return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]
+    }
+
     Process {
         id: aiReadClaude
         command: ["bash", "-c",
@@ -902,11 +965,12 @@ Item {
                     var rateH = Math.round((d["_rate_per_hour"] || 0) / 1000)
                     theme.aiClRate = rateH > 0 ? rateH + "k tok/h" : ""
                     theme.aiClToday = parseInt(d._today_tokens) || 0
+                    theme.aiClRecent = d._recent_days instanceof Array ? d._recent_days : []
                 } catch (e) {
                     theme.aiClHas = false; theme.aiClFresh = false
                     theme.aiClPct5h = 0; theme.aiClPct7d = 0
                     theme.aiClBlocked = false; theme.aiClTokens = ""; theme.aiClRate = ""
-                    theme.aiClReset5hTs = 0; theme.aiClReset7dTs = 0; theme.aiClToday = 0
+                    theme.aiClReset5hTs = 0; theme.aiClReset7dTs = 0; theme.aiClToday = 0; theme.aiClRecent = []
                 }
             }
         }
@@ -952,13 +1016,14 @@ Item {
                     var ocRateH = Math.round((d["_rate_per_hour"] || 0) / 1000)
                     theme.aiOcRate = ocRateH > 0 ? ocRateH + "k tok/h" : ""
                     theme.aiOcToday = parseInt(d._today_tokens) || 0
+                    theme.aiOcRecent = d._recent_days instanceof Array ? d._recent_days : []
                     theme.aiOcModel = d._model || ""
                     theme.aiOcModels = d._models instanceof Array ? d._models : []
                 } catch (e) {
                     theme.aiOcHas = false; theme.aiOcFresh = false
                     theme.aiOcPct5h = 0; theme.aiOcPct7d = 0
                     theme.aiOcPlan = ""; theme.aiOcTokens = ""; theme.aiOcRate = ""; theme.aiOcModel = ""
-                    theme.aiOcToday = 0; theme.aiOcModels = []
+                    theme.aiOcToday = 0; theme.aiOcModels = []; theme.aiOcRecent = []
                 }
             }
         }
@@ -1010,7 +1075,7 @@ Item {
         // 30s normally; 5s while the AI panel is open (responsive when looked at)
         interval: (theme.aiUsageVisible ? 5000 : 30000) * Perf.pollFactor
         running: true; repeat: true; triggeredOnStart: true
-        onTriggered: theme.refreshAiUsage(theme.aiUsageVisible)
+        onTriggered: theme.refreshAiUsage(false)
     }
 
     // ── Central system telemetry ──

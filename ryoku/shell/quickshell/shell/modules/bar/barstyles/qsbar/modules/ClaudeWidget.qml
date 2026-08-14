@@ -4,103 +4,83 @@ import Quickshell
 import Quickshell.Io
 import Ryoku.Ui.Singletons
 
-// Combined AI-usage pill (Claude Code + OpenAI Codex + OpenCode). The bar shows ONE tool
-// (root.aiTool) as a themed-tinted SVG with a bottom-up usage fill; the tooltip
-// shows all tracked tools; clicking opens the AiUsagePanel where the tool can be switched.
-// Gating is unchanged: root.modClaude is the on/off toggle for the whole pill.
+// AI-usage bar display in the omarchy-agent-usage presentation: one inline chip
+// per tracked provider (Claude Code · OpenAI Codex · OpenCode), each showing the
+// provider mark, its WEEKLY allowance used, and the countdown to reset —
+// "Claude 31% · 15h 59m". A provider turns red when it is burning faster than
+// the seven-day clock (behind pace). Click opens the AiUsagePanel; right/middle
+// click regenerates. root.modClaude gates the whole display.
 Item {
     id: rootMod
     required property var root
 
-    // ── which tool the bar pill displays ──
-    readonly property bool isCodex: root.aiTool === "codex"
-    readonly property bool isOpenCode: root.aiTool === "opencode"
-    readonly property bool isLogo: isCodex || isOpenCode
-    readonly property url  logoSource: Qt.resolvedUrl(isOpenCode ? "../assets/opencode-mark.svg" : "../assets/codex.svg")
-    readonly property var  logoSourceSize: isOpenCode ? Qt.size(20, 12) : Qt.size(56, 56)
-    readonly property int  codexMarkSize: 14
-    readonly property int  ocMarkW: 20
-    readonly property int  ocMarkH: 12
+    readonly property color contentColor: root.widgetContentColor("G7", root.widgetIconColor)
 
-    // ── Claude: process detection is local (drives the pill's visibility); all
-    //    usage data comes from root.ai* - the single shared parse in Theme.qml that
-    //    AiUsagePanel renders from too, so the two views can't drift apart. ──
+    // ── Claude ──
     property bool clActive: false
-    readonly property bool   clFresh:     root.aiClFresh
-    readonly property int    clPct5h:     root.aiClPct5h
-    readonly property int    clPct7d:     root.aiClPct7d
-    readonly property bool   clBlocked:   root.aiClBlocked
-    readonly property string clTokens:    root.aiClTokens
-    readonly property string clRate:      root.aiClRate
-    readonly property int    clReset5hTs: root.aiClReset5hTs
-    readonly property int    clReset7dTs: root.aiClReset7dTs
-    readonly property int    clToday:     root.aiClToday
-    readonly property bool   clHas:       root.aiClHas
+    readonly property bool clFresh:   root.aiClFresh
+    readonly property int  clPct7d:   root.aiClPct7d
+    readonly property int  clPct5h:   root.aiClPct5h
+    readonly property bool clBlocked: root.aiClBlocked
+    readonly property int  clReset7dTs: root.aiClReset7dTs
+    readonly property int  clReset5hTs: root.aiClReset5hTs
+    readonly property string clTokens: root.aiClTokens
+    readonly property string clRate:   root.aiClRate
+    readonly property int  clToday:  root.aiClToday
+    readonly property bool clHas:    root.aiClHas
 
     // ── Codex ──
     property bool cxActive: false
-    readonly property bool   cxFresh:     root.aiCxFresh
-    readonly property int    cxPct5h:     root.aiCxPct5h
-    readonly property int    cxPct7d:     root.aiCxPct7d    // weekly
-    readonly property string cxPlan:      root.aiCxPlan
-    readonly property string cxTokens:    root.aiCxTokens
-    readonly property string cxRate:      root.aiCxRate
-    readonly property int    cxReset5hTs: root.aiCxReset5hTs
-    readonly property int    cxReset7dTs: root.aiCxReset7dTs
-    readonly property bool   cxHas:       root.aiCxHas
-    readonly property var    cxBuckets:   root.aiCxBuckets || []
-    readonly property var    cxWindows:   root.aiCxWindows || []
+    readonly property bool cxFresh:  root.aiCxFresh
+    readonly property int  cxPct7d:  root.aiCxPct7d
+    readonly property int  cxReset7dTs: root.aiCxReset7dTs
+    readonly property string cxPlan: root.aiCxPlan
+    readonly property string cxRate: root.aiCxRate
+    readonly property bool cxHas:    root.aiCxHas
+    readonly property var  cxWindows: root.aiCxWindows || []
+    readonly property int  cxPrimaryPct: root.aiCxPrimaryPct
+    readonly property int  cxPrimaryResetTs: root.aiCxPrimaryResetTs
     readonly property string cxLimitStatus: root.aiCxLimitStatus
     readonly property string cxLimitReachedType: root.aiCxLimitReachedType
-    readonly property int    cxPrimaryPct: root.aiCxPrimaryPct
-    readonly property string cxPrimaryLabel: root.aiCxPrimaryLabel
-    readonly property bool   cxHasGeneral5h: {
-        for (var i = 0; i < cxWindows.length; i++) {
-            if ((cxWindows[i] || {}).minutes === 300) return true
-        }
-        return false
-    }
 
     // ── OpenCode ──
     property bool ocActive: false
-    readonly property bool   ocFresh:     root.aiOcFresh
-    readonly property int    ocPct5h:     root.aiOcPct5h
-    readonly property int    ocPct7d:     root.aiOcPct7d
-    readonly property string ocPlan:      root.aiOcPlan
-    readonly property string ocTokens:    root.aiOcTokens
-    readonly property string ocRate:      root.aiOcRate
-    readonly property string ocModel:     root.aiOcModel
-    readonly property int    ocToday:     root.aiOcToday
-    readonly property bool   ocHas:       root.aiOcHas
+    readonly property bool ocFresh:  root.aiOcFresh
+    readonly property int  ocPct7d:  root.aiOcPct7d
+    readonly property int  ocPct5h:  root.aiOcPct5h
+    readonly property string ocPlan: root.aiOcPlan
+    readonly property string ocTokens: root.aiOcTokens
+    readonly property string ocRate:   root.aiOcRate
+    readonly property string ocModel:  root.aiOcModel
+    readonly property int  ocToday:  root.aiOcToday
+    readonly property bool ocHas:    root.aiOcHas
 
-    // ── per-tool signal (active OR fresh non-zero usage) ──
-    readonly property bool clSignal: clActive || (clPct5h > 0 && clFresh)
-    readonly property bool cxSignal: cxActive || (cxPrimaryPct > 0 && cxFresh)
-    readonly property bool ocSignal: ocActive || ((ocPct5h > 0 || ocToday > 0) && ocFresh)
+    // ── which providers earn a chip (have data OR are running) ──
+    readonly property bool showCl: clHas || clActive
+    readonly property bool showCx: cxHas || cxActive
+    readonly property bool showOc: ocHas || ocActive
 
-    // ── selected-tool display values ──
-    readonly property int  pct5h:   isOpenCode ? ocPct5h : (isCodex ? cxPrimaryPct : clPct5h)
-    readonly property int  pct5hStep: Math.round(pct5h / 5) * 5
-    readonly property bool selFresh: isOpenCode ? ocFresh : (isCodex ? cxFresh : clFresh)
-    readonly property bool selSignal: isOpenCode ? ocSignal : (isCodex ? cxSignal : clSignal)
-    readonly property bool blocked:  (isCodex || isOpenCode) ? false : clBlocked
-    readonly property color contentColor: root.widgetContentColor("G7", root.widgetIconColor)
+    // codex reports its weekly window only sometimes; fall back to the primary
+    // window for the number, but only flag pace off a genuine 7-day window.
+    readonly property int  cxChipPct:  cxReset7dTs > 0 ? cxPct7d : cxPrimaryPct
+    readonly property int  cxChipTs:   cxReset7dTs > 0 ? cxReset7dTs : cxPrimaryResetTs
 
-    // enabled ⇒ visible: show whenever the toggle is on and any tool has data or is running.
-    readonly property bool shown: root.modClaude && (clHas || cxHas || ocHas || clActive || cxActive || ocActive)
+    readonly property bool shown: root.modClaude && (showCl || showCx || showOc)
 
     readonly property string tooltipText: {
         var lines = []
-        if (clHas || clActive) {
+        if (showCl) {
             lines.push("Claude Code")
             var cr = root.aiFmtReset(clReset5hTs)
             lines.push("5h: " + clPct5h + "%" + (cr ? "  (reset in " + cr + ")" : ""))
             var c7 = root.aiFmtReset(clReset7dTs)
             if (clPct7d > 0) lines.push("7d: " + clPct7d + "%" + (c7 ? "  (reset in " + c7 + ")" : ""))
+            var clp = root.aiPaceText(clPct7d, clReset7dTs)
+            if (clp) lines.push("pace: " + clp)
             if (clTokens)    lines.push(clTokens + " tokens" + (clRate ? "  · " + clRate : ""))
             if (clToday > 0) lines.push("today: " + (clToday / 1e6).toFixed(2) + "M tok")
         }
-        if (cxHas || cxActive) {
+        if (showCx) {
             if (lines.length) lines.push("")
             lines.push("OpenAI Codex" + (cxPlan ? "  (" + cxPlan + ")" : ""))
             for (var i = 0; i < cxWindows.length; i++) {
@@ -108,11 +88,12 @@ Item {
                 var xr = root.aiFmtReset(xw.resetTs || 0)
                 lines.push(String(xw.label || "window") + ": " + (xw.pct || 0) + "%" + (xr ? "  (reset in " + xr + ")" : ""))
             }
-            if (!cxHasGeneral5h) lines.push("5h: not reported by Codex RPC")
+            var cxp = root.aiPaceText(cxPct7d, cxReset7dTs)
+            if (cxp) lines.push("pace: " + cxp)
             lines.push("General limit: " + root.aiCodexStatusLabel(cxLimitStatus, cxLimitReachedType))
             if (cxRate) lines.push("Local activity (1h, incl. cached): " + cxRate)
         }
-        if (ocHas || ocActive) {
+        if (showOc) {
             if (lines.length) lines.push("")
             lines.push("OpenCode" + (ocPlan ? "  (" + ocPlan + ")" : ""))
             lines.push("5h: " + ocPct5h + "%  ·  7d: " + ocPct7d + "%")
@@ -131,7 +112,7 @@ Item {
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
-    // ── process detection ──
+    // ── process detection: drives per-provider "active" (running) state ──
     Process {
         id: detectClaude
         command: ["bash", "-c", "pgrep -x claude >/dev/null 2>&1 && echo 1 || echo 0"]
@@ -139,9 +120,6 @@ Item {
     }
     Process {
         id: detectCodex
-        // exact process-name match (comm == "codex") so the cache readers / poller
-        // (python codex-usage, bash on codex-usage.json) never count as "active";
-        // drop the short-lived `codex … app-server` our own backend spawns
         command: ["bash", "-c", "pgrep -xa codex 2>/dev/null | grep -vq app-server && echo 1 || echo 0"]
         stdout: StdioCollector { onStreamFinished: { rootMod.cxActive = (this.text.trim() === "1") } }
     }
@@ -159,118 +137,114 @@ Item {
         }
     }
 
-    Row {
-        id: row
-        anchors.centerIn: parent
+    // ── one provider chip: mark + WEEKLY % · reset countdown, red when behind ──
+    component Chip: Row {
+        id: chip
+        property string name: ""
+        property int pct: 0
+        property int resetTs: 0     // reset used for the countdown
+        property int paceTs: 0      // genuine weekly reset for pace (0 ⇒ no pace)
+        property bool tinted: true  // false ⇒ show the logo in its own colours (Claude)
+        property url logo: ""       // Codex / OpenCode vector mark
+        property size logoSize: Qt.size(14, 14)
+        property real markW: 14
+        property real markH: 14
+
+        readonly property bool behind: rootMod.root.aiBehindPace(pct, paceTs)
+        readonly property color col: behind ? rootMod.root.sealRaw : rootMod.contentColor
+        readonly property string countdown: rootMod.root.aiFmtReset(resetTs)
+
         spacing: 5
 
-        // icon with bottom-to-top usage fill. Claude keeps its nerd-font glyph;
-        // Codex/OpenCode use vector marks themed via the shared logo tint shader.
         Item {
-            id: iconItem
             anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: rootMod.isOpenCode ? rootMod.ocMarkW
-                : (rootMod.isCodex ? rootMod.codexMarkSize : 15)
-            implicitHeight: rootMod.isOpenCode ? rootMod.ocMarkH
-                : (rootMod.isCodex ? rootMod.codexMarkSize : 15)
-            width: implicitWidth
-            height: implicitHeight
+            width: chip.markW
+            height: chip.markH
 
-            // ── Claude: nerd-font glyph (original look) ──
-            Item {
-                anchors.centerIn: parent
-                visible: !rootMod.isLogo
-                implicitWidth: glyphBase.implicitWidth
-                implicitHeight: glyphBase.implicitHeight
-
-                UiText {
-                    id: glyphBase
-                    text: String.fromCodePoint(0xF167A)
-                    renderType: Text.QtRendering
-                    color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.25)
-                    font.family: root.mono
-                    font.pixelSize: 14
-                }
-                Item {
-                    clip: true
-                    width: parent.width
-                    anchors.bottom: parent.bottom
-                    height: rootMod.pct5hStep > 0
-                        ? Math.min(parent.height, Math.max(parent.height * rootMod.pct5hStep / 100, parent.height * 0.25))
-                        : 0
-                    Behavior on height { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
-                    UiText {
-                        anchors.bottom: parent.bottom
-                        text: String.fromCodePoint(0xF167A)
-                        renderType: Text.QtRendering
-                        color: rootMod.contentColor
-                        font.family: root.mono
-                        font.pixelSize: 14
-                        Behavior on color { ColorAnimation { duration: 200 } }
-                    }
-                }
-            }
-
-            // ── Logo tools: tinted SVG ──
-            Item {
+            // logo in its own colours (Claude's orange starburst)
+            Image {
                 anchors.fill: parent
-                visible: rootMod.isLogo
-
-                Image {
-                    id: codexBase
-                    anchors.fill: parent
-                    source: rootMod.logoSource
-                    sourceSize: rootMod.logoSourceSize
-                    fillMode: Image.PreserveAspectFit
-                    smooth: !rootMod.isOpenCode
-                    mipmap: !rootMod.isOpenCode
-                    // thinner-stroked than the Claude glyph → needs more presence
-                    // than the glyph's 0.25 faint base to stay recognizable
-                    opacity: rootMod.isCodex ? 0.65 : 0.5
-                    layer.enabled: true
-                    layer.smooth: !rootMod.isCodex
-                    layer.effect: ShaderEffect {
-                        property color tintColor: rootMod.contentColor
-                        fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
-                    }
-                }
-                Item {
-                    clip: true
-                    width: parent.width
-                    anchors.bottom: parent.bottom
-                    height: rootMod.pct5hStep > 0
-                        ? Math.min(parent.height, Math.max(parent.height * rootMod.pct5hStep / 100, parent.height * 0.22))
-                        : 0
-                    Behavior on height { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
-                    Image {
-                        width: iconItem.width; height: iconItem.height
-                        anchors.bottom: parent.bottom
-                        source: rootMod.logoSource
-                        sourceSize: rootMod.logoSourceSize
-                        fillMode: Image.PreserveAspectFit
-                        smooth: !rootMod.isOpenCode
-                        mipmap: !rootMod.isOpenCode
-                        layer.enabled: true
-                        layer.smooth: !rootMod.isCodex
-                        layer.effect: ShaderEffect {
-                            property color tintColor: rootMod.contentColor
-                            fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
-                        }
-                    }
+                visible: !chip.tinted
+                source: chip.logo
+                sourceSize: chip.logoSize
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
+            }
+            // logo tinted to the content/behind colour (Codex, OpenCode)
+            Image {
+                anchors.fill: parent
+                visible: chip.tinted
+                source: chip.logo
+                sourceSize: chip.logoSize
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
+                layer.enabled: true
+                layer.effect: ShaderEffect {
+                    property color tintColor: chip.col
+                    fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
                 }
             }
         }
 
         UiText {
-            visible: !root.iconOnly("G7")
             anchors.verticalCenter: parent.verticalCenter
-            text: rootMod.blocked
-                ? I18n.tr("BLK")
-                : (rootMod.selSignal ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
-            color: rootMod.contentColor
-            font.family: root.mono
+            visible: !rootMod.root.iconOnly("G7")
+            text: chip.name
+            color: chip.col
+            font.family: rootMod.root.mono
+            font.pixelSize: 12
+            font.weight: Font.Bold
+            Behavior on color { ColorAnimation { duration: 200 } }
+        }
+        UiText {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !rootMod.root.iconOnly("G7")
+            text: chip.pct + "%" + (chip.countdown ? " · " + chip.countdown : "")
+            color: chip.col
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }
+        }
+    }
+
+    component Divider: Rectangle {
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        width: 1
+        height: 13
+        color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.35)
+    }
+
+    Row {
+        id: row
+        anchors.centerIn: parent
+        spacing: 9
+
+        Chip {
+            visible: rootMod.showCl
+            name: "Claude"; tinted: false
+            logo: Qt.resolvedUrl("../assets/claude.svg"); logoSize: Qt.size(28, 28)
+            pct: rootMod.clPct7d; resetTs: rootMod.clReset7dTs; paceTs: rootMod.clReset7dTs
+        }
+
+        Divider { visible: rootMod.showCl && rootMod.showCx }
+
+        Chip {
+            visible: rootMod.showCx
+            name: "Codex"
+            logo: Qt.resolvedUrl("../assets/codex-cli.svg"); logoSize: Qt.size(28, 28)
+            pct: rootMod.cxChipPct; resetTs: rootMod.cxChipTs; paceTs: rootMod.cxReset7dTs
+        }
+
+        Divider { visible: (rootMod.showCl || rootMod.showCx) && rootMod.showOc }
+
+        Chip {
+            visible: rootMod.showOc
+            name: "OpenCode"
+            logo: Qt.resolvedUrl("../assets/opencode-mark.svg"); logoSize: Qt.size(20, 12)
+            markW: 20; markH: 12
+            pct: rootMod.ocPct7d; resetTs: 0; paceTs: 0
         }
     }
 
@@ -278,9 +252,16 @@ Item {
 
     MouseArea {
         anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         onEntered: if (shown) { root.refreshAiUsage(); tip.show() }
         onExited: { tip.hide() }
-        onClicked: { tip.hide(); root.aiUsageVisible = !root.aiUsageVisible }
+        onClicked: (mouse) => {
+            tip.hide()
+            if (mouse.button === Qt.LeftButton)
+                root.aiUsageVisible = !root.aiUsageVisible
+            else
+                root.regenerateAiUsage()
+        }
     }
 }
