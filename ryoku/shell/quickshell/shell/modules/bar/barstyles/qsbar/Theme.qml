@@ -1481,8 +1481,16 @@ Item {
         for (var i = 0; i < devices.length; i++) {
             var device = devices[i]
             var name = textValue(device.name)
-            if (device.type !== "disk" || name.indexOf("loop") === 0
-                    || name.indexOf("ram") === 0 || name.indexOf("zram") === 0)
+            // Kernel pseudo-devices report TYPE=disk like real hardware, so name
+            // alone is not enough: nbd0-15 exist merely because the nbd module is
+            // loaded. A drive with no capacity is not a drive, which also drops an
+            // empty card slot or an unpopulated array, so size carries the rule.
+            if (device.type !== "disk"
+                    || (Number(device.size) || 0) <= 0
+                    || name.indexOf("loop") === 0
+                    || name.indexOf("ram") === 0
+                    || name.indexOf("zram") === 0
+                    || name.indexOf("nbd") === 0)
                 continue
 
             var volumes = []
