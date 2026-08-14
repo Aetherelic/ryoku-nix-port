@@ -24,6 +24,34 @@
   normalizes the per-run repo path so the reproducibility diff stays clean.
 
 ### Fixed
+- **An incomplete offline closure now fails the ISO build instead of shipping.**
+  The AUR bake was best-effort at three separate levels: a build host without
+  `base-devel` skipped the whole set and returned success, a clone failure skipped
+  one package, a build failure skipped one package, and the call site swallowed
+  anything else. The consequence was not theoretical. The last released image's own
+  build log reads `AUR bake: skip otf-space-grotesk (build failed)` and
+  `skip volantes-cursors (build failed)`, so it shipped without the UI sans the
+  shell and Hub render, and nothing failed. These images are the only place that
+  set ever lands, because an offline install never builds from the AUR, so a miss
+  has to stop the release. The desktop set is now fatal on failure and the baked
+  repo is checked for every name in `aur.packages` before the db is written.
+  `RYOKU_OFFLINE_ALLOW_INCOMPLETE=1` keeps local builds that only need a bootable
+  image working.
+- **Pre-Turing NVIDIA cards get their driver from the image.**
+  `system/hardware/drivers/nvidia.sh` installs the AUR-only 580xx branch for
+  Maxwell/Pascal/Volta and told the user it was "bundled in the offline repo". It
+  was not: those packages are AUR, so the `pacman -Sw` passes could not reach them,
+  and they were in no package list either, which meant a GTX 10xx installing
+  offline hit exactly the driverless desktop that the required-driver check exists
+  to prevent. The 580xx and 470xx branches (plus their lib32 halves) are now built
+  into the repo alongside the rest of the AUR set. They are large vendor blobs, so
+  a failed bake warns and names the affected hardware rather than failing the
+  release, and the driver script's messages now say so instead of promising more
+  than the image carries.
+- The `[vm]` hardware profile is read into the closure and its verification. It
+  carries no packages today, so nothing was missing, but three of the four profiles
+  were baked by name and a package added there later would have gone missing at
+  install time rather than at build time.
 - **The installer session sizes text to the panel, so the TUI is readable and
   complete on any monitor.** The kiosk launched `foot` at a hard-coded
   `size=14`, and the installer's usable size is a character grid: panel pixels

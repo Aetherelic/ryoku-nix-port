@@ -143,8 +143,10 @@ else
   # nvidia-utils. Pre-Turing cards (Maxwell/Pascal/Volta) are not covered by the
   # open modules and Arch dropped the closed `nvidia`, so they run the AUR-legacy
   # 580xx branch (nvidia-580xx-dkms pulls its own nvidia-580xx-utils), DKMS on
-  # every kernel. The ISO bakes 580xx (and 470xx for Kepler) into the offline
-  # repo, so these install with no network. headers cover the DKMS build.
+  # every kernel. The ISO bakes the 580xx and 470xx branches into the offline repo
+  # best-effort (they are large vendor blobs), so these usually install with no
+  # network; when a bake was skipped the card falls back to nouveau/mesa.
+  # headers cover the DKMS build.
   headers=()
   for kb in "${kernels[@]}"; do headers+=("${kb}-headers"); done
   multilib=0
@@ -164,7 +166,7 @@ else
     pkgs=(nvidia-580xx-dkms libva-nvidia-driver "${headers[@]}")
     if (( multilib )); then pkgs+=(lib32-nvidia-580xx-utils); fi
   fi
-  install_pkgs "${pkgs[@]}" || echo "nvidia.sh: WARNING: NVIDIA driver install failed. A Kepler or older card needs the 470xx branch (nvidia-470xx-dkms, bundled in the offline repo); a Turing+ card needs a matching kernel/driver. The desktop runs on the integrated GPU if present; install a working driver and run 'mkinitcpio -P' to enable it."
+  install_pkgs "${pkgs[@]}" || echo "nvidia.sh: WARNING: NVIDIA driver install failed. A Kepler or older card needs the 470xx branch (nvidia-470xx-dkms); a Turing+ card needs a matching kernel/driver. On an offline install the legacy branches are only present if the ISO managed to bake them (they are large vendor blobs, best-effort); nouveau/mesa still brings the desktop up. Install a working driver and run 'mkinitcpio -P' to enable it."
 fi
 
 # early KMS + the boot-race fix. DRM modeset is mandatory for a working

@@ -57,6 +57,10 @@ mapfile -t PKGS < <(
   read_section "$hw" amd
   read_section "$hw" intel
   read_section "$hw" nvidia
+  # [vm] carries no packages today (it rides mesa + vulkan-icd-loader from base),
+  # but read it anyway: a package added there later must land in the closure, not
+  # discover at install time that only three of the four profiles were baked.
+  read_section "$hw" vm
   # GPU-driver packages the per-vendor scripts (system/hardware/drivers/*.sh)
   # install. the mutually-conflicting nvidia MODULE packages are fetched
   # separately below (one -Sw each) so every variant lands in the repo; a single
@@ -158,26 +162,55 @@ for v in "${nv_optional[@]}"; do
     || log "note: optional nvidia variant '$v' not fetched (absent from the current repos?); continuing"
 done
 
+# Pre-Turing NVIDIA (Maxwell/Pascal/Volta) and Kepler need the legacy driver
+# branches, and those are AUR-only, so the `pacman -Sw` passes above cannot reach
+# them: they have to be BUILT into the repo like the rest of the AUR set.
+# system/hardware/drivers/nvidia.sh installs them per-GPU and its messages already
+# told the user they were "bundled in the offline repo" -- they never were, so a
+# GTX 10xx (Pascal) installing offline landed on exactly the driverless desktop
+# that nv_required exists to prevent.
+#
+# Baked, never installed by default: they provide NVIDIA-MODULE and so conflict
+# with nvidia-open, and lib/offline.sh only auto-installs aur.packages. Naming the
+# dkms package and the lib32 base is enough, because makepkg emits a base's whole
+# split set (the nvidia-580xx-utils base also yields nvidia-580xx-utils and
+# opencl-nvidia-580xx) and every built package lands in the cache.
+aur_bake_extra=(
+  nvidia-580xx-dkms lib32-nvidia-580xx-utils
+  nvidia-470xx-dkms lib32-nvidia-470xx-utils
+)
+
 # Bundle the AUR toolset into the offline repo. Every ISO install is offline, so
 # the AUR set an online install builds (voxtype, brand fonts, extra cursors, game
-# controllers, localsend, ...) never lands otherwise: system/packages/aur.packages
-# is skipped on an offline install. Build each with makepkg on the networked build
-# host (the target has no toolchain), pull its runtime deps into the closure so it
-# resolves offline, and cache the result in $CACHE so a rebuild is a delta. Best
-# effort per package: a flaky AUR source or heavy build warns and is skipped
-# rather than failing the release, and lib/offline.sh installs the set best-effort
-# too. This is how omarchy bakes its packages into its offline mirror.
+# controllers, localsend, the legacy NVIDIA branches, ...) never lands otherwise:
+# system/packages/aur.packages is skipped on an offline install. Build each with
+# makepkg on the networked build host (the target has no toolchain), pull its
+# runtime deps into the closure so it resolves offline, and cache the result in
+# $CACHE so a rebuild is a delta. This is how omarchy bakes its packages too.
+#
+# An incomplete bake FAILS THE BUILD. It used to warn and continue, at three
+# separate levels (no toolchain, a clone failure, a build failure), which meant a
+# build host without base-devel published an ISO carrying zero AUR packages and
+# said so only in a log line nobody reads. The whole promise of these images is
+# that everything is on them, so a missing package has to stop the release rather
+# than ship a desktop with holes. RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 restores the
+# old warn-and-continue for local builds that only need a bootable image.
 bake_aur_set() {
   local aur_file="$REPO_ROOT/system/packages/aur.packages"
-  [[ -f $aur_file ]] || return 0
+  local lax=${RYOKU_OFFLINE_ALLOW_INCOMPLETE:-0}
+  [[ -f $aur_file ]] || die "system/packages/aur.packages is missing; the offline repo would ship without the AUR set"
   if ! { command -v makepkg && command -v git && command -v curl; } >/dev/null 2>&1; then
-    log "AUR bake: makepkg/git/curl missing; skipping (base-devel not installed on the build host)"
+    [[ $lax == 1 ]] || die "AUR bake needs makepkg, git and curl (base-devel) on the build host; without them the ISO ships with no AUR packages. Install base-devel, or set RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 for a local build."
+    log "AUR bake: makepkg/git/curl missing; skipping (RYOKU_OFFLINE_ALLOW_INCOMPLETE=1)"
     return 0
   fi
 
   local -a names=()
   mapfile -t names < <(read_list "$aur_file")
-  (( ${#names[@]} )) || return 0
+  # the bake-only extras (legacy NVIDIA) ride the same builder but are never
+  # auto-installed; see aur_bake_extra above.
+  names+=("${aur_bake_extra[@]}")
+  (( ${#names[@]} )) || die "no AUR packages resolved to bake"
 
   # makepkg refuses to run as root: build as an unprivileged user with passwordless
   # pacman so -s can sync build deps. a non-root build host builds as itself.
@@ -228,17 +261,37 @@ bake_aur_set() {
   if (( ${#deps[@]} )); then
     mapfile -t deps < <(printf '%s\n' "${deps[@]}" | awk 'NF && !seen[$0]++')
     "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "${deps[@]}" \
-      || log "AUR bake: note, some runtime deps did not fetch; those tools may not install offline"
+      || { [[ $lax == 1 ]] && log "AUR bake: note, some runtime deps did not fetch (RYOKU_OFFLINE_ALLOW_INCOMPLETE=1)"; } \
+      || die "AUR bake: a bundled tool's runtime dependency could not be fetched, so it would fail to install offline. Check the mirror, or set RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 for a local build."
   fi
 
   (( EUID == 0 )) && rm -f /etc/sudoers.d/99-ryoku-aurbuild
   rm -rf "$bdir"
   log "AUR bake: bundled ${#built[@]} (${built[*]:-none}); skipped ${#failed[@]} (${failed[*]:-none})"
+
+  # Two classes, two verdicts. The desktop set (aur.packages) is small, proven to
+  # build headless, and its absence is a desktop with holes, so a miss fails the
+  # build. The legacy NVIDIA branches are several hundred MB of vendor blobs whose
+  # absence costs one hardware class its accelerated driver (mesa/nouveau still
+  # brings the desktop up), so a miss is loud but not fatal: a build host that ran
+  # out of disk should still ship an otherwise complete image.
+  local -a hard=() soft=()
+  local f e
+  for f in "${failed[@]}"; do
+    local extra=0
+    for e in "${aur_bake_extra[@]}"; do [[ $f == "$e" ]] && extra=1; done
+    if (( extra )); then soft+=("$f"); else hard+=("$f"); fi
+  done
+  (( ${#soft[@]} )) && log "WARNING: legacy NVIDIA driver(s) not baked: ${soft[*]}. Pre-Turing (Maxwell/Pascal/Volta) and Kepler cards will fall back to nouveau/mesa on an offline install."
+  if (( ${#hard[@]} )); then
+    [[ $lax == 1 ]] || die "AUR bake incomplete: ${hard[*]}. These ship only on the ISO, so the image would install a desktop missing them. Re-run (the cache makes it a delta), fix the package, or set RYOKU_OFFLINE_ALLOW_INCOMPLETE=1 for a local build."
+    log "AUR bake: continuing without ${hard[*]} (RYOKU_OFFLINE_ALLOW_INCOMPLETE=1)"
+  fi
 }
-# best-effort: the AUR bake must never fail the release build. calling it in a
-# `||` context also disables `set -e` inside it, so any unhandled error there
-# degrades to a pacman-closure-only offline repo instead of bricking the ISO.
-bake_aur_set || log "AUR bake: unexpected error; continuing with the pacman closure only"
+# Called plainly, NOT in a `||` list: a `||` context would also disable `set -e`
+# inside the function, which is how an unexpected error used to degrade into a
+# silently AUR-less ISO.
+bake_aur_set
 
 # assemble the [offline] repo: reflink every cached package into DEST (btrfs COW,
 # so no extra space), then build the db.
@@ -266,13 +319,30 @@ pkgfile_for() {
   return 1
 }
 repo_has_pkg() { pkgfile_for "$1" >/dev/null; }
+# Everything the installed system can reach has to be IN the repo, so check it
+# rather than trust that the download and the AUR bake both did their jobs. The
+# AUR set is included because these images are the only place it ever lands (an
+# offline install never builds from the AUR), and a silent miss here is how the
+# shipped ISO ended up without its UI font.
 missing=()
+aur_expected=()
+mapfile -t aur_expected < <(read_list "$pkgdir/aur.packages")
 for req in nvidia-open nvidia-open-dkms nvidia-utils libva-nvidia-driver \
            mesa vulkan-radeon vulkan-intel vulkan-icd-loader \
-           ryoku-keyring ryoku-desktop; do
+           ryoku-keyring ryoku-desktop \
+           "${aur_expected[@]}"; do
   repo_has_pkg "$req" || missing+=("$req")
 done
-(( ${#missing[@]} == 0 )) || die "offline repo is missing required packages: ${missing[*]}. the install would leave a driverless or incomplete desktop."
+if (( ${#missing[@]} )); then
+  [[ ${RYOKU_OFFLINE_ALLOW_INCOMPLETE:-0} == 1 ]] \
+    || die "offline repo is missing required packages: ${missing[*]}. the install would leave a driverless or incomplete desktop."
+  log "offline repo is missing ${missing[*]} (RYOKU_OFFLINE_ALLOW_INCOMPLETE=1)"
+fi
+# the legacy NVIDIA branches are reported, not required: see the two-verdict note
+# in bake_aur_set. Absent, those cards run on nouveau/mesa instead.
+for req in "${aur_bake_extra[@]}"; do
+  repo_has_pkg "$req" || log "note: legacy driver '$req' is not in the offline repo; pre-Turing/Kepler NVIDIA falls back to nouveau"
+done
 # repo-add builds offline.db(.tar.zst) + offline.files; lib/offline.sh globs it.
 repo-add --quiet "$DEST/$REPO_NAME.db.tar.zst" "$DEST"/*.pkg.tar.* >/dev/null
 
@@ -309,6 +379,7 @@ EOF
     read_list "$pkgdir/base.packages"
     read_list "$pkgdir/dev.packages"
     [[ $VARIANT == cachyos ]] && read_list "$pkgdir/cachyos.packages"
+    read_section "$hw" vm
     printf '%s\n' amd-ucode intel-ucode ryoku-keyring ryoku-desktop
   } | awk '!seen[$0]++' )
 

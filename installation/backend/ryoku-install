@@ -133,6 +133,9 @@ main() {
   log "Ryoku install: disk=$RYOKU_DISK host=$RYOKU_HOSTNAME user=$RYOKU_USERNAME profile=$RYOKU_PROFILE"
 
   ryoku_preflight
+  # an offline install with no usable baked repo can only fail, and it must fail
+  # here rather than after the wipe (see lib/offline.sh:ryoku_offline_verify).
+  ryoku_offline_verify
   ryoku_ensure_dns
   ryoku_ensure_mirrors
 

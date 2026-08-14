@@ -22,6 +22,24 @@ ryoku_offline_active() {
   compgen -G "$RYOKU_OFFLINE_REPO/$RYOKU_OFFLINE_REPO_NAME.db*" >/dev/null 2>&1
 }
 
+# ryoku_offline_verify: an offline install must have a repo it can actually
+# install from. RYOKU_ONLINE=0 with no usable baked repo used to sail through
+# preflight and only fail at pacstrap -- after the disk was already wiped --
+# because every network step politely skips itself when offline and pacstrap then
+# reached for a mirror that is not there. Fail here instead, before the disk is
+# touched, and say which half is missing.
+ryoku_offline_verify() {
+  [[ ${RYOKU_ONLINE:-1} != 1 ]] || return 0
+  ryoku_offline_active && return 0
+  if [[ -z $RYOKU_OFFLINE_REPO ]]; then
+    die "this is an offline install (RYOKU_ONLINE=0) but RYOKU_OFFLINE_REPO is unset, so there is nothing to install from. Boot an ISO that bakes the offline repo, or connect to a network and install online."
+  fi
+  if [[ ! -d $RYOKU_OFFLINE_REPO ]]; then
+    die "offline install: the baked package repo is missing at $RYOKU_OFFLINE_REPO. This image is incomplete; connect to a network to install online, or re-download the ISO."
+  fi
+  die "offline install: $RYOKU_OFFLINE_REPO has no $RYOKU_OFFLINE_REPO_NAME.db, so pacman cannot resolve anything from it (a bake that stopped before repo-add). This image is incomplete; connect to a network to install online, or re-download the ISO."
+}
+
 # ryoku_offline_prepare: write the pacstrap-time pacman.conf pointing [offline]
 # at the baked repo and export RYOKU_PACMAN_CONF so lib/pacstrap.sh passes
 # `pacstrap -C`. TrustAll: the packages were vetted over TLS at ISO-build time

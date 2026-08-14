@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# end-to-end test of the OFFLINE install path (installation/backend/lib/offline.sh
+# wired into installation/backend/ryoku-install), under RYOKU_DRYRUN.
+#
+# Both Ryoku ISOs bake the whole package closure into a file:// [offline] repo so
+# a machine with no network installs and boots. Nothing tested that. The install
+# path had two ways to fail an offline user, both silent:
+#
+#   1. "offline" meant different things on each side. The TUI called an ISO offline
+#      when the repo DIRECTORY existed; the backend needed a repo DB. A bake that
+#      stopped before repo-add satisfied the first and not the second, so the
+#      installer promised an offline install and the backend quietly took the
+#      online path into a pacstrap with no mirror to reach.
+#   2. RYOKU_ONLINE=0 with no usable repo sailed through preflight, because every
+#      network step correctly skips itself when offline, and only failed at
+#      pacstrap -- after the disk had already been wiped.
+#
+# So this pins both the happy path and the refusals, and it pins them where they
+# matter: a refusal must land BEFORE the partition step, never after.
+#
+# Dry-run, so no disk is touched. Every network binary is replaced by a tripwire,
+# which is what proves the offline path reaches the network zero times.
+set -euo pipefail
+
+here="$(cd "$(dirname "$0")" && pwd)"
+root="$here/.."
+fail() { echo "FAIL: $1" >&2; exit 1; }
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# a baked repo is a directory with a repo db; an incomplete bake is the directory
+# alone. these are the exact two states ryoku_offline_active distinguishes.
+baked="$tmp/baked"; mkdir -p "$baked"; : >"$baked/offline.db"
+nodb="$tmp/nodb"; mkdir -p "$nodb"
+
+# tripwires: every command the install path could reach the network with. Each one
+# records that it was called and fails, so a single touch is both visible and
+# fatal instead of silently degrading.
+trip="$tmp/bin"; mkdir -p "$trip"
+for cmd in curl wget reflector getent rsync; do
+  cat >"$trip/$cmd" <<EOF
+#!/usr/bin/env bash
+echo "NETWORK-TOUCH: $cmd \$*" >>"$tmp/touched"
+exit 97
+EOF
+  chmod +x "$trip/$cmd"
+done
+
+# run_offline <repo> <online>: the backend in dry-run. Leaves output in \$out and
+# the exit code in \$rc. PATH is prefixed with the tripwires.
+run_offline() {
+  rc=0
+  out="$(PATH="$trip:$PATH" RYOKU_DRYRUN=1 RYOKU_REPO="$root" \
+    RYOKU_ONLINE="$2" RYOKU_OFFLINE_REPO="$1" \
+    RYOKU_DISK=/dev/vda RYOKU_PASSWORD_HASH='$6$fake$hash' \
+    RYOKU_DISK_STRATEGY=whole RYOKU_ENCRYPT=0 RYOKU_SWAP_GIB=8 \
+    bash "$root/installation/backend/ryoku-install" 2>&1)" || rc=$?
+}
+
+steps_of() { grep -oE '@@RYOKU_STEP [a-z]+' <<<"$out" | awk '{print $2}' | tr '\n' ' '; }
+
+# ---- 1. a real baked repo installs, offline, start to finish ------------------
+rm -f "$tmp/touched"
+run_offline "$baked" 0
+[[ $rc -eq 0 ]] || fail "offline install with a baked repo exited $rc: $out"
+[[ "$(steps_of)" == "partition filesystems mount pacstrap configure bootloader " ]] \
+  || fail "offline install step order is '$(steps_of)'"
+[[ "$(grep -cF '@@RYOKU_DONE' <<<"$out")" -eq 1 ]] || fail "offline install did not signal done exactly once"
+
+# The point of the whole exercise: no network, at all.
+[[ ! -f $tmp/touched ]] || fail "the offline path touched the network: $(cat "$tmp/touched")"
+
+# It must really be installing from the baked repo, not just skipping the network.
+grep -q "offline: would write" <<<"$out" \
+  || fail "offline install did not point pacstrap at the baked repo: $out"
+
+# ---- 2. the desktop is in the offline transaction, not a later online pass ----
+# ryoku-desktop pulls every shipped component, so if it is not folded into the
+# offline pacstrap set the machine boots without a desktop.
+# both vars are read by the sourced offline.sh, which shellcheck does not follow.
+# shellcheck disable=SC2034
+# shellcheck source=/dev/null
+( set +u; RYOKU_ONLINE=0 RYOKU_OFFLINE_REPO="$baked"
+  source "$root/installation/backend/lib/offline.sh"
+  extra="$(ryoku_offline_pacstrap_extra | tr '\n' ' ')"
+  [[ $extra == *ryoku-desktop* && $extra == *ryoku-keyring* ]] \
+    || { echo "FAIL: offline pacstrap set lacks the desktop: '$extra'" >&2; exit 1; }
+) || exit 1
+
+# ---- 3. an unusable repo is refused BEFORE the disk is touched ---------------
+# A bake that stopped before repo-add leaves the directory. That used to look
+# offline-capable to the installer and online to the backend.
+run_offline "$nodb" 0
+[[ $rc -ne 0 ]] || fail "a repo with no db must not be accepted as an offline source"
+[[ "$(steps_of)" == "" ]] || fail "refused too late: reached steps '$(steps_of)' (the disk is written in 'partition')"
+grep -qi "no offline.db" <<<"$out" || fail "the refusal must name the missing db: $out"
+
+run_offline "$tmp/absent" 0
+[[ $rc -ne 0 ]] || fail "a missing offline repo must be refused"
+[[ "$(steps_of)" == "" ]] || fail "missing-repo refusal reached steps '$(steps_of)'"
+grep -qi "image is incomplete" <<<"$out" || fail "the refusal must tell the user what to do: $out"
+
+# ---- 4. online installs are untouched ---------------------------------------
+# The guard keys off RYOKU_ONLINE, so an online install must behave exactly as
+# before -- including being free to use the network.
+run_offline "" 1
+[[ $rc -eq 0 ]] || fail "online install regressed: exit $rc: $out"
+[[ "$(steps_of)" == "partition filesystems mount pacstrap configure bootloader " ]] \
+  || fail "online install step order changed: '$(steps_of)'"
+
+echo "install-offline: OK"

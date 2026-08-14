@@ -948,7 +948,9 @@ func (m *model) loadStep() {
 	case kNet:
 		m.netOnline = netOnline()
 		m.netStage, m.input = 0, ""
-		if !m.netOnline {
+		// No Wi-Fi scan on a bundled image: it needs no network, netBody says so,
+		// and scanning here only makes the step wait on the radio.
+		if !m.netOnline && !offlineRepo() {
 			m.pick = newPicker(ssids(), true)
 			m.pick.height = 5
 		}
@@ -961,7 +963,7 @@ func (m *model) loadStep() {
 		m.inputErr, m.encStage, m.pass1, m.encErr = "", 0, "", ""
 		m.wipeStage, m.eraseInput = 0, ""
 		if s.key == "review" {
-			m.netOnline = netOnline() // Review gates on live connectivity (online-only install)
+			m.netOnline = netOnline() // re-probe: Review needs it only on a non-offline image
 		}
 	}
 }
@@ -1221,7 +1223,11 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 			m.editInput(k, &m.input)
 		}
 	case kNet:
-		if m.netOnline {
+		// An offline image is as ready as a connected one, so it takes the same
+		// path. netBody already renders the "no network needed, enter to continue"
+		// card for it; gating this on netOnline alone meant enter did nothing and
+		// the user was stuck at a Wi-Fi picker the card never mentioned.
+		if m.netOnline || offlineRepo() {
 			if k == "enter" {
 				m.picks["network"] = "online"
 				if offlineRepo() {
@@ -1875,14 +1881,19 @@ func (m model) partBlockReason() string {
 func (m model) partReady() bool { return m.partBlockReason() == "" }
 
 // reviewBlockReason reports why the install cannot start from Review, or "" when
-// it can. Secure Boot (Limine is unsigned) and an offline live system (installs
-// are online-only) are both hard blocks: fail here honestly, not mid-install.
+// it can. Secure Boot (Limine is unsigned) is a hard block. Connectivity is only
+// a block when this ISO has no baked package closure: an offline ISO carries the
+// whole set in a file:// repo and installs with the network down, which is the
+// whole point of baking it. Gating on netOnline alone refused those installs at
+// the last step with "installs are online-only" even though the handoff right
+// below (system.go: RYOKU_ONLINE=0) was already set up to do it. Fail here
+// honestly, not mid-install.
 func (m model) reviewBlockReason() string {
 	if m.hwSecureBoot {
 		return "Secure Boot is enabled -- disable Secure Boot in firmware setup (Limine is unsigned), then reboot the installer."
 	}
-	if !m.netOnline {
-		return "No internet connection. Go back to the Network step to connect -- installs are online-only (no offline package source)."
+	if !m.netOnline && !offlineRepo() {
+		return "No internet connection, and this image has no offline package set. Go back to the Network step to connect."
 	}
 	return ""
 }
@@ -3236,7 +3247,7 @@ func (m model) footer() string {
 		parts = []string{keyHint("type", "password"), keyHint("enter", "continue"), keyHint("esc", "back")}
 	case s.kind == kNet:
 		switch {
-		case m.netOnline:
+		case m.netOnline || offlineRepo():
 			parts = []string{keyHint("enter", "continue"), keyHint("esc", "back"), keyHint("q", "quit")}
 		case m.netStage == 1:
 			parts = []string{keyHint("type", "password"), keyHint("enter", "connect"), keyHint("esc", "back")}

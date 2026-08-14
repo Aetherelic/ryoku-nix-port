@@ -42,6 +42,23 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   live kernel needed VMD to see the NVMe.
 
 ### Fixed
+- **A bundled ISO installs with the network down, and the installer now agrees with
+  the backend about what "offline" means.** Three things conspired here.
+  `netOnline()` answered `true` on a bundled image "because the install can
+  proceed", so every connectivity gate silently got "yes" on a machine with no
+  network, and whether an offline install worked depended on a short-circuit buried
+  in that helper rather than on the gates. The Network step's own card already said
+  "no network connection is needed, enter to continue", but its key handler tested
+  `netOnline` first, so `enter` did nothing and the user sat at a Wi-Fi picker the
+  card never mentioned (the footer advertised the wrong keys, and the step scanned
+  the radio it had just said it did not need). Worst of the three: `offlineRepo()`
+  called an image offline-capable when the repo DIRECTORY existed, while the
+  backend requires a repo DB, so a bake that stopped before `repo-add` satisfied
+  the installer and not the backend, and the install quietly took the online path
+  into a pacstrap with no mirror to reach. `netOnline()` now reports connectivity
+  and nothing else, the gates ask `offlineRepo()` themselves, and `offlineRepo()`
+  uses the backend's own db test so both halves answer the same question the same
+  way.
 - **The TUI fits the screen it is given, so a fresh install no longer hides half
   the installer.** Every frame was built at whatever size the content wanted and
   handed straight to the terminal. `lipgloss.Place` does not truncate: it returns

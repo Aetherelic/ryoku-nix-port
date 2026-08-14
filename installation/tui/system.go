@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -1235,13 +1236,14 @@ func (m *model) startInstall() tea.Cmd {
 	return st.wait()
 }
 
-// netOnline reports whether the live system already has internet. WIRE target.
+// netOnline reports whether the live system already has internet, and nothing
+// else. It used to answer true on a bundled image "because the install can
+// proceed", which hid a real question behind a false answer: every gate that
+// asked about connectivity silently got "yes" on a machine with no network, so
+// whether an offline install worked depended on a short-circuit buried in here
+// rather than on the gates. The gates now ask offlineRepo() themselves (see
+// reviewBlockReason, the kNet step, and installEnv). WIRE target.
 func netOnline() bool {
-	// an offline ISO needs no network to install: the whole package closure is
-	// baked onto it, so the install can always proceed.
-	if offlineRepo() {
-		return true
-	}
 	if out, ok := run("ip", "-4", "route"); ok && strings.Contains(out, "default") {
 		return true
 	}
@@ -1257,12 +1259,20 @@ func netOnline() bool {
 // (installation/iso/build.sh + offline-repo.sh).
 const offlineRepoPath = "/usr/share/ryoku/offline/repo"
 
-// offlineRepo reports whether this live ISO carries the baked offline package
-// repo. On such an ISO the install needs no network at all, so it also makes
-// netOnline() return true (nothing to set up) and installEnv emit RYOKU_ONLINE=0.
+// offlineRepo reports whether this live ISO carries a USABLE baked offline
+// package repo. The db glob is the same test lib/offline.sh:ryoku_offline_active
+// uses, and it has to be: this decides whether installEnv sends RYOKU_ONLINE=0,
+// and a bare directory (a bake that died before repo-add, say) used to satisfy
+// the installer while failing the backend's check -- so the TUI promised an
+// offline install and the backend quietly took the online path into a pacstrap
+// that cannot reach a mirror. Same question, same answer, both sides.
 func offlineRepo() bool {
 	fi, err := os.Stat(offlineRepoPath)
-	return err == nil && fi.IsDir()
+	if err != nil || !fi.IsDir() {
+		return false
+	}
+	db, _ := filepath.Glob(filepath.Join(offlineRepoPath, "offline.db*"))
+	return len(db) > 0
 }
 
 // netInterface returns the active default-route interface name, for the

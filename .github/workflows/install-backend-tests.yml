@@ -38,6 +38,7 @@ on:
       - 'tests/install-preflight.sh'
       - 'tests/install-clock-skew.sh'
       - 'tests/install-dryrun-matrix.sh'
+      - 'tests/install-offline.sh'
       - 'tests/installer-session-scale.sh'
       - 'installation/iso/airootfs/usr/local/bin/ryoku-installer-session'
       - 'tests/limine-bootloader.sh'
@@ -61,6 +62,7 @@ on:
       - 'tests/install-preflight.sh'
       - 'tests/install-clock-skew.sh'
       - 'tests/install-dryrun-matrix.sh'
+      - 'tests/install-offline.sh'
       - 'tests/installer-session-scale.sh'
       - 'installation/iso/airootfs/usr/local/bin/ryoku-installer-session'
       - 'tests/limine-bootloader.sh'
@@ -102,6 +104,10 @@ jobs:
       - name: Dry-run step/sentinel matrix
         shell: bash
         run: bash tests/install-dryrun-matrix.sh
+
+      - name: Offline install path (no network, baked repo, refusals before the wipe)
+        shell: bash
+        run: bash tests/install-offline.sh
 
       - name: Live installer display scale (grid stays usable on every panel)
         shell: bash

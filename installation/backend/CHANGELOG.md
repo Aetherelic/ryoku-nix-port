@@ -40,6 +40,16 @@
   `ryoku doctor`, and `ryoku materialize` all manage.
 
 ### Fixed
+- An offline install with nothing to install from now fails in preflight instead of
+  after the wipe. `RYOKU_ONLINE=0` with a missing or db-less `RYOKU_OFFLINE_REPO`
+  used to sail all the way to pacstrap: every network step politely skips itself
+  when offline, so nothing objected until pacman reached for a mirror that was not
+  there, by which point the disk had already been partitioned and formatted.
+  `lib/offline.sh:ryoku_offline_verify` runs right after `ryoku_preflight` and dies
+  with the specific reason (repo unset, directory absent, or present but never
+  `repo-add`ed) plus what to do about it. `tests/install-offline.sh` pins that the
+  refusal lands before the `partition` step, and that an online install is
+  untouched.
 - `lib/pacstrap.sh`: an offline install that fails no longer misreports a
   baked-closure defect as a mirror problem. Offline pacstrap draws only from the
   `file://` `[offline]` repo, so a failure is a file conflict or a corrupt
