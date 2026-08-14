@@ -72,7 +72,7 @@ Item {
     readonly property string tooltipText: {
         var lines = []
         if (showCl) {
-            lines.push("Claude Code")
+            lines.push("Claude Code" + (clFresh ? "" : "  · stale, last refresh failed"))
             var cr = root.aiFmtReset(clReset5hTs)
             lines.push("5h: " + clPct5h + "%" + (cr ? "  (reset in " + cr + ")" : ""))
             var c7 = root.aiFmtReset(clReset7dTs)
@@ -84,7 +84,8 @@ Item {
         }
         if (showCx) {
             if (lines.length) lines.push("")
-            lines.push("OpenAI Codex" + (cxPlan ? "  (" + cxPlan + ")" : ""))
+            lines.push("OpenAI Codex" + (cxPlan ? "  (" + cxPlan + ")" : "")
+                + (cxFresh ? "" : "  · stale, last refresh failed"))
             for (var i = 0; i < cxWindows.length; i++) {
                 var xw = cxWindows[i] || {}
                 var xr = root.aiFmtReset(xw.resetTs || 0)
@@ -97,7 +98,8 @@ Item {
         }
         if (showOc) {
             if (lines.length) lines.push("")
-            lines.push("OpenCode" + (ocPlan ? "  (" + ocPlan + ")" : ""))
+            lines.push("OpenCode" + (ocPlan ? "  (" + ocPlan + ")" : "")
+                + (ocFresh ? "" : "  · stale, last refresh failed"))
             lines.push("5h: " + ocPct5h + "%  ·  7d: " + ocPct7d + "%")
             if (ocTokens) lines.push(ocTokens + " tokens" + (ocRate ? "  · " + ocRate : ""))
             if (ocToday > 0) lines.push("today: " + (ocToday / 1e6).toFixed(2) + "M tok")
@@ -146,6 +148,7 @@ Item {
         property int pct: 0
         property int resetTs: 0     // reset used for the countdown
         property int paceTs: 0      // genuine weekly reset for pace (0 ⇒ no pace)
+        property bool fresh: true   // false ⇒ the collector could not refetch
         property bool tinted: true  // false ⇒ show the logo in its own colours (Claude)
         property url logo: ""       // Codex / OpenCode vector mark
         property size logoSize: Qt.size(14, 14)
@@ -155,6 +158,11 @@ Item {
         readonly property bool behind: rootMod.root.aiBehindPace(pct, paceTs)
         readonly property color col: behind ? rootMod.root.sealRaw : rootMod.contentColor
         readonly property string countdown: rootMod.root.aiFmtReset(resetTs)
+
+        // A number the collector could not refresh must not read as current: the
+        // last good value stays on the bar, dimmed, and the tooltip says why.
+        opacity: chip.fresh ? 1 : 0.45
+        Behavior on opacity { NumberAnimation { duration: 160 } }
 
         spacing: 5
 
@@ -228,6 +236,7 @@ Item {
             name: "Claude"; tinted: false
             logo: Qt.resolvedUrl("../assets/claude.svg"); logoSize: Qt.size(28, 28)
             pct: rootMod.clPct7d; resetTs: rootMod.clReset7dTs; paceTs: rootMod.clReset7dTs
+            fresh: rootMod.clFresh
         }
 
         Divider { visible: rootMod.showCl && rootMod.showCx }
@@ -237,6 +246,7 @@ Item {
             name: "Codex"
             logo: Qt.resolvedUrl("../assets/codex-cli.svg"); logoSize: Qt.size(28, 28)
             pct: rootMod.cxChipPct; resetTs: rootMod.cxChipTs; paceTs: rootMod.cxReset7dTs
+            fresh: rootMod.cxFresh
         }
 
         Divider { visible: (rootMod.showCl || rootMod.showCx) && rootMod.showOc }
@@ -247,6 +257,7 @@ Item {
             logo: Qt.resolvedUrl("../assets/opencode-mark.svg"); logoSize: Qt.size(20, 12)
             markW: 20; markH: 12
             pct: rootMod.ocPct7d; resetTs: 0; paceTs: 0
+            fresh: rootMod.ocFresh
         }
     }
 
