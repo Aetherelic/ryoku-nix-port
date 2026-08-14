@@ -10,23 +10,17 @@ import (
 
 // ---- reconciler: a portal frontend left over from a previous session ----------
 //
-// xdg-desktop-portal is PartOf=graphical-session.target, but nothing ever stops
-// that target: hyprland-session.target only ever starts it, so logging out and
-// back in leaves the frontend from the old session running. It then answers for
-// a compositor that no longer exists, and a ScreenCast request never reaches the
-// hyprland backend -- the D-Bus call times out instead, the source picker never
-// opens, and the app is handed nothing. Discord and any Chromium/Electron client
-// report the share as simply not working, with no error anywhere the user looks.
-//
-// The compositor's start time is the reference: a frontend older than the
-// Hyprland it is serving cannot have been started for this session. Restarting
-// it is enough -- the backend re-registers on demand -- and the autostart's
-// try-restart keeps a fresh login from ever getting here.
+// xdg-desktop-portal is only PartOf=graphical-session.target and nothing ever
+// stops that target, so logging out and back in leaves the old session's
+// frontend running. A ScreenCast request then times out inside it instead of
+// reaching the hyprland backend: no source picker, and the app is handed
+// nothing with no error anywhere the user looks. A frontend older than the
+// Hyprland it serves cannot belong to this session, and restarting it is
+// enough; the backend re-registers on demand.
 
-// parseStartTicks pulls a process's start time (field 22 of /proc/<pid>/stat) out
-// of that file's content, in clock ticks since boot. The comm field is a bare
-// process name in parentheses and may itself hold spaces and parentheses, so the
-// count starts at the LAST ')' instead of splitting the whole line.
+// parseStartTicks reads field 22 of /proc/<pid>/stat, in clock ticks since boot.
+// The comm field may itself hold spaces and parentheses, so the count starts at
+// the LAST ')' instead of splitting the whole line.
 func parseStartTicks(stat string) (uint64, bool) {
 	paren := strings.LastIndexByte(stat, ')')
 	if paren < 0 {
@@ -53,16 +47,11 @@ func procStartTicks(pid int) (uint64, bool) {
 	return parseStartTicks(string(b))
 }
 
-// compositorStartTicks is the start time of the session's Hyprland, found by
-// walking /proc for a process whose comm is exactly "Hyprland". Read from /proc
-// rather than asked of hyprctl, because the whole point is to compare against
-// the LIVE compositor even when the caller's HYPRLAND_INSTANCE_SIGNATURE names a
-// dead one.
-//
-// The OLDEST match wins. A nested or newly spawned Hyprland (a plugin test, a
-// second compositor in a window) is younger than the portal frontend serving the
-// real session, and taking it as the reference would call a perfectly healthy
-// frontend stale and restart it out from under a live screen share.
+// compositorStartTicks is the start time of the session's Hyprland, walked out
+// of /proc rather than asked of hyprctl: the point is to compare against the
+// LIVE compositor even when the caller's HYPRLAND_INSTANCE_SIGNATURE names a
+// dead one. Oldest match wins, so a nested Hyprland cannot make a healthy
+// frontend look stale and get it restarted out from under a live share.
 func compositorStartTicks() (uint64, bool) {
 	ents, err := os.ReadDir("/proc")
 	if err != nil {

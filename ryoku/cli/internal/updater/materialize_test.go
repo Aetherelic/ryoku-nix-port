@@ -235,10 +235,9 @@ func wantFile(t *testing.T, path, want string) {
 	}
 }
 
-// activeFlags: the flag lines a chromium-flags.conf actually applies, i.e. every
-// non-blank line that is not a comment. Asserting on these instead of the whole
-// file keeps the test about what chromium is told, so a commented-out flag reads
-// as absent (which it is) and adding a comment does not fail the build.
+// activeFlags: the lines a chromium-flags.conf actually applies. Asserting on
+// these rather than the whole file means a commented-out flag reads as absent,
+// and adding a comment does not fail the build.
 func activeFlags(conf string) []string {
 	var flags []string
 	for _, ln := range strings.Split(conf, "\n") {
@@ -258,11 +257,9 @@ func activeFlags(conf string) []string {
 // pins the flags and that materialize routes it to the config root as a managed
 // file, not a one-time seed.
 func TestMaterializeDeliversChromiumFlags(t *testing.T) {
-	// gnome-libsecret: the screen-share keyring only works if chromium uses GNOME
-	// Secret Service, not kwallet or basic. ozone-platform=wayland: under Xwayland
-	// chromium never uses the PipeWire capturer, so screen sharing offers an empty
-	// source list. Both are load-bearing for sharing a screen; neither may be lost
-	// to a merge.
+	// Both are load-bearing for sharing a screen: gnome-libsecret so chromium
+	// shares the keyring the desktop unlocks, wayland so it reaches the PipeWire
+	// capturer at all.
 	want := []string{"--password-store=gnome-libsecret", "--ozone-platform=wayland"}
 
 	_, thisFile, _, _ := runtime.Caller(0)

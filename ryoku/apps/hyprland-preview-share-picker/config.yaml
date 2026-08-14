@@ -1,36 +1,25 @@
-# hyprland-preview-share-picker: the screen-share source chooser xdph launches
-# (ryoku/hyprland/xdph.conf names the binary). Only the keys that differ from
-# upstream's defaults are set; the rest of the schema is already what we want.
+# The screen-share source chooser xdph launches (ryoku/hyprland/xdph.conf names
+# the binary). Only the keys that differ from upstream's defaults are set.
 #
-# The stylesheet is the palette matugen renders on every wallpaper change
-# (ryoku/shell/matugen/config.toml -> templates.sharepicker). Paths here resolve
-# against this file's directory, so it has to be reached relatively. A palette
-# that has not been rendered yet is a warning, not an error: the picker still
-# opens, wearing stock GTK until the first render.
+# Paths resolve against this file's directory, so the palette matugen renders on
+# every wallpaper change has to be reached relatively. A palette not rendered yet
+# is a warning, not an error: the picker opens wearing stock GTK.
 stylesheets: ["../../.cache/ryoku/share-picker.css"]
 
-# Outputs first. It is the page that always has something in it -- a monitor
-# cannot be absent the way a toplevel list can -- so the picker never opens on
-# an empty grid.
+# Outputs always has something in it; a toplevel list can be empty.
 default_page: outputs
 
-# The restore checkbox is not a decision to put in front of someone mid-call:
-# xdph.conf already answers it (allow_token_by_default), so hide the control
-# rather than ask the same question twice.
+# xdph.conf already answers this (allow_token_by_default).
 hide_token_restore: true
 
 image:
-  # Twice widget_size (150), so a card is sharp on a HiDPI panel without
-  # decoding pixels no card can show.
+  # Twice widget_size, so a card is sharp on a HiDPI panel and no sharper.
   resize_size: 320
 
 windows:
-  # One click to pick. Double-click is a file-manager idiom, not a chooser one.
   clicks: 1
 
 outputs:
   clicks: 1
-  # Name the monitors. On a multi-head desk two previews of the same wallpaper
-  # are indistinguishable, and picking the wrong screen mid-share is the one
-  # mistake this dialog exists to prevent.
+  # Two previews of the same wallpaper are indistinguishable without the name.
   show_label: true

@@ -10,26 +10,17 @@ hl.on("hyprland.start", function()
     -- Papirus-Dark overlay under ~/.local/share/icons tinted to the palette and
     -- selects it. Rebuilt on every palette change by the shell's matugen hook.
     hl.exec_cmd("command -v ryoku-cmd-folders >/dev/null 2>&1 && ryoku-cmd-folders")
-    -- Env import, session target, then the shell, as ONE chained command.
-    -- exec is fire-and-forget: as separate lines the shell start races the
-    -- env import, and losing means ConditionEnvironment=WAYLAND_DISPLAY
-    -- silently skips the unit -- a black desktop on cold first boots.
-    --
-    -- --all, not a name list. An app launched from a keybind is Hyprland's
-    -- child and sees every hl.env() name; one launched by xdg-autostart or
-    -- D-Bus activation is systemd's child and sees only what is pushed here.
-    -- A hand-kept list drifts the moment env.lua, the Hub's Environment page,
-    -- or user.lua adds a name, and then the two launch paths disagree: that is
-    -- how an autostarted Electron app lost ELECTRON_OZONE_PLATFORM_HINT (dead
-    -- screen share) and a D-Bus-activated GTK4 app lost GSK_RENDERER (the file
-    -- manager hangs). --all has no list to forget.
-    --
-    -- Portals restart last, once the desktop is up. They are
-    -- PartOf=graphical-session.target, but nothing ever stops that target, so
-    -- the frontend from a previous Hyprland session survives into this one and
-    -- every ScreenCast request it proxies then times out instead of reaching
-    -- the backend: no source picker, and the share fails silently. try-restart
-    -- is a no-op on a cold boot, where the portals D-Bus activate on first use.
+    -- ONE chained command: exec is fire-and-forget, so as separate lines the
+    -- shell start races the env import, and losing means
+    -- ConditionEnvironment=WAYLAND_DISPLAY skips the unit (a black desktop).
+    -- --all, not a name list: a keybind-launched app is Hyprland's child and
+    -- sees every hl.env() name, a systemd or D-Bus launched one sees only what
+    -- is pushed here, and a hand-kept list drifts the moment env.lua, the Hub,
+    -- or user.lua adds one.
+    -- Portals restart last, once the desktop is up: they are only
+    -- PartOf=graphical-session.target and nothing stops that target, so a
+    -- previous session's frontend survives and every ScreenCast request it
+    -- proxies times out instead of reaching the backend.
     hl.exec_cmd("dbus-update-activation-environment --systemd --all; systemctl --user start hyprland-session.target; systemctl --user start ryoku-shell; systemctl --user try-restart xdg-desktop-portal.service xdg-desktop-portal-hyprland.service xdg-desktop-portal-gtk.service")
     -- Polkit authentication is answered by the shell's own agent (the island
     -- that matches the rest of the desktop), so the stock Qt agent must not
