@@ -278,8 +278,11 @@ The `setup` verb runs in a floating kitty (the Extras pattern), streaming
 progress as JSON to `$XDG_RUNTIME_DIR/ryoku-rashin/setup.json`, which the Hub
 page watches live. The flow:
 
-1. **Preflight:** check `curl`, `python3` or `uv`, and disk space; detect an
-   existing Hermes.
+1. **Preflight:** check `curl`, a Python toolchain (`uv` or `python3`), network
+   reachability, and disk space; detect an existing Hermes. `uv` and `nodejs`
+   ship as `ryoku-rashin` dependencies, so the check passes on a stock box and
+   the installer never bootstraps a toolchain over the network (nor dies with a
+   cryptic "uv lock missing" on a half-finished, offline install).
 2. **Install Hermes** via its official installer under `$HOME` (skipped if
    present). Setup never runs with sudo.
 3. **Onboard:** run `hermes setup` interactively in that terminal so you pick a
@@ -288,7 +291,8 @@ page watches live. The flow:
    `MEMORY.md` and sessions live there, and write the vault `AGENTS.md` pointers.
 5. **Global pointers:** append a marker-fenced block to each detected agent's
    global instructions file (see below).
-6. **Enable** the daemon and open the dashboard.
+6. **Enable** the daemon (at boot via lingering when the desktop allows it,
+   else at login) and open the dashboard.
 
 ### Two Hermes safety rules
 

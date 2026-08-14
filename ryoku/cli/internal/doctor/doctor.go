@@ -143,6 +143,7 @@ func reconcilers() []reconciler {
 		{"orphaned theme.lua", reconcileThemeLua},
 		{"follow-mouse default", reconcileFollowMouseDefault},
 		{"ryoku shell daemon", reconcileShellDaemon},
+		{"rashin agent daemon", reconcileRashinDaemon},
 		{"recordings directory", reconcileRecordingsDir},
 		{"failed services", reconcileFailedUnits},
 		{"btrfs device health", reconcileBtrfsHealth},

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 // setup.go is the one-click actuator behind the Hub's "Set up Hermes agent"
@@ -71,10 +73,19 @@ func cmdSetup() error {
 }
 
 func RunSetup() error {
-	// Preflight: the installer needs curl and roughly 2 GiB free in $HOME.
-	reportPhase("preflight", "checking curl and disk space", true)
-	if _, err := exec.LookPath("curl"); err != nil {
-		return errors.New("curl is required for the Hermes installer")
+	// Preflight: the installer downloads and builds the agent, so it needs curl,
+	// a Python toolchain (uv or python3), a reachable network, and ~2 GiB free in
+	// $HOME. Checking all four here turns a mid-install failure (the cryptic
+	// "uv lock missing" a broken or offline install throws) into one clear line.
+	reportPhase("preflight", "checking tools, connectivity, and disk space", true)
+	if !haveCmd("curl") {
+		return errors.New("curl is required for the Hermes installer (sudo pacman -S curl)")
+	}
+	if !haveCmd("uv") && !haveCmd("python3") {
+		return errors.New("Hermes needs uv or python3 to install (sudo pacman -S uv), then re-run setup")
+	}
+	if !setupOnline() {
+		return errors.New("Hermes setup needs an internet connection: it downloads the agent and its Python dependencies from GitHub and PyPI")
 	}
 	var st syscall.Statfs_t
 	if err := syscall.Statfs(home(), &st); err == nil {
@@ -127,13 +138,15 @@ func RunSetup() error {
 	n := WireAll()
 	reportPhase("wire", fmt.Sprintf("wired hermes and %d coding agents", n), true)
 
-	// Enable: gate autostart on and bring the daemon up now.
+	// Enable: gate autostart on and bring the daemon up now, at boot via
+	// lingering when the desktop allows it (cmdEnable degrades to login-start
+	// if enable-linger is refused), so the dashboard is up without a login.
 	reportPhase("enable", "starting the rashin daemon", true)
 	if setupDryRun() {
 		reportPhase("done", "dry run complete", true)
 		return nil
 	}
-	if err := cmdEnable(false); err != nil {
+	if err := cmdEnable(true); err != nil {
 		return err
 	}
 	// Verify the chat backend: a working hermes CLI does not guarantee the ACP
@@ -154,4 +167,26 @@ func RunSetup() error {
 	fmt.Printf("\nRashin is ready: %s\npress enter to close\n", url)
 	fmt.Scanln()
 	return nil
+}
+
+// haveCmd reports whether a command is resolvable on PATH.
+func haveCmd(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+// setupOnline probes the hosts the Hermes installer must reach, so an offline
+// box fails preflight with one clear message instead of a cryptic uv or git
+// error partway through the download. Any one host answering counts as online.
+func setupOnline() bool {
+	if setupDryRun() {
+		return true
+	}
+	for _, host := range []string{"hermes-agent.nousresearch.com:443", "github.com:443", "pypi.org:443"} {
+		if c, err := net.DialTimeout("tcp", host, 4*time.Second); err == nil {
+			_ = c.Close()
+			return true
+		}
+	}
+	return false
 }
