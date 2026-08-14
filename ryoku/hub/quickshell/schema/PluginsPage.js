@@ -19,12 +19,13 @@ var rows = [
         "group": "(none)",
         "key": "<pluginId>.host",
         "label": "Show as",
-        "desc": "Popouts dock to a screen edge; widgets are dragged loose on the desktop",
+        "desc": "Popouts dock to a screen edge; widgets are dragged loose on the desktop; bar glyphs ride the bar",
         "ctl": "seg",
         "src": "plugins.json",
         "opts": [
             "framePopout",
-            "desktopWidget"
+            "desktopWidget",
+            "topbarGlyph"
         ]
     },
     {

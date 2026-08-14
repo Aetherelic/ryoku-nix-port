@@ -44,11 +44,11 @@ bolted-on instead of native.
 
 ---
 
-## The two hosts a user can choose
+## The three hosts a user can choose
 
 When a user enables your plugin they pick **one** of these in Ryoku Settings →
-Plugins. Your *same* `content/Widget.qml` is used for both - Ryoku just renders
-it differently.
+Plugins. Your *same* `content/Widget.qml` is used for all three - Ryoku just
+renders it differently.
 
 ### 1. Desktop widget - a tile on the wallpaper
 
@@ -80,8 +80,23 @@ reserved for the shell's own island/mixer/power, so you can't dock there).
 
 `ryoku-shell plugin <id>` toggles your frame popout open (bind it to a key).
 
-> Island, topbar-glyph, and window hosts are planned but not built yet. Declare
-> only `framePopout` or `desktopWidget` in your manifest today.
+### 3. Bar glyph - rides the bar
+
+It sits on the bar as its own module, immediately left of the status cluster, in
+its own island when the bar is in islands form. Your content is rendered at
+`glyph` density on the bar's axis, so it must stay small: report a mark-sized
+`implicitWidth`/`implicitHeight` (roughly the bar's inner height) and Ryoku
+centres it and reserves exactly that much room.
+
+- Ryoku handles the **island pill, spacing, and the bar's width arithmetic**.
+- A bar glyph is **not** a drag-reorderable widget: plugin sets change whenever
+  something is installed, so glyphs are not persisted layout slots.
+
+Declare `topbarGlyph` in `hosts`, and include `"glyph"` in
+`capabilities.densities` - a plugin that only draws a card is a poor bar glyph.
+
+> Island and window hosts are planned but not built yet. Declare only
+> `framePopout`, `desktopWidget`, or `topbarGlyph` in your manifest today.
 
 ---
 

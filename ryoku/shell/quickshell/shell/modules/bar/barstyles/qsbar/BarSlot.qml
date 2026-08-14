@@ -11,6 +11,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import "modules"
 import shell.services as Svc
+import Ryoku.PluginKit
 
 PanelWindow {
     id: barSlot
@@ -87,6 +88,8 @@ PanelWindow {
     // keep Hyprland awake while the idle-inhibitor toggle is on (carried over
     // from the legacy single-bar implementation)
     IdleInhibitor { window: barSlot; enabled: barSlot.root.idleInhibited }
+
+    BarPlugins { id: barPlugins }
 
     // if unlock ends mid-drag (ESC / ipc lock / click backdrop), kill the drag so the
     // ghost doesn't stay frozen + the source widget doesn't stay dimmed
@@ -1827,10 +1830,12 @@ PanelWindow {
         readonly property int fitRegionCount:
             (leftRowItem.implicitWidth > 0.5 ? 1 : 0)
             + (centerRowItem.implicitWidth > 0.5 ? 1 : 0)
+            + (pluginRow.implicitWidth > 0.5 ? 1 : 0)
             + (rightRowItem.implicitWidth > 0.5 ? 1 : 0)
         readonly property real fitNaturalWidth: Math.ceil(
             2 * fitPadding
-            + leftRowItem.implicitWidth + centerRowItem.implicitWidth + rightRowItem.implicitWidth
+            + leftRowItem.implicitWidth + centerRowItem.implicitWidth
+            + pluginRow.implicitWidth + rightRowItem.implicitWidth
             + Math.max(0, fitRegionCount - 1) * fitRegionGap)
 
         // edit-mode frame around the bar while unlocked (gentle pulse)
@@ -1996,6 +2001,10 @@ PanelWindow {
                 }
                 if (start >= 0) runs.push({ a: start, b: end })
             }
+            // Plugins live outside the gid rows, so their pill is added directly.
+            void(pluginRow.x); void(pluginRow.implicitWidth)
+            if (pluginRow.implicitWidth > 0.5)
+                runs.push({ a: pluginRow.x, b: pluginRow.x + pluginRow.implicitWidth })
             return runs
         }
         // ── islands form: one rounded pill per widget run ──
@@ -2083,10 +2092,80 @@ PanelWindow {
                     + (leftRowItem.implicitWidth > 0.5 ? island.fitRegionGap : 0)
                     + centerRowItem.implicitWidth
                     + (centerRowItem.implicitWidth > 0.5 ? island.fitRegionGap : 0)
+                    + pluginRow.implicitWidth
+                    + (pluginRow.implicitWidth > 0.5 ? island.fitRegionGap : 0)
                 : island.width - island.rowInset - implicitWidth
             rmodel: rightModel
             baseCount: barSlot.rightBaseSlotCount
             maxExtraCount: barSlot.rightExtraSlotLimit
+        }
+
+        // Store-installed bar plugins, rendered just before the right cluster at
+        // glyph density. Outside the drag-reorder gid model on purpose: plugin
+        // sets change at install time, so they are not persisted layout slots.
+        Row {
+            id: pluginRow
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: barSlot.root.v2WidgetSpacing
+            height: 32
+            x: barSlot.compactShell
+                ? island.fitPadding
+                    + leftRowItem.implicitWidth
+                    + (leftRowItem.implicitWidth > 0.5 ? island.fitRegionGap : 0)
+                    + centerRowItem.implicitWidth
+                    + (centerRowItem.implicitWidth > 0.5 ? island.fitRegionGap : 0)
+                : rightRowItem.x - implicitWidth
+                    - (implicitWidth > 0.5 ? island.centerGap : 0)
+
+            Repeater {
+                model: barPlugins.pluginIds
+
+                delegate: Item {
+                    id: pslot
+                    required property string modelData
+                    readonly property var entry: barPlugins.entryFor(pslot.modelData)
+                    readonly property string versionQuery: pslot.entry && pslot.entry.version
+                        ? "?v=" + encodeURIComponent(pslot.entry.version) : ""
+
+                    implicitWidth: contentSlot.item
+                        ? Math.max(1, contentSlot.item.implicitWidth) + 12 : 0
+                    width: implicitWidth
+                    height: 32
+                    visible: implicitWidth > 0.5
+
+                    property var api: QtObject {
+                        readonly property var mainInstance: serviceSlot.item
+                        readonly property var pluginSettings: (pslot.entry && pslot.entry.placement
+                            && pslot.entry.placement.settings) ? pslot.entry.placement.settings : ({})
+                        readonly property string pluginDir: pslot.entry ? pslot.entry.dir : ""
+                        function saveSettings() {}
+                    }
+
+                    PluginObjectSlot {
+                        id: serviceSlot
+                        source: pslot.entry
+                            ? "file://" + pslot.entry.dir + "/service/Main.qml" + pslot.versionQuery : ""
+                        configure: (service) => { service.pluginApi = pslot.api }
+                    }
+
+                    PluginObjectSlot {
+                        id: contentSlot
+                        // the kit slot is 0x0 by design; size it to the plugin's
+                        // own report so centring puts the glyph on the bar axis.
+                        width: contentSlot.item ? contentSlot.item.implicitWidth : 0
+                        height: contentSlot.item ? contentSlot.item.implicitHeight : 0
+                        anchors.centerIn: parent
+                        source: pslot.entry
+                            ? "file://" + pslot.entry.dir + "/content/Widget.qml" + pslot.versionQuery : ""
+                        configure: (content) => {
+                            content.pluginApi = pslot.api
+                            content.density = "glyph"
+                            content.widthBudget = 220
+                            content.active = true
+                        }
+                    }
+                }
+            }
         }
 
         // ── slot-aware panel X positions: publish per-screen anchors ──

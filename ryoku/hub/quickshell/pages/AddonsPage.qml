@@ -69,12 +69,16 @@ Item {
         ? pg.shellDir + "/quickshell/plugins/discover.sh"
         : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/plugins/discover.sh"
 
-    // framePopout | desktopWidget -> readable label, and back.
+    // framePopout | desktopWidget | topbarGlyph -> readable label, and back.
     function hostLabel(key) {
-        return key === "framePopout" ? "Frame popout" : key === "desktopWidget" ? "Desktop widget" : key;
+        return key === "framePopout" ? "Frame popout"
+            : key === "desktopWidget" ? "Desktop widget"
+            : key === "topbarGlyph" ? "Bar" : key;
     }
     function hostKey(label) {
-        return label === "Frame popout" ? "framePopout" : label === "Desktop widget" ? "desktopWidget" : label;
+        return label === "Frame popout" ? "framePopout"
+            : label === "Desktop widget" ? "desktopWidget"
+            : label === "Bar" ? "topbarGlyph" : label;
     }
 
     function refresh() { listProc.running = false; listProc.running = true; }
@@ -489,7 +493,7 @@ Item {
                 title: "拡張"; sub: "アドオン"
                 tate: "力を継ぎ足す"
                 caption: I18n.tr("Plugins extend the shell: live surfaces installed through RyoStore.")
-                readout: ["SOURCE|plugins.json", "APPLY|live", "SITS|frame · desktop", "SCOPE|per-plugin"]
+                readout: ["SOURCE|plugins.json", "APPLY|live", "SITS|frame · desktop · bar", "SCOPE|per-plugin"]
                 code: "ADDON-04"; seal: "拡"; boxId: "addons.installed"; seed: 5; ditherFreq: 1.0
             }
         }
@@ -650,7 +654,7 @@ Item {
                 ? detail.place.host
                 : ((detail.man.defaults && detail.man.defaults.host) ? detail.man.defaults.host : "framePopout")
             readonly property var hosts: (detail.man.hosts || []).filter(function (h) {
-                return h === "framePopout" || h === "desktopWidget";
+                return h === "framePopout" || h === "desktopWidget" || h === "topbarGlyph";
             })
             readonly property string upd: pg.updateFor(detail.sel)
 
