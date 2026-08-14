@@ -38,6 +38,8 @@ on:
       - 'tests/install-preflight.sh'
       - 'tests/install-clock-skew.sh'
       - 'tests/install-dryrun-matrix.sh'
+      - 'tests/installer-session-scale.sh'
+      - 'installation/iso/airootfs/usr/local/bin/ryoku-installer-session'
       - 'tests/limine-bootloader.sh'
       - 'tests/limine-windows.sh'
       - 'tests/install-chainload-vm.sh'
@@ -59,6 +61,8 @@ on:
       - 'tests/install-preflight.sh'
       - 'tests/install-clock-skew.sh'
       - 'tests/install-dryrun-matrix.sh'
+      - 'tests/installer-session-scale.sh'
+      - 'installation/iso/airootfs/usr/local/bin/ryoku-installer-session'
       - 'tests/limine-bootloader.sh'
       - 'tests/limine-windows.sh'
       - 'tests/install-chainload-vm.sh'
@@ -98,6 +102,10 @@ jobs:
       - name: Dry-run step/sentinel matrix
         shell: bash
         run: bash tests/install-dryrun-matrix.sh
+
+      - name: Live installer display scale (grid stays usable on every panel)
+        shell: bash
+        run: bash tests/installer-session-scale.sh
 
       - name: Limine boot-menu config handling
         shell: bash

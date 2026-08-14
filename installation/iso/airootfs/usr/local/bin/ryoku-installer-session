@@ -23,9 +23,109 @@ export XCURSOR_SIZE=24
 log=/var/log/ryoku-session.log
 kbfile=/tmp/ryoku-xkb   # the keyboard step writes the chosen layout here (see below)
 
+# ── display scale ─────────────────────────────────────────────────────────────
+# The installer's usable size is a CHARACTER GRID, and a grid is pixels divided by
+# a font cell. Nothing in the terminal stack scales for you: bubbletea only ever
+# learns columns and rows (TIOCGWINSZ ws_col/ws_row; ws_xpixel is unused), so a
+# fixed font size means the grid swings with the panel. At a fixed 14pt, 1080p
+# gives ~174x43 but 1366x768 gives ~124x30 and 4K gives ~349x86 of unreadable
+# text. That is the reported "different scale on their PC" -- same font, different
+# panel. So pick the cell from the panel instead, and keep text a constant
+# physical size.
+
+# sysfs root the display probes read. Only ever /sys on a live boot; the seam
+# exists so tests/installer-session-scale.sh can point the probes at a fake tree
+# and check the fallbacks without a matching GPU.
+sysfs=${RYOKU_SYSFS:-/sys}
+
+# native_res: the preferred mode of the first connected DRM connector, as "W H".
+# The first line of a connector's modes list is its native/preferred mode, which
+# is what cage will drive. Falls back to 1080p when DRM tells us nothing.
+native_res() {
+	local c st mode
+	for c in "$sysfs"/class/drm/card*-*; do
+		[[ -r $c/status && -r $c/modes ]] || continue
+		read -r st <"$c/status" || continue
+		[[ $st == connected ]] || continue
+		read -r mode <"$c/modes" || continue
+		[[ $mode == +([0-9])x+([0-9])* ]] || continue
+		echo "${mode%%x*} ${mode#*x}"
+		return 0
+	done
+	echo "1920 1080"
+}
+
+# fb_res: the framebuffer the kernel VT actually draws on, as "W H". This is NOT
+# interchangeable with native_res: the console path runs precisely when there is
+# no usable DRM, where native_res would return its 1080p fallback and talk us into
+# a 16x32 font on a 640x480 framebuffer -- a 40x15 grid, worse than what we
+# started with. Fails when the size is unknown, and the caller then leaves the
+# font alone rather than guessing.
+fb_res() {
+	local w h
+	[[ -r $sysfs/class/graphics/fb0/virtual_size ]] || return 1
+	IFS=, read -r w h <"$sysfs/class/graphics/fb0/virtual_size" || return 1
+	[[ $w == +([0-9]) && $h == +([0-9]) ]] || return 1
+	((w > 0 && h > 0)) || return 1
+	echo "$w $h"
+}
+
+# wait_for_kms: the live VT starts as the 80-column boot console and only grows
+# once KMS takes over, which on real hardware is noticeably late. Deciding the
+# scale (or drawing) against that transient console is what left the layout
+# sheared, so give the connector a few seconds to appear before measuring.
+wait_for_kms() {
+	local n=0
+	while ((n++ < 25)); do
+		compgen -G '/dev/dri/card*' >/dev/null 2>&1 && grep -qxs connected "$sysfs"/class/drm/card*-*/status && return 0
+		sleep 0.2
+	done
+	return 1
+}
+
+# foot_pt: point size that holds text at a constant physical size, anchored to the
+# 14pt that already reads correctly at 1080p. foot converts with
+# px = round(pt * scale * 4/3) when dpi-aware=no (its default since 1.16), and
+# JetBrains Mono's cell is 0.6em wide by 1.32em tall, so the resulting grid stays
+# near 170x43 from 480p to 4K instead of collapsing at one end and turning
+# microscopic at the other. Clamped so a freak mode cannot produce a silly size.
+foot_pt() {
+	local h=$1 pt=$(((14 * $1 + 540) / 1080))
+	((h > 0)) || pt=14
+	((pt < 8)) && pt=8
+	((pt > 32)) && pt=32
+	echo "$pt"
+}
+
+# console_font: the VT fallback's equivalent lever. Cell sizes are read from the
+# psf headers of fonts `kbd` already ships, so this needs no extra package:
+# default8x16 = 8x16, iso01-12x22 = 12x22, latarcyrheb-sun32 = 16x32,
+# solar24x32 = 24x32. Pick the largest cell that still leaves the installer a
+# 96x30 grid, so bigger text never costs reachable content.
+console_font() {
+	local w=$1 h=$2 name cw ch
+	for entry in "solar24x32 24 32" "latarcyrheb-sun32 16 32" "iso01-12x22 12 22"; do
+		read -r name cw ch <<<"$entry"
+		if ((w / cw >= 96 && h / ch >= 30)); then
+			echo "$name"
+			return 0
+		fi
+	done
+	echo default8x16
+}
+
 # the console TUI: the installer on the raw VT. every non-graphical path routes
-# through here so the user always reaches a working installer.
+# through here so the user always reaches a working installer. the font is sized
+# first so a HiDPI panel is readable and a small one keeps enough rows.
 run_console() {
+	local font="" res cw ch
+	if res=$(fb_res); then
+		read -r cw ch <<<"$res"
+		font=$(console_font "$cw" "$ch")
+	fi
+	if [[ -n $font && $font != default8x16 ]] && command -v setfont >/dev/null 2>&1; then
+		setfont "$font" 2>>"$log" && echo "ryoku: console ${cw}x${ch}, font $font." >>"$log"
+	fi
 	echo "ryoku: starting the installer on the console (16-color fallback)." >&2
 	RYOKU_SESSION=console ryoku-tui
 }
@@ -68,7 +168,15 @@ run_graphical() {
 	[[ -n $kmap ]] && genv+=("RYOKU_KB_PRESET=$kmap")
 	[[ -n $lay ]] && genv+=("RYOKU_XKB=$lay" "XKB_DEFAULT_LAYOUT=$lay")
 	[[ -n $var ]] && genv+=("XKB_DEFAULT_VARIANT=$var")
-	env "${genv[@]}" cage -- foot -o term=xterm-256color -f 'JetBrainsMono Nerd Font:size=14' -e ryoku-tui >"$log" 2>&1
+	# Size the font to the panel, and pin dpi-aware=no so the pt->px conversion is
+	# the deterministic px = round(pt * scale * 4/3) instead of whatever DPI the
+	# monitor's EDID claims -- a wrong EDID used to be enough to halve the grid.
+	local cw ch pt
+	read -r cw ch <<<"$(native_res)"
+	pt=$(foot_pt "$ch")
+	echo "ryoku: panel ${cw}x${ch}, kiosk font ${pt}pt." >>"$log"
+	env "${genv[@]}" cage -- foot -o term=xterm-256color -o main.dpi-aware=no \
+		-f "JetBrainsMono Nerd Font:size=$pt" -e ryoku-tui >"$log" 2>&1
 }
 
 # a missing installer binary is a corrupt image: say so loudly, don't hang.
@@ -77,6 +185,12 @@ if ! command -v ryoku-tui >/dev/null 2>&1; then
 	recovery_notice
 	exit 0
 fi
+
+# Let KMS finish taking over before anything measures the display. Until it does,
+# tty1 is the 80-column boot console and no DRM connector reports a mode, so both
+# the font sizing and the first draw would be made against a size that is about to
+# change underneath them.
+wait_for_kms || echo "ryoku: no KMS connector appeared; using the console installer." >>"$log"
 
 # try the graphical TUI a few times (transient wayland/seat races on real boots),
 # then fall back to the console TUI. a clean quit from either ends the session.

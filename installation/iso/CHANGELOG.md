@@ -24,6 +24,28 @@
   normalizes the per-run repo path so the reproducibility diff stays clean.
 
 ### Fixed
+- **The installer session sizes text to the panel, so the TUI is readable and
+  complete on any monitor.** The kiosk launched `foot` at a hard-coded
+  `size=14`, and the installer's usable size is a character grid: panel pixels
+  divided by a font cell. Nothing in the terminal stack scales for you (bubbletea
+  only ever learns columns and rows; `ws_xpixel` is unused), so one fixed size
+  meant the grid swung with the display: 1080p got a comfortable ~174x43, but
+  1366x768 got 30 rows and cut the Review screen's confirm buttons off the
+  bottom, and 4K got ~349x86 of microscopic text. That is the reported "different
+  scale on their PC", same font, different panel. Both ISO variants share this
+  path, so both were affected. The session now reads the panel's native mode from
+  DRM and picks the point size from it, anchored so 1080p still resolves to
+  exactly 14pt (the resolution that already worked is untouched); the grid now
+  stays near 170x43 from 480p to 4K while text holds a constant physical size.
+  `dpi-aware=no` is pinned so the pt-to-px conversion is foot's deterministic
+  `round(pt * scale * 4/3)` instead of whatever DPI an EDID claims. The console
+  fallback gets the same treatment through `setfont`, sized from the framebuffer
+  (not the DRM fallback, which is absent exactly when that path runs) and only
+  ever enlarged while the grid stays at least 96x30, using cells `kbd` already
+  ships: `default8x16`, `iso01-12x22`, `latarcyrheb-sun32` (16x32) and
+  `solar24x32`. The session also waits for KMS before measuring, since tty1 is
+  the 80-column boot console until the real framebuffer arrives and anything
+  decided against it is about to be wrong (`tests/installer-session-scale.sh`).
 - **A file conflict in the baked closure now fails the build, not the offline
   install.** `offline-repo.sh` verifies the exact pacstrap set resolves and that
   no two packages own the same path before the ISO is assembled. An upstream

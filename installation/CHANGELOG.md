@@ -42,9 +42,29 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   live kernel needed VMD to see the NVMe.
 
 ### Fixed
+- **The TUI fits the screen it is given, so a fresh install no longer hides half
+  the installer.** Every frame was built at whatever size the content wanted and
+  handed straight to the terminal. `lipgloss.Place` does not truncate: it returns
+  oversized content unchanged (`position.go`: `if gap <= 0 { return str }`), so
+  the VT wrapped the overflow and sheared the layout: the step rail slid off the
+  left edge and the footer carrying the Yes/No buttons dropped off the bottom of
+  Review, the one screen that authorises erasing a disk. Measured, the Review
+  frame wanted 36 rows and the GPU step 84 columns, while the resize guard waved
+  through anything at least 80x20, so the sizes in between rendered broken
+  instead of being caught. Frames are now clamped to the grid on both axes, one
+  long row can no longer widen a card past its budget (`boxLines` truncates as
+  well as pads), and the chrome degrades in priority order (tagline, then the
+  block banner, then spacer rows and key hints, then the step rail), so the
+  wizard is usable on an 80x24 console instead of refusing to draw. The rail is
+  priced in columns, not rows, so a merely short terminal keeps it. The guard now
+  fires at 56x16, and says what a live-ISO user can actually do (a smaller console
+  font, or `ryoku-install` from the shell) rather than asking them to resize a
+  kernel VT they cannot resize (`tui/layout_test.go` pins the frame-fits-grid
+  invariant, and that Review keeps the target disk, the strategy and the buttons
+  at every size).
 - **The disk step reads the disk it was given.** The strategy picker was a
   static list that always led with "Install alongside Windows · keep Windows",
-  even on a factory-blank disk — a first-time user on an empty SSD was offered
+  even on a factory-blank disk: a first-time user on an empty SSD was offered
   a Windows to keep that doesn't exist, and a quick Enter walked them into a
   dead-ended alongside layout. The strategies are now built from the picked
   disk's real layout: a blank disk gets the single honest "Use the whole disk"
@@ -52,7 +72,7 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   neutral "Install alongside · keep existing partitions", and only a disk that
   actually carries an NTFS install promises to keep Windows. The layout
   screen's footnote and subvolume count also stopped describing a layout the
-  backend never creates ("@ / and @nix always included" — the real always-set
+  backend never creates ("@ / and @nix always included", the real always-set
   is `@`, `@log` and `@pkg`, plus `@swap` when a swapfile is chosen), verified
   against the backend's own `filesystem.sh` (`tui/main.go`, covered by
   `TestDiskStrategiesMatchTheDisk`).

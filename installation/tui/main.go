@@ -19,6 +19,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/harmonica"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/sahilm/fuzzy"
 )
@@ -483,8 +484,14 @@ const (
 const minDiskGiB = 32      // installer floor: minRootGiB closure + 1G ESP + swap/snapshot headroom
 const minRootGiB = 20      // min root partition (GiB): base+desktop closure plus AUR/snapshot headroom (matches backend ryoku_min_root_gib)
 const alongsideBootGiB = 2 // XBOOTLDR /boot carved inside the free region (matches backend RYOKU_ALONGSIDE_BOOT_MIB)
-const minTermW = 80        // below this the layout can't lay out cleanly
-const minTermH = 20
+// The grid the layout is verified to render every critical element into: the
+// destructive-write warning, the target disk, the strategy, and the Yes/No
+// buttons (see TestReviewKeepsCriticalContent). Below this the text stops being
+// readable, so say so rather than draw a garbled screen. Kept low on purpose: a
+// live-ISO user cannot resize a kernel VT, so refusing to draw is a dead end and
+// the layout degrades instead (see fitLevels).
+const minTermW = 56
+const minTermH = 16
 
 // abortWindow is how long a first install-state ctrl+c stays "armed": a second
 // ctrl+c within it aborts the install; after it, the warning clears and the count
@@ -738,6 +745,7 @@ type frameMsg time.Time
 
 type model struct {
 	w, h     int
+	fit      fitLevel // how much chrome the current grid can afford; View() sets it
 	flow     []step
 	idx      int
 	pick     picker
@@ -2014,20 +2022,132 @@ func (m model) selSeg() int {
 }
 
 // ───────────────────────── sizing ─────────────────────────
-func (m model) innerW() int   { return clamp(m.w-30, 42, 72) }
-func (m model) listRows() int { return clamp(m.h-14, 6, 16) }
+//
+// A live-ISO user cannot resize their terminal. On the console path the grid is
+// framebuffer pixels over console font cell; on the kiosk path it is output
+// pixels over foot's cell. Either way the installer is handed a size and has to
+// live in it, so every screen is built to a budget and then clamped to it.
+//
+// fitLevel is how much chrome the current grid can afford. View() renders at the
+// richest level that fits and degrades only as far as it must, so a roomy
+// terminal still gets the full banner and the step rail.
+type fitLevel struct {
+	noTagline   bool // drop "for the sake of power & beauty"
+	smallHeader bool // one-line wordmark instead of the three-row block banner
+	tightCard   bool // no vertical card padding, no spacer rows, no key hints
+	noRail      bool // drop the install-steps rail and give the width to the card
+}
+
+// fitLevels: richest first, height chrome only. fittedFrame walks these until the
+// frame fits. The rail is NOT in this chain -- it costs columns, not rows, so a
+// merely short terminal must not lose it (see railFits).
+var fitLevels = []fitLevel{
+	{},
+	{noTagline: true},
+	{noTagline: true, smallHeader: true},
+	{noTagline: true, smallHeader: true, tightCard: true},
+}
+
+const railW = 22 // rail inner 18 + padding 2 + border 2
+
+// railFits: the rail plus its gutter plus a card wide enough to hold the widest
+// review row ("⚠ this writes the layout below to /dev/nvme0n1", 46 cells) and the
+// card's own border and padding. Below that the rail's 24 columns are worth more
+// to the card than to the step list.
+func (m model) railFits() bool { return m.w >= railW+2+46+6 }
+
+// innerW is the card's content width: whatever is left after the card's own
+// border and padding, and the rail when it is showing.
+func (m model) innerW() int {
+	chrome := 6 // card border (2) + horizontal padding (4)
+	if !m.fit.noRail {
+		chrome += railW + 2 // rail plus the two-column gutter
+	}
+	return clamp(m.w-chrome, 24, 72)
+}
+
+// listRows sizes a picker to the rows actually left for it, so a short grid gets
+// a short list instead of a list that pushes the footer off the screen.
+func (m model) listRows() int {
+	chrome := 14 // header 6 + footer 2 + card 4 + title 2
+	if m.fit.smallHeader {
+		chrome -= 4
+	} else if m.fit.noTagline {
+		chrome--
+	}
+	if m.fit.tightCard {
+		chrome -= 2
+	}
+	return clamp(m.h-chrome, 3, 16)
+}
+
+// frameBox measures a rendered block in display cells: the widest line, and the
+// number of lines. This is the yardstick every fit decision uses.
+func frameBox(s string) (w, h int) {
+	ls := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	for _, l := range ls {
+		if d := dw(l); d > w {
+			w = d
+		}
+	}
+	return w, len(ls)
+}
+
+// fitBlock forces a block inside w×h. Lines are truncated ANSI-aware so a styled
+// row cannot bleed colour, and rows past the budget are dropped: from the top
+// when bottom is set (a confirm screen keeps its buttons reachable), otherwise
+// from the bottom. lipgloss.Place does NOT truncate -- it returns oversized
+// content unchanged (position.go: `if gap <= 0 { return str }`) -- so without
+// this the VT wraps the overflow and shears the layout.
+func fitBlock(s string, w, h int, bottom bool) string {
+	ls := strings.Split(s, "\n")
+	for i, l := range ls {
+		if dw(l) > w {
+			ls[i] = ansi.Truncate(l, w, "")
+		}
+	}
+	if h > 0 && len(ls) > h {
+		if bottom {
+			ls = ls[len(ls)-h:]
+		} else {
+			ls = ls[:h]
+		}
+	}
+	return strings.Join(ls, "\n")
+}
+
+// boxLines pads every line out to w AND truncates the ones past it, so a card
+// built from this content is exactly w wide. padLines alone only pads, which let
+// one long row widen a card past its budget and push the whole frame off-screen.
+func boxLines(s string, w int) string {
+	ls := strings.Split(s, "\n")
+	for i, l := range ls {
+		if dw(l) > w {
+			l = ansi.Truncate(l, w, "")
+		}
+		ls[i] = padTo(l, w)
+	}
+	return strings.Join(ls, "\n")
+}
 
 // ───────────────────────── view ─────────────────────────
 func (m model) View() tea.View {
 	if m.w == 0 {
 		return tea.NewView("")
 	}
-	if m.w < minTermW || m.h < minTermH { // resize guard
+	if m.w < minTermW || m.h < minTermH {
+		// A console this small cannot show the destructive-write warning legibly, and
+		// on a live VT there is no window to drag bigger -- so name the real levers
+		// (a smaller console font, or installing from the shell) instead of asking
+		// for a resize the user cannot perform.
 		msg := lipgloss.JoinVertical(lipgloss.Center,
-			bold(cYell, "↔  Please enlarge your terminal"), "",
-			fg(cText, fmt.Sprintf("Ryoku's installer needs at least %d × %d.", minTermW, minTermH)),
-			fg(cSub, fmt.Sprintf("Current size: %d × %d.", m.w, m.h)))
-		v := tea.NewView(lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, msg))
+			bold(cYell, "This screen is too small for the installer"), "",
+			fg(cText, fmt.Sprintf("Ryoku needs at least %d × %d; this console is %d × %d.", minTermW, minTermH, m.w, m.h)), "",
+			fg(cSub, "On a terminal: make the window bigger."),
+			fg(cSub, "On the console: switch to a smaller font, e.g."),
+			fg(cBlue, "setfont ter-v16n"), "",
+			fg(cSub, "Or install from the shell with: ryoku-install"))
+		v := tea.NewView(fitBlock(lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, msg), m.w, m.h, false))
 		v.AltScreen, v.BackgroundColor, v.ForegroundColor = true, cBg, cText
 		return v
 	}
@@ -2037,26 +2157,7 @@ func (m model) View() tea.View {
 		v.AltScreen, v.BackgroundColor, v.ForegroundColor = true, cBg, cText
 		return v
 	}
-	var frame string
-	switch m.state {
-	case "intro":
-		frame = lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, m.viewIntro())
-	case "transition":
-		a := frameLines(lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, m.viewIntro()), m.h)
-		b := frameLines(m.welcomeFrame(), m.h)
-		off := clamp(int(m.transPos*float64(m.h)), 0, m.h)
-		frame = strings.Join(append(a, b...)[off:off+m.h], "\n")
-	case "welcome":
-		if m.showSocialQR {
-			frame = m.welcomeQR()
-		} else {
-			frame = m.welcomeFrame()
-		}
-	case "install", "done", "failed":
-		frame = m.frameWithFooter(m.viewCentered(), "")
-	default:
-		frame = m.frameWizard()
-	}
+	frame := m.fittedFrame()
 	v := tea.NewView(frame)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
@@ -2066,12 +2167,65 @@ func (m model) View() tea.View {
 	return v
 }
 
+// fittedFrame renders the current screen at the richest chrome level that fits
+// the grid, degrading only as far as it must: the tagline goes first, then the
+// three-row block banner, then the spacer rows and key hints, then the step rail.
+// A roomy terminal never leaves level 0 and looks exactly as before.
+//
+// This is what makes an 80-column boot console usable instead of sheared. The
+// live VT is commonly 80 columns until KMS hands over a bigger framebuffer, and
+// the user has no way to resize it, so the installer adapts instead of asking.
+func (m model) fittedFrame() string {
+	build := func() string {
+		switch m.state {
+		case "intro":
+			return lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, m.viewIntro())
+		case "transition":
+			a := frameLines(lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, m.viewIntro()), m.h)
+			b := frameLines(m.welcomeFrame(), m.h)
+			off := clamp(int(m.transPos*float64(m.h)), 0, m.h)
+			return strings.Join(append(a, b...)[off:off+m.h], "\n")
+		case "welcome":
+			if m.showSocialQR {
+				return m.welcomeQR()
+			}
+			return m.welcomeFrame()
+		case "install", "done", "failed":
+			return m.frameWithFooter(m.viewCentered(), "")
+		}
+		return m.frameWizard()
+	}
+	var frame string
+	noRail := !m.railFits()
+	for i, f := range fitLevels {
+		f.noRail = noRail
+		m.fit = f
+		frame = build()
+		if w, h := frameBox(frame); (w <= m.w && h <= m.h) || i == len(fitLevels)-1 {
+			break
+		}
+	}
+	// Last resort: even the leanest level can be too tall for a truly tiny grid, and
+	// a frame wider or taller than the terminal is what wraps and shears the whole
+	// layout. Clamp unconditionally so that can never reach the screen, keeping the
+	// bottom of a confirm screen so its Yes/No buttons stay reachable.
+	return fitBlock(frame, m.w, m.h, m.onConfirmScreen())
+}
+
 func frameLines(s string, h int) []string {
 	ls := strings.Split(s, "\n")
 	for len(ls) < h {
 		ls = append(ls, "")
 	}
 	return ls[:h]
+}
+
+// onConfirmScreen reports whether the body ends in Yes/No buttons, which decides
+// which end of an over-tall card survives clamping. cur() indexes flow directly,
+// so this stays bounds-safe: View() also runs on screens reached before (and
+// after) the wizard, and a panic here would strand the installer.
+func (m model) onConfirmScreen() bool {
+	return m.idx >= 0 && m.idx < len(m.flow) && m.flow[m.idx].kind == kConfirm
 }
 
 func (m model) frameWizard() string { return m.frameWithFooter(m.viewWizard(), m.footer()) }
@@ -2093,6 +2247,12 @@ func (m model) frameWithFooter(body, footer string) string {
 			foot = lipgloss.PlaceHorizontal(m.w, lipgloss.Center, keyHint("r", "retry")+fg(cDim, "    ")+keyHint("q", "quit"))
 		}
 	}
+	// Width is clamped here so no row can ever be wider than the grid. Height is
+	// deliberately NOT clamped: fittedFrame measures the natural height to pick a
+	// chrome level, and clamping here would make every level look like it fits.
+	hdr = fitBlock(hdr, m.w, 0, false)
+	foot = fitBlock(foot, m.w, 0, false)
+	body = fitBlock(body, m.w, 0, false)
 	bodyH := m.h - lipgloss.Height(hdr) - lipgloss.Height(foot)
 	if bodyH < 1 {
 		bodyH = 1
@@ -2101,13 +2261,26 @@ func (m model) frameWithFooter(body, footer string) string {
 	return lipgloss.JoinVertical(lipgloss.Left, hdr, mid, foot)
 }
 
+// header is the wordmark block. On a short grid it collapses to a single line so
+// the four rows of banner and tagline go to the body instead of pushing the
+// footer -- which carries the confirm buttons -- off the bottom of the screen.
 func (m model) header() string {
-	b := lipgloss.JoinVertical(lipgloss.Center, smallBanner(m.phase)...)
-	b = lipgloss.JoinVertical(lipgloss.Center, b, fg(cSub, "for the sake of power & beauty"))
+	var b string
+	if m.fit.smallHeader {
+		b = wordmark(false)
+		if m.state == "wizard" {
+			b += "  " + m.headerProgress()
+		}
+		return lipgloss.PlaceHorizontal(m.w, lipgloss.Center, fitBlock(b, m.w, 1, false))
+	}
+	b = lipgloss.JoinVertical(lipgloss.Center, smallBanner(m.phase)...)
+	if !m.fit.noTagline {
+		b = lipgloss.JoinVertical(lipgloss.Center, b, fg(cSub, "for the sake of power & beauty"))
+	}
 	if m.state == "wizard" {
 		b = lipgloss.JoinVertical(lipgloss.Center, b, m.headerProgress())
 	}
-	return lipgloss.PlaceHorizontal(m.w, lipgloss.Center, b) + "\n"
+	return lipgloss.PlaceHorizontal(m.w, lipgloss.Center, fitBlock(b, m.w, 0, false)) + "\n"
 }
 
 func (m model) headerProgress() string {
@@ -2210,7 +2383,16 @@ func (m model) viewWizard() string {
 	c.WriteString(bold(cBrand, s.title) + "\n\n")
 	switch {
 	case s.kind == kConfirm && s.key == "review":
-		c.WriteString(m.reviewBody(inner) + "\n\n" + m.confirmButtons() + "\n" + fg(cDim, "press 1-9 to edit a step (numbered in the rail)"))
+		// The step numbers live in the rail, so the hint only promises them when the
+		// rail is actually on screen; a tight grid drops the hint altogether.
+		hint := "\n" + fg(cDim, "press 1-9 to edit a step (numbered in the rail)")
+		switch {
+		case m.fit.tightCard:
+			hint = ""
+		case m.fit.noRail:
+			hint = "\n" + fg(cDim, "press 1-9 to edit a step")
+		}
+		c.WriteString(m.reviewBody(inner) + "\n\n" + m.confirmButtons() + hint)
 	case s.kind == kPartition:
 		c.WriteString(m.partBody(inner))
 	case s.kind == kInfo:
@@ -2265,12 +2447,22 @@ func (m model) viewWizard() string {
 		}
 	}
 
-	lines := strings.Split(padLines(c.String(), inner), "\n")
+	// boxLines, not padLines: a row longer than the budget used to widen the card,
+	// push the frame past the grid, and let the VT wrap it -- which is what sheared
+	// the layout and pushed the rail off the left edge of the screen.
+	lines := strings.Split(boxLines(c.String(), inner), "\n")
 	show := clamp(int(m.enterPos*float64(len(lines))+0.5), 0, len(lines))
 	for i := show; i < len(lines); i++ {
 		lines[i] = strings.Repeat(" ", inner)
 	}
-	card := sty().Border(border()).BorderForeground(cBlue).Padding(1, 2).Render(strings.Join(lines, "\n"))
+	pad := 1
+	if m.fit.tightCard {
+		pad = 0
+	}
+	card := sty().Border(border()).BorderForeground(cBlue).Padding(pad, 2).Render(strings.Join(lines, "\n"))
+	if m.fit.noRail {
+		return card
+	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, m.rail(), "  ", card)
 }
 
@@ -2757,7 +2949,11 @@ func (m model) confirmButtons() string {
 		no = no.Background(cBrand).Foreground(cBg).Bold(true)
 		yes = yes.Foreground(cSub)
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, yes.Render("Yes"), "  ", no.Render("No")) + "\n\n" + fg(cDim, "←/→ or y/n · enter")
+	btns := lipgloss.JoinHorizontal(lipgloss.Top, yes.Render("Yes"), "  ", no.Render("No"))
+	if m.fit.tightCard {
+		return btns + "\n" + fg(cDim, "←/→ · enter")
+	}
+	return btns + "\n\n" + fg(cDim, "←/→ or y/n · enter")
 }
 
 func (m model) reviewBody(w int) string {
@@ -2861,6 +3057,18 @@ func (m model) reviewBody(w int) string {
 	}
 	if r := m.reviewBlockReason(); r != "" {
 		lines = append(lines, "", bold(cRed, "⚠ "+r))
+	}
+	// On a grid too short for the whole card, the blank spacer rows are the first
+	// thing to go: losing them costs readability, losing the bottom of this list
+	// costs the user the confirm buttons.
+	if m.fit.tightCard {
+		kept := lines[:0]
+		for _, l := range lines {
+			if strings.TrimSpace(l) != "" {
+				kept = append(kept, l)
+			}
+		}
+		lines = kept
 	}
 	return strings.Join(lines, "\n")
 }
