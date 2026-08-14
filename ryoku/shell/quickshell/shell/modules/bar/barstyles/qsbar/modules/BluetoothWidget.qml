@@ -23,11 +23,10 @@ Item {
         ? "Bluetooth · " + numConnected + " connected"
         : (btOn ? "Bluetooth on" : "Bluetooth off")
 
-    // Show whenever a controller is present, even if the user never enabled the
-    // pill via modBluetooth -- mirrors NetworkWidget staying visible on Wi-Fi. This
-    // guarantees a working entry point to the Bluetooth panel on every machine
-    // that has Bluetooth, while machines with no adapter keep a clean bar.
-    readonly property bool shown: root.modBluetooth || hasAdapter
+    // The widget's own toggle is authoritative, and a machine with no controller
+    // keeps a clean bar either way. This used to be `modBluetooth || hasAdapter`,
+    // which meant the toggle did nothing on any machine that has Bluetooth.
+    readonly property bool shown: root.modBluetooth && hasAdapter
     visible: implicitWidth > 0.5
     implicitWidth: shown ? row.implicitWidth + 18 : 0
     implicitHeight: 28

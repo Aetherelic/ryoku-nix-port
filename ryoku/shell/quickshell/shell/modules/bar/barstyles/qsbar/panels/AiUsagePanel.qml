@@ -73,7 +73,13 @@ PanelWindow {
     readonly property var    ocRecent:    root.aiOcRecent
     readonly property var    ocExtras:    ocHas ? [{ label: "5h", pct: ocPct5h, resetTs: 0 }] : []
 
-    readonly property bool   anyHas:      clHas || cxHas || ocHas
+    // The panel is the detail view for the pill, so it answers the same choice:
+    // an agent the user took off the bar does not come back here. A chosen agent
+    // still needs data before it earns a card.
+    readonly property bool   clShow:      root.aiToolShown("claude")   && clHas
+    readonly property bool   cxShow:      root.aiToolShown("codex")    && cxHas
+    readonly property bool   ocShow:      root.aiToolShown("opencode") && ocHas
+    readonly property bool   anyShow:     clShow || cxShow || ocShow
 
     readonly property real reveal: root.aiUsageReveal
     visible: reveal > 0.001
@@ -433,7 +439,7 @@ PanelWindow {
                 Rectangle { width: parent.width; height: 1; color: root.sep }
 
                 UiText {
-                    visible: !aiPanel.anyHas
+                    visible: !aiPanel.anyShow
                     width: parent.width
                     text: I18n.tr("no AI usage yet — run claude, codex or opencode")
                     color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; wrapMode: Text.WordWrap
@@ -441,7 +447,7 @@ PanelWindow {
 
                 // ── Claude ──
                 ProviderCard {
-                    visible: aiPanel.clHas
+                    visible: aiPanel.clShow
                     name: "Claude"; tinted: false
                     logo: Qt.resolvedUrl("../assets/claude.svg"); logoSize: Qt.size(36, 36)
                     has: aiPanel.clHas; fresh: aiPanel.clFresh
@@ -449,11 +455,11 @@ PanelWindow {
                     recent: aiPanel.clRecent; extras: aiPanel.clExtras
                 }
 
-                Rectangle { visible: aiPanel.clHas && (aiPanel.cxHas || aiPanel.ocHas); width: parent.width; height: 1; color: root.sep }
+                Rectangle { visible: aiPanel.clShow && (aiPanel.cxShow || aiPanel.ocShow); width: parent.width; height: 1; color: root.sep }
 
                 // ── OpenAI Codex ──
                 ProviderCard {
-                    visible: aiPanel.cxHas
+                    visible: aiPanel.cxShow
                     name: "Codex"
                     logo: Qt.resolvedUrl("../assets/codex-cli.svg"); logoSize: Qt.size(36, 36)
                     has: aiPanel.cxHas; fresh: aiPanel.cxFresh; plan: aiPanel.cxPlan
@@ -461,12 +467,12 @@ PanelWindow {
                     recent: aiPanel.cxRecent; extras: aiPanel.cxExtras
                 }
 
-                Rectangle { visible: aiPanel.cxHas && aiPanel.ocHas; width: parent.width; height: 1; color: root.sep }
+                Rectangle { visible: aiPanel.cxShow && aiPanel.ocShow; width: parent.width; height: 1; color: root.sep }
 
                 // ── OpenCode ──
                 ProviderCard {
                     id: ocCard
-                    visible: aiPanel.ocHas
+                    visible: aiPanel.ocShow
                     name: "OpenCode"
                     logo: Qt.resolvedUrl("../assets/opencode-mark.svg"); logoSize: Qt.size(20, 12)
                     markW: 20; markH: 12
@@ -477,7 +483,7 @@ PanelWindow {
 
                 // OpenCode per-model breakdown (no omarchy equivalent; kept)
                 Item {
-                    visible: aiPanel.ocHas && aiPanel.ocModels.length > 0
+                    visible: aiPanel.ocShow && aiPanel.ocModels.length > 0
                     width: parent.width; height: 16
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
@@ -493,7 +499,7 @@ PanelWindow {
                     }
                 }
                 Repeater {
-                    model: (aiPanel.ocHas) ? aiPanel.ocModels : []
+                    model: aiPanel.ocShow ? aiPanel.ocModels : []
                     ModelUsageRow {
                         width: col.width
                         name: modelData.name || ""

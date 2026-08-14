@@ -72,13 +72,14 @@ Item {
         : "signal_wifi_off"
 
     readonly property string tooltipText: {
-        if (mode === "wifi")     return ssid + " · " + signal + "%"
-        if (mode === "ethernet") return "↓ " + formatSpeed(dlRate) + "/s  ↑ " + formatSpeed(ulRate) + "/s"
-        return "Offline"
+        if (mode === "none") return I18n.tr("Offline")
+        var rate = "↓ " + formatSpeed(dlRate) + "/s  ↑ " + formatSpeed(ulRate) + "/s"
+        return mode === "wifi" ? (ssid + " · " + signal + "%  ·  " + rate) : rate
     }
 
-    // hideable via modNetwork - but only on ethernet/none; on WiFi always shown
-    implicitWidth: (root.modNetwork || mode === "wifi") ? (row.implicitWidth + 18) : 0
+    // The widget's own toggle is authoritative. It used to lose to `mode === "wifi"`,
+    // which meant a user on wifi could never take the widget off the bar.
+    implicitWidth: root.modNetwork ? (row.implicitWidth + 18) : 0
     // mirror the connection type so the ControlPanel can gate the Network toggle
     Binding { target: rootMod.root; property: "networkMode"; value: rootMod.mode }
     implicitHeight: 28
@@ -109,10 +110,20 @@ Item {
             Behavior on color { ColorAnimation { duration: 160 } }
         }
 
+        // The SSID, capped at 88px. Its width is measured off to the side rather
+        // than read from the label's own implicitWidth: with elide set that is
+        // circular, and Qt breaks the loop by leaving the label at zero width,
+        // which is why the network name never appeared at full density.
+        TextMetrics {
+            id: ssidMetrics
+            font: ssidLabel.font
+            text: ssidLabel.text
+        }
         UiText {
+            id: ssidLabel
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi" && !root.iconOnly("G11")
-            width: visible ? Math.min(88, implicitWidth) : 0
+            width: visible ? Math.min(88, Math.ceil(ssidMetrics.width)) : 0
             text: rootMod.ssid !== "" ? rootMod.ssid : I18n.tr("Wi-Fi")
             color: rootMod.contentColor
             font.family: root.mono
@@ -123,7 +134,9 @@ Item {
         Item {
             id: trafficMeter
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.mode === "ethernet" && !root.iconOnly("G11")
+            // Throughput is read off the default route whatever the link is, so
+            // the meter belongs on wifi too: full density means icon, label, stats.
+            visible: rootMod.mode !== "none" && !root.iconOnly("G11")
             width: visible ? 16 : 0
             height: 20
 

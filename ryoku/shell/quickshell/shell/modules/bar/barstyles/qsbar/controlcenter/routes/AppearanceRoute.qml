@@ -321,6 +321,7 @@ Item {
                     root: page.root
                     options: [{ key: "claude", label: "Claude" }, { key: "codex", label: "Codex" }, { key: "opencode", label: "OpenCode" }]
                     selected: page.root ? page.root.aiTools : []
+                    unavailable: page.root ? page.root.aiToolsUnavailable() : []
                     onToggled: (key) => { if (page.root) page.root.toggleAiTool(key) }
                 }
             }

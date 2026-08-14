@@ -10,7 +10,10 @@ Item {
     property var screen: null
     readonly property color contentColor: root.widgetContentColor("G10", root.widgetIconColor)
 
-    implicitWidth: root.v2ActionIconCellWidth
+    // The Media toggle existed in Settings and drove nothing: this widget always
+    // took its cell. It is the widget's own switch, so it gates the width.
+    visible: implicitWidth > 0.5
+    implicitWidth: root.modMedia ? root.v2ActionIconCellWidth : 0
     implicitHeight: 28
 
     IconText {
@@ -36,15 +39,17 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onEntered: tip.show()
         onExited:  tip.hide()
+        // Opening goes through Theme.openMediaBrowser, the same path the picker
+        // IPC and keybinds use. This used to hand-roll the sequence and pick the
+        // popup screen itself, which left the panel gated shut on click while the
+        // IPC path opened it fine.
         onClicked: function(mouse) {
             tip.hide()
             if (root.mediaBrowserVisible) {
                 root.mediaBrowserVisible = false
                 return
             }
-            root.activatePopupScreen(rootMod.screen)
-            root.mediaBrowserMode    = (mouse.button === Qt.RightButton) ? "videos" : "screenshots"
-            root.mediaBrowserVisible = true
+            root.openMediaBrowser(mouse.button === Qt.RightButton ? "videos" : "screenshots")
         }
     }
 }

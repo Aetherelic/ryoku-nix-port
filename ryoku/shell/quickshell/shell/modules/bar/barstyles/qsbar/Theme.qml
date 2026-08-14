@@ -652,6 +652,18 @@ Item {
     readonly property var aiToolOptions: ["claude", "codex", "opencode"]
     property var aiTools: ["claude", "codex", "opencode"]
     function aiToolShown(id) { return (aiTools || []).indexOf(id) >= 0 }
+    // A provider with no collected usage can never draw a chip, so Settings shows
+    // it dimmed rather than as a switch that appears to do nothing. OpenCode, for
+    // instance, only reports once its local session database exists.
+    function aiToolHasData(id) {
+        if (id === "claude")   return aiClHas
+        if (id === "codex")    return aiCxHas
+        if (id === "opencode") return aiOcHas
+        return false
+    }
+    function aiToolsUnavailable() {
+        return aiToolOptions.filter(function (o) { return !aiToolHasData(o) })
+    }
     function toggleAiTool(id) {
         if (aiToolOptions.indexOf(id) < 0) return
         var next = (aiTools || []).slice()
