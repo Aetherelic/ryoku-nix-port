@@ -177,6 +177,9 @@ install -m755 "$here/../../system/hardware/gpu/ryoku-gpu-lib32" "$bindir/ryoku-g
 for s in "$here/../../system/extras"/ryoku-*; do
   install -m755 "$s" "$bindir/${s##*/}"
 done
+# the extras actuator (renamed from ryoku-extras-install); the ryoku-* glob
+# above no longer matches it, so install it by name.
+install -m755 "$here/../../system/extras/ryostore-install" "$bindir/ryostore-install"
 install -m755 "$here/quickshell/plugins/ryoku-plugins-place" "$bindir/ryoku-plugins-place"
 # AI-usage collectors: refresh ~/.cache/{claude,codex,opencode}-usage.json for
 # the qsbar AI pill, driven by the ryoku-ai-usage.timer installed below. The
