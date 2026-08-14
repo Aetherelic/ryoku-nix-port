@@ -28,7 +28,8 @@ PanelWindow {
     readonly property int themeRightBlockWidth: themeActionsWidth
         + themeBehindWidth + themeStateWidth + themeGridGap * 2
 
-    readonly property url packageFrontendUrl: Qt.resolvedUrl("../../../core/qs-system-update.sh")
+    // this file sits in qsbar/panels, so the frontend is one level up in qsbar/core
+    readonly property url packageFrontendUrl: Qt.resolvedUrl("../core/qs-system-update.sh")
     readonly property string packageFrontendScript: decodeURIComponent(
         String(packageFrontendUrl).replace(/^file:\/\//, ""))
     readonly property string packageApplyScript: Quickshell.env("HOME") + "/.local/bin/qs-arch-apply-update.sh"
