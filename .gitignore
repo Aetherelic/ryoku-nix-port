@@ -24,16 +24,19 @@ __pycache__/
 /.worktrees/
 
 # Per-developer editor and AI-tooling configs and artifacts (not part of Ryoku)
+/.agents/
 /.claude/
 /.codex
 /.cursor/
 /.factory/
 /.helix/
 /.omp/
+/.opencode/
 /.vscode/
 /.mcp.json
 /opencode.json
 /.prowl/
+/.prowl-setup.lock
 
 # Language-server config stays developer-local
 .luarc.json

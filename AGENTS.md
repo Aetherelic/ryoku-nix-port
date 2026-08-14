@@ -122,3 +122,18 @@ The same index is also available over MCP (server: `prowl-agent serve`) for
 agents that prefer typed tools, but the shell commands above are the
 recommended, lowest-overhead path (no server, no per-call schema cost).
 <!-- /prowl-agent -->
+
+<!-- prowl-agent:map -->
+## Prowl project map
+
+Auto-generated from the Prowl index, refreshed on each `overview`/`init`. Prefer retrieving from Prowl (and reading the cited files) over grepping or relying on training memory; this is the current shape of the repo.
+
+- size: 2198 files, 59739 symbols, 6190 edges (resolved 2374, external deps 2643, unresolved 1173)
+- languages: go:939 qml:677 bash:170 javascript:150 markdown:78 yaml:42 generic:30 json:30
+- subsystems: ryoku/shell(466,qml) · ryoku/apps(62,qml) · ryoku/hub(55,qml) · ryoku/ui(44,qml) · ryoku/rashin(16,javascript) · ryoku/shell(16,generic) · ryoku/hyprland(15,lua) · ryoku/shell(10,cpp)
+- entrypoints: .githooks/post-commit · .githooks/pre-commit · .github/workflows/build-iso-cachyos.yml · .github/workflows/build-iso.yml · ryoku/hyprland/hyprland.lua · ryoku/ui/AppPicker.qml · ryoku/ui/Preview.qml · tests/ui/barstyles-live-probe.qml · (+170 more)
+- central files (most depended-on): ryoku/ui/Singletons/Tokens.qml · ryoku/ui/Singletons/I18n.qml · ryoku/shell/quickshell/shell/services/Perf.qml · ryoku/shell/quickshell/shell/modules/bar/barstyles/qsbar/Theme.qml · ryoku/shell/quickshell/shell/modules/desktop/Singletons/Config.qml
+- read these guides first: README.md · AGENTS.md · CONTRIBUTING.md · docs/development.md · docs/structure.md
+
+Depth on demand: `prowl-agent find|def|outline|references <name>`, `search <text>`, `context search "<question>"`, `sketch <ui>`.
+<!-- /prowl-agent:map -->
