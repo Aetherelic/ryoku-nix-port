@@ -1,0 +1,110 @@
+/* Ryoku palette -> hyprland-preview-share-picker (GTK4). Rendered by matugen;
+   do not edit. The class names come from ryoku/apps/hyprland-preview-share-picker/
+   config.yaml, which leaves them at upstream's defaults.
+
+   Tokens are the shell's own (ryoku/ui/Singletons/Tokens.qml): paper = surface,
+   ink = on_surface, hairline = 26% ink, radius 6, the 90ms snap on hover. The
+   chooser is a desktop surface, not a third-party app, so it renders from
+   config.toml and follows the wallpaper even with app theming off. */
+
+.window {
+  background-color: {{colors.surface.default.hex}};
+  color: {{colors.on_surface.default.hex}};
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 14px;
+}
+
+/* --- the page switcher: a row of tracked micro labels over a hairline ------ */
+
+.notebook > header {
+  background-color: {{colors.surface.default.hex}};
+  border-bottom: 1px solid {{colors.outline_variant.default.hex}};
+  padding: 0 8px;
+}
+
+.notebook > header tab {
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 14px;
+  min-height: 0;
+  transition: border-color 90ms ease-out, color 90ms ease-out;
+}
+
+.notebook > header tab:hover {
+  border-bottom-color: {{colors.outline.default.hex}};
+}
+
+.notebook > header tab:checked {
+  border-bottom-color: {{colors.primary.default.hex}};
+}
+
+.tab-label {
+  color: {{colors.outline.default.hex}};
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.notebook > header tab:checked .tab-label {
+  color: {{colors.on_surface.default.hex}};
+}
+
+.page {
+  background-color: {{colors.surface.default.hex}};
+  padding: 16px;
+}
+
+/* --- a source card: the preview, its name, and a hairline that lights up --- */
+
+.card {
+  background-color: {{colors.surface_container_low.default.hex}};
+  border: 1px solid {{colors.outline_variant.default.hex}};
+  border-radius: 6px;
+  padding: 8px;
+  transition: background-color 90ms ease-out, border-color 90ms ease-out;
+}
+
+.card:hover {
+  background-color: {{colors.surface_container.default.hex}};
+  border-color: {{colors.primary.default.hex}};
+}
+
+/* Nothing to preview yet. Recede instead of flashing an empty plate. */
+.card-loading {
+  background-color: {{colors.surface_container_lowest.default.hex}};
+  border-color: {{colors.outline_variant.default.hex}};
+}
+
+.image {
+  border-radius: 4px;
+}
+
+.image-label {
+  color: {{colors.on_surface_variant.default.hex}};
+  font-size: 13px;
+  padding-top: 6px;
+}
+
+.card:hover .image-label {
+  color: {{colors.on_surface.default.hex}};
+}
+
+/* --- the two buttons: draw a region, and (when unhidden) restore a token --- */
+
+.region-button,
+.restore-button {
+  background-color: {{colors.surface_container.default.hex}};
+  color: {{colors.on_surface.default.hex}};
+  border: 1px solid {{colors.outline_variant.default.hex}};
+  border-radius: 6px;
+  padding: 8px 16px;
+  transition: background-color 90ms ease-out, border-color 90ms ease-out;
+}
+
+.region-button:hover,
+.restore-button:hover {
+  background-color: {{colors.surface_container_high.default.hex}};
+  border-color: {{colors.primary.default.hex}};
+}

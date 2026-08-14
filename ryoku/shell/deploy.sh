@@ -460,6 +460,11 @@ mkdir -p "$cfg/pip"; cp -a "$here/../apps/pip/pip.conf" "$cfg/pip/pip.conf"
 cp -a "$here/../apps/mimeapps.list" "$cfg/mimeapps.list"
 # chromium reads ~/.config/chromium-flags.conf at launch; pin its password store to the GNOME keyring.
 cp -a "$here/../apps/chromium-flags.conf" "$cfg/chromium-flags.conf"
+# the screen-share source chooser xdph launches (hypr/xdph.conf names it). Its
+# stylesheet is matugen's, rendered to ~/.cache/ryoku/share-picker.css.
+mkdir -p "$cfg/hyprland-preview-share-picker"
+cp -a "$here/../apps/hyprland-preview-share-picker/config.yaml" \
+  "$cfg/hyprland-preview-share-picker/config.yaml"
 # Refresh the icon cache only when the theme has an index.theme; the user-overlay
 # hicolor dir usually has none, and gtk-update-icon-cache -f on an index-less dir
 # writes an EMPTY cache that Qt then trusts, hiding every icon in it. With no

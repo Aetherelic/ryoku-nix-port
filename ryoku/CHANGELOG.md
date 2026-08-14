@@ -3,6 +3,27 @@
 ## Unreleased
 
 ### Fixed
+- **Screen sharing asks which window or display to share again.** Nothing ever
+  stops `graphical-session.target`, so `xdg-desktop-portal`, which is only
+  `PartOf=` it, survived logout and kept answering for a compositor that had
+  exited. Every ScreenCast request then timed out inside the frontend instead of
+  reaching the hyprland backend: no source picker opened, and Discord, Chromium
+  and every Electron client were handed nothing and reported the share as simply
+  not working, with no error anywhere the user could see. The autostart now
+  restarts the portal services once the desktop is up, and `ryoku doctor` heals a
+  running session by comparing the frontend's start time against the
+  compositor's (`hyprland/modules/autostart.lua`,
+  `cli/internal/doctor/reconcile_portal_session.go`).
+- **An autostarted or D-Bus-activated app now sees the session's environment.**
+  The env push named five variables by hand, so anything systemd or D-Bus
+  launched, an `~/.config/autostart` entry or the file manager over
+  `org.freedesktop.FileManager1`, missed every other one: without
+  `ELECTRON_OZONE_PLATFORM_HINT` an Electron app can land on Xwayland where it
+  has no working screen capture, and without `GSK_RENDERER=gl` a GTK4 app takes
+  the Mutter-only renderer path that never connects on wlroots and hangs at
+  startup. It pushes `--all` now, so a variable added in `env.lua`, the Hub's
+  Environment page, or `user.lua` reaches both launch paths with no second list
+  to keep in step (`hyprland/modules/autostart.lua`).
 - **Hyprland no longer crash-loops at login on hybrid NVIDIA boxes.** The mesa
   screencopy workaround `AQ_NO_MODIFIERS=1` forced modifier-less buffers NVIDIA
   can't import, so the first multi-GPU commit failed `drmModeAddFB2` and SIGABRTed.
@@ -29,6 +50,19 @@
   (`hyprland/modules/decoration.lua`, `hyprland/modules/window_rules.lua`).
 
 ### Added
+- **The screen-share source picker looks like the rest of the desktop.**
+  `hyprland-preview-share-picker` shipped with no config, so the chooser opened
+  as stock GTK in a themed session. It has one now, and a matugen template
+  renders its stylesheet from the live palette on every wallpaper change: one
+  click to pick, monitors labelled so the wrong screen is not a coin flip, and
+  the restore-token checkbox hidden because `xdph.conf` answers it
+  (`apps/hyprland-preview-share-picker/config.yaml`,
+  `shell/matugen/templates/share-picker.css`, `hyprland/xdph.conf`).
+- **Chromium pins the Wayland backend.** Chromium only recently made Wayland its
+  default on Linux, and under Xwayland it never reaches the PipeWire capturer:
+  `getDisplayMedia` falls back to X11 capture, which cannot see a native Wayland
+  window, so screen sharing offers an empty or black source list. The flag makes
+  that independent of the default (`apps/chromium-flags.conf`).
 - **Setup verifies the chat backend before declaring success.** After enabling
   the daemon, `ryoku-rashin setup` runs `hermes acp --check` and reports whether
   the chat will actually start, so a working hermes CLI that still cannot run

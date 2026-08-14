@@ -116,6 +116,7 @@ func reconcilers() []reconciler {
 		{"ryostore cache location", reconcileRyostoreCache},
 		{"desktop session components", reconcileSessionComponents},
 		{"desktop portal routing", reconcilePortalRouting},
+		{"desktop portal session", reconcilePortalSession},
 		{"audio playback routing", reconcileAudioRouting},
 		{"keyboard layout", reconcileKeymap},
 		{"keyboard layout detection", reconcileKeyboardSeed},

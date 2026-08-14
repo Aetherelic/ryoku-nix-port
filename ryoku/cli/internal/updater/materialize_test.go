@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"ryoku-cli/internal/sys"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -234,25 +235,44 @@ func wantFile(t *testing.T, path, want string) {
 	}
 }
 
+// activeFlags: the flag lines a chromium-flags.conf actually applies, i.e. every
+// non-blank line that is not a comment. Asserting on these instead of the whole
+// file keeps the test about what chromium is told, so a commented-out flag reads
+// as absent (which it is) and adding a comment does not fail the build.
+func activeFlags(conf string) []string {
+	var flags []string
+	for _, ln := range strings.Split(conf, "\n") {
+		ln = strings.TrimSpace(ln)
+		if ln == "" || strings.HasPrefix(ln, "#") {
+			continue
+		}
+		flags = append(flags, ln)
+	}
+	return flags
+}
+
 // chromium-flags.conf is a root-level config: chromium reads
 // $XDG_CONFIG_HOME/chromium-flags.conf at launch. It is delivered like
 // mimeapps.list, shipped under the base config dir and laid at
 // ~/.config/chromium-flags.conf by materialize on install and every update. This
-// pins the exact flag and that materialize routes it to the config root as a
-// managed file, not a one-time seed.
+// pins the flags and that materialize routes it to the config root as a managed
+// file, not a one-time seed.
 func TestMaterializeDeliversChromiumFlags(t *testing.T) {
-	const want = "--password-store=gnome-libsecret\n"
+	// gnome-libsecret: the screen-share keyring only works if chromium uses GNOME
+	// Secret Service, not kwallet or basic. ozone-platform=wayland: under Xwayland
+	// chromium never uses the PipeWire capturer, so screen sharing offers an empty
+	// source list. Both are load-bearing for sharing a screen; neither may be lost
+	// to a merge.
+	want := []string{"--password-store=gnome-libsecret", "--ozone-platform=wayland"}
 
-	// the shipped source carries exactly the one flag: the screen-share keyring
-	// only works if chromium uses GNOME Secret Service, not kwallet or basic.
 	_, thisFile, _, _ := runtime.Caller(0)
 	shipped := filepath.Join(filepath.Dir(thisFile), "..", "..", "..", "apps", "chromium-flags.conf")
 	src, err := os.ReadFile(shipped)
 	if err != nil {
 		t.Fatalf("read shipped chromium-flags.conf: %v", err)
 	}
-	if string(src) != want {
-		t.Fatalf("shipped chromium-flags.conf = %q, want %q", src, want)
+	if got := activeFlags(string(src)); !slices.Equal(got, want) {
+		t.Fatalf("shipped chromium-flags.conf applies %q, want exactly %q", got, want)
 	}
 
 	base, dest := t.TempDir(), t.TempDir()
@@ -266,17 +286,17 @@ func TestMaterializeDeliversChromiumFlags(t *testing.T) {
 		t.Fatalf("materialize: %v", err)
 	}
 	routed := filepath.Join(dest, "chromium-flags.conf")
-	if b, err := os.ReadFile(routed); err != nil || string(b) != want {
+	if b, err := os.ReadFile(routed); err != nil || string(b) != string(src) {
 		t.Fatalf("chromium-flags.conf not routed to ~/.config: got %q err %v", b, err)
 	}
 
 	// managed, not a seed: a later `ryoku update` re-lays it, restoring a drifted
-	// copy to the shipped flag.
+	// copy to the shipped flags.
 	writeFile(t, routed, "--password-store=basic\n")
 	if err := Materialize(); err != nil {
 		t.Fatalf("re-materialize: %v", err)
 	}
-	if b, err := os.ReadFile(routed); err != nil || string(b) != want {
+	if b, err := os.ReadFile(routed); err != nil || string(b) != string(src) {
 		t.Fatalf("update did not re-deliver chromium-flags.conf: got %q err %v", b, err)
 	}
 }

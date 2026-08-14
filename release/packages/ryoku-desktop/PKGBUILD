@@ -386,6 +386,10 @@ package() {
   # chromium reads ~/.config/chromium-flags.conf; pin its password store to GNOME
   # Secret Service so it shares the keyring the desktop unlocks (screen share).
   install -Dm644 "$_repo/ryoku/apps/chromium-flags.conf" "$cfg/chromium-flags.conf"
+  # the screen-share source chooser xdph launches (hypr/xdph.conf names the
+  # binary); its stylesheet is the matugen template rendered on palette change.
+  install -Dm644 "$_repo/ryoku/apps/hyprland-preview-share-picker/config.yaml" \
+    "$cfg/hyprland-preview-share-picker/config.yaml"
 
   # the qylock lockscreen bundle + its installer, so doctor can install or
   # repair the in-session lock on a box the ISO step missed (or that predates

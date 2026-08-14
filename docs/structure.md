@@ -17,7 +17,9 @@ truth for the live desktop.
 - `apps/` one directory per application, holding that app's native config only:
   `kitty/`, `fish/`, `fastfetch/` (plus the `ryoku-fastfetch` launcher), `nvim/`
   (LazyVim), `yazi/`, `starship/`, `nautilus/`, `npm/` (`npmrc`), `pip/`
-  (`pip.conf`). `mimeapps.list` sets default apps.
+  (`pip.conf`), `hyprland-preview-share-picker/` (the screen-share source
+  chooser xdph launches). `mimeapps.list` sets default apps and
+  `chromium-flags.conf` pins Chromium's keyring and Wayland backend.
 - `hyprland/` the Hyprland config, authored in **Lua**. `hyprland.lua` is the
   entry point and `require`s each module. `keyboard.lua`, `gpu.lua`,
   `monitors.lua` are hardware-managed seeds, and `monitors_user.lua.example` shows
