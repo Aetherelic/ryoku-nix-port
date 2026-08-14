@@ -23,6 +23,31 @@ PanelWindow {
 
     AudioData { id: audio }
     readonly property int    volume:   audio.volume
+    // The boost flag has to reach shell.json, because the media keys read it from
+    // there. Config.qsbar assignments only ever moved the in-memory adapter, so
+    // the toggle looked on while XF86AudioRaiseVolume still clamped at 100%.
+    readonly property bool   boostOn:  root.audioBoost === true
+    // PipeWire hands out one node per stream and a browser opens several, so the
+    // raw list repeats the same application. Group by the name the row shows and
+    // drive every node in the group together, so one row means one app and muting
+    // it really silences the app rather than one of its tabs.
+    readonly property var appGroups: {
+        var out = []
+        var index = ({})
+        var list = Audio.streams || []
+        for (var i = 0; i < list.length; i++) {
+            var s = list[i]
+            if (!s || !s.audio) continue
+            var n = Audio.streamName(s) || "?"
+            if (index[n] === undefined) {
+                index[n] = out.length
+                out.push({ name: n, nodes: [s] })
+            } else {
+                out[index[n]].nodes.push(s)
+            }
+        }
+        return out
+    }
     readonly property bool   muted:    audio.muted
     readonly property bool   micMuted: Audio.source && Audio.source.audio ? Audio.source.audio.muted : false
     property real   micLevel: 0
@@ -149,27 +174,88 @@ PanelWindow {
                 font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
 
+            // Drag anywhere on the track to set the volume. With BOOST on the track
+            // keeps its width but spans 0..150, so the 100% mark slides left and the
+            // stretch past it reads red. Animating the span is what makes enabling
+            // boost look like the slider growing rather than jumping.
             Item {
+                id: volSlider
                 width: parent.width
                 height: 30
+
+                property real maxPct: volPanel.boostOn ? 150 : 100
+                Behavior on maxPct { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+
+                readonly property real unitX:  volSlider.width / Math.max(1, maxPct)
+                readonly property real markX:  Math.round(100 * unitX)
+                readonly property real shownPct: volPanel.muted
+                    ? 0 : Math.max(0, Math.min(volPanel.volume, maxPct))
+                readonly property bool over: shownPct > 100.5
+                readonly property color overColor: root.danger
+
+                function applyAt(mx) {
+                    var s = audio.sink
+                    if (!s || !s.audio) return
+                    var pct = Math.max(0, Math.min(volSlider.maxPct, mx / volSlider.width * volSlider.maxPct))
+                    if (s.audio.muted && pct > 0) s.audio.muted = false
+                    s.audio.volume = pct / 100
+                }
+
                 UiText {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
                     text: volPanel.muted ? I18n.tr("Muted") : volPanel.volume + "%"
                     color: volPanel.muted
                         ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.4)
-                        : root.seal
+                        : (volSlider.over ? volSlider.overColor : root.seal)
                     font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
+                    Behavior on color { ColorAnimation { duration: 160 } }
                 }
+
                 Rectangle {
+                    id: volTrack
                     anchors.bottom: parent.bottom
                     width: parent.width; height: 8; radius: 4
                     color: root.fillActive
+
+                    // up to 100%
                     Rectangle {
-                        width: parent.width * (volPanel.muted ? 0 : Math.min(volPanel.volume / 100, 1))
-                        height: parent.height; radius: 4
+                        width: Math.min(volSlider.shownPct, 100) * volSlider.unitX
+                        height: parent.height; radius: parent.radius
                         color: root.seal
-                        Behavior on width { NumberAnimation { duration: 300 } }
+                        Behavior on width { NumberAnimation { duration: 90 } }
+                    }
+                    // past 100%, in red, growing out of the mark
+                    Rectangle {
+                        x: volSlider.markX
+                        width: Math.max(0, volSlider.shownPct - 100) * volSlider.unitX
+                        height: parent.height; radius: parent.radius
+                        color: volSlider.overColor
+                        visible: width > 0.5
+                        Behavior on width { NumberAnimation { duration: 90 } }
+                    }
+                    // the 100% line, only meaningful once there is room past it
+                    Rectangle {
+                        x: volSlider.markX - 1
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 2; height: parent.height + 6; radius: 1
+                        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.55)
+                        visible: volSlider.maxPct > 100.5
+                        opacity: Math.max(0, Math.min(1, (volSlider.maxPct - 100) / 50))
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton
+                    cursorShape: Qt.PointingHandCursor
+                    onPressed: (m) => volSlider.applyAt(m.x)
+                    onPositionChanged: (m) => { if (pressed) volSlider.applyAt(m.x) }
+                    onWheel: (w) => {
+                        var s = audio.sink
+                        if (!s || !s.audio) return
+                        var step = w.angleDelta.y > 0 ? 0.05 : -0.05
+                        s.audio.volume = Math.max(0, Math.min(volSlider.maxPct / 100, s.audio.volume + step))
                     }
                 }
             }
@@ -179,7 +265,7 @@ PanelWindow {
                 id: boostTile
                 width: parent.width
                 height: 26; radius: root.panelButtonRadius
-                readonly property bool on: !!(Config.qsbar && Config.qsbar.audioBoost)
+                readonly property bool on: volPanel.boostOn
                 color: on ? root.fillActive : (boostMa.containsMouse ? root.fillHover : root.fillIdle)
                 border.color: (on || boostMa.containsMouse) ? root.seal : root.sep
                 border.width: 1
@@ -204,11 +290,10 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        var q = Object.assign({}, Config.qsbar || {})
-                        q.audioBoost = !boostTile.on
-                        Config.qsbar = q
+                        root.audioBoost = !volPanel.boostOn
                         // dropping the cap while boosted pulls the sink back to 0 dB
-                        if (!q.audioBoost && audio.sink && audio.sink.audio && audio.sink.audio.volume > 1)
+                        if (!root.audioBoost && audio.sink && audio.sink.audio
+                                && audio.sink.audio.volume > 1)
                             audio.sink.audio.volume = 1
                     }
                 }
@@ -310,14 +395,45 @@ PanelWindow {
                 width: parent.width
                 spacing: 8
                 Repeater {
-                    model: Audio.streams
+                    model: volPanel.appGroups
                     delegate: Item {
                         id: appRow
                         required property var modelData
                         width: parent.width
                         height: 32
-                        readonly property bool appMuted: modelData.audio ? modelData.audio.muted : false
-                        property int liveVol: modelData.audio ? Math.round(modelData.audio.volume * 100) : 0
+
+                        readonly property var nodes: modelData.nodes || []
+                        // one row per app, so it reads muted only when the whole app is
+                        readonly property bool appMuted: {
+                            if (appRow.nodes.length === 0) return false
+                            for (var i = 0; i < appRow.nodes.length; i++)
+                                if (!appRow.nodes[i].audio || !appRow.nodes[i].audio.muted) return false
+                            return true
+                        }
+                        readonly property int nodeVol: {
+                            var top = 0
+                            for (var i = 0; i < appRow.nodes.length; i++) {
+                                var a = appRow.nodes[i].audio
+                                if (a && a.volume > top) top = a.volume
+                            }
+                            return Math.round(top * 100)
+                        }
+                        property int liveVol: appRow.nodeVol
+                        onNodeVolChanged: liveVol = appRow.nodeVol
+
+                        readonly property real maxPct: volSlider.maxPct
+                        readonly property bool over: liveVol > 100.5
+
+                        function applyVol(pct) {
+                            var v = Math.max(0, Math.min(appRow.maxPct, pct)) / 100
+                            for (var i = 0; i < appRow.nodes.length; i++)
+                                if (appRow.nodes[i].audio) appRow.nodes[i].audio.volume = v
+                        }
+                        function toggleMuted() {
+                            var next = !appRow.appMuted
+                            for (var i = 0; i < appRow.nodes.length; i++)
+                                if (appRow.nodes[i].audio) appRow.nodes[i].audio.muted = next
+                        }
 
                         // mute glyph
                         IconText {
@@ -330,9 +446,7 @@ PanelWindow {
                             MouseArea {
                                 anchors.fill: parent; anchors.margins: -3
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (appRow.modelData.audio) appRow.modelData.audio.muted = !appRow.modelData.audio.muted
-                                }
+                                onClicked: appRow.toggleMuted()
                             }
                         }
                         UiText {
@@ -340,7 +454,9 @@ PanelWindow {
                             anchors.verticalCenter: appMute.verticalCenter
                             anchors.verticalCenterOffset: 1
                             anchors.right: appPct.left; anchors.rightMargin: 6
-                            text: Audio.streamName(appRow.modelData)
+                            text: appRow.nodes.length > 1
+                                ? appRow.modelData.name + "  ×" + appRow.nodes.length
+                                : appRow.modelData.name
                             color: appRow.appMuted ? root.sumi : root.ink
                             font.family: root.mono; font.pixelSize: 11
                             elide: Text.ElideRight
@@ -351,34 +467,53 @@ PanelWindow {
                             anchors.verticalCenter: appMute.verticalCenter
                             anchors.verticalCenterOffset: 1
                             text: appRow.liveVol + "%"
-                            color: root.seal
+                            color: appRow.over ? root.danger : root.seal
                             font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
+                            Behavior on color { ColorAnimation { duration: 160 } }
                         }
 
-                        // draggable volume bar
+                        // draggable, on the same scale as the output slider so a
+                        // boosted app reads red past the 100% mark too
                         Rectangle {
                             id: appTrack
                             anchors.left: parent.left; anchors.right: parent.right
                             anchors.bottom: parent.bottom
                             height: 8; radius: 4
                             color: root.fillActive
+
+                            readonly property real unitX: appTrack.width / Math.max(1, appRow.maxPct)
+                            readonly property real markX: Math.round(100 * appTrack.unitX)
+
                             Rectangle {
-                                width: parent.width * Math.min(appRow.liveVol / 100, 1)
-                                height: parent.height; radius: 4
+                                width: Math.min(appRow.liveVol, 100) * appTrack.unitX
+                                height: parent.height; radius: parent.radius
                                 color: appRow.appMuted ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.4) : root.seal
                             }
+                            Rectangle {
+                                x: appTrack.markX
+                                width: Math.max(0, appRow.liveVol - 100) * appTrack.unitX
+                                height: parent.height; radius: parent.radius
+                                color: appRow.appMuted ? Qt.rgba(root.danger.r, root.danger.g, root.danger.b, 0.4) : root.danger
+                                visible: width > 0.5
+                            }
+                            Rectangle {
+                                x: appTrack.markX - 1
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 2; height: parent.height + 4; radius: 1
+                                color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.55)
+                                visible: appRow.maxPct > 100.5
+                            }
+
                             MouseArea {
                                 anchors.fill: parent; anchors.topMargin: -8; anchors.bottomMargin: -4
                                 cursorShape: Qt.PointingHandCursor
                                 function setFromX(x) {
-                                    appRow.liveVol = Math.max(0, Math.min(100, Math.round(x / appTrack.width * 100)))
+                                    appRow.liveVol = Math.max(0, Math.min(appRow.maxPct,
+                                        Math.round(x / appTrack.width * appRow.maxPct)))
                                 }
                                 onPressed:          function(m) { setFromX(m.x) }
                                 onPositionChanged:  function(m) { if (pressed) setFromX(m.x) }
-                                onReleased: function(m) {
-                                    if (appRow.modelData.audio)
-                                        appRow.modelData.audio.volume = Math.max(0, Math.min(1, m.x / appTrack.width))
-                                }
+                                onReleased:         function(m) { appRow.applyVol(appRow.liveVol) }
                             }
                         }
                     }

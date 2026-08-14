@@ -129,6 +129,11 @@ Item {
     readonly property color muted:  sumi
     readonly property color accent: seal
     readonly property color warn:   seal
+    // A genuine danger red. The palette is generated from the wallpaper, so no slot
+    // in it can be relied on to read as danger: under a blue scheme every slot is
+    // blue. The hue is fixed and only the lightness follows the theme, so boosted
+    // volume looks risky whatever the wallpaper is.
+    readonly property color danger: Qt.hsla(0.995, 0.68, paper.hslLightness > 0.5 ? 0.46 : 0.60, 1)
     readonly property color sep:    Qt.rgba(ink.r, ink.g, ink.b, 0.18)
 
     // ── interactive fill tokens (button/tile backgrounds) ──
@@ -651,6 +656,10 @@ Item {
     // and this set has no field there.
     readonly property var aiToolOptions: ["claude", "codex", "opencode"]
     property var aiTools: ["claude", "codex", "opencode"]
+    // Lifts the safe 100% cap to 150% for quiet hardware. It has to live in
+    // shell.json rather than the in-memory adapter, because the media-key binding
+    // reads `.qsbar.audioBoost` from that file to decide wpctl's limit.
+    property bool audioBoost: false
     function aiToolShown(id) { return (aiTools || []).indexOf(id) >= 0 }
     // A provider with no collected usage can never draw a chip, so Settings shows
     // it dimmed rather than as a switch that appears to do nothing. OpenCode, for
@@ -2518,6 +2527,8 @@ Item {
     onModMprisChanged:      if (_widgetsLoaded) saveWidgets()
     onMprisBarStyleChanged: if (_widgetsLoaded) saveWidgets()
     onAiToolsChanged:       if (_widgetsLoaded) saveWidgets()
+    // straight to the daemon: this key is not in the positional widgets record
+    onAudioBoostChanged:    if (_widgetsLoaded) persistWidgetsToConfig()
     onWorkspaceModeChanged: if (_widgetsLoaded) saveWidgets()
     onPickerStyleChanged:   if (_widgetsLoaded) saveWidgets()
     onLauncherLogoModeChanged: if (_widgetsLoaded) saveWidgets()
@@ -2817,6 +2828,7 @@ Item {
         q.pickerStyle = pickerStyle
         q.launcherLogoMode = launcherLogoMode
         q.aiTools = serializeAiTools()
+        q.audioBoost = audioBoost
         q.barTemperatureSource = barTemperatureSource
         q.barShellStyle = barShellStyle
         q.barBorderEnabled = barBorderEnabled
@@ -2876,6 +2888,7 @@ Item {
         if (q.pickerStyle     !== undefined) pickerStyle     = q.pickerStyle
         if (q.launcherLogoMode !== undefined) launcherLogoMode = q.launcherLogoMode
         if (q.aiTools !== undefined) parseAiTools(q.aiTools)
+        if (q.audioBoost !== undefined) audioBoost = q.audioBoost === true
         if (q.barTemperatureSource !== undefined && barTemperatureSourceValid(q.barTemperatureSource)) barTemperatureSource = q.barTemperatureSource
         if (q.barShellStyle !== undefined && barShellStyleValid(q.barShellStyle)) barShellStyle = q.barShellStyle
         if (q.barBorderEnabled !== undefined) barBorderEnabled = q.barBorderEnabled

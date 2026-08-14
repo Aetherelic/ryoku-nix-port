@@ -31,9 +31,15 @@ Item {
         : isMic ? Pipewire.defaultAudioSource : null
     readonly property var audio: (device && device.audio) ? device.audio : null
     readonly property bool muted: audio ? audio.muted : false
+    // With BOOST on, the sink legitimately runs past unity, so the OSD has to be
+    // able to say so: it spans up to the same 150% the media keys allow and marks
+    // where unity sits. Clamping at 1 made every boosted keypress look identical.
+    readonly property real maxValue: (isVolume && Config.qsbar
+        && Config.qsbar.audioBoost === true) ? 1.5 : 1.0
     readonly property real value: isBrightness
         ? OsdFeed.brightness
-        : (audio ? Math.max(0, Math.min(1, audio.volume)) : 0)
+        : (audio ? Math.max(0, Math.min(root.maxValue, audio.volume)) : 0)
+    readonly property bool over: root.value > 1.005
 
     // Bucket -> freedesktop symbolic glyph, muted winning, on the reference
     // thresholds (contract 12 sec 3): audio >66 high, >33 medium, >0 low, else
@@ -129,14 +135,36 @@ Item {
         radius: Theme.radiusWidget
         color: Theme.surfaceContainerLow
 
+        // unity fill
         Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            width: parent.width * root.value
+            width: parent.width * (Math.min(root.value, 1) / root.maxValue)
             radius: parent.radius
             color: Theme.secondary
             visible: width > 0
+        }
+        // the stretch past unity, in the error tone
+        Rectangle {
+            x: Math.round(parent.width / root.maxValue)
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: parent.width * (Math.max(0, root.value - 1) / root.maxValue)
+            radius: parent.radius
+            color: Theme.error
+            visible: width > 0.5
+        }
+        // where 100% sits, once there is room past it
+        Rectangle {
+            x: Math.round(parent.width / root.maxValue) - 1
+            anchors.verticalCenter: parent.verticalCenter
+            width: 2
+            height: parent.height + 4
+            radius: 1
+            color: Theme.onSurface
+            opacity: 0.55
+            visible: root.maxValue > 1.005
         }
     }
 
@@ -151,7 +179,7 @@ Item {
         width: 46
         horizontalAlignment: Text.AlignRight
         text: Math.round(root.value * 100) + "%"
-        color: Theme.onSurface
+        color: root.over ? Theme.error : Theme.onSurface
         font.family: Theme.mono
         font.pixelSize: Theme.fontMd
     }
