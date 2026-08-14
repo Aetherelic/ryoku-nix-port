@@ -55,6 +55,11 @@ in the machine.
     capture far hotter than unity does not clip speech into distortion. A mic
     already at or below unity is left alone. Launched from Hyprland autostart for
     Voxtype dictation and the pill voice visualizer.
+  - `ryoku-volume` Steps the default sink for the `XF86AudioRaiseVolume` /
+    `XF86AudioLowerVolume` keys, snapping to a five-point grid and honouring the
+    volume panel's BOOST toggle (`qsbar.audioBoost` in `shell.json`): off caps at
+    100%, on at 150%. The keys go through it rather than calling `wpctl` inline so
+    the stepping lives in one place.
 - `network/`
   - `ryoku-wifi-powersave` Disables, then restores, 802.11 power-save on every
     WiFi device for the shell's Game Mode, via `iw`, so the radio stays fully awake
