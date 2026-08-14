@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Fixed
+- **Chromium's "is sharing your screen" bar no longer sits dead in the middle of
+  the desktop.** On native Wayland that widget maps with an empty app_id and its
+  geometry computed against the wrong work area (Chromium 517327175), so it lands
+  mid-screen and accepts no pointer input at all: with the cursor confirmed on
+  Stop sharing, and again on Hide, neither button fires, and there is no Chromium
+  flag or policy that suppresses it. A window rule parks it on a special
+  workspace instead, silently so the workspace never opens, and `no_focus` stops
+  a widget you cannot click from taking the keyboard. The browser's own tab
+  indicator and the site's stop control still show a capture is live
+  (`hyprland/modules/window_rules.lua`).
 - **Ryoku Settings groups keybinds under real section names again.** The legend
   read binds.lua a line at a time and opened a category on every comment line, so
   a section whose comment ran over several lines produced one empty category per

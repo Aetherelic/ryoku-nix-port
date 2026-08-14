@@ -176,3 +176,23 @@ hl.window_rule({
     match = { class = "^chrome-music\\.youtube\\.com.*$" },
     float = true,
 })
+
+-- Chromium's "<site> is sharing a window." bar. On native Wayland it maps with an
+-- empty app_id and its geometry computed against the wrong work area (Chromium
+-- 517327175), so it lands mid-screen and takes no pointer input at all: verified
+-- with the cursor on Stop sharing and on Hide, neither fires. Hyprland's Lua
+-- rules have no positioning key, so parking it on a special workspace nobody
+-- opens is the only way to stop a dead widget covering the desktop. Chromium's
+-- own tab indicator and the site's stop control still show a capture is live.
+-- The patterns are FULL matches, not searches, hence the .* on both ends.
+hl.window_rule({
+    name  = "park-chromium-share-indicator",
+    match = {
+        class = "^$",
+        title = "^(.*is sharing.*)$",
+    },
+    -- "silent" is load-bearing: without it the rule OPENS special:sharebar on the
+    -- monitor and the bar stays on screen, parked but visible.
+    workspace = "special:sharebar silent",
+    no_focus  = true,
+})
