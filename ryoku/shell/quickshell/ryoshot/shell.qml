@@ -45,6 +45,11 @@ ShellRoot {
     property var hoverWindow: null
     property var windowRects: []
     property bool dialogMode: false
+    // Manual toolbar offset. The bar parks itself under the region and flips
+    // above when there is no room; dragging it covers the case where it still
+    // sits over something the user wants to annotate.
+    property real toolbarDX: 0
+    property real toolbarDY: 0
     property string beautifySrc: ""
     property string beautifyBgImage: ""
     property bool composeActive: false
@@ -1052,14 +1057,14 @@ ShellRoot {
 
                     x: {
                         if (!win.selLocal) return 0;
-                        var cx = win.selLocal.x + win.selLocal.w / 2 - width / 2;
+                        var cx = win.selLocal.x + win.selLocal.w / 2 - width / 2 + root.toolbarDX;
                         return Math.max(8, Math.min(cx, win.width - width - 8));
                     }
                     y: {
                         if (!win.selLocal) return 0;
                         var below = win.selLocal.y + win.selLocal.h + 12;
                         if (below + height > win.height - 8) below = win.selLocal.y - height - 12;
-                        return Math.max(8, below);
+                        return Math.max(8, Math.min(below + root.toolbarDY, win.height - height - 8));
                     }
 
                     onToolPicked: (t) => root.selectTool(t)
@@ -1076,6 +1081,7 @@ ShellRoot {
                     onHelpRequested: root.shortcutsOpen = !root.shortcutsOpen
                     onSettingsRequested: root.settingsOpen = !root.settingsOpen
                     onBeautifyRequested: root.openBeautify()
+                    onDragged: (dx, dy) => { root.toolbarDX += dx; root.toolbarDY += dy; }
                 }
 
                 ColorPopover {

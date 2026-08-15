@@ -39,6 +39,7 @@ Item {
     signal helpRequested()
     signal settingsRequested()
     signal beautifyRequested()
+    signal dragged(real dx, real dy)
 
     // the desktop brand seal, user-overridable via ~/.config/ryoku/brand.json
     // (Ryoku Settings -> Shell -> Global). the beautify button follows markText;
@@ -74,6 +75,50 @@ Item {
             id: row
             anchors.centerIn: parent
             spacing: 2
+
+            // Deltas are reported in window space: the bar moves under the
+            // pointer as it is dragged, so a delta measured against the bar's
+            // own coordinates would feed back on itself.
+            Item {
+                id: grip
+                Layout.preferredWidth: 14
+                Layout.preferredHeight: 32
+
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 3
+                    Repeater {
+                        model: 3
+                        Rectangle {
+                            width: 3
+                            height: 3
+                            radius: 1.5
+                            color: gripMa.containsMouse || gripMa.pressed ? Theme.ink : Theme.inkFaint
+                        }
+                    }
+                }
+
+                MouseArea {
+                    id: gripMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                    property real lastX: 0
+                    property real lastY: 0
+                    onPressed: (m) => {
+                        var p = mapToItem(null, m.x, m.y);
+                        lastX = p.x;
+                        lastY = p.y;
+                    }
+                    onPositionChanged: (m) => {
+                        if (!pressed) return;
+                        var p = mapToItem(null, m.x, m.y);
+                        tb.dragged(p.x - lastX, p.y - lastY);
+                        lastX = p.x;
+                        lastY = p.y;
+                    }
+                }
+            }
 
             Repeater {
                 model: tb.tools
