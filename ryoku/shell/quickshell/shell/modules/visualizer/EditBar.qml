@@ -89,7 +89,7 @@ Item {
                 spacing: Tokens.s5
 
                 Group {
-                    label: "LOOK"
+                    label: I18n.tr("LOOK")
                     // The current look, drawn: a name alone does not say what a
                     // ribbon is. Click for the tray, wheel to walk the catalogue.
                     Rectangle {
@@ -147,7 +147,7 @@ Item {
                 Rule {}
 
                 Group {
-                    label: "BANDS"
+                    label: I18n.tr("BANDS")
                     Row {
                         spacing: Tokens.s2
                         Step {
@@ -167,7 +167,7 @@ Item {
                 Rule {}
 
                 Group {
-                    label: "MIRROR"
+                    label: I18n.tr("MIRROR")
                     dim: !Config.mirrorApplies
                     Sw {
                         on: Config.mirror
@@ -175,7 +175,7 @@ Item {
                     }
                 }
                 Group {
-                    label: "PEAKS"
+                    label: I18n.tr("PEAKS")
                     dim: !Config.peaksApply
                     Sw {
                         on: Config.peaks
@@ -186,7 +186,7 @@ Item {
                 Rule {}
 
                 Group {
-                    label: "GAIN"
+                    label: I18n.tr("GAIN")
                     Row {
                         spacing: Tokens.s2
                         Slid {
@@ -204,7 +204,7 @@ Item {
                     }
                 }
                 Group {
-                    label: "SMOOTHING"
+                    label: I18n.tr("SMOOTHING")
                     Row {
                         spacing: Tokens.s2
                         Slid {
@@ -225,7 +225,7 @@ Item {
                 Rule {}
 
                 Group {
-                    label: "ANGLE"
+                    label: I18n.tr("ANGLE")
                     Row {
                         spacing: Tokens.s2
                         Value {
@@ -234,7 +234,7 @@ Item {
                         }
                         Btn {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "SQUARE"
+                            text: I18n.tr("SQUARE")
                             compact: true
                             armed: Math.round(Config.angle) !== 0
                             onAct: Config.rotate(0)
@@ -242,7 +242,7 @@ Item {
                     }
                 }
                 Group {
-                    label: "SIZE"
+                    label: I18n.tr("SIZE")
                     Value {
                         text: Math.round(Config.w * 100) + "\u00d7" + Math.round(Config.h * 100) + "%"
                     }
@@ -255,11 +255,11 @@ Item {
                     Row {
                         spacing: Tokens.s2
                         Btn {
-                            text: "FLIP"
+                            text: I18n.tr("FLIP")
                             onAct: Config.flip()
                         }
                         Btn {
-                            text: "DONE"
+                            text: I18n.tr("DONE")
                             primary: true
                             onAct: bar.done()
                         }
@@ -275,8 +275,12 @@ Item {
                 color: Tokens.lineSoft
             }
             Text {
-                text: "drag to move     corner to size     dot to turn     scroll to resize"
-                    + "     f flip     m mirror     r square"
+                // Phrase by phrase, so each is a translatable unit; the key letters
+                // stay as they are typed.
+                text: [I18n.tr("drag to move"), I18n.tr("corner to size"),
+                       I18n.tr("dot to turn"), I18n.tr("scroll to resize"),
+                       "f " + I18n.tr("flip"), "m " + I18n.tr("mirror"),
+                       "r " + I18n.tr("square")].join("     ")
                 color: Tokens.inkFaint
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fMicro
