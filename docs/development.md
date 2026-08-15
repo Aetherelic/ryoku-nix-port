@@ -14,6 +14,10 @@ Edit the repo, deploy, test on the running system.
   `~/.config` from a checkout (it runs `ryoku/shell/deploy.sh`); on an installed
   system `ryoku materialize` copies the base config in. Never edit `~/.config`
   and copy back.
+- **Shaders:** a `.frag` needs `qsb --qt6 -o <name>.frag.qsb <name>.frag` beside
+  it, and the compiled `.qsb` is committed. Quickshell reads a shader file once
+  per process, so a rebuilt `.qsb` needs the surface's process restarted; a QML
+  hot-reload keeps serving the old one and the change looks like it did nothing.
 
 ## Verify before committing
 

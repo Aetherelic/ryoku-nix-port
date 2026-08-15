@@ -40,7 +40,9 @@ truth for the live desktop.
   popout cards (`bar/popouts/`), the Super+Escape control sidebar and pluggable
   bar styles (`bar/barstyles/`, see `docs/barstyles.md`); then `launcher`,
   `overview` (Super+Tab), `wallpaper`,
-  `visualizer`, `osd`, `notifications`, `capture`, `confirm`, and `desktop` the
+  `visualizer` (a click-through spectrum layer that renders through the shared
+  `Ryoku.Ui` spectrum field, keeping only its per-frame band math in its own
+  `Motion.qml`), `osd`, `notifications`, `capture`, `confirm`, and `desktop` the
   wallpaper clock and enabled third-party widgets); `services/` holds the shared
   singletons every surface reads, `components/` the shared UI primitives, and
   `utils/` the shared JS. Beside it are `ryoshot`, `welcome` (the first-run
@@ -57,6 +59,14 @@ truth for the live desktop.
   prompter; see `ipc/prompter.go` and `ipc/secretexchange.go`), and serves the
   control socket). `deploy.sh` and `dev-*.sh` are the live
   dev-loop tools.
+- `ui/` `Ryoku.Ui`, the shared QML module the shell, the Hub and the apps all
+  import for one look: the design tokens (`Singletons/Tokens.qml`), the shared
+  primitives, and the wallpaper palette. It also hosts the desktop spectrum
+  renderer, so the wallpaper and the Hub preview draw one geometry:
+  `SpectrumField.qml` with the analytic `shaders/spectrum.frag(.qsb)` pass draws
+  every look, `Singletons/VizStyles.qml` is the single catalogue of the ten
+  looks, and `lib/spectrum.js` (with `spectrum.test.mjs` beside it) is the pure
+  band math. Installs to `/usr/lib/qt6/qml/Ryoku/Ui`.
 - `cli/` the user-facing control CLI, one Go program (`ryoku`): `update`,
   `rollback`, `snapshots`, `status`, `materialize` (lay the base configs into
   `~/.config`), and `reload`. It orchestrates pacman, yay, and snapper; it does

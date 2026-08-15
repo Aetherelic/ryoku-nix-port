@@ -279,6 +279,67 @@ Each surface is its own directory under `quickshell/`, each component its own
   roundness). The Hyprland autostart launches it once, gated on a
   `~/.local/state/ryoku/welcome-seen` flag; it lives in `quickshell/welcome`.
 
+## The desktop spectrum
+
+The spectrum is a wallpaper surface, not a widget. It draws on a click-through
+layer-shell field, one per monitor, that sits on `WlrLayer.Bottom` under
+everything (or `WlrLayer.Top` for the overlay mode that floats it over windows),
+and it never takes input, so the desktop behind it stays live. It reads the
+audio level bands the shell already computes and paints them; nothing about it
+competes with app content.
+
+Every look is one analytic GPU pass. The bands, the palette and the geometry go
+in as uniforms and `ryoku/ui/shaders/spectrum.frag` returns the whole shape in a
+single draw call, with glow, reflection and peak caps done inside that pass
+rather than as offscreen effects. Both the desktop and the Hub preview render
+through the same `Ryoku.Ui.SpectrumField`, so the preview is the exact geometry
+the wallpaper draws and the two cannot drift; only the ramp differs, since app
+content carries no accent.
+
+There are eleven looks, eight that anchor to an edge and three that are polar:
+
+|Look|Kind|What it is|
+|---|---|---|
+|`bars`|edge|upright bands with rounded caps and a ramp gradient along their length|
+|`split`|edge|bars mirrored about the axis, the classic centre-out look|
+|`dots`|edge|discs sized by level with a soft edge and a faint trail to the baseline|
+|`segments`|edge|quantised cells with a per-cell brightness ramp|
+|`wave`|edge|a Catmull-Rom filled area under a lit top edge|
+|`ribbon`|edge|three phase-offset translucent waves, an aurora|
+|`curtain`|edge|a short wave hanging off the bar's edge, sealed to it by a lit hairline|
+|`line`|edge|an oscilloscope trace with a bright core, a wide halo and windowed edges|
+|`radial`|polar|rounded polar bars and a per-angle ramp around a bass-pulsed inner ring|
+|`orb`|polar|a glass sphere: a barely-there body, a wobbling lit rim and ripples inside|
+|`spiral`|polar|bands laid along an Archimedean spiral over one and a half turns|
+
+Placement follows the family. An edge look anchors to `position` (bottom, top,
+center, left or right), covers the fraction of that edge set by `span`, and sits
+inside that span by `align` (start, center or end), so a look can ride any edge
+and need not fill it. A polar look ignores the edge: `originX` and `originY`
+place its centre as a fraction of the surface, `size` sets its radius against the
+shorter edge, and `spin` turns it slowly. A stored `circle` style aliases to
+`orb`, so an old config keeps rendering.
+
+The `curtain` is the one look that reads the rest of the shell: its surface
+honours exclusive zones instead of ignoring them, so it starts where the bar ends
+and hangs from that edge whatever the bar's height, position or reveal state. No
+bar geometry is plumbed through for it.
+
+Colour is the palette, not a second one. The accent (`primary`) is used exactly
+as the daemon published it, so the spectrum wears the colour the bar and the Hub
+wear; it is only re-lit through Ink when the wallpaper behind sits too close in
+tone to separate. Eight stops walk a narrow band either side of that colour, bass
+deeper than treble, and the shader interpolates between them. A loud band's tip
+takes a gentle highlight, which is what reads as lit.
+
+Motion is budgeted. A single `Timer` at the configured `fps` drives the field,
+halves its rate while the audio only idles, and stops on silence unless
+`idleWave` keeps a slow resting motion; an adaptive tier steps the rate down
+further when it sees sustained frame overrun, so a loaded machine sheds work
+rather than dropping frames. The bloom is computed inside the shader pass and
+sized to the band width, which retired the old full-screen blur and its
+offscreen buffer.
+
 ## Motion
 
 Motion is smooth, short, and purposeful. It exists to explain a state change, not

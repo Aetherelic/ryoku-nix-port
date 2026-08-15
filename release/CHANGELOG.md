@@ -3,6 +3,33 @@
 ## Unreleased
 
 ### Added
+- **The desktop visualiser is rebuilt as one GPU pass with eleven placeable looks,
+  a Hub gallery, and a preview you can aim.** Every look draws from one analytic
+  fragment shader (`ryoku/ui/shaders/spectrum.frag.qsb`) hosted by `Ryoku.Ui`'s
+  `SpectrumField.qml`, so the wallpaper and the Hub preview render the same
+  geometry and cannot drift. The set grows to eleven: eight edge looks (`bars`,
+  `split`, `dots`, `segments`, `wave`, `ribbon`, `curtain`, `line`) placed by
+  `position` (now including `left` and `right`), `span` and `align`, and three
+  polar looks (`radial`, `orb`, `spiral`) placed by
+  `originX`/`originY`/`size`/`spin`; a stored `circle` aliases to `orb`, so an old
+  config keeps rendering. `visualizer.json` keeps every existing key and adds
+  those placement keys. `curtain` is bar-aware: its surface honours exclusive
+  zones, so the wave hangs from wherever the bar ends, at whatever height and
+  edge, with no bar geometry plumbed through. The Hub's Desktop page gains a
+  silhouette gallery of the eleven looks from
+  `ryoku/ui/Singletons/VizStyles.qml`, rows gated by a schema `when` so a knob
+  only shows where it applies, and a `VizPreview` that is the real geometry: a
+  drag on it aims a polar look's `originX`/`originY`
+  (`ryoku/hub/quickshell/VizPreview.qml`,
+  `ryoku/hub/quickshell/schema/DesktopPage.js`,
+  `ryoku/hub/quickshell/SettingsSheet.qml`).
+- **The spectrum wears the palette accent instead of a second one.** It stepped
+  every band a fixed tone off the wallpaper through two roles, so on a gruvbox
+  scheme the sweep went yellow while every other surface stayed teal, and over a
+  dark picture it washed out to near-white. `primary` is now used as published,
+  re-lit only when the wallpaper behind sits too close in tone to separate, and
+  the eight ramp stops walk a narrow band either side of it, bass deeper than
+  treble (`ryoku/shell/quickshell/shell/modules/visualizer/Singletons/Scheme.qml`).
 - **The Limine boot stack now ships from `[ryoku]`, so offline installs detect
   other OSes and get the Snapshots submenu.** `limine-mkinitcpio-hook` (bundling
   `limine-entry-tool`) and `limine-snapper-sync` were AUR-only, so a fully
@@ -16,6 +43,34 @@
   `.github/workflows/publish-repo.yml`, `installation/tests/container-install.sh`).
 
 ### Fixed
+- **Every visualiser look is now one shader pass, retiring the old per-look CPU
+  cost.** Measured at 64 bands and 60 fps (`qs -c shell` process CPU over the
+  visualiser-off baseline), the previous renderer cost `+0.5%` for `bars`, but
+  `+2.8%` for `line`, `+6.0%` for `dots`, `+6.5%` for `circle`, `+6.8%` for
+  `radial`, `+7.3%` for `wave`, and `+13.8%` for `segments`. `segments` alone
+  built 640 `Rectangle` items (bands x cells) whose `visible` churned every
+  frame, and `wave`, `line` and `circle` rebuilt an SVG path string every frame
+  that Qt then re-parsed and re-triangulated, while bloom was a full-screen
+  `MultiEffect` blur whose skirt also flooded the inside of every shape. The whole
+  spectrum is an analytic shape, so `VisualizerView.qml` drops 701 lines of
+  drawing to a thin geometry and palette layer over `ryoku/ui/SpectrumField.qml`,
+  with glow, reflection and peak caps inside the shader. Re-measured the same way
+  (interleaved medians, five second samples): `segments` `+1.0%`, `wave` `+2.8%`,
+  `dots` `+3.4%`, and every other look inside the baseline's own noise
+  (`ryoku/shell/quickshell/shell/modules/visualizer/VisualizerView.qml`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/Motion.qml`,
+  `ryoku/ui/shaders/spectrum.frag`).
+- **The desktop wave no longer starts with a diagonal cut across its corner.** The
+  old filled path opened at the baseline corner and ran straight to the first
+  band's centre, leaving a slanted edge at each end of the spectrum. The shader
+  evaluates the curve at the field edge instead, and every edge look now fades
+  out over its last few percent rather than stopping dead
+  (`ryoku/ui/shaders/spectrum.frag`).
+- **The oscilloscope traces at ordinary listening volume.** It drew the monitor's
+  raw samples, which are a few percent of full scale, so the `line` look was a
+  flat filament unless the volume was near maximum. Motion now normalises against
+  a decaying peak the way cava does internally
+  (`ryoku/shell/quickshell/shell/modules/visualizer/Motion.qml`).
 - **`limine-mkinitcpio-hook` builds against a vendored Gradle, so a distro bump
   cannot block every user update again.** Arch shipped `gradle 9.7.0-1` on
   2026-08-14, and it no longer resolves the `gradle-public-api-legacy` module the
