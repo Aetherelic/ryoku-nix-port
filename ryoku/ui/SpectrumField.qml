@@ -45,9 +45,7 @@ Item {
     // the drawn pass costs one transform, where turning the geometry would mean
     // rotating every band's maths and the reflection with it.
     property real angle: 0               // degrees, clockwise
-    // The other kind of turn: the box leans about its own horizontal or vertical
-    // axis, one edge going back and the other coming forward. Bounded well short of
-    // edge-on, since a look flat to the viewer is a look you cannot see.
+    // Bounded well short of edge-on: a look flat to the viewer cannot be seen.
     property real tiltX: 0               // degrees, lean the far edge back
     property real tiltY: 0               // degrees, lean one side back
 
@@ -100,14 +98,12 @@ Item {
     readonly property real r0: root.radius * (root.style === "orb" ? 0.62 : 0.38)
     readonly property real rMax: root.radius - root.r0
 
-    // Where the look lands: the box, plus room for the bloom to fall off. The pass
-    // is centred on the box, so turning it about its own centre turns the look
-    // about the box centre and the box itself never moves.
+    // The box plus room for the bloom to fall off, centred on the box so a turn
+    // about the pass centre is a turn about the box centre.
     readonly property rect passRect: Qt.rect(pass.x, pass.y, pass.width, pass.height)
     // The box itself, for a host drawing placement guides.
     readonly property rect boxRect: Qt.rect(root.bx, root.by, root.bw, root.bh)
-    // The screen region the turned look actually covers, for a host sampling the
-    // wallpaper under it: the box's own corners, turned, bounded.
+    // What the turned look covers, for a host sampling the wallpaper under it.
     readonly property rect coverRect: {
         var a = root.angle * Math.PI / 180;
         var c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
@@ -123,17 +119,11 @@ Item {
         y: root.by - root.margin
         width: root.bw + 2 * root.margin
         height: root.bh + 2 * root.margin
-        rotation: root.angle
-        transformOrigin: Item.Center
-        // The lean rides on top of the spin: one matrix on the same item, so a turned
-        // and leaned look is still one draw with no offscreen buffer. The shader keeps
-        // working in the item's own pixels and the scene graph interpolates its
-        // coordinates with perspective, so bands nearer the viewer simply come out
-        // wider, which is what a lean should do.
+        // Spin and lean in one matrix, so the lean pivots about the box's own axes.
         transform: Matrix4x4 {
             matrix: {
-                var m = PlaceMath.flat(PlaceMath.tiltMatrix(root.tiltX, root.tiltY,
-                                                            pass.width, pass.height));
+                var m = PlaceMath.flat(PlaceMath.boxMatrix(root.angle, root.tiltX, root.tiltY,
+                                                           pass.width, pass.height));
                 return Qt.matrix4x4(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7],
                                     m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
             }

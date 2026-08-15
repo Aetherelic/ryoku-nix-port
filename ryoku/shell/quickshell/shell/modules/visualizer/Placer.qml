@@ -6,9 +6,8 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons as Ui
 import "Singletons"
 
-// Placement: the look lives in a box, so drag it anywhere, drag the corner grip to
-// size it, drag the dot on its top edge to turn it through a full circle, and flip
-// it with the button or F. Right click or Escape when done.
+// Placement gestures for the look's box: drag to move, the corner grip to size, the
+// dot on the top edge to turn. The controls live in EditBar.
 //
 // Its own surface, because the spectrum window is click-through for life and a
 // surface masked that way does not start taking a pointer again. Same geometry as
@@ -30,20 +29,15 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     anchors { top: true; bottom: true; left: true; right: true }
 
-    // Handles are token-sized: the shell's control metrics are already tuned for
-    // this screen, so a second scale of its own would fight them.
+    // Token-sized: a scale of its own would fight the shell's control metrics.
     readonly property real handle: Ui.Tokens.s4
     // Rotation is about the box centre, which is the one point a turn never moves.
     readonly property real cx: win.box.x + win.box.width / 2
     readonly property real cy: win.box.y + win.box.height / 2
 
-    // --- gesture smoothing ----------------------------------------------------
-    // A gesture aims at a target and the box eases toward it, so a hand that is not
-    // perfectly steady still lands a clean size and angle. The target comes from the
-    // pointer's delta, so easing only ever lags: it converges on exactly where the
-    // pointer asked, never somewhere else. It keeps running after the release until
-    // it has arrived, or letting go mid-drag would strand the box short of the
-    // pointer.
+    // A gesture aims at a target and the box eases toward it, so an unsteady hand
+    // still lands a clean size. Easing outlives the release, or letting go mid-drag
+    // would strand the box short of where the pointer asked.
     property string gesture: ""
     property real tx: 0
     property real ty: 0
@@ -61,8 +55,6 @@ PanelWindow {
             var eps = 0.0006;
             var done = false;
             if (win.gesture === "turn") {
-                // Angles are eased the short way round, or a pass through 360 would
-                // send the look the long way back.
                 var d = PlaceMath.shortestTurn(Config.angle, win.tAngle);
                 done = Math.abs(d) < 0.05;
                 Config.rotate(done ? win.tAngle : Config.angle + d * k);
@@ -84,14 +76,13 @@ PanelWindow {
                                   Config.w + (win.tw - Config.w) * k,
                                   Config.h + (win.th - Config.h) * k);
             }
-            // The gesture is only over once the hand is off and the box has caught up.
+            // Over only once the hand is off and the box has caught up.
             if (done && grab.mode === "")
                 win.gesture = "";
         }
     }
 
-    // The frame carries the look's own turn, so every guide on it lands where the
-    // thing being placed actually is rather than where its box would be unturned.
+    // The frame carries the look's turn, so a guide lands where the look actually is.
     Item {
         id: frame
         x: win.box.x
@@ -153,9 +144,8 @@ PanelWindow {
         cursorShape: grab.over === "size" ? Qt.SizeFDiagCursor
             : (grab.over === "turn" ? Qt.CrossCursor : Qt.SizeAllCursor)
 
-        // Which gesture a press starts is decided by where it lands. The handles
-        // ride a turned frame, so their screen positions are mapped rather than
-        // computed: a mapped centre is right at every angle.
+        // The handles ride a turned frame, so map their centres rather than compute
+        // them: a mapped centre is right at every angle.
         function near(it, mx, my) {
             var p = it.mapToItem(null, it.width / 2, it.height / 2);
             return Math.abs(mx - p.x) < win.handle && Math.abs(my - p.y) < win.handle;
@@ -195,14 +185,12 @@ PanelWindow {
             win.tAngle = Config.angle;
         }
         onReleased: grab.mode = ""
-        // Every gesture applies the pointer's delta from where it was pressed, never
-        // its absolute position, so nothing jumps out from under the cursor.
+        // Deltas from the press, never absolute positions, so nothing jumps.
         onPositionChanged: (m) => {
             if (!grab.pressed || grab.mode === "")
                 return;
             if (grab.mode === "turn") {
-                // Close to the centre a pixel of travel is a wild swing, so the turn
-                // only takes the pointer once it is out where the lever is.
+                // Near the centre a pixel of travel is a wild swing.
                 if (Math.hypot(m.x - win.cx, m.y - win.cy) < win.handle * 1.5)
                     return;
                 var want = grab.baseAngle

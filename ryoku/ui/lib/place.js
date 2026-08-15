@@ -1,29 +1,10 @@
-// Placement maths for a box that can be turned, kept framework-free so the shell's
-// placer and a test runner derive the same numbers.
-//
-// The box is stored as fractions of the screen but rotation only means anything in
-// pixels: a fraction of width and a fraction of height are different lengths, so a
-// "rotation" between them would not be a rotation. Everything here converts to px,
-// turns, and converts back.
-//
-// The box turns about its own centre. That is what makes resizing subtle: growing
-// the box moves the centre, the turn is about the centre, so a naive "grow width by
-// the drag" walks the grabbed corner away from the pointer along an axis that has
-// nothing to do with the angle. Instead the corner opposite the grip is held still
-// and the centre is re-derived from the new size, which makes the grip track the
-// pointer exactly at every angle.
+// Placement maths for a box that turns and leans, framework-free so the shell's
+// placer and a test runner derive the same numbers. Everything works in px: a
+// fraction of width and a fraction of height are different lengths, so a rotation
+// between them would not be a rotation.
 
-// --- leaning into depth ---------------------------------------------------
-// `angle` spins the look in the plane of the screen. A lean is the other kind of
-// turn: the box pivots about its own horizontal or vertical axis so one edge goes
-// away from the viewer and the other comes forward. That needs a perspective
-// divide, or the lean is only a squash and reads as nothing.
-//
-// Flat content (z = 0 everywhere) turned about x by `ax` then about y by `ay`:
-//     X = cb*u + sb*sa*v      Y = ca*v      Z = -sb*u + cb*sa*v
-// and the divide by 1 - Z/d is the perspective. The viewer distance d scales with
-// the box, so a lean of the same degrees reads the same at any size, and it is far
-// enough back that the near edge grows by about a third rather than exploding.
+// Flat content turned about x by `ax` then y by `ay`, divided by 1 - Z/d for
+// perspective. d scales with the box, so the same degrees read the same at any size.
 function tiltMatrix(ax, ay, w, h) {
     if (!(w > 0) || !(h > 0))
         return identity();
@@ -37,16 +18,12 @@ function tiltMatrix(ax, ay, w, h) {
         [0, 0, 1, 0],
         [sb / d, -cb * sa / d, 0, 1]
     ];
-    // about the box's own centre: the shift after the lean is multiplied by w with
-    // it, which is what keeps the centre still through the divide.
+    // the shift after the lean is multiplied by w with it, which holds the centre
     var m = mul(shift(w / 2, h / 2), mul(lean, shift(-w / 2, -h / 2)));
 
-    // A lean leaves the box: the near edge magnifies past it and the far edge falls
-    // short, so the look both spilled over one side and left dead space at the other.
-    // Fitting the leaned quad back onto the box makes the box mean what it says
-    // again, which is what the placement guides and the gestures are drawn from.
-    // An affine composed after a projective matrix acts on the divided point, so
-    // this is exactly "scale the picture I just computed".
+    // Raw perspective leaves the box: the near edge magnifies past it, the far edge
+    // falls short. An affine composed after a projective matrix acts on the divided
+    // point, so this fits the picture just computed back onto the box.
     var q = [project(m, 0, 0), project(m, w, 0), project(m, 0, h), project(m, w, h)];
     var minX = Math.min(q[0].x, q[1].x, q[2].x, q[3].x);
     var maxX = Math.max(q[0].x, q[1].x, q[2].x, q[3].x);
@@ -57,6 +34,19 @@ function tiltMatrix(ax, ay, w, h) {
     var fit = mul(shift(w / 2, h / 2),
                   mul(scale(sx, sy), shift(-(minX + maxX) / 2, -(minY + maxY) / 2)));
     return mul(fit, m);
+}
+
+// Lean about the box's own axes, then spin. Qt composes an item's `transform` list
+// outside its `rotation`, so setting both gives the reverse and shears the bands.
+function boxMatrix(deg, ax, ay, w, h) {
+    return mul(spin(deg, w / 2, h / 2), tiltMatrix(ax, ay, w, h));
+}
+
+function spin(deg, cx, cy) {
+    var a = deg * Math.PI / 180;
+    var c = Math.cos(a), s = Math.sin(a);
+    var r = [[c, -s, 0, 0], [s, c, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
+    return mul(shift(cx, cy), mul(r, shift(-cx, -cy)));
 }
 
 function scale(sx, sy) {
@@ -115,8 +105,7 @@ function centreOf(box, screen) {
     return { x: (box.x + box.w / 2) * screen.w, y: (box.y + box.h / 2) * screen.h };
 }
 
-// The two corners that matter, in screen px: the grip rides the box's far corner
-// (its local bottom right) and the anchor is the one diagonally opposite.
+// The grip rides the box's local bottom right; the anchor is diagonally opposite.
 function gripAt(box, deg, screen) {
     var c = centreOf(box, screen);
     var o = turn(box.w * screen.w / 2, box.h * screen.h / 2, deg * Math.PI / 180);
@@ -147,10 +136,8 @@ function resize(base, deg, dx, dy, screen, min) {
     };
 }
 
-// A turn taken from where the pointer is around the box centre. Reported as a delta
-// from the press so the lever never jumps to the pointer on the first motion, with a
-// gentle magnet on every `step` degrees: square and diagonal land without care, and
-// everything between stays free.
+// Reported as a delta from the press, so the lever never jumps to the pointer, with
+// a magnet on every `step` degrees.
 function angleAt(cx, cy, px, py) {
     return Math.atan2(py - cy, px - cx) * 180 / Math.PI;
 }
@@ -173,4 +160,5 @@ function shortestTurn(from, to) {
 
 if (typeof module !== "undefined" && module.exports)
     module.exports = { turn, intoBox, centreOf, gripAt, anchorAt, resize, angleAt, magnet, wrap, shortestTurn,
+                       boxMatrix, spin,
                        tiltMatrix, identity, flat, project };

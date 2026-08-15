@@ -57,17 +57,13 @@ Singleton {
         : (adapter.style === "circle" ? "orb" : "bars")
     // The polar three sit at the tail of the list, so one index decides the family.
     readonly property bool isPolar: root.knownStyles.indexOf(root.styleId) >= 8
-    // Which knobs mean anything for the look in hand. The renderer and the desktop
-    // editing bar both ask here, so a rule is stated once: peak caps are a bar
-    // reading, and a ring has no order to mirror.
+    // Which knobs mean anything for the look in hand: the renderer and the editing
+    // bar both ask here, so the rule is stated once.
     readonly property bool peaksApply: root.styleId === "bars" || root.styleId === "segments"
     readonly property bool mirrorApplies: !root.isPolar
 
-    // Edits from the desktop editing bar. Every one of them settles through the same
-    // coalescer as a placement gesture rather than writing on the spot: the file is
-    // watched, so a write comes back as a reload, and two edits in the same instant
-    // raced that reload and one lost its value. The look changes the moment the
-    // adapter does either way, since the render reads the adapter and not the file.
+    // Edits settle through the same coalescer as a placement gesture: the file is
+    // watched, so a write returns as a reload and two edits in one instant raced it.
     function setStyle(k) {
         if (root.knownStyles.indexOf(k) < 0)
             return;
@@ -99,8 +95,7 @@ Singleton {
         adapter.smoothing = Math.max(0, Math.min(1, v));
         settle.restart();
     }
-    // A lean is bounded well short of edge-on: past this the bands crowd into a line
-    // and the look stops being one you can read.
+    // Well short of edge-on: past this the bands crowd into a line.
     readonly property real tiltMax: 35
     function setTiltX(v) {
         adapter.tiltX = Math.max(-root.tiltMax, Math.min(root.tiltMax, v));
@@ -136,10 +131,7 @@ Singleton {
         adapter.h = Math.max(0.03, Math.min(1.5, nh));
         settle.restart();
     }
-    // Resizing a turned box moves its position too: the corner opposite the grip is
-    // held still on screen, and the box turns about its centre, so the centre has to
-    // follow the new size. Size and position land together or the box would swing
-    // between the two writes.
+    // Size and position land together, or a turned box swings between the two writes.
     function setBox(nx, ny, nw, nh) {
         adapter.w = Math.max(0.04, Math.min(1.5, nw));
         adapter.h = Math.max(0.03, Math.min(1.5, nh));
@@ -147,16 +139,13 @@ Singleton {
         adapter.y = Math.max(-0.5, Math.min(1.5, ny));
         settle.restart();
     }
-    // A free turn about the box centre, wrapped so a full circle of dragging never
-    // runs into a stop.
+    // Wrapped, so a full circle of dragging never runs into a stop.
     function rotate(deg) {
         var d = deg % 360;
         adapter.angle = d < 0 ? d + 360 : d;
         settle.restart();
     }
-    // Flip mirrors what is on screen, which is a different thing per family: an
-    // edge look swaps the edge its bands grow from, a centred one reverses the band
-    // order it is symmetric about, and a polar one reverses the way it turns.
+    // Mirroring what is on screen is a different thing per family.
     function flip() {
         if (root.isPolar)
             adapter.spin = -adapter.spin;
@@ -217,7 +206,7 @@ Singleton {
         }
     }
 
-    // A config written before the box existed carries an anchored position,
+    // A config written before the box carries an anchored position,
     // height, span and origin instead; fold those into the box once so the
     // spectrum stays where its owner put it, then keep only the box.
     function migrate() {

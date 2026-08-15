@@ -142,6 +142,14 @@
   `.github/workflows/publish-repo.yml`, `installation/tests/container-install.sh`).
 
 ### Fixed
+- **A leaned look now leans about its own axes, not the screen's.** With any spin on
+  the box, the lean pivoted about the screen's axes and sheared the bands instead of
+  turning a trapezoid: Qt composes an item's `transform` list outside its `rotation`,
+  so setting both gave the reverse of the order the lean needs. The spin moved into
+  the same matrix, applied after the lean, and the tests pin the composition by
+  checking the result equals the box-frame lean turned by the angle
+  (`ryoku/ui/lib/place.js`, `ryoku/ui/lib/place.test.mjs`,
+  `ryoku/ui/SpectrumField.qml`).
 - **A notification toast slides away instead of being cut off.** The exit ran for
   180 ms on an accelerating curve, and the surface it lives in dropped to 1 px the
   moment the card left the model, so the window clipped the slide it was in the

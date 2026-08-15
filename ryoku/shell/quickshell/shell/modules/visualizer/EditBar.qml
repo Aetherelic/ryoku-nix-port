@@ -4,16 +4,13 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "Singletons"
 
-// The spectrum's editing bar, shown while a look is being placed. Everything you
-// judge by eye lives here so the look can be tuned where you can see it, on the
-// wallpaper, instead of in the Hub with the desktop behind a window.
+// The spectrum's editing bar, shown while a look is being placed, so a look is tuned
+// where you can see it rather than in the Hub with the desktop behind a window.
 //
-// It is fixed to an edge of the screen, never to the box: a readout of the thing
-// being moved is the one thing on screen that must not move with it. Controls come
-// from Ryoku.Ui (Btn, Step, Sw, Slid, Gallery) and metrics from Tokens, so this is
-// the shell's own idiom at the shell's own size rather than a HUD of its own
-// invention. The look tray is the Hub's gallery with the Hub's painter: one
-// catalogue of what the eleven looks look like, drawn in one place.
+// Fixed to an edge of the screen, never to the box: a readout of the thing being
+// moved must not move with it. Controls come from Ryoku.Ui and metrics from Tokens;
+// the tray is the Hub's gallery with the Hub's painter, so one catalogue draws what
+// the eleven looks look like.
 Item {
     id: bar
 
@@ -47,8 +44,7 @@ Item {
         opacity: tray.open ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: Tokens.swap; easing.type: Tokens.ease } }
 
-        // a shield, so a click that misses a tile lands on the tray rather than
-        // falling through and starting a drag on the wallpaper behind it
+        // a shield: a click that misses a tile must not start a drag behind the tray
         MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton }
 
         Gallery {
@@ -90,8 +86,7 @@ Item {
 
                 Group {
                     label: I18n.tr("LOOK")
-                    // The current look, drawn: a name alone does not say what a
-                    // ribbon is. Click for the tray, wheel to walk the catalogue.
+                    // Drawn, because a name alone does not say what a ribbon is.
                     Rectangle {
                         width: 176
                         height: 30
@@ -243,8 +238,7 @@ Item {
                 }
 
                 Group {
-                    // One group, two axes: a lean is one idea, and splitting it into
-                    // two eyebrows would say it was two.
+                    // One group, two axes: a lean is one idea.
                     label: I18n.tr("LEAN")
                     Row {
                         spacing: Tokens.s2
@@ -303,16 +297,15 @@ Item {
                 }
             }
 
-            // The gestures sit under a hairline inside the plate: an instruction is
-            // not a control, and outside the plate it was unreadable over a picture.
+            // Under a hairline: an instruction is not a control, and outside the
+            // plate it was unreadable over a picture.
             Rectangle {
                 width: controls.width
                 height: Tokens.border
                 color: Tokens.lineSoft
             }
             Text {
-                // Phrase by phrase, so each is a translatable unit; the key letters
-                // stay as they are typed.
+                // Phrase by phrase, so each is a translatable unit.
                 text: [I18n.tr("drag to move"), I18n.tr("corner to size"),
                        I18n.tr("dot to turn"), I18n.tr("scroll to resize"),
                        "f " + I18n.tr("flip"), "m " + I18n.tr("mirror"),
@@ -325,8 +318,7 @@ Item {
         }
     }
 
-    // A labelled control: the eyebrow says what the thing below it is, which is what
-    // the old single row of values and hints could not.
+    // The eyebrow says what the control below it is.
     component Group: Column {
         property string label: ""
         property bool dim: false

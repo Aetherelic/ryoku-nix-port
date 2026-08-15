@@ -330,11 +330,13 @@ goes away from the viewer and the other comes forward, which needs a perspective
 divide or the lean is only a squash and reads as nothing. Both are bounded to 35
 degrees, well short of edge-on, because a look flat to the viewer is a look you
 cannot see; the viewer distance scales with the box, so the same degrees read the
-same at any size. It is one matrix on the item the spin already turns
-(`ryoku/ui/lib/place.js`, with the maths tested in `place.test.mjs`), so a turned and
-leaned look is still one draw with no offscreen buffer, and the shader keeps working
-in the item's own pixels while the scene graph interpolates its coordinates with
-perspective, which is what makes the near bands come out wider.
+same at any size. The lean is taken in the box's own frame and the spin applied after it, as one matrix
+(`ryoku/ui/lib/place.js`, tested in `place.test.mjs`): Qt composes an item's
+`transform` list outside its `rotation`, so setting both gives the reverse and the
+lean pivots about the screen's axes, which shears the bands instead of turning a
+trapezoid. One draw either way, and the shader keeps working in the item's own pixels
+while the scene graph interpolates its coordinates with perspective, which is what
+makes the near bands come out wider.
 
 A lean is a shape change *inside* the box, not an escape from it. Left raw, the
 perspective pushed the near edge past the outline and pulled the far edge short of

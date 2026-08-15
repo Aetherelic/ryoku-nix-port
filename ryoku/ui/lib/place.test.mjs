@@ -3,7 +3,7 @@ import test from "node:test";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { gripAt, anchorAt, resize, intoBox, magnet, wrap, shortestTurn,
+const { gripAt, anchorAt, resize, intoBox, magnet, wrap, shortestTurn, turn, boxMatrix,
         tiltMatrix, flat, project } = require("./place.js");
 
 const screen = { w: 2560, h: 1600 };
@@ -186,4 +186,31 @@ test("the fit keeps the trapezoid a trapezoid rather than squaring it off", () =
     assert.ok((tr.x - tl.x) < (br.x - bl.x) - 1, "far edge should stay shorter than near");
     near(tl.y, tr.y, "far edge stays level");
     near(bl.y, br.y, "near edge stays level");
+});
+
+test("the lean is taken in the box's own frame, then spun", () => {
+    for (const deg of [0, 20, 90, 200, 330])
+        for (const [ax, ay] of [[25, 0], [0, 25], [-30, 12]]) {
+            const m = boxMatrix(deg, ax, ay, W, H);
+            const flatLean = tiltMatrix(ax, ay, W, H);
+            const a = deg * Math.PI / 180;
+            for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H], [W / 3, H / 4]]) {
+                const got = project(m, x, y);
+                const p = project(flatLean, x, y);
+                const t = turn(p.x - W / 2, p.y - H / 2, a);
+                near(got.x, t.x + W / 2, `${deg} deg, lean ${ax},${ay}: x at ${x},${y}`);
+                near(got.y, t.y + H / 2, `${deg} deg, lean ${ax},${ay}: y at ${x},${y}`);
+            }
+        }
+});
+
+test("a spin with no lean is exactly a spin", () => {
+    const m = boxMatrix(30, 0, 0, W, H);
+    const a = 30 * Math.PI / 180;
+    for (const [x, y] of [[0, 0], [W, H], [W / 2, 0]]) {
+        const got = project(m, x, y);
+        const t = turn(x - W / 2, y - H / 2, a);
+        near(got.x, t.x + W / 2, `spin only: x at ${x},${y}`);
+        near(got.y, t.y + H / 2, `spin only: y at ${x},${y}`);
+    }
 });

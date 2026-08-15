@@ -25,9 +25,8 @@ Item {
         active: root.visible && Config.enabled
     }
 
-    // The region the look covers, normalised, for the wallpaper luminance map. A
-    // turned look covers a different patch of picture than its box does, so the
-    // tone is read from what it actually sits on.
+    // Normalised for the wallpaper luminance map: a turned look sits on a different
+    // patch of picture than its box does.
     readonly property real nx: Math.max(0, Math.min(1, field.coverRect.x / Math.max(1, root.width)))
     readonly property real ny: Math.max(0, Math.min(1, field.coverRect.y / Math.max(1, root.height)))
     readonly property real nw: Math.max(0.01, Math.min(1, field.coverRect.width / Math.max(1, root.width)))
@@ -66,9 +65,7 @@ Item {
         thickness: Config.thickness
         reflection: Config.reflection
         segments: Config.segments
-        // Peak caps are a bar reading: on a curve or a ring they float free of
-        // anything. Config owns that rule, so the editing bar dims the same switch
-        // this binding ignores.
+        // Config owns the rule, so the bar dims the switch this binding ignores.
         peakCaps: Config.peaks && Config.peaksApply
         glow: Config.bloom
         boxX: Config.x
