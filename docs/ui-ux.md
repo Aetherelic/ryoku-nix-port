@@ -314,10 +314,11 @@ are polar:
 |`spiral`|polar|bands laid along an Archimedean spiral over one and a half turns|
 
 Every look lives in a box, and the box goes anywhere. `x` and `y` place its top
-left corner as fractions of the screen, `w` and `h` size it, and `grow` says which
-of its edges the bands rise from (up, down, center, left or right). A polar look
-centres in the box and takes its radius from the shorter side, so a square box
-shows the whole ring; `spin` turns it slowly. That one rectangle replaced an
+left corner as fractions of the screen, `w` and `h` size it, `grow` says which of
+its edges the bands rise from (up, down, center, left or right), and `angle` turns
+the whole thing about its centre. A polar look centres in the box and takes its
+radius from the shorter side, so a square box shows the whole ring; `spin` turns it
+slowly. That one rectangle replaced an
 anchored set of `position`, `span`, `align`, `height`, `originX`, `originY` and
 `size`: a look was pinned to a screen edge and could not simply sit where its
 owner wanted it. A config written before the box folds into one on first read, and
@@ -325,13 +326,28 @@ a stored `circle` style aliases to `orb`, so nothing moves or blanks on update.
 
 The box is placed by hand rather than by numbers. `Super+Alt+M`, the Move
 visualiser row in the desktop's right-click menu, or the Hub's Place on the desktop
-button starts placement mode: the box takes an outline and a grip on its corner, a
-drag moves it, the grip or the wheel sizes it, and each step writes to
-`visualizer.json` as it happens. Right click, Escape or the keybind ends it. Both
-gestures apply the pointer's delta from where it was pressed rather than its
-absolute position, so nothing jumps out from under the cursor; a grip on a padded
+button starts placement mode. The box takes an outline, a grip on its corner and a
+dot on a stem above its top edge: a drag anywhere moves it, the grip or the wheel
+sizes it, the dot turns it through a full circle, and the FLIP button (or `F`)
+mirrors it. `R` returns it to square. Each step writes to `visualizer.json` as it
+happens, and right click, Escape or the keybind ends it.
+
+Every gesture applies the pointer's delta from where it was pressed rather than its
+absolute position, so nothing jumps out from under the cursor. A grip on a padded
 corner could not track it at all, since a corner sits `radius * sqrt(2)` from the
-centre and reading that as the radius grew the shape away from the hand.
+centre and reading that as the radius grew the shape away from the hand. Sizing a
+turned box needs one more step: the pointer moves in screen space while the box
+grows along its own axes, so the delta is rotated into the box first, or a drag
+would size it sideways. The guides ride the same turn as the look, so a handle is
+always on the corner it appears to be on.
+
+Flip mirrors what is on screen, which is a different thing per family: a look that
+grows from an edge swaps to the opposite edge, a centred one reverses the band order
+it is symmetric about, and a polar one reverses the way it turns. `angle` turns the
+drawn pass about the box centre rather than rotating the geometry, so a turn costs
+one transform instead of re-deriving every band, its reflection and its bloom; the
+box itself stays axis-aligned, and the wallpaper tone is read from the turned
+region the look actually covers rather than from the box.
 
 Placement runs on its own overlay surface (`Placer.qml`) rather than lifting the
 spectrum's own, which is click-through for life: a masked surface does not start

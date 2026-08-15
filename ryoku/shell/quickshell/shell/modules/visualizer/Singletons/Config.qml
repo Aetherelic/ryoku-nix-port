@@ -36,6 +36,7 @@ Singleton {
     property alias w:          adapter.w
     property alias h:          adapter.h
     property alias grow:       adapter.grow        // up | down | center | left | right
+    property alias angle:      adapter.angle       // whole-look turn about the box centre, degrees
 
     // motion + budget. fps is the render ceiling (cava is fed at the same rate);
     // adaptive sheds effects and rate under sustained load, never the spectrum.
@@ -52,6 +53,8 @@ Singleton {
                                         "ribbon", "curtain", "line", "radial", "orb", "spiral"]
     readonly property string styleId: root.knownStyles.indexOf(adapter.style) >= 0 ? adapter.style
         : (adapter.style === "circle" ? "orb" : "bars")
+    // The polar three sit at the tail of the list, so one index decides the family.
+    readonly property bool isPolar: root.knownStyles.indexOf(root.styleId) >= 8
 
     // persist on/off so the hub toggle and Super+M keybind agree, and it
     // survives a restart.
@@ -71,6 +74,31 @@ Singleton {
     function sizeBox(nw, nh) {
         adapter.w = Math.max(0.04, Math.min(1.5, nw));
         adapter.h = Math.max(0.03, Math.min(1.5, nh));
+        settle.restart();
+    }
+    // A free turn about the box centre, wrapped so a full circle of dragging never
+    // runs into a stop.
+    function rotate(deg) {
+        var d = deg % 360;
+        adapter.angle = d < 0 ? d + 360 : d;
+        settle.restart();
+    }
+    // Flip mirrors what is on screen, which is a different thing per family: an
+    // edge look swaps the edge its bands grow from, a centred one reverses the band
+    // order it is symmetric about, and a polar one reverses the way it turns.
+    function flip() {
+        if (root.isPolar)
+            adapter.spin = -adapter.spin;
+        else if (adapter.grow === "up")
+            adapter.grow = "down";
+        else if (adapter.grow === "down")
+            adapter.grow = "up";
+        else if (adapter.grow === "left")
+            adapter.grow = "right";
+        else if (adapter.grow === "right")
+            adapter.grow = "left";
+        else
+            adapter.mirror = !adapter.mirror;
         settle.restart();
     }
 
@@ -112,6 +140,7 @@ Singleton {
             property real w: 1
             property real h: 0.42
             property string grow: "up"
+            property real angle: 0
         }
     }
 

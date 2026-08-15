@@ -25,11 +25,13 @@ Item {
         active: root.visible && Config.enabled
     }
 
-    // The region the look covers, normalised, for the wallpaper luminance map.
-    readonly property real nx: Math.max(0, Math.min(1, field.passRect.x / Math.max(1, root.width)))
-    readonly property real ny: Math.max(0, Math.min(1, field.passRect.y / Math.max(1, root.height)))
-    readonly property real nw: Math.max(0.01, Math.min(1, field.passRect.width / Math.max(1, root.width)))
-    readonly property real nh: Math.max(0.01, Math.min(1, field.passRect.height / Math.max(1, root.height)))
+    // The region the look covers, normalised, for the wallpaper luminance map. A
+    // turned look covers a different patch of picture than its box does, so the
+    // tone is read from what it actually sits on.
+    readonly property real nx: Math.max(0, Math.min(1, field.coverRect.x / Math.max(1, root.width)))
+    readonly property real ny: Math.max(0, Math.min(1, field.coverRect.y / Math.max(1, root.height)))
+    readonly property real nw: Math.max(0.01, Math.min(1, field.coverRect.width / Math.max(1, root.width)))
+    readonly property real nh: Math.max(0.01, Math.min(1, field.coverRect.height / Math.max(1, root.height)))
 
     readonly property real fieldLstar: Scheme.lstarAt(root.nx, root.ny, root.nw, root.nh)
     // One direction for the whole sweep: per stop, neighbours would flip between
@@ -73,6 +75,7 @@ Item {
         boxW: Config.w
         boxH: Config.h
         grow: Config.grow
+        angle: Config.angle
         spin: motion.spinDeg
     }
 }

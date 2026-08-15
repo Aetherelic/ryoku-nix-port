@@ -101,6 +101,17 @@ var rows = [{
     },{
         "tab": "Visualizer",
         "group": "PLACEMENT",
+        "key": "angle",
+        "label": "Angle",
+        "desc": "Turn the whole look about its centre",
+        "ctl": "slid",
+        "src": "viz",
+        "lo": 0,
+        "hi": 359,
+        "unit": "°"
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
         "adv": true,
         "key": "x",
         "label": "Left",

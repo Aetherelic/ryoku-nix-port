@@ -40,6 +40,7 @@ Item {
         return field.styles.indexOf(s) >= 0 ? s : "bars";
     }
     readonly property string vGrow: root.pick("grow", "up")
+    readonly property real vAngle: root.pick("angle", 0)
     readonly property string vShape: root.pick("shape", "rounded")
     readonly property bool vMirror: root.pick("mirror", false)
     readonly property bool vPeakCaps: root.pick("peaks", false)
@@ -186,6 +187,7 @@ Item {
             visible: root.vEnabled
             style: root.vStyle
             grow: root.vGrow
+            angle: root.vAngle
             shape: root.vShape
             thickness: root.vThick
             reflection: root.vReflection

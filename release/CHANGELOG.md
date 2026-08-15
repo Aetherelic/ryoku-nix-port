@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Added
+- **A look turns through a full circle and flips, by hand.** Placement could move
+  and size a box but not aim it, so a spectrum could only run along an axis. The
+  box grows a dot on a stem above its top edge that turns it freely (`angle`, with a
+  live degree readout, `R` to square it) and a FLIP button, on `F` too, that mirrors
+  what is on screen: a look growing from an edge swaps to the opposite edge, a
+  centred one reverses the band order it is symmetric about, and a polar one reverses
+  the way it turns. The turn rotates the drawn pass about the box centre rather than
+  the geometry, so it costs one transform instead of re-deriving every band, its
+  reflection and its bloom. Sizing a turned box rotates the pointer's delta into the
+  box first, or the drag would size it sideways, and the guides ride the same turn as
+  the look so a handle is on the corner it appears to be on. The wallpaper tone is
+  read from the turned region the look covers rather than from its box
+  (`ryoku/ui/SpectrumField.qml`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/Placer.qml`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/Singletons/Config.qml`,
+  `ryoku/hub/quickshell/schema/DesktopPage.js`).
 - **Ryostore browses decor, launcher heroes and fastfetch emblems as one Decor
   tab.** They are all pictures you install and point a surface at, but each folder
   had its own top-level plate, so the header collected one per picture kind. Decor

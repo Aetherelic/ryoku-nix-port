@@ -39,6 +39,11 @@ Item {
     property real boxW: 1
     property real boxH: 0.42
     property string grow: "up"           // up | down | center | left | right
+    // The whole look turns about the box centre, so a spectrum can sit at any
+    // angle rather than only along an axis. The box stays axis-aligned: turning
+    // the drawn pass costs one transform, where turning the geometry would mean
+    // rotating every band's maths and the reflection with it.
+    property real angle: 0               // degrees, clockwise
 
     readonly property var styles: ["bars", "split", "dots", "segments", "wave",
                                    "ribbon", "curtain", "line", "radial", "orb", "spiral"]
@@ -89,10 +94,21 @@ Item {
     readonly property real r0: root.radius * (root.style === "orb" ? 0.62 : 0.38)
     readonly property real rMax: root.radius - root.r0
 
-    // Where the look lands: the box, plus room for the bloom to fall off.
+    // Where the look lands: the box, plus room for the bloom to fall off. The pass
+    // is centred on the box, so turning it about its own centre turns the look
+    // about the box centre and the box itself never moves.
     readonly property rect passRect: Qt.rect(pass.x, pass.y, pass.width, pass.height)
     // The box itself, for a host drawing placement guides.
     readonly property rect boxRect: Qt.rect(root.bx, root.by, root.bw, root.bh)
+    // The screen region the turned look actually covers, for a host sampling the
+    // wallpaper under it: the box's own corners, turned, bounded.
+    readonly property rect coverRect: {
+        var a = root.angle * Math.PI / 180;
+        var c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+        var w = root.bw * c + root.bh * s;
+        var h = root.bw * s + root.bh * c;
+        return Qt.rect(root.bx + (root.bw - w) / 2, root.by + (root.bh - h) / 2, w, h);
+    }
 
     Item {
         id: pass
@@ -101,6 +117,8 @@ Item {
         y: root.by - root.margin
         width: root.bw + 2 * root.margin
         height: root.bh + 2 * root.margin
+        rotation: root.angle
+        transformOrigin: Item.Center
 
         ShaderEffect {
             id: fx
