@@ -222,6 +222,15 @@
   `modules/bar/panel/PanelChat.qml`, `services/Needle.qml`).
 
 ### Fixed
+- **The all-in-one desktop widget follows the theme and trims its wide divider.**
+  The tall AIO face drew its day number, month, clock, weekday, spectrum and
+  stars in fixed blue-greys, so it never tracked the active scheme or the
+  wallpaper. Its colours now resolve through the desktop palette
+  (`Theme.accentOn` for the day number and spectrum, `Theme.inkOn` and
+  `inkDimOn` for the text), so the face retints live with the wallpaper and with
+  every named scheme. The wide face's diagonal divider ran from y20 down to y330
+  and cut through the big weekday; it now ends at the weekday's top edge
+  (`modules/desktop/aio/AioWidget.qml`).
 - **The islands bar honours the corner and gap-animation settings.** Merging the
   two variants left the split-pill `"islands"` form reading a fixed
   `islandRadius`, so the control center and Bar Studio "Corners" control (which

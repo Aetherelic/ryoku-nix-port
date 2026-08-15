@@ -74,7 +74,7 @@ Item {
                 ShapePath {
                     strokeColor: "#ffffff"; strokeWidth: 2; fillColor: "transparent"
                     startX: 360; startY: 20
-                    PathLine { x: 250; y: 330 }
+                    PathLine { x: 314; y: 150 }
                 }
             }
 
@@ -209,7 +209,7 @@ Item {
                             readonly property real lvl: AudioBars.active ? (AudioBars.levels[barT.band] || 0) : 0
                             width: 3; height: 70
                             Rectangle {
-                                width: 2; radius: 1; color: "#aeb9d8"; opacity: 0.85
+                                width: 2; radius: 1; color: Theme.accentOn(root.underL); opacity: 0.85
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.verticalCenter: parent.verticalCenter
                                 height: Math.max(2, Math.min(56, barT.lvl * 56))
@@ -228,7 +228,7 @@ Item {
                 text: Qt.formatDate(Now.date, "dd")
                 font.family: "Inter Display"; font.weight: Font.Black
                 font.pixelSize: 620; font.letterSpacing: -30
-                color: "#6f80ac"; opacity: 0.55
+                color: Theme.accentOn(root.underL); opacity: 0.55
             }
 
             // ---- month overlaid ----
@@ -238,7 +238,7 @@ Item {
                 text: Now.date.toLocaleDateString(Svc.Config.formatLoc, "MMMM").toUpperCase()
                 font.family: "Inter Display"; font.weight: Font.Bold
                 font.pixelSize: 92; font.letterSpacing: 6
-                color: "#c7ccdb"; opacity: 0.92
+                color: Theme.inkOn(root.underL); opacity: 0.92
             }
 
             // ---- time + underline ----
@@ -247,19 +247,19 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: 560
                 text: Qt.formatTime(Now.date, Config.clock24h ? "HH:mm" : "hh:mm AP")
-                color: "#eef1f8"
+                color: Theme.inkOn(root.underL)
                 font.family: "Inter Display"; font.weight: Font.Medium
                 font.pixelSize: 30; font.letterSpacing: 4
             }
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
-                y: 606; width: 120; height: 2; color: "#c7ccdb"
+                y: 606; width: 120; height: 2; color: Theme.inkDimOn(root.underL)
             }
 
             // ---- vertical weekday ----
             Text {
                 text: Now.date.toLocaleDateString(Svc.Config.formatLoc, "dddd").toUpperCase()
-                color: "#8790ad"
+                color: Theme.inkDimOn(root.underL)
                 font.family: "Inter Display"; font.weight: Font.Medium
                 font.pixelSize: 22; font.letterSpacing: 8
                 transformOrigin: Item.Center
@@ -274,7 +274,7 @@ Item {
                 Rectangle {
                     required property var modelData
                     x: modelData[0]; y: modelData[1]
-                    width: 3; height: 3; radius: 1.5; color: "#cfd6ea"; opacity: 0.5
+                    width: 3; height: 3; radius: 1.5; color: Theme.inkDimOn(root.underL); opacity: 0.5
                 }
             }
         }
