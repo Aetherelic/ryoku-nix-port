@@ -38,3 +38,4 @@ PickFile 1.0 PickFile.qml
 AppPicker 1.0 AppPicker.qml
 SpectrumField 1.0 SpectrumField.qml
 SpectrumMath 1.0 lib/spectrum.js
+PlaceMath 1.0 lib/place.js

@@ -76,6 +76,17 @@ Singleton {
         adapter.h = Math.max(0.03, Math.min(1.5, nh));
         settle.restart();
     }
+    // Resizing a turned box moves its position too: the corner opposite the grip is
+    // held still on screen, and the box turns about its centre, so the centre has to
+    // follow the new size. Size and position land together or the box would swing
+    // between the two writes.
+    function setBox(nx, ny, nw, nh) {
+        adapter.w = Math.max(0.04, Math.min(1.5, nw));
+        adapter.h = Math.max(0.03, Math.min(1.5, nh));
+        adapter.x = Math.max(-0.5, Math.min(1.5, nx));
+        adapter.y = Math.max(-0.5, Math.min(1.5, ny));
+        settle.restart();
+    }
     // A free turn about the box centre, wrapped so a full circle of dragging never
     // runs into a stop.
     function rotate(deg) {

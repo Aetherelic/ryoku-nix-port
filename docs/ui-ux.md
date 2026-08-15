@@ -329,16 +329,31 @@ visualiser row in the desktop's right-click menu, or the Hub's Place on the desk
 button starts placement mode. The box takes an outline, a grip on its corner and a
 dot on a stem above its top edge: a drag anywhere moves it, the grip or the wheel
 sizes it, the dot turns it through a full circle, and the FLIP button (or `F`)
-mirrors it. `R` returns it to square. Each step writes to `visualizer.json` as it
+mirrors it. `R` returns it to square. A bar fixed to the bottom of the screen (the
+top, when the box would be under it) carries the button, the live angle and size,
+and the gestures; it wears the shell's own tokens rather than the wallpaper-lit
+colour the handles use, because a readout of the thing being moved is the one thing
+on screen that must not move with it. Each step writes to `visualizer.json` as it
 happens, and right click, Escape or the keybind ends it.
 
 Every gesture applies the pointer's delta from where it was pressed rather than its
-absolute position, so nothing jumps out from under the cursor. A grip on a padded
-corner could not track it at all, since a corner sits `radius * sqrt(2)` from the
-centre and reading that as the radius grew the shape away from the hand. Sizing a
-turned box needs one more step: the pointer moves in screen space while the box
-grows along its own axes, so the delta is rotated into the box first, or a drag
-would size it sideways. The guides ride the same turn as the look, so a handle is
+absolute position, so nothing jumps out from under the cursor, and the box eases
+toward where the pointer asks instead of snapping to it, so an unsteady hand still
+lands a clean size. Easing keeps running after the release until it arrives, or
+letting go mid-drag would strand the box short. A turn magnetises to every 15
+degrees within a couple of degrees of one, which lands square and diagonal without
+care and leaves everything between free, and it ignores the pointer within a handle
+and a half of the centre, where a pixel of travel is a wild swing.
+
+Sizing a turned box is the subtle one, and `ryoku/ui/lib/place.js` owns the maths
+with `place.test.mjs` beside it. The box turns about its centre, so growing it moves
+that centre, and simply growing width by the drag walks the grabbed corner away from
+the pointer along an axis that has nothing to do with the angle: square on it
+tracked, at a quarter turn it moved half as far diagonally, and at a half turn it
+did not move at all. Instead the delta is read in the box's own axes, the corner
+opposite the grip is held still on screen, and the centre is re-derived from the new
+size, which makes the grip land exactly under the pointer at every angle. The test
+pins that as an invariant. The guides ride the same turn as the look, so a handle is
 always on the corner it appears to be on.
 
 Flip mirrors what is on screen, which is a different thing per family: a look that

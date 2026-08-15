@@ -66,7 +66,8 @@ truth for the live desktop.
   `SpectrumField.qml` with the analytic `shaders/spectrum.frag(.qsb)` pass draws
   every look, `Singletons/VizStyles.qml` is the single catalogue of the eleven
   looks, and `lib/spectrum.js` (with `spectrum.test.mjs` beside it) is the pure
-  band math. Installs to `/usr/lib/qt6/qml/Ryoku/Ui`.
+  band math, `lib/place.js` (with `place.test.mjs`) the turned-box placement math.
+  Installs to `/usr/lib/qt6/qml/Ryoku/Ui`.
 - `cli/` the user-facing control CLI, one Go program (`ryoku`): `update`,
   `rollback`, `snapshots`, `status`, `materialize` (lay the base configs into
   `~/.config`), and `reload`. It orchestrates pacman, yay, and snapper; it does

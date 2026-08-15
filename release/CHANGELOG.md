@@ -11,10 +11,13 @@
   centred one reverses the band order it is symmetric about, and a polar one reverses
   the way it turns. The turn rotates the drawn pass about the box centre rather than
   the geometry, so it costs one transform instead of re-deriving every band, its
-  reflection and its bloom. Sizing a turned box rotates the pointer's delta into the
-  box first, or the drag would size it sideways, and the guides ride the same turn as
-  the look so a handle is on the corner it appears to be on. The wallpaper tone is
-  read from the turned region the look covers rather than from its box
+  reflection and its bloom, and the wallpaper tone is read from the turned region the
+  look covers rather than from its box. Placement gestures ease toward where the
+  pointer asks instead of snapping, and keep easing after the release until they
+  arrive, so an unsteady hand still lands a clean size; a turn magnetises to every 15
+  degrees and ignores the pointer near the centre, where a pixel is a wild swing. The
+  readout is now a bar fixed to the screen edge in the shell's own tokens, since a
+  readout of the thing being moved must not move with it
   (`ryoku/ui/SpectrumField.qml`,
   `ryoku/shell/quickshell/shell/modules/visualizer/Placer.qml`,
   `ryoku/shell/quickshell/shell/modules/visualizer/Singletons/Config.qml`,
@@ -101,6 +104,17 @@
   `.github/workflows/publish-repo.yml`, `installation/tests/container-install.sh`).
 
 ### Fixed
+- **A turned box resized as though it were square on.** The box turns about
+  its centre, so growing it moves that centre: growing width by the drag walked the
+  grabbed corner away from the pointer along an axis unrelated to the angle. Square
+  on it tracked, at a quarter turn it moved half as far and diagonally, and at a half
+  turn it did not move at all. The delta is now read in the box's own axes, the
+  corner opposite the grip is held still and the centre re-derived from the new size,
+  so the grip lands exactly under the pointer at every angle. The maths moved out of
+  the placer into `ryoku/ui/lib/place.js` with `place.test.mjs` beside it, which pins
+  that as an invariant across eleven angles and five drags
+  (`ryoku/ui/lib/place.js`, `ryoku/ui/qmldir`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/Placer.qml`).
 - **The Hub's fastfetch preview draws the emblem where the terminal draws it.**
   The writer hardcoded `padding {top: 5, right: 5}` into every saved config while
   the model carried only `left`, so the terminal dropped the emblem five rows and
