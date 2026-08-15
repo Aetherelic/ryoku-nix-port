@@ -234,7 +234,19 @@ Each surface is its own directory under `quickshell/`, each component its own
 - **launcher** the Super-triggered app launcher and command palette, with a
   zero-query rest card (the solar-arc clock and weather). See `docs/launcher.md`.
 - **switcher** the full-screen Alt-Tab window switcher.
-- **ryoshot** screenshot capture and annotation.
+- **ryoshot** screenshot capture, annotation and pinning. Drag a region, click a
+  window, or press Space to switch the hover target to a whole monitor; the
+  captured region keeps eight grips afterwards, so it can be recropped without
+  starting over. Fourteen tools (select, rectangle, ellipse, line, arrow, pen,
+  highlighter, step, text, blur, redact, spotlight, zoom, copy text) each take a
+  single key, remember their own colour, width and fill across launches, and
+  resize live under the scroll wheel. Redact paints a seeded mosaic drawn from
+  the region's own dominant colours rather than a downscale, so nothing under it
+  can be reconstructed; press its key again for a solid block. Spotlight dims the
+  rest of the shot and magnifies its lens. Copy text runs the region through
+  `ryoku-cmd-ocr`. Ctrl+P pins the finished shot to the desktop as a floating
+  always-on-top card that outlives ryoshot (the `ryopin` surface): drag it, scroll
+  to resize, hover it for edit, copy, path and close. `?` lists every key.
 - **overview** the full-screen workspace expo (Super+Tab), launcher-style: the
   compositor blurs the desktop and a filmstrip shows the current desktop's
   workspaces as scaled mini-desktops with live window previews. Drag windows
