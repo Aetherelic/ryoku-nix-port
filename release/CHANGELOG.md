@@ -3,6 +3,23 @@
 ## Unreleased
 
 ### Added
+- **The ring, orb and spiral are placed by dragging them on the desktop.** They
+  were fixed to the screen centre, and the placement sliders only reached the
+  desktop once the Hub was saved, so they read as stuck. `Super+Alt+M`, or the
+  Hub's Place on the desktop button (which calls the shell's new `visualizer`
+  IPC target), starts placement mode: the shape takes an outline, a crosshair on
+  its origin and a grip on its edge, a drag moves it, the grip or the wheel sizes
+  it, and every step writes `originX`/`originY`/`size` to `visualizer.json` as it
+  happens. Right click, Escape or the keybind ends it. It runs on its own overlay
+  surface, since the spectrum's own is click-through for life
+  (`ryoku/shell/quickshell/shell/modules/visualizer/Placer.qml`,
+  `ryoku/shell/quickshell/shell/services/ShellState.qml`,
+  `ryoku/hyprland/modules/binds.lua`).
+- **A ring folds the spectrum down to the bars its circumference can show.** Sixty
+  four bands around a legible radius left 4px slivers that read as fur; a polar
+  look now averages its bands into what fits at about 14px each, and the default
+  `size` moves from 0.22 to 0.30 with the slider reaching 0.6
+  (`ryoku/ui/SpectrumField.qml`).
 - **The desktop visualiser is rebuilt as one GPU pass with eleven placeable looks,
   a Hub gallery, and a preview you can aim.** Every look draws from one analytic
   fragment shader (`ryoku/ui/shaders/spectrum.frag.qsb`) hosted by `Ryoku.Ui`'s

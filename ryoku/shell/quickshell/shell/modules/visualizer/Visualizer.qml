@@ -21,18 +21,18 @@ Item {
     // still honours the persisted enabled flag; the controller overrides it.
     property string mode: Config.enabled ? "desktop" : "off"
 
+    // Placement: a polar look becomes draggable on the desktop, on its own
+    // surface (Placer), and rides the top layer so it is not buried while aimed.
+    property bool placing: false
+    signal placingDone
+
     readonly property bool active: root.mode !== "off"
-    readonly property bool raised: root.mode === "overlay"
+    readonly property bool placeable: root.placing && root.active && view.polar
+    readonly property bool raised: root.mode === "overlay" || root.placeable
 
-    // Phase 10: the daemon IpcHandler (target "visualizer") that toggled the
-    // persisted Config.enabled is removed; ShellState.visualizerMode (bound to
-    // `mode`) drives visibility and layer now, flipped by the shell's visualizer
-    // and visualizer-overlay shortcuts. Config still seeds the standalone default.
-
-    // cava runs whenever the visualiser is enabled. Gating on "audio playing"
-    // needs a probe (pactl / pw-dump) that is either broken or costs a periodic
-    // graph dump here, while cava itself is ~1% idle and the render already
-    // freezes on silence, so an always-on analyser is cheaper than polling.
+    // cava runs whenever the visualiser is enabled: gating on "audio playing"
+    // needs a probe that is either broken or costs a periodic graph dump, while
+    // cava is ~1% idle and the render already freezes on silence.
     Binding {
         target: Spectrum
         property: "active"
@@ -78,14 +78,29 @@ Item {
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
         // empty input region: every click falls through to windows above, so the
-        // visualiser shares the desktop without ever intercepting it.
+        // visualiser shares the desktop without ever intercepting it. Placement
+        // runs on its own surface (Placer) rather than lifting this one, since a
+        // surface masked click-through does not start taking a pointer again just
+        // because the region is swapped.
         mask: emptyRegion
         Region { id: emptyRegion }
 
         anchors { top: true; left: true; right: true; bottom: true }
 
         VisualizerView {
+            id: view
             anchors.fill: parent
+        }
+    }
+
+    // The placement overlay only exists while a polar look is being aimed.
+    Loader {
+        active: root.placeable
+        sourceComponent: Placer {
+            screen: root.screen
+            shapeRadius: view.shapeRadius
+            guide: view.guide
+            onDone: root.placingDone()
         }
     }
 }

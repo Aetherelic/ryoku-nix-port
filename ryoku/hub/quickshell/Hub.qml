@@ -404,7 +404,7 @@ Rectangle {
         "reflection": 0.1, "idleWave": true, "style": "bars", "shape": "rounded",
         "position": "bottom", "mirror": false, "segments": 10, "fps": 30,
         "adaptive": true, "smoothing": 0.5, "gain": 1.0, "peaks": false,
-        "span": 1.0, "align": "center", "originX": 0.5, "originY": 0.5, "size": 0.22, "spin": 0,
+        "span": 1.0, "align": "center", "originX": 0.5, "originY": 0.5, "size": 0.30, "spin": 0,
         "markText": "力", "markImage": "", "markTint": true, "name": "Ryoku",
         "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig(), "qsbar": {}
     })
@@ -689,7 +689,7 @@ Rectangle {
             property string align: "center"
             property real originX: 0.5
             property real originY: 0.5
-            property real size: 0.22
+            property real size: 0.30
             property real spin: 0
         }
     }

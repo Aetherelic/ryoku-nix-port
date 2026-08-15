@@ -320,6 +320,22 @@ place its centre as a fraction of the surface, `size` sets its radius against th
 shorter edge, and `spin` turns it slowly. A stored `circle` style aliases to
 `orb`, so an old config keeps rendering.
 
+A polar look is placed by hand, not by numbers. `Super+Alt+M`, or the Hub's Place
+on the desktop button, starts placement mode: the shape gets an outline, a
+crosshair on its origin and a grip on its edge, and a drag anywhere moves it while
+the grip (or the wheel) sizes it. Both gestures follow the pointer's delta from
+where it was pressed, so the shape never jumps under the hand, and each step
+writes `originX`, `originY` and `size` straight to `visualizer.json` once the
+gesture settles. Right click, Escape or the keybind ends it. Placement runs on its
+own overlay surface (`Placer.qml`) rather than lifting the spectrum's own: that
+one is click-through for life, and a masked surface does not start taking a
+pointer again just because the region is swapped.
+
+Sizing a ring by dragging a corner cannot track the cursor: a corner sits
+`radius * sqrt(2)` from the centre, so reading that distance as the radius grows
+the shape and slides the handle out from under the hand. The grip rides the
+shape's edge, level with the centre, and sizing reads one axis.
+
 The `curtain` is the one look that reads the rest of the shell: its surface
 honours exclusive zones instead of ignoring them, so it starts where the bar ends
 and hangs from that edge whatever the bar's height, position or reveal state. No

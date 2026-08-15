@@ -109,6 +109,8 @@ ShellRoot {
             Visualizer {
                 screen: perScreen.modelData
                 mode: perScreen.st ? perScreen.st.visualizerMode : "off"
+                placing: perScreen.st ? perScreen.st.visualizerPlacing : false
+                onPlacingDone: if (perScreen.st) perScreen.st.visualizerPlacing = false
             }
 
             // The frame bar (Phase 2): reads its own reveal from this slice.
@@ -232,6 +234,15 @@ ShellRoot {
             const st = ShellState.forActive();
             if (st)
                 st.visualizerMode = st.visualizerMode === "overlay" ? "desktop" : "overlay";
+        }
+    }
+    CustomShortcut {
+        name: "visualizer-place"
+        description: "Grab the audio visualiser's ring or orb and drag it into place"
+        onPressed: {
+            const st = ShellState.forActive();
+            if (st)
+                st.visualizerPlacing = !st.visualizerPlacing;
         }
     }
 
@@ -394,6 +405,22 @@ ShellRoot {
         function bar(mon: string, id: string): void { ShellState.requestSurface(id, mon, undefined); }
         function closeAllMenus(mon: string): void { ShellState.closeSurface("", mon); }
         function sessionConfirm(mon: string, action: string): void { ShellState.askSessionAction(action, mon); }
+    }
+
+    // The Hub's "Place on the desktop" button lands here: a slider cannot let a
+    // user drop a ring where they want it, so the shell hands them the shape.
+    IpcHandler {
+        target: "visualizer"
+        function place(): void {
+            const st = ShellState.forActive();
+            if (st)
+                st.visualizerPlacing = true;
+        }
+        function done(): void {
+            const st = ShellState.forActive();
+            if (st)
+                st.visualizerPlacing = false;
+        }
     }
     // Menu global shortcuts (Phase 10): open a bar menu/surface on the focused
     // monitor via the ShellState bus, replacing the old `ryoku-shell menu <id>`

@@ -52,6 +52,7 @@ hl.bind(K(mod .. " + Tab"),       hl.dsp.global("ryoku:overview")) -- workspace 
 hl.bind(K(mod .. " + ALT + Tab"), hl.dsp.global("ryoku:overview")) -- workspace overview, stepping desktops (Alt+Tab again inside cycles desktops)
 hl.bind(K(mod .. " + M"),         hl.dsp.global("ryoku:visualizer"))        -- toggle the desktop audio visualiser
 hl.bind(K(mod .. " + SHIFT + M"), hl.dsp.global("ryoku:visualizer-overlay")) -- raise the visualiser over windows (flip back to desktop)
+hl.bind(K(mod .. " + ALT + M"),   hl.dsp.global("ryoku:visualizer-place"))   -- grab the ring or orb and drag it where you want it
 hl.bind(K(mod .. " + grave"),     hl.dsp.exec_cmd("ryoku-shell voice"))             -- tap: Voxtype speech-to-text + mic wave (tap again to stop)
 hl.bind(K(mod .. " + comma"),     hl.dsp.exec_cmd("ryoku-shell hub open"))     -- ryoku settings
 hl.bind(K(mod .. " + S"),         hl.dsp.global("ryoku:stash"))         -- Feature sidebar: screen time + downloads (Super+S)

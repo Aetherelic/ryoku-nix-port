@@ -123,6 +123,10 @@ Singleton {
             // Desktop audio visualiser mode: "off" | "desktop" | "overlay".
             property string visualizerMode: "off"
 
+            // Placement mode: the visualiser takes the pointer over a polar
+            // look's own bounds so it can be dragged where the user wants it.
+            property bool visualizerPlacing: false
+
             // A place for the on-screen-display and notification surfaces to
             // signal activity when they migrate (Phase 5).
             property bool osdVisible: false

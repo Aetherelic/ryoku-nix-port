@@ -135,8 +135,8 @@ var rows = [{
         "desc": "How large the shape is drawn",
         "ctl": "slid",
         "src": "viz",
-        "lo": 0.08,
-        "hi": 0.45,
+        "lo": 0.1,
+        "hi": 0.6,
         "unit": "%",
         "pct": true,
         "when": { "style": ["radial", "orb", "spiral"] }
@@ -151,6 +151,15 @@ var rows = [{
         "lo": 0.0,
         "hi": 30.0,
         "unit": "deg/s",
+        "when": { "style": ["radial", "orb", "spiral"] }
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
+        "key": "vizPlace",
+        "label": "Place on the desktop",
+        "desc": "Grab the shape on the desktop and drag it where you want it",
+        "ctl": "action",
+        "actionLabel": "PLACE",
         "when": { "style": ["radial", "orb", "spiral"] }
     },{
         "tab": "Visualizer",

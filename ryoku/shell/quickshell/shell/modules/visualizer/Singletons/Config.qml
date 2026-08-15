@@ -61,6 +61,25 @@ Singleton {
         file.writeAdapter();
     }
 
+    // Placement from the desktop: the properties move with the pointer so the
+    // look follows the drag frame by frame, and the file is written once the
+    // gesture settles rather than on every step of it.
+    function place(x, y) {
+        adapter.originX = Math.max(0, Math.min(1, x));
+        adapter.originY = Math.max(0, Math.min(1, y));
+        settle.restart();
+    }
+    function resize(s) {
+        adapter.size = Math.max(0.1, Math.min(0.6, s));
+        settle.restart();
+    }
+
+    Timer {
+        id: settle
+        interval: 400
+        onTriggered: file.writeAdapter()
+    }
+
     FileView {
         id: file
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/visualizer.json"
@@ -93,7 +112,7 @@ Singleton {
             property string align: "center"
             property real originX: 0.5
             property real originY: 0.5
-            property real size: 0.22
+            property real size: 0.30
             property real spin: 0
         }
     }

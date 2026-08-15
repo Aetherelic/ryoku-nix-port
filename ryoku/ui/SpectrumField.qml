@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "lib/spectrum.js" as SpectrumMath
 
 // The audio spectrum, drawn once for the whole desktop. Every look lives in
 // shaders/spectrum.frag; this turns a band array, a palette and a set of
@@ -56,11 +57,19 @@ Item {
     readonly property real reflectPx: (root.position === "bottom" && !root.polar && !root.centred)
         ? Math.round(root.acrossFull * root.reflection) : 0
 
+    // A ring only has so much circumference: 64 bands around a legible radius
+    // leaves 4px slivers that read as fur rather than bars, so a polar look folds
+    // the spectrum down to what fits (about 14px a band, scaled with the screen)
+    // and averages the rest in.
+    readonly property int drawBands: root.polar
+        ? Math.max(10, Math.min(root.bands, Math.floor(2 * Math.PI * root.r0 / (14 * root.ui))))
+        : root.bands
+
     // The bloom is sized to the shape it wraps, never to the screen: a skirt
     // wider than the gap between two bands dissolves the spectrum into one mass.
-    readonly property real slotPx: root.alongFull / root.bands
+    readonly property real slotPx: root.alongFull / root.drawBands
     readonly property real shapePx: root.polar
-        ? Math.max(2, 2 * Math.PI * root.r0 / root.bands * root.thickness)
+        ? Math.max(3, 2 * Math.PI * root.r0 / root.drawBands * root.thickness)
         : Math.max(2, root.slotPx * root.thickness)
     readonly property real glowPx: Math.max(1.5, Math.min(root.shapePx * 0.9, 12 * root.ui))
         * (0.35 + 0.65 * Math.max(0, Math.min(1, root.glow)))
@@ -69,7 +78,7 @@ Item {
     // The orb is mostly core and a little travel, so it breathes; the ring looks
     // are mostly travel, so their bars have somewhere to go.
     readonly property real radius: Math.max(6, Math.min(root.width, root.height) * root.size)
-    readonly property real r0: root.radius * (root.style === "orb" ? 0.62 : 0.42)
+    readonly property real r0: root.radius * (root.style === "orb" ? 0.62 : 0.38)
     readonly property real rMax: root.radius - root.r0
 
     readonly property real spanPx: Math.max(8, Math.round(root.alongFull * Math.max(0.05, Math.min(1, root.span))))
@@ -113,7 +122,7 @@ Item {
             property real posMode: root.position === "top" ? 1
                 : (root.position === "center" ? 2
                 : (root.position === "left" ? 3 : (root.position === "right" ? 4 : 0)))
-            property real bands: root.bands
+            property real bands: root.drawBands
             property real maxLen: root.maxLen
             property real minLen: Math.max(1.5, 2 * root.ui) * (root.fade > 0.9 ? 1 : root.fade)
             property real thickness: Math.max(0.05, Math.min(1, root.thickness))
@@ -186,14 +195,23 @@ Item {
     }
 
     // Only the matrices the band count reaches are written, so 64 bands cost
-    // four assignments a frame rather than sixty-four.
+    // four assignments a frame rather than sixty-four. A folded ring averages
+    // its groups first, so quiet bands still pull their bar down instead of
+    // being dropped.
     function push() {
-        var n = Math.ceil(root.bands / 16);
+        var lv = root.levels;
+        var pk = root.peaks;
+        if (root.drawBands < root.bands) {
+            lv = SpectrumMath.resample(lv, root.drawBands);
+            if (root.peakCaps)
+                pk = SpectrumMath.resample(pk, root.drawBands);
+        }
+        var n = Math.ceil(root.drawBands / 16);
         for (var i = 0; i < n; i++)
-            fx["lv" + i] = root.chunk(root.levels, i * 16);
+            fx["lv" + i] = root.chunk(lv, i * 16);
         if (root.peakCaps)
             for (var j = 0; j < n; j++)
-                fx["pk" + j] = root.chunk(root.peaks, j * 16);
+                fx["pk" + j] = root.chunk(pk, j * 16);
     }
 
     onLevelsChanged: root.push()

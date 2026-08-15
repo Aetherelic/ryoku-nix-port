@@ -14,6 +14,11 @@ Item {
     readonly property string style: Config.styleId
     readonly property bool polar: field.polar
 
+    // What the placement overlay needs: the shape's radius and a colour lit for
+    // the same wallpaper.
+    readonly property real shapeRadius: field.radius
+    readonly property color guide: root.ramp.length > 0 ? root.ramp[root.ramp.length - 1] : "white"
+
     Motion {
         id: motion
         style: root.style
