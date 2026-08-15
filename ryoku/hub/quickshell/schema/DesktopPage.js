@@ -52,23 +52,13 @@ var rows = [{
     },{
         "tab": "Visualizer",
         "group": "STYLE",
-        "key": "position",
-        "label": "Position",
-        "desc": "Which edge the spectrum rides, or the centre of the screen",
-        "ctl": "seg",
-        "src": "viz",
-        "opts": ["bottom", "top", "center", "left", "right"],
-        "when": { "style": ["bars", "split", "dots", "segments", "wave", "ribbon", "curtain", "line"] }
-    },{
-        "tab": "Visualizer",
-        "group": "STYLE",
         "key": "shape",
         "label": "Shape",
         "desc": "Rounded or flat ends on each band",
         "ctl": "seg",
         "src": "viz",
-        "opts": ["rounded", "flat"],
-        "when": { "style": ["bars", "split", "dots", "segments", "radial", "spiral"] }
+        "opts": ["rounded","flat"],
+        "when": {"style":["bars","split","dots","segments","radial","spiral"]}
     },{
         "tab": "Visualizer",
         "group": "STYLE",
@@ -77,69 +67,7 @@ var rows = [{
         "desc": "Mirror the spectrum around its centre",
         "ctl": "sw",
         "src": "viz",
-        "when": { "style": ["bars", "split", "dots", "segments", "wave", "ribbon", "curtain", "line"] }
-    },{
-        "tab": "Visualizer",
-        "group": "PLACEMENT",
-        "key": "span",
-        "label": "Width",
-        "desc": "How much of the edge the spectrum covers",
-        "ctl": "slid",
-        "src": "viz",
-        "lo": 0.2,
-        "hi": 1.0,
-        "unit": "%",
-        "pct": true,
-        "when": { "style": ["bars", "split", "dots", "segments", "wave", "ribbon", "curtain", "line"] }
-    },{
-        "tab": "Visualizer",
-        "group": "PLACEMENT",
-        "key": "align",
-        "label": "Alignment",
-        "desc": "Where that width sits along the edge",
-        "ctl": "seg",
-        "src": "viz",
-        "opts": ["start", "center", "end"],
-        "when": { "style": ["bars", "split", "dots", "segments", "wave", "ribbon", "curtain", "line"] }
-    },{
-        "tab": "Visualizer",
-        "group": "PLACEMENT",
-        "key": "originX",
-        "label": "Horizontal position",
-        "desc": "Where the shape's centre sits across the screen",
-        "ctl": "slid",
-        "src": "viz",
-        "lo": 0.0,
-        "hi": 1.0,
-        "unit": "%",
-        "pct": true,
-        "when": { "style": ["radial", "orb", "spiral"] }
-    },{
-        "tab": "Visualizer",
-        "group": "PLACEMENT",
-        "key": "originY",
-        "label": "Vertical position",
-        "desc": "Where the shape's centre sits up the screen",
-        "ctl": "slid",
-        "src": "viz",
-        "lo": 0.0,
-        "hi": 1.0,
-        "unit": "%",
-        "pct": true,
-        "when": { "style": ["radial", "orb", "spiral"] }
-    },{
-        "tab": "Visualizer",
-        "group": "PLACEMENT",
-        "key": "size",
-        "label": "Size",
-        "desc": "How large the shape is drawn",
-        "ctl": "slid",
-        "src": "viz",
-        "lo": 0.1,
-        "hi": 0.6,
-        "unit": "%",
-        "pct": true,
-        "when": { "style": ["radial", "orb", "spiral"] }
+        "when": {"style":["bars","split","dots","segments","wave","ribbon","curtain","line"]}
     },{
         "tab": "Visualizer",
         "group": "PLACEMENT",
@@ -148,19 +76,80 @@ var rows = [{
         "desc": "How fast the shape spins",
         "ctl": "slid",
         "src": "viz",
-        "lo": 0.0,
-        "hi": 30.0,
+        "lo": 0,
+        "hi": 30,
         "unit": "deg/s",
-        "when": { "style": ["radial", "orb", "spiral"] }
+        "when": {"style":["radial","orb","spiral"]}
     },{
         "tab": "Visualizer",
         "group": "PLACEMENT",
         "key": "vizPlace",
         "label": "Place on the desktop",
-        "desc": "Grab the shape on the desktop and drag it where you want it",
+        "desc": "Drag it and size it on the desktop",
         "ctl": "action",
-        "actionLabel": "PLACE",
-        "when": { "style": ["radial", "orb", "spiral"] }
+        "actionLabel": "PLACE"
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
+        "key": "grow",
+        "label": "Grows",
+        "desc": "Which edge of its box the bands rise from",
+        "ctl": "seg",
+        "src": "viz",
+        "opts": ["up","down","center","left","right"],
+        "when": {"style":["bars","split","dots","segments","wave","ribbon","curtain","line"]}
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
+        "adv": true,
+        "key": "x",
+        "label": "Left",
+        "desc": "Where its box starts across the screen",
+        "ctl": "slid",
+        "src": "viz",
+        "lo": -0.2,
+        "hi": 1,
+        "unit": "%",
+        "pct": true
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
+        "adv": true,
+        "key": "y",
+        "label": "Top",
+        "desc": "Where its box starts down the screen",
+        "ctl": "slid",
+        "src": "viz",
+        "lo": -0.2,
+        "hi": 1,
+        "unit": "%",
+        "pct": true
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
+        "adv": true,
+        "key": "w",
+        "label": "Width",
+        "desc": "How wide its box is",
+        "ctl": "slid",
+        "src": "viz",
+        "lo": 0.05,
+        "hi": 1.2,
+        "unit": "%",
+        "pct": true
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
+        "adv": true,
+        "key": "h",
+        "label": "Height",
+        "desc": "How tall its box is",
+        "ctl": "slid",
+        "src": "viz",
+        "lo": 0.03,
+        "hi": 1.2,
+        "unit": "%",
+        "pct": true
     },{
         "tab": "Visualizer",
         "group": "SPECTRUM",
@@ -170,8 +159,8 @@ var rows = [{
         "desc": "How many bars the spectrum is cut into",
         "ctl": "step",
         "src": "viz",
-        "lo": 16.0,
-        "hi": 128.0
+        "lo": 16,
+        "hi": 128
     },{
         "tab": "Visualizer",
         "group": "SPECTRUM",
@@ -181,22 +170,9 @@ var rows = [{
         "desc": "How many segments a bar is cut into",
         "ctl": "step",
         "src": "viz",
-        "lo": 3.0,
-        "hi": 24.0,
-        "when": { "style": ["segments"] }
-    },{
-        "tab": "Visualizer",
-        "group": "SPECTRUM",
-        "adv": true,
-        "key": "height",
-        "label": "Height",
-        "desc": "How tall the spectrum stands",
-        "ctl": "slid",
-        "src": "viz",
-        "lo": 0.1,
-        "hi": 0.6,
-        "unit": "%",
-        "pct": true
+        "lo": 3,
+        "hi": 24,
+        "when": {"style":["segments"]}
     },{
         "tab": "Visualizer",
         "group": "SPECTRUM",
@@ -207,10 +183,10 @@ var rows = [{
         "ctl": "slid",
         "src": "viz",
         "lo": 0.2,
-        "hi": 1.0,
+        "hi": 1,
         "unit": "%",
         "pct": true,
-        "when": { "style": ["bars", "split", "dots", "segments", "radial", "spiral"] }
+        "when": {"style":["bars","split","dots","segments","radial","spiral"]}
     },{
         "tab": "Visualizer",
         "group": "SPECTRUM",
@@ -221,7 +197,7 @@ var rows = [{
         "ctl": "slid",
         "src": "viz",
         "lo": 0.5,
-        "hi": 2.0,
+        "hi": 2,
         "unit": "%",
         "pct": true
     },{
@@ -233,7 +209,7 @@ var rows = [{
         "desc": "Hold a mark at each bar's peak",
         "ctl": "sw",
         "src": "viz",
-        "when": { "style": ["bars", "segments"] }
+        "when": {"style":["bars","segments"]}
     },{
         "tab": "Visualizer",
         "group": "SPECTRUM",
@@ -243,11 +219,11 @@ var rows = [{
         "desc": "How much of the spectrum mirrors below it",
         "ctl": "slid",
         "src": "viz",
-        "lo": 0.0,
+        "lo": 0,
         "hi": 0.3,
         "unit": "%",
         "pct": true,
-        "when": { "style": ["bars", "split", "dots", "segments", "wave", "ribbon", "curtain", "line"], "position": ["bottom"] }
+        "when": {"style":["bars","split","dots","segments","wave","ribbon","curtain","line"],"grow":["up"]}
     },{
         "tab": "Visualizer",
         "group": "SPECTRUM",
@@ -257,8 +233,8 @@ var rows = [{
         "desc": "How much the spectrum glows",
         "ctl": "slid",
         "src": "viz",
-        "lo": 0.0,
-        "hi": 1.0,
+        "lo": 0,
+        "hi": 1,
         "unit": "%",
         "pct": true
     },{
@@ -270,8 +246,8 @@ var rows = [{
         "desc": "How much motion is smoothed between frames",
         "ctl": "slid",
         "src": "viz",
-        "lo": 0.0,
-        "hi": 1.0,
+        "lo": 0,
+        "hi": 1,
         "unit": "%",
         "pct": true
     },{
@@ -283,7 +259,7 @@ var rows = [{
         "desc": "How often the spectrum redraws",
         "ctl": "seg",
         "src": "viz",
-        "opts": ["30", "45", "60"]
+        "opts": ["30","45","60"]
     },{
         "tab": "Visualizer",
         "group": "MOTION",

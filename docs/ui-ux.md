@@ -282,11 +282,11 @@ Each surface is its own directory under `quickshell/`, each component its own
 ## The desktop spectrum
 
 The spectrum is a wallpaper surface, not a widget. It draws on a click-through
-layer-shell field, one per monitor, that sits on `WlrLayer.Bottom` under
-everything (or `WlrLayer.Top` for the overlay mode that floats it over windows),
-and it never takes input, so the desktop behind it stays live. It reads the
-audio level bands the shell already computes and paints them; nothing about it
-competes with app content.
+layer-shell field, one per monitor, that sits on `WlrLayer.Bottom` under everything
+(or `WlrLayer.Top` for the overlay mode that floats it over windows), and it never
+takes input, so the desktop behind it stays live. Placement mode is the exception,
+and it runs on a surface of its own. It reads the audio level bands the shell
+already computes and paints them; nothing about it competes with app content.
 
 Every look is one analytic GPU pass. The bands, the palette and the geometry go
 in as uniforms and `ryoku/ui/shaders/spectrum.frag` returns the whole shape in a
@@ -296,7 +296,8 @@ through the same `Ryoku.Ui.SpectrumField`, so the preview is the exact geometry
 the wallpaper draws and the two cannot drift; only the ramp differs, since app
 content carries no accent.
 
-There are eleven looks, eight that anchor to an edge and three that are polar:
+There are eleven looks, eight that grow from an edge of their box and three that
+are polar:
 
 |Look|Kind|What it is|
 |---|---|---|
@@ -312,29 +313,33 @@ There are eleven looks, eight that anchor to an edge and three that are polar:
 |`orb`|polar|a glass sphere: a barely-there body, a wobbling lit rim and ripples inside|
 |`spiral`|polar|bands laid along an Archimedean spiral over one and a half turns|
 
-Placement follows the family. An edge look anchors to `position` (bottom, top,
-center, left or right), covers the fraction of that edge set by `span`, and sits
-inside that span by `align` (start, center or end), so a look can ride any edge
-and need not fill it. A polar look ignores the edge: `originX` and `originY`
-place its centre as a fraction of the surface, `size` sets its radius against the
-shorter edge, and `spin` turns it slowly. A stored `circle` style aliases to
-`orb`, so an old config keeps rendering.
+Every look lives in a box, and the box goes anywhere. `x` and `y` place its top
+left corner as fractions of the screen, `w` and `h` size it, and `grow` says which
+of its edges the bands rise from (up, down, center, left or right). A polar look
+centres in the box and takes its radius from the shorter side, so a square box
+shows the whole ring; `spin` turns it slowly. That one rectangle replaced an
+anchored set of `position`, `span`, `align`, `height`, `originX`, `originY` and
+`size`: a look was pinned to a screen edge and could not simply sit where its
+owner wanted it. A config written before the box folds into one on first read, and
+a stored `circle` style aliases to `orb`, so nothing moves or blanks on update.
 
-A polar look is placed by hand, not by numbers. `Super+Alt+M`, or the Hub's Place
-on the desktop button, starts placement mode: the shape gets an outline, a
-crosshair on its origin and a grip on its edge, and a drag anywhere moves it while
-the grip (or the wheel) sizes it. Both gestures follow the pointer's delta from
-where it was pressed, so the shape never jumps under the hand, and each step
-writes `originX`, `originY` and `size` straight to `visualizer.json` once the
-gesture settles. Right click, Escape or the keybind ends it. Placement runs on its
-own overlay surface (`Placer.qml`) rather than lifting the spectrum's own: that
-one is click-through for life, and a masked surface does not start taking a
-pointer again just because the region is swapped.
+The box is placed by hand rather than by numbers. `Super+Alt+M`, the Move
+visualiser row in the desktop's right-click menu, or the Hub's Place on the desktop
+button starts placement mode: the box takes an outline and a grip on its corner, a
+drag moves it, the grip or the wheel sizes it, and each step writes to
+`visualizer.json` as it happens. Right click, Escape or the keybind ends it. Both
+gestures apply the pointer's delta from where it was pressed rather than its
+absolute position, so nothing jumps out from under the cursor; a grip on a padded
+corner could not track it at all, since a corner sits `radius * sqrt(2)` from the
+centre and reading that as the radius grew the shape away from the hand.
 
-Sizing a ring by dragging a corner cannot track the cursor: a corner sits
-`radius * sqrt(2)` from the centre, so reading that distance as the radius grows
-the shape and slides the handle out from under the hand. The grip rides the
-shape's edge, level with the centre, and sizing reads one axis.
+Placement runs on its own overlay surface (`Placer.qml`) rather than lifting the
+spectrum's own, which is click-through for life: a masked surface does not start
+taking a pointer again just because the region is swapped. While a box is being
+aimed the spectrum rides the top layer so a window cannot hide what is being
+placed, and aiming one that is off turns it on first, since aiming nothing places
+nothing. Ending placement hands the layer back to the mode, so it drops behind
+windows again unless the overlay mode was the thing the user chose.
 
 The `curtain` is the one look that reads the rest of the shell: its surface
 honours exclusive zones instead of ignoring them, so it starts where the bar ends

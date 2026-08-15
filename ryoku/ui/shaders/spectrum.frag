@@ -46,6 +46,7 @@ layout(std140, binding = 0) uniform buf {
     float glowAmt;
     float glowPx;
     float reflectPx;
+    float pad;       // bloom room around the box, px
     float peakOn;
     float r0;
     float rMax;
@@ -149,28 +150,33 @@ void main() {
     float along;
     float across;
     float axisLen;
+    // The pass is the look's box plus `pad` on every side for the bloom to fall
+    // off in, so the geometry works in box-local pixels.
+    vec2 cpx = px - vec2(pad);
+    float cw = max(1.0, res.x - 2.0 * pad);
+    float ch = max(1.0, res.y - 2.0 * pad);
     if (pm == 3) {
-        along = qt_TexCoord0.y;
-        across = px.x;
-        axisLen = res.y;
+        along = cpx.y / ch;
+        across = cpx.x;
+        axisLen = ch;
     } else if (pm == 4) {
-        along = qt_TexCoord0.y;
-        across = res.x - px.x;
-        axisLen = res.y;
+        along = cpx.y / ch;
+        across = cw - cpx.x;
+        axisLen = ch;
     } else if (pm == 1) {
-        along = qt_TexCoord0.x;
-        across = px.y;
-        axisLen = res.x;
+        along = cpx.x / cw;
+        across = cpx.y;
+        axisLen = cw;
     } else {
-        along = qt_TexCoord0.x;
-        across = res.y - reflectPx - px.y;
-        axisLen = res.x;
+        along = cpx.x / cw;
+        across = ch - reflectPx - cpx.y;
+        axisLen = cw;
     }
 
     bool polar = st >= 8;
     bool centred = (pm == 2 && st != 6) || st == 1;
     float signedAcross = polar ? 0.0
-        : ((pm == 3 || pm == 4) ? px.x - res.x * 0.5 : res.y * 0.5 - px.y);
+        : ((pm == 3 || pm == 4) ? cpx.x - cw * 0.5 : ch * 0.5 - cpx.y);
     if (pm == 4) signedAcross = -signedAcross;
     if (centred) across = abs(signedAcross);
 

@@ -400,11 +400,11 @@ Rectangle {
         "fontFamily": "Space Grotesk", "fontScale": 1.3,
         "frameBars": FrameBars.defaultConfig(),
         "weatherLocation": "", "weatherUnit": "auto", "formatLocale": "",
-        "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58, "bloom": 0.6,
+        "enabled": true, "bars": 64, "thickness": 0.58, "bloom": 0.6,
         "reflection": 0.1, "idleWave": true, "style": "bars", "shape": "rounded",
-        "position": "bottom", "mirror": false, "segments": 10, "fps": 30,
+        "mirror": false, "segments": 10, "fps": 30,
         "adaptive": true, "smoothing": 0.5, "gain": 1.0, "peaks": false,
-        "span": 1.0, "align": "center", "originX": 0.5, "originY": 0.5, "size": 0.30, "spin": 0,
+        "spin": 0, "x": 0, "y": 0.58, "w": 1, "h": 0.42, "grow": "up",
         "markText": "力", "markImage": "", "markTint": true, "name": "Ryoku",
         "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig(), "qsbar": {}
     })
@@ -670,14 +670,12 @@ Rectangle {
             id: vizA
             property bool enabled: true
             property real bars: 64
-            property real height: 0.42
             property real thickness: 0.58
             property real bloom: 0.6
             property real reflection: 0.1
             property bool idleWave: true
             property string style: "bars"
             property string shape: "rounded"
-            property string position: "bottom"
             property bool mirror: false
             property real segments: 10
             property real fps: 30
@@ -685,12 +683,12 @@ Rectangle {
             property real smoothing: 0.5
             property real gain: 1.0
             property bool peaks: false
-            property real span: 1.0
-            property string align: "center"
-            property real originX: 0.5
-            property real originY: 0.5
-            property real size: 0.30
             property real spin: 0
+            property real x: 0
+            property real y: 0.58
+            property real w: 1
+            property real h: 0.42
+            property string grow: "up"
         }
     }
     FileView {

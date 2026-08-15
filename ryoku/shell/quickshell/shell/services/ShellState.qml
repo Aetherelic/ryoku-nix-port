@@ -107,6 +107,7 @@ Singleton {
         model: root.screens
 
         PersistentProperties {
+            id: slice
             required property var modelData
 
             // Surface toggles, one per today's IpcHandler target so each keybind
@@ -123,9 +124,17 @@ Singleton {
             // Desktop audio visualiser mode: "off" | "desktop" | "overlay".
             property string visualizerMode: "off"
 
-            // Placement mode: the visualiser takes the pointer over a polar
-            // look's own bounds so it can be dragged where the user wants it.
+            // Placement mode: the look takes the pointer over its own box so it
+            // can be dragged and sized where the user wants it. Aiming a hidden
+            // spectrum would be aiming nothing, so entering placement shows it;
+            // leaving placement lets `visualizerMode` decide the layer again, so
+            // it drops back behind windows unless the user chose the overlay.
             property bool visualizerPlacing: false
+            function placeVisualizer(on) {
+                if (on && slice.visualizerMode === "off")
+                    slice.visualizerMode = "desktop";
+                slice.visualizerPlacing = on;
+            }
 
             // A place for the on-screen-display and notification surfaces to
             // signal activity when they migrate (Phase 5).

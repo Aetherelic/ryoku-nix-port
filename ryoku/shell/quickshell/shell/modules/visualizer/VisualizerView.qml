@@ -14,9 +14,9 @@ Item {
     readonly property string style: Config.styleId
     readonly property bool polar: field.polar
 
-    // What the placement overlay needs: the shape's radius and a colour lit for
-    // the same wallpaper.
-    readonly property real shapeRadius: field.radius
+    // What the placement overlay needs: the look's box, and a colour lit for the
+    // same wallpaper.
+    readonly property rect boxRect: field.boxRect
     readonly property color guide: root.ramp.length > 0 ? root.ramp[root.ramp.length - 1] : "white"
 
     Motion {
@@ -38,19 +38,16 @@ Item {
 
     readonly property var ramp: {
         var out = [];
-        var vertical = root.position === "left" || root.position === "right";
         for (var i = 0; i < 8; i++) {
             var t = i / 7;
             // A polar look reads one tone: its stops sweep a ring, not the picture.
             var l = root.polar ? root.fieldLstar
-                : (vertical ? Scheme.lstarAt(root.nx, root.ny + t * root.nh * 0.875, root.nw, root.nh / 8)
-                            : Scheme.lstarAt(root.nx + t * root.nw * 0.875, root.ny, root.nw / 8, root.nh));
+                : (field.vertical ? Scheme.lstarAt(root.nx, root.ny + t * root.nh * 0.875, root.nw, root.nh / 8)
+                                  : Scheme.lstarAt(root.nx + t * root.nw * 0.875, root.ny, root.nw / 8, root.nh));
             out.push(Scheme.colorAt(t, l, root.fieldSide));
         }
         return out;
     }
-
-    readonly property string position: Config.position
 
     SpectrumField {
         id: field
@@ -63,21 +60,19 @@ Item {
         ramp: root.ramp
 
         style: root.style
-        position: root.position
         shape: Config.shape
         thickness: Config.thickness
-        lengthFrac: Config.height
-        span: Config.span
-        align: Config.align
         reflection: Config.reflection
         segments: Config.segments
         // Peak caps are a bar reading: on a curve or a ring they float free of
         // anything, so they are simply not offered there.
         peakCaps: Config.peaks && (root.style === "bars" || root.style === "segments")
         glow: Config.bloom
-        originX: Config.originX
-        originY: Config.originY
-        size: Config.size
+        boxX: Config.x
+        boxY: Config.y
+        boxW: Config.w
+        boxH: Config.h
+        grow: Config.grow
         spin: motion.spinDeg
     }
 }

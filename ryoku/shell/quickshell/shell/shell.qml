@@ -110,7 +110,7 @@ ShellRoot {
                 screen: perScreen.modelData
                 mode: perScreen.st ? perScreen.st.visualizerMode : "off"
                 placing: perScreen.st ? perScreen.st.visualizerPlacing : false
-                onPlacingDone: if (perScreen.st) perScreen.st.visualizerPlacing = false
+                onPlacingDone: if (perScreen.st) perScreen.st.placeVisualizer(false)
             }
 
             // The frame bar (Phase 2): reads its own reveal from this slice.
@@ -242,7 +242,7 @@ ShellRoot {
         onPressed: {
             const st = ShellState.forActive();
             if (st)
-                st.visualizerPlacing = !st.visualizerPlacing;
+                st.placeVisualizer(!st.visualizerPlacing);
         }
     }
 
@@ -414,12 +414,12 @@ ShellRoot {
         function place(): void {
             const st = ShellState.forActive();
             if (st)
-                st.visualizerPlacing = true;
+                st.placeVisualizer(true);
         }
         function done(): void {
             const st = ShellState.forActive();
             if (st)
-                st.visualizerPlacing = false;
+                st.placeVisualizer(false);
         }
     }
     // Menu global shortcuts (Phase 10): open a bar menu/surface on the focused

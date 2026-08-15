@@ -23,38 +23,45 @@ Item {
     property var ramp: []
 
     property string style: "bars"
-    property string position: "bottom"   // bottom | top | center | left | right
     property string shape: "rounded"
     property real thickness: 0.58        // band width, fraction of its slot
-    property real lengthFrac: 0.42       // longest band, fraction of the surface
-    property real span: 1                // fraction of the edge covered
-    property string align: "center"      // start | center | end
     property real reflection: 0
     property int segments: 10
     property bool peakCaps: false
     property real glow: 0.6
-
-    property real originX: 0.5           // polar centre, fraction of the surface
-    property real originY: 0.5
-    property real size: 0.22             // polar radius, fraction of the short edge
     property real spin: 0                // degrees, integrated by the caller
+
+    // The box the look lives in, as fractions of this surface: move it and size
+    // it anywhere. Bands grow from the box edge named by `grow`; a polar look
+    // centres in the box and takes its radius from the shorter side.
+    property real boxX: 0
+    property real boxY: 0.58
+    property real boxW: 1
+    property real boxH: 0.42
+    property string grow: "up"           // up | down | center | left | right
 
     readonly property var styles: ["bars", "split", "dots", "segments", "wave",
                                    "ribbon", "curtain", "line", "radial", "orb", "spiral"]
     // An unknown look falls back to bars rather than painting nothing.
     readonly property int styleIndex: Math.max(0, root.styles.indexOf(root.style))
     readonly property bool polar: root.styleIndex >= 8
-    readonly property bool vertical: root.position === "left" || root.position === "right"
-    readonly property bool centred: (root.position === "center" && root.style !== "curtain")
+    readonly property bool vertical: root.grow === "left" || root.grow === "right"
+    readonly property bool centred: (root.grow === "center" && root.style !== "curtain")
         || root.style === "split"
 
     readonly property int bands: Math.max(1, Math.min(128, root.levels ? root.levels.length : 0))
     readonly property real ui: Math.max(0.75, Math.min(2.5, Math.min(width, height) / 900))
 
-    readonly property real acrossFull: root.vertical ? root.width : root.height
-    readonly property real alongFull: root.vertical ? root.height : root.width
-    readonly property real maxLen: Math.max(2, Math.round(root.acrossFull * root.lengthFrac))
-    readonly property real reflectPx: (root.position === "bottom" && !root.polar && !root.centred)
+    // the box in px, clamped so a dragged look always keeps a usable size
+    readonly property real bw: Math.max(24, root.boxW * root.width)
+    readonly property real bh: Math.max(24, root.boxH * root.height)
+    readonly property real bx: root.boxX * root.width
+    readonly property real by: root.boxY * root.height
+
+    readonly property real acrossFull: root.vertical ? root.bw : root.bh
+    readonly property real alongFull: root.vertical ? root.bh : root.bw
+    readonly property real maxLen: Math.max(2, Math.round(root.acrossFull - root.reflectPx))
+    readonly property real reflectPx: (root.grow === "up" && !root.polar && !root.centred)
         ? Math.round(root.acrossFull * root.reflection) : 0
 
     // A ring only has so much circumference: 64 bands around a legible radius
@@ -75,41 +82,25 @@ Item {
         * (0.35 + 0.65 * Math.max(0, Math.min(1, root.glow)))
     readonly property real margin: Math.ceil(root.glow > 0 ? root.glowPx * 3.5 + 2 : 2 * root.ui)
 
-    // The orb is mostly core and a little travel, so it breathes; the ring looks
-    // are mostly travel, so their bars have somewhere to go.
-    readonly property real radius: Math.max(6, Math.min(root.width, root.height) * root.size)
+    // A polar look centres in the box and takes its radius from the shorter side,
+    // so a square box shows the whole shape. The orb is mostly core and a little
+    // travel, so it breathes; the rings are mostly travel.
+    readonly property real radius: Math.max(6, Math.min(root.bw, root.bh) / 2)
     readonly property real r0: root.radius * (root.style === "orb" ? 0.62 : 0.38)
     readonly property real rMax: root.radius - root.r0
 
-    readonly property real spanPx: Math.max(8, Math.round(root.alongFull * Math.max(0.05, Math.min(1, root.span))))
-    readonly property real spanOff: root.align === "start" ? 0
-        : (root.align === "end" ? root.alongFull - root.spanPx : (root.alongFull - root.spanPx) / 2)
-    readonly property real depth: root.centred ? root.maxLen + 2 * root.margin
-                                              : root.maxLen + root.reflectPx + root.margin
-
-    // Where the look lands, so a host can light its palette against the picture
-    // under exactly that region.
+    // Where the look lands: the box, plus room for the bloom to fall off.
     readonly property rect passRect: Qt.rect(pass.x, pass.y, pass.width, pass.height)
+    // The box itself, for a host drawing placement guides.
+    readonly property rect boxRect: Qt.rect(root.bx, root.by, root.bw, root.bh)
 
     Item {
         id: pass
 
-        x: {
-            if (root.polar) return root.originX * root.width - root.radius - root.margin;
-            if (root.position === "left") return 0;
-            if (root.position === "right") return root.width - root.depth;
-            if (root.vertical) return 0;
-            return root.spanOff;
-        }
-        y: {
-            if (root.polar) return root.originY * root.height - root.radius - root.margin;
-            if (root.vertical) return root.spanOff;
-            if (root.position === "top") return 0;
-            if (root.centred) return (root.height - root.depth) / 2;
-            return root.height - root.depth;
-        }
-        width: root.polar ? 2 * (root.radius + root.margin) : (root.vertical ? root.depth : root.spanPx)
-        height: root.polar ? 2 * (root.radius + root.margin) : (root.vertical ? root.spanPx : root.depth)
+        x: root.bx - root.margin
+        y: root.by - root.margin
+        width: root.bw + 2 * root.margin
+        height: root.bh + 2 * root.margin
 
         ShaderEffect {
             id: fx
@@ -119,9 +110,10 @@ Item {
             fragmentShader: Qt.resolvedUrl("shaders/spectrum.frag.qsb")
 
             property real style: root.styleIndex
-            property real posMode: root.position === "top" ? 1
-                : (root.position === "center" ? 2
-                : (root.position === "left" ? 3 : (root.position === "right" ? 4 : 0)))
+            property real posMode: root.grow === "down" ? 1
+                : (root.grow === "center" ? 2
+                : (root.grow === "left" ? 3 : (root.grow === "right" ? 4 : 0)))
+            property real pad: root.margin
             property real bands: root.drawBands
             property real maxLen: root.maxLen
             property real minLen: Math.max(1.5, 2 * root.ui) * (root.fade > 0.9 ? 1 : root.fade)
@@ -143,8 +135,8 @@ Item {
             property real fade: Math.max(0, Math.min(1, root.fade))
             property real aa: 0.85
             property vector2d res: Qt.vector2d(width, height)
-            property vector2d origin: Qt.vector2d(root.originX * root.width - pass.x,
-                                                  root.originY * root.height - pass.y)
+            property vector2d origin: Qt.vector2d(root.margin + root.bw / 2,
+                                                  root.margin + root.bh / 2)
 
             property vector4d c0: root.stop(0)
             property vector4d c1: root.stop(1)

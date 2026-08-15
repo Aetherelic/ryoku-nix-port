@@ -34,7 +34,10 @@
   distance as the radius grew the shape away from the hand in every direction.
   Placement runs on its own overlay surface, since the spectrum's own is
   click-through for life and a masked surface does not take a pointer again when
-  its region is swapped
+  its region is swapped. While a box is aimed the spectrum rides the top layer so
+  no window hides it, aiming one that is off turns it on first, and ending
+  placement hands the layer back to the mode, so it drops behind windows again
+  unless the overlay mode is what the user chose
   (`ryoku/shell/quickshell/shell/modules/visualizer/Placer.qml`,
   `ryoku/shell/quickshell/shell/modules/visualizer/Singletons/Config.qml`,
   `ryoku/shell/quickshell/shell/modules/desktop/WidgetMenu.qml`,

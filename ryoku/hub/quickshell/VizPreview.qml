@@ -39,22 +39,21 @@ Item {
         if (s === "circle") s = "orb";
         return field.styles.indexOf(s) >= 0 ? s : "bars";
     }
-    readonly property string vPosition: root.pick("position", "bottom")
+    readonly property string vGrow: root.pick("grow", "up")
     readonly property string vShape: root.pick("shape", "rounded")
-    readonly property string vAlign: root.pick("align", "center")
     readonly property bool vMirror: root.pick("mirror", false)
     readonly property bool vPeakCaps: root.pick("peaks", false)
     readonly property int vBars: Math.max(2, Math.min(128, Math.round(root.pick("bars", 64))))
     readonly property int vSeg: Math.max(3, Math.min(24, Math.round(root.pick("segments", 10))))
     readonly property real vThick: Math.max(0.1, Math.min(1, root.pick("thickness", 0.58)))
-    readonly property real vHeight: Math.max(0.05, Math.min(0.95, root.pick("height", 0.42)))
-    readonly property real vSpan: Math.max(0.05, Math.min(1, root.pick("span", 1.0)))
     readonly property real vReflection: Math.max(0, Math.min(1, root.pick("reflection", 0.1)))
     readonly property real vBloom: Math.max(0, Math.min(1, root.pick("bloom", 0.6)))
-    readonly property real vOriginX: Math.max(0, Math.min(1, root.pick("originX", 0.5)))
-    readonly property real vOriginY: Math.max(0, Math.min(1, root.pick("originY", 0.5)))
-    readonly property real vSize: Math.max(0.02, Math.min(1, root.pick("size", 0.22)))
     readonly property real vSpin: root.pick("spin", 0)
+    // the look's box, the one geometry it has
+    readonly property real vX: root.pick("x", 0)
+    readonly property real vY: root.pick("y", 0.58)
+    readonly property real vW: root.pick("w", 1)
+    readonly property real vH: root.pick("h", 0.42)
 
     // ── synthetic motion ────────────────────────────────────────────────────
     // no audio in the hub, so a travelling wave stands in for cava. one phase,
@@ -186,19 +185,17 @@ Item {
             anchors.fill: parent
             visible: root.vEnabled
             style: root.vStyle
-            position: root.vPosition
+            grow: root.vGrow
             shape: root.vShape
             thickness: root.vThick
-            lengthFrac: root.vHeight
-            span: root.vSpan
-            align: root.vAlign
             reflection: root.vReflection
             glow: root.vBloom
             segments: root.vSeg
             peakCaps: root.vPeakCaps
-            originX: root.vOriginX
-            originY: root.vOriginY
-            size: root.vSize
+            boxX: root.vX
+            boxY: root.vY
+            boxW: root.vW
+            boxH: root.vH
             spin: root.vSpin
             energy: root.vEnergy
             fade: 1
@@ -209,18 +206,18 @@ Item {
 
         // a calm ring marking the polar origin the drag moves.
         Rectangle {
-            visible: root.vEnabled && field.polar
+            visible: root.vEnabled
             width: Tokens.s4; height: width; radius: width / 2
             color: "transparent"
             border.width: Tokens.border
             border.color: Tokens.lineStrong
-            x: field.originX * stage.width - width / 2
-            y: field.originY * stage.height - height / 2
+            x: (root.vX + root.vW / 2) * stage.width - width / 2
+            y: (root.vY + root.vH / 2) * stage.height - height / 2
         }
 
         // a monospace hint, shown only while a polar look can be aimed.
         Text {
-            visible: root.vEnabled && field.polar
+            visible: root.vEnabled
             anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: Tokens.s2 }
             text: "DRAG TO PLACE"
             color: Tokens.inkFaint
@@ -235,15 +232,15 @@ Item {
         // preventStealing keeps the drag from scrolling the settings page.
         MouseArea {
             anchors.fill: parent
-            enabled: root.vEnabled && field.polar
+            enabled: root.vEnabled
             preventStealing: true
             onPressed: (m) => place(m.x, m.y)
             onPositionChanged: (m) => place(m.x, m.y)
             function place(x, y) {
                 if (!root.hub || !root.hub.edit)
                     return;
-                root.hub.edit("originX", Math.max(0, Math.min(1, x / width)));
-                root.hub.edit("originY", Math.max(0, Math.min(1, y / height)));
+                root.hub.edit("x", Math.max(-0.2, Math.min(1, x / width - root.vW / 2)));
+                root.hub.edit("y", Math.max(-0.2, Math.min(1, y / height - root.vH / 2)));
             }
         }
     }

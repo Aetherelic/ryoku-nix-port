@@ -17,26 +17,25 @@ Singleton {
 
     property alias enabled:    adapter.enabled     // master on/off (also Super+M)
     property alias bars:       adapter.bars        // cava band count
-    property alias height:     adapter.height      // tallest bar, fraction of screen height
     property alias thickness:  adapter.thickness   // bar width, fraction of its slot
     property alias bloom:      adapter.bloom       // glow behind bars while playing
-    property alias reflection: adapter.reflection  // mirrored band height, fraction of screen (0 = off)
+    property alias reflection: adapter.reflection  // mirrored band height, fraction of the box
     property alias idleWave:   adapter.idleWave    // breathing line while silent
-    property alias style:      adapter.style       // bars | split | dots | segments | wave | ribbon | line | radial | orb | spiral
+    property alias style:      adapter.style       // see knownStyles
     property alias shape:      adapter.shape       // rounded | flat (bar/dot cap)
-    property alias position:   adapter.position    // bottom | top | center | left | right
     property alias mirror:     adapter.mirror      // symmetric low->high->low band order
     property alias segments:   adapter.segments    // lit blocks per band in the segments style
-
-    // where the look sits. an edge look covers `span` of its edge, aligned by
-    // `align`; a polar look is centred on origin and sized by `size`, which is
-    // what makes the ring and the orb placeable at all.
-    property alias span:       adapter.span        // fraction of the edge covered
-    property alias align:      adapter.align       // start | center | end
-    property alias originX:    adapter.originX     // polar centre, fraction of the screen
-    property alias originY:    adapter.originY
-    property alias size:       adapter.size        // polar radius, fraction of the short edge
     property alias spin:       adapter.spin        // polar rotation, degrees a second
+
+    // The box the look lives in, as fractions of the screen, and which of its
+    // edges the bands grow from. One free rectangle replaced the old anchored
+    // position/span/align/height/originX/originY/size set: a look can sit
+    // anywhere, and it is dragged and sized on the desktop rather than typed in.
+    property alias x:          adapter.x
+    property alias y:          adapter.y
+    property alias w:          adapter.w
+    property alias h:          adapter.h
+    property alias grow:       adapter.grow        // up | down | center | left | right
 
     // motion + budget. fps is the render ceiling (cava is fed at the same rate);
     // adaptive sheds effects and rate under sustained load, never the spectrum.
@@ -64,13 +63,14 @@ Singleton {
     // Placement from the desktop: the properties move with the pointer so the
     // look follows the drag frame by frame, and the file is written once the
     // gesture settles rather than on every step of it.
-    function place(x, y) {
-        adapter.originX = Math.max(0, Math.min(1, x));
-        adapter.originY = Math.max(0, Math.min(1, y));
+    function moveBox(nx, ny) {
+        adapter.x = Math.max(-0.25, Math.min(1.25 - adapter.w, nx));
+        adapter.y = Math.max(-0.25, Math.min(1.25 - adapter.h, ny));
         settle.restart();
     }
-    function resize(s) {
-        adapter.size = Math.max(0.1, Math.min(0.6, s));
+    function sizeBox(nw, nh) {
+        adapter.w = Math.max(0.04, Math.min(1.5, nw));
+        adapter.h = Math.max(0.03, Math.min(1.5, nh));
         settle.restart();
     }
 
@@ -93,14 +93,12 @@ Singleton {
             id: adapter
             property bool enabled: true
             property int bars: 64
-            property real height: 0.42
             property real thickness: 0.58
             property real bloom: 0.6
             property real reflection: 0.1
             property bool idleWave: true
             property string style: "bars"
             property string shape: "rounded"
-            property string position: "bottom"
             property bool mirror: false
             property int segments: 10
             property int fps: 30
@@ -108,13 +106,54 @@ Singleton {
             property real smoothing: 0.5
             property real gain: 1.0
             property bool peaks: false
-            property real span: 1.0
-            property string align: "center"
-            property real originX: 0.5
-            property real originY: 0.5
-            property real size: 0.30
             property real spin: 0
+            property real x: 0
+            property real y: 0.58
+            property real w: 1
+            property real h: 0.42
+            property string grow: "up"
         }
+    }
+
+    // A config written before the box existed carries an anchored position,
+    // height, span and origin instead; fold those into the box once so the
+    // spectrum stays where its owner put it, then keep only the box.
+    function migrate() {
+        var o = {};
+        try {
+            o = JSON.parse(file.text()) || {};
+        } catch (e) {
+            return false;
+        }
+        if (o.x !== undefined)
+            return o.style === "circle";
+        var pos = o.position || "bottom";
+        var depth = typeof o.height === "number" ? o.height : 0.42;
+        var span = typeof o.span === "number" ? o.span : 1;
+        var align = o.align || "center";
+        var polar = ["radial", "orb", "spiral", "circle"].indexOf(o.style) >= 0;
+        if (polar) {
+            var r = (typeof o.size === "number" ? o.size : 0.3);
+            var ox = typeof o.originX === "number" ? o.originX : 0.5;
+            var oy = typeof o.originY === "number" ? o.originY : 0.5;
+            adapter.w = r * 2 * 0.625;   // the radius was a fraction of the short edge
+            adapter.h = r * 2;
+            adapter.x = ox - adapter.w / 2;
+            adapter.y = oy - adapter.h / 2;
+            adapter.grow = "center";
+        } else {
+            var off = align === "start" ? 0 : (align === "end" ? 1 - span : (1 - span) / 2);
+            var vertical = pos === "left" || pos === "right";
+            adapter.w = vertical ? depth : span;
+            adapter.h = vertical ? span : depth;
+            adapter.x = pos === "right" ? 1 - depth : (vertical ? 0 : off);
+            adapter.y = pos === "top" ? 0
+                : (pos === "center" ? (1 - depth) / 2 : (vertical ? off : 1 - depth));
+            adapter.grow = pos === "top" ? "down"
+                : (pos === "center" ? "center"
+                : (pos === "left" ? "right" : (pos === "right" ? "left" : "up")));
+        }
+        return true;
     }
 
     Component.onCompleted: {
@@ -122,9 +161,12 @@ Singleton {
             file.writeAdapter();
             return;
         }
+        var write = root.migrate();
         if (adapter.style === "circle") {
             adapter.style = "orb";
-            file.writeAdapter();
+            write = true;
         }
+        if (write)
+            file.writeAdapter();
     }
 }

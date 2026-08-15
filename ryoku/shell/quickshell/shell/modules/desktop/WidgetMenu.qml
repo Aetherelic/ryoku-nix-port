@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import "Singletons"
 import Ryoku.Ui.Singletons
+import shell.services
 
 // The desktop right-click menu, built on the shared DesktopMenu chrome in the
 // quick-settings sidebar idiom. Two scopes:
@@ -24,6 +25,11 @@ Item {
     readonly property bool isMusic: menu.scope === "music"
     readonly property bool isAio: menu.scope === "aio"
     readonly property bool isStats: menu.scope === "stats"
+    // only offer to place the spectrum when it is actually on this screen
+    readonly property bool vizOn: {
+        const st = ShellState.forActive();
+        return !!st && st.visualizerMode !== "off";
+    }
     readonly property bool locked: menu.isWidget ? Config[menu.scope + "Locked"] : false
     readonly property string curAnchor: menu.isWidget ? Config[menu.scope + "Anchor"] : ""
     // clock faces persist as <scope>Design; the calendar and the music sheet
@@ -119,6 +125,17 @@ Item {
             on: Config.statsEnabled
             closeOnTrigger: false
             onTriggered: Config.set("statsEnabled", !Config.statsEnabled)
+        }
+        // The spectrum is a wallpaper surface with no pointer of its own, so the
+        // desktop menu is where you reach for it.
+        MenuRow {
+            visible: !menu.isWidget && menu.vizOn
+            label: I18n.tr("Move visualiser")
+            onTriggered: {
+                const st = ShellState.forActive();
+                if (st)
+                    st.placeVisualizer(true);
+            }
         }
 
         // ── widget scope ───────────────────────────────────────────────

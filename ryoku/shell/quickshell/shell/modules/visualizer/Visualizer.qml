@@ -21,13 +21,14 @@ Item {
     // still honours the persisted enabled flag; the controller overrides it.
     property string mode: Config.enabled ? "desktop" : "off"
 
-    // Placement: a polar look becomes draggable on the desktop, on its own
-    // surface (Placer), and rides the top layer so it is not buried while aimed.
+    // Placement: the look becomes draggable and sizable on the desktop, on its
+    // own surface (Placer), and rides the top layer so it is not buried while
+    // being aimed.
     property bool placing: false
     signal placingDone
 
     readonly property bool active: root.mode !== "off"
-    readonly property bool placeable: root.placing && root.active && view.polar
+    readonly property bool placeable: root.placing && root.active
     readonly property bool raised: root.mode === "overlay" || root.placeable
 
     // cava runs whenever the visualiser is enabled: gating on "audio playing"
@@ -93,12 +94,12 @@ Item {
         }
     }
 
-    // The placement overlay only exists while a polar look is being aimed.
+    // The placement overlay only exists while a look is being aimed.
     Loader {
         active: root.placeable
         sourceComponent: Placer {
             screen: root.screen
-            shapeRadius: view.shapeRadius
+            box: view.boxRect
             guide: view.guide
             onDone: root.placingDone()
         }
