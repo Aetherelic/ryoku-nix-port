@@ -1,4 +1,5 @@
 import QtQuick
+import "Singletons"
 import Ryoku.Ui.Singletons
 
 // A labelled value slider: name on the left, live numeric readout on the right,
@@ -20,8 +21,8 @@ Item {
     implicitWidth: 240
     implicitHeight: 44
 
-    readonly property color idle: "#c7bfae"
-    readonly property color vermilion: "#e2342a"
+    readonly property color idle: Theme.inkDim
+    readonly property color vermilion: Theme.accent
     readonly property real frac: sl.to > sl.from ? Math.max(0, Math.min(1, (sl.value - sl.from) / (sl.to - sl.from))) : 0
 
     function fmt(v) { return (sl.decimals > 0 ? v.toFixed(sl.decimals) : String(Math.round(v))) + sl.suffix; }
@@ -44,8 +45,8 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         text: sl.fmt(sl.value)
-        color: ma.pressed ? sl.vermilion : "#f3ede1"
-        font.family: "JetBrainsMono Nerd Font"
+        color: ma.pressed ? sl.vermilion : Theme.ink
+        font.family: Theme.mono
         font.pixelSize: 12
         font.weight: Font.Medium
     }
@@ -58,7 +59,7 @@ Item {
         anchors.bottomMargin: 6
         height: 4
         radius: 2
-        color: Qt.rgba(1, 1, 1, 0.12)
+        color: Theme.hair
 
         Rectangle {
             anchors.top: parent.top
@@ -75,9 +76,9 @@ Item {
             radius: 7
             x: Math.max(0, Math.min(parent.width - width, parent.width * sl.frac - width / 2))
             anchors.verticalCenter: parent.verticalCenter
-            color: "#f5efe4"
+            color: Theme.ink
             border.width: ma.pressed ? 3 : 0
-            border.color: Qt.rgba(226 / 255, 52 / 255, 42 / 255, 0.4)
+            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.4)
             scale: ma.pressed ? 1.15 : (ma.containsMouse ? 1.08 : 1)
             Behavior on scale { NumberAnimation { duration: 80 } }
         }

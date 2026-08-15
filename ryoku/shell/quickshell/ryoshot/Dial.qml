@@ -1,4 +1,5 @@
 import QtQuick
+import "Singletons"
 import Ryoku.Ui.Singletons
 
 // A small circular direction picker for the drop-shadow angle. 0 deg points
@@ -11,8 +12,8 @@ Item {
     property string label: ""
     signal moved(real a)
 
-    readonly property color vermilion: "#e2342a"
-    readonly property color idle: "#c7bfae"
+    readonly property color vermilion: Theme.accent
+    readonly property color idle: Theme.inkDim
 
     implicitWidth: 56
     implicitHeight: 70
