@@ -4,8 +4,12 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import "Singletons"
 import "lib/coords.js" as Coords
 import "lib/AnnotationModel.js" as Ann
+import "lib/hittest.js" as Hit
+import "lib/redact.js" as Redact
+import "lib/constrain.js" as Constrain
 
 ShellRoot {
     id: root
@@ -15,19 +19,29 @@ ShellRoot {
     property bool capturing: false
     property string phase: "selecting"
     property string activeTool: "rect"
-    property color activeColor: vermilion
+    property color activeColor: Theme.accent
     property int activeWidth: 4
+    property bool activeFill: false
     property bool activeRough: false
+
+    // Redact and spotlight carry a sub-style that the tool key cycles, so one
+    // toolbar slot covers both redaction styles and all three lens shapes.
+    property string redactStyle: "mosaic"
+    property string spotShape: "ellipse"
 
     property var model: Ann.create()
     property var draft: null
     property int annRevision: 0
     property bool settingsOpen: false
+    property bool shortcutsOpen: false
     property bool textEditing: false
+    property string openPopover: ""
+    property bool eyedropArmed: false
 
     property var selectedIndex: null
     property var moveOffset: null
     property var moveStart: null
+    property var resizing: null
     property var hoverWindow: null
     property var windowRects: []
     property bool dialogMode: false
@@ -44,6 +58,9 @@ ShellRoot {
 
     readonly property bool testRect: Quickshell.env("RYOSHOT_TESTRECT") === "1"
     readonly property string mode: Quickshell.env("RYOSHOT_MODE") === "monitor" ? "monitor" : "region"
+    // The hover target starts from the launch mode and Space cycles it, so one
+    // keybind reaches a region, a window or a whole monitor.
+    property string target: mode
     // RYOSHOT_OPEN=<path>: skip selection and open that image straight in the
     // beautify editor (the capture card's "Beautify after" hands the saved shot
     // here). fromFile makes Escape / close quit, since there is no live capture
@@ -53,8 +70,103 @@ ShellRoot {
     readonly property string homeDir: Quickshell.env("HOME")
     readonly property string shotsDir: (Quickshell.env("XDG_PICTURES_DIR") || (homeDir + "/Pictures")) + "/Screenshots"
     readonly property string ryoshotLuaPath: homeDir + "/.config/hypr/modules/ryoshot.lua"
+    readonly property string pinDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku/pins"
 
-    readonly property color vermilion: "#e2342a"
+    /**
+     * Canonical tool list. The toolbar renders it, the key handler derives its
+     * shortcuts from it and the shortcut sheet prints it, so the three cannot
+     * drift apart.
+     */
+    readonly property var toolDescriptors: [
+        { id: "select",    icon: "select",    label: "Select",     key: "v" },
+        { id: "rect",      icon: "rect",      label: "Rectangle",  key: "r" },
+        { id: "ellipse",   icon: "ellipse",   label: "Ellipse",    key: "o" },
+        { id: "line",      icon: "line",      label: "Line",       key: "l" },
+        { id: "arrow",     icon: "arrow",     label: "Arrow",      key: "a" },
+        { id: "pen",       icon: "pen",       label: "Pen",        key: "p" },
+        { id: "marker",    icon: "marker",    label: "Highlight",  key: "h" },
+        { id: "counter",   icon: "counter",   label: "Step",       key: "n" },
+        { id: "text",      icon: "text",      label: "Text",       key: "t" },
+        { id: "blur",      icon: "blur",      label: "Blur",       key: "b" },
+        { id: "redact",    icon: "redact",    label: "Redact",     key: "d" },
+        { id: "spotlight", icon: "spotlight", label: "Spotlight",  key: "s" },
+        { id: "magnify",   icon: "magnify",   label: "Zoom",       key: "z" },
+        { id: "ocr",       icon: "ocr",       label: "Copy text",  key: "g" }
+    ]
+
+    readonly property var toolKeys: {
+        var m = {};
+        for (var i = 0; i < toolDescriptors.length; i++)
+            m[toolDescriptors[i].key] = toolDescriptors[i].id;
+        return m;
+    }
+
+    property var toolStyle: ({})
+
+    function toolHasFill(t) { return t === "rect" || t === "ellipse"; }
+    function isRoughable(t) { return t === "rect" || t === "ellipse" || t === "line" || t === "arrow"; }
+    function isFreehand(t) { return t === "pen"; }
+    function isEffectTool(t) {
+        return t === "blur" || t === "redact" || t === "magnify" || t === "spotlight";
+    }
+
+    /** Switches tool, committing any open text and adopting that tool's style. */
+    function selectTool(t) {
+        if (textEditing) commitText();
+        clearSelection();
+        root.openPopover = "";
+        root.eyedropArmed = false;
+        activeTool = t;
+        var s = toolStyle[t];
+        activeColor = s && s.color ? s.color : Theme.accent;
+        activeWidth = s && s.width ? s.width : 4;
+        activeFill = s ? (s.filled === true) : false;
+    }
+
+    function styleEntry() {
+        return { color: String(activeColor), width: activeWidth, filled: activeFill };
+    }
+
+    function rememberStyle() {
+        var s = Object.assign({}, toolStyle);
+        s[activeTool] = styleEntry();
+        toolStyle = s;
+        persistTimer.restart();
+    }
+
+    function setToolColor(c) { activeColor = c; rememberStyle(); }
+    function setToolFill(f) { activeFill = f; rememberStyle(); }
+    function setToolWidth(w) { activeWidth = w; rememberStyle(); }
+
+    /**
+     * Nudges the active width by one notch and pushes it onto an open draft, so
+     * a stroke or a text label resizes under the cursor while it is drawn.
+     */
+    function adjustWidth(dir) {
+        var w = Math.max(1, Math.min(20, activeWidth + dir));
+        if (w === activeWidth) return;
+        setToolWidth(w);
+        if (draft) {
+            if (draft.type === "text") { draft = Object.assign({}, draft, { size: textSize() }); bumpAnn(); }
+            else if (draft.width !== undefined) { draft.width = w; bumpAnn(); }
+        }
+    }
+
+    /** Coalesces a scroll burst into one settings write. */
+    Timer {
+        id: persistTimer
+        interval: 400
+        onTriggered: { Config.toolStyle = root.toolStyle; Config.save(); }
+    }
+
+    Connections {
+        target: Config
+        function onLoaded() {
+            if (Config.toolStyle && typeof Config.toolStyle === "object")
+                root.toolStyle = Config.toolStyle;
+            root.selectTool(root.activeTool);
+        }
+    }
 
     // open an existing image straight into beautify (RYOSHOT_OPEN). anchorOverlay
     // needs a globalSel to pick which monitor shows the editor, so seed it to the
@@ -77,9 +189,11 @@ ShellRoot {
         capturing = true;
         globalSel = { x: gx, y: gy, w: 0, h: 0 };
     }
-    function updateSelection(gx, gy) {
+    function updateSelection(gx, gy, mods) {
         if (!pressPoint) return;
-        globalSel = Coords.rectFromPoints(pressPoint, { x: gx, y: gy });
+        var p = { x: gx, y: gy };
+        if (mods & Qt.ShiftModifier) p = Constrain.square(pressPoint, p);
+        globalSel = Coords.rectFromPoints(pressPoint, p);
     }
     function endSelection() {
         capturing = false;
@@ -92,12 +206,19 @@ ShellRoot {
         } else globalSel = null;
     }
 
+    /** Starts a region resize; the opposite edge stays anchored for the drag. */
+    function beginResize(role, gx, gy) { resizing = role; }
+    function updateResize(gx, gy) {
+        if (resizing === null || !globalSel) return;
+        globalSel = Hit.resizeRect(globalSel, resizing, gx, gy, 8);
+    }
+    function endResize() { resizing = null; }
+
     function clampToSel(gx, gy) {
         var x = Math.max(globalSel.x, Math.min(gx, globalSel.x + globalSel.w));
         var y = Math.max(globalSel.y, Math.min(gy, globalSel.y + globalSel.h));
         return { x: x, y: y };
     }
-    function isFreehand(t) { return t === "pen"; }
 
     function placeText(gx, gy) {
         if (textEditing) { commitText(); return; }
@@ -131,66 +252,7 @@ ShellRoot {
         bumpAnn();
     }
 
-    function bboxOf(a) {
-        var xs = a.points.map(function (p) { return p.x; });
-        var ys = a.points.map(function (p) { return p.y; });
-        var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
-        var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-        if (a.type === "text") {
-            var size = a.size || 16;
-            var w = Math.max((a.text ? a.text.length : 1) * size * 0.6, size);
-            return { x: x0, y: y0, w: w, h: size * 1.4 };
-        }
-        if (a.type === "counter") {
-            var cr = (a.width || 4) * 2.5 + 9;
-            return { x: x0 - cr, y: y0 - cr, w: 2 * cr, h: 2 * cr };
-        }
-        return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-    }
-
-    function distToSeg(px, py, a, b) {
-        var dx = b.x - a.x, dy = b.y - a.y;
-        var len2 = dx * dx + dy * dy;
-        if (len2 === 0) return Math.hypot(px - a.x, py - a.y);
-        var t = ((px - a.x) * dx + (py - a.y) * dy) / len2;
-        t = Math.max(0, Math.min(1, t));
-        return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
-    }
-
-    function inBox(gx, gy, b, pad) {
-        return gx >= b.x - pad && gx <= b.x + b.w + pad
-            && gy >= b.y - pad && gy <= b.y + b.h + pad;
-    }
-
-    function hitOne(a, gx, gy) {
-        var tol = Math.max(a.width || 4, 8);
-        if (a.type === "rect" || a.type === "marker" || a.type === "blur" || a.type === "pixelate" || a.type === "magnify" || a.type === "text")
-            return inBox(gx, gy, bboxOf(a), a.type === "text" ? 0 : tol);
-        if (a.type === "line" || a.type === "arrow")
-            return distToSeg(gx, gy, a.points[0], a.points[1]) <= tol;
-        if (a.type === "pen") {
-            for (var i = 1; i < a.points.length; i++)
-                if (distToSeg(gx, gy, a.points[i - 1], a.points[i]) <= tol) return true;
-            return false;
-        }
-        if (a.type === "ellipse") {
-            var b = bboxOf(a);
-            var rx = b.w / 2 + tol, ry = b.h / 2 + tol;
-            if (rx <= 0 || ry <= 0) return false;
-            var nx = (gx - (b.x + b.w / 2)) / rx, ny = (gy - (b.y + b.h / 2)) / ry;
-            return nx * nx + ny * ny <= 1;
-        }
-        if (a.type === "counter")
-            return inBox(gx, gy, bboxOf(a), tol);
-        return false;
-    }
-
-    function hitTest(gx, gy) {
-        var its = model.items;
-        for (var i = its.length - 1; i >= 0; i--)
-            if (hitOne(its[i], gx, gy)) return i;
-        return null;
-    }
+    function hitTest(gx, gy) { return Hit.hitTest(model.items, gx, gy); }
 
     function clearSelection() {
         if (selectedIndex !== null) { selectedIndex = null; bumpAnn(); }
@@ -229,7 +291,31 @@ ShellRoot {
         bumpAnn();
     }
 
-    function isRoughable(t) { return t === "rect" || t === "ellipse" || t === "line" || t === "arrow"; }
+    /**
+     * Grows or shrinks the selected annotation about its centre. A spotlight
+     * zooms its lens instead, which is the change that reads as scaling there.
+     */
+    function scaleSelected(dir) {
+        if (selectedIndex === null) return;
+        var a = model.items[selectedIndex];
+        if (!a) return;
+        if (a.type === "spotlight") {
+            var z = Math.max(1.0, Math.min(4.0, (a.magnification || 2.0) * (dir > 0 ? 1.1 : 1 / 1.1)));
+            a.magnification = z;
+            bumpAnn();
+            return;
+        }
+        var f = dir > 0 ? 1.1 : 1 / 1.1;
+        var b = Hit.bboxOf(a);
+        var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        for (var i = 0; i < a.points.length; i++) {
+            a.points[i].x = cx + (a.points[i].x - cx) * f;
+            a.points[i].y = cy + (a.points[i].y - cy) * f;
+        }
+        if (a.type === "text") a.size = Math.max(8, Math.round((a.size || 16) * f));
+        bumpAnn();
+    }
+
     function beginDraw(gx, gy) {
         if (!globalSel || activeTool === "select") return;
         if (activeTool === "text") { placeText(gx, gy); return; }
@@ -240,12 +326,20 @@ ShellRoot {
         if (isFreehand(activeTool))
             draft = { type: activeTool, points: [p], color: String(activeColor), width: activeWidth };
         else if (activeTool === "marker")
-            draft = { type: "marker", points: [p, p], color: "#f5d020", width: activeWidth, filled: true };
+            draft = { type: "marker", points: [p, p], color: String(activeColor), width: activeWidth, filled: true };
+        else if (activeTool === "redact")
+            draft = { type: "redact", points: [p, p], style: root.redactStyle };
+        else if (activeTool === "spotlight")
+            draft = { type: "spotlight", points: [p, p], shape: root.spotShape,
+                      color: String(activeColor), width: activeWidth, magnification: Config.zoomFactor };
+        else if (activeTool === "ocr")
+            draft = { type: "ocr", points: [p, p] };
         else
-            draft = { type: activeTool, points: [p, p], color: String(activeColor), width: activeWidth, filled: false, rough: activeRough && isRoughable(activeTool) };
+            draft = { type: activeTool, points: [p, p], color: String(activeColor), width: activeWidth,
+                      filled: activeFill, rough: activeRough && isRoughable(activeTool) };
         bumpAnn();
     }
-    function updateDraw(gx, gy) {
+    function updateDraw(gx, gy, mods) {
         if (!draft || !pressPoint || draft.type === "text") return;
         var p = clampToSel(gx, gy);
         if (isFreehand(draft.type)) {
@@ -253,22 +347,31 @@ ShellRoot {
             if (Math.abs(p.x - last.x) < 2 && Math.abs(p.y - last.y) < 2) return;
             draft.points = draft.points.concat([p]);
         } else {
+            if (mods & Qt.ShiftModifier) p = clampToSel2(Constrain.constrain(draft.type, pressPoint, p));
             draft.points = [pressPoint, p];
         }
         bumpAnn();
     }
+    function clampToSel2(p) { return clampToSel(p.x, p.y); }
+
     function endDraw() {
         capturing = false;
         if (!draft || draft.type === "text") return;
-        if (isFreehand(draft.type)) {
-            if (draft.points.length >= 2) model.add(draft);
+        var kept = draft;
+        if (isFreehand(kept.type)) {
+            if (kept.points.length >= 2) model.add(kept);
         } else {
-            var p0 = draft.points[0], p1 = draft.points[1];
+            var p0 = kept.points[0], p1 = kept.points[1];
             var dx = Math.abs(p1.x - p0.x), dy = Math.abs(p1.y - p0.y);
-            var big = draft.type === "line" || draft.type === "arrow"
+            var big = kept.type === "line" || kept.type === "arrow"
                 ? Math.hypot(dx, dy) > 4
                 : dx > 2 && dy > 2;
-            if (big) model.add(draft);
+            if (big) {
+                if (kept.type === "ocr") { draft = null; pressPoint = null; runOcr(p0, p1); return; }
+                model.add(kept);
+                if (kept.type === "redact" && kept.style !== "solid")
+                    samplePalette(model.items.length - 1);
+            }
         }
         draft = null;
         pressPoint = null;
@@ -278,6 +381,18 @@ ShellRoot {
 
     function undo() { if (model.undo()) { selectedIndex = null; moveOffset = null; moveStart = null; bumpAnn(); } }
     function redo() { if (model.redo()) { selectedIndex = null; moveOffset = null; moveStart = null; bumpAnn(); } }
+
+    function cycleRedactStyle() {
+        redactStyle = redactStyle === "mosaic" ? "solid" : "mosaic";
+    }
+    function cycleSpotShape() {
+        spotShape = spotShape === "ellipse" ? "rect" : (spotShape === "rect" ? "rounded" : "ellipse");
+    }
+    function cycleTarget() {
+        if (phase !== "selecting") return;
+        target = target === "region" ? "monitor" : "region";
+        hoverWindow = null;
+    }
 
     function windowAt(gx, gy) {
         var best = null;
@@ -305,9 +420,20 @@ ShellRoot {
         phase = "editing";
         hoverWindow = null;
     }
+    /** Ctrl+A during selection takes the whole monitor under the pointer. */
+    function wholeMonitor() {
+        if (phase !== "selecting") return;
+        var w = overlays.length ? overlays[0] : null;
+        var m = hoverWindow ? monitorAt(hoverWindow.x, hoverWindow.y) : null;
+        if (!m && w) m = { x: w.modelData.x, y: w.modelData.y, w: w.modelData.width, h: w.modelData.height };
+        if (!m) return;
+        globalSel = m;
+        phase = "editing";
+        hoverWindow = null;
+    }
     function pointerHover(gx, gy) {
         if (phase !== "selecting") { if (hoverWindow !== null) hoverWindow = null; return; }
-        hoverWindow = mode === "monitor" ? monitorAt(gx, gy) : windowAt(gx, gy);
+        hoverWindow = target === "monitor" ? monitorAt(gx, gy) : windowAt(gx, gy);
     }
     function parseWindows(activeWs, json) {
         var rects = [];
@@ -332,23 +458,30 @@ ShellRoot {
         } catch (e) { console.log("ryoshot: parseActiveWs failed: " + e); }
         return ids;
     }
-    function pointerPressed(gx, gy) {
+    function pointerPressed(gx, gy, mods) {
+        root.openPopover = "";
+        root.shortcutsOpen = false;
         if (phase === "selecting") {
-            if (mode === "monitor") selectMonitor(gx, gy);
+            if (target === "monitor") selectMonitor(gx, gy);
             else beginSelection(gx, gy);
         }
         else if (activeTool === "select") beginSelect(gx, gy);
         else beginDraw(gx, gy);
     }
-    function pointerMoved(gx, gy) {
-        if (phase === "selecting") updateSelection(gx, gy);
+    function pointerMoved(gx, gy, mods) {
+        if (phase === "selecting") updateSelection(gx, gy, mods);
         else if (activeTool === "select") updateSelect(gx, gy);
-        else updateDraw(gx, gy);
+        else updateDraw(gx, gy, mods);
     }
     function pointerReleased() {
         if (phase === "selecting") endSelection();
         else if (activeTool === "select") endSelect();
         else endDraw();
+    }
+    function pointerWheel(dir) {
+        if (phase !== "editing") return;
+        if (activeTool === "select" && selectedIndex !== null) scaleSelected(dir);
+        else adjustWidth(dir);
     }
 
     // Match Capture.qml's pattern exactly so both capture paths drop identically
@@ -359,7 +492,8 @@ ShellRoot {
         return d.getUTCFullYear() + "_" + p(d.getUTCMonth() + 1) + "_" + p(d.getUTCDate())
             + "_" + p(d.getUTCHours()) + "_" + p(d.getUTCMinutes()) + "_" + p(d.getUTCSeconds()) + "_screenshot.png";
     }
-    readonly property string defaultPath: shotsDir + "/" + timestampName()
+    readonly property string saveRoot: Config.saveDir.length > 0 ? Config.saveDir : shotsDir
+    readonly property string defaultPath: saveRoot + "/" + timestampName()
 
     function anchorOverlay() {
         if (!globalSel) return null;
@@ -370,6 +504,15 @@ ShellRoot {
                 && globalSel.y >= s.y && globalSel.y < s.y + s.height) return w;
         }
         return overlays.length ? overlays[0] : null;
+    }
+
+    /** The overlay whose monitor holds a global point, for a local-rect grab. */
+    function overlayAt(gx, gy) {
+        for (var i = 0; i < overlays.length; i++) {
+            var s = overlays[i].modelData;
+            if (gx >= s.x && gx < s.x + s.width && gy >= s.y && gy < s.y + s.height) return overlays[i];
+        }
+        return anchorOverlay();
     }
 
     function spansMonitors() {
@@ -440,6 +583,37 @@ ShellRoot {
             : ["notify-send", "-a", "ryoku", title]);
     }
 
+    /** A saved shot carries its own thumbnail, so the toast shows the result. */
+    function notifyShot(title, path) {
+        Quickshell.execDetached(["notify-send", "-a", "ryoku", "-i", path, title, path]);
+    }
+
+    /**
+     * Startup watchdog. When the compositor or driver refuses a graphics context
+     * for the layer surface, Qt logs it but QML never hears: the process would
+     * sit in the event loop holding the single-instance lock, turning every
+     * later keypress into a no-op. FrameAnimation only ticks on a real render
+     * pass, so no tick after 15s means the overlay will never appear.
+     */
+    property bool framePainted: false
+
+    Timer {
+        interval: 15000
+        running: true
+        onTriggered: {
+            if (root.framePainted) return;
+            console.error("ryoshot: no frame rendered 15s after launch, giving up");
+            root.notifySend(qsTr("ryoshot could not draw its overlay"),
+                qsTr("graphics init failed, press the key again"));
+            quitFallback.start();
+        }
+    }
+    Timer {
+        id: quitFallback
+        interval: 3000
+        onTriggered: Qt.quit()
+    }
+
     // Export exactly once per session. The beautify compose can emit copy/save
     // more than once as overlays settle; without this guard each emission spawns
     // another clip-copy, and the racing wl-copy owners cancel out so the live
@@ -454,6 +628,10 @@ ShellRoot {
         if (root.exported) return;
         root.exported = true;
         Quickshell.execDetached(["ryoku-shell", "clip-copy", "image/png", file]);
+        if (Config.copyOnSave) {
+            Quickshell.execDetached(["sh", "-c",
+                "mkdir -p \"$(dirname \"$2\")\"; [ \"$1\" = \"$2\" ] || cp -- \"$1\" \"$2\"", "sh", file, root.defaultPath]);
+        }
         root.quitSoon();
         root.notifySend(qsTr("Screenshot copied to clipboard"), "");
     }
@@ -469,9 +647,12 @@ ShellRoot {
     function saveToScreenshots(src) {
         if (root.exported) return;
         root.exported = true;
+        var dest = root.defaultPath;
         Quickshell.execDetached(["sh", "-c",
-            "mkdir -p \"$(dirname \"$2\")\"; [ \"$1\" = \"$2\" ] || cp -- \"$1\" \"$2\"", "sh", src, root.defaultPath]);
-        root.notifySend(qsTr("Screenshot saved"), root.defaultPath);
+            "mkdir -p \"$(dirname \"$2\")\"; [ \"$1\" = \"$2\" ] || cp -- \"$1\" \"$2\"", "sh", src, dest]);
+        if (Config.copyOnSave)
+            Quickshell.execDetached(["ryoku-shell", "clip-copy", "image/png", src]);
+        root.notifyShot(qsTr("Screenshot saved"), dest);
         root.quitSoon();
     }
 
@@ -488,8 +669,20 @@ ShellRoot {
         grabTo(auto, function (ok) {
             if (!ok) { Qt.quit(); return; }
             root.shutter();
-            root.notifySend(qsTr("Screenshot saved"), auto);
+            if (Config.copyOnSave)
+                Quickshell.execDetached(["ryoku-shell", "clip-copy", "image/png", auto]);
+            root.notifyShot(qsTr("Screenshot saved"), auto);
             root.quitSoon();
+        });
+    }
+
+    function doCopyAndSave() {
+        var auto = root.defaultPath;
+        grabTo(auto, function (ok) {
+            if (!ok) { Qt.quit(); return; }
+            root.shutter();
+            root.notifyShot(qsTr("Screenshot saved"), auto);
+            root.copyImageAndQuit(auto);
         });
     }
 
@@ -499,6 +692,91 @@ ShellRoot {
             if (ok) { root.shutter(); uploadProc.run(tmp); }
             else Qt.quit();
         });
+    }
+
+    /**
+     * Pins the finished shot: the PNG lands in the pin directory, the poke file
+     * wakes an already running host, and the flock spawn starts one if there is
+     * none. ryoshot then leaves, so the pin outlives it.
+     */
+    function doPin() {
+        if (root.exported) return;
+        var id = String(Date.now()) + "-" + String(Math.floor(Math.random() * 100000));
+        var path = root.pinDir + "/pin-" + id + ".png";
+        Quickshell.execDetached(["mkdir", "-p", root.pinDir]);
+        grabTo("/tmp/ryoshot-pin.png", function (ok) {
+            if (!ok) { Qt.quit(); return; }
+            root.exported = true;
+            root.shutter();
+            Quickshell.execDetached(["sh", "-c",
+                "mkdir -p \"$1\"; cp -- \"$2\" \"$3\"; date +%s%N > \"$1/.poke\"; "
+                + "flock -n -o /tmp/ryopin.lock qs -c ryopin >/dev/null 2>&1 &",
+                "sh", root.pinDir, "/tmp/ryoshot-pin.png", path]);
+            root.quitSoon();
+        });
+    }
+
+    /**
+     * Copies the text inside a dragged region. The crop comes from the annotated
+     * scene, so a blur or a redaction placed over text is honoured and the text
+     * under it cannot be read back out.
+     */
+    function runOcr(p0, p1) {
+        var gx = Math.min(p0.x, p1.x), gy = Math.min(p0.y, p1.y);
+        var w = Math.abs(p1.x - p0.x), h = Math.abs(p1.y - p0.y);
+        var ov = overlayAt(gx, gy);
+        if (!ov) { bumpAnn(); return; }
+        var s = ov.modelData;
+        var tmp = "/tmp/ryoshot-ocr.png";
+        ov.grabRegion({ x: gx - s.x, y: gy - s.y, w: w, h: h }, tmp, function (ok) {
+            if (!ok) { root.notifySend(qsTr("Could not read that region"), ""); return; }
+            root.exported = true;
+            Quickshell.execDetached(["ryoku-cmd-ocr", "--file", tmp]);
+            root.quitSoon();
+        });
+        bumpAnn();
+    }
+
+    /**
+     * Reads the dominant colours out of a fresh redaction. Until they arrive the
+     * block paints solid, so the source is never briefly legible.
+     */
+    function samplePalette(index) {
+        var a = model.items[index];
+        if (!a || a.points.length < 2) return;
+        var gx = Math.min(a.points[0].x, a.points[1].x), gy = Math.min(a.points[0].y, a.points[1].y);
+        var w = Math.abs(a.points[1].x - a.points[0].x), h = Math.abs(a.points[1].y - a.points[0].y);
+        var ov = overlayAt(gx, gy);
+        if (!ov) return;
+        var s = ov.modelData;
+        var tmp = "/tmp/ryoshot-redact.png";
+        a.seed = Redact.seedFor({ x: Math.round(gx), y: Math.round(gy), w: Math.round(w), h: Math.round(h) });
+        ov.grabPlate({ x: gx - s.x, y: gy - s.y, w: w, h: h }, tmp, function (ok) {
+            if (ok) palProc.read(index, tmp);
+        }, Qt.size(Math.min(64, Math.max(1, Math.round(w))), Math.min(64, Math.max(1, Math.round(h)))));
+    }
+
+    Process {
+        id: palProc
+        property int target: -1
+        stdout: StdioCollector { id: palOut }
+        function read(index, file) {
+            target = index;
+            command = ["magick", file, "-alpha", "off", "-colors", "6", "-unique-colors", "txt:-"];
+            running = true;
+        }
+        onExited: (code) => {
+            var idx = palProc.target;
+            palProc.target = -1;
+            if (code !== 0 || idx < 0 || idx >= root.model.items.length) return;
+            var found = palOut.text.match(/#[0-9A-Fa-f]{6}/g);
+            if (!found || found.length === 0) return;
+            var uniq = [];
+            for (var i = 0; i < found.length; i++)
+                if (uniq.indexOf(found[i]) === -1) uniq.push(found[i]);
+            root.model.items[idx].pal = uniq;
+            root.bumpAnn();
+        }
     }
 
     // toolbar Copy/Save with a saved beautify default: bake the default and export
@@ -519,6 +797,17 @@ ShellRoot {
     function exportCopyOrStyled() { if (root.beautifyHasDefault) styledExport("copy"); else root.doCopy(); }
     function exportSaveOrStyled() { if (root.beautifyHasDefault) styledExport("save"); else root.doSave(); }
 
+    function openBeautify() {
+        if (root.textEditing) root.commitText();
+        root.clearSelection();
+        root.beautifySrc = "";
+        root.grabTo("/tmp/ryoshot-beautify-src.png", function (ok) {
+            if (!ok) return;
+            root.beautifySrc = "/tmp/ryoshot-beautify-src.png";
+            root.phase = "beautify";
+        });
+    }
+
     FileView {
         id: beautifyCfg
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/ryoshot-beautify.json"
@@ -531,7 +820,7 @@ ShellRoot {
 
     Process {
         id: ensureDir
-        command: ["mkdir", "-p", root.shotsDir]
+        command: ["mkdir", "-p", root.saveRoot]
         Component.onCompleted: running = true
     }
 
@@ -608,6 +897,74 @@ ShellRoot {
         return { visible: true };
     }
 
+    /** The staged Escape ladder: the innermost open thing closes first. */
+    function escapeStep() {
+        if (root.eyedropArmed) { root.eyedropArmed = false; return; }
+        if (root.textEditing) { root.cancelText(); return; }
+        if (root.openPopover.length > 0) { root.openPopover = ""; return; }
+        if (root.shortcutsOpen) { root.shortcutsOpen = false; return; }
+        if (root.settingsOpen) { root.settingsOpen = false; return; }
+        if (root.selectedIndex !== null) { root.clearSelection(); return; }
+        if (root.phase === "beautify") {
+            if (root.fromFile) Qt.quit();
+            else root.phase = "editing";
+            return;
+        }
+        Qt.quit();
+    }
+
+    /** Keys that apply once a region exists. Returns true when one matched. */
+    function editKey(e) {
+        var ctrl = (e.modifiers & Qt.ControlModifier) !== 0;
+        var shift = (e.modifiers & Qt.ShiftModifier) !== 0;
+        if (ctrl) {
+            if (e.key === Qt.Key_C) { root.exportCopyOrStyled(); return true; }
+            if (e.key === Qt.Key_S) { root.exportSaveOrStyled(); return true; }
+            if (e.key === Qt.Key_P) { root.doPin(); return true; }
+            if (e.key === Qt.Key_U) { root.doUpload(); return true; }
+            if (e.key === Qt.Key_B) { root.openBeautify(); return true; }
+            if (e.key === Qt.Key_Z) { if (shift) root.redo(); else root.undo(); return true; }
+            if (e.key === Qt.Key_Y) { root.redo(); return true; }
+            return false;
+        }
+        if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) { root.doCopyAndSave(); return true; }
+        if (e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) {
+            if (root.selectedIndex !== null) { root.deleteSelected(); return true; }
+            return false;
+        }
+        if (e.key === Qt.Key_BracketLeft) { root.adjustWidth(-1); return true; }
+        if (e.key === Qt.Key_BracketRight) { root.adjustWidth(1); return true; }
+        if (e.key >= Qt.Key_1 && e.key <= Qt.Key_8) {
+            var sw = Theme.swatches[e.key - Qt.Key_1];
+            if (sw !== undefined) { root.setToolColor(sw); return true; }
+            return false;
+        }
+        if (e.key === Qt.Key_F) { root.setToolFill(!root.activeFill); return true; }
+        if (e.key === Qt.Key_K) { root.activeRough = !root.activeRough; return true; }
+        if (e.key === Qt.Key_I) { root.eyedropArmed = true; root.openPopover = ""; return true; }
+        if (e.key === Qt.Key_Question || (shift && e.key === Qt.Key_Slash)) {
+            root.shortcutsOpen = !root.shortcutsOpen;
+            return true;
+        }
+        var letter = String.fromCharCode(e.key).toLowerCase();
+        var tool = root.toolKeys[letter];
+        if (tool !== undefined) {
+            if (tool === root.activeTool && tool === "redact") root.cycleRedactStyle();
+            else if (tool === root.activeTool && tool === "spotlight") root.cycleSpotShape();
+            else root.selectTool(tool);
+            return true;
+        }
+        return false;
+    }
+
+    /** Keys that apply while the region is still being chosen. */
+    function selectKey(e) {
+        if (e.key === Qt.Key_Space) { root.cycleTarget(); return true; }
+        if (e.key === Qt.Key_A && (e.modifiers & Qt.ControlModifier)) { root.wholeMonitor(); return true; }
+        if (e.key === Qt.Key_Question) { root.shortcutsOpen = !root.shortcutsOpen; return true; }
+        return false;
+    }
+
     Variants {
         model: Quickshell.screens
 
@@ -632,23 +989,20 @@ ShellRoot {
                     { x: win.modelData.x, y: win.modelData.y, width: win.width, height: win.height })
                 : null
 
+            FrameAnimation {
+                running: win.visible && !root.framePainted
+                onTriggered: root.framePainted = true
+            }
+
             FocusScope {
                 anchors.fill: parent
                 focus: true
 
-                Keys.onEscapePressed: {
-                    if (root.textEditing) root.cancelText();
-                    else if (root.settingsOpen) root.settingsOpen = false;
-                    else if (root.selectedIndex !== null) root.clearSelection();
-                    else if (root.phase === "beautify") { if (root.fromFile) Qt.quit(); else root.phase = "editing"; }
-                    else Qt.quit();
-                }
+                Keys.onEscapePressed: root.escapeStep()
                 Keys.onPressed: (e) => {
                     if (root.textEditing) return;
-                    if (e.key === Qt.Key_C && (e.modifiers & Qt.ControlModifier)) { root.doCopy(); e.accepted = true; }
-                    else if (e.key === Qt.Key_Z && (e.modifiers & Qt.ControlModifier)) { root.undo(); e.accepted = true; }
-                    else if (e.key === Qt.Key_Y && (e.modifiers & Qt.ControlModifier)) { root.redo(); e.accepted = true; }
-                    else if ((e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) && root.selectedIndex !== null) { root.deleteSelected(); e.accepted = true; }
+                    var handled = root.phase === "selecting" ? root.selectKey(e) : root.editKey(e);
+                    if (handled) e.accepted = true;
                 }
 
                 Overlay {
@@ -664,26 +1018,37 @@ ShellRoot {
                     selectedIndex: root.selectedIndex
                     moveOffset: root.moveOffset
                     hoverWindow: root.hoverWindow
+                    resizable: root.phase === "editing"
+                    eyedropArmed: root.eyedropArmed
 
-                    onPressedAt: (gx, gy) => root.pointerPressed(gx, gy)
-                    onMovedTo: (gx, gy) => root.pointerMoved(gx, gy)
+                    onPressedAt: (gx, gy, mods) => root.pointerPressed(gx, gy, mods)
+                    onMovedTo: (gx, gy, mods) => root.pointerMoved(gx, gy, mods)
                     onHovered: (gx, gy) => root.pointerHover(gx, gy)
                     onReleased: root.pointerReleased()
+                    onWheeled: (dir) => root.pointerWheel(dir)
                     onFrozen: root.noteFrozen()
                     onTextChanged: (t) => { if (root.draft && root.draft.type === "text") { root.draft.text = t; root.bumpAnn(); } }
                     onTextCommitted: root.commitText()
+                    onResizeStarted: (role, gx, gy) => root.beginResize(role, gx, gy)
+                    onResizeMoved: (gx, gy) => root.updateResize(gx, gy)
+                    onResizeEnded: root.endResize()
+                    onSampled: (c) => { root.setToolColor(c); root.eyedropArmed = false; }
                 }
 
                 Toolbar {
                     id: toolbar
                     visible: win.showToolbar && win.selLocal !== null
+                    tools: root.toolDescriptors
                     activeTool: root.activeTool
                     activeColor: root.activeColor
                     activeWidth: root.activeWidth
+                    activeFill: root.activeFill
+                    activeRough: root.activeRough
+                    hasFill: root.toolHasFill(root.activeTool)
+                    openPopover: root.openPopover
                     canUndo: { root.annRevision; return root.model ? root.model.canUndo() : false; }
                     canRedo: { root.annRevision; return root.model ? root.model.canRedo() : false; }
                     settingsOpen: root.settingsOpen
-                    activeRough: root.activeRough
 
                     x: {
                         if (!win.selLocal) return 0;
@@ -697,26 +1062,42 @@ ShellRoot {
                         return Math.max(8, below);
                     }
 
-                    onToolPicked: (t) => { if (root.textEditing) root.commitText(); root.clearSelection(); root.activeTool = t; }
-                    onColorPicked: (c) => root.activeColor = c
-                    onWidthPicked: (w) => root.activeWidth = w
+                    onToolPicked: (t) => root.selectTool(t)
+                    onColorButtonClicked: root.openPopover = root.openPopover === "color" ? "" : "color"
+                    onWidthButtonClicked: root.openPopover = root.openPopover === "width" ? "" : "width"
+                    onFillToggled: root.setToolFill(!root.activeFill)
+                    onRoughToggled: root.activeRough = !root.activeRough
                     onUndoRequested: root.undo()
                     onRedoRequested: root.redo()
                     onCopyRequested: root.exportCopyOrStyled()
                     onSaveRequested: root.exportSaveOrStyled()
                     onUploadRequested: root.doUpload()
-                    onSettingsRequested: root.settingsOpen = toolbar.settingsOpen
-                    onRoughToggled: root.activeRough = !root.activeRough
-                    onBeautifyRequested: {
-                        if (root.textEditing) root.commitText();
-                        root.clearSelection();
-                        root.beautifySrc = "";
-                        root.grabTo("/tmp/ryoshot-beautify-src.png", function (ok) {
-                            if (!ok) return;
-                            root.beautifySrc = "/tmp/ryoshot-beautify-src.png";
-                            root.phase = "beautify";
-                        });
-                    }
+                    onPinRequested: root.doPin()
+                    onHelpRequested: root.shortcutsOpen = !root.shortcutsOpen
+                    onSettingsRequested: root.settingsOpen = !root.settingsOpen
+                    onBeautifyRequested: root.openBeautify()
+                }
+
+                ColorPopover {
+                    visible: toolbar.visible && root.openPopover === "color"
+                    selected: root.activeColor
+                    eyedropArmed: root.eyedropArmed
+                    x: Math.max(8, Math.min(toolbar.x + toolbar.colorCenterX - width / 2,
+                                            win.width - width - 8))
+                    y: toolbar.y - height - 6
+                    onPicked: (c) => root.setToolColor(c)
+                    onEyedropRequested: { root.openPopover = ""; root.eyedropArmed = true; }
+                    onCloseRequested: root.openPopover = ""
+                }
+
+                WidthPopover {
+                    visible: toolbar.visible && root.openPopover === "width"
+                    selected: root.activeWidth
+                    x: Math.max(8, Math.min(toolbar.x + toolbar.widthCenterX - width / 2,
+                                            win.width - width - 8))
+                    y: toolbar.y - height - 6
+                    onPicked: (w) => root.setToolWidth(w)
+                    onCloseRequested: root.openPopover = ""
                 }
 
                 SettingsPanel {
@@ -725,15 +1106,22 @@ ShellRoot {
                     luaPath: root.ryoshotLuaPath
                     x: Math.max(8, Math.min(toolbar.x + toolbar.gearCenterX - width / 2,
                                             win.width - width - 8))
-                    y: toolbar.y - height - 6
+                    y: Math.max(8, toolbar.y - height - 6)
                     onCloseRequested: root.settingsOpen = false
                     onRebound: Qt.quit()
+                }
+
+                ShortcutSheet {
+                    anchors.centerIn: parent
+                    visible: root.shortcutsOpen && root.anchorOverlay() === win
+                    tools: root.toolDescriptors
+                    onCloseRequested: root.shortcutsOpen = false
                 }
 
                 Rectangle {
                     anchors.fill: parent
                     visible: root.phase === "beautify" && root.anchorOverlay() !== win
-                    color: Qt.rgba(0.055, 0.051, 0.043, 0.96)
+                    color: Theme.panelSolid
                 }
 
                 Beautify {
@@ -753,6 +1141,8 @@ ShellRoot {
             Component.onCompleted: root.overlays.push(win)
 
             function grabExport(path, cb, targetSize) { ov.grabExport(path, cb, targetSize); }
+            function grabRegion(rect, path, cb) { ov.grabRegion(rect, path, cb); }
+            function grabPlate(rect, path, cb, targetSize) { ov.grabPlate(rect, path, cb, targetSize); }
             function grabToolbar(path, cb) {
                 var sched = toolbar.grabToImage(function (r) {
                     var ok = false;

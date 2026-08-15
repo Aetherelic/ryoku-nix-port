@@ -4,6 +4,7 @@ import QtQuick.Controls as QQC
 import Quickshell
 import Quickshell.Io
 import Ryoku.Ui.Singletons
+import "Singletons"
 
 // Beautify: a sharing-first image editor for a capture. Frosted, textured chrome
 // (the launcher's grainy look: a warm translucent surface over a square-grid
@@ -27,13 +28,13 @@ Item {
 
     readonly property string exportTmp: "/tmp/ryoshot-beautified.png"
 
-    readonly property color vermilion: "#e2342a"
-    readonly property color bright: "#f5efe4"
-    readonly property color idle: "#c7bfae"
-    readonly property color dim: "#8f8378"
-    readonly property color panelBg: Qt.rgba(30 / 255, 25 / 255, 18 / 255, 0.86)
-    readonly property color fieldBg: Qt.rgba(1, 1, 1, 0.05)
-    readonly property color hair: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.12)
+    readonly property color vermilion: Theme.accent
+    readonly property color bright: Theme.ink
+    readonly property color idle: Theme.inkDim
+    readonly property color dim: Theme.inkFaint
+    readonly property color panelBg: Theme.panel
+    readonly property color fieldBg: Theme.field
+    readonly property color hair: Theme.hair
 
     // ---- state ----
     property string bgKind: "preset"     // preset | solid | gradient | image | none
@@ -271,8 +272,8 @@ Item {
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#1b1610" }
-            GradientStop { position: 1.0; color: "#100d09" }
+            GradientStop { position: 0.0; color: Theme.panelSolid }
+            GradientStop { position: 1.0; color: Qt.darker(Theme.panelSolid, 1.4) }
         }
     }
     Canvas {
@@ -307,8 +308,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 11
             Text { anchors.verticalCenter: parent.verticalCenter; text: beautify.mark; color: beautify.vermilion; font.family: "Noto Sans CJK JP"; font.pixelSize: 21; font.weight: Font.DemiBold }
-            Text { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Beautify"); color: beautify.bright; font.family: "Space Grotesk"; font.pixelSize: 16; font.weight: Font.DemiBold }
-            Text { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("ready to share"); color: beautify.dim; font.family: "Space Grotesk"; font.pixelSize: 12 }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Beautify"); color: beautify.bright; font.family: Theme.ui; font.pixelSize: 16; font.weight: Font.DemiBold }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("ready to share"); color: beautify.dim; font.family: Theme.ui; font.pixelSize: 12 }
         }
         Row {
             anchors.right: parent.right
@@ -410,7 +411,7 @@ Item {
                                 height: 34
                                 radius: 8
                                 readonly property bool sel: beautify.bgKind === "preset" && beautify.bgPreset === cell.index
-                                border.color: cell.sel ? "#ffffff" : beautify.hair
+                                border.color: cell.sel ? Theme.ink : beautify.hair
                                 border.width: cell.sel ? 2 : 1
                                 gradient: Gradient {
                                     GradientStop { position: 0.0; color: cell.modelData.a }
@@ -443,7 +444,7 @@ Item {
                         wrapMode: Text.WordWrap
                         text: beautify.bgImagePath ? beautify.bgImagePath : I18n.tr("Click Image again to choose a file\u2026")
                         color: beautify.dim
-                        font.family: "Space Grotesk"
+                        font.family: Theme.ui
                         font.pixelSize: 11
                         elide: Text.ElideMiddle
                     }
@@ -662,7 +663,7 @@ Item {
                     text: I18n.tr("<b>") + beautify.userName + I18n.tr("</b><font color=\"#f5b53f\">@RyokuArch</font>")
                     textFormat: Text.StyledText
                     color: "#ffffff"
-                    font.family: "Space Grotesk"
+                    font.family: Theme.ui
                     font.pixelSize: wmark.fs
                     font.weight: Font.DemiBold
                     style: Text.Raised
@@ -698,7 +699,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: grp.title
                 color: beautify.dim
-                font.family: "Space Grotesk"
+                font.family: Theme.ui
                 font.pixelSize: 11
                 font.weight: Font.DemiBold
                 font.letterSpacing: 2
@@ -719,7 +720,7 @@ Item {
         color: tbn.accent ? (tbnMa.containsMouse ? Qt.lighter(beautify.vermilion, 1.12) : beautify.vermilion) : (tbnMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
         border.width: tbn.accent ? 0 : 1
         border.color: beautify.hair
-        Text { id: tl; anchors.centerIn: parent; text: I18n.tr(tbn.label); color: tbn.accent ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.DemiBold }
+        Text { id: tl; anchors.centerIn: parent; text: I18n.tr(tbn.label); color: tbn.accent ? Theme.accentInk : beautify.idle; font.family: Theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
         MouseArea { id: tbnMa; anchors.fill: parent; hoverEnabled: true; onClicked: tbn.tapped() }
     }
 
@@ -732,7 +733,7 @@ Item {
         height: 30
         radius: 8
         color: bgt.on ? beautify.vermilion : (btMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : beautify.fieldBg)
-        Text { anchors.centerIn: parent; text: I18n.tr(bgt.label); color: bgt.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: bgt.on ? Font.DemiBold : Font.Medium }
+        Text { anchors.centerIn: parent; text: I18n.tr(bgt.label); color: bgt.on ? Theme.accentInk : beautify.idle; font.family: Theme.ui; font.pixelSize: 12; font.weight: bgt.on ? Font.DemiBold : Font.Medium }
         MouseArea { id: btMa; anchors.fill: parent; hoverEnabled: true; onClicked: bgt.tapped() }
     }
 
@@ -745,7 +746,7 @@ Item {
         height: 28
         radius: 8
         color: pill.on ? beautify.vermilion : (plMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : beautify.fieldBg)
-        Text { id: pl; anchors.centerIn: parent; text: I18n.tr(pill.label); color: pill.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: pill.on ? Font.DemiBold : Font.Medium }
+        Text { id: pl; anchors.centerIn: parent; text: I18n.tr(pill.label); color: pill.on ? Theme.accentInk : beautify.idle; font.family: Theme.ui; font.pixelSize: 12; font.weight: pill.on ? Font.DemiBold : Font.Medium }
         MouseArea { id: plMa; anchors.fill: parent; hoverEnabled: true; onClicked: pill.tapped() }
     }
 
@@ -764,7 +765,7 @@ Item {
                 radius: 6
                 color: sw.modelData
                 readonly property bool sel: Qt.colorEqual(cr.current, sw.modelData)
-                border.color: sw.sel ? "#ffffff" : beautify.hair
+                border.color: sw.sel ? Theme.ink : beautify.hair
                 border.width: sw.sel ? 2 : 1
                 scale: crMa.containsMouse ? 1.12 : 1
                 Behavior on scale { NumberAnimation { duration: 80 } }
@@ -780,7 +781,7 @@ Item {
         signal toggled(bool v)
         width: parent.width
         height: 28
-        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr(tr.label); color: beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.Medium }
+        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr(tr.label); color: beautify.idle; font.family: Theme.ui; font.pixelSize: 13; font.weight: Font.Medium }
         Rectangle {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -796,7 +797,7 @@ Item {
                 radius: 9
                 y: 3
                 x: tr.on ? parent.width - width - 3 : 3
-                color: "#ffffff"
+                color: Theme.ink
                 Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
             }
             MouseArea { anchors.fill: parent; onClicked: tr.toggled(!tr.on) }

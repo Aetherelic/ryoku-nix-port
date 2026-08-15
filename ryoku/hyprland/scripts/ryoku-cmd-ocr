@@ -39,5 +39,14 @@ if [[ -z ${text//[[:space:]]/} ]]; then
   exit 0
 fi
 
-printf '%s' "$text" | wl-copy
+# Prefer the daemon: it owns the selection and ingests the entry into clipboard
+# history, which a bare wl-copy never reaches.
+if command -v ryoku-shell >/dev/null 2>&1 && ryoku-shell ping >/dev/null 2>&1; then
+  out="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/ryoku-ocr-text.XXXXXX")"
+  printf '%s' "$text" > "$out"
+  ryoku-shell clip-copy text/plain "$out"
+  rm -f "$out"
+else
+  printf '%s' "$text" | wl-copy
+fi
 notify-send -u low "$app" "Recognized text copied to clipboard"

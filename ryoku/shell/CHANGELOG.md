@@ -3,6 +3,50 @@
 ## Unreleased
 
 ### Added
+- **ryoshot pins a shot to the desktop.** Ctrl+P (or the toolbar pin) renders the
+  capture, drops it in `$XDG_RUNTIME_DIR/ryoku/pins/` and hands it to `ryopin`, a
+  new on-demand Quickshell surface that shows it as a floating always-on-top card
+  on every workspace. ryoshot then exits, so the pin outlives it. Drag the card to
+  move it, scroll to resize it within a third of the screen width and half its
+  height, and hover it for edit (reopens the PNG in ryoshot), copy, copy path and
+  close. One host process holds every pin: a later pin wakes the running host
+  through a poke file rather than starting a second one, and the host quits when
+  its last pin closes, so pins cost nothing while none exist
+  (`quickshell/ryopin/`, `quickshell/ryoshot/shell.qml`).
+- **ryoshot redacts instead of pixelating.** The pixelate tool became **Redact**
+  (`d`). A downscale keeps the source's spatial structure and can be read back;
+  the mosaic now samples the region's six dominant colours and paints fixed
+  blocks in a seeded pseudo-random order, so the output carries no information
+  about what was under it. Press `d` again for a solid block instead. The blocks
+  stay solid until the palette is sampled, so the source is never briefly legible
+  (`quickshell/ryoshot/EffectLayer.qml`, `lib/redact.js`).
+- **ryoshot gains a spotlight, an OCR grab and shift constraints.** Spotlight
+  (`s`) dims the rest of the shot and magnifies its lens, cycling ellipse,
+  rectangle and rounded rectangle on repeat presses; the wheel zooms a selected
+  lens between 1x and 4x. Copy text (`g`) drags a region and runs it through
+  `ryoku-cmd-ocr`, the same OCR path as Super+D, so a blur or redaction placed
+  over text is honoured and the text under it cannot be recovered. Holding Shift
+  while drawing makes rectangles, ellipses and spotlights square and snaps lines
+  and arrows to 45 degrees (`lib/constrain.js`).
+- **The captured region can be recropped after the fact.** Eight grips (four
+  corners, four edges) sit on the region through the whole editing phase, each
+  with the matching resize cursor, anchoring the opposite side and refusing to
+  invert. On a selection spanning two monitors each edge grip is drawn once, by
+  the head that actually contains it (`quickshell/ryoshot/ResizeHandles.qml`,
+  `lib/hittest.js`).
+- **Every ryoshot tool has a key, and remembers how it was left.** One tool list
+  now drives the toolbar, the tooltips and the key handler, so they cannot drift:
+  `v r o l a p h n t b d s z g`. Colour, width and fill are stored per tool in
+  `~/.config/ryoku/ryoshot.json` and restored on the next launch, the wheel
+  resizes the live stroke or text while drawing, `[` and `]` step the width,
+  `1` to `8` pick a swatch, `f` toggles fill, and `?` opens a card listing the
+  lot. A colour popover adds an HSV square, a hex field and an eyedropper that
+  samples the shot itself; Ctrl+P pins, Enter copies and saves
+  (`quickshell/ryoshot/`).
+- **ryoshot settings persist.** Blur radius, mosaic block, zoom factor, copy on
+  save and a save folder join the existing key rebind in the settings panel, all
+  written to `~/.config/ryoku/ryoshot.json` (`quickshell/ryoshot/SettingsPanel.qml`,
+  `Singletons/Config.qml`).
 - **The volume panel can boost past 100% for quiet hardware.** The bar's audio
   controls capped at 100% (0 dB), so a machine that is simply quiet at unity had
   no way to get louder from the shell. A **BOOST ABOVE 100%** toggle in the
@@ -231,6 +275,31 @@
   every named scheme. The wide face's diagonal divider ran from y20 down to y330
   and cut through the big weekday; it now ends at the weekday's top edge
   (`modules/desktop/aio/AioWidget.qml`).
+- **A ryoshot launch that cannot draw no longer eats the screenshot key.** If the
+  compositor or driver refuses a graphics context for the layer surface, Qt logs
+  it but QML never hears, so the process sat in its event loop forever holding
+  `/tmp/ryoshot.lock` and every later Print press was a silent no-op. A frame
+  watchdog now quits the launch when nothing has painted 15s in, releasing the
+  lock, and says so in a notification. `ryopin` carries the same watchdog
+  (`quickshell/ryoshot/shell.qml`, `quickshell/ryopin/shell.qml`).
+- **A monitor that never yields a screencopy frame falls back to grim.** The
+  frozen-frame poll gave up in silence after three seconds and left a surface
+  that was alive but blank. It now captures that output with `grim` and carries
+  on with the rest of the flow. `RYOSHOT_FORCE_FALLBACK=1` exercises the path
+  (`quickshell/ryoshot/Overlay.qml`).
+- **Blur, pixelate and zoom no longer freeze on the pixels they were drawn over.**
+  Their samplers grab once, and moving or resizing the annotation never asked for
+  a fresh grab, so the effect kept showing the region it was first placed on. The
+  sampled rect now reschedules its grab when it moves
+  (`quickshell/ryoshot/EffectLayer.qml`).
+- **ryoshot follows the desktop palette.** Every colour, font and duration in the
+  surface, the annotation chrome and the Beautify editor came from literals, so
+  the one surface on the desktop that did not retint with the wallpaper was the
+  one users look at most closely. They all resolve from
+  `Ryoku.Ui.Singletons.Tokens` now through a local `Theme` singleton; the only
+  literals left are the fixed annotation inks, which must stay recognisable
+  whatever the palette is, and the solid redaction block, which must not shift
+  after the user has checked it (`quickshell/ryoshot/Singletons/Theme.qml`).
 - **The islands bar honours the corner and gap-animation settings.** Merging the
   two variants left the split-pill `"islands"` form reading a fixed
   `islandRadius`, so the control center and Bar Studio "Corners" control (which

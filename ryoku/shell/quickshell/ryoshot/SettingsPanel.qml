@@ -1,101 +1,187 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Io
-import "lib/keymap.js" as Keymap
+import "Singletons"
 import Ryoku.Ui.Singletons
 
 Item {
     id: panel
-    property string luaPath: ""
-    property string hotkey: "-"
-    property bool listening: false
+
+    property alias luaPath: hotkeyRow.luaPath
+    property alias hotkey: hotkeyRow.hotkey
 
     signal closeRequested()
     signal rebound()
-
-    readonly property color glassBg: Qt.rgba(22 / 255, 17 / 255, 11 / 255, 0.97)
-    readonly property color glassBorder: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.14)
-    readonly property color vermilion: "#e2342a"
-    readonly property color idle: "#c7bfae"
 
     readonly property int arrow: 7
     implicitWidth: card.implicitWidth
     implicitHeight: card.implicitHeight + arrow
 
-    FileView {
-        id: reader
-        path: panel.luaPath
-        onLoaded: { var b = Keymap.parseBind(text()); if (b) panel.hotkey = b; }
-    }
-
-    FileView {
-        id: writer
-        path: panel.luaPath
-        atomicWrites: true
-        onSaved: { reloadProc.running = true; panel.rebound(); }
-        onSaveFailed: (err) => console.log("ryoshot: ryoshot.lua write failed: " + err)
-    }
-
     Process {
-        id: reloadProc
-        command: ["setsid", "-f", "sh", "-c", "sleep 0.5; hyprctl reload"]
-    }
-
-    function applyBind(bind) {
-        panel.hotkey = bind;
-        panel.listening = false;
-        writer.setText(Keymap.luaFile(bind));
+        id: folderDialog
+        stdout: StdioCollector { id: folderOut }
+        function open() {
+            command = ["sh", "-c",
+                "zenity --file-selection --directory 2>/dev/null || kdialog --getexistingdirectory ~ 2>/dev/null"];
+            running = true;
+        }
+        onExited: (code) => {
+            var chosen = folderOut.text.trim();
+            if (code === 0 && chosen.length > 0) {
+                Config.saveDir = chosen;
+                Config.save();
+            }
+        }
     }
 
     Rectangle {
         id: card
         width: parent.width
         height: parent.height - panel.arrow
-        radius: 10
-        color: panel.glassBg
-        border.color: panel.glassBorder
+        radius: Theme.radius
+        color: Theme.panel
+        border.color: Theme.hair
         border.width: 1
-        implicitWidth: content.implicitWidth + 20
-        implicitHeight: 44
+        implicitWidth: 300
+        implicitHeight: content.implicitHeight + 28
 
-        RowLayout {
+        ColumnLayout {
             id: content
-            anchors.centerIn: parent
-            spacing: 10
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: 14
+            spacing: 12
 
-            Text {
-                text: panel.hotkey
-                color: panel.idle
-                font.family: "JetBrains Mono"
-                font.pixelSize: 13
-                verticalAlignment: Text.AlignVCenter
+            HotkeyRow {
+                id: hotkeyRow
+                Layout.fillWidth: true
+                onRebound: panel.rebound()
+                onCloseRequested: panel.closeRequested()
             }
 
-            Rectangle {
-                id: recBtn
-                Layout.preferredHeight: 28
-                Layout.preferredWidth: recLabel.implicitWidth + 24
-                radius: 6
-                color: panel.listening ? panel.vermilion
-                    : (recHover.hovered ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.06))
-                border.color: panel.listening ? panel.vermilion : panel.glassBorder
-                border.width: 1
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.hair }
+
+            Slider {
+                Layout.fillWidth: true
+                label: "Blur radius"
+                from: 16
+                to: 128
+                value: Config.blurRadius
+                onMoved: (v) => Config.blurRadius = Math.round(v / 4) * 4
+                onReleased: Config.save()
+            }
+
+            Slider {
+                Layout.fillWidth: true
+                label: "Mosaic block"
+                from: 6
+                to: 32
+                value: Config.mosaicBlock
+                onMoved: (v) => Config.mosaicBlock = Math.round(v)
+                onReleased: Config.save()
+            }
+
+            Slider {
+                Layout.fillWidth: true
+                label: "Zoom factor"
+                from: 1.5
+                to: 4.0
+                decimals: 1
+                value: Config.zoomFactor
+                onMoved: (v) => Config.zoomFactor = Math.round(v * 10) / 10
+                onReleased: Config.save()
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
 
                 Text {
-                    id: recLabel
-                    anchors.centerIn: parent
-                    text: panel.listening ? I18n.tr("Press a key…") : I18n.tr("Record")
-                    color: panel.listening ? "#ffffff" : panel.idle
-                    font.family: "JetBrains Mono"
-                    font.pixelSize: 13
+                    Layout.fillWidth: true
+                    text: I18n.tr("Copy on save")
+                    color: Theme.inkDim
+                    font.family: Theme.ui
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
                 }
 
-                HoverHandler { id: recHover }
-                TapHandler {
-                    onTapped: {
-                        panel.listening = !panel.listening;
-                        if (panel.listening) keyCatcher.forceActiveFocus();
+                Rectangle {
+                    id: pill
+                    width: 44
+                    height: 24
+                    radius: 12
+                    color: Config.copyOnSave ? Theme.accent : Theme.hover
+                    border.color: Config.copyOnSave ? Theme.accent : Theme.hair
+                    border.width: 1
+
+                    Rectangle {
+                        width: 18
+                        height: 18
+                        radius: 9
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: Config.copyOnSave ? parent.width - width - 3 : 3
+                        color: Config.copyOnSave ? Theme.accentInk : Theme.ink
+                        Behavior on x { NumberAnimation { duration: Theme.move } }
+
+                        Icon {
+                            anchors.centerIn: parent
+                            name: "check"
+                            size: 12
+                            tint: Theme.accent
+                            visible: Config.copyOnSave
+                        }
                     }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: { Config.copyOnSave = !Config.copyOnSave; Config.save(); }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Text {
+                    text: I18n.tr("Save folder")
+                    color: Theme.inkDim
+                    font.family: Theme.ui
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: Config.saveDir.length > 0 ? Config.saveDir : I18n.tr("Default")
+                    color: Theme.ink
+                    font.family: Theme.mono
+                    font.pixelSize: 12
+                    elide: Text.ElideMiddle
+                    horizontalAlignment: Text.AlignRight
+                }
+
+                Rectangle {
+                    id: chooseBtn
+                    Layout.preferredHeight: 28
+                    Layout.preferredWidth: chooseLabel.implicitWidth + 24
+                    radius: 6
+                    color: chooseHover.hovered ? Theme.press : Theme.hover
+                    border.color: Theme.hair
+                    border.width: 1
+
+                    Text {
+                        id: chooseLabel
+                        anchors.centerIn: parent
+                        text: I18n.tr("Choose")
+                        color: Theme.inkDim
+                        font.family: Theme.mono
+                        font.pixelSize: 12
+                    }
+
+                    HoverHandler { id: chooseHover }
+                    TapHandler { onTapped: folderDialog.open() }
                 }
             }
         }
@@ -114,24 +200,8 @@ Item {
             ctx.lineTo(width, 0);
             ctx.lineTo(width / 2, height);
             ctx.closePath();
-            ctx.fillStyle = Qt.rgba(24 / 255, 28 / 255, 38 / 255, 0.97);
+            ctx.fillStyle = Theme.panel;
             ctx.fill();
-        }
-    }
-
-    Item {
-        id: keyCatcher
-        focus: panel.visible
-        Keys.onPressed: (e) => {
-            e.accepted = true;
-            if (e.key === Qt.Key_Escape) {
-                if (panel.listening) panel.listening = false;
-                else panel.closeRequested();
-                return;
-            }
-            if (!panel.listening) return;
-            var bind = Keymap.bindString(e.key, e.modifiers, e.text);
-            if (bind !== null) panel.applyBind(bind);
         }
     }
 }

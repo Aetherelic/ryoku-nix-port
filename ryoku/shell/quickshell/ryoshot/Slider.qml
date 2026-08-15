@@ -15,6 +15,7 @@ Item {
     property string suffix: ""
     property bool bipolar: false
     signal moved(real v)
+    signal released()
 
     implicitWidth: 240
     implicitHeight: 44
@@ -90,5 +91,6 @@ Item {
         function apply(e) { var p = mapToItem(track, e.x, e.y); sl.setFromX(p.x); }
         onPressed: (e) => apply(e)
         onPositionChanged: (e) => { if (pressed) apply(e); }
+        onReleased: sl.released()
     }
 }

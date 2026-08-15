@@ -2,39 +2,43 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import "Singletons"
 
 Item {
     id: tb
     implicitWidth: glass.implicitWidth
     implicitHeight: glass.implicitHeight
 
+    property var tools: []
     property string activeTool: "rect"
-    property color activeColor: "#e2342a"
+    property color activeColor: Theme.accent
     property int activeWidth: 4
+    property bool activeFill: false
+    property bool activeRough: false
+    property bool hasFill: false
+    property string openPopover: ""
     property bool canUndo: false
     property bool canRedo: false
     property bool settingsOpen: false
-    property bool activeRough: false
 
+    readonly property real colorCenterX: colorBtn.x + row.x + colorBtn.width / 2
+    readonly property real widthCenterX: widthBtn.x + row.x + widthBtn.width / 2
     readonly property real gearCenterX: gear.x + row.x + gear.width / 2
 
     signal toolPicked(string tool)
-    signal colorPicked(color c)
-    signal widthPicked(int w)
+    signal colorButtonClicked()
+    signal widthButtonClicked()
+    signal fillToggled()
+    signal roughToggled()
     signal undoRequested()
     signal redoRequested()
     signal copyRequested()
     signal saveRequested()
     signal uploadRequested()
+    signal pinRequested()
+    signal helpRequested()
     signal settingsRequested()
     signal beautifyRequested()
-    signal roughToggled()
-
-    readonly property color glassBg: Qt.rgba(22 / 255, 17 / 255, 11 / 255, 0.92)
-    readonly property color glassBorder: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.14)
-    readonly property color vermilion: "#e2342a"
-    readonly property color idle: "#c7bfae"
-    readonly property color sep: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.14)
 
     // the desktop brand seal, user-overridable via ~/.config/ryoku/brand.json
     // (Ryoku Settings -> Shell -> Global). the beautify button follows markText;
@@ -50,37 +54,18 @@ Item {
         JsonAdapter { id: brandAdapter; property string markText: "力" }
     }
 
-    readonly property var tools: [
-        { id: "select",  icon: "select",  implemented: true },
-        { id: "rect",    icon: "rect",    implemented: true },
-        { id: "ellipse", icon: "ellipse", implemented: true },
-        { id: "line",    icon: "line",    implemented: true },
-        { id: "arrow",   icon: "arrow",   implemented: true },
-        { id: "pen",     icon: "pen",     implemented: true },
-        { id: "marker",  icon: "marker",  implemented: true },
-        { id: "text",    icon: "text",    implemented: true },
-        { id: "blur",    icon: "blur",    implemented: true },
-        { id: "pixelate", icon: "pixelate", implemented: true },
-        { id: "magnify", icon: "magnify", implemented: true },
-        { id: "counter", icon: "counter", implemented: true }
-    ]
-
-    readonly property var swatches: [
-        "#e2342a", "#ffffff", "#1a1a1a", "#e23b3b", "#f2c14e", "#5bbf73", "#4f8fe0"
-    ]
-
-    readonly property var widths: [
-        { id: 2, dot: 5 },
-        { id: 4, dot: 9 },
-        { id: 7, dot: 13 }
-    ]
+    function keyFor(id) {
+        for (var i = 0; i < tb.tools.length; i++)
+            if (tb.tools[i].id === id) return tb.tools[i].key;
+        return "";
+    }
 
     Rectangle {
         id: glass
         anchors.fill: parent
-        radius: 10
-        color: tb.glassBg
-        border.color: tb.glassBorder
+        radius: Theme.radius
+        color: Theme.panel
+        border.color: Theme.hair
         border.width: 1
         implicitWidth: row.implicitWidth + 12
         implicitHeight: row.implicitHeight + 12
@@ -96,92 +81,127 @@ Item {
                     required property var modelData
                     icon: modelData.icon
                     active: tb.activeTool === modelData.id
-                    dim: !modelData.implemented
-                    onClicked: { if (modelData.implemented) tb.toolPicked(modelData.id); }
+                    tooltip: modelData.label + "  (" + modelData.key + ")"
+                    onClicked: tb.toolPicked(modelData.id)
                 }
             }
 
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.hair; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 
-            Repeater {
-                model: tb.swatches
+            Rectangle {
+                id: colorBtn
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+                radius: 7
+                color: tb.openPopover === "color" ? Theme.press : (colorMa.containsMouse ? Theme.hover : "transparent")
                 Rectangle {
-                    required property var modelData
-                    Layout.preferredWidth: 18
-                    Layout.preferredHeight: 18
+                    anchors.centerIn: parent
+                    width: 18
+                    height: 18
                     radius: 9
-                    color: modelData
-                    readonly property bool sel: Qt.colorEqual(tb.activeColor, modelData)
-                    border.color: sel ? "#ffffff" : Qt.rgba(1, 1, 1, 0.18)
-                    border.width: sel ? 2 : 1
-                    scale: swMa.containsMouse ? 1.12 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 90 } }
-                    MouseArea { id: swMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.colorPicked(modelData) }
+                    color: tb.activeColor
+                    border.color: Theme.hair
+                    border.width: 1
+                }
+                MouseArea {
+                    id: colorMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: tb.colorButtonClicked()
                 }
             }
 
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
-
-            Repeater {
-                model: tb.widths
+            Rectangle {
+                id: widthBtn
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+                radius: 7
+                color: tb.openPopover === "width" ? Theme.press : (widthMa.containsMouse ? Theme.hover : "transparent")
                 Rectangle {
-                    required property var modelData
-                    Layout.preferredWidth: 26
-                    Layout.preferredHeight: 26
-                    radius: 6
-                    readonly property bool sel: tb.activeWidth === modelData.id
-                    color: sel ? tb.vermilion : (whMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
-                    MouseArea { id: whMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.widthPicked(modelData.id) }
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: modelData.dot
-                        height: modelData.dot
-                        radius: width / 2
-                        color: parent.sel ? "#ffffff" : tb.idle
-                    }
+                    anchors.centerIn: parent
+                    width: Math.max(4, Math.min(18, tb.activeWidth * 1.6 + 3))
+                    height: width
+                    radius: width / 2
+                    color: Theme.inkDim
+                }
+                MouseArea {
+                    id: widthMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: tb.widthButtonClicked()
                 }
             }
 
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+            IconButton {
+                icon: "fill"
+                visible: tb.hasFill
+                active: tb.activeFill
+                tooltip: qsTr("Fill") + "  (f)"
+                onClicked: tb.fillToggled()
+            }
 
-            IconButton { icon: "sketch"; active: tb.activeRough; onClicked: tb.roughToggled() }
+            IconButton {
+                icon: "sketch"
+                active: tb.activeRough
+                tooltip: qsTr("Sketch") + "  (k)"
+                onClicked: tb.roughToggled()
+            }
 
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.hair; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 
-            IconButton { icon: "undo"; dim: !tb.canUndo; onClicked: { if (tb.canUndo) tb.undoRequested(); } }
-            IconButton { icon: "redo"; dim: !tb.canRedo; onClicked: { if (tb.canRedo) tb.redoRequested(); } }
+            IconButton { icon: "undo"; dim: !tb.canUndo; tooltip: qsTr("Undo") + "  (ctrl+z)"; onClicked: { if (tb.canUndo) tb.undoRequested(); } }
+            IconButton { icon: "redo"; dim: !tb.canRedo; tooltip: qsTr("Redo") + "  (ctrl+shift+z)"; onClicked: { if (tb.canRedo) tb.redoRequested(); } }
 
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.hair; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 
-            IconButton { icon: "copy"; onClicked: tb.copyRequested() }
-            IconButton { icon: "save"; onClicked: tb.saveRequested() }
-            IconButton { icon: "upload"; onClicked: tb.uploadRequested() }
+            IconButton { icon: "copy"; tooltip: qsTr("Copy") + "  (ctrl+c)"; onClicked: tb.copyRequested() }
+            IconButton { icon: "save"; tooltip: qsTr("Save") + "  (ctrl+s)"; onClicked: tb.saveRequested() }
+            IconButton { icon: "pin"; tooltip: qsTr("Pin to desktop") + "  (ctrl+p)"; onClicked: tb.pinRequested() }
+            IconButton { icon: "upload"; tooltip: qsTr("Upload") + "  (ctrl+u)"; onClicked: tb.uploadRequested() }
 
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.hair; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 
             Rectangle {
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
                 radius: 7
-                color: beautMa.containsMouse ? Qt.rgba(226 / 255, 52 / 255, 42 / 255, 0.16) : "transparent"
+                color: beautMa.containsMouse ? Theme.hover : "transparent"
                 Text {
                     anchors.centerIn: parent
                     text: tb.mark
-                    color: tb.vermilion
-                    font.family: "Noto Sans CJK JP"
+                    color: Theme.accent
+                    font.family: Theme.jp
                     font.pixelSize: 17
                     font.weight: Font.DemiBold
                 }
                 MouseArea { id: beautMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.beautifyRequested() }
             }
 
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.hair; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+
+            Rectangle {
+                id: helpBtn
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+                radius: 7
+                color: helpMa.containsMouse ? Theme.hover : "transparent"
+                Text {
+                    anchors.centerIn: parent
+                    text: "?"
+                    color: Theme.inkDim
+                    font.family: Theme.ui
+                    font.pixelSize: 16
+                    font.weight: Font.DemiBold
+                }
+                MouseArea { id: helpMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.helpRequested() }
+            }
 
             IconButton {
                 id: gear
                 icon: "gear"
                 active: tb.settingsOpen
-                onClicked: { tb.settingsOpen = !tb.settingsOpen; tb.settingsRequested(); }
+                tooltip: qsTr("Settings")
+                onClicked: tb.settingsRequested()
             }
         }
     }

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import "Singletons"
 
 Item {
     id: canvas
@@ -11,6 +12,11 @@ Item {
     property int revision: 0
     property var selectedIndex: null
     property var moveOffset: null
+
+    // Kinds that sample the captured pixels are drawn by EffectLayer; this
+    // canvas only strokes vectors.
+    readonly property var effectKinds: ["blur", "pixelate", "redact", "magnify", "spotlight"]
+    function isEffect(t) { return canvas.effectKinds.indexOf(t) !== -1; }
 
     function shifted(a, dx, dy) {
         var pts = [];
@@ -164,7 +170,8 @@ Item {
             readonly property bool present: a !== undefined && a !== null && a.points !== undefined
             readonly property bool isText: present && a.type === "text" && a.points.length >= 1
             readonly property bool isCounter: present && a.type === "counter" && a.points.length >= 1
-            readonly property bool valid: present && a.points.length >= 2 && a.type !== "blur" && a.type !== "pixelate" && a.type !== "magnify"
+            readonly property bool isOcr: present && a.type === "ocr" && a.points.length >= 2
+            readonly property bool valid: present && a.points.length >= 2 && !canvas.isEffect(a.type)
             readonly property string kind: valid ? a.type : (isText ? "text" : "")
             anchors.fill: parent
             visible: valid || isText || isCounter
@@ -232,7 +239,7 @@ Item {
                 ShapePath {
                     strokeColor: cell.valid ? canvas.strokeColorOf(cell.a) : "transparent"
                     strokeWidth: cell.valid ? canvas.strokeWidthOf(cell.a) : 0
-                    fillColor: "transparent"
+                    fillColor: (cell.valid && cell.a.filled === true) ? cell.a.color : "transparent"
                     capStyle: ShapePath.RoundCap
                     joinStyle: ShapePath.RoundJoin
                     startX: ellShape.eg ? ellShape.eg.cx - ellShape.eg.rx : 0
@@ -280,7 +287,7 @@ Item {
                 y: cell.isText ? cell.a.points[0].y - canvas.sy : 0
                 text: cell.isText ? (cell.a.text || "") : ""
                 color: cell.isText ? cell.a.color : "transparent"
-                font.family: "Space Grotesk"
+                font.family: Theme.ui
                 font.pixelSize: cell.isText ? cell.a.size : 16
                 textFormat: Text.PlainText
                 renderType: Text.NativeRendering
@@ -320,15 +327,39 @@ Item {
                 height: cr * 2
                 radius: cr
                 color: cell.isCounter ? cell.a.color : "transparent"
-                border.color: "#ffffff"
+                border.color: Theme.accentInk
                 border.width: 2
                 Text {
                     anchors.centerIn: parent
                     text: cell.isCounter ? cell.a.n : ""
-                    color: "#ffffff"
-                    font.family: "Space Grotesk"
+                    color: Theme.accentInk
+                    font.family: Theme.ui
                     font.pixelSize: counterBadge.cr * 1.05
                     font.weight: Font.Bold
+                }
+            }
+
+            // The OCR marquee is a live drag, never a stored annotation, so it
+            // draws as a dashed frame that leaves no mark on the export.
+            Shape {
+                anchors.fill: parent
+                antialiasing: true
+                preferredRendererType: Shape.CurveRenderer
+                visible: cell.isOcr
+                ShapePath {
+                    strokeColor: cell.isOcr ? Theme.accent : "transparent"
+                    strokeWidth: 1.5
+                    strokeStyle: ShapePath.DashLine
+                    dashPattern: [4, 3]
+                    fillColor: cell.isOcr
+                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.10)
+                        : "transparent"
+                    PathRectangle {
+                        x: cell.isOcr ? Math.min(cell.a.points[0].x, cell.a.points[1].x) - canvas.sx : 0
+                        y: cell.isOcr ? Math.min(cell.a.points[0].y, cell.a.points[1].y) - canvas.sy : 0
+                        width: cell.isOcr ? Math.abs(cell.a.points[1].x - cell.a.points[0].x) : 0
+                        height: cell.isOcr ? Math.abs(cell.a.points[1].y - cell.a.points[0].y) : 0
+                    }
                 }
             }
         }

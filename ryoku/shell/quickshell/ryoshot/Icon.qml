@@ -1,11 +1,12 @@
 import QtQuick
 import QtQuick.Shapes
+import "Singletons"
 
 Item {
     id: icon
 
     property string name: ""
-    property color tint: "#c7bfae"
+    property color tint: Theme.inkDim
     property real size: 18
 
     readonly property real vb: 24
@@ -30,7 +31,13 @@ Item {
         "counter": "M12 3.6a8.4 8.4 0 1 1 -0.1 0z M11 9.2l1.7 -1.1V16",
         "pixelate": "M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z",
         "sketch":  "M4 16c1.6 -3.4 3.2 3.4 4.8 0s3.2 3.4 4.8 0 3.2 3.4 4.4 1",
-        "magnify": "M10 4a6 6 0 1 0 0.01 0z M14.4 14.4L21 21"
+        "magnify": "M10 4a6 6 0 1 0 0.01 0z M14.4 14.4L21 21",
+        "redact":    "M4 7h16v4H4z M4 14h3v3H4z M10 14h3v3h-3z M16 14h3v3h-3z",
+        "spotlight": "M12 6a6 6 0 1 0 0.01 0z M3 7l2.5 1 M7 3l1 2.5",
+        "ocr":       "M3 6V3h3 M18 3h3v3 M3 18v3h3 M21 18v3h-3 M9 17l3 -8 3 8 M10.2 14h3.6",
+        "pin":       "M12 7.5a3.5 3.5 0 1 0 -7 0a3.5 3.5 0 0 0 7 0z M11 10L18 18",
+        "fill":      "M4 4h16v16H4z M4 4L20 20 M4 8L16 20 M4 12L12 20 M4 16L8 20",
+        "check":     "M5 13l4 4L19 6"
     })
 
     readonly property string d: defs[name] !== undefined ? defs[name] : ""

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+- **The screenshot tool got the upgrade it needed, and learned to pin.** ryoshot
+  now carries fourteen single-key tools that remember their own colour, width and
+  fill, eight grips that recrop the captured region after the fact, a proper
+  redaction that cannot be read back, a spotlight lens, an OCR region grab, Shift
+  constraints, a colour picker with an eyedropper, and persisted settings. Ctrl+P
+  pins the finished shot to the desktop as a floating card that outlives ryoshot,
+  served by a new on-demand `ryopin` surface. The whole surface, Beautify
+  included, now retints from the wallpaper palette like the rest of the desktop.
+  See `ryoku/shell/CHANGELOG.md` for the detail.
+
 ### Fixed
 - **Chromium's "is sharing your screen" bar no longer sits dead in the middle of
   the desktop.** On native Wayland that widget maps with an empty app_id and its

@@ -1,8 +1,9 @@
 import QtQuick
-import Qt5Compat.GraphicalEffects
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import "lib/coords.js" as Coords
+import "Singletons"
 import Ryoku.Ui.Singletons
 
 Item {
@@ -13,6 +14,8 @@ Item {
     property var globalSel: null
     property bool capturing: false
     property bool ready: false
+    property bool resizable: false
+    property bool eyedropArmed: false
 
     property var model: null
     property var draft: null
@@ -22,23 +25,32 @@ Item {
     property var moveOffset: null
     property var hoverWindow: null
 
-    signal pressedAt(real gx, real gy)
-    signal movedTo(real gx, real gy)
+    signal pressedAt(real gx, real gy, int mods)
+    signal movedTo(real gx, real gy, int mods)
     signal hovered(real gx, real gy)
     signal released()
     signal frozen()
     signal textChanged(string t)
     signal textCommitted()
+    signal wheeled(int dir)
+    signal resizeStarted(string role, real gx, real gy)
+    signal resizeMoved(real gx, real gy)
+    signal resizeEnded()
+    signal sampled(color c)
 
     readonly property int sx: screenData.x
     readonly property int sy: screenData.y
+    readonly property string scrName: screenData.name
 
     readonly property var localSel: globalSel
         ? Coords.intersectRect(globalSel, { x: sx, y: sy, width: width, height: height })
         : null
 
-    readonly property color dimColor: Qt.rgba(15 / 255, 12 / 255, 7 / 255, 0.62)
-    readonly property color vermilion: "#e2342a"
+    // grim renders the same output the compositor would hand screencopy, so the
+    // fallback frame lines up pixel for pixel with the layer surface above it.
+    readonly property bool forceFallback: Quickshell.env("RYOSHOT_FORCE_FALLBACK") === "1"
+    property bool fallbackActive: false
+    readonly property string fallbackPath: "/tmp/ryoshot-fallback-" + scrName + ".png"
 
     function selectionBox() {
         if (selectedIndex === null || !model
@@ -70,120 +82,50 @@ Item {
         id: scene
         anchors.fill: parent
 
-        ScreencopyView {
-            id: frozen
+        // The captured pixels with no annotation over them. The effect layer
+        // samples this, the export samples the whole scene.
+        Item {
+            id: plate
             anchors.fill: parent
-            captureSource: overlay.screenData
-            live: false
-            paintCursor: false
-        }
 
-        function effectItems() {
-            var src = overlay.model ? overlay.model.items : [];
-            var out = [];
-            for (var i = 0; i < src.length; i++)
-                if (src[i] && (src[i].type === "blur" || src[i].type === "pixelate" || src[i].type === "magnify")) out.push(src[i]);
-            if (overlay.draft && (overlay.draft.type === "blur" || overlay.draft.type === "pixelate" || overlay.draft.type === "magnify")) out.push(overlay.draft);
-            return out;
-        }
+            ScreencopyView {
+                id: shot
+                anchors.fill: parent
+                captureSource: overlay.screenData
+                live: false
+                paintCursor: false
+                visible: !overlay.fallbackActive
+            }
 
-        Repeater {
-            model: { overlay.annRevision; return scene.effectItems(); }
-
-            Item {
-                required property var modelData
-                readonly property var a: modelData
-                readonly property bool valid: a !== undefined && a !== null && a.points !== undefined && a.points.length >= 2
-                readonly property real rx: valid ? Math.min(a.points[0].x, a.points[1].x) - overlay.sx : 0
-                readonly property real ry: valid ? Math.min(a.points[0].y, a.points[1].y) - overlay.sy : 0
-                readonly property real rw: valid ? Math.abs(a.points[1].x - a.points[0].x) : 0
-                readonly property real rh: valid ? Math.abs(a.points[1].y - a.points[0].y) : 0
-                readonly property bool isPix: valid && a.type === "pixelate"
-                readonly property real block: valid ? ((a.width || 4) * 2 + 8) : 12
-                readonly property bool isMag: valid && a.type === "magnify"
-                readonly property real magD: Math.min(rw, rh)
-                readonly property real magZoom: 2.0
-                x: rx
-                y: ry
-                width: rw
-                height: rh
-                visible: valid && rw > 0 && rh > 0
-                clip: true
-
-                ShaderEffectSource {
-                    id: blurSrc
-                    sourceItem: frozen
-                    anchors.fill: parent
-                    live: false
-                    recursive: false
-                    sourceRect: Qt.rect(parent.rx, parent.ry, parent.rw, parent.rh)
-                    visible: false
-                }
-
-                FastBlur {
-                    anchors.fill: parent
-                    source: blurSrc
-                    radius: 64
-                    visible: parent.valid && parent.a.type === "blur"
-                }
-
-                ShaderEffectSource {
-                    anchors.fill: parent
-                    visible: parent.isPix
-                    sourceItem: frozen
-                    live: false
-                    recursive: false
-                    sourceRect: Qt.rect(parent.rx, parent.ry, parent.rw, parent.rh)
-                    textureSize: Qt.size(Math.max(1, Math.round(parent.rw / parent.block)),
-                                         Math.max(1, Math.round(parent.rh / parent.block)))
-                    smooth: false
-                }
-
-                ShaderEffectSource {
-                    id: magSrc
-                    width: parent.magD
-                    height: parent.magD
-                    anchors.centerIn: parent
-                    sourceItem: frozen
-                    live: false
-                    recursive: false
-                    sourceRect: Qt.rect(parent.rx + parent.rw / 2 - parent.magD / (2 * parent.magZoom),
-                                         parent.ry + parent.rh / 2 - parent.magD / (2 * parent.magZoom),
-                                         parent.magD / parent.magZoom, parent.magD / parent.magZoom)
-                    visible: false
-                }
-                Rectangle {
-                    id: magMask
-                    width: parent.magD
-                    height: parent.magD
-                    anchors.centerIn: parent
-                    radius: parent.magD / 2
-                    visible: false
-                    layer.enabled: true
-                }
-                OpacityMask {
-                    width: parent.magD
-                    height: parent.magD
-                    anchors.centerIn: parent
-                    source: magSrc
-                    maskSource: magMask
-                    visible: parent.isMag
-                }
-                Rectangle {
-                    width: parent.magD
-                    height: parent.magD
-                    anchors.centerIn: parent
-                    radius: parent.magD / 2
-                    color: "transparent"
-                    border.color: "#ffffff"
-                    border.width: Math.max(2, parent.magD * 0.03)
-                    visible: parent.isMag
+            Image {
+                id: fallbackImage
+                anchors.fill: parent
+                visible: overlay.fallbackActive
+                cache: false
+                fillMode: Image.Stretch
+                onStatusChanged: {
+                    if (status === Image.Ready && !overlay.ready) {
+                        overlay.fallbackActive = true;
+                        overlay.ready = true;
+                        overlay.frozen();
+                    } else if (status === Image.Error) {
+                        console.error("ryoshot: grim fallback failed to load for " + overlay.scrName);
+                    }
                 }
             }
         }
 
+        EffectLayer {
+            anchors.fill: parent
+            frame: plate
+            sx: overlay.sx
+            sy: overlay.sy
+            model: overlay.model
+            draft: overlay.draft
+            revision: overlay.annRevision
+        }
+
         AnnLayer {
-            id: annCanvas
             anchors.fill: parent
             sx: overlay.sx
             sy: overlay.sy
@@ -195,29 +137,50 @@ Item {
         }
     }
 
+    Process {
+        id: grimProc
+        command: ["grim", "-o", overlay.scrName, overlay.fallbackPath]
+        onExited: (code) => {
+            if (code !== 0) {
+                console.error("ryoshot: grim fallback exited " + code + " for " + overlay.scrName);
+                return;
+            }
+            fallbackImage.source = "file://" + overlay.fallbackPath + "?t=" + Date.now();
+        }
+    }
+
+    function startFallback() {
+        if (overlay.fallbackActive || grimProc.running) return;
+        console.error("ryoshot: no screencopy frame for " + overlay.scrName + ", falling back to grim");
+        grimProc.running = true;
+    }
+
     Timer {
         id: capTimer
         interval: 50
         repeat: true
-        running: true
+        running: !overlay.forceFallback
         property int tries: 0
         onTriggered: {
             tries += 1;
-            if (frozen.hasContent) {
+            if (shot.hasContent) {
                 running = false;
                 overlay.ready = true;
                 overlay.frozen();
             } else if (tries > 60) {
                 running = false;
+                overlay.startFallback();
             } else {
-                frozen.captureFrame();
+                shot.captureFrame();
             }
         }
     }
 
+    Component.onCompleted: if (overlay.forceFallback) overlay.startFallback()
+
     Rectangle {
         anchors.fill: parent
-        color: overlay.dimColor
+        color: Theme.scrim
         visible: overlay.ready && overlay.localSel === null
     }
 
@@ -225,25 +188,25 @@ Item {
         anchors.fill: parent
         visible: overlay.ready && overlay.localSel !== null
         Rectangle {
-            color: overlay.dimColor
+            color: Theme.scrim
             x: 0; y: 0; width: parent.width
             height: overlay.localSel ? overlay.localSel.y : 0
         }
         Rectangle {
-            color: overlay.dimColor
+            color: Theme.scrim
             x: 0; width: parent.width
             y: overlay.localSel ? overlay.localSel.y + overlay.localSel.h : 0
             height: overlay.localSel ? parent.height - (overlay.localSel.y + overlay.localSel.h) : 0
         }
         Rectangle {
-            color: overlay.dimColor
+            color: Theme.scrim
             x: 0
             y: overlay.localSel ? overlay.localSel.y : 0
             width: overlay.localSel ? overlay.localSel.x : 0
             height: overlay.localSel ? overlay.localSel.h : 0
         }
         Rectangle {
-            color: overlay.dimColor
+            color: Theme.scrim
             x: overlay.localSel ? overlay.localSel.x + overlay.localSel.w : 0
             y: overlay.localSel ? overlay.localSel.y : 0
             width: overlay.localSel ? parent.width - (overlay.localSel.x + overlay.localSel.w) : 0
@@ -262,36 +225,33 @@ Item {
         Rectangle {
             anchors.fill: parent
             color: "transparent"
-            border.color: overlay.vermilion
+            border.color: Theme.accent
             border.width: 1.5
-        }
-
-        Repeater {
-            model: [
-                { hx: 0, hy: 0 },
-                { hx: 1, hy: 0 },
-                { hx: 0, hy: 1 },
-                { hx: 1, hy: 1 }
-            ]
-            Rectangle {
-                required property var modelData
-                width: 8; height: 8
-                color: overlay.vermilion
-                x: modelData.hx * (chrome.width - width)
-                y: modelData.hy * (chrome.height - height)
-            }
         }
 
         Text {
             text: overlay.globalSel
-                ? I18n.tr("ryoshot · ") + Math.round(overlay.globalSel.w) + "×" + Math.round(overlay.globalSel.h)
+                ? Math.round(overlay.globalSel.w) + "\u00d7" + Math.round(overlay.globalSel.h)
                 : ""
-            color: overlay.vermilion
-            font.family: "JetBrains Mono"
+            color: Theme.accent
+            font.family: Theme.mono
             font.pixelSize: 13
             x: 0
             y: -height - 4
         }
+    }
+
+    ResizeHandles {
+        anchors.fill: parent
+        // above the drawing MouseArea, or a grip press would start a stroke
+        z: 20
+        visible: overlay.ready && overlay.resizable && overlay.globalSel !== null
+        globalRect: overlay.globalSel
+        sx: overlay.sx
+        sy: overlay.sy
+        onStarted: (role, gx, gy) => overlay.resizeStarted(role, gx, gy)
+        onMoved: (gx, gy) => overlay.resizeMoved(gx, gy)
+        onEnded: overlay.resizeEnded()
     }
 
     Item {
@@ -307,8 +267,8 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(0.88, 0.34, 0.23, 0.16)
-            border.color: overlay.vermilion
+            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)
+            border.color: Theme.accent
             border.width: 2.5
             antialiasing: true
         }
@@ -325,7 +285,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             color: "transparent"
-            border.color: overlay.vermilion
+            border.color: Theme.accent
             border.width: 1
             antialiasing: true
         }
@@ -341,80 +301,93 @@ Item {
                 required property var modelData
                 width: 7; height: 7
                 radius: 1
-                color: overlay.vermilion
+                color: Theme.accent
                 x: modelData.hx * (annSelection.width - width)
                 y: modelData.hy * (annSelection.height - height)
             }
         }
     }
 
-    Item {
+    ClipGrab {
         id: exportClip
-        clip: true
-        visible: false
-        width: overlay.localSel ? overlay.localSel.w : 0
-        height: overlay.localSel ? overlay.localSel.h : 0
+        source: scene
+        ready: overlay.ready
+        rect: overlay.localSel
+    }
 
-        ShaderEffectSource {
-            sourceItem: scene
-            width: scene.width
-            height: scene.height
-            x: overlay.localSel ? -overlay.localSel.x : 0
-            y: overlay.localSel ? -overlay.localSel.y : 0
-            live: true
-            recursive: false
+    ClipGrab {
+        id: regionClip
+        source: scene
+        ready: overlay.ready
+        rect: null
+    }
+
+    ClipGrab {
+        id: plateClip
+        source: plate
+        ready: overlay.ready
+        rect: null
+    }
+
+    /** Saves the selected region of this monitor, annotations included. */
+    function grabExport(path, cb, targetSize) { exportClip.grab(path, cb, targetSize || null); }
+
+    /** Saves an arbitrary local rect of the annotated scene, for OCR crops. */
+    function grabRegion(rect, path, cb) {
+        regionClip.rect = rect;
+        regionClip.grab(path, cb);
+    }
+
+    /** Saves an arbitrary local rect of the raw capture, for palette sampling. */
+    function grabPlate(rect, path, cb, targetSize) {
+        plateClip.rect = rect;
+        plateClip.grab(path, cb, targetSize || null);
+    }
+
+    // The eyedropper reads one pixel back through imagemagick because QML has no
+    // path from a grab result to a colour value.
+    Process {
+        id: pickProc
+        stdout: StdioCollector { id: pickOut }
+        function read() {
+            command = ["magick", "/tmp/ryoshot-pick.png", "-alpha", "off", "-format", "#%[hex:p{0,0}]", "info:"];
+            running = true;
+        }
+        onExited: (code) => {
+            var hex = pickOut.text.trim();
+            if (code === 0 && /^#[0-9A-Fa-f]{6}$/.test(hex)) overlay.sampled(hex);
+            else console.log("ryoshot: colour sample failed, exit " + code + " value " + JSON.stringify(hex));
         }
     }
 
-    function grabExport(path, cb, targetSize) {
-        overlay.grabExportTry(path, cb, targetSize || null, 0);
-    }
-    // Grab the clipped scene to a file. Two robustness measures for multi-monitor:
-    // wait until this overlay's screencopy has actually frozen (a second monitor
-    // can lag the anchor by a few frames, which otherwise grabbed an empty scene
-    // and failed the whole screenshot), and retry a transient grab/save failure
-    // instead of aborting. targetSize (logical) keeps mixed-scale slices aligned.
-    function grabExportTry(path, cb, targetSize, attempt) {
-        if (!overlay.localSel) { if (cb) cb(false); return; }
-        if (!overlay.ready && attempt < 25) { overlay.scheduleGrabRetry(path, cb, targetSize, attempt + 1); return; }
-        var handle = function (result) {
-            var ok = false;
-            try { ok = result ? result.saveToFile(path) : false; }
-            catch (e) { console.log("ryoshot: saveToFile failed: " + e); }
-            if (ok) { if (cb) cb(true); return; }
-            if (attempt < 25) { overlay.scheduleGrabRetry(path, cb, targetSize, attempt + 1); return; }
-            if (cb) cb(false);
-        };
-        var scheduled = targetSize ? exportClip.grabToImage(handle, targetSize)
-                                   : exportClip.grabToImage(handle);
-        if (!scheduled) {
-            if (attempt < 25) overlay.scheduleGrabRetry(path, cb, targetSize, attempt + 1);
-            else if (cb) cb(false);
-        }
-    }
-    function scheduleGrabRetry(path, cb, targetSize, attempt) {
-        grabRetry.fn = function () { overlay.grabExportTry(path, cb, targetSize, attempt); };
-        grabRetry.restart();
-    }
-    Timer {
-        id: grabRetry
-        interval: 60
-        property var fn: null
-        onTriggered: { var f = grabRetry.fn; grabRetry.fn = null; if (f) f(); }
+    function sampleAt(lx, ly) {
+        plateClip.rect = { x: Math.max(0, lx - 0.5), y: Math.max(0, ly - 0.5), w: 1, h: 1 };
+        plateClip.grab("/tmp/ryoshot-pick.png", function (ok) {
+            if (ok) pickProc.read();
+        }, Qt.size(1, 1));
     }
 
     MouseArea {
+        id: input
         anchors.fill: parent
         enabled: overlay.ready
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
-        cursorShape: Qt.CrossCursor
-        onPressed: (m) => overlay.pressedAt(m.x + overlay.sx, m.y + overlay.sy)
+        cursorShape: overlay.eyedropArmed ? Qt.PointingHandCursor : Qt.CrossCursor
+        onPressed: (m) => {
+            if (overlay.eyedropArmed) { overlay.sampleAt(m.x, m.y); return; }
+            overlay.pressedAt(m.x + overlay.sx, m.y + overlay.sy, m.modifiers);
+        }
         onPositionChanged: (m) => {
-            if (overlay.capturing) overlay.movedTo(m.x + overlay.sx, m.y + overlay.sy);
+            if (overlay.capturing) overlay.movedTo(m.x + overlay.sx, m.y + overlay.sy, m.modifiers);
             else overlay.hovered(m.x + overlay.sx, m.y + overlay.sy);
         }
-        onReleased: overlay.released()
+        onReleased: { if (!overlay.eyedropArmed) overlay.released(); }
+        onWheel: (w) => {
+            if (w.angleDelta.y === 0) return;
+            overlay.wheeled(w.angleDelta.y > 0 ? 1 : -1);
+            w.accepted = true;
+        }
     }
 
     TextInput {
@@ -428,7 +401,7 @@ Item {
         x: mine ? overlay.draft.points[0].x - overlay.sx : 0
         y: mine ? overlay.draft.points[0].y - overlay.sy : 0
         color: mine ? overlay.draft.color : "transparent"
-        font.family: "Space Grotesk"
+        font.family: Theme.ui
         font.pixelSize: mine ? overlay.draft.size : 16
         renderType: Text.NativeRendering
         cursorVisible: mine
