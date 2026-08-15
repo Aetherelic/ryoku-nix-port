@@ -8,7 +8,8 @@ import (
 
 var storeSections = map[string]struct{}{
 	"discover": {}, "library": {}, "rices": {}, "lockscreens": {},
-	"barstyles": {}, "fastfetch": {}, "plugins": {}, "bundles": {}, "decors": {}, "launcher-images": {},
+	"barstyles": {}, "fastfetch": {}, "plugins": {}, "bundles": {}, "decors": {},
+	"launcher-images": {}, "fastfetch-emblems": {},
 }
 
 func storeSection(section string) bool {

@@ -32,6 +32,7 @@ func providers() []Provider {
 		bundleProvider{cache: c, status: defaultBundleStatus, launch: launchBundleInstall},
 		newDecorProvider(c),
 		newLauncherImageProvider(c),
+		newFastfetchEmblemProvider(c),
 	}
 }
 

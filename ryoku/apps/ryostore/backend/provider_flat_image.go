@@ -31,10 +31,14 @@ func newFlatImageProvider(category Category, subdir string, cache *Cache) flatIm
 	return flatImageProvider{category: category, cache: cache, dirPath: filepath.Join(picturesHome(), subdir)}
 }
 
+// The three flat-image catalogues share the Decor tab: decor art for the empty
+// spaces, hero art for the launcher, and emblems for the fastfetch readout.
+// They install into different Pictures folders because different surfaces read
+// them, but the store browses them as one family of pictures.
 func newDecorProvider(cache *Cache) flatImageProvider {
 	return newFlatImageProvider(Category{
 		ID:          "decors",
-		Name:        "Decors",
+		Name:        "Decor",
 		Group:       "make",
 		Description: "Curated specimen art for the empty spaces across the Ryoku hub and apps.",
 	}, "ryodecors", cache)
@@ -44,9 +48,18 @@ func newLauncherImageProvider(cache *Cache) flatImageProvider {
 	return newFlatImageProvider(Category{
 		ID:          "launcher-images",
 		Name:        "Launcher images",
-		Group:       "wear",
+		Group:       "make",
 		Description: "Curated hero art for the app launcher's header.",
 	}, "ryoku-launchers", cache)
+}
+
+func newFastfetchEmblemProvider(cache *Cache) flatImageProvider {
+	return newFlatImageProvider(Category{
+		ID:          "fastfetch-emblems",
+		Name:        "Fastfetch emblems",
+		Group:       "make",
+		Description: "Emblems for the terminal readout, sized for a fastfetch logo box.",
+	}, "ryoemblems", cache)
 }
 
 func (p flatImageProvider) Category() Category { return p.category }

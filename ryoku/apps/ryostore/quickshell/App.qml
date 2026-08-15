@@ -44,8 +44,14 @@ Rectangle {
         copy.categoryName = category ? category.name : item.category;
         return copy;
     })
+    // Decor is one tab over three picture catalogues: the decor art itself, the
+    // launcher's hero art, and the fastfetch emblems. They stay separate
+    // categories because they install into different folders, but the header
+    // shows one plate and the subtab strip switches between them.
+    readonly property var decorFamily: ["decors", "launcher-images", "fastfetch-emblems"]
     readonly property var navigationCategories: StoreLogic.sortCategories(Store.categories)
-            .filter(category => Number(category.count || 0) > 0)
+            .filter(category => Number(category.count || 0) > 0
+                    && app.decorFamily.indexOf(String(category.id || "")) <= 0)
     readonly property var collection: StoreLogic.collection(searchableItems, {
         view: view,
         categoryID: categoryID,
@@ -67,6 +73,22 @@ Rectangle {
     // The Themes category browses per provider through a subtab strip; the filter
     // narrows the collection to one provider or to the installed library.
     readonly property bool themesBrowse: app.categoryID === "colorschemes" && app.view === "discover" && !app.searchOpen
+    // The Decor tab browses its three catalogues through the same strip; here a
+    // plate is a category, so picking one simply routes to it.
+    readonly property bool decorBrowse: app.decorFamily.indexOf(app.categoryID) >= 0
+            && app.view === "discover" && !app.searchOpen
+    readonly property var decorTabs: {
+        var out = [];
+        var cats = Store.categories;
+        for (var i = 0; i < app.decorFamily.length; i++) {
+            for (var j = 0; j < cats.length; j++) {
+                if (String(cats[j].id) !== app.decorFamily[i] || Number(cats[j].count || 0) <= 0)
+                    continue;
+                out.push({ "key": String(cats[j].id), "label": String(cats[j].name || cats[j].id) });
+            }
+        }
+        return out;
+    }
     readonly property var themeProviders: {
         var seen = ({});
         var out = [];
@@ -361,13 +383,24 @@ Rectangle {
         id: providerTabs
         objectName: "ryostore-provider-tabs"
         anchors { left: parent.left; top: header.bottom; right: parent.right }
-        height: app.themesBrowse ? implicitHeight : 0
-        visible: app.themesBrowse
-        providers: app.themeProviders
-        active: app.providerFilter
-        installableCount: app.themeInstallable
+        readonly property bool shown: app.themesBrowse || app.decorBrowse
+        height: shown ? implicitHeight : 0
+        visible: shown
+        providers: app.themesBrowse ? app.themeProviders : app.decorTabs
+        active: app.themesBrowse ? app.providerFilter : app.categoryID
+        // Themes filters one catalogue, so it offers All and the installed
+        // library; Decor's plates are whole catalogues, so it offers neither.
+        allLabel: app.themesBrowse ? "ALL" : ""
+        trailingLabel: app.themesBrowse ? "MY THEMES" : ""
+        trailingKey: app.themesBrowse ? "__mine__" : ""
+        installableCount: app.themesBrowse ? app.themeInstallable : 0
         busy: Store.busyKey !== ""
         onPicked: filter => {
+            if (app.decorBrowse) {
+                app.openRoute(filter);
+                Qt.callLater(function() { productGrid.forceActiveFocus(); });
+                return;
+            }
             app.providerFilter = filter;
             app.reconcileSelection(0);
             Qt.callLater(function() { productGrid.forceActiveFocus(); });

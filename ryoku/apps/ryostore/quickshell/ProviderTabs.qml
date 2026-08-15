@@ -2,21 +2,24 @@ import QtQuick
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
-// The Themes category's provider strip: an All plate, one plate per colour-scheme
-// provider, and a My themes plate (the installed library), plus an Install all
-// action for the focused provider. It sits between the app bar and the grid when
-// the Themes category is browsed, reusing the header's bone-invert Tabs idiom.
+// A subtab strip under the app bar. Themes uses it to browse colour schemes per
+// provider; the Decor tab uses it to switch between its picture catalogues.
+// Entries are plain names, or {key, label} pairs when the label and the value
+// differ. The leading All plate and the trailing plate are optional, so a strip
+// can be just its entries.
 Item {
     id: tabs
 
-    property var providers: []        // provider names, already sorted
-    property string active: ""        // "" = All, "__mine__" = My themes, else a provider
-    property int installableCount: 0  // uninstalled items in the focused provider
+    property var providers: []        // names, or {key, label} objects
+    property string active: ""        // the picked key
+    property string allLabel: "ALL"   // "" hides the leading plate
+    property string trailingLabel: "" // "" hides the trailing plate
+    property string trailingKey: ""
+    property int installableCount: 0  // uninstalled items in the focused entry
     property bool busy: false
 
     signal picked(string filter)
     signal installAll()
-
     implicitHeight: 44
 
     component Plate: Rectangle {
@@ -77,7 +80,8 @@ Item {
 
             Plate {
                 objectName: "ryostore-provider-all"
-                label: I18n.tr("ALL")
+                visible: tabs.allLabel !== ""
+                label: tabs.allLabel
                 on: tabs.active === ""
                 onChose: tabs.picked("")
             }
@@ -85,16 +89,22 @@ Item {
                 model: tabs.providers
                 delegate: Plate {
                     required property var modelData
-                    label: String(modelData).toUpperCase()
-                    on: tabs.active === modelData
-                    onChose: tabs.picked(String(modelData))
+                    readonly property string entryKey: (modelData && modelData.key !== undefined)
+                            ? String(modelData.key) : String(modelData)
+                    readonly property string entryLabel: (modelData && modelData.label !== undefined)
+                            ? String(modelData.label) : String(modelData)
+                    objectName: "ryostore-provider-" + entryKey
+                    label: entryLabel.toUpperCase()
+                    on: tabs.active === entryKey
+                    onChose: tabs.picked(entryKey)
                 }
             }
             Plate {
                 objectName: "ryostore-provider-mine"
-                label: I18n.tr("MY THEMES")
-                on: tabs.active === "__mine__"
-                onChose: tabs.picked("__mine__")
+                visible: tabs.trailingLabel !== ""
+                label: tabs.trailingLabel
+                on: tabs.active === tabs.trailingKey && tabs.trailingKey !== ""
+                onChose: tabs.picked(tabs.trailingKey)
             }
         }
     }
