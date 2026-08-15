@@ -3,40 +3,62 @@
 ## Unreleased
 
 ### Added
-- **The ring, orb and spiral are placed by dragging them on the desktop.** They
-  were fixed to the screen centre, and the placement sliders only reached the
-  desktop once the Hub was saved, so they read as stuck. `Super+Alt+M`, or the
-  Hub's Place on the desktop button (which calls the shell's new `visualizer`
-  IPC target), starts placement mode: the shape takes an outline, a crosshair on
-  its origin and a grip on its edge, a drag moves it, the grip or the wheel sizes
-  it, and every step writes `originX`/`originY`/`size` to `visualizer.json` as it
-  happens. Right click, Escape or the keybind ends it. It runs on its own overlay
-  surface, since the spectrum's own is click-through for life
+- **Ryostore browses decor, launcher heroes and fastfetch emblems as one Decor
+  tab.** They are all pictures you install and point a surface at, but each folder
+  had its own top-level plate, so the header collected one per picture kind. Decor
+  is now a single plate over three catalogues, switched by the subtab strip Themes
+  already used for its providers: `ProviderTabs` takes `{key, label}` entries and
+  makes its All and library plates optional, since Decor's plates are whole
+  catalogues. The new `fastfetch-emblems` catalogue installs one flat PNG into
+  `~/Pictures/ryoemblems`, and the Hub's emblem picker lists that folder, so an
+  emblem installed from the store shows up in Settings -> Fastfetch beside the
+  brand marks and the decors
+  (`ryoku/apps/ryostore/backend/provider_flat_image.go`,
+  `ryoku/apps/ryostore/quickshell/App.qml`,
+  `ryoku/apps/ryostore/quickshell/ProviderTabs.qml`,
+  `ryoku/hub/quickshell/pages/FastfetchPage.qml`).
+- **Every look lives in a box you drag and size anywhere on the desktop.** The
+  spectrum was pinned to a screen edge by `position`, `span`, `align` and
+  `height`, or to a centre by `originX`, `originY` and `size`, so the ring and orb
+  sat mid-screen and nothing could simply be put where its owner wanted it. Those
+  seven keys collapse into `x`, `y`, `w`, `h` and `grow` (which edge of the box the
+  bands rise from), and a config written before the box folds into one on first
+  read, so nothing moves on update. `Super+Alt+M`, the Move visualiser row in the
+  desktop's right-click menu, or the Hub's Place on the desktop button (through the
+  shell's new `visualizer` IPC target) starts placement mode: the box takes an
+  outline and a corner grip, a drag moves it, the grip or the wheel sizes it, and
+  each step writes to `visualizer.json` as it happens. Right click, Escape or the
+  keybind ends it. Both gestures apply the pointer's delta from the press rather
+  than its absolute position, so nothing jumps out from under the cursor; the grip
+  rode a padded corner before, which sits `radius * sqrt(2)` out, so reading that
+  distance as the radius grew the shape away from the hand in every direction.
+  Placement runs on its own overlay surface, since the spectrum's own is
+  click-through for life and a masked surface does not take a pointer again when
+  its region is swapped
   (`ryoku/shell/quickshell/shell/modules/visualizer/Placer.qml`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/Singletons/Config.qml`,
+  `ryoku/shell/quickshell/shell/modules/desktop/WidgetMenu.qml`,
   `ryoku/shell/quickshell/shell/services/ShellState.qml`,
-  `ryoku/hyprland/modules/binds.lua`).
+  `ryoku/ui/SpectrumField.qml`, `ryoku/hyprland/modules/binds.lua`).
 - **A ring folds the spectrum down to the bars its circumference can show.** Sixty
   four bands around a legible radius left 4px slivers that read as fur; a polar
-  look now averages its bands into what fits at about 14px each, and the default
-  `size` moves from 0.22 to 0.30 with the slider reaching 0.6
+  look now averages its bands into what fits at about 14px each
   (`ryoku/ui/SpectrumField.qml`).
 - **The desktop visualiser is rebuilt as one GPU pass with eleven placeable looks,
   a Hub gallery, and a preview you can aim.** Every look draws from one analytic
   fragment shader (`ryoku/ui/shaders/spectrum.frag.qsb`) hosted by `Ryoku.Ui`'s
   `SpectrumField.qml`, so the wallpaper and the Hub preview render the same
-  geometry and cannot drift. The set grows to eleven: eight edge looks (`bars`,
-  `split`, `dots`, `segments`, `wave`, `ribbon`, `curtain`, `line`) placed by
-  `position` (now including `left` and `right`), `span` and `align`, and three
-  polar looks (`radial`, `orb`, `spiral`) placed by
-  `originX`/`originY`/`size`/`spin`; a stored `circle` aliases to `orb`, so an old
-  config keeps rendering. `visualizer.json` keeps every existing key and adds
-  those placement keys. `curtain` is bar-aware: its surface honours exclusive
-  zones, so the wave hangs from wherever the bar ends, at whatever height and
-  edge, with no bar geometry plumbed through. The Hub's Desktop page gains a
-  silhouette gallery of the eleven looks from
+  geometry and cannot drift. The set grows to eleven: eight looks that grow from an
+  edge of their box (`bars`, `split`, `dots`, `segments`, `wave`, `ribbon`,
+  `curtain`, `line`) and three polar ones (`radial`, `orb`, `spiral`), all placed
+  by the same `x`, `y`, `w`, `h` and `grow`; a stored `circle` aliases to `orb`, so
+  an old config keeps rendering. `curtain` is bar-aware: its surface honours
+  exclusive zones, so the wave hangs from wherever the bar ends, at whatever
+  height and edge, with no bar geometry plumbed through. The Hub's Desktop page
+  gains a silhouette gallery of the eleven looks from
   `ryoku/ui/Singletons/VizStyles.qml`, rows gated by a schema `when` so a knob
   only shows where it applies, and a `VizPreview` that is the real geometry: a
-  drag on it aims a polar look's `originX`/`originY`
+  drag on it moves the look's box
   (`ryoku/hub/quickshell/VizPreview.qml`,
   `ryoku/hub/quickshell/schema/DesktopPage.js`,
   `ryoku/hub/quickshell/SettingsSheet.qml`).
@@ -60,6 +82,16 @@
   `.github/workflows/publish-repo.yml`, `installation/tests/container-install.sh`).
 
 ### Fixed
+- **The Hub's fastfetch preview draws the emblem where the terminal draws it.**
+  The writer hardcoded `padding {top: 5, right: 5}` into every saved config while
+  the model carried only `left`, so the terminal dropped the emblem five rows and
+  left a five-cell gap that the preview knew nothing about: it drew the art at the
+  top of the card with a two-cell gap. The model now carries all three paddings,
+  the writer emits what it holds, and the preview draws from the same numbers
+  (left and right shift the emblem and the readout sideways, top drops the emblem
+  without moving the text), with a test pinning the round trip
+  (`ryoku/hub/backend/fastfetch.go`,
+  `ryoku/hub/quickshell/pages/FastfetchPage.qml`).
 - **Every visualiser look is now one shader pass, retiring the old per-look CPU
   cost.** Measured at 64 bands and 60 fps (`qs -c shell` process CPU over the
   visualiser-off baseline), the previous renderer cost `+0.5%` for `bars`, but
