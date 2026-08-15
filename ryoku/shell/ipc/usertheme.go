@@ -60,12 +60,14 @@ type userThemeMeta struct {
 	Provider string `json:"provider"`
 }
 
-// userTheme is one installed scheme resolved to the catalog's role palette.
+// userTheme is one installed scheme resolved to the catalog's role palette. Image
+// is the absolute path to its preview art when the scheme ships one, else "".
 type userTheme struct {
 	ID       string
 	Label    string
 	Provider string
 	Palette  map[string]string // the 34 catalog roles
+	Image    string            // preview art path, or "" for the swatch fallback
 }
 
 // userThemes loads and converts every installed scheme, id-sorted for a stable
@@ -113,10 +115,24 @@ func userThemes() []userTheme {
 		if label == "" {
 			label = id
 		}
-		out = append(out, userTheme{ID: id, Label: label, Provider: meta.Provider, Palette: pal})
+		out = append(out, userTheme{ID: id, Label: label, Provider: meta.Provider, Palette: pal, Image: userThemePreview(dir)})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
+}
+
+// userThemePreview returns the absolute path to a scheme's preview art when its
+// install dir ships one (preview.png/.jpg/.jpeg, first match wins), else "". A
+// scheme with preview art is drawn as that image in the picker; every other
+// scheme falls back to the generated swatch pills.
+func userThemePreview(dir string) string {
+	for _, name := range []string{"preview.png", "preview.jpg", "preview.jpeg"} {
+		p := filepath.Join(dir, name)
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
+	}
+	return ""
 }
 
 // noctaliaTo34 converts one Noctalia block into the 34-role catalog palette. The
@@ -227,6 +243,7 @@ func userThemeCards() []themeCard {
 			Provider: t.Provider,
 			Dark:     !ok || luma < 0.5,
 			Sw:       sw,
+			Image:    t.Image,
 		})
 	}
 	return cards

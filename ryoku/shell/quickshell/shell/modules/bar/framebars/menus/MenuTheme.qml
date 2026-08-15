@@ -159,6 +159,9 @@ Item {
         required property var modelData
         readonly property bool dynamic: modelData.dynamic === true
         readonly property var sw: card.dynamic ? [] : modelData.sw
+        // the five colour-combo pills: the theme's ink plus its four accents.
+        readonly property var pills: !card.dynamic && card.sw && card.sw.length >= 6
+            ? [card.sw[1], card.sw[2], card.sw[3], card.sw[4], card.sw[5]] : []
 
         width: 100
         height: 120
@@ -181,6 +184,7 @@ Item {
 
             // Theme name, top-centred, in the theme's own on-surface colour.
             Text {
+                id: cardName
                 anchors { top: parent.top; left: parent.left; right: parent.right; margins: 4 }
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
@@ -199,44 +203,44 @@ Item {
                 color: Theme.onSurface
             }
 
-            // Two rows of three 16x16 swatches, centred and reserving 26px at the
-            // bottom for the badge (contract 08 sec 2.3).
-            Column {
-                visible: !card.dynamic
-                anchors.horizontalCenter: parent.horizontalCenter
+            // A centred row of tall stadium pills of the theme's key roles
+            // [onSurface, primary, secondary, tertiary, error] -- the colour combo.
+            Item {
+                id: cardPills
+                visible: !card.dynamic && cardPills.count > 0
+                readonly property int count: card.pills.length
+                anchors.top: cardName.bottom
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 26
-                spacing: 8
-
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: 8
+                anchors.bottomMargin: 12
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                readonly property real gap: 6
+                readonly property real pillW: cardPills.count > 0 ? (width - gap * (cardPills.count - 1)) / cardPills.count : 0
                 Row {
-                    spacing: 8
+                    anchors.centerIn: parent
+                    height: parent.height
+                    spacing: cardPills.gap
                     Repeater {
-                        model: card.dynamic ? [] : [card.sw[1], card.sw[2], card.sw[3]]
+                        model: card.pills
                         delegate: Rectangle {
                             required property color modelData
-                            width: 16; height: 16
-                            color: modelData
-                        }
-                    }
-                }
-                Row {
-                    spacing: 8
-                    Repeater {
-                        model: card.dynamic ? [] : [card.sw[4], card.sw[5], card.sw[6]]
-                        delegate: Rectangle {
-                            required property color modelData
-                            width: 16; height: 16
+                            width: cardPills.pillW
+                            height: parent.height
+                            radius: width / 2
                             color: modelData
                         }
                     }
                 }
             }
 
-            // Selected badge: a filled check, bottom-left, 20px, margin 6
-            // (contract 08 sec 2.3), in the theme's own on-surface colour.
+            // Selected badge: a filled check, top-right, clear of the pills, in
+            // the theme's own on-surface colour.
             MaterialIcon {
                 visible: root.activeId === card.modelData.id
-                anchors { left: parent.left; bottom: parent.bottom; leftMargin: 6; bottomMargin: 6 }
+                anchors { right: parent.right; top: parent.top; rightMargin: 6; topMargin: 6 }
                 text: "check_circle"
                 fill: 1
                 font.pixelSize: 20

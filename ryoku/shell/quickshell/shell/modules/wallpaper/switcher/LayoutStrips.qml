@@ -138,9 +138,11 @@ Item {
                 Behavior on opacity { NumberAnimation { duration: 200 } }
             }
 
-            // name caption on the focused preview (a photo placard).
+            // name caption on the focused preview (a photo placard). Walls only:
+            // a theme's ThemeCell already carries its name in the theme's own ink,
+            // so a second constant-white caption here would not track the scheme.
             Rectangle {
-                visible: slot.foc && slot.modelData
+                visible: slot.foc && slot.modelData && strip.kind !== "theme"
                 anchors.left: parent.left
                 anchors.bottom: parent.bottom
                 anchors.margins: Math.round(12 * strip.s)

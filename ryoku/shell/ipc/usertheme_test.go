@@ -154,3 +154,29 @@ func TestUserThemeBuiltinIDNotShadowed(t *testing.T) {
 		}
 	}
 }
+
+// TestUserThemePreviewImage proves a scheme that ships preview art surfaces its
+// absolute path on the card, while a scheme without one stays on the swatch
+// fallback (empty Image) -- the "unless they have an actual image" rule.
+func TestUserThemePreviewImage(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	blk := sampleBlock
+	installFixtureTheme(t, "with-art", "With Art", "Ryoku", noctaliaScheme{Dark: &blk})
+	installFixtureTheme(t, "no-art", "No Art", "Ryoku", noctaliaScheme{Dark: &blk})
+
+	art := filepath.Join(userThemeDir(), "with-art", "preview.png")
+	if err := os.WriteFile(art, []byte("\x89PNG\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cards := map[string]themeCard{}
+	for _, c := range userThemeCards() {
+		cards[c.ID] = c
+	}
+	if got := cards["with-art"].Image; got != art {
+		t.Fatalf("with-art image = %q, want %q", got, art)
+	}
+	if got := cards["no-art"].Image; got != "" {
+		t.Fatalf("no-art image = %q, want empty (swatch fallback)", got)
+	}
+}

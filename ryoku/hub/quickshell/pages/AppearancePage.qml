@@ -352,6 +352,11 @@ Item {
         readonly property bool dyn: scard.scheme.dynamic === true
         readonly property var sw: scard.dyn ? [] : (scard.scheme.sw || [])
         readonly property bool sel: pg.scheme === scard.scheme.id
+        readonly property string image: scard.dyn ? "" : (scard.scheme.image || "")
+        readonly property bool hasImage: scard.image.length > 0
+        // the five colour-combo pills: the theme's ink plus its four accents.
+        readonly property var pills: scard.sw.length >= 6
+            ? [scard.sw[1], scard.sw[2], scard.sw[3], scard.sw[4], scard.sw[5]] : []
 
         width: 104
         height: 128
@@ -369,14 +374,35 @@ Item {
             color: scard.dyn || scard.sw.length === 0 ? "transparent" : scard.sw[0]
             clip: true
 
+            // preview art when the scheme ships it; the pills are the fallback.
+            Image {
+                visible: scard.hasImage
+                anchors.fill: parent
+                asynchronous: true
+                cache: true
+                fillMode: Image.PreserveAspectCrop
+                sourceSize: Qt.size(256, 256)
+                source: scard.hasImage ? "file://" + scard.image : ""
+            }
+            Rectangle {
+                visible: scard.hasImage
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                height: 22
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.55) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0) }
+                }
+            }
+
             Text {
+                id: scName
                 anchors { top: parent.top; left: parent.left; right: parent.right; margins: Tokens.s2 }
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
                 text: scard.scheme.label || ""
-                color: scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink)
+                color: scard.hasImage ? "white" : (scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink))
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fTiny
             }
@@ -391,35 +417,45 @@ Item {
                 font.letterSpacing: Tokens.trackMark
             }
 
-            Column {
-                visible: !scard.dyn
-                anchors.horizontalCenter: parent.horizontalCenter
+            // colour-combo pills: a centred row of tall stadium bars below the name.
+            Item {
+                id: scPills
+                visible: !scard.dyn && !scard.hasImage && scard.pills.length > 0
+                anchors.top: scName.bottom
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 22
-                spacing: 6
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: 10
+                anchors.bottomMargin: 12
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                readonly property real gap: 6
+                readonly property real pillW: (width - gap * (scard.pills.length - 1)) / scard.pills.length
                 Row {
-                    spacing: 6
+                    anchors.centerIn: parent
+                    height: parent.height
+                    spacing: scPills.gap
                     Repeater {
-                        model: scard.dyn ? [] : [scard.sw[1], scard.sw[2], scard.sw[3]]
-                        delegate: Rectangle { required property color modelData; width: 14; height: 14; color: modelData }
-                    }
-                }
-                Row {
-                    spacing: 6
-                    Repeater {
-                        model: scard.dyn ? [] : [scard.sw[4], scard.sw[5], scard.sw[6]]
-                        delegate: Rectangle { required property color modelData; width: 14; height: 14; color: modelData }
+                        model: scard.pills
+                        delegate: Rectangle {
+                            required property color modelData
+                            width: scPills.pillW
+                            height: parent.height
+                            radius: width / 2
+                            color: modelData
+                        }
                     }
                 }
             }
 
+            // selected marker, top-right, clear of the pills.
             Rectangle {
                 visible: scard.sel
-                anchors { left: parent.left; bottom: parent.bottom; leftMargin: Tokens.s2; bottomMargin: Tokens.s2 }
+                anchors { right: parent.right; top: parent.top; rightMargin: Tokens.s2; topMargin: Tokens.s2 }
                 width: 8
                 height: 8
                 radius: 4
-                color: scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink)
+                color: scard.hasImage ? "white" : (scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink))
             }
         }
 
