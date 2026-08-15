@@ -132,18 +132,21 @@ Singleton {
                 c.stroke();
             }
         } else if (key === "curtain") {
-            // a short wave hanging off the top edge, sealed to it by a lit line
-            var cbase = 4, cx2, cy2;
+            // a shallow wave hanging off the top edge, sealed to it by a lit line
+            var cbase = 3, cx2, cy2;
+            var curtainAt = function (x) {
+                return cbase + 7 + 8 * Math.sin(x / W * Math.PI * 2.6 + 0.6);
+            };
             c.fillStyle = dim;
             c.beginPath(); c.moveTo(0, cbase);
             for (cx2 = 0; cx2 <= W; cx2 += 2)
-                c.lineTo(cx2, cbase + 9 + 6 * Math.sin(cx2 / W * Math.PI * 2.4));
+                c.lineTo(cx2, curtainAt(cx2));
             c.lineTo(W, cbase); c.closePath(); c.fill();
-            c.fillStyle = fg; c.fillRect(0, cbase - 1, W, 1.5);
-            c.strokeStyle = fg; c.lineWidth = 1.2;
+            c.fillStyle = fg; c.fillRect(0, cbase - 2, W, 2);
+            c.strokeStyle = fg; c.lineWidth = 1.4;
             c.beginPath();
             for (cx2 = 0; cx2 <= W; cx2 += 2) {
-                cy2 = cbase + 9 + 6 * Math.sin(cx2 / W * Math.PI * 2.4);
+                cy2 = curtainAt(cx2);
                 if (cx2 === 0) c.moveTo(cx2, cy2); else c.lineTo(cx2, cy2);
             }
             c.stroke();
@@ -160,40 +163,42 @@ Singleton {
             }
             c.stroke();
         } else if (key === "radial") {
-            // a ring of short rounded bars pointing outward, a faint inner ring
-            var rin = 5, rn = 16, pa, plen;
-            c.strokeStyle = fg; c.lineWidth = 2;
+            // a ring of stubby bars pointing outward off a lit inner ring
+            var rin = 6, rn = 10, pa, plen;
+            c.strokeStyle = fg; c.lineWidth = 3;
             for (var pb = 0; pb < rn; pb++) {
                 pa = pb / rn * Math.PI * 2;
-                plen = 4 + 6 * (0.5 + 0.5 * Math.sin(pb * 0.9));
+                plen = 4 + 7 * (0.5 + 0.5 * Math.sin(pb * 1.3));
                 c.beginPath();
                 c.moveTo(cx + Math.cos(pa) * rin, cy + Math.sin(pa) * rin);
                 c.lineTo(cx + Math.cos(pa) * (rin + plen), cy + Math.sin(pa) * (rin + plen));
                 c.stroke();
             }
-            c.strokeStyle = faint; c.lineWidth = 1;
-            c.beginPath(); c.arc(cx, cy, rin - 2, 0, 2 * Math.PI); c.stroke();
+            c.strokeStyle = dim; c.lineWidth = 1.5;
+            c.beginPath(); c.arc(cx, cy, rin - 1, 0, 2 * Math.PI); c.stroke();
         } else if (key === "orb") {
-            // a filled circle with a wobbly rim, a lit edge, and an inner ring
+            // a glass sphere: a barely-there body, a wobbling lit rim, ripples
             var oR = 12, oa, ang, orr;
-            c.fillStyle = dim;
+            c.fillStyle = faint;
             c.beginPath();
-            for (oa = 0; oa <= 64; oa++) {
-                ang = oa / 64 * Math.PI * 2;
-                orr = oR + 1.5 * Math.sin(ang * 6);
+            for (oa = 0; oa <= 72; oa++) {
+                ang = oa / 72 * Math.PI * 2;
+                orr = oR + 1.1 * Math.sin(ang * 7);
                 if (oa === 0) c.moveTo(cx + Math.cos(ang) * orr, cy + Math.sin(ang) * orr);
                 else c.lineTo(cx + Math.cos(ang) * orr, cy + Math.sin(ang) * orr);
             }
             c.closePath(); c.fill();
-            c.strokeStyle = fg; c.lineWidth = 1; c.stroke();
-            c.beginPath(); c.arc(cx, cy, 4, 0, 2 * Math.PI); c.stroke();
+            c.strokeStyle = fg; c.lineWidth = 1.6; c.stroke();
+            c.lineWidth = 1;
+            c.beginPath(); c.arc(cx, cy, 7, 0, 2 * Math.PI); c.stroke();
+            c.beginPath(); c.arc(cx, cy, 3, 0, 2 * Math.PI); c.stroke();
         } else if (key === "spiral") {
             // a single Archimedean arm over one and a half turns
-            var maxA = 1.5 * Math.PI * 2, maxR = 13, steps = 80, sang, srr;
-            c.strokeStyle = fg; c.lineWidth = 2;
+            var maxA = 1.5 * Math.PI * 2, maxR = 14, steps = 90, sang, srr;
+            c.strokeStyle = fg; c.lineWidth = 2.6;
             c.beginPath();
             for (var sp = 0; sp <= steps; sp++) {
-                var t = sp / steps; sang = t * maxA; srr = t * maxR;
+                var t = sp / steps; sang = t * maxA; srr = 2 + t * maxR;
                 if (sp === 0) c.moveTo(cx + Math.cos(sang) * srr, cy + Math.sin(sang) * srr);
                 else c.lineTo(cx + Math.cos(sang) * srr, cy + Math.sin(sang) * srr);
             }
