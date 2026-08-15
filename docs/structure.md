@@ -64,7 +64,7 @@ truth for the live desktop.
   primitives, and the wallpaper palette. It also hosts the desktop spectrum
   renderer, so the wallpaper and the Hub preview draw one geometry:
   `SpectrumField.qml` with the analytic `shaders/spectrum.frag(.qsb)` pass draws
-  every look, `Singletons/VizStyles.qml` is the single catalogue of the ten
+  every look, `Singletons/VizStyles.qml` is the single catalogue of the eleven
   looks, and `lib/spectrum.js` (with `spectrum.test.mjs` beside it) is the pure
   band math. Installs to `/usr/lib/qt6/qml/Ryoku/Ui`.
 - `cli/` the user-facing control CLI, one Go program (`ryoku`): `update`,
