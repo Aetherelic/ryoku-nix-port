@@ -404,7 +404,7 @@ Rectangle {
         "reflection": 0.1, "idleWave": true, "style": "bars", "shape": "rounded",
         "mirror": false, "segments": 10, "fps": 30,
         "adaptive": true, "smoothing": 0.5, "gain": 1.0, "peaks": false,
-        "spin": 0, "x": 0, "y": 0.58, "w": 1, "h": 0.42, "grow": "up", "angle": 0,
+        "spin": 0, "x": 0, "y": 0.58, "w": 1, "h": 0.42, "grow": "up", "angle": 0, "tiltX": 0, "tiltY": 0,
         "markText": "力", "markImage": "", "markTint": true, "name": "Ryoku",
         "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig(), "qsbar": {}
     })
@@ -690,6 +690,8 @@ Rectangle {
             property real h: 0.42
             property string grow: "up"
         property real angle: 0
+        property real tiltX: 0
+        property real tiltY: 0
         }
     }
     FileView {

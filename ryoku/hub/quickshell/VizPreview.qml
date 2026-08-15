@@ -41,6 +41,8 @@ Item {
     }
     readonly property string vGrow: root.pick("grow", "up")
     readonly property real vAngle: root.pick("angle", 0)
+    readonly property real vTiltX: root.pick("tiltX", 0)
+    readonly property real vTiltY: root.pick("tiltY", 0)
     readonly property string vShape: root.pick("shape", "rounded")
     readonly property bool vMirror: root.pick("mirror", false)
     readonly property bool vPeakCaps: root.pick("peaks", false)
@@ -188,6 +190,8 @@ Item {
             style: root.vStyle
             grow: root.vGrow
             angle: root.vAngle
+            tiltX: root.vTiltX
+            tiltY: root.vTiltY
             shape: root.vShape
             thickness: root.vThick
             reflection: root.vReflection

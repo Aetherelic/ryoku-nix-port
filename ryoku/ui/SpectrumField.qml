@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "lib/spectrum.js" as SpectrumMath
+import "lib/place.js" as PlaceMath
 
 // The audio spectrum, drawn once for the whole desktop. Every look lives in
 // shaders/spectrum.frag; this turns a band array, a palette and a set of
@@ -44,6 +45,11 @@ Item {
     // the drawn pass costs one transform, where turning the geometry would mean
     // rotating every band's maths and the reflection with it.
     property real angle: 0               // degrees, clockwise
+    // The other kind of turn: the box leans about its own horizontal or vertical
+    // axis, one edge going back and the other coming forward. Bounded well short of
+    // edge-on, since a look flat to the viewer is a look you cannot see.
+    property real tiltX: 0               // degrees, lean the far edge back
+    property real tiltY: 0               // degrees, lean one side back
 
     readonly property var styles: ["bars", "split", "dots", "segments", "wave",
                                    "ribbon", "curtain", "line", "radial", "orb", "spiral"]
@@ -119,6 +125,19 @@ Item {
         height: root.bh + 2 * root.margin
         rotation: root.angle
         transformOrigin: Item.Center
+        // The lean rides on top of the spin: one matrix on the same item, so a turned
+        // and leaned look is still one draw with no offscreen buffer. The shader keeps
+        // working in the item's own pixels and the scene graph interpolates its
+        // coordinates with perspective, so bands nearer the viewer simply come out
+        // wider, which is what a lean should do.
+        transform: Matrix4x4 {
+            matrix: {
+                var m = PlaceMath.flat(PlaceMath.tiltMatrix(root.tiltX, root.tiltY,
+                                                            pass.width, pass.height));
+                return Qt.matrix4x4(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7],
+                                    m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
+            }
+        }
 
         ShaderEffect {
             id: fx

@@ -241,6 +241,42 @@ Item {
                         }
                     }
                 }
+
+                Group {
+                    // One group, two axes: a lean is one idea, and splitting it into
+                    // two eyebrows would say it was two.
+                    label: I18n.tr("LEAN")
+                    Row {
+                        spacing: Tokens.s2
+                        Slid {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 72
+                            value: Config.tiltX
+                            from: -Config.tiltMax
+                            to: Config.tiltMax
+                            onModified: (v) => Config.setTiltX(v)
+                        }
+                        Slid {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 72
+                            value: Config.tiltY
+                            from: -Config.tiltMax
+                            to: Config.tiltMax
+                            onModified: (v) => Config.setTiltY(v)
+                        }
+                        Value {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Math.round(Config.tiltX) + "\u00b0 " + Math.round(Config.tiltY) + "\u00b0"
+                        }
+                        Btn {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: I18n.tr("LEVEL")
+                            compact: true
+                            armed: Math.round(Config.tiltX) !== 0 || Math.round(Config.tiltY) !== 0
+                            onAct: Config.levelTilt()
+                        }
+                    }
+                }
                 Group {
                     label: I18n.tr("SIZE")
                     Value {

@@ -77,6 +77,8 @@ Item {
         boxH: Config.h
         grow: Config.grow
         angle: Config.angle
+        tiltX: Config.tiltX
+        tiltY: Config.tiltY
         spin: motion.spinDeg
     }
 }

@@ -3,6 +3,23 @@
 ## Unreleased
 
 ### Added
+- **A look can lean into depth, not only spin in the plane.** `angle` turns a look
+  clockwise on the screen; `tiltX` and `tiltY` pivot its box about its own horizontal
+  or vertical axis so one edge goes away from the viewer and the other comes forward,
+  with a real perspective divide rather than a squash. Both are bounded to 35 degrees,
+  well short of edge-on, since a look flat to the viewer is a look you cannot see, and
+  the viewer distance scales with the box so the same degrees read the same at any
+  size. It costs one matrix on the item the spin already turns, so a turned and leaned
+  look is still one draw with no offscreen buffer. The editing bar gains a LEAN group
+  with the two axes and a LEVEL reset, and the Hub gains the matching rows. The leaned
+  quad is fitted back onto its box: raw perspective pushed the near edge past the
+  outline and left dead space at the far one, so the box stopped meaning what it said
+  and the placement guides lied about it. Now the quad touches all four sides at every
+  lean and crosses none, which the tests pin as an invariant
+  (`ryoku/ui/lib/place.js`, `ryoku/ui/lib/place.test.mjs`, `ryoku/ui/SpectrumField.qml`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/EditBar.qml`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/Singletons/Config.qml`,
+  `ryoku/hub/quickshell/schema/DesktopPage.js`).
 - **The spectrum is tuned on the wallpaper, not in the Hub.** Placement showed a
   strip of monospace hints and nothing else, so changing a look meant leaving the
   desktop you were judging it against. It now comes with an editing bar

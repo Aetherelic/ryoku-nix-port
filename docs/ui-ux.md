@@ -324,6 +324,28 @@ anchored set of `position`, `span`, `align`, `height`, `originX`, `originY` and
 owner wanted it. A config written before the box folds into one on first read, and
 a stored `circle` style aliases to `orb`, so nothing moves or blanks on update.
 
+`angle` spins the look in the plane of the screen. `tiltX` and `tiltY` are the other
+kind of turn: the box pivots about its own horizontal or vertical axis so one edge
+goes away from the viewer and the other comes forward, which needs a perspective
+divide or the lean is only a squash and reads as nothing. Both are bounded to 35
+degrees, well short of edge-on, because a look flat to the viewer is a look you
+cannot see; the viewer distance scales with the box, so the same degrees read the
+same at any size. It is one matrix on the item the spin already turns
+(`ryoku/ui/lib/place.js`, with the maths tested in `place.test.mjs`), so a turned and
+leaned look is still one draw with no offscreen buffer, and the shader keeps working
+in the item's own pixels while the scene graph interpolates its coordinates with
+perspective, which is what makes the near bands come out wider.
+
+A lean is a shape change *inside* the box, not an escape from it. Left raw, the
+perspective pushed the near edge past the outline and pulled the far edge short of
+it, so the look both spilled over one side and left dead space at the other, and the
+box stopped meaning what it said. The leaned quad is therefore fitted back onto the
+box: its corners are projected, and an affine composed after the projective matrix
+(which acts on the divided point, so it is exactly "scale the picture just computed")
+maps that bound onto the box. The quad then touches all four sides at every lean and
+crosses none of them, which `place.test.mjs` pins as an invariant, and the placement
+guides stay honest without the gestures having to invert a projection.
+
 The box is placed by hand rather than by numbers. `Super+Alt+M`, the Move
 visualiser row in the desktop's right-click menu, or the Hub's Place on the desktop
 button starts placement mode. The box takes an outline, a grip on its corner and a
@@ -337,8 +359,9 @@ moved is the one thing on screen that must not move with it. It carries the look
 itself, and the knobs you judge by eye rather than by number: the current look drawn
 as a silhouette (click for a tray of all eleven, or wheel the chip to walk them),
 bands, mirror, peak caps, gain, smoothing, the live angle with a SQUARE reset, the
-size, FLIP and DONE. `F` flips, `M` mirrors, `P` toggles peak caps, `R` squares,
-`[` and `]` walk the looks. The point is that a look is tuned where you can see it,
+two leans with a LEVEL reset, the size, FLIP and DONE. `F` flips, `M` mirrors, `P`
+toggles peak caps, `R` squares, `[` and `]` walk the looks. The point is that a look
+is tuned where you can see it,
 on the wallpaper, instead of behind the Hub's window; the Hub keeps the full board.
 
 The bar is built from `Ryoku.Ui`'s own controls (`Btn`, `Step`, `Sw`, `Slid`,

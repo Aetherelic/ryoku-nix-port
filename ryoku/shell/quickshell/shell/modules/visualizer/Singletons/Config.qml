@@ -37,6 +37,8 @@ Singleton {
     property alias h:          adapter.h
     property alias grow:       adapter.grow        // up | down | center | left | right
     property alias angle:      adapter.angle       // whole-look turn about the box centre, degrees
+    property alias tiltX:      adapter.tiltX       // lean the far edge back, degrees
+    property alias tiltY:      adapter.tiltY       // lean one side back, degrees
 
     // motion + budget. fps is the render ceiling (cava is fed at the same rate);
     // adaptive sheds effects and rate under sustained load, never the spectrum.
@@ -95,6 +97,22 @@ Singleton {
     }
     function setSmoothing(v) {
         adapter.smoothing = Math.max(0, Math.min(1, v));
+        settle.restart();
+    }
+    // A lean is bounded well short of edge-on: past this the bands crowd into a line
+    // and the look stops being one you can read.
+    readonly property real tiltMax: 35
+    function setTiltX(v) {
+        adapter.tiltX = Math.max(-root.tiltMax, Math.min(root.tiltMax, v));
+        settle.restart();
+    }
+    function setTiltY(v) {
+        adapter.tiltY = Math.max(-root.tiltMax, Math.min(root.tiltMax, v));
+        settle.restart();
+    }
+    function levelTilt() {
+        adapter.tiltX = 0;
+        adapter.tiltY = 0;
         settle.restart();
     }
 
@@ -194,6 +212,8 @@ Singleton {
             property real h: 0.42
             property string grow: "up"
             property real angle: 0
+            property real tiltX: 0
+            property real tiltY: 0
         }
     }
 

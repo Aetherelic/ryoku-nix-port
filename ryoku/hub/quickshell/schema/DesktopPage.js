@@ -112,6 +112,28 @@ var rows = [{
     },{
         "tab": "Visualizer",
         "group": "PLACEMENT",
+        "key": "tiltX",
+        "label": "Lean back",
+        "desc": "Tip the far edge away from you",
+        "ctl": "slid",
+        "src": "viz",
+        "lo": -35,
+        "hi": 35,
+        "unit": "°"
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
+        "key": "tiltY",
+        "label": "Lean aside",
+        "desc": "Tip one side away from you",
+        "ctl": "slid",
+        "src": "viz",
+        "lo": -35,
+        "hi": 35,
+        "unit": "°"
+    },{
+        "tab": "Visualizer",
+        "group": "PLACEMENT",
         "adv": true,
         "key": "x",
         "label": "Left",
