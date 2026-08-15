@@ -87,19 +87,21 @@ Singleton {
     readonly property int osdHide: 1000
 
     // Notification popup entrance/exit (contract 12 sec 5, eye-candy pass): a
-    // toast grows out of the anchored top corner (scale 0.9->1 + fade) and
-    // recedes back into it (scale ->0.9 + fade). The card sets transformOrigin to
-    // that corner, so the grow reads as "from the corner"; the scale never
-    // exceeds 1, so an overshoot can never clip against the surface edge.
-    readonly property int notifIn: root.dur(220)
-    readonly property int notifOut: root.dur(180)
-    readonly property var notifInCurve: root.effectsCurve
-    readonly property int notifOutCurve: Easing.InCubic
+    // toast glides in from the screen edge it is anchored to and glides back out
+    // the same way. Both are long enough to read as one continuous move rather
+    // than a cut: the entrance decelerates into place on the emphasized settle
+    // the sidebar uses, and the exit starts gently before accelerating away, so
+    // a toast never appears to be yanked off screen.
+    readonly property int notifIn: root.dur(420)
+    readonly property int notifOut: root.dur(340)
+    readonly property var notifInCurve: [0.05, 0.7, 0.1, 1, 1, 1]
+    readonly property var notifOutCurve: [0.4, 0, 0.2, 1, 1, 1]
 
-    // Notification container unmap delay: 260 ms after the popup list empties, so
-    // the last card exit (notifOut) finishes before the surface drops (contract
-    // 12 sec 5). A scheduling timer, not motion.
-    readonly property int notifHide: 260
+    // Notification container unmap delay: measured from the moment the popup list
+    // empties, so the last card's exit finishes before the surface drops
+    // (contract 12 sec 5). It has to outlast notifOut with a frame to spare, or
+    // the last toast is cut off mid-slide. A scheduling timer, not motion.
+    readonly property int notifHide: 420
 
     // Bars auto-reveal once, 1000 ms after startup (contract 02 sec 5). A one-shot
     // startup delay, not motion, so reduce keeps the timing and only drops the

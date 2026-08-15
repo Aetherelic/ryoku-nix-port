@@ -104,6 +104,16 @@
   `.github/workflows/publish-repo.yml`, `installation/tests/container-install.sh`).
 
 ### Fixed
+- **A notification toast slides away instead of being cut off.** The exit ran for
+  180 ms on an accelerating curve, and the surface it lives in dropped to 1 px the
+  moment the card left the model, so the window clipped the slide it was in the
+  middle of and the last toast simply vanished. The entrance and exit are now 420
+  and 340 ms on the emphasized settle the sidebar uses, the surface holds its
+  height until the exit has finished, and the unmap delay outlasts it, so a toast
+  glides in from the anchored edge and glides back out the same way. On the Power
+  Saver profile, or with Reduce motion on, this stays an instant cut by design
+  (`ryoku/shell/quickshell/shell/services/Motion.qml`,
+  `ryoku/shell/quickshell/shell/modules/notifications/NotificationPopups.qml`).
 - **A turned box resized as though it were square on.** The box turns about
   its centre, so growing it moves that centre: growing width by the drag walked the
   grabbed corner away from the pointer along an axis unrelated to the angle. Square

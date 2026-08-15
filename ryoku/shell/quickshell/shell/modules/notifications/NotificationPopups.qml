@@ -10,11 +10,12 @@ import shell.services
 // right (or centred) per the position setting, reserving nothing (exclusive
 // zone 0) and never taking keyboard focus. It holds the flat, newest-first popup
 // list (newest at index 0) at a fixed 400 px content width with 14 px between
-// cards, floating 16 px off the corner. Each card grows out of the anchored top
-// corner (scale + fade, Motion.notifIn) and recedes back into it on close
-// (Motion.notifOut). When the list empties the surface unmaps 260 ms later
-// (Motion.notifHide), letting the last exit finish first; a popup arriving in
-// that wait cancels the unmap.
+// cards, floating 16 px off the corner. Each card glides in from off the edge it
+// is anchored to (slide + fade, Motion.notifIn) and glides back out the same way
+// on close (Motion.notifOut). The surface holds its height for a card that is
+// still leaving and unmaps Motion.notifHide after the list empties, so the last
+// exit is neither clipped nor cut short; a popup arriving in that wait cancels
+// the unmap.
 //
 // `Notifs.popups` is reassigned as a whole array on every change, which resets a
 // plain view (no per-item add/remove animation). A local `cards` ListModel is
@@ -67,7 +68,17 @@ PanelWindow {
     margins.right: inset + margin
 
     implicitWidth: 400
-    implicitHeight: Math.max(1, list.contentHeight)
+    // The surface is as tall as its cards, but never shorter than a card that is
+    // still leaving: the window clips, so collapsing to 1 px under the last toast
+    // wiped its exit slide instead of letting it glide off the edge.
+    implicitHeight: Math.max(1, list.contentHeight, exitFloor)
+    // Height held for a leaving card, released once its exit has finished.
+    property real exitFloor: 0
+    Timer {
+        id: exitHold
+        interval: Motion.notifOut + 60
+        onTriggered: win.exitFloor = 0
+    }
     // Only follow the height once cards are already up: growing from nothing
     // wiped the first toast open top-down, which read as the card unrolling
     // rather than arriving. With cards present the ease still keeps a leaving
@@ -94,8 +105,14 @@ PanelWindow {
             var keep = false;
             for (var k = 0; k < incoming.length; k++)
                 if (incoming[k].id === id) { keep = true; break; }
-            if (!keep)
+            if (!keep) {
+                // Pin the surface at its current height for the exit's duration,
+                // then let it settle; otherwise the last card leaves a 1 px
+                // window that clips the slide it is in the middle of.
+                win.exitFloor = Math.max(win.exitFloor, list.contentHeight);
+                exitHold.restart();
                 cards.remove(i);
+            }
         }
         // Insert new cards and reorder to match the newest-first incoming order.
         for (var j = 0; j < incoming.length; j++) {
@@ -147,12 +164,14 @@ PanelWindow {
         interactive: false
         model: cards
 
-        // Corner grow (contract 12 sec 5, eye-candy pass): a new card fades and
-        // scales up from the anchored corner (transformOrigin set on the card);
-        // siblings slide down to fill. A leaving card fades and scales back into
-        // the corner. displaced restores opacity and scale, so a card interrupted
+        // Edge slide (contract 12 sec 5, eye-candy pass): a new card fades in and
+        // glides to rest from off the edge it is anchored to; siblings slide down
+        // to fill. A leaving card glides back out the same way and fades as it
+        // goes, on a curve that starts gently instead of snatching the card away.
+        // displaced restores opacity and position, so a card interrupted
         // mid-arrival by a newer one still settles solid and in place, never left
-        // half-faded or overlapping. The 260 ms unmap delay outlasts the exit.
+        // half-faded or overlapping. The unmap delay outlasts the exit, and the
+        // surface holds its height for it, so the last card is never clipped.
         add: Transition {
             NumberAnimation { properties: "opacity"; from: 0; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
             NumberAnimation { property: "x"; from: win.slideFrom; to: 0; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
@@ -163,8 +182,8 @@ PanelWindow {
             NumberAnimation { property: "x"; to: 0; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
         remove: Transition {
-            NumberAnimation { properties: "opacity"; to: 0; duration: Motion.notifOut; easing.type: Motion.notifOutCurve }
-            NumberAnimation { property: "x"; to: win.slideFrom; duration: Motion.notifOut; easing.type: Motion.notifOutCurve }
+            NumberAnimation { properties: "opacity"; to: 0; duration: Motion.notifOut; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifOutCurve }
+            NumberAnimation { property: "x"; to: win.slideFrom; duration: Motion.notifOut; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifOutCurve }
         }
         removeDisplaced: Transition {
             NumberAnimation { properties: "y"; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
