@@ -39,9 +39,26 @@ Item {
     // key -> the live SettingRow, so a search jump can find and scroll to it.
     property var rowItems: ({})
 
+    // A row can gate itself on OTHER settings through `when`: { key: [values] }.
+    // Without it the visualiser page shows knobs that do nothing for the chosen
+    // look (segment count on plain bars, reflection on an orb), the confusion
+    // this removes. Every named key's live draft value must sit in its list; a
+    // missing value fails the gate, so a knob for a look you are not on stays
+    // hidden — except before the draft has loaded, where the row shows rather
+    // than blank the page. Read straight from the draft, since `when` names
+    // keys other than this row's own.
+    function passes(r) {
+        if (!r.when) return true;
+        if (!draft || Object.keys(draft).length === 0) return true;
+        for (var k in r.when)
+            if (r.when[k].indexOf(draft[k]) < 0) return false;
+        return true;
+    }
+
     readonly property var rows: {
         var q = query.toLowerCase();
         return schema.filter(function (r) {
+            if (!sheet.passes(r)) return false;
             if (r.adv && !sheet.advanced && query === "") return false;
             if (r.tab !== sheet.tab && query === "") return false;
             if (query === "") return true;
@@ -361,8 +378,15 @@ Item {
                             Component {
                                 id: galleryC
                                 Gallery {
+                                    // `set: "viz"` draws from the visualiser
+                                    // look catalogue, which paints its own tiles;
+                                    // an unset row keeps the bar-skin gallery.
+                                    readonly property bool viz: srow.r.set === "viz"
                                     anchors.fill: parent
-                                    options: Silhouette.skins.filter((skin) => !srow.r.opts || srow.r.opts.indexOf(skin.key) >= 0)
+                                    painter: viz ? VizStyles : null
+                                    options: viz
+                                        ? VizStyles.styles.map((s) => ({ key: s.key, origin: s.kind, draw: s.key }))
+                                        : Silhouette.skins.filter((skin) => !srow.r.opts || srow.r.opts.indexOf(skin.key) >= 0)
                                     current: String(sheet.val(srow.r))
                                     onChose: (k) => sheet.edited(srow.r.key, k)
                                 }

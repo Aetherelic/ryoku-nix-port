@@ -14,8 +14,8 @@ import Ryoku.Ui.Singletons as Ui
 // defaults (Everforest) only paint the first frames before the daemon's first
 // write.
 //
-// The spectrum has no panel under it, so the resolved roles are seeds, not
-// paint: Ink turns them into tones that clear the wallpaper behind the bars.
+// The spectrum has no panel under it, so a role is used as published and only
+// re-lit when the wallpaper behind would swallow it.
 Singleton {
     id: root
 
@@ -47,46 +47,33 @@ Singleton {
         return base;
     }
 
-    // Seed colours, not paint: a role is a tone chosen to read on a surface, and
-    // consumed as-is they collapse with the scheme -- a light high-contrast
-    // palette puts every accent near black, hence the black spectrum.
-    readonly property color accent:    role("primary",   "#a7c080")
-    readonly property color secondary: role("secondary", "#7fbbb3")
-    // The sweep is ramp names, and only the wallpaper's own hue: matugen's
-    // primary and secondary both derive from the source colour, so every band
-    // reads as the picture behind it. tertiary (a +60 hue rotation) and error
-    // (a fixed red) are Material accents the wallpaper itself never contains, so
-    // a spectrum built from them paints colours nowhere in the picture. `seeds`
-    // are the matching roles, re-lit when no ramps are published.
-    readonly property var ramps: ["secondary", "primary", "primary", "primary", "primary", "secondary"]
-    readonly property var seeds: [secondary, accent, accent, accent, accent, secondary]
+    // The palette roles as published. The spectrum paints in the accent the rest
+    // of the shell uses, not a second palette: pushing every band a fixed step
+    // off the wallpaper is what used to send it near-white on a dark picture and
+    // yellow on a scheme whose secondary is yellow.
+    readonly property color accent: role("primary", "#a7c080")
 
-    // 45 L* (~3.7:1) reads as a lit bar; the 55 a run of text needs turns a band
-    // of saturated colour neon.
-    readonly property int barDelta:  45
-    readonly property int leadDelta: 55
+    // The accent is used as published, so the spectrum is the same colour the
+    // bar and the Hub wear. Re-lighting it through a tonal ramp rebuilds the
+    // colour from hue and saturation alone, which drains the chroma and lands
+    // near-white; that only happens when the wallpaper behind would otherwise
+    // swallow the accent whole.
+    readonly property int minSep: 18
+    readonly property real accentL: Ui.Ink.lstar(root.accent)
 
-    // The lead accent: the floor glow, the oscilloscope filament, the polar ring.
-    function accentOn(bgL, dir) {
-        return Ui.Ink.accentOver("primary", root.accent, bgL, root.leadDelta, dir);
+    function baseOn(bgL, dir) {
+        if (Math.abs(root.accentL - bgL) >= root.minSep)
+            return root.accent;
+        return Ui.Ink.at("primary", root.accent,
+                         Math.max(26, Math.min(90, bgL + dir * root.minSep)));
     }
 
-    // The sweep at t in [0,1]: both neighbouring ramps sampled at the
-    // background's tone, then interpolated, so the blend cannot dip mid-band.
+    // A narrow walk either side of that colour: bass sits deeper than treble
+    // without the sweep leaving the hue.
     function colorAt(t, bgL, dir) {
-        var n = root.ramps.length;
-        var x = Math.max(0, Math.min(0.999999, t)) * (n - 1);
-        var i = Math.floor(x);
-        var f = x - i;
-        var a = root.stopAt(i, bgL, dir);
-        var b = root.stopAt(Math.min(n - 1, i + 1), bgL, dir);
-        return Qt.rgba(a.r + (b.r - a.r) * f,
-                       a.g + (b.g - a.g) * f,
-                       a.b + (b.b - a.b) * f, 1);
-    }
-
-    function stopAt(i, bgL, dir) {
-        return Ui.Ink.accentOver(root.ramps[i], root.seeds[i], bgL, root.barDelta, dir);
+        var c = root.baseOn(bgL, dir);
+        var f = 1 + (Math.max(0, Math.min(1, t)) - 0.5) * 0.36;
+        return f >= 1 ? Qt.lighter(c, f) : Qt.darker(c, 1 / f);
     }
 
     // Ink reaches the renderer through here. A file that imports the module

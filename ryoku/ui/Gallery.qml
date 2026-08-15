@@ -10,6 +10,9 @@ import "Singletons"
 Flow {
     id: gal
     property var options: []      // [{ key, origin, draw }]
+    // Swap-in tile painter so one Gallery can draw a different catalogue (the
+    // visualiser looks via VizStyles); left null it keeps drawing the bar skins.
+    property var painter: null
     property string current: ""
     signal chose(string key)
 
@@ -38,7 +41,7 @@ Flow {
                 onPaint: {
                     var c = getContext("2d");
                     c.reset();
-                    Silhouette.draw(c, tile.modelData.draw, width, height,
+                    (gal.painter || Silhouette).draw(c, tile.modelData.draw, width, height,
                                     tile.on ? 0.98 : 0.62, tile.on ? 0.45 : 0.28);
                 }
                 Component.onCompleted: requestPaint()

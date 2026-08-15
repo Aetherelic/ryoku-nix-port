@@ -1,0 +1,202 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+
+// The audio spectrum, drawn once for the whole desktop. Every look lives in
+// shaders/spectrum.frag; this turns a band array, a palette and a set of
+// normalised knobs into that shader's uniforms, and sizes the pass to the region
+// the look occupies so no fragment is spent on empty screen.
+//
+// It owns geometry, not motion and not colour: the desktop feeds it cava and a
+// wallpaper-lit ramp, the Hub feeds it a synthetic signal and ink tones, and
+// both get the same picture. Fill it with the surface the spectrum belongs to.
+Item {
+    id: root
+
+    // 0..1 per band, already eased. The `line` look reads the same slots as a
+    // waveform centred on 0.5.
+    property var levels: []
+    property var peaks: []
+    property real energy: 0
+    property real fade: 1
+    // up to eight colour stops swept along the spectrum; short lists hold.
+    property var ramp: []
+
+    property string style: "bars"
+    property string position: "bottom"   // bottom | top | center | left | right
+    property string shape: "rounded"
+    property real thickness: 0.58        // band width, fraction of its slot
+    property real lengthFrac: 0.42       // longest band, fraction of the surface
+    property real span: 1                // fraction of the edge covered
+    property string align: "center"      // start | center | end
+    property real reflection: 0
+    property int segments: 10
+    property bool peakCaps: false
+    property real glow: 0.6
+
+    property real originX: 0.5           // polar centre, fraction of the surface
+    property real originY: 0.5
+    property real size: 0.22             // polar radius, fraction of the short edge
+    property real spin: 0                // degrees, integrated by the caller
+
+    readonly property var styles: ["bars", "split", "dots", "segments", "wave",
+                                   "ribbon", "curtain", "line", "radial", "orb", "spiral"]
+    // An unknown look falls back to bars rather than painting nothing.
+    readonly property int styleIndex: Math.max(0, root.styles.indexOf(root.style))
+    readonly property bool polar: root.styleIndex >= 8
+    readonly property bool vertical: root.position === "left" || root.position === "right"
+    readonly property bool centred: (root.position === "center" && root.style !== "curtain")
+        || root.style === "split"
+
+    readonly property int bands: Math.max(1, Math.min(128, root.levels ? root.levels.length : 0))
+    readonly property real ui: Math.max(0.75, Math.min(2.5, Math.min(width, height) / 900))
+
+    readonly property real acrossFull: root.vertical ? root.width : root.height
+    readonly property real alongFull: root.vertical ? root.height : root.width
+    readonly property real maxLen: Math.max(2, Math.round(root.acrossFull * root.lengthFrac))
+    readonly property real reflectPx: (root.position === "bottom" && !root.polar && !root.centred)
+        ? Math.round(root.acrossFull * root.reflection) : 0
+
+    // The bloom is sized to the shape it wraps, never to the screen: a skirt
+    // wider than the gap between two bands dissolves the spectrum into one mass.
+    readonly property real slotPx: root.alongFull / root.bands
+    readonly property real shapePx: root.polar
+        ? Math.max(2, 2 * Math.PI * root.r0 / root.bands * root.thickness)
+        : Math.max(2, root.slotPx * root.thickness)
+    readonly property real glowPx: Math.max(1.5, Math.min(root.shapePx * 0.9, 12 * root.ui))
+        * (0.35 + 0.65 * Math.max(0, Math.min(1, root.glow)))
+    readonly property real margin: Math.ceil(root.glow > 0 ? root.glowPx * 3.5 + 2 : 2 * root.ui)
+
+    // The orb is mostly core and a little travel, so it breathes; the ring looks
+    // are mostly travel, so their bars have somewhere to go.
+    readonly property real radius: Math.max(6, Math.min(root.width, root.height) * root.size)
+    readonly property real r0: root.radius * (root.style === "orb" ? 0.62 : 0.42)
+    readonly property real rMax: root.radius - root.r0
+
+    readonly property real spanPx: Math.max(8, Math.round(root.alongFull * Math.max(0.05, Math.min(1, root.span))))
+    readonly property real spanOff: root.align === "start" ? 0
+        : (root.align === "end" ? root.alongFull - root.spanPx : (root.alongFull - root.spanPx) / 2)
+    readonly property real depth: root.centred ? root.maxLen + 2 * root.margin
+                                              : root.maxLen + root.reflectPx + root.margin
+
+    // Where the look lands, so a host can light its palette against the picture
+    // under exactly that region.
+    readonly property rect passRect: Qt.rect(pass.x, pass.y, pass.width, pass.height)
+
+    Item {
+        id: pass
+
+        x: {
+            if (root.polar) return root.originX * root.width - root.radius - root.margin;
+            if (root.position === "left") return 0;
+            if (root.position === "right") return root.width - root.depth;
+            if (root.vertical) return 0;
+            return root.spanOff;
+        }
+        y: {
+            if (root.polar) return root.originY * root.height - root.radius - root.margin;
+            if (root.vertical) return root.spanOff;
+            if (root.position === "top") return 0;
+            if (root.centred) return (root.height - root.depth) / 2;
+            return root.height - root.depth;
+        }
+        width: root.polar ? 2 * (root.radius + root.margin) : (root.vertical ? root.depth : root.spanPx)
+        height: root.polar ? 2 * (root.radius + root.margin) : (root.vertical ? root.spanPx : root.depth)
+
+        ShaderEffect {
+            id: fx
+            anchors.fill: parent
+            visible: root.fade > 0.002 && root.bands > 0 && root.width > 1 && root.height > 1
+            blending: true
+            fragmentShader: Qt.resolvedUrl("shaders/spectrum.frag.qsb")
+
+            property real style: root.styleIndex
+            property real posMode: root.position === "top" ? 1
+                : (root.position === "center" ? 2
+                : (root.position === "left" ? 3 : (root.position === "right" ? 4 : 0)))
+            property real bands: root.bands
+            property real maxLen: root.maxLen
+            property real minLen: Math.max(1.5, 2 * root.ui) * (root.fade > 0.9 ? 1 : root.fade)
+            property real thickness: Math.max(0.05, Math.min(1, root.thickness))
+            property real shapeW: root.shapePx
+            property real capR: root.shape === "rounded" ? root.shapePx * 0.5
+                                                         : Math.min(2 * root.ui, root.shapePx * 0.2)
+            property real segN: Math.max(3, Math.min(24, root.segments))
+            property real segGap: Math.max(1.5 * root.ui, root.maxLen / Math.max(3, root.segments) * 0.26)
+            property real gapPx: Math.max(2 * root.ui, root.maxLen * 0.06)
+            property real glowAmt: Math.max(0, Math.min(1, root.glow))
+            property real glowPx: root.glowPx
+            property real reflectPx: root.reflectPx
+            property real peakOn: root.peakCaps ? 1 : 0
+            property real r0: root.r0
+            property real rMax: root.rMax
+            property real spinRad: root.spin * Math.PI / 180
+            property real energy: Math.max(0, Math.min(1, root.energy))
+            property real fade: Math.max(0, Math.min(1, root.fade))
+            property real aa: 0.85
+            property vector2d res: Qt.vector2d(width, height)
+            property vector2d origin: Qt.vector2d(root.originX * root.width - pass.x,
+                                                  root.originY * root.height - pass.y)
+
+            property vector4d c0: root.stop(0)
+            property vector4d c1: root.stop(1)
+            property vector4d c2: root.stop(2)
+            property vector4d c3: root.stop(3)
+            property vector4d c4: root.stop(4)
+            property vector4d c5: root.stop(5)
+            property vector4d c6: root.stop(6)
+            property vector4d c7: root.stop(7)
+
+            property matrix4x4 lv0
+            property matrix4x4 lv1
+            property matrix4x4 lv2
+            property matrix4x4 lv3
+            property matrix4x4 lv4
+            property matrix4x4 lv5
+            property matrix4x4 lv6
+            property matrix4x4 lv7
+            property matrix4x4 pk0
+            property matrix4x4 pk1
+            property matrix4x4 pk2
+            property matrix4x4 pk3
+            property matrix4x4 pk4
+            property matrix4x4 pk5
+            property matrix4x4 pk6
+            property matrix4x4 pk7
+        }
+    }
+
+    // A short ramp holds its last colour, so a two-colour palette still sweeps.
+    function stop(i) {
+        var r = root.ramp;
+        if (!r || r.length === 0)
+            return Qt.vector4d(1, 1, 1, 1);
+        var c = r[Math.min(i, r.length - 1)];
+        return Qt.vector4d(c.r, c.g, c.b, 1);
+    }
+
+    // Sixteen levels to a mat4, in the row-major order the shader unpacks.
+    function chunk(src, base) {
+        var v = new Array(16);
+        for (var i = 0; i < 16; i++) {
+            var x = (src && base + i < src.length) ? src[base + i] : 0;
+            v[i] = (typeof x === "number" && x === x) ? x : 0;
+        }
+        return Qt.matrix4x4(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7],
+                            v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
+    }
+
+    // Only the matrices the band count reaches are written, so 64 bands cost
+    // four assignments a frame rather than sixty-four.
+    function push() {
+        var n = Math.ceil(root.bands / 16);
+        for (var i = 0; i < n; i++)
+            fx["lv" + i] = root.chunk(root.levels, i * 16);
+        if (root.peakCaps)
+            for (var j = 0; j < n; j++)
+                fx["pk" + j] = root.chunk(root.peaks, j * 16);
+    }
+
+    onLevelsChanged: root.push()
+    onPeaksChanged: if (root.peakCaps) root.push()
+    Component.onCompleted: root.push()
+}

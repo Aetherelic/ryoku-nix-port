@@ -3,25 +3,25 @@ import QtQuick
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
-// A self-contained, live preview of the desktop audio visualiser for the
-// Desktop page's Visualizer subtab. The real renderer
-// (ryoku/shell/quickshell/visualizer/Visualizer.qml) leans on shell-local
-// singletons (Spectrum/Waveform/Scheme/Config/Performance) the hub cannot
-// import, so this rebuilds a REPRESENTATIVE spectrum from a synthetic signal: a
-// per-band travelling wave advanced by a ~30fps Timer, since the hub has no
-// audio feed. It reads the live draft (style/position/shape/bars/thickness/
-// height/mirror/segments), so the picture retunes as those knobs are edited.
+// A live preview of the desktop audio visualiser for the Desktop page's
+// Visualizer subtab. It renders through Ryoku.Ui.SpectrumField -- the same
+// item, and the same shader, the desktop draws with -- so the preview is the
+// real geometry and can never drift into a second implementation of the looks.
 //
-// Monochrome by design -- app content carries no accent -- an ink ramp from
-// Tokens, kept calm. bars, dots, segments, line and wave are drawn in full;
-// radial and circle get a polar look, all on one Canvas so every style shares
-// the same geometry the real analyser uses.
+// The hub has no audio feed, so a synthetic signal stands in for cava: a
+// bass-heavy travelling wave advanced by a ~30fps Timer, pushed into the
+// field's `levels`. It reads the live draft, so the picture retunes as the
+// knobs are edited.
+//
+// Monochrome by design -- app content carries no accent -- the ramp is eight
+// ink stops from Tokens, so the preview is the desktop look in the hub's own
+// palette. Polar looks are aimed by dragging on the stage.
 Item {
     id: root
 
     property var hub
 
-    implicitHeight: 200
+    implicitHeight: 260
     // folds flat out of the layout on the General subtab (the page toggles
     // `visible`); the shared extras slot measures childrenRect, so the height
     // must actually reach 0 or an empty gap would push the settings down.
@@ -32,22 +32,33 @@ Item {
     function pick(k, dflt) { var v = root.d[k]; return v === undefined ? dflt : v; }
 
     readonly property bool vEnabled: root.pick("enabled", true)
-    // an unknown style (one dropped from the set) falls back to bars, as the
-    // real renderer does, so a stale draft never paints blank.
-    readonly property var knownStyles: ["bars", "dots", "line", "wave", "segments", "radial", "circle"]
-    readonly property string vStyle: root.knownStyles.indexOf(root.pick("style", "bars")) >= 0 ? root.pick("style", "bars") : "bars"
+    // `circle` is the old id for the orb look; any other unknown style the field
+    // itself resolves back to bars, so a stale draft never previews blank.
+    readonly property string vStyle: {
+        var s = root.pick("style", "bars");
+        if (s === "circle") s = "orb";
+        return field.styles.indexOf(s) >= 0 ? s : "bars";
+    }
     readonly property string vPosition: root.pick("position", "bottom")
     readonly property string vShape: root.pick("shape", "rounded")
+    readonly property string vAlign: root.pick("align", "center")
     readonly property bool vMirror: root.pick("mirror", false)
+    readonly property bool vPeakCaps: root.pick("peaks", false)
     readonly property int vBars: Math.max(2, Math.min(128, Math.round(root.pick("bars", 64))))
-    readonly property int vSeg: Math.max(4, Math.min(16, Math.round(root.pick("segments", 10))))
+    readonly property int vSeg: Math.max(3, Math.min(24, Math.round(root.pick("segments", 10))))
     readonly property real vThick: Math.max(0.1, Math.min(1, root.pick("thickness", 0.58)))
     readonly property real vHeight: Math.max(0.05, Math.min(0.95, root.pick("height", 0.42)))
+    readonly property real vSpan: Math.max(0.05, Math.min(1, root.pick("span", 1.0)))
+    readonly property real vReflection: Math.max(0, Math.min(1, root.pick("reflection", 0.1)))
+    readonly property real vBloom: Math.max(0, Math.min(1, root.pick("bloom", 0.6)))
+    readonly property real vOriginX: Math.max(0, Math.min(1, root.pick("originX", 0.5)))
+    readonly property real vOriginY: Math.max(0, Math.min(1, root.pick("originY", 0.5)))
+    readonly property real vSize: Math.max(0.02, Math.min(1, root.pick("size", 0.22)))
+    readonly property real vSpin: root.pick("spin", 0)
 
     // ── synthetic motion ────────────────────────────────────────────────────
-    // no audio in the hub, so a travelling wave stands in for cava: a bass-heavy
-    // envelope with two drifting sines and a slow idle floor. one phase, nudged
-    // each frame; the Canvas repaints when it (or any drawn knob) moves.
+    // no audio in the hub, so a travelling wave stands in for cava. one phase,
+    // nudged each frame; the field repushes its band levels when they change.
     property real phase: 0
     Timer {
         interval: Math.round(1000 / 30)
@@ -57,13 +68,14 @@ Item {
     }
 
     // mirror folds the band order symmetric around the centre -- bass in the
-    // middle -- exactly as the real srcIndex does.
+    // middle -- exactly as the real renderer's srcIndex does.
     function srcIndex(i) {
         if (!root.vMirror)
             return i;
         var c = Math.floor(root.vBars / 2);
         return Math.max(0, Math.min(root.vBars - 1, Math.abs(i - c)));
     }
+    // a band's 0..1 magnitude: a bass envelope, two drifting sines, an idle floor.
     function levelAt(i) {
         var n = Math.max(1, root.vBars);
         var s = root.srcIndex(i);
@@ -74,6 +86,51 @@ Item {
         var idle = 0.10 + 0.06 * Math.sin(s * 0.4 + root.phase);
         var v = env * (0.32 + 0.68 * (0.6 * w1 + 0.4 * w2));
         return Math.max(idle, Math.max(0.02, Math.min(1, v)));
+    }
+    // a signed -1..1 sample per band, tapered at the ends: the `line` trace.
+    function signalAt(i) {
+        var s = root.srcIndex(i);
+        var t = s / Math.max(1, root.vBars);
+        var win = Math.sin(Math.PI * t);
+        var sig = Math.sin(t * Math.PI * 8 - root.phase * 3) * 0.6
+                + Math.sin(t * Math.PI * 17 + root.phase * 2) * 0.3
+                + Math.sin(t * Math.PI * 3 - root.phase * 1.5) * 0.5;
+        return Math.max(-1, Math.min(1, sig * (0.35 + 0.65 * win)));
+    }
+
+    readonly property var vLevels: {
+        var out = [];
+        for (var i = 0; i < root.vBars; i++)
+            // the shader reads `line` band slots as an oscilloscope sample, so
+            // that look feeds a waveform swinging around the 0.5 midline rather
+            // than a level rising from a floor as the bar looks do.
+            out.push(root.vStyle === "line" ? 0.5 + 0.5 * root.signalAt(i)
+                                            : root.levelAt(i));
+        return out;
+    }
+    // peak holds sit a touch above the live level, for the caps look.
+    readonly property var vPeaks: {
+        var out = [];
+        for (var i = 0; i < root.vBars; i++)
+            out.push(Math.min(1, root.levelAt(i) + 0.08));
+        return out;
+    }
+    // mean level, for the field's bloom and polar pulses.
+    readonly property real vEnergy: {
+        var sum = 0, n = root.vBars;
+        for (var i = 0; i < n; i++) sum += root.levelAt(i);
+        return n > 0 ? sum / n : 0;
+    }
+    // the hub carries no accent, so the spectrum is drawn in ink alone: eight
+    // stops from dim ink to full ink give the shader a monochrome ramp to sweep.
+    readonly property var vRamp: {
+        var a = Tokens.inkDim, b = Tokens.ink, out = [];
+        for (var i = 0; i < 8; i++) {
+            var t = i / 7;
+            out.push(Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t,
+                             a.b + (b.b - a.b) * t, 1));
+        }
+        return out;
     }
 
     // the frame: flat, one hairline, Tokens radius -- the hub is print.
@@ -111,7 +168,8 @@ Item {
         font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
     }
 
-    // the stage the spectrum is painted on, inset under the header.
+    // the stage: the whole screen the spectrum sits on, full card width, so the
+    // preview shows the surface a monitor would, not a strip along one edge.
     Item {
         id: stage
         anchors {
@@ -122,227 +180,70 @@ Item {
         }
         clip: true
 
-        Canvas {
-            id: cv
+        // the real renderer: same item and shader the desktop draws with.
+        SpectrumField {
+            id: field
             anchors.fill: parent
-            antialiasing: true
             visible: root.vEnabled
+            style: root.vStyle
+            position: root.vPosition
+            shape: root.vShape
+            thickness: root.vThick
+            lengthFrac: root.vHeight
+            span: root.vSpan
+            align: root.vAlign
+            reflection: root.vReflection
+            glow: root.vBloom
+            segments: root.vSeg
+            peakCaps: root.vPeakCaps
+            originX: root.vOriginX
+            originY: root.vOriginY
+            size: root.vSize
+            spin: root.vSpin
+            energy: root.vEnergy
+            fade: 1
+            levels: root.vLevels
+            peaks: root.vPeaks
+            ramp: root.vRamp
+        }
 
-            // repaint whenever the motion advances or a drawn knob changes.
-            readonly property var key: [root.phase, root.vStyle, root.vPosition, root.vShape,
-                root.vMirror, root.vBars, root.vSeg, root.vThick, root.vHeight, cv.width, cv.height]
-            onKeyChanged: cv.requestPaint()
-            onVisibleChanged: if (cv.visible) cv.requestPaint()
+        // a calm ring marking the polar origin the drag moves.
+        Rectangle {
+            visible: root.vEnabled && field.polar
+            width: Tokens.s4; height: width; radius: width / 2
+            color: "transparent"
+            border.width: Tokens.border
+            border.color: Tokens.lineStrong
+            x: field.originX * stage.width - width / 2
+            y: field.originY * stage.height - height / 2
+        }
 
-            function css(c, a) {
-                return "rgba(" + Math.round(c.r * 255) + "," + Math.round(c.g * 255) + "," + Math.round(c.b * 255) + "," + a + ")";
-            }
-            // a rounded-rect path (arcTo), r clamped so slivers never bulge.
-            function rr(ctx, x, y, w, h, r) {
-                r = Math.max(0, Math.min(r, w / 2, h / 2));
-                ctx.beginPath();
-                ctx.moveTo(x + r, y);
-                ctx.arcTo(x + w, y, x + w, y + h, r);
-                ctx.arcTo(x + w, y + h, x, y + h, r);
-                ctx.arcTo(x, y + h, x, y, r);
-                ctx.arcTo(x, y, x + w, y, r);
-                ctx.closePath();
-            }
+        // a monospace hint, shown only while a polar look can be aimed.
+        Text {
+            visible: root.vEnabled && field.polar
+            anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: Tokens.s2 }
+            text: "DRAG TO PLACE"
+            color: Tokens.inkFaint
+            font.family: Tokens.mono; font.pixelSize: Tokens.fMicro
+            font.letterSpacing: Tokens.trackLabel
+        }
 
-            onPaint: {
-                var ctx = cv.getContext("2d");
-                ctx.reset();
-                var W = cv.width, H = cv.height;
-                ctx.clearRect(0, 0, W, H);
-                if (!root.vEnabled || W <= 1 || H <= 1)
+        // Aim the polar looks: a drag anywhere on the stage sets the origin from
+        // the pointer (clamped 0..1) through the same edit path the settings
+        // rows use (root.hub.edit), so the desktop origin moves with the
+        // preview. Edge looks are not placed, so the area is disabled for them;
+        // preventStealing keeps the drag from scrolling the settings page.
+        MouseArea {
+            anchors.fill: parent
+            enabled: root.vEnabled && field.polar
+            preventStealing: true
+            onPressed: (m) => place(m.x, m.y)
+            onPositionChanged: (m) => place(m.x, m.y)
+            function place(x, y) {
+                if (!root.hub || !root.hub.edit)
                     return;
-
-                var n = root.vBars;
-                var slotW = W / n;
-                var barW = Math.max(1.5, slotW * root.vThick);
-                var maxH = Math.min(H, H * root.vHeight);
-                var pos = root.vPosition;
-                var rounded = root.vShape === "rounded";
-                var ink = Tokens.ink;
-                var style = root.vStyle;
-
-                // a band's drawn length, floored to a sliver so nothing vanishes.
-                function len(i) { return Math.max(1.5, maxH * root.levelAt(i)); }
-                // top-left y of a bottom/top/centre bar of length L.
-                function topY(L) { return pos === "top" ? 0 : pos === "center" ? (H - L) / 2 : H - L; }
-                // the y of a band's growing tip.
-                function tipY(L) { return pos === "top" ? L : pos === "center" ? (H - L) / 2 : H - L; }
-
-                // ── bars ──────────────────────────────────────────────────
-                if (style === "bars") {
-                    for (var i = 0; i < n; i++) {
-                        var L = len(i);
-                        var x = i * slotW + (slotW - barW) / 2;
-                        var y = topY(L);
-                        var g = ctx.createLinearGradient(0, y, 0, y + L);
-                        g.addColorStop(0, cv.css(ink, pos === "top" ? 0.30 : 0.95));
-                        g.addColorStop(1, cv.css(ink, pos === "top" ? 0.95 : 0.30));
-                        ctx.fillStyle = g;
-                        cv.rr(ctx, x, y, barW, L, rounded ? barW / 2 : Math.min(2, barW * 0.2));
-                        ctx.fill();
-                    }
-                    return;
-                }
-
-                // ── dots: a disc on each band's tip ───────────────────────
-                if (style === "dots") {
-                    var dsz = Math.max(2, Math.min(slotW * 0.72, barW * 1.7));
-                    for (var j = 0; j < n; j++) {
-                        var cxj = j * slotW + slotW / 2;
-                        var cyj = tipY(len(j));
-                        ctx.fillStyle = cv.css(ink, 0.55 + 0.4 * root.levelAt(j));
-                        if (rounded) {
-                            ctx.beginPath();
-                            ctx.arc(cxj, cyj, dsz / 2, 0, 2 * Math.PI);
-                            ctx.closePath();
-                            ctx.fill();
-                        } else {
-                            cv.rr(ctx, cxj - dsz / 2, cyj - dsz / 2, dsz, dsz, Math.min(2, dsz * 0.2));
-                            ctx.fill();
-                        }
-                    }
-                    return;
-                }
-
-                // ── segments: each band a stack of lit cells ──────────────
-                if (style === "segments") {
-                    var segN = root.vSeg;
-                    var pitch = maxH / segN;
-                    var gap = Math.max(1.0, pitch * 0.26);
-                    var sh = Math.max(1.5, pitch - gap);
-                    for (var b = 0; b < n; b++) {
-                        var lit = Math.round(len(b) / Math.max(1, maxH) * segN);
-                        var bx = b * slotW + (slotW - barW) / 2;
-                        for (var c2 = 0; c2 < lit; c2++) {
-                            var sy;
-                            if (pos === "top") sy = c2 * pitch + gap / 2;
-                            else if (pos === "center") sy = H / 2 - lit * pitch / 2 + c2 * pitch + gap / 2;
-                            else sy = H - (c2 + 1) * pitch + gap / 2;
-                            ctx.fillStyle = cv.css(ink, 0.4 + 0.55 * (lit > 1 ? c2 / (lit - 1) : 1));
-                            cv.rr(ctx, bx, sy, barW, sh, rounded ? Math.min(sh, barW) * 0.35 : 0);
-                            ctx.fill();
-                        }
-                    }
-                    return;
-                }
-
-                // ── line: a synthetic oscilloscope on a faint baseline ────
-                if (style === "line") {
-                    var amp = maxH * 0.5;
-                    var base = pos === "top" ? amp * 1.15 : pos === "center" ? H / 2 : H - amp * 1.15;
-                    var dir = pos === "top" ? -1 : 1;
-                    ctx.strokeStyle = cv.css(ink, 0.18);
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(0, base); ctx.lineTo(W, base); ctx.stroke();
-                    var steps = Math.max(64, Math.min(160, Math.round(W / 4)));
-                    ctx.beginPath();
-                    for (var st = 0; st <= steps; st++) {
-                        var tx = st / steps;
-                        var win = Math.sin(Math.PI * tx);
-                        var sig = Math.sin(tx * Math.PI * 8 - root.phase * 3) * 0.6
-                                + Math.sin(tx * Math.PI * 17 + root.phase * 2) * 0.3
-                                + Math.sin(tx * Math.PI * 3 - root.phase * 1.5) * 0.5;
-                        var yy = base - dir * sig * amp * (0.35 + 0.65 * win);
-                        if (st === 0) ctx.moveTo(0, yy); else ctx.lineTo(tx * W, yy);
-                    }
-                    ctx.strokeStyle = cv.css(ink, 0.9);
-                    ctx.lineWidth = 2;
-                    ctx.lineCap = rounded ? "round" : "butt";
-                    ctx.lineJoin = "round";
-                    ctx.stroke();
-                    return;
-                }
-
-                // ── wave: a smooth filled area under the band tips ────────
-                if (style === "wave") {
-                    var xs = [], ys = [];
-                    for (var m = 0; m < n; m++) {
-                        xs.push(m * slotW + slotW / 2);
-                        ys.push(tipY(len(m)));
-                    }
-                    var grad = ctx.createLinearGradient(0, 0, 0, H);
-                    grad.addColorStop(0, cv.css(ink, pos === "top" ? 0.72 : 0.14));
-                    grad.addColorStop(1, cv.css(ink, pos === "top" ? 0.14 : 0.72));
-                    ctx.fillStyle = grad;
-                    if (pos === "center") {
-                        var bot = [];
-                        for (var mb = 0; mb < n; mb++) bot.push(H / 2 + len(mb) / 2);
-                        ctx.beginPath();
-                        ctx.moveTo(xs[0], ys[0]);
-                        for (var kt = 0; kt < n - 1; kt++)
-                            ctx.quadraticCurveTo(xs[kt], ys[kt], (xs[kt] + xs[kt + 1]) / 2, (ys[kt] + ys[kt + 1]) / 2);
-                        ctx.lineTo(xs[n - 1], ys[n - 1]);
-                        ctx.lineTo(xs[n - 1], bot[n - 1]);
-                        for (var kb = n - 1; kb > 0; kb--)
-                            ctx.quadraticCurveTo(xs[kb], bot[kb], (xs[kb] + xs[kb - 1]) / 2, (bot[kb] + bot[kb - 1]) / 2);
-                        ctx.lineTo(xs[0], bot[0]);
-                        ctx.closePath();
-                        ctx.fill();
-                    } else {
-                        var baseY = pos === "top" ? 0 : H;
-                        ctx.beginPath();
-                        ctx.moveTo(0, baseY);
-                        ctx.lineTo(xs[0], ys[0]);
-                        for (var kk = 0; kk < n - 1; kk++)
-                            ctx.quadraticCurveTo(xs[kk], ys[kk], (xs[kk] + xs[kk + 1]) / 2, (ys[kk] + ys[kk + 1]) / 2);
-                        ctx.lineTo(xs[n - 1], ys[n - 1]);
-                        ctx.lineTo(W, ys[n - 1]);
-                        ctx.lineTo(W, baseY);
-                        ctx.closePath();
-                        ctx.fill();
-                    }
-                    return;
-                }
-
-                // ── radial / circle: a centred polar look ─────────────────
-                var ccx = W / 2, ccy = H / 2;
-                var r0 = Math.min(W, H) * (0.14 + 0.10 * root.vHeight);
-                var rMax = Math.min(W, H) * (0.10 + 0.24 * root.vHeight);
-                if (style === "radial") {
-                    ctx.strokeStyle = cv.css(ink, 0.4);
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath(); ctx.arc(ccx, ccy, r0, 0, 2 * Math.PI); ctx.stroke();
-                    var arcW = Math.max(1.5, (2 * Math.PI * r0 / n) * root.vThick);
-                    ctx.lineCap = rounded ? "round" : "butt";
-                    for (var q = 0; q < n; q++) {
-                        var Lr = Math.max(1.5, rMax * root.levelAt(q));
-                        var ang = q / n * 2 * Math.PI - Math.PI / 2;
-                        var cw = Math.cos(ang), sw = Math.sin(ang);
-                        ctx.strokeStyle = cv.css(ink, 0.5 + 0.45 * root.levelAt(q));
-                        ctx.lineWidth = arcW;
-                        ctx.beginPath();
-                        ctx.moveTo(ccx + cw * r0, ccy + sw * r0);
-                        ctx.lineTo(ccx + cw * (r0 + Lr), ccy + sw * (r0 + Lr));
-                        ctx.stroke();
-                    }
-                    return;
-                }
-                // circle: a smoothed closed blob, radius per band = its level.
-                var px = [], py = [];
-                for (var u = 0; u < n; u++) {
-                    var au = u / n * 2 * Math.PI - Math.PI / 2;
-                    var ru = r0 + rMax * root.levelAt(u);
-                    px.push(ccx + Math.cos(au) * ru);
-                    py.push(ccy + Math.sin(au) * ru);
-                }
-                ctx.beginPath();
-                ctx.moveTo((px[n - 1] + px[0]) / 2, (py[n - 1] + py[0]) / 2);
-                for (var vv = 0; vv < n; vv++) {
-                    var nx = (vv + 1) % n;
-                    ctx.quadraticCurveTo(px[vv], py[vv], (px[vv] + px[nx]) / 2, (py[vv] + py[nx]) / 2);
-                }
-                ctx.closePath();
-                ctx.fillStyle = cv.css(ink, 0.12);
-                ctx.fill();
-                ctx.strokeStyle = cv.css(ink, 0.85);
-                ctx.lineWidth = 2;
-                ctx.lineJoin = "round";
-                ctx.stroke();
+                root.hub.edit("originX", Math.max(0, Math.min(1, x / width)));
+                root.hub.edit("originY", Math.max(0, Math.min(1, y / height)));
             }
         }
     }
@@ -357,7 +258,4 @@ Item {
         font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
         font.weight: Font.Medium; font.letterSpacing: 2
     }
-
-    onVisibleChanged: if (root.visible) cv.requestPaint()
-    Component.onCompleted: cv.requestPaint()
 }

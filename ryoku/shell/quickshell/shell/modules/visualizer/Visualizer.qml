@@ -54,12 +54,12 @@ Item {
         value: Config.fps
     }
 
-    // the line style draws the actual playback waveform; capture the monitor
-    // only while that style is selected and the visualiser is on.
+    // the scope look draws the actual playback waveform; capture the monitor
+    // only while that look is selected and the visualiser is on.
     Binding {
         target: Waveform
         property: "active"
-        value: root.active && Config.style === "line"
+        value: root.active && Config.styleId === "line"
     }
 
     PanelWindow {
@@ -69,7 +69,10 @@ Item {
         visible: root.active
         color: "transparent"
 
-        exclusionMode: ExclusionMode.Ignore
+        // The curtain hangs off the bar, so its surface honours the bar's
+        // exclusive zone and starts where the bar ends. Every other look owns
+        // the whole screen and ignores reservations.
+        exclusionMode: Config.styleId === "curtain" ? ExclusionMode.Normal : ExclusionMode.Ignore
         WlrLayershell.layer: root.raised ? WlrLayer.Top : WlrLayer.Bottom
         WlrLayershell.namespace: "ryoku-visualizer"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
