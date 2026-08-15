@@ -328,13 +328,32 @@ The box is placed by hand rather than by numbers. `Super+Alt+M`, the Move
 visualiser row in the desktop's right-click menu, or the Hub's Place on the desktop
 button starts placement mode. The box takes an outline, a grip on its corner and a
 dot on a stem above its top edge: a drag anywhere moves it, the grip or the wheel
-sizes it, the dot turns it through a full circle, and the FLIP button (or `F`)
-mirrors it. `R` returns it to square. A bar fixed to the bottom of the screen (the
-top, when the box would be under it) carries the button, the live angle and size,
-and the gestures; it wears the shell's own tokens rather than the wallpaper-lit
-colour the handles use, because a readout of the thing being moved is the one thing
-on screen that must not move with it. Each step writes to `visualizer.json` as it
-happens, and right click, Escape or the keybind ends it.
+sizes it, and the dot turns it through a full circle. Each step writes to
+`visualizer.json` as it happens, and right click, Escape or the keybind ends it.
+
+An editing bar (`EditBar.qml`) comes with it, fixed to the bottom of the screen and
+stepping to the top when the box would be under it: a readout of the thing being
+moved is the one thing on screen that must not move with it. It carries the look
+itself, and the knobs you judge by eye rather than by number: the current look drawn
+as a silhouette (click for a tray of all eleven, or wheel the chip to walk them),
+bands, mirror, peak caps, gain, smoothing, the live angle with a SQUARE reset, the
+size, FLIP and DONE. `F` flips, `M` mirrors, `P` toggles peak caps, `R` squares,
+`[` and `]` walk the looks. The point is that a look is tuned where you can see it,
+on the wallpaper, instead of behind the Hub's window; the Hub keeps the full board.
+
+The bar is built from `Ryoku.Ui`'s own controls (`Btn`, `Step`, `Sw`, `Slid`,
+`Gallery`) at the shell's own token metrics, so it is the shell's idiom at the
+shell's size rather than a surface with a look of its own, and the tray is the Hub's
+gallery with the Hub's painter (`VizStyles`), so what a look looks like is drawn from
+one catalogue. Each control carries a tracked eyebrow naming it, and the gestures sit
+under a hairline inside the plate: an instruction is not a control, and outside the
+plate it was unreadable over a picture. A knob that means nothing for the look in
+hand dims rather than vanishing, since a bar that reflows as you walk the catalogue
+cannot be aimed at; `Config` owns which those are (`peaksApply`, `mirrorApplies`) and
+the renderer reads the same rule, so the switch that dims is the one the shader
+ignores. Every edit from the bar settles through the same coalescer as a placement
+gesture: the file is watched, so a write returns as a reload, and the look changes
+the instant the adapter does because the render reads the adapter, not the file.
 
 Every gesture applies the pointer's delta from where it was pressed rather than its
 absolute position, so nothing jumps out from under the cursor, and the box eases

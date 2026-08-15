@@ -55,6 +55,48 @@ Singleton {
         : (adapter.style === "circle" ? "orb" : "bars")
     // The polar three sit at the tail of the list, so one index decides the family.
     readonly property bool isPolar: root.knownStyles.indexOf(root.styleId) >= 8
+    // Which knobs mean anything for the look in hand. The renderer and the desktop
+    // editing bar both ask here, so a rule is stated once: peak caps are a bar
+    // reading, and a ring has no order to mirror.
+    readonly property bool peaksApply: root.styleId === "bars" || root.styleId === "segments"
+    readonly property bool mirrorApplies: !root.isPolar
+
+    // Edits from the desktop editing bar. Every one of them settles through the same
+    // coalescer as a placement gesture rather than writing on the spot: the file is
+    // watched, so a write comes back as a reload, and two edits in the same instant
+    // raced that reload and one lost its value. The look changes the moment the
+    // adapter does either way, since the render reads the adapter and not the file.
+    function setStyle(k) {
+        if (root.knownStyles.indexOf(k) < 0)
+            return;
+        adapter.style = k;
+        settle.restart();
+    }
+    function cycleStyle(by) {
+        var i = root.knownStyles.indexOf(root.styleId);
+        var n = root.knownStyles.length;
+        root.setStyle(root.knownStyles[(i + by + n) % n]);
+    }
+    function setBars(n) {
+        adapter.bars = Math.max(16, Math.min(128, Math.round(n)));
+        settle.restart();
+    }
+    function toggleMirror() {
+        adapter.mirror = !adapter.mirror;
+        settle.restart();
+    }
+    function togglePeaks() {
+        adapter.peaks = !adapter.peaks;
+        settle.restart();
+    }
+    function setGain(v) {
+        adapter.gain = Math.max(0.5, Math.min(2, v));
+        settle.restart();
+    }
+    function setSmoothing(v) {
+        adapter.smoothing = Math.max(0, Math.min(1, v));
+        settle.restart();
+    }
 
     // persist on/off so the hub toggle and Super+M keybind agree, and it
     // survives a restart.

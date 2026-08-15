@@ -67,8 +67,9 @@ Item {
         reflection: Config.reflection
         segments: Config.segments
         // Peak caps are a bar reading: on a curve or a ring they float free of
-        // anything, so they are simply not offered there.
-        peakCaps: Config.peaks && (root.style === "bars" || root.style === "segments")
+        // anything. Config owns that rule, so the editing bar dims the same switch
+        // this binding ignores.
+        peakCaps: Config.peaks && Config.peaksApply
         glow: Config.bloom
         boxX: Config.x
         boxY: Config.y

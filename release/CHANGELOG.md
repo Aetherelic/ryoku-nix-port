@@ -3,6 +3,27 @@
 ## Unreleased
 
 ### Added
+- **The spectrum is tuned on the wallpaper, not in the Hub.** Placement showed a
+  strip of monospace hints and nothing else, so changing a look meant leaving the
+  desktop you were judging it against. It now comes with an editing bar
+  (`ryoku/shell/quickshell/shell/modules/visualizer/EditBar.qml`) carrying the look
+  itself as a silhouette chip that opens a tray of all eleven (or wheels through
+  them), plus bands, mirror, peak caps, gain, smoothing, the live angle with a
+  SQUARE reset, the size, FLIP and DONE; `F`, `M`, `P`, `R` and `[`/`]` do the same
+  from the keyboard. It is assembled from `Ryoku.Ui`'s own controls (`Btn`, `Step`,
+  `Sw`, `Slid`, `Gallery`) at token metrics, so it reads at the shell's size instead
+  of the 11px HUD it replaced, and the tray is the Hub's gallery with the Hub's
+  painter, so one catalogue draws what every look looks like. Each control gained a
+  tracked eyebrow naming it and the gestures moved under a hairline inside the plate,
+  since an instruction is not a control and outside the plate it was unreadable over
+  a picture. A knob that does not apply to the look in hand dims instead of
+  vanishing, because a bar that reflows while you walk the catalogue cannot be aimed
+  at, and `Config` now owns which those are so the renderer and the bar cannot
+  disagree. Edits settle through the same coalescer as a placement gesture rather
+  than writing on the spot, since the config file is watched and a write returns as a
+  reload (`ryoku/shell/quickshell/shell/modules/visualizer/Placer.qml`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/Singletons/Config.qml`,
+  `ryoku/shell/quickshell/shell/modules/visualizer/VisualizerView.qml`).
 - **A look turns through a full circle and flips, by hand.** Placement could move
   and size a box but not aim it, so a spectrum could only run along an axis. The
   box grows a dot on a stem above its top edge that turns it freely (`angle`, with a

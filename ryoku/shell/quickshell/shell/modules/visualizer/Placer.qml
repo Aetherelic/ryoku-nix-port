@@ -229,101 +229,43 @@ PanelWindow {
             var k = w.angleDelta.y > 0 ? 1.06 : 0.94;
             Config.sizeBox(Config.w * k, Config.h * k);
         }
-        Keys.onEscapePressed: win.done()
+        Keys.onEscapePressed: {
+            if (editBar.trayOpen)
+                editBar.closeTray();
+            else
+                win.done();
+        }
         Keys.onReturnPressed: win.done()
         Keys.onPressed: (e) => {
             if (e.key === Qt.Key_F) {
                 Config.flip();
                 e.accepted = true;
+            } else if (e.key === Qt.Key_M) {
+                if (Config.mirrorApplies)
+                    Config.toggleMirror();
+                e.accepted = true;
+            } else if (e.key === Qt.Key_P) {
+                if (Config.peaksApply)
+                    Config.togglePeaks();
+                e.accepted = true;
             } else if (e.key === Qt.Key_R) {
                 Config.rotate(0);
+                e.accepted = true;
+            } else if (e.key === Qt.Key_BracketLeft) {
+                Config.cycleStyle(-1);
+                e.accepted = true;
+            } else if (e.key === Qt.Key_BracketRight) {
+                Config.cycleStyle(1);
                 e.accepted = true;
             }
         }
     }
 
-    // --- the editing bar ------------------------------------------------------
-    // Fixed to an edge of the screen, not to the box: a readout that follows the
-    // thing being moved is the one thing on screen that must not move. It sits at
-    // the bottom and steps to the top when the box would be under it.
-    //
-    // It is a shell surface, so it wears the shell's tokens rather than the
-    // wallpaper-lit guide colour the on-wallpaper handles use: paper, ink, one
-    // hairline, control height. The values lead in mono; the gestures trail as a
-    // description, dim and small, because you read them once.
-    readonly property bool barAtTop: win.box.y + win.box.height > win.height - 140
-
-    Rectangle {
-        id: bar
-        height: Ui.Tokens.ctlH + Ui.Tokens.s3
-        width: row.width + 2 * Ui.Tokens.s4
-        x: Math.round((win.width - width) / 2)
-        y: win.barAtTop ? Ui.Tokens.s5 : Math.round(win.height - height - Ui.Tokens.s5)
-        radius: Ui.Tokens.radius
-        color: Qt.alpha(Ui.Tokens.paper, 0.92)
-        border.width: Ui.Tokens.border
-        border.color: Ui.Tokens.line
-
-        Row {
-            id: row
-            anchors.centerIn: parent
-            spacing: Ui.Tokens.s3
-
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: flipText.width + Ui.Tokens.s3
-                height: Ui.Tokens.ctlH - Ui.Tokens.s1
-                radius: Ui.Tokens.radius - 2
-                color: flipArea.containsPress ? Ui.Tokens.bone
-                     : (flipArea.containsMouse ? Ui.Tokens.tint10 : "transparent")
-                border.width: Ui.Tokens.border
-                border.color: flipArea.containsPress ? Ui.Tokens.bone : Ui.Tokens.line
-
-                Text {
-                    id: flipText
-                    anchors.centerIn: parent
-                    text: "FLIP"
-                    color: flipArea.containsPress ? Ui.Tokens.inkOnBone : Ui.Tokens.ink
-                    font.family: Ui.Tokens.ui
-                    font.pixelSize: Ui.Tokens.fMicro
-                    font.letterSpacing: Ui.Tokens.trackLabel
-                }
-                MouseArea {
-                    id: flipArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Config.flip()
-                }
-            }
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(Config.angle) + "\u00b0"
-                color: Ui.Tokens.ink
-                font.family: Ui.Tokens.mono
-                font.pixelSize: Ui.Tokens.fSmall
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(Config.w * 100) + "\u00d7" + Math.round(Config.h * 100)
-                color: Ui.Tokens.inkDim
-                font.family: Ui.Tokens.mono
-                font.pixelSize: Ui.Tokens.fSmall
-            }
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: Ui.Tokens.border
-                height: Ui.Tokens.fSmall
-                color: Ui.Tokens.lineSoft
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "drag to move    corner to size    dot to turn    f flip    r square    right click to finish"
-                color: Ui.Tokens.inkMuted
-                font.family: Ui.Tokens.ui
-                font.pixelSize: Ui.Tokens.fMicro
-            }
-        }
+    // Everything you tune while looking at it: its own component, since the window's
+    // job is the placement gestures and the bar's job is the controls.
+    EditBar {
+        id: editBar
+        box: win.box
+        onDone: win.done()
     }
 }
