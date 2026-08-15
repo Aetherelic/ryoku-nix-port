@@ -30,7 +30,7 @@ Item {
     property var hub
     readonly property bool fullBleed: true
 
-    property var model: ({ "logo": { "kind": "none", "source": "", "width": 28, "height": 14, "padding": 3 }, "accent": "226;52;42", "rows": [] })
+    property var model: ({ "logo": { "kind": "none", "source": "", "width": 28, "height": 14, "padding": 3, "paddingRight": 5, "paddingTop": 5 }, "accent": "226;52;42", "rows": [] })
     property var committed: ({})
     property bool ready: false
     property int rev: 0
@@ -206,11 +206,13 @@ Item {
         return "file://" + s;
     }
 
-    // ready-made emblems for the picker: the Ryoku brand marks and the shipped
-    // ryodecors (our decor), all static PNGs at stable per-user paths. Picking
-    // one sets the source directly (no copy); "Your image" imports a file since
-    // it can live anywhere. Paths keep a leading ~ so the config stays portable.
-    readonly property var readyArt: [
+    // ready-made emblems for the picker: the Ryoku brand marks, the shipped
+    // ryodecors (our decor), and whatever the store has installed into
+    // ryoemblems. Picking one sets the source directly (no copy); "Your image"
+    // imports a file since it can live anywhere. Paths keep a leading ~ so the
+    // config stays portable.
+    property var installedArt: []
+    readonly property var brandArt: [
         { "name": "RYOKU", "path": "~/.local/share/ryoku/assets/brand/fastfetch-emblem.png" },
         { "name": "MARK", "path": "~/.local/share/ryoku/assets/brand/logo-mark.png" },
         { "name": "LAOCOON", "path": "~/Pictures/ryodecors/laocoon.png" },
@@ -224,6 +226,30 @@ Item {
         { "name": "CAMERA", "path": "~/Pictures/ryodecors/camera.png" },
         { "name": "RASHIN", "path": "~/Pictures/ryodecors/rashin-hero.png" }
     ]
+    readonly property var readyArt: pg.brandArt.concat(pg.installedArt)
+
+    // Emblems installed from the store land in ~/Pictures/ryoemblems as one flat
+    // PNG each, so listing that folder is the whole discovery step.
+    Process {
+        id: emblemScan
+        running: true
+        command: ["sh", "-c", "ls -1 \"$HOME/Pictures/ryoemblems\" 2>/dev/null | grep -i '\\.png$' || true"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var out = [];
+                var lines = String(this.text || "").split("\n");
+                for (var i = 0; i < lines.length; i++) {
+                    var file = lines[i].trim();
+                    if (file.length === 0)
+                        continue;
+                    var stem = file.replace(/\.png$/i, "");
+                    out.push({ "name": stem.replace(/-/g, " ").toUpperCase(),
+                               "path": "~/Pictures/ryoemblems/" + file });
+                }
+                pg.installedArt = out;
+            }
+        }
+    }
     // pick a ready emblem: set the source straight to its stable path.
     function pickArt(path) {
         var m = pg.clone();
@@ -244,6 +270,12 @@ Item {
     FontMetrics { id: monoFM; font.family: Tokens.mono; font.pixelSize: 12 }
     readonly property real cellW: monoFM.averageCharacterWidth
     readonly property real cellH: monoFM.height
+    // the emblem's other two paddings. They are not exposed as controls, but the
+    // preview has to honour them or it stops being a specimen: fastfetch keeps
+    // padding.right cells between emblem and readout, and drops the emblem
+    // padding.top rows without moving the text.
+    readonly property int padRight: pg.model.logo.paddingRight === undefined ? 5 : pg.model.logo.paddingRight
+    readonly property int padTop: pg.model.logo.paddingTop === undefined ? 5 : pg.model.logo.paddingTop
 
     // a hidden probe reads the chosen art's natural aspect so Auto fit can size
     // the cell box to the image and it renders undistorted.
@@ -661,19 +693,24 @@ Item {
                         id: pvRow
                         transformOrigin: Item.TopLeft
                         scale: pvScale.factor
-                        spacing: Math.max(Tokens.s3, Math.round(pg.cellW * 2))
+                        // fastfetch puts padding.right cells between the emblem
+                        // and the first column of the readout.
+                        spacing: pg.model.logo.kind === "none" ? 0 : Math.round(pg.padRight * pg.cellW)
 
                         // emblem: a Width x Height cell box with the art fit
-                        // inside, shifted right by Pad, in the readout's own cells.
+                        // inside, Pad cells in from the left and padding.top rows
+                        // down -- fastfetch drops the emblem by padding.top and
+                        // leaves the readout at the top, so the preview must too.
                         Item {
                             id: emblemCol
                             readonly property real boxW: Math.max(1, pg.model.logo.width) * pg.cellW
                             readonly property real boxH: Math.max(1, pg.model.logo.height) * pg.cellH
                             readonly property real padL: pg.model.logo.padding * pg.cellW
+                            readonly property real padT: pg.padTop * pg.cellH
                             width: pg.model.logo.kind === "none" ? 0 : (padL + boxW)
-                            height: Math.max(readout.implicitHeight, boxH)
+                            height: Math.max(readout.implicitHeight, padT + boxH)
                             Image {
-                                x: emblemCol.padL; y: 0
+                                x: emblemCol.padL; y: emblemCol.padT
                                 width: emblemCol.boxW; height: emblemCol.boxH
                                 visible: pg.model.logo.kind === "image" && pg.model.logo.source.length > 0
                                 source: (pg.model.logo.kind === "image" && pg.model.logo.source.length > 0) ? pg.logoUrl(pg.model.logo.source) : ""
@@ -684,7 +721,7 @@ Item {
                                 asynchronous: true
                             }
                             Rectangle {
-                                x: emblemCol.padL; y: 0
+                                x: emblemCol.padL; y: emblemCol.padT
                                 width: emblemCol.boxW; height: emblemCol.boxH
                                 radius: Tokens.radius
                                 visible: pg.model.logo.kind === "ascii" || pg.model.logo.kind === "builtin"

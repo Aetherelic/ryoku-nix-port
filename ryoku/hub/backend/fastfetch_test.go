@@ -181,3 +181,33 @@ func TestAccentDrivesTemplates(t *testing.T) {
 		t.Errorf("accent did not round-trip: got %q", m2.Accent)
 	}
 }
+
+// The Hub preview draws the emblem from the model, so every padding the config
+// carries has to survive the round trip. Losing padding.top here is what made a
+// saved readout put the emblem five rows below where the preview showed it.
+func TestFastfetchLogoPaddingRoundTrips(t *testing.T) {
+	m := loadSample(t)
+	if m.Logo.Padding != 3 || m.Logo.PaddingRight != 5 || m.Logo.PaddingTop != 5 {
+		t.Fatalf("logo padding = %d/%d/%d, want left 3, right 5, top 5",
+			m.Logo.Padding, m.Logo.PaddingRight, m.Logo.PaddingTop)
+	}
+	m.Logo.Padding, m.Logo.PaddingRight, m.Logo.PaddingTop = 2, 4, 0
+	built, err := buildFastfetch(m)
+	if err != nil {
+		t.Fatalf("buildFastfetch: %v", err)
+	}
+	var out struct {
+		Logo struct {
+			Padding map[string]int `json:"padding"`
+		} `json:"logo"`
+	}
+	if err := json.Unmarshal(built, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	want := map[string]int{"left": 2, "right": 4, "top": 0}
+	for side, value := range want {
+		if out.Logo.Padding[side] != value {
+			t.Errorf("padding.%s = %d, want %d", side, out.Logo.Padding[side], value)
+		}
+	}
+}

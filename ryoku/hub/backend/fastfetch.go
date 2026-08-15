@@ -99,12 +99,19 @@ func stripJSONC(b []byte) []byte {
 
 // ---- model ------------------------------------------------------------------
 
+// ffLogo carries the emblem's whole cell box. Padding is three values because
+// fastfetch treats them differently: left and right shift the emblem and the
+// readout sideways, while top pushes the emblem down and leaves the text where
+// it is. The Hub preview draws from these same numbers, so a config and its
+// preview cannot drift apart.
 type ffLogo struct {
-	Kind    string `json:"kind"` // image | ascii | builtin | none
-	Source  string `json:"source"`
-	Width   int    `json:"width"`
-	Height  int    `json:"height"`
-	Padding int    `json:"padding"`
+	Kind         string `json:"kind"` // image | ascii | builtin | none
+	Source       string `json:"source"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
+	Padding      int    `json:"padding"`      // left, the one the UI exposes
+	PaddingRight int    `json:"paddingRight"`
+	PaddingTop   int    `json:"paddingTop"`
 }
 
 // ffRow is one readout line. break/colors/title/module keep their original JSON in
@@ -206,7 +213,7 @@ func loadFastfetch() (ffModel, error) {
 }
 
 func ffNormalizeLogo(l map[string]any) ffLogo {
-	out := ffLogo{Kind: "none", Width: 28, Height: 14, Padding: 3}
+	out := ffLogo{Kind: "none", Width: 28, Height: 14, Padding: 3, PaddingRight: 5, PaddingTop: 5}
 	if l == nil {
 		return out
 	}
@@ -234,8 +241,14 @@ func ffNormalizeLogo(l map[string]any) ffLogo {
 	case float64:
 		out.Padding = int(p)
 	case map[string]any:
-		if lp, ok := p["left"].(float64); ok {
-			out.Padding = int(lp)
+		if v, ok := p["left"].(float64); ok {
+			out.Padding = int(v)
+		}
+		if v, ok := p["right"].(float64); ok {
+			out.PaddingRight = int(v)
+		}
+		if v, ok := p["top"].(float64); ok {
+			out.PaddingTop = int(v)
 		}
 	}
 	return out
@@ -398,7 +411,7 @@ func ffBuildLogo(l ffLogo) ffOutLogo {
 		out.Width, out.Height = 0, 0
 	}
 	if out.Type != "none" && out.Type != "builtin" {
-		out.Padding = map[string]int{"top": 5, "right": 5, "left": l.Padding}
+		out.Padding = map[string]int{"top": l.PaddingTop, "right": l.PaddingRight, "left": l.Padding}
 	}
 	return out
 }
