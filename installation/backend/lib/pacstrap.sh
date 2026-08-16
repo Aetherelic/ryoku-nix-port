@@ -130,7 +130,7 @@ ryoku_pacstrap_install() {
   if declare -f ryoku_offline_active >/dev/null && ryoku_offline_active; then
     local olog; olog=$(mktemp) || olog=/dev/null
     log "pacstrap failed on the offline install; retrying once with --needed from the baked [offline] repo (no network involved)"
-    if run pacstrap "${pconf[@]}" -K --needed /mnt "${pkgs[@]}" >"$olog" 2>&1; then
+    if run pacstrap "${pconf[@]}" -K /mnt --needed "${pkgs[@]}" >"$olog" 2>&1; then
       [[ $olog == /dev/null ]] || { cat -- "$olog"; rm -f -- "$olog"; }
       return 0
     fi
@@ -153,7 +153,7 @@ ryoku_pacstrap_install() {
 
   local paclog
   paclog=$(mktemp) || paclog=/dev/null
-  if run pacstrap "${pconf[@]}" -K --needed /mnt "${pkgs[@]}" >"$paclog" 2>&1; then
+  if run pacstrap "${pconf[@]}" -K /mnt --needed "${pkgs[@]}" >"$paclog" 2>&1; then
     [[ $paclog == /dev/null ]] || { cat -- "$paclog"; rm -f -- "$paclog"; }
     return 0
   fi

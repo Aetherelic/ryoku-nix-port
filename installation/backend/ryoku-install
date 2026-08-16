@@ -160,11 +160,16 @@ main() {
   step pacstrap
   # offline install: point pacstrap at the baked [offline] repo (no-op online).
   ryoku_offline_prepare
-  # build the initramfs once (in the bootloader step), not also during the
-  # kernel's pacstrap where it would be discarded. mask before pacstrap.
-  ryoku_hooks_defer_mkinitcpio
   ryoku_rank_mirrors
   ryoku_pacstrap
+
+  # Mask the initramfs hooks only now: limine-mkinitcpio-hook owns
+  # /etc/pacman.d/hooks/90-mkinitcpio-install.hook, so a mask laid before
+  # pacstrap is an unowned file at a packaged path and the transaction aborts
+  # with "exists in filesystem". The kernel's own build during pacstrap is
+  # discarded by the bootloader step's single mkinitcpio -P either way; from
+  # here on the drivers and AUR steps rebuild nothing.
+  ryoku_hooks_defer_mkinitcpio
 
   # snap-pac's pacman hooks abort in the chroot; mask them for the install and
   # restore before we unmount (see ryoku_hooks_quiet/restore).

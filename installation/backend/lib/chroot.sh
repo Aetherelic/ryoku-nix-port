@@ -174,21 +174,27 @@ EOF
 RYOKU_MASKED_HOOKS=(05-snap-pac-pre.hook zz-snap-pac-post.hook)
 
 # mkinitcpio's install hooks rebuild the initramfs on every kernel/module
-# package. During pacstrap the kernel install triggers one build, which the
-# bootloader step then discards and rebuilds anyway, because the ryoku HOOKS
-# (plymouth/kms/resume) and the nvidia/VMD MODULES drop-ins only land after
-# pacstrap. Mask these hooks from before pacstrap through the end so no
-# throwaway initramfs is built; the single explicit `mkinitcpio -P` in the
-# bootloader step (a direct command, unaffected by hook masking) produces the
-# one correct image. Restored with the rest so kernel updates rebuild normally.
+# package. The drivers and AUR steps would each trigger one, and the bootloader
+# step's single explicit `mkinitcpio -P` (a direct command, unaffected by hook
+# masking) produces the one correct image, so mask them for the rest of the
+# install. Masked after pacstrap, never before: limine-mkinitcpio-hook ships
+# /etc/pacman.d/hooks/90-mkinitcpio-install.hook, and a mask sitting at that
+# path when pacstrap tries to extract it aborts the transaction with "exists in
+# filesystem".
 RYOKU_MKINITCPIO_HOOKS=(90-mkinitcpio-install.hook 60-mkinitcpio-remove.hook)
 
+# A masked hook that a package owns is moved aside, not overwritten, so restore
+# hands the packaged file back instead of deleting it.
 ryoku_hooks_defer_mkinitcpio() {
   run mkdir -p /mnt/etc/pacman.d/hooks
-  local h
+  local h p
   for h in "${RYOKU_MKINITCPIO_HOOKS[@]}"; do
-    log "deferring the initramfs build past pacstrap: masking $h"
-    run ln -sf /dev/null "/mnt/etc/pacman.d/hooks/$h"
+    p=/mnt/etc/pacman.d/hooks/$h
+    log "deferring the initramfs build to the bootloader step: masking $h"
+    if [[ -f $p && ! -L $p ]]; then
+      run mv -f "$p" "$p.ryoku-off"
+    fi
+    run ln -sf /dev/null "$p"
   done
 }
 
@@ -203,10 +209,13 @@ ryoku_hooks_quiet() {
 }
 
 ryoku_hooks_restore() {
-  local h
+  local h p
   for h in "${RYOKU_MASKED_HOOKS[@]}" "${RYOKU_MKINITCPIO_HOOKS[@]}"; do
-    [[ -n ${RYOKU_DRYRUN:-} || -L /mnt/etc/pacman.d/hooks/$h ]] || continue
+    p=/mnt/etc/pacman.d/hooks/$h
+    [[ -n ${RYOKU_DRYRUN:-} || -L $p || -f $p.ryoku-off ]] || continue
     log "restoring pacman hook: $h"
-    run rm -f "/mnt/etc/pacman.d/hooks/$h"
+    [[ -L $p ]] && run rm -f "$p"
+    [[ -f $p.ryoku-off ]] && run mv -f "$p.ryoku-off" "$p"
   done
+  return 0
 }

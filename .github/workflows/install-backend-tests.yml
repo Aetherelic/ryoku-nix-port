@@ -39,6 +39,7 @@ on:
       - 'tests/install-clock-skew.sh'
       - 'tests/install-dryrun-matrix.sh'
       - 'tests/install-offline.sh'
+      - 'tests/install-hooks.sh'
       - 'tests/installer-session-scale.sh'
       - 'installation/iso/airootfs/usr/local/bin/ryoku-installer-session'
       - 'tests/limine-bootloader.sh'
@@ -63,6 +64,7 @@ on:
       - 'tests/install-clock-skew.sh'
       - 'tests/install-dryrun-matrix.sh'
       - 'tests/install-offline.sh'
+      - 'tests/install-hooks.sh'
       - 'tests/installer-session-scale.sh'
       - 'installation/iso/airootfs/usr/local/bin/ryoku-installer-session'
       - 'tests/limine-bootloader.sh'
@@ -108,6 +110,10 @@ jobs:
       - name: Offline install path (no network, baked repo, refusals before the wipe)
         shell: bash
         run: bash tests/install-offline.sh
+
+      - name: Initramfs hook masking (no file conflict with the packaged limine hook)
+        shell: bash
+        run: bash tests/install-hooks.sh
 
       - name: Live installer display scale (grid stays usable on every panel)
         shell: bash
