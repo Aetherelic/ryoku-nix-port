@@ -215,7 +215,10 @@ run_pacstrap_offline "$stub_conflict"
 grep -qF 'MIRROR-FALLBACK-RAN' <<<"$opout" && fail "offline path must not run the mirror-tier fallback"
 grep -qF 'across mirror tiers' <<<"$opout" && fail "offline failure must not blame the mirror tiers"
 grep -qF 'next mirror tier' <<<"$opout" && fail "offline failure must not announce a mirror-tier drop"
-grep -qF 'defect in the ISO image' <<<"$opout" || fail "offline failure must name the ISO image as the defect"
+grep -qF 'No network or mirror is involved' <<<"$opout" \
+  || fail "offline failure must say no network or mirror is involved"
+grep -qF 'defect in the baked closure' <<<"$opout" \
+  || fail "offline failure must name the baked closure as a possible defect"
 grep -qF 'exists in filesystem' <<<"$opout" || fail "offline failure must surface the real file-conflict line"
 
 echo "install-mirrors: all checks passed"

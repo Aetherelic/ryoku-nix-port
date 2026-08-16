@@ -5,8 +5,9 @@
 #   ryoku-dev-audit-shell-binds --check     fail on any unhandled command
 #   ryoku-dev-audit-shell-binds --refresh   rewrite ryoku/shell/ipc/ipc-surface.txt
 #
-# handled set comes from the daemon source (pillSurfaces map keys + the
-# dispatch/route switch cases), plus the client-only `daemon` mode. over-
+# handled set comes from the daemon source (pillSurfaces map keys, the
+# dispatch/route switch cases, and the strings.HasPrefix arms that verbs taking
+# arguments are matched with), plus the client-only `daemon` mode. over-
 # capturing on the handled side is safe: it can only mark a used command as
 # handled, never the reverse.
 set -euo pipefail
@@ -20,6 +21,8 @@ daemon_commands() {
   {
     grep -hoE '"[a-z][a-z-]*":' "$ipc_dir"/*.go 2>/dev/null | tr -d '":'
     grep -hoE 'case "[a-z][a-z-]*"' "$ipc_dir"/*.go 2>/dev/null | sed -E 's/^case "//; s/"$//'
+    # verbs that take arguments are matched by prefix, not by an exact case arm
+    grep -hoE 'HasPrefix\(cmd, "[a-z][a-z-]*' "$ipc_dir"/*.go 2>/dev/null | sed -E 's/.*"//'
     printf 'daemon\n'
   } | grep -E '^[a-z][a-z-]*$' | sort -u
 }

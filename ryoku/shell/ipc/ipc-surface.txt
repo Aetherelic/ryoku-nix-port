@@ -7,6 +7,7 @@ audio
 background
 bar
 bars
+barstyle
 blue
 bottom
 bottom-left
@@ -14,12 +15,16 @@ bottom-right
 brightness
 bssid
 btop
+call
 cava
 celsius
 center
+clip-copy
+clip-ingest
 clock
 close
 closest-to-fallback
+cloudflare
 color
 colors
 cols
@@ -27,12 +32,16 @@ connection
 connectivity
 contrast
 cursor
+custom
 daemon
 dark
 darkness
+date
 default
 description
+dhcp
 discord
+dns
 dock
 down
 empty
@@ -49,6 +58,7 @@ frequency
 fullscreen
 general
 gid
+google
 green
 grid
 grow
@@ -63,6 +73,7 @@ image
 init
 items
 key-mgmt
+keyring-respond
 kitty
 launcher
 left
@@ -90,8 +101,6 @@ overview
 palettes
 papirus
 path
-payload
-pill
 ping
 pinned
 plugin
@@ -100,8 +109,9 @@ prefer
 present
 primary
 profiles
-programs
+provider
 psk
+qsbar
 qt
 quick-settings
 quit
@@ -121,11 +131,12 @@ scale
 scrim
 secondary
 security
-selection
 seq
+servers
 session-id
 set
 shadow
+shell
 shutdown
 signature
 size
@@ -137,6 +148,7 @@ state
 status
 strength
 style
+subscribe
 surface
 surfaces
 templates
@@ -144,6 +156,7 @@ tertiary
 theme
 title
 toggle
+tones
 top
 top-left
 top-right
