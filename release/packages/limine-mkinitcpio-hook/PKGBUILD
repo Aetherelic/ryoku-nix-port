@@ -22,6 +22,16 @@ url="https://gitlab.com/Zesko/limine-entry-tool"
 # user update. 9.6.1 is the version the last green publish built with; pinning it
 # beside the GraalVM tarball makes the toolchain hermetic, so the next distro
 # gradle bump cannot break the boot stack again.
+#
+# The plugin itself is vendored too, in release/gradle-offline/repo (12 files,
+# 316K, shared with limine-snapper-sync which pins the same version): Gradle
+# resolved it from the plugin portal at build time, which is neither pinned nor
+# checksummed, and a portal hiccup failed the publish gate with "Plugin [id:
+# 'org.graalvm.buildtools.native'] was not found". build() runs --offline
+# against that local maven repo, so the build cannot reach the network and a
+# missing artifact fails loudly here instead of silently downloading.
+# Regenerate with release/gradle-offline/refresh.sh when upstream bumps it.
+_gradleoffline="$startdir/../../gradle-offline"
 _gradlever=9.6.1
 source=("${_pkgname}::git+${url}.git#tag=${pkgver}"
 	"https://services.gradle.org/distributions/gradle-${_gradlever}-bin.zip")
@@ -63,7 +73,11 @@ build() {
 	export GRAALVM_HOME="$srcdir/${_graalvm_version}"
 	export JAVA_HOME="${GRAALVM_HOME}"
 	export NATIVE_IMAGE_OPTIONS="-march=compatibility --future-defaults=all"
-	"$srcdir/gradle-${_gradlever}/bin/gradle" clean nativeCompile -Dorg.gradle.java.home="${JAVA_HOME}"
+	"$srcdir/gradle-${_gradlever}/bin/gradle" clean nativeCompile \
+		--offline \
+		-I "$_gradleoffline/offline.init.gradle" \
+		-Dryoku.offline.repo="file://$_gradleoffline/repo" \
+		-Dorg.gradle.java.home="${JAVA_HOME}"
 }
 
 package() {

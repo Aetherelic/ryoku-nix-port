@@ -40,6 +40,9 @@ on:
       - 'tests/install-dryrun-matrix.sh'
       - 'tests/install-offline.sh'
       - 'tests/install-hooks.sh'
+      - 'tests/release-offline-builds.sh'
+      - 'release/packages/*/PKGBUILD'
+      - 'release/gradle-offline/**'
       - 'tests/installer-session-scale.sh'
       - 'installation/iso/airootfs/usr/local/bin/ryoku-installer-session'
       - 'tests/limine-bootloader.sh'
@@ -65,6 +68,9 @@ on:
       - 'tests/install-dryrun-matrix.sh'
       - 'tests/install-offline.sh'
       - 'tests/install-hooks.sh'
+      - 'tests/release-offline-builds.sh'
+      - 'release/packages/*/PKGBUILD'
+      - 'release/gradle-offline/**'
       - 'tests/installer-session-scale.sh'
       - 'installation/iso/airootfs/usr/local/bin/ryoku-installer-session'
       - 'tests/limine-bootloader.sh'
@@ -114,6 +120,10 @@ jobs:
       - name: Initramfs hook masking (no file conflict with the packaged limine hook)
         shell: bash
         run: bash tests/install-hooks.sh
+
+      - name: Package builds resolve no dependencies over the network
+        shell: bash
+        run: bash tests/release-offline-builds.sh
 
       - name: Live installer display scale (grid stays usable on every panel)
         shell: bash

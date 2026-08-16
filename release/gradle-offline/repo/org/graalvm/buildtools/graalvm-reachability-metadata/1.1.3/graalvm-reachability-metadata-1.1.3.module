@@ -1,0 +1,116 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "org.graalvm.buildtools",
+    "module": "graalvm-reachability-metadata",
+    "version": "1.1.3",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.3"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "graalvm-reachability-metadata-1.1.3.jar",
+          "url": "graalvm-reachability-metadata-1.1.3.jar",
+          "size": 56712,
+          "sha512": "3f8f91556ee18622ac5dfad0203e92e9b901c8dbd4ff0e81c09620f4cd86a07804c79ac277978a1d42019ac7274e5f034efcea28fc3398e1db343a17ee74860a",
+          "sha256": "5a984fcbf64661cc356be86f0a4a8268fb84c9a064b01bcc30a63b92d92b10dc",
+          "sha1": "bec1301ce538a12d9a7714ce3f3cd11515b34788",
+          "md5": "b73f0ed80496f2ec5114dd06c7aa3fdc"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "com.github.openjson",
+          "module": "openjson",
+          "version": {
+            "requires": "1.0.13"
+          }
+        },
+        {
+          "group": "org.graalvm.buildtools",
+          "module": "utils",
+          "version": {
+            "requires": "1.1.3"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "graalvm-reachability-metadata-1.1.3.jar",
+          "url": "graalvm-reachability-metadata-1.1.3.jar",
+          "size": 56712,
+          "sha512": "3f8f91556ee18622ac5dfad0203e92e9b901c8dbd4ff0e81c09620f4cd86a07804c79ac277978a1d42019ac7274e5f034efcea28fc3398e1db343a17ee74860a",
+          "sha256": "5a984fcbf64661cc356be86f0a4a8268fb84c9a064b01bcc30a63b92d92b10dc",
+          "sha1": "bec1301ce538a12d9a7714ce3f3cd11515b34788",
+          "md5": "b73f0ed80496f2ec5114dd06c7aa3fdc"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "graalvm-reachability-metadata-1.1.3-javadoc.jar",
+          "url": "graalvm-reachability-metadata-1.1.3-javadoc.jar",
+          "size": 166978,
+          "sha512": "32645ea693affe854e8fa0b8a140c887dc6060f67b5c7bee7e6c188472a8afa1998f935ba52dd968d3e23d0a2cf4d51f39a243e09d3e6599c5d467af6730b3fc",
+          "sha256": "7e72e0e4a5b15d1ef531fc538742a2001cbf31ff91d07af5b1e33b536de4718b",
+          "sha1": "f6dfb30c11564a355f515b254e94aa836d995d3a",
+          "md5": "a72985ffc409172a594478fbc6871065"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "graalvm-reachability-metadata-1.1.3-sources.jar",
+          "url": "graalvm-reachability-metadata-1.1.3-sources.jar",
+          "size": 35571,
+          "sha512": "d3833f91d739e45247ad35795a87820b917183d8ebe8b11976ce3762a8c24e63c67ba13043a3a8ea1f20284e59c63b2e9a8a302fd5d207d6171f0608a875b382",
+          "sha256": "f833886b7e78d3530fbde146153e5d6e710635c7affbe7976b916401930e628a",
+          "sha1": "88ea130e72fda228a90884fe044bfa87bb743bdd",
+          "md5": "ee03a2f7852976d11f4cb940eac5ed5d"
+        }
+      ]
+    }
+  ]
+}

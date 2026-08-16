@@ -1,0 +1,28 @@
+// Resolve the build's plugins and dependencies from the vendored maven repo in
+// release/gradle-offline/repo instead of the Gradle Plugin Portal. Passed to
+// gradle with -I so upstream's build files stay unpatched.
+//
+// beforeSettings, not settingsEvaluated: plugin resolution reads
+// pluginManagement.repositories before the settings script finishes evaluating.
+def repo = System.getProperty("ryoku.offline.repo")
+if (!repo) throw new GradleException("ryoku.offline.repo is not set")
+
+beforeSettings { settings ->
+  settings.pluginManagement.repositories {
+    clear()
+    maven { url = repo }
+  }
+}
+
+allprojects {
+  buildscript {
+    repositories {
+      clear()
+      maven { url = repo }
+    }
+  }
+  repositories {
+    clear()
+    maven { url = repo }
+  }
+}
