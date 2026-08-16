@@ -1,6 +1,12 @@
 # ryoku-shell
 
-Install the Ryoku desktop on an existing Arch machine, without the ISO.
+Install the Ryoku desktop on an existing machine, without the ISO.
+
+Arch-based hosts get the signed `[ryoku]` packages. Debian-based hosts have no
+`[ryoku]` repository, so the desktop is built from the cloned payload with
+`ryoku/shell/deploy.sh`: dependencies come from apt, and the Go programs, QML
+modules and `Ryoku.Blobs` are compiled locally. The Hyprland compositor plugins
+need `makepkg` and are skipped there; the shell degrades to them being off.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
@@ -26,10 +32,11 @@ ryoku-shell-install --uninstall        # or: ... | bash -s -- --uninstall
 
 ## What it does
 
-`install.sh` is a dumb bootstrap: it verifies the machine is Arch-based
-x86_64, downloads the prebuilt `ryoku-shell-install` binary (checksummed) from
-this directory, and hands it the real terminal. Everything else is the binary,
-a bubbletea TUI sharing the ISO installer's visual language:
+`install.sh` is a dumb bootstrap: it verifies the machine is a supported
+x86_64 family (pacman or apt-get), downloads the prebuilt `ryoku-shell-install`
+binary (checksummed) from this directory, and hands it the real terminal.
+Everything else is the binary, a bubbletea TUI sharing the ISO installer's
+visual language:
 
 1. **Scan** the machine: distro, GPU, Secure Boot state, display manager,
    network stack, installed desktops (GNOME/KDE/Cinnamon/Xfce), rival

@@ -23,6 +23,7 @@ type facts struct {
 	archX86    bool
 	pacman     bool
 	archLike   bool
+	distro     *distro
 	online     bool
 	btrfsRoot  bool
 
@@ -135,9 +136,7 @@ func has(name string) bool {
 	return err == nil
 }
 
-func pacmanHas(pkg string) bool {
-	return exec.Command("pacman", "-Qq", pkg).Run() == nil
-}
+func pacmanHas(pkg string) bool { return installed(pkg) }
 
 func unitEnabled(scope, unit string) bool {
 	args := []string{"is-enabled", unit}
@@ -190,6 +189,10 @@ func detect() *facts {
 	f.archX86 = out("uname", "-m") == "x86_64"
 	f.pacman = has("pacman")
 	f.archLike = f.distroID == "arch" || strings.Contains(f.distroLike, "arch")
+	if d := detectDistro(f.distroID, f.distroLike); d != nil {
+		activeDistro = d
+		f.distro = d
+	}
 
 	u, err := user.Current()
 	if err == nil {

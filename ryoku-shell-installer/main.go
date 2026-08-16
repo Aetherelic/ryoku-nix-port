@@ -728,11 +728,11 @@ func main() {
 	if os.Geteuid() == 0 {
 		die("run as your normal user, not root; sudo is used where needed")
 	}
-	if !has("pacman") {
-		die("this installer needs an Arch-based system (pacman not found)")
+	if detectHostDistro() == nil {
+		die("unsupported distribution: Ryoku installs on Arch-based and Debian-based systems")
 	}
 	if out("uname", "-m") != "x86_64" {
-		die("the [ryoku] repository ships x86_64 packages only")
+		die("Ryoku ships x86_64 builds only")
 	}
 	// the whole engine leans on systemctl; Artix and other non-systemd spins
 	// pass the pacman check but every session/service step would fail.

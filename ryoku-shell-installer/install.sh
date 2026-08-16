@@ -23,24 +23,34 @@ main() {
   [[ $(id -u) -ne 0 ]] || die "run as your normal user, not root (sudo is used when needed)"
 
   # NixOS needs a nix-based engine; that work is parked (archived flake),
-  # so refuse honestly instead of dying on the pacman guard below.
-  [[ ! -e /etc/NIXOS ]] || die "NixOS is not supported yet; Arch-based systems only for now"
+  # so refuse honestly instead of dying on the package-manager guard below.
+  [[ ! -e /etc/NIXOS ]] || die "NixOS is not supported yet; use the flake instead"
 
-  command -v pacman > /dev/null 2>&1 || die "this installer needs an Arch-based system (pacman not found)"
-  [[ $(uname -m) == x86_64 ]] || die "the [ryoku] repository ships x86_64 packages only"
+  local ryoku_family
+  if command -v pacman > /dev/null 2>&1; then
+    ryoku_family=arch
+  elif command -v apt-get > /dev/null 2>&1; then
+    ryoku_family=debian
+  else
+    die "unsupported distribution: Ryoku installs on Arch-based and Debian-based systems"
+  fi
+  [[ $(uname -m) == x86_64 ]] || die "Ryoku ships x86_64 builds only"
   # the binary refuses non-systemd boots much later (session + services are
   # systemd units); saying it here spares Artix users the download.
   [[ -d /run/systemd/system ]] || die "this installer needs systemd (Artix and other non-systemd inits are not supported)"
   command -v curl > /dev/null 2>&1 || die "curl is required"
 
-  # warn-only on unusual derivatives: pacman presence is what actually matters.
+  # warn-only on derivatives: the package manager is what actually matters.
   if [[ -r /etc/os-release ]]; then
     # shellcheck source=/dev/null
     . /etc/os-release
     case "${ID:-} ${ID_LIKE:-}" in
-      *arch*) ;;
-      *) say "warning: ${PRETTY_NAME:-unknown distro} is not Arch; continuing because pacman exists" ;;
+      *arch*|*debian*) ;;
+      *) say "warning: ${PRETTY_NAME:-unknown distro} is not recognised; continuing as ${ryoku_family}" ;;
     esac
+  fi
+  if [[ $ryoku_family == debian ]]; then
+    say "Debian detected: the desktop is built from source, which takes a few minutes"
   fi
 
   local work

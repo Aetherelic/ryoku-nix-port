@@ -128,7 +128,7 @@ func runUninstall(yes, dry bool) int {
 	// pacman orders the removal itself.
 	var installed []string
 	for _, p := range ryokuPkgs {
-		if pacmanHas(p) {
+		if activeDistro.id == "arch" && pacmanHas(p) {
 			installed = append(installed, p)
 		}
 	}
@@ -141,7 +141,7 @@ func runUninstall(yes, dry bool) int {
 	}
 
 	// 2. the [ryoku] repo stanza; original kept next to it.
-	if b, err := os.ReadFile("/etc/pacman.conf"); err == nil && ryokuStanzaRe.Match(b) {
+	if b, err := os.ReadFile("/etc/pacman.conf"); err == nil && activeDistro.id == "arch" && ryokuStanzaRe.Match(b) {
 		if confirm(rd, "drop the [ryoku] repository from /etc/pacman.conf?", yes) {
 			stripped := stripPacmanSection(string(b), "ryoku")
 			if dry {

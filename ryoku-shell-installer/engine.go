@@ -179,22 +179,34 @@ func newEngine(f *facts, p *plan, dry bool, ref, payloadOverride string) *engine
 	// repo trust comes before conflict removal on purpose: nothing gets
 	// uninstalled until the [ryoku] db has actually been fetched. legacy
 	// sources go first so the full upgrade already runs on clean mirrors.
-	e.steps = []estep{
+	pacmanOnly := map[string]bool{"legacy": true, "repo": true, "aur": true, "drivers": true}
+	all := []estep{
 		{"legacy", "Retiring the previous distro's package sources", stepLegacy},
-		{"sysupgrade", "Updating the system (pacman -Syu)", stepSysupgrade},
-		{"tools", "Installing installer tools (git, base-devel)", stepTools},
+		{"sysupgrade", "Updating the system", stepSysupgrade},
+		{"tools", "Installing installer tools (git, build tools)", stepTools},
 		{"payload", "Fetching the Ryoku payload", stepPayload},
 		{"backup", "Backing up your configs", stepBackup},
 		{"repo", "Trusting the [ryoku] package repository", stepRepo},
 		{"conflicts", "Clearing conflicting shells and daemons", stepConflicts},
 		{"packages", "Installing the Ryoku desktop", stepPackages},
 		{"drivers", "Setting up GPU drivers", stepDrivers},
+		{"build", "Building the Ryoku desktop from source", stepBuild},
 		{"session", "Wiring the login session (SDDM, network)", stepSession},
 		{"configs", "Laying down your Ryoku configs", stepConfigs},
 		{"aur", "Building the AUR extras", stepAUR},
 		{"shell", "Switching your login shell to fish", stepFish},
 		{"doctor", "Converging the system (ryoku doctor)", stepDoctor},
 		{"verify", "Verifying the install", stepVerify},
+	}
+	src := f.distro != nil && f.distro.fromSource
+	for _, s := range all {
+		if src && pacmanOnly[s.id] {
+			continue
+		}
+		if !src && s.id == "build" {
+			continue
+		}
+		e.steps = append(e.steps, s)
 	}
 	return e
 }
@@ -453,11 +465,18 @@ func stepLegacy(e *engine) error {
 }
 
 func stepSysupgrade(e *engine) error {
-	return e.sudo("pacman", "-Syu", "--noconfirm")
+	d := e.d()
+	if d.id != "arch" {
+		if err := e.sudo(d.refreshCmd...); err != nil {
+			return err
+		}
+	}
+	return e.sudo(d.updateCmd...)
 }
 
 func stepTools(e *engine) error {
-	return e.sudo("pacman", "-S", "--needed", "--noconfirm", "git", "base-devel")
+	d := e.d()
+	return e.sudo(d.installArgs([]string{"git", d.local("base-devel")})...)
 }
 
 func stepPayload(e *engine) error {
@@ -650,10 +669,10 @@ func stepConflicts(e *engine) error {
 		// would drag niri itself out, and the plan promises niri survives as a
 		// fallback session. leftover deps become orphans doctor can report.
 		e.say("removing rival shell packages: " + strings.Join(e.f.rivalPkgs, " "))
-		if err := e.sudo(append([]string{"pacman", "-R", "--noconfirm"}, e.f.rivalPkgs...)...); err != nil {
+		if err := e.sudo(e.d().removeArgs(e.f.rivalPkgs)...); err != nil {
 			e.say("bulk removal failed, retrying one by one")
 			for _, p := range e.f.rivalPkgs {
-				if err := e.sudo("pacman", "-R", "--noconfirm", p); err != nil {
+				if err := e.sudo(e.d().removeArgs([]string{p})...); err != nil {
 					e.say("warning: could not remove " + p + " (continuing)")
 				}
 			}
@@ -664,9 +683,9 @@ func stepConflicts(e *engine) error {
 		// packages that conflict with the desktop set (pulseaudio vs
 		// pipewire-pulse, quickshell-git vs quickshell) must go first.
 		e.say("removing packages that block the desktop install: " + strings.Join(e.f.blockerPkgs, " "))
-		if err := e.sudo(append([]string{"pacman", "-R", "--noconfirm"}, e.f.blockerPkgs...)...); err != nil {
+		if err := e.sudo(e.d().removeArgs(e.f.blockerPkgs)...); err != nil {
 			for _, p := range e.f.blockerPkgs {
-				if err := e.sudo("pacman", "-R", "--noconfirm", p); err != nil {
+				if err := e.sudo(e.d().removeArgs([]string{p})...); err != nil {
 					e.say("warning: could not remove " + p + "; the package step may abort on a conflict")
 				}
 			}
@@ -751,6 +770,7 @@ func (e *engine) readBasePackages() ([]string, error) {
 }
 
 func stepPackages(e *engine) error {
+	d := e.d()
 	base, err := e.readBasePackages()
 	if err != nil {
 		if !e.dry {
@@ -758,22 +778,31 @@ func stepPackages(e *engine) error {
 		}
 		e.say("DRYRUN: payload not cloned; would read system/packages/base.packages")
 	}
-	pkgs := append(append([]string{}, ryokuPkgs...), base...)
+	var pkgs []string
+	if d.fromSource {
+		// no [ryoku] repository here: the desktop is built from the payload, so
+		// install its dependencies plus the toolchain that builds it.
+		pkgs = append(d.localAll(base), d.build...)
+	} else {
+		pkgs = append(append([]string{}, ryokuPkgs...), base...)
+	}
 	if e.f.ucodePkg != "" {
-		pkgs = append(pkgs, e.f.ucodePkg)
+		pkgs = append(pkgs, d.local(e.f.ucodePkg))
 	}
 	if e.p.devtools {
-		pkgs = append(pkgs, devPkgs...)
+		pkgs = append(pkgs, d.localAll(devPkgs)...)
 	}
 	pkgs = e.dropSatisfied(pkgs)
-	// a .part resumed against a mirror whose bytes moved on trips pacman's
-	// size cap on every retry; dropping resume state just costs a re-download.
-	if err := e.sudoSh(`rm -f /var/cache/pacman/pkg/*.part`); err != nil {
-		e.say("warning: could not clear partial downloads (continuing)")
+	if d.id == "arch" {
+		// a .part resumed against a mirror whose bytes moved on trips pacman's
+		// size cap on every retry; dropping resume state just costs a re-download.
+		if err := e.sudoSh(`rm -f /var/cache/pacman/pkg/*.part`); err != nil {
+			e.say("warning: could not clear partial downloads (continuing)")
+		}
 	}
 	// -Syu, not -S: a resumed run holds the db its first attempt synced, and
 	// a publish in between replaces or prunes the files that db points at.
-	return e.sudo(append([]string{"pacman", "-Syu", "--needed", "--noconfirm"}, pkgs...)...)
+	return e.sudo(d.installArgs(pkgs)...)
 }
 
 // dropSatisfied keeps only what no installed provider satisfies (pacman -T
@@ -781,6 +810,9 @@ func stepPackages(e *engine) error {
 // abort the install under --noconfirm.
 func (e *engine) dropSatisfied(pkgs []string) []string {
 	if e.dry || len(pkgs) == 0 {
+		return pkgs
+	}
+	if e.d().id != "arch" {
 		return pkgs
 	}
 	out, err := exec.Command("pacman", append([]string{"-T"}, pkgs...)...).Output()
@@ -794,6 +826,23 @@ func (e *engine) dropSatisfied(pkgs []string) []string {
 		e.say(fmt.Sprintf("%d of %d packages already satisfied by installed providers", len(pkgs)-len(keep), len(pkgs)))
 	}
 	return keep
+}
+
+// stepBuild is the fromSource replacement for installing ryoku-desktop: the
+// payload's deploy.sh already builds the Go programs, the QML modules and the
+// Ryoku.Blobs plugin, then materializes the config. It skips the Hyprland
+// compositor plugins when makepkg is absent, which is the case off Arch.
+func stepBuild(e *engine) error {
+	script := filepath.Join(e.payload, "ryoku", "shell", "deploy.sh")
+	if e.dry {
+		e.say("DRYRUN: would run " + script)
+		return nil
+	}
+	if _, err := os.Stat(script); err != nil {
+		return fmt.Errorf("payload is missing ryoku/shell/deploy.sh")
+	}
+	e.say("building the desktop from the payload (this takes a few minutes)")
+	return e.cmd(filepath.Join(e.payload, "ryoku", "shell"), nil, "bash", script)
 }
 
 // filterByUnmet keeps only the names pacman -T reported as unmet.
@@ -975,12 +1024,14 @@ EOF`); err != nil {
 }
 
 func stepConfigs(e *engine) error {
-	if !e.dry {
-		if _, err := os.Stat("/usr/bin/ryoku"); err != nil {
-			return fmt.Errorf("the ryoku CLI is missing; the package step did not finish")
-		}
+	ryoku := e.ryokuBin()
+	if !e.dry && ryoku == "" {
+		return fmt.Errorf("the ryoku CLI is missing; the package step did not finish")
 	}
-	if err := e.cmd("", nil, "ryoku", "materialize"); err != nil {
+	if ryoku == "" {
+		ryoku = "ryoku"
+	}
+	if err := e.cmd("", nil, ryoku, "materialize"); err != nil {
 		return err
 	}
 
@@ -1182,7 +1233,11 @@ func stepFish(e *engine) error {
 func stepDoctor(e *engine) error {
 	// doctor converges snapper (btrfs only), NVIDIA modeset, greeter perms,
 	// session components. findings are advice, not failure.
-	if err := e.cmd("", nil, "ryoku", "doctor"); err != nil {
+	ryoku := e.ryokuBin()
+	if ryoku == "" {
+		ryoku = "ryoku"
+	}
+	if err := e.cmd("", nil, ryoku, "doctor"); err != nil {
 		e.say("note: ryoku doctor reported findings (see above); the install itself is done")
 	}
 	return nil
@@ -1202,13 +1257,20 @@ func stepVerify(e *engine) error {
 			e.say(gBad + " " + what)
 		}
 	}
-	conf, _ := os.ReadFile("/etc/pacman.conf")
-	check(strings.Contains(string(conf), "[ryoku]"), "[ryoku] repository in /etc/pacman.conf")
-	check(pacmanHas("ryoku-keyring"), "ryoku-keyring package installed")
-	check(pacmanHas("ryoku-desktop"), "ryoku-desktop package installed")
-	check(has("ryoku"), "ryoku CLI on PATH")
-	st, err := os.Stat("/usr/share/ryoku/config")
-	check(err == nil && st.IsDir(), "base config tree at /usr/share/ryoku/config")
+	if e.d().fromSource {
+		check(e.ryokuBin() != "", "ryoku CLI built and installed")
+		_, err := os.Stat(filepath.Join(e.f.homeDir, ".local/bin/ryoku-shell"))
+		check(err == nil, "ryoku-shell daemon built")
+	} else {
+		conf, _ := os.ReadFile("/etc/pacman.conf")
+		check(strings.Contains(string(conf), "[ryoku]"), "[ryoku] repository in /etc/pacman.conf")
+		check(pacmanHas("ryoku-keyring"), "ryoku-keyring package installed")
+		check(pacmanHas("ryoku-desktop"), "ryoku-desktop package installed")
+		check(has("ryoku"), "ryoku CLI on PATH")
+		st, err := os.Stat("/usr/share/ryoku/config")
+		check(err == nil && st.IsDir(), "base config tree at /usr/share/ryoku/config")
+	}
+	var err error
 	_, err = os.Stat(filepath.Join(e.f.homeDir, ".config/hypr/hyprland.lua"))
 	check(err == nil, "hyprland.lua materialized in ~/.config/hypr")
 	_, err = os.Stat("/usr/share/wayland-sessions/hyprland.desktop")
@@ -1226,9 +1288,15 @@ func stepVerify(e *engine) error {
 		e.say("  DKMS modules are rejected at boot. To switch later, disable Secure Boot in")
 		e.say("  firmware or sign the kernel and modules (sbctl), then re-run this installer.")
 	}
-	// matugen is a hard ryoku-desktop depend (official repo), so the packages step
-	// must have pulled it; a miss here means the desktop set install is broken.
-	check(has("matugen"), "matugen palette generator (colors follow the wallpaper)")
+	// matugen is a hard ryoku-desktop depend on Arch, so a miss means the desktop
+	// set install is broken. Debian does not package it: warn instead of failing.
+	if e.d().local("matugen") == "" {
+		if !has("matugen") {
+			e.say(gWarn + " matugen is not packaged here: wallpaper palettes stay at their defaults")
+		}
+	} else {
+		check(has("matugen"), "matugen palette generator (colors follow the wallpaper)")
+	}
 	if !has("awww") {
 		e.say(gWarn + " awww missing (AUR): static wallpapers will not set until it installs (ryoku doctor retries it)")
 	}
