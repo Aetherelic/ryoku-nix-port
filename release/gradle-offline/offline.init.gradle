@@ -1,6 +1,12 @@
-// Resolve the build's plugins and dependencies from the vendored maven repo in
-// release/gradle-offline/repo instead of the Gradle Plugin Portal. Passed to
-// gradle with -I so upstream's build files stay unpatched.
+// Resolve the graalvm buildtools plugin from the vendored maven repo in
+// release/gradle-offline/repo, so a Gradle Plugin Portal outage cannot fail the
+// publish gate. Passed to gradle with -I so upstream's build files stay
+// unpatched.
+//
+// The local repo is FIRST, not exclusive: these projects also pull compile deps
+// (jackson) and the plugin fetches a reachability-metadata zip, neither of which
+// is vendored yet, so the upstream repositories stay as a fallback. Vendor those
+// too and this can drop to --offline.
 //
 // beforeSettings, not settingsEvaluated: plugin resolution reads
 // pluginManagement.repositories before the settings script finishes evaluating.
@@ -9,20 +15,21 @@ if (!repo) throw new GradleException("ryoku.offline.repo is not set")
 
 beforeSettings { settings ->
   settings.pluginManagement.repositories {
-    clear()
     maven { url = repo }
+    gradlePluginPortal()
+    mavenCentral()
   }
 }
 
 allprojects {
   buildscript {
     repositories {
-      clear()
       maven { url = repo }
+      mavenCentral()
     }
   }
   repositories {
-    clear()
     maven { url = repo }
+    mavenCentral()
   }
 }

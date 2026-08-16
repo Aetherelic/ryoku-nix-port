@@ -17,8 +17,9 @@ url="https://gitlab.com/Zesko/limine-snapper-sync"
 # plugin wants, which failed nativeCompile and blocked every user update. Both
 # halves of the Limine stack pin the same version, so bump them together.
 # The graalvm buildtools plugin is vendored in release/gradle-offline/repo
-# (shared with limine-mkinitcpio-hook, same pinned version) and the build runs
-# --offline against it, so Gradle never resolves from the plugin portal.
+# (shared with limine-mkinitcpio-hook, same pinned version) and resolved from
+# there first, so a plugin-portal outage cannot fail the publish gate. Compile
+# deps and the reachability-metadata zip are still fetched upstream.
 _gradleoffline="$startdir/../../gradle-offline"
 _gradlever=9.6.1
 source=("${pkgname}::git+${url}.git#tag=${pkgver}"
@@ -62,7 +63,6 @@ build() {
 	export JAVA_HOME="${GRAALVM_HOME}"
 	export NATIVE_IMAGE_OPTIONS="-march=compatibility"
 	"$srcdir/gradle-${_gradlever}/bin/gradle" clean nativeCompile \
-		--offline \
 		-I "$_gradleoffline/offline.init.gradle" \
 		-Dryoku.offline.repo="file://$_gradleoffline/repo" \
 		-Dorg.gradle.java.home="${JAVA_HOME}"
