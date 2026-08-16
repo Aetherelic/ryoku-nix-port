@@ -139,7 +139,7 @@ ryoku_pacstrap_install() {
     [[ $olog == /dev/null ]] \
       || conflict=$(grep -aoE "[^ ]+ exists in filesystem" "$olog" 2>/dev/null | tail -n1) || conflict=""
     rm -f -- "$olog" 2>/dev/null || true
-    die "the offline install could not lay the base system from the ISO's baked package set.${conflict:+ File conflict: $conflict.} This is a defect in the ISO image, not a network or mirror problem (every package is on the disc); rebuild the ISO from a current build (the build now verifies the closure) or report this image. Re-running the installer will not help."
+    die "the offline install could not lay the base system from the ISO's baked package set.${conflict:+ File conflict: $conflict.} No network or mirror is involved (every package is on the disc), so this is either a defect in the baked closure or something the installer put at a path a package owns. Report the file conflict above with /var/log/ryoku-install.log; re-running the installer will not help."
   fi
 
   # online install: a wifi drop, a slow mirror, or a package that downloaded
