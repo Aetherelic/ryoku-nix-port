@@ -414,7 +414,13 @@ taking a pointer again just because the region is swapped. While a box is being
 aimed the spectrum rides the top layer so a window cannot hide what is being
 placed, and aiming one that is off turns it on first, since aiming nothing places
 nothing. Ending placement hands the layer back to the mode, so it drops behind
-windows again unless the overlay mode was the thing the user chose.
+windows again unless the overlay is what the user chose.
+
+Whether the spectrum runs at all is the persisted `enabled` key, so the keybind, the
+Hub's switch and the next restart all read one answer; only the layer, desktop or
+overlay, is per-monitor memory. It was in-memory state before, which meant a restart
+started at off with `enabled` still true, and the Hub's switch could not turn a
+running shell's spectrum on.
 
 The `curtain` is the one look that reads the rest of the shell: its surface
 honours exclusive zones instead of ignoring them, so it starts where the bar ends

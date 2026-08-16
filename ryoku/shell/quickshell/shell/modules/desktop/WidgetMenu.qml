@@ -3,7 +3,10 @@ import QtQuick
 import Quickshell
 import "Singletons"
 import Ryoku.Ui.Singletons
-import shell.services
+// namespaced: shell.services also has a Config, and an unqualified import of it
+// shadowed this menu's own, leaving every widget toggle reading undefined.
+import shell.services as Services
+import "../visualizer/Singletons" as VizCfg
 
 // The desktop right-click menu, built on the shared DesktopMenu chrome in the
 // quick-settings sidebar idiom. Two scopes:
@@ -25,11 +28,8 @@ Item {
     readonly property bool isMusic: menu.scope === "music"
     readonly property bool isAio: menu.scope === "aio"
     readonly property bool isStats: menu.scope === "stats"
-    // only offer to place the spectrum when it is actually on this screen
-    readonly property bool vizOn: {
-        const st = ShellState.forActive();
-        return !!st && st.visualizerMode !== "off";
-    }
+    // only offer to place the spectrum when it is actually running
+    readonly property bool vizOn: VizCfg.Config.enabled
     readonly property bool locked: menu.isWidget ? Config[menu.scope + "Locked"] : false
     readonly property string curAnchor: menu.isWidget ? Config[menu.scope + "Anchor"] : ""
     // clock faces persist as <scope>Design; the calendar and the music sheet
@@ -132,9 +132,9 @@ Item {
             visible: !menu.isWidget && menu.vizOn
             label: I18n.tr("Move visualiser")
             onTriggered: {
-                const st = ShellState.forActive();
+                const st = Services.ShellState.forActive();
                 if (st)
-                    st.placeVisualizer(true);
+                    st.visualizerPlacing = true;
             }
         }
 

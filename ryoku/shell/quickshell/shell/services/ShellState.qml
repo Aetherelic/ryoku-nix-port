@@ -121,20 +121,14 @@ Singleton {
             // bar toggle shortcut flips this to show or hide every edge at once.
             property bool barRevealed: true
 
-            // Desktop audio visualiser mode: "off" | "desktop" | "overlay".
-            property string visualizerMode: "off"
+            // The visualiser's layer on this monitor. Whether it runs at all is the
+            // persisted Config.enabled, so a restart and the Hub switch agree with it.
+            property bool visualizerOverlay: false
 
-            // Placement mode: the look takes the pointer over its own box so it
-            // can be dragged and sized where the user wants it. Aiming a hidden
-            // spectrum would be aiming nothing, so entering placement shows it;
-            // leaving placement lets `visualizerMode` decide the layer again, so
-            // it drops back behind windows unless the user chose the overlay.
+            // Placement takes the pointer over the look's own box. Leaving it hands
+            // the layer back, so the spectrum drops behind windows again unless the
+            // overlay is what the user chose.
             property bool visualizerPlacing: false
-            function placeVisualizer(on) {
-                if (on && slice.visualizerMode === "off")
-                    slice.visualizerMode = "desktop";
-                slice.visualizerPlacing = on;
-            }
 
             // A place for the on-screen-display and notification surfaces to
             // signal activity when they migrate (Phase 5).

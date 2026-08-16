@@ -11,6 +11,7 @@ pragma ComponentBehavior: Bound
 
 import Quickshell
 import shell.services
+import "modules/visualizer/Singletons" as VizCfg
 import "components"
 import "modules/wallpaper"
 import "modules/wallpaper/switcher"
@@ -108,9 +109,10 @@ ShellRoot {
             }
             Visualizer {
                 screen: perScreen.modelData
-                mode: perScreen.st ? perScreen.st.visualizerMode : "off"
+                mode: !VizCfg.Config.enabled ? "off"
+                    : (perScreen.st && perScreen.st.visualizerOverlay ? "overlay" : "desktop")
                 placing: perScreen.st ? perScreen.st.visualizerPlacing : false
-                onPlacingDone: if (perScreen.st) perScreen.st.placeVisualizer(false)
+                onPlacingDone: if (perScreen.st) perScreen.st.visualizerPlacing = false
             }
 
             // The frame bar (Phase 2): reads its own reveal from this slice.
@@ -218,14 +220,12 @@ ShellRoot {
                 st.wallpaperSwitcherOpen = !st.wallpaperSwitcherOpen;
         }
     }
+    // On/off is the persisted key, so the keybind, the Hub switch and the next
+    // restart all read the same answer. Only the layer is per-monitor memory.
     CustomShortcut {
         name: "visualizer"
         description: "Cycle the desktop audio visualiser off and on"
-        onPressed: {
-            const st = ShellState.forActive();
-            if (st)
-                st.visualizerMode = st.visualizerMode === "off" ? "desktop" : "off";
-        }
+        onPressed: VizCfg.Config.setEnabled(!VizCfg.Config.enabled)
     }
     CustomShortcut {
         name: "visualizer-overlay"
@@ -233,7 +233,7 @@ ShellRoot {
         onPressed: {
             const st = ShellState.forActive();
             if (st)
-                st.visualizerMode = st.visualizerMode === "overlay" ? "desktop" : "overlay";
+                st.visualizerOverlay = !st.visualizerOverlay;
         }
     }
     CustomShortcut {
@@ -242,8 +242,18 @@ ShellRoot {
         onPressed: {
             const st = ShellState.forActive();
             if (st)
-                st.placeVisualizer(!st.visualizerPlacing);
+                root.placeVisualizer(!st.visualizerPlacing);
         }
+    }
+
+    // Aiming a hidden spectrum aims nothing, so placing it shows it first.
+    function placeVisualizer(on) {
+        const st = ShellState.forActive();
+        if (!st)
+            return;
+        if (on && !VizCfg.Config.enabled)
+            VizCfg.Config.setEnabled(true);
+        st.visualizerPlacing = on;
     }
 
     // --- Root machinery (ported from the reference pill root) --------------
@@ -414,12 +424,12 @@ ShellRoot {
         function place(): void {
             const st = ShellState.forActive();
             if (st)
-                st.placeVisualizer(true);
+                root.placeVisualizer(true);
         }
         function done(): void {
             const st = ShellState.forActive();
             if (st)
-                st.placeVisualizer(false);
+                root.placeVisualizer(false);
         }
     }
     // Menu global shortcuts (Phase 10): open a bar menu/surface on the focused

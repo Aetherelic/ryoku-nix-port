@@ -142,6 +142,23 @@
   `.github/workflows/publish-repo.yml`, `installation/tests/container-install.sh`).
 
 ### Fixed
+- **The desktop right-click menu works again.** Adding the Move visualiser row
+  brought an unqualified `import shell.services` into `WidgetMenu.qml`, and that
+  module has a `Config` singleton of its own. QML resolves the last import that
+  provides a name, so it shadowed the desktop's `Config` and every row read
+  `undefined`: no widget could be switched on, no design cycled, no zone snapped, and
+  the only row that still worked was the one reading `ShellState` instead. The import
+  is namespaced now, which is also why the shadowing cannot come back
+  (`ryoku/shell/quickshell/shell/modules/desktop/WidgetMenu.qml`).
+- **Restarting the shell no longer turns the visualiser off.** Whether it ran was
+  per-monitor in-memory state that started at off, while `enabled` in
+  `visualizer.json` persisted what the user chose and nothing reconciled the two: a
+  restart, a crash or a supervisor respawn dropped the spectrum, and the Hub's own
+  switch could not turn it on in a running shell. The persisted key is the single
+  answer now and only the layer, desktop or overlay, stays per-monitor
+  (`ryoku/shell/quickshell/shell/shell.qml`,
+  `ryoku/shell/quickshell/shell/services/ShellState.qml`,
+  `ryoku/shell/quickshell/shell/modules/desktop/WidgetMenu.qml`).
 - **A leaned look now leans about its own axes, not the screen's.** With any spin on
   the box, the lean pivoted about the screen's axes and sheared the bands instead of
   turning a trapezoid: Qt composes an item's `transform` list outside its `rotation`,
