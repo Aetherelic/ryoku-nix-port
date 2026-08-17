@@ -43,6 +43,7 @@ type bundleComponent struct {
 	Name        string `json:"name"`
 	Detect      string `json:"detect,omitempty"`
 	Tier        string `json:"tier,omitempty"`
+	Group       string `json:"group,omitempty"`
 	Interactive bool   `json:"interactive,omitempty"`
 	Summary     string `json:"summary,omitempty"`
 }
@@ -110,6 +111,9 @@ func (p bundleProvider) Load(ctx context.Context, refresh bool) ([]Item, SourceS
 			}
 			if c.Tier != "" {
 				comp["tier"] = c.Tier
+			}
+			if c.Group != "" {
+				comp["group"] = c.Group
 			}
 			comps[i] = comp
 		}

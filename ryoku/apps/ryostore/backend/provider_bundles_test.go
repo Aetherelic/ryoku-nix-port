@@ -628,3 +628,39 @@ func TestRemoveNautilusPackWaitsForPublicationLock(t *testing.T) {
 		t.Fatal("Nautilus removal did not resume after publication lock")
 	}
 }
+
+// TestBundleComponentGroupReachesUI proves the optional `group` label survives
+// the whole path the store detail view depends on: registry JSON, into
+// bundleComponent, out through metadata.items. The map is built field by field,
+// so a component field that is parsed but not copied here renders nothing; the
+// second half pins that an ungrouped component omits the key entirely rather
+// than emitting an empty one, which is what keeps ungrouped bundles unlabelled.
+func TestBundleComponentGroupReachesUI(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	srv, _ := fixtureServer(t)
+	t.Setenv("RYOKU_EXTRAS_BASE", srv.URL)
+
+	prov := bundleProvider{
+		cache:  newCache(),
+		status: func(context.Context) map[string]map[string]bool { return nil },
+		launch: func(string, []string) error { return nil },
+	}
+	got, _, err := prov.Load(context.Background(), false)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	raw, ok := itemsByID(got)["demo"].Metadata["items"].([]map[string]any)
+	if !ok {
+		t.Fatalf("metadata items missing or wrong shape: %#v", itemsByID(got)["demo"].Metadata["items"])
+	}
+	byName := make(map[string]map[string]any, len(raw))
+	for _, c := range raw {
+		byName[c["name"].(string)] = c
+	}
+	if g := byName["cmatrix"]["group"]; g != "Tools" {
+		t.Fatalf("grouped component lost its label: group = %#v, want \"Tools\"", g)
+	}
+	if _, present := byName["demo-cli"]["group"]; present {
+		t.Fatalf("ungrouped component must omit group, got %#v", byName["demo-cli"])
+	}
+}

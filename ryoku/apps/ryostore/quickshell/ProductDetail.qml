@@ -49,6 +49,34 @@ FocusScope {
     readonly property var components: (actionItem.metadata && Array.isArray(actionItem.metadata.items)) ? actionItem.metadata.items : []
     readonly property var coreComponents: components.filter(c => String(c.tier || "core") !== "optional")
     readonly property var optionalComponents: components.filter(c => String(c.tier || "core") === "optional")
+    // Bundle items may carry a `group` label. Fold a tier's items into ordered
+    // sections by that label (first appearance wins) so a long bundle reads as
+    // labelled blocks instead of one wall. Items with no group collapse into a
+    // single unlabelled section, which is what an ungrouped bundle still gets.
+    // A plain object keyed by label would inherit Object.prototype, so a group
+    // named "constructor" or "toString" would silently merge into the wrong
+    // section. A bundle has a handful of sections, so scan them.
+    function groupSections(list) {
+        var out = [];
+        for (var i = 0; i < list.length; i++) {
+            var label = String(list[i].group || "");
+            var section = null;
+            for (var j = 0; j < out.length; j++) {
+                if (out[j].label === label) {
+                    section = out[j];
+                    break;
+                }
+            }
+            if (section === null) {
+                section = { label: label, items: [] };
+                out.push(section);
+            }
+            section.items.push(list[i]);
+        }
+        return out;
+    }
+    readonly property var coreGroups: groupSections(coreComponents)
+    readonly property var optionalGroups: groupSections(optionalComponents)
     property var sel: ({})
     property var lastComponents: null
     readonly property var selectedNames: components.filter(c => sel[String(c.name)] === true).map(c => String(c.name))
@@ -245,6 +273,31 @@ FocusScope {
 
                 HoverHandler { cursorShape: Qt.PointingHandCursor; enabled: !compRow.isinstalled }
                 TapHandler { enabled: !compRow.isinstalled; onTapped: detail.toggleSel(compRow.cname) }
+            }
+        }
+
+        // One labelled block of component rows, used by both tier repeaters. The
+        // label sits below the tier mark in the hierarchy: dimmer ink, tighter
+        // tracking. An unlabelled section renders as bare rows.
+        Component {
+            id: groupSectionDelegate
+            Column {
+                id: groupSection
+                required property var modelData
+                width: bundleCol.width
+                spacing: Tokens.s2
+
+                Text {
+                    visible: String(groupSection.modelData.label) !== ""
+                    text: I18n.tr(String(groupSection.modelData.label))
+                    color: Tokens.inkMuted
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fMicro
+                    font.letterSpacing: Tokens.trackLabel
+                    topPadding: Tokens.s1
+                }
+
+                Repeater { model: groupSection.modelData.items; delegate: componentDelegate }
             }
         }
 
@@ -501,7 +554,7 @@ FocusScope {
                         font.pixelSize: Tokens.fMicro
                         font.letterSpacing: Tokens.trackMark
                     }
-                    Repeater { model: detail.coreComponents; delegate: componentDelegate }
+                    Repeater { model: detail.coreGroups; delegate: groupSectionDelegate }
 
                     Text {
                         visible: detail.optionalComponents.length > 0
@@ -512,7 +565,7 @@ FocusScope {
                         font.letterSpacing: Tokens.trackMark
                         topPadding: Tokens.s2
                     }
-                    Repeater { model: detail.optionalComponents; delegate: componentDelegate }
+                    Repeater { model: detail.optionalGroups; delegate: groupSectionDelegate }
                 }
 
                 Rectangle {
