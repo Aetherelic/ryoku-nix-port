@@ -124,10 +124,33 @@ log "syncing repo databases (throwaway db)"
 "${PAC[@]}" -Sy --config "$conf" --dbpath "$work/db" --noconfirm >/dev/null
 
 # validate every name + resolve the whole closure BEFORE downloading a gigabyte.
+#
+# Check each name on its own first. pacman reports a whole-transaction failure as
+# a bare "could not satisfy dependencies" with no offender named, and a virtual
+# name with several providers fails exactly that way under --noconfirm: CachyOS
+# split proton-cachyos into -slr and -native, both only *providing* the old name,
+# and the ISO died with nothing to go on. Name the package and the reason here.
+log "validating package names"
+bad=()
+for p in "${PKGS[@]}"; do
+  "${PAC[@]}" -Si --config "$conf" --dbpath "$work/db" "$p" >/dev/null 2>&1 && continue
+  # not a real package: say whether something merely provides the name
+  providers=$("${PAC[@]}" -Ss --config "$conf" --dbpath "$work/db" "^${p}\$" 2>/dev/null | grep -c '^[a-z]' || true)
+  if (( providers == 0 )) && "${PAC[@]}" -Sp --config "$conf" --dbpath "$work/db" "$p" >/dev/null 2>&1; then
+    bad+=("$p (a virtual name; declare the concrete package that provides it)")
+  else
+    bad+=("$p (no such package in the configured repos)")
+  fi
+done
+if (( ${#bad[@]} )); then
+  printf 'offline-repo: unusable package name: %s\n' "${bad[@]}" >&2
+  die "fix system/packages or the driver list in offline-repo.sh"
+fi
+
 log "resolving the dependency closure"
 if ! resolved=$("${PAC[@]}" -Sp --config "$conf" --dbpath "$work/db" --print-format '%n' "${PKGS[@]}" 2>"$work/err"); then
   cat "$work/err" >&2
-  die "closure resolution failed (an unknown package name above); fix system/packages or the driver list in offline-repo.sh"
+  die "closure resolution failed; fix system/packages or the driver list in offline-repo.sh"
 fi
 count=$(printf '%s\n' "$resolved" | grep -c . || true)
 log "resolved closure: $count packages (with dependencies)"

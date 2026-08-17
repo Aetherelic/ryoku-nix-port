@@ -38,4 +38,10 @@ scx-scheds
 # CachyOS Proton: the CachyOS-tuned Proton build for Steam/Lutris, dropped into
 # the system compatibility-tools path so it works out of the box with the gaming
 # stack already in base.packages (gamescope, gamemode, mangohud).
-proton-cachyos
+#
+# Name the SLR build, not the bare `proton-cachyos`: CachyOS split that into
+# proton-cachyos-slr and proton-cachyos-native, which both only *provide* the old
+# name. A virtual name with two providers cannot resolve under --noconfirm, so the
+# offline closure bake failed and took the whole CachyOS ISO with it. SLR is the
+# Steam Linux Runtime build, which is how Steam runs Proton.
+proton-cachyos-slr
