@@ -339,9 +339,6 @@ package() {
   # never received, and fastfetch silently fell back to the Arch logo.
   install -Dm644 "$_repo/ryoku/assets/brand/fastfetch-emblem.png" \
     "$cfg/fastfetch/fastfetch-emblem.png"
-  # pipewire: audio follows a newly connected device (BT headset, USB DAC)
-  install -d "$cfg/pipewire"
-  cp -a "$_repo/ryoku/apps/pipewire/." "$cfg/pipewire/"
   # wireplumber: Bluetooth codec and profile policy, materialized like every
   # other per-user app config so package installs and dev deploys converge.
   install -d "$cfg/wireplumber"

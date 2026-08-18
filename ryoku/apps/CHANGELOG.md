@@ -2,12 +2,24 @@
 
 ## Unreleased
 
+### Fixed
+- `pipewire/`: **the audio device you pick now survives a reboot.** The
+  `pipewire-pulse.conf.d/10-ryoku-switch-on-connect.conf` drop-in loaded the
+  PulseAudio compat `module-switch-on-connect`, which makes the default sink
+  follow any device as it appears; every device "appears" fresh at boot, so it
+  overrode WirePlumber's saved default on every login and the machine always came
+  back on the old sink no matter what was selected (in the shell or pavucontrol).
+  Removed the drop-in: WirePlumber persists the chosen sink/source across reboots
+  on its own. The Bluetooth mic-profile auto-switch is unaffected (WirePlumber
+  native, `wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf`). `ryoku
+  materialize` prunes the stale drop-in from existing installs on the next update.
+
 ### Added
 - `mimeapps.list`: **videos and audio open in mpv, not HandBrake.** Installing
   HandBrake made it the default handler for `video/*`, so clicking a stashed
   download (or any video) opened the transcoder instead of playing. The default
   map now routes the common video and audio types to `mpv.desktop` (the shipped
-  player), so `xdg-open` — and the stash's file-open — plays them
+  player), so `xdg-open` (and the stash's file-open) plays them
   (`apps/mimeapps.list`).
 - `ryostore/`: **the store caches its imagery and flags real updates.** Previews
   are pulled to a local cache (`~/.cache/ryoku/extras/assets`) by a detached

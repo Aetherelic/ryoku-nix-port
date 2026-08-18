@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+- `ryoku-desktop` no longer ships the PipeWire `switch-on-connect` drop-in
+  (`ryoku/apps/pipewire/`): it broke the saved default audio device on every
+  reboot. WirePlumber persists the chosen sink on its own, and `ryoku materialize`
+  prunes the stale drop-in on the next update. See the ryoku/apps changelog.
+
 ### Added
 - **A look can lean into depth, not only spin in the plane.** `angle` turns a look
   clockwise on the screen; `tiltX` and `tiltY` pivot its box about its own horizontal
