@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+- **A truncated package no longer ships in the offline repo.** `offline-repo.sh`
+  downloaded the closure with `pacman -Sw --needed` into a persistent cache and
+  reflinked it in with no integrity check, so a download cut short by one network
+  hiccup (most likely on a big package like the ryomotion Electron app) sat
+  corrupt in the cache forever (`--needed` never re-fetches a file that already
+  exists by name) and shipped in every ISO, bricking the offline pacstrap with a
+  "truncated <pkg>" error. The bake now verifies every cached package with
+  `bsdtar -tf` before assembling, deletes and re-downloads a short archive, and
+  fails the build on one that stays broken (a cheap rebuild instead of a bricked
+  ISO). Covered by `tests/offline-repo-integrity.sh`.
+
 ### Added
 - **Two ISO variants from one tree (`RYOKU_VARIANT` plain|cachyos), both fully
   offline.** `build.sh` bakes the whole package closure into a `file://`

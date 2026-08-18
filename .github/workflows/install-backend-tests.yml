@@ -41,6 +41,8 @@ on:
       - 'tests/install-offline.sh'
       - 'tests/install-hooks.sh'
       - 'tests/release-offline-builds.sh'
+      - 'tests/offline-repo-integrity.sh'
+      - 'installation/iso/offline-repo.sh'
       - 'release/packages/*/PKGBUILD'
       - 'release/gradle-offline/**'
       - 'tests/installer-session-scale.sh'
@@ -69,6 +71,8 @@ on:
       - 'tests/install-offline.sh'
       - 'tests/install-hooks.sh'
       - 'tests/release-offline-builds.sh'
+      - 'tests/offline-repo-integrity.sh'
+      - 'installation/iso/offline-repo.sh'
       - 'release/packages/*/PKGBUILD'
       - 'release/gradle-offline/**'
       - 'tests/installer-session-scale.sh'
@@ -124,6 +128,10 @@ jobs:
       - name: Package builds resolve no dependencies over the network
         shell: bash
         run: bash tests/release-offline-builds.sh
+
+      - name: Offline repo package integrity (no truncated package ships)
+        shell: bash
+        run: bash tests/offline-repo-integrity.sh
 
       - name: Live installer display scale (grid stays usable on every panel)
         shell: bash

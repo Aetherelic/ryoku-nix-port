@@ -338,6 +338,35 @@ bake_aur_set() {
 # assembled repo -- and it runs with errexit intact, whatever this function did.
 bake_aur_set || log "AUR bake: stopped early; the repo check below will catch anything missing"
 
+# Integrity: every cached package must be a complete, readable archive before it
+# goes into the repo. `pacman -Sw --needed` skips a file that already exists by
+# name, and $CACHE is persistent, so a download truncated by one network hiccup
+# (most likely on a big package like the ryomotion Electron app) sits corrupt in
+# the cache forever and ships in every ISO -- the "truncated <pkg>" error that
+# bricks the offline pacstrap. bsdtar -tf reads the whole archive, so a short
+# file fails here; delete it and re-fetch, bounded. A still-broken package fails
+# the build now (a cheap rebuild), never at install time (a bricked ISO).
+# Mirrors release/repo/build-repo.sh's bsdtar check.
+command -v bsdtar >/dev/null 2>&1 || die "bsdtar (libarchive) is required to verify package integrity"
+log "verifying cached package integrity"
+for _iattempt in 1 2 3; do
+  corrupt=()
+  for cpkg in "$CACHE"/*.pkg.tar.zst "$CACHE"/*.pkg.tar.xz; do
+    [[ -e $cpkg ]] || continue
+    bsdtar -tf "$cpkg" >/dev/null 2>&1 || corrupt+=("$cpkg")
+  done
+  if (( ${#corrupt[@]} == 0 )); then break; fi
+  if (( _iattempt == 3 )); then
+    die "cache integrity: package(s) still truncated after re-download: ${corrupt[*]##*/}. Remove them from $CACHE and re-run the bake (an AUR-built one needs a fresh makepkg)."
+  fi
+  log "cache integrity: re-downloading ${#corrupt[@]} truncated package(s): ${corrupt[*]##*/}"
+  rm -f "${corrupt[@]}"
+  "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "${PKGS[@]}" || true
+  for _v in "${nv_required[@]}" "${nv_optional[@]}"; do
+    "${PAC[@]}" -Sw --config "$conf" --dbpath "$work/db" --cachedir "$CACHE" --noconfirm --needed "$_v" 2>/dev/null || true
+  done
+done
+
 # assemble the [offline] repo: reflink every cached package into DEST (btrfs COW,
 # so no extra space), then build the db.
 log "assembling the [offline] repo at $DEST"
