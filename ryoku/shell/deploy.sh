@@ -170,6 +170,7 @@ install -m755 "$here/../../system/hardware/power/ryoku-idle" "$bindir/ryoku-idle
 install -m755 "$here/../../system/hardware/leds/ryoku-leds" "$bindir/ryoku-leds"
 install -m755 "$here/../../system/hardware/audio/ryoku-mic" "$bindir/ryoku-mic"
 install -m755 "$here/../../system/hardware/audio/ryoku-volume" "$bindir/ryoku-volume"
+install -m755 "$here/../../system/hardware/audio/ryoku-restart-audio" "$bindir/ryoku-restart-audio"
 install -m755 "$here/../../system/hardware/display/ryoku-monitor" "$bindir/ryoku-monitor"
 install -m755 "$here/../../system/hardware/network/ryoku-dns" "$bindir/ryoku-dns"
 install -m755 "$here/../../system/hardware/gpu/ryoku-gpu" "$bindir/ryoku-gpu"

@@ -117,6 +117,7 @@ func reconcilers() []reconciler {
 		{"desktop session components", reconcileSessionComponents},
 		{"desktop portal routing", reconcilePortalRouting},
 		{"desktop portal session", reconcilePortalSession},
+		{"audio service health", reconcileAudioService},
 		{"audio playback routing", reconcileAudioRouting},
 		{"keyboard layout", reconcileKeymap},
 		{"keyboard layout detection", reconcileKeyboardSeed},
