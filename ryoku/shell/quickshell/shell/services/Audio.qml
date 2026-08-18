@@ -46,10 +46,46 @@ Singleton {
             && nm.indexOf("bluez_capture_internal") !== 0;
     }
 
-    readonly property var outputs: root.nodes.filter(root.isOutput)
-    readonly property var inputs: root.nodes.filter(root.isInput)
-    readonly property var streams: root.nodes.filter(root.isPlayStream)
-    readonly property var captureStreams: root.nodes.filter(root.isCaptureStream)
+    // Live, instantaneous classifications. They read only the nodes' constant
+    // flags, so computing them synchronously is safe -- but views must NOT bind
+    // to these: rebuilding a Repeater from the live list while Pipewire is
+    // mid-dispatch of a node removal has crashed Quickshell's Pipewire service.
+    // Every consumer binds to the settled snapshots below instead.
+    readonly property var liveOutputs: root.nodes.filter(root.isOutput)
+    readonly property var liveInputs: root.nodes.filter(root.isInput)
+    readonly property var liveStreams: root.nodes.filter(root.isPlayStream)
+    readonly property var liveCaptureStreams: root.nodes.filter(root.isCaptureStream)
+
+    // Settled snapshots the whole shell binds to (the bar audio widget, the
+    // volume panel, the framebar menus, the popout, the visualiser). A short
+    // debounce defers the reassignment past the Pipewire mutation, so no Repeater
+    // anywhere rebuilds inside a removal dispatch. This is the single, shell-wide
+    // crash-safety; consumers need no per-view snapshotting of their own.
+    property var outputs: []
+    property var inputs: []
+    property var streams: []
+    property var captureStreams: []
+
+    function syncAudioLists() {
+        root.outputs = root.liveOutputs.slice();
+        root.inputs = root.liveInputs.slice();
+        root.streams = root.liveStreams.slice();
+        root.captureStreams = root.liveCaptureStreams.slice();
+    }
+
+    Timer {
+        id: listSettle
+        interval: 75
+        repeat: false
+        onTriggered: root.syncAudioLists()
+    }
+
+    onLiveOutputsChanged: listSettle.restart()
+    onLiveInputsChanged: listSettle.restart()
+    onLiveStreamsChanged: listSettle.restart()
+    onLiveCaptureStreamsChanged: listSettle.restart()
+
+    Component.onCompleted: root.syncAudioLists()
 
     function setOutput(n) { if (n) Pipewire.preferredDefaultAudioSink = n; }
     function setInput(n) { if (n) Pipewire.preferredDefaultAudioSource = n; }
@@ -57,9 +93,10 @@ Singleton {
     // track every node we show so its properties (media/app/codec metadata) and
     // live audio (volume, mute) populate. classification above reads only the
     // node's constant flags, so this never deadlocks on untracked properties.
+    // Tracked from the LIVE lists so metadata populates without the settle delay.
     PwObjectTracker {
         objects: [root.sink, root.source].filter(Boolean)
-            .concat(root.outputs).concat(root.inputs).concat(root.streams).concat(root.captureStreams)
+            .concat(root.liveOutputs).concat(root.liveInputs).concat(root.liveStreams).concat(root.liveCaptureStreams)
     }
 
     // --- device presentation ------------------------------------------------
