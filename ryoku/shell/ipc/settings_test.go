@@ -287,6 +287,27 @@ func TestLoadClampsOutOfRangeIntegers(t *testing.T) {
 	}
 }
 
+// TestLoadCoercesRetiredTheme checks a file whose saved theme was retired from
+// the catalog still loads: on a lenient load the unknown theme.theme coerces to
+// "Wallpaper" (not the shipped "Default"), and the rest of the schema survives
+// -- the whole file must not reset to defaults over one dropped enum value.
+func TestLoadCoercesRetiredTheme(t *testing.T) {
+	// Isolate from any installed theme library so "Nightfox" is genuinely unknown.
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	path := filepath.Join(t.TempDir(), "shell.json")
+	body := `{"theme":{"theme":"Nightfox","attributes":{"sizing":{"border_width":5}}}}`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+	s := newSettingsStore(path)
+	if got := s.cur.Theme.Theme; got != "Wallpaper" {
+		t.Fatalf("retired theme.theme = %q, want coerced to Wallpaper", got)
+	}
+	if got := s.cur.Theme.Attributes.Sizing.BorderWidth; got != 5 {
+		t.Fatalf("border_width = %d after coerce, want 5 preserved (schema must not reset)", got)
+	}
+}
+
 // TestMalformedFileFirstLoad checks the first-load fallback: an unparseable file
 // yields shipped defaults with no passthrough keys, while a parseable file whose
 // schema does not validate keeps its passthrough keys and resets only the schema.

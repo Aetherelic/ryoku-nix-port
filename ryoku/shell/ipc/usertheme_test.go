@@ -101,8 +101,8 @@ func TestUserThemeLibraryFlow(t *testing.T) {
 		t.Fatalf("lookupThemePalette(installed) = %v, %v", pal["primary"], ok)
 	}
 	// A built-in still resolves and is not shadowed by the library.
-	if _, ok := lookupThemePalette("Black Turq"); !ok {
-		t.Fatal("built-in Black Turq no longer resolves")
+	if _, ok := lookupThemePalette("Dracula"); !ok {
+		t.Fatal("built-in Dracula no longer resolves")
 	}
 	// An unknown name resolves to nothing.
 	if _, ok := lookupThemePalette("nope"); ok {
@@ -142,14 +142,14 @@ func TestUserThemeLibraryFlow(t *testing.T) {
 func TestUserThemeBuiltinIDNotShadowed(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	blk := sampleBlock
-	installFixtureTheme(t, "Black Turq", "Impostor", "x", noctaliaScheme{Dark: &blk})
+	installFixtureTheme(t, "Dracula", "Impostor", "x", noctaliaScheme{Dark: &blk})
 	// The built-in palette must win over a library dir that reuses its id.
-	pal, ok := lookupThemePalette("Black Turq")
+	pal, ok := lookupThemePalette("Dracula")
 	if !ok || pal["primary"] == "#ff0000" {
-		t.Fatal("library entry shadowed the built-in Black Turq")
+		t.Fatal("library entry shadowed the built-in Dracula")
 	}
 	for _, tm := range userThemes() {
-		if tm.ID == "Black Turq" {
+		if tm.ID == "Dracula" {
 			t.Fatal("userThemes surfaced a built-in id")
 		}
 	}

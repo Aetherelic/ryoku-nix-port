@@ -59,7 +59,7 @@ func TestThemeCatalogProjection(t *testing.T) {
 		}
 	}
 
-	// Spot checks: an accented label and a known light theme.
+	// Spot checks: an accented label, the dark flag, and a swatch projection.
 	byID := map[string]themeCard{}
 	for _, c := range cat {
 		byID[c.ID] = c
@@ -67,11 +67,11 @@ func TestThemeCatalogProjection(t *testing.T) {
 	if got := byID["Rose Pine"].Label; got != "Ros\u00e9 Pine" {
 		t.Fatalf("Rose Pine label = %q, want %q", got, "Ros\u00e9 Pine")
 	}
-	if byID["Catppuccin Latte"].Dark {
-		t.Fatalf("Catppuccin Latte marked dark; its surface is light")
+	if !byID["Catppuccin Mocha"].Dark {
+		t.Fatalf("Catppuccin Mocha not marked dark; its surface is dark")
 	}
-	if byID["Bauhaus"].Sw[2] != "#E37B66" {
-		t.Fatalf("Bauhaus primary swatch = %q, want #E37B66", byID["Bauhaus"].Sw[2])
+	if byID["Catppuccin Mocha"].Sw[2] != "#b4befe" {
+		t.Fatalf("Catppuccin Mocha primary swatch = %q, want #b4befe", byID["Catppuccin Mocha"].Sw[2])
 	}
 }
 

@@ -32,10 +32,7 @@ type themeCard struct {
 // carries an accent the id (the stored theme.theme value) cannot. Every other
 // theme's label is its id verbatim.
 var themeLabels = map[string]string{
-	"Catppuccin Frappe": "Catppuccin Frapp\u00e9",
-	"Rose Pine":         "Ros\u00e9 Pine",
-	"Rose Pine Dawn":    "Ros\u00e9 Pine Dawn",
-	"Rose Pine Moon":    "Ros\u00e9 Pine Moon",
+	"Rose Pine": "Ros\u00e9 Pine",
 }
 
 // themeSwatchRoles are the seven palette roles the preview shows, in reference

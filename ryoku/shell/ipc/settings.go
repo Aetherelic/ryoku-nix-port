@@ -394,7 +394,21 @@ func (g *generalSettings) normalize(v *validator) {
 
 func (t *themeSettings) normalize(v *validator) {
 	v.nonEmpty("theme.theme", t.Theme)
-	v.enum("theme.theme", t.Theme, effectiveThemeThemeValues())
+	// theme.theme validates against the live set (dynamic variants + static
+	// catalog + installed library ids). A patch (strict) rejects an unknown
+	// name as enum would; a file load (lenient) coerces it to "Wallpaper" so a
+	// user whose saved theme was retired from the catalog keeps the rest of
+	// their schema instead of the whole load resetting to defaults.
+	if v.err == nil {
+		set := effectiveThemeThemeValues()
+		if !inSet(set, t.Theme) {
+			if v.strict {
+				v.err = fmt.Errorf("theme.theme: %q is not one of %s", t.Theme, strings.Join(set, ", "))
+			} else {
+				t.Theme = "Wallpaper"
+			}
+		}
+	}
 	v.enum("theme.matugen.preference", t.Matugen.Preference, matugenPrefValues)
 	v.enum("theme.matugen.scheme_type", t.Matugen.SchemeType, matugenTypeValues)
 	v.enum("theme.matugen.mode", t.Matugen.Mode, matugenModeValues)

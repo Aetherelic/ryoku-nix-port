@@ -397,7 +397,7 @@ func TestMatugenFollows(t *testing.T) {
 		{"match on + default theme -> run", true, "Default", true},
 		{"match on + no theme key -> run", true, "", true},
 		{"match off -> idle", false, "Wallpaper", false},
-		{"match on + static named theme -> idle", true, "Solitude", false},
+		{"match on + static named theme -> idle", true, "Nord Dark", false},
 	}
 	for _, c := range cases {
 		if err := os.WriteFile(filepath.Join(ryoku, "theme.json"), []byte(fmt.Sprintf(`{"followWallpaper":%v}`, c.follow)), 0o644); err != nil {

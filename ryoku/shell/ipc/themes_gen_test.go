@@ -39,16 +39,16 @@ func frameHas(t *testing.T, frame []byte, key string) bool {
 	return ok
 }
 
-// TestThemeCatalog guards the generated palette catalog: 57 named palettes, each
+// TestThemeCatalog guards the generated palette catalog: 10 named palettes, each
 // carrying the whole role set with valid hex, cross-checked against contract 08
-// sec 8.1 for a dark theme (Solitude) and a second theme (Tokyo Night). The
+// sec 8.1 for a dark theme (Nord Dark) and a second theme (Tokyo Night). The
 // ordered name slice and the palette map must agree.
 func TestThemeCatalog(t *testing.T) {
-	if len(themePalettes) != 57 {
-		t.Fatalf("themePalettes has %d named palettes, want 57", len(themePalettes))
+	if len(themePalettes) != 10 {
+		t.Fatalf("themePalettes has %d named palettes, want 10", len(themePalettes))
 	}
-	if len(themeCatalogNames) != 57 {
-		t.Fatalf("themeCatalogNames has %d entries, want 57", len(themeCatalogNames))
+	if len(themeCatalogNames) != 10 {
+		t.Fatalf("themeCatalogNames has %d entries, want 10", len(themeCatalogNames))
 	}
 	for _, name := range themeCatalogNames {
 		if _, ok := themePalettes[name]; !ok {
@@ -74,7 +74,7 @@ func TestThemeCatalog(t *testing.T) {
 
 	// Contract 08 sec 8.1 spot-checks (surface, onSurface, outline).
 	checks := []struct{ theme, surface, onSurface, outline string }{
-		{"Solitude", "#101315", "#cacccc", "#565d60"},
+		{"Nord Dark", "#2E3440", "#ECEFF4", "#4C566A"},
 		{"Tokyo Night", "#1a1b26", "#a9b1d6", "#9aa5ce"},
 	}
 	for _, c := range checks {
@@ -91,15 +91,15 @@ func TestThemeCatalog(t *testing.T) {
 // theme's resolved palette in the store under the passthrough themePalette key.
 func TestThemePalettePatch(t *testing.T) {
 	s := newTestStore(t)
-	if err := s.patch("theme.theme", rm(`"Solitude"`)); err != nil {
-		t.Fatalf("patch theme.theme=Solitude: %v", err)
+	if err := s.patch("theme.theme", rm(`"Nord Dark"`)); err != nil {
+		t.Fatalf("patch theme.theme=Nord Dark: %v", err)
 	}
 	pal, ok := frameGet(t, s.frameLocked(), "themePalette").(map[string]any)
 	if !ok {
 		t.Fatalf("themePalette missing or not an object after a named-theme patch")
 	}
-	if pal["surface"] != "#101315" || pal["onSurface"] != "#cacccc" || pal["outline"] != "#565d60" {
-		t.Fatalf("Solitude palette in store = surface %v onSurface %v outline %v, want #101315/#cacccc/#565d60",
+	if pal["surface"] != "#2E3440" || pal["onSurface"] != "#ECEFF4" || pal["outline"] != "#4C566A" {
+		t.Fatalf("Nord Dark palette in store = surface %v onSurface %v outline %v, want #2E3440/#ECEFF4/#4C566A",
 			pal["surface"], pal["onSurface"], pal["outline"])
 	}
 }
@@ -131,8 +131,8 @@ func TestThemePaletteDynamicRemoves(t *testing.T) {
 // on-disk file, the active theme, and the palette all stay as they were.
 func TestThemePaletteUnknownRejected(t *testing.T) {
 	s := newTestStore(t)
-	if err := s.patch("theme.theme", rm(`"Solitude"`)); err != nil {
-		t.Fatalf("seed Solitude: %v", err)
+	if err := s.patch("theme.theme", rm(`"Nord Dark"`)); err != nil {
+		t.Fatalf("seed Nord Dark: %v", err)
 	}
 	before, _ := os.ReadFile(s.path)
 
@@ -148,11 +148,11 @@ func TestThemePaletteUnknownRejected(t *testing.T) {
 	if string(before) != string(after) {
 		t.Fatalf("rejected theme patch modified the file on disk")
 	}
-	if got := frameGet(t, s.frameLocked(), "theme.theme"); got != "Solitude" {
-		t.Fatalf("theme.theme = %v after rejected patch, want Solitude untouched", got)
+	if got := frameGet(t, s.frameLocked(), "theme.theme"); got != "Nord Dark" {
+		t.Fatalf("theme.theme = %v after rejected patch, want Nord Dark untouched", got)
 	}
 	pal, ok := frameGet(t, s.frameLocked(), "themePalette").(map[string]any)
-	if !ok || pal["surface"] != "#101315" {
+	if !ok || pal["surface"] != "#2E3440" {
 		t.Fatalf("themePalette changed after rejected patch: %v", pal)
 	}
 }
@@ -185,13 +185,13 @@ func TestThemePaletteResetRefreshes(t *testing.T) {
 func TestThemePaletteLoad(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "shell.json")
 
-	if err := os.WriteFile(path, []byte(`{"theme":{"theme":"Solitude"}}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"theme":{"theme":"Nord Dark"}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	s := newSettingsStore(path)
 	pal, ok := frameGet(t, s.frameLocked(), "themePalette").(map[string]any)
-	if !ok || pal["surface"] != "#101315" {
-		t.Fatalf("load of a named theme: themePalette = %v, want Solitude palette", pal)
+	if !ok || pal["surface"] != "#2E3440" {
+		t.Fatalf("load of a named theme: themePalette = %v, want Nord Dark palette", pal)
 	}
 
 	if err := os.WriteFile(path, []byte(`{"theme":{"theme":"Default"},"themePalette":{"surface":"#ffffff"}}`), 0o644); err != nil {
@@ -209,8 +209,8 @@ func TestThemePaletteLoad(t *testing.T) {
 // theme re-derives it even when the editor wrote no themePalette.
 func TestThemePaletteReload(t *testing.T) {
 	s := newTestStore(t)
-	if err := s.patch("theme.theme", rm(`"Solitude"`)); err != nil {
-		t.Fatalf("seed Solitude: %v", err)
+	if err := s.patch("theme.theme", rm(`"Nord Dark"`)); err != nil {
+		t.Fatalf("seed Nord Dark: %v", err)
 	}
 
 	// Hand-edit -> a dynamic variant, but with a stale palette left in the file.
