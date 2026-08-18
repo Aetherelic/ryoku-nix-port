@@ -1,8 +1,6 @@
 # woke config. defaults apply. paths below are skipped: vendored upstream,
 # binary blobs, or verbatim license text we didn't write.
 ignore_files:
-  # writes /etc/modprobe.d files: "blacklist <module>" is modprobe syntax
-  - system/hardware/drivers/nvidia.sh
   - ryoku/lockscreen/qylock/**
   - ryoku/assets/**
   - LICENSE
@@ -18,3 +16,15 @@ ignore_files:
   - ryoku/ui/translations/**
   # vendored upstream modules we do not author.
   - "**/vendor/**"
+
+# `blacklist` is the exact modprobe.d directive Ryoku writes and greps for to keep
+# nouveau from racing the NVIDIA driver (system/hardware/drivers/*, the doctor's
+# reconcile_hardware.go, their tests, and the changelogs describing them). It is
+# kernel syntax, not a word choice, and every occurrence in the tree is that one
+# legitimate use, so neutralize woke's default blacklist rule (empty terms) instead
+# of ignoring whole files, which would drop all their other lint.
+rules:
+  - name: blacklist
+    terms: []
+    alternatives: []
+    severity: info
