@@ -1995,6 +1995,23 @@ PanelWindow {
                 runs.push({ a: pluginRow.x, b: pluginRow.x + pluginRow.implicitWidth })
             return runs
         }
+        // The rendered pill rectangles in island coords: islandRuns extended by
+        // islandsPad and clamped exactly as the pill Repeater below draws them,
+        // sorted L->R. The reactor consumes these so its gap channels are the real
+        // gaps between the real islands and its stream attaches to every pill edge.
+        readonly property var pillRects: {
+            if (!barSlot.islandsShell) return []
+            var rs = island.islandRuns
+            var out = []
+            for (var i = 0; i < rs.length; i++) {
+                if (!(rs[i].b - rs[i].a > 0.5)) continue
+                var xL = Math.max(barSlot.shellOuterMargin, rs[i].a - barSlot.islandsPad)
+                var xR = Math.min(island.width - barSlot.shellOuterMargin, rs[i].b + barSlot.islandsPad)
+                if (xR - xL > 0.5) out.push({ x: xL, w: xR - xL })
+            }
+            out.sort(function(p, q) { return p.x - q.x })
+            return out
+        }
         // ── islands form: one rounded pill per widget run ──
         // Only rendered for barShellStyle "islands"; the continuous surface fills
         // are hidden in that mode. The reactor stream (ReactorLayer, z:1) still
@@ -2244,6 +2261,7 @@ PanelWindow {
             monitor: barSlot.screenName
             shellVisible: barSlot.visible
             gapInset: barSlot.islandsShell ? barSlot.islandsPad : 0
+            pillRects: island.pillRects
         }
 
     }

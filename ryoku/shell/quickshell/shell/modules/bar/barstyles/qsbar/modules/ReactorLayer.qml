@@ -41,6 +41,15 @@ Item {
     // pills; 0 for the continuous shell, whose runs already end at the widget edges.
     property int gapInset: 0
 
+    // In islands mode the caller passes the actual rendered pill rectangles
+    // (each widget run's VISUAL edges + islandsPad, clamped -- exactly how the
+    // pills are drawn). The stream then channels through the true desktop gaps
+    // between islands and attaches flush to every pill edge, instead of the
+    // looser cluster-row spans that trail past a widget's visual edge and leave a
+    // gap. Null in the continuous shell, which keeps the cluster-run geometry.
+    property var pillRects: null
+    readonly property bool usePills: !!(reactor.pillRects && reactor.pillRects.length)
+
     visible: reactor.theme && reactor.theme.barAnim > 0
 
     // ── run rectangles (local coords): one per visible cluster, physical L→R ──
@@ -58,6 +67,8 @@ Item {
         return out
     }
     readonly property var runs: {
+        if (reactor.usePills)
+            return reactor.pillRects
         void (leftRow ? leftRow.x : 0);     void (leftRow ? leftRow.width : 0)
         void (centerRow ? centerRow.x : 0); void (centerRow ? centerRow.width : 0)
         void (rightRow ? rightRow.x : 0);   void (rightRow ? rightRow.width : 0)
@@ -71,8 +82,8 @@ Item {
             a.push({ s: i, e: i })
         return a
     }
-    function runRightEdge(i) { return runs[i].x + runs[i].w + reactor.gapInset }
-    function runLeftEdge(i)  { return runs[i].x - reactor.gapInset }
+    function runRightEdge(i) { return runs[i].x + runs[i].w + (reactor.usePills ? 0 : reactor.gapInset) }
+    function runLeftEdge(i)  { return runs[i].x - (reactor.usePills ? 0 : reactor.gapInset) }
 
     // Load the stream only while it can actually flow: an animation is selected,
     // the bar is on screen, and there is at least one gap between clusters.
