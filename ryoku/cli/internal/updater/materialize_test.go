@@ -139,17 +139,23 @@ func TestMaterializeUserEditsOverlay(t *testing.T) {
 
 	writeFile(t, filepath.Join(base, "hypr/modules/binds.lua"), "-- base binds v1\n")
 	writeFile(t, filepath.Join(base, "hypr/modules/window_rules.lua"), "-- base rules\n")
+	writeFile(t, filepath.Join(base, "hypr/user.lua"), "-- seed header\n") // live-owned seed
 
 	edits := sys.UserEditsDir()
 	writeFile(t, filepath.Join(edits, "hypr/modules/binds.lua"), "-- my binds\n") // fork
-	writeFile(t, filepath.Join(edits, "hypr/user.lua"), "-- my overlay\n")        // addition
+	writeFile(t, filepath.Join(edits, "hypr/settings.lua"), "-- my settings\n")   // addition (a Hub file)
+	writeFile(t, filepath.Join(edits, "hypr/user.lua"), "-- overlay junk\n")      // live-owned: must be ignored
 
 	if err := Materialize(); err != nil {
 		t.Fatalf("materialize: %v", err)
 	}
 	wantFile(t, filepath.Join(dest, "hypr/modules/binds.lua"), "my binds")          // fork wins
-	wantFile(t, filepath.Join(dest, "hypr/user.lua"), "my overlay")                 // addition lands
+	wantFile(t, filepath.Join(dest, "hypr/settings.lua"), "my settings")            // addition lands
 	wantFile(t, filepath.Join(dest, "hypr/modules/window_rules.lua"), "base rules") // untouched = base
+	// a live-owned file is NEVER laid from the overlay: the live seed stands, so a
+	// stale overlay copy cannot wipe the user's in-place edits (if it had clobbered,
+	// the file would read "overlay junk", which does not contain "seed header").
+	wantFile(t, filepath.Join(dest, "hypr/user.lua"), "seed header")
 
 	// a later base changes the forked file: the fork still wins (the user owns it).
 	writeFile(t, filepath.Join(base, "hypr/modules/binds.lua"), "-- base binds v2 (a fix)\n")

@@ -39,3 +39,27 @@ func UserEditFiles() ([]string, error) {
 	sort.Strings(rels)
 	return rels, err
 }
+
+// LiveOwnedConfig are the tool's own user-include files: each is edited at its
+// normal ~/.config path and loaded there directly (hyprland.lua's
+// optional("user") and optional("monitors_user"); kitty.conf includes
+// user.conf). Ryoku seeds user.lua once and never touches it; the other two are
+// never shipped. They must NEVER live in the overlay: overlayUserEdits would
+// re-lay a frozen copy over the live file on every update and silently wipe hand
+// edits made afterward. The overlay is for forking a whole Ryoku file, not these.
+var LiveOwnedConfig = []string{
+	"hypr/user.lua",
+	"hypr/monitors_user.lua",
+	"kitty/user.conf",
+}
+
+// IsLiveOwnedConfig reports whether rel (a slash path relative to ~/.config) is
+// one of the live-owned user files the overlay must never lay.
+func IsLiveOwnedConfig(rel string) bool {
+	for _, r := range LiveOwnedConfig {
+		if r == rel {
+			return true
+		}
+	}
+	return false
+}

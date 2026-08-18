@@ -28,47 +28,89 @@ func ueWrite(t *testing.T, path, body string) {
 	}
 }
 
-// adopt seeds the overlay guide and copies a machine's loose user files into the
-// overlay, idempotently, leaving the live copy alone so a session is undisturbed.
-func TestReconcileUserEditsAdopt(t *testing.T) {
+func ueWantFile(t *testing.T, path, want string) {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if string(b) != want {
+		t.Fatalf("%s = %q, want %q", path, string(b), want)
+	}
+}
+
+// A live-owned user file is edited in place and must never be adopted into the
+// overlay: the reconciler seeds the guide and leaves the live file alone. (The
+// old adopt step copied it in, and the overlay then re-laid a frozen snapshot
+// over the live file every update, wiping later edits.)
+func TestReconcileUserEditsSeedsGuideNoAdopt(t *testing.T) {
 	ueSetup(t)
 	cfg := sys.ConfigHome()
 	edits := sys.UserEditsDir()
 
-	// fresh box: the guide is missing; check reports it, fix writes it.
-	if r := reconcileUserEditsAdopt(true); r.status != recWouldFix {
+	ueWrite(t, filepath.Join(cfg, "hypr/user.lua"), "-- my hypr\n")
+
+	if r := reconcileUserEdits(true); r.status != recWouldFix {
 		t.Fatalf("fresh check: status=%s detail=%q, want todo", r.status.label(), r.detail)
 	}
-	if r := reconcileUserEditsAdopt(false); r.status != recFixed {
+	if r := reconcileUserEdits(false); r.status != recFixed {
 		t.Fatalf("fresh fix: status=%s detail=%q, want fixed", r.status.label(), r.detail)
 	}
 	if !sys.Exists(filepath.Join(edits, "README.md")) {
 		t.Fatal("overlay guide not written")
 	}
-
-	// loose user files get adopted; the live copies stay put.
-	ueWrite(t, filepath.Join(cfg, "hypr/user.lua"), "-- my hypr\n")
-	ueWrite(t, filepath.Join(cfg, "kitty/user.conf"), "font_size 12\n")
-	if r := reconcileUserEditsAdopt(true); r.status != recWouldFix {
-		t.Fatalf("adopt check: status=%s detail=%q, want todo", r.status.label(), r.detail)
-	}
 	if sys.Exists(filepath.Join(edits, "hypr/user.lua")) {
-		t.Fatal("check-only must not copy anything")
+		t.Fatal("live-owned user.lua was adopted into the overlay; it must stay live-only")
 	}
-	if r := reconcileUserEditsAdopt(false); r.status != recFixed {
-		t.Fatalf("adopt fix: status=%s detail=%q, want fixed", r.status.label(), r.detail)
+	ueWantFile(t, filepath.Join(cfg, "hypr/user.lua"), "-- my hypr\n")
+
+	if r := reconcileUserEdits(false); r.status != recOK {
+		t.Fatalf("idempotent: status=%s, want ok", r.status.label())
 	}
-	for _, rel := range []string{"hypr/user.lua", "kitty/user.conf"} {
-		if !sys.Exists(filepath.Join(edits, rel)) {
-			t.Fatalf("adopt did not copy %s into the overlay", rel)
-		}
-		if !sys.Exists(filepath.Join(cfg, rel)) {
-			t.Fatalf("adopt removed the live %s; it must stay put", rel)
-		}
+}
+
+// A box upgraded from the retired adopt step has a stale overlay copy that used
+// to clobber the live file every update. The reconciler moves it back out
+// without losing data, whatever the live file's state.
+func TestReconcileUserEditsRetiresStaleOverlayCopy(t *testing.T) {
+	ueSetup(t)
+	cfg := sys.ConfigHome()
+	edits := sys.UserEditsDir()
+	ueWrite(t, filepath.Join(edits, "README.md"), "guide\n") // guide already present
+
+	// identical live+overlay: drop the dead duplicate, keep the live file.
+	ueWrite(t, filepath.Join(cfg, "hypr/user.lua"), "-- same\n")
+	ueWrite(t, filepath.Join(edits, "hypr/user.lua"), "-- same\n")
+	// diverged: the live file has the real edits, the overlay a stale snapshot.
+	ueWrite(t, filepath.Join(cfg, "kitty/user.conf"), "font_size 14\n")
+	ueWrite(t, filepath.Join(edits, "kitty/user.conf"), "font_size 12\n")
+	// live missing: restore the overlay copy to its live home.
+	ueWrite(t, filepath.Join(edits, "hypr/monitors_user.lua"), "-- pins\n")
+
+	if r := reconcileUserEdits(true); r.status != recWouldFix {
+		t.Fatalf("stale check: status=%s, want todo", r.status.label())
+	}
+	if r := reconcileUserEdits(false); r.status != recFixed {
+		t.Fatalf("stale fix: status=%s detail=%q, want fixed", r.status.label(), r.detail)
 	}
 
-	// idempotent: guide present, nothing loose left.
-	if r := reconcileUserEditsAdopt(false); r.status != recOK {
+	for _, rel := range sys.LiveOwnedConfig {
+		if sys.Exists(filepath.Join(edits, rel)) {
+			t.Fatalf("overlay still carries %s", rel)
+		}
+	}
+	// identical: live kept, no backup.
+	ueWantFile(t, filepath.Join(cfg, "hypr/user.lua"), "-- same\n")
+	if sys.Exists(filepath.Join(cfg, "hypr/user.lua.overlay.bak")) {
+		t.Fatal("identical case must not leave a backup")
+	}
+	// diverged: live untouched, overlay snapshot preserved beside it.
+	ueWantFile(t, filepath.Join(cfg, "kitty/user.conf"), "font_size 14\n")
+	ueWantFile(t, filepath.Join(cfg, "kitty/user.conf.overlay.bak"), "font_size 12\n")
+	// live missing: restored from the overlay copy.
+	ueWantFile(t, filepath.Join(cfg, "hypr/monitors_user.lua"), "-- pins\n")
+
+	if r := reconcileUserEdits(false); r.status != recOK {
 		t.Fatalf("idempotent: status=%s, want ok", r.status.label())
 	}
 }

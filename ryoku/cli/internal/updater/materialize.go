@@ -211,6 +211,13 @@ func overlayUserEdits(dest string) error {
 	}
 	root := sys.UserEditsDir()
 	for _, rel := range rels {
+		// live-owned user files (hypr/user.lua, monitors_user.lua, kitty/user.conf)
+		// are edited in place, never overlaid. A stale overlay copy from the retired
+		// adopt step would otherwise re-lay a frozen snapshot over the live file
+		// every update and wipe later hand edits; doctor migrates any such copy out.
+		if sys.IsLiveOwnedConfig(rel) {
+			continue
+		}
 		if err := sys.CopyFile(filepath.Join(root, rel), filepath.Join(dest, rel)); err != nil {
 			return fmt.Errorf("overlay %s: %w", rel, err)
 		}

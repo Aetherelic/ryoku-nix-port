@@ -1,117 +1,152 @@
 package doctor
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"ryoku-cli/internal/sys"
 	"strings"
 )
 
-// The user overlay (~/.config/ryoku/user_edits) is the one place a user's config
-// edits live, laid over the Ryoku-owned base on every update. This reconciler
-// converges what materialize's file copy cannot: it seeds the how-to guide and
-// adopts a machine's legacy loose files into the overlay. Idempotent.
+// The user overlay (~/.config/ryoku/user_edits) is where a user's config edits
+// live, laid over the Ryoku-owned base on every update. This reconciler seeds
+// the how-to guide and, for boxes upgraded from the retired "adopt" step, moves
+// the tool's own user files (user.lua, monitors_user.lua, kitty/user.conf) back
+// OUT of the overlay. Those are edited in place; a frozen overlay copy of one
+// was re-laid over the live file every update, silently wiping edits made after
+// the copy was taken (the "it wipes my user.lua on every update" report).
+// Idempotent.
 
-// userEditsAdopt: hand-edited files that used to sit loose in ~/.config, moved
-// into the overlay so they survive an update as user edits. The live copy stays
-// put (the overlay re-lays it), so adoption never disturbs a running session.
-// The Hub-generated files (settings.lua, rebinds.lua) are not here: the Hub
-// writes those into the overlay itself.
-var userEditsAdopt = []string{
-	"hypr/user.lua",
-	"hypr/monitors_user.lua",
-	"kitty/user.conf",
-}
-
-func reconcileUserEditsAdopt(checkOnly bool) recResult {
+func reconcileUserEdits(checkOnly bool) recResult {
 	edits := sys.UserEditsDir()
 	cfg := sys.ConfigHome()
 	guide := filepath.Join(edits, "README.md")
-	var pending []string
-	if !sys.Exists(guide) {
-		pending = append(pending, "README.md (the how-to-edit guide)")
-	}
-	for _, rel := range userEditsAdopt {
-		if sys.Exists(filepath.Join(cfg, rel)) && !sys.Exists(filepath.Join(edits, rel)) {
-			pending = append(pending, rel)
+
+	needGuide := !sys.Exists(guide)
+	var stale []string
+	for _, rel := range sys.LiveOwnedConfig {
+		if sys.Exists(filepath.Join(edits, rel)) {
+			stale = append(stale, rel)
 		}
 	}
-	if len(pending) == 0 {
+	if !needGuide && len(stale) == 0 {
 		return okRes("overlay is set up")
 	}
 	if checkOnly {
-		return wouldRes("overlay needs setting up: %s", strings.Join(pending, ", ")).
-			withFix("ryoku doctor writes the guide and adopts loose files into %s", edits)
+		if len(stale) > 0 {
+			return wouldRes("a stale overlay copy of %s overrides your live edits on every update", strings.Join(stale, ", ")).
+				withFix("ryoku doctor moves it back out so the live file is the only copy")
+		}
+		return wouldRes("the overlay is missing its how-to guide").
+			withFix("ryoku doctor writes %s", guide)
 	}
 	if err := os.MkdirAll(edits, 0o755); err != nil {
 		return failRes("could not create the overlay dir %s: %v", edits, err)
 	}
-	if !sys.Exists(guide) {
+
+	var did []string
+	if needGuide {
 		if err := os.WriteFile(guide, []byte(userEditsGuide), 0o644); err != nil {
 			return failRes("could not write the overlay guide: %v", err).withFix("ryoku doctor")
 		}
+		did = append(did, "wrote the guide")
 	}
-	var adopted []string
-	for _, rel := range userEditsAdopt {
-		src, dst := filepath.Join(cfg, rel), filepath.Join(edits, rel)
-		if sys.Exists(src) && !sys.Exists(dst) {
-			if err := sys.CopyFile(src, dst); err != nil {
-				return failRes("could not adopt %s into the overlay: %v", rel, err).
-					withFix("copy it into %s by hand", edits)
-			}
-			adopted = append(adopted, rel)
+	var freed []string
+	for _, rel := range stale {
+		if err := retireOverlayCopy(rel, cfg, edits); err != nil {
+			return failRes("could not move %s out of the overlay: %v", rel, err).
+				withFix("move ~/.config/ryoku/user_edits/%s to ~/.config/%s by hand", rel, rel)
+		}
+		freed = append(freed, rel)
+	}
+	if len(freed) > 0 {
+		did = append(did, "stopped the overlay from overriding your live "+strings.Join(freed, ", "))
+	}
+	if len(did) == 0 {
+		return okRes("overlay is set up")
+	}
+	return fixedRes("%s", strings.Join(did, "; "))
+}
+
+// retireOverlayCopy moves a live-owned file OUT of the overlay, where the retired
+// adopt step used to copy it. overlayUserEdits no longer lays these, so the live
+// file is the one that applies; this drops the dead overlay copy without losing
+// anything:
+//
+//	live == overlay   drop the dead duplicate
+//	live missing      restore the overlay copy to its live home
+//	live differs      back the overlay copy up to <live>.overlay.bak, then drop
+//	                  it (the live file, which now wins, is left untouched)
+func retireOverlayCopy(rel, cfg, edits string) error {
+	src := filepath.Join(edits, rel)
+	live := filepath.Join(cfg, rel)
+	ob, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	switch lb, lerr := os.ReadFile(live); {
+	case os.IsNotExist(lerr):
+		if err := sys.CopyFile(src, live); err != nil {
+			return err
+		}
+	case lerr != nil:
+		return lerr
+	case bytes.Equal(ob, lb):
+		// dead duplicate; nothing to preserve.
+	default:
+		if err := sys.CopyFile(src, live+".overlay.bak"); err != nil {
+			return err
 		}
 	}
-	if len(adopted) == 0 {
-		return fixedRes("wrote the overlay guide to %s", guide)
+	if err := os.Remove(src); err != nil {
+		return err
 	}
-	return fixedRes("set up the overlay: wrote the guide and adopted %s", strings.Join(adopted, ", "))
+	// drop the overlay parent dir if it is now empty (best-effort).
+	_ = os.Remove(filepath.Dir(src))
+	return nil
 }
 
 // userEditsGuide is seeded at the overlay root as README.md (which the overlay
 // never lays into the live config), so a hand-editor who opens
-// ~/.config/ryoku/user_edits sees what the tree is and how to use it.
-const userEditsGuide = `# Your edits live here
+// ~/.config/ryoku/user_edits sees what the tree is for and, just as important,
+// what does NOT belong here.
+const userEditsGuide = `# The overlay: ~/.config/ryoku/user_edits
 
-This folder mirrors ~/.config. Anything you put here is yours: it wins over
-Ryoku's defaults and survives every update. Ryoku's own files (the "base") are
-replaced on each update, so fixes and new features keep arriving underneath your
-changes. Empty is fine, add a file only to change something.
+This folder mirrors ~/.config. A file you put here is laid on top of Ryoku's own
+copy on every update, so it wins and survives while Ryoku's base file keeps
+getting fixes underneath. Empty is fine.
 
---- how overriding works -------------------------------------------------
+Use the overlay for one thing: FORK a whole Ryoku file you want to fully own.
 
-    base (Ryoku)        laid down first, every update     you get fixes
-    user_edits (here)   laid on top, wins per file        your changes win
+    Copy it here at the same path and edit it, e.g.
+        ~/.config/ryoku/user_edits/hypr/modules/binds.lua
+    ryoku doctor then warns when an update changes the original, and
+    ryoku reset hypr/modules/binds.lua hands it back.
 
-Two ways to change a file:
+Ryoku Settings (Super + ,) writes hypr/settings.lua and hypr/rebinds.lua here.
+Change those in the GUI, not by hand.
 
-  - Overlay (recommended): add your lines to the tool's own user file, like
-    hypr/user.lua or kitty/user.conf. Ryoku's file still loads underneath, so a
-    new default keybind or a bug fix still reaches you.
-  - Fork: copy a whole Ryoku file here at the same path and edit it. You own it
-    now, and ryoku doctor warns when an update changes the original.
+--- Simple tweaks do NOT go here -----------------------------------------
 
---- what edits what ------------------------------------------------------
+Edit the tool's own user file at its normal place. Ryoku never overwrites these,
+so your edits always survive an update:
 
-    hypr/user.lua        your Hyprland tweaks: binds, window rules, config
-    hypr/settings.lua    written by Ryoku Settings, edit it in the GUI
-    hypr/rebinds.lua     written by Ryoku Settings (keybind remaps), GUI only
-    hypr/modules/*.lua   fork one to fully own a piece of the Hyprland config
-    kitty/kitty.conf     fork it, or add to kitty/user.conf
-    ryoku/*.json         Ryoku Settings state; the app keeps it, change it in-GUI
+    ~/.config/hypr/user.lua           Hyprland binds, window rules, raw config
+    ~/.config/hypr/monitors_user.lua  pin a display (see monitors_user.lua.example)
+    ~/.config/kitty/user.conf         your kitty overrides
 
-Any other file under ~/.config can be forked the same way: mirror its path
-here and edit it.
+Putting one of those in this overlay is the old, broken way: the overlay froze a
+copy and re-laid it over your live file every update, wiping later edits. If you
+find one here, move it back to the path above; ryoku doctor does this for you.
 
---- commands -------------------------------------------------------------
+--- Commands -------------------------------------------------------------
 
-    ryoku reset <path>   drop one edit, back to Ryoku's default
-                         e.g. ryoku reset hypr/modules/binds.lua
-    ryoku reset          drop everything here, back to defaults (asks first)
+    ryoku reset <path>   drop one forked file, back to Ryoku's default
+    ryoku reset          drop everything here (asks first)
     ryoku recovery       last resort: wipe all edits and settings, pure Ryoku
 
---- notes ----------------------------------------------------------------
+--- Notes ----------------------------------------------------------------
 
 .md files here (like this one) are never copied into the live config, so keep
-your own notes alongside your edits.
+your own notes beside your edits.
 `

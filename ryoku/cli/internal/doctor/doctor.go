@@ -134,7 +134,7 @@ func reconcilers() []reconciler {
 		{"stash features sidebar anchor", reconcileStashSidebar},
 		{"spicetify canvas extension", reconcileSpicetifyCanvas},
 		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
-		{"user edits overlay", reconcileUserEditsAdopt},
+		{"user edits overlay", reconcileUserEdits},
 		{"keyring unlock policy", reconcileKeyring},
 		{"SDDM greeter theme", reconcileGreeterTheme},
 		{"fastfetch readout emblem", reconcileFastfetchEmblem},

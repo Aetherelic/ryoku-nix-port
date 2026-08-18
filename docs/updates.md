@@ -86,9 +86,11 @@ once every supported install has run it. `reconcileShellConfig` migrates a stale
 `reconcileLauncherLocalFrostDefault` moves only the launcher's retired shipped
 `bgBlur: 12` to the new 2 px local-frost default, then records a marker so a
 later deliberate 12 remains a user choice.
-`reconcileUserEditsAdopt` seeds the how-to guide and moves a machine's legacy
-loose files (`hypr/user.lua`, `hypr/monitors_user.lua`, `kitty/user.conf`) into
-the overlay. Idempotent.
+`reconcileUserEdits` seeds the how-to guide and, for boxes upgraded from the
+retired adopt step, moves the tool's own user files (`hypr/user.lua`,
+`hypr/monitors_user.lua`, `kitty/user.conf`) back OUT of the overlay. Those are
+edited in place; a frozen overlay copy of one used to be re-laid over the live
+file on every update, wiping edits made afterward. Idempotent.
 
 ## Publishing: how a commit becomes a user update
 

@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Fixed
+- **Your `~/.config/hypr/user.lua` stops getting wiped on every update.** The
+  retired "adopt" step copied the tool's own user files (`hypr/user.lua`,
+  `hypr/monitors_user.lua`, `kitty/user.conf`) into the `user_edits` overlay,
+  and `materialize` then re-laid that frozen copy over the live file on every
+  update, silently reverting edits made afterward. Those files are edited in
+  place: `overlayUserEdits` now never lays them (`internal/sys/useredits.go`
+  `LiveOwnedConfig`), the reconciler no longer adopts them, and it moves any
+  stale overlay copy back out without losing data (identical drops, diverged is
+  backed up to `<file>.overlay.bak`, a missing live file is restored). The
+  overlay guide now says plainly that simple tweaks go in the live file and the
+  overlay is only for forking a whole Ryoku file plus the Hub's settings.lua /
+  rebinds.lua (`internal/doctor/reconcile_useredits.go`,
+  `internal/updater/materialize.go`).
 - **`ryoku doctor` installs the NVIDIA login-loop guard hook on existing boxes.**
   A `-dkms` module that fails to rebuild on a kernel update leaves nouveau
   blacklisted with no nvidia module -- no driver binds the card, so the greeter
