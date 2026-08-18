@@ -3,14 +3,14 @@ import QtQuick
 import "Singletons"
 import Ryoku.Ui.Singletons
 
-// One colour-scheme tile: a rounded card filled with the theme's own surface
-// colour, its name at the top, and a row of tall rounded pills of the palette's
-// key roles [onSurface, primary, secondary, tertiary, error] -- the colour-combo
-// preview. A scheme that ships its own preview art shows that image cropped to
-// the card instead, with the name on a placard; everything else uses the pills.
-// The outline lifts to the on-surface ink on hover and the primary accent on the
-// pick; the applied scheme wears an on-air dot. Dimmed and inert while the switch
-// follows the wallpaper (themes disabled).
+// One colour-scheme tile, rendered live from the palette: the scheme's surface
+// as the card, a faint accent sheen, its name in the scheme's own ink, a mini
+// "bar wearing the palette" (a launcher pill + role dots), and a row of tall
+// pills of the key roles [onSurface, primary, secondary, tertiary, error] as the
+// hero -- a Ryoku desktop in miniature, the same everywhere whether the scheme is
+// built in or installed. The outline lifts to the on-surface ink on hover and the
+// primary accent on the pick; the applied scheme wears an on-air dot. Dimmed and
+// inert while the switch follows the wallpaper (themes disabled).
 Item {
     id: cell
 
@@ -27,8 +27,16 @@ Item {
     readonly property var sw: cell.item ? cell.item.sw : []
     readonly property color surface: cell.sw.length > 0 ? cell.sw[0] : Theme.surfaceContainer
     readonly property color ink: cell.sw.length > 1 ? cell.sw[1] : Theme.onSurface
-    readonly property string image: (cell.item && cell.item.image) ? cell.item.image : ""
-    readonly property bool hasImage: cell.image.length > 0
+    readonly property color primary:   cell.sw.length > 2 ? cell.sw[2] : Theme.primary
+    readonly property color secondary: cell.sw.length > 3 ? cell.sw[3] : cell.primary
+    readonly property color tertiary:  cell.sw.length > 4 ? cell.sw[4] : cell.primary
+    readonly property color scErr:     cell.sw.length > 5 ? cell.sw[5] : Theme.error
+    readonly property color outline:   cell.sw.length > 6 ? cell.sw[6] : Theme.outline
+    readonly property bool dark: cell.item ? !!cell.item.dark : true
+    // a raised surface: the scheme's own surface nudged toward its ink.
+    readonly property color lift: Qt.rgba(cell.surface.r + (cell.ink.r - cell.surface.r) * 0.10,
+                                          cell.surface.g + (cell.ink.g - cell.surface.g) * 0.10,
+                                          cell.surface.b + (cell.ink.b - cell.surface.b) * 0.10, 1)
     // the five colour-combo pills: the theme's ink plus its four accents.
     readonly property var pills: cell.sw.length >= 6
         ? [cell.sw[1], cell.sw[2], cell.sw[3], cell.sw[4], cell.sw[5]] : []
@@ -48,37 +56,23 @@ Item {
         border.color: cell.selected ? Theme.primary : (hover.hovered ? Theme.onSurface : Theme.outline)
         Behavior on border.color { ColorAnimation { duration: Motion.thumbHover; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve } }
 
-        // preview art, when the scheme ships it: cropped to fill, decoded once.
-        Image {
-            id: art
-            visible: cell.hasImage
-            anchors.fill: parent
-            anchors.margins: Theme.borderWidth
-            asynchronous: true
-            cache: true
-            fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(512, 512)
-            source: cell.hasImage ? "file://" + cell.image : ""
-        }
-
-        // scrim under the placard so the name stays legible over any art.
+        // subtle top sheen toward the accent -- evokes the desktop's wallpaper
+        // glow without a shader; one gradient, no cost.
         Rectangle {
-            visible: cell.hasImage
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            height: Math.round(56 * cell.s)
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors.margins: Theme.borderWidth
+            height: Math.round(parent.height * 0.42)
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0) }
-                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.55) }
+                GradientStop { position: 0.0; color: Qt.rgba(cell.primary.r, cell.primary.g, cell.primary.b, cell.dark ? 0.14 : 0.08) }
+                GradientStop { position: 1.0; color: "transparent" }
             }
         }
 
-        // theme name: top of the card in its own on-surface ink for the pill
-        // preview, a bottom-left placard over art so it reads on any image.
+        // theme name: top of the card, in the scheme's own on-surface ink.
         Text {
             id: nameTop
-            visible: !cell.hasImage
             anchors { top: parent.top; left: parent.left; right: parent.right }
-            anchors.topMargin: Math.round(14 * cell.s)
+            anchors.topMargin: Math.round(12 * cell.s)
             anchors.leftMargin: Math.round(10 * cell.s)
             anchors.rightMargin: Math.round(10 * cell.s)
             text: cell.item ? I18n.tr(cell.item.label) : ""
@@ -91,33 +85,52 @@ Item {
             font.pixelSize: Math.round(14 * cell.s)
             font.weight: Font.DemiBold
         }
-        Text {
-            visible: cell.hasImage
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            anchors.leftMargin: Math.round(12 * cell.s)
-            anchors.rightMargin: Math.round(12 * cell.s)
-            anchors.bottomMargin: Math.round(12 * cell.s)
-            text: cell.item ? I18n.tr(cell.item.label) : ""
-            color: "white"
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
-            elide: Text.ElideRight
-            font.family: Theme.fontPrimary
-            font.pixelSize: Math.round(14 * cell.s)
-            font.weight: Font.DemiBold
+
+        // the palette bar: the desktop's signature "bar wearing the whole palette"
+        // in miniature -- a launcher pill in the accent, then a cluster of role
+        // dots. This is what makes the tile read as a Ryoku desktop, not a swatch.
+        Rectangle {
+            id: miniBar
+            anchors { left: parent.left; right: parent.right; top: nameTop.bottom }
+            anchors.topMargin: Math.round(12 * cell.s)
+            anchors.leftMargin: Math.round(14 * cell.s)
+            anchors.rightMargin: Math.round(14 * cell.s)
+            height: Math.round(22 * cell.s)
+            radius: Math.round(7 * cell.s)
+            color: cell.lift
+            border.width: Math.max(1, Math.round(cell.s))
+            border.color: Qt.rgba(cell.outline.r, cell.outline.g, cell.outline.b, 0.7)
+
+            Rectangle {
+                anchors.left: parent.left; anchors.leftMargin: Math.round(6 * cell.s)
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.round(26 * cell.s); height: Math.round(10 * cell.s)
+                radius: height / 2; color: cell.primary
+            }
+            Row {
+                anchors.right: parent.right; anchors.rightMargin: Math.round(7 * cell.s)
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Math.round(5 * cell.s)
+                Repeater {
+                    model: [cell.secondary, cell.tertiary, cell.scErr]
+                    delegate: Rectangle {
+                        required property color modelData
+                        width: Math.round(9 * cell.s); height: width; radius: width / 2; color: modelData
+                    }
+                }
+            }
         }
 
-        // the colour-combo pills: a centred row of tall stadium bars filling the
-        // card below the name, one per key role.
+        // hero: the five role pills as tall stadiums, filling the card below the bar.
         Item {
             id: pillsBox
-            visible: !cell.hasImage && cell.pills.length > 0
-            anchors.top: nameTop.bottom
+            visible: cell.pills.length > 0
+            anchors.top: miniBar.bottom
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.topMargin: Math.round(12 * cell.s)
-            anchors.bottomMargin: Math.round(18 * cell.s)
+            anchors.bottomMargin: Math.round(16 * cell.s)
             anchors.leftMargin: Math.round(16 * cell.s)
             anchors.rightMargin: Math.round(16 * cell.s)
             readonly property real gap: Math.round(7 * cell.s)
@@ -149,9 +162,7 @@ Item {
             width: Math.round(11 * cell.s)
             height: width
             radius: width / 2
-            color: cell.hasImage ? Theme.primary : cell.ink
-            border.width: cell.hasImage ? Math.max(1, Math.round(2 * cell.s)) : 0
-            border.color: cell.surface
+            color: cell.ink
         }
     }
 
