@@ -13,6 +13,7 @@ func TestProbeAlongsideParsesNewLines(t *testing.T) {
 		"esp_kind ryoku",
 		"existing_boot /EFI/BOOT/BOOTX64.EFI",
 		"esp /dev/loop0p1",
+		"esp_count 2",
 		"leftover /dev/loop0p3 ryoku 8192",
 		"leftover /dev/loop0p4 ryokuboot 1024",
 		"verdict ok",
@@ -35,6 +36,9 @@ func TestProbeAlongsideParsesNewLines(t *testing.T) {
 	}
 	if r.verdict != "ok" {
 		t.Fatalf("verdict = %q, want ok", r.verdict)
+	}
+	if r.espCount != 2 {
+		t.Fatalf("espCount = %d, want 2", r.espCount)
 	}
 }
 
@@ -219,5 +223,23 @@ func TestReviewNoEraseReachableForAlongside(t *testing.T) {
 	m.picks["disk"] = "whole"
 	if !strings.Contains(m.reviewBody(100), "ERASING") {
 		t.Fatal("whole-disk review must still show ERASING (sanity)")
+	}
+}
+
+// a disk with more than one ESP surfaces the multi-ESP review note naming the
+// shared ESP kind; a single-ESP disk shows no such note.
+func TestReviewCopyMultiEsp(t *testing.T) {
+	m := reviewModel()
+	m.espKind, m.existingBoot, m.espCount = "windows", "/EFI/Microsoft/Boot/bootmgfw.efi", 2
+	body := m.reviewBody(100)
+	if !strings.Contains(body, "2 EFI partitions found") {
+		t.Fatalf("multi-ESP review must name the count: %q", body)
+	}
+	if !strings.Contains(body, "shares the windows ESP") {
+		t.Fatalf("multi-ESP note must name the shared ESP kind: %q", body)
+	}
+	m.espCount = 1
+	if strings.Contains(m.reviewBody(100), "EFI partitions found") {
+		t.Fatal("a single-ESP disk must not show the multi-ESP note")
 	}
 }

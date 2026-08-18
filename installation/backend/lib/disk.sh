@@ -788,6 +788,7 @@ ryoku_probe_alongside() {
     [[ $esp_boot == - ]] && esp_boot=none
     printf 'existing_boot %s\n' "$esp_boot"
     printf 'esp %s\n' "$esp"
+    printf 'esp_count %s\n' "$(sgdisk -p "$disk" 2>/dev/null | awk '$6=="EF00"' | wc -l | tr -d ' ')"
   else
     printf 'verdict no-esp\nmessage no EFI System Partition (EF00) found on %s; alongside needs an existing ESP to share. Use whole-disk, or create an ESP first.\n' "$disk"
     return 0

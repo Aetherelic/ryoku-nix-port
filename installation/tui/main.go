@@ -823,6 +823,7 @@ type model struct {
 	probeVerdict, probeMessage string // alongside probe verdict + human cause (rendered as the block reason)
 	espKind                    string // windows|ryoku|linux for the shared ESP (drives the review boot line)
 	existingBoot               string // existing OS's chainloadable EFI binary, or "none" (review caveat)
+	espCount                   int    // EF00 ESPs on the disk; >1 surfaces a multi-ESP review note
 	// carve (in-installer resize): resizeParts is the backend's per-partition
 	// shrinkability report; when non-empty on an alongside disk the layout page
 	// offers the carve picker. carvePart indexes the chosen partition to shrink
@@ -925,6 +926,7 @@ func (m *model) loadStep() {
 			m.regionStart, m.regionEnd = dl.regionStart, dl.regionEnd
 			m.probeVerdict, m.probeMessage = dl.probeVerdict, dl.probeMessage
 			m.espKind, m.existingBoot = dl.espKind, dl.existingBoot
+			m.espCount = dl.espCount
 			for _, p := range dl.leftovers {
 				m.reclaim = append(m.reclaim, p)
 				m.reclaimG += p.size
@@ -3029,6 +3031,14 @@ func (m model) reviewBody(w int) string {
 		} else {
 			lines = append(lines, fg(cSub, "boot       ")+fg(cText, "shared existing ESP (backed up first) + "+existing+" (existing) entry in the boot menu"))
 		}
+	}
+	if strat == "alongside" && m.espCount > 1 {
+		kind := m.espKind
+		if kind == "" {
+			kind = "existing"
+		}
+		lines = append(lines,
+			fg(cYell, fmt.Sprintf("           %d EFI partitions found - Ryoku shares the %s ESP; other systems stay bootable from the Limine menu", m.espCount, kind)))
 	}
 	if len(m.reclaim) > 0 {
 		lines = append(lines, fg(cSub, "reclaim    ")+fg(cRed, fmt.Sprintf("%d leftover partition(s) (%dG) from a failed prior install", len(m.reclaim), m.reclaimG)))

@@ -369,6 +369,7 @@ type diskLayout struct {
 	espKind      string // windows|ryoku|linux for the disk's EF00 ESP ("" when none/older backend)
 	existingBoot string // the existing OS's chainloadable EFI binary, or "none" ("" when absent)
 	leftovers    []part // verified failed-install debris the backend reclaims (freed space)
+	espCount     int    // EF00 ESPs on the disk (>1 surfaces a multi-ESP review note)
 }
 
 // sysDiskLayout reads the existing partitions and largest free region of a disk.
@@ -416,6 +417,7 @@ func sysDiskLayout(disk string) diskLayout {
 	dl.freeG, dl.regionStart, dl.regionEnd = pr.freeG, pr.regionStart, pr.regionEnd
 	dl.probeVerdict, dl.probeMessage = pr.verdict, pr.message
 	dl.espKind, dl.existingBoot, dl.leftovers = pr.espKind, pr.existingBoot, pr.leftovers
+	dl.espCount = pr.espCount
 	return dl
 }
 
@@ -447,6 +449,7 @@ type probeResult struct {
 	verdict, message       string
 	espKind                string // esp_kind: windows|ryoku|linux ("" when no ESP or older backend)
 	existingBoot           string // existing_boot: the existing OS's EFI binary, or "none" ("" when absent)
+	espCount               int    // esp_count: number of EF00 ESPs on the disk (0 when older backend)
 	leftovers              []part // one per verified failed-install partition to reclaim (freed)
 }
 
@@ -476,6 +479,8 @@ func probeAlongside(disk string) probeResult {
 			r.espKind = f[1]
 		case len(f) >= 2 && f[0] == "existing_boot":
 			r.existingBoot = f[1]
+		case len(f) >= 2 && f[0] == "esp_count":
+			r.espCount = int(parseI64(f[1]))
 		case len(f) == 4 && f[0] == "leftover":
 			// leftover <dev> <partlabel> <sizeMiB>: verified debris the backend frees.
 			r.leftovers = append(r.leftovers, part{

@@ -30,7 +30,7 @@ ryoku_preflight() {
       if [[ -n ${RYOKU_RESIZE_PART:-} ]]; then
         log "preflight: would also require GPT + a shared usable ESP (Windows, Ryoku, or another Linux), the shrink tool for ${RYOKU_RESIZE_PART}'s filesystem, and RYOKU_RESIZE_TAKE_MIB >= $(( (2 + $(ryoku_min_root_gib)) * 1024 )); the freed region is checked after the carve"
       else
-        log "preflight: would also require GPT, exactly one usable EF00 ESP with >= 8 MiB free, a free region >= $(( 2 + $(ryoku_min_root_gib) ))GiB, and warn on any BitLocker neighbor"
+        log "preflight: would also require GPT, a usable EF00 ESP with >= 8 MiB free (the scanned one, Windows-first, when the disk has several), a free region >= $(( 2 + $(ryoku_min_root_gib) ))GiB, and warn on any BitLocker neighbor"
       fi
     fi
     log "preflight: ok (profile=$RYOKU_PROFILE, strategy=$RYOKU_DISK_STRATEGY, encrypt=${RYOKU_ENCRYPT:-0})"
@@ -82,22 +82,26 @@ ryoku_preflight() {
 }
 
 # ryoku_require_shared_esp: the gates common to every alongside-family install
-# (plain alongside AND carve). A GPT disk with exactly one ESP, and that ESP
-# usable to share - Windows', an existing Ryoku's, or another Linux's, judged by
-# the same ryoku_esp_scan the probe and the bootloader use - with >= 8 MiB free
-# for the Limine loader we land beside the existing one. Sets RYOKU_PF_WESP and
-# RYOKU_PF_ESP_KIND. Fail closed: this writes to a user's only disk exactly once.
+# (plain alongside AND carve). A GPT disk with a usable ESP to share -- Windows',
+# an existing Ryoku's, or another Linux's -- picked by the same ryoku_esp_scan the
+# probe and the bootloader use (a Windows ESP first, else the first usable), with
+# >= 8 MiB free for the Limine loader we land beside it. A disk with several ESPs
+# is allowed (we warn and share one); only no usable ESP is fatal. Sets
+# RYOKU_PF_WESP and RYOKU_PF_ESP_KIND. Fail closed: writes a user's only disk once.
 ryoku_require_shared_esp() {
   local disk=$RYOKU_DISK pttype ef_count espinfo wesp kind tmpd avail_kib=0
   pttype=$(blkid -o value -s PTTYPE "$disk" 2>/dev/null || true)
   [[ $pttype == gpt ]] || die "alongside needs a GPT disk; $disk has '${pttype:-no}' partition table. Use whole-disk, or convert to GPT."
 
-  # exactly one EF00 on the disk: multiple ESPs per disk are firmware-flaky; we
-  # share the existing single ESP whoever owns it.
+  # A disk may carry more than one ESP -- a second OS that made its own, or a
+  # leftover. We do NOT refuse it: ryoku_esp_scan picks the one to share (a
+  # Windows ESP first, else the first usable one), exactly as the probe and the
+  # bootloader do, and Limine finds every other OS's loader at boot. Only a disk
+  # with NO usable ESP is fatal, since alongside has nothing to land beside.
   ef_count=$(sgdisk -p "$disk" 2>/dev/null | awk '$6=="EF00"' | wc -l)
-  (( ef_count == 1 )) || die "alongside expects exactly one EFI System Partition on $disk (found $ef_count). Ryoku shares the existing single ESP; refusing a multi-ESP disk."
-  espinfo=$(ryoku_esp_scan "$disk") || die "no usable EFI System Partition on $disk. alongside shares the existing ESP; use whole-disk instead."
+  espinfo=$(ryoku_esp_scan "$disk") || die "no usable EFI System Partition on $disk. alongside shares an existing ESP; use whole-disk instead, or create an ESP first."
   read -r wesp kind _ <<<"$espinfo"
+  (( ef_count > 1 )) && log "WARNING: $disk has $ef_count EFI System Partitions; Ryoku shares the $kind ESP ($wesp) and lands its Limine loader there. Other systems stay bootable from the Limine menu. (Recorded, not blocking.)"
 
   # limine is < 1 MiB, but demand 8 MiB headroom on the shared ESP.
   tmpd=$(mktemp -d)
