@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `leds/ryoku-leds`: `RYOKU_LEDS_DISABLE=1` turns the OpenRGB accent sync off.
+  `ryoku-leds apply` runs from Hyprland autostart and again from the shell daemon
+  on every wallpaper change, and there was no off switch short of forking the
+  autostart module; the gate makes `apply` a no-op. Set `env = RYOKU_LEDS_DISABLE, 1`
+  in Hyprland (Ryoku Settings > Environment, or `hypr/user.lua`) to keep LEDs dark
+  across updates; `color`/`status` still report for debugging.
 - `drivers/ryoku-nvidia-guard` + `drivers/nvidia.sh`: end the SDDM login loop on
   NVIDIA. nvidia.sh blacklists nouveau and forces DRM modeset while an nvidia
   module exists, but the `-dkms` branches (a custom kernel, or a pre-Turing/Kepler

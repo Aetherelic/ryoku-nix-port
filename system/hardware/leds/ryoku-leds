@@ -113,6 +113,7 @@ color   print the LED color chosen from the palette
 status  print OpenRGB availability, palette path, and selected color
 
 Env:
+  RYOKU_LEDS_DISABLE=1         turn the accent-LED sync off (apply becomes a no-op)
   RYOKU_LEDS_COLOR=RRGGBB       override palette color
   RYOKU_LEDS_PALETTE=/path      override hypr-colors.lua path
   RYOKU_LEDS_FALLBACK=RRGGBB    fallback color when no palette exists
@@ -125,6 +126,7 @@ USAGE
 cmd=${1:-apply}
 case "$cmd" in
   apply)
+    [[ ${RYOKU_LEDS_DISABLE:-0} == 1 ]] && exit 0
     apply_color "$(led_color)"
     ;;
   color)
