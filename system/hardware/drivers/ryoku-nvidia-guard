@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+#
+# ryoku-nvidia-guard: keep the NVIDIA initramfs in step, and break the SDDM
+# login loop.
+#
+# The login loop: system/hardware/drivers/nvidia.sh blacklists nouveau and forces
+# NVIDIA DRM modeset so the two drivers can't race for the card at boot. That is
+# correct while an nvidia module exists -- but the -dkms branches (a custom
+# kernel, or a pre-Turing/Kepler card on nvidia-580xx/470xx-dkms) rebuild the
+# module on every kernel update, and when that build fails the NEW kernel has no
+# nvidia module while nouveau is still blacklisted. The card then has no driver
+# at all: the box falls back to simpledrm/efifb, which is enough for the SDDM
+# greeter to draw but not for Hyprland (it needs a real DRM/GBM device), so the
+# Wayland session dies the instant it starts and SDDM drops back to the greeter --
+# password in, greeter again, forever.
+#
+# `ryoku update` heals this after the fact (ryoku doctor, reconcileNvidiaModeset),
+# but a plain `pacman -Syu`/`yay` kernel update -- the common path -- never runs
+# doctor. This guard runs FROM the pacman hook nvidia.sh installs, on every kernel
+# or NVIDIA-driver transaction, so the same heal happens in the transaction that
+# would otherwise leave the box login-looping: if nouveau is blacklisted with no
+# nvidia module for any installed kernel, it restores nouveau (drops the stale
+# /etc/modprobe.d + mkinitcpio drop-ins) so a real driver brings up the display.
+# It also rebuilds the initramfs when the module changed, the hook's original job.
+#
+# Self-gates on non-NVIDIA boxes and no-ops during an install (the backend defers
+# the initramfs to its bootloader step). Idempotent; safe to run by hand.
+
+set -euo pipefail
+
+# Test seams: point the paths at a fixture and stub pacman/modinfo/mkinitcpio on
+# PATH. Production defaults are the real system paths.
+: "${RYOKU_MODPROBE_CONF:=/etc/modprobe.d/nvidia.conf}"
+: "${RYOKU_MKINITCPIO_CONF:=/etc/mkinitcpio.conf.d/nvidia.conf}"
+: "${RYOKU_HOOKS_DIR:=/etc/pacman.d/hooks}"
+: "${RYOKU_MODULES_DIR:=/usr/lib/modules}"
+: "${RYOKU_DRYRUN:=0}"
+
+run() {
+  if [[ $RYOKU_DRYRUN == 1 ]]; then
+    printf 'DRYRUN: %s\n' "$*"
+    return 0
+  fi
+  "$@"
+}
+
+# Install in progress: ryoku_hooks_defer_mkinitcpio (installation/backend) masks
+# the kernel's mkinitcpio hook and parks the original at *.ryoku-off so the
+# initramfs is built once, in the bootloader step. Don't fight that -- nvidia.sh
+# writes the config and the bootloader step bakes it. The marker exists only
+# inside that window.
+[[ -e "$RYOKU_HOOKS_DIR/90-mkinitcpio-install.hook.ryoku-off" ]] && exit 0
+
+# NeedsTargets feeds the changed packages/paths on stdin (one per line). A manual
+# run has none: treat that as "reconcile and rebuild".
+targets=()
+[[ -t 0 ]] || mapfile -t targets
+driver_changed=0 kernel_changed=0
+if (( ${#targets[@]} )); then
+  for t in "${targets[@]}"; do
+    case $t in
+      usr/lib/modules/*/vmlinuz) kernel_changed=1 ;;
+      nvidia-utils | lib32-nvidia-utils | libva-nvidia-driver) driver_changed=1 ;;
+      nvidia | nvidia-open | nvidia-dkms | nvidia-open-dkms | nvidia-lts | nvidia-open-lts) driver_changed=1 ;;
+      nvidia-*-dkms | nvidia-*-utils | lib32-nvidia-*) driver_changed=1 ;;
+      linux-*-nvidia | linux-*-nvidia-open) driver_changed=1 ;;
+    esac
+  done
+else
+  driver_changed=1
+fi
+
+# An nvidia kernel-module package (mirrors nvidia.sh have_module_pkg, plus the
+# AUR legacy 580xx/470xx branches). nvidia-utils userspace alone does NOT count:
+# with no module to load, touching the initramfs would only break it.
+nvidia_module_pkg() {
+  pacman -Qq 2>/dev/null \
+    | grep -qE '^(nvidia(-open)?(-dkms|-lts)?|nvidia-[0-9]+xx-dkms|linux-.*-nvidia(-open)?)$'
+}
+
+# A DKMS nvidia package: these rebuild per kernel, so a kernel update must
+# re-bake the initramfs to carry the just-built module (the dkms and mkinitcpio
+# pacman hooks don't order against each other reliably).
+nvidia_dkms_pkg() {
+  pacman -Qq 2>/dev/null | grep -qE '^(nvidia(-open)?-dkms|nvidia-[0-9]+xx-dkms)$'
+}
+
+nouveau_blacklisted() {
+  [[ -f $RYOKU_MODPROBE_CONF ]] \
+    && grep -qE '^[[:space:]]*blacklist[[:space:]]+nouveau([[:space:]]|$)' "$RYOKU_MODPROBE_CONF"
+}
+
+# Is the nvidia module available for ANY installed kernel? modinfo -k reads the
+# per-kernel module tree, the same probe nvidia.sh gates the blacklist on.
+nvidia_module_present() {
+  local d kv
+  for d in "$RYOKU_MODULES_DIR"/*/; do
+    [[ -d $d ]] || continue
+    kv=${d%/}; kv=${kv##*/}
+    modinfo -k "$kv" nvidia >/dev/null 2>&1 && return 0
+  done
+  return 1
+}
+
+rebuild_initramfs() {
+  if command -v limine-mkinitcpio >/dev/null 2>&1; then
+    run limine-mkinitcpio
+  elif command -v mkinitcpio >/dev/null 2>&1; then
+    run mkinitcpio -P
+  elif command -v dracut-rebuild >/dev/null 2>&1; then
+    run dracut-rebuild
+  elif command -v dracut >/dev/null 2>&1; then
+    run dracut --regenerate-all --force
+  fi
+}
+
+# Nothing NVIDIA to manage.
+nvidia_module_pkg || nouveau_blacklisted || exit 0
+
+healed=0
+if nouveau_blacklisted && ! nvidia_module_present; then
+  echo "ryoku-nvidia-guard: nouveau is blacklisted but no nvidia module exists for any installed kernel; restoring nouveau so the display comes up (breaks the SDDM login loop). Reinstall a matching driver, then 'ryoku doctor' switches back."
+  run rm -f "$RYOKU_MODPROBE_CONF" "$RYOKU_MKINITCPIO_CONF"
+  healed=1
+fi
+
+# Rebuild when the baked module could be stale: after a heal, after a driver
+# change (the initramfs holds the old .ko), or after a kernel change on a DKMS
+# box (the fresh module must reach the new kernel's image). A plain kernel bump
+# on a prebuilt box is left to the kernel's own mkinitcpio hook.
+dkms_box=0
+if (( kernel_changed )) && nvidia_dkms_pkg; then dkms_box=1; fi
+if (( healed || driver_changed || dkms_box )); then
+  rebuild_initramfs
+fi

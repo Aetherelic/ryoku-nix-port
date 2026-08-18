@@ -231,3 +231,65 @@ func rebuildInitramfs() error {
 	}
 	return sys.Run("sudo", "mkinitcpio", "-P")
 }
+
+// ---- reconciler: NVIDIA update guard hook ------------------------------------
+
+// nvidiaGuardHookPath / nvidiaGuardHook: the pacman hook that runs
+// ryoku-nvidia-guard after every kernel or NVIDIA-driver transaction. Mirrors
+// system/hardware/drivers/nvidia.sh verbatim so a doctored box matches a fresh
+// install. Its job is the SDDM login loop: a -dkms module that fails to rebuild
+// on a kernel update leaves nouveau blacklisted with no nvidia module, so no
+// driver binds the card and the Wayland session cannot start. `ryoku update`
+// heals that after the fact, but a plain `pacman -Syu` never runs doctor -- this
+// hook makes the guard run in that transaction instead.
+const nvidiaGuardHookPath = "/etc/pacman.d/hooks/ryoku-nvidia.hook"
+
+const nvidiaGuardHook = `[Trigger]
+Operation=Install
+Operation=Upgrade
+Operation=Remove
+Type=Path
+Target=usr/lib/modules/*/vmlinuz
+
+[Trigger]
+Operation=Install
+Operation=Upgrade
+Operation=Remove
+Type=Package
+Target=nvidia*
+Target=lib32-nvidia*
+Target=libva-nvidia-driver
+Target=linux-*-nvidia*
+
+[Action]
+Description=Ryoku: reconciling NVIDIA modules and the initramfs (guards the login loop)...
+When=PostTransaction
+NeedsTargets
+Exec=/usr/bin/ryoku-nvidia-guard
+`
+
+// nvidiaGuardHookOK: is the installed hook already the canonical content? pure,
+// so the idempotency (doctor stays quiet on a healthy box) is unit-testable.
+// Trailing-whitespace tolerant: readFileSafe returns an error string when the
+// file is absent, which never matches.
+func nvidiaGuardHookOK(got string) bool {
+	return strings.TrimSpace(got) == strings.TrimSpace(nvidiaGuardHook)
+}
+
+func reconcileNvidiaGuardHook(checkOnly bool) recResult {
+	if !nvidiaDriverActive() {
+		return okRes("no proprietary NVIDIA driver in use")
+	}
+	if nvidiaGuardHookOK(readFileSafe(nvidiaGuardHookPath)) {
+		return okRes("NVIDIA update guard hook in place")
+	}
+	if checkOnly {
+		return wouldRes("the NVIDIA update guard pacman hook is missing or stale; a failed DKMS rebuild on a kernel update could strand the box at the SDDM login (the login loop)").
+			withFix("ryoku doctor  (installs /etc/pacman.d/hooks/ryoku-nvidia.hook)")
+	}
+	if err := writeRootFile(nvidiaGuardHookPath, nvidiaGuardHook, "0644"); err != nil {
+		return failRes("could not write %s: %v", nvidiaGuardHookPath, err).
+			withFix("re-run with sudo access")
+	}
+	return fixedRes("installed the NVIDIA update guard hook so a failed DKMS rebuild can't strand the login")
+}

@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Added
+- `drivers/ryoku-nvidia-guard` + `drivers/nvidia.sh`: end the SDDM login loop on
+  NVIDIA. nvidia.sh blacklists nouveau and forces DRM modeset while an nvidia
+  module exists, but the `-dkms` branches (a custom kernel, or a pre-Turing/Kepler
+  card on 580xx/470xx-dkms) rebuild per kernel; a failed rebuild left nouveau
+  blacklisted with no nvidia module, so no driver bound the card -- the greeter
+  drew on simpledrm but Hyprland could not, and SDDM looped the login. The new
+  guard runs from nvidia.sh's pacman hook, which now also fires on kernel updates
+  (a `usr/lib/modules/*/vmlinuz` trigger + `NeedsTargets`): when it finds that
+  state it restores nouveau and rebuilds the initramfs, otherwise it just keeps
+  the image in step with a driver update, and it no-ops on a non-NVIDIA box or
+  mid-install. `ryoku doctor` writes the same hook onto boxes installed before it
+  existed. Ships to `/usr/bin` via ryoku-desktop; covered by
+  `tests/nvidia-guard.sh`.
 - Battery-aware idle: `power/ryoku-idle` gains `on-battery`/`on-ac` (exit-status
   guards read the `/sys/class/power_supply` mains state), and `hypridle.conf` now
   pairs a battery-aggressive listener with an AC-relaxed one at each stage, gated

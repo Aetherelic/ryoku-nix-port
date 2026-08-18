@@ -151,6 +151,7 @@ func reconcilers() []reconciler {
 		{"display backlight", reconcileBacklight},
 		{"display resolution", reconcileDisplayModes},
 		{"NVIDIA boot reliability", reconcileNvidiaModeset},
+		{"NVIDIA update guard hook", reconcileNvidiaGuardHook},
 		{"pending config (.pacnew)", reconcilePacnew},
 		{"orphaned packages", reconcileOrphans},
 	}

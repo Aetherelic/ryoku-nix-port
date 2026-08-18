@@ -1,0 +1,39 @@
+name: NVIDIA guard
+
+# guards ryoku-nvidia-guard, the heal that breaks the SDDM login loop: nouveau
+# blacklisted with no nvidia module for any installed kernel (a failed DKMS
+# rebuild on a kernel update) must restore nouveau, and the guard must stay a
+# no-op on a healthy box, a non-NVIDIA box, or mid-install. Stubbed pacman /
+# modinfo / mkinitcpio -> no GPU, no root needed. tests/nvidia-guard.sh.
+
+on:
+  pull_request:
+    paths:
+      - 'system/hardware/drivers/ryoku-nvidia-guard'
+      - 'system/hardware/drivers/nvidia.sh'
+      - 'tests/nvidia-guard.sh'
+      - '.github/workflows/nvidia-guard.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'system/hardware/drivers/ryoku-nvidia-guard'
+      - 'system/hardware/drivers/nvidia.sh'
+      - 'tests/nvidia-guard.sh'
+      - '.github/workflows/nvidia-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nvidia-guard:
+    name: nvidia-guard heal and no-op
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run nvidia-guard test
+        shell: bash
+        run: bash tests/nvidia-guard.sh

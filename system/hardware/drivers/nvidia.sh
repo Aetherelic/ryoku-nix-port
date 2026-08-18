@@ -204,32 +204,40 @@ if command -v systemctl >/dev/null 2>&1; then
   run "${PRIV[@]}" systemctl enable nvidia-suspend.service nvidia-hibernate.service nvidia-resume.service || true
 fi
 
-# keep the initramfs in step with the NVIDIA modules on driver-only updates,
-# else the old module stays baked into the image while userspace moves on,
-# version mismatch, GPU won't init. rebuild via limine-mkinitcpio (the UKI
-# path) when present, else plain mkinitcpio.
-echo "nvidia.sh: installing initramfs-rebuild pacman hook"
+# keep the initramfs in step with the NVIDIA modules AND break the SDDM login
+# loop on a later kernel update. ryoku-nvidia-guard (shipped to /usr/bin by
+# ryoku-desktop) runs after every kernel or NVIDIA-driver transaction: a -dkms
+# module that fails to rebuild on a new kernel would otherwise leave nouveau
+# blacklisted with no nvidia module -- no driver binds the card, the greeter
+# draws on simpledrm but Hyprland can't, and SDDM loops the login. The guard
+# restores nouveau in that case; a plain driver update just gets the rebuild.
+# `ryoku doctor` writes the same hook onto boxes installed before it existed.
+# Path trigger = any kernel; glob package targets = every NVIDIA branch (open,
+# dkms, legacy 580xx/470xx, prebuilt linux-*-nvidia). NeedsTargets feeds the
+# guard the changed names so it only rebuilds when the baked module can be stale.
+echo "nvidia.sh: installing the NVIDIA initramfs + login-loop guard hook"
 run "${PRIV[@]}" mkdir -p /etc/pacman.d/hooks
-# prebuilt module packages (linux-cachyos-nvidia-open etc.) join the trigger
-# list; the Exec probes for the generator so dracut boxes work too, and no
-# Depends=mkinitcpio, which would make pacman skip the hook there.
-{
-  cat <<'EOF'
+write_root /etc/pacman.d/hooks/ryoku-nvidia.hook <<'EOF'
+[Trigger]
+Operation=Install
+Operation=Upgrade
+Operation=Remove
+Type=Path
+Target=usr/lib/modules/*/vmlinuz
+
 [Trigger]
 Operation=Install
 Operation=Upgrade
 Operation=Remove
 Type=Package
-Target=nvidia-open-dkms
-Target=nvidia-dkms
-Target=nvidia-utils
-EOF
-  pacman -Qq 2>/dev/null | grep -E '^linux-.*-nvidia(-open)?$' | sed 's/^/Target=/'
-  cat <<'EOF'
+Target=nvidia*
+Target=lib32-nvidia*
+Target=libva-nvidia-driver
+Target=linux-*-nvidia*
 
 [Action]
-Description=Rebuilding the initramfs for the updated NVIDIA modules...
+Description=Ryoku: reconciling NVIDIA modules and the initramfs (guards the login loop)...
 When=PostTransaction
-Exec=/bin/sh -c 'if command -v limine-mkinitcpio >/dev/null 2>&1; then limine-mkinitcpio; elif command -v mkinitcpio >/dev/null 2>&1; then mkinitcpio -P; elif command -v dracut-rebuild >/dev/null 2>&1; then dracut-rebuild; elif command -v dracut >/dev/null 2>&1; then dracut --regenerate-all --force; fi'
+NeedsTargets
+Exec=/usr/bin/ryoku-nvidia-guard
 EOF
-} | write_root /etc/pacman.d/hooks/ryoku-nvidia.hook

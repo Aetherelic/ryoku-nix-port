@@ -23,3 +23,23 @@ func TestNvidiaConfigOK(t *testing.T) {
 		}
 	}
 }
+
+// idempotency lock on the guard-hook reconciler: the canonical hook must read
+// back ok (else doctor rewrites it every run), a stale/absent one must not.
+func TestNvidiaGuardHookOK(t *testing.T) {
+	cases := []struct {
+		name string
+		got  string
+		want bool
+	}{
+		{"canonical hook the reconciler writes", nvidiaGuardHook, true},
+		{"canonical hook with a trailing newline", nvidiaGuardHook + "\n", true},
+		{"pre-fix hook: blind rebuild, no kernel trigger", "[Trigger]\nType=Package\nTarget=nvidia-utils\n[Action]\nExec=/bin/sh -c 'mkinitcpio -P'\n", false},
+		{"missing hook (readFileSafe error string)", "(open /etc/pacman.d/hooks/ryoku-nvidia.hook: no such file or directory)", false},
+	}
+	for _, c := range cases {
+		if got := nvidiaGuardHookOK(c.got); got != c.want {
+			t.Errorf("%s: nvidiaGuardHookOK(...) = %v, want %v", c.name, got, c.want)
+		}
+	}
+}

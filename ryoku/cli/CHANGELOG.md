@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Fixed
+- **`ryoku doctor` installs the NVIDIA login-loop guard hook on existing boxes.**
+  A `-dkms` module that fails to rebuild on a kernel update leaves nouveau
+  blacklisted with no nvidia module -- no driver binds the card, so the greeter
+  draws but Hyprland cannot and SDDM loops the login. `ryoku update` already heals
+  that, but a plain `pacman -Syu` never runs doctor; the new
+  `reconcileNvidiaGuardHook` writes `/etc/pacman.d/hooks/ryoku-nvidia.hook` (the
+  same one `system/hardware/drivers/nvidia.sh` installs) so `ryoku-nvidia-guard`
+  runs in that transaction and restores nouveau before the next boot loops
+  (`internal/doctor/reconcile_hardware.go`).
 - **`ryoku update` no longer wedges on a `ryoku-dns`/`ryoku-wifi-powersave` file
   conflict.** `deploy.sh` seeds those privileged helpers and their polkit rules
   into `/usr/bin` and `/usr/share/polkit-1/rules.d` unowned; once `ryoku-desktop`
