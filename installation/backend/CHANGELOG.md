@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+- **The offline install lays the base system even when a desktop package is bad.**
+  `lib/offline.sh` folded the whole desktop set (`ryoku-desktop`, whose umbrella
+  pulls the large `ryomotion`) into the base pacstrap, so one corrupt or
+  conflicting desktop package aborted the entire transaction as "could not lay the
+  base system" and bricked the install. The desktop is now staged the way omarchy
+  stages its install: pacstrap lays the base, then `lib/deploy.sh` installs the
+  desktop set as a separate chroot transaction from the same baked `[offline]`
+  repo (the path the per-hardware driver step already uses). The base always comes
+  up; a desktop-package failure is isolated, named, and recoverable with
+  `ryoku update`. `tests/install-offline.sh` now pins the staged behavior.
+
 ### Added
 - New users join the `video` and `input` groups (`lib/chroot.sh`): `video` for
   backlight write access, `input` for game controllers.

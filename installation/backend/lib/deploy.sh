@@ -121,21 +121,35 @@ ryoku_repo_keyring() {
 # loudly instead of booting a half-configured box.
 ryoku_deploy_packages() {
   local -a pkgs=(ryoku-keyring ryoku-desktop)
+  local offline=0
+  if [[ ${RYOKU_ONLINE:-1} != 1 ]] && declare -f ryoku_offline_active >/dev/null && ryoku_offline_active; then
+    offline=1
+  fi
 
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
-    log "DRYRUN: arch-chroot /mnt pacman -Sy --noprogressbar"
-    log "DRYRUN: arch-chroot /mnt pacman -S --noconfirm --needed --noprogressbar ${pkgs[*]} (one retry on a network flake)"
-    log "DRYRUN: would warn if $RYOKU_REPO/.payload version differs from pacman -Si ryoku-desktop"
+    if (( offline )); then
+      log "DRYRUN: arch-chroot /mnt pacman -S --noconfirm --needed --noprogressbar ${pkgs[*]} (from the baked [offline] repo, no network)"
+    else
+      log "DRYRUN: arch-chroot /mnt pacman -Sy --noprogressbar"
+      log "DRYRUN: arch-chroot /mnt pacman -S --noconfirm --needed --noprogressbar ${pkgs[*]} (one retry on a network flake)"
+      log "DRYRUN: would warn if $RYOKU_REPO/.payload version differs from pacman -Si ryoku-desktop"
+    fi
     return 0
   fi
+
   if [[ ${RYOKU_ONLINE:-1} != 1 ]]; then
-    # offline: the desktop set was folded into the pacstrap transaction and
-    # installed from the baked [offline] repo (lib/offline.sh), so it is already
-    # present. confirm it, and skip the network fetch. only a no-repo offline
-    # install (the old degraded fallback) has no desktop to configure.
-    if declare -f ryoku_offline_active >/dev/null && ryoku_offline_active \
-       && arch-chroot /mnt pacman -Qq ryoku-desktop >/dev/null 2>&1; then
-      log "packages: offline install, the Ryoku desktop set is already installed from the baked [offline] repo"
+    if (( offline )); then
+      # offline: install the desktop set from the baked [offline] repo, bound into
+      # the chroot by ryoku_offline_chroot_on with its db already synced by
+      # pacstrap. Staged OUT of the base pacstrap so a bad desktop package fails
+      # HERE, with a bootable base already laid, not as a whole "could not lay the
+      # base system" abort. No -Sy (an unsynced online repo would fail it);
+      # SigLevel=Never on [offline] needs no key. Same chroot-from-[offline] path
+      # the per-hardware driver step already uses.
+      log "packages: installing the Ryoku desktop set from the baked [offline] repo: ${pkgs[*]}"
+      if ! arch-chroot /mnt pacman -S --noconfirm --needed --noprogressbar "${pkgs[@]}"; then
+        die "the offline install laid the base system but could not install the Ryoku desktop set (${pkgs[*]}) from the ISO's baked [offline] repo. The base is bootable; check /var/log/ryoku-install.log for the failing package (a corrupt or conflicting package in the baked repo), then run 'ryoku update' once online."
+      fi
       return 0
     fi
     log "packages: offline install with no baked desktop set; skipping (run 'ryoku update' once online)"

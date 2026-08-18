@@ -68,13 +68,17 @@ EOF
   log "offline: pacstrap installs from the baked [offline] repo at $RYOKU_OFFLINE_REPO"
 }
 
-# ryoku_offline_pacstrap_extra: packages folded into the offline pacstrap set.
-# the desktop umbrella pulls every monorepo component + its deps, all present in
-# the baked repo, so the whole system installs in this one transaction. prints
-# nothing (a no-op append) on an online install.
+# ryoku_offline_pacstrap_extra: a no-op hook, kept so lib/pacstrap.sh's call site
+# needs no change. The desktop set used to be folded into the offline pacstrap
+# here, but that put the whole desktop (its umbrella pulls ~everything, including
+# the large ryomotion package) into the base transaction: one corrupt or
+# conflicting desktop package then aborted the entire pacstrap as "could not lay
+# the base system", bricking the install. The desktop now installs as a SEPARATE
+# chroot transaction from the same [offline] repo (lib/deploy.sh), so the base
+# always lays and a desktop-package failure is isolated and recoverable. omarchy
+# stages its install the same way: a base set first, then the rest.
 ryoku_offline_pacstrap_extra() {
-  ryoku_offline_active || return 0
-  printf '%s\n' ryoku-keyring ryoku-desktop
+  return 0
 }
 
 # ryoku_offline_chroot_on: make the baked repo resolvable INSIDE the target

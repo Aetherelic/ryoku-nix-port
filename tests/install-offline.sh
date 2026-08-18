@@ -75,18 +75,25 @@ run_offline "$baked" 0
 grep -q "offline: would write" <<<"$out" \
   || fail "offline install did not point pacstrap at the baked repo: $out"
 
-# ---- 2. the desktop is in the offline transaction, not a later online pass ----
-# ryoku-desktop pulls every shipped component, so if it is not folded into the
-# offline pacstrap set the machine boots without a desktop.
+# ---- 2. the desktop installs from the baked repo, staged AFTER the base --------
+# ryoku-desktop pulls every shipped component. It is no longer folded into the
+# base pacstrap (one bad desktop package there aborted the whole "lay the base
+# system"); it installs as a separate chroot transaction from the SAME [offline]
+# repo, so the base always lays and the desktop still ships, all with no network.
 # both vars are read by the sourced offline.sh, which shellcheck does not follow.
 # shellcheck disable=SC2034
 # shellcheck source=/dev/null
 ( set +u; RYOKU_ONLINE=0 RYOKU_OFFLINE_REPO="$baked"
   source "$root/installation/backend/lib/offline.sh"
   extra="$(ryoku_offline_pacstrap_extra | tr '\n' ' ')"
-  [[ $extra == *ryoku-desktop* && $extra == *ryoku-keyring* ]] \
-    || { echo "FAIL: offline pacstrap set lacks the desktop: '$extra'" >&2; exit 1; }
+  [[ $extra != *ryoku-desktop* ]] \
+    || { echo "FAIL: desktop is still folded into the base pacstrap: '$extra'" >&2; exit 1; }
 ) || exit 1
+# the section-1 run must still install the desktop set, from [offline], staged.
+grep -qF "the baked [offline] repo" <<<"$out" \
+  || fail "offline install did not stage the desktop set from the baked repo: $out"
+grep -qF "ryoku-desktop" <<<"$out" \
+  || fail "offline install did not install ryoku-desktop: $out"
 
 # ---- 3. an unusable repo is refused BEFORE the disk is touched ---------------
 # A bake that stopped before repo-add leaves the directory. That used to look
