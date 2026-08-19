@@ -102,6 +102,14 @@ Item {
             resetPacmanTravel()
             return
         }
+        // Power Saver / reduce-motion: snap to the focused cell like the rest of
+        // the shell (Motion collapses every animation to a cut). Running the travel
+        // state machine while the compositor is throttled stranded the runner and
+        // its eat state, an artifact that only cleared on an unrelated relayout.
+        if (Motion.reduce) {
+            resetPacmanTravel()
+            return
+        }
         // Freshly rebound Row delegates can sit at x=0 until the next polish
         // pass; resolve the positioner before measuring so a real focus change
         // is not mistaken for a zero-distance transition.
@@ -147,6 +155,13 @@ Item {
     Connections {
         target: root
         function onWorkspaceStyleChanged() { wsWidget.resetPacmanTravel() }
+    }
+
+    // Entering Power Saver mid-travel clears any in-flight runner, so a throttled
+    // frame cannot strand it. This is what toggling the power profile did by hand.
+    Connections {
+        target: Motion
+        function onReduceChanged() { if (Motion.reduce) wsWidget.resetPacmanTravel() }
     }
 
     // right-click anywhere opens the workspace panel

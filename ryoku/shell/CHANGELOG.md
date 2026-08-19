@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed
+- **The QS Bar pacman workspaces no longer smear in Power Saver.** The pacman
+  `travel` animation (the runner that chomps between cells) ran on every
+  workspace switch regardless of the reduce-motion policy Power Saver sets,
+  unlike every other shell animation. With the compositor throttled under Saver,
+  a switch could strand the runner and its eat state until an unrelated relayout
+  (toggling the power profile cleared it by hand). It now snaps instantly under
+  reduce-motion and resets any in-flight travel the moment Saver engages, so the
+  runner can never be stranded
+  (`modules/bar/barstyles/qsbar/modules/WorkspaceWidget.qml`).
+
 ### Added
 - **ryoshot pins a shot to the desktop.** Ctrl+P (or the toolbar pin) renders the
   capture, drops it in `$XDG_RUNTIME_DIR/ryoku/pins/` and hands it to `ryopin`, a
