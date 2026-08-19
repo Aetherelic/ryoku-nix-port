@@ -36,6 +36,10 @@ OVMF_VARS = next((p for p in (
     "/usr/share/OVMF/x64/OVMF_VARS.fd",
 ) if os.path.exists(p)), None)
 
+# where a shipped ISO bakes the package closure (iso/build.sh); the TUI keys its
+# RYOKU_ONLINE=0 decision off the same path (tui/system.go offlineRepoPath).
+OFFLINE_REPO = "/usr/share/ryoku/offline/repo"
+
 # the installed tree a real user must end up with: the package, the materialized
 # config (including the files that used to reach no one), the bootloader, and the
 # enabled greeter. checked by mounting the target root read-only after install.
@@ -161,14 +165,27 @@ def main():
                f"RYOKU_REPO=/usr/share/ryoku RYOKU_KEYMAP=it RYOKU_XKB_LAYOUT=it RYOKU_PASSWORD_HASH='{pwhash}'")
         if args.dry:
             env += " RYOKU_DRYRUN=1"
-        env += repo_env
+        # Take the SAME package source the TUI would (system.go installEnv): a
+        # shipped ISO bakes the whole closure, so the TUI always sends
+        # RYOKU_ONLINE=0 and every real install is the offline path. Running the
+        # backend without it exercised an online pacstrap no ISO user reaches, and
+        # one that cannot work by construction: base.packages carries packages that
+        # live only in [ryoku]/[offline], so pacstrap died on "target not found".
+        baked = "R0E" in sh(
+            child, f"ls {OFFLINE_REPO}/offline.db >/dev/null 2>&1; echo R$?E")
+        if baked:
+            env += f" RYOKU_ONLINE=0 RYOKU_OFFLINE_REPO={OFFLINE_REPO}"
+            print("install-vm: offline path (the ISO's baked repo), as the TUI runs it")
+        else:
+            env += repo_env
+            print("install-vm: online path (no baked repo on this ISO)")
         # skip the optional AUR builds (they compile from source for minutes and
         # are best-effort): RYOKU_SKIP_AUR covers a current ISO, emptying the set
         # also covers an older backend that predates the flag.
         sh(child, ": > /usr/share/ryoku/system/packages/aur.packages")
-        # capability probe, BEFORE the install: only an ISO whose baked backend
-        # predates RYOKU_REPO_SERVER cannot be pointed at the locally served repo,
-        # and only that ISO earns a skip. This used to be inferred afterwards from
+        # capability probe, BEFORE the install, and only meaningful on the online
+        # path: an ISO whose backend predates RYOKU_REPO_SERVER cannot be pointed at
+        # the locally served repo. This used to be inferred afterwards from
         # "repo.ryoku.dev" appearing anywhere in the serial log, which every real
         # failure also does (the backend prints that URL in its error text), so a
         # broken install reported success and the log was never even kept.
@@ -178,7 +195,7 @@ def main():
         i = child.expect([r"@@RYOKU_DONE", r"BACKEND_EXIT:[1-9]", pexpect.TIMEOUT],
                          timeout=args.timeout)
         if i != 0:
-            if args.repo_dir and stale_iso:
+            if args.repo_dir and stale_iso and not baked:
                 print("::warning::this ISO's backend predates RYOKU_REPO_SERVER; it "
                       "tried the public repo (Cloudflare 403s CI runners). Rebuild "
                       "the ISO for a full VM install -- skipping this run.",
