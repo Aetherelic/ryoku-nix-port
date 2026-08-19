@@ -177,16 +177,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # bounded + retried: an apt mirror stall held this step for thirty minutes
+      # and cancelled the job, so the loop-device tests never ran.
       - name: Install disk tools
         shell: bash
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          sudo apt-get update
           # gdisk -> sgdisk, parted -> parted + partprobe, dosfstools -> mkfs.vfat;
           # btrfs-progs -> mkfs.btrfs/btrfs; ntfs-3g on Debian/Ubuntu bundles
           # ntfsresize + mkntfs (Arch splits those into ntfsprogs); jq for sfdisk
           # --json. losetup/blkid/truncate/udevadm/e2fsprogs ship with the base image.
-          sudo apt-get install -y --no-install-recommends gdisk parted dosfstools btrfs-progs ntfs-3g jq
+          pkgs="gdisk parted dosfstools btrfs-progs ntfs-3g jq"
+          for attempt in 1 2; do
+            if sudo apt-get update -o Acquire::Retries=3 \
+              && sudo apt-get install -y --no-install-recommends \
+                   -o Acquire::Retries=3 $pkgs; then
+              exit 0
+            fi
+            echo "::warning::apt attempt $attempt failed; retrying"
+            sleep 15
+          done
+          echo "::error::could not install the disk tools"
+          exit 1
 
       - name: Partition alongside a fake Windows layout on a loop device
         shell: bash
@@ -246,12 +261,25 @@ jobs:
       - name: Install QEMU, OVMF, and Limine
         if: steps.kvm.outputs.have_kvm == '1'
         shell: bash
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          sudo apt-get update
           # qemu-system-x86 -> qemu-system-x86_64; ovmf -> OVMF firmware; limine ->
           # /usr/share/limine/BOOTX64.EFI; gdisk/dosfstools for the fixture disk.
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf limine gdisk dosfstools
+          pkgs="qemu-system-x86 ovmf limine gdisk dosfstools"
+          for attempt in 1 2; do
+            if sudo apt-get update -o Acquire::Retries=3 \
+              && sudo apt-get install -y --no-install-recommends \
+                   -o Acquire::Retries=3 $pkgs; then
+              exit 0
+            fi
+            echo "::warning::apt attempt $attempt failed; retrying"
+            sleep 15
+          done
+          echo "::error::could not install the boot-chain test dependencies"
+          exit 1
 
       - name: Boot the generated limine.conf under QEMU+OVMF
         if: steps.kvm.outputs.have_kvm == '1'
