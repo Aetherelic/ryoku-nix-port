@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **QS Bar "True blur" (Bar Studio > Frost).** A new toggle gives the frosted bar
+  a real compositor blur, not just transparency. The bar surface now carries a
+  stable `ryoku-qsbar` layer namespace (`modules/bar/barstyles/qsbar/BarSlot.qml`)
+  and `hyprland/modules/decoration.lua` blurs it, with `ignore_alpha` so only the
+  frosted strip frosts and never the clear rest or the island gaps, gated on the
+  toggle and Power Saver's no-blur like every other blur. The `barFrostBlur` key
+  rides the qsbar map in shell.json (`modules/bar/barstyles/qsbar/Theme.qml`);
+  Bar Studio runs `hyprctl reload` so it applies live.
+
 ### Fixed
 - **The QS Bar pacman workspaces no longer smear in Power Saver.** The pacman
   `travel` animation (the runner that chomps between cells) ran on every

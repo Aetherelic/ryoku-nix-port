@@ -14,6 +14,10 @@
   (`quickshell/Hub.qml`).
 
 ### Added
+- **Bar Studio: a "True blur" toggle under Frost.** Enabled only when Frost is on,
+  it turns on the QS Bar's real compositor blur (the `barFrostBlur` qsbar key) and
+  runs `hyprctl reload` so it applies live; turning Frost off drops it
+  (`pages/BarStudioPage.qml`).
 - **Import an existing setup (drop-and-go migration).** A new Advanced, Tools
   page, "Import config", brings a config from another Hyprland box or distro onto
   Ryoku: point at a folder, an existing `~/.config`, or a git URL, and it scans

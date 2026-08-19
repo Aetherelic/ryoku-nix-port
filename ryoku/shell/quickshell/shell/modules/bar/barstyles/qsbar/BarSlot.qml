@@ -80,6 +80,8 @@ PanelWindow {
     }
     // grab keyboard while unlocked so ESC can exit
     WlrLayershell.keyboardFocus: barSlot.root.barUnlocked ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // Stable namespace so decoration.lua can blur only the bar (true-blur toggle).
+    WlrLayershell.namespace: "ryoku-qsbar"
 
     HoverHandler {
         onHoveredChanged: if (hovered && !barSlot.root.anyPopupVisible) barSlot.root.activatePopupScreen(barSlot.screen)

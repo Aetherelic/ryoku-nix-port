@@ -2212,6 +2212,7 @@ Item {
     // Depth is the pill/panel/tooltip shadow; the bar shell keeps its own either way.
     property bool barShadowEnabled: false
     property bool barFrostEnabled: false
+    property bool barFrostBlur: false
 
     // Gaps hold the shell off each output edge. Default top 3 matches the
     // reference's island offset.
@@ -2544,6 +2545,7 @@ Item {
     onModBatteryChanged:       if (_widgetsLoaded) saveWidgets()
     onBarShadowEnabledChanged: if (_widgetsLoaded) saveWidgets()
     onBarFrostEnabledChanged:  if (_widgetsLoaded) saveWidgets()
+    onBarFrostBlurChanged:     if (_widgetsLoaded) saveWidgets()
     onBarGapTopChanged:        if (_widgetsLoaded) saveWidgets()
     onBarGapBottomChanged:     if (_widgetsLoaded) saveWidgets()
     onBarGapLeftChanged:       if (_widgetsLoaded) saveWidgets()
@@ -2829,6 +2831,7 @@ Item {
         q.barCornerRadius = barCornerRadius
         q.barShadowEnabled = barShadowEnabled
         q.barFrostEnabled = barFrostEnabled
+        q.barFrostBlur = barFrostBlur
         q.barGapTop = barGapTop
         q.barGapBottom = barGapBottom
         q.barGapLeft = barGapLeft
@@ -2889,6 +2892,7 @@ Item {
         if (q.barCornerRadius !== undefined) barCornerRadius = Math.max(0, Math.min(40, q.barCornerRadius))
         if (q.barShadowEnabled !== undefined) barShadowEnabled = q.barShadowEnabled
         if (q.barFrostEnabled !== undefined) barFrostEnabled = q.barFrostEnabled
+        if (q.barFrostBlur !== undefined) barFrostBlur = q.barFrostBlur
         if (q.barGapTop !== undefined) barGapTop = clampGap(q.barGapTop)
         if (q.barGapBottom !== undefined) barGapBottom = clampGap(q.barGapBottom)
         if (q.barGapLeft !== undefined) barGapLeft = clampGap(q.barGapLeft)

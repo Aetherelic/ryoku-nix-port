@@ -28,6 +28,18 @@ local low_power = perf_flag("lowPowerMode")
 local no_blur   = low_power or perf_flag("disableBlur")
 local no_shadow = low_power or perf_flag("disableShadows")
 
+-- The QS Bar's true-blur toggle lives in shell.json (Bar Studio > Frost), read
+-- the same flat-JSON way as the perf flags. Bar Studio runs `hyprctl reload` on
+-- the toggle so this re-reads live; on login it applies on first parse.
+local function shell_flag(key)
+  local f = io.open(home .. "/.config/ryoku/shell.json", "r")
+  if not f then return false end
+  local s = f:read("*a")
+  f:close()
+  return s:match('"' .. key .. '"%s*:%s*true') ~= nil
+end
+local bar_blur = shell_flag("barFrostEnabled") and shell_flag("barFrostBlur")
+
 hl.config({
   general = {
     gaps_in                 = 12,
@@ -124,6 +136,18 @@ hl.layer_rule({
   match        = { namespace = "^ryoku-wallpaper-picker$" },
   blur         = not no_blur,
   ignore_alpha = 0.05,
+})
+
+-- The QS Bar true-blur toggle (Bar Studio > Frost). The bar is a screen-tall
+-- transparent layer with a frosted strip; ignore_alpha keeps the blur behind the
+-- frosted strip only, never the clear rest or the island gaps (else the whole
+-- rectangle frosts). Gated on the toggle and no_blur, so Power Saver drops it
+-- like every other blur.
+hl.layer_rule({
+  name         = "qsbar-blur",
+  match        = { namespace = "^ryoku-qsbar$" },
+  blur         = bar_blur and not no_blur,
+  ignore_alpha = 0.6,
 })
 
 -- The wallpaper rides the background layer: the awww image daemon and the
