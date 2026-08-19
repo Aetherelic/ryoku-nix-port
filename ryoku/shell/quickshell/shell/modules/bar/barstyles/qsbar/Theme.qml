@@ -2630,8 +2630,17 @@ Item {
     // ids carried while the launcher drew a hardcoded mark. Leaving it out makes
     // every one of those stale records fail validation and land on "ryoku", so an
     // existing desktop keeps its own brand instead of being silently rebranded.
-    readonly property var launcherLogoTextOptions: ["ryoku", "hyprland", "arch", "omacom"]
-    readonly property var launcherLogoIconOptions: ["ryoku", "hyprland", "arch", "grid", "spark", "power", "dragon", "mark", "nix", "branch", "rebel"]
+    readonly property var launcherLogoTextOptions: ["ryoku", "hyprland", "arch", "omacom", "linux", "nixos", "debian", "fedora", "gentoo", "void", "wayland", "sway", "gnome", "dwm"]
+    readonly property var launcherLogoIconOptions: ["ryoku", "hyprland", "arch", "grid", "spark", "power", "dragon", "mark", "nix", "branch", "rebel", "ubuntu", "debian", "fedora", "gentoo", "void", "artix", "manjaro", "suse", "alpine", "endeavour", "garuda", "cachyos", "freebsd", "apple", "raspi", "elementary", "gnome", "alma", "centos", "devuan", "arco", "ferris", "codeberg", "gitea", "tux", "android", "mint", "kali", "popos", "zorin", "plasma", "wayland", "docker", "github", "git", "gitlab", "python", "rust", "go", "node", "react", "vue", "kube", "vim", "neovim", "firefox", "chrome", "java", "js", "ts", "cpp", "ruby", "php", "swift", "kotlin", "lua", "haskell", "blender", "figma", "redis", "postgres", "steam", "spotify", "discord", "telegram", "slack"]
+    // id -> glyph codepoint for every option. The brand/OS/dev marks are real
+    // SpaceMono Nerd Font glyphs (font-logos, devicons, font-awesome), so nothing
+    // is hand-drawn; ryoku stays the CJK 力. The picker and the bar both resolve
+    // through here, so a new entry shows up in both.
+    readonly property var launcherLogoIconCodes: ({
+        "ryoku": 0x529B, "hyprland": 0xF359, "arch": 0xE732, "grid": 0xEEED, "spark": 0xE6A4, "power": 0xF011, "dragon": 0x2EEF, "mark": 0xEE99, "nix": 0xF313, "branch": 0xE666, "rebel": 0xF1D0,
+        "ubuntu": 0xF31B, "debian": 0xF306, "fedora": 0xF30A, "gentoo": 0xF30D, "void": 0xF32E, "artix": 0xF31F, "manjaro": 0xF312, "suse": 0xF314, "alpine": 0xF300, "endeavour": 0xF322, "garuda": 0xF337, "cachyos": 0xF385, "freebsd": 0xF30C, "apple": 0xF302, "raspi": 0xF315, "elementary": 0xF309, "gnome": 0xF361, "alma": 0xF31D, "centos": 0xF304, "devuan": 0xF307, "arco": 0xF346, "ferris": 0xF323, "codeberg": 0xF330, "gitea": 0xF339, "tux": 0xF31A, "android": 0xE70E, "mint": 0xF30E, "kali": 0xF327, "popos": 0xF32A, "zorin": 0xF32F, "plasma": 0xF332, "wayland": 0xF367, "docker": 0xF308,
+        "github": 0xE709, "git": 0xE702, "gitlab": 0xE7EB, "python": 0xE73C, "rust": 0xE7A8, "go": 0xE724, "node": 0xE719, "react": 0xE7BA, "vue": 0xE8DC, "kube": 0xE81D, "vim": 0xE7C5, "neovim": 0xE83A, "firefox": 0xE745, "chrome": 0xE743, "java": 0xE738, "js": 0xE781, "ts": 0xE8CA, "cpp": 0xE7A3, "ruby": 0xE739, "php": 0xE73D, "swift": 0xE755, "kotlin": 0xE81B, "lua": 0xE826, "haskell": 0xE777, "blender": 0xE766, "figma": 0xE7DA, "redis": 0xE76D, "postgres": 0xE76E, "steam": 0xF1B6, "spotify": 0xF1BC, "discord": 0xF1FF, "telegram": 0xF2C6, "slack": 0xF198
+    })
 
     function launcherLogoTextIndex(id) {
         for (var i = 0; i < launcherLogoTextOptions.length; i++)
@@ -2649,18 +2658,8 @@ Item {
     // omarchy's U+E900 needs a font Ryoku doesn't ship, so it's absent here and
     // any stale "omarchy" icon id falls back to ryoku via the validators below.
     function launcherLogoIconGlyph(id) {
-        if (id === "ryoku") return "力"
-        if (id === "hyprland") return String.fromCodePoint(0xF359)
-        if (id === "arch") return String.fromCodePoint(0xE732)
-        if (id === "grid") return String.fromCodePoint(0xEEED)
-        if (id === "spark") return String.fromCodePoint(0xE6A4)
-        if (id === "power") return String.fromCodePoint(0xF011)
-        if (id === "dragon") return String.fromCodePoint(0x2EEF)
-        if (id === "mark") return String.fromCodePoint(0xEE99)
-        if (id === "nix") return String.fromCodePoint(0xF30C)
-        if (id === "branch") return String.fromCodePoint(0xE666)
-        if (id === "rebel") return String.fromCodePoint(0xF1D0)
-        return "力"
+        var c = launcherLogoIconCodes[id]
+        return String.fromCodePoint(c !== undefined ? c : launcherLogoIconCodes["ryoku"])
     }
     function launcherLogoIconFont(id) {
         return id === "ryoku" ? "Noto Sans CJK JP" : mono

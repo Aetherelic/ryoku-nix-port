@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **A big launcher-logo collection.** The bar's logo picker gains 66 brand, OS
+  and dev marks (Ubuntu, Debian, Fedora, Gentoo, Void, NixOS, Tux, Apple,
+  Android, GNOME, Plasma, Python, Rust, Go, Docker, GitHub, Firefox, Neovim,
+  Spotify, Discord, and more) plus ten wordmarks. They are real SpaceMono Nerd
+  Font glyphs (font-logos, devicons, font-awesome), so none is hand-drawn and
+  each is guaranteed to render; the glyph map is now a lookup keyed by option id.
+  The `nix` mark, which pointed at the FreeBSD glyph, now shows the real NixOS
+  snowflake (`modules/bar/barstyles/qsbar/Theme.qml`).
 - **Auto-hide for the qsbar.** A new toggle (the Bars center menu and Bar
   Studio) slides the bar off its edge and reserves no space, so windows reclaim
   the strip; a slow, smooth hover anywhere along the edge reveals it (over the
