@@ -6,6 +6,7 @@ import shell.services as Svc
 Item {
     id: rootMod
     required property var root
+    signal activated()
 
     readonly property date now: clk.date
     readonly property color contentColor: root.widgetContentColor("G8", root.ink)
@@ -44,26 +45,19 @@ Item {
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
-    Process {
-        id: tzRunner
-        command: ["bash", "-c", "kitty true 2>/dev/null"]
-    }
 
     MouseArea {
         id: mouse
         anchors.fill: parent
-        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onEntered: { tip.show(); }
         onExited: { tip.hide(); }
         onClicked: (e) => {
-            if (e.button === Qt.LeftButton) {
-                root.clock12h = !root.clock12h;          // toggle 24h / 12h
-            } else if (e.button === Qt.RightButton) {
-                tip.hide();
-                tzRunner.running = false;                // timezone picker (unchanged)
-                tzRunner.running = true;
-            }
+            tip.hide();
+            if (e.button === Qt.RightButton) root.clock12h = !root.clock12h;
+            else rootMod.activated();
         }
     }
 }

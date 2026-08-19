@@ -2,7 +2,7 @@ AiUsagePanel AiUsagePanel.qml
 BatteryPanel BatteryPanel.qml
 BluetoothPanel BluetoothPanel.qml
 BrightnessPanel BrightnessPanel.qml
-CalendarPopup CalendarPopup.qml
+DashboardPopup DashboardPopup.qml
 CpuPanel CpuPanel.qml
 GpuPanel GpuPanel.qml
 ImageCarouselCarousel ImageCarouselCarousel.qml
@@ -24,5 +24,4 @@ TooltipOverlay TooltipOverlay.qml
 TrayMenu TrayMenu.qml
 TrayPanel TrayPanel.qml
 VolumePanel VolumePanel.qml
-WeatherPanel WeatherPanel.qml
 WorkspacePanel WorkspacePanel.qml

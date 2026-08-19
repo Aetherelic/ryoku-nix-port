@@ -1037,10 +1037,12 @@ PanelWindow {
             readonly property real barContentRightInset: 9
             readonly property color contentColor:
                 barSlot.root.widgetContentColor("G8", barSlot.root.ink)
-            readonly property real weatherCaretX:
-                centerRow.x + weatherSlot.x + weatherSlot.width / 2
-            readonly property real calendarCaretX:
-                centerRow.x + dateSlot.x + dateSlot.width / 2
+            readonly property real dashboardCaretX:
+                centerRow.x + clock.x + clock.width / 2
+            function openDash() {
+                barSlot.root.activatePopupScreen(barSlot.screen)
+                barSlot.root.openDashboard()
+            }
             implicitWidth: Math.round(centerRow.implicitWidth) + 18
             implicitHeight: 28
 
@@ -1090,6 +1092,21 @@ PanelWindow {
             Connections { target: island; function onG8AvailableWidthChanged() { restageTimer.restart() } }
             Component.onCompleted: restageTimer.restart()
 
+            // The whole G8 island (weather + clock + date) is one button: any click
+            // opens the unified dashboard; right-click still flips 12h/24h. Sits
+            // below centerRow so the status icons keep their own taps and the
+            // weather/clock hover tooltips still fire (their MouseAreas are NoButton
+            // and let the click fall through here).
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: (e) => {
+                    if (e.button === Qt.RightButton) barSlot.root.clock12h = !barSlot.root.clock12h
+                    else g8.openDash()
+                }
+            }
             Row {
                 id: centerRow
                 anchors.verticalCenter: parent.verticalCenter
@@ -1108,9 +1125,10 @@ PanelWindow {
                         id: weather
                         anchors.fill: parent
                         root: barSlot.root
+                        onActivated: g8.openDash()
                     }
                 }
-                ClockWidget   { id: clock;   root: barSlot.root }
+                ClockWidget   { id: clock;   root: barSlot.root; onActivated: g8.openDash() }
                 Item {                                   // date (stage-gated)
                     id: dateSlot
                     visible: width > 0.5
@@ -1132,15 +1150,6 @@ PanelWindow {
                         font.family: barSlot.root.mono
                         font.pixelSize: 10
                         font.letterSpacing: 0.5
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            barSlot.root.activatePopupScreen(barSlot.screen)
-                            barSlot.root.calendarTick++;
-                            barSlot.root.calendarVisible = !barSlot.root.calendarVisible
-                        }
                     }
                 }
                 Item {                                   // indicator icons wrapper (stage-gated)
@@ -2238,8 +2247,7 @@ PanelWindow {
                 brightness:   island.groupX("G13", 0.5),
                 power:        island.groupX("G14", 0.5),
                 mpris:        island.groupX("G9",  0.5),
-                weather:      island.groupContentX("G8", "weatherCaretX", 0.5),
-                calendar:     island.groupContentX("G8", "calendarCaretX", 0.5),
+                dashboard:    island.groupContentX("G8", "dashboardCaretX", 0.5),
                 launcher:     island.groupX("G1",  0.5)
             }
         }

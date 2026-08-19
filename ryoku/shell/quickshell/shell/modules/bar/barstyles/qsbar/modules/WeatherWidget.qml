@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    signal activated()
 
     property string weatherIcon: "·"
     property string weatherPlace: ""
@@ -84,7 +85,7 @@ Item {
 
     Timer {
         interval: 60000
-        running: root.modWeather || root.weatherVisible
+        running: root.modWeather
         repeat: true
         triggeredOnStart: true
         onTriggered: rootMod.refresh(false)
@@ -137,10 +138,6 @@ Item {
         font.pixelSize: 14
     }
 
-    Process {
-        id: clickRunner
-        command: ["bash", "-c", "notify-send -u low \"$(true)\""]
-    }
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
@@ -154,11 +151,8 @@ Item {
         onExited: { tip.hide(); }
         onClicked: (e) => {
             tip.hide();
-            if (e.button === Qt.RightButton) {
-                rootMod.refresh(true);
-            } else {
-                root.weatherVisible = !root.weatherVisible;
-            }
+            if (e.button === Qt.RightButton) root.clock12h = !root.clock12h;
+            else rootMod.activated();
         }
     }
 }

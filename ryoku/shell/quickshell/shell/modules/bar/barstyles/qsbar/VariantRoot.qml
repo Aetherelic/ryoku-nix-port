@@ -240,7 +240,7 @@ Item {
     }
 
     TooltipOverlay { root: theme }
-    CalendarPopup { root: theme }
+    DashboardPopup { root: theme }
     PowerProfilePanel { root: theme }
     MemoryPanel { root: theme }
     CpuPanel { root: theme }
@@ -256,7 +256,6 @@ Item {
     BatteryPanel { root: theme }
     BrightnessPanel { root: theme }
     MprisPanel { root: theme }
-    WeatherPanel { root: theme }
     WorkspacePanel { root: theme }
     ControlCenter { root: theme }
     TrayMenu { root: theme }

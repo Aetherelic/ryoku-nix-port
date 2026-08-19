@@ -162,10 +162,10 @@ Item {
     property var barLayoutControllers: ({})
     property bool _barLayoutSyncing: false
 
-    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || gpuVisible
+    readonly property bool anyPopupVisible: dashboardVisible || cpuVisible || gpuVisible
         || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
-        || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
+        || batteryVisible || brightnessVisible || mprisVisible
         || workspaceVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
         || powerProfileVisible || storageVisible || trayVisible || trayMenuVisible
     readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible
@@ -351,8 +351,7 @@ Item {
         else if (name === "brightness") brightnessBarX = x
         else if (name === "power") powerBarX = x
         else if (name === "mpris") mprisBarX = x
-        else if (name === "weather") weatherBarX = x
-        else if (name === "calendar") calendarBarX = x
+        else if (name === "dashboard") dashboardBarX = x
         else if (name === "launcher") launcherBarX = x
         else if (name === "trayMenu") trayMenuX = x
     }
@@ -394,7 +393,7 @@ Item {
 
     function closePopups(except) {
         _closingPopups = true
-        if (except !== "calendarVisible") calendarVisible = false
+        if (except !== "dashboardVisible") dashboardVisible = false
         if (except !== "cpuVisible") cpuVisible = false
         if (except !== "gpuVisible") gpuVisible = false
         if (except !== "thermalVisible") thermalVisible = false
@@ -407,7 +406,6 @@ Item {
         if (except !== "batteryVisible") batteryVisible = false
         if (except !== "brightnessVisible") brightnessVisible = false
         if (except !== "mprisVisible") mprisVisible = false
-        if (except !== "weatherVisible") weatherVisible = false
         if (except !== "workspaceVisible") workspaceVisible = false
         if (except !== "imagePickerVisible") imagePickerVisible = false
         if (except !== "mediaBrowserVisible") mediaBrowserVisible = false
@@ -575,8 +573,8 @@ Item {
     }
 
     // ── Calendar state ──
-    property bool calendarVisible: false
-    onCalendarVisibleChanged: popupOpened("calendarVisible")
+    property bool dashboardVisible: false
+    onDashboardVisibleChanged: popupOpened("dashboardVisible")
     property int calendarMonthOffset: 0
     property int calendarTick: 0
     property int selectedDay: 0
@@ -613,11 +611,11 @@ Item {
         return String(d.getFullYear());
     }
 
-    function openCalendar() {
+    function openDashboard() {
         calendarMonthOffset = 0;
         calendarTick++;
         selectedDay = (new Date()).getDate();
-        calendarVisible = true;
+        dashboardVisible = true;
     }
 
     // ── CPU panel state ──
@@ -2970,8 +2968,6 @@ Item {
     onBrightnessVisibleChanged: popupOpened("brightnessVisible")
     property bool mprisVisible:     false
     onMprisVisibleChanged: popupOpened("mprisVisible")
-    property bool weatherVisible:   false
-    onWeatherVisibleChanged: popupOpened("weatherVisible")
     property bool workspaceVisible: false
     onWorkspaceVisibleChanged: popupOpened("workspaceVisible")
 
@@ -3084,16 +3080,15 @@ Item {
     property real brightnessBarX: 0
     property real powerBarX:      0
     property real mprisBarX:      0
-    property real weatherBarX:    0
-    property real calendarBarX:   weatherBarX
+    property real dashboardBarX:  0
     property real launcherBarX:   6   // ControlPanel follows the Launcher/Control group
 
     // One connected popover at a time: the active panel publishes the exact
     // bar-widget center used by both the caret and the small border opening.
-    readonly property bool anchoredPanelVisible: calendarVisible || cpuVisible || gpuVisible
+    readonly property bool anchoredPanelVisible: dashboardVisible || cpuVisible || gpuVisible
         || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
-        || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
+        || batteryVisible || brightnessVisible || mprisVisible
         || workspaceVisible || notifVisible || powerProfileVisible || storageVisible
         || trayVisible
 

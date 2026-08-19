@@ -40,6 +40,7 @@ TrayWidget TrayWidget.qml
 UiText UiText.qml
 UpdateWidget UpdateWidget.qml
 VoxtypeWidget VoxtypeWidget.qml
+WeatherFX WeatherFX.qml
 WeatherWidget WeatherWidget.qml
 WorkspaceWidget WorkspaceWidget.qml
 Sparkline Sparkline.qml

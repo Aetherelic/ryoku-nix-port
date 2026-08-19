@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- **A unified time + weather dashboard.** Clicking the bar's clock/weather/date
+  group opens one connected panel: a bento of frosted islands with a month
+  calendar, a live clock, current conditions, a wind/humidity/rain/feels island,
+  and a temperature area-graph for the coming hours. A weather-condition
+  animation plays behind the clock (rain/snow fall, storm lightning, clouds
+  drift, sun rays by day, stars twinkle by night, haze for fog); tiles lift on
+  hover and the graph draws in on open, all off under reduce-motion. Binds to the
+  daemon-fed `Weather` singleton and replaces the standalone clock, weather and
+  calendar popups (`modules/bar/barstyles/qsbar/panels/DashboardPopup.qml`,
+  `modules/bar/barstyles/qsbar/modules/WeatherFX.qml`).
+
 - **A qsbar-style dock on the opposite edge.** An app dock on the screen edge
   opposite the bar (so the two never overlap), rendered as the same frosted
   islands the bar uses with the reactor wave flowing in the gaps between them.
