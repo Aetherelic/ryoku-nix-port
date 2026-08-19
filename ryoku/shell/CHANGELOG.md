@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Fiction and gaming launcher logos.** 36 more picker marks from the shipped
+  Nerd Font: Star Wars factions (Empire, Jedi, Sith, Mandalorian, First Order,
+  Death Star), consoles (PlayStation, Xbox, Switch, Minecraft), arcade (Space
+  Invaders, ghost, Pokeball), and tabletop or fantasy marks (d20, dungeon,
+  wizard, sword, shield, crown, skull, ninja, robot, alien, chess knight), plus
+  film and theatre-mask marks. All real font glyphs, none hand-drawn; a Berserk
+  or specific anime mark is not in any shipped font, so it is intentionally not
+  included (`modules/bar/barstyles/qsbar/Theme.qml`).
 - **A big launcher-logo collection.** The bar's logo picker gains 66 brand, OS
   and dev marks (Ubuntu, Debian, Fedora, Gentoo, Void, NixOS, Tux, Apple,
   Android, GNOME, Plasma, Python, Rust, Go, Docker, GitHub, Firefox, Neovim,
