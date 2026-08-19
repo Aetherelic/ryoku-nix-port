@@ -50,12 +50,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      # bounded + retried: this step sat on a stalled apt mirror for over an hour
+      # on a job that otherwise finishes in a minute.
       - name: Install ShellCheck
         shell: bash
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
+          for attempt in 1 2; do
+            if sudo apt-get update -o Acquire::Retries=3 \
+              && sudo apt-get install -y -o Acquire::Retries=3 shellcheck; then
+              exit 0
+            fi
+            echo "::warning::apt attempt $attempt failed; retrying"
+            sleep 15
+          done
+          echo "::error::could not install shellcheck"
+          exit 1
 
       - name: Collect files
         id: files

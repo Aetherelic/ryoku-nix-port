@@ -44,12 +44,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      # bounded + retried: a stalled apt mirror held this step for over an hour.
       - name: Install Qt QML tooling
         shell: bash
+        timeout-minutes: 15
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y qt6-declarative-dev
+          for attempt in 1 2; do
+            if sudo apt-get update -o Acquire::Retries=3 \
+              && sudo apt-get install -y -o Acquire::Retries=3 qt6-declarative-dev; then
+              break
+            fi
+            if (( attempt == 2 )); then
+              echo "::error::could not install the Qt QML tooling"
+              exit 1
+            fi
+            echo "::warning::apt attempt $attempt failed; retrying"
+            sleep 15
+          done
           qmllint_bin="/usr/lib/qt6/bin/qmllint"
           [[ -x $qmllint_bin ]] || qmllint_bin="$(command -v qmllint || true)"
           [[ -n $qmllint_bin ]] || { echo "::warning::qmllint not found; skipping."; exit 0; }
