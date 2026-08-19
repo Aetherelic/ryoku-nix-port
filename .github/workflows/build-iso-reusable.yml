@@ -45,10 +45,19 @@ jobs:
         with:
           go-version-file: installation/tui/go.mod
 
+      # ShellCheck is a nice-to-have here: the gate skips that check cleanly when
+      # it is absent and the dedicated ShellCheck workflow gates the repo anyway.
+      # Bounded and non-blocking, because an apt mirror stall on this step once
+      # burned the whole gate's budget and cancelled the ISO build.
       - name: Install ShellCheck
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends shellcheck
+          sudo apt-get update -o Acquire::Retries=3 \
+            && sudo apt-get install -y --no-install-recommends \
+                 -o Acquire::Retries=3 shellcheck
 
       - name: Run the ISO preflight gate
         run: bash installation/tests/iso-preflight.sh
