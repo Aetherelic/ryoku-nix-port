@@ -66,6 +66,13 @@ PanelWindow {
     readonly property string fxKind: Wx.glyphFor(dash.fxCode)
     readonly property bool fxDay: dash.wxReady ? dash.cur.isDay : true
     readonly property color fxTint: dash.fxKind === "sun" ? root.seal : root.paper
+    // General area only (region/country) -- drop the precise city for privacy.
+    function generalArea(loc) {
+        var parts = String(loc || "").split(",");
+        for (var i = 0; i < parts.length; i++) parts[i] = parts[i].trim();
+        parts = parts.filter(function(s) { return s.length > 0; });
+        return parts.length >= 2 ? parts.slice(1).join(", ") : (parts.length ? parts[0] : "");
+    }
     function windDeg(d) {
         var m = { N: 0, NNE: 22, NE: 45, ENE: 67, E: 90, ESE: 112, SE: 135, SSE: 157, S: 180, SSW: 202, SW: 225, WSW: 247, W: 270, WNW: 292, NW: 315, NNW: 337 };
         var k = String(d || "").toUpperCase();
@@ -336,8 +343,8 @@ PanelWindow {
                         Item { width: 1; height: 4 }
                         UiText {
                             width: parent.width
-                            text: Weather.location
-                            visible: Weather.location !== ""
+                            text: dash.generalArea(Weather.location)
+                            visible: text !== ""
                             color: root.sumiHi
                             font.family: root.mono; font.pixelSize: 11
                             elide: Text.ElideRight
