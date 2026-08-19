@@ -218,6 +218,18 @@ Item {
         model: root.barScreens
 
         delegate: Component {
+            DockSlot {
+                required property var modelData
+                root: theme
+                screen: modelData
+            }
+        }
+    }
+
+    Variants {
+        model: root.barScreens
+
+        delegate: Component {
             PopupDismissLayer {
                 required property var modelData
 

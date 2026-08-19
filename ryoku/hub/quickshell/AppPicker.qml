@@ -12,6 +12,7 @@ Item {
 
     property string title: "Music app"
     signal chosen(string cmd)
+    signal chosenApp(string appId, string appName)
     signal dismissed()
 
     readonly property var catalog: {
@@ -25,7 +26,7 @@ Item {
             var cmd = ("" + ((e.command || []).join(" "))).trim();
             if (!cmd)
                 continue;
-            out.push({ name: e.name || cmd, cmd: cmd });
+            out.push({ name: e.name || cmd, cmd: cmd, id: (e.id || "") });
         }
         out.sort(function (a, b) { return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
         return out;
@@ -145,7 +146,7 @@ Item {
                     }
                 }
                 HoverHandler { id: rowHover }
-                TapHandler { onTapped: root.chosen(appRow.modelData.cmd) }
+                TapHandler { onTapped: { root.chosen(appRow.modelData.cmd); root.chosenApp(appRow.modelData.id, appRow.modelData.name); } }
             }
         }
     }

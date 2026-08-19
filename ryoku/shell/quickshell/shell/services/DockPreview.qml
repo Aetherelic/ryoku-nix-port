@@ -21,4 +21,7 @@ QtObject {
     // The rail edge the dock sits on ("left" | "right" | "top" | "bottom"), so
     // the strip grows off the correct side.
     property string edge: "left"
+    // Depth (px, from the screen edge) a hovering dock reserves, so the preview
+    // popout can clear it instead of overlapping. 0 for the thin frame rails.
+    property real margin: 0
 }

@@ -4,7 +4,6 @@ import QtQuick
 import Quickshell
 import shell.services
 import "../../../../components"
-import "../lib/dock.js" as Dock
 
 // The dock. Order is pinned classes first (a pinned app may have zero clients),
 // then running unpinned classes by pid (the host hands clients pre-sorted). Each

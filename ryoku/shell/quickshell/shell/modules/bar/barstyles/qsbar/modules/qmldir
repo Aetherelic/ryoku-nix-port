@@ -12,6 +12,7 @@ ConnectedBarInset ConnectedBarInset.qml
 ConnectedPanelSurface ConnectedPanelSurface.qml
 CpuTemperatureWidget CpuTemperatureWidget.qml
 CpuWidget CpuWidget.qml
+DockRow DockRow.qml
 GpuWidget GpuWidget.qml
 IconText IconText.qml
 IdleInhibitorWidget IdleInhibitorWidget.qml

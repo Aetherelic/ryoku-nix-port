@@ -16,6 +16,7 @@ singleton Network Network.qml
 singleton Notifs Notifs.qml
 singleton Audio Audio.qml
 singleton Tray Tray.qml
+singleton Dock Dock.qml
 singleton DockPreview DockPreview.qml
 singleton BarProducts BarProducts.qml
 singleton Fullscreen Fullscreen.qml

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+- **A qsbar-style dock on the opposite edge.** An app dock on the screen edge
+  opposite the bar (so the two never overlap), rendered as the same frosted
+  islands the bar uses with the reactor wave flowing in the gaps between them.
+  Apps group into pinned launchers and running apps (the ones with window
+  previews), split by a separator; magnify tracks the cursor across the whole
+  band and honours reduce-motion, and the hover-preview popout now clears the
+  dock instead of overlapping it. Enable it plus Frost/Depth/Magnify from the
+  Control Center Bars route; pins persist in `shell.json .qsbar`. The dock model
+  is shared with the framebars dock via `services/Dock.qml` and the tested
+  `services/lib/dock.js` (`modules/bar/barstyles/qsbar/DockSlot.qml`,
+  `modules/bar/barstyles/qsbar/modules/DockRow.qml`).
+
 ### Fixed
 - **The QS Bar gap animation no longer strands a frozen frame in Power Saver.**
   Reduce-motion (Power Saver) froze the reactor/stream canvas to its last frame;

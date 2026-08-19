@@ -61,7 +61,7 @@ Popout {
     edge: DockPreview.edge
     hoverOpen: false                 // no frame-edge band; the dock icon is the trigger
     closeDelay: 300                  // grace to cross from the icon onto the strip
-    edgeGap: 10 * root.s
+    edgeGap: DockPreview.margin > 0 ? DockPreview.margin : 10 * root.s
     radius: Theme.radiusWindow
     triggerHovered: root.cls !== ""
     alongCenter: {

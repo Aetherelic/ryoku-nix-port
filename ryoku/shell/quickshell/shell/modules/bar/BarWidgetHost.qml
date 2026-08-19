@@ -57,73 +57,11 @@ Item {
         }
     }
 
-    // Dock data: every toplevel as { className, address, pid }, sorted by pid so
-    // resolve() lays the running classes out in pid order (contract 03 sec 3.3).
-    function clients() {
-        const result = [];
-        const toplevels = Hyprland.toplevels.values;
-        for (let i = 0; i < toplevels.length; ++i) {
-            const data = toplevels[i] && toplevels[i].lastIpcObject;
-            const className = data && (data.class || data.initialClass);
-            if (typeof className === "string" && className)
-                result.push({ className: className, address: data.address || "", pid: (typeof data.pid === "number" ? data.pid : 0) });
-        }
-        result.sort((a, b) => a.pid - b.pid);
-        return result;
-    }
-
-    // Class of the focused window, for the dock's selected state.
-    function activeClass() {
-        const active = Hyprland.activeToplevel && Hyprland.activeToplevel.lastIpcObject;
-        return active ? (active.class || active.initialClass || "") : "";
-    }
-
-    // A dock with nothing pinned and nothing running renders nothing, which on
-    // a fresh boot reads as "the dock is gone". Fall back to the stock role
-    // apps (the ones the shipped binds launch) that resolve to an installed
-    // desktop entry.
-    function starterPins() {
-        const out = [];
-        for (const className of ["kitty", "chromium", "nautilus"])
-            if (DesktopEntries.heuristicLookup(className)) out.push(className);
-        return out;
-    }
-
     function updatePinned(className, add) {
         const next = JSON.parse(JSON.stringify(Config.frameBars));
         const pinned = next.dock && Array.isArray(next.dock.pinned) ? next.dock.pinned : [];
         next.dock = { pinned: add ? pinned.concat(pinned.includes(className) ? [] : [className]) : pinned.filter(value => value !== className) };
         Config.frameBars = next;
-    }
-
-    // Left click: no running clients -> launch; already selected -> cycle to the
-    // next client of the class (by address); else focus, preferring a client on
-    // the active workspace. Contract 03 sec 4.1.
-    function activate(className) {
-        const toplevels = Hyprland.toplevels.values;
-        const matches = [];
-        for (let i = 0; i < toplevels.length; ++i) {
-            const d = toplevels[i] && toplevels[i].lastIpcObject;
-            if (d && (d.class === className || d.initialClass === className) && d.address)
-                matches.push(d);
-        }
-        if (matches.length === 0) {
-            const entry = DesktopEntries.heuristicLookup(className);
-            if (entry)
-                entry.execute();
-            return;
-        }
-        matches.sort((a, b) => a.address < b.address ? -1 : (a.address > b.address ? 1 : 0));
-        const active = Hyprland.activeToplevel && Hyprland.activeToplevel.lastIpcObject ? Hyprland.activeToplevel.lastIpcObject.address : "";
-        const idx = matches.findIndex(m => m.address === active);
-        let target;
-        if (idx >= 0) {
-            target = matches[(idx + 1) % matches.length];
-        } else {
-            const ws = Workspaces.activeId;
-            target = matches.find(m => m.workspace && m.workspace.id === ws) || matches[0];
-        }
-        Hyprland.dispatch('hl.dsp.focus({ window = "address:' + target.address + '" })');
     }
 
     Loader {
@@ -151,11 +89,11 @@ Item {
             edge: root.edge
             scale: root.scale
             pinned: Config.normalizedFrameBars.dock.pinned.length > 0
-                ? Config.normalizedFrameBars.dock.pinned : root.starterPins()
-            clients: root.clients()
-            activeClass: root.activeClass()
+                ? Config.normalizedFrameBars.dock.pinned : Dock.starterPins()
+            clients: Dock.clients
+            activeClass: Dock.activeClass
             maxExtent: root.zoneAvail
-            onActivate: className => root.activate(className)
+            onActivate: className => Dock.activate(className)
             onPin: className => root.updatePinned(className, true)
             onUnpin: className => root.updatePinned(className, false)
         }

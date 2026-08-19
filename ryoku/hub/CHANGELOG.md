@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+- **Dock controls in Bar Studio.** The qsbar Dock (the opposite-edge app dock)
+  toggles here alongside its Frost, Depth, and Magnify switches, and a "Dock
+  apps" manager pins any installed app: an app picker adds them, chips remove
+  them, and the list persists in `shell.json .qsbar`
+  (`pages/BarStudioPage.qml`, `AppPicker.qml`).
+
 ### Changed
 - **The theme defaults to following the wallpaper.** `loadThemeState`
   (`backend/schemes.go`) defaults a box with no `theme.json` to follow the
