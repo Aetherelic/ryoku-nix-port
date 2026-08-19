@@ -50,8 +50,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      # bounded + retried: this step sat on a stalled apt mirror for over an hour
-      # on a job that otherwise finishes in a minute.
+      # Bounded, retried, and not at the mercy of a mirror: this step sat on a
+      # stalled Azure apt mirror for over an hour on a job that finishes in a
+      # minute, then went red when the bound cut it off. The upstream release
+      # tarball is a static binary, so it stands in when apt cannot serve.
       - name: Install ShellCheck
         shell: bash
         timeout-minutes: 10
@@ -59,16 +61,17 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          for attempt in 1 2; do
-            if sudo apt-get update -o Acquire::Retries=3 \
-              && sudo apt-get install -y -o Acquire::Retries=3 shellcheck; then
-              exit 0
-            fi
-            echo "::warning::apt attempt $attempt failed; retrying"
-            sleep 15
-          done
-          echo "::error::could not install shellcheck"
-          exit 1
+          if sudo apt-get update -o Acquire::Retries=3 \
+            && sudo apt-get install -y -o Acquire::Retries=3 shellcheck; then
+            shellcheck --version
+            exit 0
+          fi
+          echo "::warning::apt could not serve shellcheck; falling back to the upstream release"
+          ver=v0.10.0
+          url="https://github.com/koalaman/shellcheck/releases/download/${ver}/shellcheck-${ver}.linux.x86_64.tar.xz"
+          curl -fsSL --retry 3 --max-time 120 "$url" \
+            | sudo tar -xJ --strip-components=1 -C /usr/local/bin "shellcheck-${ver}/shellcheck"
+          shellcheck --version
 
       - name: Collect files
         id: files

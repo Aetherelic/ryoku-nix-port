@@ -48,16 +48,24 @@ jobs:
       # ShellCheck is a nice-to-have here: the gate skips that check cleanly when
       # it is absent and the dedicated ShellCheck workflow gates the repo anyway.
       # Bounded and non-blocking, because an apt mirror stall on this step once
-      # burned the whole gate's budget and cancelled the ISO build.
+      # burned the whole gate's budget and cancelled the ISO build. The upstream
+      # release tarball stands in when apt cannot serve.
       - name: Install ShellCheck
         continue-on-error: true
         timeout-minutes: 5
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update -o Acquire::Retries=3 \
+          set -euo pipefail
+          if sudo apt-get update -o Acquire::Retries=3 \
             && sudo apt-get install -y --no-install-recommends \
-                 -o Acquire::Retries=3 shellcheck
+                 -o Acquire::Retries=3 shellcheck; then
+            exit 0
+          fi
+          ver=v0.10.0
+          url="https://github.com/koalaman/shellcheck/releases/download/${ver}/shellcheck-${ver}.linux.x86_64.tar.xz"
+          curl -fsSL --retry 3 --max-time 120 "$url" \
+            | sudo tar -xJ --strip-components=1 -C /usr/local/bin "shellcheck-${ver}/shellcheck"
 
       - name: Run the ISO preflight gate
         run: bash installation/tests/iso-preflight.sh
