@@ -216,18 +216,24 @@ Scope {
             Region { x: overlay.width - overlay.rightDropW; y: 0; width: overlay.rightDropOn ? overlay.rightDropW : 0; height: overlay.rightDropOn ? overlay.height : 0 }
         }
 
-        // Record island only, for a folder bar style (sumi frame + rails off).
+        // Record island only, for a folder bar style (sumi frame + rails off). The
+        // dock preview body rides along so its live tiles stay hoverable while a
+        // recording HUD owns the mask.
         Region {
             id: recRegion
             Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
             Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
+            Region { x: frameMenus.dockMask.x; y: frameMenus.dockMask.y; width: frameMenus.dockMask.w; height: frameMenus.dockMask.h }
         }
 
-        // folder bar styles have no rail mask, so carry the stash drop strip on
-        // its own region for the idle-desktop case.
+        // folder / islands bar styles have no rail mask, so carry the stash drop
+        // strip and the dock preview body on their own region for the idle-desktop
+        // case -- without the dock body here an islands (qsbar) dock preview cannot
+        // catch hover/click, so it melts the instant the pointer reaches a tile.
         Region {
             id: dragRegion
             Region { x: overlay.width - overlay.rightDropW; y: 0; width: overlay.rightDropOn ? overlay.rightDropW : 0; height: overlay.rightDropOn ? overlay.height : 0 }
+            Region { x: frameMenus.dockMask.x; y: frameMenus.dockMask.y; width: frameMenus.dockMask.w; height: frameMenus.dockMask.h }
         }
 
         // Non-visual: authentication-island close bookkeeping and the keyboard

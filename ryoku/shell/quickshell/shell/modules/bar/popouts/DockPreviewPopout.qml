@@ -37,6 +37,10 @@ Popout {
     readonly property string cls: DockPreview.hoveredClass
     property string shownClass: ""
     onClsChanged: if (root.cls !== "") root.shownClass = root.cls;
+    // Every open window of the hovered class, across all workspaces. We do NOT
+    // filter on the surface `mapped` flag: a window on a hidden workspace reports
+    // unmapped (no live capture) yet is a real window you want to reach -- it just
+    // falls back to the app icon tile and a focus-by-address click.
     readonly property var windows: {
         if (root.shownClass === "")
             return [];
@@ -45,7 +49,7 @@ Popout {
         for (let i = 0; i < tls.length; ++i) {
             const o = tls[i] && tls[i].lastIpcObject;
             const c = o && (o.class || o.initialClass);
-            if (c === root.shownClass && o.mapped !== false)
+            if (c === root.shownClass)
                 out.push(tls[i]);
         }
         return out;
@@ -161,7 +165,17 @@ Popout {
                         MouseArea {
                             anchors.fill: parent
                             acceptedButtons: Qt.LeftButton
-                            onClicked: if (tile.hasCapture) tile.tl.wayland.activate()
+                            // Focus the specific window by address so a tile for a
+                            // window on another workspace switches to it; a live
+                            // capture can also self-activate, but address focus is
+                            // the reliable path for an unmapped (hidden) window.
+                            onClicked: {
+                                const o = tile.tl ? tile.tl.lastIpcObject : null;
+                                if (o && o.address)
+                                    Hyprland.dispatch('hl.dsp.focus({ window = "address:' + o.address + '" })');
+                                else if (tile.hasCapture)
+                                    tile.tl.wayland.activate();
+                            }
                         }
 
                         // close (X), revealed on hover of the tile

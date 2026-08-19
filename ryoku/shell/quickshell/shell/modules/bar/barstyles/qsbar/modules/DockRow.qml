@@ -10,8 +10,14 @@ import shell.services
 // is its own frosted pill in the qsbar islands language; DockSlot feeds pillRects
 // to a ReactorLayer so the reactor wave flows in the gaps. Left click activates,
 // right click pins/unpins, hover grows a DockPreview. Magnify tracks the cursor
-// continuously across the whole band (icons AND gaps) so it never drops out, and
-// is a smooth scale + rise (no rigid push). Gated on the toggle AND reduce-motion.
+// continuously across the whole band (icons AND gaps) as a smooth scale + rise.
+//
+// Islands render from a Repeater over a diffed ListModel (not the raw slots
+// array) so an app that opens or is pinned pops in, one that closes or is
+// unpinned is removed, and every other island slides to its new spot -- without
+// recreating the whole row on each toplevel event. The geometry maths stay on the
+// resting `slots` array (stable reactor + magnify anchor). Every animation is
+// gated on reduce-motion, so Power Saver adds/removes/slides instantly.
 Item {
     id: row
 
@@ -26,6 +32,7 @@ Item {
     property real sepWidth: 15
 
     readonly property bool magnify: !!(theme && theme.dockMagnify) && !Perf.reduceMotion
+    readonly property bool animate: !Perf.reduceMotion
     readonly property real maxScale: 1.4
     readonly property real reach: (baseSize + gap) * 1.9
 
@@ -78,6 +85,31 @@ Item {
         return out;
     }
 
+    // Diff the desired slots into the ListModel so a Repeater over it creates ONLY
+    // genuinely new islands (pop-in) and drops removed ones, instead of recreating
+    // the whole row every time a toplevel event bumps the client list.
+    ListModel { id: slotModel }
+    onSlotsChanged: row.syncSlots()
+    Component.onCompleted: row.syncSlots()
+    function syncSlots() {
+        const desired = row.slots;
+        for (let i = slotModel.count - 1; i >= 0; --i) {
+            const m = slotModel.get(i);
+            if (!desired.some(d => d.kind === m.kind && d.className === m.className))
+                slotModel.remove(i);
+        }
+        for (let j = 0; j < desired.length; ++j) {
+            const d = desired[j];
+            let cur = -1;
+            for (let k = 0; k < slotModel.count; ++k) {
+                const m = slotModel.get(k);
+                if (m.kind === d.kind && m.className === d.className) { cur = k; break; }
+            }
+            if (cur === -1) slotModel.insert(j, { kind: d.kind, className: d.className });
+            else if (cur !== j) slotModel.move(cur, j, 1);
+        }
+    }
+
     // ── continuous cursor tracking (icons + gaps, no dropout) ─────────────────
     property real cursorX: 0
     readonly property bool hovering: bandHover.hovered && row.magnify
@@ -117,13 +149,13 @@ Item {
     }
 
     Repeater {
-        model: row.slots
+        model: slotModel
         delegate: Item {
             id: slot
             required property int index
-            required property var modelData
-            readonly property bool isSep: slot.modelData.kind === "sep"
-            readonly property string className: slot.modelData.className || ""
+            required property string kind
+            required property string className
+            readonly property bool isSep: slot.kind === "sep"
             readonly property int count: slot.isSep ? 0 : Dock.countFor(slot.className)
             readonly property bool isActive: !slot.isSep && Dock.activeClass === slot.className
             readonly property color indColor: slot.isActive ? row.theme.seal : Theme.onSurface
@@ -133,10 +165,20 @@ Item {
                 return 1 + (row.maxScale - 1) * t * t;
             }
 
+            // Reflow: when a neighbour opens/closes this island slides to its new
+            // spot. `ready` gates out the first layout so islands do not fly in
+            // from x=0 on load.
+            property bool ready: false
+            Component.onCompleted: slot.ready = true
+
             x: row.slotX(slot.index)
             y: 0
             width: row.slotW(slot.index)
             height: row.baseSize
+            Behavior on x {
+                enabled: row.animate && slot.ready
+                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+            }
 
             // ── separator ──
             Rectangle {
@@ -154,6 +196,19 @@ Item {
                 id: content
                 visible: !slot.isSep
                 anchors.fill: parent
+
+                // Pop-in: a freshly created island scales + fades up from the edge.
+                // `shown` flips true on completion so the Behaviors animate the
+                // entrance; under reduce-motion the Behaviors are off and it just
+                // appears.
+                property bool shown: false
+                Component.onCompleted: content.shown = true
+                opacity: content.shown ? 1 : 0
+                scale: content.shown ? 1 : 0.3
+                transformOrigin: row.edge === "bottom" ? Item.Bottom : Item.Top
+                Behavior on opacity { enabled: row.animate; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                Behavior on scale { enabled: row.animate; NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
+
                 transform: Scale {
                     origin.x: content.width / 2
                     origin.y: row.edge === "bottom" ? content.height : 0
@@ -226,7 +281,7 @@ Item {
 
                 TapHandler {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    onSingleTapped: (point, button) => {
+                    onSingleTapped: (eventPoint, button) => {
                         if (button === Qt.RightButton)
                             row.theme.updateDockPinned(slot.className, !row.pins.includes(slot.className));
                         else

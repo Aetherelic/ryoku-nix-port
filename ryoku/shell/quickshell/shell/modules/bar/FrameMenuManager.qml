@@ -337,6 +337,17 @@ Item {
         return out;
     }
 
+    // The dock preview body rect on its own, so the overlay mask can catch it in
+    // every bar style. The per-anchor `masks` above only reaches the input region
+    // through railRegion (sumi); an islands/qsbar bar uses dragRegion, so without
+    // this the live tiles are unreachable and the strip melts as you reach for it.
+    readonly property var dockMask: ({
+        x: dockPreviewHost.maskX,
+        y: dockPreviewHost.maskY,
+        w: dockPreviewHost.maskW,
+        h: dockPreviewHost.maskH
+    })
+
     function activeIdAt(anchor) {
         const rec = MenuState.activeAt(menuState, monitorName, anchor);
         return rec ? rec.id : "";

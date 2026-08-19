@@ -8,11 +8,72 @@ import "lib/dock.js" as DockList
 // Shared dock model: running-window + pinned-app data and the activate action,
 // one source for every dock surface (framebars RailDock, qsbar DockSlot). The
 // list maths live in the tested lib/dock.js; each consumer owns its own pins.
-QtObject {
+Singleton {
     id: root
+
+    // Live-update: Hyprland events keep the toplevel LIST live, but a newly opened
+    // window's lastIpcObject (its class/title) is not populated until a
+    // refreshToplevels() runs -- so without a refresh the dock only picks up new
+    // apps on a shell reload. Refresh whenever the window COUNT changes (open or
+    // close), which is idempotent: the refresh fires valuesChanged again but the
+    // count is unchanged, so it never loops. Bump _rev on every list/toplevel/
+    // active change so clients/activeClass re-read (a plain .values read in a
+    // binding does not track Quickshell's model).
+    property int _rev: 0
+    property int _primeTries: 0
+    // True while some toplevel is in the list without its class yet (a freshly
+    // opened window, before its ipc object is populated).
+    function _needsPrime() {
+        const tls = Hyprland.toplevels ? Hyprland.toplevels.values : [];
+        for (let i = 0; i < tls.length; ++i) {
+            const o = tls[i] && tls[i].lastIpcObject;
+            if (!o || !(o.class || o.initialClass))
+                return true;
+        }
+        return false;
+    }
+    // A new window enters the list before a refreshToplevels() fills in its class,
+    // and a single refresh can lose the race (rapid opens). Poll-refresh until
+    // every toplevel has a class, then stop -- bounded so a genuinely class-less
+    // surface cannot spin forever.
+    Timer {
+        id: primePoll
+        interval: 120
+        repeat: true
+        onTriggered: {
+            if (root._primeTries++ > 25 || !root._needsPrime()) {
+                primePoll.stop();
+                return;
+            }
+            Hyprland.refreshToplevels();
+        }
+    }
+    Component.onCompleted: Hyprland.refreshToplevels()
+    Connections {
+        target: Hyprland.toplevels
+        function onValuesChanged() {
+            root._rev++;
+            root._primeTries = 0;
+            if (root._needsPrime())
+                primePoll.restart();
+        }
+    }
+    Connections {
+        target: Hyprland
+        function onActiveToplevelChanged() { root._rev++; }
+    }
+    Instantiator {
+        model: Hyprland.toplevels
+        delegate: Connections {
+            required property var modelData
+            target: modelData
+            function onLastIpcObjectChanged() { root._rev++; }
+        }
+    }
 
     // Toplevels as { className, address, pid }, pid-sorted for a stable order.
     readonly property var clients: {
+        void root._rev;
         const result = [];
         const toplevels = Hyprland.toplevels ? Hyprland.toplevels.values : [];
         for (let i = 0; i < toplevels.length; ++i) {
@@ -26,6 +87,7 @@ QtObject {
     }
 
     readonly property string activeClass: {
+        void root._rev;
         const active = Hyprland.activeToplevel && Hyprland.activeToplevel.lastIpcObject;
         return active ? (active.class || active.initialClass || "") : "";
     }
