@@ -84,39 +84,50 @@ written only when the driver module actually built.
 NVIDIA already; if it comes up black, boot the Limine fallback and add `nomodeset`
 to the cmdline for that boot to get in and investigate.
 
-## Windows dual-boot
+## Dual-boot (Windows or another Linux)
 
-**Symptom.** "Installation alongside Windows failed" partway through (out of
-space); or not enough free space to start; or Windows will not boot after the
-install.
+**Symptom.** An alongside install fails partway through (out of space); or not
+enough free space to start; or the other OS will not boot after the install.
 
 **Cause.** The OEM ESP is typically 100-260 MiB. Ryoku does not replace it: it
-keeps its kernels on their own FAT partition and only adds its loader beside
-Windows' on the shared ESP.
+keeps its kernels on their own FAT partition and only adds its loader beside the
+existing one on the shared ESP.
 
-**What the installer does.** The `alongside` strategy shares Windows' single ESP.
+**Not Windows-only.** The strategy shares whatever single ESP the disk already
+has -- Windows', another Linux distribution's, or a previous Ryoku's. The TUI
+names Windows in the option label only when it actually finds an NTFS volume;
+otherwise it reads "Install alongside (keep existing OS)". A Linux neighbour is
+chainloaded from its own EFI binary when it has one (systemd-boot, GRUB, another
+Limine); if it has none it stays reachable from the firmware boot menu.
+
+**What the installer does.** The `alongside` strategy shares the disk's single ESP.
 It creates a 2 GiB XBOOTLDR boot partition (partlabel `ryokuboot`, mounted at
 `/boot`, holding the kernels + initramfs) plus the Btrfs root (partlabel `ryoku`)
 at explicit sectors in the chosen free region, and proves both are brand new
-partitions before formatting. Before writing anything to the Windows ESP it tars
-that ESP's contents to `/var/backups/ryoku/windows-esp-<date>.tar`, then drops
-Limine at `/EFI/ryoku/BOOTX64.EFI` with `limine.conf` beside it and registers a
-"Ryoku" NVRAM entry first in the boot order; `/EFI/Microsoft` is never touched
-and `/EFI/BOOT/BOOTX64.EFI` is written only when absent. Partitions labeled
+partitions before formatting. Before writing anything to the shared ESP it tars
+that ESP's contents to `/var/backups/ryoku/` (`windows-esp-<date>.tar` for a
+Windows ESP, `esp-<kind>-<date>.tar` otherwise), then drops Limine at
+`/EFI/ryoku/BOOTX64.EFI` with `limine.conf` beside it and registers a "Ryoku"
+NVRAM entry first in the boot order; no other vendor's directory (`/EFI/Microsoft`,
+`/EFI/systemd`, another `/EFI/limine`) is ever touched, and `/EFI/BOOT/BOOTX64.EFI`
+is written only when absent. It also pins `EFI_REGISTER=no` in
+`/etc/default/limine`, so limine's own upgrade hook cannot add a second, broken
+"Limine" NVRAM entry pointing at our XBOOTLDR. Partitions labeled
 exactly `ryoku`/`ryokuboot` (leftovers of a prior failed run) abort the install
 unless `RYOKU_RECLAIM_LEFTOVERS=1` (the TUI's typed `ERASE` ack) deletes only the
 unmounted ones, so re-runs never stack; a mounted match is always left alone. It
-adds a Windows chainload entry (`boot():/EFI/Microsoft/Boot/bootmgfw.efi`) so
-Windows stays in the Limine menu, and the first reboot targets the installed
-disk. It needs `2 + 20 + swap` GiB of contiguous free space (a 2 GiB boot
-partition plus the root floor).
+adds a chainload entry for the existing OS's loader (Windows'
+`bootmgfw.efi`, or the Linux neighbour's EFI binary) so it stays in the Limine
+menu, and the first reboot targets the installed disk. It needs `2 + 20 + swap`
+GiB of contiguous free space (a 2 GiB boot partition plus the root floor).
 
 **What the user must do.**
 
-- **Make room first.** Shrink the Windows C: partition from within Windows (Disk
-  Management -> Shrink Volume), leaving enough contiguous free space. Shrinking
-  from Windows is the safest way; the installer deliberately never resizes an
-  existing partition.
+- **Make room first.** Either leave unallocated space, or let the installer carve
+  it: the layout step can shrink one selected partition (NTFS, ext2/3/4, btrfs)
+  in place. For Windows, shrinking from within Windows first (Disk Management ->
+  Shrink Volume) is still the safest route; for a Linux neighbour, unmount it and
+  let the carve step take the space.
 - **BitLocker.** Suspend BitLocker in Windows before you install. Two things trip
   it: changing the partition table can force a recovery-key prompt on the next
   Windows boot, and chainloading through Limine changes the measured boot path,

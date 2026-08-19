@@ -40,4 +40,22 @@ if bsdtar -tf "$tmp/trunc.tar.zst" >/dev/null 2>&1; then
   fail "a truncated package passed the integrity check"
 fi
 
+# 4. every package the per-vendor driver scripts install must be in the bake. The
+#    bake carries its own literal list, so a package added to a driver script
+#    otherwise only fails on a real offline install, with no network to recover
+#    from. Kernel-derived names (${kb}-headers) come from the package lists and
+#    are checked there, not here.
+drivers="$root/system/hardware/drivers"
+bake=$(cat "$repo")
+missing=()
+while read -r pkg; do
+  [[ $pkg == *'$'* || $pkg == *'"'* || $pkg == '' ]] && continue
+  grep -qF -- "$pkg" <<<"$bake" || missing+=("$pkg")
+done < <(
+  grep -hoE 'install_pkgs [a-z0-9 ._+-]+' "$drivers"/*.sh | sed 's/^install_pkgs //' | tr ' ' '\n'
+  grep -hoE '(pkgs|base)\+?=\([^)]*\)' "$drivers"/*.sh | tr '()' '  ' | sed -E 's/(pkgs|base)\+?=//' | tr ' ' '\n'
+)
+(( ${#missing[@]} == 0 )) \
+  || fail "driver packages missing from the offline bake (installation/iso/offline-repo.sh): ${missing[*]}"
+
 echo "offline-repo-integrity: OK"

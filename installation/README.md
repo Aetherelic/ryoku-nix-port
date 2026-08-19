@@ -151,34 +151,38 @@ risk a silent wipe) and decides the whole layout.
 A disk that already holds partitions needs `RYOKU_WIPE_CONFIRMED=1` (the TUI sets
 it after the typed `ERASE` acknowledgement); a blank disk installs without it.
 
-### alongside: dual-boot, shared Windows ESP + XBOOTLDR /boot
+### alongside: dual-boot, shared ESP + XBOOTLDR /boot
 
-Keeps every existing partition. Ryoku creates a 2 GiB XBOOTLDR boot partition and
-a btrfs root in the chosen contiguous free region; the user makes that room by
-shrinking Windows first (from Windows Disk Management). The bootloader shares
-Windows' single ESP.
+Keeps every existing partition. Works with ANY existing OS on the disk -- Windows,
+another Linux distribution, an older Ryoku -- the strategy is named for the layout,
+not for Windows. Ryoku creates a 2 GiB XBOOTLDR boot partition and a btrfs root in
+the chosen contiguous free region; the user either leaves that room unallocated or
+has the layout step carve it out of one partition (`resize.sh`: NTFS, ext2/3/4,
+btrfs). The bootloader shares the disk's single ESP.
 
 ```
-/dev/DISK  (existing GPT, nothing moved, nothing wiped)
+/dev/DISK  (existing GPT, nothing moved, nothing wiped) -- Windows shown; any OS works
 +-----------+------+----------------+----------------+-------------------+
-| Windows   | MSR  | Windows  C:    | RYOKU  boot    | RYOKU  root       |
-| ESP       |      | (shrunk by     | FAT32  "BOOT"  | btrfs  "ryoku"    |
-| SHARED    |      |  the user in   | XBOOTLDR       | @ @home @log ...  |
-| (limine)  |      |  Windows)      | "ryokuboot"    |                   |
+| existing  | MSR  | existing OS    | RYOKU  boot    | RYOKU  root       |
+| ESP       |      | (shrunk, by    | FAT32  "BOOT"  | btrfs  "ryoku"    |
+| SHARED    |      |  the user or   | XBOOTLDR       | @ @home @log ...  |
+| (limine)  |      |  by carve)     | "ryokuboot"    |                   |
 |           |      |                |<----- chosen free region (new) -->|
 +-----------+------+----------------+----------------+-------------------+
 ```
 
 The **never-touched guarantee**: `alongside` only ever creates the two new
 partitions (partlabels `ryokuboot` and `ryoku`) at explicit sectors inside the
-chosen free region. Exactly one ESP stays on the disk -- Windows' -- and it is
-SHARED, not replaced: before any write the bootloader tars its whole contents to
-`/var/backups/ryoku/windows-esp-<date>.tar`, then drops Limine at
+chosen free region. Exactly one ESP stays on the disk -- the existing one -- and it
+is SHARED, not replaced: before any write the bootloader tars its whole contents to
+`/var/backups/ryoku/` (`windows-esp-<date>.tar` for a Windows ESP,
+`esp-<kind>-<date>.tar` otherwise), then drops Limine at
 `/EFI/ryoku/BOOTX64.EFI` with `limine.conf` beside it and registers "Ryoku" first
-in BootOrder. `/EFI/Microsoft` is never touched, and `/EFI/BOOT/BOOTX64.EFI` is
+in BootOrder. No foreign vendor directory (`/EFI/Microsoft`, `/EFI/systemd`,
+another `/EFI/limine`) is touched, and `/EFI/BOOT/BOOTX64.EFI` is
 written only when absent. The kernels live on the XBOOTLDR `/boot` (Limine reads
 FAT only) and are referenced from `limine.conf` by its FAT label `fslabel(RYOKUBOOT)`;
-Windows chainloads same-volume via `boot():/EFI/Microsoft/Boot/bootmgfw.efi`.
+the existing OS is chainloaded by `guid(<esp partuuid>):/<its loader>`.
 Before any `wipefs`/`mkfs`, `disk.sh` proves each new partition is a real new
 block device, was absent before `sgdisk`, and has the target disk as its parent;
 anything else aborts. Partitions labeled exactly `ryoku`/`ryokuboot` (leftovers

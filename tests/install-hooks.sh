@@ -26,6 +26,15 @@ strap_line=$(grep -n "^\s*ryoku_pacstrap$" "$inst" | head -n1 | cut -d: -f1)
 (( mask_line > strap_line )) \
   || fail "ryoku_hooks_defer_mkinitcpio (line $mask_line) runs before ryoku_pacstrap (line $strap_line); the mask collides with limine-mkinitcpio-hook's packaged hook"
 
+# 1b. the reverse ordering for the hooks that do their damage DURING pacstrap:
+# snap-pac (snapper with no config in the chroot) and 80-limine-efi-deploy
+# (limine-install registering a stray NVRAM entry for a /boot it takes for the
+# ESP). Those ship under /usr/share/libalpm/hooks, so masking them early is safe.
+quiet_line=$(grep -n "^\s*ryoku_hooks_quiet$" "$inst" | head -n1 | cut -d: -f1)
+[[ -n $quiet_line ]] || fail "could not locate the ryoku_hooks_quiet call in ryoku-install"
+(( quiet_line < strap_line )) \
+  || fail "ryoku_hooks_quiet (line $quiet_line) runs after ryoku_pacstrap (line $strap_line); the hooks then fire during pacstrap"
+
 # 2. no pacstrap invocation may put a long option before the root argument.
 while IFS= read -r line; do
   args=${line#*pacstrap }
@@ -65,5 +74,19 @@ ryoku_hooks_restore
   || fail "restored hook has the wrong contents"
 [[ ! -e $hooks/90-mkinitcpio-install.hook.ryoku-off ]] \
   || fail "restore left the .ryoku-off copy behind"
+
+# 4. the pacstrap-time offenders are masked and handed back.
+for h in 05-snap-pac-pre.hook zz-snap-pac-post.hook 80-limine-efi-deploy.hook; do
+  [[ " ${RYOKU_MASKED_HOOKS[*]} " == *" $h "* ]] \
+    || fail "$h is not in RYOKU_MASKED_HOOKS"
+done
+ryoku_hooks_quiet
+for h in 05-snap-pac-pre.hook zz-snap-pac-post.hook 80-limine-efi-deploy.hook; do
+  [[ -L $hooks/$h ]] || fail "$h was not masked with a /dev/null symlink"
+done
+ryoku_hooks_restore
+for h in 05-snap-pac-pre.hook zz-snap-pac-post.hook 80-limine-efi-deploy.hook; do
+  [[ ! -e $hooks/$h ]] || fail "restore left the $h mask behind"
+done
 
 echo "install-hooks: OK"

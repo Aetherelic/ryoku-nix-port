@@ -161,6 +161,11 @@ main() {
   # offline install: point pacstrap at the baked [offline] repo (no-op online).
   ryoku_offline_prepare
   ryoku_rank_mirrors
+
+  # Mask the hooks that misbehave in the chroot BEFORE pacstrap, which is where
+  # they do their damage (snapper with no config, limine-install against a /boot
+  # it mistakes for the ESP). Restored before we unmount.
+  ryoku_hooks_quiet
   ryoku_pacstrap
 
   # Mask the initramfs hooks only now: limine-mkinitcpio-hook owns
@@ -170,10 +175,6 @@ main() {
   # discarded by the bootloader step's single mkinitcpio -P either way; from
   # here on the drivers and AUR steps rebuild nothing.
   ryoku_hooks_defer_mkinitcpio
-
-  # snap-pac's pacman hooks abort in the chroot; mask them for the install and
-  # restore before we unmount (see ryoku_hooks_quiet/restore).
-  ryoku_hooks_quiet
 
   step configure
   ryoku_configure

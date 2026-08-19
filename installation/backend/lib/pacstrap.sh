@@ -86,9 +86,8 @@ ryoku_pacstrap() {
     pkgs+=(broadcom-wl)
   fi
 
-  # offline install: fold the Ryoku desktop set into this one transaction so the
-  # whole system installs in a single offline pass (no second chroot pacman -S).
-  # a no-op on an online install, where deploy.sh pulls the desktop from [ryoku].
+  # hook kept for a set the offline path may want folded into this transaction;
+  # the desktop now installs separately (lib/deploy.sh), so it is empty today.
   if declare -f ryoku_offline_pacstrap_extra >/dev/null; then
     mapfile -t -O "${#pkgs[@]}" pkgs < <(ryoku_offline_pacstrap_extra)
   fi

@@ -3,6 +3,35 @@
 ## Unreleased
 
 ### Fixed
+- **The offline install actually installs the desktop, the drivers, and the AUR
+  set.** Every in-chroot transaction resolved against the target's own
+  `/etc/pacman.conf`, which registers core, extra, multilib, the CachyOS repos and
+  `[ryoku]` with no synced database (offline, only `[offline]` has one). pacman
+  refuses a whole transaction over a registered-but-unsynced repo, so the desktop
+  set died with `failed to prepare transaction (could not find database)` after
+  the base had already laid, and the GPU drivers and bundled AUR tools failed the
+  same way, silently. The offline window now writes an `[offline]`-only config
+  (`/etc/pacman.d/ryoku-offline.conf`, removed when the window closes) and routes
+  the desktop set and the AUR set through it; `lib/drivers.sh` hands the same path
+  to the per-vendor scripts as `RYOKU_PACMAN_CONF`. Pinned by
+  `tests/install-offline.sh`.
+- **No stray "Limine" NVRAM entry on an alongside install.** `limine-mkinitcpio-hook`
+  ships `80-limine-efi-deploy.hook`, which ran during pacstrap, before
+  `/etc/default/limine` existed: `limine-install` then autodetected `ESP_PATH=/boot`
+  (on this layout our XBOOTLDR, not an ESP) and registered a boot entry pointing
+  there, first in BootOrder, colliding with an existing OS's own Limine entries.
+  That hook and snap-pac's pair are now masked BEFORE pacstrap (they live under
+  `/usr/share/libalpm/hooks`, so an `/etc/pacman.d/hooks` mask cannot collide with
+  a packaged file) and restored at the end. Masking snap-pac early also removes the
+  `fatal library error, lookup self` that its `ps` call printed from the chroot.
+  The alongside path additionally pins `EFI_REGISTER=no`, so no later limine
+  upgrade can re-add that entry.
+- Alongside installs survive a limine upgrade: `ryoku-limine-stage.hook` refreshes
+  both stage loaders (`/boot/ryoku-limine.efi` and `/efi/EFI/ryoku/BOOTX64.EFI`)
+  from the package. limine's own hook only maintains
+  `ESP_PATH/EFI/limine/limine_x64.efi`, which this topology never boots.
+- Install logs and docs no longer describe the alongside strategy as Windows-only:
+  it shares whatever ESP the disk has, and the partition log says so.
 - **The offline install lays the base system even when a desktop package is bad.**
   `lib/offline.sh` folded the whole desktop set (`ryoku-desktop`, whose umbrella
   pulls the large `ryomotion`) into the base pacstrap, so one corrupt or

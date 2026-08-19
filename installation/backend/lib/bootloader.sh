@@ -99,12 +99,16 @@ ryoku_bootloader_finalize() {
 ryoku_bootloader_finalize_alongside() {
   local defaults=/mnt/etc/default/limine conf=/mnt/boot/limine.conf
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
-    log "DRYRUN: pin TARGET_OS_NAME + FIND_BOOTLOADERS=no in $defaults, then (when limine-mkinitcpio-hook is installed) rerun limine-update in the chroot and repoint /boot/limine.conf off the flat seed; offline keeps the seed at default_entry 1"
+    log "DRYRUN: pin TARGET_OS_NAME + FIND_BOOTLOADERS=no + EFI_REGISTER=no in $defaults, then (when limine-mkinitcpio-hook is installed) rerun limine-update in the chroot and repoint /boot/limine.conf off the flat seed; offline keeps the seed at default_entry 1"
     return 0
   fi
   if [[ -f $defaults ]]; then
     ryoku_limine_conf_set "$defaults" TARGET_OS_NAME '"Ryoku Linux"'
     ryoku_limine_conf_set "$defaults" FIND_BOOTLOADERS no
+    # EFI_REGISTER=no: limine-install would otherwise register a "Limine" NVRAM
+    # entry for ESP_PATH=/boot -- here the XBOOTLDR, not an ESP -- on every limine
+    # upgrade, next to the 'Ryoku' entry that points at the real loader.
+    ryoku_limine_conf_set "$defaults" EFI_REGISTER no
   fi
   if chroot_has_pkg limine-mkinitcpio-hook; then
     log "limine hooks landed: regenerating the tool-managed menu in /boot/limine.conf"
@@ -452,7 +456,7 @@ ryoku_bootloader_alongside() {
   run arch-chroot /mnt mkinitcpio -P
 
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
-    log "DRYRUN: install the second-stage limine at /boot/ryoku-limine.efi + seed /boot/limine.conf (branding, fslabel(RYOKUBOOT) kernels, guid() existing-OS chainload), mount the existing OS's ESP at /mnt/efi, tar it to /var/backups/ryoku/, drop the STATIC stage-1 hop at /efi/EFI/ryoku/{BOOTX64.EFI,limine.conf} (timeout 0, efi_chainload -> fslabel(RYOKUBOOT):/ryoku-limine.efi), seed /etc/kernel/cmdline + a /efi fstab line, and register 'Ryoku' first in BootOrder; other vendors' dirs (e.g. /EFI/Microsoft) untouched"
+    log "DRYRUN: install the second-stage limine at /boot/ryoku-limine.efi + seed /boot/limine.conf (branding, fslabel(RYOKUBOOT) kernels, guid() existing-OS chainload), mount the existing OS's ESP at /mnt/efi, tar it to /var/backups/ryoku/, drop the STATIC stage-1 hop at /efi/EFI/ryoku/{BOOTX64.EFI,limine.conf} (timeout 0, efi_chainload -> fslabel(RYOKUBOOT):/ryoku-limine.efi), seed /etc/kernel/cmdline + a /efi fstab line + the ryoku-limine-stage.hook that refreshes both stage loaders on limine upgrades, and register 'Ryoku' first in BootOrder; other vendors' dirs (e.g. /EFI/Microsoft) untouched"
     return 0
   fi
 
@@ -517,6 +521,7 @@ ryoku_bootloader_alongside() {
   # and the /efi mount.
   ryoku_alongside_kernel_cmdline "$CMDLINE quiet splash"
   ryoku_alongside_fstab_efi "$esp"
+  ryoku_alongside_stage_hook
 
   # register 'Ryoku' first in BootOrder; the existing entry is left as-is. best
   # effort: firmware that rejects NVRAM writes still boots via the fallback above.
@@ -637,6 +642,27 @@ ryoku_alongside_fstab_efi() {
   uuid=$(blkid -o value -s UUID "$esp" 2>/dev/null || true)
   [[ -n $uuid ]] || die "alongside bootloader: blkid found no filesystem UUID for the shared ESP $esp; refusing to append an empty-UUID /efi fstab line (a boot-losing mistake)."
   printf 'UUID=%s\t/efi\tvfat\tdefaults,nofail,noatime\t0 2\n' "$uuid" >>"$fstab"
+}
+
+# ryoku_alongside_stage_hook: keep the two-stage loaders current. limine's own
+# deploy hook only refreshes ESP_PATH/EFI/limine/limine_x64.efi, which this
+# topology never boots -- our stage-1 (/efi/EFI/ryoku/BOOTX64.EFI) and stage-2
+# (/boot/ryoku-limine.efi) would keep booting the version the ISO shipped while
+# limine.conf moves on. So refresh both from the package on every limine upgrade.
+ryoku_alongside_stage_hook() {
+  run mkdir -p /mnt/etc/pacman.d/hooks
+  write_file /mnt/etc/pacman.d/hooks/ryoku-limine-stage.hook <<'EOF'
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = limine
+
+[Action]
+Description = Refreshing the Ryoku two-stage Limine loaders...
+When = PostTransaction
+Exec = /bin/sh -c 'src=/usr/share/limine/BOOTX64.EFI; [ -f "$src" ] || exit 0; [ -f /boot/ryoku-limine.efi ] && cp -f "$src" /boot/ryoku-limine.efi; [ -f /efi/EFI/ryoku/BOOTX64.EFI ] && cp -f "$src" /efi/EFI/ryoku/BOOTX64.EFI; exit 0'
+EOF
 }
 
 ryoku_builtin_default_limine() {

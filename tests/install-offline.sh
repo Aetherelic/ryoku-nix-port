@@ -116,4 +116,42 @@ run_offline "" 1
 [[ "$(steps_of)" == "partition filesystems mount pacstrap configure bootloader " ]] \
   || fail "online install step order changed: '$(steps_of)'"
 
+# ---- 5. in-chroot transactions resolve against the baked repo ALONE -----------
+# pacman refuses a transaction outright -- "failed to prepare transaction (could
+# not find database)" -- when ANY registered repo has no synced db, even if every
+# target resolves from the one that does. In a fresh target that is core, extra,
+# multilib, the CachyOS repos and [ryoku]: all registered, none synced. So the
+# offline window installs against a config that registers [offline] and nothing
+# else. Without this the desktop set, the GPU drivers and the AUR toolset all
+# failed on real hardware while the base system looked fine.
+target="$tmp/target"; mkdir -p "$target/etc/pacman.d"
+sed "s#/mnt#$target#g" "$root/installation/backend/lib/offline.sh" >"$tmp/offline.sh"
+# the stubs and RYOKU_OFFLINE_REPO are read by the sourced lib, which shellcheck
+# does not follow.
+# shellcheck disable=SC2034,SC2329
+(
+  set +u
+  RYOKU_OFFLINE_REPO="$baked"
+  log() { :; }
+  run() { "$@"; }
+  write_file() { cat >"$1"; }
+  # shellcheck source=/dev/null
+  source "$tmp/offline.sh"
+  ryoku_offline_chroot_conf
+) || fail "ryoku_offline_chroot_conf failed"
+written="$target/etc/pacman.d/ryoku-offline.conf"
+[[ -f $written ]] || fail "the offline window wrote no in-chroot pacman config"
+repos=$(grep -oE '^\[[a-z0-9_-]+\]' "$written" | grep -v '^\[options\]$' || true)
+[[ $repos == "[offline]" ]] || fail "the in-chroot offline config registers '$repos', not [offline] alone"
+grep -qF "Server = file://$baked" "$written" || fail "the in-chroot offline config does not point at the baked repo"
+
+# and every offline in-chroot install goes through it: offline.sh may not reach
+# pacman directly at all, and deploy.sh's offline branch must use the wrapper
+# (its online branch is free to use the target's own config).
+while IFS= read -r line; do
+  fail "installation/backend/lib/offline.sh installs in the chroot with an unrestricted pacman: $line"
+done < <(grep -nE '^[^#]*arch-chroot /mnt pacman' "$root/installation/backend/lib/offline.sh" | grep -v -- '--config' || true)
+grep -qE 'ryoku_offline_pacman -S .*"\$\{pkgs\[@\]\}"' "$root/installation/backend/lib/deploy.sh" \
+  || fail "deploy.sh's offline branch does not install the desktop set through ryoku_offline_pacman"
+
 echo "install-offline: OK"

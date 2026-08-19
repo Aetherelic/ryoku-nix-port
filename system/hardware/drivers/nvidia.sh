@@ -55,6 +55,8 @@ if (( EUID != 0 )); then
   PM=(sudo -n pacman)
   PRIV=(sudo -n)
 fi
+# offline install: see amd.sh -- only the baked repo has a synced db.
+if [[ -f ${RYOKU_PACMAN_CONF:-} ]]; then PM+=(--config "$RYOKU_PACMAN_CONF"); fi
 
 pkg_installed() { pacman -Qq "$1" >/dev/null 2>&1; }
 

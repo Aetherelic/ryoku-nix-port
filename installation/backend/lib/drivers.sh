@@ -9,6 +9,12 @@
 ryoku_drivers() {
 	log "installing GPU drivers for the detected hardware"
 	local dir="$RYOKU_REPO/system/hardware/drivers" vendor name
+	# offline: hand the scripts the [offline]-only pacman config, the only one that
+	# resolves in a target whose other repos have no synced db. Empty online.
+	local pmconf=""
+	if declare -f ryoku_offline_active >/dev/null && ryoku_offline_active; then
+		pmconf=$RYOKU_OFFLINE_CHROOT_CONF
+	fi
 	for vendor in amd intel nvidia vulkan; do
 		[[ -f "$dir/$vendor.sh" ]] || {
 			log "skip: $vendor.sh not present"
@@ -16,7 +22,7 @@ ryoku_drivers() {
 		}
 		name="ryoku-driver-$vendor.sh"
 		run cp "$dir/$vendor.sh" "/mnt/root/$name"
-		if ! run timeout 900 arch-chroot /mnt env RYOKU_DRYRUN="${RYOKU_DRYRUN:-}" bash "/root/$name"; then
+		if ! run timeout 900 arch-chroot /mnt env RYOKU_DRYRUN="${RYOKU_DRYRUN:-}" RYOKU_PACMAN_CONF="$pmconf" bash "/root/$name"; then
 			log "drivers: WARNING, the $vendor driver install timed out (>15m) or failed and was skipped; the desktop will run on the integrated GPU. Run 'ryoku doctor' after first boot to install the $vendor driver. Continuing so the install finishes."
 		fi
 		run rm -f "/mnt/root/$name"

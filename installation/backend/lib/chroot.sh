@@ -167,11 +167,19 @@ EOF
 }
 
 # pacman hooks that misbehave inside the install chroot get masked for the
-# duration and restored before we finish. snap-pac runs `snapper` on every
-# transaction, but the chroot has no snapper config or D-Bus, so it aborts with
-# "fatal library error, lookup self" on each driver/AUR install. a /dev/null
-# symlink is pacman's documented way to disable a hook by name.
-RYOKU_MASKED_HOOKS=(05-snap-pac-pre.hook zz-snap-pac-post.hook)
+# duration and restored before we finish. A /dev/null symlink is pacman's
+# documented way to disable a hook by name. All of these ship under
+# /usr/share/libalpm/hooks, so a mask in /etc/pacman.d/hooks never collides with
+# a packaged file and can therefore be laid BEFORE pacstrap -- which is where
+# they do their damage:
+#   snap-pac runs `snapper` on every transaction, but the chroot has no snapper
+#   config or D-Bus, so it aborts with "fatal library error, lookup self".
+#   80-limine-efi-deploy (limine-mkinitcpio-hook) runs limine-install, which at
+#   pacstrap time has no /etc/default/limine yet: it autodetects ESP_PATH as
+#   /boot -- on the alongside layout our XBOOTLDR, not an ESP -- and registers a
+#   stray "Limine" NVRAM entry pointing there. The bootloader step installs the
+#   loader itself; the hook is restored for later upgrades.
+RYOKU_MASKED_HOOKS=(05-snap-pac-pre.hook zz-snap-pac-post.hook 80-limine-efi-deploy.hook)
 
 # mkinitcpio's install hooks rebuild the initramfs on every kernel/module
 # package. The drivers and AUR steps would each trigger one, and the bootloader
@@ -202,7 +210,6 @@ ryoku_hooks_quiet() {
   run mkdir -p /mnt/etc/pacman.d/hooks
   local h
   for h in "${RYOKU_MASKED_HOOKS[@]}"; do
-    [[ -n ${RYOKU_DRYRUN:-} || -e /mnt/usr/share/libalpm/hooks/$h ]] || continue
     log "masking pacman hook for the install: $h"
     run ln -sf /dev/null "/mnt/etc/pacman.d/hooks/$h"
   done

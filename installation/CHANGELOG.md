@@ -6,6 +6,14 @@ A ground-up hardening of the installer for real hardware. Granular backend and
 ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
 
 ### Added
+- **A gate before the ISO build.** `tests/iso-preflight.sh` runs the root-free
+  installer suite in about ten seconds (shell syntax + ShellCheck, package-list
+  sanity, the offline-install regressions, the boot-menu fixtures, the dry-run
+  contract matrix, the TUI build and unit tests, update delivery) and blocks the
+  Build ISO workflow as its own job, so a known-broken installer can no longer
+  spend two hours becoming an ISO that reaches users. The backend test jobs also
+  carry timeouts now: a hung fixture used to burn GitHub's 6h default, and the
+  suite runs on `unstable-dev` pushes, not just `main`.
 - The installer TUI (`tui/`, Go / Bubble Tea v2): `main.go` the UI, `system.go`
   the machine glue and the `RYOKU_*` handoff. Safety gates for legacy BIOS,
   Secure Boot, the live boot medium, the wipe acknowledgement, and online-only.
@@ -42,6 +50,21 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   live kernel needed VMD to see the NVMe.
 
 ### Fixed
+- **A no-network install now finishes.** Every in-chroot `pacman -S` during the
+  offline window resolved against the target's `/etc/pacman.conf`, where core,
+  extra, multilib, the CachyOS repos and `[ryoku]` are registered with no synced
+  database; pacman rejects the whole transaction over that, so the desktop set
+  reported `could not find database` after the base had laid, and the GPU drivers
+  and bundled AUR tools failed the same way without saying so. The window now runs
+  against a config that registers the baked repo alone. Detail in
+  `backend/CHANGELOG.md`.
+- **An alongside install stops leaving a broken "Limine" boot entry behind.**
+  `limine-mkinitcpio-hook`'s deploy hook fired during pacstrap and registered an
+  entry against our XBOOTLDR partition (not an ESP), first in the boot order and
+  clashing with an existing Linux's own Limine entries. It is masked for the
+  install and `EFI_REGISTER=no` keeps later upgrades from re-adding it.
+- The alongside strategy is documented and logged as what it is: install beside
+  ANY existing OS, Windows or another Linux, sharing whatever ESP the disk has.
 - **A bundled ISO installs with the network down, and the installer now agrees with
   the backend about what "offline" means.** Three things conspired here.
   `netOnline()` answered `true` on a bundled image "because the install can

@@ -130,9 +130,10 @@ System-level definition installed into the target.
   `preflight`, `disk`, `luks`, `filesystem`, `pacstrap`, `mirrors`, `chroot`,
   `deploy`, `network`, `drivers`, `bootloader`, `aur`, `snapshots`). It reads
   `system/packages/`, adds the `[ryoku]` package repository, and installs the
-  desktop onto the target. `alongside` dual-boots by creating a 2 GiB XBOOTLDR
-  boot partition + root in free space and sharing Windows' ESP (Limine lands
-  beside Windows' loader), never touching `/EFI/Microsoft`.
+  desktop onto the target. `alongside` dual-boots with ANY existing OS (Windows or
+  another Linux) by creating a 2 GiB XBOOTLDR boot partition + root in free space
+  and sharing the disk's existing ESP: Limine lands in its own `/EFI/ryoku`, no
+  other vendor's directory is touched.
 - `iso/` the archiso profile. `build.sh` bakes the repo payload into the image,
   prebuilds the Go binaries, and runs `mkarchiso` (reproducible for a fixed
   commit). `profiledef.sh`, `packages.x86_64` (live-only set), and `airootfs/`

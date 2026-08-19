@@ -1871,7 +1871,7 @@ func (m model) partBlockReason() string {
 				// No gap AND nothing shrinkable: the per-partition reasons show below.
 				return "No free space, and no partition here can be shrunk safely (see reasons below). Press esc to pick another disk or 'Erase whole disk'."
 			}
-			return fmt.Sprintf("Only %dG free; alongside needs %dG (a %dG root plus a %dG boot partition). Shrink Windows first, or press esc and choose 'Erase whole disk'.", free, need, minRootGiB, alongsideBootGiB)
+			return fmt.Sprintf("Only %dG free; alongside needs %dG (a %dG root plus a %dG boot partition). Shrink an existing partition first, or press esc and choose 'Erase whole disk'.", free, need, minRootGiB, alongsideBootGiB)
 		}
 		return ""
 	default:

@@ -7,9 +7,9 @@
 # RYOKU_ONLINE != 1 AND RYOKU_OFFLINE_REPO points at a baked repo that has a
 # synced db; otherwise the online path in pacstrap.sh / deploy.sh runs unchanged.
 #
-# The desktop set is folded into the pacstrap transaction (one pass, the way
-# omarchy batches its base install) rather than a second chroot `pacman -S`, so
-# an offline install is a single dependency resolution over local packages.
+# The base lays first; the desktop set, the GPU drivers and the AUR toolset then
+# install as separate in-chroot transactions from the same repo, so one bad
+# desktop package cannot take the base system down with it.
 
 : "${RYOKU_OFFLINE_REPO:=}"
 RYOKU_OFFLINE_REPO_NAME=offline
@@ -81,18 +81,30 @@ ryoku_offline_pacstrap_extra() {
   return 0
 }
 
-# ryoku_offline_chroot_on: make the baked repo resolvable INSIDE the target
-# chroot so the per-hardware GPU driver step (system/hardware/drivers/*) can
-# `pacman -S` its packages offline. bind the repo into /mnt at the same path (so
-# file:// resolves) and append an [offline] stanza to the target pacman.conf.
-# only [offline] has a synced db in the fresh target, so pacman resolves drivers
-# from it with no network regardless of stanza order. best-effort: a bind failure
-# must not abort an install whose drivers are already present (e.g. a VM).
+# The config every in-chroot offline transaction runs with, path inside the
+# target. It registers [offline] and nothing else: pacman fails a transaction
+# outright ("could not find database") when ANY registered repo has no synced db,
+# and in a fresh target core/extra/multilib, the CachyOS repos and [ryoku] are all
+# registered and unsynced.
+RYOKU_OFFLINE_CHROOT_CONF=/etc/pacman.d/ryoku-offline.conf
+
+# ryoku_offline_pacman ARGS...: pacman in the target, restricted to the baked
+# repo. Every offline in-chroot install goes through this.
+ryoku_offline_pacman() {
+  arch-chroot /mnt pacman --config "$RYOKU_OFFLINE_CHROOT_CONF" "$@"
+}
+
+# ryoku_offline_chroot_on: make the baked repo resolvable INSIDE the target chroot
+# so the desktop set, the GPU driver step and the AUR toolset can install offline.
+# bind the repo into /mnt at the same path (so file:// resolves), write the
+# [offline]-only config, and add an [offline] stanza to the target pacman.conf too
+# (for anything that shells out to plain pacman). best-effort: a bind failure must
+# not abort an install whose drivers are already present (e.g. a VM).
 ryoku_offline_chroot_on() {
   ryoku_offline_active || return 0
   local conf=/mnt/etc/pacman.conf
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
-    log "offline: would bind $RYOKU_OFFLINE_REPO into the chroot and add [offline] to $conf for the driver step"
+    log "offline: would bind $RYOKU_OFFLINE_REPO into the chroot, write the [offline]-only $RYOKU_OFFLINE_CHROOT_CONF, and add [offline] to $conf"
     return 0
   fi
   run mkdir -p "/mnt$RYOKU_OFFLINE_REPO"
@@ -100,10 +112,30 @@ ryoku_offline_chroot_on() {
     mount --bind "$RYOKU_OFFLINE_REPO" "/mnt$RYOKU_OFFLINE_REPO" \
       || log "offline: warning, could not bind the offline repo into the chroot (driver installs will be skipped)"
   fi
+  ryoku_offline_chroot_conf
   grep -q '^\[offline\]' "$conf" 2>/dev/null && return 0
   append_file "$conf" <<EOF
 
 [offline]
+SigLevel = Never
+Server = file://$RYOKU_OFFLINE_REPO
+EOF
+}
+
+# chroot_conf: DBPath and CacheDir stay at their defaults, so this shares the db
+# pacstrap synced and the cache the packages landed in. x86_64_v3 is for the
+# CachyOS variant's v3 builds.
+ryoku_offline_chroot_conf() {
+  write_file "/mnt$RYOKU_OFFLINE_CHROOT_CONF" <<EOF
+# Ryoku installer, offline install window only. Removed when it closes.
+[options]
+Architecture = x86_64 x86_64_v3
+HoldPkg = pacman glibc
+ParallelDownloads = 5
+SigLevel = Never
+LocalFileSigLevel = Never
+
+[$RYOKU_OFFLINE_REPO_NAME]
 SigLevel = Never
 Server = file://$RYOKU_OFFLINE_REPO
 EOF
@@ -115,7 +147,8 @@ EOF
 # the synced offline db too. idempotent; safe from the failure trap.
 ryoku_offline_chroot_off() {
   ryoku_offline_active || return 0
-  [[ -n ${RYOKU_DRYRUN:-} ]] && { log "offline: would strip [offline] from the target pacman.conf and unmount the bound repo"; return 0; }
+  [[ -n ${RYOKU_DRYRUN:-} ]] && { log "offline: would strip [offline] from the target pacman.conf, drop $RYOKU_OFFLINE_CHROOT_CONF, and unmount the bound repo"; return 0; }
+  rm -f "/mnt$RYOKU_OFFLINE_CHROOT_CONF" 2>/dev/null || true
   local conf=/mnt/etc/pacman.conf
   if [[ -f $conf ]]; then
     # delete the [offline] stanza: the header line and its two directive lines.
@@ -149,11 +182,11 @@ ryoku_offline_aur() {
   (( ${#want[@]} )) || return 0
   local p
   for p in "${want[@]}"; do
-    arch-chroot /mnt pacman -Sp "$p" >/dev/null 2>&1 && have+=("$p")
+    ryoku_offline_pacman -Sp "$p" >/dev/null 2>&1 && have+=("$p")
   done
   (( ${#have[@]} )) || { log "AUR: no bundled tools found in the offline repo (built best-effort at ISO time); skipping"; return 0; }
   log "AUR: installing ${#have[@]} bundled tool(s) from the baked [offline] repo"
-  arch-chroot /mnt pacman -S --noconfirm --needed "${have[@]}" \
+  ryoku_offline_pacman -S --noconfirm --needed "${have[@]}" \
     || log "AUR: warning, some bundled tools did not install (e.g. a DKMS module); continuing"
   return 0
 }

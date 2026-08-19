@@ -35,6 +35,10 @@ run() {
 
 PM=(pacman)
 (( EUID == 0 )) || PM=(sudo -n pacman)
+# offline install: RYOKU_PACMAN_CONF points at a config registering only the ISO's
+# baked repo. Resolving against the target's own pacman.conf cannot work there --
+# its other repos have no synced db and pacman then refuses the transaction.
+if [[ -f ${RYOKU_PACMAN_CONF:-} ]]; then PM+=(--config "$RYOKU_PACMAN_CONF"); fi
 
 pkg_installed() { pacman -Qq "$1" >/dev/null 2>&1; }
 

@@ -146,4 +146,41 @@ cp "$conf" "$tmp/adopted-before.conf"
 ryoku_boot_limine_repoint "$conf"
 diff -q "$tmp/adopted-before.conf" "$conf" >/dev/null || fail "second repoint changed the file"
 
+# --- alongside: the stage-loader refresh hook -------------------------------
+# limine's own deploy hook only refreshes ESP_PATH/EFI/limine/limine_x64.efi,
+# which the two-stage layout never boots. Without this hook both Ryoku stage
+# loaders keep the version the ISO shipped while limine.conf moves on.
+hookdir="$tmp/hooks/etc/pacman.d/hooks"
+mkdir -p "$hookdir"
+# the stubs stand in for common.sh's writers, called from the sourced lib.
+# shellcheck disable=SC2329
+( set +u
+  run() { :; }
+  log() { :; }
+  write_file() { cat >"${1/\/mnt/$tmp/hooks}"; }
+  RYOKU_DRYRUN=""
+  ryoku_alongside_stage_hook
+) || fail "ryoku_alongside_stage_hook failed"
+hook="$hookdir/ryoku-limine-stage.hook"
+[[ -f $hook ]] || fail "the alongside path wrote no stage-loader refresh hook"
+grep -qxF 'Target = limine' "$hook" || fail "the stage hook does not trigger on the limine package"
+grep -qF '/boot/ryoku-limine.efi' "$hook" || fail "the stage hook does not refresh the second-stage loader"
+grep -qF '/efi/EFI/ryoku/BOOTX64.EFI' "$hook" || fail "the stage hook does not refresh the stage-1 loader on the shared ESP"
+
+# --- alongside: limine-install must not register its own NVRAM entry --------
+# ESP_PATH is our XBOOTLDR here, not an ESP: a "Limine" entry pointing at it
+# lands next to the real 'Ryoku' entry and boots nothing (seen on a user's box).
+defaults="$tmp/etc/default/limine"
+mkdir -p "$(dirname "$defaults")"
+printf 'ESP_PATH="/boot"\n' >"$defaults"
+( set +u
+  RYOKU_DRYRUN=""
+  RYOKU_DISK_STRATEGY=alongside
+  chroot_has_pkg() { return 1; }
+  eval "$(declare -f ryoku_bootloader_finalize_alongside | sed 's#/mnt/etc/default/limine#'"$defaults"'#')"
+  ryoku_bootloader_finalize_alongside
+) || fail "ryoku_bootloader_finalize_alongside failed"
+grep -qxF 'EFI_REGISTER=no' "$defaults" || fail "alongside does not pin EFI_REGISTER=no in /etc/default/limine"
+grep -qxF 'FIND_BOOTLOADERS=no' "$defaults" || fail "alongside stopped pinning FIND_BOOTLOADERS=no"
+
 echo "limine-bootloader: all checks passed"

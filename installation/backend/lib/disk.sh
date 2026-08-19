@@ -288,7 +288,7 @@ ryoku_partition_whole() {
 
 ryoku_partition_alongside() {
   local disk=$RYOKU_DISK
-  log "partitioning $disk (alongside existing OS: 2GiB XBOOTLDR /boot + root in free space, nothing wiped, Windows ESP shared not touched)"
+  log "partitioning $disk (alongside existing OS: 2GiB XBOOTLDR /boot + root in free space, nothing wiped, the existing ESP is shared, not touched)"
 
   # under dry-run the disk may not exist; narrate what we'd do and pick
   # plausible device names so the rest of the flow can be exercised.
