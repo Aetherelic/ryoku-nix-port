@@ -17,6 +17,9 @@
 # closed, pacstrap never confirms, the real mkinitcpio is called by path, and every
 # hardware profile names a concrete vulkan-driver provider so the menu cannot
 # appear at all.
+#
+# The grep patterns below are literal shell source, so single quotes are the point.
+# shellcheck disable=SC2016
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
