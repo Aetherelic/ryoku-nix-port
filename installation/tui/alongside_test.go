@@ -222,7 +222,7 @@ func TestReviewNoEraseReachableForAlongside(t *testing.T) {
 	}
 	m.picks["disk"] = "whole"
 	if !strings.Contains(m.reviewBody(100), "ERASING") {
-		t.Fatal("whole-disk review must still show ERASING (sanity)")
+		t.Fatal("whole-disk review must still show ERASING (control case)")
 	}
 }
 

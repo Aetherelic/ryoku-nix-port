@@ -5,7 +5,7 @@
 # (pexpect); the backend is env-driven and prints @@RYOKU_DONE on success.
 #
 #   install-vm.py --iso ryoku.iso            full install + verify
-#   install-vm.py --iso ryoku.iso --boot-only   just reach the live shell (sanity)
+#   install-vm.py --iso ryoku.iso --boot-only   just reach the live shell (quick check)
 #
 # Exits 0 when the install completes and the installed tree checks out, non-zero
 # otherwise, printing the serial log tail. Uses KVM when /dev/kvm is present,
@@ -152,7 +152,7 @@ def main():
             sh(child, "echo READY:$(uname -r)")
             child.sendline("poweroff")
             child.expect(pexpect.EOF, timeout=120)
-            print("install-vm: boot-only sanity OK")
+            print("install-vm: boot-only check OK")
             return
 
         env = (f"RYOKU_DISK=/dev/vda RYOKU_PROFILE={args.profile} "

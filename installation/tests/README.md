@@ -28,7 +28,7 @@ demand); see `docs/updates.md` for the delivery contract they guard.
 - `iso-preflight.sh` is the gate a Build ISO run clears BEFORE mkarchiso starts
   (its own job in `build-iso-reusable.yml`, and the same command on a dev box
   before dispatching a build). Root-free and hermetic, ~10s: shell syntax +
-  ShellCheck over the installer, package-list sanity, the offline-install
+  ShellCheck over the installer, package-list checks, the offline-install
   regressions (baked-repo resolution, pacman-hook masking, driver-package
   coverage), the boot-menu fixtures, the installer contract suite, the TUI build
   and unit tests, and the update-delivery check. It exists because these classes

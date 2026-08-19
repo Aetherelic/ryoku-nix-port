@@ -7,8 +7,8 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
 
 ### Added
 - **A gate before the ISO build.** `tests/iso-preflight.sh` runs the root-free
-  installer suite in about ten seconds (shell syntax + ShellCheck, package-list
-  sanity, the offline-install regressions, the boot-menu fixtures, the dry-run
+  installer suite in about ten seconds (shell syntax + ShellCheck, package lists,
+  the offline-install regressions, the boot-menu fixtures, the dry-run
   contract matrix, the TUI build and unit tests, update delivery) and blocks the
   Build ISO workflow as its own job, so a known-broken installer can no longer
   spend two hours becoming an ISO that reaches users. The backend test jobs also

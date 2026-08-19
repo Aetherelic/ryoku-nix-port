@@ -126,6 +126,17 @@ delivery_gate() {
   bin/ryoku-dev-verify-delivery --quiet
 }
 
+# 6. the inclusive-language gate that already blocks a push, so a build dispatch
+#    does not discover it after the fact.
+language_gate() {
+  if ! command -v woke >/dev/null 2>&1; then
+    printf 'woke absent; skipping (the Inclusive Language workflow covers it)\n'
+    return 0
+  fi
+  woke --config .woke.yml --exit-1-on-failure \
+    installation docs tests system/hardware .github/workflows
+}
+
 gate "shell syntax" syntax_gate
 gate "shellcheck" shellcheck_gate
 gate "package lists" packages_gate
@@ -138,6 +149,7 @@ gate "installer contract" suite_gate install-dryrun-matrix install-preflight \
 gate "packaging offline" suite_gate release-offline-builds
 gate "installer TUI" tui_gate
 gate "update delivery" delivery_gate
+gate "inclusive language" language_gate
 
 printf '\n=== iso-preflight: %d gate(s) ok, %d failed ===\n' "$pass" "$fail"
 if ((fail > 0)); then
