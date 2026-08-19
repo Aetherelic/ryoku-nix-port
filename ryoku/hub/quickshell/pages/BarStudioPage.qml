@@ -173,11 +173,6 @@ Item {
         q.widgets = w;
         page.fedit("qsbar", q);
     }
-    // Blur is a compositor layer rule (hyprland/modules/decoration.lua), so a
-    // change needs a hypr reload to re-read shell.json. Debounced so the
-    // shell.json write lands before the reload parses it.
-    function reloadHypr() { hyprReloadTimer.restart(); }
-    Timer { id: hyprReloadTimer; interval: 200; onTriggered: Quickshell.execDetached(["hyprctl", "reload"]) }
 
     // The gap animation is stored as an int mode in the qsbar map. Bar Studio
     // exposes a labelled subset of the usable presets; each label maps to the
@@ -580,23 +575,7 @@ Item {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         on: page.qval("barFrostEnabled", false)
-                        onToggled: value => { page.qset("barFrostEnabled", value); if (page.qval("barFrostBlur", false)) page.reloadHypr(); }
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
-                    controlWidth: 54
-                    label: qsTr("True blur")
-                    desc: qsTr("Blur the desktop behind the frosted bar. Needs Frost; off in Power Saver.")
-                    source: "shell.json"
-                    enabled: page.qval("barFrostEnabled", false)
-                    Sw {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("barFrostBlur", false)
-                        onToggled: value => { page.qset("barFrostBlur", value); page.reloadHypr(); }
+                        onToggled: value => page.qset("barFrostEnabled", value)
                     }
                 }
                 SettingRow {

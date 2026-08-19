@@ -17,8 +17,9 @@ Item {
     // screen and unfrozen.
     readonly property real audioLevel: AudioBars.active ? Math.min(1, AudioBars.energy) : 0
     // streamLive gates the whole animation on motion policy: reduce-motion (its
-    // toggle, lowPowerMode, or the Power Saver profile) freezes the canvas to its
-    // last frame and releases cava, so the always-on bar-gap repaint costs nothing.
+    // toggle, lowPowerMode, or the Power Saver profile) releases cava and stops the
+    // repaint. ReactorLayer's LazyLoader also unloads the stream under reduce-motion,
+    // so the bar-gap animation is off (not a frozen frame) until motion resumes.
     readonly property bool streamLive: active && !Perf.reduceMotion
     onStreamLiveChanged: AudioBars.setActive(root, streamLive)
     Component.onCompleted: AudioBars.setActive(root, root.streamLive)

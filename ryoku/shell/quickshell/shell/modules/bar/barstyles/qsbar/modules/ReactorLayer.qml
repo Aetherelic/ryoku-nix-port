@@ -13,11 +13,13 @@
 // This mirrors V1's `island` run-geometry shim (pillRuns / runLeftEdge /
 // runRightEdge) so the shared ParticleStream drives every mode 1-8 (incl.
 // 7=reactor, 8=quotes, fed by ~/.cache/qs-reactor-event) unchanged. The stream is
-// loaded only while an animation is selected AND the bar is on screen, so it
-// stays idle-cheap (LazyLoader unload releases the CAVA claim + paint timers).
+// loaded only while an animation is selected, the bar is on screen, and motion is
+// allowed (reduce-motion unloads it), so it stays idle-cheap (LazyLoader unload
+// releases the CAVA claim + paint timers).
 // ─────────────────────────────────────────────────────────────────────────────
 import QtQuick
 import Quickshell
+import shell.services
 import "."
 
 Item {
@@ -86,9 +88,14 @@ Item {
     function runLeftEdge(i)  { return runs[i].x - (reactor.usePills ? 0 : reactor.gapInset) }
 
     // Load the stream only while it can actually flow: an animation is selected,
-    // the bar is on screen, and there is at least one gap between clusters.
+    // the bar is on screen, there is at least one gap between clusters, and motion
+    // is allowed. Reduce-motion (Power Saver / lowPowerMode / the toggle) unloads
+    // the stream instead of freezing the canvas, so a shell reload while reduced
+    // cannot strand a half-drawn frozen frame over the bar; balanced or
+    // performance loads it back and animates.
     LazyLoader {
-        active: reactor.visible && reactor.shellVisible && reactor.runs.length > 1
+        active: reactor.visible && reactor.shellVisible
+                && reactor.runs.length > 1 && !Perf.reduceMotion
 
         ParticleStream {
             parent: reactor

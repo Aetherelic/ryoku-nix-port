@@ -15,10 +15,6 @@ Item {
     property var root: null
     property var cc: null
 
-    // Blur is a compositor layer rule (hyprland/modules/decoration.lua); a change
-    // needs a hypr reload to re-read shell.json. Debounced so the write lands first.
-    Timer { id: hyprReload; interval: 250; onTriggered: Quickshell.execDetached(["hyprctl", "reload"]) }
-
     // ── null-safe token shortcuts (fallbacks match the kit primitives' own) ──
     readonly property color cAccent: page.root ? page.root.seal : "#c4746e"
     readonly property color cInk: page.root ? page.root.ink : "#dddddd"
@@ -276,25 +272,7 @@ Item {
                         options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
                         current: (page.root && page.root.barFrostEnabled) ? "on" : "off"
                         onChose: k => {
-                            if (page.root && page.root.barFrostEnabled !== undefined) { page.root.barFrostEnabled = (k === "on"); if (page.root.barFrostBlur) hyprReload.restart() }
-                        }
-                    }
-                }
-                CcRow {
-                    root: page.root
-                    label: I18n.tr("True blur")
-                    desc: I18n.tr("Blur the desktop behind the frosted bar. Needs Frost; off in Power Saver.")
-                    controlWidth: 108
-                    enabled: page.root ? page.root.barFrostEnabled : false
-                    CcSeg {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        root: page.root
-                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
-                        current: (page.root && page.root.barFrostBlur) ? "on" : "off"
-                        onChose: k => {
-                            if (page.root && page.root.barFrostBlur !== undefined) page.root.barFrostBlur = (k === "on")
-                            hyprReload.restart()
+                            if (page.root && page.root.barFrostEnabled !== undefined) page.root.barFrostEnabled = (k === "on")
                         }
                     }
                 }
