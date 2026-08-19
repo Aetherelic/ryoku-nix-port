@@ -307,6 +307,14 @@ type Overrides struct {
 	Apps           map[string]string `json:"apps,omitempty"`
 	KeybindRebinds map[string]string `json:"keybindRebinds,omitempty"`
 
+	// Unbinds: default chords config import must drop so an imported bind that
+	// shadows a shipped one actually wins. Hyprland stacks binds on a key rather
+	// than replacing, so without the unbind both the shipped and the imported
+	// bind fire. Rendered as hl.unbind() lines before the keybinds, i.e. after
+	// binds.lua registered the shipped chord and before the imported bind re-adds
+	// it. Empty on an untouched system, so settings.lua is unchanged.
+	Unbinds []string `json:"unbinds,omitempty"`
+
 	// inputSaved: the store carries an explicit input section, i.e. the user has
 	// saved input settings through the hub at least once. genConfig then pins the
 	// kb_* keys unconditionally, so a saved layout (even "us") beats keyboard.lua,
@@ -800,6 +808,9 @@ func genLua(o Overrides, follow bool) string {
 		if rl := genAppOverride(i, a); rl != "" {
 			b.WriteString(rl)
 		}
+	}
+	if ub := genUnbinds(o); ub != "" {
+		b.WriteString(ub)
 	}
 	for _, k := range o.Keybinds {
 		if kb := genKeybind(k); kb != "" {
@@ -1504,6 +1515,21 @@ func genKeybind(k Keybind) string {
 		return ""
 	}
 	return fmt.Sprintf("hl.bind(%s, %s)\n", luaStr(k.Keys), dsp)
+}
+
+// genUnbinds drops the shipped chords config import must release so an imported
+// bind wins. Emitted before genKeybind's binds, i.e. after binds.lua registered
+// the shipped chord (an earlier module) and before the imported bind re-adds it,
+// so only the user's bind survives on the key.
+func genUnbinds(o Overrides) string {
+	var b strings.Builder
+	for _, c := range o.Unbinds {
+		if c = strings.TrimSpace(c); c == "" {
+			continue
+		}
+		fmt.Fprintf(&b, "hl.unbind(%s)\n", luaStr(c))
+	}
+	return b.String()
 }
 
 // genStartHook runs the cursor setcursor + any user autostart commands at

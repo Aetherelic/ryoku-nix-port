@@ -84,7 +84,8 @@ Rectangle {
             { key: "appoverrides", name: "App Overrides", adv: true }, { key: "layerrules", name: "Layer Rules", adv: true } ] },
         { name: "TOOLS", items: [
             { key: "recording", name: "Recording", adv: true }, { key: "dictation", name: "Dictation", adv: true },
-            { key: "fastfetch", name: "Fastfetch", adv: true } ] },
+            { key: "fastfetch", name: "Fastfetch", adv: true },
+            { key: "import", name: "Import config", adv: true, wired: true } ] },
         { name: "SYSTEM", items: [
             { key: "performance", name: "Performance", adv: true }, { key: "autostart", name: "Autostart", adv: true },
             { key: "environment", name: "Environment", adv: true } ] },
@@ -105,7 +106,7 @@ Rectangle {
         "widgets": "部品", "lockscreen": "施錠", "animations": "動き",
         "addons": "拡張", "windowrules": "規則", "appoverrides": "上書", "layerrules": "階層",
         "autostart": "自動", "environment": "環境", "performance": "性能", "rashin": "羅針",
-        "updates": "更新", "credits": "謝辞", "global": "全般"
+        "updates": "更新", "credits": "謝辞", "global": "全般", "import": "取込"
     })
 
     // Extra search vocabulary per section: the words a user actually types that
@@ -141,6 +142,7 @@ Rectangle {
         "performance": "performance battery power saving save lowpower potato lag cpu gpu ram memory idle freeze reduce motion fps",
         "rashin": "rashin agent ai assistant hermes vault memory skills chat code llm needle",
         "updates": "update upgrade version channel commit behind check origin",
+        "import": "import bring migrate dotfiles config existing hyprland kitty fish fastfetch drop folder git backup undo restore adopt",
         "credits": "credits thanks acknowledgement gratitude contributor"
     })
 
@@ -382,6 +384,7 @@ Rectangle {
     function pageFile(s) {
         var map = { "windows": "WindowsPage", "profile": "ProfilePage", "bar-studio": "BarStudioPage", "desktop": "DesktopPage", "environment": "EnvironmentPage", "autostart": "AutostartPage", "layerrules": "LayerRulesPage", "windowrules": "WindowRulesPage", "appoverrides": "AppOverridesPage", "animations": "AnimationsPage", "appearance": "AppearancePage", "input": "InputPage", "cursor": "CursorPage", "keybinds": "KeybindsPage", "dictation": "DictationPage", "displays": "DisplaysPage", "connections": "ConnectionsPage", "gpu": "GpuPage", "updates": "UpdatesPage", "rashin": "RashinPage", "recording": "RecordingPage", "performance": "PerformancePage", "launcher": "LauncherPage", "lockscreen": "LockscreenPage", "fastfetch": "FastfetchPage", "addons": "AddonsPage", "widgets": "WidgetsPage", "credits": "CreditsPage" };
         map.global = "GlobalPage";
+        map["import"] = "ImportPage";
         return map[s] ? Qt.resolvedUrl("pages/" + map[s] + ".qml") : "";
     }
     function openPick(r) { picker.openFor(r); }
@@ -430,16 +433,16 @@ Rectangle {
     function settingsFiles() {
         var s = hub.section;
         if (hub.pageFile(s) === "") return [];
+        if (s === "import") return [];
         var ce = hub.cfgDir;
-        var ue = ce + "/user_edits/hypr";
         var home = Quickshell.env("HOME") || "";
         var out = [];
         if (hub.hyprlandSet[s]) {
-            out.push({ role: "yours", label: "Your Hyprland config", path: ce + "/hypr.json",
+            out.push({ role: "yours", label: "Your config", path: ce + "/hypr.json",
                 note: "Every Hyprland setting the pages control, with your values, in one full file you edit in place. The GUI writes this same file and reads your hand-edits back on open." });
-            out.push({ role: "advanced", label: "Raw overrides", path: ue + "/user.lua",
+            out.push({ role: "advanced", label: "Raw overrides", path: home + "/.config/hypr/user.lua",
                 seed: "-- Your Hyprland overrides. Loaded last, so this wins over the\\n-- hub-generated files and the shipped base. Updates never touch it.\\n",
-                note: "Advanced, starts empty. Hand-written Hyprland for anything the GUI does not expose; loaded last, so it wins over all." });
+                note: "Hand-written Hyprland for anything the GUI does not expose. Loaded last, so it wins over your config and the shipped base; updates never touch it. Import config lands the raw settings you bring here." });
             out.push({ role: "base", label: "Shipped base", path: home + "/.config/hypr/modules",
                 note: "Ryoku's defaults (Lua logic), refreshed every update; your config above wins. The compositor loads a generated copy of your settings, which you never edit." });
         } else {

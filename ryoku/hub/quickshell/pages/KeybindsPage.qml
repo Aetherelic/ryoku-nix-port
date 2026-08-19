@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import "../Combos.js" as Combos
 
 // Keybinds (DESIGN.md section 8, SYSTEM). Two surfaces under one head: the live
 // shortcut legend (every desktop bind, read straight from what Hyprland has
@@ -171,51 +172,15 @@ Item {
         pg.closeAppPicker();
     }
 
-    // ── conflict detection (ported verbatim from KeybindsEditor) ────────────
+    // ── conflict detection (shared with the Import page via Combos.js) ───────
     // catches what a hand-edited user.lua never would: a custom combo that
-    // shadows a shipped bind, or duplicates another custom one. Keys are
-    // normalised for case, spacing and modifier order before compare.
-    function normKeys(s) {
-        if (!s)
-            return "";
-        var parts = ("" + s).split("+");
-        var out = [];
-        for (var i = 0; i < parts.length; i++) {
-            var t = parts[i].trim().toLowerCase();
-            if (t.length)
-                out.push(t);
-        }
-        out.sort();
-        return out.join("+");
-    }
-    readonly property var shippedKeys: {
-        var set = {};
-        for (var c = 0; c < pg.categories.length; c++) {
-            var binds = pg.categories[c].binds || [];
-            for (var b = 0; b < binds.length; b++) {
-                var k = pg.normKeys(pg.effectiveCombo(binds[b].combo || ""));
-                if (k.length)
-                    set[k] = true;
-            }
-        }
-        return set;
-    }
-    function customCount(norm) {
-        var n = 0;
-        for (var i = 0; i < pg.customRows.length; i++)
-            if (pg.normKeys(pg.customRows[i].keys) === norm)
-                n++;
-        return n;
-    }
-    // "" none, "shipped" shadows a Ryoku bind, "duplicate" repeats another custom.
-    function rowConflict(i) {
-        var k = pg.normKeys((pg.customRows[i] || ({})).keys);
-        if (!k)
-            return "";
-        if (pg.shippedKeys[k])
-            return "shipped";
-        return pg.customCount(k) > 1 ? "duplicate" : "";
-    }
+    // shadows a shipped bind, or duplicates another custom one. The rules live
+    // in Combos so both pages classify a clash the same way; these thin readers
+    // feed it this page's live legend, custom rows and rebinds.
+    function normKeys(s) { return Combos.normKeys(s); }
+    readonly property var shippedKeys: Combos.shippedKeys(pg.categories, pg.rebinds)
+    function customCount(norm) { return Combos.customCount(pg.customRows, norm); }
+    function rowConflict(i) { return Combos.rowConflict(pg.customRows, i, pg.shippedKeys); }
     readonly property int conflictCount: {
         var n = 0;
         for (var i = 0; i < pg.customRows.length; i++)
@@ -372,61 +337,9 @@ Item {
         }
     }
 
-    // Qt key code -> the token Hyprland binds on. Covers letters, digits, the
-    // function row, navigation, and the common punctuation; anything unmapped
-    // returns "" so the recorder keeps waiting (and the field stays typeable for
-    // the exotic rest).
-    function qtKeyName(k) {
-        if (k >= Qt.Key_A && k <= Qt.Key_Z)
-            return String.fromCharCode(k);
-        if (k >= Qt.Key_0 && k <= Qt.Key_9)
-            return String.fromCharCode(k);
-        if (k >= Qt.Key_F1 && k <= Qt.Key_F12)
-            return "F" + (k - Qt.Key_F1 + 1);
-        switch (k) {
-        case Qt.Key_Return: case Qt.Key_Enter: return "Return";
-        case Qt.Key_Space: return "Space";
-        case Qt.Key_Tab: return "Tab";
-        case Qt.Key_Left: return "Left";
-        case Qt.Key_Right: return "Right";
-        case Qt.Key_Up: return "Up";
-        case Qt.Key_Down: return "Down";
-        case Qt.Key_Backspace: return "BackSpace";
-        case Qt.Key_Delete: return "Delete";
-        case Qt.Key_Home: return "Home";
-        case Qt.Key_End: return "End";
-        case Qt.Key_PageUp: return "Prior";
-        case Qt.Key_PageDown: return "Next";
-        case Qt.Key_Insert: return "Insert";
-        case Qt.Key_Print: return "Print";
-        case Qt.Key_Minus: return "minus";
-        case Qt.Key_Equal: return "equal";
-        case Qt.Key_Comma: return "comma";
-        case Qt.Key_Period: return "period";
-        case Qt.Key_Slash: return "slash";
-        case Qt.Key_Backslash: return "backslash";
-        case Qt.Key_Semicolon: return "semicolon";
-        case Qt.Key_Apostrophe: return "apostrophe";
-        case Qt.Key_BracketLeft: return "bracketleft";
-        case Qt.Key_BracketRight: return "bracketright";
-        case Qt.Key_QuoteLeft: return "grave";
-        }
-        return "";
-    }
-    // build the Hyprland combo from a KeyEvent: held modifiers + the main key,
-    // in the order binds.lua writes them. "" until a non-modifier key lands.
-    function chordFrom(event) {
-        var name = pg.qtKeyName(event.key);
-        if (name === "")
-            return "";
-        var mods = [];
-        if (event.modifiers & Qt.MetaModifier) mods.push("SUPER");
-        if (event.modifiers & Qt.ControlModifier) mods.push("CTRL");
-        if (event.modifiers & Qt.AltModifier) mods.push("ALT");
-        if (event.modifiers & Qt.ShiftModifier) mods.push("SHIFT");
-        mods.push(name);
-        return mods.join(" + ");
-    }
+    // the recorder's key reader lives in Combos.js, shared with the Import
+    // page so a captured chord reads into Hyprland's token the same way.
+    function chordFrom(event) { return Combos.chordFrom(event); }
     // the shipped bind a normalised chord shadows, by description, for the
     // conflict badge. "" when nothing shipped matches.
     function shippedDescFor(norm) {

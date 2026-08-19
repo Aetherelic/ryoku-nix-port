@@ -7,8 +7,7 @@ them in, and Ryoku layers their config on top of its own defaults, shows where
 the two collide (keybinds above all), lets the user resolve each collision in
 the Hub, and can undo the whole import.
 
-Status: design approved, not yet built. This document is the spec; it becomes
-the feature's reference once shipped.
+Status: implemented (v1). This document is the feature's reference.
 
 ## Why this exists
 

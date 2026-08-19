@@ -24,6 +24,7 @@ import (
 	"os"
 
 	"ryoku-cli/internal/doctor"
+	"ryoku-cli/internal/importer"
 	"ryoku-cli/internal/keyboard"
 	"ryoku-cli/internal/keyring"
 	"ryoku-cli/internal/sys"
@@ -65,6 +66,8 @@ func main() {
 		err = keyring.Run(os.Args[2:])
 	case "keyboard":
 		err = keyboard.Run(os.Args[2:])
+	case "import":
+		err = importer.Run(os.Args[2:])
 	case "-h", "--help", "help", "":
 		usage()
 	default:
@@ -91,6 +94,7 @@ func usage() {
   recovery       last resort: reset to main and redeploy (overwrites configs)
   doctor         run convergent reconcilers (idempotent stateful fixes)
   keyring        show or set how the GNOME keyring unlocks at sign-in
+  import <path>   bring an existing config in: scan, resolve clashes, apply (--undo)
 `)
 }
 

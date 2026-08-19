@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- **`ryoku import <path>` brings an existing setup onto Ryoku from the terminal.**
+  A thin front door to the Hub's import engine: it scans a folder, an existing
+  `~/.config`, or `--url <git>`, auto-resolves keybind clashes by
+  `--keep mine|ryoku` (default mine), applies, and prints what changed;
+  `ryoku import --undo [<ts>]` reverses it. Wraps `ryoku-hub import`
+  (`internal/importer`).
+
 ### Fixed
 - **Your `~/.config/hypr/user.lua` stops getting wiped on every update.** The
   retired "adopt" step copied the tool's own user files (`hypr/user.lua`,

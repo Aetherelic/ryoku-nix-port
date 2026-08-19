@@ -7,8 +7,27 @@
   (`backend/schemes.go`) defaults a box with no `theme.json` to follow the
   wallpaper now (was static mono), so the Appearance scheme control and the daemon
   agree with the shell's new default look.
+- **The FILES panel points raw Hyprland overrides at the live file.** The "Raw
+  overrides" entry now opens `~/.config/hypr/user.lua` (what Hyprland actually
+  loads), not the orphaned `user_edits/hypr/user.lua`, and the panel names the
+  three real tiers: your GUI config, raw overrides, and the shipped base
+  (`quickshell/Hub.qml`).
 
 ### Added
+- **Import an existing setup (drop-and-go migration).** A new Advanced, Tools
+  page, "Import config", brings a config from another Hyprland box or distro onto
+  Ryoku: point at a folder, an existing `~/.config`, or a git URL, and it scans
+  Hyprland, kitty, fish and fastfetch (plus a generic drop for anything else),
+  shows every keybind clash against Ryoku's shipped binds, and resolves each in
+  place (keep Ryoku's, use yours with an auto unbind so yours wins, or remap).
+  Every touched file is backed up first, so the whole import undoes in one step.
+  Hyprland keybinds and window rules become GUI-managed settings; the rest
+  (settings via `hl.config`, monitors, env, exec, and non-ingestable binds)
+  translate to the `hl` API and layer into `hypr/user.lua`. Engine:
+  `ryoku-hub import scan|apply|undo` (`backend/import*.go`, reusing `keybinds.go`
+  and `hypr.go`, which gains an `Unbinds` override). UI:
+  `quickshell/pages/ImportPage.qml`, sharing the keybind conflict and chord logic
+  with the Keybinds page via `quickshell/Combos.js`.
 - **The Performance page can follow the power profile.** A new POWER PROFILE
   switch (on by default) lets the active power profile shape the shell: Power
   Saver strips motion, blur and shadows while Balanced and Performance leave the
