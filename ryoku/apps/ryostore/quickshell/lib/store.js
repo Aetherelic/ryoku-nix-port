@@ -66,18 +66,48 @@ function groupSearch(items, query) {
     return filter(items, { query: query });
 }
 
-function featured(items) {
-    var source = Array.isArray(items) ? items : [];
-    for (var i = 0; i < source.length; i++)
-        if (!source[i].sourceError && source[i].art && !isInstalled(source[i]))
-            return source[i];
-    for (var j = 0; j < source.length; j++)
-        if (!source[j].sourceError && source[j].art)
-            return source[j];
-    for (var k = 0; k < source.length; k++)
-        if (!source[k].sourceError)
-            return source[k];
-    return null;
+// mulberry32: a tiny deterministic PRNG, so a given seed always yields the same
+// sequence. Discover seeds it with the day number: the page rotates daily but
+// holds still while you browse.
+function mulberry32(a) {
+    return function() {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        var t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+// shuffleSeeded: Fisher-Yates with a seeded PRNG. Returns a new array (never
+// mutates the input), so the same seed always produces the same order.
+function shuffleSeeded(items, seed) {
+    var a = (Array.isArray(items) ? items : []).slice();
+    var rand = mulberry32(Number(seed) || 1);
+    for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(rand() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+}
+
+// eligiblePool: the Discover hero candidates, best tier first (real art and not
+// installed, then any real art, then anything without a source error).
+function eligiblePool(source) {
+    var withArt = source.filter(function(x) { return !x.sourceError && x.art; });
+    var fresh = withArt.filter(function(x) { return !isInstalled(x); });
+    if (fresh.length) return fresh;
+    if (withArt.length) return withArt;
+    return source.filter(function(x) { return !x.sourceError; });
+}
+
+// featured: the Discover hero. With no seed it is deterministic (first eligible),
+// preserving the legacy order; with a day seed it rotates through the pool.
+function featured(items, seed) {
+    var pool = eligiblePool(Array.isArray(items) ? items : []);
+    if (!pool.length)
+        return null;
+    var n = Number(seed) || 0;
+    return n > 0 ? pool[Math.floor(mulberry32(n)() * pool.length)] : pool[0];
 }
 
 function installed(items) {
@@ -97,8 +127,12 @@ function collection(items, options) {
         query: opts.query || ""
     });
     if (opts.view !== "library" && !opts.categoryID && !opts.query) {
-        var lead = featured(filtered);
-        return lead ? [lead].concat(filtered.filter(function(item) { return itemKey(item) !== itemKey(lead); })) : filtered;
+        var seed = Number(opts.seed) || 0;
+        var lead = featured(filtered, seed);
+        if (!lead)
+            return filtered;
+        var rest = filtered.filter(function(item) { return itemKey(item) !== itemKey(lead); });
+        return [lead].concat(seed > 0 ? shuffleSeeded(rest, seed) : rest);
     }
     return filtered;
 }
@@ -146,4 +180,4 @@ function sortCategories(categories) {
 }
 
 if (typeof module !== "undefined" && module.exports)
-    module.exports = { statusLabels, isInstalled, searchText, matchesQuery, filter, groupSearch, featured, installed, itemKey, collection, selectionKey, categoryPlates, primaryAction, secondaryAction, sortCategories };
+    module.exports = { statusLabels, isInstalled, searchText, matchesQuery, filter, groupSearch, featured, installed, itemKey, collection, selectionKey, categoryPlates, primaryAction, secondaryAction, sortCategories, shuffleSeeded };

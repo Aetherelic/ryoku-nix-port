@@ -88,6 +88,30 @@ eq(
     "multiword search preserves source order"
 );
 
+// Discover rotates on a daily seed: stable within a day, varies across days, and
+// never drops or invents an item. No seed keeps the legacy deterministic order.
+const disc = [
+    { id: "a", category: "rices", name: "A", art: "a.jpg", installed: false },
+    { id: "b", category: "rices", name: "B", art: "b.jpg", installed: false },
+    { id: "c", category: "rices", name: "C", art: "c.jpg", installed: false },
+    { id: "d", category: "rices", name: "D", art: "d.jpg", installed: false },
+    { id: "e", category: "rices", name: "E", art: "e.jpg", installed: false },
+    { id: "f", category: "rices", name: "F", art: "f.jpg", installed: false }
+];
+const discKeys = disc.map(Store.itemKey);
+const order = seed => Store.collection(disc, { view: "discover", seed: seed }).map(Store.itemKey);
+eq(order(0), discKeys, "no seed keeps the deterministic order");
+eq(order(20260101), order(20260101), "the same day is stable");
+eq(order(20260101).slice().sort(), discKeys.slice().sort(), "rotation preserves the full set");
+assert.ok([1, 2, 3, 4, 5].map(order).some(o => JSON.stringify(o) !== JSON.stringify(order(1))), "order changes across days");
+assert.ok(order(20260101).every(k => discKeys.includes(k)), "rotation invents no items");
+eq(Store.featured(disc, 20260101).id, Store.featured(disc, 20260101).id, "featured is stable per seed");
+assert.ok(discKeys.includes(Store.itemKey(Store.featured(disc, 20260101))), "seeded hero is a real eligible item");
+const discSnap = JSON.stringify(disc);
+Store.shuffleSeeded(disc, 7);
+eq(JSON.stringify(disc), discSnap, "shuffleSeeded does not mutate its input");
+eq(Store.shuffleSeeded(discKeys, 7), Store.shuffleSeeded(discKeys, 7), "shuffleSeeded is stable per seed");
+
 const snapshot = JSON.stringify(items);
 Store.filter(items, { query: "installed" });
 Store.groupSearch(items, "clock");

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+- `ryostore/`: **the Discover page rotates daily instead of showing the same
+  thing every day.** The hero and the item order are now seeded by the day
+  number, so Discover holds still while you browse but reshuffles each day; it
+  reaches for the same eligible pool (real art, not installed) for the hero.
+  Search, category and Library views are untouched, and callers that pass no seed
+  keep the old deterministic order (`quickshell/lib/store.js` `shuffleSeeded` and
+  a seeded `featured`, driven by `quickshell/App.qml` `discoverSeed`).
+
 ### Fixed
 - `pipewire/`: **the audio device you pick now survives a reboot.** The
   `pipewire-pulse.conf.d/10-ryoku-switch-on-connect.conf` drop-in loaded the

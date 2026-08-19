@@ -52,12 +52,17 @@ Rectangle {
     readonly property var navigationCategories: StoreLogic.sortCategories(Store.categories)
             .filter(category => Number(category.count || 0) > 0
                     && app.decorFamily.indexOf(String(category.id || "")) <= 0)
+    // Discover rotates daily: the day number seeds the hero pick and the order in
+    // StoreLogic.collection, so the landing holds still while you browse but
+    // changes each day. Absent on category/search/library views, which ignore it.
+    readonly property int discoverSeed: Math.floor(Date.now() / 86400000)
     readonly property var collection: StoreLogic.collection(searchableItems, {
         view: view,
         categoryID: categoryID,
         query: query,
         provider: app.themesBrowse && app.providerFilter !== "" && app.providerFilter !== "__mine__" ? app.providerFilter : "",
-        installedOnly: app.themesBrowse && app.providerFilter === "__mine__"
+        installedOnly: app.themesBrowse && app.providerFilter === "__mine__",
+        seed: app.discoverSeed
     })
     readonly property var selectedItem: itemForKey(selectedKey, collection)
     readonly property var resolvedDetail: detailItem
