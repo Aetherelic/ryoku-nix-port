@@ -43,6 +43,10 @@ Edit the repo, deploy, test on the running system.
   - `installation/tui`: `go test ./...` (layout math + safety gates).
   - `installation/tests/iso-stage-check.sh` stages the ISO twice and diffs, so the
     build stays byte-reproducible (skips cleanly without `go`/`cmake`/`ninja`).
+  - `installation/tests/iso-preflight.sh` runs the whole root-free installer gate
+    in one command (syntax, ShellCheck, package lists, offline install, boot menu,
+    contract suite, TUI, delivery). Build ISO runs it as a blocking job before
+    mkarchiso; run it yourself before dispatching a build.
 - VM green is not metal green. A clean VM install still misses the real-hardware
   classes (Intel VMD, Secure Boot, NVIDIA modeset, Windows dual-boot, Broadcom,
   clock skew, NVRAM, USB media). Before calling an installer change done, walk

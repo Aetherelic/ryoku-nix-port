@@ -25,6 +25,15 @@ demand); see `docs/updates.md` for the delivery contract they guard.
   before diffing, and skips cleanly (exit 0) when `go`/`cmake`/`ninja` are absent
   so CI without the build toolchain stays green.
 
+- `iso-preflight.sh` is the gate a Build ISO run clears BEFORE mkarchiso starts
+  (its own job in `build-iso-reusable.yml`, and the same command on a dev box
+  before dispatching a build). Root-free and hermetic, ~10s: shell syntax +
+  ShellCheck over the installer, package-list sanity, the offline-install
+  regressions (baked-repo resolution, pacman-hook masking, driver-package
+  coverage), the boot-menu fixtures, the installer contract suite, the TUI build
+  and unit tests, and the update-delivery check. It exists because these classes
+  have shipped: an ISO takes an hour or two and then reaches users.
+
 - `install-dualboot-vm.py --iso <iso>` is the real-Windows dual-boot regression
   gate. It builds a CACHED golden Windows 11 image (a genuine ESP+MSR+C:+WinRE
   layout with C: pre-shrunk 300 GiB, unallocated in the MIDDLE of the disk),

@@ -25,7 +25,36 @@ permissions:
   security-events: write
 
 jobs:
+  # gate: an ISO build costs an hour or two and then ships to users, so the
+  # failure classes we have actually shipped (offline resolution, pacman hooks,
+  # package coverage, boot menu, the installer contract) are checked first, in
+  # seconds. installation/tests/iso-preflight.sh is the single source of truth
+  # and runs the same way on a dev box before dispatching a build.
+  preflight:
+    name: Install regression gate (before mkarchiso)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: installation/tui/go.mod
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+
+      - name: Run the ISO preflight gate
+        run: bash installation/tests/iso-preflight.sh
+
   build:
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:

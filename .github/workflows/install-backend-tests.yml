@@ -53,10 +53,13 @@ on:
       - 'tests/install-disk-teardown.sh'
       - 'tests/install-dns.sh'
       - 'tests/install-swapfile.sh'
+      - 'system/hardware/drivers/**'
+      - 'installation/tests/iso-preflight.sh'
       - '.github/workflows/install-backend-tests.yml'
   push:
     branches:
       - main
+      - unstable-dev
     paths:
       - 'installation/backend/**'
       - 'installation/tui/**'
@@ -83,6 +86,8 @@ on:
       - 'tests/install-disk-teardown.sh'
       - 'tests/install-dns.sh'
       - 'tests/install-swapfile.sh'
+      - 'system/hardware/drivers/**'
+      - 'installation/tests/iso-preflight.sh'
       - '.github/workflows/install-backend-tests.yml'
   workflow_dispatch:
 
@@ -93,6 +98,9 @@ jobs:
   unit:
     name: Backend unit + dry-run tests (no root)
     runs-on: ubuntu-latest
+    # a hung fixture used to burn the 6h default before GitHub cancelled it; these
+    # are all hermetic, so anything past this is a hang, not slow work.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -156,6 +164,7 @@ jobs:
   loop-device:
     name: Dual-boot alongside partitioner (real loop device)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -188,6 +197,7 @@ jobs:
   tui:
     name: Installer TUI unit tests (go test)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -205,6 +215,7 @@ jobs:
   chainload-vm:
     name: Alongside boot chain (real QEMU+OVMF; needs KVM)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
