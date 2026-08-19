@@ -55,6 +55,8 @@ on:
       - 'tests/install-swapfile.sh'
       - 'system/hardware/drivers/**'
       - 'installation/tests/iso-preflight.sh'
+      - 'tests/install-noninteractive.sh'
+      - 'system/packages/*.packages'
       - '.github/workflows/install-backend-tests.yml'
   push:
     branches:
@@ -88,6 +90,8 @@ on:
       - 'tests/install-swapfile.sh'
       - 'system/hardware/drivers/**'
       - 'installation/tests/iso-preflight.sh'
+      - 'tests/install-noninteractive.sh'
+      - 'system/packages/*.packages'
       - '.github/workflows/install-backend-tests.yml'
   workflow_dispatch:
 
@@ -128,6 +132,10 @@ jobs:
       - name: Offline install path (no network, baked repo, refusals before the wipe)
         shell: bash
         run: bash tests/install-offline.sh
+
+      - name: Nothing in the install can wait for input
+        shell: bash
+        run: bash tests/install-noninteractive.sh
 
       - name: Initramfs hook masking (no file conflict with the packaged limine hook)
         shell: bash

@@ -3,6 +3,30 @@
 ## Unreleased
 
 ### Fixed
+- **Nothing in the install waits for an answer any more.** Two prompts reached
+  users. `pacstrap` ran without `--noconfirm`, so pacman stopped on
+  ":: There are 5 providers available for vulkan-driver" (the baked repo carries
+  every NVIDIA branch plus vulkan-intel and vulkan-radeon, and `mesa` does not
+  provide `vulkan-driver`) and took its default, `nvidia-470xx-utils`: a
+  Kepler-era driver that then collided with the real one and failed the install at
+  the configure stage. And `arch-chroot /mnt mkinitcpio -P` resolved to
+  `/usr/local/bin/mkinitcpio`, the wrapper `limine-mkinitcpio-hook` ships, which
+  builds and then asks "Would you like to run 'limine-mkinitcpio' now?" -- a hang
+  with a terminal on stdin, a coin toss without one. Now: `run`/`run_sh` give every
+  command `/dev/null` on stdin, pacstrap passes `--noconfirm`, the initramfs is
+  built via `/usr/bin/mkinitcpio`, and `system/packages/hardware.packages` names a
+  concrete `vulkan-driver` + `lib32-vulkan-driver` provider per profile
+  (vulkan-radeon, vulkan-intel, nvidia-utils, vulkan-swrast), so no menu can
+  appear. A clean-root resolve of all four profiles now shows zero provider
+  prompts. `tests/install-noninteractive.sh` pins all four invariants.
+- A VM install gets an actual Vulkan driver: the `vm` profile shipped
+  `vulkan-icd-loader` with no ICD behind it.
+- Retrying a failed alongside install works. The failed attempt leaves its own
+  ryoku/ryokuboot partitions, the pre-failure disk probe never saw them, and the
+  retry therefore died at the partition step listing debris it had just created,
+  telling the user to restart the installer. The TUI now arms
+  `RYOKU_RECLAIM_LEFTOVERS` on a retry; the backend still refuses to touch a
+  living Ryoku install.
 - **The offline install actually installs the desktop, the drivers, and the AUR
   set.** Every in-chroot transaction resolved against the target's own
   `/etc/pacman.conf`, which registers core, extra, multilib, the CachyOS repos and

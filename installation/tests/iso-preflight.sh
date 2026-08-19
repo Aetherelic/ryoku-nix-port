@@ -142,7 +142,8 @@ language_gate() {
 gate "shell syntax" syntax_gate
 gate "shellcheck" shellcheck_gate
 gate "package lists" packages_gate
-gate "offline install path" suite_gate install-offline install-hooks offline-repo-integrity
+gate "offline install path" suite_gate install-offline install-hooks offline-repo-integrity \
+  install-noninteractive
 gate "boot menu" suite_gate limine-bootloader limine-windows
 gate "installer contract" suite_gate install-dryrun-matrix install-preflight \
   install-chroot-safety install-partition-whole install-largest-free \

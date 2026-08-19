@@ -116,7 +116,15 @@ ryoku_pacstrap_install() {
   # pacman.conf (RYOKU_PACMAN_CONF), so the whole set installs with no network.
   local -a pconf=()
   [[ -n ${RYOKU_PACMAN_CONF:-} ]] && pconf=(-C "$RYOKU_PACMAN_CONF")
-  if run pacstrap "${pconf[@]}" -K /mnt "${pkgs[@]}"; then
+  # --noconfirm (a pacman flag, so it goes AFTER the root, where pacstrap passes
+  # the rest through): without it pacman asks ":: Proceed with installation?" and,
+  # when a virtual dependency has several providers in the baked repo, a
+  # ":: There are N providers available for vulkan-driver" menu. A user reported an
+  # install that answered that menu with its default and laid the legacy
+  # nvidia-470xx driver, which then collided with the real driver in the configure
+  # stage. The concrete providers are pinned in system/packages/hardware.packages,
+  # so there is nothing left to ask.
+  if run pacstrap "${pconf[@]}" -K /mnt --noconfirm "${pkgs[@]}"; then
     return 0
   fi
 
@@ -129,7 +137,7 @@ ryoku_pacstrap_install() {
   if declare -f ryoku_offline_active >/dev/null && ryoku_offline_active; then
     local olog; olog=$(mktemp) || olog=/dev/null
     log "pacstrap failed on the offline install; retrying once with --needed from the baked [offline] repo (no network involved)"
-    if run pacstrap "${pconf[@]}" -K /mnt --needed "${pkgs[@]}" >"$olog" 2>&1; then
+    if run pacstrap "${pconf[@]}" -K /mnt --noconfirm --needed "${pkgs[@]}" >"$olog" 2>&1; then
       [[ $olog == /dev/null ]] || { cat -- "$olog"; rm -f -- "$olog"; }
       return 0
     fi
@@ -152,7 +160,7 @@ ryoku_pacstrap_install() {
 
   local paclog
   paclog=$(mktemp) || paclog=/dev/null
-  if run pacstrap "${pconf[@]}" -K /mnt --needed "${pkgs[@]}" >"$paclog" 2>&1; then
+  if run pacstrap "${pconf[@]}" -K /mnt --noconfirm --needed "${pkgs[@]}" >"$paclog" 2>&1; then
     [[ $paclog == /dev/null ]] || { cat -- "$paclog"; rm -f -- "$paclog"; }
     return 0
   fi

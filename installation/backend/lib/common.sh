@@ -16,13 +16,17 @@ step() { RYOKU_STAGE=$1; printf '@@RYOKU_STEP %s\n' "$1"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 # run: execute a destructive/system command, or print it (prefixed DRYRUN:)
-# when RYOKU_DRYRUN is set. plain argv only, no shell features.
+# when RYOKU_DRYRUN is set. plain argv only, no shell features. stdin is
+# /dev/null on purpose: the install runs with no one at the keyboard, so a
+# packaged script that asks a question (limine-mkinitcpio-hook's mkinitcpio
+# wrapper, pacman's provider menu) reads EOF and moves on instead of blocking the
+# install forever. Secrets go through run_secret, which keeps its stdin.
 run() {
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
     printf 'DRYRUN: %s\n' "$*"
     return 0
   fi
-  "$@"
+  "$@" </dev/null
 }
 
 # run_sh: same as run() for commands needing shell bits (pipes, redirects).
@@ -32,7 +36,7 @@ run_sh() {
     printf 'DRYRUN: %s\n' "$1"
     return 0
   fi
-  bash -c "$1"
+  bash -c "$1" </dev/null
 }
 
 # run_secret: command that reads a secret on stdin, redacted under dry-run.

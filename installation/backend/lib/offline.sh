@@ -89,9 +89,10 @@ ryoku_offline_pacstrap_extra() {
 RYOKU_OFFLINE_CHROOT_CONF=/etc/pacman.d/ryoku-offline.conf
 
 # ryoku_offline_pacman ARGS...: pacman in the target, restricted to the baked
-# repo. Every offline in-chroot install goes through this.
+# repo. Every offline in-chroot install goes through this. stdin closed, like
+# run(): nothing here may wait on an answer.
 ryoku_offline_pacman() {
-  arch-chroot /mnt pacman --config "$RYOKU_OFFLINE_CHROOT_CONF" "$@"
+  arch-chroot /mnt pacman --config "$RYOKU_OFFLINE_CHROOT_CONF" "$@" </dev/null
 }
 
 # ryoku_offline_chroot_on: make the baked repo resolvable INSIDE the target chroot

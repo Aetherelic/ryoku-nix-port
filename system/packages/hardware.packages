@@ -1,26 +1,47 @@
-# Per-profile CPU microcode (official Arch repos), grouped into sections.
+# Per-profile hardware packages (official Arch repos), grouped into sections.
 # The installer selects sections by RYOKU_PROFILE:
 #   amd         -> [amd]
 #   intel       -> [intel]
 #   vm          -> [vm]
 #   amd-nvidia  -> [amd] + [intel] + [nvidia]
-# Base mesa and the vulkan loader live in base.packages (always installed). GPU
-# drivers are NOT listed here: the installer runs system/hardware/drivers/*.sh in
-# the target, which pick the generation-correct driver per detected GPU (for
-# example nvidia-open vs nvidia for pre-Turing cards). These sections add only the
-# vendor microcode. '#' and blank lines inside a section are ignored.
+# Base mesa and the vulkan loader live in base.packages (always installed). The
+# generation-correct GPU driver still comes from system/hardware/drivers/*.sh in
+# the target (nvidia-open vs a legacy branch, per detected GPU); these sections
+# carry the vendor microcode and ONE concrete `vulkan-driver` provider.
+#
+# The provider pin is not cosmetic. `vulkan-driver` and `lib32-vulkan-driver` are
+# virtual, and the ISO's baked repo carries five providers of each (every NVIDIA
+# branch plus vulkan-intel and vulkan-radeon). With none of them named, pacman
+# stops mid-pacstrap with ":: There are 5 providers available for vulkan-driver"
+# and takes the default, nvidia-470xx-utils: a Kepler-era driver that then
+# collides with the real one in the configure stage and fails the install (a user
+# hit exactly that dual-booting the CachyOS ISO). Naming a provider leaves nothing
+# to ask. '#' and blank lines inside a section are ignored.
 
 [amd]
 amd-ucode
+vulkan-radeon
+lib32-vulkan-radeon
 
 [intel]
 intel-ucode
+vulkan-intel
+lib32-vulkan-intel
 
 [nvidia]
-# NVIDIA is a GPU vendor; its driver comes from drivers/nvidia.sh. This profile
-# covers an AMD or Intel CPU, so it pulls both [amd] and [intel] microcode
+# NVIDIA is a GPU vendor; its kernel module comes from drivers/nvidia.sh. This
+# profile covers an AMD or Intel CPU, so it pulls both [amd] and [intel] microcode
 # (amd-nvidia = [amd] + [intel] + [nvidia]); the mkinitcpio microcode hook keeps
 # only the ucode matching the CPU that is actually present.
+#
+# nvidia-utils is the userspace half for the Turing+ open modules, which is what
+# drivers/nvidia.sh installs on all but pre-Turing cards; on those it switches to
+# a legacy branch and pacman replaces this package as part of that transaction.
+nvidia-utils
+lib32-nvidia-utils
 
 [vm]
-# VMs use mesa (virtio-gpu) and vulkan-icd-loader from base.packages.
+# VMs render through mesa (virtio-gpu) with the software Vulkan driver, so the
+# vulkan-driver provider is the swrast one rather than a vendor package.
+vulkan-swrast
+lib32-vulkan-swrast

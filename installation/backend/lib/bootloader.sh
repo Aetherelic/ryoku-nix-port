@@ -42,7 +42,11 @@ ryoku_bootloader() {
     else
       log "building initramfs via mkinitcpio -P"
       ryoku_boot_limine_conf with_entry
-      run arch-chroot /mnt mkinitcpio -P
+      # /usr/bin/mkinitcpio, never plain `mkinitcpio`: limine-mkinitcpio-hook
+      # ships /usr/local/bin/mkinitcpio, a wrapper that runs the real thing and
+      # then PROMPTS ("Would you like to run 'limine-mkinitcpio' now?"). The
+      # installer answers nothing, so the prompt is either a hang or a coin toss.
+      run arch-chroot /mnt /usr/bin/mkinitcpio -P
     fi
     # any Windows on any drive: chainload it from the menu.
     ryoku_windows_entry
@@ -453,7 +457,9 @@ ryoku_boot_install_efi() {
 # VM-proven; evidence at .superpowers/sdd/twostage-report.md.
 ryoku_bootloader_alongside() {
   log "building initramfs via mkinitcpio -P (kernels on the XBOOTLDR /boot)"
-  run arch-chroot /mnt mkinitcpio -P
+  # /usr/bin/mkinitcpio: see the wipe branch. The wrapper's prompt would stall the
+  # install right here, with the kernels not yet on the boot partition.
+  run arch-chroot /mnt /usr/bin/mkinitcpio -P
 
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
     log "DRYRUN: install the second-stage limine at /boot/ryoku-limine.efi + seed /boot/limine.conf (branding, fslabel(RYOKUBOOT) kernels, guid() existing-OS chainload), mount the existing OS's ESP at /mnt/efi, tar it to /var/backups/ryoku/, drop the STATIC stage-1 hop at /efi/EFI/ryoku/{BOOTX64.EFI,limine.conf} (timeout 0, efi_chainload -> fslabel(RYOKUBOOT):/ryoku-limine.efi), seed /etc/kernel/cmdline + a /efi fstab line + the ryoku-limine-stage.hook that refreshes both stage loaders on limine upgrades, and register 'Ryoku' first in BootOrder; other vendors' dirs (e.g. /EFI/Microsoft) untouched"

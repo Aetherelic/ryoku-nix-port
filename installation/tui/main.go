@@ -814,7 +814,10 @@ type model struct {
 	// reclaim holds leftover ryoku/ryokuboot partitions from a prior failed run.
 	// Under alongside the backend frees them (RYOKU_RECLAIM_LEFTOVERS) after the
 	// typed-ERASE ack, so reclaimG counts toward the usable free figure.
-	reclaim                    []part
+	reclaim []part
+	// retried is set by the failed screen's "r": the next backend run has to be
+	// allowed to clean up the debris the failed one left (see installEnv).
+	retried                    bool
 	reclaimG                   int
 	gpt                        bool   // target disk has a GPT label (alongside requires it)
 	bitlocker                  bool   // target disk carries a BitLocker partition (review warning)
@@ -1127,6 +1130,7 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 		case "r":
 			m.state, m.installAt, m.installLog = "install", 0, nil
 			m.abortArmed = false
+			m.retried = true
 			m.progress, m.progVel = 0, 0
 			return m, tea.Batch(m.tickCmd(), m.startInstall())
 		case "q":

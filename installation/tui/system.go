@@ -1090,7 +1090,13 @@ func (m model) installEnv() []string {
 		case "whole":
 			env = append(env, "RYOKU_WIPE_CONFIRMED=1")
 		case "alongside":
-			if len(m.reclaim) > 0 {
+			// Also on a retry: a failed attempt leaves its own half-made ryoku/
+			// ryokuboot partitions behind, and the pre-failure probe knew nothing of
+			// them, so the retry used to die at the partition step listing debris it
+			// had just created and telling the user to restart the installer. The
+			// ERASE ack for this install already covers this disk, and the backend
+			// still refuses to touch a LIVING Ryoku install.
+			if len(m.reclaim) > 0 || m.retried {
 				env = append(env, "RYOKU_RECLAIM_LEFTOVERS=1")
 			}
 		}

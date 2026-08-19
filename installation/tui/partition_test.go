@@ -384,6 +384,44 @@ func TestWholeBlankEnvOmitsToken(t *testing.T) {
 	}
 }
 
+// A first alongside run on a clean disk has no leftovers, so it must not arm the
+// destructive reclaim.
+func TestAlongsideFirstRunOmitsReclaim(t *testing.T) {
+	m := model{picks: map[string]string{"disk": "alongside"}, wipeStage: 2}
+	if envHas(m.installEnv(), "RYOKU_RECLAIM_LEFTOVERS=1") {
+		t.Fatal("RYOKU_RECLAIM_LEFTOVERS=1 emitted on a first run with no leftovers")
+	}
+}
+
+// A retry after a failed alongside run must arm reclaim: the failed attempt left
+// its own ryoku/ryokuboot partitions, the pre-failure probe never saw them, and
+// without the token the backend dies at the partition step listing debris it just
+// created (reported: "retrying just fails at Partitioning the disk").
+func TestAlongsideRetryArmsReclaim(t *testing.T) {
+	m := model{picks: map[string]string{"disk": "alongside"}, wipeStage: 2, retried: true}
+	if !envHas(m.installEnv(), "RYOKU_RECLAIM_LEFTOVERS=1") {
+		t.Fatalf("a retry must arm RYOKU_RECLAIM_LEFTOVERS=1: %v", m.installEnv())
+	}
+}
+
+// The retry token is scoped to alongside: a whole-disk retry keeps its own ack and
+// must never gain the reclaim one.
+func TestWholeRetryKeepsWipeTokenOnly(t *testing.T) {
+	m := model{
+		picks:     map[string]string{"disk": "whole"},
+		existing:  []part{{dev: "/dev/vda1", size: 1}},
+		wipeStage: 2,
+		retried:   true,
+	}
+	env := m.installEnv()
+	if !envHas(env, "RYOKU_WIPE_CONFIRMED=1") {
+		t.Fatal("a whole-disk retry lost RYOKU_WIPE_CONFIRMED=1")
+	}
+	if envHas(env, "RYOKU_RECLAIM_LEFTOVERS=1") {
+		t.Fatal("a whole-disk retry must not emit RYOKU_RECLAIM_LEFTOVERS=1")
+	}
+}
+
 // diskPopulated = len(existing) > 0; the wipe gate keys off this.
 func TestDiskPopulatedReflectsExisting(t *testing.T) {
 	if (model{}).diskPopulated() {
