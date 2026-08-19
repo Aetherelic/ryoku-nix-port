@@ -124,8 +124,10 @@ jobs:
           fi
           python3 installation/tests/install-vm.py --iso "$iso" \
             --work "$RUNNER_TEMP/ryoku-vm" --repo-dir release/repo/out
-      - name: Upload serial log on failure
-        if: failure()
+      # always, not only on failure: a skipped or oddly-green VM run is exactly
+      # the case where the log is the only evidence of what really happened.
+      - name: Upload serial log
+        if: always() && steps.fetch.outputs.iso_ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: vm-serial-log

@@ -166,11 +166,19 @@ def main():
         # are best-effort): RYOKU_SKIP_AUR covers a current ISO, emptying the set
         # also covers an older backend that predates the flag.
         sh(child, ": > /usr/share/ryoku/system/packages/aur.packages")
+        # capability probe, BEFORE the install: only an ISO whose baked backend
+        # predates RYOKU_REPO_SERVER cannot be pointed at the locally served repo,
+        # and only that ISO earns a skip. This used to be inferred afterwards from
+        # "repo.ryoku.dev" appearing anywhere in the serial log, which every real
+        # failure also does (the backend prints that URL in its error text), so a
+        # broken install reported success and the log was never even kept.
+        stale_iso = "R0E" not in sh(
+            child, "grep -rq RYOKU_REPO_SERVER /usr/share/ryoku/installation/backend; echo R$?E")
         child.sendline(f"export {env}; ryoku-install; echo BACKEND_EXIT:$?")
         i = child.expect([r"@@RYOKU_DONE", r"BACKEND_EXIT:[1-9]", pexpect.TIMEOUT],
                          timeout=args.timeout)
         if i != 0:
-            if args.repo_dir and "repo.ryoku.dev" in open(log).read():
+            if args.repo_dir and stale_iso:
                 print("::warning::this ISO's backend predates RYOKU_REPO_SERVER; it "
                       "tried the public repo (Cloudflare 403s CI runners). Rebuild "
                       "the ISO for a full VM install -- skipping this run.",
