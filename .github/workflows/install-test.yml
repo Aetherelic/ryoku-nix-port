@@ -56,11 +56,27 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      # bounded and non-interactive: an apt mirror stall once ate the job's whole
+      # 90 minutes here, so the VM install never ran and the run reported nothing
+      # useful. Fail this step in 10 minutes instead, with one retry.
       - name: Install QEMU, OVMF, and pexpect
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            qemu-system-x86 qemu-utils ovmf python3-pexpect openssl
+          set -euo pipefail
+          pkgs="qemu-system-x86 qemu-utils ovmf python3-pexpect openssl"
+          for attempt in 1 2; do
+            if sudo apt-get update -o Acquire::Retries=3 \
+              && sudo apt-get install -y --no-install-recommends \
+                   -o Acquire::Retries=3 $pkgs; then
+              exit 0
+            fi
+            echo "::warning::apt attempt $attempt failed; retrying"
+            sleep 15
+          done
+          echo "::error::could not install the VM test dependencies"
+          exit 1
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
