@@ -29,6 +29,7 @@ Item {
 
     signal edited(string key, var value)
     signal pickRequested(var row)
+    signal timezonePickRequested(var row)
 
     // a search jump forwards here; the sheet switches tab, scrolls, and flashes.
     function focusKey(k) { sheet.focusKey(k) }
@@ -134,6 +135,7 @@ Item {
         onEdited: (k, v) => page.edited(k, v)
         onPickRequested: (r) => page.pickRequested(r)
         onImagePickRequested: (r) => { page.pendingImageRow = r; imgPick.open(); }
+        onTimezonePickRequested: (r) => page.timezonePickRequested(r)
     }
 
     // the image-mark picker: an `image` control asks for it (SettingsSheet emits

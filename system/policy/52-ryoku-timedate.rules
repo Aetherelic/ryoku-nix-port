@@ -1,0 +1,11 @@
+// Ryoku: let the active desktop user (in the wheel group) set the system time
+// zone without a password prompt, so the world-map picker in Settings > Global
+// applies instantly. Scoped to the single timedate1 set-timezone action; no
+// other privilege is granted. Installed to /usr/share/polkit-1/rules.d/ by the
+// ryoku-desktop package.
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.timedate1.set-timezone" &&
+        subject.active && subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});

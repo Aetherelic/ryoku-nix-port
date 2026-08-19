@@ -37,6 +37,13 @@ var rows = [
     }, {
         "tab": "",
         "group": "LOCATION",
+        "key": "timezone",
+        "label": "Time zone",
+        "desc": "The system clock's time zone. Pick it on the world map; applied live with timedatectl.",
+        "ctl": "timezone"
+    }, {
+        "tab": "",
+        "group": "LOCATION",
         "key": "weatherUnit",
         "label": "Temperature units",
         "desc": "Auto follows your locale.",

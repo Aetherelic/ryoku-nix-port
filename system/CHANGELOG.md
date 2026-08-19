@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+- `policy/52-ryoku-timedate.rules`: a polkit rule that lets the active desktop
+  user (in `wheel`) set the system time zone without a password, so the Hub's
+  world-map time zone picker applies `org.freedesktop.timedate1.set-timezone`
+  in one click. Installed to `/usr/share/polkit-1/rules.d/` by the ryoku-desktop
+  package.
+
 ### Fixed
 - `hardware/power/logind-ryoku-lid.conf`: raise `InhibitDelayMaxSec` to 15s.
   `hypridle` holds a `sleep` delay inhibitor while it runs `ryoku-shell lock`,

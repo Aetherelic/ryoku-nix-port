@@ -116,7 +116,7 @@ Item {
     }
     function ctlFoot(r) {
         var c = r.ctl;
-        if (c === "pick" || c === "text" || c === "color" || c === "location" || c === "image" || c === "action" || c === "app") return 32;
+        if (c === "pick" || c === "text" || c === "color" || c === "location" || c === "image" || c === "action" || c === "app" || c === "timezone") return 32;
         return 0;
     }
     function ctlWidth(r, w) {
@@ -239,6 +239,7 @@ Item {
                                     case "color": return colorC;
                                     case "action": return actionC;
                                     case "layoutdemo": return layoutDemoC;
+                                    case "timezone": return timezoneC;
                                     default: return textC;
                                     }
                                 }
@@ -257,6 +258,25 @@ Item {
                                         // on the desktop, which no slider in here can be.
                                         else if (srow.r.key === "vizPlace")
                                             Quickshell.execDetached(["qs", "-c", "shell", "ipc", "call", "visualizer", "place"]);
+                                    }
+                                }
+                            }
+                            Component {
+                                id: timezoneC
+                                Row {
+                                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                                    spacing: Tokens.s3
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: (srow.r.tzCurrent && ("" + srow.r.tzCurrent).length) ? ("" + srow.r.tzCurrent).replace(/_/g, " ") : "\u2014"
+                                        color: Tokens.ink
+                                        font.family: Tokens.mono
+                                        font.pixelSize: Tokens.fSmall
+                                    }
+                                    Btn {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: I18n.tr("CHANGE ON MAP")
+                                        onAct: sheet.timezonePick(srow.r)
                                     }
                                 }
                             }
@@ -668,6 +688,9 @@ Item {
 
     signal appPickRequested(var row)
     function appPick(r) { appPickRequested(r) }
+
+    signal timezonePickRequested(var row)
+    function timezonePick(r) { timezonePickRequested(r) }
 
     Column {
         anchors.centerIn: parent

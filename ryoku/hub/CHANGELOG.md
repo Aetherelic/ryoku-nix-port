@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **World-map time zone picker in Global.** Settings > Global gains a Time zone
+  control that opens an Ubuntu-style world map: continents drawn from Natural
+  Earth data, a live day/night terminator with the sun's position, a dot per
+  zone, click-to-pick the nearest one, a dropped pin, fuzzy search, and the
+  selected zone's live local clock. Applying runs `timedatectl set-timezone`
+  (no password, via a shipped polkit rule) and restarts the shell so the bar,
+  dashboard and lockscreen clocks pick up the new zone live, since a running
+  process caches its zone and never re-reads `/etc/localtime`
+  (`TimezoneMap.qml`, `world-land.js`, `tzmap.js`, `pages/GlobalPage.qml`,
+  `SettingsSheet.qml`, `SchemaPage.qml`).
 - **Dock controls in Bar Studio.** The qsbar Dock (the opposite-edge app dock)
   toggles here alongside its Frost, Depth, and Magnify switches, and a "Dock
   apps" manager pins any installed app: an app picker adds them, chips remove

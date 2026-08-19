@@ -22,15 +22,19 @@ Item {
     // what this machine can render. Injected into the fontFamily row's options,
     // so the shared "pick" control shows the searchable font list.
     property var fontList: []
+    // the live system time zone, read via timedatectl and injected into the
+    // timezone row (like fontList above); refreshed after an apply.
+    property string currentTimezone: ""
     readonly property var schema: {
         var out = [];
         for (var i = 0; i < GlobalSchema.rows.length; i++) {
             var r = GlobalSchema.rows[i];
-            if (r.key === "fontFamily") {
+            if (r.key === "fontFamily" || r.key === "timezone") {
                 var c = {};
                 for (var k in r)
                     c[k] = r[k];
-                c.opts = pg.fontList;
+                if (r.key === "fontFamily") c.opts = pg.fontList;
+                else c.tzCurrent = pg.currentTimezone;
                 out.push(c);
             } else {
                 out.push(r);
@@ -50,7 +54,42 @@ Item {
             }
         }
     }
-    Component.onCompleted: fonts.running = true
+
+    function readTz() { tzRead.running = false; tzRead.running = true; }
+    function applyTimezone(z) {
+        if (!z) return;
+        tzApply.command = ["timedatectl", "set-timezone", z];
+        tzApply.running = false;
+        tzApply.running = true;
+        tzMap.close();
+    }
+    // After the zone lands, refresh the shown value and restart the shell: a
+    // long-running process caches its zone (glibc and the QML engine never
+    // re-read /etc/localtime), so the bar, lockscreen and dashboard clocks only
+    // pick up the change on a fresh process. The Hub runs as its own process, so
+    // this does not close Settings.
+    function applyDone() {
+        pg.readTz();
+        shellRestart.running = false;
+        shellRestart.running = true;
+    }
+    Process {
+        id: tzRead
+        command: ["timedatectl", "show", "-p", "Timezone", "--value"]
+        stdout: StdioCollector { onStreamFinished: pg.currentTimezone = ("" + text).trim() }
+    }
+    Process {
+        id: shellRestart
+        command: ["systemctl", "--user", "restart", "ryoku-shell.service"]
+    }
+    // set-timezone talks to systemd-timedated over D-Bus; the shipped polkit
+    // rule authorises it for the active user, so no password prompt.
+    Process {
+        id: tzApply
+        stdout: StdioCollector { onStreamFinished: pg.applyDone() }
+        stderr: StdioCollector { }
+    }
+    Component.onCompleted: { fonts.running = true; pg.readTz(); }
 
     SchemaPage {
         id: sp
@@ -65,5 +104,14 @@ Item {
         query: pg.hub ? pg.hub.query : ""
         onEdited: (k, v) => { if (pg.hub) pg.hub.edit(k, v); }
         onPickRequested: (r) => { if (pg.hub) pg.hub.openPick(r); }
+        onTimezonePickRequested: (r) => tzMap.open()
+    }
+
+    TimezoneMap {
+        id: tzMap
+        anchors.fill: parent
+        currentZone: pg.currentTimezone
+        onApplied: (z) => pg.applyTimezone(z)
+        onCanceled: tzMap.close()
     }
 }

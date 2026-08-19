@@ -520,6 +520,12 @@ package() {
   install -Dm644 "$_repo/system/hardware/network/51-ryoku-wifi-backend.rules" \
     "$pkgdir/usr/share/polkit-1/rules.d/51-ryoku-wifi-backend.rules"
 
+  # Time zone: a polkit rule so the world-map picker in Settings > Global can
+  # apply org.freedesktop.timedate1.set-timezone for the active user without a
+  # password prompt (same one-click grant pattern as the network rules above).
+  install -Dm644 "$_repo/system/policy/52-ryoku-timedate.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/52-ryoku-timedate.rules"
+
   # Laptop clamshell: logind suspends on lid close in every case; the
   # ryoku-clamshell daemon (installed to /usr/bin by the hardware glob above) is
   # the only thing that keeps a closed lid awake, and only on AC power with an
