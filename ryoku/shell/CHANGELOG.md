@@ -10,7 +10,9 @@
   frosted strip frosts and never the clear rest or the island gaps, gated on the
   toggle and Power Saver's no-blur like every other blur. The `barFrostBlur` key
   rides the qsbar map in shell.json (`modules/bar/barstyles/qsbar/Theme.qml`);
-  Bar Studio runs `hyprctl reload` so it applies live.
+  the toggle lives in both the Control Center Bars route
+  (`modules/bar/barstyles/qsbar/controlcenter/routes/BarsRoute.qml`) and the Hub's
+  Bar Studio, each running `hyprctl reload` so it applies live.
 
 ### Fixed
 - **The QS Bar pacman workspaces no longer smear in Power Saver.** The pacman
