@@ -47,8 +47,10 @@ gate() {
   fi
 }
 
-# 1. shell syntax over every installer script, plus ShellCheck when present (CI
-#    runs it as its own workflow; here it must not let a broken build start).
+# 1. shell syntax over every installer script, plus ShellCheck when present, with
+#    the SAME flags as the ShellCheck workflow (-x -s bash --severity=warning).
+#    Matching it matters: the runner's shellcheck is a different generation from a
+#    rolling Arch box, and the info-level rules disagree between them.
 syntax_gate() {
   local f rc=0
   while IFS= read -r f; do
@@ -63,7 +65,7 @@ shellcheck_gate() {
     return 0
   fi
   # shellcheck disable=SC2046  # deliberate word split: the file list has no spaces
-  shellcheck -x $(shell_files | tr '\n' ' ')
+  shellcheck -x -s bash --severity=warning $(shell_files | tr '\n' ' ')
 }
 
 shell_files() {

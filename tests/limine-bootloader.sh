@@ -153,7 +153,7 @@ diff -q "$tmp/adopted-before.conf" "$conf" >/dev/null || fail "second repoint ch
 hookdir="$tmp/hooks/etc/pacman.d/hooks"
 mkdir -p "$hookdir"
 # the stubs stand in for common.sh's writers, called from the sourced lib.
-# shellcheck disable=SC2329
+# shellcheck disable=SC2329,SC2317
 ( set +u
   run() { :; }
   log() { :; }

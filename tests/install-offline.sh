@@ -127,8 +127,8 @@ run_offline "" 1
 target="$tmp/target"; mkdir -p "$target/etc/pacman.d"
 sed "s#/mnt#$target#g" "$root/installation/backend/lib/offline.sh" >"$tmp/offline.sh"
 # the stubs and RYOKU_OFFLINE_REPO are read by the sourced lib, which shellcheck
-# does not follow.
-# shellcheck disable=SC2034,SC2329
+# does not follow (SC2329 on current shellcheck, SC2317 on the CI generation).
+# shellcheck disable=SC2034,SC2329,SC2317
 (
   set +u
   RYOKU_OFFLINE_REPO="$baked"
