@@ -65,21 +65,51 @@ PanelWindow {
     exclusionMode: ExclusionMode.Normal
     // Same reservation for every shell style, widened by the gaps so a client
     // never slides behind the bar.
-    exclusiveZone: barSlot.gapLead + barSlot.root.v2BarHeight
-        + barSlot.root.barGapTrail + 3
+    exclusiveZone: barSlot.root.barAutoHide ? 0
+        : (barSlot.gapLead + barSlot.root.v2BarHeight
+           + barSlot.root.barGapTrail + 3)
+    // The input region is the bar strip. Auto-hide widens it to the full edge
+    // (so a hover anywhere reveals, including the gaps between islands) and
+    // shrinks it to a thin trigger while hidden; the lead gap otherwise stays
+    // clickable so slamming the pointer at the edge never hits the window behind.
     mask: Region {
-        x: barSlot.root.barUnlocked ? 0 : Math.round(continuousBarSurface.x)
-        // The lead gap stays clickable; otherwise slamming the pointer at the
-        // screen edge would hit the window behind the bar.
+        x: (barSlot.root.barUnlocked || barSlot.root.barAutoHide)
+           ? 0 : Math.round(continuousBarSurface.x)
         y: barSlot.root.barUnlocked ? 0
            : (barSlot.root.barPosition === "bottom"
-                ? barSlot.height - barSlot.shellVisibleHeight - barSlot.gapLead : 0)
-        width: barSlot.root.barUnlocked ? barSlot.width : Math.round(continuousBarSurface.width)
-        height: barSlot.root.barUnlocked ? barSlot.height
-                : barSlot.shellVisibleHeight + barSlot.gapLead
+                ? barSlot.height - barSlot.maskDepth : 0)
+        width: (barSlot.root.barUnlocked || barSlot.root.barAutoHide)
+               ? barSlot.width : Math.round(continuousBarSurface.width)
+        height: barSlot.root.barUnlocked ? barSlot.height : barSlot.maskDepth
     }
     // grab keyboard while unlocked so ESC can exit
     WlrLayershell.keyboardFocus: barSlot.root.barUnlocked ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    // ── auto-hide reveal state ──
+    property bool hovering: false
+    // Shown when auto-hide is off, the pointer is on the reveal strip, a bar
+    // popup is open, or the layout is unlocked for editing.
+    readonly property bool barShown: !barSlot.root.barAutoHide
+        || barSlot.hovering || barSlot.root.barUnlocked || barSlot.root.anyPopupVisible
+    readonly property int revealBand: barSlot.shellVisibleHeight + barSlot.gapLead
+    readonly property int revealTriggerPx: 5
+    readonly property int maskDepth: barSlot.root.barAutoHide
+        ? (barSlot.barShown ? barSlot.revealBand : barSlot.revealTriggerPx)
+        : barSlot.revealBand
+    // The visible layers slide this far past the anchored edge when hidden.
+    readonly property real hideDistance: barSlot.revealBand + 8
+    property real hideShift: barSlot.barShown ? 0
+        : (barSlot.root.barPosition === "bottom" ? barSlot.hideDistance : -barSlot.hideDistance)
+    // Slow and smooth reveal/conceal.
+    Behavior on hideShift { NumberAnimation { duration: 500; easing.type: Easing.InOutCubic } }
+    HoverHandler {
+        enabled: barSlot.root.barAutoHide
+        onHoveredChanged: {
+            if (hovered) { revealCloseTimer.stop(); barSlot.hovering = true }
+            else revealCloseTimer.restart()
+        }
+    }
+    Timer { id: revealCloseTimer; interval: 320; onTriggered: barSlot.hovering = false }
 
     HoverHandler {
         onHoveredChanged: if (hovered && !barSlot.root.anyPopupVisible) barSlot.root.activatePopupScreen(barSlot.screen)
@@ -107,6 +137,7 @@ PanelWindow {
     // bottom placement mirrors it so the shadow still opens toward the desktop.
     Rectangle {
         id: continuousBarSurface
+        transform: Translate { y: barSlot.hideShift }
         x: barSlot.compactShell
             ? Math.round(barSlot.gapLeft + (barSlot.shellSpan - width) / 2)
             : barSlot.gapLeft
@@ -1809,6 +1840,7 @@ PanelWindow {
 
     Item {
         id: island
+        transform: Translate { y: barSlot.hideShift }
         // The backing layer-window remains full-screen, but the visible/content
         // island follows the selected shell surface. This preserves stable
         // layer-shell resources while Fit/Notch resize with their visible rows.
@@ -2279,6 +2311,7 @@ PanelWindow {
     // rounded rectangles while the connected indentation always stays visible.
     Item {
         id: foregroundEdgeBorder
+        transform: Translate { y: barSlot.hideShift }
         x: continuousBarSurface.x
         y: continuousBarSurface.y
         width: continuousBarSurface.width

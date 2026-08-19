@@ -189,6 +189,29 @@ Item {
                 }
             }
 
+            // ── BEHAVIOR ──
+            CcSection {
+                width: col.width
+                root: page.root
+                title: I18n.tr("BEHAVIOR")
+                desc: I18n.tr("How the bar behaves on the desktop")
+
+                CcRow {
+                    root: page.root
+                    label: I18n.tr("Auto-hide")
+                    desc: I18n.tr("Hide the bar; reveal it on a slow hover along the edge")
+                    controlWidth: 108
+                    CcSeg {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        root: page.root
+                        options: [{ key: "on", label: "On" }, { key: "off", label: "Off" }]
+                        current: (page.root && page.root.barAutoHide) ? "on" : "off"
+                        onChose: k => { if (page.root && page.root.barAutoHide !== undefined) page.root.barAutoHide = (k === "on") }
+                    }
+                }
+            }
+
             // ── SURFACE (one form-aware section over both engines) ──
             CcSection {
                 width: col.width

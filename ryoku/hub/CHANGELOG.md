@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- **Auto-hide toggle in Bar Studio.** The qsbar bar controls gain an Auto-hide
+  switch (`shell.json .qsbar.barAutoHide`): the bar slides off and frees its
+  space, revealing on a slow hover along the edge (`pages/BarStudioPage.qml`).
 - **World-map time zone picker in Global.** Settings > Global gains a Time zone
   control that opens an Ubuntu-style world map: continents drawn from Natural
   Earth data, a live day/night terminator with the sun's position, a dot per

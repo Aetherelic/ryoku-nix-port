@@ -598,6 +598,21 @@ Item {
                     anchors.right: parent.right
                     divider: true
                     controlWidth: 54
+                    label: qsTr("Auto-hide")
+                    desc: qsTr("Hide the bar and free its space; reveal it on a slow hover along the edge.")
+                    source: "shell.json"
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.qval("barAutoHide", false)
+                        onToggled: value => page.qset("barAutoHide", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
                     label: qsTr("Dock")
                     desc: qsTr("A qsbar-style app dock on the edge opposite the bar.")
                     source: "shell.json"

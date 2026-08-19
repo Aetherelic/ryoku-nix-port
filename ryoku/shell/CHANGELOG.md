@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **Auto-hide for the qsbar.** A new toggle (the Bars center menu and Bar
+  Studio) slides the bar off its edge and reserves no space, so windows reclaim
+  the strip; a slow, smooth hover anywhere along the edge reveals it (over the
+  gaps between islands too, where no pill sits) and it slides back out on leave.
+  Works across all five forms (islands, full, fit, dock, notch) and with the gap
+  animation on or off (`modules/bar/barstyles/qsbar/BarSlot.qml`, `Theme.qml`,
+  `modules/bar/barstyles/qsbar/controlcenter/routes/BarsRoute.qml`).
 - **A unified time + weather dashboard.** Clicking the bar's clock/weather/date
   group opens one connected panel: a bento of frosted islands with a month
   calendar, a live clock, current conditions, a wind/humidity/rain/feels island,

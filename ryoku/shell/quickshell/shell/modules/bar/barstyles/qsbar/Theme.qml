@@ -2210,6 +2210,9 @@ Item {
     // Depth is the pill/panel/tooltip shadow; the bar shell keeps its own either way.
     property bool barShadowEnabled: false
     property bool barFrostEnabled: false
+    // Auto-hide: reserve no space, slide off the edge, and reveal on a slow
+    // hover anywhere along the edge (even over the gaps between islands).
+    property bool barAutoHide: false
 
     // ── dock (the opposite-edge app dock, persisted) ──
     // A qsbar-styled app dock on the screen edge opposite the bar, so the two
@@ -2560,6 +2563,7 @@ Item {
     onBarShadowEnabledChanged: if (_widgetsLoaded) saveWidgets()
     onBarFrostEnabledChanged:  if (_widgetsLoaded) saveWidgets()
     onDockEnabledChanged:      if (_widgetsLoaded) saveWidgets()
+    onBarAutoHideChanged:      if (_widgetsLoaded) saveWidgets()
     onDockFrostChanged:        if (_widgetsLoaded) saveWidgets()
     onDockShadowChanged:       if (_widgetsLoaded) saveWidgets()
     onDockMagnifyChanged:      if (_widgetsLoaded) saveWidgets()
@@ -2849,6 +2853,7 @@ Item {
         q.barCornerRadius = barCornerRadius
         q.barShadowEnabled = barShadowEnabled
         q.barFrostEnabled = barFrostEnabled
+        q.barAutoHide = barAutoHide
         q.barGapTop = barGapTop
         q.barGapBottom = barGapBottom
         q.barGapLeft = barGapLeft
@@ -2914,6 +2919,7 @@ Item {
         if (q.barCornerRadius !== undefined) barCornerRadius = Math.max(0, Math.min(40, q.barCornerRadius))
         if (q.barShadowEnabled !== undefined) barShadowEnabled = q.barShadowEnabled
         if (q.barFrostEnabled !== undefined) barFrostEnabled = q.barFrostEnabled
+        if (q.barAutoHide !== undefined) barAutoHide = q.barAutoHide === true
         if (q.barGapTop !== undefined) barGapTop = clampGap(q.barGapTop)
         if (q.barGapBottom !== undefined) barGapBottom = clampGap(q.barGapBottom)
         if (q.barGapLeft !== undefined) barGapLeft = clampGap(q.barGapLeft)
