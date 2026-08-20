@@ -350,19 +350,12 @@ func holdDaemonLock(path string) (*os.File, error) {
 // frame (the boot-contention burst iNiR calls out).
 const startupStagger = 250 * time.Millisecond
 
-// reapStrays kills quickshell instances left behind by a previous daemon and
-// returns how many it had to remove.
-//
-// A daemon that was killed rather than asked to quit leaves its children
-// running: the unit is KillMode=process so systemd never touches them, and the
-// replacement starts a second set on top, so every surface ends up drawn twice.
-// Quickshell itself allows two instances of one config, so nothing else stops
-// this; if the leftover ignores SIGTERM (a wedged Qt process, common while the
-// machine is busy launching an app) the duplicate used to survive forever.
-//
-// So this waits: signal, watch for the process to actually go, then SIGKILL
-// whatever is left. It runs before every start, not once per daemon, because a
-// stray can appear at any point in a session.
+// reapStrays removes quickshell instances left by a previous daemon and returns
+// how many were left. A daemon killed rather than asked to quit orphans its
+// surfaces (KillMode=process), Quickshell allows a second instance of one config,
+// and a leftover that ignores SIGTERM used to survive the session, so this waits
+// for the process to go and SIGKILLs what does not. It runs before every start,
+// since a stray can appear at any point.
 func (d *daemon) reapStrays() int {
 	strays := d.strayPids()
 	if len(strays) == 0 {
@@ -423,15 +416,10 @@ func (d *daemon) ownedPids() map[int]bool {
 	return out
 }
 
-// selectsComponent reports whether argv is a quickshell process rendering the
-// component that sel (from qsSelect) names.
-//
-// Matching the whole argv tail as one string used to be the rule, which missed
-// every instance started in the other mode: a packaged daemon looks for
-// "-c shell" and a dev checkout's leftover reads "-p /path/quickshell/shell", so
-// the strays that matter most survived the reap. Both forms name the same
-// config, so both are matched here, and the binary may be called either of the
-// names Quickshell installs.
+// selectsComponent reports whether argv is a quickshell instance rendering the
+// component sel names. Both selector forms count: a packaged daemon looks for
+// "-c shell" while a checkout's leftover reads "-p .../quickshell/shell", and
+// matching only its own form is why the reap used to miss the strays that matter.
 func selectsComponent(argv, sel []string) bool {
 	if len(argv) < 3 || len(sel) < 2 {
 		return false

@@ -7,27 +7,15 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import ".."
 
-// Appearance > Lighting: the keyboards, mice and other RGB devices on this
-// machine, each one showing exactly the controls it says it has.
+// Appearance > Lighting: every RGB device on this machine, each showing only the
+// controls it says it has. Nothing is scanned until lighting is switched on and
+// nothing is written until a device is handed over, so a keyboard driven by its
+// own software can sit here untouched. Effects are listed in two groups because
+// they differ: the ones Ryoku paints work whatever the firmware ignores, the
+// device's own keep running with Ryoku closed.
 //
-// The page is built around consent, because OpenRGB's reputation for
-// reconfiguring keyboards comes from software that talks to every device it can
-// find the moment it starts. Here nothing is scanned until lighting is switched
-// on, and nothing is written until a device is handed over one at a time; a
-// keyboard with its own software or a hardware switch can sit in this list
-// untouched forever. `ryoku-hub lighting` holds the settings, so a shell restart
-// or an update never changes a device.
-//
-// Effects come in two kinds, listed apart because they behave differently: the
-// ones Ryoku paints (which work on any device with a per-LED mode, including the
-// effects a firmware advertises but ignores) and the device's own (which keep
-// running with Ryoku closed).
-//
-// Two rules keep the page steady under the pointer:
-//   - the device list is keyed. A reply refreshes the values behind each card,
-//     it does not rebuild the cards, so a click never moves what is under it.
-//   - one command runs at a time. Clicks queue instead of racing, because they
-//     end at one keyboard that can only be told one thing at a time.
+// The list is keyed so a reply refreshes values without rebuilding cards, and one
+// command runs at a time: both keep the page still under the pointer.
 Item {
     id: lt
 

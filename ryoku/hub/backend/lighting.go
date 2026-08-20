@@ -1,26 +1,15 @@
 package main
 
-// lighting.go: `ryoku-hub lighting ...`, the control plane for keyboard, mouse
-// and other RGB devices. The Hub's Appearance > Lighting tab drives it, the
-// shell daemon calls `accent` when the palette changes, and the Hyprland
-// autostart calls `apply` once a session.
+// `ryoku-hub lighting ...`, the control plane for RGB devices: the Hub's
+// Lighting tab drives it, the shell calls `accent` on a palette change, the
+// Hyprland autostart calls `apply` once a session.
 //
-// The whole design is consent. OpenRGB earns its reputation for reconfiguring
-// keyboards by talking to every device it can find the moment it runs, so here:
-//
-//   - lighting is off until the user turns it on. Off means no server, no
-//     detection, no writes: `accent` and `apply` return without dialing.
-//   - a detected device is left alone until the user adopts it. Only adopted
-//     ("managed") devices are ever written to, so a keyboard driven by its own
-//     software or a hardware switch can sit in the list untouched.
-//   - the mode the device was on when Ryoku first saw it is recorded, so
-//     handing it back puts it where it was instead of leaving it dark.
-//   - a device's own memory is written only on explicit request, never as a
-//     side effect, because that is the write that overwrites onboard profiles.
-//
-// Settings live in ~/.config/ryoku/lighting.json, which is user state: no
-// update materialises it, the shell never rewrites it, and a shell restart does
-// not touch the devices at all.
+// Every path is opt-in, because OpenRGB earns its reputation for reconfiguring
+// keyboards by talking to every device it finds the moment it runs. Off means no
+// server, no detection, no writes; a device is written to only once adopted; the
+// mode it was found on is recorded so handing it back restores it; and its own
+// memory is written only on request. Settings live in
+// ~/.config/ryoku/lighting.json, which no update or shell restart touches.
 
 import (
 	"encoding/json"

@@ -1,19 +1,12 @@
 package main
 
-// lightingfx.go: the effects Ryoku paints itself.
+// The effects Ryoku paints itself, through a device's per-LED mode.
 //
-// A device advertises the effects its firmware claims, and a keyboard often
-// ignores half of them: an ASUS N-KEY board accepts Static, Breathing, Flashing
-// and Spectrum Cycle and quietly does nothing for Rainbow Wave, Comet or the
-// reactive effects. That is the firmware, not the protocol (OpenRGB's own client
-// sends the same bytes), so the only way to give a user a working wave is to
-// draw it.
-//
-// Any device with a per-LED mode (Direct, Custom) can be painted frame by frame,
-// which is what this does: `ryoku-hub lighting animate` renders the effects the
-// user picked until nothing wants painting any more, then exits. It is the one
-// piece of lighting that needs Ryoku running; a device effect keeps going with
-// Ryoku closed, and the Hub says which is which.
+// A keyboard often ignores half the effects its firmware advertises (an ASUS
+// N-KEY board runs Static, Breathing, Flashing and Spectrum Cycle and nothing
+// else), and OpenRGB's own client sends the same bytes, so drawing them is the
+// only way to make them work. `ryoku-hub lighting animate` renders until nothing
+// wants painting, then exits.
 
 import (
 	"fmt"

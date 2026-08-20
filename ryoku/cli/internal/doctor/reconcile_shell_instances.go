@@ -1,19 +1,10 @@
 package doctor
 
-// reconcile_shell_instances.go: one desktop, not two.
-//
-// The shell is a single Quickshell instance supervised by `ryoku-shell daemon`,
-// and Quickshell will happily run a second instance of the same config: nothing
-// in it refuses. So a leftover from a daemon that was killed rather than asked to
-// quit (the unit is KillMode=process, so systemd leaves the surfaces alone) keeps
-// drawing a whole second desktop over the live one: two bars, two wallpapers, two
-// launchers, double the memory. The daemon reaps strays before it starts a
-// surface, but a leftover that appears after that, or one that outlived a wedged
-// SIGTERM, used to sit there for the rest of the session with nothing looking for
-// it. This is what looks for it.
-//
-// The rule is simple: the instance whose parent is the supervising daemon is the
-// desktop; every other one is a leftover and goes.
+// One desktop, not two. Quickshell runs a second instance of the same config
+// without complaint, so a surface orphaned by a killed daemon (the unit is
+// KillMode=process) keeps drawing beside the live one for the rest of the
+// session. The instance whose parent is the supervising daemon is the desktop;
+// the rest are leftovers and go.
 
 import (
 	"os"

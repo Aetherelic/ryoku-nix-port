@@ -1,21 +1,11 @@
 package doctor
 
-// reconcile_mime_defaults.go: unfreeze the default-app map.
-//
-// Ryoku used to materialize its map straight into ~/.config/mimeapps.list, and
-// that is the one file every "Set as default" writes: GNOME's Open With, a
-// browser's "make me default", `xdg-mime default`. So every update, and every
-// dev-box deploy, copied Ryoku's map over the user's choices, and a box where
-// Firefox had been made default came back handling links with whatever else
-// claimed the type.
-//
-// Ryoku's map now ships to /usr/share/applications/mimeapps.list, the bottom of
-// the XDG mimeapps chain: it still sets the defaults on a fresh install, and it
-// always loses to the user's own file. This reconciler finishes the move on a box
-// that already has the frozen copy: entries that are only Ryoku's own values are
-// dropped, so the vendor layer takes over and later Ryoku defaults reach the
-// user, and anything they actually chose is kept. A file left with nothing but
-// Ryoku's values is removed.
+// Unfreeze the default-app map. Ryoku used to materialize its own map into
+// ~/.config/mimeapps.list, the file every "Set as default" writes, so each update
+// overwrote the user's picks. The map ships to
+// /usr/share/applications/mimeapps.list now, below the user's file in the XDG
+// chain; this drops the entries left frozen in their file that are only copies of
+// Ryoku's values, and keeps whatever they chose.
 
 import (
 	"errors"
