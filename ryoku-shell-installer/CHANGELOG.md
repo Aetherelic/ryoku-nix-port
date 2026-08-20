@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Fixed
+- **Installing over Omarchy 4 no longer dies at "Updating the system".** Omarchy
+  ships an alpm hook (`00-omarchy-update-guard.hook`, `AbortOnFail`) that refuses
+  any `pacman -S -u` it did not start, and both `updateCmd` and `installCmd` are
+  `-Syu`, so the conversion aborted with `failed to commit transaction (failed to
+  run transaction hooks)` before a single package was fetched. The hook is now part
+  of what "Retire the Omarchy repo" retires -- moved aside as `.pre-ryoku` with the
+  undo in `restore.sh`, because it would otherwise keep blocking `ryoku update` on
+  the converted box -- and every `pacman` call carries the escape hatch the guard
+  itself documents until that happens, so declining the retirement no longer means
+  declining the install. Rebuilt the committed binary + checksum.
 - **Converting a box no longer seeds over its default apps.** The installer
   seeded Ryoku's map into `~/.config/mimeapps.list`, the file every "Set as
   default" writes, which then froze: the user's later picks were what an update

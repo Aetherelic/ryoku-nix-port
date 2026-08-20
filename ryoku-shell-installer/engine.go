@@ -93,8 +93,7 @@ func defaultPlan(f *facts) *plan {
 		softOff:   true,
 		aur:       true,
 		fish:      !strings.HasSuffix(f.userShell, "/fish"),
-		devtools:  true,
-		omarchy:   f.omarchyRepo || f.omarchyMirror,
+		omarchy:   f.omarchyRepo || f.omarchyMirror || f.omarchyGuard != "",
 		monPins:   len(f.monOutputs) > 0,
 		// when KDE's sddm-kcm owns sddm.conf.d the user chose that greeter
 		// look; keep it unless they opt in.
@@ -372,8 +371,22 @@ func (e *engine) cmd(dir string, env []string, name string, args ...string) erro
 	return nil
 }
 
+// sudoArgv: what `sudo -n` gets. Omarchy's guard hook aborts a pacman -Syu it did
+// not start, and both updateCmd and installCmd are -Syu, so until stepLegacy
+// retires the hook every package step needs the escape the guard documents.
+func sudoArgv(args []string, omarchyGuard string) []string {
+	if omarchyGuard == "" || len(args) == 0 || args[0] != "pacman" {
+		return args
+	}
+	return append([]string{"env", "OMARCHY_ALLOW_DIRECT_PACMAN=1"}, args...)
+}
+
 func (e *engine) sudo(args ...string) error {
-	return e.cmd("", nil, "sudo", append([]string{"-n"}, args...)...)
+	guard := ""
+	if e.f != nil {
+		guard = e.f.omarchyGuard
+	}
+	return e.cmd("", nil, "sudo", append([]string{"-n"}, sudoArgv(args, guard)...)...)
 }
 
 // sudoSh runs a fixed shell snippet as root; only static strings go in here.
@@ -419,7 +432,7 @@ func stripPacmanSection(conf, section string) string {
 // through Omarchy's own mirror; a Ryoku box must depend on neither. originals
 // are kept as *.pre-ryoku and the undo lands in restore.sh.
 func stepLegacy(e *engine) error {
-	if !e.p.omarchy || (!e.f.omarchyRepo && !e.f.omarchyMirror) {
+	if !e.p.omarchy || (!e.f.omarchyRepo && !e.f.omarchyMirror && e.f.omarchyGuard == "") {
 		e.say("no previous distro package sources to retire")
 		return nil
 	}
@@ -455,6 +468,14 @@ func stepLegacy(e *engine) error {
 		e.say("restored a standard Arch mirrorlist (original at /etc/pacman.d/mirrorlist.pre-ryoku)")
 		e.pendingRestore = append(e.pendingRestore,
 			"sudo cp /etc/pacman.d/mirrorlist.pre-ryoku /etc/pacman.d/mirrorlist")
+	}
+	if e.f.omarchyGuard != "" {
+		aside := e.f.omarchyGuard + ".pre-ryoku"
+		if err := e.sudo("mv", e.f.omarchyGuard, aside); err != nil {
+			return err
+		}
+		e.say("retired Omarchy's pacman guard hook, which aborts every -Syu (moved to " + aside + ")")
+		e.pendingRestore = append(e.pendingRestore, "sudo mv "+aside+" "+e.f.omarchyGuard)
 	}
 	if !e.dry && pacmanHas("omarchy-keyring") {
 		if err := e.sudo("pacman", "-R", "--noconfirm", "omarchy-keyring"); err != nil {

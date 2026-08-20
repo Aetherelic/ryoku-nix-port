@@ -2,6 +2,7 @@ package main
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -69,5 +70,50 @@ func TestMirrorlistHasOmarchy(t *testing.T) {
 	}
 	if mirrorlistHasOmarchy("# omarchy used to live here\nServer = https://geo.mirror.pkgbuild.com/$repo/os/$arch\n") {
 		t.Fatal("a comment mentioning omarchy must not count")
+	}
+}
+
+func TestSudoArgvOmarchyGuard(t *testing.T) {
+	pacman := []string{"pacman", "-Syu", "--noconfirm"}
+	got := sudoArgv(pacman, "/usr/share/libalpm/hooks/00-omarchy-update-guard.hook")
+	want := "env OMARCHY_ALLOW_DIRECT_PACMAN=1 pacman -Syu --noconfirm"
+	if strings.Join(got, " ") != want {
+		t.Fatalf("a guarded box must carry the escape hatch: got %q", strings.Join(got, " "))
+	}
+	if strings.Join(sudoArgv(pacman, ""), " ") != "pacman -Syu --noconfirm" {
+		t.Fatal("no guard on the box, no env wrapper")
+	}
+	if strings.Join(sudoArgv([]string{"systemctl", "disable", "sddm"}, "/hook"), " ") != "systemctl disable sddm" {
+		t.Fatal("only pacman needs the escape hatch")
+	}
+}
+
+func TestDefaultPlanRetiresOmarchyGuard(t *testing.T) {
+	if !defaultPlan(&facts{omarchyGuard: "/usr/share/libalpm/hooks/00-omarchy-update-guard.hook"}).omarchy {
+		t.Fatal("a guard hook alone must still schedule the Omarchy retirement")
+	}
+	if defaultPlan(&facts{}).omarchy {
+		t.Fatal("nothing Omarchy on the box, nothing to retire")
+	}
+}
+
+func TestStepLegacyRetiresOmarchyGuard(t *testing.T) {
+	hook := "/usr/share/libalpm/hooks/00-omarchy-update-guard.hook"
+	e := &engine{f: &facts{omarchyGuard: hook}, p: &plan{omarchy: true}, dry: true, events: make(chan any, 64)}
+	if err := stepLegacy(e); err != nil {
+		t.Fatalf("stepLegacy: %v", err)
+	}
+	close(e.events)
+	var said []string
+	for ev := range e.events {
+		if l, ok := ev.(evLine); ok {
+			said = append(said, l.line)
+		}
+	}
+	if want := "DRYRUN: sudo -n mv " + hook + " " + hook + ".pre-ryoku"; !strings.Contains(strings.Join(said, "\n"), want) {
+		t.Fatalf("the guard hook must be moved aside:\n%s", strings.Join(said, "\n"))
+	}
+	if len(e.pendingRestore) != 1 || !strings.Contains(e.pendingRestore[0], hook) {
+		t.Fatalf("the undo must reach restore.sh: %v", e.pendingRestore)
 	}
 }

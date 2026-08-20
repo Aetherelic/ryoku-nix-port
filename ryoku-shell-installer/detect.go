@@ -44,6 +44,7 @@ type facts struct {
 	blockerPkgs   []string // packages that abort the pacman transaction if left
 	omarchyRepo   bool     // [omarchy] stanza in pacman.conf
 	omarchyMirror bool     // mirrorlist pinned to Omarchy's package mirror
+	omarchyGuard  string   // Omarchy's alpm hook that aborts any direct -Syu
 	softUnits     []string // enabled user units that fight the shell
 	niriFound     bool
 	swayFound     bool         // sway config present; sway stays as a fallback session
@@ -178,6 +179,19 @@ func mirrorlistHasOmarchy(list string) bool {
 	return false
 }
 
+// Omarchy 4 ships an alpm hook that aborts every `pacman -Syu` unless
+// OMARCHY_ALLOW_DIRECT_PACMAN is set, which stops this installer dead and would
+// keep blocking `ryoku update` after the conversion. Returns the hook path.
+func findOmarchyGuard() string {
+	for _, dir := range []string{"/usr/share/libalpm/hooks", "/etc/pacman.d/hooks"} {
+		hits, _ := filepath.Glob(filepath.Join(dir, "*omarchy*guard*.hook"))
+		if len(hits) > 0 {
+			return hits[0]
+		}
+	}
+	return ""
+}
+
 var x11LayoutRe = regexp.MustCompile(`X11 Layout:\s*(\S+)`)
 
 func detect() *facts {
@@ -282,6 +296,7 @@ func detect() *facts {
 	if b, err := os.ReadFile("/etc/pacman.d/mirrorlist"); err == nil {
 		f.omarchyMirror = mirrorlistHasOmarchy(string(b))
 	}
+	f.omarchyGuard = findOmarchyGuard()
 
 	for _, unit := range softConflictUnits {
 		if unitEnabled("user", unit) {
