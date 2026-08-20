@@ -12,6 +12,10 @@
   served by a new on-demand `ryopin` surface. The whole surface, Beautify
   included, now retints from the wallpaper palette like the rest of the desktop.
   See `ryoku/shell/CHANGELOG.md` for the detail.
+- **`ryoku-app <role> -- <program>`** runs a program inside the app the role
+  points at, so the shell can put a `Terminal=true` desktop entry in the user's
+  own terminal without every caller learning that kitty and foot take trailing
+  argv while alacritty and xterm need `-e` (`hyprland/scripts/ryoku-app`).
 
 ### Fixed
 - **Chromium's "is sharing your screen" bar no longer sits dead in the middle of

@@ -72,6 +72,16 @@
   user's file alone.
 
 ### Fixed
+- **Terminal apps start from the launcher again.** Quickshell parses `Terminal=true`
+  into `runInTerminal` but spawns no terminal for it, and every launch path called
+  `execute()` regardless, so a TUI got no controlling tty and exited on the spot
+  with no window and no error: btop, yazi, nvim, vim and micro all ship in the base
+  set and none of them could be started. A new `services/AppLaunch.qml` is the one
+  place an XDG entry is launched, handing the argv to `ryoku-app terminal --` when
+  the entry asks for a terminal, and the launcher, its desktop actions, the dock
+  and the okshell variant all go through it
+  (`modules/launcher/shared/providers/apps/Apps.qml`, `services/Dock.qml`,
+  `modules/launcher/variants/okshell/Main.qml`).
 - **`deploy.sh` no longer restarts into a black screen.** A renderer that cannot
   load (an AUR quickshell built against another Qt) turned a deploy into a dead
   desktop with no way back, which is what a plugin developer hit. Deploy runs

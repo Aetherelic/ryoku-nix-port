@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Io
+import shell.services
 import "../../../../services/lib/screens.js" as Screens
 import Ryoku.Ui.Singletons
 
@@ -165,7 +166,7 @@ Scope {
         if (!e)
             return;
         root.hide();
-        e.execute();
+        AppLaunch.run(e, null);
     }
 
 

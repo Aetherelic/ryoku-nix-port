@@ -1,6 +1,9 @@
 #!/bin/bash
 # ryoku-app: launch the user's chosen app for a role, or the Ryoku default.
 #
+#	ryoku-app terminal              open the terminal
+#	ryoku-app terminal -- btop      run btop inside it
+#
 # The choice lives in the Hub's store (~/.config/ryoku/hypr.json, "apps"); the
 # Default Apps page (Ryoku Settings) writes it. Reading it here means a swap takes
 # effect on the next launch with no reload. The fallbacks match the shipped binds,
@@ -8,7 +11,15 @@
 set -euo pipefail
 
 role="${1:-}"
-[ -n "$role" ] || { echo "usage: ryoku-app <role>" >&2; exit 2; }
+[ -n "$role" ] || { echo "usage: ryoku-app <role> [-- <program> [arg...]]" >&2; exit 2; }
+shift
+
+inner=()
+if [ "${1:-}" = "--" ]; then
+	shift
+	inner=("$@")
+	[ ${#inner[@]} -gt 0 ] || { echo "ryoku-app: -- needs a program to run" >&2; exit 2; }
+fi
 
 store="${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/hypr.json"
 
@@ -33,4 +44,15 @@ if [ -z "$cmd" ]; then
 	exit 1
 fi
 
-exec sh -c "$cmd"
+if [ ${#inner[@]} -eq 0 ]; then
+	exec sh -c "$cmd"
+fi
+
+# Handing a program over is per-emulator: kitty and foot take trailing argv.
+read -r -a argv <<<"$cmd"
+case "${argv[0]##*/}" in
+kitty | foot) ;;
+wezterm) argv+=(start --) ;;
+*) argv+=(-e) ;;
+esac
+exec "${argv[@]}" "${inner[@]}"

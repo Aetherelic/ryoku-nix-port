@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import shell.services
 import "lib/dock.js" as DockList
 
 // Shared dock model: running-window + pinned-app data and the activate action,
@@ -136,7 +137,7 @@ Singleton {
         if (matches.length === 0) {
             const entry = DesktopEntries.heuristicLookup(className);
             if (entry)
-                entry.execute();
+                AppLaunch.run(entry, null);
             return;
         }
         matches.sort((a, b) => a.address < b.address ? -1 : (a.address > b.address ? 1 : 0));

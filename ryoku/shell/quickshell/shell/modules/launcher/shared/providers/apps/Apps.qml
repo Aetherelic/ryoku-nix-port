@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import shell.services
 import "../../Singletons"
 import "../../lib/fuzzy.js" as Fuzzy
 import "appactions.js" as AppActions
@@ -44,7 +45,7 @@ Provider {
         if (!entry)
             return;
         Frecency.bump(entryId);
-        entry.execute();
+        AppLaunch.run(entry, null);
     }
 
     function executeDesktopAction(entryId, sourceIndex, desktopId) {
@@ -58,7 +59,7 @@ Provider {
         if (!action || String(action.id).trim() !== desktopId)
             return;
         Frecency.bump(entryId);
-        action.execute();
+        AppLaunch.run(entry, action);
     }
 
     function rowFor(entry) {
