@@ -5,12 +5,15 @@
 # accent (arg, else the palette's color4, the colour the shell and GTK use) picks the
 # nearest Papirus folder colour.
 #
-# Each run writes a freshly-named theme and selects it. Switching to a name the
-# apps are not already showing makes GTK load the new colours from disk in one
-# step; reusing a fixed name (or flipping through the parent to force a reload)
-# makes running apps flash the default folder colour, then serve stale cached
-# icons -- the "changes twice, lands on the wrong colour" bug. Run at login and
-# on every palette change.
+# The theme name consumers resolve to is fixed (ryoku-folders); only its content
+# changes. Each run builds the new colours in a temp dir and publishes them by
+# renaming a symlink over the old one, so a reader (a GTK app, or the shell
+# resolving a folder icon) atomically sees either the whole old tree or the whole
+# new one, never a theme half-swapped from under it -- the SIGABRT a fresh
+# timestamped name per change caused (issue #47). The previous generation is kept
+# one extra cycle so an in-flight lookup of it still resolves, and
+# gtk-update-icon-cache busts GTK's on-disk cache so apps still pick up the new
+# colours. Run at login and on every palette change.
 set -u
 
 pap=/usr/share/icons/Papirus
@@ -42,22 +45,28 @@ if [ -n "$accent" ]; then
 fi
 
 base=${XDG_DATA_HOME:-$HOME/.local/share}/icons
+name=ryoku-folders                 # fixed theme name consumers resolve to
+link=$base/$name                   # symlink -> the live generation
+gens=$base/.ryoku-folders          # hidden container: generations + temp builds
+
 cur=""
 command -v gsettings >/dev/null 2>&1 && cur=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")
-# Drop overlays from earlier runs, keeping the one the apps are showing now.
-for d in "$base"/ryoku-folders*; do
-  [ -d "$d" ] && [ "$(basename "$d")" != "$cur" ] && rm -rf "$d"
-done
+# The generation the live symlink points at now, kept one more cycle below.
+prev=""
+[ -L "$link" ] && prev=$(basename "$(readlink "$link")")
 
-name=ryoku-folders-$(date +%s%N)
-ov=$base/$name
-mkdir -p "$ov/places"
+# Build the new content in a temp dir, then rename it into a complete, immutable
+# generation dir before anything points at it.
+gen=$(date +%s%N)
+tmp=$gens/build.$$
+rm -rf "$tmp"
+mkdir -p "$tmp/places"
 for f in "$src/folder-$color.svg" "$src"/folder-"$color"-*.svg "$src"/user-"$color"-*.svg; do
   [ -e "$f" ] || continue
   b=$(basename "$f"); d=${b/-$color-/-}; d=${d/-$color./.}
-  cp -L "$f" "$ov/places/$d"
+  cp -L "$f" "$tmp/places/$d"
 done
-cat > "$ov/index.theme" <<'EOF'
+cat > "$tmp/index.theme" <<'EOF'
 [Icon Theme]
 Name=Ryoku Folders
 Inherits=Papirus-Dark
@@ -70,6 +79,40 @@ MaxSize=512
 Type=Scalable
 Context=Places
 EOF
-command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -qf "$ov" 2>/dev/null
-command -v gsettings >/dev/null 2>&1 && gsettings set org.gnome.desktop.interface icon-theme "$name"
+# Bake the cache into the tree before publishing so GTK re-reads the new colours
+# instead of the stale on-disk cache; the fixed name alone would not bust it.
+command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -qf "$tmp" 2>/dev/null
+mv -T "$tmp" "$gens/$gen"
+
+# Publish atomically: rename a staging symlink over the live one, so a concurrent
+# reader follows either the whole old tree or the whole new one, never a partial.
+stage=$base/.ryoku-folders.link.$$
+ln -sfn ".ryoku-folders/$gen" "$stage"
+[ -e "$link" ] && [ ! -L "$link" ] && rm -rf "$link"
+mv -T "$stage" "$link"
+
+# Point consumers at the fixed name once (migrating off a timestamped name), and
+# only when it is not already set, so palette changes never churn the setting.
+if [ "$cur" != "$name" ] && command -v gsettings >/dev/null 2>&1; then
+  gsettings set org.gnome.desktop.interface icon-theme "$name"
+fi
+
+# Keep only the live and immediately-previous generations; a reader that resolved
+# the old target before the swap still finds it. Drop older gens and dead builds.
+for d in "$gens"/*; do
+  [ -e "$d" ] || continue
+  b=$(basename "$d")
+  case $b in "$gen"|"$prev") continue ;; esac
+  rm -rf "$d"
+done
+
+# Remove the per-change dirs the old scheme leaked, matching only
+# ryoku-folders-<digits> and never the still-active one (dropped next run).
+for d in "$base"/ryoku-folders-*; do
+  [ -d "$d" ] || continue
+  b=$(basename "$d")
+  case $b in ryoku-folders-*[!0-9]*) continue ;; esac
+  [ "$b" = "$cur" ] && continue
+  rm -rf "$d"
+done
 exit 0

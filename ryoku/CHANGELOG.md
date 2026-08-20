@@ -18,6 +18,17 @@
   argv while alacritty and xterm need `-e` (`hyprland/scripts/ryoku-app`).
 
 ### Fixed
+- **quickshell no longer SIGABRTs on every follow-wallpaper palette change.**
+  `ryoku-cmd-folders` minted a brand-new timestamped icon-theme directory per
+  palette change and switched the active theme straight to it, so the shell
+  resolved a folder icon against a theme tree being deleted out from under it and
+  aborted inside `QQuickPixmap::load` (a `__cxa_pure_virtual` call under
+  `QIcon::pixmap` -> `QPlatformPixmap::fromFile`, issue #47). The script now keeps
+  one fixed theme name whose content is published by an atomic symlink rename, so
+  a concurrent reader sees either the whole old tree or the whole new one; it
+  holds the previous generation one extra cycle so an in-flight lookup still
+  resolves, and reaps the per-change directories older boxes leaked under
+  `~/.local/share/icons` (`hyprland/scripts/ryoku-cmd-folders`).
 - **Chromium's "is sharing your screen" bar no longer sits dead in the middle of
   the desktop.** On native Wayland that widget maps with an empty app_id and its
   geometry computed against the wrong work area (Chromium 517327175), so it lands
