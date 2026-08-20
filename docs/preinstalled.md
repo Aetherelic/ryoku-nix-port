@@ -170,7 +170,7 @@ Tools the desktop, the pill, and the capture stack shell out to by name.
 | `hyprpicker` | The color picker |
 | `imagemagick` | Image processing |
 | `waifu2x-ncnn-vulkan` | The GPU AI upscaler behind ryoshot's HD export and ryowalls' Enhance |
-| `openrgb` | Keyboard and LED accent sync |
+| `openrgb` | Per-device keyboard and mouse lighting, configurable from Settings > Appearance > Lighting |
 | `ddcutil` | External-monitor brightness over DDC/CI (the pill's DISPLAY faders) |
 | `ffmpeg`, `yt-dlp` | Media transcode and download; also the launcher's live-radio play path |
 | `curl`, `libnotify`, `xdg-utils`, `desktop-file-utils`, `python` | The plumbing the stash, scripts, and helpers rely on |

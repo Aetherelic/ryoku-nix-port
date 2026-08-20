@@ -27,10 +27,10 @@ Item {
 
     readonly property string pTitle: I18n.tr("Appearance")
     readonly property string pEyebrow: I18n.tr("DESKTOP")
-    readonly property string pBlurb: I18n.tr("The palette and scheme, wallpaper, comfort, and rices, applied to your desktop as you make them.")
+    readonly property string pBlurb: I18n.tr("The palette and scheme, wallpaper, comfort, device lighting, and rices, applied to your desktop as you make them.")
 
     property string tab: "Theme"
-    readonly property var tabs: ["Theme", "Comfort", "Rices"]
+    readonly property var tabs: ["Theme", "Comfort", "Lighting", "Rices"]
     readonly property bool searching: pg.hub ? (pg.hub.query || "") !== "" : false
 
     readonly property string home: Quickshell.env("HOME") || ""
@@ -936,6 +936,16 @@ Item {
                     font.pixelSize: Tokens.fSmall
                 }
             }
+        }
+
+        // ── Lighting: the RGB devices on this machine, one card each. Its own
+        // component: the tab carries a device model and a control plane of its
+        // own, and none of it belongs in this page's colour logic.
+        Loader {
+            anchors.fill: parent
+            active: pg.tab === "Lighting" && !pg.searching
+            visible: active
+            source: Qt.resolvedUrl("LightingTab.qml")
         }
 
         // ── Rices: browse the grid, then the drill-in detail ──

@@ -21,6 +21,33 @@
   apps" manager pins any installed app: an app picker adds them, chips remove
   them, and the list persists in `shell.json .qsbar`
   (`pages/BarStudioPage.qml`, `AppPicker.qml`).
+- **Lighting tab in Appearance.** A new Settings > Appearance > Lighting tab
+  controls OpenRGB-compatible keyboards and attached lighting devices per device.
+  The master switch is off by default; nothing is scanned or written while off.
+  Devices are adopted one at a time; an unadopted device is never touched.
+  Per-device controls show effect chips in two groups (Ryoku-painted effects and
+  the device's own), colour from the wallpaper accent or fixed, per-zone colours,
+  brightness, speed, direction, Save to device (where offered), and Hand back
+  (which restores the effect the device was on before Ryoku touched it). Settings
+  live in `~/.config/ryoku/lighting.json` so an update or a shell restart never
+  changes a device (`pages/LightingTab.qml`, `pages/AppearancePage.qml`,
+  `schema/AppearancePage.js`).
+- **Per-device RGB control over OpenRGB.** The `ryoku-hub lighting` command group
+  (state|scan|enable|disable|set|apply|accent|save|release|animate) manages
+  devices through the OpenRGB SDK (TCP 127.0.0.1:6742, protocol 5). It starts
+  OpenRGB headless as a transient user unit only when asked, bound to loopback,
+  and stops it when lighting is switched off; an OpenRGB instance you already run
+  is used as-is and never stopped. Ryoku paints seven effects itself through a
+  device's per-LED (Direct) mode: Solid, Breathe, Pulse, Spectrum, Rainbow Wave,
+  Comet, and Scanner. They exist because many keyboards advertise effects their
+  firmware ignores: an ASUS N-KEY laptop board runs Static, Breathing, Flashing
+  and Spectrum Cycle and does nothing for Rainbow Wave, Comet or the reactive
+  effects, which was confirmed by capturing OpenRGB's own client bytes (identical
+  UPDATE_MODE payloads, so it is the firmware, not the protocol). The mode a
+  device was on when Ryoku first saw it is recorded and restored on hand-back or
+  when lighting is switched off, and the device's own memory is written only by an
+  explicit Save to device, never as a side effect (`backend/openrgb.go`,
+  `backend/lighting.go`, `backend/lightingfx.go`).
 
 ### Changed
 - **The theme defaults to following the wallpaper.** `loadThemeState`

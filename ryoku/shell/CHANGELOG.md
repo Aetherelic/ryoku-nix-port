@@ -55,6 +55,12 @@
   `modules/bar/barstyles/qsbar/modules/DockRow.qml`,
   `modules/bar/popouts/DockPreviewPopout.qml`, `modules/bar/Frame.qml`).
 
+### Changed
+- **The LED worker now only writes to adopted devices, and stops when lighting
+  is off.** `ipc/wallpaper.go`'s LED worker calls `ryoku-hub lighting accent`
+  instead of `ryoku-leds apply`, so a palette change only reaches the devices the
+  user handed to Ryoku and does nothing at all while lighting is off.
+
 ### Fixed
 - **The QS Bar gap animation no longer strands a frozen frame in Power Saver.**
   Reduce-motion (Power Saver) froze the reactor/stream canvas to its last frame;

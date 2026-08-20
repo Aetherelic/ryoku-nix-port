@@ -55,6 +55,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
 			os.Exit(1)
 		}
+	case "lighting":
+		if err := runLighting(args[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
+			os.Exit(1)
+		}
 	case "voxtype":
 		if err := runVoxtype(args[1:]); err != nil {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
@@ -131,6 +136,10 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-hub gpu tune caps|get")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub gpu tune set <gpu> <id> <value>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub gpu tune reset [<gpu>]")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub lighting state|scan|enable|disable|apply")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub lighting set <device> <json>")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub lighting accent [#RRGGBB]")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub lighting save|release <device>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub voxtype get|ensure")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub voxtype set <json>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub voxtype download|rmmodel <key>")

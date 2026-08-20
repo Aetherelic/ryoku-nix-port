@@ -81,9 +81,11 @@ truth for the live desktop.
 - `hub/` Ryoku Settings, the central control-center GUI (`Super + ,`): `backend/`
   (`ryoku-hub`, the Go data plane that reads the keybind legend from the live
   Hyprland config, generates the `settings.lua` overlay (in `user_edits`) from JSON, and
-  persists hub state as TOML) and `quickshell/` (the native Qt6/QML app, a
-  `FloatingWindow` with a grouped nav rail and global fuzzy search, with live
-  editors for displays, appearance, lockscreen, animations, input, keybinds, window and layer
+  persists hub state as TOML; it also speaks the OpenRGB SDK, so the Lighting tab
+  drives keyboards and mice per device) and `quickshell/` (the native Qt6/QML app,
+  a `FloatingWindow` with a grouped nav rail and global fuzzy search, with live
+  editors for displays, appearance, device lighting, lockscreen, animations,
+  input, keybinds, window and layer
   rules, autostart, environment, the shell, and the desktop widgets). The product is "Ryoku Settings"; the binary and
   config keep the internal `hub` name. Deployed to `~/.config/quickshell/hub`;
   built by the shell's `deploy.sh`.
@@ -110,7 +112,7 @@ System-level definition installed into the target.
 - `hardware/` hardware policy and helper scripts (shipped to `/usr/bin` by
   `ryoku-desktop`): `gpu/` (`ryoku-gpu`, `ryoku-gpu-detect`, udev rule),
   `display/` (`ryoku-monitor`), `audio/` (`ryoku-mic`, the mic-gain normalizer),
-  `leds/` (`ryoku-leds`, the OpenRGB accent sync), `drivers/` (per-vendor
+  `drivers/` (per-vendor
   `nvidia`/`intel`/`amd`/`vulkan` install scripts), `power/` (`ryoku-hw-laptop`,
   the shared laptop detector; `ryoku-idle`, the laptop-gated `hypridle` launcher).
 - `extras/` the helpers behind the Hub's Extras section, shipped to `/usr/bin` by

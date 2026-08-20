@@ -31,7 +31,7 @@ embed policy.
 Anything with real shell logic is a `ryoku-<thing>` script in
 `system/hardware/.../`, shipped to `/usr/bin` by the `ryoku-desktop` package and
 invoked by name from Lua autostart or keybinds: `ryoku-gpu`, `ryoku-monitor`,
-`ryoku-hw-laptop`, `ryoku-idle`, `ryoku-mic`, `ryoku-leds`. Do not inline multi-step shell
+`ryoku-hw-laptop`, `ryoku-idle`, `ryoku-mic`. Do not inline multi-step shell
 into Lua, and do not copy a helper's logic into a second place; if two callers
 need it, it is one shared helper (as `ryoku-hw-laptop` is).
 

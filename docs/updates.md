@@ -71,8 +71,10 @@ Two ways to override, neither of which blocks a fix:
 
 Ryoku Settings writes its generated `hypr/settings.lua` and `hypr/rebinds.lua`
 into the overlay (authored under `user_edits`, reflected live). Its other state
-(bar, colours, launcher) it keeps under `~/.config/ryoku`, GUI-managed and
-update-safe. `ryoku reset` drops an override; `ryoku recovery` is the last
+(bar, colours, launcher, device lighting) it keeps under `~/.config/ryoku`,
+GUI-managed and update-safe: the package ships no file there, so `materialize`
+never clobbers or prunes it and a keyboard keeps the look you gave it across an
+update. `ryoku reset` drops an override; `ryoku recovery` is the last
 resort, wiping the overlay and that state back to shipped defaults.
 
 ## doctor: converging what materialize can't

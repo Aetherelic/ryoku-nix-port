@@ -180,7 +180,7 @@ depends=(
   'wf-recorder'          # multi-GPU capture fallback (pill Super+U)
   'hyprsunset'           # night-light colour temperature (pill Super+U)
   'wtype'                # voice-dictation typing on Wayland (Voxtype)
-  'openrgb'              # keyboard/LED accent sync (ryoku-leds, autostart)
+  'openrgb'              # keyboard and mouse lighting (Settings > Appearance > Lighting)
   'libqalculate'         # calculator backend (launcher Super+Space)
   'songrec'              # Recognize Music (launcher)
   'upower'               # battery + power status (pill/bar battery indicator)

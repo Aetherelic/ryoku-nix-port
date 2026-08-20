@@ -69,6 +69,15 @@
   setup). Drives the pill DISPLAY faders and the new `XF86MonBrightness` keys
   (`ryoku-cmd-brightness`). Shipped to `/etc` + `/usr/lib/udev` by `ryoku-desktop`.
 
+### Removed
+- `leds/ryoku-leds`: the old accent-to-all-devices helper is gone, along with
+  the RYOKU_LEDS_* environment knobs (RYOKU_LEDS_DISABLE, RYOKU_LEDS_COLOR,
+  RYOKU_LEDS_PALETTE, RYOKU_LEDS_FALLBACK, RYOKU_LEDS_MODE, RYOKU_LEDS_TIMEOUT).
+  It applied the wallpaper palette accent to every OpenRGB device on every
+  wallpaper change with no per-device opt-in, the behaviour users blame OpenRGB
+  for. Use Settings > Appearance > Lighting and `ryoku-hub lighting` instead,
+  which is opt-in per device and persists settings in `~/.config/ryoku/lighting.json`.
+
 ### Security
 - `display/ryoku-monitor`: `apply_specs` now renders monitor string fields
   (`output`, `mode`, `position`, `mirror`) through jq's `@json`, which emits a

@@ -44,11 +44,6 @@ in the machine.
     raises `InhibitDelayMaxSec` to 15s: `hypridle` delays sleep while it runs
     `ryoku-shell lock`, and logind's 5s default let the machine suspend before
     the lockscreen was up.
-- `leds/`
-  - `ryoku-leds` Applies the current palette accent color to OpenRGB-compatible
-    keyboards and attached lighting devices. It is best-effort: missing OpenRGB,
-    unsupported devices, or permission failures never block login or wallpaper
-    changes.
 - `audio/`
   - `ryoku-mic` Caps the default microphone at its Base Volume (the level the
     device reports as 0 dB hardware gain, no amplification) so a codec that runs

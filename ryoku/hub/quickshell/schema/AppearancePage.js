@@ -56,5 +56,103 @@ var rows = [{
         "lo": 2500.0,
         "hi": 6500.0,
         "unit": "K"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE LIGHTING",
+        "key": "lighting.enabled",
+        "label": "Let Ryoku control lighting",
+        "desc": "Keyboard and mouse RGB through OpenRGB; off means Ryoku never scans for a device and never writes to one",
+        "ctl": "sw",
+        "src": "~/.config/ryoku/lighting.json via `ryoku-hub lighting enable|disable`"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE LIGHTING",
+        "key": "(no key - hardware)",
+        "label": "Connected devices",
+        "desc": "Rescan for keyboards, mice and other RGB hardware after plugging something in",
+        "ctl": "text",
+        "src": "`ryoku-hub lighting scan`, the OpenRGB SDK server on 127.0.0.1:6742"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "lighting.devices.managed",
+        "label": "Ryoku controls this device",
+        "desc": "Hand one keyboard or mouse over at a time; anything left off keeps its own software, onboard profile or hardware switch in charge",
+        "ctl": "sw",
+        "src": "~/.config/ryoku/lighting.json via `ryoku-hub lighting set <device> {\"managed\":true}`"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "lighting.devices.effect",
+        "label": "Ryoku effects",
+        "desc": "Solid, Breathe, Pulse, Spectrum, Rainbow Wave, Comet and Scanner, painted by Ryoku on the device's per-key mode so they work even where the firmware ignores its own effect list; they need Ryoku running",
+        "ctl": "seg",
+        "src": "~/.config/ryoku/lighting.json; drawn by `ryoku-hub lighting animate`"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "lighting.devices.mode",
+        "label": "This device's effects",
+        "desc": "Every effect the device itself reports, from its onboard animations to per-key Direct; these keep running with Ryoku closed",
+        "ctl": "seg",
+        "src": "the device's own mode list, read over the OpenRGB SDK"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "lighting.devices.source",
+        "label": "Colour",
+        "desc": "Follow the wallpaper accent so the keyboard retints with the desktop, or keep a fixed colour of your own",
+        "ctl": "seg",
+        "opts": [
+            "Wallpaper",
+            "Fixed"
+        ],
+        "src": "~/.config/ryoku/lighting.json; the accent comes from ~/.cache/ryoku/hypr-colors.lua"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "lighting.devices.brightness",
+        "label": "Brightness",
+        "desc": "Scaled into the steps the device offers, and left alone until you move it",
+        "ctl": "slid",
+        "lo": 0.0,
+        "hi": 100.0,
+        "unit": "%",
+        "src": "~/.config/ryoku/lighting.json"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "lighting.devices.speed",
+        "label": "Speed",
+        "desc": "How fast the device runs the effect on its own, for effects that have a speed",
+        "ctl": "slid",
+        "lo": 0.0,
+        "hi": 100.0,
+        "unit": "%",
+        "src": "~/.config/ryoku/lighting.json"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "lighting.devices.direction",
+        "label": "Direction",
+        "desc": "Which way a wave or comet travels, for devices that offer a direction",
+        "ctl": "seg",
+        "src": "the device's own mode flags, read over the OpenRGB SDK"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "(no key - the device's own memory)",
+        "label": "Save to device",
+        "desc": "Store the look in the device so it holds with Ryoku closed; only for devices that offer it, and it replaces the profile in their active slot",
+        "ctl": "text",
+        "src": "`ryoku-hub lighting save <device>`, the OpenRGB SDK save-mode request"
+    },{
+        "tab": "Lighting",
+        "group": "DEVICE",
+        "key": "(no key - an action)",
+        "label": "Hand back",
+        "desc": "Stop controlling one device and put it back to the effect it was on before Ryoku touched it, keeping its settings for later",
+        "ctl": "text",
+        "src": "`ryoku-hub lighting release <device>`"
     }
 ];

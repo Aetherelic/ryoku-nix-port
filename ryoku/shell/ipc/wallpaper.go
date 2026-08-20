@@ -526,12 +526,15 @@ func blankGtk(cfgBase string) {
 // reads the sampled frame second for a video wallpaper from it.
 func ryowallsTune() string { return filepath.Join(stateDir(), "ryoku-ryowalls.json") }
 
-// ledsWorker: push accent to OpenRGB. detection is slow (seconds), so it lives on
-// its own coalescing worker and never touches the wallpaper hot path. runs for
-// the life of the daemon.
+// ledsWorker: push the new accent at the lighting devices the user put under
+// Ryoku's control. `ryoku-hub lighting accent` returns without touching anything
+// while lighting is off or no device is adopted, so an untouched install never
+// talks to a keyboard. Reaching hardware is slow (seconds on first use), so it
+// lives on its own coalescing worker and never touches the wallpaper hot path.
+// Runs for the life of the daemon.
 func (d *daemon) ledsWorker() {
 	for range d.ledsSig {
-		_ = exec.Command("ryoku-leds", "apply").Run()
+		_ = exec.Command(findHubBin(), "lighting", "accent").Run()
 	}
 }
 

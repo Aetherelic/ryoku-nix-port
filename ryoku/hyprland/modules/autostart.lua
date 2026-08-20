@@ -36,7 +36,10 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("command -v ryoku-gpu >/dev/null 2>&1 && ryoku-gpu persist")
     hl.exec_cmd("command -v ryoku-idle >/dev/null 2>&1 && ryoku-idle start")
     hl.exec_cmd("command -v ryoku-clamshell >/dev/null 2>&1 && ryoku-clamshell daemon")
-    hl.exec_cmd("command -v ryoku-leds >/dev/null 2>&1 && ryoku-leds apply")
+    -- Device lighting: push the stored look back at the keyboards and mice the
+    -- user put under Ryoku's control (Hub > Appearance > Lighting). A no-op, and
+    -- no OpenRGB at all, until lighting is on with a device adopted.
+    hl.exec_cmd("command -v ryoku-hub >/dev/null 2>&1 && ryoku-hub lighting apply")
     hl.exec_cmd("command -v ryoku-mic >/dev/null 2>&1 && ryoku-mic")
     -- Booted into a btrfs snapshot from the Limine menu: offer the one-click
     -- restore. limine-snapper-sync ships this as an XDG autostart entry, which
