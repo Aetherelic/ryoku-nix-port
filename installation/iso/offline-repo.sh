@@ -284,18 +284,30 @@ bake_aur_set() {
     base=$(curl -fsSL "https://aur.archlinux.org/rpc/v5/info?arg[]=$n" 2>/dev/null \
       | grep -oE '"PackageBase":[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\1/') || base=""
     [[ -n $base ]] || base=$n
-    src="$bdir/$base"; rm -rf "$src"
-    if ! git clone -q --depth 1 "https://aur.archlinux.org/$base.git" "$src" 2>/dev/null || [[ ! -f $src/PKGBUILD ]]; then
-      log "AUR bake: skip $n (could not fetch '$base' from the AUR)"; failed+=("$n"); continue
-    fi
-    (( EUID == 0 )) && chown -R "$builder:$builder" "$src"
-    local -a envv=(env "PKGDEST=$out")
-    [[ -n $builder ]] && envv=(env "HOME=/home/$builder" "PKGDEST=$out")
-    if ( cd "$src" && "${as[@]}" "${envv[@]}" makepkg -s --noconfirm --skippgpcheck --needed >/dev/null 2>&1 ); then
-      built+=("$n")
-    else
-      log "AUR bake: skip $n (build failed)"; failed+=("$n")
-    fi
+    src="$bdir/$base"
+    # One retry per package: a release build died on "offline repo is missing
+    # required packages: yay-bin" because a single AUR clone or source download
+    # blipped, and the whole ISO went with it. Cheap to try twice, and the bake's
+    # own required-package check still fails the build when it genuinely is not
+    # there.
+    local attempt ok=0
+    for attempt in 1 2; do
+      rm -rf "$src"
+      if ! git clone -q --depth 1 "https://aur.archlinux.org/$base.git" "$src" 2>/dev/null \
+        || [[ ! -f $src/PKGBUILD ]]; then
+        (( attempt == 1 )) && { sleep 5; continue; }
+        log "AUR bake: skip $n (could not fetch '$base' from the AUR)"; break
+      fi
+      (( EUID == 0 )) && chown -R "$builder:$builder" "$src"
+      local -a envv=(env "PKGDEST=$out")
+      [[ -n $builder ]] && envv=(env "HOME=/home/$builder" "PKGDEST=$out")
+      if ( cd "$src" && "${as[@]}" "${envv[@]}" makepkg -s --noconfirm --skippgpcheck --needed >/dev/null 2>&1 ); then
+        ok=1; break
+      fi
+      (( attempt == 1 )) && { log "AUR bake: $n failed to build; retrying once"; sleep 5; continue; }
+      log "AUR bake: skip $n (build failed)"
+    done
+    if (( ok )); then built+=("$n"); else failed+=("$n"); fi
   done
 
   # move built packages into the cache and pull each one's runtime deps into the
