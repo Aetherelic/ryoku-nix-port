@@ -82,6 +82,14 @@
   and the okshell variant all go through it
   (`modules/launcher/shared/providers/apps/Apps.qml`, `services/Dock.qml`,
   `modules/launcher/variants/okshell/Main.qml`).
+- **Ryoku Settings stops opening for the rest of the session.** The Hub is spawned
+  under `flock /tmp/ryoku-hub.lock`, but without `-o` the Hub inherited the locked
+  descriptor and passed it to everything it spawned, so one detached grandchild
+  (Ryostore from Browse rices, a kitty, an `xdg-open`) held the lock after the Hub
+  itself was gone. Every later open then failed the lock and threw the failure
+  away, which is why no keybind, menu entry or gear button did anything until a
+  reboot. `flock -n -o` keeps the lock with flock, where it dies with the Hub
+  (`ipc/control.go`).
 - **`deploy.sh` no longer restarts into a black screen.** A renderer that cannot
   load (an AUR quickshell built against another Qt) turned a deploy into a dead
   desktop with no way back, which is what a plugin developer hit. Deploy runs

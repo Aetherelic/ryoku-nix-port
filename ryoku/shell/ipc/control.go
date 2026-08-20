@@ -172,7 +172,11 @@ func (d *daemon) hub(sub, section string) string {
 				hubRaise()
 				return
 			}
-			argv := append([]string{"-n", "/tmp/ryoku-hub.lock", "qs"}, hubSelect()...)
+			// -o, or the Hub's own children inherit the locked descriptor:
+			// one detached grandchild (ryostore, a kitty, xdg-open) then held
+			// /tmp/ryoku-hub.lock for the rest of the session and every later
+			// open silently did nothing.
+			argv := append([]string{"-n", "-o", "/tmp/ryoku-hub.lock", "qs"}, hubSelect()...)
 			cmd := exec.Command("flock", argv...)
 			if err := cmd.Start(); err != nil {
 				return
