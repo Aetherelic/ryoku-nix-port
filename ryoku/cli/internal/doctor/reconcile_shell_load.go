@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"ryoku-cli/internal/sys"
 )
@@ -37,7 +38,26 @@ func reconcileShellLoad(checkOnly bool) recResult {
 	if len(liveShells()) > 0 {
 		return okRes("the desktop is loaded")
 	}
-	report := shellLoadReport()
+	// The updater runs this right after restarting the shell, so give the surface
+	// time to come up before calling it dead: a slow start is not a failure.
+	report := ""
+	deadline := time.Now().Add(8 * time.Second)
+	for {
+		if len(liveShells()) > 0 {
+			return okRes("the desktop is loaded")
+		}
+		if r := loggedFailure(); r != "" {
+			report = r
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(400 * time.Millisecond)
+	}
+	if report == "" {
+		report = probeConfig()
+	}
 	if report == "" {
 		return okRes("no desktop is running and no load error was reported")
 	}
@@ -73,13 +93,18 @@ func reconcileShellLoad(checkOnly bool) recResult {
 		repairSummary(overrides, restored))
 }
 
-// shellLoadReport is the load failure: the surface log the shell daemon keeps, or
-// the config loaded once when there is no log to read.
-func shellLoadReport() string {
+// loggedFailure is the load failure the shell daemon captured. The log is
+// truncated on every start, so a stale failure cannot outlive its attempt.
+func loggedFailure() string {
 	log := filepath.Join(sys.Xdg("XDG_STATE_HOME", ".local/state"), "ryoku", "surfaces", "shell.log")
 	if b, err := os.ReadFile(log); err == nil && isLoadFailure(string(b)) {
 		return string(b)
 	}
+	return ""
+}
+
+// probeConfig loads the config once, for a box whose daemon kept no log.
+func probeConfig() string {
 	// no renderer to ask: the quickshell check owns that failure
 	if _, err := exec.LookPath("qs"); err != nil {
 		return ""

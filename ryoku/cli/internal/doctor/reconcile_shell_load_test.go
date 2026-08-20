@@ -194,3 +194,32 @@ func TestShellLoadRepairsWithNoRendererOnPath(t *testing.T) {
 		t.Fatalf("the shipped file should be back, got %q", b)
 	}
 }
+
+// The updater restarts the shell and checks immediately after. A surface still
+// coming up is not a broken one, and nothing may be touched on its behalf.
+func TestShellLoadWaitsForASlowStart(t *testing.T) {
+	cfg, _ := shellSandbox(t)
+	if err := os.Remove(filepath.Join(os.Getenv("XDG_STATE_HOME"), "ryoku", "surfaces", "shell.log")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+
+	polls := 0
+	prev := liveShells
+	liveShells = func() []shellInstance {
+		polls++
+		if polls > 3 {
+			return []shellInstance{{pid: 1}}
+		}
+		return nil
+	}
+	t.Cleanup(func() { liveShells = prev })
+
+	if res := reconcileShellLoad(false); res.status != recOK {
+		t.Fatalf("a slow start is not a failure: %v (%s)", res.status, res.detail)
+	}
+	rel := filepath.Join("quickshell", "shell", "services", "Media.qml")
+	if b, _ := os.ReadFile(filepath.Join(cfg, rel)); string(b) != "// hand edited, broken\n" {
+		t.Fatalf("nothing may be restored for a desktop that came up, got %q", b)
+	}
+}
