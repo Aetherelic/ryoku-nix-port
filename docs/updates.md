@@ -103,6 +103,14 @@ outranking a user's pick.
 orphaned by a daemon that was killed keeps drawing, and Quickshell allows a second
 instance of one config, so the replacement draws over it. It keeps the instance
 the supervising daemon started and stops the rest.
+`reconcileShellLoad` gets a black screen back. Every surface is one Quickshell
+instance, so a single QML file that cannot load takes the whole desktop, at login
+and after an update alike. It reads the load failure from the shell daemon's
+surface log (or loads the config once when there is no log), scopes the repair to
+the module the loader blamed, moves a user override that breaks the desktop aside
+as `.broken`, puts back every shipped file the live tree no longer matches, and
+restarts the shell. When the shipped file is itself at fault it says so and names
+`ryoku update` and `ryoku rollback`, the two things that help.
 
 ## Publishing: how a commit becomes a user update
 

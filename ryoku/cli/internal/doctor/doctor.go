@@ -145,6 +145,7 @@ func reconcilers() []reconciler {
 		{"orphaned theme.lua", reconcileThemeLua},
 		{"follow-mouse default", reconcileFollowMouseDefault},
 		{"quickshell runtime", reconcileQuickshell},
+		{"desktop loads", reconcileShellLoad},
 		{"ryoku shell daemon", reconcileShellDaemon},
 		{"duplicate desktop instances", reconcileShellInstances},
 		{"rashin agent daemon", reconcileRashinDaemon},

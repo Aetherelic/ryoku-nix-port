@@ -11,6 +11,15 @@
   (`internal/importer`).
 
 ### Fixed
+- **`ryoku doctor` gets a black screen back instead of leaving you at one.** A
+  single QML file that cannot load takes every surface with it, so the desktop is
+  empty at login and after an update, and nothing looked for it. The new
+  `desktop loads` check reads the failure out of the shell daemon's surface log,
+  scopes the repair to the module the loader blamed, moves an override of yours
+  that breaks the desktop aside as `.broken`, puts back the shipped files the live
+  tree no longer matches, and restarts the shell. A shipped file at fault is
+  reported with `ryoku update` and `ryoku rollback` rather than guessed at
+  (`internal/doctor/reconcile_shell_load.go`).
 - **`ryoku doctor` explains a black screen instead of passing it.** Quickshell
   links Qt's private API, so a build made against another Qt stops loading:
   `undefined symbol ..., version Qt_6_PRIVATE_API`, and since every Ryoku surface
