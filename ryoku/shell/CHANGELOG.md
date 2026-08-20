@@ -72,6 +72,13 @@
   user's file alone.
 
 ### Fixed
+- **The low-battery chime no longer fires while the battery is fine.** `watchPowerSounds`
+  scanned every `/sys/class/power_supply` entry and let any `type=Battery` device
+  overwrite the reading, so a depleted, discharging peripheral (a `scope=Device`
+  mouse, keyboard or headset) stood in for the laptop's own percent and the critical
+  chime played on a loop while the real battery sat at ~70%. The reader skips
+  `scope=Device` supplies now and keys off the system battery alone; the threshold
+  and its repeat are untouched (`ipc/powersounds.go`).
 - **Terminal apps start from the launcher again.** Quickshell parses `Terminal=true`
   into `runInTerminal` but spawns no terminal for it, and every launch path called
   `execute()` regardless, so a TUI got no controlling tty and exited on the spot

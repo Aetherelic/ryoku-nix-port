@@ -8,11 +8,10 @@ import (
 	"time"
 )
 
-// powersounds watches the battery and AC line over sysfs and plays the battery,
-// plug, and unplug cues. It is the only consumer of power state that lives in the
-// daemon today; it reads /sys/class/power_supply directly rather than depend on a
-// running UPower. A machine with no battery or no mains simply never fires those
-// cues.
+// powersounds watches the system battery and AC line over sysfs and plays the
+// battery-low, plug, and unplug cues. It reads /sys/class/power_supply directly
+// rather than depend on a running UPower. A machine with no battery or no mains
+// simply never fires those cues.
 
 const powerSupplyRoot = "/sys/class/power_supply"
 
@@ -25,26 +24,30 @@ const (
 	powerPoll         = 2 * time.Second
 )
 
-// powerState is the sysfs snapshot the cues key off.
+// powerState is the sysfs snapshot the cues key off. The battery fields describe
+// the system battery only; peripheral batteries are excluded when it is read.
 type powerState struct {
 	haveAC      bool // a Mains supply exists
 	online      bool // AC is plugged in
-	present     bool // a battery is present
-	discharging bool // battery status is Discharging
-	percent     int  // battery capacity 0..100
+	present     bool // the system battery is present
+	discharging bool // the system battery status is Discharging
+	percent     int  // system battery capacity 0..100
 }
 
-// readPowerState scans the power-supply class for the battery and mains devices.
-// Missing attributes leave their fields zero, which the cue guards treat as "no
-// cue".
-func readPowerState() powerState {
+// readPowerState scans the power-supply class for the mains and system battery.
+func readPowerState() powerState { return readPowerStateFrom(powerSupplyRoot) }
+
+// readPowerStateFrom is readPowerState with an injectable root so the device
+// selection is testable without real sysfs. Missing attributes leave their
+// fields zero, which the cue guards treat as "no cue".
+func readPowerStateFrom(root string) powerState {
 	var st powerState
-	entries, err := os.ReadDir(powerSupplyRoot)
+	entries, err := os.ReadDir(root)
 	if err != nil {
 		return st
 	}
 	for _, e := range entries {
-		base := filepath.Join(powerSupplyRoot, e.Name())
+		base := filepath.Join(root, e.Name())
 		switch readTrim(filepath.Join(base, "type")) {
 		case "Mains":
 			st.haveAC = true
@@ -52,6 +55,12 @@ func readPowerState() powerState {
 				st.online = true
 			}
 		case "Battery":
+			// Peripheral batteries (mouse, keyboard, headset) report scope
+			// "Device"; only the system battery drives the low-battery cue, so a
+			// depleted peripheral never fires the chime while the laptop is fine.
+			if strings.EqualFold(readTrim(filepath.Join(base, "scope")), "Device") {
+				continue
+			}
 			if readTrim(filepath.Join(base, "present")) == "1" {
 				st.present = true
 			}
@@ -72,11 +81,10 @@ func readPowerState() powerState {
 // at login for the state the machine booted in; thereafter every online change
 // plays plug (on) or unplug (off).
 //
-// Battery low: while the battery is present, discharging, and under 4 percent,
-// the cue plays at once on entering the state and then every 60 s until it
-// leaves. Leaving the state (charging, plugged, or risen above the threshold)
+// Battery low: while the system battery is present, discharging, and under 4
+// percent, the cue plays at once on entering the state and then every 60 s until
+// it leaves. Leaving the state (charging, plugged, or risen above the threshold)
 // re-arms the immediate play for the next time it drops.
-// powerCue tracks the state the cue guards need across polls.
 type powerCue struct {
 	acSeen    bool
 	lastAC    bool
@@ -85,7 +93,7 @@ type powerCue struct {
 }
 
 // step folds one sysfs snapshot into the tracker and returns the cues to play.
-// It is pure over its receiver and now so the skip-first-AC and battery-low
+// It is pure over its receiver and now, so the skip-first-AC and battery-low
 // immediate-then-repeat rules are unit-testable without sysfs or a clock.
 func (c *powerCue) step(st powerState, now time.Time) []string {
 	var cues []string

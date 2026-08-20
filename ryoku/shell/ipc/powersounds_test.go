@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -76,5 +78,42 @@ func TestPowerCueChargingSilent(t *testing.T) {
 	// Discharging but absent: no battery cue.
 	if cues := c.step(powerState{present: false, discharging: true, percent: 1}, now); len(cues) != 0 {
 		t.Fatalf("absent battery played %v, want none", cues)
+	}
+}
+
+// A depleted Device-scoped peripheral (mouse, keyboard, headset) must not stand
+// in for the system battery: doing so fired the low chime on a laptop at 70%.
+func TestReadPowerStateSkipsPeripheralBattery(t *testing.T) {
+	root := t.TempDir()
+	writeSupply(t, root, "ADP0", map[string]string{"type": "Mains", "online": "0"})
+	// The system battery has no scope file; healthy and discharging.
+	writeSupply(t, root, "BAT0", map[string]string{
+		"type": "Battery", "present": "1", "status": "Discharging", "capacity": "70",
+	})
+	// Sorts after BAT0, so before the scope check it won the last-writer loop.
+	writeSupply(t, root, "hid-0003:05AC:029C.000D-battery-144", map[string]string{
+		"type": "Battery", "scope": "Device", "present": "1", "status": "Discharging", "capacity": "2",
+	})
+
+	st := readPowerStateFrom(root)
+	want := powerState{haveAC: true, online: false, present: true, discharging: true, percent: 70}
+	if st != want {
+		t.Fatalf("readPowerStateFrom = %+v, want %+v", st, want)
+	}
+	if cues := (&powerCue{}).step(st, time.Unix(0, 0)); len(cues) != 0 {
+		t.Fatalf("a healthy system battery played %v, want none", cues)
+	}
+}
+
+func writeSupply(t *testing.T, root, name string, attrs map[string]string) {
+	t.Helper()
+	dir := filepath.Join(root, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range attrs {
+		if err := os.WriteFile(filepath.Join(dir, k), []byte(v+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
