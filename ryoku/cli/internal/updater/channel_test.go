@@ -105,6 +105,10 @@ func TestChannelStatus(t *testing.T) {
 func TestChannelStatusNoCheckout(t *testing.T) {
 	t.Setenv("RYOKU_REPO", "")
 	t.Setenv("XDG_STATE_HOME", t.TempDir()) // no recorded repo here
+	// HOME too: ResolveRepo falls back to ~/ryoku-arch, so on a machine that has
+	// one (any box that ran `ryoku track`) this test found a real checkout and
+	// failed for the environment instead of the code.
+	t.Setenv("HOME", t.TempDir())
 	if _, ok := channelStatus(); ok {
 		t.Error("channelStatus should report not-ok without a checkout")
 	}
