@@ -270,7 +270,7 @@ func plural(n int, noun string) string {
 }
 
 // restartShell saves the user knowing the command; a failure here is not fatal,
-// the repair still stands.
-func restartShell() {
+// the repair still stands. A var so a test never restarts the desktop it runs on.
+var restartShell = func() {
 	_ = exec.Command("systemctl", "--user", "restart", "ryoku-shell").Run()
 }

@@ -19,6 +19,9 @@ const fileFailure = `  INFO: Launching config: "/home/u/.config/quickshell/shell
  ERROR:   caused by file:///home/u/.config/quickshell/shell/services/Keyring.qml[-1:-1]: Type Media unavailable
  ERROR:   caused by file:///home/u/.config/quickshell/shell/services/Media.qml[76:1]: Syntax error`
 
+// how many times a repair asked for the shell back
+var testRestarts int
+
 func TestParseQmlErrorTakesTheRealCause(t *testing.T) {
 	file, line, reason := parseQmlError(fileFailure)
 	if file != "/home/u/.config/quickshell/shell/services/Media.qml" {
@@ -83,7 +86,11 @@ func shellSandbox(t *testing.T) (cfg, base string) {
 	// no desktop is up in a sandbox, and /proc cannot be faked
 	prev := liveShells
 	liveShells = func() []shellInstance { return nil }
-	t.Cleanup(func() { liveShells = prev })
+	// and a test never restarts the machine's own desktop
+	prevRestart := restartShell
+	testRestarts = 0
+	restartShell = func() { testRestarts++ }
+	t.Cleanup(func() { liveShells, restartShell = prev, prevRestart })
 	return cfg, base
 }
 
@@ -104,6 +111,9 @@ func TestShellLoadPutsAStaleFileBack(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(cfg, rel)); string(b) != "// shipped, good\n" {
 		t.Fatalf("the shipped file should be back, got %q", b)
+	}
+	if testRestarts != 1 {
+		t.Fatalf("a repair brings the desktop back itself, restarts = %d", testRestarts)
 	}
 }
 
