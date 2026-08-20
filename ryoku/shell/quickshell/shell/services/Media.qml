@@ -52,8 +52,8 @@ Singleton {
     // move off a player that just stopped (an isPlaying change does not alter the
     // set). The tick is deliberately unhurried: it settles the pick rather than
     // chasing every transient state, which is what strobed the surfaces before.
-    readonly property var _players: Mpris.players ? Mpris.players.values : []
-    on_playersChanged: root.repick()
+    readonly property var playerSet: Mpris.players ? Mpris.players.values : []
+    onPlayerSetChanged: root.repick()
     Timer { interval: 1000; repeat: true; running: true; onTriggered: root.repick() }
     Component.onCompleted: root.repick()
     readonly property bool playing: player !== null && player.isPlaying
