@@ -21,17 +21,41 @@ Singleton {
             && String(p.trackTitle || "").indexOf("LIVE · ") === 0;
     }
 
-    function pick(players) {
+    // Sticky pick: keep the player already on screen while it is still sounding,
+    // so a second player (a browser tab, a game bleep, an Apple Music client next
+    // to a video) cannot steal the pick and reload the cover and lyrics mid-song.
+    // Only move on when the current one stops or leaves the set.
+    function pick(players, cur) {
         var list = players.filter(function(p) { return p && !root.isWallpaper(p); });
+        if (list.length === 0)
+            return null;
+        var curOk = cur && list.indexOf(cur) !== -1;
+        if (curOk && cur.isPlaying)
+            return cur;
         for (var i = 0; i < list.length; i++)
             if (list[i].isPlaying)
                 return list[i];
+        if (curOk && (cur.trackTitle || "").length > 0)
+            return cur;
         for (var j = 0; j < list.length; j++)
             if ((list[j].trackTitle || "").length > 0)
                 return list[j];
-        return list.length > 0 ? list[0] : null;
+        return curOk ? cur : list[0];
     }
-    readonly property var player: root.pick(Mpris.players.values)
+    property var player: null
+    function repick() {
+        var next = root.pick(Mpris.players.values, root.player);
+        if (next !== root.player)
+            root.player = next;
+    }
+    // Re-pick when the player set changes, and on a slow tick so the pick can
+    // move off a player that just stopped (an isPlaying change does not alter the
+    // set). The tick is deliberately unhurried: it settles the pick rather than
+    // chasing every transient state, which is what strobed the surfaces before.
+    readonly property var _players: Mpris.players ? Mpris.players.values : []
+    on_playersChanged: root.repick()
+    Timer { interval: 1000; repeat: true; running: true; onTriggered: root.repick() }
+    Component.onCompleted: root.repick()
     readonly property bool playing: player !== null && player.isPlaying
     readonly property bool present: player !== null && (player.trackTitle || "").length > 0
     readonly property bool radio: player !== null && isRadio(player)

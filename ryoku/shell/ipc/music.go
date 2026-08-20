@@ -50,12 +50,13 @@ const (
 // carries it so a surface can label what is playing, and art resolution uses it
 // to pick which URL rewrite applies.
 const (
-	musSrcSpotify = "spotify"
-	musSrcYtMusic = "ytmusic"
-	musSrcYouTube = "youtube"
-	musSrcBrowser = "browser"
-	musSrcLocal   = "local"
-	musSrcOther   = "other"
+	musSrcSpotify    = "spotify"
+	musSrcYtMusic    = "ytmusic"
+	musSrcYouTube    = "youtube"
+	musSrcAppleMusic = "applemusic"
+	musSrcBrowser    = "browser"
+	musSrcLocal      = "local"
+	musSrcOther      = "other"
 )
 
 // Lyrics and art states QML binds its placeholders to.
@@ -107,11 +108,11 @@ type musicState struct {
 	client *http.Client
 	dir    string
 
-	mu    sync.Mutex
-	gen   int
-	key   string
-	frame musicFrame
-	curID   string            // current track's Spotify id (guarded by mu)
+	mu      sync.Mutex
+	gen     int
+	key     string
+	frame   musicFrame
+	curID   string // current track's Spotify id (guarded by mu)
 	relayMu sync.Mutex
 	relay   map[string]string // Spotify id -> Canvas url from the spicetify relay
 }
@@ -646,6 +647,9 @@ func musicSourceOf(t musicTrack) string {
 	switch {
 	case strings.Contains(player, "spotify"):
 		return musSrcSpotify
+	case strings.Contains(player, "sidra"), strings.Contains(player, "cider"),
+		strings.Contains(link, "music.apple.com"):
+		return musSrcAppleMusic
 	case strings.Contains(link, "music.youtube.com"), strings.Contains(player, "ytmusic"),
 		strings.Contains(player, "youtube_music"), strings.Contains(player, "youtubemusic"):
 		return musSrcYtMusic

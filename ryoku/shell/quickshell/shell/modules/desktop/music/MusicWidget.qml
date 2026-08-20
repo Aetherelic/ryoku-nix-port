@@ -77,6 +77,19 @@ Item {
     readonly property color dim: Theme.inkDim
     readonly property color plate: ArtColor.plateOf(root.accent, Theme.surface)
     readonly property bool hasLyrics: Music.synced || Music.unsynced
+    // Hysteresis for the side area so lyrics and the visualizer never strobe: a
+    // re-lookup or a brief empty frame keeps the current surface, and the
+    // visualizer only takes over once a track has settled with no lyrics. Lyrics
+    // reclaim the area the instant they arrive.
+    readonly property bool lyricsPending: Music.searching || root.hasLyrics
+    property bool noLyricsSettled: false
+    onLyricsPendingChanged: if (root.lyricsPending) root.noLyricsSettled = false
+    readonly property bool vizShown: root.present && (!root.showLyrics || root.noLyricsSettled)
+    Timer {
+        interval: 700
+        running: root.present && root.showLyrics && !root.lyricsPending && !root.noLyricsSettled
+        onTriggered: root.noLyricsSettled = true
+    }
 
     HoverHandler { id: hover }
 
@@ -187,7 +200,7 @@ Item {
             y: 0
             width: body.width - cover.width - root.gap
             height: root.coverSize
-            visible: root.present && (!root.showLyrics || !root.hasLyrics)
+            visible: root.vizShown
             s: root.s
             accent: root.accent
             live: Media.playing

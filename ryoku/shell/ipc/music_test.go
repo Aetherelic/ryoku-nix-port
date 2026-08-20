@@ -27,6 +27,12 @@ func TestMusicSourceOf(t *testing.T) {
 		}, musSrcYouTube},
 		{"local file", musicTrack{Player: "org.mpris.MediaPlayer2.mpv", URL: "file:///music/a.flac"}, musSrcLocal},
 		{"bare browser", musicTrack{Player: "org.mpris.MediaPlayer2.firefox.instance_3"}, musSrcBrowser},
+		{"sidra apple music", musicTrack{Player: "org.mpris.MediaPlayer2.sidra"}, musSrcAppleMusic},
+		{"cider apple music", musicTrack{Player: "org.mpris.MediaPlayer2.cider.instance1"}, musSrcAppleMusic},
+		{"apple music web", musicTrack{
+			Player: "org.mpris.MediaPlayer2.firefox.instance_9",
+			URL:    "https://music.apple.com/us/album/x/1",
+		}, musSrcAppleMusic},
 		{"unknown player", musicTrack{Player: "org.mpris.MediaPlayer2.cmus"}, musSrcOther},
 	}
 	for _, c := range cases {
