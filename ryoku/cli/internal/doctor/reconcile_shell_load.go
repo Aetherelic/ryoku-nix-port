@@ -37,9 +37,6 @@ func reconcileShellLoad(checkOnly bool) recResult {
 	if len(liveShells()) > 0 {
 		return okRes("the desktop is loaded")
 	}
-	if _, err := exec.LookPath("qs"); err != nil {
-		return okRes("quickshell is not installed; the renderer check covers that")
-	}
 	report := shellLoadReport()
 	if report == "" {
 		return okRes("no desktop is running and no load error was reported")
@@ -82,6 +79,10 @@ func shellLoadReport() string {
 	log := filepath.Join(sys.Xdg("XDG_STATE_HOME", ".local/state"), "ryoku", "surfaces", "shell.log")
 	if b, err := os.ReadFile(log); err == nil && isLoadFailure(string(b)) {
 		return string(b)
+	}
+	// no renderer to ask: the quickshell check owns that failure
+	if _, err := exec.LookPath("qs"); err != nil {
+		return ""
 	}
 	out, _ := exec.Command("qs", "-c", "shell").CombinedOutput()
 	if isLoadFailure(string(out)) {

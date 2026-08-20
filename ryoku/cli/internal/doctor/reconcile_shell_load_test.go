@@ -178,3 +178,19 @@ func TestShellConfigRelIgnoresPathsOutsideConfig(t *testing.T) {
 		t.Fatalf("a system path is not ours: %q", got)
 	}
 }
+
+// A build box has no renderer on PATH. The log still says what happened, so the
+// repair must not need `qs` to exist.
+func TestShellLoadRepairsWithNoRendererOnPath(t *testing.T) {
+	cfg, _ := shellSandbox(t)
+	t.Setenv("PATH", t.TempDir())
+
+	res := reconcileShellLoad(false)
+	if res.status != recFixed {
+		t.Fatalf("status = %v (%s)", res.status, res.detail)
+	}
+	rel := filepath.Join("quickshell", "shell", "services", "Media.qml")
+	if b, _ := os.ReadFile(filepath.Join(cfg, rel)); string(b) != "// shipped, good\n" {
+		t.Fatalf("the shipped file should be back, got %q", b)
+	}
+}
