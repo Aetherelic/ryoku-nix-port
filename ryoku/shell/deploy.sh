@@ -45,11 +45,31 @@ overlay_user_edits() {
   return 0
 }
 
+# Quickshell links Qt's private API, so an AUR build (quickshell-git) stops
+# loading after a Qt update. Restarting into that leaves a black screen with no
+# way back, so check first and keep the live desktop instead.
+check_renderer() {
+  local out
+  if out=$(qs --version 2>&1); then
+    return 0
+  fi
+  say "ryoku-shell NOT restarted: quickshell cannot start"
+  printf '%s\n' "$out" | sed 's/^/    /' >&2
+  cat >&2 <<'EOF'
+    Quickshell links Qt's private API, so a build made against another Qt will
+    not load. The repo package is rebuilt with Qt; quickshell-git is not:
+        sudo pacman -S quickshell
+    Then run this deploy again. The desktop you have now was left running.
+EOF
+  return 1
+}
+
 restart_shell() {
   local shell=$bindir/ryoku-shell
   local log="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-shell.log"
 
   [[ -x $shell ]] || return 0
+  check_renderer || return 0
   systemctl --user stop ryoku-shell 2>/dev/null || true
   "$shell" quit >/dev/null 2>&1 || true
   for _ in {1..20}; do
@@ -225,11 +245,23 @@ say "recorded update-channel checkout -> $state_dir/repo"
 # there for the quickshell processes it supervises. Needs cmake + ninja +
 # qt6-shadertools (build-time only); skip cleanly when the toolchain is absent so
 # a plain config deploy still succeeds (the module ships prebuilt on installs).
+#
+# Stamped with the Qt it was built against, like the Hyprland plugins below: a
+# module built against another Qt fails to load and takes the whole surface with
+# it, so a Qt update has to force a rebuild.
 qmldir="$HOME/.local/lib/qt6/qml"
+qtver="$(pacman -Q qt6-base 2>/dev/null | awk '{print $2}')"
+qtstamp="$qmldir/Ryoku/Blobs/.qt-version"
 if command -v cmake >/dev/null 2>&1 && command -v ninja >/dev/null 2>&1; then
-  say "building Ryoku.Blobs plugin"
-  "$here/plugin/build.sh" "$qmldir"
-  say "installed Ryoku.Blobs -> $qmldir/Ryoku/Blobs"
+  if [ -n "$qtver" ] && [ "$(cat "$qtstamp" 2>/dev/null)" = "$qtver" ] \
+     && [ -n "$(find "$qmldir/Ryoku/Blobs" -name '*.so' -print -quit 2>/dev/null)" ]; then
+    say "Ryoku.Blobs already built against Qt $qtver"
+  else
+    say "building Ryoku.Blobs plugin"
+    "$here/plugin/build.sh" "$qmldir"
+    [ -n "$qtver" ] && printf '%s\n' "$qtver" > "$qtstamp"
+    say "installed Ryoku.Blobs -> $qmldir/Ryoku/Blobs"
+  fi
 else
   say "skipping Ryoku.Blobs plugin (cmake/ninja not found)"
 fi
