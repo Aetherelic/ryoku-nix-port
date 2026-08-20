@@ -81,7 +81,9 @@ type daemon struct {
 	quit           chan struct{}
 	closed         bool
 	ln             net.Listener
-	lock           *os.File                 // exclusive single-daemon guard, held until exit
+	lock           *os.File // exclusive single-daemon guard, held until exit
+	failMu         sync.Mutex
+	lastFail       map[string]string        // component -> last line it died with
 	voiceMu        sync.Mutex               // serializes voice (Super+`) toggles
 	voiceOn        bool                     // dictation active; guarded by voiceMu
 	prompter       *prompter                // GNOME keyring system prompter (nil when unavailable)
@@ -163,6 +165,7 @@ func runDaemon() error {
 		gateWant:       map[string]bool{},
 		gateWake:       map[string]chan struct{}{},
 		hiddenSince:    map[string]time.Time{},
+		lastFail:       map[string]string{},
 		lastTransition: -1,
 	}
 	d.ln = ln
@@ -569,6 +572,28 @@ func qsEnv() []string {
 	return env
 }
 
+// surfaceLog is where a supervised surface's stderr goes, one file per component
+// so a crash on start is still readable after the respawn.
+func surfaceLog(name string) string {
+	dir := filepath.Join(stateDir(), "ryoku", "surfaces")
+	_ = os.MkdirAll(dir, 0o755)
+	return filepath.Join(dir, name+".log")
+}
+
+func tailLine(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if l := strings.TrimSpace(lines[i]); l != "" {
+			return l
+		}
+	}
+	return ""
+}
+
 // supervise runs `qs -c <name>` and restarts it whenever it exits, backing off if
 // it dies immediately so a broken config does not spin the CPU.
 func (d *daemon) supervise(name string) {
@@ -595,6 +620,15 @@ func (d *daemon) supervise(name string) {
 		d.reapStrays()
 		cmd := exec.Command("qs", qsSelect(name)...)
 		cmd.Env = qsEnv()
+		// Keep the surface's own stderr: when it dies on start (a renderer built
+		// against another Qt, a broken config) this is the only place the reason
+		// exists, and `reload` reports it instead of answering ok to a black
+		// screen.
+		logPath := surfaceLog(name)
+		logFile, err := os.Create(logPath)
+		if err == nil {
+			cmd.Stderr = logFile
+		}
 		if err := cmd.Start(); err != nil {
 			time.Sleep(backoff)
 			backoff = capDur(backoff*2, 30*time.Second)
@@ -609,6 +643,9 @@ func (d *daemon) supervise(name string) {
 
 		start := time.Now()
 		_ = cmd.Wait()
+		if logFile != nil {
+			logFile.Close()
+		}
 
 		d.mu.Lock()
 		delete(d.proc, name)
@@ -620,8 +657,13 @@ func (d *daemon) supervise(name string) {
 		default:
 		}
 		if time.Since(start) < 3*time.Second {
-			// Died fast: likely a broken config. Back off exponentially so a
-			// crash loop cannot spin the CPU.
+			if line := tailLine(logPath); line != "" {
+				d.failMu.Lock()
+				d.lastFail[name] = line
+				d.failMu.Unlock()
+				fmt.Fprintf(os.Stderr, "%s died at once: %s\n", name, line)
+			}
+			// Back off exponentially so a crash loop cannot spin the CPU.
 			backoff = capDur(backoff*2, 30*time.Second)
 			time.Sleep(backoff)
 		} else {
@@ -952,8 +994,7 @@ func (d *daemon) dispatch(line string) string {
 		}
 		return "ok"
 	case "reload":
-		d.reload()
-		return "ok"
+		return d.reload()
 	case "status":
 		return d.status()
 	case "ping":
@@ -1031,8 +1072,10 @@ func (d *daemon) voice() string {
 }
 
 // reload restarts every supervised component by terminating it; the supervisor
-// goroutine then brings it back.
-func (d *daemon) reload() {
+// brings it back. It waits for the result: answering "ok" while the surface dies
+// on the same error is what made `ryoku reload` look like it does nothing on a
+// black screen.
+func (d *daemon) reload() string {
 	d.mu.Lock()
 	procs := make([]*exec.Cmd, 0, len(d.proc))
 	for _, c := range d.proc {
@@ -1044,6 +1087,31 @@ func (d *daemon) reload() {
 			_ = c.Process.Signal(syscall.SIGTERM)
 		}
 	}
+	deadline := time.Now().Add(8 * time.Second)
+	for _, c := range components {
+		if !startsAtBoot(c) {
+			continue
+		}
+		for {
+			d.mu.Lock()
+			_, up := d.proc[c.name]
+			d.mu.Unlock()
+			if up {
+				break
+			}
+			if time.Now().After(deadline) {
+				d.failMu.Lock()
+				why := d.lastFail[c.name]
+				d.failMu.Unlock()
+				if why == "" {
+					why = "see " + surfaceLog(c.name)
+				}
+				return fmt.Sprintf("err reload: %s did not come back: %s", c.name, why)
+			}
+			time.Sleep(150 * time.Millisecond)
+		}
+	}
+	return "ok"
 }
 
 func (d *daemon) status() string {

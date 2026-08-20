@@ -164,3 +164,18 @@ func TestHoldDaemonLockIsExclusive(t *testing.T) {
 	}
 	second.Close()
 }
+
+func TestTailLineReadsTheLastRealLine(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/surface.log"
+	body := "INFO: starting\n\nquickshell: symbol lookup error: undefined symbol: x, version Qt_6_PRIVATE_API\n\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := tailLine(path); got != "quickshell: symbol lookup error: undefined symbol: x, version Qt_6_PRIVATE_API" {
+		t.Fatalf("tailLine = %q", got)
+	}
+	if got := tailLine(dir + "/missing.log"); got != "" {
+		t.Fatalf("a missing log has no line, got %q", got)
+	}
+}
