@@ -99,6 +99,10 @@ dropped (the file goes if that is all it held), and anything the user chose
 stays. Ryoku's map ships to `/usr/share/applications/mimeapps.list` now, the
 bottom of the XDG mimeapps chain, so it sets the defaults without ever
 outranking a user's pick.
+`reconcileShellInstances` clears a desktop that is running twice: a shell surface
+orphaned by a daemon that was killed keeps drawing, and Quickshell allows a second
+instance of one config, so the replacement draws over it. It keeps the instance
+the supervising daemon started and stops the rest.
 
 ## Publishing: how a commit becomes a user update
 

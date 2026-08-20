@@ -11,6 +11,16 @@
   (`internal/importer`).
 
 ### Fixed
+- **`ryoku doctor` finds and clears a desktop that is running twice.** A leftover
+  shell surface kept drawing beside the live one, and nothing looked for it:
+  `reconcileShellDaemon` only asks whether the daemon answers its socket, which a
+  fresh daemon does while an orphan from the previous one is still on screen. The
+  new `duplicate desktop instances` check lists the live Quickshell instances that
+  render the shell, keeps the one the supervising daemon started (the unit's
+  MainPID, or any live `ryoku-shell daemon` on a checkout, or the oldest when
+  every one was orphaned), and stops the rest, escalating to SIGKILL for a wedged
+  one. Check-only reports the count and which pid keeps the desktop
+  (`internal/doctor/reconcile_shell_instances.go`).
 - **Your default apps stop resetting on every update.** Ryoku's default-app map
   was materialized straight into `~/.config/mimeapps.list`, which is the one file
   every "Set as default" writes (GNOME's Open With, a browser making itself
