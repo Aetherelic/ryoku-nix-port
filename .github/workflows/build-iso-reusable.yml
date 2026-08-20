@@ -269,6 +269,36 @@ jobs:
 
           echo "::notice::Prepared readable Trivy rootfs scan copy from $squashfs."
 
+      # A build that shipped, or a test that ran against, an ISO from another
+      # commit is the worst kind of green: the fix you are verifying is not in the
+      # image. The payload carries a provenance stamp, so check it rather than
+      # trust the pipeline: the baked commit, the variant, and the sha in the
+      # public filename all have to be this run's.
+      - name: Verify the ISO is built from this commit
+        run: |
+          set -euo pipefail
+          stamp="$RYOKU_TRIVY_ROOTFS/usr/share/ryoku/.payload"
+          [[ -f $stamp ]] || { echo "::error::no payload stamp in the ISO ($stamp)"; exit 1; }
+          baked=$(awk -F= '$1=="commit"{print $2; exit}' "$stamp")
+          variant=$(cat "$RYOKU_TRIVY_ROOTFS/usr/share/ryoku/variant" 2>/dev/null || echo "")
+          name="${{ steps.iso.outputs.name }}"
+          echo "payload commit: $baked"
+          echo "payload variant: $variant"
+          echo "iso name: $name"
+          if [[ $baked != "$GITHUB_SHA" ]]; then
+            echo "::error::the ISO's baked payload is commit $baked, not this run's $GITHUB_SHA"
+            exit 1
+          fi
+          if [[ $variant != "$RYOKU_VARIANT" ]]; then
+            echo "::error::the ISO is variant '$variant', not the requested '$RYOKU_VARIANT'"
+            exit 1
+          fi
+          if [[ $name != *"${GITHUB_SHA::7}"* ]]; then
+            echo "::error::the ISO filename '$name' does not carry this run's short sha ${GITHUB_SHA::7}"
+            exit 1
+          fi
+          echo "::notice::ISO verified fresh: $name (commit $baked, variant $variant)"
+
       - name: Generate ISO Trivy SARIF report
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:

@@ -499,6 +499,30 @@ for _vattempt in 1 2 3; do
   sleep 20
 done
 
+# Drop every package file the db does not reference. The repo is assembled by
+# copying the whole download cache, and that cache persists between local builds:
+# an older build's packages sit there, get copied in, and repo-add indexes only
+# the newest of each name, leaving the superseded files in the ISO as dead weight
+# nobody can install. pacman's own version comparison already picked the winners,
+# so trust the db and delete the rest. A CI runner starts with an empty cache and
+# prunes nothing; a developer's tenth build stops shipping its first nine.
+prune_superseded() {
+  local db="$DEST/$REPO_NAME.db.tar.zst" keep dropped=0 f
+  [[ -f $db ]] || return 0
+  keep=$(bsdtar -xOf "$db" '*/desc' 2>/dev/null | awk '/^%FILENAME%$/{getline; print}')
+  [[ -n $keep ]] || return 0
+  for f in "$DEST"/*.pkg.tar.*; do
+    [[ -f $f ]] || continue
+    case "$f" in *.sig) continue ;; esac
+    grep -qxF "${f##*/}" <<<"$keep" && continue
+    rm -f "$f" "$f.sig"
+    dropped=$((dropped + 1))
+  done
+  (( dropped )) && log "pruned $dropped superseded package(s) the db does not reference"
+  return 0
+}
+prune_superseded
+
 n=$(find "$DEST" -maxdepth 1 -name '*.pkg.tar.*' | wc -l)
 sz=$(du -sh "$DEST" | cut -f1)
 log "baked $n packages into the [offline] repo ($sz) at $DEST"

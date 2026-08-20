@@ -109,6 +109,19 @@ jobs:
             echo "::error::no successful Build ISO run or artifact to test"
             exit 1
           fi
+
+          # Name the commit under test, and refuse a mismatch when we know what it
+          # should be. A pass against an ISO from another commit is worse than a
+          # failure: it certifies a fix that is not in the image.
+          iso=$(ls iso/*.iso 2>/dev/null | head -1 || true)
+          if [ -n "$iso" ]; then
+            echo "::notice::testing $(basename "$iso") (from Build ISO run $rid)"
+            want="${{ github.event.workflow_run.head_sha }}"
+            if [ -n "$want" ] && ! printf '%s' "$iso" | grep -q "${want:0:7}"; then
+              echo "::error::the downloaded ISO $(basename "$iso") is not from the triggering commit ${want:0:7}"
+              exit 1
+            fi
+          fi
       - name: Build the [ryoku] package repo for the guest
         if: steps.fetch.outputs.iso_ready == 'true'
         run: |
