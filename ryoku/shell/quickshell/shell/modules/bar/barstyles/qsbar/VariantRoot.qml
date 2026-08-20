@@ -83,6 +83,11 @@ Item {
     // resourcesLost is followed by closed, so one pending flag handles the pair
     // once. A closed PanelWindow drops its backing layer-shell window; setting
     // visible=true creates a fresh one without resetting the rest of the shell.
+    //
+    // There is deliberately no give-up. A bar left closed is dead for the rest of
+    // the session and only a hand-typed `ryoku reload` brings it back, so the
+    // retry backs off instead of stopping. Variants destroys this Scope when it
+    // replaces the delegate, which is what bounds the waiting.
     component BarWindowRecovery: Scope {
         id: recovery
 
@@ -117,22 +122,27 @@ Item {
             function onClosed() { recovery.schedule("closed") }
         }
 
+        // Grows with each failed attempt and caps, so a window that needs a moment
+        // comes straight back while one that cannot map costs almost nothing.
+        readonly property int retryDelay: Math.min(750 * Math.max(1, recovery.attempt), 15000)
+
         Timer {
             id: retryTimer
-            interval: 750
+            interval: recovery.retryDelay
             repeat: false
             onTriggered: {
-                // Screen replacement is owned by Variants. The delegate and this
-                // timer will normally be destroyed before reaching this branch.
+                // Mid-teardown the screen has no geometry yet. Wait for it rather
+                // than abandoning the window: if Variants is replacing the
+                // delegate this Scope goes with it, so waiting cannot outlive the
+                // surface it belongs to.
                 if (!recovery.screenReady()) {
-                    console.warn("[BarWindowRecovery] invalid screen; waiting for Variants")
-                    recovery.pending = false
+                    retryTimer.restart()
                     return
                 }
 
                 recovery.attempt++
                 console.warn("[BarWindowRecovery] recreating bar window (attempt "
-                             + recovery.attempt + "/3)")
+                             + recovery.attempt + ")")
                 recovery.targetWindow.visible = true
                 verifyTimer.restart()
             }
@@ -144,15 +154,13 @@ Item {
             repeat: false
             onTriggered: {
                 if (recovery.targetWindow.backingWindowVisible) {
-                    console.log("[BarWindowRecovery] bar window recovered")
+                    console.log("[BarWindowRecovery] bar window recovered after "
+                                + recovery.attempt + " attempt(s)")
                     recovery.pending = false
                     recovery.attempt = 0
-                } else if (recovery.attempt < 3 && recovery.screenReady()) {
-                    retryTimer.restart()
-                } else {
-                    console.warn("[BarWindowRecovery] targeted recovery failed")
-                    recovery.pending = false
+                    return
                 }
+                retryTimer.restart()
             }
         }
     }

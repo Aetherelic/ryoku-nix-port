@@ -44,7 +44,9 @@ Item {
     PanelWindow {
         id: win
         readonly property real s: Math.min(1.08, (root.screen ? root.screen.height / 1080 : 1)) * Math.max(0.8, Math.min(1.25, Config.fontScale))
-        readonly property bool isFocused: !root.focusedMon || root.focusedMon === root.screen.name
+        // root.screen is null while its output is being torn down, and this feeds
+        // keyboardFocus below: an unguarded read left the last value standing.
+        readonly property bool isFocused: !root.focusedMon || (root.screen ? root.focusedMon === root.screen.name : false)
         readonly property bool shown: root.active
 
         screen: root.screen

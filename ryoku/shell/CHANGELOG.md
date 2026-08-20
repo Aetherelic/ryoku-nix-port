@@ -72,6 +72,24 @@
   user's file alone.
 
 ### Fixed
+- **A surface whose output was rebuilt no longer comes back inert.** Per-monitor
+  state was looked up by ShellScreen object identity while the sibling lookup used
+  the output name, and an output that is disabled and re-enabled (a lid close with
+  an external attached, a modeset) returns as a new object under the same name. The
+  identity lookup then resolved to nothing exactly while a surface was being rebuilt
+  for it, and every binding reading that slice kept its stale value. Both lookups go
+  through one name-keyed rule now (`services/lib/screens.js`, `services/ShellState.qml`).
+- **The bar stops giving up on its own window.** A closed layer window was retried
+  three times and then abandoned, leaving the bar dead for the rest of the session
+  with only a hand-typed `ryoku reload` to bring it back; the same path also bailed
+  outright when the screen had no geometry yet. It now waits for the screen and
+  keeps retrying on a backoff that caps, so a window needing a moment returns on its
+  own (`modules/bar/barstyles/qsbar/VariantRoot.qml`).
+- **The wallpaper switcher stops throwing while its output goes away.** `isFocused`
+  read `screen.name` unguarded on a screen that is null mid-teardown, and it feeds
+  the surface's keyboard focus, so the failed binding left the previous value
+  standing on an overlay that spans the display
+  (`modules/wallpaper/switcher/Switcher.qml`).
 - **The low-battery chime no longer fires while the battery is fine.** `watchPowerSounds`
   scanned every `/sys/class/power_supply` entry and let any `type=Battery` device
   overwrite the reading, so a depleted, discharging peripheral (a `scope=Device`

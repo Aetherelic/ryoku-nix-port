@@ -20,32 +20,25 @@ Singleton {
     // triggers on first launch -- would otherwise fan two of every per-monitor
     // surface: two bars, two OSDs, two state slices ("the desktop tweaks out").
     // Every consumer (shell.qml, the bar's VariantRoot, the launchers) reads this
-    // one list so they agree on the same ShellScreen object, which keeps the
-    // identity match in forScreen() stable. Reactive to Quickshell.screens, so a
-    // genuine hotplug still flows through.
+    // one list so they agree on one surface set per output. Reactive to
+    // Quickshell.screens, so a genuine hotplug still flows through.
     readonly property var screens: Screens.uniqueByName(Quickshell.screens)
 
     // State for a specific screen, or null before its per-monitor instance is
-    // built (a binding can evaluate ahead of screen hotplug).
+    // built (a binding can evaluate ahead of screen hotplug). Matched on output
+    // name, so a screen the compositor destroyed and recreated still resolves.
     function forScreen(screen) {
-        const list = states.instances;
-        for (let i = 0; i < list.length; i++) {
-            if (list[i].modelData === screen)
-                return list[i];
-        }
-        return null;
+        return Screens.sliceForScreen(states.instances, screen);
     }
 
     // State for the monitor Hyprland currently focuses; falls back to the first
     // screen so a caller before focus is known still gets a live target.
     function forActive() {
         const mon = Hyprland.focusedMonitor;
-        const name = mon && mon.name ? mon.name : "";
+        const slice = Screens.sliceForName(states.instances, mon && mon.name ? mon.name : "");
+        if (slice)
+            return slice;
         const list = states.instances;
-        for (let i = 0; i < list.length; i++) {
-            if (list[i].modelData && list[i].modelData.name === name)
-                return list[i];
-        }
         return list.length > 0 ? list[0] : null;
     }
 

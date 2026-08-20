@@ -9,8 +9,8 @@
 // visible symptom is two stacked bars, the rest is the desktop "tweaking out".
 //
 // Keep the first valid occurrence of each output name: one physical output always
-// maps to exactly one surface, and holding the first (stable) object keeps
-// ShellState.forScreen()'s identity match consistent across every consumer.
+// maps to exactly one surface, and holding the first object avoids rebuilding
+// every per-monitor surface for a duplicate that the compositor is about to drop.
 function uniqueByName(screens) {
     var out = [];
     var seen = [];
@@ -27,5 +27,25 @@ function uniqueByName(screens) {
     return out;
 }
 
+// An output's stable identity is its NAME, never its ShellScreen object. A
+// disabled and re-enabled output -- a laptop lid, a modeset -- comes back as a
+// new object with the same name, so a per-monitor slice found by object identity
+// resolves to nothing exactly when a surface is being rebuilt for it, and every
+// binding reading that slice falls back to its stale value.
+function sliceForName(instances, name) {
+    if (!instances || !name)
+        return null;
+    for (var i = 0; i < instances.length; i++) {
+        var inst = instances[i];
+        if (inst && inst.modelData && inst.modelData.name === name)
+            return inst;
+    }
+    return null;
+}
+
+function sliceForScreen(instances, screen) {
+    return screen ? sliceForName(instances, screen.name) : null;
+}
+
 if (typeof module !== "undefined" && module.exports)
-    module.exports = { uniqueByName };
+    module.exports = { uniqueByName, sliceForName, sliceForScreen };
