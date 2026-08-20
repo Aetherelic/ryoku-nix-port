@@ -65,6 +65,12 @@ Edit the repo, deploy, test on the running system.
   `require` in `hyprland.lua`. Do not grow an unrelated module.
 - **A shell surface:** a new component under `ryoku/shell/quickshell/`, with any
   state wired through `ryoku-shell` (`ryoku/shell/ipc/`).
+- **A QML plugin (C++):** build it against the installed Qt and rebuild it on
+  every Qt update. Qt's private API carries no cross-version promise, so a stale
+  module (or a stale `quickshell` from the AUR) fails to load and takes the whole
+  surface down to a black screen. `deploy.sh` stamps `Ryoku.Blobs` with the Qt it
+  built against and rebuilds when that changes; `ryoku doctor` reports a renderer
+  or module that cannot load.
 - **A system helper:** a `ryoku-<thing>` script under `system/hardware/.../`,
   shipped to `/usr/bin` by the `ryoku-desktop` package (its PKGBUILD installs
   every `system/hardware/*/ryoku-*`), and invoked by name from Lua autostart or

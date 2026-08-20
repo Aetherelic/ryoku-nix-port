@@ -72,6 +72,22 @@
   user's file alone.
 
 ### Fixed
+- **`deploy.sh` no longer restarts into a black screen.** A renderer that cannot
+  load (an AUR quickshell built against another Qt) turned a deploy into a dead
+  desktop with no way back, which is what a plugin developer hit. Deploy runs
+  `qs --version` first: if the renderer will not start it prints the loader error
+  and the command that fixes it, and leaves the running desktop alone.
+- **A surface that dies on start says why.** The supervised Quickshell's stderr
+  went nowhere, so a failure to load was invisible and `ryoku reload` answered ok
+  while the surface died on the same error a moment later. Its stderr is kept at
+  `~/.local/state/ryoku/surfaces/<name>.log`, a death within three seconds is
+  logged with its last line, and `reload` waits for the surface to come back and
+  reports that line instead of ok (`ipc/daemon.go`).
+- **`Ryoku.Blobs` is rebuilt when Qt changes.** The QML module was built once and
+  left, so a Qt update turned it into a module that cannot load, taking the
+  surface down with it. `deploy.sh` stamps it with the Qt it built against and
+  rebuilds when that changes, the way the Hyprland plugins are stamped against
+  the compositor.
 - **The now-playing sheet no longer strobes between lyrics and the visualizer.**
   Two causes: the player pick had no stickiness, so a second player (a browser
   tab, a game bleep) could steal it and reload the track mid-song, and the side

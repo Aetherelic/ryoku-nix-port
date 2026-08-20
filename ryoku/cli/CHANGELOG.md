@@ -11,6 +11,18 @@
   (`internal/importer`).
 
 ### Fixed
+- **`ryoku doctor` explains a black screen instead of passing it.** Quickshell
+  links Qt's private API, so a build made against another Qt stops loading:
+  `undefined symbol ..., version Qt_6_PRIVATE_API`, and since every Ryoku surface
+  is a Quickshell process the desktop comes up black with `ryoku reload` looking
+  inert. The repo package is rebuilt with Qt, an AUR one (quickshell-git) is not,
+  and it satisfies the dependency through provides, so the breakage arrives with
+  an unrelated Qt update. The new `quickshell runtime` check runs the renderer:
+  broken plus provided by a foreign package is repaired by taking the repository
+  build, broken any other way is reported with what the loader said, a locally
+  built QML module at fault is moved aside so the desktop starts, and a foreign
+  build that still works is called out before the next Qt update
+  (`internal/doctor/reconcile_quickshell.go`).
 - **`ryoku doctor` finds and clears a desktop that is running twice.** A leftover
   shell surface kept drawing beside the live one, and nothing looked for it:
   `reconcileShellDaemon` only asks whether the daemon answers its socket, which a
