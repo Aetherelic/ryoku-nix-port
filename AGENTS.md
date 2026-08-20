@@ -128,11 +128,11 @@ recommended, lowest-overhead path (no server, no per-call schema cost).
 
 Auto-generated from the Prowl index, refreshed on each `overview`/`init`. Prefer retrieving from Prowl (and reading the cited files) over grepping or relying on training memory; this is the current shape of the repo.
 
-- size: 2209 files, 59710 symbols, 6216 edges (resolved 2378, external deps 2664, unresolved 1174)
-- languages: go:944 qml:679 bash:172 javascript:150 markdown:78 yaml:43 generic:30 json:30
-- subsystems: ryoku/shell(468,qml) · ryoku/apps(62,qml) · ryoku/hub(55,qml) · ryoku/ui(44,qml) · ryoku/shell(17,css) · ryoku/rashin(16,javascript) · ryoku/hyprland(15,lua) · ryoku/shell(10,cpp)
-- entrypoints: .githooks/post-commit · .githooks/pre-commit · .github/workflows/build-iso-cachyos.yml · .github/workflows/build-iso.yml · ryoku/hyprland/hyprland.lua · ryoku/ui/AppPicker.qml · ryoku/ui/Preview.qml · tests/ui/barstyles-live-probe.qml · (+170 more)
-- central files (most depended-on): ryoku/ui/Singletons/Tokens.qml · ryoku/ui/Singletons/I18n.qml · ryoku/shell/quickshell/shell/services/Perf.qml · ryoku/shell/quickshell/shell/modules/bar/barstyles/qsbar/Theme.qml · ryoku/shell/quickshell/shell/modules/desktop/Singletons/Config.qml
+- size: 2307 files, 61972 symbols, 6582 edges (resolved 2465, external deps 2901, unresolved 1216)
+- languages: go:990 qml:703 bash:181 javascript:165 markdown:82 yaml:44 json:30 generic:29
+- subsystems: ryoku/shell(488,qml) · ryoku/apps(62,qml) · ryoku/hub(57,qml) · ryoku/ui(46,qml) · ryoku/shell(17,css) · ryoku/rashin(16,javascript) · ryoku/hyprland(15,lua) · ryoku/shell(10,cpp)
+- entrypoints: ryoku/shell/quickshell/shell/shell.qml · ryoku/hub/quickshell/pages/InputPage.qml · ryoku/shell/quickshell/shell/modules/bar/MenuWidgetHost.qml · ryoku/hub/quickshell/pages/AppearancePage.qml · ryoku/hyprland/hyprland.lua · ryoku/hub/quickshell/pages/AddonsPage.qml · ryoku/hub/quickshell/pages/DisplaysPage.qml · ryoku/hub/quickshell/pages/GpuPage.qml · (+126 more)
+- central files (most depended-on): ryoku/ui/Singletons/Tokens.qml · ryoku/shell/quickshell/shell/services/Perf.qml · ryoku/ui/Singletons/I18n.qml · ryoku/shell/quickshell/shell/modules/bar/barstyles/qsbar/Theme.qml · ryoku/shell/quickshell/shell/modules/desktop/Singletons/Config.qml
 - read these guides first: README.md · AGENTS.md · CONTRIBUTING.md · docs/development.md · docs/structure.md
 
 Depth on demand: `prowl-agent find|def|outline|references <name>`, `search <text>`, `context search "<question>"`, `sketch <ui>`.
