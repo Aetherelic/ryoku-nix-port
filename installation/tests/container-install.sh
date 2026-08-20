@@ -94,7 +94,6 @@ files=(
   nvim/init.lua
   pip/pip.conf
   wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf
-  mimeapps.list
   chromium-flags.conf
 )
 dirs=(quickshell/hub)
@@ -107,9 +106,16 @@ for d in "${dirs[@]}"; do
   [[ -n $(find "$cfg/$d" -mindepth 1 -type f -print -quit 2>/dev/null) ]] \
     || missing+=("$cfg/$d/ (empty or absent)")
 done
-# the nvim handler ships system-wide (not materialized), so check the system tree.
+# the nvim handler and the default-app map ship system-wide (not materialized:
+# ~/.config/mimeapps.list belongs to the user's own "Set as default" picks), so
+# check the system tree.
 [[ -s /usr/share/applications/ryoku-nvim.desktop ]] \
   || missing+=("/usr/share/applications/ryoku-nvim.desktop")
+[[ -s /usr/share/applications/mimeapps.list ]] \
+  || missing+=("/usr/share/applications/mimeapps.list")
+if [[ -e "$cfg/mimeapps.list" ]]; then
+  missing+=("$cfg/mimeapps.list (materialize must not create the user's default-app file)")
+fi
 
 # Every Ryoku.* QML module the shell (and hub/apps) imports must be installed on
 # the system Qt import path. deploy.sh puts them there for a dev box, so a package

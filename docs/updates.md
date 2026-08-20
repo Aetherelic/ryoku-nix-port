@@ -93,6 +93,12 @@ retired adopt step, moves the tool's own user files (`hypr/user.lua`,
 `hypr/monitors_user.lua`, `kitty/user.conf`) back OUT of the overlay. Those are
 edited in place; a frozen overlay copy of one used to be re-laid over the live
 file on every update, wiping edits made afterward. Idempotent.
+`reconcileMimeDefaults` clears the default-app map an older release froze into
+`~/.config/mimeapps.list`: entries that only copy Ryoku's shipped values are
+dropped (the file goes if that is all it held), and anything the user chose
+stays. Ryoku's map ships to `/usr/share/applications/mimeapps.list` now, the
+bottom of the XDG mimeapps chain, so it sets the defaults without ever
+outranking a user's pick.
 
 ## Publishing: how a commit becomes a user update
 
@@ -112,6 +118,12 @@ version (`core.r<commit-count>.g<sha>`) that `pacman -Syu` upgrades to.
 - **A removed or renamed `shell.json` key, or a changed default that must reach
   existing users, needs a `doctor` reconciler** (materialize never edits a user's
   `shell.json`). An additive key needs nothing.
+- **Never ship into a path the user's own tools write.** `materialize` clobbers
+  every shipped file, so laying Ryoku's defaults where an app writes the user's
+  choice resets that choice on each update: `~/.config/mimeapps.list` did exactly
+  that to default apps. Ship such defaults one layer down where the format
+  provides one (`/usr/share/applications/mimeapps.list` for mime defaults), or
+  make the file a `generatedSeed` if it has no layering.
 - **A user override belongs in `~/.config/ryoku/user_edits`, never in a shipped
   path.** The base still ships every file (the delivery check stays green) and
   the overlay wins on top. A whole-file fork opts out of upstream fixes for that

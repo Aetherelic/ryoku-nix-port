@@ -98,6 +98,32 @@ func TestMaterializePrunesManagedNotSeeds(t *testing.T) {
 	wantFile(t, filepath.Join(dest, "hypr/monitors.lua"), "DISPLAY") // seed survives
 }
 
+// The default-app map used to be laid at ~/.config/mimeapps.list, which is the
+// file "Set as default" writes: an update copied Ryoku's map over the user's
+// picks. Ryoku ships it to the vendor layer now, and the prune must not take the
+// user's file with it when it leaves the release, or the update would still
+// throw the picks away.
+func TestMaterializeKeepsRetiredMimeappsList(t *testing.T) {
+	base, dest := t.TempDir(), t.TempDir()
+	t.Setenv("RYOKU_CONFIG_BASE", base)
+	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	writeFile(t, filepath.Join(base, "mimeapps.list"), "[Default Applications]\ntext/html=ryoku-nvim.desktop\n")
+	if err := Materialize(); err != nil {
+		t.Fatalf("first materialize: %v", err)
+	}
+	// the user then makes Firefox their browser, which writes this same file.
+	writeFile(t, filepath.Join(dest, "mimeapps.list"), "[Default Applications]\nx-scheme-handler/http=firefox.desktop\n")
+
+	// the release stops shipping the map: it moved to /usr/share/applications.
+	os.Remove(filepath.Join(base, "mimeapps.list"))
+	if err := Materialize(); err != nil {
+		t.Fatalf("second materialize: %v", err)
+	}
+	wantFile(t, filepath.Join(dest, "mimeapps.list"), "firefox.desktop")
+}
+
 // ~/.config/quickshell converges against the shipped tree even when the
 // manifest never recorded a stale file (a lost state file, an old deploy.sh
 // run): leftovers are swept, files outside quickshell stay manifest-ruled.
@@ -257,11 +283,11 @@ func activeFlags(conf string) []string {
 }
 
 // chromium-flags.conf is a root-level config: chromium reads
-// $XDG_CONFIG_HOME/chromium-flags.conf at launch. It is delivered like
-// mimeapps.list, shipped under the base config dir and laid at
-// ~/.config/chromium-flags.conf by materialize on install and every update. This
-// pins the flags and that materialize routes it to the config root as a managed
-// file, not a one-time seed.
+// $XDG_CONFIG_HOME/chromium-flags.conf at launch, so it is shipped under the
+// base config dir and laid at ~/.config/chromium-flags.conf on install and every
+// update. This pins the flags and that materialize routes it to the config root
+// as a managed file, not a one-time seed. Unlike the default-app map, nothing
+// else writes it, so clobbering it takes nothing from the user.
 func TestMaterializeDeliversChromiumFlags(t *testing.T) {
 	// Both are load-bearing for sharing a screen: gnome-libsecret so chromium
 	// shares the keyring the desktop unlocks, wayland so it reaches the PipeWire

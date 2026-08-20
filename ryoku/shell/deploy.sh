@@ -454,10 +454,17 @@ systemctl --user daemon-reload 2>/dev/null || true
 sed -i "s|^ExecStart=-/usr/bin/|ExecStart=-$bindir/|" "$cfg/systemd/user/ryoku-ai-usage.service"
 systemctl --user daemon-reload 2>/dev/null || true
 systemctl --user enable --now ryoku-ai-usage.timer 2>/dev/null || true
-# pip (PEP 668 --user) + the default-app map: Ryoku-owned, so a dev box tracks
-# them the way the package materializes them for an installed one.
+# pip (PEP 668 --user): Ryoku-owned, so a dev box tracks it the way the package
+# materializes it for an installed one.
 mkdir -p "$cfg/pip"; cp -a "$here/../apps/pip/pip.conf" "$cfg/pip/pip.conf"
-cp -a "$here/../apps/mimeapps.list" "$cfg/mimeapps.list"
+# Default apps go to the vendor layer the package uses, never to
+# ~/.config/mimeapps.list: that file is the user's own ("Set as default" writes
+# it) and a redeploy must not touch it. Needs root, so it is skipped cleanly in a
+# sudo-less env, and cmp keeps a redeploy a no-op.
+if command -v sudo >/dev/null 2>&1; then
+  cmp -s "$here/../apps/mimeapps.list" /usr/share/applications/mimeapps.list ||
+    sudo install -Dm644 "$here/../apps/mimeapps.list" /usr/share/applications/mimeapps.list || true
+fi
 # chromium reads ~/.config/chromium-flags.conf at launch; pin its password store to the GNOME keyring.
 cp -a "$here/../apps/chromium-flags.conf" "$cfg/chromium-flags.conf"
 # the screen-share source chooser xdph launches (hypr/xdph.conf names it). Its

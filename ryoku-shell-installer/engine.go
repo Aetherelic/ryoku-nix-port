@@ -1154,7 +1154,10 @@ EOF`); err != nil {
 		{"ryoku/assets/wallpapers", "Pictures/Wallpapers", true, true},
 		{"ryoku/apps/npm/npmrc", ".npmrc", false, true},
 		{"ryoku/apps/nvim/ryoku-nvim.desktop", ".local/share/applications/ryoku-nvim.desktop", false, false},
-		{"ryoku/apps/mimeapps.list", ".config/mimeapps.list", false, true},
+		// no mimeapps.list seed: the default-app map belongs to the vendor layer
+		// (/usr/share/applications/mimeapps.list, laid by ryoku-desktop or by
+		// deploy.sh), never to ~/.config/mimeapps.list, which is where the user's
+		// own "Set as default" picks live.
 	}
 	for _, s := range seeds {
 		src := filepath.Join(e.payload, s.src)

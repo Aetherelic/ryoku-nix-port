@@ -4,8 +4,8 @@ import "testing"
 
 func TestRashinDaemonActions(t *testing.T) {
 	cases := []struct {
-		name              string
-		state             rashinUnitState
+		name                   string
+		state                  rashinUnitState
 		wantLinger, wantFailed bool
 	}{
 		{"disabled does nothing", rashinUnitState{enabled: false, linger: false, failed: true}, false, false},

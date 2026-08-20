@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- **Converting a box no longer seeds over its default apps.** The installer
+  seeded Ryoku's map into `~/.config/mimeapps.list`, the file every "Set as
+  default" writes, which then froze: the user's later picks were what an update
+  overwrote. `ryoku-desktop` (and, from source, `deploy.sh`) installs the map to
+  `/usr/share/applications/mimeapps.list` instead, so the seed is gone from
+  `engine.go` and the user's own file is never written by the install. Rebuilt
+  the committed binary + checksum.
 - **The GPU driver step no longer aborts the whole install, and no longer
   installs against a stale package db.** `stepDrivers` ran the per-vendor
   `pacman -S` scripts (amd/intel/vulkan/nvidia) with no db refresh and returned

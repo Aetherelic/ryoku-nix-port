@@ -379,7 +379,13 @@ package() {
   # inert for anyone without Spotify, so it ships as an asset here, not active config.
   install -Dm644 "$_repo/ryoku/apps/spicetify/ryoku-canvas.js" \
     "$pkgdir/usr/share/ryoku/spicetify/ryoku-canvas.js"
-  install -Dm644 "$_repo/ryoku/apps/mimeapps.list" "$cfg/mimeapps.list"
+  # Default apps: the vendor layer, NOT ~/.config/mimeapps.list. That file is
+  # where "Set as default" (GNOME, Firefox, xdg-mime) writes, and materializing
+  # over it threw a user's choices away on every update. /usr/share/applications
+  # is the lowest layer of the XDG mimeapps chain, so these defaults apply until
+  # the user picks something else, and then their pick wins for good.
+  install -Dm644 "$_repo/ryoku/apps/mimeapps.list" \
+    "$pkgdir/usr/share/applications/mimeapps.list"
   # chromium reads ~/.config/chromium-flags.conf; pin its password store to GNOME
   # Secret Service so it shares the keyring the desktop unlocks (screen share).
   install -Dm644 "$_repo/ryoku/apps/chromium-flags.conf" "$cfg/chromium-flags.conf"

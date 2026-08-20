@@ -67,7 +67,7 @@ func TestRegdomWorldDomainNoLocaleWarns(t *testing.T) {
 
 func TestRegdomCountryFromLocale(t *testing.T) {
 	cases := map[string]string{
-		"LANG=en_US.UTF-8\n":                       "US",
+		"LANG=en_US.UTF-8\n":                        "US",
 		"LANG=\"de_DE.UTF-8\"\nLC_TIME=en_GB.UTF-8": "DE",
 		"LANG=fr_FR@euro\n":                         "FR",
 		"LANG=C\n":                                  "",

@@ -11,6 +11,20 @@
   (`internal/importer`).
 
 ### Fixed
+- **Your default apps stop resetting on every update.** Ryoku's default-app map
+  was materialized straight into `~/.config/mimeapps.list`, which is the one file
+  every "Set as default" writes (GNOME's Open With, a browser making itself
+  default, `xdg-mime default`), so each update copied Ryoku's map over the user's
+  choices: a box where Firefox had been made default came back opening links in
+  whatever else claimed the type. The map now ships to
+  `/usr/share/applications/mimeapps.list`, the bottom of the XDG mimeapps chain,
+  where it still sets the defaults and always loses to the user's own file.
+  `materialize` keeps its hands off the retired path instead of pruning it, so
+  the picks on an existing box survive the release that moves it, and
+  `reconcileMimeDefaults` finishes the move: entries that are only a copy of
+  Ryoku's values are dropped (the file goes if that is all it held), anything the
+  user actually chose stays (`internal/doctor/reconcile_mime_defaults.go`,
+  `internal/updater/materialize.go`).
 - **`ryoku doctor` restores 5 GHz Wi-Fi on a box that never had a regulatory
   domain.** With no country set the kernel stays on the worldwide default `00`,
   which disables or marks no-IR most 5 GHz channels, so only 2.4 GHz networks

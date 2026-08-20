@@ -60,6 +60,11 @@
   is off.** `ipc/wallpaper.go`'s LED worker calls `ryoku-hub lighting accent`
   instead of `ryoku-leds apply`, so a palette change only reaches the devices the
   user handed to Ryoku and does nothing at all while lighting is off.
+- **A redeploy no longer resets your default apps.** `deploy.sh` copied Ryoku's
+  map over `~/.config/mimeapps.list` on every run, wiping the picks a dev box had
+  made; it installs the map to `/usr/share/applications/mimeapps.list` now (the
+  same place the package puts it, skipped cleanly without sudo) and leaves the
+  user's file alone.
 
 ### Fixed
 - **The QS Bar gap animation no longer strands a frozen frame in Power Saver.**

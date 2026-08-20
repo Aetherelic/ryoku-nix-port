@@ -135,6 +135,7 @@ func reconcilers() []reconciler {
 		{"spicetify canvas extension", reconcileSpicetifyCanvas},
 		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
 		{"user edits overlay", reconcileUserEdits},
+		{"default app map", reconcileMimeDefaults},
 		{"keyring unlock policy", reconcileKeyring},
 		{"SDDM greeter theme", reconcileGreeterTheme},
 		{"fastfetch readout emblem", reconcileFastfetchEmblem},

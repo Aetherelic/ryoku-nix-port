@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- `ryoku-desktop` ships the default-app map to
+  `/usr/share/applications/mimeapps.list` instead of the materialized config, so
+  an update stops overwriting `~/.config/mimeapps.list`, the file every "Set as
+  default" writes. Ryoku's defaults still apply on a fresh install; a user's pick
+  now wins for good. `ryoku doctor` clears the copy an older release left behind.
 - `ryoku-desktop` no longer ships the PipeWire `switch-on-connect` drop-in
   (`ryoku/apps/pipewire/`): it broke the saved default audio device on every
   reboot. WirePlumber persists the chosen sink on its own, and `ryoku materialize`

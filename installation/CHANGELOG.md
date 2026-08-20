@@ -41,6 +41,10 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   into the payload and installed onto the target with no build toolchain.
 
 ### Changed
+- `tests/container-install.sh` asserts the default-app map at
+  `/usr/share/applications/mimeapps.list` and asserts materialize does NOT create
+  `~/.config/mimeapps.list`: that file belongs to the user's own "Set as default"
+  picks, and laying Ryoku's map there is what reset them on every update.
 - Dual-boot redesign. `alongside` no longer reuses the Windows/OEM ESP (too small
   for our kernel + initramfs + UKIs, and reuse clobbers Windows' loader): it
   creates a dedicated Ryoku ESP (partlabel `ryokuboot`, EF00) + root (partlabel
