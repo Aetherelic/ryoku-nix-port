@@ -18,8 +18,9 @@
 #      domain 00 the kernel disables or no-IRs most 5 GHz channels, so a dual-band
 #      SSID is only ever seen on 2.4 GHz -- the "can only connect to 2.4 GHz" bug.
 #      It lives here rather than with the other chroot config because it drives
-#      ryoku-wifi-regdom, which only exists in the target once ryoku_deploy has
-#      installed the desktop set, one call earlier in the same configure stage.
+#      ryoku-wifi-regdom, which reaches the target with the desktop set that
+#      ryoku_deploy installs one call earlier. Best-effort: an ISO whose baked
+#      desktop set predates the helper skips this, and `ryoku doctor` pins it.
 #
 # ryoku_network runs in the "configure" stage; ryoku_ensure_dns runs at
 # preflight, before the disk is touched. everything routes through the dry-run
@@ -117,8 +118,17 @@ ryoku_network_regdom() {
     log "warn: could not resolve a Wi-Fi country (regdom stays world 00, 5 GHz limited); set RYOKU_REGDOM to override"
     return 0
   fi
+  # The helper ships with the desktop set, and an ISO's baked set can predate it
+  # (the bake pulls the published ryoku-desktop, not this checkout), so it is not
+  # guaranteed to be in the target. Skip rather than die: `ryoku doctor` pins the
+  # domain on the installed box.
+  if [[ -z ${RYOKU_DRYRUN:-} && ! -x /mnt/usr/bin/ryoku-wifi-regdom ]]; then
+    log "Wi-Fi regulatory domain: $cc not applied yet (ryoku-wifi-regdom is not in this target; 'ryoku doctor' sets it after first boot)"
+    return 0
+  fi
   log "Wi-Fi regulatory domain: $cc"
-  run arch-chroot /mnt ryoku-wifi-regdom set "$cc"
+  run arch-chroot /mnt ryoku-wifi-regdom set "$cc" \
+    || log "warn: could not pin the Wi-Fi regulatory domain to $cc (continuing; 'ryoku doctor' retries it)"
 }
 
 # ryoku_ensure_dns: pacstrap and the desktop set resolve mirror hostnames, but a

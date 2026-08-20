@@ -154,4 +154,23 @@ done < <(grep -nE '^[^#]*arch-chroot /mnt pacman' "$root/installation/backend/li
 grep -qE 'ryoku_offline_pacman -S .*"\$\{pkgs\[@\]\}"' "$root/installation/backend/lib/deploy.sh" \
   || fail "deploy.sh's offline branch does not install the desktop set through ryoku_offline_pacman"
 
+# ---- 6. the install survives a baked desktop set older than the installer -----
+# The ISO bakes the PUBLISHED ryoku-desktop, not this checkout, so a helper added
+# to the repo today is missing from the target on an ISO built before the package
+# published. A configure step that shells out to one of those helpers unguarded
+# aborts the whole install: `ryoku-wifi-regdom set US` did exactly that, killing a
+# freshly built ISO at the configure stage. Every in-chroot call to a ryoku-*
+# helper must therefore be gated on it existing, or tolerate its failure.
+while IFS=: read -r file lineno _; do
+  # the statement, continuations folded in, and the dozen lines before it.
+  stmt=$(sed -n "${lineno},$((lineno + 3))p" "$file" | sed -e :a -e '/\\$/{N;s/\\\n//;ta}' | head -1)
+  ctx=$(sed -n "$(( lineno > 12 ? lineno - 12 : 1 )),${lineno}p" "$file")
+  helper=$(grep -oE 'ryoku-[a-z][a-z-]*' <<<"$stmt" | head -1)
+  case $stmt in
+    *'||'*) continue ;;   # tolerates its own failure
+  esac
+  grep -qE "(-x /mnt/usr/bin/$helper|command -v $helper|chroot_has $helper)" <<<"$ctx" && continue
+  fail "unguarded in-chroot call to $helper (a target whose baked desktop set predates it dies here): $file:$lineno"
+done < <(grep -rnE '^[^#]*run arch-chroot /mnt ryoku-[a-z-]+' "$root/installation/backend/lib/" || true)
+
 echo "install-offline: OK"
