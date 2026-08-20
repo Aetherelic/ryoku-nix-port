@@ -49,7 +49,12 @@ INSTALLED_CHECKS = [
     ("f", "home/{user}/.config/hypr/hyprland.lua"),
     ("f", "home/{user}/.config/pip/pip.conf"),
     ("f", "home/{user}/.config/wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf"),
-    ("f", "home/{user}/.config/mimeapps.list"),
+    # the default-app map ships in the vendor layer, never in ~/.config, which is
+    # where the user's own "Set as default" picks live (see the PKGBUILD note).
+    ("f", "usr/share/applications/mimeapps.list"),
+    # and materialize must not recreate the user-owned one: that file getting
+    # rewritten on every update is what threw away "Set as default" picks.
+    ("!", "home/{user}/.config/mimeapps.list"),
     ("f", "home/{user}/.config/chromium-flags.conf"),
     ("f", "usr/share/applications/ryoku-nvim.desktop"),
     ("d", "boot/EFI"),
@@ -225,6 +230,11 @@ def main():
         missing = []
         for kind, rel in INSTALLED_CHECKS:
             path = "/mnt2/" + rel.format(user=args.user)
+            # "!" asserts absence: some paths are a regression when they exist.
+            if kind == "!":
+                if "R0E" in sh(child, f"test -e {path}; echo R$?E"):
+                    missing.append(f"must not exist:{path}")
+                continue
             if "R0E" not in sh(child, f"test -{kind} {path}; echo R$?E"):
                 missing.append(f"{kind}:{path}")
         if "enabled" not in sh(child, "systemctl --root=/mnt2 is-enabled sddm 2>&1"):
