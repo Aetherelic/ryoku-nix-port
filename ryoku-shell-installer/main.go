@@ -132,7 +132,7 @@ func buildItems(f *facts, p *plan) []planItem {
 	if len(f.softUnits) > 0 {
 		it = append(it, planItem{"Disable conflicting daemons", "disables " + strings.Join(f.softUnits, ", "), &p.softOff, false})
 	}
-	if f.omarchyRepo || f.omarchyMirror || f.omarchyGuard != "" {
+	if f.omarchyRepo || f.omarchyMirror || len(f.omarchyGuards) > 0 {
 		it = append(it, planItem{"Retire the Omarchy repo", "drops [omarchy] from pacman.conf, restores a standard Arch mirrorlist, removes omarchy-keyring, retires the pacman guard hook that blocks -Syu", &p.omarchy, false})
 	}
 	if len(f.monOutputs) > 0 {
@@ -488,7 +488,7 @@ func (m model) viewPlan() string {
 	if f.ryokuOnBox {
 		row("ryoku", "already installed; this run repairs and reconciles it")
 	}
-	if f.omarchyRepo || f.omarchyMirror || f.omarchyGuard != "" {
+	if f.omarchyRepo || f.omarchyMirror || len(f.omarchyGuards) > 0 {
 		row("previous", "Omarchy install detected; its repo, mirror pin and pacman guard get retired")
 	}
 	if !f.online {
