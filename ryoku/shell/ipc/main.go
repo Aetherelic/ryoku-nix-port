@@ -74,12 +74,17 @@ func sendCommand(line string) error {
 		return fmt.Errorf("daemon not reachable at %s (is `ryoku-shell daemon` running?)", sockPath())
 	}
 	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+	// Generous: a reload waits for the surface to come back and report, and a
+	// client that times out first turns a real failure into a silent success.
+	_ = conn.SetDeadline(time.Now().Add(45 * time.Second))
 	if _, err := fmt.Fprintln(conn, line); err != nil {
 		return err
 	}
 	buf := make([]byte, 8192)
-	n, _ := conn.Read(buf)
+	n, readErr := conn.Read(buf)
+	if n == 0 && readErr != nil {
+		return fmt.Errorf("no reply from the daemon: %v", readErr)
+	}
 	resp := strings.TrimSpace(string(buf[:n]))
 	if strings.HasPrefix(resp, "err ") {
 		return fmt.Errorf("%s", strings.TrimPrefix(resp, "err "))

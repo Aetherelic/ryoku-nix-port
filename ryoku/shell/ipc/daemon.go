@@ -608,13 +608,13 @@ func (d *daemon) supervise(name string) {
 		d.reapStrays()
 		cmd := exec.Command("qs", qsSelect(name)...)
 		cmd.Env = qsEnv()
-		// Keep the surface's own stderr: when it dies on start (a renderer built
-		// against another Qt, a broken config) this is the only place the reason
-		// exists, and `reload` reports it instead of answering ok to a black
-		// screen.
+		// Keep the surface's own output: a config that fails to load reports on
+		// stdout and a loader failure on stderr, and without both a black screen
+		// has no reason attached anywhere.
 		logPath := surfaceLog(name)
 		logFile, err := os.Create(logPath)
 		if err == nil {
+			cmd.Stdout = logFile
 			cmd.Stderr = logFile
 		}
 		if err := cmd.Start(); err != nil {
@@ -1065,26 +1065,44 @@ func (d *daemon) voice() string {
 // black screen.
 func (d *daemon) reload() string {
 	d.mu.Lock()
+	was := make(map[string]int, len(d.proc))
 	procs := make([]*exec.Cmd, 0, len(d.proc))
-	for _, c := range d.proc {
-		procs = append(procs, c)
+	for name, c := range d.proc {
+		if c != nil && c.Process != nil {
+			was[name] = c.Process.Pid
+			procs = append(procs, c)
+		}
 	}
 	d.mu.Unlock()
 	for _, c := range procs {
-		if c.Process != nil {
-			_ = c.Process.Signal(syscall.SIGTERM)
-		}
+		_ = c.Process.Signal(syscall.SIGTERM)
 	}
-	deadline := time.Now().Add(8 * time.Second)
+	deadline := time.Now().Add(12 * time.Second)
 	for _, c := range components {
 		if !startsAtBoot(c) {
 			continue
 		}
+		// A new pid, not just an entry: the map still holds the outgoing process
+		// until its supervisor reaps it. And it has to stay up, because a surface
+		// that cannot load starts and dies in a loop, which is the case this
+		// reply exists for.
+		fresh, freshAt := 0, time.Time{}
 		for {
 			d.mu.Lock()
-			_, up := d.proc[c.name]
+			cmd := d.proc[c.name]
 			d.mu.Unlock()
-			if up {
+			pid := 0
+			if cmd != nil && cmd.Process != nil {
+				pid = cmd.Process.Pid
+			}
+			if pid != 0 && pid != was[c.name] {
+				if pid != fresh {
+					fresh, freshAt = pid, time.Now()
+				}
+			} else {
+				fresh = 0
+			}
+			if fresh != 0 && time.Since(freshAt) > 3*time.Second {
 				break
 			}
 			if time.Now().After(deadline) {
@@ -1094,7 +1112,7 @@ func (d *daemon) reload() string {
 				if why == "" {
 					why = "see " + surfaceLog(c.name)
 				}
-				return fmt.Sprintf("err reload: %s did not come back: %s", c.name, why)
+				return fmt.Sprintf("err reload: %s did not stay up: %s", c.name, why)
 			}
 			time.Sleep(150 * time.Millisecond)
 		}
