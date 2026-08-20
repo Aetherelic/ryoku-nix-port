@@ -135,11 +135,24 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   symlinks (the qylock lockscreen's vendored `QtGraphicalEffects` QML imports,
   archiso wants-units), and following them made `diff` error on the dangling
   targets and fail the build even when the trees were byte-identical.
-- The TUI catches a failed password hash at the password screen. `hashPassword`
-  shells out to `openssl passwd -6`; on a failure it returned "" and the wizard
-  marched on, handing the backend an empty `RYOKU_PASSWORD_HASH` that only died
-  at preflight after the whole wizard was walked. Enter on the confirm field now
-  re-prompts with a visible error instead (`tui/main.go`).
+- **The password step can no longer refuse a good password.** `hashPassword`
+  shelled out to `openssl passwd -6`, so the one step of the wizard that has no
+  fallback depended on a child process starting and exiting cleanly in a live
+  session. Where it did not - a live medium that could not be read, a fork the
+  kernel would not grant, an `openssl` that was not what we assumed - the
+  password screen answered a perfectly good password with "could not hash the
+  password (openssl failed)" and there was no way past it, on both ISOs. The
+  installer now computes sha512-crypt itself (`tui/password.go`, written against
+  the published specification): no process, no `PATH`, no read of the live
+  medium, no parsing of another program's stdout, and the
+  `$6$<16-char salt>$<86-char digest>` at 5000 rounds it emits is byte-identical
+  in form to what `chpasswd -e` was already being handed. It also closes the
+  quieter half of the same bug: `openssl passwd` prints the literal `<NULL>` and
+  exits 0 for an empty password, so that string could have become an account's
+  hash. `tui/password_test.go` pins the hash to the specification's vectors, to
+  the 64/65-byte block boundaries where an off-by-one hides, and to the C
+  library's own `crypt(3)` - the code that verifies the hash at every login after
+  the install.
 - The chosen keyboard layout now reaches every place a password is typed, so a
   non-us layout no longer locks you out after install. The graphical installer
   runs in a Wayland session (cage) whose layout is fixed at launch and `loadkeys`

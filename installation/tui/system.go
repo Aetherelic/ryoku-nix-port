@@ -930,17 +930,6 @@ func applyExit(action string) {
 	}
 }
 
-// hashPassword produces a sha512-crypt hash for useradd. WIRE target.
-func hashPassword(pw string) string {
-	cmd := exec.Command("openssl", "passwd", "-6", "-stdin")
-	cmd.Stdin = strings.NewReader(pw + "\n")
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
 // wifiBackendConf is NetworkManager's Wi-Fi backend drop-in in the live session.
 // var (not const) so a test can point it at a temp file. The installer carries
 // whatever this ends up set to into the target (backend/lib/network.sh), so the

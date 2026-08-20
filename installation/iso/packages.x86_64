@@ -69,10 +69,16 @@ ryoku-cursors
 git
 curl
 jq
-openssl
 sudo
 less
 vim
+
+# openssl: nothing in the installer runs it any more (the TUI hashes the password
+# itself, tui/password.go, so that step cannot depend on a child process). It
+# stays for the by-hand install the recovery notice and backend/README.md
+# document: `openssl passwd -6` is how you make RYOKU_PASSWORD_HASH from a root
+# shell. pacman pulls it in regardless; listing it keeps that path deliberate.
+openssl
 
 # Hardware probing and storage discovery for the backend and TUI.
 # lspci (pciutils): the TUI and driver scripts probe GPUs / Wi-Fi / Intel VMD.

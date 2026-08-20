@@ -7,14 +7,21 @@ a Go program built on **Bubble Tea v2** (`charm.land/bubbletea/v2`), with
 for the on-screen QR codes, and `sahilm/fuzzy` for the picker filters. There is
 no Go toolchain on the ISO; `iso/build.sh` ships the binary prebuilt.
 
-## The two files
+## The three files
 
 - **`main.go` is pure UI.** Screens, layout, the wizard state machine, the
   palette and glyphs, and all the layout math. It never shells out.
 - **`system.go` is the only file that touches the machine.** The live lists for
   the pickers (keymaps, locales, time zones, disks, Wi-Fi), hardware detection,
-  the small live actions (apply a keymap, hash a password, join Wi-Fi), and the
-  streamed handoff to the backend. Every `exec.Command` lives here.
+  the small live actions (apply a keymap, join Wi-Fi), and the streamed handoff
+  to the backend. Every `exec.Command` lives here.
+- **`password.go` hashes the password**, in-process: sha512-crypt (`$6$`) written
+  against its specification, so the one step of the wizard that cannot fall back
+  needs no tool, no `PATH` and no readable live medium. It used to run
+  `openssl passwd -6`, and a live session where that child process could not run
+  left a user stuck at the password screen with a perfectly good password.
+  `password_test.go` pins it to the published vectors and to the C library's own
+  `crypt(3)`, which is what verifies the hash at every later login.
 
 `system.go`'s `installEnv` builds the `RYOKU_*` environment the backend reads;
 that contract is documented in `../backend/README.md`.
@@ -115,4 +122,7 @@ go test ./...
 
 `partition_test.go` covers the layout math and the safety gates (root carves
 swap, the alongside free-space floor, the wipe-confirm plumbing);
-`done_test.go` covers the done-screen exit action.
+`done_test.go` covers the done-screen exit action; `password_test.go` covers the
+sha512-crypt hash the whole install hangs on (the published vectors, the block
+boundaries, the shape `chpasswd -e` needs, a fresh salt per call, and agreement
+with `crypt(3)` where a Perl is around to reach it).
