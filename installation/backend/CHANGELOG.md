@@ -68,6 +68,14 @@
   `ryoku update`. `tests/install-offline.sh` now pins the staged behavior.
 
 ### Added
+- `lib/network.sh` seeds the Wi-Fi regulatory domain (`ryoku_network_regdom`, the
+  third step of `ryoku_network`). World domain `00` disables or no-IRs most 5 GHz
+  channels, so an installed machine only ever saw the 2.4 GHz half of a dual-band
+  SSID. It resolves a two-letter country -- `RYOKU_REGDOM`, else IP geolocation
+  when online (same two-provider curl as the timezone step), else the
+  `RYOKU_LOCALE` country -- and runs `ryoku-wifi-regdom set` in the target. Runs
+  in the configure stage, after `ryoku_deploy` has installed the desktop set that
+  ships the helper; when nothing resolves it warns and leaves the domain alone.
 - New users join the `video` and `input` groups (`lib/chroot.sh`): `video` for
   backlight write access, `input` for game controllers.
 - `lib/drivers.sh` runs `ryoku-hw-backlight-fix` after the GPU drivers (the ASUS

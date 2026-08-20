@@ -148,6 +148,7 @@ func reconcilers() []reconciler {
 		{"recordings directory", reconcileRecordingsDir},
 		{"failed services", reconcileFailedUnits},
 		{"btrfs device health", reconcileBtrfsHealth},
+		{"wireless regulatory domain", reconcileWifiRegdom},
 		{"display backlight", reconcileBacklight},
 		{"display resolution", reconcileDisplayModes},
 		{"NVIDIA boot reliability", reconcileNvidiaModeset},

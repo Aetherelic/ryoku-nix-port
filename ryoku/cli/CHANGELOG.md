@@ -11,6 +11,14 @@
   (`internal/importer`).
 
 ### Fixed
+- **`ryoku doctor` restores 5 GHz Wi-Fi on a box that never had a regulatory
+  domain.** With no country set the kernel stays on the worldwide default `00`,
+  which disables or marks no-IR most 5 GHz channels, so only 2.4 GHz networks
+  appear. `reconcileWifiRegdom` runs only on a box that has a radio: it reads the
+  effective domain (`ryoku-wifi-regdom get`, falling back to the first `country`
+  line of `iw reg get`), and when it is `00` sets it from the country in
+  `/etc/locale.conf`, or warns to run `ryoku-wifi-regdom set <CC>` when no
+  country can be inferred (`internal/doctor/reconcile_wifi_regdom.go`).
 - **Your `~/.config/hypr/user.lua` stops getting wiped on every update.** The
   retired "adopt" step copied the tool's own user files (`hypr/user.lua`,
   `hypr/monitors_user.lua`, `kitty/user.conf`) into the `user_edits` overlay,

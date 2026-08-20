@@ -85,6 +85,16 @@ _bluetooth_tune() {
   fi
 }
 
+# pin the Wi-Fi regulatory domain so 5 GHz is usable. `apply` is idempotent: it
+# seeds iwd's 5 GHz rank nudge when absent and re-asserts the persisted country
+# when the live domain drifted. It never invents a country, so a box the
+# installer never set one on is left alone. Re-applied on upgrade in case an iwd
+# update reset main.conf.
+_wifi_regdom() {
+  command -v ryoku-wifi-regdom >/dev/null 2>&1 || return 0
+  ryoku-wifi-regdom apply >/dev/null 2>&1 || true
+}
+
 # ASUS AMD+NVIDIA panels register only nvidia_wmi_ec_backlight and hide
 # amdgpu_bl0, so brightness will not lower. ryoku-hw-backlight-fix adds
 # acpi_backlight=native (hardware-gated + idempotent, a no-op on every other
@@ -110,6 +120,7 @@ post_install() {
   _refresh
   _bluetooth
   _bluetooth_tune
+  _wifi_regdom
   _backlight_fix
   _rtkit
   _powerprofiles
@@ -122,6 +133,7 @@ post_upgrade() {
   _refresh
   _bluetooth
   _bluetooth_tune
+  _wifi_regdom
   _backlight_fix
   _rtkit
   _powerprofiles

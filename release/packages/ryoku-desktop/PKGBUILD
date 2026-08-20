@@ -503,6 +503,12 @@ package() {
   install -Dm644 "$_repo/system/hardware/input/99-ryoku-uinput.conf" \
     "$pkgdir/etc/modules-load.d/99-ryoku-uinput.conf"
 
+  # Wi-Fi regulatory domain: the same one-click grant for ryoku-wifi-regdom
+  # (installed by the hardware glob above), so the country can be pinned without a
+  # password prompt; world domain 00 disables most 5 GHz channels.
+  install -Dm644 "$_repo/system/hardware/network/48-ryoku-wifi-regdom.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/48-ryoku-wifi-regdom.rules"
+
   # Game Mode wifi power-save: a polkit rule authorizes the privileged helper
   # (ryoku-wifi-powersave, installed to /usr/bin by the hardware glob above)
   # without a password, so the deck toggle stays one click.

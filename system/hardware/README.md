@@ -62,6 +62,15 @@ in the machine.
     no reconnect and no throughput cap. Runs as root through pkexec.
   - `49-ryoku-wifi-powersave.rules` A polkit rule that lets the active wheel user
     run exactly that helper without a password, so the Game Mode toggle stays one click.
+  - `ryoku-wifi-regdom` Pins the Wi-Fi regulatory domain (the country) so 5 GHz is
+    usable: on world domain `00` the kernel disables or no-IRs most 5 GHz channels,
+    so a dual-band SSID is only seen on 2.4 GHz. `set <CC>` persists the country in
+    the wireless-regdb conf (re-applied at boot by its udev rule) and iwd's
+    `Country` hint and applies it now; `apply` is the idempotent install/upgrade/
+    boot pass that also seeds iwd's 5 GHz rank nudge; `get`/`status` report. Runs
+    as root through pkexec.
+  - `48-ryoku-wifi-regdom.rules` A polkit rule that lets the active wheel user run
+    exactly that helper without a password, so pinning the country stays one click.
 - `drivers/` One install script per vendor: `nvidia.sh`, `intel.sh`, `amd.sh`,
   and `vulkan.sh`. Each one checks whether its hardware is present and installs
   only what that hardware needs.
@@ -131,4 +140,4 @@ the GPU rule) are expected on the target. `nvidia-smi` is optional and only fill
 in the NVIDIA VRAM figure. `hyprctl` and `jq` are needed for live display
 changes. `pacman` does the installing. `pactl` (PipeWire-Pulse) reads and sets
 the microphone base volume for `ryoku-mic`. `iw` toggles WiFi power-save for
-`ryoku-wifi-powersave`.
+`ryoku-wifi-powersave` and sets the regulatory domain for `ryoku-wifi-regdom`.

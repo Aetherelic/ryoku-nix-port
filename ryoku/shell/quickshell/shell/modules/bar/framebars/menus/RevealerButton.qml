@@ -17,6 +17,7 @@ Item {
     property string iconName: ""
     property string label: ""
     property string secondaryIconName: ""
+    property string trailingText: ""
     property color iconColor: Theme.ink(Theme.effectiveSurface)
 
     default property alias revealedContent: revealHold.data
@@ -40,6 +41,7 @@ Item {
             iconName: root.iconName
             label: I18n.tr(root.label)
             secondaryIconName: root.secondaryIconName
+            trailingText: root.trailingText
             iconColor: root.iconColor
         }
     }

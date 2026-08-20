@@ -81,7 +81,7 @@ The bones. Kernel, initramfs, the encrypted-Btrfs boot chain, and snapshots.
 | Package | Role |
 |---|---|
 | `networkmanager`, `iwd`, `wpa_supplicant` | Networking and the two Wi-Fi backends (iwd by default; wpa_supplicant for WPA3 edge cases) |
-| `wireless-regdb`, `iw` | The Wi-Fi regulatory database; `iw` toggles power-save for Game Mode |
+| `wireless-regdb`, `iw` | The Wi-Fi regulatory database and `iw`; the installer sets the regulatory domain from geolocation or the locale and `ryoku-wifi-regdom` keeps it set, so 5 GHz channels are enabled. `iw` also toggles power-save for Game Mode |
 | `bluez`, `bluez-utils` | The Bluetooth stack and `bluetoothctl` |
 | `pipewire`, `pipewire-alsa`, `pipewire-pulse`, `pipewire-audio`, `wireplumber` | The PipeWire audio stack, including the Bluetooth A2DP codecs |
 | `alsa-utils` | `alsamixer` and friends, so audio stays diagnosable by hand |

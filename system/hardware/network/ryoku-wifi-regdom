@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# Wi-Fi regulatory domain: pin the country so 5 GHz is actually usable.
+#
+# A non-self-managed wiphy boots on world domain 00, where most 5 GHz channels
+# are disabled or no-IR (no initiating radiation). A dual-band SSID is then only
+# ever seen on its 2.4 GHz BSS, which is the "can only connect to 2.4 GHz" bug.
+# Nothing in Ryoku set a country, so this helper is the one place that does, and
+# it persists the choice the two ways the stack reads it:
+#
+#   /etc/conf.d/wireless-regdom  the wireless-regdb backup file its shipped udev
+#     rule (85-regulatory.rules -> set-wireless-regdom) sources when cfg80211
+#     loads, re-applying the domain on every boot. It is a pacman *backup* file,
+#     so editing it in place is upgrade-safe; set-wireless-regdom sources it, so
+#     exactly one active WIRELESS_REGDOM line must win.
+#   /etc/iwd/main.conf           iwd's own regulatory hint ([General] Country),
+#     owned by no package. [Rank] BandModifier5GHz biases iwd's RSSI-sensitive
+#     ranking toward 5 GHz, which iwd.config(5) warns it otherwise passes over
+#     for a nearer 2.4 GHz AP.
+#
+# Privileged: it rewrites system config and calls `iw reg set`.
+# 48-ryoku-wifi-regdom.rules grants exactly this binary to the wheel group
+# without a password; `set` takes only a two-letter code it validates, so the
+# grant is safe (same pattern as ryoku-wifi-backend). `get` and `status` are
+# read-only and need no privilege.
+#
+#   get        print "<CC> <source>", source is configured | driver | unset
+#   set <CC>   persist a two-letter country and apply it now
+#   apply      idempotent install/upgrade/boot pass; never invents a country
+#   status     one support line: effective domain + 5 GHz channels usable/blocked
+set -u
+
+CONF="${RYOKU_REGDOM_CONF:-/etc/conf.d/wireless-regdom}"
+IWD_CONF="${RYOKU_IWD_CONF:-/etc/iwd/main.conf}"
+
+# Ryoku's default 5 GHz rank nudge for iwd, kept as one constant so `apply` only
+# seeds it when the key is absent and never overwrites a hand-tuned value.
+IWD_BAND_MODIFIER=1.3
+
+# the country persisted in the conf.d backup file, empty when none is active.
+conf_country() {
+  [[ -r $CONF ]] || return 0
+  local line val
+  line=$(grep -m1 -E '^[[:space:]]*WIRELESS_REGDOM=' "$CONF" 2>/dev/null) || return 0
+  val=${line#*=}
+  val=${val%%[[:space:]#]*}
+  val=${val//\"/}
+  printf '%s' "${val^^}"
+}
+
+# the live kernel domain from `iw reg get`, empty when iw is absent.
+driver_country() {
+  command -v iw >/dev/null 2>&1 || return 0
+  iw reg get 2>/dev/null \
+    | awk '/^country [A-Z0-9][A-Z0-9]:/ { c = $2; sub(/:.*/, "", c); print c; exit }'
+}
+
+# rewrite CONF so $1 is the single active WIRELESS_REGDOM line: uncomment its
+# shipped line when present, else append one, and comment out any other active
+# line. Only rewrites when the content actually changes, so a repeat is a no-op.
+conf_write() {
+  local cc=$1 tmp
+  tmp=$(mktemp) || return 1
+  if [[ -f $CONF ]]; then
+    awk -v cc="$cc" '
+      function emit() { if (!written) { print "WIRELESS_REGDOM=\"" cc "\""; written = 1 } }
+      /^[[:space:]]*WIRELESS_REGDOM=/ {
+        v = $0
+        sub(/^[[:space:]]*WIRELESS_REGDOM=/, "", v)
+        gsub(/"/, "", v)
+        sub(/[[:space:]#].*$/, "", v)
+        if (toupper(v) == cc) emit(); else print "#" $0
+        next
+      }
+      /^[[:space:]]*#[[:space:]]*WIRELESS_REGDOM=/ {
+        v = $0
+        sub(/^[[:space:]]*#[[:space:]]*WIRELESS_REGDOM=/, "", v)
+        gsub(/"/, "", v)
+        sub(/[[:space:]#].*$/, "", v)
+        if (toupper(v) == cc) { emit(); next }
+        print; next
+      }
+      { print }
+      END { emit() }
+    ' "$CONF" >"$tmp"
+  else
+    printf 'WIRELESS_REGDOM="%s"\n' "$cc" >"$tmp"
+  fi
+  if [[ ! -f $CONF ]] || ! cmp -s "$tmp" "$CONF"; then
+    mkdir -p "$(dirname "$CONF")"
+    cat "$tmp" >"$CONF"
+  fi
+  rm -f "$tmp"
+}
+
+# set key=value under [section] of an INI file, creating the file and section as
+# needed and preserving every other key and section. mode=replace always sets
+# the value; mode=absent writes it only when the key is missing. No-op writes are
+# skipped so a repeat leaves the file untouched.
+ini_set() {
+  local file=$1 section=$2 key=$3 value=$4 mode=$5 tmp
+  tmp=$(mktemp) || return 1
+  if [[ ! -f $file ]]; then
+    mkdir -p "$(dirname "$file")"
+    : >"$file"
+  fi
+  awk -v section="$section" -v key="$key" -v value="$value" -v mode="$mode" '
+    function emit() { print key "=" value; written = 1 }
+    BEGIN { in_sec = 0; written = 0; seen_sec = 0; present = 0 }
+    /^[[:space:]]*\[/ {
+      if (in_sec && !written && !(mode == "absent" && present)) emit()
+      hdr = $0
+      sub(/^[[:space:]]*\[[[:space:]]*/, "", hdr)
+      sub(/[[:space:]]*\].*$/, "", hdr)
+      if (hdr == section) { in_sec = 1; seen_sec = 1; present = 0 } else in_sec = 0
+      print; next
+    }
+    {
+      if (in_sec && $0 ~ ("^[[:space:]]*" key "[[:space:]]*=")) {
+        present = 1
+        if (mode == "absent") { print; next }
+        if (!written) { emit(); next }
+        next
+      }
+      print
+    }
+    END {
+      if (in_sec && !written && !(mode == "absent" && present)) emit()
+      if (!seen_sec) {
+        if (NR > 0) print ""
+        print "[" section "]"
+        emit()
+      }
+    }
+  ' "$file" >"$tmp"
+  cmp -s "$tmp" "$file" || cat "$tmp" >"$file"
+  rm -f "$tmp"
+}
+
+regdom_get() {
+  local cc
+  cc=$(conf_country)
+  if [[ -n $cc ]]; then
+    printf '%s configured\n' "$cc"
+    return 0
+  fi
+  cc=$(driver_country)
+  if [[ -n $cc && $cc != 00 ]]; then
+    printf '%s driver\n' "$cc"
+    return 0
+  fi
+  printf '00 unset\n'
+}
+
+regdom_set() {
+  local cc=${1:-}
+  if [[ ! $cc =~ ^[A-Za-z]{2}$ ]]; then
+    echo "usage: ryoku-wifi-regdom set <CC>  (two-letter ISO country code)" >&2
+    exit 2
+  fi
+  cc=${cc^^}
+  conf_write "$cc"
+  ini_set "$IWD_CONF" General Country "$cc" replace
+  if command -v iw >/dev/null 2>&1; then
+    iw reg set "$cc" 2>/dev/null || true
+  fi
+  # iwd reads Country only at start, so a running iwd keeps the old hint until it
+  # restarts. try-restart is a no-op when iwd is not running (a chroot, or NM on
+  # wpa_supplicant), so it never disturbs a box that is not using iwd.
+  # --no-ask-password: the helper is meant to run as root (pkexec, the package
+  # hook, the installer chroot); a stray unprivileged run must fail fast instead
+  # of blocking on an interactive polkit prompt.
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --no-ask-password try-restart iwd.service >/dev/null 2>&1 || true
+  fi
+}
+
+regdom_apply() {
+  # 5 GHz rank nudge for iwd, seeded only when absent so a hand-tuned value wins.
+  ini_set "$IWD_CONF" Rank BandModifier5GHz "$IWD_BAND_MODIFIER" absent
+  # re-assert the persisted country when the live domain has drifted from it (a
+  # boot before the udev rule ran, a driver that reset to 00). Never invent one:
+  # with nothing configured there is nothing to apply, and no-wireless boxes exit 0.
+  local cc
+  cc=$(conf_country)
+  [[ -n $cc ]] || return 0
+  command -v iw >/dev/null 2>&1 || return 0
+  [[ "$(driver_country)" == "$cc" ]] || iw reg set "$cc" 2>/dev/null || true
+  return 0
+}
+
+regdom_status() {
+  local cc src
+  read -r cc src < <(regdom_get)
+  if ! command -v iw >/dev/null 2>&1; then
+    printf 'regdom %s (%s); 5 GHz channel status unavailable (iw not installed)\n' "$cc" "$src"
+    return 0
+  fi
+  local usable blocked
+  read -r usable blocked < <(iw phy 2>/dev/null | awk '
+    {
+      f = 0
+      for (i = 2; i <= NF; i++) if ($i == "MHz") { f = $(i - 1) + 0; break }
+      if (f >= 5000 && f < 5925) {
+        if ($0 ~ /disabled/ || $0 ~ /no IR/) blocked++; else usable++
+      }
+    }
+    END { printf "%d %d", usable + 0, blocked + 0 }')
+  printf 'regdom %s (%s); 5 GHz channels: %s usable, %s blocked\n' "$cc" "$src" "$usable" "$blocked"
+}
+
+case "${1:-status}" in
+  get)
+    regdom_get
+    ;;
+  set)
+    shift
+    regdom_set "${1:-}"
+    ;;
+  apply)
+    regdom_apply
+    ;;
+  status)
+    regdom_status
+    ;;
+  *)
+    echo "usage: ryoku-wifi-regdom [get | set <CC> | apply | status]" >&2
+    exit 2
+    ;;
+esac

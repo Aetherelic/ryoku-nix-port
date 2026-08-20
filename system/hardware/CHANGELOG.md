@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Added
+- `network/ryoku-wifi-regdom` + `network/48-ryoku-wifi-regdom.rules`: pin the
+  Wi-Fi regulatory domain so 5 GHz works. A non-self-managed wiphy boots on world
+  domain `00`, where most 5 GHz channels are disabled or no-IR, so a dual-band
+  SSID is only ever seen on its 2.4 GHz BSS -- the "can only connect to 2.4 GHz"
+  bug. Nothing set a country, so this helper does: `set <CC>` writes the single
+  active `WIRELESS_REGDOM` line in the wireless-regdb backup file (re-applied at
+  boot by its shipped udev rule), sets iwd's `[General] Country`, and runs `iw reg
+  set` now; `apply` (idempotent, install/upgrade/boot) seeds iwd's `[Rank]
+  BandModifier5GHz` when absent and re-asserts the country when the live domain
+  drifted, never inventing one; `get`/`status` report for support. A polkit rule
+  authorizes exactly this program for the active wheel user without a password (it
+  takes only a validated two-letter code), matching the other network helpers. The
+  `ryoku-desktop` PKGBUILD installs the helper via the hardware glob and the rule
+  under `polkit-1/rules.d`; the `.install` runs `apply` on install + upgrade, and
+  the installer seeds the country from geolocation or the locale.
 - `leds/ryoku-leds`: `RYOKU_LEDS_DISABLE=1` turns the OpenRGB accent sync off.
   `ryoku-leds apply` runs from Hyprland autostart and again from the shell daemon
   on every wallpaper change, and there was no off switch short of forking the

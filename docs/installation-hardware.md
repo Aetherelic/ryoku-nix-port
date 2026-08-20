@@ -16,6 +16,7 @@ The backend that implements the automatic half lives in
 - [NVIDIA black or garbled screen](#nvidia-black-or-garbled-screen)
 - [Windows dual-boot](#windows-dual-boot)
 - [Broadcom Wi-Fi](#broadcom-wi-fi)
+- [Only 2.4 GHz networks appear, or 5 GHz will not connect](#only-24-ghz-networks-appear-or-5-ghz-will-not-connect)
 - [RTC clock skew vs pacman signatures](#rtc-clock-skew-vs-pacman-signatures)
 - [NVRAM-readonly firmware](#nvram-readonly-firmware)
 - [Ventoy and other loop-mounted media](#ventoy-and-other-loop-mounted-media)
@@ -176,8 +177,51 @@ adds `broadcom-wl` to the `pacstrap` set for the target when a Broadcom PCI devi
 (vendor `14e4:`) is present.
 
 **What the user must do.** Usually nothing. If a card still will not associate,
-check `rfkill` (a hardware switch or soft block) and the wireless regulatory
-domain.
+check `rfkill` (a hardware switch or soft block). If it associates but only
+2.4 GHz networks appear, see [Only 2.4 GHz networks appear, or 5 GHz will not
+connect](#only-24-ghz-networks-appear-or-5-ghz-will-not-connect).
+
+## Only 2.4 GHz networks appear, or 5 GHz will not connect
+
+**Symptom.** The Wi-Fi list shows only 2.4 GHz networks, or a known 5 GHz (or
+6 GHz) network never appears or refuses to connect, even though the card
+supports those bands.
+
+**Cause.** Four things gate the higher bands, and any one of them alone produces
+the symptom:
+
+- *No regulatory domain.* The kernel gates which channels a radio may use on the
+  country's regulatory domain. With none set it stays on the worldwide default
+  `00`, which disables or marks no-IR most 5 GHz channels, so those networks
+  never appear.
+- *No band chosen.* A dual-band network advertises one SSID on both bands.
+  Joining it by name lands on whichever radio answers first, almost always the
+  2.4 GHz one, with no way to ask for the 5 GHz radio.
+- *iwd's band ranking.* iwd is the default NetworkManager backend; left
+  unconfigured it neither prefers 5 GHz nor takes a country hint, so it can
+  settle on the slower band even when both are in range.
+- *WPA3-SAE.* Many 5 GHz and 6 GHz networks are WPA3-only. A client that offers
+  only WPA2 key management cannot finish the handshake, so the join fails.
+
+**What the installer does.** It sets the regulatory domain from geolocation,
+falling back to the country in the system locale, and writes iwd's `main.conf`
+so iwd prefers 5 GHz and carries the country hint. `ryoku doctor` re-checks the
+domain on every update and heals a box that has drifted back to `00`.
+
+**What the user must do.**
+
+- **Fix the regulatory domain.** If only 2.4 GHz networks appear, run
+  `ryoku doctor`; it sets the domain from your locale where it can. If it cannot
+  infer your country, set it by hand with `ryoku-wifi-regdom set <CC>` (for
+  example `ryoku-wifi-regdom set US`); `ryoku-wifi-regdom status` prints the
+  domain in force.
+- **Pick the band.** The shell's Wi-Fi list and the Hub's Connections page now
+  show each band of a dual-band network as its own entry. Pick the 5 GHz one and
+  the saved profile is locked to that band, so it never drops back to 2.4 GHz.
+- **WPA3 networks.** The shell now joins WPA3-SAE networks with the right key
+  management. If one still refuses, open Ryoku Settings -> Connections and switch
+  the Wi-Fi backend from iwd to wpa_supplicant, which handles a few WPA3 edge
+  cases iwd does not.
 
 ## RTC clock skew vs pacman signatures
 

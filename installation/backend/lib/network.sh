@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # Carry the live session's network setup into the installed system so wifi
-# survives first boot. two parts, both required:
+# survives first boot. three parts, all required:
 #
 #   1) pin NetworkManager's wifi backend to iwd in the target. base set ships
 #      iwd (not wpa_supplicant), and the live ISO already runs NM over iwd
@@ -14,6 +14,13 @@
 #      *.nmconnection) into the target, preserving the 600 root:root perms NM
 #      requires. otherwise the credentials evaporate on reboot.
 #
+#   3) pin the Wi-Fi regulatory domain (the country) in the target. On world
+#      domain 00 the kernel disables or no-IRs most 5 GHz channels, so a dual-band
+#      SSID is only ever seen on 2.4 GHz -- the "can only connect to 2.4 GHz" bug.
+#      It lives here rather than with the other chroot config because it drives
+#      ryoku-wifi-regdom, which only exists in the target once ryoku_deploy has
+#      installed the desktop set, one call earlier in the same configure stage.
+#
 # ryoku_network runs in the "configure" stage; ryoku_ensure_dns runs at
 # preflight, before the disk is touched. everything routes through the dry-run
 # wrappers.
@@ -22,6 +29,7 @@ ryoku_network() {
   log "persisting NetworkManager configuration into the target"
   ryoku_network_backend
   ryoku_network_connections
+  ryoku_network_regdom
 }
 
 # ryoku_network_backend carries the live session's NM Wi-Fi backend into the
@@ -70,6 +78,47 @@ ryoku_network_connections() {
   chmod 600 "$dst"/*.nmconnection
   chown root:root "$dst"/*.nmconnection
   log "carried over ${#files[@]} saved network profile(s)"
+}
+
+# ryoku_network_regdom pins the Wi-Fi regulatory domain (the country) in the
+# target. World domain 00 disables or no-IRs most 5 GHz channels, so without a
+# country the installed machine only ever sees the 2.4 GHz half of a dual-band
+# SSID. Resolve one -- explicit override, else IP geolocation when online, else
+# the locale's country -- and let ryoku-wifi-regdom (the single source of truth,
+# shipped by the desktop set installed just above) persist it. When nothing
+# resolves, leave the domain alone rather than guess.
+ryoku_network_regdom() {
+  local cc=""
+  if [[ -n ${RYOKU_REGDOM:-} ]]; then
+    cc=${RYOKU_REGDOM}
+  elif [[ ${RYOKU_ONLINE:-1} == 1 ]]; then
+    if [[ -n ${RYOKU_DRYRUN:-} ]]; then
+      printf 'DRYRUN: curl -fsSL https://ipinfo.io/country\n'
+      cc='<auto-country>'
+    else
+      # configure runs with the network up, so geolocation resolves even when the
+      # user never joined Wi-Fi on the installer's own screens. two providers for
+      # resilience; the first two-letter answer wins.
+      local url
+      for url in "https://ipinfo.io/country" "http://ip-api.com/line?fields=countryCode"; do
+        cc=$(curl -fsSL --max-time 10 "$url" 2>/dev/null | tr -d '[:space:]') || cc=""
+        [[ $cc =~ ^[A-Za-z]{2}$ ]] && break
+        cc=""
+      done
+    fi
+  fi
+  # no override and no geolocation (offline, or both providers blocked): the
+  # locale names a country too, and a plausible domain beats world 00.
+  if [[ -z $cc && ${RYOKU_LOCALE:-} == *_* ]]; then
+    cc=${RYOKU_LOCALE#*_}
+    cc=${cc%%.*}
+  fi
+  if [[ $cc != '<auto-country>' && ! $cc =~ ^[A-Za-z]{2}$ ]]; then
+    log "warn: could not resolve a Wi-Fi country (regdom stays world 00, 5 GHz limited); set RYOKU_REGDOM to override"
+    return 0
+  fi
+  log "Wi-Fi regulatory domain: $cc"
+  run arch-chroot /mnt ryoku-wifi-regdom set "$cc"
 }
 
 # ryoku_ensure_dns: pacstrap and the desktop set resolve mirror hostnames, but a

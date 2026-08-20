@@ -50,7 +50,7 @@ Singleton {
     // --- intents (QML -> daemon) ---
     function refresh() { root.call("network.wifiScan", {}); }
     function setWifiEnabled(on) { root.call("network.wifiSetEnabled", { enabled: on === true }); }
-    function connectWifi(ssid, password) { return root.call("network.wifiConnect", { ssid: ssid, password: password || "" }); }
+    function connectWifi(ssid, password, bssid) { return root.call("network.wifiConnect", { ssid: ssid, password: password || "", bssid: bssid || "" }); }
     function disconnectWifi() { root.call("network.wifiDisconnect", {}); }
     function forgetWifi(ssid) { root.call("network.wifiForget", { ssid: ssid }); }
     function wgActivate(uuid) { root.call("network.wgActivate", { uuid: uuid }); }

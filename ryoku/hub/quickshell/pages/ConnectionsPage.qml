@@ -392,6 +392,14 @@ Item {
 
         property var securityMap: ({})
         property var knownProfiles: ({})
+
+        // dual and tri-band SSIDs expose one BSSID per band. bandMap keys each
+        // SSID to its per-band BSSIDs so a join can pin a band; selectedBands is
+        // the user's per-SSID pick ("" means let NM choose, which favours the
+        // 2.4 GHz AP at any range).
+        property var bandMap: ({})
+        property var selectedBands: ({})
+
         property string expandedSsid: ""
         property bool connecting: false
         property bool connectFailed: false
@@ -433,14 +441,71 @@ Item {
             backendSetProc.running = true;
         }
 
-        // split one `nmcli -t` line at its last unescaped colon, unescape the
-        // leading field. null if there's no separator.
-        function splitTerse(line) {
-            for (var k = line.length - 1; k >= 0; k--) {
-                if (line[k] === ":" && (k === 0 || line[k - 1] !== "\\"))
-                    return { head: line.slice(0, k).replace(/\\:/g, ":"), tail: line.slice(k + 1) };
+        // split one `nmcli -t` line into its fields at unescaped colons, undoing
+        // nmcli's escaping (`\:` for a colon inside a field, `\\` for a
+        // backslash). a BSSID carries five colons, so the old last-colon split
+        // could never reach the fields past it.
+        function terseFields(line) {
+            var fields = [];
+            var cur = "";
+            for (var i = 0; i < line.length; i++) {
+                var c = line[i];
+                if (c === "\\" && i + 1 < line.length && (line[i + 1] === ":" || line[i + 1] === "\\")) {
+                    cur += line[i + 1];
+                    i++;
+                } else if (c === ":") {
+                    fields.push(cur);
+                    cur = "";
+                } else {
+                    cur += c;
+                }
             }
-            return null;
+            fields.push(cur);
+            return fields;
+        }
+
+        // 2.4 / 5 / 6 GHz bucket for a channel frequency in MHz (contract A);
+        // "" when the frequency is unknown.
+        function bandForFreq(mhz) {
+            if (!mhz || mhz <= 0)
+                return "";
+            if (mhz < 2500)
+                return "2.4";
+            if (mhz < 5925)
+                return "5";
+            return "6";
+        }
+
+        function bandLabel(b) {
+            if (b === "6")
+                return I18n.tr("6 GHz");
+            if (b === "5")
+                return I18n.tr("5 GHz");
+            return I18n.tr("2.4 GHz");
+        }
+
+        // the BSSID of the band the user picked for this SSID, or "" when none
+        // is picked (keep NM's own strongest-BSS choice).
+        function pickedBssid(ssid) {
+            var band = wifi.selectedBands[ssid];
+            if (!band)
+                return "";
+            var entries = wifi.bandMap[ssid];
+            if (!entries)
+                return "";
+            for (var i = 0; i < entries.length; i++)
+                if (entries[i].band === band)
+                    return entries[i].bssid;
+            return "";
+        }
+
+        // record the per-SSID band pick as a fresh object so the chips re-read it.
+        function selectBand(ssid, band) {
+            var next = {};
+            for (var k in wifi.selectedBands)
+                next[k] = wifi.selectedBands[k];
+            next[ssid] = band;
+            wifi.selectedBands = next;
         }
 
         // row click: connected -> disconnect, known or open -> connect, else
@@ -461,6 +526,11 @@ Item {
             var secKnown = wifi.securityMap[ssid] !== undefined;
             if (wifi.knownProfiles[ssid] === true || (secKnown && !wifi.isSecured(ssid))) {
                 wifi.expandedSsid = "";
+                var bssid = wifi.pickedBssid(ssid);
+                if (bssid.length) {
+                    wifi.connectBand(ssid, bssid);
+                    return;
+                }
                 if (typeof net.connect === "function")
                     net.connect();
                 wifi.refresh();
@@ -481,7 +551,26 @@ Item {
             wifi.attemptSsid = ssid;
             wifi.attemptWasKnown = wifi.knownProfiles[ssid] === true;
             wifi.pendingPw = pw;
-            connProc.command = ["nmcli", "--ask", "dev", "wifi", "connect", ssid];
+            // a picked band joins its exact BSSID; an empty pick keeps the SSID
+            // so NM chooses the strongest AP (today's behaviour).
+            var bssid = wifi.pickedBssid(ssid);
+            connProc.command = ["nmcli", "--ask", "dev", "wifi", "connect", bssid.length ? bssid : ssid];
+            connProc.running = true;
+        }
+
+        // known/open join pinned to a band's BSSID. nmcli's connect target
+        // accepts a BSSID, so this reaches the exact AP instead of NM's
+        // strongest pick; it shares connProc's success and cleanup wiring and
+        // needs no password.
+        function connectBand(ssid, bssid) {
+            if (connProc.running)
+                return;
+            wifi.connecting = true;
+            wifi.connectFailed = false;
+            wifi.attemptSsid = ssid;
+            wifi.attemptWasKnown = wifi.knownProfiles[ssid] === true;
+            wifi.pendingPw = "";
+            connProc.command = ["nmcli", "dev", "wifi", "connect", bssid];
             connProc.running = true;
         }
 
@@ -523,19 +612,40 @@ Item {
 
         Process {
             id: secProc
-            command: ["nmcli", "-t", "-f", "SSID,SECURITY", "dev", "wifi", "list"]
+            command: ["nmcli", "-t", "-f", "SSID,SECURITY,FREQ,BSSID", "dev", "wifi", "list"]
             stdout: StdioCollector {
                 onStreamFinished: {
-                    var map = {};
+                    var secs = {};
+                    var bands = {};
                     var lines = this.text.split("\n");
                     for (var i = 0; i < lines.length; i++) {
                         if (!lines[i].length)
                             continue;
-                        var parts = wifi.splitTerse(lines[i]);
-                        if (parts && parts.head.length)
-                            map[parts.head] = parts.tail;
+                        var f = wifi.terseFields(lines[i]);
+                        if (f.length < 4 || !f[0].length)
+                            continue;
+                        secs[f[0]] = f[1];
+                        var mhz = parseInt(f[2], 10);
+                        var band = wifi.bandForFreq(mhz);
+                        if (!band.length)
+                            continue;
+                        var entries = bands[f[0]] || [];
+                        var seen = false;
+                        for (var j = 0; j < entries.length; j++)
+                            if (entries[j].band === band) {
+                                seen = true;
+                                break;
+                            }
+                        // nmcli lists strongest first, so the first BSSID kept
+                        // for a band is that band's strongest AP.
+                        if (!seen)
+                            entries.push({ band: band, bssid: f[3], freq: mhz });
+                        bands[f[0]] = entries;
                     }
-                    wifi.securityMap = map;
+                    for (var s in bands)
+                        bands[s].sort(function(a, b) { return a.freq - b.freq; });
+                    wifi.securityMap = secs;
+                    wifi.bandMap = bands;
                 }
             }
         }
@@ -548,9 +658,9 @@ Item {
                     var set = {};
                     var lines = this.text.split("\n");
                     for (var i = 0; i < lines.length; i++) {
-                        var parts = wifi.splitTerse(lines[i]);
-                        if (parts && parts.head.length && parts.tail === "802-11-wireless")
-                            set[parts.head] = true;
+                        var f = wifi.terseFields(lines[i]);
+                        if (f.length >= 2 && f[0].length && f[1] === "802-11-wireless")
+                            set[f[0]] = true;
                     }
                     wifi.knownProfiles = set;
                 }
@@ -584,8 +694,9 @@ Item {
         }
 
         // a failed `nmcli dev wifi connect` leaves a profile named after the
-        // SSID; without deleting it the next click reads it as known and
-        // silently fails forever.
+        // SSID (nmcli names it after the SSID even when the join used a BSSID),
+        // so the cleanup keys on attemptSsid, not the BSSID. without deleting it
+        // the next click reads the network as known and silently fails forever.
         Process {
             id: cleanupProc
             onExited: wifi.refresh()
@@ -876,6 +987,42 @@ Item {
                                         font.pixelSize: Tokens.fMicro
                                         font.weight: Font.Medium
                                         font.features: ({ "tnum": 1 })
+                                    }
+                                }
+                            }
+
+                            // band selector. a dual or tri-band SSID resolves to
+                            // one BSSID per band, and NM's SSID join takes the
+                            // strongest, which is the 2.4 GHz AP at any range.
+                            // picking a band pins the join to that band's BSSID;
+                            // single-band rows collapse this to nothing.
+                            Item {
+                                id: bandRow
+                                readonly property var entries: wifi.bandMap[netItem.ssid] || []
+                                width: parent.width
+                                height: entries.length > 1 ? 30 : 0
+                                clip: true
+                                visible: height > 0.5
+
+                                Row {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: Tokens.s4
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: Tokens.s2
+
+                                    Repeater {
+                                        model: bandRow.entries
+
+                                        delegate: Btn {
+                                            required property var modelData
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            compact: true
+                                            text: wifi.bandLabel(modelData.band)
+                                            primary: wifi.selectedBands[netItem.ssid] === modelData.band
+                                            armed: !wifi.connecting
+                                            onAct: wifi.selectBand(netItem.ssid,
+                                                wifi.selectedBands[netItem.ssid] === modelData.band ? "" : modelData.band)
+                                        }
                                     }
                                 }
                             }

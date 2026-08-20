@@ -18,9 +18,9 @@ import "../../../../components"
 // Divergence recorded (contract 00 divergence type 1): the reference opens a GTK
 // FileDialog for WireGuard import; Quickshell has no file dialog, so import uses
 // an inline path entry that feeds the same `nmcli connection import` the
-// reference runs. The available list dedupes by SSID (one row per network, first
-// in service order) and excludes the connected SSID, matching the reference
-// DynamicBox keyed by SSID.
+// reference runs. The available list dedupes by SSID and band (one row per band,
+// the strongest AP kept and the list sorted by signal) and excludes only the
+// connected band row, so a dual-band SSID exposes both its 2.4 and 5 GHz rows.
 Item {
     id: root
 
@@ -52,22 +52,59 @@ Item {
     Component.onCompleted: Network.setVpnPolling(root, root.open)
     Component.onDestruction: Network.setVpnPolling(root, false)
 
-    // Available networks: service order, one row per SSID, connected SSID
-    // removed (the reference filters the current SSID and keys the list by SSID).
+    // Available networks: one row per SSID+band, the strongest AP kept per key
+    // and the list sorted by signal descending. Keying by SSID alone (the
+    // reference behaviour) dropped a dual-band SSID's 5 GHz BSS; keying by band
+    // keeps it. Only the connected band row is removed, so a link on 2.4 GHz
+    // still leaves the same SSID's 5 GHz row pickable.
     readonly property var availableNets: {
-        var seen = ({});
+        var aps = Network.accessPoints;
+        var activeBand = "";
+        for (var a = 0; a < aps.length; a++) {
+            if (aps[a] && aps[a].active) {
+                activeBand = aps[a].band || "";
+                break;
+            }
+        }
+        var best = ({});
+        for (var i = 0; i < aps.length; i++) {
+            var ap = aps[i];
+            if (!ap || !ap.ssid)
+                continue;
+            if (ap.ssid === Network.activeSsid && (activeBand === "" || (ap.band || "") === activeBand))
+                continue;
+            var key = ap.ssid + "\u0000" + (ap.band || "");
+            var prev = best[key];
+            if (!prev || (ap.strength || 0) > (prev.strength || 0))
+                best[key] = ap;
+        }
         var out = [];
+        for (var k in best)
+            out.push(best[k]);
+        out.sort(function (x, y) { return (y.strength || 0) - (x.strength || 0); });
+        return out;
+    }
+
+    // SSIDs seen on more than one band in the scan: a row shows its band chip
+    // only for these, so single-band networks read exactly as before. Counted
+    // over every scanned AP, not the rendered list, so the 5 GHz row of the
+    // SSID you are already on (whose 2.4 GHz row is filtered out) stays chipped.
+    readonly property var multiBandSsids: {
+        var bands = ({});
         var aps = Network.accessPoints;
         for (var i = 0; i < aps.length; i++) {
             var ap = aps[i];
-            if (!ap || !ap.ssid || ap.ssid === Network.activeSsid)
+            if (!ap || !ap.ssid || !ap.band)
                 continue;
-            if (seen[ap.ssid])
-                continue;
-            seen[ap.ssid] = true;
-            out.push(ap);
+            if (!bands[ap.ssid])
+                bands[ap.ssid] = ({});
+            bands[ap.ssid][ap.band] = true;
         }
-        return out;
+        var multi = ({});
+        for (var s in bands)
+            if (Object.keys(bands[s]).length > 1)
+                multi[s] = true;
+        return multi;
     }
     onAvailableNetsChanged: if (root.availableNets.length > 0) root.scanning = false
 
@@ -380,12 +417,13 @@ Item {
             width: parent.width
             iconName: root.wifiIcon(apRow.ap.strength)
             label: apRow.ap.ssid
+            trailingText: root.multiBandSsids[apRow.ap.ssid] ? (apRow.ap.band || "") : ""
 
             function doConnect() {
                 apRow.errorShown = false;
                 apRow.connecting = true;
                 var pw = (root.secured(apRow.ap) && !apRow.ap.saved) ? pwEntry.text : "";
-                apRow.pendingId = Network.connectWifi(apRow.ap.ssid, pw);
+                apRow.pendingId = Network.connectWifi(apRow.ap.ssid, pw, apRow.ap.bssid);
             }
 
             Connections {

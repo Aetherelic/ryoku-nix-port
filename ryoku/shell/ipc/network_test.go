@@ -63,30 +63,119 @@ func TestConnectivityFromState(t *testing.T) {
 	}
 }
 
-// wifiConnectSettings omits the security block for an open network and adds a
-// WPA-PSK block with the passphrase when one is supplied.
+// wifiConnectSettings omits the security block for an open network, derives
+// key-mgmt from the resolved AP's security (sae for WPA3, wpa-psk otherwise),
+// and pins the band only when the caller supplied a BSSID and the AP is known.
 func TestWifiConnectSettings(t *testing.T) {
-	open := wifiConnectSettings("cafe", "")
-	if _, ok := open["802-11-wireless-security"]; ok {
-		t.Error("open network got a security block")
+	wpa2 := &apInfo{Security: "Wpa2", Frequency: 5240}
+	wpa3 := &apInfo{Security: "Wpa3", Frequency: 5240}
+	cases := []struct {
+		name         string
+		ssid         string
+		password     string
+		bssid        string
+		ap           *apInfo
+		wantSecurity bool
+		wantKeyMgmt  string
+		wantBandKey  bool
+		wantBand     string
+	}{
+		{name: "open network", ssid: "cafe"},
+		{name: "wpa2 with bssid pins band a", ssid: "home", password: "hunter2", bssid: "AA:BB:CC:DD:EE:FF", ap: wpa2, wantSecurity: true, wantKeyMgmt: "wpa-psk", wantBandKey: true, wantBand: "a"},
+		{name: "wpa3 uses sae", ssid: "secure", password: "hunter2", bssid: "AA:BB:CC:DD:EE:FF", ap: wpa3, wantSecurity: true, wantKeyMgmt: "sae", wantBandKey: true, wantBand: "a"},
+		{name: "nil ap omits band", ssid: "roam", password: "hunter2", bssid: "AA:BB:CC:DD:EE:FF", wantSecurity: true, wantKeyMgmt: "wpa-psk"},
+		{name: "empty bssid omits band", ssid: "roam", password: "hunter2", ap: wpa2, wantSecurity: true, wantKeyMgmt: "wpa-psk"},
 	}
-	if ssid, _ := open["802-11-wireless"]["ssid"].Value().([]byte); string(ssid) != "cafe" {
-		t.Errorf("ssid = %q, want cafe", ssid)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := wifiConnectSettings(c.ssid, c.password, c.bssid, c.ap)
+			if ssid, _ := s["802-11-wireless"]["ssid"].Value().([]byte); string(ssid) != c.ssid {
+				t.Errorf("ssid = %q, want %q", ssid, c.ssid)
+			}
+			if typ, _ := s["connection"]["type"].Value().(string); typ != "802-11-wireless" {
+				t.Errorf("type = %q, want 802-11-wireless", typ)
+			}
+			band, hasBand := s["802-11-wireless"]["band"]
+			if hasBand != c.wantBandKey {
+				t.Fatalf("band key present = %v, want %v", hasBand, c.wantBandKey)
+			}
+			if c.wantBandKey {
+				if got, _ := band.Value().(string); got != c.wantBand {
+					t.Errorf("band = %q, want %q", got, c.wantBand)
+				}
+			}
+			sec, hasSec := s["802-11-wireless-security"]
+			if hasSec != c.wantSecurity {
+				t.Fatalf("security block present = %v, want %v", hasSec, c.wantSecurity)
+			}
+			if c.wantSecurity {
+				if km, _ := sec["key-mgmt"].Value().(string); km != c.wantKeyMgmt {
+					t.Errorf("key-mgmt = %q, want %q", km, c.wantKeyMgmt)
+				}
+				if psk, _ := sec["psk"].Value().(string); psk != c.password {
+					t.Errorf("psk = %q, want %q", psk, c.password)
+				}
+			}
+		})
 	}
-	if typ, _ := open["connection"]["type"].Value().(string); typ != "802-11-wireless" {
-		t.Errorf("type = %q, want 802-11-wireless", typ)
-	}
+}
 
-	secured := wifiConnectSettings("home", "hunter2")
-	sec := secured["802-11-wireless-security"]
-	if sec == nil {
-		t.Fatal("secured network missing security block")
+// bandForFrequency labels the reveal band from an AP centre frequency: 2.4 GHz
+// below 2500, 5 GHz through 5924, 6 GHz from 5925, and "" for an unknown 0.
+func TestBandForFrequency(t *testing.T) {
+	cases := []struct {
+		mhz  int
+		want string
+	}{
+		{0, ""},
+		{2412, "2.4"}, {2484, "2.4"}, {2499, "2.4"},
+		{2500, "5"}, {5240, "5"}, {5924, "5"},
+		{5925, "6"}, {5955, "6"}, {7115, "6"},
 	}
-	if km, _ := sec["key-mgmt"].Value().(string); km != "wpa-psk" {
-		t.Errorf("key-mgmt = %q, want wpa-psk", km)
+	for _, c := range cases {
+		if got := bandForFrequency(c.mhz); got != c.want {
+			t.Errorf("bandForFrequency(%d) = %q, want %q", c.mhz, got, c.want)
+		}
 	}
-	if psk, _ := sec["psk"].Value().(string); psk != "hunter2" {
-		t.Errorf("psk = %q, want hunter2", psk)
+}
+
+// nmBandForFrequency maps a frequency to NetworkManager's band value: bg for
+// 2.4 GHz, a for 5 GHz, and "" for 6 GHz and unknown, because NM has no safe
+// 6 GHz value and an invalid one fails AddAndActivateConnection.
+func TestNmBandForFrequency(t *testing.T) {
+	cases := []struct {
+		mhz  int
+		want string
+	}{
+		{0, ""},
+		{2412, "bg"},
+		{5240, "a"}, {5924, "a"},
+		{5955, ""}, {7115, ""},
+	}
+	for _, c := range cases {
+		if got := nmBandForFrequency(c.mhz); got != c.want {
+			t.Errorf("nmBandForFrequency(%d) = %q, want %q", c.mhz, got, c.want)
+		}
+	}
+}
+
+// keyMgmtForSecurity selects sae only for WPA3 so a WPA3-only 5 GHz network can
+// be joined, and wpa-psk for WPA2/WPA and anything unknown.
+func TestKeyMgmtForSecurity(t *testing.T) {
+	cases := []struct {
+		security string
+		want     string
+	}{
+		{"Wpa3", "sae"},
+		{"Wpa2", "wpa-psk"},
+		{"Wpa", "wpa-psk"},
+		{"None", "wpa-psk"},
+		{"", "wpa-psk"},
+	}
+	for _, c := range cases {
+		if got := keyMgmtForSecurity(c.security); got != c.want {
+			t.Errorf("keyMgmtForSecurity(%q) = %q, want %q", c.security, got, c.want)
+		}
 	}
 }
 
@@ -119,6 +208,40 @@ func TestApFrame(t *testing.T) {
 	}
 	if f["ssid"] != "M" || f["strength"] != 50 || f["active"] != true {
 		t.Errorf("apFrame values wrong: %+v", f)
+	}
+}
+
+// A profile edit must drop the deprecated ipv4/ipv6 address and route mirrors:
+// NetworkManager rejects the round-trip otherwise (godbus re-encodes the ipv6
+// a(ayuay) pair as aav), while address-data/route-data carry the real config.
+func TestDropLegacyAddresses(t *testing.T) {
+	s := map[string]map[string]dbus.Variant{
+		"connection": {"id": dbus.MakeVariant("M")},
+		"ipv4": {
+			"method":       dbus.MakeVariant("manual"),
+			"addresses":    dbus.MakeVariant([][]uint32{{1, 24, 0}}),
+			"routes":       dbus.MakeVariant([][]uint32{}),
+			"address-data": dbus.MakeVariant([]map[string]dbus.Variant{{"address": dbus.MakeVariant("192.168.77.5")}}),
+		},
+		"ipv6": {
+			"method":    dbus.MakeVariant("auto"),
+			"addresses": dbus.MakeVariant([]dbus.Variant{}),
+			"routes":    dbus.MakeVariant([]dbus.Variant{}),
+		},
+	}
+	dropLegacyAddresses(s)
+	for _, group := range []string{"ipv4", "ipv6"} {
+		for _, key := range []string{"addresses", "routes"} {
+			if _, ok := s[group][key]; ok {
+				t.Errorf("%s.%s survived the prune", group, key)
+			}
+		}
+	}
+	if _, ok := s["ipv4"]["address-data"]; !ok {
+		t.Error("ipv4.address-data was dropped; the static address would be lost")
+	}
+	if s["ipv4"]["method"].Value() != "manual" || s["connection"]["id"].Value() != "M" {
+		t.Errorf("unrelated settings changed: %+v", s)
 	}
 }
 

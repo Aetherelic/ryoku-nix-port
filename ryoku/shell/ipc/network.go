@@ -112,11 +112,12 @@ func (d *daemon) startNetwork() {
 		var a struct {
 			Ssid     string `json:"ssid"`
 			Password string `json:"password"`
+			Bssid    string `json:"bssid"`
 		}
 		if err := json.Unmarshal(raw, &a); err != nil {
 			return nil, err
 		}
-		return nil, n.wifiConnect(a.Ssid, a.Password)
+		return nil, n.wifiConnect(a.Ssid, a.Password, a.Bssid)
 	})
 	d.registerCall("network.wifiDisconnect", func(json.RawMessage) (any, error) {
 		return nil, n.wifiDisconnect()
@@ -410,9 +411,11 @@ func (n *networkState) wifiScan() error {
 // wifiConnect connects to an SSID. An existing saved profile is (re)activated,
 // refreshing its passphrase first when one is supplied; an unknown network gets
 // a fresh profile created and activated in one AddAndActivateConnection call,
-// keyed to the strongest matching access point so NetworkManager binds the
-// right BSSID. Mirrors the reference lookup-then-add path.
-func (n *networkState) wifiConnect(ssid, password string) error {
+// keyed to the access point bestApForSsid resolves so NetworkManager binds the
+// right BSSID. An empty bssid picks the strongest matching AP (the historical
+// behaviour); a non-empty bssid pins that exact AP and locks the profile to its
+// band. Mirrors the reference lookup-then-add path.
+func (n *networkState) wifiConnect(ssid, password, bssid string) error {
 	if ssid == "" {
 		return fmt.Errorf("empty ssid")
 	}
@@ -420,27 +423,74 @@ func (n *networkState) wifiConnect(ssid, password string) error {
 	if wifiDev == "" {
 		return fmt.Errorf("no wifi device")
 	}
+	specific, ap := n.bestApForSsid(wifiDev, ssid, bssid)
+
+	// A pinned AP drives both key management (so WPA3-SAE joins as sae) and the
+	// band lock (so autoconnect stops drifting back to 2.4 GHz); both stay unset
+	// when no AP resolved.
+	apSec := ""
+	nmBand := ""
+	if ap != nil {
+		apSec = ap.Security
+		nmBand = nmBandForFrequency(ap.Frequency)
+	}
+
 	for _, c := range n.savedConnections() {
 		if c.typ == "802-11-wireless" && c.ssid == ssid {
 			if password != "" {
-				if err := n.updatePassword(c.path, password); err != nil {
+				if err := n.updatePassword(c.path, password, keyMgmtForSecurity(apSec)); err != nil {
 					return err
 				}
 			}
-			return n.obj(nmPath).Call(nmIface+".ActivateConnection", 0, c.path, dbus.ObjectPath(wifiDev), dbus.ObjectPath("/")).Err
+			if bssid != "" && nmBand != "" {
+				if err := n.updateBand(c.path, nmBand); err != nil {
+					return err
+				}
+			}
+			return n.obj(nmPath).Call(nmIface+".ActivateConnection", 0, c.path, dbus.ObjectPath(wifiDev), specific).Err
 		}
 	}
-	settings := wifiConnectSettings(ssid, password)
-	specific := n.apForSsid(wifiDev, ssid)
+	settings := wifiConnectSettings(ssid, password, bssid, ap)
 	var newConn, newActive dbus.ObjectPath
 	return n.obj(nmPath).Call(nmIface+".AddAndActivateConnection", 0, settings, dbus.ObjectPath(wifiDev), specific).Store(&newConn, &newActive)
 }
 
-// updatePassword rewrites a saved wifi profile's PSK, keeping the rest of its
-// settings intact.
-func (n *networkState) updatePassword(conn dbus.ObjectPath, password string) error {
+// editableSettings reads a saved profile's settings in a shape that can be
+// handed straight back to Update. NetworkManager still reports the deprecated
+// ipv4/ipv6 "addresses" and "routes" mirrors of "address-data"/"route-data",
+// and the ipv6 pair is an array of structs (a(ayuay)) that godbus decodes to a
+// shape it re-encodes as aav, which Update then rejects with a type error. The
+// mirrors carry nothing address-data does not, and NetworkManager regenerates
+// them, so dropping them is what makes a read-modify-write possible at all.
+func (n *networkState) editableSettings(conn dbus.ObjectPath) (map[string]map[string]dbus.Variant, error) {
 	var s map[string]map[string]dbus.Variant
 	if err := n.obj(conn).Call(nmSettConnIface+".GetSettings", 0).Store(&s); err != nil {
+		return nil, err
+	}
+	dropLegacyAddresses(s)
+	return s, nil
+}
+
+// dropLegacyAddresses removes the deprecated ipv4/ipv6 address and route
+// mirrors from a settings dict. Pure, so the rule is unit-tested without a bus.
+func dropLegacyAddresses(s map[string]map[string]dbus.Variant) {
+	for _, group := range []string{"ipv4", "ipv6"} {
+		keys := s[group]
+		if keys == nil {
+			continue
+		}
+		delete(keys, "addresses")
+		delete(keys, "routes")
+	}
+}
+
+// updatePassword rewrites a saved wifi profile's PSK, keeping the rest of its
+// settings intact. It fills in key-mgmt only when the profile has none yet,
+// from the security the caller resolved, so refreshing the passphrase on a
+// WPA3-SAE profile does not silently downgrade it to wpa-psk.
+func (n *networkState) updatePassword(conn dbus.ObjectPath, password, keyMgmt string) error {
+	s, err := n.editableSettings(conn)
+	if err != nil {
 		return err
 	}
 	sec := s["802-11-wireless-security"]
@@ -448,24 +498,54 @@ func (n *networkState) updatePassword(conn dbus.ObjectPath, password string) err
 		sec = map[string]dbus.Variant{}
 		s["802-11-wireless-security"] = sec
 	}
-	sec["key-mgmt"] = dbus.MakeVariant("wpa-psk")
+	if _, ok := sec["key-mgmt"]; !ok {
+		sec["key-mgmt"] = dbus.MakeVariant(keyMgmt)
+	}
 	sec["psk"] = dbus.MakeVariant(password)
 	return n.obj(conn).Call(nmSettConnIface+".Update", 0, s).Err
 }
 
-// apForSsid returns the path of a visible access point advertising ssid, or "/"
-// when none is (so NetworkManager picks one itself).
-func (n *networkState) apForSsid(wifiDev dbus.ObjectPath, ssid string) dbus.ObjectPath {
+// updateBand pins a saved wifi profile to one radio band so autoconnect stops
+// re-picking the strongest BSS (2.4 GHz at range) after the user chose a
+// specific access point.
+func (n *networkState) updateBand(conn dbus.ObjectPath, band string) error {
+	s, err := n.editableSettings(conn)
+	if err != nil {
+		return err
+	}
+	w := s["802-11-wireless"]
+	if w == nil {
+		w = map[string]dbus.Variant{}
+		s["802-11-wireless"] = w
+	}
+	w["band"] = dbus.MakeVariant(band)
+	return n.obj(conn).Call(nmSettConnIface+".Update", 0, s).Err
+}
+
+// bestApForSsid resolves the access point a connection should bind to. With a
+// bssid it returns the AP whose HwAddress matches case-insensitively, so the
+// caller can pin an exact band; otherwise it returns the strongest matching AP,
+// so a dual-band SSID does not settle on its weaker 2.4 GHz radio. It returns
+// "/" and nil when nothing matches, letting NetworkManager choose.
+func (n *networkState) bestApForSsid(wifiDev dbus.ObjectPath, ssid, bssid string) (dbus.ObjectPath, *apInfo) {
+	bestPath := dbus.ObjectPath("/")
+	var best *apInfo
 	for _, ap := range n.apPaths(wifiDev) {
-		v, err := n.obj(ap).GetProperty(nmApIface + ".Ssid")
-		if err != nil {
+		info := n.apInfo(ap)
+		if info == nil || info.Ssid != ssid {
 			continue
 		}
-		if b, ok := v.Value().([]byte); ok && decodeSsid(b) == ssid {
-			return ap
+		if bssid != "" {
+			if strings.EqualFold(info.Bssid, bssid) {
+				return ap, info
+			}
+			continue
+		}
+		if best == nil || info.Strength > best.Strength {
+			bestPath, best = ap, info
 		}
 	}
-	return dbus.ObjectPath("/")
+	return bestPath, best
 }
 
 func (n *networkState) wifiDisconnect() error {
@@ -750,6 +830,38 @@ func decodeSsid(b []byte) string {
 	return string(b)
 }
 
+// bandForFrequency labels an access point's radio band from its centre
+// frequency in MHz for the reveal: 2.4 GHz below 2500, 5 GHz through 5924,
+// 6 GHz at or above 5925, and "" when the frequency is unknown.
+func bandForFrequency(mhz int) string {
+	switch {
+	case mhz <= 0:
+		return ""
+	case mhz < 2500:
+		return "2.4"
+	case mhz < 5925:
+		return "5"
+	default:
+		return "6"
+	}
+}
+
+// nmBandForFrequency maps a frequency to NetworkManager's 802-11-wireless.band
+// value: "bg" for 2.4 GHz, "a" for 5 GHz. It returns "" for 6 GHz and unknown
+// frequencies because NM's band property has no portable 6 GHz value across the
+// supported versions and writing an invalid one makes AddAndActivateConnection
+// fail, so the caller must omit the key rather than guess.
+func nmBandForFrequency(mhz int) string {
+	switch bandForFrequency(mhz) {
+	case "2.4":
+		return "bg"
+	case "5":
+		return "a"
+	default:
+		return ""
+	}
+}
+
 // apFrame flattens an apInfo into the JSON object the QML reveal binds to.
 func apFrame(a *apInfo) map[string]any {
 	return map[string]any{
@@ -758,6 +870,7 @@ func apFrame(a *apInfo) map[string]any {
 		"security":  a.Security,
 		"bssid":     a.Bssid,
 		"frequency": a.Frequency,
+		"band":      bandForFrequency(a.Frequency),
 		"saved":     a.Saved,
 		"active":    a.Active,
 	}
@@ -812,23 +925,46 @@ func apSecurity(flags, wpa, rsn uint32) string {
 	}
 }
 
+// keyMgmtForSecurity picks the key-mgmt for a fresh profile from the security
+// apSecurity reports: "sae" for WPA3 so a WPA3-only network can be joined,
+// "wpa-psk" for WPA2/WPA and anything unknown (the safe default).
+func keyMgmtForSecurity(security string) string {
+	if security == "Wpa3" {
+		return "sae"
+	}
+	return "wpa-psk"
+}
+
 // wifiConnectSettings builds a minimal NetworkManager profile for a fresh
 // connection: an open network gets no security block; a passphrase adds a
-// WPA-PSK block. Pure so the shape is unit-tested without a bus.
-func wifiConnectSettings(ssid, password string) map[string]map[string]dbus.Variant {
+// security block whose key-mgmt follows the AP's advertised security so
+// WPA3-SAE joins as sae instead of being forced to wpa-psk. A caller-supplied
+// bssid pins the profile to the resolved AP's band so autoconnect keeps the
+// chosen radio. Pure so the shape is unit-tested without a bus.
+func wifiConnectSettings(ssid, password, bssid string, ap *apInfo) map[string]map[string]dbus.Variant {
+	wireless := map[string]dbus.Variant{
+		"ssid": dbus.MakeVariant([]byte(ssid)),
+		"mode": dbus.MakeVariant("infrastructure"),
+	}
+	if bssid != "" && ap != nil {
+		if band := nmBandForFrequency(ap.Frequency); band != "" {
+			wireless["band"] = dbus.MakeVariant(band)
+		}
+	}
 	settings := map[string]map[string]dbus.Variant{
 		"connection": {
 			"id":   dbus.MakeVariant(ssid),
 			"type": dbus.MakeVariant("802-11-wireless"),
 		},
-		"802-11-wireless": {
-			"ssid": dbus.MakeVariant([]byte(ssid)),
-			"mode": dbus.MakeVariant("infrastructure"),
-		},
+		"802-11-wireless": wireless,
 	}
 	if password != "" {
+		keyMgmt := "wpa-psk"
+		if ap != nil {
+			keyMgmt = keyMgmtForSecurity(ap.Security)
+		}
 		settings["802-11-wireless-security"] = map[string]dbus.Variant{
-			"key-mgmt": dbus.MakeVariant("wpa-psk"),
+			"key-mgmt": dbus.MakeVariant(keyMgmt),
 			"psk":      dbus.MakeVariant(password),
 		}
 	}

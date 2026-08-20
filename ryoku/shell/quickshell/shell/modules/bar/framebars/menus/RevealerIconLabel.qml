@@ -8,18 +8,21 @@ import Ryoku.Ui.Singletons
 
 // The collapsed header content of a RevealerButton (contract 16 sec 2.4,
 // contract 06 sec 2.2): a leading icon, an elided label that takes the slack,
-// and an optional trailing icon shown only when named. Icons are 16px and
-// track `iconColor` so a host row can dim or accent them; the label is 14px.
+// and an optional trailing icon shown only when named, plus an optional trailing
+// text chip (mono, dimmed) shown only when set. Icons are 16px and track
+// `iconColor` so a host row can dim or accent them; the label is 14px.
 Item {
     id: root
 
     property string iconName: ""
     property string label: ""
     property string secondaryIconName: ""
+    property string trailingText: ""
     property color iconColor: Theme.ink(Theme.effectiveSurface)
 
     implicitHeight: Math.max(Theme.iconSm, text.implicitHeight)
     implicitWidth: (root.iconName ? Theme.iconSm + 12 : 0) + text.implicitWidth
+        + (root.trailingText ? chip.implicitWidth + 8 : 0)
         + (root.secondaryIconName ? Theme.iconSm + 12 : 0)
 
     MaterialIcon {
@@ -37,13 +40,25 @@ Item {
         id: text
         anchors.left: root.iconName ? icon.right : parent.left
         anchors.leftMargin: root.iconName ? 12 : 0
-        anchors.right: secondary.visible ? secondary.left : parent.right
-        anchors.rightMargin: secondary.visible ? 12 : 0
+        anchors.right: chip.visible ? chip.left : (secondary.visible ? secondary.left : parent.right)
+        anchors.rightMargin: (chip.visible || secondary.visible) ? 12 : 0
         anchors.verticalCenter: parent.verticalCenter
         text: I18n.tr(root.label)
         elide: Text.ElideRight
         color: root.iconColor
         font.family: Theme.fontPrimary
+        font.pixelSize: Theme.fontSm
+    }
+
+    Text {
+        id: chip
+        anchors.right: secondary.visible ? secondary.left : parent.right
+        anchors.rightMargin: secondary.visible ? 8 : 0
+        anchors.verticalCenter: parent.verticalCenter
+        visible: root.trailingText.length > 0
+        text: root.trailingText
+        color: Theme.inkOn(Theme.effectiveSurface, Theme.onSurfaceVariant, 3.0)
+        font.family: Theme.mono
         font.pixelSize: Theme.fontSm
     }
 

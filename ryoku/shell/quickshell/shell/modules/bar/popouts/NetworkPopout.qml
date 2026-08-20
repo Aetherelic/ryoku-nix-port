@@ -30,20 +30,58 @@ Item {
     readonly property bool anyLink: root.wifiOn || root.wiredUp
     property bool scanning: false
 
+    // available networks: one row per SSID+band, the strongest AP kept and the
+    // list sorted by signal descending. keying by SSID alone dropped a dual-band
+    // SSID's 5 GHz BSS; only the connected band row is filtered, so a link on
+    // 2.4 GHz still leaves the same SSID's 5 GHz row pickable.
     readonly property var availableNets: {
-        const seen = ({});
+        const aps = Network.accessPoints;
+        let activeBand = "";
+        for (let a = 0; a < aps.length; a++) {
+            if (aps[a] && aps[a].active) {
+                activeBand = aps[a].band || "";
+                break;
+            }
+        }
+        const best = ({});
+        for (let i = 0; i < aps.length; i++) {
+            const ap = aps[i];
+            if (!ap || !ap.ssid)
+                continue;
+            if (ap.ssid === root.activeSsid && (activeBand === "" || (ap.band || "") === activeBand))
+                continue;
+            const key = ap.ssid + "\u0000" + (ap.band || "");
+            const prev = best[key];
+            if (!prev || (ap.strength || 0) > (prev.strength || 0))
+                best[key] = ap;
+        }
         const out = [];
+        for (const k in best)
+            out.push(best[k]);
+        out.sort((x, y) => (y.strength || 0) - (x.strength || 0));
+        return out;
+    }
+
+    // SSIDs seen on more than one band in the scan: a row shows its band chip
+    // only for these, so single-band networks read exactly as before. Counted
+    // over every scanned AP, not the rendered list, so the 5 GHz row of the
+    // SSID you are already on (whose 2.4 GHz row is filtered out) stays chipped.
+    readonly property var multiBandSsids: {
+        const bands = ({});
         const aps = Network.accessPoints;
         for (let i = 0; i < aps.length; i++) {
             const ap = aps[i];
-            if (!ap || !ap.ssid || ap.ssid === root.activeSsid)
+            if (!ap || !ap.ssid || !ap.band)
                 continue;
-            if (seen[ap.ssid])
-                continue;
-            seen[ap.ssid] = true;
-            out.push(ap);
+            if (!bands[ap.ssid])
+                bands[ap.ssid] = ({});
+            bands[ap.ssid][ap.band] = true;
         }
-        return out;
+        const multi = ({});
+        for (const s in bands)
+            if (Object.keys(bands[s]).length > 1)
+                multi[s] = true;
+        return multi;
     }
     onAvailableNetsChanged: if (root.availableNets.length > 0) root.scanning = false
 
@@ -97,7 +135,7 @@ Item {
         function doConnect() {
             apr.errorShown = false;
             apr.connecting = true;
-            apr.pendingId = Network.connectWifi(apr.ap.ssid, apr.needsPw ? pwField.text : "");
+            apr.pendingId = Network.connectWifi(apr.ap.ssid, apr.needsPw ? pwField.text : "", apr.ap.bssid);
         }
         Connections {
             target: Network
@@ -156,6 +194,14 @@ Item {
                 anchors.rightMargin: 8 * root.s
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 5 * root.s
+                Text {
+                    visible: (apr.ap.band || "") !== "" && !!root.multiBandSsids[apr.ap.ssid]
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: apr.ap.band || ""
+                    color: root.inkDim
+                    font.family: Theme.mono
+                    font.pixelSize: 9.5 * root.s
+                }
                 GlyphIcon {
                     visible: apr.sec
                     anchors.verticalCenter: parent.verticalCenter

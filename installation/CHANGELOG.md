@@ -6,6 +6,10 @@ A ground-up hardening of the installer for real hardware. Granular backend and
 ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
 
 ### Added
+- **5 GHz Wi-Fi works after install.** The configure stage now pins the Wi-Fi
+  regulatory domain (the country) in the target, so the kernel leaves world
+  domain `00` and stops hiding most 5 GHz channels; resolved from `RYOKU_REGDOM`,
+  geolocation, or the locale. Detail in `backend/CHANGELOG.md`.
 - **A gate before the ISO build.** `tests/iso-preflight.sh` runs the root-free
   installer suite in about ten seconds (shell syntax + ShellCheck, package lists,
   the offline-install regressions, the boot-menu fixtures, the dry-run
