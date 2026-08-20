@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Apple Music is a first-class music source.** The now-playing daemon detects
+  Sidra and Cider (and any `music.apple.com` web player) as `applemusic` rather
+  than lumping them in with "other"; their synced lyrics and cover art already
+  flow through the same LRCLIB and iTunes path as every other player, so an Apple
+  Music client now works end to end (`ipc/music.go`).
 - **Fiction and gaming launcher logos.** 36 more picker marks from the shipped
   Nerd Font: Star Wars factions (Empire, Jedi, Sith, Mandalorian, First Order,
   Death Star), consoles (PlayStation, Xbox, Switch, Minecraft), arcade (Space
@@ -67,6 +72,30 @@
   user's file alone.
 
 ### Fixed
+- **The now-playing sheet no longer strobes between lyrics and the visualizer.**
+  Two causes: the player pick had no stickiness, so a second player (a browser
+  tab, a game bleep) could steal it and reload the track mid-song, and the side
+  area flipped to the visualizer on any transient gap while lyrics were still
+  loading. The pick is now sticky (it keeps the sounding player), and the
+  lyrics/visualizer switch has hysteresis, so the visualizer only takes over once
+  a track has settled with no lyrics (`services/Media.qml`,
+  `modules/desktop/music/MusicWidget.qml`).
+- **The desktop no longer ends up drawn twice.** A shell surface left over from a
+  daemon that was killed rather than asked to quit kept rendering, and the
+  replacement daemon drew a whole second desktop on top of it: two bars, two
+  wallpapers, double the memory, for the rest of the session. Quickshell allows
+  two instances of one config, so nothing else refused it, and the old reap could
+  not clear it: it matched only the argv form the running daemon happened to use
+  (a packaged `-c shell` never recognised a checkout's `-p .../quickshell/shell`),
+  it signalled without waiting, and it ran once per daemon rather than before
+  each start, so a leftover that ignored SIGTERM (a wedged Qt process, which is
+  what a busy machine launching an app produces) survived forever. The reap now
+  matches either selector form and either binary name, waits for the process to
+  actually go and SIGKILLs what will not, and runs before every surface start;
+  `shutdown` waits for its children instead of signalling and exiting, so a
+  restart cannot hand a live surface to the next daemon; and the daemon holds an
+  exclusive lock beside its socket, so a cleaned runtime dir can no longer let two
+  daemons supervise two desktops (`ipc/daemon.go`).
 - **The QS Bar gap animation no longer strands a frozen frame in Power Saver.**
   Reduce-motion (Power Saver) froze the reactor/stream canvas to its last frame;
   a shell reload in that state re-created the canvas, painted one transitional

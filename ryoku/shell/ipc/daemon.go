@@ -81,6 +81,7 @@ type daemon struct {
 	quit           chan struct{}
 	closed         bool
 	ln             net.Listener
+	lock           *os.File                 // exclusive single-daemon guard, held until exit
 	voiceMu        sync.Mutex               // serializes voice (Super+`) toggles
 	voiceOn        bool                     // dictation active; guarded by voiceMu
 	prompter       *prompter                // GNOME keyring system prompter (nil when unavailable)
@@ -129,6 +130,15 @@ func runDaemon() error {
 		}
 		quitStaleDaemon(path)
 	}
+	// A lock, not just the socket: a runtime dir cleaned under a live daemon (or
+	// a socket file removed by hand) makes the dial above succeed at nothing, and
+	// two daemons each supervising a desktop is the duplicate-shell bug. The lock
+	// lives for the life of the process and is released by exit, so a crash never
+	// wedges the next start.
+	lock, err := holdDaemonLock(path + ".lock")
+	if err != nil {
+		return err
+	}
 	_ = os.Remove(path)
 	// The control socket drives session-scoped actions; keep it owner-only so a
 	// second local user can't connect. net.Listen would otherwise leave it at
@@ -156,6 +166,7 @@ func runDaemon() error {
 		lastTransition: -1,
 	}
 	d.ln = ln
+	d.lock = lock // held for the process lifetime: closing it would free the guard
 
 	go func() {
 		sig := make(chan os.Signal, 1)
@@ -310,45 +321,189 @@ func (d *daemon) bootstrap() {
 	go d.liveGateWorker()
 }
 
+// holdDaemonLock takes the exclusive single-daemon lock, retrying briefly: a
+// stale daemon we just asked to quit may still be letting go of it. The returned
+// file must stay open for as long as the daemon runs.
+func holdDaemonLock(path string) (*os.File, error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err == nil {
+			return f, nil
+		}
+		if time.Now().After(deadline) {
+			f.Close()
+			return nil, fmt.Errorf("another ryoku-shell daemon holds %s", path)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 // startupStagger spaces the persistent components' cold starts at login so a
 // handful of Quickshell processes do not contend for the GPU and CPU in the same
 // frame (the boot-contention burst iNiR calls out).
 const startupStagger = 250 * time.Millisecond
 
-// reapStrays kills quickshell components left behind by a previous daemon. A
-// daemon that was killed rather than asked to quit leaves its children running:
-// they outlive it, and the replacement starts a second set on top, so the pill
-// and the visualiser end up drawn twice. Anything matching a component we own
-// is stray at this point, since our own are not started yet.
-func (d *daemon) reapStrays() {
-	self := os.Getpid()
+// reapStrays kills quickshell instances left behind by a previous daemon and
+// returns how many it had to remove.
+//
+// A daemon that was killed rather than asked to quit leaves its children
+// running: the unit is KillMode=process so systemd never touches them, and the
+// replacement starts a second set on top, so every surface ends up drawn twice.
+// Quickshell itself allows two instances of one config, so nothing else stops
+// this; if the leftover ignores SIGTERM (a wedged Qt process, common while the
+// machine is busy launching an app) the duplicate used to survive forever.
+//
+// So this waits: signal, watch for the process to actually go, then SIGKILL
+// whatever is left. It runs before every start, not once per daemon, because a
+// stray can appear at any point in a session.
+func (d *daemon) reapStrays() int {
+	strays := d.strayPids()
+	if len(strays) == 0 {
+		return 0
+	}
+	signalAll(strays, syscall.SIGTERM)
+	strays = waitGone(strays, 3*time.Second)
+	if len(strays) > 0 {
+		// SIGTERM was ignored or the process is stuck in a syscall: take it out,
+		// because a second live shell is worse than a hard kill.
+		signalAll(strays, syscall.SIGKILL)
+		strays = waitGone(strays, time.Second)
+	}
+	return len(strays)
+}
+
+// strayPids lists live quickshell processes that render a component this daemon
+// owns but are not its own children.
+func (d *daemon) strayPids() []int {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
-		return
+		return nil
 	}
-	want := map[string]bool{}
-	for _, c := range components {
-		want[strings.Join(qsSelect(c.name), " ")] = true
-	}
+	mine := d.ownedPids()
+	self := os.Getpid()
+	var out []int
 	for _, e := range entries {
 		pid, err := strconv.Atoi(e.Name())
-		if err != nil || pid == self {
+		if err != nil || pid == self || mine[pid] {
 			continue
 		}
 		raw, err := os.ReadFile(filepath.Join("/proc", e.Name(), "cmdline"))
 		if err != nil {
 			continue
 		}
-		fields := strings.Split(strings.TrimRight(string(raw), "\x00"), "\x00")
-		if len(fields) < 3 || filepath.Base(fields[0]) != "qs" {
-			continue
-		}
-		if want[strings.Join(fields[1:], " ")] {
-			if p, err := os.FindProcess(pid); err == nil {
-				_ = p.Signal(syscall.SIGTERM)
+		argv := strings.Split(strings.TrimRight(string(raw), "\x00"), "\x00")
+		for _, c := range components {
+			if selectsComponent(argv, qsSelect(c.name)) {
+				out = append(out, pid)
+				break
 			}
 		}
 	}
+	return out
+}
+
+// ownedPids: the quickshell children this daemon is supervising right now, so a
+// reap never shoots its own live surface.
+func (d *daemon) ownedPids() map[int]bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	out := make(map[int]bool, len(d.proc))
+	for _, c := range d.proc {
+		if c != nil && c.Process != nil {
+			out[c.Process.Pid] = true
+		}
+	}
+	return out
+}
+
+// selectsComponent reports whether argv is a quickshell process rendering the
+// component that sel (from qsSelect) names.
+//
+// Matching the whole argv tail as one string used to be the rule, which missed
+// every instance started in the other mode: a packaged daemon looks for
+// "-c shell" and a dev checkout's leftover reads "-p /path/quickshell/shell", so
+// the strays that matter most survived the reap. Both forms name the same
+// config, so both are matched here, and the binary may be called either of the
+// names Quickshell installs.
+func selectsComponent(argv, sel []string) bool {
+	if len(argv) < 3 || len(sel) < 2 {
+		return false
+	}
+	switch filepath.Base(argv[0]) {
+	case "qs", "quickshell":
+	default:
+		return false
+	}
+	// a client invocation (`qs -c shell ipc call ...`) talks to an instance, it
+	// is not one; only a bare selector runs a config.
+	name := filepath.Base(sel[1])
+	for i := 1; i < len(argv)-1; i++ {
+		switch argv[i] {
+		case "-c", "--config":
+			if argv[i+1] == name && i+2 == len(argv) {
+				return true
+			}
+		case "-p", "--path":
+			if filepath.Base(argv[i+1]) == name && i+2 == len(argv) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func signalAll(pids []int, sig syscall.Signal) {
+	for _, pid := range pids {
+		if p, err := os.FindProcess(pid); err == nil {
+			_ = p.Signal(sig)
+		}
+	}
+}
+
+// waitGone returns the pids still alive after up to d, polling so a process that
+// exits at once costs nothing.
+func waitGone(pids []int, d time.Duration) []int {
+	deadline := time.Now().Add(d)
+	for {
+		left := pids[:0:0]
+		for _, pid := range pids {
+			if pidAlive(pid) {
+				left = append(left, pid)
+			}
+		}
+		if len(left) == 0 || time.Now().After(deadline) {
+			return left
+		}
+		pids = left
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// pidAlive: signal 0 probes without delivering. A zombie still answers, so the
+// /proc state is checked too; a reaped child of ours is gone either way.
+func pidAlive(pid int) bool {
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	if err := p.Signal(syscall.Signal(0)); err != nil {
+		return false
+	}
+	st, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "stat"))
+	if err != nil {
+		return false
+	}
+	if i := strings.LastIndexByte(string(st), ')'); i > 0 {
+		fields := strings.Fields(string(st)[i+1:])
+		if len(fields) > 0 && fields[0] == "Z" {
+			return false
+		}
+	}
+	return true
 }
 
 // startComponents brings the persistent components up one at a time, pill first,
@@ -434,6 +589,10 @@ func (d *daemon) supervise(name string) {
 			case <-time.After(5 * time.Second):
 			}
 		}
+		// Never start a second copy of a surface: anything already rendering this
+		// component is a leftover (our own child is tracked, so it is excluded),
+		// and it goes before we draw over it.
+		d.reapStrays()
 		cmd := exec.Command("qs", qsSelect(name)...)
 		cmd.Env = qsEnv()
 		if err := cmd.Start(); err != nil {
@@ -539,18 +698,30 @@ func (d *daemon) signalQuit() {
 	}
 }
 
-// shutdown stops the supervised Quickshell processes.
+// shutdown stops the supervised Quickshell processes and does not return until
+// they are gone.
+//
+// Returning early is what left a live surface behind: systemd is KillMode=process
+// (so a user's apps survive a shell reload) and would restart us straight away,
+// and the replacement daemon then drew a second desktop on top of the one still
+// running. SIGTERM first so Quickshell can bow out cleanly, SIGKILL if it will
+// not.
 func (d *daemon) shutdown() {
 	d.mu.Lock()
-	procs := make([]*exec.Cmd, 0, len(d.proc))
+	pids := make([]int, 0, len(d.proc))
 	for _, c := range d.proc {
-		procs = append(procs, c)
+		if c != nil && c.Process != nil {
+			pids = append(pids, c.Process.Pid)
+		}
 	}
 	d.mu.Unlock()
-	for _, c := range procs {
-		if c.Process != nil {
-			_ = c.Process.Signal(syscall.SIGTERM)
-		}
+	if len(pids) == 0 {
+		return
+	}
+	signalAll(pids, syscall.SIGTERM)
+	if left := waitGone(pids, 3*time.Second); len(left) > 0 {
+		signalAll(left, syscall.SIGKILL)
+		waitGone(left, time.Second)
 	}
 }
 
