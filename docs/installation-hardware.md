@@ -14,9 +14,12 @@ The backend that implements the automatic half lives in
 - [Intel VMD / RST hides the NVMe](#intel-vmd--rst-hides-the-nvme)
 - [Secure Boot vs unsigned Limine](#secure-boot-vs-unsigned-limine)
 - [NVIDIA black or garbled screen](#nvidia-black-or-garbled-screen)
-- [Windows dual-boot](#windows-dual-boot)
+- [Dual-boot (Windows or another Linux)](#dual-boot-windows-or-another-linux)
 - [Broadcom Wi-Fi](#broadcom-wi-fi)
 - [ASUS Aura keyboard lighting](#asus-aura-keyboard-lighting)
+- [Xbox controller will not pair over Bluetooth](#xbox-controller-will-not-pair-over-bluetooth)
+- [Bluetooth adapter is detected but never comes up](#bluetooth-adapter-is-detected-but-never-comes-up)
+- [Xbox Wireless Dongle is not supported](#xbox-wireless-dongle-is-not-supported)
 - [Only 2.4 GHz networks appear, or 5 GHz will not connect](#only-24-ghz-networks-appear-or-5-ghz-will-not-connect)
 - [RTC clock skew vs pacman signatures](#rtc-clock-skew-vs-pacman-signatures)
 - [NVRAM-readonly firmware](#nvram-readonly-firmware)
@@ -200,6 +203,77 @@ carry the same package.
 **What the user must do.** Usually nothing. An existing TLP installation
 conflicts with `asusctl`, so conversion leaves TLP in place and `ryoku doctor`
 reports the choice instead of removing a power stack silently.
+
+## Xbox controller will not pair over Bluetooth
+
+**Symptom.** An Xbox One or Series pad never finishes pairing, or it connects and
+then drops within seconds, over and over. The same pad works fine on a USB cable.
+
+**Cause.** These pads' L2CAP handshake does not survive the kernel's Enhanced
+Retransmission Mode, which is on by default (`disable_ertm=N`). It looks like a
+broken controller or a bad adapter, and it is the most common "my Xbox pad will
+not connect on Linux" report. Separately, `xpad`, the in-kernel Xbox driver,
+handles these pads only over a cable and does not speak Bluetooth at all.
+
+**What Ryoku does.** `ryoku-desktop` ships
+`/usr/lib/modprobe.d/99-ryoku-controller.conf`, which sets `disable_ertm=1` as a
+`modprobe.d` drop-in, so it applies on first module load and survives a kernel
+change. `xpadneo-dkms` provides the Bluetooth driver and is in `base.packages`,
+shipped from `[ryoku]` so `ryoku update` keeps it current.
+
+**What the user must do.** Nothing on a fresh install. On a machine that predates
+this, `ryoku update` installs both; the ERTM change needs a reboot, or
+`modprobe -r btusb && modprobe btusb` to take effect without one. A pad paired
+while ERTM was on should be removed and re-paired.
+
+## Bluetooth adapter is detected but never comes up
+
+**Symptom.** `bluetoothctl` shows no controller, or the adapter appears and never
+powers on. `dmesg` names a missing file, for example
+`bluetooth hci0: BCM: Patch brcm/BCM20702A1-0a5c-21e8.hcd not found`. Common on
+cheap USB dongles and on older laptops with BCM43142 or BCM20702.
+
+**Cause.** Broadcom's USB Bluetooth parts are not self-initialising: `btbcm`
+uploads a patchram blob matching the device's USB vendor:product id, and only
+then does the adapter work. Arch's `linux-firmware` default set covers nearly
+every adapter (`-intel`, `-realtek`, `-mediatek`, `-atheros`, `-broadcom`), but
+`linux-firmware-broadcom` ships no `.hcd` files at all, so a Broadcom device has
+nothing to load and reads as dead hardware.
+
+**What Ryoku does.** `broadcom-bt-firmware` is in `base.packages`, shipped from
+`[ryoku]`, and adds the 114 missing `.hcd` blobs. It shares no file with
+`linux-firmware-broadcom`, so the two coexist.
+
+**What the user must do.** Nothing on a fresh install. On an older machine,
+`ryoku update` installs it; replug the adapter or reboot afterwards.
+
+## Xbox Wireless Dongle is not supported
+
+**Symptom.** The Xbox Wireless Dongle (the small USB adapter that pairs Xbox pads
+without Bluetooth) does nothing. Pads still work over Bluetooth and over USB.
+
+**Cause.** The dongle speaks Microsoft's proprietary Game Input Protocol over
+2.4 GHz, not Bluetooth, so neither `xpad` nor `xpadneo` can drive it. Only the
+`xone` driver can, and supporting it is a deliberate non-goal:
+
+- `xone` ships `blacklist xpad` and `blacklist mt76x2u`. Blacklisting `xpad`
+  takes wired Xbox pads and every XInput off-brand with it, and upstream's own
+  README confirms "installing `xone` will disable the `xpad` kernel driver",
+  recommending a third driver fork (`xpad-noone`) to get them back.
+  Blacklisting `mt76x2u` breaks MediaTek USB Wi-Fi adapters, which have nothing
+  to do with controllers.
+- The dongle's firmware is extracted from Microsoft's Windows driver package and
+  is Microsoft-licensed, so it cannot be redistributed in the signed `[ryoku]`
+  repo the way a GPL driver can. Upstream fetches it on the user's own machine
+  behind a Terms-of-Use prompt, precisely because of this.
+
+Trading working wired pads, off-brand pads and USB Wi-Fi for one accessory is the
+wrong default, so Ryoku ships neither the driver nor the firmware.
+
+**What the user must do.** Use Bluetooth or a USB cable, both of which work out
+of the box. To use the dongle anyway, install `xone-dkms` and
+`xone-dongle-firmware` from the AUR and accept the blacklists; `xpad-noone`
+restores the other pads.
 
 ## Only 2.4 GHz networks appear, or 5 GHz will not connect
 

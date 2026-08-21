@@ -189,11 +189,24 @@ raw.githubusercontent.com serves them with no release infrastructure.
 ## `release/` packaging
 
 - `packages/` one directory per pacman package in the `[ryoku]` repo, each a
-  `PKGBUILD` that builds from the checked-out monorepo. Twelve in all: the
-  monorepo components (`ryoku-shell`, `ryoku-hub`, `ryoku-rashin`, `ryoku`,
-  `ryoku-blobs`), the `ryoku-desktop` umbrella, `ryoku-keyring`, the `gpk`
-  package manager, and the Hyprland plugins (`hypr-dynamic-cursors`,
-  `ryoku-hypr-plugins`, `hyprglass`, `imgborders`).
+  `PKGBUILD`. 26 in all, in four groups by why they exist:
+  - built from the checked-out monorepo: the components (`ryoku-shell`,
+    `ryoku-hub`, `ryoku-rashin`, `ryoku`, `ryoku-blobs`, `ryomotion`), the
+    `ryoku-desktop` umbrella, `ryoku-keyring`, and the `gpk` package manager.
+  - Hyprland plugins: `hypr-dynamic-cursors`, `ryoku-hypr-plugins`, `hyprglass`,
+    `imgborders`.
+  - rebuilt from upstream so `ryoku update` can reach them, because it is pacman
+    and pacman never touches the AUR: `asusctl`, `awww`, `spicetify-cli`,
+    `hyprland-preview-share-picker`, `limine-mkinitcpio-hook`,
+    `limine-snapper-sync`, `otf-space-grotesk`, `ryoku-cursors`,
+    `ryoku-cursor-material`.
+  - hardware support, same reasoning: `xpadneo-dkms` (Xbox pads over Bluetooth,
+    which the in-kernel `xpad` does not do), `game-devices-udev` (hidraw
+    permissions and battery reporting for 27 vendors' pads),
+    `broadcom-bt-firmware` (the `.hcd` patchram blobs the default
+    `linux-firmware` set omits, without which a Broadcom adapter never comes up),
+    and `dualsensectl` (DualSense lightbar, LEDs and mic; opt-in, since most
+    machines have no DualSense).
 - `repo/` builds the signed `[ryoku]` repo from those PKGBUILDs: `build-repo.sh`
   runs `makepkg`, signs every artifact with the release key, and `repo-add`s the
   signed `ryoku.db` into `out/`, laid out exactly as the public mirror serves it.

@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- `tests/controllers.sh` and a `Controllers` workflow pin controller and
+  Bluetooth-adapter support, which is almost entirely a delivery problem: every
+  failure it guards is invisible on the build host and shows up only as "my
+  controller does not work" on a real machine. It catches the ERTM option
+  flipping back, a driver drifting into `aur.packages` where `ryoku update` can
+  never reach it, a `base.packages` entry with no `[ryoku]` recipe for pacman to
+  resolve, `meson` leaving the build toolchain, and `xone` arriving by default.
+  Each of those five was introduced deliberately and confirmed to fail the test
+  before the test was committed.
 - `input/99-ryoku-controller.conf`: Xbox pads pair over Bluetooth instead of
   refusing to. Their L2CAP handshake does not survive the kernel's Enhanced
   Retransmission Mode, so with `disable_ertm` at its default `N` they either

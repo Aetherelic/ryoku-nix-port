@@ -1,0 +1,67 @@
+name: Controllers
+
+# Controller and Bluetooth-adapter support is almost entirely a delivery problem,
+# which is why it is worth a test: every failure it guards is invisible on the
+# build host and only appears as "my controller does not work" on a real machine.
+#
+# The kernel already binds most pads (hid_playstation, hid_sony, hid_nintendo,
+# and xpad for wired Xbox plus every XInput off-brand). What Ryoku adds is the
+# Bluetooth half: xpadneo, because xpad does not speak Bluetooth at all, and the
+# ERTM drop-in, without which Xbox pads never finish pairing. Plus hidraw
+# permissions (game-devices-udev) and the Broadcom .hcd blobs the default
+# linux-firmware set omits.
+#
+# Three regression classes this pins:
+#
+#   - the ERTM option silently flipping back, which breaks Xbox pairing
+#   - a driver drifting back into aur.packages, where `ryoku update` (pacman)
+#     can never reach it, so a machine that missed the one-shot AUR build stays
+#     broken with no route to a fix
+#   - xone arriving by default, which blacklists xpad AND mt76x2u and so takes
+#     wired Xbox pads, every XInput off-brand, and MediaTek USB WiFi with it
+
+on:
+  pull_request:
+    paths:
+      - 'system/hardware/input/**'
+      - 'system/packages/base.packages'
+      - 'system/packages/aur.packages'
+      - 'release/packages/xpadneo-dkms/**'
+      - 'release/packages/game-devices-udev/**'
+      - 'release/packages/dualsensectl/**'
+      - 'release/packages/broadcom-bt-firmware/**'
+      - 'tests/controllers.sh'
+      - '.github/workflows/controllers.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'system/hardware/input/**'
+      - 'system/packages/base.packages'
+      - 'system/packages/aur.packages'
+      - 'release/packages/xpadneo-dkms/**'
+      - 'release/packages/game-devices-udev/**'
+      - 'release/packages/dualsensectl/**'
+      - 'release/packages/broadcom-bt-firmware/**'
+      - 'tests/controllers.sh'
+      - '.github/workflows/controllers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controllers:
+    name: The drivers ship, reach users, and stay opt-in where they must
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # pacman is absent on the runner, so the test's "is this an official
+      # package" probe fails closed and falls through to requiring a [ryoku]
+      # recipe. Every base entry it checks has one, so the result is the same
+      # answer by the stricter route.
+      - name: Controllers and Bluetooth adapters ship as intended
+        shell: bash
+        run: bash tests/controllers.sh
