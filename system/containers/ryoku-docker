@@ -28,12 +28,27 @@ NAME="ryoku-cobalt"
 IMAGE="ghcr.io/imputnet/cobalt:11"
 DEFAULT_PORT=9000
 
-# Test seams. The fixture suite drives fakes through these rather than a real
-# daemon, so the argument policy can be asserted without root.
-DOCKER="${RYOKU_DOCKER_BIN:-docker}"
-SYSTEMCTL="${RYOKU_DOCKER_SYSTEMCTL:-systemctl}"
-SOCKET="${RYOKU_DOCKER_SOCKET:-/var/run/docker.sock}"
-GETENT="${RYOKU_DOCKER_GETENT:-getent}"
+# Test seams, so the fixture suite can drive fakes rather than a real daemon and
+# assert the argument policy without root.
+#
+# SECURITY: they are honoured ONLY when this is not running privileged. pkexec
+# sanitises the environment, so in practice they cannot cross that boundary
+# anyway, but relying on that would make an env-passing change elsewhere silently
+# catastrophic: RYOKU_DOCKER_BIN reaching a root pass would be arbitrary root
+# code execution. Ignoring them at EUID 0 makes the privileged pass depend on
+# nothing the caller controls, which is a property this script can guarantee by
+# itself rather than borrow from pkexec.
+if [[ $EUID -eq 0 ]]; then
+  DOCKER=docker
+  SYSTEMCTL=systemctl
+  SOCKET=/var/run/docker.sock
+  GETENT=getent
+else
+  DOCKER="${RYOKU_DOCKER_BIN:-docker}"
+  SYSTEMCTL="${RYOKU_DOCKER_SYSTEMCTL:-systemctl}"
+  SOCKET="${RYOKU_DOCKER_SOCKET:-/var/run/docker.sock}"
+  GETENT="${RYOKU_DOCKER_GETENT:-getent}"
+fi
 
 emit() { printf '%s\t%s\n' "$1" "${2:-}"; }
 log() { printf 'ryoku-docker: %s\n' "$*" >&2; }

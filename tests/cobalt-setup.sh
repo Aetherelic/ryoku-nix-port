@@ -117,6 +117,40 @@ for v in "" bogus run exec docker "container-up; id" --help; do
   escalated && fail "helper escalated for verb '$v' before validating it"
 done
 
+# ---- the seams must NOT be honoured when running privileged ----------------
+# RYOKU_DOCKER_BIN reaching a root pass would be arbitrary root code execution.
+# pkexec sanitises the environment so it should never get there, but the script
+# refuses to depend on that: at EUID 0 it uses hardcoded paths. fakeroot gives a
+# real EUID of 0 without real privilege, which is exactly enough to exercise that
+# branch hermetically.
+#
+# The fake drops a sentinel FILE rather than printing: container-status captures
+# $DOCKER's stdout into a variable and sends its stderr to /dev/null, so a
+# printed marker would be swallowed and the check would silently pass.
+if command -v fakeroot >/dev/null 2>&1; then
+  cat >"$bin/evil-docker" <<EOF
+#!/bin/sh
+touch "$tmp/SEAM_USED"
+echo true
+EOF
+  chmod +x "$bin/evil-docker"
+
+  # container-status actually EXECUTES \$DOCKER; `state` only probes for it with
+  # command -v, so it would never reveal a honoured seam.
+  rm -f "$tmp/SEAM_USED"
+  RYOKU_DOCKER_BIN="$bin/evil-docker" fakeroot bash "$helper" container-status >/dev/null 2>&1 || true
+  [[ -e "$tmp/SEAM_USED" ]] \
+    && fail "RYOKU_DOCKER_BIN was honoured at EUID 0; a privileged pass must ignore the seams"
+
+  # Control: the same seam MUST reach $DOCKER unprivileged, or the check above is
+  # asserting nothing at all.
+  rm -f "$tmp/SEAM_USED"
+  RYOKU_DOCKER_ASSUME_ROOT=1 RYOKU_DOCKER_BIN="$bin/evil-docker" bash "$helper" container-status >/dev/null 2>&1 || true
+  [[ -e "$tmp/SEAM_USED" ]] \
+    || fail "the unprivileged run never reached RYOKU_DOCKER_BIN; the seam check proves nothing"
+  rm -f "$tmp/SEAM_USED"
+fi
+
 # A valid port must NOT be rejected (the allowlist has to permit the real case),
 # and an omitted or empty one falls back to the default rather than erroring.
 clear_escalated
