@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Added
+- `wireplumber/`: **Bluetooth earbuds that offer neither LDAC nor aptX stop
+  sounding terrible.** `bluez5.codecs` ranked `aac` above `sbc_xq`, so a device
+  without a hi-fi codec always landed on AAC, and on Linux that is the weaker
+  encoder: PipeWire's AAC typically tops out around 352 kbps while SBC-XQ
+  sustains over 500, and Samsung's AAC in particular is poorly regarded. That one
+  ordering is why the complaint was brand-shaped rather than universal, because
+  only devices without LDAC or aptX ever reached the AAC rung. `sbc_xq` now
+  outranks `aac`; LDAC and aptX still win outright when a device offers them, so
+  nothing good was given up.
+
+  `bluez5.codecs` is a monitor property, so that order is global and cannot be
+  expressed per device. The devices whose AAC really is better (Apple's,
+  typically) are served by `ryoku-bt-audio` instead, which remembers a codec per
+  device and puts it back on reconnect.
 - `ryostore/`: **the Discover page rotates daily instead of showing the same
   thing every day.** The hero and the item order are now seeded by the day
   number, so Discover holds still while you browse but reshuffles each day; it

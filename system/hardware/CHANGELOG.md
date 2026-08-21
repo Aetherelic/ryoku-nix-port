@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- `audio/ryoku-bt-audio` remembers a Bluetooth device's A2DP codec and puts it
+  back on every reconnect. WirePlumber persists a device's profile (headset vs
+  A2DP) but not its codec, so a hand-picked codec was lost every single time the
+  device came back, which is the part users otherwise redo forever. `set` refuses
+  a codec the device never offered, because remembering one would mean retrying a
+  doomed switch on each reconnect, and a device already on the wanted codec is
+  left alone, because the switch renegotiates the A2DP link and audibly drops
+  audio. No root: codec switching is a session operation through pipewire-pulse.
+  Login autostart runs `watch`, which is inert for anyone who never picked one.
+
 - `input/ryoku-hw-asus-aura` identifies laptops with a supported ASUS Aura
   keyboard from DMI product families or the `asus-nb-wmi` platform driver. The
   same quiet exit-status probe is used by both installers and `ryoku doctor`, so

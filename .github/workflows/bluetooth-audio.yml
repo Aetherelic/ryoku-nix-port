@@ -1,0 +1,61 @@
+name: Bluetooth audio
+
+# Two things that made Bluetooth sound bad, both now pinned by tests.
+#
+# The codec order: bluez5.codecs ranked aac above sbc_xq, so a device offering
+# neither LDAC nor aptX (every Samsung Galaxy Bud) landed on AAC, the weaker
+# encoder on Linux. bluetooth-audio-policy.sh asserts the order by POSITION, and
+# that the mic profile switch stays on. It replaced a test that asserted the
+# opposite of what shipped and had been failing for weeks.
+#
+# The codec memory: WirePlumber persists a device's profile but not its codec, so
+# a hand-picked codec was lost on every reconnect. bt-audio-codec.sh drives
+# ryoku-bt-audio against a fake pactl and asserts it refuses an unoffered codec,
+# leaves an already-correct device alone (the switch drops audio), and restores
+# the remembered one after a reconnect.
+
+on:
+  pull_request:
+    paths:
+      - 'ryoku/apps/wireplumber/**'
+      - 'system/hardware/audio/ryoku-bt-audio'
+      - 'tests/bluetooth-audio-policy.sh'
+      - 'tests/bt-audio-codec.sh'
+      - '.github/workflows/bluetooth-audio.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'ryoku/apps/wireplumber/**'
+      - 'system/hardware/audio/ryoku-bt-audio'
+      - 'tests/bluetooth-audio-policy.sh'
+      - 'tests/bt-audio-codec.sh'
+      - '.github/workflows/bluetooth-audio.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bluetooth-audio:
+    name: Codec order holds, and a chosen codec survives a reconnect
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq (the codec memory is JSON)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Per-device codec memory
+        shell: bash
+        run: bash tests/bt-audio-codec.sh
+
+      # Needs pw-config and WirePlumber's base config to merge against. The test
+      # skips itself when pw-config is absent, so this stays honest on a runner
+      # without PipeWire rather than pretending to have checked the policy.
+      - name: Effective WirePlumber policy
+        shell: bash
+        run: |
+          sudo apt-get install -y pipewire-bin wireplumber || true
+          bash tests/bluetooth-audio-policy.sh

@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# Remember a Bluetooth device's A2DP codec, and put it back on every reconnect.
+#
+# Why this exists: `bluez5.codecs` in 51-ryoku-bluetooth.conf is a MONITOR
+# property, so the codec order is global and cannot be expressed per device. The
+# order Ryoku ships is right for most hardware (LDAC and aptX first, then SBC-XQ
+# ahead of AAC because AAC is the weaker encoder on Linux), but "most" is not
+# "all": a device whose AAC really is better has no way to say so.
+#
+# PipeWire can switch codec at runtime, and WirePlumber does NOT remember it.
+# `device.restore-profile` and `bluetooth.use-persistent-storage` persist the
+# PROFILE (headset vs A2DP), not the codec, so a hand-picked codec is lost on
+# every reconnect. That is the gap this closes: pick once, and it sticks.
+#
+# No root anywhere. Codec switching is a session operation through pipewire-pulse
+# (the list-codecs / switch-codec messages live in
+# libpipewire-module-protocol-pulse.so), so this is a plain user helper.
+#
+# It lives under audio/ rather than bluetooth/ because that is the seam it works
+# on: bluetooth/ryoku-bluetooth-tune is a root helper editing BlueZ's own
+# /etc/bluetooth/main.conf, while this touches nothing but the PipeWire session,
+# exactly like ryoku-mic and ryoku-volume beside it.
+#
+# usage:
+#   ryoku-bt-audio list [<addr>]        codecs for a device: "<name>\t<active|available>"
+#   ryoku-bt-audio cards               connected bluez cards: "<addr>\t<card>"
+#   ryoku-bt-audio set <addr> <codec>   switch now, and remember it
+#   ryoku-bt-audio forget <addr>        stop remembering; the global order wins again
+#   ryoku-bt-audio apply                put remembered codecs back on connected devices
+#   ryoku-bt-audio watch                apply on every card change (login autostart)
+set -u
+
+PACTL="${RYOKU_BT_PACTL:-pactl}"
+CONFIG="${RYOKU_BT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/bluetooth.json}"
+
+log() { printf 'ryoku-bt-audio: %s\n' "$*" >&2; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# A card name carries the address with underscores; the config and the CLI accept
+# either form so a user can paste what `bluetoothctl` prints.
+norm_addr() { printf '%s' "${1//:/_}" | tr '[:lower:]' '[:upper:]'; }
+card_of() { printf 'bluez_card.%s' "$(norm_addr "$1")"; }
+
+# Connected bluez cards, as "<addr><tab><card>". Nothing else in this script
+# needs to know how pactl formats its short output.
+cards() {
+  "$PACTL" list cards short 2>/dev/null | awk '
+    { for (i = 1; i <= NF; i++) if ($i ~ /^bluez_card\./) {
+        addr = $i; sub(/^bluez_card\./, "", addr); print addr "\t" $i; break } }'
+}
+
+# The codec a device is using right now. PipeWire exposes it as the card
+# property api.bluez5.codec; absent means the device is not on A2DP at all
+# (headset profile has no A2DP codec), which is not an error.
+active_codec() {
+  "$PACTL" list cards 2>/dev/null | awk -v card="$1" '
+    $0 ~ /^\tName: / { cur = $2 }
+    cur == card && /api\.bluez5\.codec/ {
+      n = split($0, p, "\""); if (n >= 2) { print p[2]; exit }
+    }'
+}
+
+# Codecs the device offers. The message returns a JSON array; jq keeps the
+# parsing honest rather than grepping quotes out of it.
+offered() {
+  local out
+  out=$("$PACTL" send-message "/card/$1/bluez" list-codecs 2>/dev/null) || return 1
+  [[ -n $out ]] || return 1
+  if have jq; then
+    printf '%s' "$out" | jq -r 'if type == "array" then .[] | (if type == "object" then .name else . end) else empty end' 2>/dev/null
+  else
+    # Degrade rather than fail: pull the bare tokens out of the array.
+    printf '%s' "$out" | tr -d '[]"' | tr ',' '\n' | awk 'NF { print $1 }'
+  fi
+}
+
+stored_codec() {
+  [[ -f $CONFIG ]] || return 1
+  have jq || return 1
+  jq -r --arg a "$(norm_addr "$1")" '.[$a].codec // empty' "$CONFIG" 2>/dev/null
+}
+
+store_codec() {
+  local addr codec dir tmp
+  addr="$(norm_addr "$1")"
+  codec="$2"
+  have jq || { log "jq is required to remember a codec"; return 1; }
+  dir="$(dirname "$CONFIG")"
+  mkdir -p "$dir" || return 1
+  tmp="$(mktemp "${CONFIG}.XXXXXX")" || return 1
+  if [[ -f $CONFIG ]]; then
+    jq --arg a "$addr" --arg c "$codec" '.[$a].codec = $c' "$CONFIG" >"$tmp" 2>/dev/null \
+      || { rm -f "$tmp"; log "could not update $CONFIG"; return 1; }
+  else
+    jq -n --arg a "$addr" --arg c "$codec" '{($a): {codec: $c}}' >"$tmp" 2>/dev/null \
+      || { rm -f "$tmp"; log "could not create $CONFIG"; return 1; }
+  fi
+  mv -f "$tmp" "$CONFIG"
+}
+
+# Switch only when the device is not already there: the message renegotiates the
+# A2DP link, which audibly drops audio for a moment, so a no-op must stay a no-op.
+switch_to() {
+  local card="$1" codec="$2" now
+  now="$(active_codec "$card")"
+  [[ $now == "$codec" ]] && return 0
+  "$PACTL" send-message "/card/$card/bluez" switch-codec "\"$codec\"" >/dev/null 2>&1
+}
+
+apply_all() {
+  local addr card want
+  while IFS=$'\t' read -r addr card; do
+    [[ -n $addr ]] || continue
+    want="$(stored_codec "$addr")" || continue
+    [[ -n $want ]] || continue
+    if switch_to "$card" "$want"; then
+      log "$addr: codec $want"
+    else
+      log "$addr: could not switch to $want"
+    fi
+  done < <(cards)
+}
+
+cmd="${1:-}"
+case "$cmd" in
+cards)
+  cards
+  ;;
+list)
+  addr="${2:-}"
+  if [[ -z $addr ]]; then
+    # No address given: describe every connected device, so the caller does not
+    # have to pair `cards` with `list` itself.
+    while IFS=$'\t' read -r a c; do
+      [[ -n $a ]] || continue
+      printf '%s\n' "$a"
+      now="$(active_codec "$c")"
+      while read -r name; do
+        [[ -n $name ]] || continue
+        [[ $name == "$now" ]] && printf '  %s\tactive\n' "$name" || printf '  %s\tavailable\n' "$name"
+      done < <(offered "$c")
+    done < <(cards)
+    exit 0
+  fi
+  card="$(card_of "$addr")"
+  now="$(active_codec "$card")"
+  while read -r name; do
+    [[ -n $name ]] || continue
+    [[ $name == "$now" ]] && printf '%s\tactive\n' "$name" || printf '%s\tavailable\n' "$name"
+  done < <(offered "$card")
+  ;;
+set)
+  addr="${2:-}"
+  codec="${3:-}"
+  [[ -n $addr && -n $codec ]] || { log "usage: ryoku-bt-audio set <addr> <codec>"; exit 2; }
+  card="$(card_of "$addr")"
+  # Refuse a codec the device did not offer. Remembering one would mean retrying
+  # a switch that can never succeed on every single reconnect.
+  if ! offered "$card" | grep -qxF "$codec"; then
+    log "$codec is not offered by $addr (see: ryoku-bt-audio list $addr)"
+    exit 2
+  fi
+  switch_to "$card" "$codec" || { log "could not switch $addr to $codec"; exit 1; }
+  store_codec "$addr" "$codec" || exit 1
+  log "$addr: codec $codec, and it will be re-applied on reconnect"
+  ;;
+forget)
+  addr="${2:-}"
+  [[ -n $addr ]] || { log "usage: ryoku-bt-audio forget <addr>"; exit 2; }
+  [[ -f $CONFIG ]] || exit 0
+  have jq || { log "jq is required"; exit 1; }
+  tmp="$(mktemp "${CONFIG}.XXXXXX")" || exit 1
+  if jq --arg a "$(norm_addr "$addr")" 'del(.[$a])' "$CONFIG" >"$tmp" 2>/dev/null; then
+    mv -f "$tmp" "$CONFIG"
+  else
+    rm -f "$tmp"
+    log "could not update $CONFIG"
+    exit 1
+  fi
+  ;;
+apply)
+  apply_all
+  ;;
+watch)
+  # A device that reconnects appears as a new card, so any card event is the cue
+  # to reconcile. `pactl subscribe` is line-buffered and long-lived; the sleep
+  # coalesces the burst of events one connection produces into a single pass.
+  apply_all
+  "$PACTL" subscribe 2>/dev/null | while read -r line; do
+    case "$line" in
+      *"on card"*) sleep 1; apply_all ;;
+    esac
+  done
+  ;;
+*)
+  echo "usage: ryoku-bt-audio cards | list [<addr>] | set <addr> <codec> | forget <addr> | apply | watch" >&2
+  exit 2
+  ;;
+esac

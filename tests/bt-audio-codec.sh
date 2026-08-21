@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# hermetic test for ryoku-bt-audio: the per-device Bluetooth codec memory.
+#
+# The codec order in 51-ryoku-bluetooth.conf is global (bluez5.codecs is a
+# MONITOR property), and WirePlumber persists the bluetooth PROFILE but not the
+# codec. So a user who prefers AAC on one device has to re-pick it on every
+# reconnect. This helper is the memory that closes that gap, and these are the
+# behaviours that make it trustworthy rather than annoying:
+#
+#   - a codec the device never offered is refused, because remembering one means
+#     retrying a doomed switch on every single reconnect
+#   - a device already on the wanted codec is left alone, because the switch
+#     renegotiates the A2DP link and audibly drops audio
+#   - apply only touches devices that have a remembered choice
+#
+# Both seams point at fixtures: RYOKU_BT_PACTL (a fake pactl that records what it
+# was asked to do) and RYOKU_BT_CONFIG (the memory, inside the tmp dir, so the
+# real ~/.config/ryoku/bluetooth.json is never read or written; asserted at the
+# end). No PipeWire, no Bluetooth device, no root.
+set -euo pipefail
+
+here="$(cd "$(dirname "$0")" && pwd)"
+helper="$here/../system/hardware/audio/ryoku-bt-audio"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+fail() { echo "FAIL: $1" >&2; exit 1; }
+
+command -v jq >/dev/null 2>&1 || { echo 'SKIP: jq is unavailable'; exit 0; }
+
+# prove we never touch the user's real memory file
+real="${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/bluetooth.json"
+real_state="absent"; [[ -e $real ]] && real_state="$(cksum <"$real")"
+
+ADDR="AC:80:0A:11:22:33"
+UND="AC_80_0A_11_22_33"
+CARD="bluez_card.$UND"
+
+# A fake pactl with the real output shapes. It records every send-message so the
+# test can assert what the helper did, not merely that it exited 0.
+cat >"$tmp/pactl" <<EOF
+#!/usr/bin/env bash
+set -u
+log="$tmp/calls"
+case "\$1" in
+  list)
+    if [[ \${2:-} == cards && \${3:-} == short ]]; then
+      [[ -e "$tmp/NO_CARD" ]] && exit 0
+      printf '43\t$CARD\tmodule-bluez5-device.c\t\n'
+      exit 0
+    fi
+    if [[ \${2:-} == cards ]]; then
+      [[ -e "$tmp/NO_CARD" ]] && exit 0
+      printf 'Card #43\n\tName: $CARD\n\tDriver: module-bluez5-device.c\n\tProperties:\n'
+      printf '\t\tapi.bluez5.codec = "%s"\n' "\$(cat "$tmp/ACTIVE" 2>/dev/null || echo aac)"
+      exit 0
+    fi
+    exit 0 ;;
+  send-message)
+    printf '%s %s %s\n' "\$2" "\$3" "\${4:-}" >>"\$log"
+    case "\$3" in
+      list-codecs) cat "$tmp/OFFERED" ;;
+      switch-codec)
+        # mimic the real thing: the switch takes effect
+        printf '%s' "\${4//\\"/}" >"$tmp/ACTIVE" ;;
+    esac
+    exit 0 ;;
+esac
+exit 0
+EOF
+chmod +x "$tmp/pactl"
+
+printf '[{"name":"sbc","description":"SBC"},{"name":"sbc_xq","description":"SBC-XQ"},{"name":"aac","description":"AAC"}]' >"$tmp/OFFERED"
+printf 'aac' >"$tmp/ACTIVE"
+
+export RYOKU_BT_PACTL="$tmp/pactl" RYOKU_BT_CONFIG="$tmp/bluetooth.json"
+calls() { cat "$tmp/calls" 2>/dev/null || true; }
+reset_calls() { : >"$tmp/calls"; }
+
+# ---- cards / list ----------------------------------------------------------
+out="$("$helper" cards)"
+[[ $out == "$UND"$'\t'"$CARD" ]] || fail "cards should report the address and card, got: $out"
+
+out="$("$helper" list "$ADDR")"
+grep -qx "aac	active" <<<"$out" || fail "list should mark the active codec, got: $out"
+grep -qx "sbc_xq	available" <<<"$out" || fail "list should show the offered codecs, got: $out"
+
+# the colon form and the underscore form must be the same device
+[[ "$("$helper" list "$UND")" == "$out" ]] || fail "an underscore address should resolve like a colon address"
+
+# ---- refusing a codec the device never offered ------------------------------
+reset_calls
+rc=0; "$helper" set "$ADDR" ldac >/dev/null 2>&1 || rc=$?
+[[ $rc -eq 2 ]] || fail "setting an unoffered codec should exit 2, got $rc"
+grep -q switch-codec <<<"$(calls)" && fail "an unoffered codec must not reach switch-codec"
+[[ -e $RYOKU_BT_CONFIG ]] && fail "an unoffered codec must not be remembered"
+
+# ---- setting an offered codec -----------------------------------------------
+reset_calls
+"$helper" set "$ADDR" sbc_xq >/dev/null 2>&1 || fail "setting an offered codec should succeed"
+grep -q 'switch-codec' <<<"$(calls)" || fail "set should switch the codec, calls: $(calls)"
+[[ "$(jq -r --arg a "$UND" '.[$a].codec' "$RYOKU_BT_CONFIG")" == sbc_xq ]] \
+  || fail "set should remember the codec, got: $(cat "$RYOKU_BT_CONFIG")"
+
+# ---- a no-op stays a no-op (the switch drops audio) ------------------------
+reset_calls
+"$helper" apply >/dev/null 2>&1
+grep -q switch-codec <<<"$(calls)" \
+  && fail "apply switched a device that was already on the remembered codec"
+
+# ---- apply puts it back after a reconnect changed it ------------------------
+printf 'aac' >"$tmp/ACTIVE"          # the device came back on the global default
+reset_calls
+"$helper" apply >/dev/null 2>&1
+grep -q 'switch-codec' <<<"$(calls)" || fail "apply should restore the remembered codec, calls: $(calls)"
+[[ "$(cat "$tmp/ACTIVE")" == sbc_xq ]] || fail "apply should have switched to sbc_xq, got: $(cat "$tmp/ACTIVE")"
+
+# ---- apply ignores devices with no remembered choice ------------------------
+"$helper" forget "$ADDR" >/dev/null 2>&1 || fail "forget should succeed"
+[[ "$(jq -r --arg a "$UND" '.[$a] // "gone"' "$RYOKU_BT_CONFIG")" == gone ]] \
+  || fail "forget should drop the entry, got: $(cat "$RYOKU_BT_CONFIG")"
+printf 'aac' >"$tmp/ACTIVE"
+reset_calls
+"$helper" apply >/dev/null 2>&1
+grep -q switch-codec <<<"$(calls)" && fail "apply touched a device with no remembered codec"
+
+# ---- no device connected is quiet, not an error ----------------------------
+touch "$tmp/NO_CARD"
+"$helper" apply >/dev/null 2>&1 || fail "apply with no connected card should still succeed"
+[[ -z "$("$helper" cards)" ]] || fail "cards should be empty with no device"
+rm -f "$tmp/NO_CARD"
+
+# ---- unknown verbs are refused ---------------------------------------------
+for v in "" bogus --help; do
+  rc=0; "$helper" "$v" >/dev/null 2>&1 || rc=$?
+  [[ $rc -eq 2 ]] || fail "verb '$v' should exit 2, got $rc"
+done
+
+# ---- the user's real memory file was never touched -------------------------
+now="absent"; [[ -e $real ]] && now="$(cksum <"$real")"
+[[ $now == "$real_state" ]] || fail "the real $real was modified"
+
+echo "bt-audio-codec: all checks passed"

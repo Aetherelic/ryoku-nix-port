@@ -28,6 +28,12 @@ hl.on("hyprland.start", function()
     -- harmless when it was never started.
     hl.exec_cmd("systemctl --user stop hyprpolkitagent 2>/dev/null || true")
     hl.exec_cmd("command -v ryoku-monitor >/dev/null 2>&1 && ryoku-monitor autoscale")
+    -- Per-device Bluetooth codec memory. WirePlumber restores a device's PROFILE
+    -- across reconnects but not its A2DP codec, so a user who picked one has to
+    -- pick it again every single time the buds come back. `watch` reconciles on
+    -- every card event and is a no-op for anyone who never chose a codec, so it
+    -- costs a subscription and nothing else.
+    hl.exec_cmd("command -v ryoku-bt-audio >/dev/null 2>&1 && ryoku-bt-audio watch")
     -- Keyring default: no app ever prompts for a keyring password out of the box.
     -- `keyring init` records the mode once and seeds a blank passwordless default
     -- keyring for never-ask (idempotent; a no-op once a mode is chosen). Best
