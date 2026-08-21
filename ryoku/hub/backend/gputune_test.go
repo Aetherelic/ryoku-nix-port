@@ -72,12 +72,18 @@ func TestBuildTunablesAMD(t *testing.T) {
 	}
 }
 
-func TestBuildTunablesPlatform(t *testing.T) {
+// The ACPI platform profile must NOT appear among the GPU session knobs. ppd
+// rewrites that file on every profile change, so a live knob here silently lost;
+// it now belongs to a CPU power-profile definition, which is re-applied after ppd
+// settles. This pins the absence so the clobbering knob cannot come back.
+func TestBuildTunablesPlatformNotOffered(t *testing.T) {
 	in := tuneInputs{platform: &platformProfile{choices: []string{"quiet", "balanced", "performance"}, current: "balanced"}}
 	ts := buildTunables(in)
-	th := has(ts, "platform", "thermal")
-	if th == nil || th.Value != "balanced" || len(th.Options) != 3 {
-		t.Fatalf("thermal profile wrong: %+v", th)
+	if th := has(ts, "platform", "thermal"); th != nil {
+		t.Fatalf("platform thermal profile must not be a GPU session knob, got %+v", th)
+	}
+	if len(ts) != 0 {
+		t.Errorf("a platform profile alone must yield no knobs, got %d", len(ts))
 	}
 }
 

@@ -74,7 +74,7 @@ Rectangle {
         { name: "OVERVIEW", items: [ { key: "profile", name: "Profile" }, { key: "global", name: "Global" } ] },
         { name: "DEVICES", items: [
             { key: "displays", name: "Displays" }, { key: "connections", name: "Connections" },
-            { key: "input", name: "Input" }, { key: "cursor", name: "Cursor", adv: true }, { key: "gpu", name: "GPU", adv: true } ] },
+            { key: "input", name: "Input" }, { key: "cursor", name: "Cursor", adv: true }, { key: "gpu", name: "Machine", adv: true } ] },
         { name: "DESKTOP", items: [
             { key: "windows", name: "Windows" }, { key: "appearance", name: "Appearance" }, { key: "bar-studio", name: "Bar Studio", wired: true }, { key: "desktop", name: "Desktop", wired: true },
             { key: "widgets", name: "Widgets", adv: true }, { key: "animations", name: "Animations", adv: true },
@@ -87,7 +87,7 @@ Rectangle {
             { key: "fastfetch", name: "Fastfetch", adv: true },
             { key: "import", name: "Import config", adv: true, wired: true } ] },
         { name: "SYSTEM", items: [
-            { key: "performance", name: "Performance", adv: true }, { key: "autostart", name: "Autostart", adv: true },
+            { key: "performance", name: "Desktop Effects", adv: true }, { key: "autostart", name: "Autostart", adv: true },
             { key: "environment", name: "Environment", adv: true } ] },
         { name: "ADD-ONS", items: [
             { key: "addons", name: "Add-ons" },
@@ -98,10 +98,10 @@ Rectangle {
     // Each section's terse kanji, paired with its Latin name in the rail. Latin
     // names the thing; the kanji is its seal. The two scripts sitting together
     // is the texture, and every gloss is the real word, never decoration:
-    // 外観 = appearance, 接続 = connections, 描画 = rendering (GPU), and so on.
+    // 外観 = appearance, 接続 = connections, 演算 = compute (Machine), and so on.
     readonly property var jpName: ({
         "profile": "横顔", "displays": "画面", "input": "入力", "cursor": "矢印", "keybinds": "操作",
-        "connections": "接続", "gpu": "描画", "recording": "録画", "dictation": "音声",
+        "connections": "接続", "gpu": "演算", "recording": "録画", "dictation": "音声",
         "windows": "窓", "appearance": "外観", "bar-studio": "帯", "desktop": "卓上", "launcher": "起動", "fastfetch": "情報",
         "widgets": "部品", "lockscreen": "施錠", "animations": "動き",
         "addons": "拡張", "windowrules": "規則", "appoverrides": "上書", "layerrules": "階層",
@@ -121,7 +121,7 @@ Rectangle {
         "input": "keyboard mouse touchpad pointer trackpad sensitivity scroll layout dvorak remap capslock repeat gesture",
         "cursor": "cursor pointer mouse arrow theme size hide idle timeout motion dynamic rotate tilt stretch shake magnify",
         "keybinds": "shortcuts hotkeys binds keys browser terminal editor files launch super",
-        "gpu": "graphics nvidia amd vram passthrough vfio rendering hybrid performance",
+        "gpu": "graphics nvidia amd vram passthrough vfio rendering hybrid performance cpu governor epp frequency thermal battery charge ceiling aspm profile",
         "recording": "screen record capture video screencast screenshot fps codec framerate",
         "dictation": "voice typing speech transcribe whisper microphone stt",
         "windows": "window windows rounding corners softness gaps border borders thickness colour tiling dwindle master scrolling layout opacity transparency transparent dim blur shadow glow glass wobble wobbly title bar titlebar float snap resize animation",

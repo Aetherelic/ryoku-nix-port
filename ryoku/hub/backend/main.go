@@ -55,6 +55,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
 			os.Exit(1)
 		}
+	case "cpu":
+		if err := runCpu(args[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
+			os.Exit(1)
+		}
 	case "lighting":
 		if err := runLighting(args[1:]); err != nil {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
@@ -136,6 +141,9 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-hub gpu tune caps|get")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub gpu tune set <gpu> <id> <value>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub gpu tune reset [<gpu>]")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub cpu caps [<profile>]")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub cpu active")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub cpu set <scope> <id> <value>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub lighting state|scan|enable|disable|apply")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub lighting set <device> <json>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub lighting accent [#RRGGBB]")

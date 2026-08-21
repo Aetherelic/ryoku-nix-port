@@ -550,6 +550,14 @@ package() {
   install -Dm644 "$_repo/system/hardware/power/logind-ryoku-lid.conf" \
     "$pkgdir/etc/systemd/logind.conf.d/10-ryoku-lid.conf"
 
+  # Battery/ASPM power knobs: a polkit rule authorizes ryoku-power (installed to
+  # /usr/bin by the hardware glob above) for the active wheel user without a
+  # password, so the charge ceiling that login autostart re-applies via `apply`
+  # never throws a prompt; its argument is a range-checked value, so the grant
+  # stays safe.
+  install -Dm644 "$_repo/system/hardware/power/47-ryoku-power.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/47-ryoku-power.rules"
+
   # Windows dual-boot: cross-drive detector + a limine-entry-tool post.d hook
   # that re-asserts the uuid()-addressed chainload entry whenever the boot menu
   # is regenerated -- separate-drive Windows survives kernel updates.

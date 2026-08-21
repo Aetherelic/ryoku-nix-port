@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -51,10 +52,11 @@ func TestLivePowerProfilesFrame(t *testing.T) {
 		obj:   conn.Object(ppBusName, dbus.ObjectPath(ppPath)),
 		topic: newStateTopic(),
 	}
-	ch := p.topic.subscribe()
+	sub := p.topic.subscribe()
+	defer p.topic.unsubscribe(sub)
 	p.publish()
 	select {
-	case frame := <-ch:
+	case frame := <-sub.frames:
 		t.Logf("powerprofiles frame: %s", frame)
 		var m struct {
 			Active   string   `json:"active_profile"`
@@ -68,5 +70,80 @@ func TestLivePowerProfilesFrame(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("no powerprofiles frame published")
+	}
+}
+
+func TestShouldApplyProfile(t *testing.T) {
+	cases := []struct {
+		name, cfg, active, want string
+	}{
+		{"no profiles block", `{"chargeLimit":80}`, "balanced", ""},
+		{"profile not defined", `{"profiles":{"performance":{"epp":"performance"}}}`, "balanced", ""},
+		{"empty active", `{"profiles":{"balanced":{}}}`, "", ""},
+		{"malformed", `not json`, "balanced", ""},
+		{"defined", `{"profiles":{"balanced":{"governor":"powersave"}}}`, "balanced", "balanced"},
+	}
+	for _, c := range cases {
+		if got := shouldApplyProfile([]byte(c.cfg), c.active); got != c.want {
+			t.Errorf("%s: shouldApplyProfile = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// TestApplyActiveProfileNoConfig proves the load-bearing safety rule: with a
+// power.json that has no "profiles" block, the applier is never invoked, so an
+// unconfigured user triggers no ryoku-power exec (and thus no pkexec prompt).
+func TestApplyActiveProfileNoConfig(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgDir := filepath.Join(dir, "ryoku")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(cfgDir, "power.json")
+	if err := os.WriteFile(path, []byte(`{"chargeLimit":80}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var calls []string
+	orig := applyProfileCmd
+	applyProfileCmd = func(profile string) error { calls = append(calls, profile); return nil }
+	defer func() { applyProfileCmd = orig }()
+
+	p := &powerProfilesState{}
+	p.applyActiveProfile("balanced")
+	if len(calls) != 0 {
+		t.Fatalf("applier invoked %v with no profiles block; must stay hands-off", calls)
+	}
+
+	// Positive control: once the profile is defined, the applier runs exactly once.
+	if err := os.WriteFile(path, []byte(`{"profiles":{"balanced":{"governor":"powersave"}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p.applyActiveProfile("balanced")
+	if len(calls) != 1 || calls[0] != "balanced" {
+		t.Fatalf("applier calls = %v, want one apply of balanced", calls)
+	}
+}
+
+func TestApplyDelay(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgDir := filepath.Join(dir, "ryoku")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(cfgDir, "power.json")
+
+	if got := applyDelay(); got != 400*time.Millisecond {
+		t.Errorf("applyDelay with no file = %v, want 400ms", got)
+	}
+	os.WriteFile(path, []byte(`{"applyDelayMs":1000}`), 0o644)
+	if got := applyDelay(); got != time.Second {
+		t.Errorf("applyDelay = %v, want 1s", got)
+	}
+	os.WriteFile(path, []byte(`{"applyDelayMs":0}`), 0o644)
+	if got := applyDelay(); got != 400*time.Millisecond {
+		t.Errorf("applyDelay with 0 = %v, want 400ms default", got)
 	}
 }

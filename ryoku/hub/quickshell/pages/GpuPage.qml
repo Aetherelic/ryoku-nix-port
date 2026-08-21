@@ -7,17 +7,16 @@ import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
-// System > GPU. Four honest jobs, top to bottom: see the graphics hardware,
-// choose which GPU the desktop renders on, tune power and performance for this
-// session, and (advanced) set up GPU-passthrough so a VM can own a GPU. Backed
-// by `ryoku-hub gpu` (caps + mode + tune + preset), not the shared config store,
-// so it is full-bleed and draws its own head. Beta-18 language throughout: paper
-// and ink, Section heads, a Ticks-framed specimen, the 描画 watermark, no colour.
+// The Machine page. Real hardware, not the shared config store, so it is
+// full-bleed and draws its own head. Backed by `ryoku-hub gpu` (render mode,
+// per-session GPU tuning, passthrough) and `ryoku-hub cpu` (persistent CPU
+// power-profile definitions + battery), each capability-gated so a knob appears
+// only where the machine exposes it.
 //
-// Tuning is deliberately per session: every knob is runtime sysfs / nvidia-smi
-// state and is gone on reboot, which is the whole safety model. The page probes
-// each machine (`gpu tune caps`) and shows only the knobs that box exposes, so
-// nothing here is specific to any one card.
+// GPU tuning is per session: runtime sysfs / nvidia-smi state, gone on reboot.
+// CPU profiles persist to power.json and ryoku-power re-applies them after
+// power-profiles-daemon switches; boost and PPT/TDP are omitted because the
+// firmware governs them on this hardware.
 Item {
     id: pg
 
@@ -43,10 +42,24 @@ Item {
     property bool namingPreset: false
     property string tuneError: ""
 
-    // live telemetry for the render GPU (self-contained poll)
+    // cpu power-profile programmer + battery, fronted by `ryoku-hub cpu` (which
+    // wraps ryoku-power). Empty when the backend or machine offers nothing, so
+    // the sections hide rather than render an empty frame.
+    property var cpu: []
+    property var cpuProfiles: []
+    property string cpuActive: ""
+    property string cpuProfile: ""
+    property string cpuError: ""
+
+    // live telemetry for the render GPU (self-contained poll). liveAsleep is not
+    // a failure: a runtime-suspended discrete GPU is reported rather than probed,
+    // because nvidia-smi would wake it out of D3 (about 10 W on a hybrid laptop)
+    // and this page polls every 2s, so a page left open would pin the card awake
+    // and hide the very saving it is reporting on.
     property int liveTemp: 0
     property int liveUtil: 0
     property bool liveOk: false
+    property bool liveAsleep: false
 
     readonly property var renderGpu: {
         var p = pg.caps.passthrough, h = pg.caps.host;
@@ -65,6 +78,8 @@ Item {
 
     readonly property var safeTune: (pg.tune || []).filter(t => t.risk === "safe")
     readonly property var advTune: (pg.tune || []).filter(t => t.risk === "advanced")
+    readonly property var cpuTune: (pg.cpu || []).filter(t => t.gpu === "cpu")
+    readonly property var batteryTune: (pg.cpu || []).filter(t => t.gpu === "battery")
     readonly property string thermalNow: {
         var t = (pg.tune || []).find(x => x.id === "thermal");
         return t ? t.value : "";
@@ -73,6 +88,8 @@ Item {
         var s = I18n.tr("%1 renders here").arg(pg.renderName);
         if (pg.liveOk)
             s += "  ·  " + pg.liveTemp + "°C  ·  " + pg.liveUtil + I18n.tr("% GPU");
+        else if (pg.liveAsleep)
+            s += "  ·  " + I18n.tr("suspended, drawing no power");
         if (pg.thermalNow !== "")
             s += "  ·  " + I18n.tr(pg.thermalNow);
         return s;
@@ -91,6 +108,10 @@ Item {
 
     // short role tag for a gpu slot, so a tuning row reads "dGPU · Power limit".
     function tag(gpu) {
+        if (gpu === "cpu")
+            return "CPU";
+        if (gpu === "battery")
+            return "Battery";
         if (gpu === "platform")
             return "Chassis";
         if (pg.caps.passthrough && gpu === pg.caps.passthrough.slot)
@@ -106,10 +127,24 @@ Item {
         modeProc.running = true;
         tuneProc.running = true;
         presetProc.running = true;
+        cpuActiveProc.running = true;
     }
     function reloadTune() {
         tuneProc.running = true;
         presetProc.running = true;
+    }
+    function reloadCpu() {
+        cpuCapsProc.command = ["ryoku-hub", "cpu", "caps", pg.cpuProfile];
+        cpuCapsProc.running = true;
+    }
+    function editProfile(name) {
+        pg.cpuProfile = name;
+        pg.reloadCpu();
+    }
+    function cpuSet(scope, id, value) {
+        pg.cpuError = "";
+        cpuSetProc.command = ["ryoku-hub", "cpu", "set", scope, id, "" + value];
+        cpuSetProc.running = true;
     }
     function act(cmd) {
         pg.actionError = "";
@@ -243,6 +278,42 @@ Item {
         }
     }
     Process {
+        id: cpuActiveProc
+        command: ["ryoku-hub", "cpu", "active"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    var j = JSON.parse(this.text);
+                    pg.cpuActive = j.activeProfile || "";
+                    pg.cpuProfiles = j.profiles || [];
+                    if (pg.cpuProfile === "")
+                        pg.cpuProfile = pg.cpuActive || (pg.cpuProfiles[0] || "");
+                    pg.reloadCpu();
+                } catch (e) {
+                    pg.cpu = [];
+                }
+            }
+        }
+    }
+    Process {
+        id: cpuCapsProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { pg.cpu = JSON.parse(this.text) || []; } catch (e) { pg.cpu = []; }
+            }
+        }
+    }
+    Process {
+        id: cpuSetProc
+        stdout: StdioCollector { onStreamFinished: pg.reloadCpu() }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                var e = this.text.trim();
+                if (e.length > 0) pg.cpuError = e;
+            }
+        }
+    }
+    Process {
         id: runProc
         stdout: StdioCollector { onStreamFinished: pg.reload() }
         stderr: StdioCollector {
@@ -263,6 +334,12 @@ Item {
     Process {
         id: liveProc
         command: ["bash", "-c", `
+for st in /sys/bus/pci/drivers/nvidia/*/power/runtime_status; do
+  [ -r "$st" ] || continue
+  IFS= read -r s < "$st"
+  [ "$s" = suspended ] && { echo asleep; exit 0; }
+  break
+done
 g=$(nvidia-smi --query-gpu=temperature.gpu,utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -1)
 if [ -n "$g" ]; then echo "$g" | tr ',' ' '; exit 0; fi
 for d in /sys/class/drm/card*/device; do
@@ -274,8 +351,15 @@ done
 `]
         stdout: StdioCollector {
             onStreamFinished: {
-                var p = this.text.trim().split(/\s+/);
+                var raw = this.text.trim();
+                if (raw === "asleep") {
+                    pg.liveAsleep = true;
+                    pg.liveOk = false;
+                    return;
+                }
+                var p = raw.split(/\s+/);
                 if (p.length >= 2) {
+                    pg.liveAsleep = false;
                     pg.liveTemp = parseInt(p[0]) || 0;
                     pg.liveUtil = parseInt(p[1]) || 0;
                     pg.liveOk = true;
@@ -293,237 +377,38 @@ done
         onTriggered: capsProc.running = true
     }
 
-    // background: the section kanji as a faint haze, per DESIGN.md section 12.
-    Watermark { anchors.fill: parent; text: "描画" }
-
-    // ── one dossier row inside the specimen: tag chip, model, role marker ──────
-    component GpuRow: Item {
-        id: gr
-        property var gpu: null
-        property string tag: ""
-        width: parent ? parent.width : 0
-        height: 34
-        visible: gr.gpu !== null && gr.gpu !== undefined
-        readonly property bool active: !!(gr.gpu && gr.gpu.drivesDisplay === true)
-
-        Rectangle {
-            id: chip
-            width: 44; height: 20; radius: Tokens.radius
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: "transparent"
-            border.width: Tokens.border
-            border.color: gr.active ? Tokens.ink : Tokens.line
-            Text {
-                anchors.centerIn: parent
-                text: gr.tag
-                color: gr.active ? Tokens.ink : Tokens.inkFaint
-                font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
-            }
-        }
-        Column {
-            anchors.left: chip.right; anchors.leftMargin: Tokens.s3
-            anchors.right: role.left; anchors.rightMargin: Tokens.s2
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 1
-            Text {
-                width: parent.width
-                text: gr.gpu ? gr.gpu.model : ""
-                color: gr.active ? Tokens.ink : Tokens.inkDim
-                font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
-                elide: Text.ElideRight
-            }
-            Text {
-                text: gr.gpu ? (Math.round(gr.gpu.vramMb / 1024) + I18n.tr("G · ") + gr.gpu.driver) : ""
-                color: Tokens.inkFaint
-                font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
-            }
-        }
-        Row {
-            id: role
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-            spacing: Tokens.s1
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: gr.active ? I18n.tr("DISPLAY") : I18n.tr("FREE")
-                color: gr.active ? Tokens.ink : Tokens.inkFaint
-                font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
-                font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
-            }
-            Rectangle {
-                width: 6; height: 6; radius: 3
-                anchors.verticalCenter: parent.verticalCenter
-                color: gr.active ? Tokens.ink : Tokens.inkFaint
-            }
-        }
-    }
-
-    // ── the read-only specimen: a Ticks-framed instrument plate ────────────────
-    component GpuSpecimen: Rectangle {
-        id: card
-        property var caps: ({})
-        property bool failed: false
-        readonly property var renderGpu: {
-            var p = card.caps.passthrough, h = card.caps.host;
-            if (p && p.drivesDisplay) return p;
-            if (h && h.drivesDisplay) return h;
-            return h || p || null;
-        }
-        implicitHeight: body.implicitHeight + Tokens.s4 * 2
-        radius: Tokens.radius
-        color: "transparent"
-        border.width: Tokens.border
-        border.color: Tokens.line
-
-        Ticks { color: Tokens.lineStrong; arm: 10 }
-
-        Column {
-            id: body
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s4 }
-            spacing: Tokens.s4
-
-            Row {
-                spacing: Tokens.s2
-                Text {
-                    text: "力"; color: Tokens.ink; font.family: Tokens.jp
-                    font.pixelSize: Tokens.fMicro; anchors.verticalCenter: parent.verticalCenter
-                }
-                Text {
-                    text: I18n.tr("GRAPHICS"); color: Tokens.inkMuted; font.family: Tokens.ui
-                    font.pixelSize: Tokens.fTiny; font.weight: Font.Medium
-                    font.letterSpacing: Tokens.trackMark
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-            }
-
-            Row {
-                width: parent.width
-                spacing: Tokens.s3
-                Column {
-                    width: parent.width - vram.width - parent.spacing
-                    spacing: Tokens.s1
-                    anchors.verticalCenter: parent.verticalCenter
-                    Text {
-                        text: I18n.tr("RENDERS ON")
-                        color: Tokens.inkMuted; font.family: Tokens.ui
-                        font.pixelSize: Tokens.fTiny; font.weight: Font.Medium
-                        font.letterSpacing: Tokens.trackLabel
-                    }
-                    Text {
-                        width: parent.width
-                        text: card.renderGpu ? card.renderGpu.model : (card.failed ? I18n.tr("Unavailable") : I18n.tr("Detecting…"))
-                        color: Tokens.ink; font.family: Tokens.ui
-                        font.pixelSize: Tokens.fValue; font.weight: Font.Light
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        text: pg.liveOk ? I18n.tr("%1°C · %2% · draws here").arg(pg.liveTemp).arg(pg.liveUtil) : I18n.tr("the desktop draws here")
-                        color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
-                    }
-                }
-                Rectangle {
-                    id: vram
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: card.renderGpu !== null
-                    width: vramCol.width + Tokens.s3 * 2
-                    height: vramCol.height + Tokens.s2 * 2
-                    radius: Tokens.radius
-                    color: "transparent"
-                    border.width: Tokens.border; border.color: Tokens.line
-                    Column {
-                        id: vramCol
-                        anchors.centerIn: parent
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: card.renderGpu ? (Math.round(card.renderGpu.vramMb / 1024) + I18n.tr("G")) : ""
-                            color: Tokens.ink; font.family: Tokens.ui
-                            font.pixelSize: Tokens.fRow; font.weight: Font.Light
-                        }
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: I18n.tr("VRAM")
-                            color: Tokens.inkMuted; font.family: Tokens.ui
-                            font.pixelSize: Tokens.fTiny; font.weight: Font.Medium
-                            font.letterSpacing: Tokens.trackLabel
-                        }
-                    }
-                }
-            }
-
-            Row {
-                width: parent.width; spacing: Tokens.s2; height: 20
-                Rectangle {
-                    id: invBadge
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: 18; width: invText.implicitWidth + Tokens.s3
-                    radius: Tokens.radius; color: "transparent"
-                    border.width: Tokens.border; border.color: Tokens.line
-                    Text {
-                        id: invText
-                        anchors.centerIn: parent; text: I18n.tr("INVENTORY")
-                        color: Tokens.inkMuted; font.family: Tokens.ui
-                        font.pixelSize: Tokens.fTiny; font.weight: Font.Medium
-                        font.letterSpacing: Tokens.trackLabel
-                    }
-                }
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Math.max(1, parent.width - invBadge.width - machineLabel.implicitWidth - 2 * parent.spacing)
-                    height: 1; color: Tokens.lineSoft
-                }
-                Text {
-                    id: machineLabel
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: I18n.tr(card.caps.chassis === "laptop" ? "LAPTOP" : "DESKTOP") + (card.caps.cpu ? " · " + card.caps.cpu : "")
-                    color: Tokens.inkMuted; font.family: Tokens.ui
-                    font.pixelSize: Tokens.fTiny; font.weight: Font.Medium
-                    font.letterSpacing: Tokens.trackLabel
-                }
-            }
-
-            Rectangle {
-                width: parent.width
-                height: invCol.implicitHeight + Tokens.s3 * 2
-                color: Tokens.tint5; radius: Tokens.radius
-                border.width: Tokens.border; border.color: Tokens.lineSoft
-                Column {
-                    id: invCol
-                    anchors.fill: parent; anchors.margins: Tokens.s3; spacing: Tokens.s2
-                    GpuRow { tag: "iGPU"; gpu: card.caps.host }
-                    Rectangle {
-                        visible: (card.caps.host !== undefined) && (card.caps.passthrough !== undefined)
-                        width: parent.width; height: 1; color: Tokens.lineSoft
-                    }
-                    GpuRow { tag: "dGPU"; gpu: card.caps.passthrough }
-                }
-            }
-
-            Text {
-                visible: card.caps.mux !== undefined && card.caps.mux !== "none"
-                text: I18n.tr("MUX ") + (card.caps.mux ? card.caps.mux.replace("present-", "").toUpperCase() : "")
-                color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
-            }
-        }
-    }
-
     // ── one tuning knob as a SettingRow, control chosen from its kind ──────────
     component TuneCell: SettingRow {
         id: tc
         property var tunable: ({})
+        property string scope: ""      // non-empty routes writes through `ryoku-hub cpu set <scope>`
         readonly property string knd: tc.tunable.kind || ""
         readonly property int optCount: (tc.tunable.options || []).length
 
+        // a cpu/battery row carries a scope and persists via `cpu set`; a gpu
+        // row has none and writes live via `gpu tune`.
+        function apply(v) {
+            if (tc.scope !== "")
+                pg.cpuSet(tc.scope, tc.tunable.id, v);
+            else
+                pg.tuneSet(tc.tunable.gpu, tc.tunable.id, v);
+        }
+
         anchors.left: parent.left
         anchors.right: parent.right
-        // a segmented bar of 3+ needs its own band; a switch, slider or short
-        // segment sits inline at the row's right.
-        block: tc.knd === "segment" && tc.optCount >= 3
+        // A two-option segment normally sits inline, but long option words
+        // ("performance"/"powersave") overflow that width and wrap into the next
+        // row, so give any long-labelled segment its own band.
+        readonly property bool wideOpts: (tc.tunable.options || []).some(o => String(o).length > 8)
+        block: tc.knd === "segment" && (tc.optCount >= 3 || tc.wideOpts)
         controlWidth: tc.knd === "toggle" ? 54
             : (tc.knd === "slider" ? Math.min(240, Math.max(160, Math.round(tc.width * 0.34)))
             : Math.max(120, 62 * Math.max(2, tc.optCount)))
         label: pg.tag(tc.tunable.gpu) + " · " + I18n.tr(tc.tunable.label || "")
         unit: tc.tunable.unit || ""
         value: tc.knd === "slider" ? String(Math.round(tc.tunable.current || 0)) : ""
-        desc: tc.tunable.risk === "advanced" ? I18n.tr("Advanced · per session, can misbehave") : I18n.tr("Applies now, resets on reboot")
+        desc: (tc.tunable.desc && tc.tunable.desc !== "") ? I18n.tr(tc.tunable.desc)
+            : (tc.tunable.risk === "advanced" ? I18n.tr("Advanced · per session, can misbehave") : I18n.tr("Applies now, resets on reboot"))
         source: tc.tunable.src || ""
         changed: false
 
@@ -536,7 +421,7 @@ done
             Sw {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                 on: tc.tunable.value === "on"
-                onToggled: (v) => pg.tuneSet(tc.tunable.gpu, tc.tunable.id, v ? "on" : "off")
+                onToggled: (v) => tc.apply(v ? "on" : "off")
             }
         }
         Component {
@@ -546,7 +431,7 @@ done
                 from: tc.tunable.min || 0
                 to: tc.tunable.max || 1
                 value: tc.tunable.current || 0
-                onModified: (v) => pg.tuneSet(tc.tunable.gpu, tc.tunable.id, String(Math.round(v)))
+                onModified: (v) => tc.apply(String(Math.round(v)))
             }
         }
         Component {
@@ -556,7 +441,7 @@ done
                 anchors.verticalCenter: parent.verticalCenter
                 options: tc.tunable.options || []
                 current: tc.tunable.value
-                onChose: (k) => pg.tuneSet(tc.tunable.gpu, tc.tunable.id, k)
+                onChose: (k) => tc.apply(k)
             }
         }
     }
@@ -584,12 +469,12 @@ done
             }
         }
         Text {
-            text: I18n.tr("GPU"); color: Tokens.ink
+            text: I18n.tr("Machine"); color: Tokens.ink
             font.family: Tokens.display; font.pixelSize: Tokens.fTitle
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("See your graphics hardware, choose which GPU the desktop renders on, and tune power and performance for this session. Passthrough (advanced) frees the discrete GPU so a virtual machine can own it.")
+            text: I18n.tr("Your silicon. Define what each power profile does to the CPU, tune the graphics hardware, cap the battery charge ceiling, and choose which GPU the desktop renders on. Passthrough (advanced) frees the discrete GPU so a virtual machine can own it.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -604,12 +489,12 @@ done
     Marginalia {
         anchors { right: parent.right; top: head.top }
         anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s1
-        kana: "描画"
+        kana: "演算"
         index: "02"; label: I18n.tr("DEVICES")
         glyph: "asanoha"; glyph2: "meander"
     }
 
-    // ── content: specimen rail left, scrolling sections right ──────────────────
+    // ── content: one full-width scrolling column above the render hero ─────────
     Item {
         id: below
         anchors {
@@ -617,41 +502,11 @@ done
             leftMargin: Tokens.s6; rightMargin: Tokens.s6; topMargin: Tokens.s5; bottomMargin: Tokens.s6
         }
 
-        Column {
-            id: rail
-            anchors.left: parent.left; anchors.top: parent.top
-            width: Math.min(parent.width * 0.36, 380)
-            spacing: Tokens.s4
-
-            GpuSpecimen {
-                width: parent.width
-                caps: pg.caps
-                failed: pg.capsError !== ""
-            }
-
-            Column {
-                visible: pg.capsError !== ""
-                width: parent.width; spacing: Tokens.s3
-                Text {
-                    width: parent.width; wrapMode: Text.WordWrap
-                    text: I18n.tr("Couldn't read your graphics hardware.")
-                    color: Tokens.ink; font.family: Tokens.ui
-                    font.pixelSize: Tokens.fBody; font.weight: Font.DemiBold
-                }
-                Text {
-                    width: parent.width; wrapMode: Text.WordWrap
-                    text: pg.capsError
-                    color: Tokens.inkMuted; font.family: Tokens.mono; font.pixelSize: Tokens.fMicro
-                }
-                Btn { text: I18n.tr("Retry"); primary: true; onAct: pg.reload() }
-            }
-        }
-
         Flickable {
             id: gfx
             anchors {
-                left: rail.right; right: parent.right; top: parent.top; bottom: renderDecor.top
-                leftMargin: Tokens.s6; bottomMargin: Tokens.s5
+                left: parent.left; right: parent.right; top: parent.top; bottom: parent.bottom
+                bottomMargin: Tokens.s5
             }
             contentWidth: width
             contentHeight: gfxCol.height + Tokens.s5
@@ -661,8 +516,27 @@ done
 
             Column {
                 id: gfxCol
-                width: Math.min(gfx.width - Tokens.s3, 660)
+                width: Math.min(gfx.width - Tokens.s3, 720)
                 spacing: Tokens.s6
+
+                // gpu caps failed: surface it up top; the sections below still
+                // render from whatever partial payload arrived.
+                Column {
+                    visible: pg.capsError !== ""
+                    width: gfxCol.width; spacing: Tokens.s3
+                    Text {
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: I18n.tr("Couldn't read your graphics hardware.")
+                        color: Tokens.ink; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fBody; font.weight: Font.DemiBold
+                    }
+                    Text {
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: pg.capsError
+                        color: Tokens.inkMuted; font.family: Tokens.mono; font.pixelSize: Tokens.fMicro
+                    }
+                    Btn { text: I18n.tr("Retry"); primary: true; onAct: pg.reload() }
+                }
 
                 // ── RYOKU RENDERS ON ──
                 SettingCard {
@@ -720,6 +594,71 @@ done
                                 font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                             }
                         }
+                    }
+                }
+
+                // ── CPU POWER PROFILES ──
+                SettingCard {
+                    width: gfxCol.width
+                    visible: pg.cpuTune.length > 0
+                    title: I18n.tr("CPU POWER PROFILES")
+
+                    // pick which definition to edit; this never switches the live
+                    // profile, so the note below names the one that is active.
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        block: true
+                        label: I18n.tr("Editing profile")
+                        Seg {
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            options: pg.cpuProfiles.length ? pg.cpuProfiles : ["power-saver", "balanced", "performance"]
+                            current: pg.cpuProfile
+                            onChose: (k) => pg.editProfile(k)
+                        }
+                    }
+                    Text {
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s2; bottomPadding: Tokens.s3
+                        wrapMode: Text.WordWrap
+                        text: pg.cpuActive !== ""
+                            ? I18n.tr("This edits what the profile does, not which one is live. %1 is active now.").arg(pg.cpuActive)
+                            : I18n.tr("This edits what the profile does, not which one is live.")
+                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                    }
+
+                    // one row per capability-gated knob for the edited profile.
+                    Repeater {
+                        model: pg.cpuTune
+                        delegate: TuneCell {
+                            required property var modelData
+                            tunable: modelData
+                            scope: pg.cpuProfile
+                            divider: true
+                        }
+                    }
+
+                    Text {
+                        visible: pg.cpuError !== ""
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s1; bottomPadding: Tokens.s2
+                        wrapMode: Text.WordWrap
+                        text: pg.cpuError
+                        color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                        font.weight: Font.Medium
+                    }
+
+                    // closing honesty: boost and PPT/TDP are firmware-governed
+                    // here, so a control would report success and change nothing.
+                    Text {
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s1; bottomPadding: Tokens.s3
+                        wrapMode: Text.WordWrap
+                        text: I18n.tr("CPU boost and PPT/TDP limits are left out on purpose. On this hardware the firmware governs them, so a slider would report success and change nothing (boost measured 95.1 vs 95.0 °C; PPT writes are accepted then ignored). See docs/power.md.")
+                        color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
                     }
                 }
 
@@ -909,6 +848,23 @@ done
                         wrapMode: Text.WordWrap
                         text: I18n.tr("Want deeper overclocking (voltage curves, fan curves)? Install LACT, a dedicated GPU control daemon.")
                         color: Tokens.inkFaint; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
+                    }
+                }
+
+                // ── BATTERY ──
+                SettingCard {
+                    width: gfxCol.width
+                    visible: pg.batteryTune.length > 0
+                    title: I18n.tr("BATTERY")
+
+                    Repeater {
+                        model: pg.batteryTune
+                        delegate: TuneCell {
+                            required property var modelData
+                            tunable: modelData
+                            scope: "battery"
+                            divider: true
+                        }
                     }
                 }
 
@@ -1102,18 +1058,6 @@ done
                 font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
             }
             TapHandler { onTapped: pg.actionError = "" }
-        }
-
-        Decor {
-            id: renderDecor
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            height: Math.min(300, below.height - rail.height - Tokens.s5)
-            images: ["render.gif", "torus.gif", "sphere.gif", "cube.gif", "spring.gif"]
-            title: "描画"; sub: "三次元"
-            tate: "光と三角形"
-            caption: I18n.tr("The desktop, drawn in real time: geometry, light, and a few million triangles a frame.")
-            readout: ["SHADING|per-pixel", "GEOMETRY|instanced", "SURFACES|composited", "REFRESH|adaptive"]
-            code: "GPU-02"; seal: "描"; boxId: "gpu.render"; seed: 0; ditherFreq: 1.0
         }
     }
 }

@@ -4,6 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -28,6 +33,10 @@ type powerProfilesState struct {
 	conn  *dbus.Conn
 	obj   dbus.BusObject
 	topic *stateTopic
+
+	applyTimer   *time.Timer // debounce for re-applying the active profile after a ppd switch
+	applyMu      sync.Mutex  // serialises applies so overlapping fires never race
+	lastApplyErr string      // profile whose apply last failed; logged once per change
 }
 
 // startPowerProfiles brings the power-profile integration up, registers the
@@ -59,6 +68,10 @@ func (d *daemon) startPowerProfiles() {
 	go func() {
 		for range sigs {
 			p.publish()
+			p.scheduleApply()
+		}
+		if p.applyTimer != nil {
+			p.applyTimer.Stop()
 		}
 	}()
 
@@ -149,4 +162,94 @@ func profileNames(v any) []string {
 		}
 	}
 	return out
+}
+
+// applyProfileCmd re-applies a profile's definition through ryoku-power. It is a
+// package var so a test can record calls without spawning the helper.
+var applyProfileCmd = func(profile string) error {
+	return exec.Command("ryoku-power", "apply-profile", profile).Run()
+}
+
+// powerConfigPath is ~/.config/ryoku/power.json, the CPU/battery knob store the
+// Machine page and ryoku-power write. Empty when the home dir is unknowable.
+func powerConfigPath() string {
+	dir := ryokuConfigDir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "power.json")
+}
+
+// applyDelay is the debounce window before re-applying the active profile, from
+// applyDelayMs in power.json (400ms on a missing, absent, or non-positive value).
+func applyDelay() time.Duration {
+	const def = 400 * time.Millisecond
+	b, err := os.ReadFile(powerConfigPath())
+	if err != nil {
+		return def
+	}
+	var m struct {
+		ApplyDelayMs int `json:"applyDelayMs"`
+	}
+	if json.Unmarshal(b, &m) != nil || m.ApplyDelayMs <= 0 {
+		return def
+	}
+	return time.Duration(m.ApplyDelayMs) * time.Millisecond
+}
+
+// shouldApplyProfile returns the profile to re-apply, or "" to leave the hardware
+// alone. Pure, so the safety guard is unit-tested without a bus or exec: an empty
+// active profile, a power.json with no "profiles" block, or no entry for the
+// active profile all yield "", so the hook execs nothing and never prompts a user
+// who has not defined a profile.
+func shouldApplyProfile(cfg []byte, active string) string {
+	if active == "" {
+		return ""
+	}
+	var m struct {
+		Profiles map[string]json.RawMessage `json:"profiles"`
+	}
+	if json.Unmarshal(cfg, &m) != nil {
+		return ""
+	}
+	if _, ok := m.Profiles[active]; !ok {
+		return ""
+	}
+	return active
+}
+
+// scheduleApply debounces re-applying the active profile. ppd writes its own
+// governor/EPP/platform_profile when the profile changes, so applying the user's
+// definition immediately would be overwritten; the delay lets ppd settle first.
+// A burst of PropertiesChanged coalesces into one apply by restarting the timer.
+//
+// The profile is resolved when the timer fires, not when it is scheduled: at
+// signal time ppd may not have published the new ActiveProfile yet, and reading
+// it then would apply the outgoing profile's definition over the incoming one.
+func (p *powerProfilesState) scheduleApply() {
+	if p.applyTimer != nil {
+		p.applyTimer.Stop()
+	}
+	p.applyTimer = time.AfterFunc(applyDelay(), func() { p.applyActiveProfile(p.activeProfile()) })
+}
+
+// applyActiveProfile writes the user's definition for active to sysfs via
+// ryoku-power. It runs on the timer goroutine, never the signal goroutine, so a
+// slow or prompting helper cannot stall signal handling. It no-ops (never execs)
+// when the profile is not configured, and logs a failure at most once per profile.
+func (p *powerProfilesState) applyActiveProfile(active string) {
+	cfg, _ := os.ReadFile(powerConfigPath())
+	if shouldApplyProfile(cfg, active) == "" {
+		return
+	}
+	p.applyMu.Lock()
+	defer p.applyMu.Unlock()
+	if err := applyProfileCmd(active); err != nil {
+		if p.lastApplyErr != active {
+			p.lastApplyErr = active
+			log.Printf("ryoku-shell: apply-profile %q failed: %v", active, err)
+		}
+		return
+	}
+	p.lastApplyErr = ""
 }

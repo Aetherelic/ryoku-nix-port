@@ -1,0 +1,666 @@
+#!/usr/bin/env bash
+#
+# ryoku-power: the two real, verified laptop power levers power-profiles-daemon
+# does NOT touch -- battery charge limit and PCIe ASPM policy.
+#
+# ppd already owns platform_profile, throttle_thermal_policy, EPP, the governor
+# and the frequency ceiling per profile, and on this hardware CPU boost, the
+# thermal policy and the PPT/TDP knobs are firmware-governed placebos (measured:
+# writes are accepted but the package still pins the same wattage and 95 C). So
+# this helper deliberately owns only two knobs that DO move on a live write:
+#
+#   charge-limit  /sys/class/power_supply/*/charge_control_end_threshold
+#                 caps charging so the pack is not held at 100% (battery wear).
+#   aspm          /sys/module/pcie_aspm/parameters/policy
+#                 lets PCIe links enter deeper low-power states at idle.
+#
+# Both sysfs paths are root-owned; a write we cannot do directly re-execs the
+# whole command once under pkexec, and 47-ryoku-power.rules grants exactly this
+# binary to the active wheel user without a password so login autostart's
+# `apply` never blocks on a prompt (the values it acts on are range-checked, so
+# the grant stays safe). The desired state lives in ~/.config/ryoku/power.json
+# (keys `chargeLimit`, `aspm`) so a user edit survives updates; `apply` is the
+# idempotent convergent entry point that reads it back. A missing file or
+# missing key means "leave the hardware alone", never a forced default.
+# Laptop-only, like ryoku-idle: `apply` on a desktop does nothing.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# the original argv, captured before any shift, so priv_write can re-exec the
+# exact command under pkexec.
+ORIG_ARGV=("$@")
+
+PS_DIR="${RYOKU_POWER_SUPPLY_DIR:-/sys/class/power_supply}"
+ASPM_FILE="${RYOKU_ASPM_POLICY_FILE:-/sys/module/pcie_aspm/parameters/policy}"
+CONFIG="${RYOKU_POWER_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/power.json}"
+CPU_DIR="${RYOKU_CPU_DIR:-/sys/devices/system/cpu}"
+PLATFORM_PROFILE_FILE="${RYOKU_PLATFORM_PROFILE_FILE:-/sys/firmware/acpi/platform_profile}"
+
+# pkexec resets HOME to root's and strips our environment, so a pkexec re-run of
+# `apply` would read /root's power.json instead of the caller's. Resolve the
+# invoking user from PKEXEC_UID (the uid that called pkexec) so the escalated
+# pass converges the same stored state the login session wrote. A test seam
+# (RYOKU_POWER_CONFIG) overrides this entirely.
+if [[ -z ${RYOKU_POWER_CONFIG:-} && -n ${PKEXEC_UID:-} ]]; then
+  caller_home="$(getent passwd "$PKEXEC_UID" 2>/dev/null | cut -d: -f6 || true)"
+  [[ -n ${caller_home:-} ]] && CONFIG="$caller_home/.config/ryoku/power.json"
+fi
+
+# One lock per caller, shared with our own pkexec re-run: the ppd hook and an
+# interactive `profile set` otherwise interleave their write-verify rounds and
+# settle on a mixture of two definitions.
+APPLY_LOCK="${TMPDIR:-/tmp}/.ryoku-power-apply-${PKEXEC_UID:-$(id -u)}.lock"
+
+log() { printf 'ryoku-power: %s\n' "$*" >&2; }
+
+hw_laptop() {
+  if command -v ryoku-hw-laptop >/dev/null 2>&1; then
+    ryoku-hw-laptop is-laptop
+  elif [[ -x $SCRIPT_DIR/ryoku-hw-laptop ]]; then
+    "$SCRIPT_DIR/ryoku-hw-laptop" is-laptop
+  else
+    log "ryoku-hw-laptop not found"
+    return 1
+  fi
+}
+
+# True only in the pkexec re-run of ourselves: pkexec sets PKEXEC_UID to the uid
+# that invoked it. The caller's own session owns power.json, so the escalated
+# re-run performs only the privileged sysfs write and never rewrites the config.
+escalated() { [[ -n ${PKEXEC_UID:-} ]]; }
+
+# root-owned sysfs write: write directly when the target is already writable (the
+# test seams point at a tmp dir we own) or we are already root; otherwise re-exec
+# the whole command once under pkexec. After pkexec re-enters as root the direct
+# branch below writes, so there is no re-exec loop. 47-ryoku-power.rules grants
+# exactly this binary to the active wheel user without a password, so `apply`
+# from login autostart never blocks on a prompt.
+priv_write() {
+  local path="$1" value="$2"
+  # Convergent: an already-correct value needs no write, and skipping it skips
+  # the escalation it would have needed. `apply` runs at every login, so without
+  # this a settled machine would pkexec on each one for nothing.
+  [[ "$(cat "$path" 2>/dev/null || true)" == "$value" ]] && return
+  if [[ -w $path || $EUID -eq 0 ]]; then
+    printf '%s\n' "$value" >"$path"
+    return
+  fi
+  if ! command -v pkexec >/dev/null 2>&1; then
+    log "cannot write $path: not writable and pkexec is unavailable"
+    exit 1
+  fi
+  exec pkexec "$(readlink -f "$0")" "${ORIG_ARGV[@]}"
+}
+
+# ── config (~/.config/ryoku/power.json, parsed with jq, a desktop dependency) ──
+
+cfg_get() { # key -> value, empty when file/key absent or null
+  local key="$1"
+  [[ -f $CONFIG ]] || return 0
+  jq -r --arg k "$key" 'if has($k) and .[$k] != null then .[$k] else empty end' \
+    "$CONFIG" 2>/dev/null || true
+}
+
+cfg_set_num() { # key number -- merge, preserving other keys
+  escalated && return 0
+  local key="$1" val="$2" tmp
+  mkdir -p "$(dirname "$CONFIG")"
+  tmp="$(mktemp "${CONFIG}.XXXXXX")"
+  if [[ -f $CONFIG ]]; then
+    jq --arg k "$key" --argjson v "$val" '.[$k] = $v' "$CONFIG" >"$tmp"
+  else
+    jq -n --arg k "$key" --argjson v "$val" '{($k): $v}' >"$tmp"
+  fi
+  mv -f "$tmp" "$CONFIG"
+}
+
+cfg_set_str() { # key string -- merge, preserving other keys
+  escalated && return 0
+  local key="$1" val="$2" tmp
+  mkdir -p "$(dirname "$CONFIG")"
+  tmp="$(mktemp "${CONFIG}.XXXXXX")"
+  if [[ -f $CONFIG ]]; then
+    jq --arg k "$key" --arg v "$val" '.[$k] = $v' "$CONFIG" >"$tmp"
+  else
+    jq -n --arg k "$key" --arg v "$val" '{($k): $v}' >"$tmp"
+  fi
+  mv -f "$tmp" "$CONFIG"
+}
+
+cfg_del() { # key -- drop it, leaving the hardware to its firmware default
+  escalated && return 0
+  local key="$1" tmp
+  [[ -f $CONFIG ]] || return 0
+  tmp="$(mktemp "${CONFIG}.XXXXXX")"
+  jq --arg k "$key" 'del(.[$k])' "$CONFIG" >"$tmp"
+  mv -f "$tmp" "$CONFIG"
+}
+
+# ── battery charge limit ──────────────────────────────────────────────────────
+
+charge_file() { # first battery that exposes the attribute, or non-zero
+  local f
+  for f in "$PS_DIR"/*/charge_control_end_threshold; do
+    [[ -e $f ]] && { printf '%s\n' "$f"; return 0; }
+  done
+  return 1
+}
+
+charge_supported() { charge_file >/dev/null 2>&1; }
+
+# The kernel returns ENODATA ("No data available") on this attribute until the
+# first write, so a read error / empty value is genuinely "unset", not a fault.
+charge_read() { # echoes the number, or nothing when unset
+  local f v
+  f="$(charge_file)" || return 0
+  v="$(cat "$f" 2>/dev/null || true)"
+  [[ -n $v ]] && printf '%s\n' "$v"
+  return 0
+}
+
+cmd_charge_limit() {
+  local action="${1:-get}"
+  case "$action" in
+    get)
+      charge_supported || { log "battery charge limit not supported on this machine"; exit 1; }
+      local v
+      v="$(charge_read)"
+      [[ -n $v ]] && printf '%s\n' "$v" || printf 'unset\n'
+      ;;
+    set)
+      local n="${2:-}"
+      charge_supported || { log "battery charge limit not supported on this machine"; exit 1; }
+      if ! [[ $n =~ ^[0-9]+$ ]] || (( n < 50 || n > 100 )); then
+        log "charge limit must be an integer 50-100"; exit 2
+      fi
+      # persist as the user first; a pkexec re-run does only the sysfs write.
+      cfg_set_num chargeLimit "$n"
+      priv_write "$(charge_file)" "$n"
+      ;;
+    clear)
+      charge_supported || { log "battery charge limit not supported on this machine"; exit 1; }
+      cfg_del chargeLimit
+      priv_write "$(charge_file)" 100
+      ;;
+    *)
+      log "charge-limit needs get|set <50-100>|clear"; exit 2 ;;
+  esac
+}
+
+# ── PCIe ASPM policy ──────────────────────────────────────────────────────────
+
+aspm_supported() { [[ -r $ASPM_FILE ]]; }
+
+# the file lists every policy and wraps the active one in [brackets]:
+#   [default] performance powersave powersupersave
+aspm_read() { # echoes the selected policy, unwrapped
+  local raw tok
+  raw="$(cat "$ASPM_FILE" 2>/dev/null || true)"
+  for tok in $raw; do
+    if [[ $tok == \[*\] ]]; then
+      tok="${tok#\[}"; tok="${tok%\]}"
+      printf '%s\n' "$tok"; return 0
+    fi
+  done
+  return 1
+}
+
+aspm_options() { # space-separated list of every offered policy
+  local raw tok out=""
+  raw="$(cat "$ASPM_FILE" 2>/dev/null || true)"
+  for tok in $raw; do
+    tok="${tok#\[}"; tok="${tok%\]}"
+    out+="${out:+ }$tok"
+  done
+  printf '%s\n' "$out"
+}
+
+aspm_valid() { # policy is one the kernel currently offers
+  local want="$1" opt
+  for opt in $(aspm_options); do
+    [[ $opt == "$want" ]] && return 0
+  done
+  return 1
+}
+
+aspm_set() { # validate against the offered list, then the privileged write
+  local want="$1"
+  aspm_supported || { log "ASPM policy control not available on this machine"; return 1; }
+  aspm_valid "$want" || { log "unknown ASPM policy: $want (valid: $(aspm_options))"; return 1; }
+  # priv_write's own convergence check cannot help here: this file reads back as
+  # "[default] performance powersave ...", never a bare policy name.
+  [[ "$(aspm_read 2>/dev/null || true)" == "$want" ]] && return 0
+  priv_write "$ASPM_FILE" "$want"
+}
+
+cmd_aspm() {
+  local action="${1:-get}"
+  case "$action" in
+    get)
+      aspm_supported || { log "ASPM policy control not available on this machine"; exit 1; }
+      aspm_read || { log "no ASPM policy selected"; exit 1; }
+      ;;
+    set)
+      local want="${2:-}"
+      aspm_supported || { log "ASPM policy control not available on this machine"; exit 1; }
+      aspm_valid "$want" || { log "unknown ASPM policy: $want (valid: $(aspm_options))"; exit 1; }
+      cfg_set_str aspm "$want"
+      priv_write "$ASPM_FILE" "$want"
+      ;;
+    *)
+      log "aspm needs get|set <policy>"; exit 2 ;;
+  esac
+}
+
+# ── CPU power profiles (governor, EPP, max-freq %, platform profile) ──────────
+#
+# ppd writes these four per profile on every switch; a saved definition here is
+# re-applied on top so the user's choice wins. maxFreqPct is stored as a percent
+# of the boost ceiling and converted on apply, so it survives a CPU swap.
+
+PROFILES="power-saver balanced performance"
+valid_profile() { local w="$1" p; for p in $PROFILES; do [[ $p == "$w" ]] && return 0; done; return 1; }
+
+pp_choices_file() { printf '%s_choices' "$PLATFORM_PROFILE_FILE"; }
+pp_read() { cat "$PLATFORM_PROFILE_FILE" 2>/dev/null || true; }
+
+governor_options() {
+  local f="$CPU_DIR/cpu0/cpufreq/scaling_available_governors"
+  [[ -r $f ]] && cat "$f" || true
+}
+# 'custom' is a raw energy-bias mode, not a segment-selectable preference: ppd
+# never uses it and it needs a separate raw value, so the profile knob omits it.
+# amd-pstate narrows this list to just "performance" while the performance
+# governor is in force, but a profile definition is edited independently of
+# whatever governor happens to be selected now. Fall back to the driver's
+# documented set when the list collapses, so any EPP can be named regardless of
+# the machine's current state; the kernel still rejects one it cannot take.
+EPP_KNOWN="default performance balance_performance balance_power power"
+
+epp_options() {
+  local f="$CPU_DIR/cpu0/cpufreq/energy_performance_available_preferences" w out="" n=0
+  [[ -r $f ]] || return 0
+  # the attribute is one space-separated line, so read it as words directly
+  local -a words=()
+  read -r -a words <"$f" || true
+  for w in "${words[@]}"; do
+    [[ $w == custom ]] && continue
+    out+="${out:+ }$w"
+    n=$((n + 1))
+  done
+  (( n > 1 )) || out="$EPP_KNOWN"
+  printf '%s\n' "$out"
+}
+pp_options() { local f; f="$(pp_choices_file)"; [[ -r $f ]] && cat "$f" || true; }
+
+governor_valid() { local w="$1" o; for o in $(governor_options); do [[ $o == "$w" ]] && return 0; done; return 1; }
+epp_valid()      { local w="$1" o; for o in $(epp_options);      do [[ $o == "$w" ]] && return 0; done; return 1; }
+pp_valid()       { local w="$1" o; for o in $(pp_options);       do [[ $o == "$w" ]] && return 0; done; return 1; }
+
+# The ceiling is highest_perf * nominal_freq(MHz) * 1000 / nominal_perf from
+# acpi_cppc -- the real boost clock. cpuinfo_max_freq is only the nominal clock
+# here (below boost), so using it as 100% would silently cap boost away; it is
+# the fallback only when acpi_cppc is absent.
+boost_ceiling_khz() {
+  local c="$CPU_DIR/cpu0/acpi_cppc" hp np nf
+  if [[ -r $c/highest_perf && -r $c/nominal_perf && -r $c/nominal_freq ]]; then
+    hp="$(cat "$c/highest_perf")"; np="$(cat "$c/nominal_perf")"; nf="$(cat "$c/nominal_freq")"
+    if [[ $hp =~ ^[0-9]+$ && $np =~ ^[0-9]+$ && $nf =~ ^[0-9]+$ ]] && (( np > 0 && nf > 0 )); then
+      printf '%s\n' $(( hp * nf * 1000 / np )); return 0
+    fi
+  fi
+  local m="$CPU_DIR/cpu0/cpufreq/cpuinfo_max_freq"
+  [[ -r $m ]] && { cat "$m"; return 0; }
+  return 1
+}
+
+profile_json() { # <profile> -> its definition object, or {} when unset
+  local p="$1"
+  [[ -f $CONFIG ]] || { printf '{}\n'; return 0; }
+  jq -c --arg p "$p" '.profiles[$p] // {}' "$CONFIG" 2>/dev/null || printf '{}\n'
+}
+
+cfg_profile_set_str() { # profile key strval -- merge, preserving every sibling
+  local p="$1" key="$2" val="$3" tmp
+  # The user's session owns power.json; a pkexec re-run must not rewrite it as
+  # root. The parent already persisted before escalating.
+  escalated && return 0
+  mkdir -p "$(dirname "$CONFIG")"
+  tmp="$(mktemp "${CONFIG}.XXXXXX")"
+  if [[ -f $CONFIG ]]; then
+    jq --arg p "$p" --arg k "$key" --arg v "$val" '.profiles[$p][$k] = $v' "$CONFIG" >"$tmp"
+  else
+    jq -n --arg p "$p" --arg k "$key" --arg v "$val" '{profiles: {($p): {($k): $v}}}' >"$tmp"
+  fi
+  mv -f "$tmp" "$CONFIG"
+}
+cfg_profile_set_num() { # profile key number -- merge, preserving every sibling
+  local p="$1" key="$2" val="$3" tmp
+  escalated && return 0
+  mkdir -p "$(dirname "$CONFIG")"
+  tmp="$(mktemp "${CONFIG}.XXXXXX")"
+  if [[ -f $CONFIG ]]; then
+    jq --arg p "$p" --arg k "$key" --argjson v "$val" '.profiles[$p][$k] = $v' "$CONFIG" >"$tmp"
+  else
+    jq -n --arg p "$p" --arg k "$key" --argjson v "$val" '{profiles: {($p): {($k): $v}}}' >"$tmp"
+  fi
+  mv -f "$tmp" "$CONFIG"
+}
+
+# kHz for a maxFreqPct against the boost ceiling, clamped at the floor. Empty when
+# the percent is unset or the ceiling cannot be read. Shared by the writer and the
+# convergence check so the conversion lives in one place.
+target_max_khz() {
+  local maxpct="$1" ceiling khz minf
+  [[ $maxpct =~ ^[0-9]+$ ]] || return 0
+  ceiling="$(boost_ceiling_khz || true)"
+  [[ -n $ceiling ]] && (( ceiling > 0 )) || return 0
+  khz=$(( ceiling * maxpct / 100 ))
+  minf="$(cat "$CPU_DIR/cpu0/cpufreq/cpuinfo_min_freq" 2>/dev/null || true)"
+  if [[ $minf =~ ^[0-9]+$ ]] && (( khz < minf )); then khz="$minf"; fi
+  printf '%s' "$khz"
+}
+
+# Write a saved definition's present keys to sysfs; an absent key or absent knob
+# is skipped silently.
+#
+# Order matters twice over. The platform profile goes first because it gates the
+# hardware envelope: cpuinfo_max_freq is dynamic on amd-pstate and a quiet
+# profile clamps it, so writing the frequency before it widens gets the value
+# silently truncated. Then the governor pass must finish for every cpu before the
+# EPP pass starts, because writing scaling_governor resets EPP to the driver's
+# default for that governor.
+write_cpu_profile() {
+  local def="$1" gov epp khz pp
+  gov="$(jq -r '.governor // empty' <<<"$def")"
+  epp="$(jq -r '.epp // empty' <<<"$def")"
+  khz="$(target_max_khz "$(jq -r '.maxFreqPct // empty' <<<"$def")")"
+  pp="$(jq -r '.platformProfile // empty' <<<"$def")"
+
+  if [[ -n $pp && -e $PLATFORM_PROFILE_FILE ]]; then
+    priv_write "$PLATFORM_PROFILE_FILE" "$pp"
+  fi
+  write_every_cpu scaling_governor "$gov"
+  write_every_cpu energy_performance_preference "$epp"
+  write_every_cpu scaling_max_freq "$khz"
+}
+
+write_every_cpu() { # cpufreq-attribute value -- no-op on an empty value
+  local attr="$1" value="$2" d target
+  [[ -n $value ]] || return 0
+  for d in "$CPU_DIR"/cpu[0-9]*; do
+    target="$d/cpufreq/$attr"
+    [[ -e $target ]] && priv_write "$target" "$value"
+  done
+}
+
+# cpu0 stands for every cpu here: the writer gives them all the same value.
+cpu_profile_converged() {
+  local def="$1" c0="$CPU_DIR/cpu0/cpufreq" want
+  want="$(jq -r '.governor // empty' <<<"$def")"
+  if [[ -n $want && "$(cat "$c0/scaling_governor" 2>/dev/null || true)" != "$want" ]]; then return 1; fi
+  want="$(jq -r '.epp // empty' <<<"$def")"
+  if [[ -n $want && "$(cat "$c0/energy_performance_preference" 2>/dev/null || true)" != "$want" ]]; then return 1; fi
+  want="$(target_max_khz "$(jq -r '.maxFreqPct // empty' <<<"$def")")"
+  if [[ -n $want && "$(cat "$c0/scaling_max_freq" 2>/dev/null || true)" != "$want" ]]; then return 1; fi
+  want="$(jq -r '.platformProfile // empty' <<<"$def")"
+  if [[ -n $want && -e $PLATFORM_PROFILE_FILE && "$(cat "$PLATFORM_PROFILE_FILE")" != "$want" ]]; then return 1; fi
+  return 0
+}
+
+# ppd writes its own governor/EPP/platform_profile asynchronously after the
+# profile-changed signal, and measurably sometimes later than our debounce -- a
+# single write loses that race. Write, verify, and rewrite whatever drifted so the
+# user's definition wins regardless of ppd's timing.
+apply_cpu_profile() {
+  local p="$1" def
+  def="$(profile_json "$p")"
+  [[ -z $def || $def == "{}" || $def == null ]] && return 0
+
+  # Serialise against any other applier; the last one in wins outright instead of
+  # both converging onto a blend of their definitions.
+  if exec 9>"$APPLY_LOCK" 2>/dev/null; then
+    flock -w 15 9 2>/dev/null || true
+  fi
+
+  for _ in 1 2 3 4; do
+    write_cpu_profile "$def"
+    cpu_profile_converged "$def" && return 0
+    sleep 0.4
+  done
+  write_cpu_profile "$def"
+}
+
+# SAFETY: no profiles block => no CPU write and no escalation. The config guard
+# runs before ppd or sysfs is touched, so an unconfigured user never sees a
+# pkexec prompt on a profile switch.
+apply_active_cpu() {
+  [[ -f $CONFIG ]] || return 0
+  jq -e '(.profiles // {}) | length > 0' "$CONFIG" >/dev/null 2>&1 || return 0
+  command -v powerprofilesctl >/dev/null 2>&1 || return 0
+  local active
+  active="$(powerprofilesctl get 2>/dev/null || true)"
+  [[ -n $active ]] && apply_cpu_profile "$active"
+}
+
+cmd_capabilities() {
+  [[ -z ${1:-} || ${1:-} == --json ]] || { log "capabilities takes only --json"; exit 2; }
+
+  local gov_opts gov_cur epp_opts epp_cur pp_opts pp_cur
+  local smf ceiling maxpct="" charge_cur="" aspm_opts="" aspm_cur="" active=""
+
+  gov_opts="$(governor_options)"; gov_cur=""
+  [[ -n $gov_opts ]] && gov_cur="$(cat "$CPU_DIR/cpu0/cpufreq/scaling_governor" 2>/dev/null || true)"
+  epp_opts="$(epp_options)"; epp_cur=""
+  [[ -n $epp_opts ]] && epp_cur="$(cat "$CPU_DIR/cpu0/cpufreq/energy_performance_preference" 2>/dev/null || true)"
+  pp_opts="$(pp_options)"; pp_cur=""
+  [[ -n $pp_opts ]] && pp_cur="$(pp_read)"
+
+  smf="$(cat "$CPU_DIR/cpu0/cpufreq/scaling_max_freq" 2>/dev/null || true)"
+  if [[ $smf =~ ^[0-9]+$ ]]; then
+    ceiling="$(boost_ceiling_khz || true)"
+    if [[ -n $ceiling ]] && (( ceiling > 0 )); then
+      maxpct=$(( (smf * 100 + ceiling / 2) / ceiling ))
+      (( maxpct > 100 )) && maxpct=100
+      (( maxpct < 0 )) && maxpct=0
+    fi
+  fi
+
+  if charge_supported; then
+    charge_cur="$(charge_read)"; [[ -z $charge_cur ]] && charge_cur=100
+  fi
+  if aspm_supported; then
+    aspm_opts="$(aspm_options)"; aspm_cur="$(aspm_read || true)"
+  fi
+  command -v powerprofilesctl >/dev/null 2>&1 && active="$(powerprofilesctl get 2>/dev/null || true)"
+
+  jq -n \
+    --arg gov_opts "$gov_opts" --arg gov_cur "$gov_cur" \
+    --arg epp_opts "$epp_opts" --arg epp_cur "$epp_cur" \
+    --arg pp_opts "$pp_opts" --arg pp_cur "$pp_cur" \
+    --arg maxpct "$maxpct" \
+    --arg charge "$charge_cur" \
+    --arg aspm_opts "$aspm_opts" --arg aspm_cur "$aspm_cur" \
+    --arg active "$active" '
+    def words($s): ($s | split(" ") | map(select(length > 0)));
+    def seg($o; $c): {options: words($o), current: $c};
+    {}
+    | (if $active   != "" then .activeProfile = $active else . end)
+    | .profiles = ["power-saver","balanced","performance"]
+    | .cpu = ( {}
+        | (if $gov_opts != "" then .governor        = seg($gov_opts; $gov_cur) else . end)
+        | (if $epp_opts != "" then .epp             = seg($epp_opts; $epp_cur) else . end)
+        | (if $maxpct   != "" then .maxFreqPct      = {min: 20, max: 100, current: ($maxpct | tonumber)} else . end)
+        | (if $pp_opts  != "" then .platformProfile = seg($pp_opts; $pp_cur) else . end) )
+    | (if $charge    != "" then .battery = {chargeLimit: {min: 50, max: 100, current: ($charge | tonumber)}} else . end)
+    | (if $aspm_opts != "" then .aspm = seg($aspm_opts; $aspm_cur) else . end)
+  '
+}
+
+cmd_profile() {
+  local sub="${1:-}"
+  case "$sub" in
+    get) shift; profile_get "$@" ;;
+    set) shift; profile_set "$@" ;;
+    *) log "profile needs get [<profile>] | set <profile> <key> <value>"; exit 2 ;;
+  esac
+}
+
+profile_get() {
+  local p="${1:-}"
+  if [[ -z $p ]]; then
+    [[ -f $CONFIG ]] && jq '.profiles // {}' "$CONFIG" 2>/dev/null || printf '{}\n'
+  else
+    valid_profile "$p" || { log "unknown profile: $p (valid: $PROFILES)"; exit 2; }
+    [[ -f $CONFIG ]] && jq --arg p "$p" '.profiles[$p] // {}' "$CONFIG" 2>/dev/null || printf '{}\n'
+  fi
+}
+
+profile_set() {
+  (( $# >= 3 )) || { log "profile set needs <profile> <key> <value>"; exit 2; }
+  local p="$1" key="$2" val="$3"
+  valid_profile "$p" || { log "unknown profile: $p (valid: $PROFILES)"; exit 2; }
+  case "$key" in
+    governor)
+      governor_valid "$val" || { log "governor not available: $val (valid: $(governor_options))"; exit 2; }
+      cfg_profile_set_str "$p" governor "$val" ;;
+    epp)
+      epp_valid "$val" || { log "epp not available: $val (valid: $(epp_options))"; exit 2; }
+      cfg_profile_set_str "$p" epp "$val" ;;
+    maxFreqPct)
+      if ! [[ $val =~ ^[0-9]+$ ]] || (( val < 20 || val > 100 )); then
+        log "maxFreqPct must be an integer 20-100"; exit 2
+      fi
+      cfg_profile_set_num "$p" maxFreqPct "$val" ;;
+    platformProfile)
+      pp_valid "$val" || { log "platformProfile not available: $val (valid: $(pp_options))"; exit 2; }
+      cfg_profile_set_str "$p" platformProfile "$val" ;;
+    *)
+      log "unknown key: $key (valid: governor epp maxFreqPct platformProfile)"; exit 2 ;;
+  esac
+
+  # Editing the profile that is already active produces no ppd switch, so nothing
+  # would trigger the hook and the change would look ignored until the next
+  # switch. Apply it here so a slider takes effect where the user expects.
+  if command -v powerprofilesctl >/dev/null 2>&1 &&
+     [[ "$(powerprofilesctl get 2>/dev/null || true)" == "$p" ]]; then
+    apply_cpu_profile "$p"
+  fi
+}
+
+cmd_apply_profile() {
+  local p="${1:-}"
+  [[ -n $p ]] || { log "apply-profile needs a profile name"; exit 2; }
+  apply_cpu_profile "$p"
+  exit 0
+}
+
+# ── status ────────────────────────────────────────────────────────────────────
+
+cmd_status() {
+  local json=0
+  [[ ${1:-} == --json ]] && json=1
+
+  local cl_sup cl asp_sup asp
+  if charge_supported; then cl_sup=true; cl="$(charge_read)"; else cl_sup=false; cl=""; fi
+  if aspm_supported; then asp_sup=true; asp="$(aspm_read || true)"; else asp_sup=false; asp=""; fi
+
+  if (( json )); then
+    local cl_json=-1
+    [[ -n $cl ]] && cl_json="$cl"
+    jq -n \
+      --argjson charge_limit "$cl_json" \
+      --argjson charge_limit_supported "$cl_sup" \
+      --arg aspm "$asp" \
+      --argjson aspm_supported "$asp_sup" \
+      '{charge_limit: $charge_limit, charge_limit_supported: $charge_limit_supported, aspm: $aspm, aspm_supported: $aspm_supported}'
+    return 0
+  fi
+
+  if [[ $cl_sup == true ]]; then
+    printf 'charge_limit=%s\n' "${cl:-unset}"
+  else
+    printf 'charge_limit=unsupported\n'
+  fi
+  if [[ $asp_sup == true ]]; then
+    printf 'aspm=%s\n' "${asp:-unknown}"
+  else
+    printf 'aspm=unsupported\n'
+  fi
+}
+
+# ── apply: converge the hardware to power.json (idempotent, any machine) ───────
+
+cmd_apply() {
+  # CPU half first: re-apply the active profile's knobs on top of ppd's defaults
+  # (the boot case). Inert without a profiles block, powerprofilesctl or ppd, and
+  # unlike the battery/link half it is not laptop-gated.
+  apply_active_cpu
+
+  # laptop-only battery/link policy; a desktop is a no-op success, like ryoku-idle.
+  hw_laptop || exit 0
+  # neither knob present (a stripped-down machine): nothing to converge.
+  charge_supported || aspm_supported || exit 0
+
+  local cl asp
+  cl="$(cfg_get chargeLimit)"
+  asp="$(cfg_get aspm)"
+
+  if [[ -n $cl ]] && charge_supported; then
+    if [[ $cl =~ ^[0-9]+$ ]] && (( cl >= 50 && cl <= 100 )); then
+      priv_write "$(charge_file)" "$cl"
+    else
+      log "ignoring invalid chargeLimit in $CONFIG: $cl"
+    fi
+  fi
+  if [[ -n $asp ]] && aspm_supported; then
+    aspm_set "$asp" || true
+  fi
+  exit 0
+}
+
+usage() {
+  cat <<'USAGE'
+Usage: ryoku-power <command>
+
+status [--json]              battery charge limit + ASPM policy and support
+charge-limit get             print the end threshold, or "unset" (never written)
+charge-limit set <50-100>    cap charging at N% (persists to power.json)
+charge-limit clear           restore 100% and drop the persisted limit
+aspm get                     print the selected PCIe ASPM policy
+aspm set <policy>            set the policy (default|powersave|powersupersave)
+capabilities --json          what CPU/power knobs this machine exposes (JSON)
+profile get [<profile>]      read a saved profile definition (all when omitted)
+profile set <p> <key> <val>  define a knob for a profile (governor|epp|
+                             maxFreqPct|platformProfile)
+apply-profile <profile>      write a saved definition to sysfs (ppd hook path)
+apply                        converge the hardware to ~/.config/ryoku/power.json
+                             (globals are laptop-only; CPU profile applies anywhere)
+
+Env:
+  RYOKU_POWER_CONFIG=/path/to/power.json
+  RYOKU_POWER_SUPPLY_DIR=/path/to/power_supply
+  RYOKU_ASPM_POLICY_FILE=/path/to/pcie_aspm/parameters/policy
+  RYOKU_CPU_DIR=/path/to/sys/devices/system/cpu
+  RYOKU_PLATFORM_PROFILE_FILE=/path/to/acpi/platform_profile
+USAGE
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+  status)       shift; cmd_status "$@" ;;
+  charge-limit) shift; cmd_charge_limit "$@" ;;
+  aspm)         shift; cmd_aspm "$@" ;;
+  capabilities) shift; cmd_capabilities "$@" ;;
+  profile)      shift; cmd_profile "$@" ;;
+  apply-profile) shift; cmd_apply_profile "$@" ;;
+  apply)        cmd_apply ;;
+  -h|--help|help) usage ;;
+  *)
+    log "unknown command: $cmd"
+    usage >&2
+    exit 2
+    ;;
+esac

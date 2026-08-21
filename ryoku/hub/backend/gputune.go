@@ -36,12 +36,13 @@ type Tunable struct {
 	Value   string   `json:"value,omitempty"` // segment/toggle current
 	Risk    string   `json:"risk"`            // safe | advanced
 	Src     string   `json:"src"`             // source tag (sysfs path or cmd)
+	Desc    string   `json:"desc,omitempty"`  // persistence note the page renders
 }
 
 // odRange = the pp_od_clk_voltage sclk overdrive window and its current top.
 type odRange struct {
-	minMHz, maxMHz  int // OD_RANGE SCLK bounds
-	curMin, curMax  int // OD_SCLK level 0 / 1
+	minMHz, maxMHz int // OD_RANGE SCLK bounds
+	curMin, curMax int // OD_SCLK level 0 / 1
 }
 
 // amdCap = the amdgpu hwmon power cap, microwatts as sysfs reports it.
@@ -51,23 +52,23 @@ type amdCap struct {
 
 // nvInfo = what nvidia-smi reports for one NVIDIA GPU.
 type nvInfo struct {
-	powerSupported                          bool
+	powerSupported                             bool
 	powerMinW, powerMaxW, powerCurW, powerDefW float64
-	persistence                             bool
-	clockMaxGr                              int
-	clockCurGr                              int
+	persistence                                bool
+	clockMaxGr                                 int
+	clockCurGr                                 int
 }
 
 // gpuProbe = one GPU as the tuner sees it: identity from `ryoku-gpu detect`
 // plus whatever knobs its driver exposes on this box (nil/zero when absent).
 type gpuProbe struct {
-	slot, card, driver, model, class string
-	amdPerfLevel                     string   // "" if absent
-	amdCap                           *amdCap  // nil if no power1_cap
-	amdOD                            *odRange // nil if overdrive locked
-	amdFan                           bool     // pwm1_enable present
-	intelMinMHz, intelMaxMHz, intelRP0 int    // 0 if not Intel/absent
-	nv                               *nvInfo  // nil for non-nvidia
+	slot, card, driver, model, class   string
+	amdPerfLevel                       string   // "" if absent
+	amdCap                             *amdCap  // nil if no power1_cap
+	amdOD                              *odRange // nil if overdrive locked
+	amdFan                             bool     // pwm1_enable present
+	intelMinMHz, intelMaxMHz, intelRP0 int      // 0 if not Intel/absent
+	nv                                 *nvInfo  // nil for non-nvidia
 }
 
 type platformProfile struct {
@@ -120,13 +121,18 @@ func buildTunables(in tuneInputs) []Tunable {
 			out = append(out, intelTunables(g)...)
 		}
 	}
-	if in.platform != nil && len(in.platform.choices) > 0 {
-		out = append(out, Tunable{
-			GPU: "platform", ID: "thermal", Label: "Thermal profile",
-			Kind: "segment", Options: in.platform.choices,
-			Value: in.platform.current, Risk: "safe",
-			Src: "acpi/platform_profile",
-		})
+	// The ACPI platform profile is deliberately NOT offered here. ppd rewrites it
+	// on every profile change, so a live session knob silently loses; it belongs to
+	// a CPU power-profile definition, which is re-applied after ppd settles. Two
+	// controls over one file with opposite persistence would only mislead.
+	// desc was hardcoded in GpuPage.qml; carry it in the payload so the page
+	// renders these rows unchanged while CPU rows state their own persistence.
+	for i := range out {
+		if out[i].Risk == "advanced" {
+			out[i].Desc = "Advanced · per session, can misbehave"
+		} else {
+			out[i].Desc = "Applies now, resets on reboot"
+		}
 	}
 	return out
 }

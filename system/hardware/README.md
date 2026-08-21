@@ -1,8 +1,8 @@
 # system/hardware/
 
 Drivers and hardware setup. The job here is simple to state: use the best GPU,
-make the screen look right, and install the right driver for whatever vendor is
-in the machine.
+make the screen look right, install the right driver for whatever vendor is
+in the machine, and do not waste power doing it.
 
 ## What's here
 
@@ -13,6 +13,15 @@ in the machine.
     `disable` clears the pin.
   - `ryoku-gpu-detect` The detection helper the command sources. It reads the
     GPUs from the kernel and ranks them. Kept separate so it is easy to test.
+  - `ryoku-gpu-mux` The hardware display MUX on laptops that have one, read
+    through the kernel's `firmware-attributes` class (falling back to the
+    deprecated per-platform sysfs). `status` reports the mode and whether the
+    panel is wired to the discrete GPU; `set hybrid|discrete` switches it, which
+    takes a reboot because the firmware re-routes the panel at POST. This is a
+    different and lower layer than the `ryoku-gpu` pin: in discrete mode the
+    panel hangs off the dGPU, so the dGPU can never runtime-suspend and no
+    `AQ_DRM_DEVICES` value can change that. `ryoku doctor` reports the idle cost
+    when it sees the condition. See `docs/power.md`.
   - `ryoku-gpu-lib32` Installs the 32-bit (lib32) GPU drivers matching the
     detected hardware, so 32-bit and Proton/DXVK games render on the GPU rather
     than in software. Needs `[multilib]`; the Gaming bundle enables it, then runs
@@ -30,6 +39,32 @@ in the machine.
     type, battery presence, and lid switches. It is shared by GPU and idle policy.
   - `ryoku-idle` Starts `hypridle` only on laptops, using Ryoku's dim/lock/DPMS/
     suspend timeouts.
+  - `ryoku-power` Owns the CPU and power knobs the Hub's Machine page drives.
+    `capabilities --json` reports what this machine actually exposes;
+    `profile get|set <profile> <key> <value>` stores a per-profile definition
+    (governor, EPP, `maxFreqPct`, `platformProfile`) in `~/.config/ryoku/power.json`;
+    `apply-profile` writes one to sysfs; `charge-limit` caps the battery charge
+    ceiling (the biggest lever on cell lifetime; the kernel reports no value at all
+    until something writes one) and `aspm` sets the PCIe link policy. `apply` is
+    the idempotent pass that converges the globals plus the active profile, and
+    exits quietly on a desktop or a machine without the knobs.
+
+    It does not fight ppd: ppd still owns which profile is active, and a stored
+    definition is re-applied on top after each switch. CPU boost and the PPT/TDP
+    limits are deliberately absent, both measured as firmware placebos here. Three
+    ordering facts are load-bearing and commented in the script: the platform
+    profile is written first (a quiet profile clamps the dynamic
+    `cpuinfo_max_freq`), the governor pass finishes before the EPP pass (a governor
+    write resets EPP), and the whole apply is a write-verify-retry under a lock
+    (ppd writes asynchronously and a single write loses the race). See
+    `docs/power.md`.
+  - `47-ryoku-power.rules` A polkit rule that lets the active wheel user run
+    exactly `ryoku-power` without a password, so the login `apply` and each profile
+    switch never throw a prompt (the sysfs writes are root-owned and do not survive
+    a reboot). Every argument is a closed, validated set -- charge limit 50-100,
+    ASPM policy and governor from the kernel's own lists, `maxFreqPct` 20-100 --
+    so the passwordless grant stays safe. The rule pins `/usr/bin/ryoku-power`
+    on purpose: granting it to a user-writable path would be a privilege hole.
   - `ryoku-clamshell` macOS-style clamshell for laptops: a daemon that holds a
     systemd `handle-lid-switch` inhibitor while on AC power with an external
     display, so closing the lid keeps the session on the external instead of

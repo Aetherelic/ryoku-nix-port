@@ -36,6 +36,11 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("command -v ryoku-gpu >/dev/null 2>&1 && ryoku-gpu persist")
     hl.exec_cmd("command -v ryoku-idle >/dev/null 2>&1 && ryoku-idle start")
     hl.exec_cmd("command -v ryoku-clamshell >/dev/null 2>&1 && ryoku-clamshell daemon")
+    -- Power knobs the kernel forgets across a reboot: the battery charge ceiling
+    -- and the PCIe link policy are plain sysfs values, so a stored choice has to
+    -- be pushed back at login or it silently lapses. A no-op with no
+    -- ~/.config/ryoku/power.json, and on a desktop or a box without the knobs.
+    hl.exec_cmd("command -v ryoku-power >/dev/null 2>&1 && ryoku-power apply")
     -- Device lighting: push the stored look back at the keyboards and mice the
     -- user put under Ryoku's control (Hub > Appearance > Lighting). A no-op, and
     -- no OpenRGB at all, until lighting is on with a device adopted.
