@@ -1,0 +1,27 @@
+# Maintainer: Ryoku CI <ci@ryoku.local>
+pkgname=asusctl
+pkgver=6.4.0
+pkgrel=1
+pkgdesc='ASUS laptop control daemon and Aura lighting CLI'
+arch=('x86_64')
+url='https://github.com/OpenGamingCollective/asusctl'
+license=('MPL-2.0')
+depends=('libusb' 'udev')
+makedepends=('rust' 'clang' 'llvm')
+provides=('asusctl')
+conflicts=('asusctl-git' 'tlp')
+options=('!debug')
+install=asusctl.install
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz")
+sha256sums=('ba19565a1ed313cbb17b0d8926780023856fe85b9490f6b4fe65b7ede14ee434')
+
+build() {
+  cd "$pkgname-$pkgver"
+  cargo build --release --locked -p asusctl -p asusd -p asus-shutdown
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  make DESTDIR="$pkgdir" install-asusctl install-asusd install-asus-shutdown install-data-asusd
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

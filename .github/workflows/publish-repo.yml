@@ -97,11 +97,11 @@ jobs:
           # wayland/wayland-protocols) plus hyprcursor/pkgconf build the compositor
           # plugin packages (hypr-dynamic-cursors, ryoku-hypr-plugins, hyprglass,
           # imgborders); makepkg runs --nodeps, so their makedepends must be present
-          # here. rust (cargo) builds awww and hyprland-preview-share-picker from
-          # source (awww's common/build.rs probes liblz4, hence lz4; the picker is
-          # a gtk4 app, so gtk4 + gtk4-layer-shell). gnupg signs, rclone uploads,
-          # git backs checkout. gradle native-compiles the vendored limine-entry-tool
-          # stack (limine-mkinitcpio-hook + limine-snapper-sync, GraalVM nativeCompile).
+          # here. rust (cargo) builds awww, hyprland-preview-share-picker, and
+          # asusctl from source. awww's common/build.rs probes liblz4; the picker
+          # needs gtk4 + gtk4-layer-shell; asusctl needs clang, llvm, and libusb.
+          # gnupg signs, rclone uploads, git backs checkout, and gradle
+          # native-compiles the vendored limine-entry-tool stack
           # ryoku-cursor-material compiles a Bibata variant at build time: fish + jq
           # run the vendored recipe, and python + librsvg (rsvg-convert) +
           # xorg-xcursorgen (xcursorgen) rasterise the cursors.
@@ -111,7 +111,7 @@ jobs:
           # from the release tarball, so without pnpm the package would build
           # clean and silently break the Ryoku Canvas extension.
           pacman -Syu --noconfirm --needed \
-            base-devel git go rust cmake ninja gnupg rclone gradle \
+            base-devel git go rust clang llvm cmake ninja gnupg rclone gradle libusb \
             qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
             hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4 gtk4 gtk4-layer-shell \
             fish jq librsvg xorg-xcursorgen python pnpm nodejs

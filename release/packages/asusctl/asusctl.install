@@ -1,0 +1,22 @@
+reload_units() {
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  udevadm control --reload >/dev/null 2>&1 || true
+}
+
+post_install() {
+  reload_units
+  udevadm trigger --subsystem-match=platform --action=add >/dev/null 2>&1 || true
+}
+
+post_upgrade() {
+  reload_units
+  if systemctl is-active --quiet asusd.service; then
+    systemctl restart asusd.service || true
+  else
+    udevadm trigger --subsystem-match=platform --action=add >/dev/null 2>&1 || true
+  fi
+}
+
+post_remove() {
+  reload_units
+}

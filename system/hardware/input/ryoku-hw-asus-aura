@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+sysfs="${RYOKU_ASUS_SYSFS:-/sys}"
+dmi="$sysfs/class/dmi/id"
+
+[[ -r $dmi/sys_vendor ]] || exit 1
+vendor="$(<"$dmi/sys_vendor")"
+[[ ${vendor^^} == ASUS* ]] || exit 1
+
+family=""
+[[ -r $dmi/product_family ]] && family="$(<"$dmi/product_family")"
+case "${family^^}" in
+  *TUF*|*ROG*|*ZEPHYRUS*|*STRIX*|*VIVOBOOK*|*ASUSLAPTOP*|*ZENBOOK*|*PROART*|*TX\ AIR*|*TX\ GAMING*|*EXPERTBOOK*) exit 0 ;;
+esac
+
+for device in "$sysfs/bus/platform/drivers/asus-nb-wmi/"*; do
+  [[ -L $device && ${device##*/} != module ]] && exit 0
+done
+exit 1

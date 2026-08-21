@@ -12,12 +12,11 @@
 # exactly the packages produced now. never `repo-add --new`. so: idempotent,
 # and a removed package dir simply falls out of the db.
 #
-# build deps live on the build host only (Go toolchain + Ryoku.Blobs QML plugin
-# + the Hyprland compositor plugins): base-devel, go, cmake, ninja,
-# qt6-shadertools, qt6-declarative, and hyprland +
-# hyprcursor + pango + cairo + pkgconf (the plugin packages build against
-# Hyprland's headers), plus gradle for the vendored limine-entry-tool stack
-# (limine-mkinitcpio-hook + limine-snapper-sync, GraalVM nativeCompile).
+# build deps live on the build host only: Go and Qt build the Ryoku binaries,
+# Rust builds the native tools, and asusctl additionally needs clang, llvm, and
+# libusb. The compositor plugins need Hyprland, hyprcursor, pango, cairo, and
+# pkgconf; gradle builds the vendored limine-entry-tool stack with GraalVM
+# nativeCompile.
 # makepkg runs --nodeps on purpose: runtime depends (and AUR depends) aren't
 # needed to compile the artifacts and aren't resolvable here anyway.
 #

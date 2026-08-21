@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `asusctl` 6.4.0 is built from its pinned upstream source into the signed
+  `[ryoku]` repository, with the upstream daemon, udev rules, and user data. Its
+  install hook reloads the rules and starts `asusd` only when upstream's hardware
+  match fires. `ryoku-desktop` advertises it as the optional ASUS Aura lighting
+  provider.
+
 - `ryoku-desktop` ships `system/hardware/audio/70-ryoku-maono.rules` to
   `/usr/lib/udev/rules.d`, so the vendor HID node on Maono USB mics is reachable
   by the active-session user. See the system/hardware changelog.

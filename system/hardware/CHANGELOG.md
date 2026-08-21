@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `input/ryoku-hw-asus-aura` identifies laptops with a supported ASUS Aura
+  keyboard from DMI product families or the `asus-nb-wmi` platform driver. The
+  same quiet exit-status probe is used by both installers and `ryoku doctor`, so
+  hardware selection has one definition.
+
 - `power/ryoku-power`: the CPU side of the power profiles is now the user's to
   define. `capabilities --json` reports what the machine actually exposes
   (governor, EPP, a frequency ceiling as a percent, the ACPI platform profile),

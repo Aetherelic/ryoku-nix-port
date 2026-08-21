@@ -225,6 +225,7 @@ optdepends=(
   'quickemu: build and run virtual machines in ryovm'
   'libisoburn: instant cloud machines in ryovm (cloud-init seed ISO; xorriso)'
   'spice-gtk: SPICE console + headless VM viewer for ryovm'
+  'asusctl: ASUS laptop Aura keyboard lighting'
 )
 install="$pkgname.install"
 source=()

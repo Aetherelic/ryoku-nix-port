@@ -39,7 +39,7 @@ log "base: $BASE"
 #    builds --nodeps.
 pacman -Sy --noconfirm --needed "${keyring[@]}"
 pacman -Syu --noconfirm --needed \
-  base-devel git go rust cmake ninja gnupg gradle \
+  base-devel git go rust clang llvm cmake ninja gnupg gradle libusb \
   qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
   hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4 gtk4 gtk4-layer-shell \
   fish jq librsvg xorg-xcursorgen python
