@@ -1,0 +1,60 @@
+name: Game mode
+
+# Game Mode is a toggle that changes the machine and has to change it back, so
+# both halves are worth pinning. Neither test ran in CI before, which is how
+# game-mode.sh sat red: it asserted "the WiFi helper is absent" by deleting a
+# stub from PATH, and on any machine with Ryoku deployed `command -v` still found
+# the real helper in /usr/bin, so the case could never hold. Helpers are now
+# addressed through explicit env seams instead.
+#
+# game-tune.sh covers the privileged half against a fake /proc and cpuidle tree:
+# that every knob the kernel exposes is moved and every absent one skipped (which
+# is what lets one toggle serve both the Arch and CachyOS kernels), that deep idle
+# states are picked by exit cost so cheap ones stay enabled, that restore replays
+# the exact prior values rather than defaults, and that a second apply cannot
+# record the tuned values as the originals.
+#
+# It also pins a hardening rule found the hard way: a run with redirected paths
+# must refuse to escalate. pkexec strips the environment, so escalating from a
+# seamed run would drop the redirection and tune the real machine instead. An
+# early version did exactly that during a test.
+
+on:
+  pull_request:
+    paths:
+      - 'ryoku/hyprland/scripts/ryoku-cmd-game-mode'
+      - 'system/hardware/power/ryoku-game-tune'
+      - 'system/hardware/power/53-ryoku-game-tune.rules'
+      - 'tests/game-mode.sh'
+      - 'tests/game-tune.sh'
+      - '.github/workflows/game-mode.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'ryoku/hyprland/scripts/ryoku-cmd-game-mode'
+      - 'system/hardware/power/ryoku-game-tune'
+      - 'system/hardware/power/53-ryoku-game-tune.rules'
+      - 'tests/game-mode.sh'
+      - 'tests/game-tune.sh'
+      - '.github/workflows/game-mode.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  game-mode:
+    name: The toggle tunes the machine, and puts it all back
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Privileged system tuning applies and reverts exactly
+        shell: bash
+        run: bash tests/game-tune.sh
+
+      - name: The toggle drives the compositor, profile, tune and radio
+        shell: bash
+        run: bash tests/game-mode.sh
