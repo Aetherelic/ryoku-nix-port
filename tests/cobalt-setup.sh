@@ -51,12 +51,16 @@ exit 0
 EOF
 chmod +x "$bin/systemctl"
 
-# docker group exists and lists nero; passwd resolves uid 1000 to nero.
+# The docker group exists and lists whoever is running the suite; passwd resolves
+# that same user. Resolved when the fake runs, not when it is written, because the
+# helper compares against the live `id -un`: hardcoding a name here passes only on
+# the machine that name belongs to, and fails on every CI runner.
 cat >"$bin/getent" <<'EOF'
 #!/bin/sh
+me="$(id -un)"
 case "$1:$2" in
-  group:docker) [ -n "$FIXTURE_NO_GROUP" ] && exit 2; echo "docker:x:940:${FIXTURE_MEMBERS-nero}"; exit 0 ;;
-  passwd:*)     echo "nero:x:1000:1000::/home/nero:/bin/bash"; exit 0 ;;
+  group:docker) [ -n "$FIXTURE_NO_GROUP" ] && exit 2; echo "docker:x:940:${FIXTURE_MEMBERS-$me}"; exit 0 ;;
+  passwd:*)     echo "$me:x:$(id -u):$(id -g)::${HOME:-/home/$me}:/bin/bash"; exit 0 ;;
 esac
 exit 2
 EOF
