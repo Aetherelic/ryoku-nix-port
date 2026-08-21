@@ -3,6 +3,30 @@
 ## Unreleased
 
 ### Added
+- **Game Mode is reachable.** The whole chain already existed and nothing called
+  it: `Flags.gameMode` persisted the state, `shell.qml` drove
+  `ryoku-cmd-game-mode` on change, and DND pulled on, but no tile, pill or
+  keybind ever invoked `Toggles.toggleGame()`. Quick settings now carries a
+  `Gaming` tile next to Keep awake and Do not disturb.
+  It is AC-only, because every lever it pulls trades power and heat for latency
+  and on battery that is a bad deal the user cannot see. Rather than let the tap
+  fail into a notification, the tile reads `Needs AC` and goes inert while
+  discharging, so the constraint is visible before the click. A machine with no
+  battery is always eligible.
+- `Perf`: Game Mode is a fourth input to the performance policy, and the only
+  tier that overrides the user's own toggles. The compositor is already stripped
+  and the CPU already pinned to performance by then, so leaving the shell's own
+  eye-candy running would spend the headroom that was just bought. Motion, blur
+  and shadows go off, MSAA drops to its floor, background polling backs off
+  further than on battery (each poll is a process spawn competing with the game
+  for the same cores), and the audio analyser is dropped outright rather than
+  merely frozen when idle: `ParticleStream` releases its cava claim, so the
+  process exits instead of sampling for a visualiser nobody is looking at.
+  Nothing is persisted, so every switch returns to the user's settings on exit.
+- `QsTile`: an `available` property for a tile whose action cannot be taken right
+  now. It stays visible and keeps explaining itself through its sub-label, but
+  reads inert and swallows the tap. Defaults available, so the six existing tiles
+  are unchanged.
 - **The Cobalt engine switch sets itself up.** Turning it on used to require the
   user to already have Docker installed, its service running, and their account
   in the `docker` group. When any of that was missing the switch said so and did

@@ -20,6 +20,13 @@ Item {
     property bool hasPage: false
     property string pageTip: ""
 
+    // A tile whose action cannot be taken right now. It stays visible and keeps
+    // explaining itself through `sub` (the reason belongs there), but reads as
+    // inert and swallows the tap, so the user learns before clicking instead of
+    // after a notification. Defaults available, so a tile that never sets it
+    // behaves exactly as before.
+    property bool available: true
+
     signal toggled()
     signal pageRequested()
 
@@ -52,8 +59,8 @@ Item {
         anchors.fill: parent
         anchors.rightMargin: root.hasPage ? 34 : 0
         hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.toggled()
+        cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: if (root.available) root.toggled()
     }
 
     Row {
@@ -63,6 +70,8 @@ Item {
         anchors.right: parent.right
         anchors.rightMargin: root.hasPage ? 34 : 12
         spacing: 10
+        opacity: root.available ? 1 : 0.45
+        Behavior on opacity { NumberAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
 
         Rectangle {
             id: iconDisc

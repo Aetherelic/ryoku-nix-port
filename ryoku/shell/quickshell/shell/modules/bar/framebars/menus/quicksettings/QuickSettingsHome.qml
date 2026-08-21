@@ -249,6 +249,21 @@ Item {
                     on: Toggles.dnd
                     onToggled: Toggles.toggleDnd()
                 }
+                // Game mode trades power and heat for latency, so it is AC-only
+                // (ryoku-cmd-game-mode refuses while discharging). The tile says
+                // so up front and goes inert rather than letting the tap fail
+                // into a notification. A machine with no battery is always
+                // eligible.
+                Menus.QsTile {
+                    width: tileGrid.tileWidth
+                    icon: "sports_esports"
+                    label: qsTr("Gaming")
+                    available: !(Battery.present && Battery.discharging)
+                    sub: !available ? qsTr("Needs AC")
+                       : Toggles.gameMode ? qsTr("On") : qsTr("Off")
+                    on: Toggles.gameMode
+                    onToggled: Toggles.toggleGame()
+                }
             }
 
             Menus.QsSection { width: parent.width; label: qsTr("Sound & display") }

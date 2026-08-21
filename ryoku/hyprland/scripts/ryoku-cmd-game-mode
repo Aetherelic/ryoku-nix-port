@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # 力 game mode = one reversible toggle. competitive-play tune on start, back
-# to normal on stop. compositor via `hyprctl eval` (no root). wifi
-# power-save flipped by the privileged ryoku-wifi-powersave through pkexec
-# (polkit pre-auths it, no password, toggle stays one click). dnd is the
-# shell's job (Flags.dnd) and bridges in here, same as ryoku-cmd-caffeine.
+# to normal on stop. compositor via `hyprctl eval` (no root). the system knobs
+# that need root go through ryoku-game-tune and the wifi radio through
+# ryoku-wifi-powersave, both pre-authorised by polkit so the toggle stays one
+# click. dnd is the shell's job (Flags.dnd) and bridges in here, same as
+# ryoku-cmd-caffeine.
 #
 #   status   exit 0 = on
 #   start    apply, persist (idempotent, safe to re-run)
@@ -12,18 +13,43 @@
 #
 # revert = exact. compositor changes are runtime eval overrides; `hyprctl
 # reload` rereads Lua and clears them, so nothing to track. the wifi helper
-# saves + restores the prior power-save state. `start` is safe to re-run
-# after a relogin (Hyprland comes back fresh from Lua, request is still on
-# disk).
+# saves + restores the prior power-save state, ryoku-game-tune saves + restores
+# every knob it touches, and the prior power profile is written down here.
+# `start` is safe to re-run after a relogin (Hyprland comes back fresh from Lua,
+# request is still on disk).
+#
+# AC only, on purpose. every lever here trades power and heat for latency, and
+# on battery that is a bad deal the user cannot see: deep idle states off and a
+# performance governor drain a pack fast and push a thermally-governed chip
+# straight to its ceiling. so `start` refuses while discharging and says why,
+# rather than quietly delivering a worse machine. an unreadable or absent mains
+# reads as AC, matching ryoku-idle, so an odd machine is permitted rather than
+# locked out.
 set -u
 
 state_dir="${RYOKU_STATE_PATH:-${XDG_STATE_HOME:-$HOME/.local/state}/ryoku}"
 state_file="${RYOKU_GAMEMODE_STATE_FILE:-$state_dir/game-mode.enabled}"
+profile_file="${RYOKU_GAMEMODE_PROFILE_FILE:-$state_dir/game-mode.profile}"
+
+# Helpers are resolved once, through an explicit seam. `command -v` alone would
+# find a deployed copy in /usr/bin even when a caller means "pretend this is
+# absent", which is exactly the case a test needs to cover.
+wifi_helper="${RYOKU_WIFI_POWERSAVE_BIN-$(command -v ryoku-wifi-powersave || true)}"
+tune_helper="${RYOKU_GAME_TUNE_BIN-$(command -v ryoku-game-tune || true)}"
+idle_helper="${RYOKU_IDLE_BIN-$(command -v ryoku-idle || true)}"
 
 is_on() { [[ -f $state_file ]]; }
 
 notify() {
   command -v notify-send >/dev/null 2>&1 && notify-send -a Ryoku "$1" "$2" || true
+}
+
+# ── power source ──────────────────────────────────────────────────────────────
+# Delegated to ryoku-idle, which already owns this question for the AC/battery
+# gated idle timeouts. No helper = treat as AC, same permissive default.
+on_battery() {
+  [[ -n $idle_helper && -x $idle_helper ]] || return 1
+  "$idle_helper" on-battery >/dev/null 2>&1
 }
 
 # ── compositor ────────────────────────────────────────────────────────────────
@@ -59,6 +85,43 @@ hypr_restore() {
   hyprctl reload >/dev/null 2>&1 || true
 }
 
+# ── cpu ───────────────────────────────────────────────────────────────────────
+# power-profiles-daemon owns the governor, EPP and platform_profile as a set, so
+# asking it for `performance` is the whole CPU story and needs no root: the
+# session's own D-Bus call is already authorised. Doing it here rather than in
+# ryoku-game-tune keeps the privileged helper to knobs that genuinely need
+# privilege.
+#
+# The prior profile is written down before switching so `stop` can put back what
+# the user actually had, not a guess at "balanced".
+profile_fast() {
+  command -v powerprofilesctl >/dev/null 2>&1 || return 0
+  local prior
+  prior="$(powerprofilesctl get 2>/dev/null)" || return 0
+  [[ -n $prior ]] || return 0
+  printf '%s\n' "$prior" >"$profile_file" 2>/dev/null || true
+  powerprofilesctl set performance >/dev/null 2>&1 || true
+}
+
+profile_restore() {
+  command -v powerprofilesctl >/dev/null 2>&1 || return 0
+  local prior
+  prior="$(cat "$profile_file" 2>/dev/null)" || return 0
+  rm -f "$profile_file" 2>/dev/null || true
+  [[ -n $prior ]] || return 0
+  powerprofilesctl set "$prior" >/dev/null 2>&1 || true
+}
+
+# ── system knobs (root, via polkit) ───────────────────────────────────────────
+# Deep idle states, the NMI watchdog, split/bus-lock mitigation and three VM
+# knobs. The helper saves every prior value and restores it exactly; see
+# system/hardware/power/ryoku-game-tune for why each one is there and why the
+# firmware-governed knobs are not.
+tune() {  # apply | restore
+  [[ -n $tune_helper && -x $tune_helper ]] || return 0
+  "$tune_helper" "$1" >/dev/null 2>&1 || true
+}
+
 # ── wifi (latency only, never a cap) ──────────────────────────────────────────
 # 802.11 power-save off = radio stays fully awake. kills the periodic
 # micro-sleeps that spike latency on an idle link. does NOT shape, cap, or
@@ -72,22 +135,32 @@ has_wifi() {
 }
 
 wifi_set() {  # off | on
-  local helper
-  helper="$(command -v ryoku-wifi-powersave)" || return 0
+  [[ -n $wifi_helper && -x $wifi_helper ]] || return 0
   has_wifi || return 0
-  pkexec "$helper" "$1" >/dev/null 2>&1 || true
+  pkexec "$wifi_helper" "$1" >/dev/null 2>&1 || true
 }
 
 start() {
+  # Refuse while discharging. Checked before anything is applied, so a refusal
+  # leaves the machine exactly as it was and the request unpersisted.
+  if on_battery; then
+    notify "力 Game Mode" "Needs AC - every lever here trades battery and heat for latency"
+    return 1
+  fi
+
   mkdir -p "$state_dir" 2>/dev/null || true
   hypr_fast
+  profile_fast
+  tune apply
   wifi_set off
   printf 'enabled\n' >"$state_file" 2>/dev/null || true
-  notify "力 Game Mode" "On - compositor stripped, WiFi power-save off"
+  notify "力 Game Mode" "On - performance profile, deep idle off, compositor stripped"
 }
 
 stop() {
   hypr_restore
+  tune restore
+  profile_restore
   wifi_set on
   rm -f "$state_file" 2>/dev/null || true
   notify "力 Game Mode" "Off - desktop restored"

@@ -5,11 +5,12 @@ import Quickshell.Io
 
 // Perf is the shell's one performance-policy singleton and the single reader of
 // ~/.config/ryoku/performance.json (the file Ryoku Settings' Performance page
-// writes). It folds three inputs into the effective switches every surface obeys:
+// writes). It folds four inputs into the effective switches every surface obeys:
 //
 //   1. the explicit user toggles in performance.json (lowPowerMode is the master),
 //   2. the active power profile (PowerProfiles), when powerProfileEffects is on,
-//   3. the live battery state (Battery), for invisible savings while discharging.
+//   3. the live battery state (Battery), for invisible savings while discharging,
+//   4. Game Mode (Flags.gameMode), which outranks all of them.
 //
 // Consumers read the derived booleans (blurDisabled, shadowsDisabled, reduceMotion,
 // visualizerFrozen, pillFrozen) instead of re-deriving `lowPower || flag`: the
@@ -23,6 +24,16 @@ import Quickshell.Io
 // thrift (slower background polling, and not waking a suspended dGPU) is graceful
 // and applies whenever discharging, independent of the profile, because it costs
 // the user nothing they can see.
+//
+// Game Mode is the one tier that ignores the user's explicit toggles, and it is
+// meant to: the compositor is already stripped and the CPU is already pinned to
+// performance, so leaving the shell's own eye-candy running would spend the
+// headroom that was just bought. It is also the only tier where the shell is
+// competing with a specific foreground process for the same GPU, which is why it
+// goes further than Saver and drops the audio analyser outright rather than
+// merely freezing it when idle. Nothing here is persisted: it lasts exactly as
+// long as the toggle, and every switch returns to the user's own settings on
+// exit.
 Singleton {
     id: root
 
@@ -50,19 +61,25 @@ Singleton {
 
     readonly property bool onBattery: Battery.present && Battery.discharging
 
+    // Game Mode. Read straight off the persisted flag rather than mirrored here,
+    // so a relogin mid-session comes back in the same state the toggle left.
+    readonly property bool gaming: Flags.gameMode
+
     // Effective eye-candy switches: explicit toggle, or the lowPowerMode master, or
-    // the Power Saver tier. Performance/Balanced add nothing.
-    readonly property bool reduceMotion:    lowPower || adapter.reduceMotion            || saver
-    readonly property bool blurDisabled:     lowPower || adapter.disableBlur              || saver
-    readonly property bool shadowsDisabled:  lowPower || adapter.disableShadows           || saver
-    readonly property bool visualizerFrozen: lowPower || adapter.freezeVisualizerWhenIdle || saver
-    readonly property bool pillFrozen:       lowPower || adapter.freezePillWhenIdle        || saver
+    // the Power Saver tier, or Game Mode. Performance/Balanced add nothing.
+    readonly property bool reduceMotion:     lowPower || adapter.reduceMotion            || saver || gaming
+    readonly property bool blurDisabled:     lowPower || adapter.disableBlur              || saver || gaming
+    readonly property bool shadowsDisabled:  lowPower || adapter.disableShadows           || saver || gaming
+    readonly property bool visualizerFrozen: lowPower || adapter.freezeVisualizerWhenIdle || saver || gaming
+    readonly property bool pillFrozen:       lowPower || adapter.freezePillWhenIdle        || saver || gaming
 
     // Graceful cost knobs. Multiply a base poll interval by pollFactor: a second of
     // staleness in a stat readout is invisible, so sampling slows on battery / Saver.
+    // Game Mode goes further: nobody is reading a stat readout mid-match, and each
+    // poll is a process spawn competing with the game for the same cores.
     // msaa is the sample count for vector layers: crisp by default, halved under Saver.
-    readonly property int pollFactor: (onBattery || saver) ? 2 : 1
-    readonly property int msaa: (lowPower || saver) ? 2 : 8
+    readonly property int pollFactor: gaming ? 4 : (onBattery || saver) ? 2 : 1
+    readonly property int msaa: (lowPower || saver || gaming) ? 2 : 8
 
     FileView {
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/performance.json"
