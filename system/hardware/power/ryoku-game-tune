@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# ryoku-game-tune: the system-level half of Game Mode. The knobs here all need
+# root, all move measurably, and all revert exactly.
+#
+# What it deliberately does NOT touch, because it was measured on this class of
+# hardware and does nothing (see system/hardware/power/ryoku-power for the same
+# finding): CPU boost, throttle_thermal_policy, and the PPT/TDP knobs. Writes are
+# accepted and the package still pins the same wattage and the same 95 C. A
+# gaming toggle that flips placebos is worse than one that admits the ceiling, so
+# this helper spends its privilege only where the hardware actually answers.
+#
+# It also skips what is already right on a stock Arch install rather than
+# rewriting it for show: the NVMe scheduler is already `none`, transparent huge
+# pages are already `always`, and vm.max_map_count is already raised by the
+# `filesystem` package. Converging a value that already holds is a no-op here.
+#
+#   apply     tune for play, saving every prior value first
+#   restore   put back exactly what was saved, then forget it
+#   status    exit 0 if a tune is currently applied
+#
+# Reverting is exact rather than assumed: `apply` records the old value of every
+# knob it is about to change into a state file under /run, and `restore` replays
+# it. /run is tmpfs, so a reboot clears the saved state and the knobs together,
+# which is the right pairing since none of them survive a reboot either.
+#
+# Privilege follows the ryoku-power shape: a write we cannot do directly re-execs
+# the whole command once under pkexec, and 53-ryoku-game-tune.rules grants
+# exactly this binary to the active wheel user without a password, so the panel
+# toggle stays one click. The grant is safe because the argument set is closed
+# (three fixed verbs) and every value written is a constant in this file, never
+# anything the caller supplies.
+set -euo pipefail
+
+# the original argv, captured before any shift, so priv_write can re-exec the
+# exact command under pkexec.
+ORIG_ARGV=("$@")
+
+CPU_DIR="${RYOKU_CPU_DIR:-/sys/devices/system/cpu}"
+PROC_SYS="${RYOKU_PROC_SYS:-/proc/sys}"
+STATE="${RYOKU_GAME_TUNE_STATE:-/run/ryoku/game-tune.saved}"
+
+# Redirected paths mean the caller is pointing us at a tree that is not this
+# machine, which is how the tests drive every branch without root. pkexec strips
+# the environment, so escalating from here would silently drop that redirection
+# and apply the tune to the real /proc and /sys instead. Refuse to escalate
+# whenever a seam is set: a caller who redirected our view is never asking for
+# privilege on the real machine. (Found the hard way: an early buggy test run
+# escalated and tuned the live box. The save/restore was exact, so it came back
+# clean, but the widened scope was the bug.)
+SEAMED=0
+[[ -n "${RYOKU_CPU_DIR:-}${RYOKU_PROC_SYS:-}${RYOKU_GAME_TUNE_STATE:-}" ]] && SEAMED=1
+
+escalate() {
+  if ((SEAMED)); then
+    log "refusing to escalate: paths are redirected by a test seam"
+    exit 1
+  fi
+  if ! command -v pkexec >/dev/null 2>&1; then
+    log "cannot escalate: pkexec is unavailable"
+    exit 1
+  fi
+  exec pkexec "$(readlink -f "$0")" "${ORIG_ARGV[@]}"
+}
+
+# A C-state costing more than this to leave is worth giving up while a game is
+# running. On this hardware C3 costs 350 us to exit and C2 costs 18, so the
+# threshold takes the one that hurts frame pacing and leaves the cheap ones
+# doing their job. Not a hardcoded state name: the set differs per CPU and per
+# idle driver, so the cost is what gets asked about.
+IDLE_LATENCY_FLOOR="${RYOKU_IDLE_LATENCY_FLOOR:-100}"
+
+log() { printf 'ryoku-game-tune: %s\n' "$*" >&2; }
+
+# ── the tunables ──────────────────────────────────────────────────────────────
+# Each is "relative/path/under/proc/sys value". A knob absent on the running
+# kernel is skipped, which is what makes one toggle work across both the Arch
+# and CachyOS kernels: CachyOS exposes more of these, and each one is applied
+# only where it exists rather than assumed.
+#
+#   nmi_watchdog          a per-CPU NMI on every core, for detecting hangs we are
+#                         not debugging. Pure overhead during play.
+#   split_lock_mitigate   when a process trips a split or bus lock the kernel
+#                         penalises it to protect the rest of the system. Games
+#                         and their anti-cheat trip it, and the penalty lands as
+#                         a stutter. Present on AMD too, where it governs bus
+#                         locks.
+#   compaction_proactiveness
+#                         background memory compaction, which stalls allocations
+#                         to defragment. Those stalls are frame hitches; a game
+#                         that already has its memory does not need the tidying.
+#   page_lock_unfairness  how many times a waiter can be skipped over on a
+#                         contended page lock. Lower trades a little throughput
+#                         for shorter worst-case waits.
+#   swappiness            swap here is a disk-backed file, so eviction costs a
+#                         disk round trip mid-frame. Lowering it keeps a running
+#                         game resident without disabling swap.
+#   sched_energy_aware    energy-aware scheduling biases placement toward
+#                         efficiency cores and lower power. Only present on
+#                         kernels built with it.
+TUNABLES=(
+  "kernel/nmi_watchdog 0"
+  "kernel/split_lock_mitigate 0"
+  "kernel/sched_energy_aware 0"
+  "vm/compaction_proactiveness 0"
+  "vm/page_lock_unfairness 1"
+  "vm/swappiness 10"
+)
+
+# ── privileged write ──────────────────────────────────────────────────────────
+# Convergent: an already-correct value needs no write, and skipping it skips the
+# escalation it would have needed.
+priv_write() {
+  local path="$1" value="$2"
+  [[ "$(cat "$path" 2>/dev/null || true)" == "$value" ]] && return 0
+  if [[ -w $path || $EUID -eq 0 ]]; then
+    printf '%s\n' "$value" >"$path" 2>/dev/null || log "could not write $path"
+    return 0
+  fi
+  escalate
+}
+
+# The state file is written by the escalated pass, so it needs the same
+# privilege as the knobs.
+ensure_state_dir() {
+  local dir
+  dir="$(dirname "$STATE")"
+  [[ -d $dir ]] && return 0
+  # Try it unprivileged first, exactly as priv_write asks whether it can just do
+  # the write. Escalating merely because a directory is absent would prompt on a
+  # tree we can already write, which is the common case under test.
+  mkdir -p "$dir" 2>/dev/null && return 0
+  escalate
+}
+
+save() { printf '%s\t%s\n' "$1" "$2" >>"$STATE"; }
+
+is_applied() { [[ -s $STATE ]]; }
+
+# ── apply ─────────────────────────────────────────────────────────────────────
+apply() {
+  # Already applied: do not re-save, or the second pass would record the tuned
+  # values as the originals and restore would put the tune back instead of
+  # undoing it. This is what makes `apply` safe to re-run.
+  if is_applied; then
+    return 0
+  fi
+
+  ensure_state_dir
+  : >"$STATE" 2>/dev/null || { log "cannot write $STATE"; exit 1; }
+
+  local entry path value prior
+  for entry in "${TUNABLES[@]}"; do
+    path="$PROC_SYS/${entry%% *}"
+    value="${entry##* }"
+    [[ -f $path ]] || continue
+    prior="$(cat "$path" 2>/dev/null || true)"
+    # An unreadable or empty knob is one we cannot put back, so leave it alone.
+    [[ -n $prior ]] || continue
+    save "sysctl:${entry%% *}" "$prior"
+    priv_write "$path" "$value"
+  done
+
+  # Deep idle states, by exit cost rather than by name.
+  local state latency disabled
+  for state in "$CPU_DIR"/cpu*/cpuidle/state*; do
+    [[ -f $state/latency && -f $state/disable ]] || continue
+    latency="$(cat "$state/latency" 2>/dev/null || echo 0)"
+    [[ $latency =~ ^[0-9]+$ ]] || continue
+    ((latency > IDLE_LATENCY_FLOOR)) || continue
+    disabled="$(cat "$state/disable" 2>/dev/null || true)"
+    [[ -n $disabled ]] || continue
+    save "cpuidle:$state" "$disabled"
+    priv_write "$state/disable" 1
+  done
+}
+
+# ── restore ───────────────────────────────────────────────────────────────────
+restore() {
+  is_applied || return 0
+
+  local key prior path
+  while IFS=$'\t' read -r key prior; do
+    [[ -n ${key:-} ]] || continue
+    case "$key" in
+      sysctl:*) path="$PROC_SYS/${key#sysctl:}" ;;
+      cpuidle:*) path="${key#cpuidle:}/disable" ;;
+      *) continue ;;
+    esac
+    [[ -f $path ]] || continue
+    priv_write "$path" "$prior"
+  done <"$STATE"
+
+  # Only drop the record once every value in it has been put back, so an
+  # interrupted restore can be re-run instead of leaving the machine tuned with
+  # nothing left saying so.
+  rm -f "$STATE" 2>/dev/null || {
+    [[ $EUID -ne 0 ]] && escalate
+    log "could not clear $STATE"
+  }
+}
+
+case "${1:-}" in
+  apply) apply ;;
+  restore) restore ;;
+  status) is_applied ;;
+  *)
+    echo "usage: ryoku-game-tune [apply | restore | status]" >&2
+    exit 1
+    ;;
+esac

@@ -3,6 +3,29 @@
 ## Unreleased
 
 ### Added
+- `power/ryoku-game-tune` and `power/53-ryoku-game-tune.rules`: the system-level
+  half of Game Mode. Deep CPU idle states off (C3 costs 350 us to leave on this
+  hardware, C2 costs 18, so the choice is made by exit cost rather than by state
+  name and the cheap ones keep working), the NMI watchdog off, split/bus-lock
+  mitigation off, proactive compaction off, shorter page-lock waits, and
+  swappiness down because swap here is a disk-backed file and eviction mid-frame
+  costs a disk round trip. Every prior value is recorded before it is changed and
+  replayed on restore, in `/run` so a reboot clears the record and the knobs
+  together. A knob the running kernel does not expose is skipped, which is what
+  lets one toggle serve both the Arch and CachyOS kernels.
+  It deliberately does not touch CPU boost, `throttle_thermal_policy` or the
+  PPT/TDP knobs: those were measured on this hardware and do nothing (writes are
+  accepted, the package still pins the same wattage and the same 95 C), and a
+  gaming toggle that flips placebos is worse than one that admits the ceiling.
+  It also skips what a stock Arch install already gets right rather than
+  rewriting it for show: the NVMe scheduler is already `none`, transparent huge
+  pages already `always`, and `vm.max_map_count` already raised by `filesystem`.
+- **A run with redirected paths refuses to escalate.** `pkexec` strips the
+  environment, so escalating from a run whose paths were redirected would drop
+  the redirection and apply to the real `/proc` and `/sys` instead. Found the
+  hard way: an early version did exactly that during a test and tuned the live
+  machine. The save/restore was exact so it came back clean, but the widened
+  scope was the bug, and it is now a test.
 - `tests/controllers.sh` and a `Controllers` workflow pin controller and
   Bluetooth-adapter support, which is almost entirely a delivery problem: every
   failure it guards is invisible on the build host and shows up only as "my

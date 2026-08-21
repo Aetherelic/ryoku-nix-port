@@ -579,6 +579,14 @@ package() {
   install -Dm644 "$_repo/system/hardware/power/47-ryoku-power.rules" \
     "$pkgdir/usr/share/polkit-1/rules.d/47-ryoku-power.rules"
 
+  # Game Mode's system tuning: the same one-click grant for ryoku-game-tune
+  # (installed by the hardware glob above), so the panel toggle applies the deep
+  # idle, watchdog, lock-mitigation and VM knobs without a prompt. Its argument
+  # set is three fixed verbs and every value written is a constant in the helper,
+  # so the grant stays safe.
+  install -Dm644 "$_repo/system/hardware/power/53-ryoku-game-tune.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/53-ryoku-game-tune.rules"
+
   # Windows dual-boot: cross-drive detector + a limine-entry-tool post.d hook
   # that re-asserts the uuid()-addressed chainload entry whenever the boot menu
   # is regenerated -- separate-drive Windows survives kernel updates.

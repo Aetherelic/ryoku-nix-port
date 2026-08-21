@@ -1,0 +1,19 @@
+// Game Mode's system-level tuning (ryoku-game-tune) flips root-owned knobs that
+// need no password prompt, because the panel toggle is one click and a prompt
+// mid-session would make it useless: deep CPU idle states, the NMI watchdog,
+// split/bus-lock mitigation, and three VM knobs, all saved and restored exactly.
+// Scoped to exactly /usr/bin/ryoku-game-tune for an active local user in the
+// wheel group.
+//
+// The passwordless grant stays safe because nothing the caller says reaches a
+// write. The argument set is closed to three fixed verbs (apply, restore,
+// status), every value written is a constant compiled into the helper, and the
+// paths are fixed sysfs and /proc/sys locations. There is no argument that makes
+// it write an arbitrary value to an arbitrary file.
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.policykit.exec" &&
+        action.lookup("program") === "/usr/bin/ryoku-game-tune" &&
+        subject.local && subject.active && subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
