@@ -161,7 +161,12 @@ jobs:
               d="${d%%[<>=]*}"
               [[ -z $d ]] && continue
               grep -qxF "$d" <<<"$internal" && continue
-              if ! pacman -Si "$d" >/dev/null 2>&1; then
+              # -Si matches a real package name. It does NOT resolve a virtual
+              # provide, so a perfectly valid depend like `udev` (provided by
+              # systemd) read as missing and failed the publish. -Sp resolves
+              # provides against the same sync dbs, so try the cheap exact-name
+              # path first and fall back to it.
+              if ! pacman -Si "$d" >/dev/null 2>&1 && ! pacman -Sp "$d" >/dev/null 2>&1; then
                 echo "::error::$p: dependency '$d' not found in the official repos or [ryoku]"
                 missing=1
               fi
