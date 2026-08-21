@@ -515,8 +515,8 @@ Item {
 
         Rule { width: parent.width }
 
-        // RECORD eyebrow, with the desktop / mic toggles on the right (hidden while
-        // a recording is live).
+        // RECORD eyebrow, with capture companions and audio toggles on the right
+        // (hidden while a recording is live).
         Item {
             z: 20
             width: parent.width
@@ -531,6 +531,14 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 5 * root.s
                 visible: !Recorder.anyActive
+                IconToggle {
+                    glyph: "keyboard"
+                    tip: Keypresses.backendStatus === "error"
+                        ? Keypresses.backendError
+                        : qsTr("Show key presses (drag the preview into place)")
+                    on: Keypresses.active
+                    onToggled: Keypresses.toggle()
+                }
                 IconToggle {
                     glyph: "webcam"
                     tip: qsTr("Webcam mirror (place it before recording)")

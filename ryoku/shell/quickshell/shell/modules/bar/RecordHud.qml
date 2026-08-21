@@ -418,6 +418,16 @@ Item {
                 RecordButton { s: hud.s; glyph: Recorder.optDesktopAudio ? "speaker" : "speaker-off"; tint: Recorder.optDesktopAudio ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: Recorder.optDesktopAudio = !Recorder.optDesktopAudio }
                 RecordButton { s: hud.s; glyph: Recorder.optMic ? "mic" : "mic-off"; tint: Recorder.optMic ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: Recorder.optMic = !Recorder.optMic }
                 RecordButton { s: hud.s; glyph: "webcam"; tint: Camera.active ? Theme.onSurface : Theme.onSurfaceVariant; onTapped: Camera.toggle() }
+                RecordButton {
+                    id: keyToggle
+                    s: hud.s
+                    glyph: "keyboard"
+                    tint: Keypresses.active ? Theme.onSurface : Theme.onSurfaceVariant
+                    checked: Keypresses.active
+                    checkable: true
+                    tip: I18n.tr("KEY PRESSES · PREVIEW ONLY\nRecording has not started.")
+                    onTapped: Keypresses.toggle()
+                }
 
                 Rectangle {
                     width: (hud.layoutVertical ? 18 : 1) * hud.s
@@ -433,6 +443,49 @@ Item {
 
                 RecordButton { s: hud.s; glyph: "close"; tint: Theme.onSurfaceVariant; onTapped: Recorder.chooserOpen = false }
             }
+        }
+    }
+
+    Rectangle {
+        id: keyTip
+        z: 100
+        visible: opacity > 0.01 && hud.live
+        opacity: keyToggle.tipVisible ? 1 : 0
+        width: 190 * hud.s
+        height: keyTipLabel.implicitHeight + 14 * hud.s
+        radius: 7 * hud.s
+        color: Theme.surfaceContainerHighest
+        border.width: 1
+        border.color: Theme.outline
+
+        readonly property real margin: 8 * hud.s
+        readonly property real rawX: hud.dockEdge === "left"
+            ? card.x + card.width + margin
+            : hud.dockEdge === "right"
+                ? card.x - width - margin
+                : card.x + (card.width - width) / 2
+        readonly property real rawY: hud.dockEdge === "top"
+            ? card.y + card.height + margin
+            : hud.dockEdge === "bottom"
+                ? card.y - height - margin
+                : card.y + (card.height - height) / 2
+        x: Math.max(margin, Math.min(hud.width - width - margin, rawX))
+        y: Math.max(margin, Math.min(hud.height - height - margin, rawY))
+
+        Behavior on opacity { NumberAnimation { duration: Motion.fast } }
+
+        Text {
+            id: keyTipLabel
+            anchors.fill: parent
+            anchors.margins: 7 * hud.s
+            text: keyToggle.tip
+            color: Theme.onSurface
+            font.family: Theme.fontPrimary
+            font.pixelSize: 10 * hud.s
+            font.weight: Font.DemiBold
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            wrapMode: Text.WordWrap
         }
     }
 

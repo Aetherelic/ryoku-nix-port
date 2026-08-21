@@ -37,5 +37,9 @@ HeroCrop 1.0 HeroCrop.qml
 PickFile 1.0 PickFile.qml
 AppPicker 1.0 AppPicker.qml
 SpectrumField 1.0 SpectrumField.qml
+Keycap 1.0 Keycap.qml
+KeyChord 1.0 KeyChord.qml
+KeypressStack 1.0 KeypressStack.qml
 SpectrumMath 1.0 lib/spectrum.js
 PlaceMath 1.0 lib/place.js
+KeypressMath 1.0 lib/keypress.js

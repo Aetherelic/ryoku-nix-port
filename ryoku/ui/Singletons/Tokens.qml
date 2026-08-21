@@ -67,6 +67,12 @@ Singleton {
     readonly property color inkOnBoneDim: Qt.rgba(inkOnBone.r, inkOnBone.g, inkOnBone.b, 0.62)
     readonly property color lineOnBone: Qt.rgba(inkOnBone.r, inkOnBone.g, inkOnBone.b, 0.26)
 
+    // ── recording keycaps: fixed media stock, independent of wallpaper tint ─
+    readonly property color keycapDark: "#17171a"
+    readonly property color keycapLight: "#f4f2ed"
+    readonly property color keycapOnDark: "#ffffff"
+    readonly property color keycapOnLight: "#0d0d0f"
+
     // ── hairlines and tints (ink-derived, so they follow the resolved ink) ────
     readonly property color line: Qt.rgba(t.ink.r, t.ink.g, t.ink.b, 0.26)
     readonly property color lineSoft: Qt.rgba(t.ink.r, t.ink.g, t.ink.b, 0.13)

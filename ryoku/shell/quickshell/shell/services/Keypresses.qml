@@ -1,0 +1,242 @@
+pragma Singleton
+
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import Quickshell.Hyprland
+import Ryoku.Ui
+
+// Session-only activation and daemon-backed key events for the recording
+// companion. Visual and placement settings persist in keypresses.json through
+// the daemon's single-writer IPC seam; raw key codes and typed text never do.
+Singleton {
+    id: root
+
+    readonly property string sockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
+    readonly property string cfgPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/keypresses.json"
+
+    property bool active: false
+    property string theme: "dark"
+    property string mode: "all"
+    property string persistedTheme: "dark"
+    property string persistedMode: "all"
+    property real px: NaN
+    property real py: NaN
+    property string monitor: ""
+    property string sessionMonitor: ""
+    property bool loaded: false
+    property string backendStatus: "disabled"
+    property string backendError: ""
+    property string lastEventSignature: ""
+    property bool sawRecording: false
+    property real previewRevision: 0
+    property bool placementPreview: false
+
+    readonly property bool recordingActive: Recorder.anyActive
+
+    signal chord(var keys, bool repeat, string state, real timestamp)
+
+    function applySettings(text) {
+        const settings = KeypressMath.parseSettings(text);
+        root.persistedTheme = settings.theme;
+        root.persistedMode = settings.mode;
+        if (!root.active) {
+            root.theme = settings.theme;
+            root.mode = settings.mode;
+        }
+        root.px = settings.px === null ? NaN : settings.px;
+        root.py = settings.py === null ? NaN : settings.py;
+        root.monitor = settings.monitor;
+        root.loaded = true;
+    }
+
+    function applyFrame(line) {
+        try {
+            const frame = JSON.parse(line);
+            root.backendStatus = frame.status || "disabled";
+            root.backendError = frame.error || "";
+            if (!Array.isArray(frame.keys) || frame.keys.length === 0 || !root.active)
+                return;
+            const state = frame.state === "pressed" || frame.state === "released"
+                ? frame.state : "tap";
+            const signature = frame.serial ? String(frame.serial)
+                : JSON.stringify([frame.time || 0, frame.repeat === true, state, frame.keys]);
+            if (signature === root.lastEventSignature)
+                return;
+            root.lastEventSignature = signature;
+            root.chord(frame.keys, frame.repeat === true, state, frame.time || Date.now());
+        } catch (e) {
+            // Keep the last good state if a daemon frame is truncated.
+        }
+    }
+
+    function send(method, args) {
+        ctl.queued += "call " + method + " " + JSON.stringify(args) + "\n";
+        if (ctl.connected)
+            ctl.flushQueued();
+        else
+            ctl.connected = true;
+    }
+
+
+    function monitorAvailable(name) {
+        const monitors = Hyprland.monitors.values;
+        for (var i = 0; i < monitors.length; i++) {
+            if (monitors[i].name === name)
+                return true;
+        }
+        return false;
+    }
+
+    function chooseMonitor() {
+        if (root.monitor !== "" && root.monitorAvailable(root.monitor))
+            return root.monitor;
+        const focused = Hyprland.focusedMonitor;
+        if (focused && focused.name)
+            return focused.name;
+        const monitors = Hyprland.monitors.values;
+        return monitors.length > 0 ? monitors[0].name : "";
+    }
+    function sendConfigure() {
+        root.send("keypress.configure", { enabled: root.active, mode: root.mode });
+    }
+
+
+    function nextPreviewRevision() {
+        root.previewRevision = Math.max(root.previewRevision + 1, Date.now() * 1000);
+    }
+
+    function fencePreviewCommands() {
+        root.previewRevision = Math.max(root.previewRevision + 1, Date.now() * 1000 + 999);
+    }
+
+    function toggle() {
+        root.nextPreviewRevision();
+        root.placementPreview = false;
+        root.active = !root.active;
+    }
+
+    function previewVisual(nextTheme, nextMode) {
+        root.theme = nextTheme === "light" ? "light" : "dark";
+        root.mode = nextMode === "shortcuts" ? "shortcuts" : "all";
+    }
+
+    function acceptPreviewRevision(value) {
+        const next = Number(value);
+        if (!isFinite(next) || next <= root.previewRevision)
+            return false;
+        root.previewRevision = next;
+        return true;
+    }
+
+    function activatePreview(nextTheme, nextMode, revision) {
+        if (!root.acceptPreviewRevision(revision))
+            return;
+        root.previewVisual(nextTheme, nextMode);
+        root.placementPreview = true;
+        root.active = true;
+    }
+
+    function deactivatePreview(revision) {
+        if (!root.acceptPreviewRevision(revision))
+            return;
+        root.placementPreview = false;
+        root.active = false;
+    }
+
+    function restoreVisual() {
+        root.theme = root.persistedTheme;
+        root.mode = root.persistedMode;
+    }
+
+    function savePlacement(x, y, monitorName) {
+        root.px = x;
+        root.py = y;
+        root.monitor = monitorName || "";
+        root.send("keypress.settings", { px: x, py: y, monitor: root.monitor });
+        root.sessionMonitor = root.monitor;
+    }
+
+    function resetPlacement() {
+        root.px = NaN;
+        root.py = NaN;
+        root.monitor = "";
+        root.send("keypress.settings", { resetPlacement: true });
+    }
+
+    onActiveChanged: {
+        if (active) {
+            root.sessionMonitor = root.chooseMonitor();
+            root.lastEventSignature = "";
+        } else {
+            root.placementPreview = false;
+            root.sessionMonitor = "";
+            root.restoreVisual();
+        }
+        root.sendConfigure();
+    }
+    onModeChanged: if (loaded && active) sendConfigure()
+
+    Connections {
+        target: Recorder
+        function onAnyActiveChanged() {
+            if (Recorder.anyActive) {
+                root.placementPreview = false;
+                root.sawRecording = true;
+            } else if (root.sawRecording) {
+                root.sawRecording = false;
+                root.fencePreviewCommands();
+                root.active = false;
+            }
+        }
+    }
+
+    FileView {
+        id: settingsFile
+        path: root.cfgPath
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onLoaded: root.applySettings(text())
+        onFileChanged: reload()
+        onLoadFailed: if (!root.loaded) root.applySettings("")
+    }
+
+    Socket {
+        id: sub
+        path: root.sockPath
+        parser: SplitParser { onRead: line => root.applyFrame(line) }
+        Component.onCompleted: connected = true
+        onConnectionStateChanged: {
+            if (connected) {
+                write("subscribe keypress\n");
+                flush();
+                root.sendConfigure();
+            } else {
+                retry.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: retry
+        interval: 2000
+        onTriggered: if (!sub.connected) sub.connected = true
+    }
+
+    Socket {
+        id: ctl
+        path: root.sockPath
+        property string queued: ""
+
+        function flushQueued() {
+            if (queued.length === 0)
+                return;
+            write(queued);
+            flush();
+            queued = "";
+        }
+
+        onConnectionStateChanged: if (connected) flushQueued()
+    }
+}

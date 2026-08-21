@@ -7,6 +7,32 @@
 var rows = [
     {
         "tab": "",
+        "group": "KEY PRESSES",
+        "key": "keypressTheme",
+        "label": "Keycap style",
+        "desc": "Dark keycaps use white type; Light keycaps use black type",
+        "ctl": "seg",
+        "src": "keypresses.json",
+        "opts": [
+            "dark",
+            "light"
+        ]
+    },
+    {
+        "tab": "",
+        "group": "KEY PRESSES",
+        "key": "keypressMode",
+        "label": "Visible keys",
+        "desc": "Show all keys or hide ordinary typing and keep shortcuts only",
+        "ctl": "seg",
+        "src": "keypresses.json",
+        "opts": [
+            "all",
+            "shortcuts"
+        ]
+    },
+    {
+        "tab": "",
         "group": "QUALITY",
         "key": "fps",
         "label": "Framerate",

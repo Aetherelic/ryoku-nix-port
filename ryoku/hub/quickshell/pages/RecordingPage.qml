@@ -41,6 +41,10 @@ Item {
         "cursor": true,
         "directory": ""
     })
+    readonly property var keyFactory: ({
+        "theme": "dark",
+        "mode": "all"
+    })
 
     // What an empty `directory` resolves to, so the field can show the real path
     // rather than an empty box. Mirrors Paths.recordingsDir and the recorder's
@@ -55,8 +59,19 @@ Item {
     // differ. Both are plain maps, reassigned wholesale so the cells re-render.
     property var committed: null
     property var draft: null
+    property var keyCommitted: null
+    property var keyDraft: null
+    property bool keyActive: false
+    property string keyBackendStatus: "disabled"
+    property string keyBackendError: ""
+    readonly property string shellSockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
+    property real keyPreviewRevision: 0
+    property int keyCallSerial: 0
+    property int pendingKeySaveId: 0
+    property string keySettingsError: ""
+    property bool reduceMotion: false
 
-    readonly property int dirtyCount: {
+    readonly property int recordingDirtyCount: {
         if (!pg.draft || !pg.committed)
             return 0;
         var n = 0;
@@ -65,13 +80,28 @@ Item {
                 n++;
         return n;
     }
+    readonly property int keyDirtyCount: {
+        if (!pg.keyDraft || !pg.keyCommitted)
+            return 0;
+        var n = 0;
+        for (var k in pg.keyFactory)
+            if (pg.keyDraft[k] !== pg.keyCommitted[k])
+                n++;
+        return n;
+    }
+    readonly property int dirtyCount: recordingDirtyCount + keyDirtyCount
     // RESET is a no-op when the draft already equals stock, so gate it on that.
     readonly property bool offDefaults: {
-        if (!pg.draft)
-            return false;
-        for (var k in pg.factory)
-            if (pg.draft[k] !== pg.factory[k])
-                return true;
+        if (pg.draft) {
+            for (var k in pg.factory)
+                if (pg.draft[k] !== pg.factory[k])
+                    return true;
+        }
+        if (pg.keyDraft) {
+            for (var key in pg.keyFactory)
+                if (pg.keyDraft[key] !== pg.keyFactory[key])
+                    return true;
+        }
         return false;
     }
 
@@ -96,10 +126,18 @@ Item {
     // edit rebases committed but keeps an in-flight draft (DESIGN.md section 8),
     // while a clean view simply follows the file.
     function adopt() {
-        var wasClean = pg.draft === null || pg.dirtyCount === 0;
+        var wasClean = pg.draft === null || pg.recordingDirtyCount === 0;
         pg.committed = pg.fromAdapter();
         if (wasClean)
             pg.draft = pg.clone(pg.committed);
+    }
+
+    function adoptKey(text) {
+        var wasClean = pg.keyDraft === null || pg.keyDirtyCount === 0;
+        var parsed = KeypressMath.parseSettings(text);
+        pg.keyCommitted = { "theme": parsed.theme, "mode": parsed.mode };
+        if (wasClean)
+            pg.keyDraft = pg.clone(pg.keyCommitted);
     }
 
     function edit(k, v) {
@@ -109,12 +147,29 @@ Item {
         d[k] = v;
         pg.draft = d;
     }
+    function editKey(k, v) {
+        if (!pg.keyDraft)
+            return;
+        var d = pg.clone(pg.keyDraft);
+        d[k] = v;
+        pg.keyDraft = d;
+        pg.keySettingsError = "";
+        if (pg.keyActive)
+            pg.showKeyOverlay(true);
+    }
     function revert() {
         if (pg.committed)
             pg.draft = pg.clone(pg.committed);
+        if (pg.keyCommitted)
+            pg.keyDraft = pg.clone(pg.keyCommitted);
+        if (pg.keyActive)
+            pg.showKeyOverlay(true);
     }
     function reset() {
         pg.draft = pg.clone(pg.factory);
+        pg.keyDraft = pg.clone(pg.keyFactory);
+        if (pg.keyActive)
+            pg.showKeyOverlay(true);
     }
     function save() {
         if (!pg.draft || !pg.committed)
@@ -127,6 +182,12 @@ Item {
         cfgA.cursor = pg.draft.cursor;
         cfg.writeAdapter();
         pg.committed = pg.clone(pg.draft);
+        if (pg.keyDraft && pg.keyCommitted && pg.keyDirtyCount > 0) {
+            pg.pendingKeySaveId = pg.sendKeyCall("keypress.settings", {
+                theme: pg.keyDraft.theme,
+                mode: pg.keyDraft.mode
+            });
+        }
     }
 
     // span math for the section Flows: a cell's width comes from its control's
@@ -141,7 +202,20 @@ Item {
         return n * cw + (n - 1) * Tokens.s2;
     }
 
-    Component.onCompleted: pg.adopt()
+    function adoptMotion(text) {
+        try {
+            const settings = JSON.parse(text);
+            pg.reduceMotion = settings.reduceMotion === true || settings.lowPowerMode === true;
+        } catch (e) {
+            pg.reduceMotion = false;
+        }
+    }
+
+    Component.onCompleted: {
+        pg.adopt();
+        if (pg.keyCommitted === null)
+            pg.adoptKey("");
+    }
 
     // recording.json, this page's only writer. blockLoading makes the first read
     // synchronous; watchChanges + onFileChanged re-render on an external edit;
@@ -171,6 +245,126 @@ Item {
         }
 
         Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
+    }
+
+    FileView {
+        id: keyCfg
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/keypresses.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: pg.adoptKey(text())
+        onLoadFailed: if (pg.keyCommitted === null) pg.adoptKey("")
+    }
+
+    FileView {
+        id: performanceCfg
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/performance.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: pg.adoptMotion(text())
+        onLoadFailed: pg.reduceMotion = false
+    }
+
+    function sendKeyCall(method, args) {
+        var payload = {};
+        for (var k in args)
+            payload[k] = args[k];
+        payload.id = ++pg.keyCallSerial;
+        keyCtl.queued += "call " + method + " " + JSON.stringify(payload) + "\n";
+        if (keyCtl.connected)
+            keyCtl.flushQueued();
+        else
+            keyCtl.connected = true;
+        return payload.id;
+    }
+
+    function applyKeyFrame(line) {
+        try {
+            const frame = JSON.parse(line);
+            pg.keyBackendStatus = frame.status || "disabled";
+            pg.keyBackendError = frame.error || "";
+            pg.keyActive = pg.keyBackendStatus !== "disabled";
+        } catch (e) {}
+    }
+
+    function applyKeyReply(line) {
+        try {
+            const reply = JSON.parse(line);
+            if (reply.id !== pg.pendingKeySaveId)
+                return;
+            pg.pendingKeySaveId = 0;
+            if (!reply.ok) {
+                pg.keySettingsError = reply.error || I18n.tr("Could not save key press settings.");
+                return;
+            }
+            const saved = reply.result || {};
+            pg.keyCommitted = {
+                "theme": saved.theme === "light" ? "light" : "dark",
+                "mode": saved.mode === "shortcuts" ? "shortcuts" : "all"
+            };
+            pg.keySettingsError = "";
+        } catch (e) {}
+    }
+
+    function showKeyOverlay(show) {
+        pg.keyActive = show;
+        pg.keyPreviewRevision = Math.max(pg.keyPreviewRevision + 1, Date.now() * 1000);
+        const revision = String(pg.keyPreviewRevision);
+        if (show) {
+            Quickshell.execDetached([
+                "qs", "-c", "shell", "ipc", "call", "keypresses", "activate",
+                pg.keyDraft ? pg.keyDraft.theme : "dark",
+                pg.keyDraft ? pg.keyDraft.mode : "all",
+                revision
+            ]);
+        } else {
+            Quickshell.execDetached([
+                "qs", "-c", "shell", "ipc", "call", "keypresses", "deactivate",
+                revision
+            ]);
+        }
+    }
+
+    Socket {
+        id: keySub
+        path: pg.shellSockPath
+        parser: SplitParser { onRead: line => pg.applyKeyFrame(line) }
+        Component.onCompleted: connected = true
+        onConnectionStateChanged: {
+            if (connected) {
+                write("subscribe keypress\n");
+                flush();
+            } else {
+                keySubRetry.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: keySubRetry
+        interval: 2000
+        onTriggered: if (!keySub.connected) keySub.connected = true
+    }
+
+    Socket {
+        id: keyCtl
+        path: pg.shellSockPath
+        property string queued: ""
+        parser: SplitParser { onRead: line => pg.applyKeyReply(line) }
+
+        function flushQueued() {
+            if (queued.length === 0)
+                return;
+            write(queued);
+            flush();
+            queued = "";
+        }
+
+        onConnectionStateChanged: if (connected) flushQueued()
     }
 
     // live readout: which backend + hardware encoder the recorder resolves for
@@ -247,6 +441,115 @@ Item {
             id: col
             width: flick.width - Tokens.s3   // reserve a lane for the scroll rail
             spacing: Tokens.s5
+
+            SettingCard {
+                width: col.width
+                title: I18n.tr("KEY PRESSES")
+                kana: "鍵"
+
+                Text {
+                    width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s2
+                    text: I18n.tr("Show polished keycaps in tutorials and recordings. Turn the desktop preview on, drag it where viewers can read it, then record when you are ready. Enabling this never starts a recording.")
+                    color: Tokens.inkMuted; font.family: Tokens.ui
+                    font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 184
+                    color: pg.keyDraft && pg.keyDraft.theme === "light" ? Tokens.keycapDark : Tokens.keycapLight
+                    border.width: Tokens.border
+                    border.color: Tokens.line
+                    clip: true
+
+                    Grain { anchors.fill: parent; opacity: 0.22 }
+
+                    KeypressStack {
+                        id: keyPreview
+                        anchors.centerIn: parent
+                        theme: pg.keyDraft ? pg.keyDraft.theme : "dark"
+                        previewChords: pg.keyDraft && pg.keyDraft.mode === "shortcuts"
+                            ? [["Super", "Shift", "R"], ["Ctrl", "K"], ["Alt", "Tab"]]
+                            : [["A"], ["B"], ["C"]]
+                        preview: true
+                        motionEnabled: !pg.reduceMotion
+                    }
+
+                    Text {
+                        anchors.left: parent.left; anchors.bottom: parent.bottom
+                        anchors.leftMargin: Tokens.s4; anchors.bottomMargin: Tokens.s3
+                        text: pg.keyDraft && pg.keyDraft.mode === "shortcuts"
+                            ? I18n.tr("SHORTCUTS ONLY · SAFER FOR PASSWORDS")
+                            : I18n.tr("ALL KEYS · BEST FOR TUTORIALS")
+                        color: pg.keyDraft && pg.keyDraft.theme === "light" ? Tokens.keycapOnDark : Tokens.keycapOnLight
+                        font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+                        font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+                    }
+                }
+
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Keycap style")
+                    desc: I18n.tr("Dark is black with white type; Light is white with black type.")
+                    source: "keypresses.json"
+                    def: pg.keyCommitted ? pg.keyCommitted.theme : ""
+                    changed: pg.keyDraft && pg.keyCommitted ? pg.keyDraft.theme !== pg.keyCommitted.theme : false
+                    controlWidth: 132
+                    Seg {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        options: ["dark", "light"]
+                        current: pg.keyDraft ? pg.keyDraft.theme : "dark"
+                        onChose: k => pg.editKey("theme", k)
+                    }
+                }
+
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Visible keys")
+                    desc: I18n.tr("All keys is most expressive; Shortcuts only hides ordinary typing.")
+                    source: "keypresses.json"
+                    def: pg.keyCommitted ? pg.keyCommitted.mode : ""
+                    changed: pg.keyDraft && pg.keyCommitted ? pg.keyDraft.mode !== pg.keyCommitted.mode : false
+                    controlWidth: 156
+                    Seg {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        options: ["all", "shortcuts"]
+                        current: pg.keyDraft ? pg.keyDraft.mode : "all"
+                        onChose: k => pg.editKey("mode", k)
+                    }
+                }
+
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Desktop placement")
+                    desc: pg.keySettingsError !== "" ? pg.keySettingsError
+                        : (pg.keyBackendStatus === "error" ? pg.keyBackendError
+                        : I18n.tr("Show the animated sample, then drag the keycaps anywhere on the chosen monitor."))
+                    controlWidth: 282
+                    Row {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Tokens.s2
+
+                        Btn {
+                            text: pg.keyActive ? I18n.tr("HIDE") : I18n.tr("SHOW ON DESKTOP")
+                            primary: !pg.keyActive
+                            armed: true
+                            onAct: pg.showKeyOverlay(!pg.keyActive)
+                        }
+                        Btn {
+                            text: I18n.tr("RESET POSITION")
+                            armed: true
+                            onAct: pg.sendKeyCall("keypress.settings", { resetPlacement: true })
+                        }
+                    }
+                }
+            }
 
             // ── QUALITY ──────────────────────────────────────────────────────
             SettingCard {

@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Animated keypresses for screen recordings.** Recording settings now includes
+  a built-in display mode, a draggable pre-recording sample, repeat counts,
+  dark and light palettes, and optional shortcuts-only privacy. The latest three
+  chords stay in a smooth horizontal history; modifier chords use Ryoku's
+  Super-first order, shifted keys show their symbols, and each keycap presses and
+  releases with a held-state depth animation before fading away. Input is read
+  from ordered evdev streams and automatically suspends while the session locks
+  or recording is inactive (`modules/capture/KeypressOverlay.qml`,
+  `services/Keypresses.qml`, `ipc/keypress.go`).
 - **Apple Music is a first-class music source.** The now-playing daemon detects
   Sidra and Cider (and any `music.apple.com` web player) as `applemusic` rather
   than lumping them in with "other"; their synced lyrics and cover art already

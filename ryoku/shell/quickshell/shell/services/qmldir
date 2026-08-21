@@ -23,6 +23,7 @@ singleton Fullscreen Fullscreen.qml
 singleton Devices Devices.qml
 singleton Weather Weather.qml
 singleton Camera Camera.qml
+singleton Keypresses Keypresses.qml
 singleton Toggles Toggles.qml
 singleton VoiceBars VoiceBars.qml
 singleton WallIndex WallIndex.qml

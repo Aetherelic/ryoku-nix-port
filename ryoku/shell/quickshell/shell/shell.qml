@@ -53,7 +53,7 @@ ShellRoot {
     // Construct the shared services (ShellState's per-monitor state now, heavier
     // providers as surfaces migrate) at load rather than on the first keybind.
     ServiceLoader {
-        services: [ShellState, ScreenTime]
+        services: [ShellState, ScreenTime, Keypresses]
     }
 
     // Power Saver strips compositor blur and shadow too (the heaviest present-time
@@ -163,6 +163,9 @@ ShellRoot {
                 modelData: perScreen.modelData
             }
             CameraOverlay {
+                modelData: perScreen.modelData
+            }
+            KeypressOverlay {
                 modelData: perScreen.modelData
             }
             // Shown only on the monitor whose frame bar raised it; the positive
@@ -431,6 +434,23 @@ ShellRoot {
             if (st)
                 root.placeVisualizer(false);
         }
+    }
+
+    IpcHandler {
+        target: "keypresses"
+        readonly property bool active: Keypresses.active
+        readonly property string status: Keypresses.backendStatus
+        readonly property string lastEvent: Keypresses.lastEventSignature
+        readonly property string theme: Keypresses.theme
+        readonly property string mode: Keypresses.mode
+        readonly property real revision: Keypresses.previewRevision
+        function activate(theme: string, mode: string, revision: string): void {
+            Keypresses.activatePreview(theme, mode, revision);
+        }
+        function deactivate(revision: string): void {
+            Keypresses.deactivatePreview(revision);
+        }
+        function toggle(): void { Keypresses.toggle(); }
     }
     // Menu global shortcuts (Phase 10): open a bar menu/surface on the focused
     // monitor via the ShellState bus, replacing the old `ryoku-shell menu <id>`

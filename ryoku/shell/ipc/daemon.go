@@ -106,6 +106,7 @@ type daemon struct {
 	polkit         *polkitAgent             // PolicyKit1 authentication agent (nil until started)
 	settings       *settingsStore           // shell.json store (nil until startSettings); theme apply patches through it
 	pp             *powerProfilesState      // power-profiles-daemon bus state; nil until startPowerProfiles
+	keypress       *keypressManager         // evdev key stream; opens devices only while the overlay is enabled
 }
 
 func runDaemon() error {
@@ -294,6 +295,7 @@ func setupQmlImportPath() {
 // components.
 func (d *daemon) bootstrap() {
 	d.startSettings()
+	d.startKeypress()
 	d.startClipboard()
 	d.startTray()
 	d.startWeather()
@@ -631,6 +633,9 @@ func (d *daemon) supervise(name string) {
 
 		start := time.Now()
 		_ = cmd.Wait()
+		if name == "shell" && d.keypress != nil {
+			d.keypress.configure(false, d.keypress.currentMode())
+		}
 		if logFile != nil {
 			logFile.Close()
 		}
@@ -737,6 +742,9 @@ func (d *daemon) signalQuit() {
 // running. SIGTERM first so Quickshell can bow out cleanly, SIGKILL if it will
 // not.
 func (d *daemon) shutdown() {
+	if d.keypress != nil {
+		d.keypress.configure(false, "all")
+	}
 	d.mu.Lock()
 	pids := make([]int, 0, len(d.proc))
 	for _, c := range d.proc {
