@@ -1,0 +1,14 @@
+post_install() {
+    # New rules only apply to devices that appear after the reload, so a pad
+    # plugged in during the install still needs a reconnect. Reloading here at
+    # least means the next plug works without a reboot.
+    udevadm control --reload-rules
+}
+
+post_upgrade() {
+    udevadm control --reload-rules
+}
+
+post_remove() {
+    udevadm control --reload-rules
+}

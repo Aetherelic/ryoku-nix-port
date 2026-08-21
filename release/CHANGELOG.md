@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Added
+- `game-devices-udev` 1.0 and `dualsensectl` 0.7 build into the signed `[ryoku]`
+  repository. `game-devices-udev` moves out of `aur.packages` (it is in
+  `base.packages`, so it must be reachable by pacman); `dualsensectl` is a
+  control tool for a device most machines do not have, so it stays a one
+  `pacman -S` away rather than joining the base set.
+  `game-devices-udev` deviates from the AUR recipe twice, on purpose: it uses the
+  plain release tarball rather than the `?signed` git source, because verifying
+  upstream's tag signature needs the maintainer's key in the builder's keyring
+  and this build host imports no upstream keys, so a `?signed` source would fail
+  the build rather than fail safe; and it drops upstream's `uinput.conf`, because
+  `ryoku-desktop` already ships `99-ryoku-uinput.conf` for that one-line job.
+  Both source checksums were verified against the upstream artifact, and the
+  Codeberg tarball was confirmed byte-stable across refetches before pinning it.
+- `publish-repo.yml`: `meson` joins the build toolchain. `ninja` was already
+  there but does not drive itself, so both new packages would have failed to
+  build on the host while building fine locally.
 - `xpadneo-dkms` 0.10.4 and `broadcom-bt-firmware` 12.0.1.1105 build into the
   signed `[ryoku]` repository. Both are in `base.packages`, and an AUR package
   cannot be reached by `ryoku update`, which is pacman: a machine that installed

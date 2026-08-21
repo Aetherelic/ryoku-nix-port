@@ -1,0 +1,59 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# udev rules for game controllers: 27 vendors' worth, covering the pads the
+# kernel binds but does not grant userspace access to. The driver side is mostly
+# already handled in-kernel (hid_playstation, hid_sony, hid_nintendo, xpad), so
+# what is missing is not a driver but permission and metadata: without a matching
+# rule, Steam, an emulator or a battery indicator cannot open the device's hidraw
+# node, so a pad that "works" still reports no battery and cannot be configured.
+#
+# 8BitDo, PowerA, PDP, Nacon, Hori, Mad Catz, Razer, Thrustmaster, Valve, HTC,
+# Logitech, Sony, Nintendo, Microsoft and the rest, which is most of what people
+# actually own once they stray from first-party pads.
+#
+# Moved out of aur.packages: it is in base.packages, and `ryoku update` is pacman,
+# which never touches the AUR. A machine that installed before the AUR step
+# existed, or whose one-shot build failed, had no route to these rules.
+#
+# Two deliberate deviations from the AUR recipe:
+#
+#   1. Plain release tarball instead of the `?signed` git source. Upstream signs
+#      its tags, and the AUR package verifies that signature, but verification
+#      needs the maintainer's public key in the builder's keyring and Ryoku's
+#      build host imports no upstream keys (nothing else in release/packages uses
+#      validpgpkeys). A `?signed` source would fail the build rather than fail
+#      safe. The tarball is pinned by sha256 verified against the upstream
+#      artifact and confirmed byte-stable across refetches, and the resulting
+#      package is signed by the Ryoku release key like every other.
+#
+#   2. No uinput.conf. The AUR package ships one to load the uinput module, and
+#      Ryoku already does that from system/hardware/input/99-ryoku-uinput.conf via
+#      ryoku-desktop. Shipping upstream's too would be a second copy of the same
+#      one-line job.
+#
+# fixed-version package: it tracks upstream releases, not RYOKU_PKGVER.
+pkgname=game-devices-udev
+pkgdesc='Udev rules for game controllers'
+pkgver=1.0
+pkgrel=1
+url='https://codeberg.org/fabiscafe/game-devices-udev'
+arch=('any')
+license=('MIT')
+depends=('udev')
+makedepends=('meson')
+provides=('nintendo-udev')
+install="${pkgname}.install"
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/${pkgver}.tar.gz")
+sha256sums=('ac733ea6babb6623e1ac76eceac9b494255ae312d1e7c3fde011ac50ee99f6c5')
+
+build() {
+  arch-meson "$pkgname" build
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+
+  install -Dm644 "${srcdir}/${pkgname}/LICENSE" \
+    "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

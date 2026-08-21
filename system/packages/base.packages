@@ -210,10 +210,18 @@ mangohud
 # xpadneo ships from [ryoku] rather than the AUR so `ryoku update` can install
 # and update it; see release/packages/xpadneo-dkms.
 #
+# game-devices-udev is the other half, and it is not a driver: the kernel binds
+# these pads but does not grant userspace access to them, so without its rules a
+# pad that works as a gamepad still reports no battery and cannot be configured
+# by Steam or an emulator. 27 vendors, which is most of what people own once they
+# stray from first-party pads: 8BitDo, PowerA, PDP, Nacon, Hori, Mad Catz,
+# Razer, Thrustmaster, Valve. Also moved out of the AUR, for the same reason.
+#
 # The Xbox Wireless Dongle is deliberately NOT here: its driver (xone) ships
 # `blacklist xpad`, which would take wired and off-brand pads down with it. It is
-# packaged for on-demand install instead.
+# an opt-in install instead.
 xpadneo-dkms
+game-devices-udev
 
 # Bluetooth adapter firmware. linux-firmware's default set already pulls
 # -intel, -realtek, -mediatek, -atheros and -broadcom, which covers essentially

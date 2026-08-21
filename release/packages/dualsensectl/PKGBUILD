@@ -1,0 +1,39 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# DualSense control from the command line: player LEDs, lightbar colour, battery
+# level, microphone mute, speaker routing, trigger effects.
+#
+# The pad itself needs none of this. hid_playstation binds a DualSense in-kernel
+# over both USB and Bluetooth, and it works as a gamepad with nothing installed.
+# What the kernel does not expose is the controller's own features, so this is a
+# control tool rather than a driver, and it is why the package is not in
+# base.packages: a machine with no DualSense should not carry it.
+#
+# It ships from [ryoku] so it is one `pacman -S` away, reachable by `ryoku
+# update`, and present in the offline closure, instead of needing an AUR helper
+# on a box that may not have one.
+#
+# fixed-version package: it tracks upstream releases, not RYOKU_PKGVER.
+pkgname=dualsensectl
+pkgdesc='Linux tool for controlling PS5 DualSense controllers'
+pkgver=0.7
+pkgrel=1
+url='https://github.com/nowrep/dualsensectl'
+arch=('x86_64')
+license=('GPL-2.0-only')
+depends=('dbus' 'hidapi' 'libusb')
+makedepends=('meson')
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz")
+sha256sums=('a615304596925738b12d0a499f31e1fe0cc3653da230edfe7c68637098ce6b72')
+
+build() {
+  arch-meson "${pkgname}-${pkgver}" build
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+
+  install -Dm644 "${srcdir}/${pkgname}-${pkgver}/LICENSE" \
+    "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

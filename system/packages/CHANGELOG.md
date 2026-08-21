@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `base.packages` / `aur.packages`: `game-devices-udev` moves from the AUR set to
+  the base set, shipped from `[ryoku]`. It is not a driver: the kernel binds
+  these pads already, but without its rules userspace cannot open their hidraw
+  node, so a pad that works as a gamepad still reports no battery and cannot be
+  configured by Steam or an emulator. 27 vendors, which is most of what people
+  own once they stray from first-party pads: 8BitDo, PowerA, PDP, Nacon, Hori,
+  Mad Catz, Razer, Thrustmaster, Valve. It was previously unreachable by `ryoku
+  update`, exactly like `spicetify-cli` before it.
 - `base.packages`: **Bluetooth adapter firmware is complete.** Arch split
   `linux-firmware` into per-vendor packages and the default set already pulls
   `-intel`, `-realtek`, `-mediatek`, `-atheros` and `-broadcom`, which covers

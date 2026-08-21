@@ -50,13 +50,3 @@ voxtype-bin
 # pkgbase builds from source with fontforge and failed headless in the ISO CI.
 # Inter, JetBrains Mono and Noto ship from the official repo (base.packages).
 ttf-fraunces-variable
-
-# game-devices-udev ships the udev rules + battery reporting for
-# DualSense/DualShock and Switch Pro pads. It pairs with the uinput module and
-# the user's `input` group (system/hardware/input, installer groups) so Steam
-# Input and the pads work out of the box.
-#
-# xpadneo-dkms moved to [ryoku] (release/packages/xpadneo-dkms): an AUR package
-# cannot be reached by `ryoku update`, which is pacman, so a box that missed the
-# one-shot build had a non-working Xbox controller and no route to a fix.
-game-devices-udev

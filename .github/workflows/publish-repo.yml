@@ -110,8 +110,10 @@ jobs:
           # `Spicetify` global every extension is written against. It is absent
           # from the release tarball, so without pnpm the package would build
           # clean and silently break the Ryoku Canvas extension.
+          # meson builds the two controller packages: game-devices-udev's udev
+          # rules and dualsensectl. ninja alone is not enough, meson drives it.
           pacman -Syu --noconfirm --needed \
-            base-devel git go rust clang llvm cmake ninja gnupg rclone gradle libusb \
+            base-devel git go rust clang llvm cmake ninja meson gnupg rclone gradle libusb \
             qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
             hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4 gtk4 gtk4-layer-shell \
             fish jq librsvg xorg-xcursorgen python pnpm nodejs
