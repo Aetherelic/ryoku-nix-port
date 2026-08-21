@@ -31,82 +31,118 @@ import (
 // State flows one way (daemon to QML) through subscribe; intent flows the other
 // (QML to daemon) through call.
 
-// stateTopic fans a subsystem's current state out to its subscribers. It keeps
-// the last frame as the snapshot a fresh subscriber receives immediately, and
-// drops a frame identical to the previous one so QML bindings do not churn on a
-// no-op update.
+// stateTopic fans a subsystem's state out to subscribers. Ordinary state
+// topics coalesce unread snapshots; ordered topics retain every event and apply
+// bounded backpressure instead, because a later keypress cannot replace an
+// earlier one.
+type topicSubscriber struct {
+	frames   chan []byte
+	done     chan struct{}
+	stopOnce sync.Once
+}
+
+func (s *topicSubscriber) stop() {
+	s.stopOnce.Do(func() { close(s.done) })
+}
+
 type stateTopic struct {
-	mu   sync.Mutex
-	subs map[chan []byte]struct{}
-	last []byte
+	mu      sync.Mutex
+	subs    map[*topicSubscriber]struct{}
+	last    []byte
+	ordered bool
 }
 
 func newStateTopic() *stateTopic {
-	return &stateTopic{subs: map[chan []byte]struct{}{}}
+	return &stateTopic{subs: map[*topicSubscriber]struct{}{}}
 }
 
-func (t *stateTopic) subscribe() chan []byte {
-	// Depth one: frames are whole-state, so a newer frame supersedes an
-	// unread older one (see publish); a single slot is all a consumer needs.
-	ch := make(chan []byte, 1)
-	t.mu.Lock()
-	t.subs[ch] = struct{}{}
-	snap := t.last
-	t.mu.Unlock()
-	if snap != nil {
-		ch <- snap
+func newEventTopic() *stateTopic {
+	return &stateTopic{subs: map[*topicSubscriber]struct{}{}, ordered: true}
+}
+
+func (t *stateTopic) subscribe() *topicSubscriber {
+	depth := 1
+	if t.ordered {
+		depth = 64
 	}
-	return ch
-}
-
-func (t *stateTopic) unsubscribe(ch chan []byte) {
+	sub := &topicSubscriber{
+		frames: make(chan []byte, depth),
+		done:   make(chan struct{}),
+	}
 	t.mu.Lock()
-	delete(t.subs, ch)
+	t.subs[sub] = struct{}{}
+	if t.last != nil {
+		sub.frames <- t.last
+	}
 	t.mu.Unlock()
+	return sub
 }
 
-// publish records frame as the new snapshot and delivers it to every subscriber,
-// unless it equals the last frame. Because every frame is the complete state, a
-// backed-up consumer has its queued frame replaced with the latest rather than
-// blocking the publisher: it can miss an intermediate frame but never the newest.
+func (t *stateTopic) unsubscribe(sub *topicSubscriber) {
+	t.mu.Lock()
+	delete(t.subs, sub)
+	t.mu.Unlock()
+	sub.stop()
+}
+
 func (t *stateTopic) publish(frame []byte) {
 	t.mu.Lock()
-	if bytes.Equal(frame, t.last) {
+	if !t.ordered && bytes.Equal(frame, t.last) {
 		t.mu.Unlock()
 		return
 	}
 	t.last = frame
-	chans := make([]chan []byte, 0, len(t.subs))
-	for ch := range t.subs {
-		chans = append(chans, ch)
+	subs := make([]*topicSubscriber, 0, len(t.subs))
+	for sub := range t.subs {
+		subs = append(subs, sub)
 	}
+	ordered := t.ordered
 	t.mu.Unlock()
-	for _, ch := range chans {
+
+	for _, sub := range subs {
+		if ordered {
+			select {
+			case sub.frames <- frame:
+			case <-sub.done:
+			}
+			continue
+		}
 		select {
-		case ch <- frame:
+		case <-sub.done:
+			continue
+		case sub.frames <- frame:
 		default:
 			select {
-			case <-ch:
+			case <-sub.frames:
 			default:
 			}
 			select {
-			case ch <- frame:
+			case sub.frames <- frame:
+			case <-sub.done:
 			default:
 			}
 		}
 	}
 }
 
-// registerTopic creates a topic subsystems publish to and QML subscribes to.
-func (d *daemon) registerTopic(name string) *stateTopic {
+func (d *daemon) installTopic(name string, topic *stateTopic) *stateTopic {
 	d.topicsMu.Lock()
 	defer d.topicsMu.Unlock()
 	if d.topics == nil {
 		d.topics = map[string]*stateTopic{}
 	}
-	t := newStateTopic()
-	d.topics[name] = t
-	return t
+	d.topics[name] = topic
+	return topic
+}
+
+// registerTopic creates a coalescing state topic. Event producers whose frames
+// are individually meaningful must use registerEventTopic instead.
+func (d *daemon) registerTopic(name string) *stateTopic {
+	return d.installTopic(name, newStateTopic())
+}
+
+func (d *daemon) registerEventTopic(name string) *stateTopic {
+	return d.installTopic(name, newEventTopic())
 }
 
 func (d *daemon) topic(name string) *stateTopic {
@@ -145,8 +181,8 @@ func (d *daemon) serveSubscription(conn net.Conn, cmd string) {
 		return
 	}
 	_ = conn.SetDeadline(time.Time{})
-	ch := t.subscribe()
-	defer t.unsubscribe(ch)
+	sub := t.subscribe()
+	defer t.unsubscribe(sub)
 	done := make(chan struct{})
 	go func() {
 		// Any further input, or a half-close, ends the stream.
@@ -155,7 +191,7 @@ func (d *daemon) serveSubscription(conn net.Conn, cmd string) {
 	}()
 	for {
 		select {
-		case frame := <-ch:
+		case frame := <-sub.frames:
 			if _, err := conn.Write(append(frame, '\n')); err != nil {
 				return
 			}

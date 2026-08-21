@@ -200,7 +200,9 @@ func TestWallpaperRandomRevealsRandomImageWithTransition(t *testing.T) {
 		Revision   int               `json:"revision"`
 		Transition *pickedTransition `json:"transition"`
 	}
-	frame := <-d.wall.topic.subscribe()
+	sub := d.wall.topic.subscribe()
+	defer d.wall.topic.unsubscribe(sub)
+	frame := <-sub.frames
 	if err := json.Unmarshal(frame, &f); err != nil {
 		t.Fatalf("published frame not JSON: %v", err)
 	}

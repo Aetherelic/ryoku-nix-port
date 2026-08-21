@@ -370,10 +370,11 @@ func TestLiveNetworkFrame(t *testing.T) {
 	}
 	defer conn.Close()
 	n := &networkState{conn: conn, topic: newStateTopic()}
-	ch := n.topic.subscribe()
+	sub := n.topic.subscribe()
+	defer n.topic.unsubscribe(sub)
 	n.publish()
 	select {
-	case frame := <-ch:
+	case frame := <-sub.frames:
 		t.Logf("network frame: %s", frame)
 		var m map[string]any
 		if err := json.Unmarshal(frame, &m); err != nil {
