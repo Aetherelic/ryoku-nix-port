@@ -154,6 +154,7 @@ func reconcilers() []reconciler {
 		{"failed services", reconcileFailedUnits},
 		{"btrfs device health", reconcileBtrfsHealth},
 		{"wireless regulatory domain", reconcileWifiRegdom},
+		{"ASUS Aura lighting provider", reconcileAsusAura},
 		{"display backlight", reconcileBacklight},
 		{"discrete GPU idle drain", reconcileDgpuPanel},
 		{"display resolution", reconcileDisplayModes},

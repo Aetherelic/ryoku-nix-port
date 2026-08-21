@@ -18,6 +18,12 @@
   design, and it is what keeps an offline install clean: ship the client offline,
   wire the catalogue on the first run that has a network to wire it to
   (`internal/doctor/reconcile_flatpak.go`, `internal/updater/update.go`).
+- **`ryoku doctor` can finish ASUS Aura keyboard support after an update.** On a
+  laptop identified by the shared hardware probe it installs `asusctl` when
+  missing and starts `asusd`; unsupported machines remain untouched, and an
+  installed TLP stack produces an explicit conflict report instead of a failed
+  package transaction.
+
 - **`ryoku import <path>` brings an existing setup onto Ryoku from the terminal.**
   A thin front door to the Hub's import engine: it scans a folder, an existing
   `~/.config`, or `--url <git>`, auto-resolves keybind clashes by
