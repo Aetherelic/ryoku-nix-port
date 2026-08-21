@@ -45,6 +45,20 @@
   is too late for the crash that happens before one.
 
 ### Added
+- **Fingerprint touch-to-unlock at the in-session lock.** The qylock lock now
+  offers the same fingerprint unlock as the SDDM greeter, through a
+  self-contained `ryoku-lock` PAM service shipped under
+  `qylock/quickshell-lockscreen/assets/pam/` and loaded via
+  `PamContext.configDirectory`, so no root edit of `/etc/pam.d` is needed. The
+  stack pairs `pam_fprintd_grosshack` with `pam_unix` and ends in `pam_deny`: a
+  touch or a typed password unlocks within one PAM conversation, and if neither
+  matches the stack fails closed. The shim arms the sensor only after
+  `WlSessionLock.secure`, bounds a failed scan with a 700ms re-arm, aborts on
+  unlock, and guards against a second auth when a touch wins during the windup.
+  A Fingerprint card in Ryoku Settings (**Lockscreen**) enrolls, verifies,
+  names, and removes fingers as the login user (fprintd over its own bus, never
+  root), gated by a `~/.config/qylock/fingerprint` toggle the lock reads before
+  it offers the sensor.
 - Vendored the qylock clockwork theme (orbital and tape variants) and the
   Quickshell lockscreen under `qylock/`, trimmed to only what Ryoku ships.
 - Per-skin `preview.gif` for the Lockscreen section in Ryoku Settings: orbital
