@@ -18,6 +18,14 @@
   argv while alacritty and xterm need `-e` (`hyprland/scripts/ryoku-app`).
 
 ### Fixed
+- **Rashin's vitals stream stops waking a sleeping discrete GPU.** `gpuVitals`
+  called `nvidia-smi` on every tick and the `/ws/vitals` websocket ticks every 2s,
+  so any connected Rashin client dragged a runtime-suspended card back out of D3
+  (about 10 W on a hybrid laptop) twice a second and held it awake for the whole
+  session. It now checks `power/runtime_status` first -- one sysfs read, no process
+  spawn, and it never touches the card -- and reports no GPU while it sleeps, the
+  same nil it already returned when nvidia-smi was absent
+  (`rashin/backend/vitals.go`).
 - **quickshell no longer SIGABRTs on every follow-wallpaper palette change.**
   `ryoku-cmd-folders` minted a brand-new timestamped icon-theme directory per
   palette change and switched the active theme straight to it, so the shell

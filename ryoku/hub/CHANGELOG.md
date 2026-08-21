@@ -3,6 +3,37 @@
 ## Unreleased
 
 ### Added
+- **The GPU page is now Machine, and you decide what Saver, Balanced and
+  Performance actually do.** The page lost its decor -- the 描画 watermark and the
+  Ticks-framed read-only specimen, about 210 lines -- and the two-column rail
+  collapsed to one full-width column, which is what made room for CPU controls
+  without a scroll marathon. A new CPU POWER PROFILES section picks which of ppd's
+  three profiles you are *editing* (not switching to, and it says so, naming the
+  active one) and exposes governor, EPP, a frequency ceiling and the fan/thermal
+  policy for it. That last knob replaces the old standalone "Thermal profile",
+  which wrote `platform_profile` live and was silently overwritten by ppd on every
+  profile change; as part of a stored definition it now survives. A BATTERY section
+  surfaces the charge ceiling and PCIe ASPM policy, which `ryoku-power` has
+  implemented since it shipped but had no GUI for. Every row is capability-gated,
+  so a machine without a knob simply does not show it, and both sections hide
+  cleanly on a backend that has no `cpu` verb.
+
+  A closing note names CPU boost and PPT/TDP as deliberately unexposed and quotes
+  the measurements, because telling someone why a knob is missing is part of
+  giving them control. `Performance` is renamed **Desktop Effects**, which is all
+  that page has ever contained. Nav keys and filenames are unchanged, so deep
+  links and the Store's "open in settings" handoff keep working
+  (`pages/GpuPage.qml`, `schema/GpuPage.js`, `Hub.qml`, `backend/cputune.go`).
+- **The plugin placement stage is a free two-axis drag, and the centre is no
+  longer off limits.** Add-ons > a frame popout: drag the popout chip anywhere on
+  the screen mock. Land it in the middle and the popout is centred (a modal
+  surface, written as `framePopout { edge: "center", align: "center" }`); land it
+  near an edge and it docks there, taking `start | center | end` from the thirds
+  along that edge. The struck-out "reserved" band is gone, the edge selector
+  gained Center, and a centred pick explains itself: it has no hover edge, and it
+  shares the middle of the screen with quick settings (Super+Escape) and the
+  stash (Super+S), which take turns with it because the shell shows one surface at
+  a time (`pages/AddonsPage.qml`).
 - **Auto-hide toggle in Bar Studio.** The qsbar bar controls gain an Auto-hide
   switch (`shell.json .qsbar.barAutoHide`): the bar slides off and frees its
   space, revealing on a slow hover along the edge (`pages/BarStudioPage.qml`).
@@ -159,6 +190,25 @@
   shell.json (`quickshell/pages/BarStudioPage.qml`, `quickshell/Hub.qml`).
 
 ### Fixed
+- **The Hub stops waking a sleeping discrete GPU to look at it.** Two polls called
+  `nvidia-smi` unconditionally, and that pulls a runtime-suspended card straight
+  back out of D3 -- about 10 W on a hybrid laptop. The Profile plate polls every
+  1.5s and the GPU page every 2s, so either one, left open, held the dGPU awake and
+  silently cancelled the saving the whole hybrid setup exists for; the GPU page was
+  the worse of the two, since it woke the card in order to report a number that
+  then described the woken state rather than the idle one. Both now read the
+  driver's `power/runtime_status` first (one sysfs read, no process spawn, never
+  touches the card). The plate rests its GPU fields at zero, exactly as on a
+  machine with no NVIDIA card; the GPU page says so outright, reporting
+  "suspended, drawing no power" instead of a fabricated reading. This is the guard
+  the bar's GPU telemetry already had; these two were the callers missing it
+  (`quickshell/Singletons/LiveStats.qml`, `quickshell/pages/GpuPage.qml`).
+- **"Open in settings" from the Store lands on the page it promised.** The
+  handoff starts the Hub and then IPC-calls `nav open <section>`, but the
+  remembered-section restore is a Process: on a cold start its result arrived
+  after the deep link and dragged the user back to whatever page they had open
+  last, so the button looked like it did nothing. An explicit jump now latches
+  and the restore stands down (`quickshell/Hub.qml`, `quickshell/shell.qml`).
 - **Fastfetch can be reset to the default.** The page offered "Apply Installed
   Style" from the Store but no way back to the built-in readout; a "Reset to
   Default" action now rewrites config.jsonc from the default model
@@ -501,8 +551,10 @@
   the render-mode selector, a TUNING section that probes the machine
   (`ryoku-hub gpu tune caps`) and shows only the knobs that hardware actually
   exposes: NVIDIA power limit (where the driver still allows it) and persistence,
-  AMD performance level and power cap, Intel frequency, and the vendor-generic
-  ACPI thermal profile. Overclock, undervolt, clock-lock and manual fan sit
+  AMD performance level and power cap, and Intel frequency. (The ACPI thermal
+  profile started here too, and moved to the CPU power profiles above once it
+  became clear ppd rewrites it on every switch.) Overclock, undervolt,
+  clock-lock and manual fan sit
   behind an Advanced disclosure with a bone-plate warning. Everything is runtime
   sysfs / nvidia-smi state applied through one pkexec batch and gone on reboot,
   so a reboot (or `gpu tune reset`) is the whole backup. Named presets (Quiet /

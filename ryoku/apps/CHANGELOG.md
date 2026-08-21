@@ -12,6 +12,20 @@
   a seeded `featured`, driven by `quickshell/App.qml` `discoverSeed`).
 
 ### Fixed
+- `ryostore/`: **removing a plugin from Settings no longer strands it in the
+  Store.** Add-ons > REMOVE calls `ryostore internal remove-guest plugins <id>`,
+  which only deleted the data directory: the receipt, the index row and the
+  cached view survived, so the Store kept the card badged INSTALLED with its
+  install button disabled and the plugin could never be reinstalled -- while the
+  desktop no longer had it. A receipt-owned plugin now leaves through the product
+  transaction (files, receipt, index, view), and a dev plugin without a receipt
+  keeps the plain symlink-safe unlink (`ryostore/backend/extras_assets.go`).
+- `ryostore/`: **a removed or updated plugin stops leaving a second copy of
+  itself in state.** Nothing pruned `~/.local/state/ryoku/store/plugin-views/`,
+  so an uninstalled plugin's whole source tree stayed behind forever and every
+  update added another digest directory beside the live one. The index rebuild
+  now drops every view the index does not name
+  (`ryostore/backend/provider_plugin_views.go`).
 - `pipewire/`: **the audio device you pick now survives a reboot.** The
   `pipewire-pulse.conf.d/10-ryoku-switch-on-connect.conf` drop-in loaded the
   PulseAudio compat `module-switch-on-connect`, which makes the default sink

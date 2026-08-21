@@ -9,8 +9,45 @@
   `--keep mine|ryoku` (default mine), applies, and prints what changed;
   `ryoku import --undo [<ts>]` reverses it. Wraps `ryoku-hub import`
   (`internal/importer`).
+- **`ryoku doctor` reports a discrete GPU that is pinned awake, either way it happens.**
+  On an ASUS MUX laptop set to Discrete mode the panel is wired straight to the
+  dGPU, so the card can never enter runtime D3cold: it stays active for the whole
+  session and burns ~10 W and ~60 C of parasitic heat while the desktop idles --
+  the largest battery and idle-temperature cost on this class of machine. NVIDIA's
+  driver documentation names the cause exactly ("the NVIDIA GPU will remain in an
+  active state if it is driving a display"), so the fix is the MUX, not a module
+  parameter. The new `discrete GPU idle drain` check covers both shapes of the
+  failure. Panel on the dGPU: it points at `ryoku-gpu-mux set hybrid` plus a
+  reboot. Panel already on the iGPU yet the card has still never slept: it asks
+  the driver itself, via `/proc/driver/nvidia/gpus/<slot>/power`, whether runtime
+  D3 is on, and splits the remedy accordingly -- the
+  `NVreg_DynamicPowerManagement=0x02` module parameter when the feature is off,
+  or the real blockers NVIDIA documents (an attached display, a running CUDA
+  process) when it is on. Processes holding the card's device nodes are listed as
+  leads only, never as a verdict, because fine-grained mode tracks GPU usage and
+  tolerates an idle open device; the check must not tell anyone to kill their
+  compositor. That second shape exists because a machine that switched the MUX and
+  gained nothing would otherwise report clean, the worst outcome: the user believes
+  it worked and keeps paying the power. Either shape quotes the card's live draw
+  when it can read it and never a made-up wattage when it cannot, and an
+  unreadable runtime-D3 status is never treated as a fault. Silent whenever the
+  dGPU is suspended now or has spent any time suspended since boot, so a healthy
+  box is never nagged. Report-only: it never writes the MUX knob, changes a module
+  parameter, kills a process, or reboots
+  (`internal/doctor/reconcile_dgpu_panel.go`).
 
 ### Fixed
+- **`ryoku doctor` stops calling a stray `hyprctl dispatch` a broken config.**
+  Hyprland files the Lua error from a bad dispatch in the very buffer
+  `hyprctl configerrors` reports, so one typo at the prompt (or a tool probing
+  which config mode is live) made the config-integrity check announce "Hyprland
+  is rejecting its config" while `hyprctl reload` answered ok and a later
+  `configerrors` came back empty: the reload had already cleared it. The check
+  now tells the two apart by Lua's chunk name (a dispatch error carries the
+  dispatched source, a config error carries the file's path), says so plainly,
+  and clears the buffer with a reload instead of sending you to audit config you
+  never broke. A genuine config error reads exactly as before
+  (`internal/doctor/doctor.go`).
 - **`ryoku doctor` gets a black screen back instead of leaving you at one.** A
   single QML file that cannot load takes every surface with it, so the desktop is
   empty at login and after an update, and nothing looked for it. The new

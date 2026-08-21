@@ -3,6 +3,58 @@
 ## Unreleased
 
 ### Added
+- `power/ryoku-power`: the CPU side of the power profiles is now the user's to
+  define. `capabilities --json` reports what the machine actually exposes
+  (governor, EPP, a frequency ceiling as a percent, the ACPI platform profile),
+  `profile get|set` stores a per-profile definition in `power.json`, and
+  `apply-profile` writes it to sysfs. `apply` gained the CPU half so a stored
+  definition also lands at login, not only on the next profile switch.
+  Deliberately absent: CPU boost and the PPT/TDP limits, both measured as
+  firmware placebos on this hardware.
+
+  Three ordering and timing facts the implementation had to learn the hard way,
+  each verified on real hardware. The platform profile is written first because
+  `cpuinfo_max_freq` is dynamic on amd-pstate and a quiet profile clamps it, so a
+  frequency written before the envelope widens is silently truncated. The governor
+  pass then completes for every cpu before the EPP pass starts, because writing
+  `scaling_governor` resets EPP to that governor's default. And the whole apply is
+  a write-verify-retry loop under a lock, because ppd writes its own values
+  asynchronously after the profile-changed signal and a single write loses that
+  race. EPP options come from a governor-independent list: amd-pstate narrows
+  `energy_performance_available_preferences` to just `performance` while the
+  performance governor is in force, which would otherwise make a definition
+  un-editable depending on the machine's current state.
+- `power/ryoku-power`: the two laptop power levers that are global rather than
+  per-profile -- battery charge limit and PCIe ASPM policy. Neither belongs to
+  power-profiles-daemon, and on this hardware CPU boost and the PPT/TDP knobs are
+  firmware-governed placebos (measured: writes accepted, but the package still
+  pins the same wattage and 95 C), so they are not offered at all. The CPU knobs
+  ppd does set are re-applied over it by the profile programmer above, not
+  duplicated here. `charge-limit get|set <50-100>|clear` caps
+  `power_supply/*/charge_control_end_threshold` so the pack is not held at 100%
+  (the attribute reads ENODATA -- "No data available" -- until the first write,
+  which `get` reports as `unset`); `aspm get|set <policy>` reads/writes
+  `/sys/module/pcie_aspm/parameters/policy`, unwrapping the kernel's `[selected]`
+  format and validating against the offered list. The desired state lives in
+  `~/.config/ryoku/power.json` (`chargeLimit`, `aspm`) so a user edit survives
+  updates; `apply` is the idempotent convergent entry point (laptop-only, like
+  ryoku-idle; a desktop or knob-less box exits 0), and a missing file or key
+  means "leave the hardware alone", never a forced default. A root-owned sysfs
+  write it cannot do directly re-execs the whole command once under pkexec,
+  authorized for the active wheel user by `47-ryoku-power.rules`; the
+  `ryoku-desktop` PKGBUILD installs the helper via the hardware glob and the
+  rule under `polkit-1/rules.d`.
+- `power/47-ryoku-power.rules`: authorize `ryoku-power` for the active wheel
+  user without a password, so the charge ceiling `apply` re-applies at login
+  never blocks on a prompt. The threshold is a plain sysfs value that does not
+  survive a reboot, so Hyprland autostart runs `ryoku-power apply` on every
+  login; through an interactive `sudo` that would hang or fail with no terminal,
+  and the stored `charge_control_end_threshold` would lapse silently. Unlike the
+  WiFi power-save helper this one takes an argument, but the grant stays safe
+  because it is a closed, validated set -- the charge limit is range-checked to
+  50-100 and the ASPM policy must be one the kernel currently offers -- so
+  nothing arbitrary reaches the privileged write. Installed to
+  `/usr/share/polkit-1/rules.d` by `ryoku-desktop`, matching the network rules.
 - `network/ryoku-wifi-regdom` + `network/48-ryoku-wifi-regdom.rules`: pin the
   Wi-Fi regulatory domain so 5 GHz works. A non-self-managed wiphy boots on world
   domain `00`, where most 5 GHz channels are disabled or no-IR, so a dual-band
@@ -199,6 +251,23 @@
   is integrated when its VRAM is a fully CPU-visible UMA carveout at or under
   8 GiB; a discrete card needs at least 2 GiB. Override seams make it testable
   against a synthesized `/sys` tree.
+- `gpu/ryoku-gpu-mux`: report and switch the ASUS hardware GPU MUX -- which GPU
+  the internal panel is physically wired to -- because that, not the
+  `AQ_DRM_DEVICES` render pin, is what decides whether the discrete GPU can ever
+  sleep. This class of ROG laptop ships the MUX in Discrete, so the only
+  connected connector is on the dGPU and it can never runtime-suspend (measured
+  ~10 W and 62 C sitting idle); Hybrid routes the panel to the iGPU so the dGPU
+  can suspend. `status [--json]` reports capability, mode, interface, whether the
+  panel is on the dGPU, the dGPU idle draw, and reboot-pending; `get`/`capable`
+  are cheap silent predicates; `set <hybrid|discrete>` writes the firmware knob
+  but a reboot is required (the firmware re-routes the panel at POST), so it is
+  never done automatically and no reconciler ever flips it. Prefers the
+  authoritative `firmware-attributes` (asus-armoury) knob over the deprecated
+  asus-nb-wmi platform node, reuses `ryoku-gpu-detect` for GPU classification,
+  and stays hermetic under the `RYOKU_MUX_ARMOURY_ROOT`/`RYOKU_MUX_LEGACY_ROOT`
+  test seams. nvidia-smi is spawned only for `status` (measuring wakes the dGPU,
+  the very cost this exposes). Shipped to `/usr/bin` by the `ryoku-desktop`
+  hardware glob.
 - `gpu/90-ryoku-gpu.rules`: udev rule creating boot-stable, colon-free
   `/dev/dri/ryoku-gpu-<pci-slot>` symlinks so `AQ_DRM_DEVICES` can reference GPUs
   by slot.

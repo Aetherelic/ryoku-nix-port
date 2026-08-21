@@ -3,15 +3,49 @@
 ## Unreleased
 
 ### Added
-- **Animated keypresses for screen recordings.** Recording settings now includes
-  a built-in display mode, a draggable pre-recording sample, repeat counts,
-  dark and light palettes, and optional shortcuts-only privacy. The latest three
-  chords stay in a smooth horizontal history; modifier chords use Ryoku's
-  Super-first order, shifted keys show their symbols, and each keycap presses and
-  releases with a held-state depth animation before fading away. Input is read
-  from ordered evdev streams and automatically suspends while the session locks
-  or recording is inactive (`modules/capture/KeypressOverlay.qml`,
-  `services/Keypresses.qml`, `ipc/keypress.go`).
+- **The daemon re-applies your CPU profile definition after ppd switches.** The
+  goroutine already listening to power-profiles-daemon's `PropertiesChanged` now
+  schedules a debounced `ryoku-power apply-profile` for whatever profile is active
+  once the dust settles, so the definitions edited on the Hub's Machine page win
+  over ppd's own governor/EPP/platform_profile writes. No new daemon and no
+  polling: it hangs off a signal subscription that already existed.
+
+  The profile is resolved when the timer fires rather than when it is scheduled,
+  because at signal time ppd may not have published the new `ActiveProfile` yet
+  and reading it early applies the outgoing profile over the incoming one. The
+  exec runs on the timer goroutine, never the signal goroutine, so a slow helper
+  cannot stall signal handling. If `power.json` has no `profiles` block, or none
+  for the active profile, nothing is executed at all -- a user who never defined a
+  profile never triggers the helper and never sees an authentication prompt
+  (`ipc/powerprofiles.go`).
+- **Animated key presses for screen recordings.** Recording settings now include
+  a built-in keycap overlay with fixed dark and light palettes, an optional
+  shortcuts-only privacy mode, a draggable pre-recording sample, repeat counts,
+  and a smooth horizontal history of the latest three chords. Modifier chords use
+  Ryoku's Super-first order, shifted keys show their symbols, and each entry fades
+  cleanly in and out. Input is read from ordered evdev events only while preview
+  or recording is active. The overlay becomes click-through once recording starts
+  and disables itself when recording or the shell ends
+  (`modules/capture/KeypressOverlay.qml`, `services/Keypresses.qml`,
+  `ipc/keypress.go`, `../hub/quickshell/pages/RecordingPage.qml`).
+- **A plugin popout can sit in the middle of the screen.** `framePopout` accepts
+  `edge: "center"`: the body floats at the exact centre of its monitor with all
+  four corners rounded, no edge weld, and no hover band, so it opens only from
+  `ryoku-shell plugin <id>`, a keybind or a pin, which is what a modal plugin
+  view wants. The frame carries a centred body's rect in its own input mask (it
+  has no edge anchor to ride), so it catches clicks in every bar style
+  (`modules/bar/popouts/Popout.qml`, `modules/bar/PluginPopouts.qml`,
+  `modules/bar/FrameMenuManager.qml`, `modules/bar/Frame.qml`).
+- **The bar's weather glyph shows your city, not your IP's.** The qsbar weather
+  widget curled `wttr.in` with no location, so it read the IP geolocation of the
+  exit node while the dashboard it opens (and every other readout) showed the
+  configured `weatherLocation`: two different cities, side by side. It now binds
+  the shared daemon-fed `Weather` singleton like the dashboard does, so it follows
+  the set location and unit, updates the moment either changes, and makes no HTTP
+  call of its own. The bar's own imperial toggle no longer double-converts a shell
+  already set to Fahrenheit, and the WMO-code to Nerd Font map lives beside the
+  other glyph maps in `services/lib/weather.js` (`nerdFor`, unit-tested)
+  (`modules/bar/barstyles/qsbar/modules/WeatherWidget.qml`).
 - **Apple Music is a first-class music source.** The now-playing daemon detects
   Sidra and Cider (and any `music.apple.com` web player) as `applemusic` rather
   than lumping them in with "other"; their synced lyrics and cover art already
@@ -81,6 +115,50 @@
   user's file alone.
 
 ### Fixed
+- **The system-stats panel stops waking a sleeping discrete GPU.** Its 1.5s poll
+  ran `nvidia-smi` unconditionally, and that drags a runtime-suspended card back
+  out of D3 (about 10 W on a hybrid laptop), so an open panel pinned the dGPU
+  awake and quietly cancelled the saving. It now reads the driver's
+  `power/runtime_status` first and reports no GPU while the card sleeps, landing on
+  the same rest-at-zero path as a machine with no NVIDIA card. The bar's GPU
+  telemetry already did this; `StatsFeed` was missing it
+  (`services/StatsFeed.qml`).
+- **The bar-gap animation stops burning a CPU core when nothing is moving.** Only
+  mode 7 (reactor) self-paced; every other `barAnim` mode drove its `Canvas` at a
+  fixed 30fps (modes 1-4) or 60fps (modes 5-6) forever, even while its picture sat
+  nearly still. The per-frame full-width `clearRect` plus canvas texture upload
+  dominate the cost, so an idle field cost as much as an active one - mode 3 (Bolt)
+  alone ran ~40% of a qs core (~half a core with the compositor) and lifted
+  package temperature ~17 C. The pacing mode 7 already used is now shared by every
+  mode through one `canvas.paintTick` the paint sets from what the frame actually
+  drew: full rate while something moves fast, a slow ambient rate while only a
+  faint crawl, swell or fade remains, and a coarse watch rate while a gap is dark -
+  re-armed to full a lead ahead of the next burst so no onset is clipped. Bolt,
+  whose charged field only drifts and fades (no positional motion), drops from
+  ~40% to ~9.5% qs CPU; Surge halves (~18% to ~8%); off, reactor and quotes are
+  unchanged, and the always-moving Stream marquee only sheds frames when the bar
+  has no gaps (`modules/bar/barstyles/qsbar/modules/ParticleStream.qml`).
+- **Power Saver now actually silences the pill's spectrum analyser.** `Perf`
+  exported a `pillFrozen` policy (set by `lowPowerMode` or the Power Saver
+  profile) and its header claimed the shell obeyed it, but nothing read the
+  switch: `AudioBars` gated the cava analyser on the owner refcount alone, so any
+  visible music widget or card held a 40-band/30fps cava process open and burning
+  ~1.5% CPU even in Power Saver. The analyser now runs only while a surface claims
+  it and the policy permits a live feed; when frozen it drops cava and its restart
+  and settle timers, and the bars fall to their rest slivers through the same
+  reset the refcount path uses, rather than freezing on the last peak
+  (`services/AudioBars.qml`).
+- **The bar stopped making Hyprland look like it had a broken config.** qsbar
+  worked out whether the live Hyprland config is Lua or classic hyprlang by
+  dispatching a deliberately malformed token (`hl.dsp`) and reading the error
+  back. Hyprland files that Lua error in the very buffer `hyprctl configerrors`
+  reports, so every bar start left the session looking like it was rejecting its
+  config until the next reload, and `ryoku doctor` dutifully warned about it. The
+  probe now sends the Lua form it actually wants to use, focusing the workspace
+  already focused (`hl.dsp.focus({ workspace = "e+0" })`, so nothing moves): Lua
+  answers ok and files nothing, classic rejects an unknown dispatcher and the bar
+  falls back to `workspace N` as before
+  (`modules/bar/barstyles/qsbar/Theme.qml`).
 - **A surface whose output was rebuilt no longer comes back inert.** Per-monitor
   state was looked up by ShellScreen object identity while the sibling lookup used
   the output name, and an output that is disabled and re-enabled (a lid close with
