@@ -3,6 +3,30 @@
 ## Unreleased
 
 ### Added
+- **The Cobalt engine switch sets itself up.** Turning it on used to require the
+  user to already have Docker installed, its service running, and their account
+  in the `docker` group. When any of that was missing the switch said so and did
+  nothing about it: "Start docker.service or add yourself to the docker group",
+  which names two chores and performs neither. It now opens a modal wizard that
+  performs them, one step at a time, each reporting for itself: runtime present,
+  start the service, grant container access, pull the image (the step that
+  explains the one-time wait), start cobalt. It ends by flipping the switch.
+
+  There is no reboot step, because the privileged work goes through
+  `ryoku-docker` over polkit rather than through this session's groups, so the
+  engine works in the session the user is already in. The access step says plainly
+  that plain `docker` on the command line arrives at the next login, so the
+  difference between "the feature works now" and "the CLI works later" is stated
+  instead of discovered.
+
+  A failure names the step that failed and carries the helper's own message, with
+  a Retry that re-runs the flow; every step converges, so a retry over finished
+  work is a no-op. The modal cannot be dismissed while a privileged step is in
+  flight, which would otherwise leave a half-provisioned host with nothing
+  watching it. All the state lives in `Stash`, so the flow is testable without a
+  window: `tests/ui/cobalt-wizard-probe.sh` drives it through idle, in-flight,
+  failure, reset and done and asserts what the view actually renders
+  (`modules/bar/panel/CobaltSetupWizard.qml`, `services/Stash.qml`).
 - **The daemon re-applies your CPU profile definition after ppd switches.** The
   goroutine already listening to power-profiles-daemon's `PropertiesChanged` now
   schedules a debounced `ryoku-power apply-profile` for whatever profile is active

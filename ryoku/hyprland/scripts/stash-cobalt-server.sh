@@ -19,17 +19,47 @@ URL="http://localhost:${PORT}/"
 
 emit() { printf '%s\t%s\n' "$1" "${2:-}"; }
 
-# missing: no docker binary. denied: binary present but the daemon is
-# unreachable (not running, or the user isn't in the docker group). ready: usable.
+HELPER="${RYOKU_DOCKER_HELPER:-ryoku-docker}"
+
+# Two ways to reach docker. Directly, when this session already has access (the
+# user is in the docker group and the daemon is up), or through ryoku-docker,
+# which escalates via polkit and therefore does not care about the session's
+# groups. The helper is what lets first-time setup work without a re-login.
+# Resolved once per run.
+ACCESS=""
+resolve_access() {
+  [ -n "$ACCESS" ] && return
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    ACCESS=direct
+  elif command -v "$HELPER" >/dev/null 2>&1; then
+    ACCESS=helper
+  else
+    ACCESS=none
+  fi
+}
+
+# missing: no docker binary at all, so `ryoku update` is the fix. setup: docker
+# is installed but this session cannot reach it AND the privileged helper can,
+# so the setup wizard can fix it in place. denied: unreachable with no helper to
+# fix it. ready: usable right now.
 docker_state() {
   command -v docker >/dev/null 2>&1 || { echo missing; return; }
-  docker info >/dev/null 2>&1 || { echo denied; return; }
-  echo ready
+  resolve_access
+  case "$ACCESS" in
+    direct) echo ready ;;
+    helper) echo setup ;;
+    *)      echo denied ;;
+  esac
 }
 
 # absent: no container by that name. running / stopped otherwise.
 container_state() {
   local st
+  resolve_access
+  if [ "$ACCESS" = helper ]; then
+    "$HELPER" container-status 2>/dev/null || echo absent
+    return
+  fi
   st=$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null) || { echo absent; return; }
   [ "$st" = "true" ] && echo running || echo stopped
 }
@@ -44,40 +74,62 @@ wait_ready() {
   return 1
 }
 
+# Create or start the container. Both doors emit the same STATUS lines, so the
+# UI reads one protocol whichever was used. `starting` is emitted by the caller
+# BEFORE this runs and `pulling` from in here, so the long first-pull message is
+# the one left on screen for the wait rather than being overwritten by it.
+container_up() {
+  resolve_access
+  if [ "$ACCESS" = helper ]; then
+    while IFS= read -r line; do
+      case "$line" in
+        STEP*pulling*) emit STATUS pulling ;;
+      esac
+    done < <("$HELPER" container-up "$PORT" 2>/dev/null)
+    return 0
+  fi
+  case "$(container_state)" in
+    stopped)
+      docker start "$NAME" >/dev/null 2>&1 || return 1 ;;
+    absent)
+      docker image inspect "$IMAGE" >/dev/null 2>&1 || emit STATUS pulling
+      docker run -d --name "$NAME" --restart unless-stopped \
+        -p "127.0.0.1:${PORT}:9000" -e API_URL="$URL" "$IMAGE" >/dev/null 2>&1 || return 1 ;;
+  esac
+  return 0
+}
+
+container_down() {
+  resolve_access
+  if [ "$ACCESS" = helper ]; then
+    "$HELPER" container-down >/dev/null 2>&1 || return 1
+    return 0
+  fi
+  docker stop "$NAME" >/dev/null 2>&1 || return 1
+}
+
 cmd="${1:-}"
 case "$cmd" in
 status)
   d=$(docker_state)
   emit docker "$d"
-  if [ "$d" = "ready" ]; then
-    emit cobalt "$(container_state)"
-  else
-    emit cobalt unknown
-  fi
+  # `setup` can still answer the container question: the helper reaches docker
+  # even when this session cannot, so report the real container state rather
+  # than hiding it behind "unknown".
+  case "$d" in
+    ready|setup) emit cobalt "$(container_state)" ;;
+    *)           emit cobalt unknown ;;
+  esac
   ;;
 up)
   d=$(docker_state)
   case "$d" in
     missing) emit ERROR "docker is not installed"; exit 2 ;;
-    denied)  emit ERROR "docker is installed but not accessible (start docker.service or add yourself to the docker group)"; exit 2 ;;
+    denied)  emit ERROR "docker is installed but not reachable, and the ryoku-docker helper is missing"; exit 2 ;;
   esac
-  case "$(container_state)" in
-    running)
-      emit READY; exit 0 ;;
-    stopped)
-      emit STATUS starting
-      docker start "$NAME" >/dev/null 2>&1 || { emit ERROR "could not start the cobalt container"; exit 1; } ;;
-    absent)
-      # first run: pull (implicit on run) then create + start. surface the pull
-      # so the UI can explain the wait.
-      docker image inspect "$IMAGE" >/dev/null 2>&1 || emit STATUS pulling
-      emit STATUS starting
-      if ! docker run -d --name "$NAME" --restart unless-stopped \
-          -p "127.0.0.1:${PORT}:9000" -e API_URL="$URL" "$IMAGE" >/dev/null 2>&1; then
-        emit ERROR "could not start cobalt (is port ${PORT} free?)"
-        exit 1
-      fi ;;
-  esac
+  [ "$(container_state)" = running ] && { emit READY; exit 0; }
+  emit STATUS starting
+  container_up || { emit ERROR "could not start cobalt (is port ${PORT} free?)"; exit 1; }
   if wait_ready; then
     emit READY
     exit 0
@@ -86,14 +138,15 @@ up)
   exit 1
   ;;
 down)
-  [ "$(docker_state)" = "ready" ] || { emit STOPPED; exit 0; }
-  case "$(container_state)" in
-    running)
-      emit STATUS stopping
-      docker stop "$NAME" >/dev/null 2>&1 || { emit ERROR "could not stop the cobalt container"; exit 1; }
-      emit STOPPED ;;
-    *) emit STOPPED ;;
+  case "$(docker_state)" in
+    ready|setup) ;;
+    *) emit STOPPED; exit 0 ;;
   esac
+  if [ "$(container_state)" = running ]; then
+    emit STATUS stopping
+    container_down || { emit ERROR "could not stop the cobalt container"; exit 1; }
+  fi
+  emit STOPPED
   ;;
 *)
   echo "usage: stash-cobalt-server.sh status | up | down" >&2

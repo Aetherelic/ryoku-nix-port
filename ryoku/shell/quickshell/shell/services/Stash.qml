@@ -46,7 +46,7 @@ Singleton {
     // downloads, with yt-dlp still catching whatever cobalt declines. cobalt
     // ships only as a Docker image, so the switch manages a container via
     // stash-cobalt-server.sh; dockerState gates whether it can turn on at all.
-    property string dockerState: "unknown"   // unknown | missing | denied | ready
+    property string dockerState: "unknown"   // unknown | missing | denied | setup | ready
     property string cobaltState: "off"       // off | starting | running | error
     property string cobaltMsg: ""
     property alias cobaltEnabled: engineAdapter.cobaltEnabled
@@ -55,6 +55,111 @@ Singleton {
     // slash 404s cobalt's POST endpoint.
     readonly property string cobaltUrl: (cobaltEnabled && cobaltState === "running")
         ? "http://localhost:9000" : ""
+
+    // ── Cobalt first-run setup ──────────────────────────────────────────
+    // The switch used to dead-end on "Install Docker to use cobalt", naming two
+    // chores and doing neither. The wizard drives ryoku-docker instead: start
+    // the service, grant container access, pull the image, start cobalt, each
+    // step reporting for itself. No reboot step exists because the helper
+    // escalates through polkit and never reads this session's groups.
+    //
+    // Every step is convergent, which is what makes a single Retry honest: it
+    // re-runs the whole flow and the finished steps no-op.
+    property string setupState: "idle"       // idle | running | done | failed
+    property int setupStep: -1               // index of the running step, -1 when none
+    property alias setupSteps: setupModel
+    // True while the wizard owns the engine start, so a READY line can finish
+    // the wizard instead of looking like a plain toggle.
+    property bool setupOwnsEngine: false
+
+    ListModel { id: setupModel }
+
+    function setupReset() {
+        setupModel.clear();
+        var defs = [
+            { key: "runtime", label: qsTr("Container runtime installed") },
+            { key: "service", label: qsTr("Start the container service") },
+            { key: "access",  label: qsTr("Grant your user container access") },
+            { key: "image",   label: qsTr("Download the cobalt image") },
+            { key: "start",   label: qsTr("Start cobalt") }
+        ];
+        for (var i = 0; i < defs.length; i++)
+            // stepState, not state: an Item delegate already has `state`, and a
+            // role of that name shadows it under ComponentBehavior: Bound.
+            setupModel.append({ key: defs[i].key, label: defs[i].label, stepState: "pending", msg: "" });
+        root.setupState = "idle";
+        root.setupStep = -1;
+        root.setupOwnsEngine = false;
+    }
+
+    function setupMark(key, state, msg) {
+        for (var i = 0; i < setupModel.count; i++) {
+            if (setupModel.get(i).key !== key) continue;
+            setupModel.setProperty(i, "stepState", state);
+            setupModel.setProperty(i, "msg", msg || "");
+            if (state === "running") root.setupStep = i;
+            return;
+        }
+    }
+
+    function setupFail(key, msg) {
+        setupMark(key, "failed", msg);
+        root.setupState = "failed";
+        root.setupStep = -1;
+        root.setupOwnsEngine = false;
+    }
+
+    function startSetup() {
+        setupReset();
+        root.setupState = "running";
+        // Nothing here can install a package, so a missing runtime is the one
+        // step the wizard has to hand back rather than fix.
+        if (root.dockerState === "missing") {
+            setupFail("runtime", qsTr("Docker is not installed. `ryoku update` installs it."));
+            return;
+        }
+        setupMark("runtime", "done");
+        setupMark("service", "running");
+        provisionProc.running = true;
+    }
+
+    function onProvisionLine(line) {
+        var t = ("" + line).split("\t");
+        if (t[0] === "STEP") {
+            // The helper reports the host work it actually had to do; anything
+            // it skipped was already true.
+            if (t[1] === "group") {
+                setupMark("service", "done");
+                setupMark("access", "running");
+            }
+        } else if (t[0] === "OK") {
+            setupMark("service", "done");
+            setupMark("access", "done",
+                qsTr("Plain `docker` on the command line starts working at your next login"));
+            setupMark("image", "running");
+            root.setupOwnsEngine = true;
+            root.setEngine(true);
+        } else if (t[0] === "ERROR") {
+            var k = root.setupStep >= 0 ? setupModel.get(root.setupStep).key : "service";
+            setupFail(k, t[1] || qsTr("failed"));
+        }
+    }
+
+    Process {
+        id: provisionProc
+        command: ["ryoku-docker", "provision"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => root.onProvisionLine(line)
+        }
+        onExited: (code) => {
+            // A helper that dies without a line of its own (missing binary, a
+            // denied polkit prompt) would otherwise leave the wizard spinning.
+            if (code !== 0 && root.setupState === "running" && !root.setupOwnsEngine)
+                root.setupFail(root.setupStep >= 0 ? setupModel.get(root.setupStep).key : "service",
+                    qsTr("The container helper could not complete setup"));
+        }
+    }
 
     function openFile(path) {
         Quickshell.execDetached(["xdg-open", path]);
@@ -193,16 +298,32 @@ Singleton {
         } else if (t[0] === "STATUS") {
             root.cobaltState = "starting";
             root.cobaltMsg = t[1] || "";
+            // "pulling" arrives after "starting" on purpose (the server emits it
+            // from inside the pull), so this is the message that stays up for
+            // the long wait rather than being overwritten by it.
+            if (root.setupOwnsEngine && t[1] === "pulling")
+                root.setupMark("image", "running",
+                    qsTr("First run only. The image is a few hundred megabytes."));
         } else if (t[0] === "READY") {
             root.cobaltState = "running";
             root.cobaltMsg = "";
             sitesProc.running = true;   // refresh the live services list
+            if (root.setupOwnsEngine) {
+                root.setupMark("image", "done");
+                root.setupMark("start", "done");
+                root.setupState = "done";
+                root.setupStep = -1;
+                root.setupOwnsEngine = false;
+            }
         } else if (t[0] === "STOPPED") {
             root.cobaltState = "off";
             root.cobaltMsg = "";
         } else if (t[0] === "ERROR") {
             root.cobaltState = "error";
             root.cobaltMsg = t[1] || "failed";
+            if (root.setupOwnsEngine)
+                root.setupFail(root.setupStep >= 0 ? setupModel.get(root.setupStep).key : "start",
+                    t[1] || qsTr("failed"));
         }
     }
 
@@ -298,6 +419,8 @@ Singleton {
         if (!engineFile.text())
             engineFile.writeAdapter();
         sitesProc.running = true;
+        // Seed the wizard's step list so the modal can render before any run.
+        root.setupReset();
         dockerProc.running = true;
     }
 }

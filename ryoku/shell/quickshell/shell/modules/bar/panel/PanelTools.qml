@@ -15,6 +15,10 @@ Item {
 
     property real s: 1
     property bool open: false
+    // The Cobalt first-run modal. Opened by the engine switch when the host is
+    // not ready, so the setup is where the user already is rather than a
+    // terminal they were told to open.
+    property bool setupOpen: false
     signal pick(string mode)
 
     property string urlText: ""
@@ -43,10 +47,17 @@ Item {
         { id: "mute", label: qsTr("Mute") }
     ]
 
-    // Sub-label under the engine switch, driven by docker + cobalt state.
+    // Sub-label under the engine switch, driven by docker + cobalt state. The
+    // two dead-end strings this used to show ("Install Docker", "Start
+    // docker.service or add yourself to the docker group") named a chore and did
+    // nothing about it; the setup wizard does them, so the label now says a
+    // switch flip is all that is needed.
+    readonly property bool engineNeedsSetup: Stash.dockerState === "setup" || Stash.dockerState === "missing"
     readonly property string engineSub: {
-        if (Stash.dockerState === "missing") return qsTr("Install Docker to use cobalt");
-        if (Stash.dockerState === "denied") return qsTr("Start docker.service or add yourself to the docker group");
+        if (Stash.setupState === "running") return qsTr("Setting up…");
+        if (Stash.dockerState === "missing") return qsTr("Needs Docker. `ryoku update` installs it");
+        if (Stash.dockerState === "setup") return qsTr("One-time setup: flip the switch to run it");
+        if (Stash.dockerState === "denied") return qsTr("Docker is unreachable and the ryoku-docker helper is missing");
         switch (Stash.cobaltState) {
         case "starting": return Stash.cobaltMsg === "pulling"
             ? qsTr("Downloading cobalt image — first launch takes a minute and uses some memory & CPU")
@@ -142,11 +153,23 @@ Item {
                             s: root.s
                             readonly property bool engineOn: Stash.cobaltState === "running" || Stash.cobaltState === "starting"
                             on: engineOn
-                            opacity: Stash.dockerState === "missing" ? 0.4 : 1
+                            enabled: Stash.setupState !== "running"
                             onToggled: {
-                                if (Stash.dockerState === "missing")
+                                if (engineSwitch.engineOn) {
+                                    Stash.setEngine(false);
                                     return;
-                                Stash.setEngine(!engineSwitch.engineOn);
+                                }
+                                // Turning on: anything short of a ready host goes
+                                // through the wizard, which is the only thing that
+                                // can start the service or grant access. A missing
+                                // runtime opens it too, so the reason is on screen
+                                // instead of hidden in a disabled switch.
+                                if (root.engineNeedsSetup || Stash.dockerState === "unknown") {
+                                    root.setupOpen = true;
+                                    Stash.startSetup();
+                                    return;
+                                }
+                                Stash.setEngine(true);
                             }
                         }
                     }
@@ -503,6 +526,14 @@ Item {
 
             Item { width: 1; height: 6 * root.s }
         }
+    }
+
+    // Sits above the scrolling body so the modal covers the whole Tools face.
+    CobaltSetupWizard {
+        anchors.fill: parent
+        s: root.s
+        open: root.setupOpen
+        onClosed: root.setupOpen = false
     }
 
     // primary = bone plate + dark ink; otherwise a quiet outlined tile.

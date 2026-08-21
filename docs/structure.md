@@ -119,6 +119,13 @@ System-level definition installed into the target.
   the shared laptop detector; `ryoku-idle`, the laptop-gated `hypridle` launcher;
   `ryoku-power`, the battery charge ceiling and PCIe link power). What actually
   moves power draw and temperature, measured, is in `docs/power.md`.
+- `containers/` the container runtime policy behind the stash Cobalt engine:
+  `ryoku-docker` (the one privileged door, shipped to `/usr/bin`) and its polkit
+  rule. Its own directory rather than a corner of `hardware/`, because a
+  container runtime is not hardware. It provisions `docker.service`, the `docker`
+  group, and the single `ryoku-cobalt` container, and exposes no docker
+  passthrough on purpose: the polkit grant is passwordless, so every action is a
+  fixed argument vector.
 - `extras/` the helpers behind the Hub's Extras section, shipped to `/usr/bin` by
   `ryoku-desktop`: `ryostore-install` (installs, removes, and reports the
   optional bundles from the `ryostore` catalogue), the `ryoku-pkg-*` routing

@@ -3,6 +3,27 @@
 ## Unreleased
 
 ### Added
+- `containers/ryoku-docker` and `containers/46-ryoku-docker.rules`: the one
+  privileged door for container work, which is what makes the stash "Cobalt
+  engine" switch a switch instead of a chore list. Verbs: `state` (read-only
+  facts, never escalates), `provision` (enable `docker.service`, ensure the
+  `docker` group, add the invoking user, wait for the socket), and
+  `container-status` / `container-up` / `container-down` for the single
+  `ryoku-cobalt` container.
+
+  It escalates through pkexec rather than relying on the `docker` group, and that
+  choice is the whole reason first-run setup needs no reboot: adding a user to a
+  group does not affect the session they are already in, so a group-based design
+  ends its first run at a reboot prompt. The group is still added, because a user
+  who types `docker` wants it, but nothing here waits on it.
+
+  SECURITY: the polkit grant is passwordless, so there is deliberately NO docker
+  passthrough verb. Every container action is a fixed argument vector with a
+  hardcoded image and container name, and the only caller-supplied value (a port)
+  is range-checked to an integer 1024-65535 before anything escalates. A helper
+  that forwarded caller flags to `docker run` would be root via `-v /:/host`.
+  `tests/cobalt-setup.sh` asserts the refusals rather than the acceptances, and
+  that each one happens before the privilege boundary.
 - `policy/52-ryoku-timedate.rules`: a polkit rule that lets the active desktop
   user (in `wheel`) set the system time zone without a password, so the Hub's
   world-map time zone picker applies `org.freedesktop.timedate1.set-timezone`

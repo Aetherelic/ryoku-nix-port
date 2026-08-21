@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: ship `docker` and `firefox`. Docker is what the stash "Cobalt
+  engine" switch has always needed and never had: cobalt is distributed only as a
+  container image, so on a clean install that switch could not work at all and
+  said so with a dead end ("Install Docker to use cobalt"). It lands in
+  `base.packages` rather than `aur.packages` on purpose, because only the former
+  reaches the ISO's offline closure (`installation/iso/offline-repo.sh`), which is
+  the difference between a feature that works on an offline install and one that
+  does not. The service is deliberately NOT enabled here: a machine that never
+  opens the switch should not pay for a running dockerd, a `docker0` bridge and
+  its iptables rules, so the setup wizard enables it on first use. No
+  `docker-compose`: the cobalt lifecycle is a single `docker run`.
+  Firefox is additive, so a Gecko engine is always on hand for a site Chromium
+  renders badly; it does not become the default, because `ryoku-app`'s `browser`
+  role stays `chromium` and Ryoku Settings owns the override.
 - `base.packages`: ship the Limine boot stack `limine-mkinitcpio-hook` (bundles
   `limine-entry-tool`) and `limine-snapper-sync` from `[ryoku]`, moved out of
   `aur.packages`. As AUR packages they were skipped on offline installs, so a
