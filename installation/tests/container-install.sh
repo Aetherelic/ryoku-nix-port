@@ -34,15 +34,18 @@ esac
 log "base: $BASE"
 
 # 1. host toolchain. refresh the keyring first so signature checks on the freshly
-#    synced core/extra pass on a stale base image, then the same build set
-#    publish-repo.yml uses. makepkg's deps live on the host because build-repo.sh
-#    builds --nodeps.
+#    synced core/extra pass on a stale base image, then the build set from
+#    release/repo/build-toolchain.packages -- the same file publish-repo.yml
+#    reads. makepkg's deps live on the host because build-repo.sh builds
+#    --nodeps.
+#
+#    That file exists because this list used to be a second hand-maintained copy
+#    with a comment claiming it matched publish-repo.yml. It drifted: `meson`
+#    landed in the other copy for the controller packages, this gate went red on
+#    the first main sync, and the publish job was skipped as a result.
 pacman -Sy --noconfirm --needed "${keyring[@]}"
-pacman -Syu --noconfirm --needed \
-  base-devel git go rust clang llvm cmake ninja gnupg gradle libusb \
-  qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
-  hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4 gtk4 gtk4-layer-shell \
-  fish jq librsvg xorg-xcursorgen python
+mapfile -t toolchain < <(grep -vE '^[[:space:]]*(#|$)' "$REPO/release/repo/build-toolchain.packages")
+pacman -Syu --noconfirm --needed "${toolchain[@]}"
 
 # pacman 7 runs install scriptlets in a sandbox that cannot open a network
 # namespace inside a container, so post-install hooks (fc-cache, icon cache, ...)

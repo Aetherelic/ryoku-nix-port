@@ -1,0 +1,78 @@
+# What a host needs to BUILD the [ryoku] packages, one per line.
+#
+# Single source of truth, because there used to be two hand-maintained copies of
+# this list (publish-repo.yml and installation/tests/container-install.sh) with a
+# comment in the second claiming it was "the same build set publish-repo.yml
+# uses". It drifted, and the drift is silent until a package needs the missing
+# tool: `meson` was added for the controller packages in one copy only, and the
+# container-install gate went red on the first main sync, which skipped the
+# publish job entirely. `pnpm`/`nodejs` had drifted the same way earlier and were
+# worse, because spicetify-cli builds without its wrapper rather than failing.
+#
+# build-repo.sh runs makepkg --nodeps, so every makedepends a recipe needs must
+# already be on the host. Anything used only to UPLOAD a built repo (rclone)
+# belongs with the publish step, not here.
+
+# makepkg + fakeroot + a C++20 gcc.
+base-devel
+git
+
+# Language toolchains. go and cmake/ninja build the monorepo components; rust
+# (cargo) builds awww, hyprland-preview-share-picker and asusctl; asusctl also
+# needs clang, llvm and libusb. meson drives the two controller packages
+# (game-devices-udev, dualsensectl) through arch-meson; ninja alone does not
+# drive itself. gradle native-compiles the vendored limine-entry-tool stack.
+go
+rust
+clang
+llvm
+cmake
+ninja
+meson
+gradle
+libusb
+
+# Qt: Blobs plays video, so qt6-multimedia joins the QML plugin's own modules.
+qt6-base
+qt6-declarative
+qt6-shadertools
+qt6-multimedia
+
+# Compositor plugin packages (hypr-dynamic-cursors, ryoku-hypr-plugins,
+# hyprglass, imgborders) plus their makedepends. awww's common/build.rs probes
+# liblz4; hyprland-preview-share-picker needs gtk4 + gtk4-layer-shell.
+hyprland
+hyprcursor
+pango
+cairo
+pixman
+libdrm
+libinput
+libxkbcommon
+wayland
+wayland-protocols
+ffmpeg
+pkgconf
+lz4
+gtk4
+gtk4-layer-shell
+
+# ryoku-cursor-material compiles a Bibata variant at build time: fish + jq run
+# the vendored recipe, and python + librsvg (rsvg-convert) + xorg-xcursorgen
+# (xcursorgen) rasterise the cursors.
+fish
+jq
+librsvg
+xorg-xcursorgen
+python
+
+# pnpm (which pulls nodejs) builds spicetify-cli's jsHelper wrapper:
+# `pnpm build:wrapper` generates jsHelper/spicetifyWrapper.js, the `Spicetify`
+# global every extension is written against. It is absent from the release
+# tarball, so without pnpm the package builds clean and silently breaks the
+# Ryoku Canvas extension.
+pnpm
+nodejs
+
+# gnupg signs every built package and the repo db.
+gnupg

@@ -87,36 +87,10 @@ jobs:
             exit 1
           fi
 
-      - name: Install build toolchain
-        run: |
-          set -euo pipefail
-          # base-devel: makepkg + fakeroot + a C++20 gcc. go/cmake/ninja and the
-          # qt6 modules compile the Ryoku binaries and the Ryoku.Blobs QML plugin
-          # (Qt6 Quick/ShaderTools/Multimedia; Blobs plays video, so qt6-multimedia
-          # + ffmpeg). hyprland (+ pango/cairo/pixman/libdrm/libinput/libxkbcommon/
-          # wayland/wayland-protocols) plus hyprcursor/pkgconf build the compositor
-          # plugin packages (hypr-dynamic-cursors, ryoku-hypr-plugins, hyprglass,
-          # imgborders); makepkg runs --nodeps, so their makedepends must be present
-          # here. rust (cargo) builds awww, hyprland-preview-share-picker, and
-          # asusctl from source. awww's common/build.rs probes liblz4; the picker
-          # needs gtk4 + gtk4-layer-shell; asusctl needs clang, llvm, and libusb.
-          # gnupg signs, rclone uploads, git backs checkout, and gradle
-          # native-compiles the vendored limine-entry-tool stack
-          # ryoku-cursor-material compiles a Bibata variant at build time: fish + jq
-          # run the vendored recipe, and python + librsvg (rsvg-convert) +
-          # xorg-xcursorgen (xcursorgen) rasterise the cursors.
-          # pnpm (which pulls nodejs) builds spicetify-cli's jsHelper wrapper:
-          # `pnpm build:wrapper` generates jsHelper/spicetifyWrapper.js, the
-          # `Spicetify` global every extension is written against. It is absent
-          # from the release tarball, so without pnpm the package would build
-          # clean and silently break the Ryoku Canvas extension.
-          # meson builds the two controller packages: game-devices-udev's udev
-          # rules and dualsensectl. ninja alone is not enough, meson drives it.
-          pacman -Syu --noconfirm --needed \
-            base-devel git go rust clang llvm cmake ninja meson gnupg rclone gradle libusb \
-            qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
-            hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4 gtk4 gtk4-layer-shell \
-            fish jq librsvg xorg-xcursorgen python pnpm nodejs
+      # Only what actions/checkout needs; the real toolchain is a file in the
+      # repo, so it cannot be read until after the checkout below.
+      - name: Install git for checkout
+        run: pacman -Sy --noconfirm --needed git
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -125,6 +99,17 @@ jobs:
           # Full history so build-repo.sh can derive the commit-count package
           # version (bin/ryoku-release-version --pkgver) from `git rev-list`.
           fetch-depth: 0
+
+      - name: Install build toolchain
+        run: |
+          set -euo pipefail
+          # One source of truth, shared with installation/tests/container-install.sh.
+          # This list used to be duplicated in both, drifted, and the drift is silent
+          # until a recipe needs the missing tool.
+          mapfile -t pkgs < <(grep -vE '^[[:space:]]*(#|$)' release/repo/build-toolchain.packages)
+          # rclone uploads the finished repo; it is not needed to build a package,
+          # so it stays here rather than in the shared build list.
+          pacman -Syu --noconfirm --needed "${pkgs[@]}" rclone
 
       - name: Snapshot the published package set
         env:
