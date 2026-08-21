@@ -5,4 +5,8 @@
 -- strongest GPU as the primary renderer. back to hyprland's default selection:
 -- `ryoku-gpu disable`.
 --
+-- this pin is only a render choice. on a laptop the panel's GPU -- and so
+-- whether the dGPU can ever sleep -- is set by the hardware MUX at POST, not by
+-- AQ_DRM_DEVICES; manage that with `ryoku-gpu-mux` (a change needs a reboot).
+--
 -- takes effect on the next hyprland login (env is read at start).

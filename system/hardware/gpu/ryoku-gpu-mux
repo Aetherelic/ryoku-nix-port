@@ -1,0 +1,311 @@
+#!/usr/bin/env bash
+#
+# ryoku-gpu-mux: report and switch the ASUS hardware GPU MUX (which GPU the
+# internal panel is physically wired to), and report the idle cost that mode
+# carries. Read-only by default; a `set` writes the firmware knob but never
+# runs on its own -- switching the MUX re-routes the display at POST and needs
+# a reboot, so it stays an explicit, deliberate action.
+#
+# Why this is separate from ryoku-gpu: ryoku-gpu picks Hyprland's software
+# render device (AQ_DRM_DEVICES). That is a *rendering* choice and cannot move
+# a panel the firmware has hard-wired to one GPU. The MUX is the *display
+# routing* choice, and it is the thing that actually decides whether the dGPU
+# can ever sleep: in discrete mode the panel scans out on the dGPU, so the dGPU
+# is pinned awake (idle heat + battery drain); in hybrid mode the iGPU drives
+# the panel and the dGPU can runtime-suspend.
+#
+# The modern firmware-attributes interface (asus-armoury) is authoritative; the
+# legacy asus-nb-wmi platform node reports stale values on some firmware, so it
+# is only a fallback. Kernel ABI: gpu_mux_mode 0 = Discrete, 1 = Optimus/Hybrid,
+# reboot required (Documentation/ABI/testing/sysfs-platform-asus-wmi).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# gpu_records/classify/json_escape/hw_run/hw_probe_ok and the DRM_ROOT test seam
+# come from the shared detector, the same one ryoku-gpu sources; no probing runs
+# at source time (functions only).
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=ryoku-gpu-detect
+source "$SCRIPT_DIR/ryoku-gpu-detect"
+
+# Override seams: the two MUX knob roots can be redirected so `set` and the
+# reporting run against a fake sysfs tree (used by the tests) instead of the
+# live firmware. The globs below hang off these.
+MUX_ARMOURY_ROOT="${RYOKU_MUX_ARMOURY_ROOT:-/sys/class/firmware-attributes}"
+MUX_LEGACY_ROOT="${RYOKU_MUX_LEGACY_ROOT:-/sys/devices/platform}"
+
+# ── MUX knob discovery ────────────────────────────────────────────────────────
+
+# Set by mux_discover: the interface found, the file carrying the current value
+# (read/written directly), and the sibling pending_reboot file when present.
+_mux_iface="none"
+_mux_value_file=""
+_mux_reboot_file=""
+
+mux_discover() {
+  _mux_iface="none"
+  _mux_value_file=""
+  _mux_reboot_file=""
+  local f attrs dir
+  # a. modern firmware-attributes (asus-armoury). Authoritative.
+  for f in "$MUX_ARMOURY_ROOT"/*/attributes/gpu_mux_mode/current_value; do
+    [[ -r $f ]] || continue
+    _mux_iface="armoury"
+    _mux_value_file="$f"
+    # pending_reboot is a sibling attribute in the same attributes/ dir, not a
+    # child of the knob: .../attributes/gpu_mux_mode/current_value ->
+    # .../attributes/pending_reboot.
+    attrs="$(dirname "$(dirname "$f")")"
+    [[ -r $attrs/pending_reboot ]] && _mux_reboot_file="$attrs/pending_reboot"
+    return 0
+  done
+  # b. deprecated platform node (asus-nb-wmi). Fallback only.
+  for f in "$MUX_LEGACY_ROOT"/*/gpu_mux_mode; do
+    [[ -r $f ]] || continue
+    _mux_iface="legacy"
+    _mux_value_file="$f"
+    dir="$(dirname "$f")"
+    [[ -r $dir/pending_reboot ]] && _mux_reboot_file="$dir/pending_reboot"
+    return 0
+  done
+  return 1
+}
+
+mux_capable() { [[ $_mux_iface != none ]]; }
+
+mux_read_value() {
+  [[ -n $_mux_value_file && -r $_mux_value_file ]] || return 1
+  local v
+  v="$(<"$_mux_value_file")"
+  printf '%s' "${v//[[:space:]]/}"
+}
+
+mux_mode() {
+  # Kernel ABI: 0 = Discrete, 1 = Optimus/Hybrid. Never print the raw integer.
+  local v
+  v="$(mux_read_value)" || { printf 'unknown'; return; }
+  case "$v" in
+    0) printf 'discrete' ;;
+    1) printf 'hybrid' ;;
+    *) printf 'unknown' ;;
+  esac
+}
+
+mode_to_int() {
+  case "$1" in
+    discrete) printf '0' ;;
+    hybrid) printf '1' ;;
+    *) return 1 ;;
+  esac
+}
+
+mux_reboot_pending() {
+  # A queued MUX change reports here until the box reboots and the firmware
+  # applies it at POST.
+  [[ -n $_mux_reboot_file && -r $_mux_reboot_file ]] || return 1
+  local v
+  v="$(<"$_mux_reboot_file")"
+  v="${v//[[:space:]]/}"
+  [[ -n $v && $v != 0 ]]
+}
+
+mux_write() {
+  local val="$1"
+  if [[ -w $_mux_value_file || $EUID -eq 0 ]]; then
+    printf '%s\n' "$val" >"$_mux_value_file"
+  else
+    printf '%s\n' "$val" | sudo tee "$_mux_value_file" >/dev/null
+  fi
+}
+
+# ── dGPU / panel picture (reads the cached gpu_records of one status pass) ─────
+
+# Filled once per status pass so a single gpu_records probe (nvidia-smi + lspci,
+# cached inside the detector) feeds every derived field below.
+_records=""
+
+records_dgpu_slot() {
+  # PCI slot of the strongest discrete/eGPU (gpu_records is strength-sorted).
+  local class slot
+  while IFS=$'\t' read -r _ class slot _; do
+    [[ $class == discrete || $class == egpu ]] || continue
+    printf '%s' "$slot"
+    return 0
+  done <<<"$_records"
+  return 1
+}
+
+records_panel_on_dgpu() {
+  # True when every connected DRM connector sits on a discrete/eGPU card and at
+  # least one is connected. This is the load-bearing signal: a panel wired to
+  # the dGPU means the dGPU can never runtime-suspend (it has to stay powered to
+  # scan the display out), and it means AQ_DRM_DEVICES pinning the iGPU would
+  # black-screen the box, because in discrete-MUX mode the iGPU has no connected
+  # connector at all. So this, not the render-device pin, decides whether the
+  # dGPU can sleep -- flip it with `set hybrid` (+ reboot).
+  local class slot card driver vram connected model
+  declare -A cc=()
+  while IFS=$'\t' read -r _ class slot card driver vram connected model; do
+    [[ -n $card ]] || continue
+    cc["$card"]="$class"
+  done <<<"$_records"
+  local conn st base any=0
+  for conn in "$DRM_ROOT"/card[0-9]*-*; do
+    [[ -r $conn/status ]] || continue
+    st="$(cat "$conn/status" 2>/dev/null || true)"
+    [[ $st == "connected" ]] || continue
+    any=1
+    base="$(basename "$conn")"
+    base="${base%%-*}" # cardN-CONNECTOR -> cardN
+    case "${cc[$base]:-}" in
+      discrete | egpu) ;; # a connected panel on the dGPU: keeps it awake
+      *) return 1 ;;      # a connected panel on the iGPU: dGPU can sleep
+    esac
+  done
+  (( any ))
+}
+
+dgpu_watts() {
+  # Idle draw of the discrete card, from nvidia-smi. Spawned ONLY here, i.e.
+  # only for `status`: nvidia-smi wakes the dGPU to read power.draw, and that
+  # wake is exactly the idle cost this tool exists to expose and remove, so
+  # get/capable/set never call it. Guarded by hw_probe_ok so a fake DRM tree
+  # (the tests) stays hermetic. -1 when unavailable (no nvidia-smi, not NVIDIA,
+  # or a timeout).
+  local slot="$1" bdf w
+  [[ -n $slot ]] || { printf '%s' -1; return; }
+  hw_probe_ok || { printf '%s' -1; return; }
+  command -v nvidia-smi >/dev/null 2>&1 || { printf '%s' -1; return; }
+  bdf="${slot#*:}"
+  w="$(hw_run nvidia-smi --query-gpu=pci.bus_id,power.draw --format=csv,noheader,nounits 2>/dev/null \
+    | awk -F', *' -v s="$bdf" 'index(tolower($1), tolower(s)) {print $2; exit}')"
+  [[ $w =~ ^[0-9]+([.][0-9]+)?$ ]] && printf '%s' "$w" || printf '%s' -1
+}
+
+# ── status assembly ───────────────────────────────────────────────────────────
+
+bool() { if "$@"; then printf true; else printf false; fi; }
+
+status_gather() {
+  # Compute the full picture once; `status` and `status --json` share it. The
+  # predicates go through bool() so a legitimately-false one (no MUX, no pending
+  # reboot) can never trip set -e.
+  mux_discover || true
+  _s_capable="$(bool mux_capable)"
+  _s_iface="$_mux_iface"
+  _s_mode="$(mux_mode)"
+  _records="$(gpu_records)"
+  _s_slot="$(records_dgpu_slot || true)"
+  _s_panel="$(bool records_panel_on_dgpu)"
+  _s_watts="$(dgpu_watts "$_s_slot")"
+  _s_reboot="$(bool mux_reboot_pending)"
+}
+
+# ── subcommands ───────────────────────────────────────────────────────────────
+
+cmd_status() {
+  status_gather
+  if [[ $_s_capable == true ]]; then
+    echo "GPU MUX: supported (interface: $_s_iface)"
+    echo "Current mode: $_s_mode ($([[ $_s_mode == discrete ]] \
+      && printf 'panel on the dGPU' || printf 'panel on the iGPU, dGPU can sleep'))"
+  else
+    echo "GPU MUX: not supported on this machine"
+    echo "Current mode: $_s_mode"
+  fi
+  echo "Panel wired to the dGPU: $([[ $_s_panel == true ]] && printf yes || printf no)"
+  if [[ $_s_watts == -1 ]]; then
+    echo "dGPU idle draw: unknown"
+  else
+    echo "dGPU idle draw: ${_s_watts} W${_s_slot:+ ($_s_slot)}"
+  fi
+  echo "Reboot pending: $([[ $_s_reboot == true ]] && printf yes || printf no)"
+}
+
+cmd_status_json() {
+  status_gather
+  printf '{"capable":%s,"mode":"%s","iface":"%s","panel_on_dgpu":%s,"dgpu_slot":"%s","dgpu_watts":%s,"reboot_pending":%s}\n' \
+    "$_s_capable" "$_s_mode" "$_s_iface" "$_s_panel" \
+    "$(json_escape "$_s_slot")" "$_s_watts" "$_s_reboot"
+}
+
+cmd_get() {
+  if mux_discover; then
+    printf '%s\n' "$(mux_mode)"
+  else
+    printf 'unknown\n'
+    return 1
+  fi
+}
+
+cmd_capable() {
+  # Exit 0 only when a MUX knob exists. Silent: a predicate for scripts.
+  mux_discover
+}
+
+cmd_set() {
+  local target="${1:-}"
+  case "$target" in
+    hybrid | discrete) ;;
+    *)
+      echo "ryoku-gpu-mux: set requires 'hybrid' or 'discrete'" >&2
+      return 1
+      ;;
+  esac
+  if ! mux_discover; then
+    echo "ryoku-gpu-mux: no GPU MUX control on this machine; cannot set mode" >&2
+    return 1
+  fi
+  local cur val
+  cur="$(mux_mode)"
+  if [[ $cur == "$target" ]]; then
+    echo "ryoku-gpu-mux: already in $target mode; nothing to do"
+    return 0
+  fi
+  val="$(mode_to_int "$target")"
+  if ! mux_write "$val"; then
+    echo "ryoku-gpu-mux: failed to write MUX mode to $_mux_value_file" >&2
+    return 1
+  fi
+  echo "ryoku-gpu-mux: set GPU MUX to $target (was $cur)."
+  echo "  REBOOT REQUIRED: the firmware re-routes the internal panel to the"
+  echo "  selected GPU at POST, so the change only takes effect after a reboot."
+}
+
+usage() {
+  cat <<'USAGE'
+Usage: ryoku-gpu-mux <command>
+
+Report and switch the ASUS hardware GPU MUX (which GPU drives the internal
+panel). The MUX, not AQ_DRM_DEVICES, decides whether the dGPU can ever sleep:
+discrete pins the panel (and the dGPU) awake; hybrid lets the iGPU drive it so
+the dGPU can runtime-suspend.
+
+Commands:
+  status [--json]  Show capability, current mode, interface, whether the panel
+                   is on the dGPU, the dGPU's idle draw, and reboot-pending.
+  get              Print the current mode (hybrid|discrete|unknown).
+  set <mode>       Switch the MUX to hybrid|discrete. Writes the firmware knob;
+                   a REBOOT is required for the change to take effect.
+  capable          Exit 0 only if this machine has a GPU MUX knob (silent).
+
+Switching the MUX changes display routing and only applies after a reboot, so
+it is never done automatically; run `set` deliberately.
+USAGE
+}
+
+case "${1:-status}" in
+  status)
+    if [[ "${2:-}" == "--json" ]]; then cmd_status_json; else cmd_status; fi
+    ;;
+  get) cmd_get ;;
+  set) cmd_set "${2:-}" ;;
+  capable) cmd_capable ;;
+  -h | --help | help) usage ;;
+  *)
+    echo "ryoku-gpu-mux: unknown command: $1" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

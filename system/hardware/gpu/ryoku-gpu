@@ -13,8 +13,14 @@
 # too.
 #
 # policy: pin the strong GPU on desktops, pin an eGPU anywhere (you plugged it
-# in on purpose, for power). laptops stay iGPU-first for battery, per Hyprland's
-# own recommendation; force the dGPU there with RYOKU_GPU_FORCE=1.
+# in on purpose, for power). laptops are left unpinned so a dGPU pin cannot cost
+# battery; force one there with RYOKU_GPU_FORCE=1.
+#
+# unpinned does not mean the iGPU renders. with no pin the compositor picks, and
+# on a MUX laptop in discrete mode the panel is wired to the dGPU, so that is
+# what it picks and the dGPU can never runtime-suspend. no AQ_DRM_DEVICES value
+# fixes that: the iGPU has no connected connector to drive. the hardware MUX
+# decides it, so see ryoku-gpu-mux for the knob that actually matters.
 #
 # stable device names: AQ_DRM_DEVICES uses ':' as separator, so the colon-laden
 # by-path names are out, and bare /dev/dri/cardN can shuffle across boots.
@@ -150,8 +156,9 @@ cmd_detect() {
     echo "Chosen primary renderer: ${_slots[0]} (pinned)"
     echo "AQ_DRM_DEVICES = $(aq_value_symlinks)"
   elif (( _ngpu >= 2 )); then
-    echo "Chosen primary renderer: integrated GPU (laptop keeps iGPU-first for battery)"
+    echo "Chosen primary renderer: left to the compositor (laptop, no pin)"
     echo "Force the discrete GPU with: RYOKU_GPU_FORCE=1 ryoku-gpu persist"
+    echo "Whether the dGPU can sleep is the MUX, not this pin: ryoku-gpu-mux status"
   else
     echo "Chosen primary renderer: ${_slots[0]} (only GPU, no pin needed)"
   fi
@@ -177,7 +184,7 @@ cmd_persist() {
   if ! beneficial; then
     if (( _ngpu >= 2 )); then
       echo "ryoku-gpu: strongest GPU is ${_slots[0]} but it is not pinned" \
-        "(laptop keeps iGPU-first for battery; set RYOKU_GPU_FORCE=1 to pin it)." >&2
+        "(laptops are left unpinned for battery; set RYOKU_GPU_FORCE=1 to pin it)." >&2
     else
       echo "ryoku-gpu: single GPU detected, nothing to pin." >&2
     fi
@@ -287,7 +294,8 @@ cmd_persist_solo() {
 
 cmd_mode() {
   # host graphics mode (which GPU Ryoku renders on):
-  #   hybrid       = no pin; Hyprland's iGPU-first default (battery)
+  #   hybrid       = no pin; the compositor picks (battery). the hardware MUX,
+  #                  not this pin, gates whether the dGPU sleeps: ryoku-gpu-mux
   #   performance  = pin the strongest GPU (the dGPU) as primary
   #   passthrough  = pin the iGPU alone, freeing the dGPU for a VM
   local mode="${1:-}" dest="${2:-$GPU_CONF_DEFAULT}" i igpu=""

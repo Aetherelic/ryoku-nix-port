@@ -11,6 +11,14 @@ import Quickshell.Io
 // faster than SysInfo's 30s dossier cadence, and gated to `active` so nothing
 // beats when the page is gone. Writes nothing; each field falls to zero when its
 // source is absent (no sensors, no nvidia-smi), so the plate degrades quietly.
+//
+// A suspended discrete GPU counts as absent. Probing it with nvidia-smi would
+// wake the card out of runtime D3 -- about 10 W on a hybrid laptop -- and at a
+// 1.5s cadence the plate alone would hold it awake for as long as the page is
+// open, undoing the whole point of letting it sleep. So the poll reads the
+// driver's runtime_status first and skips the probe while the card is down; the
+// GPU fields simply stay at rest, exactly as they do on a machine with no
+// nvidia-smi at all. Same guard the bar's GPU telemetry uses.
 Singleton {
     id: root
 
@@ -50,7 +58,16 @@ ram=$(awk '/MemTotal/{t=$2}/MemAvailable/{a=$2}END{print int(100*(t-a)/t+0.5)}' 
 ld=$(awk '{print $1}' /proc/loadavg)
 ct=$(sensors 2>/dev/null | awk '/Tctl/{v=$2;gsub(/[^0-9.]/,"",v);print int(v);exit}')
 [ -z "$ct" ] && ct=$(awk '{print int($1/1000)}' /sys/class/thermal/thermal_zone0/temp 2>/dev/null)
-g=$(nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | tr ',' ' ')
+asleep=0
+for st in /sys/bus/pci/drivers/nvidia/*/power/runtime_status; do
+  [ -r "$st" ] || continue
+  IFS= read -r s < "$st"
+  [ "$s" = suspended ] && asleep=1
+  break
+done
+if [ "$asleep" = 1 ]; then g=""
+else g=$(nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | tr ',' ' ')
+fi
 echo "$cpu $ram $ct $ld $dn $up $g"
 `]
         stdout: SplitParser {

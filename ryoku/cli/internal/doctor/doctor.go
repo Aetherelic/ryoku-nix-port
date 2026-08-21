@@ -154,6 +154,7 @@ func reconcilers() []reconciler {
 		{"btrfs device health", reconcileBtrfsHealth},
 		{"wireless regulatory domain", reconcileWifiRegdom},
 		{"display backlight", reconcileBacklight},
+		{"discrete GPU idle drain", reconcileDgpuPanel},
 		{"display resolution", reconcileDisplayModes},
 		{"NVIDIA boot reliability", reconcileNvidiaModeset},
 		{"NVIDIA update guard hook", reconcileNvidiaGuardHook},
@@ -2561,6 +2562,10 @@ func reconcileHyprlandConfig(checkOnly bool) recResult {
 				withFix("run `ryoku doctor` to regenerate them")
 		}
 		if e := liveConfigErrors(live); e != "" {
+			if hyprDispatchNoise(e) {
+				return wouldRes("Hyprland is holding a stale `hyprctl dispatch` error, not a config error: %s", firstLine(e)).
+					withFix("run `ryoku doctor` (it reloads Hyprland, which clears it); the config on disk is fine")
+			}
 			return wouldRes("Hyprland is rejecting its config (emergency mode): %s", firstLine(e)).
 				withFix("run `ryoku doctor`, then check ~/.config/hypr/user.lua")
 		}
@@ -2594,6 +2599,24 @@ func reconcileHyprlandConfig(checkOnly bool) recResult {
 	}
 
 	if e := liveConfigErrors(live); e != "" {
+		// A stale dispatch error is not a broken config: clear the buffer with a
+		// reload rather than sending the user to audit config they never broke.
+		if hyprDispatchNoise(e) {
+			if !live {
+				return okRes("Hyprland config loads cleanly")
+			}
+			_ = exec.Command("hyprctl", "reload").Run()
+			again := liveConfigErrors(live)
+			switch {
+			case again == "":
+				return fixedRes("cleared a stale `hyprctl dispatch` error Hyprland was holding in its config-error buffer; the config itself never failed")
+			case !hyprDispatchNoise(again):
+				return warnRes("Hyprland is rejecting its config: %s", firstLine(again)).
+					withFix("check ~/.config/hypr/user.lua or settings.lua")
+			}
+			return warnRes("Hyprland kept a `hyprctl dispatch` error after a reload: %s", firstLine(again)).
+				withFix("re-run the dispatch by hand to see it, or restart the session; the config on disk is fine")
+		}
 		return warnRes("Hyprland is rejecting its config: %s", firstLine(e)).
 			withFix("check ~/.config/hypr/user.lua or settings.lua")
 	}
@@ -2719,6 +2742,18 @@ func liveConfigErrors(live bool) string {
 		return ""
 	}
 	return out
+}
+
+// hyprDispatchNoise reports whether Hyprland's config-error buffer is holding a
+// Lua *dispatch* error instead of a config one. Hyprland files the error from a
+// bad `hyprctl dispatch` in the very buffer configerrors reports, so one stray
+// dispatch (a typo at the prompt, a tool probing which config mode is live)
+// leaves a healthy session looking like it rejected its config until something
+// reloads. The two are told apart by Lua's chunk name: a dispatch error carries
+// the dispatched source ("return hl.dispatch(...):1: ..."), a config error
+// carries the path of the file that failed to load.
+func hyprDispatchNoise(errs string) bool {
+	return strings.Contains(errs, "return hl.dispatch(")
 }
 
 // ---- reconciler: failed systemd units ----------------------------------------

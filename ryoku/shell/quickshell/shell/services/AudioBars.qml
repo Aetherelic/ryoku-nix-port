@@ -7,9 +7,12 @@ import "../utils/menupoll.js" as MenuPoll
 // playback spectrum for the pill: the bar's music widget and its card both draw
 // from this one cava feed (the PipeWire playback monitor, 40 bands / 30fps), so
 // one analyser serves every music surface. `setActive` is owner-refcounted like
-// PowerProfiles: cava runs only while a visible surface claims it. levels settle
-// flat when frames stop arriving (system silent or a restart gap), so the bars
-// fall to their rest slivers instead of freezing on the last peak.
+// PowerProfiles, but the analyser runs only while a visible surface claims it AND
+// the shell's pill policy (Perf.pillFrozen: lowPowerMode / Power Saver) permits a
+// live feed -- otherwise a visible music widget would hold a 30fps analyser open
+// with the desktop asking for stillness. levels settle flat when frames stop
+// arriving (system silent, a restart gap, or the policy freezing the feed), so
+// the bars fall to their rest slivers instead of freezing on the last peak.
 Singleton {
     id: root
 
@@ -18,6 +21,12 @@ Singleton {
     function setActive(owner, enabled) {
         activeOwners = MenuPoll.setOwnership(activeOwners, owner, enabled);
     }
+
+    // The live analyser: an owner claims the feed and the pill policy permits it.
+    // Perf.pillFrozen (lowPowerMode or the Power Saver profile) drops cava even
+    // while a music surface is on screen, and routes the reset below so the bars
+    // settle flat exactly as they do when the last owner releases.
+    readonly property bool analysing: root.active && !Perf.pillFrozen
 
     readonly property int bars: 40
     readonly property int fps: 30
@@ -38,25 +47,25 @@ Singleton {
         id: cavaProc
         // playback spectrum via cava's native pipewire backend, source=auto (the default sink's monitor). the pulse backend can't connect here ("Connection terminated") even with pipewire-pulse up, and this path needs no pactl. exec so quickshell's SIGTERM reaches cava, leaving no orphaned analyser when the surface unloads.
         command: ["sh", "-c", "command -v cava >/dev/null 2>&1 || exit 0; cfg=\"${XDG_RUNTIME_DIR:-/tmp}/ryoku-cava-pill.conf\"; printf '%s\\n' '[general]' 'framerate = " + root.fps + "' 'bars = " + root.bars + "' '' '[input]' 'method = pipewire' 'source = auto' '' '[output]' 'method = raw' 'raw_target = /dev/stdout' 'data_format = ascii' 'ascii_max_range = 100' 'channels = mono' 'mono_option = average' '' '[smoothing]' 'noise_reduction = 45' > \"$cfg\"; exec cava -p \"$cfg\""]
-        running: root.active
+        running: root.analysing
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: (line) => root.readBars(line)
         }
-        onExited: if (root.active) restartTimer.restart()
+        onExited: if (root.analysing) restartTimer.restart()
     }
 
     Timer {
         id: restartTimer
         interval: 1200
-        onTriggered: if (root.active && !cavaProc.running) cavaProc.running = true
+        onTriggered: if (root.analysing && !cavaProc.running) cavaProc.running = true
     }
 
     // cava sleeps and stops emitting frames once playback idles, so settle back
     // to flat when no frame has arrived recently.
     Timer {
         interval: 120
-        running: root.active
+        running: root.analysing
         repeat: true
         onTriggered: if (Date.now() - root.lastReadMs > 260) {
             root.levels = root.flat();
@@ -64,10 +73,10 @@ Singleton {
         }
     }
 
-    onActiveChanged: {
+    onAnalysingChanged: {
         levels = flat();
         energy = 0;
-        if (active)
+        if (analysing)
             lastReadMs = 0;
     }
 

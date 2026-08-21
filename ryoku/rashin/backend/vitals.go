@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -279,8 +280,30 @@ func diskVitals() []Disk {
 	return out
 }
 
+// dgpuAsleep reports whether an NVIDIA card is currently runtime-suspended.
+// Cheap: one sysfs read, no process spawn, and it never touches the card itself.
+func dgpuAsleep() bool {
+	paths, _ := filepath.Glob("/sys/bus/pci/drivers/nvidia/*/power/runtime_status")
+	for _, p := range paths {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		return strings.TrimSpace(string(b)) == "suspended"
+	}
+	return false
+}
+
 // gpuVitals queries nvidia-smi; any failure (no tool, no GPU, timeout) is nil.
+//
+// A suspended discrete GPU is reported as absent rather than probed. nvidia-smi
+// wakes the card out of runtime D3 (about 10 W on a hybrid laptop), and the
+// vitals websocket ticks every 2s, so probing here would hold the card awake for
+// as long as any Rashin client is connected and quietly undo the power saving.
 func gpuVitals() *GPUVitals {
+	if dgpuAsleep() {
+		return nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "nvidia-smi",

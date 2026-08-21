@@ -44,6 +44,19 @@ Item {
     readonly property real ambientQuoteFade8: 0.68
     readonly property real ambientRiseStep8: 0.16
 
+    // ── shared adaptive paint pacing (all modes) ──
+    // The per-frame clear plus the canvas texture upload dominate cost (the same
+    // reason mode 7 self-paces), so every mode produces frames only as fast as
+    // its picture actually changes: full rate while something moves fast, a slow
+    // ambient rate while only a faint crawl or swell remains, and a coarse watch
+    // rate while the gap is dark - re-armed to full a lead ahead of the next
+    // burst so onsets stay crisp. canvas.paintTick is set at the end of onPaint.
+    readonly property int fullMotionTick: (mode === 5 || mode === 6) ? 16 : 33  // fast positional motion
+    readonly property int driftTick: 50    // slow crawl / soft bloom (mode 2)
+    readonly property int chargeTick: 160  // mode-3 charged field: only drift + a fading bolt, never fast motion
+    readonly property int watchTick: 150   // dark gap: coarse watch, onset re-armed by paceLead
+    readonly property int paceLead: (Math.max(watchTick, chargeTick) + 24) * Perf.pollFactor
+
     opacity: active ? 1.0 : 0.0
     Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutCubic } }
 
@@ -53,11 +66,11 @@ Item {
     }
 
     function setReactorFastTick7() {
-        canvas.tick7 = reactorFrameTick7
+        canvas.paintTick = reactorFrameTick7
     }
 
     function setDormantTick7() {
-        canvas.tick7 = reactorDormantTick7
+        canvas.paintTick = reactorDormantTick7
     }
 
     // ── event impulses for the mode-7 reactor ──
@@ -126,7 +139,7 @@ Item {
             quoteWake8.stop()
             canvas.quoteAmbientFade = 0.72
             canvas.quoteLastPaintNow = 0
-            canvas.tick7 = 16
+            canvas.paintTick = 16
         } else {
             animating8 = false
             quoteWake8.stop()
@@ -134,6 +147,7 @@ Item {
             canvas.quoteAmbientFade = 0
             canvas.quoteLastPaintNow = 0
             canvas.quoteRecruited = 0
+            if (!reactorMode7) canvas.paintTick = fullMotionTick
         }
         root.requestFrame()
     }
@@ -157,7 +171,7 @@ Item {
             canvas.quoteRecruited = 0
         } else if (reactorMode7) {
             animating7 = ambientField7
-            canvas.tick7 = ambientField7 ? ambientIdleTick7 : reactorFrameTick7
+            canvas.paintTick = ambientField7 ? ambientIdleTick7 : reactorFrameTick7
             root.requestFrame()
             Qt.callLater(function() { root.announceReactorArmed7() })
         } else if (mode === 8) {
@@ -165,7 +179,10 @@ Item {
             quoteWake8.stop()
             canvas.quoteAmbientFade = 0.72
             canvas.quoteLastPaintNow = 0
-            canvas.tick7 = 16
+            canvas.paintTick = 16
+            root.requestFrame()
+        } else {
+            canvas.paintTick = fullMotionTick
             root.requestFrame()
         }
     }
@@ -190,7 +207,7 @@ Item {
         onTriggered: {
             if (!root.active || root.mode !== 8) return
             root.animating8 = true
-            canvas.tick7 = 16
+            canvas.paintTick = 16
             root.requestFrame()
         }
     }
@@ -237,7 +254,7 @@ Item {
             canvas.quoteSwarm = null
             if (active && mode === 8) {
                 animating8 = true
-                canvas.tick7 = 16
+                canvas.paintTick = 16
                 root.requestFrame()
             }
         }
@@ -996,11 +1013,11 @@ Item {
     }
 
     Timer {
-        // mode 7 self-paces: the 60fps tick machinery alone (clear + texture
-        // upload, both screens) costs ~23% CPU - so full rate only during
-        // fast motion while events form; ambient idle runs at ~8Hz, and fully
-        // dark/no-gap states back off to ~4Hz or stop (tick7 is set from onPaint)
-        interval: ((root.reactorMode7 || root.mode === 8) ? canvas.tick7 : ((root.mode === 5 || root.mode === 6) ? 16 : 33)) * Perf.pollFactor
+        // The per-frame clear plus the canvas texture upload dominate cost, so
+        // every mode paces itself: canvas.paintTick, set at the end of onPaint,
+        // runs full rate only while the picture moves fast, an ambient rate while
+        // it merely drifts or fades, and a coarse watch rate while the gap is dark.
+        interval: canvas.paintTick * Perf.pollFactor
         repeat: true
         running: root.active && !Perf.reduceMotion && ((root.reactorMode7 && root.animating7)
                                  || (root.mode === 8 && root.animating8)
@@ -1012,8 +1029,9 @@ Item {
         id: canvas
         anchors.fill: parent
         renderStrategy: Canvas.Threaded
-        // adaptive tick for reactor/quotes: 16ms while moving, slower while idle/holding
-        property int tick7: 250
+        // shared adaptive paint interval (ms), set at the end of onPaint from
+        // what the frame actually drew (see the pacing note near the top)
+        property int paintTick: 250
         // dot-matrix glyph table for text pulses, built once on first use
         property var swarmData: null
         // mode 8 quotes cache, separate from the mode-7 event cache
@@ -1123,7 +1141,7 @@ Item {
                 }
                 if (gaps8.length === 0) {
                     root.animating8 = false
-                    canvas.tick7 = 250
+                    canvas.paintTick = 250
                     root.scheduleQuoteWake8(1000)
                     ctx.globalAlpha = 1.0
                     return
@@ -1224,7 +1242,7 @@ Item {
                     canvas.quoteRecruited = 0
                     paintQuoteAmbient8(0, 0.72 * canvas.quoteAmbientFade)
                     root.animating8 = true
-                    canvas.tick7 = root.ambientIdleTick8
+                    canvas.paintTick = root.ambientIdleTick8
                     ctx.globalAlpha = 1.0
                     return
                 }
@@ -1243,7 +1261,7 @@ Item {
                     q8 *= 1 - r8a
                 }
                 var hold8 = q8 >= 0.999
-                canvas.tick7 = (t8 < 3200 || t8 > 9400) ? 24 : 33
+                canvas.paintTick = (t8 < 3200 || t8 > 9400) ? 24 : 33
 
                 var iW18 = -1, iW28 = -1
                 for (var wi8 = 0; wi8 < gaps8.length; wi8++) {
@@ -1617,7 +1635,7 @@ Item {
                         canvas.recruited = 0
                         paintAmbientField7(0, 0.72 * canvas.fieldFade)
                         root.animating7 = true
-                        canvas.tick7 = root.ambientIdleTick7
+                        canvas.paintTick = root.ambientIdleTick7
                         ctx.globalAlpha = 1.0
                         return
                     }
@@ -1824,11 +1842,19 @@ Item {
                 }
                 if (livePs7.length !== ps7.length) root.pulses = livePs7
                 root.animating7 = root.ambientField7 ? true : alive7
-                canvas.tick7 = alive7 ? (fastPulse7 ? fastTick7 : root.reactorHoldTick7)
+                canvas.paintTick = alive7 ? (fastPulse7 ? fastTick7 : root.reactorHoldTick7)
                                       : (root.ambientField7 ? root.ambientIdleTick7 : root.reactorDormantTick7)
                 ctx.globalAlpha = 1.0
                 return
             }
+
+            // adaptive pacing for modes 1-6: each gap raises the pace it needs
+            // this frame - fast bright motion beats a slow crawl/charge beats a
+            // dark watch - and canvas.paintTick becomes the fastest any gap asked
+            // for. A pace lead re-arms full rate just before the next burst.
+            var paceBusy = false
+            var paceDrift = false
+            var paceCharge = false
 
             for (var g = 0; g + 1 < runs.length; g++) {
                 var x1 = root.layout.runRightEdge(runs[g].e)
@@ -1845,6 +1871,9 @@ Item {
 
                 if (root.mode === 1) {
                     // ══ STREAM: dots riding a glowing rail ══
+                    // a fixed-speed marquee: always genuine motion, so full rate
+                    // whenever a gap is on screen (only no-gaps drops to watch)
+                    paceBusy = true
 
                     // ── outer glow: diffuse aura around the track ──
                     var gh  = 8
@@ -1917,6 +1946,9 @@ Item {
 
                 } else if (root.mode === 2) {
                     // ══ SURGE: current pulses race inward from both edges, meet, flash ══
+                    // heads crawl inward and meet in a soft bloom - all slow
+                    // drift, so the ambient rate carries it with no visible change
+                    paceDrift = true
                     var T     = 3900
                     // per-gap phase offset → the pulses ripple across the bar, gap by gap
                     var p     = (((now % T) / T) + g * 0.20) % 1   // 0..1 cycle
@@ -1967,6 +1999,11 @@ Item {
                     var seed  = Math.floor(local) * 131.7 + g * 53.3
 
                     var charging = ph < 0.82
+                    // nothing here moves positionally: the waves are a faint slow
+                    // drift and the discharge is a smooth brightness fade over a
+                    // static (seed-fixed) bolt path. With no fast motion anywhere,
+                    // the whole charged field paces at one ambient rate.
+                    paceCharge = true
                     var charge   = Math.pow(Math.min(1, ph / 0.82), 1.6)  // original wave build-up, stretched by the slower cycle
                     var dw       = charging ? 0 : (ph - 0.82) / 0.18      // 0..1 through discharge
                     var waveI    = charging ? charge : (1 - dw)           // swells, then collapses into the bolt
@@ -2067,11 +2104,17 @@ Item {
                     // candidates per gap (deterministic - no state kept)
                     var slot = Math.floor(now / 300)
                     var sIn  = (now % 300) / 300            // 0..1 inside the slot
+                    // pre-arm full rate for a spark igniting in the slot just
+                    // ahead, so its onset is never caught late from a watch frame
+                    for (var la4 = 0; la4 < 2; la4++)
+                        if (hash(Math.floor((now + root.paceLead) / 300) * 77.7 + g * 13.3 + la4 * 311.1) <= 0.32)
+                            paceBusy = true
                     for (var sk = 0; sk < 2; sk++) {
                         var sps = slot * 77.7 + g * 13.3 + sk * 311.1
                         if (hash(sps) > 0.32) continue        // most slots stay quiet
                         var life = 1 - sIn                    // quick fade within the slot
                         if (life <= 0) continue
+                        paceBusy = true   // a live spark flickers fast this frame
                         var left = hash(sps + 1) < 0.5
                         var ex0  = left ? x1 : x2
                         var dir  = left ? 1 : -1
@@ -2099,6 +2142,9 @@ Item {
                     var sd4 = Math.floor(lo4) * 131.7 + g * 53.3
                     var st4 = 0.10 + hash(sd4 + 99) * 0.75    // irregular breakdown moment
                     var s4  = (ph4 - st4) * T4                // ms since breakdown
+                    // the breakdown arc is a fast strike - full rate while it is
+                    // live or imminent
+                    if (s4 >= -root.paceLead && s4 < 340) paceBusy = true
                     if (s4 >= 0 && s4 < 340) {
                         // double-flicker envelope: strike, dip, weaker restrike, die
                         var b4 = 0
@@ -2141,6 +2187,9 @@ Item {
                     var sd5 = Math.floor(lo5) * 131.7 + g * 53.3
                     var st5 = hash(sd5 + 9) * 0.22            // irregular start
                     var p5  = (ph5 - st5) / 0.74              // the whole hand-over
+                    // the droplet glides smoothly - full rate while it is out (or
+                    // about to be); between drops the gap is dark and drops to watch
+                    if (p5 >= -root.paceLead / (0.74 * T5) && p5 <= 1) paceBusy = true
                     if (p5 >= 0 && p5 <= 1) {
                         var R5 = 2.4                           // droplet core radius
                         var dx5, sc5 = 1.0
@@ -2200,6 +2249,9 @@ Item {
                     var sd6 = Math.floor(lo6) * 131.7 + g * 53.3
                     var st6 = hash(sd6 + 9) * 0.5              // irregular shot moment
                     var s6  = (ph6 - st6) * T6                 // ms since launch
+                    // heads race and detonate fast - full rate while the shot is
+                    // live or imminent; darkness between shots drops to watch
+                    if (s6 >= -root.paceLead && s6 < 1180) paceBusy = true
                     if (s6 >= 0 && s6 < 1180) {
                         var mid6 = (x1 + x2) / 2
                         var IN6  = 580                         // in-flight time
@@ -2258,6 +2310,14 @@ Item {
 
                 ctx.restore()
             }
+
+            // pace from what this frame drew - the fastest tier any gap asked for
+            // wins; a fully dark frame (no gaps, or every gap resting between
+            // bursts) backs off to the watch rate, re-armed a lead before the next
+            canvas.paintTick = paceBusy ? root.fullMotionTick
+                             : paceDrift ? root.driftTick
+                             : paceCharge ? root.chargeTick
+                             : root.watchTick
 
             ctx.globalAlpha = 1.0
         }

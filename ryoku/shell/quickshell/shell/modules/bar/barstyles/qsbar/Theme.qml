@@ -3040,13 +3040,18 @@ Item {
     // Hyprland 0.55 added Lua configs but still supports classic hyprlang, and
     // BOTH ship the same version number - so the dispatch form depends on which
     // config is ACTIVE, not the version: classic wants "workspace N", Lua wants
-    // hl.dsp.focus({ workspace = N }). Probe the mode once with a harmless token:
-    // "hl.dsp" alone yields the Lua error "hl.dispatch: expected a dispatcher"
-    // under Lua, or "Invalid dispatcher" under classic - neither switches.
+    // hl.dsp.focus({ workspace = N }). Probe with the Lua form itself, focusing
+    // the workspace already focused ("e+0", so nothing moves): Lua answers "ok",
+    // classic does not know the dispatcher and says so.
+    // Never probe with a deliberately malformed token. Hyprland files a Lua
+    // dispatch error in the very buffer `hyprctl configerrors` reports, so the
+    // earlier "hl.dsp" probe left every session looking like it was rejecting
+    // its config until the next reload, and `ryoku doctor` warned about it.
     property bool hyprUsesLua: false
     Process {
         id: hyprDispatchProbe
-        command: ["bash", "-c", "hyprctl dispatch 'hl.dsp' 2>&1 | grep -qi 'hl\\.dispatch' && echo lua || echo classic"]
+        command: ["bash", "-c",
+            "hyprctl dispatch 'hl.dsp.focus({ workspace = \"e+0\" })' 2>&1 | grep -qix ok && echo lua || echo classic"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: { theme.hyprUsesLua = (this.text.trim() === "lua") }

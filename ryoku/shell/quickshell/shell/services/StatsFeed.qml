@@ -14,6 +14,13 @@ import "../utils/menupoll.js" as MenuPoll
 // while a visible owner claims it (setActive, owner-refcounted like AudioBars),
 // so an unseen panel costs nothing. Short down/up histories feed the chart.
 //
+// A runtime-suspended discrete GPU is treated as absent: probing it with
+// nvidia-smi would pull the card back out of D3 (about 10 W on a hybrid laptop),
+// and on a 1.5s tick this panel alone would pin it awake the whole time it is
+// open. So the poll checks the driver's runtime_status first and reports nothing
+// while the card sleeps, landing on the same "no GPU" path as a machine without
+// nvidia-smi. Same guard the bar's GPU telemetry and the Hub's plate use.
+//
 // The properties below are written from the poll handlers (as in Sysinfo), so
 // they are plain properties; consumers treat them as read-only.
 Singleton {
@@ -136,7 +143,11 @@ Singleton {
     Process {
         id: gpuProc
         running: false
-        command: ["sh", "-c", "nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits 2>/dev/null"]
+        command: ["sh", "-c",
+            "for st in /sys/bus/pci/drivers/nvidia/*/power/runtime_status; do "
+            + "[ -r \"$st\" ] || continue; IFS= read -r s < \"$st\"; "
+            + "[ \"$s\" = suspended ] && exit 0; break; done; "
+            + "nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits 2>/dev/null"]
         stdout: StdioCollector { onStreamFinished: root._readGpu(this.text) }
     }
 

@@ -279,6 +279,140 @@ func TestHyprLuaSane(t *testing.T) {
 	}
 }
 
+// Hyprland files a Lua dispatch error in the same buffer `hyprctl configerrors`
+// reports, so doctor must tell the two apart by Lua's chunk name: the dispatched
+// source for a dispatch, a config file path for a config error.
+func TestHyprDispatchNoise(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{
+			"dispatch probe",
+			"return hl.dispatch(hl.dsp):1: hl.dispatch: expected a dispatcher (e.g. hl.dsp.window.close())",
+			true,
+		},
+		{
+			"dispatch typo",
+			"return hl.dispatch(hl.dsp.workspace):1: hl.dispatch: expected a dispatcher",
+			true,
+		},
+		{
+			"config lua error",
+			"/home/u/.config/hypr/user.lua:12: hl.dispatch: expected a dispatcher",
+			false,
+		},
+		{
+			"config parse error",
+			"/home/u/.config/hypr/hyprland.lua:3: unexpected symbol near ')'",
+			false,
+		},
+		{"clean", "", false},
+	}
+	for _, c := range cases {
+		if got := hyprDispatchNoise(c.in); got != c.want {
+			t.Errorf("%s: hyprDispatchNoise()=%v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// A live session holding nothing but a stale dispatch error is healthy: check
+// mode says so instead of blaming the config, and fix mode reloads to clear it.
+// A stubbed hyprctl stands in for the compositor: `configerrors` answers from a
+// file the stub's own `reload` empties, exactly as Hyprland behaves.
+func TestReconcileHyprlandConfigClearsStaleDispatchError(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+
+	hypr := filepath.Join(home, ".config", "hypr")
+	if err := os.MkdirAll(hypr, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hypr, "hyprland.lua"), []byte("-- config\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	bin := filepath.Join(home, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	errsFile := filepath.Join(home, "configerrors")
+	noise := "return hl.dispatch(hl.dsp):1: hl.dispatch: expected a dispatcher\n"
+	if err := os.WriteFile(errsFile, []byte(noise), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Builtins only: PATH holds nothing but the stub itself.
+	stub := "#!/bin/sh\n" +
+		"case \"$1\" in\n" +
+		"version) exit 0 ;;\n" +
+		"configerrors) while IFS= read -r line; do echo \"$line\"; done <" + errsFile + " ;;\n" +
+		"reload) : >" + errsFile + "; echo ok ;;\n" +
+		"esac\n"
+	if err := os.WriteFile(filepath.Join(bin, "hyprctl"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	r := reconcileHyprlandConfig(true)
+	if r.status != recWouldFix || !strings.Contains(r.detail, "stale") {
+		t.Fatalf("check-only: status=%s detail=%q, want a stale-dispatch todo", r.status.label(), r.detail)
+	}
+	if strings.Contains(r.detail, "rejecting its config") {
+		t.Fatalf("check-only must not blame the config: %q", r.detail)
+	}
+	if b, err := os.ReadFile(errsFile); err != nil || string(b) != noise {
+		t.Fatal("check-only must not reload the compositor")
+	}
+
+	if r := reconcileHyprlandConfig(false); r.status != recFixed {
+		t.Fatalf("fix: status=%s detail=%q, want fixed", r.status.label(), r.detail)
+	}
+	if b, err := os.ReadFile(errsFile); err != nil || strings.TrimSpace(string(b)) != "" {
+		t.Fatalf("fix must clear the error buffer, got %q", string(b))
+	}
+	if r := reconcileHyprlandConfig(false); r.status != recOK {
+		t.Fatalf("second run: status=%s, want ok", r.status.label())
+	}
+}
+
+// A real config error still reads as one, reload or not.
+func TestReconcileHyprlandConfigKeepsRealConfigError(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+
+	hypr := filepath.Join(home, ".config", "hypr")
+	if err := os.MkdirAll(hypr, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hypr, "hyprland.lua"), []byte("-- config\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(home, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stub := "#!/bin/sh\n" +
+		"case \"$1\" in\n" +
+		"version) exit 0 ;;\n" +
+		"configerrors) echo \"" + filepath.Join(hypr, "user.lua") + ":9: unexpected symbol near ')'\" ;;\n" +
+		"reload) echo ok ;;\n" +
+		"esac\n"
+	if err := os.WriteFile(filepath.Join(bin, "hyprctl"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	if r := reconcileHyprlandConfig(false); r.status != recWarn || !strings.Contains(r.detail, "rejecting its config") {
+		t.Fatalf("fix: status=%s detail=%q, want a config-rejection warning", r.status.label(), r.detail)
+	}
+	if r := reconcileHyprlandConfig(true); r.status != recWouldFix || !strings.Contains(r.detail, "emergency mode") {
+		t.Fatalf("check-only: status=%s detail=%q, want the emergency-mode todo", r.status.label(), r.detail)
+	}
+}
+
 // torn generated drop-in -> detected and repaired to a parseable safe seed;
 // a valid sibling stays untouched, and the fix is idempotent. PATH is wiped
 // so the test never touches luac/hyprctl/ryoku-monitor: just the structural

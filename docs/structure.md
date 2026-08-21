@@ -112,11 +112,13 @@ System-level definition installed into the target.
 
 - `boot/` the boot chain: `limine/`, `mkinitcpio/`, `plymouth/`.
 - `hardware/` hardware policy and helper scripts (shipped to `/usr/bin` by
-  `ryoku-desktop`): `gpu/` (`ryoku-gpu`, `ryoku-gpu-detect`, udev rule),
-  `display/` (`ryoku-monitor`), `audio/` (`ryoku-mic`, the mic-gain normalizer),
-  `drivers/` (per-vendor
+  `ryoku-desktop`): `gpu/` (`ryoku-gpu`, `ryoku-gpu-detect`, `ryoku-gpu-mux`,
+  udev rule), `display/` (`ryoku-monitor`), `audio/` (`ryoku-mic`, the mic-gain
+  normalizer), `drivers/` (per-vendor
   `nvidia`/`intel`/`amd`/`vulkan` install scripts), `power/` (`ryoku-hw-laptop`,
-  the shared laptop detector; `ryoku-idle`, the laptop-gated `hypridle` launcher).
+  the shared laptop detector; `ryoku-idle`, the laptop-gated `hypridle` launcher;
+  `ryoku-power`, the battery charge ceiling and PCIe link power). What actually
+  moves power draw and temperature, measured, is in `docs/power.md`.
 - `extras/` the helpers behind the Hub's Extras section, shipped to `/usr/bin` by
   `ryoku-desktop`: `ryostore-install` (installs, removes, and reports the
   optional bundles from the `ryostore` catalogue), the `ryoku-pkg-*` routing
