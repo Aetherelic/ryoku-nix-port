@@ -1,0 +1,66 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# The last hole in Bluetooth adapter support.
+#
+# Adapters are otherwise already covered, and not by anything Ryoku does: Arch
+# split linux-firmware into per-vendor packages, and the default set pulls
+# -intel, -realtek, -mediatek, -atheros and -broadcom, which between them carry
+# the blobs for essentially every built-in and USB adapter on the market (ibt-*
+# for Intel, rtl_bt/ for Realtek, qca/ for Qualcomm Atheros, mediatek/ for
+# MT7921/7922). Shipping `linux-firmware` gets all of that for free.
+#
+# What that default set does not carry is Broadcom's patchram blobs.
+# linux-firmware-broadcom installs 118 files and not one .hcd. Broadcom's USB
+# parts are not self-initialising: btbcm looks for a .hcd matching the device's
+# USB vendor:product, uploads it, and only then does the adapter come up. With no
+# matching file the device enumerates, logs
+#
+#   bluetooth hci0: BCM: Patch brcm/BCM20702A1-0a5c-21e8.hcd not found
+#
+# and there is no working Bluetooth, which reads as dead hardware rather than as
+# a missing file. That covers a large slice of the cheap USB dongles people buy
+# to add Bluetooth to a desktop, plus BCM43142/BCM20702 built into older laptops.
+#
+# This is a repack of upstream's release, which is itself a repack of Broadcom's
+# Windows driver blobs, so there is nothing to compile and no version to track
+# beyond upstream's own: the blobs are per-device and effectively frozen. It
+# carries 114 .hcd files keyed by USB id.
+#
+# It ships from [ryoku] rather than the AUR because it is in base.packages: every
+# machine gets it on install and on `ryoku update`, and pacman never touches the
+# AUR. Verified to share no file with linux-firmware-broadcom, so the two install
+# side by side without a conflict.
+#
+# fixed-version package: it tracks upstream's release, not RYOKU_PKGVER. To move
+# it, bump pkgver/_pkgver, refresh b2sums, reset pkgrel.
+pkgname=broadcom-bt-firmware
+pkgver=12.0.1.1105
+_pkgver='12.0.1.1105_p4'
+pkgrel=1
+pkgdesc='Firmware for Broadcom Bluetooth devices'
+arch=('x86_64')
+url="https://github.com/winterheart/${pkgname}"
+license=('custom' 'MIT')
+conflicts=("${pkgname}-git")
+source=("${url}/releases/download/v${_pkgver}/${pkgname}-${pkgver}.deb")
+b2sums=('13dc60bfa9514afe711261f242d617d65329fcf7a0cc5b17208963d18511703ef7ec7575e75ee0bb3b2b5c5755e14ecb408dabe1c6a7cf6786bfd1a3e403ea01')
+
+package() {
+  # The .deb lays firmware under ./lib and docs under ./usr/share, so extract the
+  # payload somewhere neutral and place each tree explicitly. Upstream's recipe
+  # extracts straight into $pkgdir and then mv's lib into usr, which only works
+  # while those two happen to not collide; being explicit costs nothing.
+  local payload="${srcdir}/payload"
+  install -d "$payload"
+  tar --extract --file data.tar.gz --directory "$payload"
+
+  local docs="${payload}/usr/share/doc/${pkgname}-${pkgver}"
+
+  install -Dm644 -t "${pkgdir}/usr/lib/firmware/brcm" \
+    "$payload"/lib/firmware/brcm/*.hcd
+
+  install -Dm644 -t "${pkgdir}/usr/share/licenses/${pkgname}" \
+    "$docs"/LICENSE.*
+  install -Dm644 -t "${pkgdir}/usr/share/doc/${pkgname}" \
+    "$docs"/*.md
+}

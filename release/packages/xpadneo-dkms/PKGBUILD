@@ -1,0 +1,70 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# xpadneo = the Xbox One / Series controller driver for Bluetooth. The in-kernel
+# xpad handles those pads over a USB cable and does not do Bluetooth at all, so
+# without this a wireless Xbox controller either does not bind or binds through
+# hid-generic with wrong axes and no rumble. It is the single most common
+# controller family on the platform, so it belongs in the base set rather than
+# behind an optional step.
+#
+# It pairs with two other pieces of Ryoku, and none of the three works alone:
+#   - system/hardware/input/99-ryoku-controller.conf disables L2CAP ERTM, without
+#     which these pads frequently never finish pairing at all
+#   - system/hardware/input/99-ryoku-uinput.conf loads uinput, which Steam Input
+#     and the userspace pad drivers need to create their virtual gamepads
+#
+# shipped from [ryoku] instead of the AUR for the reason awww and spicetify-cli
+# were: `ryoku update` is pacman and pacman never touches the AUR, so a machine
+# that installed before this package set, or whose one-shot AUR build failed, had
+# a controller that does not work and no route to a fix but a manual `yay -S`. As
+# a signed [ryoku] package it lands on install, on update, and in the offline
+# closure.
+#
+# What this does NOT cover, deliberately: the Xbox Wireless Dongle. That needs
+# xone, which ships `blacklist xpad`, and xpad is what makes wired Xbox pads AND
+# every XInput off-brand (Turtle Beach among them, claimed by vendor + interface
+# signature since kernel 6.4) work. Trading those away by default would be the
+# wrong call, so xone is packaged separately and installed on demand.
+#
+# fixed-version package: it tracks upstream xpadneo releases, not the monorepo
+# RYOKU_PKGVER. To follow a new release, bump pkgver, refresh b2sums, and reset
+# pkgrel; bump pkgrel when only this recipe changes.
+#
+# Recipe follows the AUR package (marmis) closely on purpose: the DKMS layout,
+# the ETC_PREFIX=/usr/lib install and the license set are upstream's own
+# conventions, and diverging from them is how a DKMS package stops rebuilding on
+# a kernel bump. b2sum verified against the upstream tarball rather than copied.
+pkgname=xpadneo-dkms
+pkgdesc='Advanced Linux Driver for Xbox One Wireless Gamepad'
+pkgver=0.10.4
+pkgrel=1
+url='https://github.com/atar-axis/xpadneo'
+arch=(any)
+license=('GPL-2.0-only AND GPL-3.0-or-later')
+depends=('dkms' 'bluez' 'bluez-utils')
+source=("xpadneo-v${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz")
+b2sums=('2858e466c5fde7e3d06d878dd7fb695751375e11a112bd3d389f9db5a82ef3ffcc1e3431b213f4807aeb8f05fd4280c7ca2a0a56305b0e984eb9b70df4843735')
+
+build() {
+  cd "xpadneo-${pkgver}"
+  make build
+}
+
+package() {
+  cd "xpadneo-${pkgver}"
+
+  # modprobe + udev files. ETC_PREFIX=/usr/lib keeps them as vendor files, so a
+  # user override in /etc still wins.
+  make PREFIX="${pkgdir}" ETC_PREFIX='/usr/lib' install
+
+  local license_dir="${pkgdir}/usr/share/licenses/${pkgname}"
+  install -vD -t "${license_dir}/" -m644 LICENSE.md LICENSES/*.txt
+
+  local target_dir="${pkgdir}/usr/src/hid-xpadneo-v${pkgver}"
+  install -vD -t "${target_dir}" -m644 hid-xpadneo/{Makefile,dkms.conf}
+  install -vD -t "${target_dir}" -m755 hid-xpadneo/dkms.post_{install,remove}
+
+  cd hid-xpadneo
+  find src/ -type f -not -name '.*' \
+    -exec install -vD -m644 {} -T "${target_dir}/{}" \;
+}

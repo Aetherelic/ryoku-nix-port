@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- `xpadneo-dkms` 0.10.4 and `broadcom-bt-firmware` 12.0.1.1105 build into the
+  signed `[ryoku]` repository. Both are in `base.packages`, and an AUR package
+  cannot be reached by `ryoku update`, which is pacman: a machine that installed
+  before the package set existed, or whose one-shot AUR build failed, had a
+  non-working Xbox controller and no route to a fix but a manual `yay -S`. As
+  signed repo packages they land on install, on update, and in the offline
+  closure. Both are fixed-version recipes tracking upstream releases rather than
+  `RYOKU_PKGVER`, and both source checksums were verified against the upstream
+  artifact rather than copied from the AUR.
 - `asusctl` 6.4.0 is built from its pinned upstream source into the signed
   `[ryoku]` repository, with the upstream daemon, udev rules, and user data. Its
   install hook reloads the rules and starts `asusd` only when upstream's hardware
