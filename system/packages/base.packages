@@ -199,6 +199,30 @@ gamescope
 gamemode
 mangohud
 
+# Game controllers. Most of the work is already in the kernel and needs nothing
+# here: hid_playstation and hid_sony cover DualSense and DualShock, hid_nintendo
+# covers Switch Pro, and xpad covers wired Xbox pads plus every XInput off-brand
+# (Turtle Beach included, matched by vendor + interface signature since 6.4, so
+# no per-brand driver exists to add). The gap the kernel leaves is Bluetooth:
+# xpad does not speak it, so a wireless Xbox pad needs xpadneo, and these pads
+# also need L2CAP ERTM off to pair at all (99-ryoku-controller.conf).
+#
+# xpadneo ships from [ryoku] rather than the AUR so `ryoku update` can install
+# and update it; see release/packages/xpadneo-dkms.
+#
+# The Xbox Wireless Dongle is deliberately NOT here: its driver (xone) ships
+# `blacklist xpad`, which would take wired and off-brand pads down with it. It is
+# packaged for on-demand install instead.
+xpadneo-dkms
+
+# Bluetooth adapter firmware. linux-firmware's default set already pulls
+# -intel, -realtek, -mediatek, -atheros and -broadcom, which covers essentially
+# every built-in and USB adapter. The one hole it leaves is Broadcom's .hcd
+# patchram blobs (linux-firmware-broadcom ships 118 files and zero .hcd), and
+# without the matching .hcd a BCM20702/BCM43142 dongle enumerates and then never
+# comes up: "Patch brcm/BCM20702A1-....hcd not found".
+broadcom-bt-firmware
+
 # Shell + CLI
 bash-completion
 bat

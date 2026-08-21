@@ -515,10 +515,17 @@ package() {
   # keys in place; the .install runs it on install + upgrade.
 
   # Game controllers: load uinput at boot so Steam Input and the userspace pad
-  # drivers (xpadneo-dkms, game-devices-udev, both from the AUR step) can create
-  # their virtual gamepads. The user must also be in the `input` group (installer).
+  # drivers (xpadneo-dkms, game-devices-udev) can create their virtual gamepads.
+  # The user must also be in the `input` group (installer).
   install -Dm644 "$_repo/system/hardware/input/99-ryoku-uinput.conf" \
     "$pkgdir/etc/modules-load.d/99-ryoku-uinput.conf"
+
+  # Xbox pads pair over Bluetooth instead of refusing to: their L2CAP handshake
+  # does not survive the kernel's Enhanced Retransmission Mode, which reads to a
+  # user as a dead controller. modprobe.d rather than a kernel cmdline entry, so
+  # it applies on first module load and survives a kernel change.
+  install -Dm644 "$_repo/system/hardware/input/99-ryoku-controller.conf" \
+    "$pkgdir/usr/lib/modprobe.d/99-ryoku-controller.conf"
 
   # Wi-Fi regulatory domain: the same one-click grant for ryoku-wifi-regdom
   # (installed by the hardware glob above), so the country can be pinned without a

@@ -3,6 +3,24 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: **Bluetooth adapter firmware is complete.** Arch split
+  `linux-firmware` into per-vendor packages and the default set already pulls
+  `-intel`, `-realtek`, `-mediatek`, `-atheros` and `-broadcom`, which covers
+  essentially every built-in and USB adapter. The one hole is Broadcom's
+  patchram blobs: `linux-firmware-broadcom` installs 118 files and zero `.hcd`,
+  and Broadcom's USB parts are not self-initialising, so without the `.hcd`
+  matching their USB id the adapter enumerates, logs `BCM: Patch
+  brcm/BCM20702A1-....hcd not found`, and never comes up. That reads as dead
+  hardware. `broadcom-bt-firmware` adds the 114 missing blobs; verified to share
+  no file with `linux-firmware-broadcom`.
+- `base.packages`: **wireless Xbox controllers work.** Most controllers already
+  needed nothing here, which is why nothing was here: `hid_playstation`,
+  `hid_sony` and `hid_nintendo` cover DualSense, DualShock and Switch Pro
+  in-kernel, and `xpad` covers wired Xbox pads plus every XInput off-brand
+  (Turtle Beach among them, claimed by vendor + interface signature since 6.4,
+  so there is no per-brand driver to add). The gap was Bluetooth, which `xpad`
+  does not speak at all: `xpadneo-dkms` fills it, and it now ships from
+  `[ryoku]`.
 - `base.packages`: ship `docker` and `firefox`. Docker is what the stash "Cobalt
   engine" switch has always needed and never had: cobalt is distributed only as a
   container image, so on a clean install that switch could not work at all and

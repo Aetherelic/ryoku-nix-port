@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- `input/99-ryoku-controller.conf`: Xbox pads pair over Bluetooth instead of
+  refusing to. Their L2CAP handshake does not survive the kernel's Enhanced
+  Retransmission Mode, so with `disable_ertm` at its default `N` they either
+  never finish pairing or connect and drop within seconds, which reads as a
+  broken controller and is the most common "my Xbox pad will not connect on
+  Linux" report. Shipped as a `modprobe.d` drop-in so it applies on first module
+  load and survives a kernel change. Checked against xpadneo 0.10.4, which does
+  not set this itself: its own `modprobe.d` file is only HID aliases binding
+  Xbox VID/PIDs to `hid_xpadneo`, so the driver and this option are
+  complementary rather than redundant.
 - `audio/ryoku-bt-audio` remembers a Bluetooth device's A2DP codec and puts it
   back on every reconnect. WirePlumber persists a device's profile (headset vs
   A2DP) but not its codec, so a hand-picked codec was lost every single time the
