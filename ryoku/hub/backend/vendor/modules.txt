@@ -2,6 +2,12 @@
 ## explicit; go 1.18
 github.com/BurntSushi/toml
 github.com/BurntSushi/toml/internal
+# github.com/godbus/dbus/v5 v5.2.2
+## explicit; go 1.20
+github.com/godbus/dbus/v5
+# golang.org/x/sys v0.27.0
+## explicit; go 1.18
+golang.org/x/sys/unix
 # ryostore v0.0.0 => ../../apps/ryostore/backend
 ## explicit; go 1.26
 ryostore/compat

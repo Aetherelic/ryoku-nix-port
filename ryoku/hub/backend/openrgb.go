@@ -132,18 +132,21 @@ type orgbZone struct {
 // orgbDevice = one controller: its identity, its zones, and every mode it
 // advertises. Index is the live SDK slot, valid only for this connection.
 type orgbDevice struct {
-	Index       int
-	Type        string
-	Name        string
-	Vendor      string
-	Description string
-	Version     string
-	Serial      string
-	Location    string
-	ActiveMode  int
-	Modes       []orgbMode
-	Zones       []orgbZone
-	LEDCount    int
+	Provider     string
+	ProviderPath string
+	Aliases      []string
+	Index        int
+	Type         string
+	Name         string
+	Vendor       string
+	Description  string
+	Version      string
+	Serial       string
+	Location     string
+	ActiveMode   int
+	Modes        []orgbMode
+	Zones        []orgbZone
+	LEDCount     int
 }
 
 // mode looks a mode up by name.

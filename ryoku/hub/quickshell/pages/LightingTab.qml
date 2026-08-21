@@ -483,7 +483,7 @@ Item {
                     width: parent.width
                     leftPadding: Tokens.s4; rightPadding: Tokens.s4
                     topPadding: Tokens.s3; bottomPadding: Tokens.s2
-                    text: I18n.tr("Keyboards, mice and other RGB hardware, through OpenRGB. While this is off Ryoku never looks for a device and never writes to one, so a keyboard driven by its own software or a switch on the board is left alone. Turn it on and hand over the devices you want Ryoku to light, one at a time.")
+                    text: I18n.tr("Keyboards, mice and other RGB hardware, through OpenRGB and native laptop providers. While this is off Ryoku never looks for a device and never writes to one, so hardware driven by its own software or a switch on the board is left alone. Turn it on and hand over the devices you want Ryoku to light, one at a time.")
                     color: Tokens.inkMuted; font.family: Tokens.ui
                     font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
                 }
@@ -493,7 +493,7 @@ Item {
                     divider: true
                     label: I18n.tr("Let Ryoku control lighting")
                     desc: !lt.available
-                          ? I18n.tr("OpenRGB is not installed, so no device can be reached.")
+                          ? I18n.tr("No supported lighting provider is installed, so no device can be reached.")
                           : I18n.tr("Your picks are kept in ~/.config/ryoku/lighting.json: an update, a shell restart or a reboot leaves them exactly as they are.")
                     controlWidth: 54
                     Sw {
@@ -511,7 +511,7 @@ Item {
                     footH: 32
                     label: I18n.tr("Connected devices")
                     desc: lt.busy
-                          ? I18n.tr("Asking OpenRGB what is connected. The first time takes a few seconds.")
+                          ? I18n.tr("Asking the lighting providers what is connected. The first scan can take a few seconds.")
                           : I18n.tr("%1 found. Rescan after plugging something in.").arg(lt.keys.filter(k => (lt.byKey[k] || {}).online === true).length)
                     Btn {
                         anchors { left: parent.left; verticalCenter: parent.verticalCenter }
@@ -543,7 +543,7 @@ Item {
             Text {
                 width: Math.min(col.width, 620)
                 visible: lt.lightingOn && lt.keys.length === 0 && !lt.busy
-                text: I18n.tr("No lighting device answered. OpenRGB reaches keyboards, mice and headsets over USB; motherboard and memory lighting needs the i2c-dev module loaded, which Ryoku leaves to you.")
+                text: I18n.tr("No lighting device answered. OpenRGB reaches USB keyboards, mice and headsets; supported ASUS laptops use asusd for their built-in Aura controller. Motherboard and memory lighting still needs the i2c-dev module loaded, which Ryoku leaves to you.")
                 color: Tokens.inkMuted
                 font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                 wrapMode: Text.WordWrap
@@ -552,7 +552,7 @@ Item {
             Text {
                 width: Math.min(col.width, 620)
                 visible: lt.lightingOn
-                text: I18n.tr("Handing a device to Ryoku means OpenRGB talks to it. A device that keeps profiles in its own memory can be left showing Ryoku's look after you hand it back; Ryoku restores the effect it found, but only the device's own software can rebuild a profile you overwrote with Save to device.")
+                text: I18n.tr("Handing a device to Ryoku lets its provider talk to it. Hardware that keeps profiles in its own memory can be left showing Ryoku's look after you hand it back; Ryoku restores the effect it found, but only the device's own software can rebuild a profile you overwrote with Save to device.")
                 color: Tokens.inkFaint
                 font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
                 wrapMode: Text.WordWrap

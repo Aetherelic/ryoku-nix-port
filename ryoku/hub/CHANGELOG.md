@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Appearance > Lighting now sees the built-in Aura keyboard on supported ASUS
+  laptops instead of only the OpenRGB motherboard alias.** The backend joins
+  OpenRGB with `asusd`'s per-controller D-Bus API, prefers that native keyboard
+  over OpenRGB's opaque N-KEY laptop controller, and carries old settings onto
+  its stable identity. Painted looks move to the closest supported firmware
+  effect (Static is the safe fallback), each mode keeps its own firmware values,
+  and native-only changes never wake OpenRGB. Failed hand-back writes stay
+  managed and retryable rather than silently abandoning the keyboard.
+
 - **The GPU page is now Machine, and you decide what Saver, Balanced and
   Performance actually do.** The page lost its decor -- the 描画 watermark and the
   Ticks-framed read-only specimen, about 210 lines -- and the two-column rail

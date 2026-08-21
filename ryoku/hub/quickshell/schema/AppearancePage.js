@@ -61,7 +61,7 @@ var rows = [{
         "group": "DEVICE LIGHTING",
         "key": "lighting.enabled",
         "label": "Let Ryoku control lighting",
-        "desc": "Keyboard and mouse RGB through OpenRGB; off means Ryoku never scans for a device and never writes to one",
+        "desc": "RGB through OpenRGB and native laptop providers; off means Ryoku never scans for a device and never writes to one",
         "ctl": "sw",
         "src": "~/.config/ryoku/lighting.json via `ryoku-hub lighting enable|disable`"
     },{
@@ -71,7 +71,7 @@ var rows = [{
         "label": "Connected devices",
         "desc": "Rescan for keyboards, mice and other RGB hardware after plugging something in",
         "ctl": "text",
-        "src": "`ryoku-hub lighting scan`, the OpenRGB SDK server on 127.0.0.1:6742"
+        "src": "`ryoku-hub lighting scan`; OpenRGB SDK on 127.0.0.1:6742 plus the asusd Aura D-Bus API on supported ASUS laptops"
     },{
         "tab": "Lighting",
         "group": "DEVICE",
@@ -95,7 +95,7 @@ var rows = [{
         "label": "This device's effects",
         "desc": "Every effect the device itself reports, from its onboard animations to per-key Direct; these keep running with Ryoku closed",
         "ctl": "seg",
-        "src": "the device's own mode list, read over the OpenRGB SDK"
+        "src": "the device's own mode list, read from its active lighting provider"
     },{
         "tab": "Lighting",
         "group": "DEVICE",
@@ -137,7 +137,7 @@ var rows = [{
         "label": "Direction",
         "desc": "Which way a wave or comet travels, for devices that offer a direction",
         "ctl": "seg",
-        "src": "the device's own mode flags, read over the OpenRGB SDK"
+        "src": "the device's own mode capabilities, read from its active lighting provider"
     },{
         "tab": "Lighting",
         "group": "DEVICE",

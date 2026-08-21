@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // a device description built the way the SDK sends one, so the parser and the
@@ -357,6 +359,64 @@ func TestReleaseKeepsSettingsAndDropsControl(t *testing.T) {
 	}
 }
 
+func TestAuraReleaseFailureKeepsDeviceManaged(t *testing.T) {
+	bin := t.TempDir()
+	for _, name := range []string{"asusd", "openrgb"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+
+	state := auraState{
+		Path:       "/xyz/ljones/aura/keyboard",
+		Name:       "Keyboard",
+		Mode:       auraStatic,
+		Modes:      []uint32{auraStatic},
+		Brightness: 3,
+	}
+	device := auraDeviceView(state)
+	key := deviceKey(device)
+	if err := saveLighting(lightingState{Enabled: true, Devices: map[string]*lightingSettings{
+		key: {
+			Name:       device.Name,
+			Managed:    true,
+			Mode:       "Static",
+			Source:     "accent",
+			Brightness: 90,
+			Speed:      -1,
+			Restore:    "Static",
+		},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	oldRead := auraRead
+	defer func() { auraRead = oldRead }()
+	auraRead = func() ([]auraState, error) { return []auraState{state}, nil }
+	oldRestore := auraRestore
+	defer func() { auraRestore = oldRestore }()
+	auraRestore = func(string, uint32) error { return errors.New("restore failed") }
+
+	out := captureStdout(t, func() {
+		if err := lightingRelease(key); err != nil {
+			t.Fatal(err)
+		}
+	})
+	var rep lightReport
+	if err := json.Unmarshal([]byte(out), &rep); err != nil {
+		t.Fatalf("release printed %q: %v", out, err)
+	}
+	if rep.Error != "restore failed" {
+		t.Fatalf("release error = %q", rep.Error)
+	}
+	if !loadLighting().Devices[key].Managed {
+		t.Fatal("failed hand-back must stay managed so it can be retried")
+	}
+}
+
 func TestApplyIsANoOpUntilTheUserOptsIn(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
@@ -416,6 +476,63 @@ func TestStateReportDoesNotTouchHardware(t *testing.T) {
 	}
 	if len(rep.Devices[0].Modes) != 0 {
 		t.Fatal("a report that never probed cannot know a device's modes")
+	}
+}
+
+func TestAuraOnlyApplySkipsOpenRGB(t *testing.T) {
+	bin := t.TempDir()
+	for _, name := range []string{"asusd", "openrgb"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+
+	state := auraState{
+		Path:       "/xyz/ljones/aura/keyboard",
+		Name:       "Keyboard",
+		Mode:       auraStatic,
+		Modes:      []uint32{auraStatic},
+		Brightness: 3,
+	}
+	device := auraDeviceView(state)
+	if err := saveLighting(lightingState{Enabled: true, Devices: map[string]*lightingSettings{
+		deviceKey(device): {
+			Name:       device.Name,
+			Managed:    true,
+			Mode:       "Static",
+			Source:     "accent",
+			Brightness: 90,
+			Speed:      -1,
+		},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	oldDial := openrgbDial
+	defer func() { openrgbDial = oldDial }()
+	openrgbDial = func(time.Duration) (*orgbConn, error) {
+		t.Fatal("Aura-only apply dialed OpenRGB")
+		return nil, nil
+	}
+	oldRead := auraRead
+	defer func() { auraRead = oldRead }()
+	auraRead = func() ([]auraState, error) { return []auraState{state}, nil }
+	oldWrite := auraWrite
+	defer func() { auraWrite = oldWrite }()
+	wrote := false
+	auraWrite = func(string, auraEffect, int) error {
+		wrote = true
+		return nil
+	}
+
+	if err := lightingApply("#112233"); err != nil {
+		t.Fatal(err)
+	}
+	if !wrote {
+		t.Fatal("Aura-only apply did not write the native keyboard")
 	}
 }
 

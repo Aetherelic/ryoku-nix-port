@@ -4,12 +4,12 @@ package main
 // Lighting tab drives it, the shell calls `accent` on a palette change, the
 // Hyprland autostart calls `apply` once a session.
 //
-// Every path is opt-in, because OpenRGB earns its reputation for reconfiguring
-// keyboards by talking to every device it finds the moment it runs. Off means no
-// server, no detection, no writes; a device is written to only once adopted; the
-// mode it was found on is recorded so handing it back restores it; and its own
-// memory is written only on request. Settings live in
-// ~/.config/ryoku/lighting.json, which no update or shell restart touches.
+// Every path is opt-in. OpenRGB can reconfigure every controller while probing,
+// and native providers write firmware-backed laptop lighting directly. Off means
+// no detection and no writes; a device is written only once adopted; the mode it
+// was found on is recorded so handing it back restores it; and its own memory is
+// written only on request. Settings live in ~/.config/ryoku/lighting.json, which
+// no update or shell restart touches.
 
 import (
 	"encoding/json"
@@ -33,6 +33,14 @@ const (
 	// a palette this dark reads as "off" on a keyboard, so the accent is lifted
 	// until its brightest channel clears this.
 	lightingMinChannel = 96
+)
+
+type lightingProviders uint8
+
+const (
+	lightingOpenRGB lightingProviders = 1 << iota
+	lightingAura
+	lightingAll = lightingOpenRGB | lightingAura
 )
 
 // ── state: ~/.config/ryoku/lighting.json ────────────────────────────────────
@@ -187,9 +195,9 @@ type lightDevice struct {
 }
 
 type lightReport struct {
-	Available bool          `json:"available"` // openrgb is installed
+	Available bool          `json:"available"` // at least one lighting provider is installed
 	Enabled   bool          `json:"enabled"`
-	Server    bool          `json:"server"` // an OpenRGB SDK server is reachable
+	Server    bool          `json:"server"` // at least one provider is reachable
 	Accent    string        `json:"accent"`
 	Devices   []lightDevice `json:"devices"`
 	Error     string        `json:"error,omitempty"`
@@ -198,6 +206,10 @@ type lightReport struct {
 func openrgbInstalled() bool {
 	_, err := exec.LookPath("openrgb")
 	return err == nil
+}
+
+func lightingAvailable() bool {
+	return openrgbInstalled() || auraInstalled()
 }
 
 func runLighting(args []string) error {
@@ -243,15 +255,15 @@ func runLighting(args []string) error {
 	}
 }
 
-// lightingStateReport answers without touching hardware: what the user chose,
-// whether OpenRGB is installed, and whether a server happens to be up. This is
-// what the Hub opens with, so opening the page probes nothing.
+// lightingStateReport answers without touching hardware: what the user chose
+// and whether any provider is installed and running. This is what the Hub opens
+// with, so opening the page never enumerates a device.
 func lightingStateReport() lightReport {
 	st := loadLighting()
 	rep := lightReport{
-		Available: openrgbInstalled(),
+		Available: lightingAvailable(),
 		Enabled:   st.Enabled,
-		Server:    serverUp(),
+		Server:    auraInstalled() && auraServerUp() || serverUp(),
 		Accent:    accentColor(),
 	}
 	for key, s := range st.Devices {
@@ -262,19 +274,18 @@ func lightingStateReport() lightReport {
 }
 
 // lightingScan looks for devices, bringing OpenRGB up if it is not already
-// running. Detection is the one step that talks to hardware unasked, so it
-// happens here and nowhere else: only after the user switched lighting on, or
-// pressed Rescan.
+// running and reading any active native provider. Enumeration happens only
+// after the user switched lighting on or pressed Rescan.
 func lightingScan() lightReport {
 	rep := lightingStateReport()
 	if !rep.Enabled {
 		return rep
 	}
 	if !rep.Available {
-		rep.Error = "OpenRGB is not installed."
+		rep.Error = "No supported lighting provider is installed."
 		return rep
 	}
-	err := access(true, true, func(o *orgbConn, live []orgbDevice) error {
+	err := access(true, true, lightingAll, func(o *orgbConn, live []orgbDevice) error {
 		rep = liveReport(rememberFirstSight(live), live)
 		return nil
 	})
@@ -292,12 +303,33 @@ func rememberFirstSight(live []orgbDevice) lightingState {
 	for _, d := range live {
 		key := deviceKey(d)
 		s := st.Devices[key]
+		for _, alias := range d.Aliases {
+			old := st.Devices[alias]
+			if old == nil {
+				continue
+			}
+			if s == nil || firstSightDefaults(s) {
+				old.Name = d.Name
+				st.Devices[key] = old
+				s = old
+				if d.Provider == auraProvider {
+					if old.Effect != "" {
+						old.Mode = auraModeForEffect(old.Effect, d)
+						old.Effect = ""
+					} else {
+						old.Mode = auraModeForLegacyMode(old.Mode, d)
+					}
+				}
+			}
+			delete(st.Devices, alias)
+			dirty = true
+		}
 		if s == nil {
 			s = &lightingSettings{Name: d.Name, Brightness: -1, Speed: -1, Source: "accent"}
 			st.Devices[key] = s
 			dirty = true
 		}
-		if s.Restore == "" && len(d.Modes) > 0 {
+		if _, _, ok := d.mode(s.Restore); !ok && len(d.Modes) > 0 {
 			s.Restore = d.Modes[d.ActiveMode].Name
 			dirty = true
 		}
@@ -306,6 +338,12 @@ func rememberFirstSight(live []orgbDevice) lightingState {
 		_ = saveLighting(st)
 	}
 	return st
+}
+
+func firstSightDefaults(s *lightingSettings) bool {
+	return !s.Managed && s.Mode == "" && s.Effect == "" &&
+		(s.Source == "" || s.Source == "accent") && len(s.Colors) == 0 &&
+		len(s.ZoneColors) == 0 && s.Brightness < 0 && s.Speed < 0 && s.Direction == ""
 }
 
 // liveReport: the whole picture from a device list already in hand, so acting on
@@ -321,12 +359,16 @@ func liveReport(st lightingState, live []orgbDevice) lightReport {
 	}
 }
 
-// afterWrite re-reads the devices on the connection just used, so the Hub is
-// told what the device is on now rather than what it was on a moment ago. No
-// detection happens, so this is a round trip, not a scan; the old list stands if
-// the re-read fails.
+// afterWrite re-reads every reachable provider, so the Hub is told what the
+// device is on now rather than what it was on a moment ago. The old list stands
+// if neither provider can be refreshed.
 func afterWrite(o *orgbConn, live []orgbDevice) []orgbDevice {
-	if fresh, err := o.Devices(); err == nil && len(fresh) > 0 {
+	var openrgb []orgbDevice
+	if o != nil {
+		openrgb, _ = o.Devices()
+	}
+	aura, _ := readAuraDevices()
+	if fresh := combineLightingDevices(openrgb, aura); len(fresh) > 0 {
 		return fresh
 	}
 	return live
@@ -534,7 +576,7 @@ func lightingSet(key, patch string) error {
 		return printJSON(lightingStateReport())
 	}
 	rep := lightingStateReport()
-	err := access(true, false, func(o *orgbConn, live []orgbDevice) error {
+	err := access(true, false, providersForKey(key), func(o *orgbConn, live []orgbDevice) error {
 		if s.Managed {
 			if err := applyOne(o, live, key, s, accentColor()); err != nil {
 				return err
@@ -558,7 +600,7 @@ func lightingSet(key, patch string) error {
 // missing is not an error worth a log line on every wallpaper change.
 func lightingApply(accent string) error {
 	st := loadLighting()
-	if !st.Enabled || !anyManaged(st) || !openrgbInstalled() {
+	if !st.Enabled || !anyManaged(st) || !lightingAvailable() {
 		return nil
 	}
 	if accent == "" {
@@ -568,15 +610,10 @@ func lightingApply(accent string) error {
 	} else {
 		accent = accentColor()
 	}
-	// the session restore may bring OpenRGB up; the palette hook rides along on
-	// whatever is already there. Either way it yields to a user action in flight.
-	err := access(false, true, func(o *orgbConn, live []orgbDevice) error {
-		for key, s := range st.Devices {
-			if !s.Managed {
-				continue
-			}
-			_ = applyOne(o, live, key, s, accent)
-		}
+	// Session restore may bring OpenRGB up; native providers are already
+	// supervised by the system. Either way, yield to a user action in flight.
+	err := access(false, true, providersForState(st), func(o *orgbConn, live []orgbDevice) error {
+		st = applyLiveSettings(o, live, accent)
 		return nil
 	})
 	// at login this is what brings a painted effect back; on a palette change the
@@ -584,6 +621,19 @@ func lightingApply(accent string) error {
 	// state it re-reads.
 	ensureAnimator(st)
 	return err
+}
+
+func applyLiveSettings(o *orgbConn, live []orgbDevice, accent string) lightingState {
+	st := rememberFirstSight(live)
+	if !st.Enabled {
+		return st
+	}
+	for key, s := range st.Devices {
+		if s.Managed {
+			_ = applyOne(o, live, key, s, accent)
+		}
+	}
+	return st
 }
 
 // lightingSaveToDevice stores the current look in the device's own memory, so it
@@ -596,7 +646,7 @@ func lightingSaveToDevice(key string) error {
 		return printJSON(failed(lightingStateReport(), fmt.Errorf("%s is not under Ryoku control", key)))
 	}
 	rep := lightingStateReport()
-	err := access(true, false, func(o *orgbConn, live []orgbDevice) error {
+	err := access(true, false, providersForKey(key), func(o *orgbConn, live []orgbDevice) error {
 		d, ok := findLive(live, key)
 		if !ok {
 			return fmt.Errorf("%s is not connected", key)
@@ -636,24 +686,28 @@ func failed(rep lightReport, cause error) lightReport {
 func lightingRelease(key string) error {
 	st := loadLighting()
 	s := st.Devices[key]
-	if s == nil {
+	if s == nil || !s.Managed {
 		return printJSON(lightingStateReport())
-	}
-	was := s.Managed
-	s.Managed = false
-	if err := saveLighting(st); err != nil {
-		return err
 	}
 	if !st.Enabled {
+		s.Managed = false
+		if err := saveLighting(st); err != nil {
+			return err
+		}
 		return printJSON(lightingStateReport())
 	}
+
 	rep := lightingStateReport()
-	err := access(true, false, func(o *orgbConn, live []orgbDevice) error {
-		if was {
-			restoreDevice(o, live, key, s)
-			live = afterWrite(o, live)
+	err := access(true, false, providersForKey(key), func(o *orgbConn, live []orgbDevice) error {
+		if err := restoreDevice(o, live, key, s); err != nil {
+			return err
 		}
-		rep = liveReport(st, live)
+		s.Managed = false
+		if err := saveLighting(st); err != nil {
+			s.Managed = true
+			return err
+		}
+		rep = liveReport(st, afterWrite(o, live))
 		return nil
 	})
 	return printJSON(failed(rep, err))
@@ -663,29 +717,43 @@ func lightingRelease(key string) error {
 // effort by design; if the server is already gone there is nothing holding the
 // devices and nothing to restore through.
 func releaseAll(st lightingState) {
-	if !serverUp() {
+	providers := providersForState(st)
+	reachable := providers&lightingAura != 0 && auraInstalled() && auraServerUp()
+	if !reachable && providers&lightingOpenRGB != 0 {
+		reachable = serverUp()
+	}
+	if !reachable {
 		return
 	}
-	_ = access(true, false, func(o *orgbConn, live []orgbDevice) error {
+	_ = access(true, false, providers, func(o *orgbConn, live []orgbDevice) error {
 		for key, s := range st.Devices {
 			if s.Managed {
-				restoreDevice(o, live, key, s)
+				_ = restoreDevice(o, live, key, s)
 			}
 		}
 		return nil
 	})
 }
 
-func restoreDevice(o *orgbConn, live []orgbDevice, key string, s *lightingSettings) {
+func restoreDevice(o *orgbConn, live []orgbDevice, key string, s *lightingSettings) error {
 	d, ok := findLive(live, key)
-	if !ok || s.Restore == "" {
-		return
+	if !ok {
+		return fmt.Errorf("%s is not connected", key)
+	}
+	if s.Restore == "" {
+		return fmt.Errorf("%s has no previous mode to restore", d.Name)
 	}
 	idx, m, ok := d.mode(s.Restore)
 	if !ok {
-		return
+		return fmt.Errorf("%s no longer offers %s", d.Name, s.Restore)
 	}
-	_ = o.SetMode(d.Index, idx, m)
+	if d.Provider == auraProvider {
+		return auraRestore(d.ProviderPath, uint32(m.Value))
+	}
+	if o == nil {
+		return fmt.Errorf("OpenRGB is not running")
+	}
+	return o.SetMode(d.Index, idx, m)
 }
 
 func anyManaged(st lightingState) bool {
@@ -695,6 +763,24 @@ func anyManaged(st lightingState) bool {
 		}
 	}
 	return false
+}
+
+func providersForKey(key string) lightingProviders {
+	if strings.Contains(key, "#"+auraProvider+":") {
+		return lightingAura
+	}
+	return lightingAll
+}
+
+func providersForState(st lightingState) lightingProviders {
+	providers := lightingProviders(0)
+	for key, s := range st.Devices {
+		if !s.Managed {
+			continue
+		}
+		providers |= providersForKey(key)
+	}
+	return providers
 }
 
 func findLive(live []orgbDevice, key string) (orgbDevice, bool) {
@@ -712,6 +798,19 @@ func applyOne(o *orgbConn, live []orgbDevice, key string, s *lightingSettings, a
 	d, ok := findLive(live, key)
 	if !ok {
 		return fmt.Errorf("%s is not connected", key)
+	}
+	if d.Provider == auraProvider {
+		if s.Effect != "" {
+			return fmt.Errorf("%s offers its firmware effects, not Ryoku per-key effects", d.Name)
+		}
+		_, mode, ok := resolveMode(d, s.Mode)
+		if !ok {
+			return fmt.Errorf("%s reports no modes", d.Name)
+		}
+		return auraWrite(d.ProviderPath, auraEffectFromMode(tuneMode(mode, s, accent)), s.Brightness)
+	}
+	if o == nil {
+		return fmt.Errorf("OpenRGB is not running")
 	}
 	// a Ryoku effect: sit the device in its per-LED mode and paint. An animated
 	// one is then drawn frame by frame by the painter; a still one is this one
@@ -1005,8 +1104,10 @@ func serverUp() bool {
 // return says Ryoku started it, which matters: OpenRGB accepts connections
 // before it has finished finding devices, so a cold start needs a moment more
 // before the empty device list can be believed.
+var openrgbDial = orgbDial
+
 func connectServer() (*orgbConn, bool, error) {
-	if o, err := orgbDial(2 * time.Second); err == nil {
+	if o, err := openrgbDial(2 * time.Second); err == nil {
 		return o, false, nil
 	}
 	if err := startServer(); err != nil {
@@ -1014,7 +1115,7 @@ func connectServer() (*orgbConn, bool, error) {
 	}
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		if o, err := orgbDial(2 * time.Second); err == nil {
+		if o, err := openrgbDial(2 * time.Second); err == nil {
 			return o, true, nil
 		}
 		if time.Now().After(deadline) {
@@ -1050,58 +1151,63 @@ func stopServer() {
 	_ = exec.Command("systemctl", "--user", "stop", lightingUnit+".service").Run()
 }
 
-// access runs one job against the live device list.
+// access runs one serialized job against the requested lighting providers.
 //
 //	wait     hold for another lighting change to finish, instead of skipping.
 //	mayStart bring OpenRGB up when nothing is listening.
-//
-// A click never starts a server: detection takes seconds, and a settings page
-// that freezes on a toggle is worse than one that says OpenRGB is not running.
-// Scan, the master switch and the session restore are the paths that start it.
-func access(wait, mayStart bool, fn func(*orgbConn, []orgbDevice) error) error {
+func access(wait, mayStart bool, providers lightingProviders, fn func(*orgbConn, []orgbDevice) error) error {
 	unlock, err := lightingLock(wait)
 	if err != nil {
 		if !wait {
-			return nil // a background pass simply yields to the user
+			return nil
 		}
 		return err
 	}
 	defer unlock()
 
 	var o *orgbConn
-	started := false
-	if mayStart {
-		o, started, err = connectServer()
-	} else {
-		o, err = orgbDial(2 * time.Second)
-		if err != nil {
-			err = fmt.Errorf("OpenRGB is not running. Press Rescan devices to start it")
-		}
-	}
-	if err != nil {
-		return err
-	}
-	defer o.Close()
-	live, err := o.Devices()
-	if err != nil {
-		return err
-	}
-	// a server Ryoku just started is still probing: an empty list here means
-	// "not finished", not "no lighting hardware". Wait for the list it announces
-	// when detection ends, so a first scan does not report an empty machine.
-	if started && len(live) == 0 {
-		deadline := time.Now().Add(25 * time.Second)
-		for len(live) == 0 && !o.listChanged && time.Now().Before(deadline) {
-			time.Sleep(500 * time.Millisecond)
-			if live, err = o.Devices(); err != nil {
-				return err
+	var openrgb []orgbDevice
+	var openrgbErr error
+	if providers&lightingOpenRGB != 0 && openrgbInstalled() {
+		started := false
+		if mayStart {
+			o, started, openrgbErr = connectServer()
+		} else {
+			o, openrgbErr = openrgbDial(2 * time.Second)
+			if openrgbErr != nil {
+				openrgbErr = fmt.Errorf("OpenRGB is not running. Press Rescan devices to start it")
 			}
 		}
-		if len(live) == 0 && o.listChanged {
-			live, err = o.Devices()
-			if err != nil {
-				return err
+		if openrgbErr == nil {
+			defer o.Close()
+			openrgb, openrgbErr = o.Devices()
+			if openrgbErr == nil && started && len(openrgb) == 0 {
+				deadline := time.Now().Add(25 * time.Second)
+				for len(openrgb) == 0 && !o.listChanged && time.Now().Before(deadline) {
+					time.Sleep(500 * time.Millisecond)
+					if openrgb, openrgbErr = o.Devices(); openrgbErr != nil {
+						break
+					}
+				}
+				if openrgbErr == nil && len(openrgb) == 0 && o.listChanged {
+					openrgb, openrgbErr = o.Devices()
+				}
 			}
+		}
+	}
+
+	var aura []orgbDevice
+	var auraErr error
+	if providers&lightingAura != 0 {
+		aura, auraErr = readAuraDevices()
+	}
+	live := combineLightingDevices(openrgb, aura)
+	if len(live) == 0 {
+		if openrgbErr != nil {
+			return openrgbErr
+		}
+		if auraErr != nil {
+			return auraErr
 		}
 	}
 	return fn(o, live)
