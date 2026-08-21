@@ -32,6 +32,7 @@ var (
 		{Key: "snapshot", Label: "Taking a snapshot"},
 		{Key: "packages", Label: "Updating packages"},
 		{Key: "aur", Label: "Updating AUR packages"},
+		{Key: "flatpak", Label: "Updating Flatpak apps"},
 		{Key: "apply", Label: "Applying the new configuration"},
 		{Key: "reload", Label: "Reloading the desktop"},
 		{Key: "doctor", Label: "Healing the system"},
@@ -127,6 +128,20 @@ func Update(args []string) error {
 		progress.skip("aur")
 	}
 
+	// Flatpak apps are a separate channel from pacman and the AUR, so an update
+	// that skipped them left the portable apps the package set advertises to rot.
+	// Best-effort and skipped when there is nothing to update: an offline box, or
+	// one with the client but no remote, must not turn a whole update red.
+	if flatpakUpdatable() {
+		progress.at("flatpak")
+		progress.logf("Updating Flatpak apps")
+		if err := runFlatpakUpgrade(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: flatpak update reported errors: %v\n", err)
+		}
+	} else {
+		progress.skip("flatpak")
+	}
+
 	// exec replaces this process with the freshly installed binary; on any
 	// failure fall through and finish in-process, exactly as before.
 	if sys.Exists("/usr/bin/ryoku") {
@@ -219,6 +234,26 @@ func systemUpgradeArgs() []string {
 // runAURUpgrade runs `yay -Sua` under the same sleep inhibitor.
 func runAURUpgrade() error {
 	return runInhibited("AUR package upgrade", []string{"yay", "-Sua", "--noconfirm"})
+}
+
+// flatpakUpdatable reports whether a flatpak update is worth attempting at all:
+// the client is present and at least one remote is configured. A fresh offline
+// install has the client and no remote (doctor adds it once there is a network),
+// and `flatpak update` there would only print a confusing error into the middle
+// of an otherwise clean run.
+func flatpakUpdatable() bool {
+	if !sys.Has("flatpak") {
+		return false
+	}
+	out, err := sys.RunOut("flatpak", "remotes", "--columns=name")
+	return err == nil && strings.TrimSpace(out) != ""
+}
+
+// runFlatpakUpgrade updates every installed flatpak app and runtime under the
+// same sleep inhibitor as the package steps, since a suspend mid-deploy leaves a
+// half-written app tree.
+func runFlatpakUpgrade() error {
+	return runInhibited("Flatpak app upgrade", []string{"flatpak", "update", "--noninteractive", "--assumeyes"})
 }
 
 // runInhibited runs argv while holding a logind sleep+idle block, so a suspend

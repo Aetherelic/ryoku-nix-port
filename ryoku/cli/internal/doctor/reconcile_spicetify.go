@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"ryoku-cli/internal/sys"
@@ -39,9 +40,23 @@ func reconcileSpicetifyCanvas(checkOnly bool) recResult {
 	extDir := filepath.Join(sys.ConfigHome(), "spicetify", "Extensions")
 	dst := filepath.Join(extDir, "ryoku-canvas.js")
 
-	needCli := !sys.Has("spicetify")
+	needCli := !spicetifyCliPresent()
 	needPlace := !sameBytes(src, dst)
 	needEnable := !needCli && !spicetifyExtensionEnabled()
+
+	// The patch has to be VERIFIED, not inferred. Until this check the ok path
+	// below reported "installed, enabled, and applied" whenever the CLI existed,
+	// the extension file matched and the config listed it, none of which says the
+	// Spotify client was ever patched. On a flatpak or a root-owned /opt client
+	// `spicetify apply` fails with EACCES on Apps/login.spa, so doctor was
+	// reporting a green tick over an unpatched client: exactly the state a user
+	// then reports as "spicetify is broken".
+	if !needCli {
+		if path, ok := spicetifyClientWritable(); !ok {
+			return warnRes("the Spotify client at %s is not writable, so spicetify cannot patch it", path).
+				withFix("install the shipped client instead (`sudo pacman -S --needed spotify-launcher`), which unpacks a per-user tree spicetify can patch without root; a native /opt client needs `sudo chmod a+wr -R /opt/spotify /opt/spotify/Apps`")
+		}
+	}
 	if !needCli && !needPlace && !needEnable {
 		return okRes("Ryoku Canvas spicetify extension is installed, enabled, and applied")
 	}
@@ -90,7 +105,11 @@ func reconcileSpicetifyCanvas(checkOnly bool) recResult {
 
 // spotifyInstalled reports whether any Spotify client is present: the native
 // package, the launcher, or the flatpak.
-func spotifyInstalled() bool {
+// Seams, so the decision table above is testable without a Spotify client, a
+// spicetify binary, or a real client tree.
+var spicetifyCliPresent = func() bool { return sys.Has("spicetify") }
+
+var spotifyInstalled = func() bool {
 	if sys.PkgInstalled("spotify") || sys.PkgInstalled("spotify-launcher") {
 		return true
 	}
@@ -102,7 +121,7 @@ func spotifyInstalled() bool {
 
 // spicetifyCanvasSource is the shipped ryoku-canvas.js: the package asset, else
 // the checkout on a dev box.
-func spicetifyCanvasSource() string {
+var spicetifyCanvasSource = func() string {
 	cands := []string{"/usr/share/ryoku/spicetify/ryoku-canvas.js"}
 	if repo := sys.ResolveRepo(); repo != "" {
 		cands = append(cands, filepath.Join(repo, "ryoku", "apps", "spicetify", "ryoku-canvas.js"))
@@ -118,7 +137,7 @@ func spicetifyCanvasSource() string {
 // spicetifyExtensionEnabled reports whether ryoku-canvas.js is already in the
 // spicetify extensions list, so enabling stays idempotent (the config verb
 // appends, so a blind re-run would duplicate it).
-func spicetifyExtensionEnabled() bool {
+var spicetifyExtensionEnabled = func() bool {
 	out, err := sys.RunOut("spicetify", "config", "extensions")
 	if err != nil {
 		return false
@@ -149,6 +168,15 @@ func spicetifyRun(timeout time.Duration, args ...string) error {
 	return exec.CommandContext(ctx, "spicetify", args...).Run()
 }
 
+// spicetifyOut is spicetifyRun with the output captured, for the config reads
+// that have to be inspected rather than merely succeed.
+func spicetifyOut(timeout time.Duration, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "spicetify", args...).Output()
+	return string(out), err
+}
+
 // spicetifyApply patches the Spotify client. A first-ever run needs `backup
 // apply` to seed spicetify's backup; a later run is a plain `apply`. Both are
 // bounded so a wedge cannot stall an update, and the caller treats any failure as
@@ -174,7 +202,7 @@ func spotifyLauncherDir() string {
 // client yet (first launch pending) and no other client is present, so there is
 // nothing to spicetify. The setup defers quietly instead of warning on every fresh
 // box until the user first opens Spotify.
-func spotifyLauncherPending() bool {
+var spotifyLauncherPending = func() bool {
 	if !sys.PkgInstalled("spotify-launcher") {
 		return false
 	}
@@ -195,6 +223,35 @@ func spicetifyPointAtLauncher() {
 	if dir := spotifyLauncherDir(); sys.Exists(dir) {
 		_ = spicetifyRun(30*time.Second, "config", "spotify_path", dir)
 	}
+}
+
+// spicetifyClientWritable asks spicetify which client tree it is aimed at and
+// whether this user can write it. That is the difference between a patch that
+// can be applied and kept, and one that fails on every run: a flatpak client
+// lives under root-owned /var/lib/flatpak and a native package under root-owned
+// /opt, while spotify-launcher unpacks under the user's own XDG data dir.
+//
+// An unknown path returns writable, because a check that cannot see the target
+// must not invent a problem. The bool is the answer; the string is the path to
+// name in the message.
+var spicetifyClientWritable = func() (string, bool) {
+	out, err := spicetifyOut(10*time.Second, "config", "spotify_path")
+	if err != nil {
+		return "", true
+	}
+	// spicetify prints its banner first; the path is the last non-empty line.
+	path := ""
+	for _, line := range strings.Split(out, "\n") {
+		if s := strings.TrimSpace(line); s != "" {
+			path = s
+		}
+	}
+	if path == "" || !sys.Exists(path) {
+		return path, true
+	}
+	// W_OK on the directory spicetify writes into. Cheap, and it does not
+	// mutate the tree the way a probe file would.
+	return path, syscall.Access(path, 2) == nil
 }
 
 // sameBytes reports whether both paths exist with identical contents.

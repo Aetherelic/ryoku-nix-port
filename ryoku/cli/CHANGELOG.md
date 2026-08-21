@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Added
+- **Flatpak works out of the box, and its apps update with everything else.**
+  Ryoku already shipped the `flatpak` client in `base.packages`, which means it
+  is in the ISO's offline closure and installs with no network. What it never
+  shipped was a configured remote: the only thing that ever added flathub was
+  `stash-install.sh`, per-user, and only while installing a `.flatpak` bundle the
+  user had already downloaded. So a fresh box had the client and no catalogue, and
+  `flatpak install` had nothing to search. A new reconciler adds the system
+  flathub remote, and `ryoku update` gained a Flatpak pass so those apps stop
+  rotting a release behind.
+
+  Both halves stay quiet when they cannot help: no flatpak binary, no network, or
+  no remote configured yet is a silent skip, not a warning. That ordering is the
+  design, and it is what keeps an offline install clean: ship the client offline,
+  wire the catalogue on the first run that has a network to wire it to
+  (`internal/doctor/reconcile_flatpak.go`, `internal/updater/update.go`).
 - **`ryoku import <path>` brings an existing setup onto Ryoku from the terminal.**
   A thin front door to the Hub's import engine: it scans a folder, an existing
   `~/.config`, or `--url <git>`, auto-resolves keybind clashes by
@@ -37,6 +52,23 @@
   (`internal/doctor/reconcile_dgpu_panel.go`).
 
 ### Fixed
+- **`ryoku doctor` stopped reporting the spicetify patch as applied without
+  checking.** The verdict was reached from three things that say nothing about
+  whether Spotify was ever patched: the CLI exists, the extension file matches,
+  and the config lists it. On a flatpak client (root-owned `/var/lib/flatpak`) or
+  a native `/opt` client, `spicetify apply` fails with `permission denied` on
+  `Apps/login.spa` while every one of those three stayed true, so doctor printed a
+  green tick over an unpatched client. That is the state a user reports as
+  "spicetify is broken", and the tick is worse than a warning because it sends
+  them looking somewhere else.
+
+  The client tree is now checked for writability before anything claims to have
+  applied, and an unwritable one is reported with the fix: install the shipped
+  `spotify-launcher`, whose per-user tree spicetify patches without root. A target
+  the probe cannot resolve still reports ok, because a check that cannot see its
+  subject must not invent a problem. `TestSpicetifyUnwritableClientIsNotReportedOk`
+  reproduces the exact old state and fails if the gate is ever removed
+  (`internal/doctor/reconcile_spicetify.go`).
 - **`ryoku doctor` stops calling a stray `hyprctl dispatch` a broken config.**
   Hyprland files the Lua error from a bad dispatch in the very buffer
   `hyprctl configerrors` reports, so one typo at the prompt (or a tool probing
