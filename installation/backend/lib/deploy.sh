@@ -111,16 +111,24 @@ ryoku_repo_keyring() {
   run rm -f "$kd/ryoku.gpg" "$kd/ryoku-trusted" "$kd/ryoku-revoked"
 }
 
-# packages: pacman -S the desktop set from [ryoku] inside the chroot -- just the
-# ryoku-keyring + ryoku-desktop umbrella now; the umbrella version-pins and pulls
-# every monorepo component as a dependency, so an ISO that predates a package
-# rename/addition still resolves. lends the live resolv.conf for DNS (target has
-# none yet), same trick as aur.sh, restored after. needs net, so offline = skip.
+# packages: pacman -S the desktop set from [ryoku] inside the chroot. The
+# umbrella version-pins every monorepo component; hardware-only providers are
+# added from the live machine's detector. Lends the live resolv.conf for DNS
+# (target has none yet), same trick as aur.sh, restored after. needs net, so
+# offline = skip.
 # one retry covers a mid-download network flake. online, a failed install is
 # fatal: no desktop without it and no ryoku CLI left to recover, so we stop
 # loudly instead of booting a half-configured box.
 ryoku_deploy_packages() {
   local -a pkgs=(ryoku-keyring ryoku-desktop)
+  local aura="$RYOKU_REPO/system/hardware/input/ryoku-hw-asus-aura"
+  if [[ -x $aura ]] && "$aura"; then
+    if [[ -z ${RYOKU_DRYRUN:-} ]] && arch-chroot /mnt pacman -Qq tlp >/dev/null 2>&1; then
+      log "WARNING: skipping ASUS Aura lighting because TLP is installed"
+    else
+      pkgs+=(asusctl)
+    fi
+  fi
   local offline=0
   if [[ ${RYOKU_ONLINE:-1} != 1 ]] && declare -f ryoku_offline_active >/dev/null && ryoku_offline_active; then
     offline=1

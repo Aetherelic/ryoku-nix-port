@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- **Existing Arch systems with a supported ASUS Aura laptop keyboard now select
+  the native `asusctl` provider during conversion.** The installer sparse-checks
+  out and runs the same hardware probe as the ISO backend; other hardware never
+  receives the package.
+
 - **Installing over Omarchy 4 no longer dies at "Updating the system".** Omarchy
   ships an alpm hook (`00-omarchy-update-guard.hook`, `AbortOnFail`) that refuses
   any `pacman -S -u` it did not start, and both `updateCmd` and `installCmd` are

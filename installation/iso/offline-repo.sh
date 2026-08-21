@@ -71,8 +71,9 @@ mapfile -t PKGS < <(
     nvidia-utils lib32-nvidia-utils libva-nvidia-driver \
     vulkan-icd-loader lib32-vulkan-icd-loader \
     broadcom-wl
-  # the Ryoku desktop umbrella pulls every monorepo component + its deps.
-  printf '%s\n' ryoku-keyring ryoku-desktop
+  # The desktop set plus the hardware-only ASUS Aura provider: the target
+  # installer selects asusctl only on a matching laptop.
+  printf '%s\n' ryoku-keyring ryoku-desktop asusctl
 )
 # dedupe, keep order.
 mapfile -t PKGS < <(printf '%s\n' "${PKGS[@]}" | awk '!seen[$0]++')

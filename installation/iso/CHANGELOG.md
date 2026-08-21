@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- **The offline package closure now carries `asusctl`.** Supported ASUS Aura
+  laptops can select the native keyboard-lighting provider during an offline
+  install without making every target install laptop-specific control software.
+
 - **A truncated package no longer ships in the offline repo.** `offline-repo.sh`
   downloaded the closure with `pacman -Sw --needed` into a persistent cache and
   reflinked it in with no integrity check, so a download cut short by one network

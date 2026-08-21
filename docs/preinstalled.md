@@ -26,8 +26,9 @@ Nothing here is magic; it comes from four well-defined places, in this order.
 3. **The AUR set** (`aur.packages`) is built in the post-install step. It needs
    a network, so it's best-effort: the install still completes without it and
    the pieces arrive later.
-4. **One conditional**: if the installer sees a Broadcom Wi-Fi chip (PCI vendor
-   `14e4:`), it adds `broadcom-wl` so the radio actually associates.
+4. **Hardware conditionals** add only the provider a machine needs. Broadcom
+   Wi-Fi gets `broadcom-wl`; a supported ASUS Aura laptop keyboard gets
+   `asusctl`. Both packages are available to the offline installer.
 
 The lists live in `system/packages/` and the umbrella is
 `release/packages/ryoku-desktop/PKGBUILD`. Those files are the source of truth;
@@ -171,6 +172,7 @@ Tools the desktop, the pill, and the capture stack shell out to by name.
 | `imagemagick` | Image processing |
 | `waifu2x-ncnn-vulkan` | The GPU AI upscaler behind ryoshot's HD export and ryowalls' Enhance |
 | `openrgb` | Per-device keyboard and mouse lighting, configurable from Settings > Appearance > Lighting |
+| `asusctl` | Native built-in Aura keyboard lighting on supported ASUS laptops; selected by hardware rather than installed everywhere |
 | `ddcutil` | External-monitor brightness over DDC/CI (the pill's DISPLAY faders) |
 | `ffmpeg`, `yt-dlp` | Media transcode and download; also the launcher's live-radio play path |
 | `curl`, `libnotify`, `xdg-utils`, `desktop-file-utils`, `python` | The plumbing the stash, scripts, and helpers rely on |

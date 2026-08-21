@@ -16,6 +16,7 @@ The backend that implements the automatic half lives in
 - [NVIDIA black or garbled screen](#nvidia-black-or-garbled-screen)
 - [Windows dual-boot](#windows-dual-boot)
 - [Broadcom Wi-Fi](#broadcom-wi-fi)
+- [ASUS Aura keyboard lighting](#asus-aura-keyboard-lighting)
 - [Only 2.4 GHz networks appear, or 5 GHz will not connect](#only-24-ghz-networks-appear-or-5-ghz-will-not-connect)
 - [RTC clock skew vs pacman signatures](#rtc-clock-skew-vs-pacman-signatures)
 - [NVRAM-readonly firmware](#nvram-readonly-firmware)
@@ -180,6 +181,25 @@ adds `broadcom-wl` to the `pacstrap` set for the target when a Broadcom PCI devi
 check `rfkill` (a hardware switch or soft block). If it associates but only
 2.4 GHz networks appear, see [Only 2.4 GHz networks appear, or 5 GHz will not
 connect](#only-24-ghz-networks-appear-or-5-ghz-will-not-connect).
+
+## ASUS Aura keyboard lighting
+
+**Symptom.** Appearance > Lighting shows only an OpenRGB motherboard or N-KEY
+controller, and wallpaper palette changes do not recolour the built-in keyboard.
+
+**Cause.** OpenRGB can identify the laptop's USB controller without exposing the
+firmware-backed lighting interface consistently across keyboard generations.
+`asusd` provides that controller through a stable D-Bus API instead.
+
+**What the installer does.** The live environment detects the ASUS laptop family
+or its `asus-nb-wmi` keyboard device, then installs the signed `asusctl` package
+only on a match. Its udev rule starts `asusd`; Ryoku Settings prefers the native
+Aura keyboard while keeping OpenRGB for other RGB hardware. Offline installs
+carry the same package.
+
+**What the user must do.** Usually nothing. An existing TLP installation
+conflicts with `asusctl`, so conversion leaves TLP in place and `ryoku doctor`
+reports the choice instead of removing a power stack silently.
 
 ## Only 2.4 GHz networks appear, or 5 GHz will not connect
 

@@ -61,7 +61,8 @@ var devPkgs = []string{"go", "nodejs", "npm", "python", "python-pip", "python-pi
 
 var sparsePaths = []string{
 	"ryoku/lockscreen", "ryoku/assets", "ryoku/apps",
-	"system/hardware/drivers", "system/packages", "release/packages/ryoku-keyring",
+	"system/hardware/drivers", "system/hardware/input",
+	"system/packages", "release/packages/ryoku-keyring",
 }
 
 type plan struct {
@@ -787,6 +788,11 @@ func (e *engine) readBasePackages() ([]string, error) {
 	return pkgs, nil
 }
 
+func (e *engine) asusAura() bool {
+	detector := filepath.Join(e.payload, "system/hardware/input/ryoku-hw-asus-aura")
+	return exec.Command(detector).Run() == nil
+}
+
 func stepPackages(e *engine) error {
 	d := e.d()
 	base, err := e.readBasePackages()
@@ -803,6 +809,13 @@ func stepPackages(e *engine) error {
 		pkgs = append(d.localAll(base), d.build...)
 	} else {
 		pkgs = append(append([]string{}, ryokuPkgs...), base...)
+		if e.asusAura() {
+			if d.installedPkg("tlp") {
+				e.say("ASUS Aura lighting skipped because TLP is installed")
+			} else {
+				pkgs = append(pkgs, "asusctl")
+			}
+		}
 	}
 	if e.f.ucodePkg != "" {
 		pkgs = append(pkgs, d.local(e.f.ucodePkg))

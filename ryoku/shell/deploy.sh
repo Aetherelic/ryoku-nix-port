@@ -195,6 +195,7 @@ install -m755 "$here/../../system/hardware/network/ryoku-dns" "$bindir/ryoku-dns
 install -m755 "$here/../../system/hardware/gpu/ryoku-gpu" "$bindir/ryoku-gpu"
 install -m755 "$here/../../system/hardware/gpu/ryoku-gpu-detect" "$bindir/ryoku-gpu-detect"
 install -m755 "$here/../../system/hardware/gpu/ryoku-gpu-lib32" "$bindir/ryoku-gpu-lib32"
+install -m755 "$here/../../system/hardware/input/ryoku-hw-asus-aura" "$bindir/ryoku-hw-asus-aura"
 for s in "$here/../../system/extras"/ryoku-*; do
   install -m755 "$s" "$bindir/${s##*/}"
 done

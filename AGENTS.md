@@ -128,10 +128,10 @@ recommended, lowest-overhead path (no server, no per-call schema cost).
 
 Auto-generated from the Prowl index, refreshed on each `overview`/`init`. Prefer retrieving from Prowl (and reading the cited files) over grepping or relying on training memory; this is the current shape of the repo.
 
-- size: 2338 files, 62773 symbols, 6712 edges (resolved 2481, external deps 3010, unresolved 1221)
-- languages: go:1010 qml:707 bash:186 javascript:166 markdown:83 yaml:44 json:30 generic:29
-- subsystems: ryoku/shell(489,qml) · ryoku/apps(62,qml) · ryoku/hub(58,qml) · ryoku/ui(46,qml) · ryoku/shell(17,css) · ryoku/rashin(16,javascript) · ryoku/hyprland(15,lua) · ryoku/shell(10,cpp)
-- entrypoints: ryoku/shell/quickshell/shell/shell.qml · ryoku/hub/quickshell/pages/InputPage.qml · ryoku/shell/quickshell/shell/modules/bar/MenuWidgetHost.qml · ryoku/hub/quickshell/pages/AppearancePage.qml · ryoku/hyprland/hyprland.lua · ryoku/hub/quickshell/pages/AddonsPage.qml · ryoku/hub/quickshell/pages/DisplaysPage.qml · ryoku/hub/quickshell/pages/GpuPage.qml · (+127 more)
+- size: 2350 files, 63337 symbols, 6776 edges (resolved 2497, external deps 3051, unresolved 1228)
+- languages: go:1015 qml:712 bash:186 javascript:168 markdown:83 yaml:44 json:30 generic:29
+- subsystems: ryoku/shell(491,qml) · ryoku/apps(62,qml) · ryoku/hub(58,qml) · ryoku/ui(49,qml) · ryoku/shell(17,css) · ryoku/rashin(16,javascript) · ryoku/hyprland(15,lua) · ryoku/shell(10,cpp)
+- entrypoints: ryoku/shell/quickshell/shell/shell.qml · ryoku/hub/quickshell/pages/InputPage.qml · ryoku/shell/quickshell/shell/modules/bar/MenuWidgetHost.qml · ryoku/hub/quickshell/pages/AppearancePage.qml · ryoku/hub/quickshell/pages/RecordingPage.qml · ryoku/hyprland/hyprland.lua · ryoku/hub/quickshell/pages/AddonsPage.qml · ryoku/hub/quickshell/pages/DisplaysPage.qml · (+127 more)
 - central files (most depended-on): ryoku/ui/Singletons/Tokens.qml · ryoku/shell/quickshell/shell/services/Perf.qml · ryoku/ui/Singletons/I18n.qml · ryoku/shell/quickshell/shell/modules/bar/barstyles/qsbar/Theme.qml · ryoku/shell/quickshell/shell/modules/desktop/Singletons/Config.qml
 - read these guides first: README.md · AGENTS.md · CONTRIBUTING.md · docs/development.md · docs/structure.md
 

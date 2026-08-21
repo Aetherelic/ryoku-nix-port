@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- **A fresh install now includes `asusctl` only when the target has a supported
+  ASUS Aura laptop keyboard.** The desktop deployment runs the shared hardware
+  probe inside the target, adds the signed provider package to pacman, and lets
+  its udev rule start `asusd`; every other machine keeps the same package set.
+
 - **Nothing in the install waits for an answer any more.** Two prompts reached
   users. `pacstrap` ran without `--noconfirm`, so pacman stopped on
   ":: There are 5 providers available for vulkan-driver" (the baked repo carries
