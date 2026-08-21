@@ -219,9 +219,19 @@ func installGuest(kind, id string) error {
 
 // removeGuest routes an internal remove-guest call to the primitive for its
 // kind. Both removals are symlink-safe.
+//
+// A Store-installed plugin owns a receipt, so it has to go out the way it came
+// in: the product transaction, which drops the receipt, the index row and the
+// cached view along with the files. Deleting only the data dir leaves the Store
+// certain the plugin is still installed, so the card stays badged INSTALLED and
+// the user can never reinstall it. A dev plugin (RYOSTORE_PLUGINS_DIR, or a
+// symlink into a checkout) has no receipt and keeps the plain directory unlink.
 func removeGuest(kind, id string) error {
 	switch kind {
 	case "plugins":
+		if _, err := readReceipt("plugins", id); err == nil {
+			return removeProduct(context.Background(), "plugins", id)
+		}
 		return removePlugin(id)
 	case "nautilus":
 		return removeNautilusPack(id)

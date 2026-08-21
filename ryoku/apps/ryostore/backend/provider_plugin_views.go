@@ -79,6 +79,9 @@ func rebuildPluginIndexLocked() ([]pluginIndexRow, error) {
 		}
 		rows = append(rows, row)
 	}
+	if err := prunePluginViews(rows); err != nil {
+		return nil, err
+	}
 	raw, err := json.Marshal(rows)
 	if err != nil {
 		return nil, err
@@ -87,6 +90,47 @@ func rebuildPluginIndexLocked() ([]pluginIndexRow, error) {
 		return nil, err
 	}
 	return rows, nil
+}
+
+// prunePluginViews drops every cached view the live index no longer names: the
+// whole directory for a removed plugin, and the superseded digest directories
+// of one that was updated. Without it a removed plugin leaves its full source
+// tree behind in state forever, and every update adds another copy.
+func prunePluginViews(rows []pluginIndexRow) error {
+	root := filepath.Join(storeStateDir(), "plugin-views")
+	entries, err := os.ReadDir(root)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	live := make(map[string]string, len(rows))
+	for _, row := range rows {
+		live[row.ID] = filepath.Base(filepath.FromSlash(row.View))
+	}
+	for _, entry := range entries {
+		current, kept := live[entry.Name()]
+		if !kept {
+			if err := os.RemoveAll(filepath.Join(root, entry.Name())); err != nil {
+				return err
+			}
+			continue
+		}
+		digests, err := os.ReadDir(filepath.Join(root, entry.Name()))
+		if err != nil {
+			return err
+		}
+		for _, digest := range digests {
+			if digest.Name() == current {
+				continue
+			}
+			if err := os.RemoveAll(filepath.Join(root, entry.Name(), digest.Name())); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Every receipt-owned file contributes to the view identity. QML resolves

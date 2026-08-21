@@ -644,3 +644,52 @@ func TestRemoveDispatch(t *testing.T) {
 		t.Fatal("runRemove accepted missing id")
 	}
 }
+
+// Settings' REMOVE button calls `internal remove-guest plugins <id>`. A
+// Store-installed plugin owns a receipt, so that call has to run the whole
+// transaction: files, receipt, index row. Deleting only the directory left the
+// Store badging a plugin INSTALLED that no longer existed, with its install
+// button disabled, so it could never be recovered.
+func TestRemoveGuestRetiresReceiptOwnedPlugin(t *testing.T) {
+	setTransactionXDG(t)
+	fixture := newTransactionFixture(t, "1.0.0", []byte("version one\n"), []byte("version one\n"))
+	if err := installProduct(context.Background(), fixture.cache, "plugins", fixture.entry); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if _, err := readReceipt("plugins", "demo"); err != nil {
+		t.Fatalf("receipt after install: %v", err)
+	}
+
+	if err := removeGuest("plugins", "demo"); err != nil {
+		t.Fatalf("remove-guest: %v", err)
+	}
+
+	if _, err := os.Stat(installedPluginPath()); !os.IsNotExist(err) {
+		t.Fatalf("plugin directory remains: %v", err)
+	}
+	if _, err := readReceipt("plugins", "demo"); !os.IsNotExist(err) {
+		t.Fatalf("receipt remains: %v", err)
+	}
+	if revision := readRevisionForTest(t); revision.Operation != "remove" {
+		t.Fatalf("revision = %#v", revision)
+	}
+}
+
+// A dev plugin (RYOSTORE_PLUGINS_DIR, or a symlink into a checkout) has no
+// receipt; remove-guest must still unlink it and must not fail looking for one.
+func TestRemoveGuestUnlinksReceiptlessPlugin(t *testing.T) {
+	setTransactionXDG(t)
+	dir := pluginDataDir("demo")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeGuest("plugins", "demo"); err != nil {
+		t.Fatalf("remove-guest: %v", err)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("plugin directory remains: %v", err)
+	}
+}

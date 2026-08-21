@@ -440,3 +440,51 @@ func TestBrokenReceiptDoesNotReportStoreOffline(t *testing.T) {
 		t.Fatalf("fixture dropped from catalogue: %+v", cat.Items)
 	}
 }
+
+// A removed plugin must not leave its cached view behind: the view is a full
+// second copy of the plugin's source, so an orphan is both dead weight in state
+// and a tree the runtime could still resolve if an index row ever came back.
+func TestPluginIndexPrunesViewsOfRemovedPlugins(t *testing.T) {
+	fixture := newPluginProductFixture(t)
+	stubPlaceTool(t)
+	provider := pluginProvider{cache: fixture.cache}
+
+	if err := provider.Install(context.Background(), "fixture"); err != nil {
+		t.Fatalf("install fixture: %v", err)
+	}
+	rows, err := rebuildPluginIndex()
+	if err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("rows = %+v", rows)
+	}
+	viewRoot := filepath.Join(storeStateDir(), "plugin-views")
+	live := filepath.Join(storeStateDir(), filepath.FromSlash(rows[0].View))
+	if _, err := os.Stat(live); err != nil {
+		t.Fatalf("live view missing: %v", err)
+	}
+
+	// A superseded digest under a live plugin, and a whole orphan directory
+	// left by a plugin that is gone.
+	stale := filepath.Join(viewRoot, "fixture", strings.Repeat("b", 64))
+	orphan := filepath.Join(viewRoot, "departed", strings.Repeat("c", 64))
+	for _, dir := range []string{stale, orphan} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := rebuildPluginIndex(); err != nil {
+		t.Fatalf("rebuild after seeding stale views: %v", err)
+	}
+	if _, err := os.Stat(live); err != nil {
+		t.Fatalf("live view pruned: %v", err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("superseded view remains: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(viewRoot, "departed")); !os.IsNotExist(err) {
+		t.Fatalf("orphan view remains: %v", err)
+	}
+}
