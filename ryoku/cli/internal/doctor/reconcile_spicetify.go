@@ -78,8 +78,8 @@ func reconcileSpicetifyCanvas(checkOnly bool) recResult {
 	var did []string
 	if needCli {
 		if !installSpicetifyCli() {
-			return warnRes("Spotify is installed but spicetify-cli is missing and could not be built from the AUR").
-				withFix("install it by hand (yay -S spicetify-cli), then run `ryoku doctor`")
+			return warnRes("Spotify is installed but spicetify-cli is missing and could not be installed").
+				withFix("install it by hand (`sudo pacman -S spicetify-cli`, it ships in [ryoku]), then run `ryoku doctor`")
 		}
 		did = append(did, "installed spicetify-cli")
 	}
@@ -145,17 +145,27 @@ var spicetifyExtensionEnabled = func() bool {
 	return strings.Contains(out, "ryoku-canvas.js")
 }
 
-// installSpicetifyCli builds spicetify-cli from the AUR, bounded, with whatever
-// helper is present. Best-effort: false when no helper or the build fails.
+// installSpicetifyCli installs spicetify-cli, bounded. It is a [ryoku] repo
+// package now (release/packages/spicetify-cli), so pacman is the real path and
+// the AUR helpers are only a fallback for a box whose mirror list predates the
+// package. That ordering matters: pacman works on a machine with no AUR helper
+// at all, which is every offline install, and it is what makes this reachable
+// from `ryoku update` instead of only from a manual `yay -S`.
 func installSpicetifyCli() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	err := exec.CommandContext(ctx, "sudo", "pacman", "-S", "--needed", "--noconfirm", "spicetify-cli").Run()
+	cancel()
+	if err == nil && sys.Has("spicetify") {
+		return true
+	}
 	for _, helper := range []string{"yay", "paru"} {
 		if !sys.Has(helper) {
 			continue
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		err := exec.CommandContext(ctx, helper, "-S", "--needed", "--noconfirm", "spicetify-cli").Run()
-		cancel()
-		if err == nil && sys.Has("spicetify") {
+		hctx, hcancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		herr := exec.CommandContext(hctx, helper, "-S", "--needed", "--noconfirm", "spicetify-cli").Run()
+		hcancel()
+		if herr == nil && sys.Has("spicetify") {
 			return true
 		}
 	}

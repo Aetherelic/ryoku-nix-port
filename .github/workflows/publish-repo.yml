@@ -105,11 +105,16 @@ jobs:
           # ryoku-cursor-material compiles a Bibata variant at build time: fish + jq
           # run the vendored recipe, and python + librsvg (rsvg-convert) +
           # xorg-xcursorgen (xcursorgen) rasterise the cursors.
+          # pnpm (which pulls nodejs) builds spicetify-cli's jsHelper wrapper:
+          # `pnpm build:wrapper` generates jsHelper/spicetifyWrapper.js, the
+          # `Spicetify` global every extension is written against. It is absent
+          # from the release tarball, so without pnpm the package would build
+          # clean and silently break the Ryoku Canvas extension.
           pacman -Syu --noconfirm --needed \
             base-devel git go rust cmake ninja gnupg rclone gradle \
             qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
             hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4 gtk4 gtk4-layer-shell \
-            fish jq librsvg xorg-xcursorgen python
+            fish jq librsvg xorg-xcursorgen python pnpm nodejs
 
       - name: Checkout
         uses: actions/checkout@v4

@@ -160,6 +160,16 @@ nautilus-python
 # backdrop works out of the box: `ryoku doctor` spicetifies the per-user client
 # with no root chmod. The client itself downloads on first launch.
 spotify-launcher
+# spicetify-cli: the other half of that pair, shipped from [ryoku] (see
+# release/packages/spicetify-cli) rather than the AUR so it is a plain pacman
+# target. It patches the client so the bundled Ryoku Canvas extension
+# (ryoku/apps/spicetify/ryoku-canvas.js) can relay the playing track's Canvas to
+# the music widget. It used to sit in aur.packages, which the ISO does bake, but
+# `ryoku update` is pacman and pacman never touches the AUR: an existing box that
+# missed the one-shot AUR build had no way to get it. Spotify and spicetify are
+# listed together here because neither is useful for this feature without the
+# other. Inert for anyone who does not use Spotify.
+spicetify-cli
 
 # Virtual machines (Ryoku Settings > GPU > Machine): a windowed VM runs in QEMU
 # on the host GPU. edk2-ovmf is the UEFI firmware and virglrenderer the host-GL

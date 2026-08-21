@@ -6,17 +6,31 @@
 - `base.packages`: ship `docker` and `firefox`. Docker is what the stash "Cobalt
   engine" switch has always needed and never had: cobalt is distributed only as a
   container image, so on a clean install that switch could not work at all and
-  said so with a dead end ("Install Docker to use cobalt"). It lands in
-  `base.packages` rather than `aur.packages` on purpose, because only the former
-  reaches the ISO's offline closure (`installation/iso/offline-repo.sh`), which is
-  the difference between a feature that works on an offline install and one that
-  does not. The service is deliberately NOT enabled here: a machine that never
-  opens the switch should not pay for a running dockerd, a `docker0` bridge and
-  its iptables rules, so the setup wizard enables it on first use. No
+  said so with a dead end ("Install Docker to use cobalt"). Both are official
+  repo packages, so `base.packages` is simply where they belong; they reach the
+  ISO through the offline closure (`installation/iso/offline-repo.sh`) like every
+  other repo package. The service is deliberately NOT enabled here: a machine
+  that never opens the switch should not pay for a running dockerd, a `docker0`
+  bridge and its iptables rules, so the setup wizard enables it on first use. No
   `docker-compose`: the cobalt lifecycle is a single `docker run`.
   Firefox is additive, so a Gecko engine is always on hand for a site Chromium
   renders badly; it does not become the default, because `ryoku-app`'s `browser`
   role stays `chromium` and Ryoku Settings owns the override.
+- `base.packages`: `spicetify-cli` moves out of `aur.packages` and ships from
+  `[ryoku]` (`release/packages/spicetify-cli`), listed next to `spotify-launcher`
+  because neither is useful for the Canvas backdrop without the other. The ISO
+  already baked the AUR set and the build gate fails on a missing name, so an ISO
+  install did get it; what it could not reach was an existing machine, because
+  `ryoku update` is pacman and pacman never touches the AUR. A box that installed
+  before this package set, or whose one-shot AUR build failed, had no spicetify
+  and no route to one but a manual `yay -S`. As a signed `[ryoku]` package it is a
+  plain pacman target: it lands on install, on update, and in the offline closure.
+
+  `pnpm` joins the publish-repo build toolchain for it, and that is not
+  decoration: `pnpm build:wrapper` generates `jsHelper/spicetifyWrapper.js`, the
+  `Spicetify` global every extension is written against, and it is absent from the
+  release tarball. A build that skipped it would look complete and silently break
+  the Ryoku Canvas extension.
 - `base.packages`: ship the Limine boot stack `limine-mkinitcpio-hook` (bundles
   `limine-entry-tool`) and `limine-snapper-sync` from `[ryoku]`, moved out of
   `aur.packages`. As AUR packages they were skipped on offline installs, so a
