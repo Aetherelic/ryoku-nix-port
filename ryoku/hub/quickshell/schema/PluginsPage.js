@@ -33,10 +33,11 @@ var rows = [
         "group": "(none - inside the embedded PluginPlacementEditor, visible only when card.on && card.host === \"framePopout\")",
         "key": "<pluginId>.framePopout.edge",
         "label": "Edge",
-        "desc": "Screen edge the popout opens from (right until first placed)",
+        "desc": "Screen edge the popout opens from, or center for a popout that floats in the middle of the screen (right until first placed)",
         "ctl": "seg",
         "src": "plugins.json",
         "opts": [
+            "center",
             "top",
             "right",
             "bottom",
@@ -48,11 +49,12 @@ var rows = [
         "group": "(none - inside PluginPlacementEditor)",
         "key": "<pluginId>.framePopout.align",
         "label": "Position along edge",
-        "desc": "Which end of the edge the popout docks at; the centre is always reserved",
+        "desc": "Where along the edge the popout docks; center on a center edge",
         "ctl": "seg",
         "src": "plugins.json",
         "opts": [
             "start",
+            "center",
             "end"
         ]
     },

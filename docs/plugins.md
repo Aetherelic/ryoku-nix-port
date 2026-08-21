@@ -66,12 +66,20 @@ in the draggable, resizable, right-clickable card. The only thing you owe it: a
 content root that reports its natural size (see "Sizing" below), so the card can
 size itself around you.
 
-### 2. Frame popout - grows out of the screen edge
+### 2. Frame popout - grows out of a screen edge, or floats at the centre
 
 It melts out of the frame border on hover (like the volume mixer and power
-menu), fused into the same blob. The user picks which **edge** (top / right /
-bottom / left) and which **end** of that edge (the centre of each edge is
-reserved for the shell's own island/mixer/power, so you can't dock there).
+menu), fused into the same blob. The user picks the **edge** (top / right /
+bottom / left) and where along it the popout sits (`start`, `center`, `end`), by
+dragging the popout chip around a mock of their screen in Ryoku Settings.
+
+Dropped in the **middle** of that screen instead, the popout becomes a centred
+surface: it floats in the middle of the display, all four corners rounded, with
+no hover edge. A centred popout opens only when it is asked for, by
+`ryoku-shell plugin <id>` or a click, which makes it the placement
+for a modal view. It shares the middle of the screen with quick settings
+(`Super+Escape`) and the stash (`Super+S`), but the shell only ever shows one
+surface at a time, so they take turns rather than overlap.
 
 - Ryoku handles the **hover trigger, the open/close animation, and the fuse into
   the frame**.
@@ -213,7 +221,6 @@ to `plugins.json`; read the live values from `pluginApi.pluginSettings`.
   "defaults": {
     "host": "framePopout",
     "framePopout": { "edge": "top", "align": "end" },
-    "key": "p",
     "icon": "image",
     "label": "Your Plugin"
   },
@@ -234,8 +241,13 @@ to `plugins.json`; read the live values from `pluginApi.pluginSettings`.
 - `hosts` - declare **only the hosts you actually support and have tested**
   (today: `framePopout`, `desktopWidget`). Don't list hosts that don't work.
 - `defaults` - *suggestions*. The user's choices in Settings always win. For
-  `framePopout`, prefer `align: "start"` or `"end"` (never `"center"` - that's
-  reserved).
+  `framePopout`, `align` is `start`, `center` or `end`, and `edge: "center"`
+  asks for the centred (modal) surface, which opens only on request.
+- **A plugin never gets a keybind of its own.** Ryoku has no plugins-menu leader
+  and reads no `key` field from your manifest; do not ship one, and do not tell
+  users a chord opens your plugin. A frame popout opens on hover at its edge, or
+  through `ryoku-shell plugin <id>`, which the user can bind to whatever chord
+  they like in Settings → Keybinds. The shipped bind table stays Ryoku's.
 - `official` - leave `false`. Only first-party Ryoku plugins set `true`.
 - `files` - any extra files the plugin ships beyond its entry points and
   `commands` (helper QML a view imports, images, data). Install fetches the entry

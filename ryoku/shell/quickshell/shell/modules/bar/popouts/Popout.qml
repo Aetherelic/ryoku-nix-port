@@ -29,6 +29,12 @@ Item {
     property real smoothing: 30
     property string edge: "left"          // "left" | "right" | "top" | "bottom"
     property string align: "center"       // "start" | "center" | "end" (along the edge)
+    // A centred (modal) surface: the body floats at the exact centre of the
+    // screen instead of docking to an edge, so `edge`, `align` and the edge
+    // clamps do not apply and every corner is rounded. Nothing welds into a
+    // frame border, so it only ever opens from an explicit pin (keybind, IPC,
+    // a click) with `hoverOpen` off.
+    property bool centered: false
     // When non-negative, centre the body at this coordinate along the edge;
     // negative values fall back to `align`.
     property real alongCenter: -1
@@ -156,20 +162,22 @@ Item {
     // popout is never at a wall, so it stays put. the flat/floating skins
     // (noWeld) have no frame wall to fuse into, so they never hug: a module
     // popout near the screen edge stays inset instead of clipping off it.
-    readonly property bool hugLeft: !noWeld && !vertical && width > 0 && bodyOpenW > 0 && alongX <= edgeInset + 0.5
-    readonly property bool hugRight: !noWeld && !vertical && width > 0 && bodyOpenW > 0 && alongX >= width - bodyOpenW - edgeInset - 0.5
+    readonly property bool hugLeft: !noWeld && !centered && !vertical && width > 0 && bodyOpenW > 0 && alongX <= edgeInset + 0.5
+    readonly property bool hugRight: !noWeld && !centered && !vertical && width > 0 && bodyOpenW > 0 && alongX >= width - bodyOpenW - edgeInset - 0.5
 
     // body geometry in window coords; grows inward from the border.
     readonly property real curW: Math.max(0, bodyOpenW * prog)
     readonly property real curH: Math.max(0, bodyOpenH * prog)
     // the gap holds the open body off the frame lip but drains with prog, so the
     // close melt retracts fully into the frame edge instead of stranding a gap.
-    readonly property real bodyX: atLeft ? frameThickness + edgeGap * prog
+    readonly property real bodyX: centered ? (width - curW) / 2
+                                 : atLeft ? frameThickness + edgeGap * prog
                                  : atRight ? (width - frameThickness - curW - edgeGap * prog)
                                  : hugRight ? (width - curW)
                                  : hugLeft ? 0
                                  : alongX + (bodyOpenW - curW) / 2
-    readonly property real bodyY: spanning ? 0
+    readonly property real bodyY: centered ? (height - curH) / 2
+                                 : spanning ? 0
                                  : atTop ? frameThickness + edgeGap * prog
                                  : atBottom ? (height - frameThickness - curH - edgeGap * prog)
                                  : alongY + (bodyOpenH - curH) / 2
@@ -195,12 +203,14 @@ Item {
     // starts. prog never appears here, so a melt tick cannot recommit the
     // wayland input region 60 times a second (the close-time frame drops), and
     // a melting body stops eating clicks the instant it is dismissed.
-    readonly property real maskX: atLeft ? frameThickness + edgeGap
+    readonly property real maskX: centered ? (width - bodyOpenW) / 2
+                                : atLeft ? frameThickness + edgeGap
                                 : atRight ? (width - frameThickness - bodyOpenW - edgeGap)
                                 : hugRight ? (width - bodyOpenW)
                                 : hugLeft ? 0
                                 : alongX
-    readonly property real maskY: spanning ? 0
+    readonly property real maskY: centered ? (height - bodyOpenH) / 2
+                                : spanning ? 0
                                 : atTop ? frameThickness + edgeGap
                                 : atBottom ? (height - frameThickness - bodyOpenH - edgeGap)
                                 : alongY
@@ -246,7 +256,8 @@ Item {
     // of the band until the shape is deleted at zero size, which reads as the
     // melt stalling and then snapping flush in one frame. buried >= smoothing,
     // the fillet residual is already zero when the shape drops out.
-    readonly property real burial: (1 - Math.max(0, Math.min(1, prog))) * smoothing
+    // a centred body has no border to bury into, so it scales symmetrically.
+    readonly property real burial: centered ? 0 : (1 - Math.max(0, Math.min(1, prog))) * smoothing
 
     // These surfaces never grow a welding neck into the border and never fuse
     // edge-first; they scale from their trigger point.
@@ -270,10 +281,10 @@ Item {
         // from, the same retract a welded body makes into the frame border.
         // edge-side corners flush (fused into the frame border), inner corners
         // rounded -- so the body is continuous with the frame edge it grows from.
-        topLeftRadius: (root.atTop || root.atLeft || root.hugLeft || root.spanning) ? 0 : root.radius
-        topRightRadius: (root.atTop || root.atRight || root.hugRight || root.spanning) ? 0 : root.radius
-        bottomLeftRadius: (root.atBottom || root.atLeft || root.hugLeft || root.spanning) ? 0 : root.radius
-        bottomRightRadius: (root.atBottom || root.atRight || root.hugRight || root.spanning) ? 0 : root.radius
+        topLeftRadius: (!root.centered && (root.atTop || root.atLeft || root.hugLeft || root.spanning)) ? 0 : root.radius
+        topRightRadius: (!root.centered && (root.atTop || root.atRight || root.hugRight || root.spanning)) ? 0 : root.radius
+        bottomLeftRadius: (!root.centered && (root.atBottom || root.atLeft || root.hugLeft || root.spanning)) ? 0 : root.radius
+        bottomRightRadius: (!root.centered && (root.atBottom || root.atRight || root.hugRight || root.spanning)) ? 0 : root.radius
         deformScale: 0.000015
         // no border pocket: the melt buries this rect in the band, and a sink
         // would recede the frame line around it until the zero-size drop-out

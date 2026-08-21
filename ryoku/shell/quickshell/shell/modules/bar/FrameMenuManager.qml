@@ -348,6 +348,21 @@ Item {
         h: dockPreviewHost.maskH
     })
 
+    // A centred plugin popout hangs off no screen edge, so it cannot ride the
+    // per-anchor `masks` above (they are keyed by edge). Carry its body rect on
+    // its own, the way dockMask does, so the modal catches input in every bar
+    // style instead of clicking straight through to the desktop.
+    readonly property var pluginMask: {
+        const pop = pluginPopouts.first;
+        const live = pop && pop.centered && pop.maskW > 0 && pop.maskH > 0;
+        return ({
+            x: live ? pop.maskX : 0,
+            y: live ? pop.maskY : 0,
+            w: live ? pop.maskW : 0,
+            h: live ? pop.maskH : 0
+        });
+    }
+
     function activeIdAt(anchor) {
         const rec = MenuState.activeAt(menuState, monitorName, anchor);
         return rec ? rec.id : "";

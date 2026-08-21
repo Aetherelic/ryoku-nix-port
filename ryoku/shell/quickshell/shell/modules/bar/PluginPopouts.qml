@@ -124,6 +124,12 @@ Item {
             frameThickness: root.frameThickness
             radius: root.radius
             smoothing: root.smoothing
+            // "center" is not an edge: the body floats at the screen centre and
+            // has no hover band, so it opens only from its keybind / IPC / the
+            // Store's pin. `edge` keeps a docked fallback for the geometry that
+            // still reads it.
+            centered: !!place.framePopout && place.framePopout.edge === "center"
+            hoverOpen: !pop.centered
             edge: (place.framePopout && ["left", "right", "top", "bottom"].indexOf(place.framePopout.edge) >= 0) ? place.framePopout.edge : "top"
             align: (place.framePopout && place.framePopout.align) ? place.framePopout.align : "start"
             s: root.s

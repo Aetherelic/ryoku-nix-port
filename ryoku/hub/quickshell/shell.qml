@@ -53,7 +53,7 @@ ShellRoot {
     // the QA loop and scripts jump straight to a section without a relaunch.
     IpcHandler {
         target: "nav"
-        function open(section: string): void { hubItem.section = section; }
+        function open(section: string): void { hubItem.navigate(section); }
         function section(): string { return hubItem.section; }
     }
 

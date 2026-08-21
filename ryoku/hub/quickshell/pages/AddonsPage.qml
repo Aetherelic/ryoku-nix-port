@@ -792,48 +792,81 @@ Item {
                         }
 
                         // ── frame-popout placement editor ──
-                        // Screen-proportioned stage: pick an edge for the popout
-                        // to grow from and drag it along that edge (start | end;
-                        // the centre third of every edge is reserved for built-in
-                        // control surfaces and shown struck out). Edits write live
-                        // via ryoku-plugins-place. Desktop widgets do
-                        // not come through here (they are placed on the
-                        // wallpaper), so this renders for framePopout only.
+                        // Screen-proportioned stage: drag the chip anywhere on
+                        // it. Dropped in the middle third of both axes the
+                        // popout is centred (a modal surface); dropped near an
+                        // edge it docks there, and the thirds along that edge
+                        // pick start | center | end. Edits write live via
+                        // ryoku-plugins-place. Desktop widgets do not come
+                        // through here (they are placed on the wallpaper), so
+                        // this renders for framePopout only.
                         Item {
                             id: placer
                             width: parent.width
-                            implicitHeight: 230
+                            readonly property real stageH: 202
+                            implicitHeight: placer.stageH + 28
+                                + (centreNote.visible ? centreNote.height + Tokens.s2 : 0)
                             visible: detail.enabled && detail.host === "framePopout"
 
                             readonly property var fp: (detail.place && detail.place.framePopout) ? detail.place.framePopout : ({})
                             readonly property string edge: placer.fp.edge ? placer.fp.edge : "right"
                             readonly property string align: placer.fp.align ? placer.fp.align : "start"
-                            // a live mirror so a drag snaps instantly, before the
+                            // live mirrors so a drop snaps instantly, before the
                             // ryoku-plugins-place round-trip refreshes the truth.
+                            property string edgeLocal: placer.edge
                             property string alignLocal: placer.align
+                            onEdgeChanged: placer.edgeLocal = placer.edge
                             onAlignChanged: placer.alignLocal = placer.align
-                            readonly property bool vertical: placer.edge === "left" || placer.edge === "right"
+                            readonly property bool centered: placer.edgeLocal === "center"
+                            readonly property bool vertical: placer.edgeLocal === "left" || placer.edgeLocal === "right"
                             function hoverW() { return placer.fp.hoverW ? placer.fp.hoverW : 320; }
                             function hoverH() { return placer.fp.hoverH ? placer.fp.hoverH : 16; }
+                            // thirds of an axis: start | center | end.
+                            function third(fraction) {
+                                return fraction < 1 / 3 ? "start" : fraction < 2 / 3 ? "center" : "end";
+                            }
+                            function alongPos(span, size) {
+                                var m = 10;
+                                return placer.alignLocal === "start" ? m
+                                     : placer.alignLocal === "end" ? span - size - m
+                                     : (span - size) / 2;
+                            }
                             function chipX() {
                                 var m = 10;
-                                return placer.edge === "left" ? m
-                                     : placer.edge === "right" ? stage.width - chip.width - m
-                                     : (placer.alignLocal === "end" ? stage.width - chip.width - m : m);
+                                return placer.centered ? (stage.width - chip.width) / 2
+                                     : placer.edgeLocal === "left" ? m
+                                     : placer.edgeLocal === "right" ? stage.width - chip.width - m
+                                     : placer.alongPos(stage.width, chip.width);
                             }
                             function chipY() {
                                 var m = 10;
-                                return placer.edge === "top" ? m
-                                     : placer.edge === "bottom" ? stage.height - chip.height - m
-                                     : (placer.alignLocal === "end" ? stage.height - chip.height - m : m);
+                                return placer.centered ? (stage.height - chip.height) / 2
+                                     : placer.edgeLocal === "top" ? m
+                                     : placer.edgeLocal === "bottom" ? stage.height - chip.height - m
+                                     : placer.alongPos(stage.height, chip.height);
+                            }
+                            // the middle third of both axes is the screen centre;
+                            // anywhere else docks to whichever edge is nearest.
+                            function dropEdge(fx, fy) {
+                                if (placer.third(fx) === "center" && placer.third(fy) === "center")
+                                    return "center";
+                                var d = { left: fx, right: 1 - fx, top: fy, bottom: 1 - fy };
+                                var best = "top";
+                                for (var e in d) if (d[e] < d[best]) best = e;
+                                return best;
+                            }
+                            function dropAlign(edge, fx, fy) {
+                                return edge === "center" ? "center"
+                                     : (edge === "left" || edge === "right") ? placer.third(fy)
+                                     : placer.third(fx);
                             }
 
                             Rectangle {
                                 id: stage
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.top: parent.top
-                                width: Math.min(placer.width, (placer.implicitHeight - 28) * 1.6)   // ~16:10
-                                height: placer.implicitHeight - 28
+                                width: Math.min(placer.width, placer.stageH * 1.6)   // ~16:10
+                                height: placer.stageH
                                 radius: Tokens.radius
                                 color: "transparent"   // no gradient; depth is the hairline
                                 border.width: Tokens.border
@@ -855,21 +888,16 @@ Item {
                                     font.letterSpacing: 2
                                 }
 
-                                // reserved centre-third of the chosen edge.
+                                // the centre drop zone: land the chip here for a
+                                // popout that floats in the middle of the screen.
                                 Rectangle {
-                                    id: band
-                                    readonly property real m: 10
-                                    readonly property real bandThickness: placer.vertical ? 64 : 60
-                                    x: placer.edge === "left" ? m
-                                     : placer.edge === "right" ? parent.width - bandThickness - m
-                                     : parent.width / 3
-                                    y: placer.edge === "top" ? m
-                                     : placer.edge === "bottom" ? parent.height - bandThickness - m
-                                     : parent.height / 3
-                                    width: placer.vertical ? bandThickness : parent.width / 3
-                                    height: placer.vertical ? parent.height / 3 : bandThickness
+                                    id: centreZone
+                                    x: parent.width / 3
+                                    y: parent.height / 3
+                                    width: parent.width / 3
+                                    height: parent.height / 3
                                     radius: Tokens.radius
-                                    color: Tokens.tint5
+                                    color: placer.centered ? Tokens.tint5 : "transparent"
                                     Canvas {
                                         anchors.fill: parent
                                         onPaint: {
@@ -885,14 +913,15 @@ Item {
                                     }
                                     Text {
                                         anchors.centerIn: parent
-                                        text: "reserved"
+                                        visible: !placer.centered
+                                        text: "centre"
                                         color: Tokens.inkFaint; font.family: Tokens.mono
                                         font.pixelSize: Tokens.fTiny; font.letterSpacing: 1.5
                                     }
                                 }
 
-                                // the popout body: a chip docked to the edge, drag
-                                // it along the edge to flip align (start | end).
+                                // the popout body: drag it anywhere on the stage;
+                                // where it lands picks the edge and the align.
                                 Rectangle {
                                     id: chip
                                     width: placer.vertical ? 64 : 96
@@ -914,29 +943,56 @@ Item {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
                                         drag.target: chip
-                                        drag.axis: placer.vertical ? Drag.YAxis : Drag.XAxis
+                                        drag.minimumX: 0
+                                        drag.maximumX: stage.width - chip.width
+                                        drag.minimumY: 0
+                                        drag.maximumY: stage.height - chip.height
                                         onReleased: {
-                                            var pos, span;
-                                            if (placer.vertical) { pos = chip.y + chip.height / 2; span = stage.height; }
-                                            else { pos = chip.x + chip.width / 2; span = stage.width; }
-                                            var a = (pos / span) < 0.5 ? "start" : "end";
-                                            placer.alignLocal = a;                    // snap instantly
+                                            var fx = (chip.x + chip.width / 2) / stage.width;
+                                            var fy = (chip.y + chip.height / 2) / stage.height;
+                                            var e = placer.dropEdge(fx, fy);
+                                            var a = placer.dropAlign(e, fx, fy);
+                                            placer.edgeLocal = e;                     // snap instantly
+                                            placer.alignLocal = a;
                                             chip.x = Qt.binding(function () { return placer.chipX(); });
                                             chip.y = Qt.binding(function () { return placer.chipY(); });
-                                            pg.place(detail.sel.id, "framePopout", placer.edge, a, placer.hoverW(), placer.hoverH());
+                                            pg.place(detail.sel.id, "framePopout", e, a, placer.hoverW(), placer.hoverH());
                                         }
                                     }
                                 }
                             }
 
-                            // edge selector: a 4-way seg for the docking edge.
+                            // edge selector: the four edges plus the screen centre.
                             Seg {
+                                id: edgeSeg
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                options: ["Top", "Right", "Bottom", "Left"]
-                                current: placer.edge.charAt(0).toUpperCase() + placer.edge.slice(1)
-                                onChose: (label) => pg.place(detail.sel.id, "framePopout",
-                                    label.toLowerCase(), placer.align, placer.hoverW(), placer.hoverH())
+                                anchors.top: stage.bottom
+                                anchors.topMargin: Tokens.s2
+                                options: ["Center", "Top", "Right", "Bottom", "Left"]
+                                current: placer.edgeLocal.charAt(0).toUpperCase() + placer.edgeLocal.slice(1)
+                                onChose: (label) => {
+                                    var e = label.toLowerCase();
+                                    var a = e === "center" ? "center" : placer.alignLocal;
+                                    placer.edgeLocal = e;
+                                    placer.alignLocal = a;
+                                    pg.place(detail.sel.id, "framePopout", e, a, placer.hoverW(), placer.hoverH());
+                                }
+                            }
+
+                            // a centred popout has no edge to hover, and it shares
+                            // the middle of the screen with the shell's own
+                            // surfaces. Only one surface is open at a time, so this
+                            // is a note, not a restriction.
+                            Text {
+                                id: centreNote
+                                anchors.top: edgeSeg.bottom
+                                anchors.topMargin: Tokens.s2
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                visible: placer.centered
+                                wrapMode: Text.WordWrap
+                                text: I18n.tr("A centred popout has no hover edge: open it with its keybind, or with ryoku-shell plugin <id>. It shares the middle of the screen with quick settings (Super+Escape) and the stash (Super+S), and the shell shows one surface at a time, so they take turns instead of overlapping.")
+                                color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fTiny
                             }
                         }
 
