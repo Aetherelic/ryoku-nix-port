@@ -54,6 +54,18 @@ Rectangle {
     // remember the last section so a reopen lands where you left, not the default.
     // Read once at startup by `sectionGet` below; written here on every change.
     onSectionChanged: Quickshell.execDetached(["ryoku-hub", "config", "set", "section", hub.section])
+    // An explicit jump (the nav IPC, i.e. the Store's "open in settings") must
+    // win over the remembered section. `sectionGet` is a Process, so on a cold
+    // start its stdout lands AFTER the IPC has already set the page and the
+    // restore silently drags the user back to wherever they were last -- the
+    // handoff looked like it did nothing. Deep links come through here and latch.
+    function navigate(target) {
+        if (!target || hub.pageFile(target) === "")
+            return;
+        hub.navigated = true;
+        hub.section = target;
+    }
+    property bool navigated: false
     property string query: ""
 
     // progressive disclosure: one global Advanced switch (in the rail) reveals the
@@ -638,6 +650,8 @@ Rectangle {
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
+                if (hub.navigated)
+                    return;
                 var s = this.text.trim();
                 if (s && hub.pageFile(s) !== "") hub.section = s;
             }
