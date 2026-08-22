@@ -15,6 +15,16 @@
   (`rashin/backend/setup.go`, `release/packages/ryoku-rashin/PKGBUILD`).
 
 ### Added
+- **`Spawn` (`Ryoku.Ui.Singletons`): the one way a surface starts a process.**
+  `Spawn.run(argv)` (and `environment: Spawn.env` for a declarative `Process`)
+  launches with Quickshell's private crash-recovery variables unset. An instance
+  that has crashed once keeps `__QUICKSHELL_CRASH_INFO_FD` in its environment,
+  naming the memfd of the config it came back from, and Quickshell reads it before
+  it parses any argument, so a child inheriting it relaunched the desktop instead
+  of starting itself. Every launch that can reach Quickshell, a desktop entry, an
+  app or a terminal now goes through it; `ryoku-app` drops the same variables
+  before it execs the terminal, so what a user types there is clean too. The rule
+  is in `docs/conventions.md`.
 - **The screenshot tool got the upgrade it needed, and learned to pin.** ryoshot
   now carries fourteen single-key tools that remember their own colour, width and
   fill, eight grips that recrop the captured region after the fact, a proper

@@ -713,7 +713,7 @@ Item {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: Quickshell.execDetached(["xdg-open", imgCell.modelData])
+                                    onClicked: Spawn.run(["xdg-open", imgCell.modelData])
                                 }
                             }
                         }
@@ -765,7 +765,7 @@ Item {
                                     selectedTextColor: color
                                     font.family: Theme.fontPrimary
                                     font.pixelSize: 12.5 * root.s
-                                    onLinkActivated: (url) => Quickshell.execDetached(["xdg-open", url])
+                                    onLinkActivated: (url) => Spawn.run(["xdg-open", url])
                                 }
 
                                 Rectangle {

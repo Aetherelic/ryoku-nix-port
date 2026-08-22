@@ -73,6 +73,14 @@
   (`internal/doctor/reconcile_dgpu_panel.go`).
 
 ### Fixed
+- **`ryoku doctor` can no longer hang behind a second desktop.** Its shell-load
+  check runs `qs -c shell` and waits for the report, and `ryoku` is usually run
+  from a terminal the desktop opened. A Quickshell instance that has crashed once
+  leaves `__QUICKSHELL_CRASH_INFO_FD` in the environment it hands its children,
+  and Quickshell reads that before it parses arguments: the check became a full
+  second desktop that draws over the first and never exits, with doctor waiting on
+  it. `ryoku` now clears Quickshell's crash variables from its own environment at
+  startup (`crashenv.go`), so every `qs` it starts honours the config it was given.
 - **`ryoku doctor` stopped reporting the spicetify patch as applied without
   checking.** The verdict was reached from three things that say nothing about
   whether Spotify was ever patched: the CLI exists, the extension file matches,

@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 import "Singletons"
 import "lib/coords.js" as Coords
 import "lib/AnnotationModel.js" as Ann
@@ -713,7 +714,7 @@ ShellRoot {
             if (!ok) { Qt.quit(); return; }
             root.exported = true;
             root.shutter();
-            Quickshell.execDetached(["sh", "-c",
+            Spawn.run(["sh", "-c",
                 "mkdir -p \"$1\"; cp -- \"$2\" \"$3\"; date +%s%N > \"$1/.poke\"; "
                 + "flock -n -o /tmp/ryopin.lock qs -c ryopin >/dev/null 2>&1 &",
                 "sh", root.pinDir, "/tmp/ryoshot-pin.png", path]);

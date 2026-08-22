@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 // Quick-capture controller for the frame's capture card: pick a delay, a save
 // target and a mode, take the shot and be done. With "Beautify after" on, the
@@ -163,7 +164,7 @@ Singleton {
             'esac',
             '[ -n "$BEAUTIFY" ] && RYOSHOT_OPEN="$OUT" flock -n -o /tmp/ryoshot.lock qs -c ryoshot >/dev/null 2>&1 || true'
         ].join("\n");
-        Quickshell.execDetached(["sh", "-c", script, "sh",
+        Spawn.run(["sh", "-c", script, "sh",
             root._pending.flag, root._pending.val, root._outPath, root._save,
             (root._save === "both" || root._save === "clipboard") ? "1" : "",
             root._beautify ? "1" : ""]);

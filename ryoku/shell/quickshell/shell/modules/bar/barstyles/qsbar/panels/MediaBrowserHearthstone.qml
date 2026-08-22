@@ -212,7 +212,7 @@ PanelWindow {
         if (!loaded || filtered.length === 0) return
         if (selFilt < 0 || selFilt >= filtered.length) return
         var path = filtered[selFilt].filePath; if (!path) return
-        Quickshell.execDetached(["xdg-open", path])
+        Spawn.run(["xdg-open", path])
         root.mediaBrowserVisible = false
     }
 

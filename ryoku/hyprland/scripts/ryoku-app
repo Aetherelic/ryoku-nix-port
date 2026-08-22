@@ -10,6 +10,14 @@
 # so an unconfigured system behaves exactly as before.
 set -euo pipefail
 
+# Everything the desktop opens through here inherits this environment, and a
+# Quickshell instance that has crashed once leaves __QUICKSHELL_CRASH_INFO_FD in
+# it: the memfd of the config it came back from. Quickshell reads that variable
+# before it parses arguments, so `qs -c ryowalls` run in the terminal we exec
+# would draw a second desktop instead of the app. Drop the handle once, here.
+unset __QUICKSHELL_CRASH_INFO_FD __QUICKSHELL_CRASH_DUMP_PID \
+	__QUICKSHELL_CRASH_DUMP_FD __QUICKSHELL_CRASH_LOG_FD __QUICKSHELL_CRASH_SIGNAL
+
 role="${1:-}"
 [ -n "$role" ] || { echo "usage: ryoku-app <role> [-- <program> [arg...]]" >&2; exit 2; }
 shift

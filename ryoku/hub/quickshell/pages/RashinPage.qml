@@ -153,10 +153,10 @@ Item {
         } catch (e) {}
     }
     function runSetup() {
-        Quickshell.execDetached(["kitty", "--class", "ryoku-rashin-setup", "-e", "ryoku-rashin", "setup"]);
+        Spawn.run(["kitty", "--class", "ryoku-rashin-setup", "-e", "ryoku-rashin", "setup"]);
     }
     function openDashboard() {
-        Quickshell.execDetached(["xdg-open", "http://127.0.0.1:3600"]);
+        Spawn.run(["xdg-open", "http://127.0.0.1:3600"]);
     }
 
     // ── reusable poster parts ────────────────────────────────────────────────

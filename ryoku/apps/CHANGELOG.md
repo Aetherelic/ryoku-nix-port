@@ -26,6 +26,14 @@
   a seeded `featured`, driven by `quickshell/App.qml` `discoverSeed`).
 
 ### Fixed
+- `ryostore/`: **opening the Store from the Hub no longer risks a second
+  desktop.** `openConfig` runs `flock ... qs -c <config>` and then a `qs -c
+  <config> ipc call`, and `ryostore` is launched from surfaces that can carry
+  Quickshell's crash-recovery handle (`__QUICKSHELL_CRASH_INFO_FD`, read before
+  any argument is parsed), which makes both of those relaunch the desktop config
+  instead of the store. `ryostore` clears the crash variables from its own
+  environment at startup (`backend/crashenv.go`), covered by a test that proves a
+  real child no longer inherits them.
 - `ryostore/`: **removing a plugin from Settings no longer strands it in the
   Store.** Add-ons > REMOVE calls `ryostore internal remove-guest plugins <id>`,
   which only deleted the data directory: the receipt, the index row and the

@@ -45,6 +45,7 @@ Rectangle {
     Process {
         id: hubProc
         command: ["setsid", "-f", "flock", "-n", "-o", "/tmp/ryoku-hub.lock", "qs", "-c", "hub"]
+        environment: Spawn.env
         onExited: Qt.quit()
     }
     Timer { id: quitFallback; interval: 1500; onTriggered: Qt.quit() }

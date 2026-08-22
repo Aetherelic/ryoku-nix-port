@@ -486,7 +486,7 @@ Rectangle {
         if (e.seed)
             sh += "[ -e \"" + e.path + "\" ] || printf \"" + e.seed + "\" > \"" + e.path + "\"; ";
         sh += "xdg-open \"" + e.path + "\"";
-        Quickshell.execDetached(["sh", "-c", sh]);
+        Spawn.run(["sh", "-c", sh]);
     }
 
     function snapshot() {

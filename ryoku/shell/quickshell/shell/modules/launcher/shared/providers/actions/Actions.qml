@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Ryoku.Ui.Singletons
 import "../../Singletons"
 import "../../lib/fuzzy.js" as Fuzzy
 import "catalog.js" as Catalog
@@ -43,7 +44,7 @@ Provider {
                 id: "run",
                 name: "Run",
                 icon: "",
-                execute: function () { Quickshell.execDetached(actions.resolveExec(entry.exec)); }
+                execute: function () { Spawn.run(actions.resolveExec(entry.exec)); }
             }]
         };
     }

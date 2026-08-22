@@ -10,7 +10,7 @@ set -euo pipefail
 api="https://wallhaven.cc/api/v1"
 dest="$HOME/Pictures/Wallpapers"
 key="${WALLHAVEN_API_KEY:-}"
-ua="Mozilla/5.0"
+ua="Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"
 
 # where the live wallpaper is recorded; the enhance worker checks it before
 # swapping a crisp version onto the desktop, so a job that finishes after the

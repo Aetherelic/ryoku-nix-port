@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 // Needle: resident state of the Super+S chat, held in a singleton (not the
 // sidebar body) so the thread and any in-flight answer survive a close/reopen;
@@ -120,7 +121,7 @@ Singleton {
     }
 
     function openDashboard() {
-        Quickshell.execDetached(["xdg-open", "http://127.0.0.1:3600/#/chat"]);
+        Spawn.run(["xdg-open", "http://127.0.0.1:3600/#/chat"]);
     }
 
     function loadModels() { modelsProc.running = true; }

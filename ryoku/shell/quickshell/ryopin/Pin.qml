@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
+import Ryoku.Ui.Singletons
 import "Singletons"
 import "lib/pinlayout.js" as PinLayout
 
@@ -81,7 +82,7 @@ PanelWindow {
     }
 
     function editShot() {
-        Quickshell.execDetached(["sh", "-c", "RYOSHOT_OPEN=$1 exec qs -c ryoshot", "sh", entry.path]);
+        Spawn.run(["sh", "-c", "RYOSHOT_OPEN=$1 exec qs -c ryoshot", "sh", entry.path]);
         pin.closeSelf();
     }
     function copyShot() { Quickshell.execDetached(["ryoku-shell", "clip-copy", "image/png", entry.path]); }

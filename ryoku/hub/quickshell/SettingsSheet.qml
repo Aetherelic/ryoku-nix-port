@@ -252,12 +252,12 @@ Item {
                                     text: I18n.tr(srow.r.actionLabel || "Generate")
                                     onAct: {
                                         if (srow.r.key === "i18nGenerate")
-                                            Quickshell.execDetached(["kitty", "--class", "ryoku-i18n", "-e", "sh", "-c",
+                                            Spawn.run(["kitty", "--class", "ryoku-i18n", "-e", "sh", "-c",
                                                 "ryoku-i18n llm " + I18n.lang + "; echo; read -n1 -rsp 'Done. Press any key to close…'; echo"]);
                                         // hands the shell its placement mode: the look becomes draggable
                                         // on the desktop, which no slider in here can be.
                                         else if (srow.r.key === "vizPlace")
-                                            Quickshell.execDetached(["qs", "-c", "shell", "ipc", "call", "visualizer", "place"]);
+                                            Spawn.run(["qs", "-c", "shell", "ipc", "call", "visualizer", "place"]);
                                     }
                                 }
                             }

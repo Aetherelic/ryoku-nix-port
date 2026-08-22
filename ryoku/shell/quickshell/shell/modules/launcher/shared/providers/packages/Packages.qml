@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 import "../../Singletons"
 import "gpk.js" as Gpk
 import "../requeststate.js" as RequestState
@@ -162,7 +163,7 @@ Provider {
                 icon: "",
                 execute: function () {
                     var gpkOp = op === "remove" ? "remove" : "install";
-                    Quickshell.execDetached([packages.terminal, "-e", "gpk", gpkOp, pkg.name]);
+                    Spawn.run([packages.terminal, "-e", "gpk", gpkOp, pkg.name]);
                     // the install/remove will change what a re-search should
                     // show; drop the cached rows so the next query refetches.
                     packages.invalidateSearch();

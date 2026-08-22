@@ -414,10 +414,10 @@ Item {
         var s = pg.model.logo.source;
         if (!s || s.length === 0)
             return;
-        Quickshell.execDetached(["kitty", "-e", "nvim", s]);
+        Spawn.run(["kitty", "-e", "nvim", s]);
     }
-    function previewInTerminal() { Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
-    function openConfig() { Quickshell.execDetached(["kitty", "-e", "nvim", "-O", pg.configPath]); }
+    function previewInTerminal() { Spawn.run(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
+    function openConfig() { Spawn.run(["kitty", "-e", "nvim", "-O", pg.configPath]); }
 
     PickFile {
         id: imageDlg

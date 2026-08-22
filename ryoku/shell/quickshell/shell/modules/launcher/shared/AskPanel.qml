@@ -173,15 +173,15 @@ Item {
             root.finished();
             return;
         case "file":
-            Quickshell.execDetached(["kitty", "-e", "nvim", String(chip.value)]);
+            Spawn.run(["kitty", "-e", "nvim", String(chip.value)]);
             break;
         case "dir":
         case "url":
-            Quickshell.execDetached(["xdg-open", String(chip.value)]);
+            Spawn.run(["xdg-open", String(chip.value)]);
             break;
         case "dash":
             // Leave the turn running on the daemon; just go watch it.
-            Quickshell.execDetached(["xdg-open", "http://127.0.0.1:3600/#/chat"]);
+            Spawn.run(["xdg-open", "http://127.0.0.1:3600/#/chat"]);
             break;
         }
         root.finished();
@@ -416,7 +416,7 @@ Item {
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler {
                         onTapped: {
-                            Quickshell.execDetached(["xdg-open", thumb.modelData]);
+                            Spawn.run(["xdg-open", thumb.modelData]);
                             root.finished();
                         }
                     }
