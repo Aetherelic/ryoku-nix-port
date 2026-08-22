@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Removed
+- **Performance > Idle loses "Freeze the bar" and "Freeze the visualiser".** Both
+  asked for behaviour that is now unconditional: an audio analyser with no audio
+  has nothing to show, so it always stops, and the memory side is already covered
+  by "Unload visualiser when silent" and its Go watcher. The only thing the
+  switches could still express was "keep analysing silence", which is the waste
+  they were meant to prevent, and, left off by default, exactly what shipped: two
+  cava processes hours old and a surface repainting hard enough to keep the
+  compositor awake.
+  No migration needed. This page is `performance.json`'s only writer and
+  serialises the whole adapter, so a key it no longer declares is ignored on read
+  and pruned on the next save.
+
 ### Added
 - **Washed-out accents no longer light the keyboard near-white.** A bright,
   low-saturation accent (a pale wallpaper palette with all three channels
