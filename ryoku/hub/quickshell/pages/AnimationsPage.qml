@@ -4,6 +4,7 @@ import QtQuick.Controls
 import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import "../Singletons"
 
 // Animations, ported to the monochrome instrument. The Hyprland animation tree
 // (read once via `hyprctl animations -j`) plus a bezier curve editor; per-leaf
@@ -31,6 +32,14 @@ Item {
     property var liveAnims: []
     property var liveCurves: []
     property string selectedCurve: ""
+
+    // ── shell motion (theme.motion in shell.json, written straight through the
+    // settings seam like Appearance; instant, not staged in the hypr draft). The
+    // shell's ui tokens read the same keys, so a change retimes every panel live.
+    readonly property real motionScale: { Settings.revision; var v = Settings.get("theme.motion.scale"); return (typeof v === "number" && v > 0) ? v : 1.0; }
+    readonly property bool reduceMotion: { Settings.revision; return Settings.get("theme.motion.reduce") === true; }
+    readonly property string motionScaleLabel: Math.round(pg.motionScale * 100) + "%"
+    function setMotion(key, v) { Settings.patch("theme.motion." + key, v); }
 
     Process {
         id: animProc
@@ -541,6 +550,46 @@ Item {
             id: col
             width: flick.width - Tokens.s4
             spacing: Tokens.s5
+            // SHELL MOTION -- the shell's own panels/menus/transitions. Speed
+            // scales every Ryoku animation live; Reduce motion snaps them instant.
+            // Separate from the Hyprland window animations in the card below.
+            SettingCard {
+                width: col.width
+                title: I18n.tr("SHELL MOTION")
+                Text {
+                    width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s1
+                    text: I18n.tr("How fast the shell's own panels, menus and transitions move. Speed scales every Ryoku animation live; Reduce motion snaps them into place for comfort. Separate from the window animations below.")
+                    color: Tokens.inkMuted; font.family: Tokens.ui
+                    font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Speed")
+                    value: pg.motionScaleLabel
+                    controlWidth: Math.min(240, Math.max(160, Math.round(col.width * 0.34)))
+                    Slid {
+                        anchors.fill: parent
+                        from: 0.25; to: 3.0
+                        value: pg.motionScale
+                        onModified: (v) => pg.setMotion("scale", Math.round(v * 20) / 20)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    label: I18n.tr("Reduce motion")
+                    desc: I18n.tr("Snap animations to their end instead of playing them.")
+                    controlWidth: 54
+                    Sw {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        on: pg.reduceMotion
+                        onToggled: (v) => pg.setMotion("reduce", v)
+                    }
+                }
+            }
 
             // MOTION -- the global motion switch plus the bespoke curve workshop
             SettingCard {

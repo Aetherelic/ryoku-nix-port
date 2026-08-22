@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Shell animations gain a Material 3 motion vocabulary, a global speed, and
+  reduce-motion.** The ui token sheet grew a full Material Motion set (the
+  Standard and Emphasized durations plus the expressive spatial and effects
+  curves as `easing.bezierCurve` control points), an `Anim` component that
+  carries a role's duration and curve, and a `Tokens.dur(ms)` scaler. Every
+  duration run through `dur()` (so all `Tokens.snap/move/swap/flap`, and any raw
+  literal migrated to `dur(N)`) now tracks a global speed and a reduce-motion
+  switch read live from `shell.json` `theme.motion` (`scale` 0.25 to 3, `reduce`).
+  Ported from caelestia-dots/shell (`plugin/.../Config/tokens.hpp`, `Anim.qml`).
 - **Game Mode keeps a fullscreen game rendering off-screen.** Switching away from
   a game's workspace used to stop it dead: still loading and it never finished,
   mid-match and it locked up, audio still playing, input ignored, multiplayer

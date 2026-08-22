@@ -15,6 +15,7 @@ Sw 1.0 Sw.qml
 Step 1.0 Step.qml
 Slid 1.0 Slid.qml
 Seg 1.0 Seg.qml
+Anim 1.0 Anim.qml
 Chips 1.0 Chips.qml
 Multi 1.0 Multi.qml
 PickBar 1.0 PickBar.qml

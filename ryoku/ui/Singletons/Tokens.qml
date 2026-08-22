@@ -123,12 +123,44 @@ Singleton {
     readonly property int ctlH: 26
 
     // ── motion ───────────────────────────────────────────────────────────
-    readonly property int snap: 90     // hover, press, state flip
-    readonly property int move: 170    // a selector travelling
-    readonly property int swap: 210    // content exchanging
-    readonly property int flap: 110    // a value changing
+    // Every Ryoku animation runs its duration through dur(): a global scale and a
+    // reduce-motion switch (shell.json theme.motion, written by the Hub) retime
+    // the whole desktop live, and accessibility can turn motion off. A raw literal
+    // migrated to dur(N) keeps its exact timing at scale 1.
+    property real motionScale: 1.0
+    property bool reduceMotion: false
+    function dur(ms) { return reduceMotion ? 0 : Math.round(ms * motionScale); }
+
+    readonly property int snap: dur(90)     // hover, press, state flip
+    readonly property int move: dur(170)    // a selector travelling
+    readonly property int swap: dur(210)    // content exchanging
+    readonly property int flap: dur(110)    // a value changing
     readonly property int ease: Easing.OutCubic
     readonly property int easeSnap: Easing.OutQuad
+
+    // Material 3 expressive motion: the duration + curve vocabulary Anim selects
+    // from. Durations are the Material tokens (ms at scale 1, run through dur());
+    // curves are cubic beziers as easing.bezierCurve control-point lists. Ported
+    // from caelestia-dots/shell (plugin Config/tokens.hpp) under its terms.
+    readonly property int durSmall: dur(200)
+    readonly property int durNormal: dur(400)
+    readonly property int durLarge: dur(600)
+    readonly property int durXl: dur(1000)
+    readonly property int durFastSpatial: dur(350)
+    readonly property int durDefaultSpatial: dur(500)
+    readonly property int durSlowSpatial: dur(650)
+    readonly property int durFastEffects: dur(150)
+    readonly property int durDefaultEffects: dur(200)
+    readonly property int durSlowEffects: dur(300)
+
+    readonly property var curveStandard: [0.2, 0, 0, 1, 1, 1]
+    readonly property var curveEmphasized: [0.05, 0, 0.133333, 0.06, 0.166667, 0.4, 0.208333, 0.82, 0.25, 1, 1, 1]
+    readonly property var curveFastSpatial: [0.42, 1.67, 0.21, 0.9, 1, 1]
+    readonly property var curveDefaultSpatial: [0.38, 1.21, 0.22, 1, 1, 1]
+    readonly property var curveSlowSpatial: [0.39, 1.29, 0.35, 0.98, 1, 1]
+    readonly property var curveFastEffects: [0.31, 0.94, 0.34, 1, 1, 1]
+    readonly property var curveDefaultEffects: [0.34, 0.8, 0.34, 1, 1, 1]
+    readonly property var curveSlowEffects: [0.34, 0.88, 0.34, 1, 1, 1]
 
     // ── grain ────────────────────────────────────────────────────────────
     readonly property real grainOpacity: 0.10
@@ -144,17 +176,27 @@ Singleton {
     }
     function refreshNamed() {
         var pal = null;
+        var scale = 1.0;
+        var reduce = false;
         try {
             const txt = shellFile.text();
             if (txt) {
                 const o = JSON.parse(txt);
                 if (o && typeof o.themePalette === "object" && o.themePalette !== null)
                     pal = o.themePalette;
+                const m = o && o.theme && o.theme.motion;
+                if (m) {
+                    if (typeof m.scale === "number" && m.scale > 0)
+                        scale = m.scale;
+                    reduce = m.reduce === true;
+                }
             }
         } catch (e) {
             pal = null;
         }
         t.namedScheme = pal;
+        t.motionScale = scale;
+        t.reduceMotion = reduce;
     }
     function refreshMatch() {
         try {

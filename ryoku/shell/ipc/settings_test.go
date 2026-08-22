@@ -92,6 +92,8 @@ func TestPatchClampsFloatStrengths(t *testing.T) {
 		{"theme.matugen.contrast", "-9", -1},
 		{"theme.attributes.window_opacity", "2", 1},
 		{"theme.attributes.window_opacity", "-1", 0},
+		{"theme.motion.scale", "9", 3},
+		{"theme.motion.scale", "0.1", 0.25},
 	}
 	for _, c := range cases {
 		t.Run(c.path+"="+c.val, func(t *testing.T) {

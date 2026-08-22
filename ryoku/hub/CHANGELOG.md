@@ -16,6 +16,12 @@
   and pruned on the next save.
 
 ### Added
+- **Animations gains a Shell Motion card: global speed and reduce-motion.** The
+  Animations page now carries the shell's own motion controls above the Hyprland
+  window editor: a Speed slider (0.25x to 3x) that scales every Ryoku panel,
+  menu and transition live, and a Reduce motion switch that snaps them into place
+  for comfort. Both write `shell.json` `theme.motion`, which the ui tokens read
+  live, so the whole desktop retimes without a restart.
 - **Appearance > Colour generation gains a Variant picker.** Follow-wallpaper
   palettes were always built with matugen's tonal-spot; the wallpaper path now
   reads a `schemeType` knob, and Appearance offers all nine matugen variants

@@ -127,6 +127,7 @@ type themeSettings struct {
 	Theme      string           `json:"theme"`
 	Matugen    matugenSettings  `json:"matugen"`
 	Attributes attributesConfig `json:"attributes"`
+	Motion     motionConfig     `json:"motion"`
 }
 
 type matugenSettings struct {
@@ -134,6 +135,15 @@ type matugenSettings struct {
 	SchemeType string  `json:"scheme_type"`
 	Mode       string  `json:"mode"`
 	Contrast   float64 `json:"contrast"`
+}
+
+// motionConfig scales shell-UI animation timing and offers a reduce-motion
+// switch. Scale multiplies every duration a component runs through Tokens.dur();
+// reduce collapses them to instant. Both are read live by ryoku/ui Tokens, so
+// the Hub's motion controls retime the whole desktop without a restart.
+type motionConfig struct {
+	Scale  float64 `json:"scale"`  // 0.25..3.0 global speed (1 = shipped timing)
+	Reduce bool    `json:"reduce"` // collapse animations to instant (accessibility)
 }
 
 type attributesConfig struct {
@@ -263,6 +273,7 @@ func defaultSettings() *settings {
 		Theme: themeSettings{
 			Theme:   "Default",
 			Matugen: matugenSettings{Preference: "Darkness", SchemeType: "TonalSpot", Mode: "Dark", Contrast: 0},
+			Motion:  motionConfig{Scale: 1, Reduce: false},
 			Attributes: attributesConfig{
 				Font:          fontConfig{Primary: "", Secondary: "", Tertiary: ""},
 				Sizing:        sizingConfig{RadiusWidget: 8, RadiusWindow: 8, BorderWidth: 2},
@@ -417,6 +428,7 @@ func (t *themeSettings) normalize(v *validator) {
 	v.rangeI("theme.attributes.sizing.radius_window", &t.Attributes.Sizing.RadiusWindow, 0, 1000)
 	v.rangeI("theme.attributes.sizing.border_width", &t.Attributes.Sizing.BorderWidth, 0, 20)
 	v.clampF(&t.Attributes.WindowOpacity, 0, 1)
+	v.clampF(&t.Motion.Scale, 0.25, 3)
 }
 
 func (b *barsSettings) normalize(v *validator) {
