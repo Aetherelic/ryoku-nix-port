@@ -186,7 +186,8 @@ ShellRoot {
     // flag that the per-screen surfaces above bind their visibility to, so a
     // keybind is a property write, not the old ryoku-shell client spawn. Names
     // match the compositor binds (rewired to global:ryoku:<name> in Phase 10) so
-    // `hyprctl dispatch global ryoku:<name>` lands here.
+    // `hyprctl dispatch "hl.dsp.global('ryoku:<name>')"` lands here (the Lua
+    // dispatch form this Hyprland takes; the old `dispatch global ryoku:x` errors).
     CustomShortcut {
         name: "barToggle"
         description: "Toggle the Ryoku frame bar on the active monitor"

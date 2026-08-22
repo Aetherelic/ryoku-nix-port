@@ -26,6 +26,11 @@
   a seeded `featured`, driven by `quickshell/App.qml` `discoverSeed`).
 
 ### Fixed
+- `tools/`: **"Compress video" and "Install app" open again.** Both entries ran
+  `hyprctl dispatch global ryoku:<name>`, and this Hyprland takes Lua, so the
+  dispatch exited 7 with a parse error and the launcher entry did nothing. They
+  dispatch `hl.dsp.global('ryoku:<name>')` now, quoted so the Desktop Entry parser
+  hands it over in one piece (verified through `gio launch`).
 - `ryostore/`: **opening the Store from the Hub no longer risks a second
   desktop.** `openConfig` runs `flock ... qs -c <config>` and then a `qs -c
   <config> ipc call`, and `ryostore` is launched from surfaces that can carry
