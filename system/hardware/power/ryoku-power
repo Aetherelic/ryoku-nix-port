@@ -449,7 +449,7 @@ cmd_capabilities() {
   [[ -z ${1:-} || ${1:-} == --json ]] || { log "capabilities takes only --json"; exit 2; }
 
   local gov_opts gov_cur epp_opts epp_cur pp_opts pp_cur
-  local smf ceiling maxpct="" charge_cur="" aspm_opts="" aspm_cur="" active=""
+  local maxpct="" charge_cur="" aspm_opts="" aspm_cur="" active=""
 
   gov_opts="$(governor_options)"; gov_cur=""
   [[ -n $gov_opts ]] && gov_cur="$(cat "$CPU_DIR/cpu0/cpufreq/scaling_governor" 2>/dev/null || true)"
@@ -458,14 +458,27 @@ cmd_capabilities() {
   pp_opts="$(pp_options)"; pp_cur=""
   [[ -n $pp_opts ]] && pp_cur="$(pp_read)"
 
-  smf="$(cat "$CPU_DIR/cpu0/cpufreq/scaling_max_freq" 2>/dev/null || true)"
-  if [[ $smf =~ ^[0-9]+$ ]]; then
-    ceiling="$(boost_ceiling_khz || true)"
-    if [[ -n $ceiling ]] && (( ceiling > 0 )); then
-      maxpct=$(( (smf * 100 + ceiling / 2) / ceiling ))
-      (( maxpct > 100 )) && maxpct=100
-      (( maxpct < 0 )) && maxpct=0
-    fi
+  # The frequency knob reports what someone actually asked for, never a number
+  # inferred from the driver's resting state.
+  #
+  # It used to be scaling_max_freq / boost_ceiling, and on amd-pstate-epp that is
+  # not a cap at all: scaling_max_freq sits at the nominal clock and boost is
+  # delivered through the CPPC perf request, so an entirely unconstrained machine
+  # reported 76%. The page then showed the slider three quarters of the way down,
+  # which invites the one interaction that turns the fiction into fact -- once a
+  # maxFreqPct is stored, write_cpu_profile pins scaling_max_freq on every core at
+  # every login and every profile switch, in a retry loop built to outlast ppd, and
+  # the slider floor is 20%.
+  #
+  # An unset knob is therefore 100: uncapped, which is the truth on a machine
+  # nobody has capped. A cap set outside Ryoku is not guessed at here, because
+  # there is no way to tell one from the driver idling at nominal.
+  if [[ -n "$(governor_options)" ]]; then
+    local cur_profile=""
+    command -v powerprofilesctl >/dev/null 2>&1 &&
+      cur_profile="$(powerprofilesctl get 2>/dev/null || true)"
+    maxpct="$(jq -r '.maxFreqPct // empty' <<<"$(profile_json "$cur_profile")" 2>/dev/null || true)"
+    [[ $maxpct =~ ^[0-9]+$ ]] || maxpct=100
   fi
 
   if charge_supported; then
@@ -504,8 +517,42 @@ cmd_profile() {
   case "$sub" in
     get) shift; profile_get "$@" ;;
     set) shift; profile_set "$@" ;;
-    *) log "profile needs get [<profile>] | set <profile> <key> <value>"; exit 2 ;;
+    clear) shift; profile_clear "$@" ;;
+    *) log "profile needs get [<profile>] | set <profile> <key> <value> | clear <profile> [<key>]"; exit 2 ;;
   esac
+}
+
+# Un-define a knob, or a whole profile, so the hardware goes back to whatever ppd
+# and the firmware do on their own. `charge-limit` has always had this and
+# profiles did not, which meant a knob set once could only be removed by hand
+# editing power.json: `set <p> <key> ""` is rejected by the validators, and there
+# was no other verb. A definition that cannot be undone is a trap, because these
+# are re-applied at every login and every profile switch.
+profile_clear() {
+  local p="${1:-}" key="${2:-}"
+  [[ -n $p ]] || { log "profile clear needs a profile name"; exit 2; }
+  valid_profile "$p" || { log "unknown profile: $p (valid: $PROFILES)"; exit 2; }
+  [[ -f $CONFIG ]] || return 0
+
+  if [[ -n $key ]]; then
+    case "$key" in
+      governor|epp|maxFreqPct|platformProfile) ;;
+      *) log "unknown key: $key (governor|epp|maxFreqPct|platformProfile)"; exit 2 ;;
+    esac
+  fi
+
+  # The user's session owns power.json; a pkexec re-run must not rewrite it as
+  # root, exactly as the setters guard.
+  escalated && return 0
+
+  local tmp
+  tmp="$(mktemp "${CONFIG}.XXXXXX")" || { log "cannot write $CONFIG"; exit 1; }
+  if [[ -n $key ]]; then
+    jq --arg p "$p" --arg k "$key" 'del(.profiles[$p][$k])' "$CONFIG" >"$tmp"
+  else
+    jq --arg p "$p" 'del(.profiles[$p])' "$CONFIG" >"$tmp"
+  fi
+  mv -f "$tmp" "$CONFIG"
 }
 
 profile_get() {
@@ -635,6 +682,8 @@ capabilities --json          what CPU/power knobs this machine exposes (JSON)
 profile get [<profile>]      read a saved profile definition (all when omitted)
 profile set <p> <key> <val>  define a knob for a profile (governor|epp|
                              maxFreqPct|platformProfile)
+profile clear <p> [<key>]    un-define one knob, or the whole profile, so ppd
+                             and the firmware decide again
 apply-profile <profile>      write a saved definition to sysfs (ppd hook path)
 apply                        converge the hardware to ~/.config/ryoku/power.json
                              (globals are laptop-only; CPU profile applies anywhere)

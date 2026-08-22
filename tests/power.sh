@@ -184,8 +184,13 @@ jq -e '.cpu.governor.options == ["performance","powersave"]' <<<"$capsJ" >/dev/n
   || fail "capabilities governor options wrong"
 jq -e '.cpu.epp.options == ["default","performance","balance_performance","balance_power","power"]' <<<"$capsJ" >/dev/null \
   || fail "capabilities epp options did not drop the raw-bias 'custom' preference"
-jq -e '.cpu.maxFreqPct == {min:20,max:100,current:76}' <<<"$capsJ" >/dev/null \
-  || fail "capabilities maxFreqPct current not 76 (4001000 of a 5263060 ceiling)"
+# maxFreqPct reports what someone actually asked for, never a ratio inferred from
+# the driver's resting state. This used to assert 76, being 4001000 of a 5263060
+# ceiling, which on amd-pstate-epp is only scaling_max_freq sitting at the nominal
+# clock while boost rides the CPPC perf request: an unconstrained machine
+# presented as three-quarters capped, one slider drag from becoming truly capped.
+jq -e '.cpu.maxFreqPct == {min:20,max:100,current:100}' <<<"$capsJ" >/dev/null \
+  || fail "an unconfigured machine should report maxFreqPct 100 (uncapped), not a derived ratio"
 jq -e '(has("battery")|not) and (has("aspm")|not)' <<<"$capsJ" >/dev/null \
   || fail "capabilities emitted battery/aspm whose sources were absent"
 
@@ -223,6 +228,28 @@ jq -e '.profiles.balanced.governor == "powersave" and .profiles.balanced.maxFreq
 jq -e '.governor == "powersave" and .maxFreqPct == 60' \
   <(rpc "$cpuK" "$ppK" "$cfgK" profile get balanced) >/dev/null \
   || fail "profile get did not read back the saved definition"
+
+# --- profile clear: a knob set once must be removable -------------------------
+# Without this there was no way back: `set <p> <key> ""` is rejected by the
+# validators and nothing else removed a key, so a definition could only be undone
+# by hand-editing power.json. These are re-applied at every login and every
+# profile switch, so an undoable-only-by-hand cap is a trap.
+rpc "$cpuK" "$ppK" "$cfgK" profile clear balanced maxFreqPct \
+  || fail "profile clear rejected a valid key"
+jq -e '(.profiles.balanced | has("maxFreqPct") | not) and .profiles.balanced.governor == "powersave"' "$cfgK" >/dev/null \
+  || fail "profile clear <key> did not drop just that key"
+if rpc "$cpuK" "$ppK" "$cfgK" profile clear balanced bogusKey >/dev/null 2>&1; then
+  fail "profile clear accepted an unknown key"
+fi
+if rpc "$cpuK" "$ppK" "$cfgK" profile clear nope >/dev/null 2>&1; then
+  fail "profile clear accepted an unknown profile"
+fi
+rpc "$cpuK" "$ppK" "$cfgK" profile clear balanced \
+  || fail "profile clear rejected a whole profile"
+jq -e '(.profiles | has("balanced") | not)' "$cfgK" >/dev/null \
+  || fail "profile clear <profile> did not drop the whole definition"
+jq -e '.chargeLimit == 80' "$cfgK" >/dev/null \
+  || fail "profile clear dropped the sibling chargeLimit"
 
 # --- apply-profile: maxFreqPct -> kHz on every cpu, absent keys skipped -------
 cpuL="$tmp/cpuL"; mk_cpu "$cpuL" 2
