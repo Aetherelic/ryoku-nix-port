@@ -2353,7 +2353,18 @@ Item {
             // pace from what this frame drew - the fastest tier any gap asked for
             // wins; a fully dark frame (no gaps, or every gap resting between
             // bursts) backs off to the watch rate, re-armed a lead before the next
-            canvas.paintTick = paceBusy ? root.fullMotionTick
+            //
+            // On Performance the drift and charge tiers are promoted to full rate.
+            // Those tiers are what make a gap animation look steppy: mode 3's
+            // charged field asks for chargeTick (160ms, ~6fps) and mode 2's crawl
+            // for driftTick, so the picture is correct but visibly coarse whatever
+            // the profile said. Throttling them was the right answer to Bolt costing
+            // ~40% of a core, and it stays the answer everywhere except the one
+            // profile whose whole meaning is that the user wants the animation as
+            // drawn. A dark frame still backs off on every profile: painting nothing
+            // quickly buys nothing.
+            canvas.paintTick = (paceBusy || (Perf.fullRate && (paceDrift || paceCharge)))
+                               ? root.fullMotionTick
                              : paceDrift ? root.driftTick
                              : paceCharge ? root.chargeTick
                              : root.watchTick

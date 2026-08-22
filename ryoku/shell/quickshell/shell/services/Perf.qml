@@ -96,21 +96,34 @@ Singleton {
     // is a different question, and on a machine the user has put in Performance
     // the answer is yes.
     //
-    // One question here -- may it move -- and the module's own pacing answers how
-    // fast. Drift was briefly clamped to a coarse rate as well, and that was
-    // reverted: 7fps reads as steppy rather than ambient, and it bought no saving
-    // that survived measurement.
+    // Two questions, not one. ambientMotion answers "may it move at all"; fullRate
+    // answers "may it move at the full frame rate the animation was designed for".
     //
-    // Priced loosely on purpose, because the obvious method does not measure well.
-    // Comparing by switching power profiles has a noise floor around 5 points on
-    // this hardware (Performance and Balanced take the identical path here and
-    // still read 8.9% against 14.3%), since a profile switch itself churns blur,
-    // shadows and a Hyprland reload. What holds across every run is the direction
-    // and rough size: drift refused sits at 1-3%, drift allowed at 8-14%. One
-    // repaint costs ~11ms on its own, a full canvas clear plus a full-width
-    // texture upload, so making the frame cheap rather than rare is the fix that
-    // would actually pay.
+    // The second exists because the gap animations were deliberately throttled: the
+    // pacing picks a slow tier for a field that is only drifting or charging rather
+    // than moving fast, which is why mode 3 (Bolt) settles at 160ms and reads as
+    // steppy no matter which profile is active. That throttle was the right answer
+    // to Bolt costing ~40% of a core, but it is the wrong answer on Performance,
+    // where the user has already said to spend the power and expects the animation
+    // to look the way it was drawn.
+    //
+    // So Performance paces at full rate whenever there is anything to draw, and
+    // every other profile keeps the throttle. A fully dark frame still backs off
+    // everywhere: there is no point painting nothing quickly.
+    //
+    // Priced by instrumenting the paint handler rather than by guessing from the
+    // outside, which is what it took: earlier attempts compared CPU across power
+    // profile switches and measured mostly noise, and none of it was even the
+    // stream, because a bar with barAnim 0 never loads it at all.
+    //
+    // With mode 3 (Bolt) actually running, silent desktop: the paint handler picks
+    // tick=33 on Performance against tick=160 on Balanced, confirmed over hundreds
+    // of frames. The cost of that is real -- shell 42-54% of a core and Hyprland
+    // ~16% -- which is the same bill the throttle was introduced to remove. That is
+    // the deal Performance is asking for, and it is why every other profile keeps
+    // the throttle.
     readonly property bool ambientMotion: !(lowPower || saver || gaming)
+    readonly property bool fullRate: ambientMotion && tier === tierPerformance
 
     // Graceful cost knobs. Multiply a base poll interval by pollFactor: a second of
     // staleness in a stat readout is invisible, so sampling slows on battery / Saver.
