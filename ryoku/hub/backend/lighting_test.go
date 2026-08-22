@@ -491,7 +491,11 @@ func TestStateReportDoesNotTouchHardware(t *testing.T) {
 	if rep.Enabled {
 		t.Fatal("state must report lighting off")
 	}
-	if rep.Accent != "#DEC2A2" {
+	// accentColor() punches a washed-out accent so an LED shows the hue rather
+	// than near-white, and the report carries that effective colour. #DEC2A2 is
+	// pale enough to be punched, so the expected value here is the punched one;
+	// punchColor is idempotent, so this does not drift on a re-read.
+	if rep.Accent != "#DEA666" {
 		t.Fatalf("accent = %s", rep.Accent)
 	}
 	if len(rep.Devices) != 1 || rep.Devices[0].Key != "Board#SN1" || rep.Devices[0].Online {
