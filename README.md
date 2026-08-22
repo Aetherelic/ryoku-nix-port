@@ -80,17 +80,17 @@ Everything else waits in Ryoku Settings (`Super + ,`).
   <tr>
     <td width="50%">
       <img src="docs/media/desktop.webp" alt="The desktop" width="100%" /><br />
-      <sub><b>The desktop.</b> Fastfetch, the widget layer, and a live wallpaper under the blob frame.</sub>
+      <sub><b>The desktop.</b> The bar on one edge, the dock on the other, a clock on the wallpaper, and nothing else asking for attention.</sub>
     </td>
     <td width="50%">
       <img src="docs/media/launcher.webp" alt="Launcher" width="100%" /><br />
-      <sub><b>Launcher.</b> Apps, commands, calculator, files, and Ryotunes radio behind one search.</sub>
+      <sub><b>Launcher.</b> At rest it is a clock, the weather, and a plate of art. Type and apps, commands, files, packages, radio and the calculator come out of one search.</sub>
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <img src="docs/media/controls.webp" alt="Control Deck" width="100%" /><br />
-      <sub><b>Control Deck.</b> Dials, notes, quick toggles, game mode, and capture in one place.</sub>
+      <img src="docs/media/controls.webp" alt="Control sidebar" width="100%" /><br />
+      <sub><b>Control sidebar.</b> Session, connect tiles, sound and brightness, media, calendar, and the power profile on one rail.</sub>
     </td>
     <td width="50%">
       <img src="docs/media/batgirl.webp" alt="A full rice" width="100%" /><br />
