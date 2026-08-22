@@ -1,0 +1,45 @@
+name: Snapshot cleanup
+
+# Snapshots piled up unbounded when snapper-cleanup never ran (its service is
+# coupled to limine-snapper-sync, which fails on a mismatched boot menu).
+# tests/snapshot-cleanup.sh drives REAL snapper on a loop-device btrfs: it
+# reproduces the runaway pile, proves `snapper cleanup number` bounds it to
+# NUMBER_LIMIT, and proves the doctor drain removes leaked timeline snapshots
+# that number cleanup skips. See tests/snapshot-cleanup.sh.
+
+on:
+  pull_request:
+    paths:
+      - 'ryoku/cli/internal/updater/update.go'
+      - 'ryoku/cli/internal/doctor/reconcile_snapshots.go'
+      - 'installation/backend/lib/snapshots.sh'
+      - 'tests/snapshot-cleanup.sh'
+      - '.github/workflows/snapshot-cleanup.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'ryoku/cli/internal/updater/update.go'
+      - 'ryoku/cli/internal/doctor/reconcile_snapshots.go'
+      - 'installation/backend/lib/snapshots.sh'
+      - 'tests/snapshot-cleanup.sh'
+      - '.github/workflows/snapshot-cleanup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot-cleanup:
+    name: Snapshots stay bounded and leaked timeline snapshots drain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install snapper and btrfs-progs
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends snapper btrfs-progs
+
+      - name: Run the snapshot cleanup test
+        shell: bash
+        run: sudo bash tests/snapshot-cleanup.sh
