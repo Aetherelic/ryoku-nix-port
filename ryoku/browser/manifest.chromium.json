@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Ryoku Theme",
+  "version": "1.0.0",
+  "description": "Live-recolors the browser from the Ryoku desktop palette.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqA8r6W6+xjUF6nEryKMzschgC8EVqZR+ao8OW/Ny6mSbhIqt6W0cUbpkN/hMk9+Byin4xo+vKcNW3dFscA+7z/8LbJpN7XrR+HAZG56YXEbEYgB9nf+/iRA7GuZB947M4oqLnfypU3kAr7hUrnmVO8/heNghSWXLqRrJjQkomehH0/Aas86IuzFYxWdCNicMNixwLir5cfHYrH3s3PvCjBce1K/g5ZQkKjU6PHtN+nV/8/m3NkwVFmsHl1LYko4oAMG7EVz2+FS2m0SbRClrpxk+u5MhPptne5bTfXW9qu+BjCtLHUn+mooC2wY8qoPhGoWJkJyZTFCgGganWcZo6QIDAQAB",
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup.html"
+  },
+  "theme": {
+    "colors": {
+      "frame": [
+        27,
+        27,
+        27
+      ],
+      "toolbar": [
+        36,
+        36,
+        36
+      ]
+    }
+  },
+  "_comment_theme": "Static frame; live chrome recolor is Firefox-only. key fixes the id to mcmfbdeecgccbnlekdmalihgmpbplcij"
+}

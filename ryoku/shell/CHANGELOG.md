@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **A browser palette host lands the wallpaper scheme in Firefox and Chromium.**
+  `ryoku-shell browser-host` is a WebExtension native-messaging host that streams
+  the live palette (colors.json) to the Ryoku Theme extension, so a browser
+  retints on every scheme change. `ryoku doctor` installs the per-user host
+  manifests for each detected browser; the extension ships in `ryoku-desktop`.
+  Mapping and native-messaging model ported from caelestia-dots.
 - **Shell animations gain a Material 3 motion vocabulary, a global speed, and
   reduce-motion.** The ui token sheet grew a full Material Motion set (the
   Standard and Emphasized durations plus the expressive spatial and effects
@@ -195,6 +201,24 @@
   user's file alone.
 
 ### Fixed
+- **Opening an app from the desktop no longer draws a second desktop.** Starting
+  ryowalls or ryoport from the launcher brought up a whole second shell over the
+  first: two bars, two docks, two wallpapers, and one GPU paying for both.
+  Quickshell's crash handler leaves `__QUICKSHELL_CRASH_INFO_FD` in the
+  environment of an instance that has crashed once, naming an inherited memfd
+  (dup'd without CLOEXEC upstream) that records the config it came back from, and
+  `checkCrashRelaunch` reads that variable before it parses a single argument. So
+  `qs -c ryowalls` launched from the desktop ignored `-c ryowalls` and relaunched
+  `shell/shell.qml`: `qs list --all` showed the process started as `qs -c
+  ryowalls` running `Config path: .../shell/shell.qml`, while the same command
+  from a clean environment loaded ryowalls correctly.
+  Every launch that can end up running Quickshell now goes through the new `Spawn`
+  singleton, which unsets the handle for the child, and `ryoku-shell` clears it
+  from its own environment at startup so the `qs` calls it makes (the Hub, the
+  surfaces, the ipc clients) are clean without any call site remembering.
+  `services/AppLaunch.qml` stops using `DesktopEntry.execute()` for this reason:
+  it hands the child the desktop's whole environment and takes no argument that
+  could trim it.
 - **The shell stops analysing silence.** Idle, with nothing playing, the shell sat
   at 16.2% of a core and Hyprland at 6.8%, with two cava processes seven and four
   hours old. A surface that is never done being damaged keeps the compositor awake

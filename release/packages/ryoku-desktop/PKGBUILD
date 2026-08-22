@@ -327,6 +327,19 @@ package() {
   install -d "$cfg/matugen"
   cp -a "$_repo/ryoku/shell/matugen/." "$cfg/matugen/"
 
+  # browser extension (Ryoku Theme): source plus two assembled unpacked dirs the
+  # browser loads from. Native-messaging host is `ryoku-shell browser-host`; the
+  # per-user host manifests are laid by `ryoku doctor` (reconcileBrowserTheme).
+  install -d "$pkgdir/usr/share/ryoku/browser"
+  cp -a "$_repo/ryoku/browser/." "$pkgdir/usr/share/ryoku/browser/"
+  rm -rf "$pkgdir/usr/share/ryoku/browser/dist"
+  for eng in chromium firefox; do
+    install -d "$pkgdir/usr/share/ryoku/browser/dist/$eng/src"
+    cp "$_repo"/ryoku/browser/src/* "$pkgdir/usr/share/ryoku/browser/dist/$eng/src/"
+    install -Dm644 "$_repo/ryoku/browser/manifest.$eng.json" \
+      "$pkgdir/usr/share/ryoku/browser/dist/$eng/manifest.json"
+  done
+
   # per-app configs
   install -Dm644 "$_repo/ryoku/apps/fish/config.fish"       "$cfg/fish/config.fish"
   install -Dm644 "$_repo/ryoku/apps/fish/conf.d/rashin.fish" "$cfg/fish/conf.d/rashin.fish"

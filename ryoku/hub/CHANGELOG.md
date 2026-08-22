@@ -16,6 +16,9 @@
   and pruned on the next save.
 
 ### Added
+- **Appearance gains a Browsers card.** It explains the Ryoku Theme browser
+  extension: Firefox retints live once enabled, Chromium and Brave load it
+  unpacked, and web-page recolor toggles in the extension popup.
 - **Animations gains a preset gallery: 13 window animation personalities.** On
   top of Ryoku's default, the Animations page now offers Dusky, Bounce, Fade,
   Fast, Mechanical, Minimal, Air, Slow-mo, Exaggerated, Hallucination, Rage and

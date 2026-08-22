@@ -1,0 +1,17 @@
+{
+  "manifest_version": 2,
+  "name": "Ryoku Theme",
+  "version": "1.0.0",
+  "description": "Live-recolors the browser from the Ryoku desktop palette.",
+  "browser_specific_settings": { "gecko": { "id": "ryoku-theme@ryoku.arch" } },
+  "permissions": ["nativeMessaging", "storage", "tabs", "theme", "<all_urls>"],
+  "background": { "scripts": ["src/background.js"] },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "browser_action": { "default_popup": "src/popup.html" }
+}

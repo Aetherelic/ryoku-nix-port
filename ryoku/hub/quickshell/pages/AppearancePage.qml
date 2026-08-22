@@ -346,7 +346,7 @@ Item {
             onStreamFinished: { try { pg.exportedTo = (JSON.parse(this.text) || {}).path || ""; } catch (e) { pg.exportedTo = ""; } }
         }
     }
-    Process { id: revealProc }
+    Process { id: revealProc; environment: Spawn.env }
 
     // lazy refresh, matching the old page's onGroupChanged wiring.
     onTabChanged: {
@@ -886,6 +886,20 @@ Item {
                             text: I18n.tr("APPLY RYOKU THEME"); primary: true
                             onAct: pg.applyRyokuTheme()
                         }
+                    }
+                }
+
+                // ── BROWSERS ──
+                SettingCard {
+                    width: wallCol.width
+                    title: I18n.tr("BROWSERS")
+                    Text {
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s2
+                        text: I18n.tr("The Ryoku Theme extension recolors your browser from the same palette. Firefox and its forks retint live once it is enabled; Chromium and Brave load it unpacked from /usr/share/ryoku/browser/dist/chromium. Web-page recolor toggles in the extension popup, and the palette host installs itself on update.")
+                        color: Tokens.inkMuted; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
                     }
                 }
             }

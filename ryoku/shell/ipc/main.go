@@ -25,6 +25,9 @@ func sockPath() string {
 }
 
 func main() {
+	// Before anything else: strip Quickshell's inherited crash-recovery handles
+	// so every qs we spawn honours its -c config instead of relaunching ours.
+	scrubQuickshellCrashEnv()
 	args := os.Args[1:]
 	if len(args) == 0 {
 		usage()
@@ -59,6 +62,12 @@ func main() {
 			os.Exit(1)
 		}
 		return
+	}
+	if args[0] == "browser-host" {
+		// WebExtension native-messaging host: the browser launches this with the
+		// manifest path as argv, then talks over stdin/stdout. Standalone, no
+		// daemon socket; it reads colors.json directly.
+		os.Exit(runBrowserHost())
 	}
 	if err := sendCommand(strings.Join(args, " ")); err != nil {
 		fmt.Fprintln(os.Stderr, "ryoku-shell:", err)

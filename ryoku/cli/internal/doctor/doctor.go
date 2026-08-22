@@ -137,6 +137,7 @@ func reconcilers() []reconciler {
 		{"spicetify canvas extension", reconcileSpicetifyCanvas},
 		{"obsidian palette snippet", reconcileObsidianSnippet},
 		{"flatpak app channel", reconcileFlatpakRemote},
+		{"browser theme host", reconcileBrowserTheme},
 		{"launcher local-frost default", reconcileLauncherLocalFrostDefault},
 		{"user edits overlay", reconcileUserEdits},
 		{"default app map", reconcileMimeDefaults},
