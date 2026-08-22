@@ -92,6 +92,15 @@ grep -qF 'hyprctl eval' "$calls" || fail "compositor did not go through hyprctl 
 grep -qF 'keyword' "$calls" && fail "used the keyword path the Lua parser rejects"
 grep -qF 'allow_tearing = true' "$calls" || fail "eval lua did not enable tearing"
 grep -qF 'immediate = true' "$calls" || fail "eval lua did not add the immediate rule"
+# A fullscreen window must keep rendering off-screen. Without this a workspace
+# switch stops the game's render loop dead (no frame callbacks reach an invisible
+# surface), which reads as a freeze and times multiplayer out. Scoped to
+# fullscreen on purpose: matching every class would render the whole desktop
+# off-screen and starve the game of the GPU this protects.
+grep -qF 'render_unfocused = true' "$calls" ||
+  fail "eval lua did not keep a fullscreen window rendering while off-screen"
+grep -qF 'match = { fullscreen = true }, render_unfocused' "$calls" ||
+  fail "render_unfocused is not scoped to fullscreen windows"
 grep -qF 'powerprofilesctl set performance' "$calls" || fail "did not ask for the performance profile"
 grep -qF 'ryoku-game-tune apply' "$calls" || fail "system tune not applied"
 grep -qE 'pkexec .*ryoku-wifi-powersave off' "$calls" || fail "WiFi helper not asked to disable power-save"

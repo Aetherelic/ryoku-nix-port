@@ -20,6 +20,7 @@ The backend that implements the automatic half lives in
 - [Xbox controller will not pair over Bluetooth](#xbox-controller-will-not-pair-over-bluetooth)
 - [Bluetooth adapter is detected but never comes up](#bluetooth-adapter-is-detected-but-never-comes-up)
 - [Xbox Wireless Dongle is not supported](#xbox-wireless-dongle-is-not-supported)
+- [A game freezes when you switch workspace](#a-game-freezes-when-you-switch-workspace)
 - [Only 2.4 GHz networks appear, or 5 GHz will not connect](#only-24-ghz-networks-appear-or-5-ghz-will-not-connect)
 - [RTC clock skew vs pacman signatures](#rtc-clock-skew-vs-pacman-signatures)
 - [NVRAM-readonly firmware](#nvram-readonly-firmware)
@@ -274,6 +275,39 @@ wrong default, so Ryoku ships neither the driver nor the firmware.
 of the box. To use the dongle anyway, install `xone-dkms` and
 `xone-dongle-firmware` from the AUR and accept the blacklists; `xpad-noone`
 restores the other pads.
+
+## A game freezes when you switch workspace
+
+**Symptom.** Switch away from the workspace a game is on and it stops dead: still
+loading and it never finishes, already in a match and it locks up. Audio often
+keeps playing, the mouse and keyboard do nothing, and a multiplayer session
+disconnects or times out.
+
+**Cause.** Not a crash, and not the game's fault. A Wayland client draws in
+response to `wl_surface.frame` callbacks, and a surface that is not visible
+receives none, so a render loop that waits on them is never scheduled again. The
+game has not paused; it has stopped being asked to draw. Audio continues because
+it runs on its own thread, and multiplayer drops because the netcode is usually
+pumped from the same loop as rendering. It hits XWayland and Proton titles
+hardest, and upstream Hyprland tracks it in several forms.
+
+**What Ryoku does.** Game Mode adds Hyprland's `render_unfocused` rule, scoped to
+fullscreen windows, so a fullscreen game keeps rendering while it is off-screen
+and its loop (and its connection) stays alive. Fullscreen rather than a class list
+means it covers any launcher, Steam or Lutris or Heroic or a bare binary; and
+fullscreen rather than every window means the desktop behind it is not also
+rendered off-screen, which would spend the GPU the game needs.
+
+It is deliberately not on all the time. Rendering a window nobody is looking at
+costs real power and heat, so it lasts exactly as long as the toggle.
+
+**What the user must do.** Turn Game Mode on before playing (quick settings, the
+Gaming tile). If a title still freezes, run it nested in gamescope, which Ryoku
+already ships: put `gamescope -f -- %command%` in its Steam launch options. The
+compositor then only ever sees gamescope's surface, and gamescope keeps driving
+the game. Some titles also behave differently between their own fullscreen option
+and the compositor's, so it is worth trying borderless or windowed with Hyprland
+doing the fullscreen.
 
 ## Only 2.4 GHz networks appear, or 5 GHz will not connect
 

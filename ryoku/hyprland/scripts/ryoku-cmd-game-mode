@@ -60,6 +60,20 @@ on_battery() {
 # low-latency path: immediate window rule for tearing + fullscreen-only VRR.
 # per the Hyprland wiki tearing only kicks in on a fullscreen sole window,
 # which is exactly the game case.
+#
+# and keep a fullscreen window rendering while it is off-screen. a Wayland client
+# draws in response to wl_surface.frame callbacks, and an invisible surface gets
+# none, so a render loop that waits on them stops dead: switch workspace and the
+# game does not pause, it stops being scheduled. audio keeps playing (separate
+# thread), input is dead, and multiplayer times out because the netcode is pumped
+# from the same loop. render_unfocused is Hyprland's opt-out.
+#
+# scoped to fullscreen, not to a class list and not to `.*`. a game is fullscreen
+# and a browser on another workspace is not, so this catches any launcher (Steam,
+# Lutris, Heroic, a bare binary) without paying to render the whole desktop
+# off-screen -- which would starve the game of the GPU this is meant to protect.
+# only while Game Mode is on, because it is not free: the card keeps working on a
+# workspace nobody is looking at.
 hypr_fast() {
   command -v hyprctl >/dev/null 2>&1 || return 0
   hyprctl eval '
@@ -76,6 +90,7 @@ hl.config({
   misc = { vrr = 2 },
 })
 hl.window_rule({ name = "game-mode-immediate", match = { class = ".*" }, immediate = true })
+hl.window_rule({ name = "game-mode-render-unfocused", match = { fullscreen = true }, render_unfocused = true })
 ' >/dev/null 2>&1 || true
 }
 

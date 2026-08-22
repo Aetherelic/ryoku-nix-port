@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Added
+- **Game Mode keeps a fullscreen game rendering off-screen.** Switching away from
+  a game's workspace used to stop it dead: still loading and it never finished,
+  mid-match and it locked up, audio still playing, input ignored, multiplayer
+  timing out. Not a crash and not the game's fault. A Wayland client draws in
+  response to `wl_surface.frame` callbacks and an invisible surface receives none,
+  so a render loop waiting on them is never scheduled again; the netcode is
+  usually pumped from that same loop, which is why the connection goes with it.
+  Game Mode now adds Hyprland's `render_unfocused` rule.
+  Scoped to fullscreen, deliberately twice over. Fullscreen rather than a class
+  list so it covers any launcher (Steam, Lutris, Heroic, a bare binary) instead of
+  only the ones we thought to name; and fullscreen rather than every window so the
+  desktop behind the game is not also rendered off-screen, which would spend the
+  GPU the game needs. Only while the toggle is on, because rendering a window
+  nobody is looking at costs real power and heat.
+  Verified that Ryoku's Lua window-rule API accepts the field, against a control:
+  an unknown field errors, `render_unfocused` does not.
 - **Game Mode is reachable.** The whole chain already existed and nothing called
   it: `Flags.gameMode` persisted the state, `shell.qml` drove
   `ryoku-cmd-game-mode` on change, and DND pulled on, but no tile, pill or
