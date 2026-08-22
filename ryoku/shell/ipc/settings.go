@@ -137,10 +137,7 @@ type matugenSettings struct {
 	Contrast   float64 `json:"contrast"`
 }
 
-// motionConfig scales shell-UI animation timing and offers a reduce-motion
-// switch. Scale multiplies every duration a component runs through Tokens.dur();
-// reduce collapses them to instant. Both are read live by ryoku/ui Tokens, so
-// the Hub's motion controls retime the whole desktop without a restart.
+// motionConfig is the shell-UI animation timing, read live by ryoku/ui Tokens.
 type motionConfig struct {
 	Scale  float64 `json:"scale"`  // 0.25..3.0 global speed (1 = shipped timing)
 	Reduce bool    `json:"reduce"` // collapse animations to instant (accessibility)

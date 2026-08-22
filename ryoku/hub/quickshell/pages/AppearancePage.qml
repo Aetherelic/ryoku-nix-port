@@ -83,10 +83,8 @@ Item {
     readonly property string genMode: pg.matugenCfg.mode || "smart"
     readonly property real genContrast: pg.matugenCfg.contrast || 0.0
 
-    // Colour scheme variant: the matugen -t algorithm. tonal-spot is the balanced
-    // default; the desaturating ones (neutral, monochrome) are offered but flagged
-    // in the row's description so a user knows they pull the colour out. Written
-    // instantly through the same matugen-set seam as mode/contrast.
+    // The matugen -t variant. tonal-spot is the default; the row flags that
+    // neutral/monochrome desaturate. Written through the same seam as mode.
     readonly property string genScheme: pg.matugenCfg.schemeType || "scheme-tonal-spot"
     readonly property var genVariants: [
         { "id": "scheme-tonal-spot",  "label": "Tonal Spot" },

@@ -33,9 +33,8 @@ Item {
     property var liveCurves: []
     property string selectedCurve: ""
 
-    // ── shell motion (theme.motion in shell.json, written straight through the
-    // settings seam like Appearance; instant, not staged in the hypr draft). The
-    // shell's ui tokens read the same keys, so a change retimes every panel live.
+    // theme.motion in shell.json, written instantly through the settings seam
+    // (not the staged hypr draft); the shell's ui tokens read the same keys.
     readonly property real motionScale: { Settings.revision; var v = Settings.get("theme.motion.scale"); return (typeof v === "number" && v > 0) ? v : 1.0; }
     readonly property bool reduceMotion: { Settings.revision; return Settings.get("theme.motion.reduce") === true; }
     readonly property string motionScaleLabel: Math.round(pg.motionScale * 100) + "%"
@@ -550,9 +549,7 @@ Item {
             id: col
             width: flick.width - Tokens.s4
             spacing: Tokens.s5
-            // SHELL MOTION -- the shell's own panels/menus/transitions. Speed
-            // scales every Ryoku animation live; Reduce motion snaps them instant.
-            // Separate from the Hyprland window animations in the card below.
+            // The shell's own motion (distinct from the Hyprland window editor below).
             SettingCard {
                 width: col.width
                 title: I18n.tr("SHELL MOTION")

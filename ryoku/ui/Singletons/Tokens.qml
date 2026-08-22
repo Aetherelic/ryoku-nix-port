@@ -123,10 +123,8 @@ Singleton {
     readonly property int ctlH: 26
 
     // ── motion ───────────────────────────────────────────────────────────
-    // Every Ryoku animation runs its duration through dur(): a global scale and a
-    // reduce-motion switch (shell.json theme.motion, written by the Hub) retime
-    // the whole desktop live, and accessibility can turn motion off. A raw literal
-    // migrated to dur(N) keeps its exact timing at scale 1.
+    // dur() scales every duration by motionScale (shell.json theme.motion) and
+    // zeroes it under reduceMotion, so the Hub retimes the desktop live.
     property real motionScale: 1.0
     property bool reduceMotion: false
     function dur(ms) { return reduceMotion ? 0 : Math.round(ms * motionScale); }
@@ -138,10 +136,8 @@ Singleton {
     readonly property int ease: Easing.OutCubic
     readonly property int easeSnap: Easing.OutQuad
 
-    // Material 3 expressive motion: the duration + curve vocabulary Anim selects
-    // from. Durations are the Material tokens (ms at scale 1, run through dur());
-    // curves are cubic beziers as easing.bezierCurve control-point lists. Ported
-    // from caelestia-dots/shell (plugin Config/tokens.hpp) under its terms.
+    // Material 3 expressive durations and curves (easing.bezierCurve points) that
+    // Anim selects by role. Ported from caelestia-dots/shell (Config/tokens.hpp).
     readonly property int durSmall: dur(200)
     readonly property int durNormal: dur(400)
     readonly property int durLarge: dur(600)
