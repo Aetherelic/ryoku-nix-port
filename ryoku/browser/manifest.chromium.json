@@ -28,20 +28,5 @@
   ],
   "action": {
     "default_popup": "src/popup.html"
-  },
-  "theme": {
-    "colors": {
-      "frame": [
-        27,
-        27,
-        27
-      ],
-      "toolbar": [
-        36,
-        36,
-        36
-      ]
-    }
-  },
-  "_comment_theme": "Static frame; live chrome recolor is Firefox-only. key fixes the id to mcmfbdeecgccbnlekdmalihgmpbplcij"
+  }
 }
