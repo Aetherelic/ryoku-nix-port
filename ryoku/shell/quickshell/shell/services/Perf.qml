@@ -94,17 +94,22 @@ Singleton {
     // Separate from the two freeze flags above on purpose. There is never a reason
     // to spectrum-analyse silence, so cava stops either way; drifting a few pixels
     // is a different question, and on a machine the user has put in Performance
-    // the answer is yes. Consumers pair this with a coarse repaint rate.
+    // the answer is yes.
     //
-    // It is not cheap, and the number is worth writing down because it was
-    // mis-estimated once already. Measured on this hardware, silent desktop, the
-    // shell sits at 2.4% with drift refused and about 10% with it allowed at the
-    // 150ms watch rate: roughly 7.6 points of a core, continuously, and the
-    // compositor never fully idles. Coarsening the rate only helps linearly,
-    // because each repaint costs ~11ms on its own -- a full canvas clear plus a
-    // full-width texture upload. Making the frame cheap, rather than rare, is the
-    // fix that would actually pay; until then this is a deliberate, priced choice
-    // that Saver, lowPowerMode and Game Mode all decline.
+    // One question here -- may it move -- and the module's own pacing answers how
+    // fast. Drift was briefly clamped to a coarse rate as well, and that was
+    // reverted: 7fps reads as steppy rather than ambient, and it bought no saving
+    // that survived measurement.
+    //
+    // Priced loosely on purpose, because the obvious method does not measure well.
+    // Comparing by switching power profiles has a noise floor around 5 points on
+    // this hardware (Performance and Balanced take the identical path here and
+    // still read 8.9% against 14.3%), since a profile switch itself churns blur,
+    // shadows and a Hyprland reload. What holds across every run is the direction
+    // and rough size: drift refused sits at 1-3%, drift allowed at 8-14%. One
+    // repaint costs ~11ms on its own, a full canvas clear plus a full-width
+    // texture upload, so making the frame cheap rather than rare is the fix that
+    // would actually pay.
     readonly property bool ambientMotion: !(lowPower || saver || gaming)
 
     // Graceful cost knobs. Multiply a base poll interval by pollFactor: a second of

@@ -1044,14 +1044,16 @@ Item {
         // every mode paces itself: canvas.paintTick, set at the end of onPaint,
         // runs full rate only while the picture moves fast, an ambient rate while
         // it merely drifts or fades, and a coarse watch rate while the gap is dark.
-        // One clamp instead of touching all eight paintTick assignments: while
-        // silent, never repaint faster than the coarse watch rate. That is the
-        // whole cost fix. The pacing below picks a tick from what the frame drew,
-        // and a passive sine always reads as "moving", so mode 1 sat at
-        // fullMotionTick (33ms) forever and never fell back to watchTick (150ms)
-        // on its own. With audio playing the pacing is left alone.
-        interval: Math.max(canvas.paintTick,
-                           root.audioLive ? 0 : root.watchTick) * Perf.pollFactor
+        // No idle clamp. Pinning silent drift to the 150ms watch rate was tried and
+        // reverted: about 7fps reads as steppy rather than as ambient drift, which is
+        // a worse failure than the cost it was meant to save. It bought no saving
+        // that could be measured either -- switching power profiles to compare has a
+        // noise floor around 5 points here (Performance and Balanced run identical
+        // code on this path and still measured 8.9% against 14.3%), so a 2-point
+        // claim in either direction is not supportable. The pacing below already
+        // picks a tick from what the frame actually drew; that is the mechanism that
+        // should decide this, not a blanket floor.
+        interval: canvas.paintTick * Perf.pollFactor
         repeat: true
         // Same gate as streamLive, not a second copy of it: when these drifted
         // apart the timer kept repainting a stream that had already released its

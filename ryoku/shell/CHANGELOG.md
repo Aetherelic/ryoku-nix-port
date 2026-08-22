@@ -249,16 +249,20 @@
   repaint costs the compositor. Freezing it on any silence stopped it on
   Performance and Balanced too, which read as the bar being broken. Silence now
   freezes it only where the profile says so: Saver, lowPowerMode and Game Mode
-  refuse it, Balanced and Performance let it drift, and either way it drifts at the
-  coarse watch rate instead of the 33 ms it used to sit at forever. The analyser is
-  a separate question with a separate answer: there is nothing to spectrum-analyse
-  in silence, so cava stops on every profile.
-  Priced rather than assumed, on this hardware with a silent desktop: the shell
-  measures 2.4% with drift refused and about 10% with it allowed, so roughly 7.6
-  points of a core, chosen knowingly. Coarsening the rate only helps linearly,
-  because one repaint costs ~11 ms by itself (a full canvas clear plus a
-  full-width texture upload), so the fix that would actually pay is making the
-  frame cheap rather than rare.
+  refuse it, Balanced and Performance let it drift, and the module's own pacing
+  decides how fast. The analyser is a separate question with a separate answer:
+  there is nothing to spectrum-analyse in silence, so cava stops on every profile.
+  A coarse floor on the idle repaint was tried in between and reverted. About 7fps
+  reads as steppy rather than as ambient drift, which is a worse failure than the
+  cost it was meant to save, and it bought no saving that survived measurement.
+  Numbers here are deliberately loose, because the obvious method does not measure
+  well: comparing by switching power profiles has a noise floor around 5 points on
+  this hardware, since the switch itself churns blur, shadows and a Hyprland
+  reload. Performance and Balanced take the identical path and still read 8.9%
+  against 14.3%. What holds across every run is the direction and rough size,
+  silent desktop: drift refused 1-3%, drift allowed 8-14%. A single repaint costs
+  ~11 ms by itself, a full canvas clear plus a full-width texture upload, so the
+  fix that would actually pay is making the frame cheap rather than rare.
 - **The system-stats panel stops waking a sleeping discrete GPU.** Its 1.5s poll
   ran `nvidia-smi` unconditionally, and that drags a runtime-suspended card back
   out of D3 (about 10 W on a hybrid laptop), so an open panel pinned the dGPU
