@@ -1230,6 +1230,11 @@ func matugenEnsureDirs() {
 		filepath.Join(cfg, "yazi"),
 		filepath.Join(cfg, "ghostty"),
 		filepath.Join(cfg, "micro", "colorschemes"),
+		filepath.Join(cfg, "matugen", "generated"),
+		filepath.Join(cfg, "Kvantum", "ryoku"),
+		filepath.Join(cfg, "zathura"),
+		filepath.Join(cfg, "alacritty"),
+		filepath.Join(cfg, "tmux"),
 		filepath.Join(data, "TelegramDesktop", "tdata"),
 		filepath.Join(os.Getenv("HOME"), ".steam", "steam", "steamui", "skins", "Material-Theme", "css", "main", "colors"),
 	} {
