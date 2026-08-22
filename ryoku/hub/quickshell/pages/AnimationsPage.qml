@@ -59,6 +59,37 @@ Item {
         }
     }
 
+    // Hyprland animation personality: the preset the loader picks. Read from the
+    // backend at load; setAnimPreset writes ~/.config/ryoku/anim-preset + reloads.
+    property string animPreset: "ryoku"
+    readonly property var animPresets: [
+        { "id": "ryoku", "label": "Ryoku" },
+        { "id": "dusky", "label": "Dusky" },
+        { "id": "bounce", "label": "Bounce" },
+        { "id": "fade", "label": "Fade" },
+        { "id": "fast", "label": "Fast" },
+        { "id": "mechanical", "label": "Mechanical" },
+        { "id": "minimal", "label": "Minimal" },
+        { "id": "air", "label": "Air" },
+        { "id": "slowmotion", "label": "Slow-mo" },
+        { "id": "exaggerated", "label": "Exaggerated" },
+        { "id": "hallucination", "label": "Hallucination" },
+        { "id": "rage", "label": "Rage" },
+        { "id": "disable", "label": "Off" }
+    ]
+    readonly property var animPresetLabels: pg.animPresets.map(p => p.label)
+    function animPresetLabel(id) { for (var i = 0; i < pg.animPresets.length; i++) if (pg.animPresets[i].id === id) return pg.animPresets[i].label; return "Ryoku"; }
+    function animPresetId(label) { for (var i = 0; i < pg.animPresets.length; i++) if (pg.animPresets[i].label === label) return pg.animPresets[i].id; return "ryoku"; }
+    function setAnimPreset(id) { pg.animPreset = id; animPresetSet.command = ["ryoku-hub", "hypr", "anim-preset", id]; animPresetSet.running = true; }
+
+    Process {
+        id: animPresetGet
+        command: ["ryoku-hub", "hypr", "anim-preset"]
+        running: true
+        stdout: StdioCollector { onStreamFinished: { try { var d = JSON.parse(this.text); if (d && d.preset) pg.animPreset = d.preset; } catch (e) {} } }
+    }
+    Process { id: animPresetSet }
+
     // ── curves model ────────────────────────────────────────────────────────
     function curvesArr() { var a = pg.hv("anim.curves"); return Array.isArray(a) ? a : []; }
     function itemsArr() { var a = pg.hv("anim.items"); return Array.isArray(a) ? a : []; }
@@ -584,6 +615,32 @@ Item {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         on: pg.reduceMotion
                         onToggled: (v) => pg.setMotion("reduce", v)
+                    }
+                }
+            }
+
+            SettingCard {
+                width: col.width
+                title: I18n.tr("ANIMATION PRESET")
+                Text {
+                    width: parent.width
+                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                    topPadding: Tokens.s3; bottomPadding: Tokens.s1
+                    text: I18n.tr("The window animation personality: how windows, workspaces and layers move. Picking one reloads Hyprland; your curve tweaks below still apply on top.")
+                    color: Tokens.inkMuted; font.family: Tokens.ui
+                    font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    block: true
+                    label: I18n.tr("Preset")
+                    Chips {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: pg.animPresetLabels
+                        current: pg.animPresetLabel(pg.animPreset)
+                        onChose: (l) => pg.setAnimPreset(pg.animPresetId(l))
                     }
                 }
             }

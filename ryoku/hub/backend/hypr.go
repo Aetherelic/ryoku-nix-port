@@ -544,7 +544,7 @@ func parseOverrides(s string) (Overrides, error) {
 // runHypr: dispatch for `ryoku-hub hypr <sub> [arg]`.
 func runHypr(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("hypr needs get|defaults|save|preview|restore|cursors|layouts|variants")
+		return fmt.Errorf("hypr needs get|defaults|save|preview|restore|cursors|layouts|variants|anim-preset")
 	}
 	switch args[0] {
 	case "get":
@@ -620,6 +620,11 @@ func runHypr(args []string) error {
 		return applyThemeApps(args[1] == "on" || args[1] == "true")
 	case "matugen":
 		return runMatugenCmd(args[1:])
+	case "anim-preset":
+		if len(args) < 2 {
+			return printJSON(map[string]string{"preset": currentAnimPreset()})
+		}
+		return applyAnimPreset(args[1])
 	default:
 		return fmt.Errorf("unknown hypr subcommand: %s", args[0])
 	}
@@ -644,6 +649,45 @@ func hyprEval(lua string) {
 
 func hyprReload() {
 	_ = exec.Command("hyprctl", "reload").Run()
+}
+
+// anim-preset: the active Hyprland animation personality. The name is a plain
+// file modules/animations.lua reads at load; set writes it and reloads.
+var animPresets = map[string]bool{
+	"ryoku": true, "dusky": true, "bounce": true, "fade": true, "fast": true,
+	"mechanical": true, "minimal": true, "rage": true, "slowmotion": true,
+	"air": true, "hallucination": true, "exaggerated": true, "disable": true,
+}
+
+func animPresetPath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku", "anim-preset")
+}
+
+func currentAnimPreset() string {
+	b, err := os.ReadFile(animPresetPath())
+	if err != nil {
+		return "ryoku"
+	}
+	name := strings.TrimSpace(string(b))
+	if !animPresets[name] {
+		return "ryoku"
+	}
+	return name
+}
+
+func applyAnimPreset(name string) error {
+	if !animPresets[name] {
+		return fmt.Errorf("unknown animation preset %q", name)
+	}
+	if err := atomicWrite(animPresetPath(), []byte(name+"\n"), 0o644); err != nil {
+		return err
+	}
+	hyprReload()
+	return nil
 }
 
 // setLiveCursor applies the pointer theme imperatively. hyprctl reload restores

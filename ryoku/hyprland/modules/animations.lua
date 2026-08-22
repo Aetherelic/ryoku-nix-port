@@ -1,25 +1,42 @@
-hl.config({
-    animations = {
-        enabled = true,
-    },
-})
+-- Animation preset loader. The active preset name (plain text in
+-- ~/.config/ryoku/anim-preset, written by the Hub; default "ryoku") selects one
+-- self-contained set under modules/animations/. Eye-candy presets ported from
+-- dusklinux/dusky. Hub per-leaf tweaks still override on top via settings.lua.
+hl.config({ animations = { enabled = true } })
 
-hl.curve("easeOutQuint",   { type = "bezier", points = { { 0.23, 1 },    { 0.32, 1 } } })
-hl.curve("quick",          { type = "bezier", points = { { 0.15, 0 },    { 0.1, 1 } } })
-hl.curve("almostLinear",   { type = "bezier", points = { { 0.5, 0.5 },   { 0.75, 1 } } })
-hl.curve("ryokuBloom",     { type = "bezier", points = { { 0.16, 1.12 }, { 0.24, 1 } } })
-hl.curve("ryokuSettle",    { type = "bezier", points = { { 0.18, 0.86 }, { 0.24, 1 } } })
+local function cfg(sub)
+    local base = os.getenv("XDG_CONFIG_HOME")
+    if not base or base == "" then
+        base = (os.getenv("HOME") or "") .. "/.config"
+    end
+    return base .. sub
+end
 
-hl.animation({ leaf = "global",     enabled = true, speed = 3.2, bezier = "ryokuSettle" })
-hl.animation({ leaf = "windows",    enabled = true, speed = 3.2, bezier = "ryokuSettle" })
-hl.animation({ leaf = "windowsIn",  enabled = true, speed = 3.8, bezier = "ryokuBloom",  style = "popin 78%" })
-hl.animation({ leaf = "windowsOut", enabled = true, speed = 2.4, bezier = "ryokuSettle", style = "popin 86%" })
-hl.animation({ leaf = "border",     enabled = true, speed = 3.5, bezier = "quick" })
-hl.animation({ leaf = "fade",       enabled = true, speed = 3,   bezier = "almostLinear" })
-hl.animation({ leaf = "fadeIn",     enabled = true, speed = 3.2, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeOut",    enabled = true, speed = 2.2, bezier = "almostLinear" })
-hl.animation({ leaf = "layers",        enabled = true, speed = 7, bezier = "easeOutQuint", style = "popin 90%" })
-hl.animation({ leaf = "fadeLayersIn",  enabled = true, speed = 7, bezier = "easeOutQuint" })
-hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 7, bezier = "easeOutQuint" })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 3.5, bezier = "easeOutQuint", style = "slide" })
-hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 6,   bezier = "easeOutQuint", style = "slidefadevert 20%" })
+local function readName()
+    local f = io.open(cfg("/ryoku/anim-preset"), "r")
+    if not f then
+        return "ryoku"
+    end
+    local n = (f:read("l") or ""):gsub("%s+", "")
+    f:close()
+    if n == "" or not n:match("^[%w_]+$") then
+        return "ryoku"
+    end
+    return n
+end
+
+-- probe the file so a stale name never trips Hyprland's config-error overlay
+local function shipped(name)
+    local f = io.open(cfg("/hypr/modules/animations/" .. name .. ".lua"), "r")
+    if f then
+        f:close()
+        return true
+    end
+    return false
+end
+
+local name = readName()
+if not shipped(name) then
+    name = "ryoku"
+end
+require("modules.animations." .. name)

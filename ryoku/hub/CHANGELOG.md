@@ -16,6 +16,12 @@
   and pruned on the next save.
 
 ### Added
+- **Animations gains a preset gallery: 13 window animation personalities.** On
+  top of Ryoku's default, the Animations page now offers Dusky, Bounce, Fade,
+  Fast, Mechanical, Minimal, Air, Slow-mo, Exaggerated, Hallucination, Rage and
+  Off (ported from dusklinux/dusky). Picking one writes `~/.config/ryoku/anim-preset`,
+  which the Hyprland loader reads, and reloads live; the curve editor below still
+  fine-tunes the active preset.
 - **Animations gains a Shell Motion card: global speed and reduce-motion.** The
   Animations page now carries the shell's own motion controls above the Hyprland
   window editor: a Speed slider (0.25x to 3x) that scales every Ryoku panel,
