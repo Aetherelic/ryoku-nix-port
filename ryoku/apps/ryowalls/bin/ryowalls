@@ -371,7 +371,7 @@ download)
 	finish "$out"
 	;;
 palette)
-	url="${1:?image url required}"
+	url="${1:?image url required}"; url="${url#file://}"
 	tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 	# Keep a real extension so the decoder can read the file: matugen (and thus
 	# the daemon) fails on an extensionless path ("failed to parse"), which left
@@ -415,7 +415,7 @@ moewalls-search)
 	# poster: /uploads/YYYY/MM/BASE-thumb.jpg -> preview: /uploads/preview/YYYY/BASE-preview.webm.
 	# resolution comes from the post's `resolutions-WxH` term (exposed in class_list),
 	# the master file's real size, so the grid label and enhance's verdict are honest.
-	jq -c '.[]
+	items="$(jq -c '.[]
 		| (._embedded["wp:featuredmedia"][0].source_url // "") as $thumb
 		| ($thumb | sub("/uploads/(?<y>[0-9]{4})/[0-9]{2}/(?<b>[^/]+)-thumb\\.(jpe?g|png)"; "/uploads/preview/\(.y)/\(.b)-preview.webm")) as $vid
 		| ($vid | if . != $thumb then . else "" end) as $webm
@@ -428,7 +428,26 @@ moewalls-search)
 			resolution: $res,
 			name: (.title.rendered | gsub(" Live Wallpaper$"; "")),
 			moewalls_url: .link
-		}' <<<"$resp"
+		}' <<<"$resp")"
+	# QML's Image loader sends no User-Agent, which Cloudflare 403s, so the grid
+	# cannot fetch the poster itself. Cache each poster here (with a browser UA) and
+	# hand the tile a local file path; the webm still streams remotely (its player
+	# sends its own UA). Posters download in parallel, then each item is emitted
+	# with a cached path, falling back to the remote URL if a fetch missed.
+	cache="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/ryowalls/moewalls-thumbs"; mkdir -p "$cache"
+	while read -r u; do
+		f="$cache/${u##*/}"
+		[ -s "$f" ] || curl -fsSL -A "$ua" "$u" -o "$f" 2>/dev/null &
+	done < <(printf '%s\n' "$items" | jq -r '.thumb | select(length > 0)' | sort -u)
+	wait
+	printf '%s\n' "$items" | while IFS= read -r row; do
+		u="$(jq -r '.thumb' <<<"$row")"; f="$cache/${u##*/}"
+		if [ -n "$u" ] && [ -s "$f" ]; then
+			jq -c --arg f "file://$f" '.thumb = $f' <<<"$row"
+		else
+			printf '%s\n' "$row"
+		fi
+	done
 	;;
 moewalls-download)
 	# Save the full-resolution master, not the lightweight loop preview. The real
