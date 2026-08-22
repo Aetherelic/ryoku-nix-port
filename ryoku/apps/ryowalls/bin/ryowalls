@@ -412,28 +412,45 @@ moewalls-search)
 		params+=(--data-urlencode "categories=18") # anime
 	fi
 	resp="$(curl -fsSL -A "$ua" "${params[@]}")"
-	# poster: /uploads/YYYY/MM/BASE-thumb.jpg -> preview: /uploads/preview/YYYY/BASE-preview.webm
-	# resolution stays empty: previews range from 720p to 1440p and dual-wide, and
-	# neither the URL nor the poster metadata says which — a hardcoded label made
-	# enhance look broken ("Already sharp" on a clip the grid had promised was 720p).
+	# poster: /uploads/YYYY/MM/BASE-thumb.jpg -> preview: /uploads/preview/YYYY/BASE-preview.webm.
+	# resolution comes from the post's `resolutions-WxH` term (exposed in class_list),
+	# the master file's real size, so the grid label and enhance's verdict are honest.
 	jq -c '.[]
 		| (._embedded["wp:featuredmedia"][0].source_url // "") as $thumb
 		| ($thumb | sub("/uploads/(?<y>[0-9]{4})/[0-9]{2}/(?<b>[^/]+)-thumb\\.(jpe?g|png)"; "/uploads/preview/\(.y)/\(.b)-preview.webm")) as $vid
 		| ($vid | if . != $thumb then . else "" end) as $webm
+		| ((.class_list // []) | map(select(startswith("resolutions-")))[0] // "" | sub("^resolutions-"; "")) as $res
 		| {
 			id: (.id|tostring),
 			thumb: $thumb,
 			video: $webm,
 			dl: $webm,
-			resolution: "",
+			resolution: $res,
 			name: (.title.rendered | gsub(" Live Wallpaper$"; "")),
 			moewalls_url: .link
 		}' <<<"$resp"
 	;;
 moewalls-download)
-	# Save a moewalls preview.webm into livewalls so the switcher picks it up too.
-	id="${1:?id required}"; url="${2:?url required}"
+	# Save the full-resolution master, not the lightweight loop preview. The real
+	# file sits behind the site's download button, whose target is an obfuscated
+	# token (the anchor's data-url) that only appears on the post page and is
+	# redeemed by go.moewalls.com/download.php. Scrape that token from the post URL
+	# and pull the master mp4; fall back to the preview webm if the page shape moves.
+	id="${1:?id required}"; url="${2:?url required}"; post="${3:-}"
 	dest="$HOME/Pictures/livewalls"; mkdir -p "$dest"
+	token=""
+	if [ -n "$post" ]; then
+		page="$(curl -fsSL -A "$ua" "$post" 2>/dev/null || true)"
+		tag="$(printf '%s' "$page" | grep -oE '<a[^>]*id="moe-download"[^>]*>' || true)"
+		token="$(printf '%s' "$tag" | grep -oE 'data-url="[^"]*"' | sed -E 's/data-url="([^"]*)"/\1/' || true)"
+	fi
+	if [ -n "$token" ]; then
+		out="$dest/moewalls-$id.mp4"
+		if curl -fsSL -A "$ua" -e "$post" "https://go.moewalls.com/download.php?video=$token" -o "$out"; then
+			finish "$out"; exit 0
+		fi
+		rm -f "$out"
+	fi
 	ext="${url##*.}"; [ "${#ext}" -gt 5 ] && ext="webm"
 	out="$dest/moewalls-$id.$ext"
 	curl -fsSL -A "$ua" "$url" -o "$out"

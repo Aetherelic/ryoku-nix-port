@@ -76,7 +76,7 @@ Singleton {
 
     // download command for the current source; shared by apply() and enhance().
     function _downloadCmd(it) {
-        if (source === "moewalls") return cmd(["moewalls-download", it.id, it.dl]);
+        if (source === "moewalls") return cmd(["moewalls-download", it.id, it.dl, it.moewalls_url || ""]);
         if (source === "motionbgs") return cmd(["motionbgs-download", it.id, it.dl]);
         if (source === "ryoku") return cmd(["extras-download", it.id, it.dl]);
         if (source === "lib") return cmd(["library-download", it.id, it.dl]);
