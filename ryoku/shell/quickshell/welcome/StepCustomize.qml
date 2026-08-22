@@ -68,7 +68,7 @@ Flickable {
     }
 
     Process { id: wallProc; command: ["ryoku-shell", "wallpaper", "next"] }
-    Process { id: barStudioProc; command: ["sh", "-c", "ryoku-hub config set section bar-studio; flock -n -o /tmp/ryoku-hub.lock qs -c hub"] }
+    Process { id: barStudioProc; command: ["sh", "-c", "ryoku-hub config set section bar-studio; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]; environment: Spawn.env }
 
     Component.onCompleted: { step.syncShell(); step.syncWidgets(); }
 

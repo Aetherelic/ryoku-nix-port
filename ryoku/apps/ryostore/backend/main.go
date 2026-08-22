@@ -24,6 +24,7 @@ import (
 )
 
 func main() {
+	scrubQuickshellCrashEnv()
 	if err := dispatch(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "ryostore:", err)
 		os.Exit(1)

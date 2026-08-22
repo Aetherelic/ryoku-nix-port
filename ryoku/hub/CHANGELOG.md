@@ -241,6 +241,15 @@
   shell.json (`quickshell/pages/BarStudioPage.qml`, `quickshell/Hub.qml`).
 
 ### Fixed
+- **Nothing the Hub opens can bring up a second desktop.** The Hub talks to the
+  shell with `qs -c shell ipc call ...` and opens terminals for updates,
+  rollbacks, dictation models and the GPU switch. A Quickshell instance that has
+  crashed once keeps `__QUICKSHELL_CRASH_INFO_FD` in the environment it hands its
+  children, and Quickshell reads that before it parses arguments, so those `qs`
+  calls relaunched the desktop config instead of talking to it: two bars, two
+  docks. All eighteen launches now go through `Spawn` (`Ryoku.Ui.Singletons`),
+  which unsets the handle for the child; the terminals are routed too, so a `qs`
+  the user runs inside one is clean as well.
 - **The Hub stops waking a sleeping discrete GPU to look at it.** Two polls called
   `nvidia-smi` unconditionally, and that pulls a runtime-suspended card straight
   back out of D3 -- about 10 W on a hybrid laptop. The Profile plate polls every

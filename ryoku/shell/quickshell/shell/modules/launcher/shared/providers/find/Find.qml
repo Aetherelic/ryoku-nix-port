@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 import "../../Singletons"
 import "../requeststate.js" as RequestState
 import ".."
@@ -172,8 +173,8 @@ Provider {
             type: kind || "File",
             score: 0,
             actions: [
-                { id: "open", name: "Open", icon: "", execute: function () { Quickshell.execDetached(["xdg-open", path]); } },
-                { id: "reveal", name: "Reveal", icon: "", execute: function () { Quickshell.execDetached(["xdg-open", path.replace(/\/[^/]*$/, "")]); } }
+                { id: "open", name: "Open", icon: "", execute: function () { Spawn.run(["xdg-open", path]); } },
+                { id: "reveal", name: "Reveal", icon: "", execute: function () { Spawn.run(["xdg-open", path.replace(/\/[^/]*$/, "")]); } }
             ]
         };
     }

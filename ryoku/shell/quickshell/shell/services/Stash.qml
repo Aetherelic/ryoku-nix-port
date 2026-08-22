@@ -3,6 +3,7 @@ import QtQuick
 import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 /**
  * ~/Downloads/Stash: the download landing plus the compress/install backends.
@@ -162,7 +163,7 @@ Singleton {
     }
 
     function openFile(path) {
-        Quickshell.execDetached(["xdg-open", path]);
+        Spawn.run(["xdg-open", path]);
     }
 
     function removeFile(path) {

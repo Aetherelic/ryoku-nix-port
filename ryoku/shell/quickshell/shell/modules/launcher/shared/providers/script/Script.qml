@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Ryoku.Ui.Singletons
 import "../../Singletons"
 import "../../lib/providerids.js" as ProviderIds
 import "../../lib/rofiscript.js" as RofiScript
@@ -109,10 +110,12 @@ Provider {
         script.debounceReady = false;
         script.setRequestState(next);
         listProc.command = command;
-        listProc.environment = {
+        // Strip the crash handle (Spawn.env) alongside the ROFI_* vars, so a rofi
+        // script that launches a Quickshell app starts fresh instead of the desktop.
+        listProc.environment = Object.assign({}, Spawn.env, {
             ROFI_RETV: "0",
             ROFI_INFO: script.pendingQuery
-        };
+        });
         listProc.cacheKey = script.pendingKey;
         listProc.requestGeneration = script.pendingGeneration;
         listProc.out = "";
@@ -166,7 +169,7 @@ Provider {
                 icon: "",
                 execute: function () {
                     activateProc.command = def.exec.concat([row.text]);
-                    activateProc.environment = { ROFI_RETV: "1", ROFI_INFO: row.info };
+                    activateProc.environment = Object.assign({}, Spawn.env, { ROFI_RETV: "1", ROFI_INFO: row.info });
                     activateProc.running = false;
                     activateProc.running = true;
                 }

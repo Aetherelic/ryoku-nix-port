@@ -349,7 +349,7 @@ PanelWindow {
         var url = String(selMeta.repo)
             .replace(/^git@github\.com:/, "https://github.com/")
             .replace(/\.git$/, "")
-        Quickshell.execDetached(["xdg-open", url])
+        Spawn.run(["xdg-open", url])
     }
 
     // ── bulk meta pre-warm: read author/repo/palette for ALL themes in one

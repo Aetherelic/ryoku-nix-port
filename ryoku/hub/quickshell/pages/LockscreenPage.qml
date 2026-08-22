@@ -447,7 +447,7 @@ Item {
         actProc.running = true;
     }
     function preview(slug) {
-        Quickshell.execDetached([pg.lockSh, slug]);
+        Spawn.run([pg.lockSh, slug]);
     }
 
     // live filter: name, theme, slug, tags and copy all match the rail query.

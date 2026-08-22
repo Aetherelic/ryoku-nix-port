@@ -32,6 +32,7 @@ import (
 )
 
 func main() {
+	scrubQuickshellCrashEnv()
 	if len(os.Args) < 2 {
 		usage()
 		os.Exit(2)

@@ -449,7 +449,7 @@ Item {
             }
         }
         HoverHandler { id: rtHov; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: if (rt.dir) Quickshell.execDetached(["nautilus", rt.dir]) }
+        TapHandler { onTapped: if (rt.dir) Spawn.run(["nautilus", rt.dir]) }
         scale: rtHov.hovered ? 1.03 : 1
         Behavior on scale { NumberAnimation { duration: Motion.fast } }
     }

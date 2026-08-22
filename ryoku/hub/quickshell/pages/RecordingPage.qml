@@ -315,14 +315,14 @@ Item {
         pg.keyPreviewRevision = Math.max(pg.keyPreviewRevision + 1, Date.now() * 1000);
         const revision = String(pg.keyPreviewRevision);
         if (show) {
-            Quickshell.execDetached([
+            Spawn.run([
                 "qs", "-c", "shell", "ipc", "call", "keypresses", "activate",
                 pg.keyDraft ? pg.keyDraft.theme : "dark",
                 pg.keyDraft ? pg.keyDraft.mode : "all",
                 revision
             ]);
         } else {
-            Quickshell.execDetached([
+            Spawn.run([
                 "qs", "-c", "shell", "ipc", "call", "keypresses", "deactivate",
                 revision
             ]);

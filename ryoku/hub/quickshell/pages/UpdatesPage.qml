@@ -212,7 +212,7 @@ Item {
     function rollback() {
         if (pg.snapshot === "")
             return;
-        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", pg.snapshot]);
+        Spawn.run(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", pg.snapshot]);
         pg.dismiss();
     }
 
@@ -225,7 +225,7 @@ Item {
     }
 
     function startUpdate() {
-        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
+        Spawn.run(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
     }
 
     // idle list: incoming commits when behind, else the recent history the

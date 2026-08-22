@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Ryoku.Blobs
+import Ryoku.Ui.Singletons
 import shell.services
 import "framebars/RailGeometry.js" as RailGeometry
 
@@ -49,7 +50,7 @@ Scope {
         case "logout":
         case "reboot":
         case "shutdown": ShellState.askSessionAction(id, root.modelData ? root.modelData.name : ""); break;
-        case "screenshot": Quickshell.execDetached(["sh", "-c", "flock -n -o /tmp/ryoshot.lock qs -c ryoshot"]); break;
+        case "screenshot": Spawn.run(["sh", "-c", "flock -n -o /tmp/ryoshot.lock qs -c ryoshot"]); break;
         case "wallpaper": if (root.state) root.state.wallpaperSwitcherOpen = !root.state.wallpaperSwitcherOpen; break;
         case "color-picker": Quickshell.execDetached(["ryoku-cmd-color-picker"]); break;
         case "app-launcher": if (root.state) root.state.launcherOpen = !root.state.launcherOpen; break;

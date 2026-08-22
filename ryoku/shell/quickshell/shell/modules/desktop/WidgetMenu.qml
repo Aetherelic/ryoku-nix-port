@@ -62,7 +62,7 @@ Item {
         Config.set(menu.designKey, d[(d.indexOf(Config[menu.designKey]) + 1) % d.length]);
     }
     function openSettings() {
-        Quickshell.execDetached(["sh", "-c", "ryoku-hub config set section widgets; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
+        Spawn.run(["sh", "-c", "ryoku-hub config set section widgets; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
         menu.close();
     }
     function refreshShell() {

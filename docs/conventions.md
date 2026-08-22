@@ -26,6 +26,24 @@ View and logic stay apart: QML renders and animates, `ryoku-shell` (Go, in
 `ryoku/shell/ipc/`) decides. The UI asks the daemon over its socket; it does not
 embed policy.
 
+## Launching a process goes through Spawn
+
+Anything a surface starts that can end up running Quickshell (an app, a desktop
+entry, a terminal, a `qs` call, or a shell line that runs one) goes through
+`Spawn` in `Ryoku.Ui.Singletons`, never bare `Quickshell.execDetached` and never
+`DesktopEntry.execute()`. A Quickshell instance that has crashed once keeps
+`__QUICKSHELL_CRASH_INFO_FD` in its environment, naming the memfd of the config
+it came back from, and Quickshell reads that variable before it parses any
+argument: a child that inherits it relaunches the desktop instead of starting, so
+opening an app from the launcher drew a second bar and a second dock. `Spawn.run`
+unsets the handle; a declarative `Process` takes the same map as
+`environment: Spawn.env`.
+
+Each Go program that runs `qs` (`ryoku-shell`, `ryoku`, `ryostore`) clears the
+same variables from its own environment at startup, in its module's
+`crashenv.go`. Three programs, three modules, one rule: the process that spawns
+`qs` owns the hygiene, so no call site has to remember it.
+
 ## System logic is a named helper
 
 Anything with real shell logic is a `ryoku-<thing>` script in
