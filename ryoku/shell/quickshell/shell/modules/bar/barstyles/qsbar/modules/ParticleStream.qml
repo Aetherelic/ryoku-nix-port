@@ -16,28 +16,40 @@ Item {
     // live so cava (owner-refcounted) runs solely when the gap animation is on
     // screen and unfrozen.
     readonly property real audioLevel: AudioBars.active ? Math.min(1, AudioBars.energy) : 0
+    // audioLive is the difference between reacting to music and merely drifting.
+    readonly property bool audioLive: Media.playing
+
     // streamLive gates the whole animation: reduce-motion (its toggle,
     // lowPowerMode, the Power Saver profile, or Game Mode) releases cava and stops
-    // the repaint, and so does silence. ReactorLayer's LazyLoader also unloads the
-    // stream under reduce-motion, so the bar-gap animation is off (not a frozen
-    // frame) until motion resumes.
+    // the repaint. ReactorLayer's LazyLoader also unloads the stream under
+    // reduce-motion, so the bar-gap animation is off (not a frozen frame) until
+    // motion resumes.
     //
-    // Playback is part of the gate because ambient motion is not free. The
-    // per-frame canvas clear and texture upload run on every tick, and a surface
-    // that never stops being damaged keeps the compositor awake with it: measured
-    // here at 16% for the shell and 7% for Hyprland, at idle, with nothing
-    // playing. That is worst on a high-refresh panel, where the frame budget is
-    // smallest and window dragging is what visibly loses. An audio visualiser
-    // with no audio has nothing to show, so it stops instead of drifting.
-    readonly property bool streamLive: active && !Perf.reduceMotion && Media.playing
+    // With nothing playing the stream still drifts, but only where the power
+    // profile allows it (Perf.ambientMotion: Balanced and Performance yes, Saver /
+    // lowPowerMode / Game Mode no), and only at the coarse watch rate (see the
+    // Timer's interval). The cost that made this worth gating was never the motion
+    // itself: it was ambient motion running at fullMotionTick forever, because a
+    // passive sine always counts as "moving" so the existing throttle never
+    // engaged. Measured at 16% for the shell and 7% for Hyprland, idle, silent --
+    // worst on a high-refresh panel, where dragging a window is what visibly loses.
+    readonly property bool streamLive: active && !Perf.reduceMotion
+        && (root.audioLive || Perf.ambientMotion)
     onStreamLiveChanged: {
-        AudioBars.setActive(root, streamLive);
-        // Releasing the feed flattens the levels, so one more frame lands the calm
-        // state on screen rather than freezing whatever motion was mid-flight.
+        // The analyser is a separate question: there is nothing to analyse in
+        // silence, so the feed is only claimed while audio is actually playing.
+        AudioBars.setActive(root, streamLive && root.audioLive);
         if (!streamLive)
             root.requestFrame();
     }
-    Component.onCompleted: AudioBars.setActive(root, root.streamLive)
+    onAudioLiveChanged: {
+        AudioBars.setActive(root, root.streamLive && root.audioLive);
+        // Levels flatten as the feed is released, so land one calm frame rather
+        // than leaving the last loud one on screen while the drift takes over.
+        if (!root.audioLive)
+            root.requestFrame();
+    }
+    Component.onCompleted: AudioBars.setActive(root, root.streamLive && root.audioLive)
     Component.onDestruction: AudioBars.setActive(root, false)
     property int  mode:   1          // 1=stream, 2=surge, 3=bolt, 4=bolt2, 5=stream2, 6=surge2, 7=reactor, 8=quotes
     property string monitor: ""      // this bar's output (for monitor-focus pulses)
@@ -1032,7 +1044,14 @@ Item {
         // every mode paces itself: canvas.paintTick, set at the end of onPaint,
         // runs full rate only while the picture moves fast, an ambient rate while
         // it merely drifts or fades, and a coarse watch rate while the gap is dark.
-        interval: canvas.paintTick * Perf.pollFactor
+        // One clamp instead of touching all eight paintTick assignments: while
+        // silent, never repaint faster than the coarse watch rate. That is the
+        // whole cost fix. The pacing below picks a tick from what the frame drew,
+        // and a passive sine always reads as "moving", so mode 1 sat at
+        // fullMotionTick (33ms) forever and never fell back to watchTick (150ms)
+        // on its own. With audio playing the pacing is left alone.
+        interval: Math.max(canvas.paintTick,
+                           root.audioLive ? 0 : root.watchTick) * Perf.pollFactor
         repeat: true
         // Same gate as streamLive, not a second copy of it: when these drifted
         // apart the timer kept repainting a stream that had already released its

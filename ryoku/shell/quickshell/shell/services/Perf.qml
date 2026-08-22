@@ -86,6 +86,27 @@ Singleton {
     readonly property bool visualizerFrozen: lowPower || saver || gaming || audioIdle
     readonly property bool pillFrozen:       lowPower || saver || gaming || audioIdle
 
+    // Ambient motion with nothing playing: the bar's stream drifting on a passive
+    // sine when the desktop is silent. Allowed on Balanced and Performance,
+    // refused by the hard tiers, so the power profile decides it the way it
+    // decides the rest of the eye-candy.
+    //
+    // Separate from the two freeze flags above on purpose. There is never a reason
+    // to spectrum-analyse silence, so cava stops either way; drifting a few pixels
+    // is a different question, and on a machine the user has put in Performance
+    // the answer is yes. Consumers pair this with a coarse repaint rate.
+    //
+    // It is not cheap, and the number is worth writing down because it was
+    // mis-estimated once already. Measured on this hardware, silent desktop, the
+    // shell sits at 2.4% with drift refused and about 10% with it allowed at the
+    // 150ms watch rate: roughly 7.6 points of a core, continuously, and the
+    // compositor never fully idles. Coarsening the rate only helps linearly,
+    // because each repaint costs ~11ms on its own -- a full canvas clear plus a
+    // full-width texture upload. Making the frame cheap, rather than rare, is the
+    // fix that would actually pay; until then this is a deliberate, priced choice
+    // that Saver, lowPowerMode and Game Mode all decline.
+    readonly property bool ambientMotion: !(lowPower || saver || gaming)
+
     // Graceful cost knobs. Multiply a base poll interval by pollFactor: a second of
     // staleness in a stat readout is invisible, so sampling slows on battery / Saver.
     // Game Mode goes further: nobody is reading a stat readout mid-match, and each

@@ -213,9 +213,21 @@
   Measured from a fresh session with nothing playing: shell 16.2% to 1.0%,
   Hyprland 6.8% to 5.4%, cava 2 to 0. Verified against a real MPRIS source that
   both analysers still spawn, the spectrum flows, and both exit when it stops.
-- **The ambient particle stream pauses on silence.** It was ambient decor by
-  design, and the design predates anyone measuring what continuous canvas repaint
-  costs the compositor.
+- **The ambient particle stream is the power profile's call again.** It was ambient
+  decor by design, and the design predates anyone measuring what continuous canvas
+  repaint costs the compositor. Freezing it on any silence stopped it on
+  Performance and Balanced too, which read as the bar being broken. Silence now
+  freezes it only where the profile says so: Saver, lowPowerMode and Game Mode
+  refuse it, Balanced and Performance let it drift, and either way it drifts at the
+  coarse watch rate instead of the 33 ms it used to sit at forever. The analyser is
+  a separate question with a separate answer: there is nothing to spectrum-analyse
+  in silence, so cava stops on every profile.
+  Priced rather than assumed, on this hardware with a silent desktop: the shell
+  measures 2.4% with drift refused and about 10% with it allowed, so roughly 7.6
+  points of a core, chosen knowingly. Coarsening the rate only helps linearly,
+  because one repaint costs ~11 ms by itself (a full canvas clear plus a
+  full-width texture upload), so the fix that would actually pay is making the
+  frame cheap rather than rare.
 - **The system-stats panel stops waking a sleeping discrete GPU.** Its 1.5s poll
   ran `nvidia-smi` unconditionally, and that drags a runtime-suspended card back
   out of D3 (about 10 W on a hybrid laptop), so an open panel pinned the dGPU
