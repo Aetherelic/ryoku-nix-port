@@ -271,7 +271,7 @@ ShellRoot {
         if (Flags.gameMode)
             root.syncGameMode("start");
         WallIndex.refresh();
-        Devices.prewarmDisplays();
+        Devices.probeDisplays();
     }
 
     // Keep-Awake's durable inhibitor lives outside the shell so it survives a

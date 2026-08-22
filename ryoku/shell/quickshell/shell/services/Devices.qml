@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 
 // owns screen vibrance (nvibrant) + external monitor brightness (ddcutil) for
 // the mixer. persisted vibrance % = source of truth: loaded and pushed once at
@@ -20,8 +21,10 @@ Singleton {
     property var ddcMonitors: []
     property var probeOwners: []
     readonly property bool probesWanted: root.probeOwners.length > 0
-    // `ddcutil detect` is a slow i2c bus scan whose result almost never changes,
-    // so it runs once and is cached here; the sidebar never rescans on open.
+    // `ddcutil detect` walks every i2c bus (28 on a hybrid laptop, 11.5s
+    // measured) and i2c traffic on the display controller is felt as the whole
+    // session stalling, so it runs once per connector set and only when sysfs
+    // says an external display is attached.
     property bool displaysProbed: false
 
     // load saved vibrance % and apply once -> tint survives reboot. singletons
@@ -57,32 +60,35 @@ Singleton {
     function startProbes(owner) {
         if (root.probeOwners.indexOf(owner) < 0)
             root.probeOwners = root.probeOwners.concat([owner]);
-        // The monitor set is cached from the one prewarmed scan, so an open only
-        // re-reads live values (backlight here, per-monitor getvcp in the fader)
-        // and never pays for the i2c enumeration that stalled the slide.
-        if (!root.displaysProbed)
-            root.detect();
+        // An open re-reads live values only; the monitor set comes from the cache.
+        root.probeDisplays();
         root.readBacklight();
     }
 
     function stopProbes(owner) {
         root.probeOwners = root.probeOwners.filter(candidate => candidate !== owner);
-        if (!root.probesWanted) {
-            ddcDetect.running = false;
+        if (!root.probesWanted)
             blRead.running = false;
-        }
+        // ddcDetect keeps running: killing the walk left the answer unknown, so
+        // the next open started it again, and every open after that.
     }
 
-    // Prewarm the ddc monitor list once at pill start, off the sidebar's open
-    // path, so the first Super+Escape open already has its faders and no open
-    // ever triggers an i2c scan mid-animation.
-    function prewarmDisplays() {
-        if (!root.displaysProbed)
-            root.detect();
+    // Ask sysfs before ddcutil: connector status is a file read.
+    function probeDisplays() {
+        if (root.displaysProbed || connectorProbe.running || ddcDetect.running)
+            return;
+        connectorProbe.running = true;
+    }
+
+    // A connector coming or going is the one event that changes the answer.
+    function invalidateDisplays() {
+        root.displaysProbed = false;
+        root.probeDisplays();
     }
 
     function detect() {
-        ddcDetect.running = false;
+        if (ddcDetect.running)
+            return;
         ddcDetect.running = true;
     }
 
@@ -120,24 +126,48 @@ Singleton {
         Quickshell.execDetached(["brightnessctl", "set", p + "%"]);
     }
 
+    // eDP/LVDS is the backlight's business and Writeback is not an output, so
+    // neither is a reason to walk i2c.
+    Process {
+        id: connectorProbe
+        command: ["sh", "-c",
+            "for c in /sys/class/drm/*-*; do "
+            + "case \"${c##*/}\" in *eDP*|*LVDS*|*Writeback*) continue ;; esac; "
+            + "[ \"$(cat \"$c/status\" 2>/dev/null)\" = connected ] && { echo external; exit 0; }; "
+            + "done; echo panel-only"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (this.text.indexOf("external") >= 0) {
+                    root.detect();
+                    return;
+                }
+                root.ddcMonitors = [];
+                root.displaysProbed = true;
+            }
+        }
+    }
+
     Process {
         id: ddcDetect
         command: ["ddcutil", "detect", "--brief"]
         running: false
+        // Answered on exit, not on the last byte: a missing ddcutil or a refused
+        // bus must still count, or every open asks again.
+        onExited: root.displaysProbed = true
         stdout: StdioCollector {
             onStreamFinished: {
                 var mons = [];
                 var blocks = this.text.split(/\bDisplay \d+/);
-                for (var i = 0; i < blocks.length; i++) {
+                // blocks[0] is the invalid-display preamble (the internal panel
+                // among them): a fader there writes to a bus nothing answers.
+                for (var i = 1; i < blocks.length; i++) {
                     var bus = /I2C bus:\s+\/dev\/i2c-(\d+)/.exec(blocks[i]);
                     var conn = /DRM connector:\s+card\d+-(\S+)/.exec(blocks[i]);
                     if (bus)
                         mons.push({ bus: bus[1], label: conn ? conn[1] : "BUS " + bus[1] });
                 }
                 root.ddcMonitors = mons;
-                // Cache the enumeration: a completed scan (even an empty one on a
-                // lone laptop panel) means no open needs to rescan the bus.
-                root.displaysProbed = true;
             }
         }
     }
@@ -154,6 +184,20 @@ Singleton {
                 if (!isNaN(v))
                     root.backlightPct = v;
             }
+        }
+    }
+
+    // Hotplug: a display plugged in after login gets its fader without a restart.
+    readonly property var monitorEvents: ({
+        monitoradded: true, monitoraddedv2: true,
+        monitorremoved: true, monitorremovedv2: true
+    })
+
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (root.monitorEvents[event.name])
+                Qt.callLater(root.invalidateDisplays);
         }
     }
 

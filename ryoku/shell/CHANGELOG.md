@@ -201,6 +201,25 @@
   user's file alone.
 
 ### Fixed
+- **Super+Escape no longer stalls the machine while it opens.** The sidebar's
+  brightness fader asks `ddcutil detect` for the external monitor list, and that
+  walks every i2c bus on the box: 28 of them on a hybrid laptop, 11.5s on a cold
+  ddcutil cache, all of it i2c traffic on the display controller, which reads as
+  the cursor stuttering and the whole session freezing. The startup prewarm was
+  meant to keep it off the open path, but `detect()` restarted a walk that was
+  already running, closing the sidebar killed the walk, and the "already
+  enumerated" flag was only set when the output stream ended. So an open during
+  the prewarm restarted the whole walk mid-animation, and one close left the
+  answer unknown for every open after it.
+  A DRM connector read gates the walk now: `status` per connector is a file read,
+  so a machine with nothing but its own panel plugged in never touches i2c (0
+  ddcutil spawns at login and across four open/close cycles, measured). A box with
+  an external display walks the bus once per connector set, never restarted and
+  never killed, and the cached set follows Hyprland's monitor events so a display
+  plugged in after login gets its fader without a restart.
+  The parse was wrong too: `ddcutil detect` lists non-DDC displays in a preamble
+  before its first `Display N` marker, and that block counted, so the internal
+  panel came back as a second fader writing to a bus nothing answers.
 - **Opening an app from the desktop no longer draws a second desktop.** Starting
   ryowalls or ryoport from the launcher brought up a whole second shell over the
   first: two bars, two docks, two wallpapers, and one GPU paying for both.
