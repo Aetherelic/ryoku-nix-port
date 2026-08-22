@@ -100,7 +100,13 @@ func RunSetup() error {
 		reportPhase("install", "existing Hermes detected, leaving it untouched", true)
 	} else {
 		reportPhase("install", "running the official Hermes installer", true)
-		if err := runInteractive("bash", "-c", "curl -fsSL "+hermesInstallURL+" | bash"); err != nil {
+		// Not `curl | bash`: piping leaves the installer's stdin on the pipe, so
+		// its optional-package steps block on a hidden /dev/tty y/n + sudo prompt.
+		// --non-interactive skips them; --skip-browser drops the Chromium hang.
+		script := "set -e; f=$(mktemp); trap 'rm -f \"$f\"' EXIT; " +
+			"curl -fsSL " + hermesInstallURL + " -o \"$f\"; " +
+			"bash \"$f\" --non-interactive --skip-browser --skip-computer-use"
+		if err := runInteractive("bash", "-c", script); err != nil {
 			return fmt.Errorf("hermes installer: %w", err)
 		}
 	}

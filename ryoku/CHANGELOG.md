@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+- **Rashin's one-click Hermes setup no longer stalls forever at "installing
+  chrome" and "uv lock".** Setup ran the upstream installer as `curl | bash`,
+  leaving its stdin on the pipe, so its optional-package steps (Playwright
+  Chromium, whose deps helper is apt-only and hangs on Arch; and the `uv sync`
+  build tools) fell back to a hidden `/dev/tty` prompt and blocked on a y/n and a
+  sudo password the floating terminal never showed. Setup now downloads the
+  installer and runs it `--non-interactive --skip-browser --skip-computer-use`
+  (the desktop's own chromium covers the browser), and `ryoku-rashin` ships `gcc`
+  so uv's native builds work without that apt-only helper
+  (`rashin/backend/setup.go`, `release/packages/ryoku-rashin/PKGBUILD`).
+
 ### Added
 - **The screenshot tool got the upgrade it needed, and learned to pin.** ryoshot
   now carries fourteen single-key tools that remember their own colour, width and

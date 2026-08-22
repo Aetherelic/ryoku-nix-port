@@ -19,10 +19,11 @@ license=('GPL-3.0-or-later')
 # packaged), but its prerequisites ARE shipped so the install never has to
 # bootstrap a toolchain over the network and never dies with a cryptic
 # "uv lock missing": uv is the Python project/venv manager the Hermes installer
-# and runtime use, nodejs backs its browser / computer-use tools. ryoku-desktop
-# depends on ryoku-rashin, so `pacman -Syu` delivers these to existing boxes too.
-# kitty and xdg-open ship with the desktop.
-depends=('uv' 'nodejs')
+# and runtime use; gcc backs uv's occasional native dependency builds (the
+# installer's own build-tools helper is apt-only, useless on Arch); nodejs backs
+# its npm/npx tooling. ryoku-desktop depends on ryoku-rashin, so `pacman -Syu`
+# delivers these to existing boxes too. kitty and xdg-open ship with the desktop.
+depends=('uv' 'nodejs' 'gcc')
 optdepends=('sqlite: sqlite3 database introspection for the rashin agent')
 makedepends=('go')
 source=()
