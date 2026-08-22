@@ -45,20 +45,20 @@
   is too late for the crash that happens before one.
 
 ### Added
-- **Fingerprint touch-to-unlock at the in-session lock.** The qylock lock now
-  offers the same fingerprint unlock as the SDDM greeter, through a
-  self-contained `ryoku-lock` PAM service shipped under
-  `qylock/quickshell-lockscreen/assets/pam/` and loaded via
-  `PamContext.configDirectory`, so no root edit of `/etc/pam.d` is needed. The
-  stack pairs `pam_fprintd_grosshack` with `pam_unix` and ends in `pam_deny`: a
-  touch or a typed password unlocks within one PAM conversation, and if neither
-  matches the stack fails closed. The shim arms the sensor only after
-  `WlSessionLock.secure`, bounds a failed scan with a 700ms re-arm, aborts on
-  unlock, and guards against a second auth when a touch wins during the windup.
-  A Fingerprint card in Ryoku Settings (**Lockscreen**) enrolls, verifies,
-  names, and removes fingers as the login user (fprintd over its own bus, never
-  root), gated by a `~/.config/qylock/fingerprint` toggle the lock reads before
-  it offers the sensor.
+- **Fingerprint touch-to-unlock at the lock screen, sudo, and the SDDM greeter.**
+  The qylock lock unlocks with the same `pam_fprintd_grosshack` mechanism as the
+  greeter, through a self-contained `ryoku-lock` PAM service loaded via
+  `PamContext.configDirectory` (no root edit of `/etc/pam.d`): grosshack paired
+  with `pam_unix`, ending in `pam_deny`, so a touch or a typed password unlocks
+  in one conversation and neither matching fails closed. A Fingerprint card in
+  Ryoku Settings (**Lockscreen**) enrolls, verifies, names, and removes fingers
+  (fprintd over its own bus, never root), and toggles fingerprint for `sudo` and
+  the sign-in screen by injecting one `auth sufficient pam_fprintd_grosshack.so`
+  line at the top of `/etc/pam.d/{sudo,sddm}` through `pkexec` (backed up first,
+  removal deletes only that line). Arming waits for `WlSessionLock.secure`,
+  clears orphaned `fprintd-verify` before each arm, and never lets a dead
+  conversation fake a live sensor. A `~/.config/qylock/fingerprint` toggle gates
+  the lock's sensor.
 - Vendored the qylock clockwork theme (orbital and tape variants) and the
   Quickshell lockscreen under `qylock/`, trimmed to only what Ryoku ships.
 - Per-skin `preview.gif` for the Lockscreen section in Ryoku Settings: orbital

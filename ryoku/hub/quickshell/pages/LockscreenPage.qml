@@ -46,6 +46,9 @@ Item {
     readonly property string pPlay: "M8 5.4l11 6.6 -11 6.6z"
     readonly property string pChevron: "M6 9.5l6 6 6 -6"
     readonly property string pRefresh: "M21 12a9 9 0 1 1 -2.6 -6.4 M21 3v5h-5"
+    readonly property string pFingerprint: "M2 12a10 10 0 0 1 18-6 M21.8 16c.2-2 .13-5.35 0-6 M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2 M9 6.8a6 6 0 0 1 9 5.2v2 M12 10a2 2 0 0 0 -2 2c0 1.02-.1 2.51-.26 4 M14 13.12c0 2.38 0 6.38-1 8.88 M17.29 21.02c.12-.6.43-2.3.5-3.02 M8.65 22c.21-.66.45-1.32.57-2 M2 16h.01"
+    readonly property string pCheck: "M4.5 12.5l5 5L19.5 7"
+    readonly property string pX: "M6 6l12 12 M18 6L6 18"
 
     // ── sign-in keyring state (`ryoku keyring status --json`) ───────────────
     // A separate concern from the skin gallery: how the GNOME keyring unlocks at
@@ -81,15 +84,12 @@ Item {
         return parts.join("  \u00b7  ");
     }
 
-    // ── fingerprint unlock state (fprintd, live) ────────────────────────────
-    // The sensor's lock-screen counterpart of the keyring card above: whether
-    // the grosshack PAM stack offers a touch-to-unlock at the in-session lock,
-    // and enrolment kept inside Settings. Everything reads/writes fprintd as
-    // this user; nothing here touches root PAM files.
+    // ── fingerprint unlock state (fprintd, live; no root writes) ────────────
     property bool ffpEnabled: true            // ~/.config/qylock/fingerprint toggle
     property bool fdaemon: false              // fprintd service reachable
     property bool fready: false               // a device is present
-    property string fdevice: ""
+    property string fdevice: ""               // D-Bus object path
+    property string fdeviceName: ""           // human sensor name, e.g. "Synaptics Sensors"
     property var ffingers: []                 // enrolled names from fprintd
     property var fnames: ({})                 // fingerprint name -> user label map
     property bool floading: true
@@ -97,15 +97,58 @@ Item {
     property string fpending: ""              // "" | "enroll" | "verify" | "del"
     property bool foverlay: false             // the enroll/verify modal
     property string foverlayMode: ""          // "enroll" | "verify"
-    property string fstatus: ""               // live copy from fprintd output
+    property string fstatus: ""               // latest raw fprintd status token
     property string fresult: ""               // last finished action result
-    property string fterm: ""                 // accumulated terminal output
-    property int fprogress: -1                // -1 unknown, else percent
+    property string fterm: ""                 // accumulated terminal output (log strip)
+    property var foffsets: ({})               // consumed length per stream, so live
+                                              // parsing never counts a line twice
+    property int fstagesPassed: 0             // enroll-stage-passed count
+    property int fstagesTotal: 0              // num-enroll-stages; 0 = unknown
     property string fuser: Quickshell.env("USER") || "traveler"
     // naming flow after successful enroll
     property string fnewFinger: ""            // finger name just enrolled (from fprintd)
     property string fnameDraft: ""            // user's draft name for the new finger
     property bool fnaming: false              // showing the name field after enroll
+    // two-step destructive confirms; a stray click can never silently erase a
+    // print, and the armed state falls back on its own after 3s.
+    property bool frmConfirm: false           // REMOVE ALL armed
+    property string fdelConfirmFor: ""        // per-finger delete armed
+    property string fdelTarget: ""            // finger being deleted right now
+
+    // grosshack line in /etc/pam.d/{sudo,sddm}; pkexec applies/removes it.
+    property bool fpamModuleOk: false         // pam_fprintd_grosshack.so present
+    property bool fsudoOn: false              // grosshack line in /etc/pam.d/sudo
+    property bool fsddmOn: false              // grosshack line in /etc/pam.d/sddm
+    property bool fpamLoading: true
+    property bool fsudoPending: false         // an apply/remove is in flight
+    property bool fsddmPending: false
+    readonly property string fpamLine: "auth        sufficient    pam_fprintd_grosshack.so"
+
+    function fpamReload() {
+        pg.fpamLoading = true;
+        pamStatusProc.running = true;
+    }
+    function fpamToggle(target, on) {         // target: "sudo" | "sddm"
+        if (pg.fpending !== "" || pg.fsudoPending || pg.fsddmPending)
+            return;
+        pg.ferr = "";
+        var f = "/etc/pam.d/" + target;
+        var script;
+        if (on) {
+            script = "f=" + f + "; "
+                + "cp \"$f\" \"$f.ryoku-fp-bak\" 2>/dev/null; "
+                + "grep -q pam_fprintd_grosshack \"$f\" && exit 0; "
+                + "sed -i \"1i " + pg.fpamLine + "\" \"$f\"";
+        } else {
+            script = "f=" + f + "; "
+                + "cp \"$f\" \"$f.ryoku-fp-bak\" 2>/dev/null; "
+                + "sed -i '/pam_fprintd_grosshack/d' \"$f\"";
+        }
+        if (target === "sudo") pg.fsudoPending = true; else pg.fsddmPending = true;
+        pamApplyProc.target = target;
+        pamApplyProc.command = ["pkexec", "bash", "-c", script];
+        pamApplyProc.running = true;
+    }
 
     readonly property string fStatusLine: {
         if (pg.floading)
@@ -114,7 +157,7 @@ Item {
             return "fingerprint service is not running";
         if (!pg.fready)
             return "no fingerprint device found";
-        var parts = [ pg.fdevice || "sensor" ];
+        var parts = [ pg.fdeviceName || pg.fdevice || "sensor" ];
         if (pg.ffingers.length === 0)
             parts.push("no fingers enrolled yet");
         else
@@ -126,9 +169,50 @@ Item {
         return pg.fnames[finger] || finger.replace(/-/g, " ");
     }
 
+    function fheadline(mode, s) {
+        var retry = {
+            "retry-scan": I18n.tr("Scan didn't read cleanly \u2014 touch again"),
+            "swipe-too-short": I18n.tr("Too short \u2014 hold your finger on the sensor"),
+            "too-fast": I18n.tr("Too fast \u2014 slow down and press again"),
+            "finger-not-centered": I18n.tr("Center your finger on the sensor"),
+            "remove-and-retry": I18n.tr("Lift your finger, then touch again")
+        };
+        var pre = mode === "enroll" ? "enroll" : "verify";
+        if (s.indexOf(pre + "-") === 0)
+            s = s.slice(pre.length + 1);
+        if (mode === "enroll") {
+            if (s === "")
+                return I18n.tr("Touch the sensor");
+            if (s === "stage-passed")
+                return I18n.tr("Stage captured \u2014 lift and touch again");
+            if (s === "completed")
+                return I18n.tr("Enrolled");
+            if (s === "data-full")
+                return I18n.tr("Sensor storage is full");
+            if (s === "duplicate")
+                return I18n.tr("That print is already on the sensor");
+            if (s === "failed")
+                return I18n.tr("The sensor gave up \u2014 try again");
+        } else {
+            if (s === "")
+                return I18n.tr("Touch the sensor");
+            if (s === "match")
+                return I18n.tr("Match");
+            if (s === "no-match")
+                return I18n.tr("No match");
+            if (s === "failed" || s === "unknown-error")
+                return I18n.tr("Verification failed \u2014 try again");
+        }
+        if (s === "disconnected")
+            return I18n.tr("Sensor disconnected");
+        if (retry[s])
+            return retry[s];
+        return I18n.tr("Touch the sensor");
+    }
+
     property bool settOpen: false
 
-    Component.onCompleted: { pg.reload(); pg.kreload(); pg.freload(); }
+    Component.onCompleted: { pg.reload(); pg.kreload(); pg.freload(); pg.fpamReload(); }
 
     function kreload() {
         kstatusProc.running = true;
@@ -182,12 +266,15 @@ Item {
         freadProc.running = true;
         flistProc.running = true;
         fnamesReadProc.running = true;
+        pg.fpamReload();
     }
     function fparseList(text) {
         var t = text || "";
         var dev = "";
         var m = t.match(/Using\s+device\s+(\S+)/i);
         if (m) dev = m[1];
+        var dn = t.match(/on (.+?) \((?:press|swipe)\):/i);
+        pg.fdeviceName = dn ? dn[1] : "";
         var fingers = [];
         var lines = t.split("\n");
         for (var i = 0; i < lines.length; i++) {
@@ -202,6 +289,12 @@ Item {
         pg.fready = t.indexOf("Using device") !== -1 || t.indexOf("Device at") !== -1 || t.indexOf("found ") !== -1;
         pg.fdaemon = pg.fready && t.trim() !== "" && t.indexOf("no devices") === -1;
         pg.floading = false;
+        if (pg.fdaemon && !pg.floading) {
+            var stale = false;
+            for (var k in pg.fnames)
+                if (fingers.indexOf(k) === -1) { delete pg.fnames[k]; stale = true; }
+            if (stale) pg.fwriteNames();
+        }
     }
     function ftoggle(v) {
         pg.ffpEnabled = v;
@@ -225,46 +318,66 @@ Item {
         fnamesWriteProc.running = true;
         // Write happens in onStarted
     }
-    function fstartEnroll() {
+    function fopenOverlay(mode, cmd, proc) {
         pg.ferr = "";
         pg.fresult = "";
-        pg.fprogress = -1;
+        pg.fstagesPassed = 0;
+        pg.fstagesTotal = 0;
         pg.fterm = "";
         pg.fstatus = "";
-        pg.fpending = "enroll";
-        pg.foverlayMode = "enroll";
+        pg.foffsets = {};
+        pg.fpending = mode;
+        pg.foverlayMode = mode;
         pg.fnaming = false;
         pg.fnewFinger = "";
         pg.fnameDraft = "";
         pg.foverlay = true;
-        fenrollProc.command = ["fprintd-enroll"];
-        fenrollProc.running = true;
+        proc.command = cmd;
+        proc.running = true;
+    }
+    function fstartEnroll() {
+        if (pg.fpending !== "" || !pg.fdaemon || !pg.fready)
+            return;
+        pg.fopenOverlay("enroll", ["fprintd-enroll"], fenrollProc);
+        fstagesProc.running = true;
+        stagesRetry.tries = 0;
+        stagesRetry.restart();
     }
     function fstartVerify(finger) {
-        pg.ferr = "";
-        pg.fresult = "";
-        pg.fprogress = -1;
-        pg.fterm = "";
-        pg.fstatus = "";
-        pg.fpending = "verify";
-        pg.foverlayMode = "verify";
-        pg.foverlay = true;
-        var cmd = ["fprintd-verify"];
-        if (finger !== "")
-            cmd.push("-f", finger);
-        fverifyProc.command = cmd;
-        fverifyProc.running = true;
+        if (pg.fpending !== "" || !pg.fdaemon || !pg.fready)
+            return;
+        pg.fopenOverlay("verify", finger === "" ? ["fprintd-verify"] : ["fprintd-verify", "-f", finger], fverifyProc);
     }
     function fdelete(finger) {
+        if (pg.fpending !== "")
+            return;
         pg.ferr = "";
+        pg.fdelTarget = finger;
         pg.fpending = "del";
         fdelProc.command = ["fprintd-delete", pg.fuser].concat(finger ? ["-f", finger] : []);
         fdelProc.running = true;
     }
+    // pump fresh bytes of one stream; counts each stage exactly once.
+    function fpump(stream, full) {
+        full = full || "";
+        var start = pg.foffsets[stream] || 0;
+        if (full.length <= start)
+            return;
+        var chunk = full.substring(start);
+        pg.foffsets[stream] = full.length;
+        pg.fappendTerm(chunk);
+        var m, re = /(?:Enroll result|Verify result):\s*([a-z0-9-]+)/gi;
+        while ((m = re.exec(chunk)) !== null) {
+            pg.fstatus = m[1].toLowerCase();
+            if (m[1] === "enroll-stage-passed")
+                pg.fstagesPassed++;
+        }
+    }
     function fcloseOverlay() {
-        if (pg.fpending === "enroll")
+        verifyClose.stop();
+        if (fenrollProc.running)
             fenrollProc.signal(15);
-        if (pg.fpending === "verify")
+        if (fverifyProc.running)
             fverifyProc.signal(15);
         pg.fpending = "";
         pg.foverlay = false;
@@ -272,10 +385,15 @@ Item {
         pg.fstatus = "";
         pg.fresult = "";
         pg.fterm = "";
-        pg.fprogress = -1;
+        pg.fstagesPassed = 0;
+        pg.fstagesTotal = 0;
+        pg.foffsets = {};
         pg.fnaming = false;
         pg.fnewFinger = "";
         pg.fnameDraft = "";
+        // every way out of the modal lands here, so this is the one place
+        // that refreshes the finger list.
+        pg.freload();
     }
     function fappendTerm(raw) {
         var t = (raw || "").trim();
@@ -294,25 +412,21 @@ Item {
     function fsaveName() {
         if (pg.fnewFinger !== "" && pg.fnameDraft.trim() !== "") {
             pg.fnames[pg.fnewFinger] = pg.fnameDraft.trim();
-            fwriteNames();
+            pg.fwriteNames();
         }
-        pg.fnewFinger = "";
-        pg.fnameDraft = "";
-        pg.fnaming = false;
-        pg.freload();
         pg.fcloseOverlay();
     }
     function fskipName() {
         if (pg.fnewFinger !== "") {
-            var label = pg.fnewFinger.replace(/-/g, " ");
-            pg.fnames[pg.fnewFinger] = label;
-            fwriteNames();
+            pg.fnames[pg.fnewFinger] = pg.fnewFinger.replace(/-/g, " ");
+            pg.fwriteNames();
         }
-        pg.fnewFinger = "";
-        pg.fnameDraft = "";
-        pg.fnaming = false;
-        pg.freload();
         pg.fcloseOverlay();
+    }
+    readonly property var ftail: {
+        var lines = pg.fterm.trim().split("\n");
+        while (lines.length < 2) lines.unshift("");
+        return lines.slice(-2);
     }
 
     function browseStore() {
@@ -507,60 +621,148 @@ Item {
         }
         onExited: () => { pg.freload(); }
     }
+    // both streams pump through fpump (stdout carries "Enroll result:").
     Process {
         id: fenrollProc
-        stdout: StdioCollector { id: fenOut; waitForEnd: false }
-        stderr: StdioCollector { id: fenErr; waitForEnd: false; onDataChanged: pg.fappendTerm(this.text) }
+        stdout: StdioCollector { id: fenOut; waitForEnd: false; onDataChanged: pg.fpump("out", this.text) }
+        stderr: StdioCollector { id: fenErr; waitForEnd: false; onDataChanged: pg.fpump("err", this.text) }
         onExited: (code) => {
-            pg.fpending = "";
-            var t = (fenErr.text || "") + (fenOut.text || "");
+            stagesRetry.stop();
             pg.fappendTerm("\n--- " + (code === 0 ? "DONE" : "EXIT " + code) + " ---\n");
+            var t = (fenOut.text || "") + "\n" + (fenErr.text || "");
+            pg.fpending = "";
             if (/enroll-completed/i.test(t)) {
-                var m = t.match(/Enrolling\s+([a-z0-9-]+-finger)/i);
-                if (m) {
-                    pg.fnewFinger = m[1];
-                    pg.fnameDraft = m[1].replace(/-/g, " ");
+                // fprintd prints the finger key either hyphenated or spaced;
+                // normalise back to the D-Bus form fprintd-list reports.
+                var m = t.match(/Enrolling\s+\"?([a-z0-9\- ]*finger)\"?\.?/i);
+                if (m && /finger/i.test(m[1])) {
+                    pg.fnewFinger = m[1].trim().replace(/\s+/g, "-").toLowerCase();
+                    pg.fnameDraft = pg.fnewFinger.replace(/-/g, " ");
                     pg.fnaming = true;
-                    pg.fresult = "Enrollment complete. Name this fingerprint.";
+                    pg.fresult = I18n.tr("Enrollment complete. Name this fingerprint.");
                     return;
                 }
-                pg.fresult = "Fingerprint enrolled.";
+                pg.fresult = I18n.tr("Fingerprint enrolled.");
             } else if (/enroll-data-full/i.test(t)) {
-                pg.fresult = "Storage full.";
+                pg.fresult = I18n.tr("Sensor storage is full.");
+            } else if (/enroll-duplicate|enroll-failed|enroll-disconnected|enroll-unknown-error/i.test(t)) {
+                pg.fresult = I18n.tr("Enrollment did not finish \u2014 try again.");
             } else if (code !== 0) {
-                pg.fresult = code === 124 ? "Timed out." : "Enrollment stopped.";
+                pg.fresult = I18n.tr("Enrollment stopped.");
             }
             pg.freload();
+        }
+    }
+    Process {
+        id: fstagesProc
+        command: [
+            "busctl", "call", "net.reactivated.Fprint",
+            "/net/reactivated/Fprint/Device/0",
+            "org.freedesktop.DBus.Properties", "Get",
+            "ss", "net.reactivated.Fprint.Device", "num-enroll-stages"
+        ]
+        stdout: StdioCollector { id: fstagesOut }
+        onExited: (code) => {
+            var m = (fstagesOut.text || "").match(/i\s+(\d+)/);
+            if (code === 0 && m)
+                pg.fstagesTotal = parseInt(m[1]);
+        }
+    }
+    Timer {
+        id: stagesRetry
+        interval: 1500
+        property int tries: 0
+        onTriggered: {
+            if (pg.fpending !== "enroll" || pg.fstagesTotal > 0 || tries >= 3)
+                return;
+            tries++;
+            fstagesProc.running = true;
+            restart();
         }
     }
     Process {
         id: fverifyProc
-        stdout: StdioCollector { id: fverOut; waitForEnd: false }
-        stderr: StdioCollector { id: fverErr; waitForEnd: false; onDataChanged: pg.fappendTerm(this.text) }
+        stdout: StdioCollector { id: fverOut; waitForEnd: false; onDataChanged: pg.fpump("out", this.text) }
+        stderr: StdioCollector { id: fverErr; waitForEnd: false; onDataChanged: pg.fpump("err", this.text) }
         onExited: (code) => {
-            pg.fpending = "";
-            var t = (fverErr.text || "") + (fverOut.text || "");
             pg.fappendTerm("\n--- " + (code === 0 ? "MATCH" : "NO MATCH") + " ---\n");
-            if (code === 0 || /verified/i.test(t)) {
-                pg.fresult = "Fingerprint verified.";
+            pg.fpending = "";
+            var t = (fverOut.text || "") + "\n" + (fverErr.text || "");
+            // fprintd-verify can exit 0 while printing no-match on some
+            // versions; trust the status token over the exit code.
+            if (!/verify-no-match/i.test(t) && (code === 0 || /verify-match/i.test(t))) {
+                pg.fstatus = "verify-match";
+                pg.fresult = I18n.tr("Fingerprint verified.");
+                verifyClose.restart();
             } else {
-                pg.fresult = "No match.";
+                pg.fstatus = "verify-no-match";
+                pg.fresult = I18n.tr("No match.");
             }
         }
     }
+    Timer { id: verifyClose; interval: 1400; onTriggered: pg.fcloseOverlay() }
     Process {
         id: fdelProc
         stderr: StdioCollector { id: fdelErr }
         onExited: (code) => {
-            pg.fpending = "";
-            if (code !== 0)
-                pg.ferr = fdelErr.text.trim() || ("Couldn't remove the fingerprint (exit " + code + ").");
-            else if (pg.fpending === "del") {
-                // If we deleted a specific finger, remove it from names
-                // fdelete is called with the finger name, so we need to track it
-                // For simplicity, just reload names (fwriteNames cleans up missing)
+            if (code !== 0) {
+                pg.ferr = fdelErr.text.trim() || (I18n.tr("Couldn't remove the fingerprint") + " (exit " + code + ")");
+            } else {
+                // a named delete drops its label too; REMOVE ALL clears the
+                // whole map. fwriteNames is the single reload path here.
+                if (pg.fdelTarget !== "")
+                    delete pg.fnames[pg.fdelTarget];
+                else
+                    pg.fnames = {};
+                pg.fwriteNames();
             }
-            pg.freload();
+            pg.fdelTarget = "";
+            pg.frmConfirm = false;
+            pg.fdelConfirmFor = "";
+            pg.fpending = "";
+        }
+    }
+    Timer {
+        id: confirmReset
+        interval: 3000
+        onTriggered: { pg.frmConfirm = false; pg.fdelConfirmFor = ""; }
+    }
+
+    // ── grosshack elsewhere: status of /etc/pam.d/{sudo,sddm} ────────────────
+    Process {
+        id: pamStatusProc
+        command: ["bash", "-c",
+            "printf 'module='; [ -f /usr/lib/security/pam_fprintd_grosshack.so ] && echo 1 || echo 0; "
+            + "for f in sudo sddm; do printf '%s=' \"$f\"; "
+            + "grep -qs pam_fprintd_grosshack \"/etc/pam.d/$f\" && echo 1 || echo 0; done"]
+        stdout: StdioCollector { id: pamStatusOut }
+        onExited: () => {
+            var o = {};
+            (pamStatusOut.text || "").split("\n").forEach(function (line) {
+                var kv = line.split("=");
+                if (kv.length === 2) o[kv[0]] = kv[1].trim();
+            });
+            pg.fpamModuleOk = o["module"] === "1";
+            pg.fsudoOn = o["sudo"] === "1";
+            pg.fsddmOn = o["sddm"] === "1";
+            pg.fpamLoading = false;
+        }
+    }
+    Process {
+        id: pamApplyProc
+        property string target: ""
+        stderr: StdioCollector { id: pamApplyErr }
+        onExited: (code) => {
+            if (pamApplyProc.target === "sudo") pg.fsudoPending = false; else pg.fsddmPending = false;
+            if (code !== 0) {
+                var t = pamApplyProc.target === "sudo" ? I18n.tr("sudo") : I18n.tr("the sign-in screen");
+                pg.ferr = (pamApplyErr.text.trim() !== "")
+                    ? I18n.tr("Couldn't update") + " " + t + ": " + pamApplyErr.text.trim()
+                    : I18n.tr("Couldn't update") + " " + t + " (" + I18n.tr("cancelled?") + ")";
+            } else {
+                pg.ferr = "";
+            }
+            pg.fpamReload();
         }
     }
 
@@ -699,7 +901,8 @@ Item {
             anchors.leftMargin: Tokens.s4; anchors.rightMargin: Tokens.s4; anchors.topMargin: Tokens.s4
             spacing: Tokens.s2
 
-            // header with collapse chevron
+            // header with collapse chevron riding beside the title (not the
+            // far edge, where it read as decoration instead of the control)
             Row {
                 width: parent.width
                 spacing: Tokens.s2
@@ -709,31 +912,37 @@ Item {
                     color: Tokens.ink; font.family: Tokens.ui
                     font.pixelSize: Tokens.fRow; font.weight: Font.DemiBold
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - x
-                    text: pg.settOpen ? "" : (pg.kStatusLine + "  \u00b7  " + pg.fStatusLine)
-                    color: Tokens.inkMuted; font.family: Tokens.ui
-                    font.pixelSize: Tokens.fSmall; elide: Text.ElideRight
-                }
                 Glyph {
                     anchors.verticalCenter: parent.verticalCenter
                     path: pg.pChevron; size: 15; weight: 2; rotation: pg.settOpen ? 90 : -90
                     tint: Tokens.ink
                     Behavior on rotation { NumberAnimation { duration: Tokens.snap } }
                 }
+                Item { width: Tokens.s1; height: 1 }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(0, parent.width - x)
+                    text: pg.settOpen ? "" : (pg.kStatusLine + "  \u00b7  " + pg.fStatusLine)
+                    horizontalAlignment: Text.AlignRight
+                    color: Tokens.inkMuted; font.family: Tokens.ui
+                    font.pixelSize: Tokens.fSmall; elide: Text.ElideRight
+                }
+                TapHandler { onTapped: pg.settOpen = !pg.settOpen }
             }
 
-            TapHandler { onTapped: pg.settOpen = !pg.settOpen }
-
-            // collapsible content
-            Column {
+            Row {
                 visible: pg.settOpen
-                spacing: Tokens.s3
-                topPadding: Tokens.s2
+                spacing: Tokens.s5
+
+                // ── left: keyring, sensor, switches ──
+                Column {
+                    id: settingsLeft
+                    width: Math.round((settCol.width - Tokens.s5 - Tokens.border) * 0.56)
+                    spacing: Tokens.s3
 
                 // ── Keyring section ──
                 Column {
+                    width: parent.width
                     spacing: Tokens.s2
 
                     Row {
@@ -771,50 +980,321 @@ Item {
                 // hairline separator
                 Rectangle { width: parent.width; height: Tokens.border; color: Tokens.line; visible: pg.settOpen && pg.ffingers.length >= 0 }
 
-                // ── Fingerprint section ──
+                // ── fingerprint: sensor & switches ──
                 Column {
-                    visible: pg.settOpen && (pg.fdaemon || pg.floading)
+                    width: parent.width
                     spacing: Tokens.s2
 
                     Row {
                         width: parent.width
                         spacing: Tokens.s2
                         Text { text: I18n.tr("Fingerprint"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.capitalization: Font.AllUppercase; font.letterSpacing: Tokens.trackMark }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - x
+                            text: pg.fStatusLine
+                            horizontalAlignment: Text.AlignRight
+                            color: Tokens.inkFaint; font.family: Tokens.ui
+                            font.pixelSize: Tokens.fTiny; elide: Text.ElideRight
+                        }
                     }
 
-                    // toggle row
-                    Row { width: parent.width; topPadding: Tokens.s1; spacing: Tokens.s2
-                        Text { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Unlock with fingerprint"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
-                        Sw { anchors.verticalCenter: parent.verticalCenter; on: pg.ffpEnabled; onToggled: (v) => pg.ftoggle(v) }
-                        Text { anchors.verticalCenter: parent.verticalCenter; text: I18n.tr(pg.ffpEnabled ? "On \u00b7 the lock screen listens for a touch" : "Off \u00b7 password only"); color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap; width: parent.width - 200 }
+                    // sensor identity row: who is listening, and is anyone.
+                    Item {
+                        width: parent.width
+                        height: Math.max(sensorGlyph.height, sensorCol.implicitHeight)
+
+                        Glyph {
+                            id: sensorGlyph
+                            anchors { left: parent.left; top: parent.top; topMargin: 2 }
+                            path: pg.pFingerprint; size: 22; weight: 1.5
+                            tint: pg.fready ? Tokens.ink : Tokens.inkFaint
+                        }
+                        Column {
+                            id: sensorCol
+                            anchors { left: sensorGlyph.right; right: sensorRetry.visible ? sensorRetry.left : parent.right; leftMargin: Tokens.s3; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                            spacing: 2
+
+                            Text {
+                                width: parent.width
+                                text: !pg.floading ? (pg.fdeviceName || (pg.fready ? I18n.tr("Fingerprint sensor") : I18n.tr("No fingerprint sensor"))) : I18n.tr("Checking\u2026")
+                                color: pg.fready ? Tokens.ink : Tokens.inkMuted
+                                font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                width: parent.width
+                                text: {
+                                    if (pg.floading)
+                                        return "";
+                                    if (!pg.fdaemon)
+                                        return I18n.tr("The fingerprint service is not running. Enroll anyway and it will start on demand.");
+                                    if (!pg.fready)
+                                        return I18n.tr("No sensor found. Check the USB connection, then retry.");
+                                    if (pg.ffingers.length === 0)
+                                        return I18n.tr("Ready. Enroll a finger to unlock with a touch.");
+                                    return I18n.tr("Listening at the lock screen") + (pg.ffpEnabled ? "" : " \u00b7 " + I18n.tr("currently switched off"));
+                                }
+                                color: Tokens.inkDim; font.family: Tokens.ui
+                                font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                            }
+                        }
+                        Btn {
+                            id: sensorRetry
+                            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                            visible: !pg.floading && (!pg.fdaemon || !pg.fready)
+                            text: I18n.tr("RETRY"); compact: true
+                            onAct: pg.freload()
+                        }
                     }
 
-                    // enrolled fingers list
-                    Text { width: parent.width; topPadding: Tokens.s1; text: pg.fStatusLine; color: Tokens.inkDim; font.family: Tokens.mono; font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap }
+                    // hairline
+                    Rectangle { width: parent.width; height: Tokens.border; color: Tokens.lineSoft }
 
+                    // toggle: label + consequence on the left, control pinned right.
+                    Item {
+                        width: parent.width
+                        height: Math.max(toggleCol.height, tog.implicitHeight)
+                        enabled: pg.fready
+
+                        Column {
+                            id: toggleCol
+                            anchors { left: parent.left; right: tog.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                            spacing: 2
+                            Text { text: I18n.tr("Unlock with fingerprint"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                            Text {
+                                width: parent.width
+                                text: pg.ffpEnabled ? I18n.tr("The lock screen listens for a touch before asking your password")
+                                                    : I18n.tr("Password only")
+                                color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                        Sw {
+                            id: tog
+                            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                            on: pg.ffpEnabled
+                            onToggled: (v) => pg.ftoggle(v)
+                        }
+                    }
+
+                    // grosshack for sudo / sddm; root half runs via pkexec.
                     Column {
-                        spacing: Tokens.s1
+                        visible: pg.fpamModuleOk && !pg.fpamLoading
+                        width: parent.width
+                        spacing: Tokens.s2
+
+                        Rectangle { width: parent.width; height: Tokens.border; color: Tokens.lineSoft }
+
+                        Item {
+                            width: parent.width
+                            height: Math.max(sudoCol.height, sudoSw.implicitHeight)
+                            Column {
+                                id: sudoCol
+                                anchors { left: parent.left; right: sudoSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                spacing: 2
+                                Text { text: I18n.tr("Sudo"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                Text {
+                                    width: parent.width
+                                    text: I18n.tr("Touch instead of typing for admin commands")
+                                    color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                            Sw {
+                                id: sudoSw
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                opacity: pg.fsudoPending ? 0.4 : 1
+                                Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                on: pg.fsudoOn
+                                onToggled: (v) => pg.fpamToggle("sudo", v)
+                            }
+                        }
+
+                        Item {
+                            width: parent.width
+                            height: Math.max(sddmCol.height, sddmSw.implicitHeight)
+                            Column {
+                                id: sddmCol
+                                anchors { left: parent.left; right: sddmSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                spacing: 2
+                                Text { text: I18n.tr("Sign-in screen"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                Text {
+                                    width: parent.width
+                                    text: I18n.tr("Fingerprint at the greeter too (SDDM)")
+                                    color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                            Sw {
+                                id: sddmSw
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                opacity: pg.fsddmPending ? 0.4 : 1
+                                Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                on: pg.fsddmOn
+                                onToggled: (v) => pg.fpamToggle("sddm", v)
+                            }
+                        }
+
+                        // hairline
+                        Rectangle { width: parent.width; height: Tokens.border; color: Tokens.lineSoft }
+                    }
+                }
+                }
+
+                // vertical rule between the halves
+                Rectangle {
+                    width: Tokens.border
+                    height: Math.max(settingsLeft.height, settingsRight.height)
+                    color: Tokens.lineSoft
+                }
+
+                // ── right: the enrolled prints ──
+                Column {
+                    id: settingsRight
+                    width: settCol.width - settingsLeft.width - Tokens.s5 * 2 - Tokens.border
+                    spacing: Tokens.s2
+
+                    Row {
+                        width: parent.width
+                        spacing: Tokens.s2
+                        Text { text: I18n.tr("Prints"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.capitalization: Font.AllUppercase; font.letterSpacing: Tokens.trackMark }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.max(0, parent.width - x)
+                            horizontalAlignment: Text.AlignRight
+                            text: pg.fpending === "enroll" ? I18n.tr("ENROLLING\u2026") : (pg.floading ? I18n.tr("Checking\u2026") : "")
+                            color: Tokens.inkFaint; font.family: Tokens.ui
+                            font.pixelSize: Tokens.fTiny; elide: Text.ElideRight
+                        }
+                    }
+                    Text {
+                        width: parent.width
+                        visible: !pg.floading && pg.ffingers.length === 0
+                        text: I18n.tr("No prints yet. Enroll one below and it will show up here.")
+                        color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                        wrapMode: Text.WordWrap
+                    }
+
+                    // enrolled fingers: one quiet row each, delete behind an
+                    // armed second click so nothing vanishes on a stray tap.
+                    Column {
+                        id: fingerList
+                        width: parent.width
+                        visible: pg.ffingers.length > 0
+                        spacing: 0
+
                         Repeater {
                             model: pg.ffingers
-                            delegate: Row {
-                                width: parent.width
-                                spacing: Tokens.s2
-                                Text { width: 160; text: pg.ffriendly(modelData); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
-                                Text { width: 100; text: modelData; color: Tokens.inkDim; font.family: Tokens.mono; font.pixelSize: Tokens.fSmall }
-                                Btn { text: I18n.tr("VERIFY"); compact: true; onAct: pg.fstartVerify(modelData); armed: pg.fpending === "" && pg.fdaemon && pg.fready }
-                                Btn { text: "\u2715"; compact: true; onAct: pg.fdelete(modelData); armed: pg.fpending === "" }
+                            delegate: Rectangle {
+                                id: fingerRow
+                                required property var modelData
+                                required property int index
+                                readonly property bool armDel: pg.fdelConfirmFor === modelData
+                                width: fingerList.width
+                                height: 34
+                                color: delHover.hovered ? Tokens.tint5 : "transparent"
+                                Behavior on color { ColorAnimation { duration: Tokens.snap } }
+
+                                Text {
+                                    id: fingerName
+                                    anchors { left: parent.left; leftMargin: Tokens.s2; verticalCenter: parent.verticalCenter }
+                                    width: Math.min(220, fingerRow.width - 230)
+                                    text: pg.ffriendly(fingerRow.modelData)
+                                    color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    anchors { left: fingerName.right; leftMargin: Tokens.s3; right: fingerActions.left; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                                    text: fingerRow.modelData
+                                    color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
+                                    elide: Text.ElideRight
+                                }
+                                Row {
+                                    id: fingerActions
+                                    anchors { right: parent.right; rightMargin: Tokens.s2; verticalCenter: parent.verticalCenter }
+                                    spacing: Tokens.s2
+                                    Btn {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: I18n.tr("VERIFY"); compact: true
+                                        armed: pg.fpending === "" && pg.fdaemon && pg.fready
+                                        onAct: pg.fstartVerify(fingerRow.modelData)
+                                    }
+                                    Btn {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: fingerRow.armDel ? I18n.tr("SURE?") : "\u2715"
+                                        compact: true
+                                        armed: pg.fpending === "" && pg.ffingers.length > 0
+                                        onAct: {
+                                            if (fingerRow.armDel) {
+                                                confirmReset.stop();
+                                                pg.fdelete(fingerRow.modelData);
+                                            } else {
+                                                pg.frmConfirm = false;
+                                                pg.fdelConfirmFor = fingerRow.modelData;
+                                                confirmReset.restart();
+                                            }
+                                        }
+                                    }
+                                }
+                                HoverHandler { id: delHover; cursorShape: Qt.ArrowCursor }
+                                // hairline between rows, never after the last
+                                Rectangle {
+                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                                    height: Tokens.border; color: Tokens.lineSoft
+                                    visible: fingerRow.index < pg.ffingers.length - 1
+                                }
                             }
                         }
                     }
 
-                    // actions row
-                    Row { topPadding: Tokens.s2; spacing: Tokens.s2
-                        Btn { text: pg.fpending === "" ? I18n.tr("ENROLL FINGERPRINT") : I18n.tr("ENROLLING\u2026"); armed: pg.fpending === "" && pg.fdaemon && pg.fready; onAct: pg.fstartEnroll() }
-                        Btn { text: I18n.tr("VERIFY ANY"); compact: true; armed: pg.fpending === "" && pg.fdaemon && pg.fready && pg.ffingers.length > 0; onAct: pg.fstartVerify("") }
-                        Btn { text: pg.fpending === "confirm" ? I18n.tr("CONFIRM - REMOVE ALL") : I18n.tr("REMOVE ALL"); compact: true; armed: pg.ffingers.length > 0; onAct: { if (pg.fpending === "confirm") { pg.fdelete(""); pg.fpending = ""; } else { pg.fpending = "confirm"; } } }
+                    // actions
+                    Column {
+                        width: parent.width
+                        topPadding: Tokens.s1
+                        spacing: Tokens.s2
+
+                        Btn {
+                            width: parent.width
+                            text: pg.fpending === "enroll" ? I18n.tr("ENROLLING\u2026") : I18n.tr("ENROLL FINGERPRINT")
+                            primary: true
+                            armed: pg.fpending === "" && pg.fdaemon && pg.fready
+                            onAct: pg.fstartEnroll()
+                        }
+                        Row {
+                            spacing: Tokens.s2
+                            Btn {
+                                text: pg.fpending === "verify" ? I18n.tr("VERIFYING\u2026") : I18n.tr("VERIFY")
+                                compact: true
+                                armed: pg.fpending === "" && pg.fdaemon && pg.fready && pg.ffingers.length > 0
+                                onAct: pg.fstartVerify("")
+                            }
+                            Btn {
+                                text: pg.frmConfirm ? I18n.tr("CONFIRM \u00b7 REMOVE ALL") : I18n.tr("REMOVE ALL")
+                                compact: true
+                                armed: pg.ffingers.length > 0 && pg.fpending === ""
+                                onAct: {
+                                    if (pg.frmConfirm) {
+                                        confirmReset.stop();
+                                        pg.fdelete("");
+                                    } else {
+                                        pg.fdelConfirmFor = "";
+                                        pg.frmConfirm = true;
+                                        confirmReset.restart();
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    Text { width: parent.width; visible: pg.ferr !== ""; topPadding: Tokens.s1; text: pg.ferr; color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.Medium; wrapMode: Text.WordWrap }
+                    Text {
+                        width: parent.width
+                        visible: pg.ferr !== ""
+                        topPadding: Tokens.s1
+                        text: pg.ferr
+                        color: Tokens.ink; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall; font.weight: Font.Medium; wrapMode: Text.WordWrap
+                    }
                 }
             }
         }
@@ -1179,168 +1659,317 @@ Item {
         TapHandler { onTapped: if (!tile.active && !tile.busy) tile.applied() }
     }
 
-    // ── enroll/verify modal: mini terminal ──────────────────────────────────
-    Rectangle {
-        id: fovl
+    component FpRing: Item {
+        id: ring
+        property real frac: 0            // 0..1 once the total is known
+        property bool spin: false        // indeterminate until num-stages lands
+        implicitWidth: 108
+        implicitHeight: 108
+
+        // track
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            antialiasing: true
+            ShapePath {
+                strokeColor: Tokens.lineSoft
+                strokeWidth: 3
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                PathAngleArc { centerX: 54; centerY: 54; radiusX: 48; radiusY: 48; startAngle: 90; sweepAngle: 360 }
+            }
+        }
+        // progress; hidden while spinning so the sweep never lies
+        Shape {
+            anchors.fill: parent
+            visible: !ring.spin
+            preferredRendererType: Shape.CurveRenderer
+            antialiasing: true
+            ShapePath {
+                strokeColor: Tokens.ink
+                strokeWidth: 3
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                PathAngleArc {
+                    centerX: 54; centerY: 54; radiusX: 48; radiusY: 48; startAngle: 90
+                    sweepAngle: Math.max(2, ring.frac * 358)
+                    Behavior on sweepAngle { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
+                }
+            }
+        }
+        RotationAnimator on rotation {
+            from: 0; to: 360; duration: 1100
+            loops: Animation.Infinite; running: ring.spin
+        }
+    }
+
+    // modal view-state helpers, kept here so bindings below stay readable.
+    readonly property bool fbusy: pg.fpending === "enroll" || pg.fpending === "verify"
+    readonly property bool fmatchWin: pg.fstatus === "verify-match"
+    readonly property real fringFrac: pg.fstagesTotal > 0 ? Math.min(1, pg.fstagesPassed / pg.fstagesTotal) : 0
+
+    MouseArea {
         anchors.fill: parent
+        enabled: pg.foverlay
         visible: pg.foverlay
-        opacity: visible ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: Tokens.swap; easing.type: Tokens.ease } }
-        color: Qt.rgba(0, 0, 0, 0.6)
+        z: 998
+        // an outside click only dismisses when nothing is running: mid-enroll
+        // it would silently throw away every captured stage.
+        onClicked: { if (!pg.fbusy && !pg.fnaming) pg.fcloseOverlay() }
+    }
+
+    Rectangle {
+        id: fplate
+        anchors.centerIn: parent
+        visible: pg.foverlay
         z: 999
-        MouseArea { anchors.fill: parent; onClicked: (m) => { m.accepted = true; } }
+        width: Math.min(parent.width - Tokens.s6 * 2, 420)
+        height: 368
+        radius: Tokens.radius
+        color: Tokens.paperLift
+        border.width: Tokens.border
+        border.color: Tokens.lineStrong
+        focus: true
+        Keys.onEscapePressed: pg.fcloseOverlay()
 
-        Item {
-            anchors.centerIn: parent
-            width: Math.min(parent.width - Tokens.s6 * 2, 520)
-            height: 340
+        Column {
+            id: fbodyCol
+            anchors.fill: parent
+            anchors.margins: Tokens.s5
+            spacing: Tokens.s4
 
-            Rectangle {
-                id: plate
-                anchors.fill: parent
-                radius: Tokens.radius
-                color: "#1a1a1a"
-                border.width: 1
-                border.color: "#333"
-                clip: true
+            // header: eyebrow + close
+            Item {
+                width: parent.width
+                height: 16
+                Text {
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    text: pg.fnaming ? I18n.tr("NAME THIS PRINT")
+                        : (pg.foverlayMode === "enroll" ? I18n.tr("ENROLLMENT") : I18n.tr("VERIFY"))
+                    color: Tokens.inkFaint; font.family: Tokens.ui
+                    font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
+                    font.letterSpacing: Tokens.trackMark
+                }
+                // close: a real hit area, not a bare glyph
+                Item {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    width: 28; height: 28
+                    Glyph {
+                        anchors.centerIn: parent
+                        path: pg.pX; size: 13; weight: 2
+                        tint: fpCloseMa.hovered ? Tokens.ink : Tokens.inkMuted
+                        Behavior on tint { ColorAnimation { duration: Tokens.snap } }
+                    }
+                    HoverHandler { id: fpCloseMa; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: pg.fcloseOverlay() }
+                }
+            }
 
+            // body: ring + readout + guidance, or the naming step
+            Item {
+                width: parent.width
+                height: fplate.height - Tokens.s5 * 2 - 16 - logCol.height - footRow.height - Tokens.s4 * 3
+
+                // live enroll: ring fills stage by stage
                 Column {
-                    anchors.fill: parent
-                    anchors.margins: 0
-                    spacing: 0
+                    anchors.centerIn: parent
+                    visible: pg.foverlayMode === "enroll" && !pg.fnaming
+                    spacing: Tokens.s3
 
-                    // title bar
-                    Rectangle {
-                        width: parent.width
-                        height: 32
-                        color: "#222"
-                        Row {
-                            anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: Tokens.s3 }
-                            spacing: Tokens.s2
-                            Rectangle { width: 6; height: 6; radius: 3; color: pg.fpending !== "" ? "#4ade80" : "#666" }
-                            Text {
-                                text: pg.foverlayMode === "enroll" ? "fprintd-enroll" : "fprintd-verify"
-                                color: "#888"; font.family: Tokens.mono
-                                font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter
-                            }
+                    Item {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 108; height: 108
+                        FpRing {
+                            anchors.fill: parent
+                            visible: pg.fstatus !== "enroll-completed"
+                            frac: pg.fringFrac
+                            spin: pg.fstagesTotal === 0 && pg.fpending === "enroll"
                         }
-                        // close button
+                        Glyph {
+                            anchors.centerIn: parent
+                            visible: pg.fstatus === "enroll-completed"
+                            path: pg.pCheck; size: 44; weight: 2.2; tint: Tokens.ink
+                        }
                         Text {
-                            anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Tokens.s3 }
-                            text: "x"; color: closeMa.containsMouse ? "#fff" : "#666"
-                            font.family: Tokens.mono; font.pixelSize: 12; font.bold: true
-                            MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; onClicked: pg.fcloseOverlay() }
+                            anchors.centerIn: parent
+                            visible: pg.fstatus !== "enroll-completed" && pg.fstagesTotal > 0
+                            text: pg.fstagesPassed + "/" + pg.fstagesTotal
+                            color: Tokens.ink; font.family: Tokens.mono; font.pixelSize: Tokens.fValue
                         }
                     }
-
-                    // terminal output
-                    Flickable {
-                        id: termScroll
+                    Text {
+                        width: 300
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: pg.fheadline("enroll", pg.fstatus)
+                        color: Tokens.ink; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fRow; font.weight: Font.DemiBold
+                    }
+                    Text {
                         width: parent.width
-                        height: parent.height - 32 - (namingCol.visible ? namingCol.height : 0) - 40
-                        clip: true
-                        contentHeight: termText.implicitHeight + Tokens.s3 * 2
-                        contentY: Math.max(0, contentHeight - height)
-                        flickableDirection: Flickable.VerticalFlick
-                        interactive: contentHeight > height
-                        boundsBehavior: Flickable.StopAtBounds
+                        horizontalAlignment: Text.AlignHCenter
+                        text: pg.fstatus === "" ? I18n.tr("Each pass fills the ring \u2014 keep touching until it closes")
+                                                : (pg.fdeviceName !== "" ? pg.fdeviceName : "")
+                        color: Tokens.inkDim; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall
+                        elide: Text.ElideRight
+                    }
+                }
 
-                        Text {
-                            id: termText
-                            width: parent.width
-                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Tokens.s3 }
-                            text: pg.fterm !== "" ? pg.fterm : "Waiting for sensor\u2026\n"
-                            color: "#ccc"; font.family: Tokens.mono
-                            font.pixelSize: 11; wrapMode: Text.WordWrap
-                            textFormat: Text.PlainText
+                // verify: spin while scanning, then the verdict
+                Column {
+                    anchors.centerIn: parent
+                    visible: pg.foverlayMode === "verify"
+                    spacing: Tokens.s3
+
+                    Item {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 108; height: 108
+                        FpRing {
+                            anchors.fill: parent
+                            visible: pg.fpending === "verify"
+                            frac: 0
+                            spin: true
                         }
-
-                        // auto-scroll to bottom on new content
-                        Connections {
-                            target: pg
-                            function onFtermChanged() {
-                                termScroll.contentY = Math.max(0, termScroll.contentHeight - termScroll.height)
-                            }
+                        Glyph {
+                            anchors.centerIn: parent
+                            visible: pg.fpending !== "verify" && pg.fmatchWin
+                            path: pg.pCheck; size: 44; weight: 2.2; tint: Tokens.ink
                         }
-
-                        // scrollbar track
-                        Rectangle {
-                            anchors.right: parent.right; anchors.rightMargin: 2
-                            width: 4; height: parent.height; radius: 2; color: "#333"
-                            visible: termScroll.contentHeight > termScroll.height
-                            Rectangle {
-                                width: parent.width
-                                height: Math.max(20, parent.height * termScroll.height / termScroll.contentHeight)
-                                radius: 2; color: "#555"
-                                y: termScroll.contentY * parent.height / termScroll.contentHeight
-                            }
+                        Glyph {
+                            anchors.centerIn: parent
+                            visible: pg.fpending !== "verify" && !pg.fmatchWin
+                            path: pg.pX; size: 40; weight: 2.2; tint: Tokens.ink
                         }
                     }
-
-                    // naming step after enroll
-                    Column {
-                        id: namingCol
-                        width: parent.width
-                        visible: pg.fnaming
-                        padding: Tokens.s3
-                        spacing: Tokens.s2
-                        Rectangle {
-                            width: parent.width; height: 1; color: "#333"
-                        }
-                        Text { width: parent.width; text: "Name this fingerprint"; color: "#888"; font.family: Tokens.mono; font.pixelSize: 10 }
-                        Rectangle {
-                            width: parent.width; height: 28; radius: 4; color: "#222"; border.width: 1; border.color: "#444"
-                            TextInput {
-                                anchors.fill: parent; anchors.leftMargin: Tokens.s3; anchors.rightMargin: Tokens.s3; verticalAlignment: TextInput.AlignVCenter
-                                color: "#ddd"; font.family: Tokens.mono; font.pixelSize: 11
-                                text: pg.fnameDraft
-                                onTextChanged: pg.fnameDraft = text
-                                onAccepted: pg.fsaveName()
-                                focus: true
-                            }
-                        }
-                        Row { spacing: Tokens.s2
-                            Btn { text: "SAVE"; onAct: pg.fsaveName() }
-                            Btn { text: "SKIP"; compact: true; onAct: pg.fskipName() }
-                        }
+                    Text {
+                        width: 300
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: pg.fheadline("verify", pg.fstatus)
+                        color: Tokens.ink; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fRow; font.weight: Font.DemiBold
                     }
-
-                    // bottom bar
-                    Rectangle {
+                    Text {
                         width: parent.width
-                        height: 40
-                        color: "#222"
-                        Row {
-                            anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: Tokens.s3 }
-                            spacing: Tokens.s2
-                            Text {
-                                visible: pg.fpending !== ""
-                                color: "#4ade80"; font.family: Tokens.mono; font.pixelSize: 10
-                                text: "\u25cf"
-                                SequentialAnimation on opacity {
-                                    loops: Animation.Infinite; running: pg.fpending !== ""
-                                    NumberAnimation { from: 1; to: 0.3; duration: 600 }
-                                    NumberAnimation { from: 0.3; to: 1; duration: 600 }
-                                }
-                            }
-                            Text {
-                                visible: pg.fpending !== ""
-                                color: "#666"; font.family: Tokens.mono; font.pixelSize: 10
-                                text: pg.foverlayMode === "enroll" ? "Touch sensor to enroll" : "Touch sensor to verify"
-                            }
-                            Text {
-                                visible: pg.fpending === "" && pg.fresult !== ""
-                                color: "#888"; font.family: Tokens.mono; font.pixelSize: 10
-                                text: pg.fresult
-                            }
-                        }
-                        Btn {
-                            anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Tokens.s3 }
-                            text: pg.fpending !== "" ? "ABORT" : "CLOSE"
-                            onAct: pg.fcloseOverlay()
+                        horizontalAlignment: Text.AlignHCenter
+                        visible: pg.fpending === "verify" && pg.ffingers.length > 0
+                        text: I18n.tr("Comparing against") + " " + (pg.ffingers.length === 1 ? I18n.tr("one enrolled finger") : pg.ffingers.length + " " + I18n.tr("enrolled fingers"))
+                        color: Tokens.inkDim; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall
+                    }
+                }
+
+                // naming step: the print exists, give it a label
+                Column {
+                    anchors.centerIn: parent
+                    visible: pg.fnaming
+                    spacing: Tokens.s2
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: I18n.tr("Enrolled. Name it so the list stays readable.")
+                        color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                    }
+                    Field {
+                        id: nameField
+                        width: parent.width
+                        text: pg.fnameDraft
+                        placeholder: I18n.tr("e.g. right index")
+                        onEdited: (v) => pg.fnameDraft = v
+                        onAccepted: pg.fsaveName()
+                    }
+                    Connections {
+                        target: pg
+                        function onFnamingChanged() {
+                            if (pg.fnaming)
+                                nameField.grabFocus()
                         }
                     }
                 }
+            }
+
+            // log strip: the raw conversation, demoted but not gone
+            Column {
+                id: logCol
+                width: parent.width
+                spacing: 3
+                Rectangle { width: parent.width; height: Tokens.border; color: Tokens.lineSoft }
+                Text {
+                    width: parent.width
+                    text: pg.ftail[0]
+                    color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
+                    elide: Text.ElideRight
+                }
+                Text {
+                    width: parent.width
+                    text: pg.ftail[1] || " "
+                    color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
+                    elide: Text.ElideRight
+                }
+            }
+
+            // footer: state word left, actions right. Every mode of the modal
+            // resolves from this one row: abort a running scan, save/skip a
+            // fresh print, close a finished one.
+            Item {
+                id: footRow
+                width: parent.width
+                height: 32
+                Row {
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    spacing: Tokens.s2
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 6; height: 6; radius: 3
+                        color: Tokens.ink
+                        visible: pg.fbusy
+                        SequentialAnimation on opacity {
+                            loops: Animation.Infinite; running: pg.fbusy
+                            NumberAnimation { from: 1; to: 0.25; duration: 600 }
+                            NumberAnimation { from: 0.25; to: 1; duration: 600 }
+                        }
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.min(240, fplate.width - 170)
+                        text: pg.fbusy ? (pg.fpending === "enroll" ? I18n.tr("Enrolling") : I18n.tr("Verifying")) : pg.fresult
+                        color: Tokens.inkDim; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
+                        elide: Text.ElideRight
+                    }
+                }
+                Row {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    spacing: Tokens.s2
+                    Btn {
+                        visible: pg.fnaming
+                        text: I18n.tr("SKIP"); compact: true
+                        armed: pg.fnameDraft.trim() === ""
+                        onAct: pg.fskipName()
+                    }
+                    Btn {
+                        visible: pg.fnaming
+                        text: I18n.tr("SAVE"); compact: true
+                        primary: true
+                        armed: pg.fnameDraft.trim() !== ""
+                        onAct: pg.fsaveName()
+                    }
+                    Btn {
+                        visible: !pg.fnaming
+                        text: pg.fbusy ? I18n.tr("ABORT") : I18n.tr("CLOSE")
+                        compact: true
+                        onAct: pg.fcloseOverlay()
+                    }
+                }
+            }
+        }
+
+        Connections {
+            target: pg
+            function onFoverlayChanged() {
+                if (pg.foverlay)
+                    fplate.forceActiveFocus()
             }
         }
     }
