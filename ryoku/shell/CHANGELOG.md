@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+- **Light themes are legible again.** Muted and faint text used the Material
+  `outline`/`outlineVariant` roles (light greys that wash out on a light surface),
+  so a white wallpaper left the launcher, Hub and terminal barely readable. The
+  ink ramp now derives muted and faint from on-surface-variant at reduced opacity
+  so text holds contrast in both modes; fish's comment and autosuggestion colours
+  move off outline too. Confirmed against caelestia and dusky (never outline for text).
+
 ### Added
 - **A browser palette host lands the wallpaper scheme in Firefox and Chromium.**
   `ryoku-shell browser-host` is a WebExtension native-messaging host that streams

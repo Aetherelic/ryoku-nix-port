@@ -47,18 +47,19 @@ Singleton {
     readonly property color defaultPaperLift: "#0a0a0a"
     readonly property color defaultInk: "#cdc4ba"
     readonly property color defaultInkDim: "#b0a9a0"
-    readonly property color defaultInkMuted: "#958f87"
-    readonly property color defaultInkFaint: "#7a756e"
 
     // ── paper ────────────────────────────────────────────────────────────
     readonly property color paper: role("surface", defaultPaper)
     readonly property color paperLift: role("surfaceContainerLow", defaultPaperLift)
 
     // ── ink, on paper ────────────────────────────────────────────────────
+    // Text uses the Material on-surface roles so it inverts with the palette; muted
+    // and faint are the secondary role at reduced opacity, so they stay legible on a
+    // light surface too (never the outline roles, which wash out on white).
     readonly property color ink: role("onSurface", defaultInk)
     readonly property color inkDim: role("onSurfaceVariant", defaultInkDim)
-    readonly property color inkMuted: role("outline", defaultInkMuted)
-    readonly property color inkFaint: role("outlineVariant", defaultInkFaint)
+    readonly property color inkMuted: Qt.rgba(inkDim.r, inkDim.g, inkDim.b, 0.78)
+    readonly property color inkFaint: Qt.rgba(inkDim.r, inkDim.g, inkDim.b, 0.55)
 
     // ── bone stock (inverted): the Material inverse-surface pair, so the light
     // plate and its dark ink keep contrast on a light OR dark theme ───────────
