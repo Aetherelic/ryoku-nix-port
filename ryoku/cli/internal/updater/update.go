@@ -3,6 +3,7 @@ package updater
 import (
 	"bufio"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"ryoku-cli/internal/sys"
 	"strings"
 	"syscall"
+	"text/tabwriter"
 	"time"
 )
 
@@ -500,7 +502,102 @@ func Snapshots() error {
 	if !sys.Has("snapper") {
 		return fmt.Errorf("snapper is not installed")
 	}
-	return sys.Sudo("snapper", "-c", snapperConfig, "list")
+	if !sys.Exists("/etc/snapper/configs/root") {
+		fmt.Println("Snapshots are not configured on this machine.")
+		fmt.Println("Enable them with: ryoku doctor")
+		return nil
+	}
+	// Prime sudo on the terminal (it may prompt), then capture without a tty so
+	// the parse below gets clean CSV instead of a password prompt in the output.
+	_ = sys.Run("sudo", "-v")
+	out, err := sys.RunOut("sudo", "-n", "snapper", "-c", snapperConfig, "--csvout",
+		"list", "--columns", "number,type,date,description,cleanup")
+	if err != nil {
+		// fall back to snapper's own table rather than showing nothing.
+		return sys.Sudo("snapper", "-c", snapperConfig, "list")
+	}
+	printSnapshotTable(parseSnapshotRows(out))
+	return nil
+}
+
+// snapshotRow is one parsed line of `snapper --csvout list`.
+type snapshotRow struct {
+	number      string
+	kind        string // pre | post | single
+	date        string
+	description string
+	cleanup     string
+}
+
+// parseSnapshotRows parses the CSV list, dropping the header and base snapshot 0.
+func parseSnapshotRows(out string) []snapshotRow {
+	var rows []snapshotRow
+	r := csv.NewReader(strings.NewReader(out))
+	r.FieldsPerRecord = -1
+	records, err := r.ReadAll()
+	if err != nil {
+		return rows
+	}
+	for _, rec := range records {
+		if len(rec) < 5 {
+			continue
+		}
+		num := strings.TrimSpace(rec[0])
+		if num == "" || num == "number" || num == "0" {
+			continue
+		}
+		rows = append(rows, snapshotRow{
+			number:      num,
+			kind:        strings.TrimSpace(rec[1]),
+			date:        strings.TrimSpace(rec[2]),
+			description: strings.TrimSpace(rec[3]),
+			cleanup:     strings.TrimSpace(rec[4]),
+		})
+	}
+	return rows
+}
+
+// printSnapshotTable shows the snapshots plus a count and boot-menu footer.
+func printSnapshotTable(rows []snapshotRow) {
+	if len(rows) == 0 {
+		fmt.Println("No snapshots yet. `ryoku update` takes one before each update.")
+		return
+	}
+	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+	fmt.Fprintln(w, "#\tTYPE\tDATE\tCLEANUP\tDESCRIPTION")
+	for _, s := range rows {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.number, s.kind, s.date, orDash(s.cleanup), orDash(s.description))
+	}
+	w.Flush()
+
+	boot := "no (run: ryoku doctor)"
+	if snapshotsInBootMenu() {
+		boot = "yes"
+	}
+	fmt.Println()
+	if free := rootFree(); free != "" {
+		fmt.Printf("%d snapshots \u00b7 %s free on / \u00b7 boot menu: %s\n", len(rows), free, boot)
+	} else {
+		fmt.Printf("%d snapshots \u00b7 boot menu: %s\n", len(rows), boot)
+	}
+	fmt.Println("Restore one from the Limine \"Snapshots\" boot menu, or: ryoku rollback <#>")
+}
+
+// snapshotsInBootMenu reports whether limine-snapper-sync is in place to list
+// snapshots in the Limine boot menu (Ryoku's only supported restore path).
+func snapshotsInBootMenu() bool {
+	return sys.PkgInstalled("limine") &&
+		sys.PkgInstalled("limine-snapper-sync") &&
+		sys.UnitEnabled("limine-snapper-sync.service")
+}
+
+// rootFree is the human-readable free space on /, or "" when statfs fails.
+func rootFree() string {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs("/", &st); err != nil {
+		return ""
+	}
+	return humanBytes(st.Bavail * uint64(st.Bsize))
 }
 
 func Status(args []string) error {
@@ -759,6 +856,10 @@ func snapperPost(pre, desc string) {
 	}
 	_ = sys.Sudo("snapper", "-c", snapperConfig, "create",
 		"-t", "post", "--pre-number", pre, "-c", "number", "-d", desc)
+	// Prune here, on the path every update takes: snapper-cleanup.timer is
+	// unreliable (its service is coupled to limine-snapper-sync), so without
+	// this the pile grows unbounded. best-effort.
+	_ = sys.Sudo("snapper", "-c", snapperConfig, "cleanup", "number")
 }
 
 // hyprPauseAutoreload stops Hyprland reloading the Lua config mid-swap, so a

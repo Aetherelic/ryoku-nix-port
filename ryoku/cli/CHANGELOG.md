@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Added
+- **Snapshots stop piling up unbounded.** Pruning ran only through
+  `snapper-cleanup.timer` -> `snapper-cleanup.service`, whose success is coupled
+  to `limine-snapper-sync` (its `ExecStopPost`); when that broke nothing was
+  pruned and every `ryoku update` and pacman transaction left another
+  unremovable snapshot pair, filling disks with hundreds of GB. `ryoku update`
+  now runs `snapper cleanup number` inline after the post snapshot, and a new
+  `snapshot cleanup` doctor reconciler keeps `snapper-cleanup.timer` enabled,
+  `snapper-timeline.timer` disabled (Ryoku prunes by number only), and batch
+  deletes leaked `Cleanup=timeline` snapshots under a number-only config
+  (`internal/updater/update.go`, `internal/doctor/reconcile_snapshots.go`).
+- **`ryoku snapshots` shows a table, not a dump.** Aligned columns (number,
+  type, date, cleanup, description) with a footer for the count, free space, and
+  whether the snapshots are in the Limine boot menu, in place of raw `snapper
+  list`. A `updatedb snapshot prune` reconciler also stops `plocate` indexing
+  `/.snapshots` (`internal/doctor/reconcile_snapshots.go`).
 - **Flatpak works out of the box, and its apps update with everything else.**
   Ryoku already shipped the `flatpak` client in `base.packages`, which means it
   is in the ISO's offline closure and installs with no network. What it never
