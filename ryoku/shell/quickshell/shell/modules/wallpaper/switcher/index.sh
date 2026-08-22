@@ -1,7 +1,8 @@
 #!/bin/sh
 # Wallpaper index for the switcher overlay. One thumbnail and one dominant-colour
-# reading per wallpaper, for images (~/Pictures/Wallpapers) and videos
-# (~/Pictures/livewalls) alike, printed as TSV for the Walls singleton:
+# reading per wallpaper. Both ~/Pictures/Wallpapers and ~/Pictures/livewalls are
+# drop-and-go: every file is classified by its own extension (image or video),
+# so either folder takes either kind. Printed as TSV for the Walls singleton:
 #
 #   type<TAB>mtime<TAB>path<TAB>thumb<TAB>hue<TAB>sat<TAB>preview
 #
@@ -37,7 +38,7 @@ if [ "$1" = "--previews" ]; then
     exec 9>"$cache/.preview.lock"
     flock -n 9 || exit 0
     n=0
-    for src in "$livedir"/*; do
+    for src in "$wpdir"/* "$livedir"/*; do
         case "$src" in *.mp4 | *.webm | *.mkv | *.MP4 | *.WEBM | *.MKV) ;; *) continue ;; esac
         [ -e "$src" ] || continue
         prev="$cache/$(basename "$src").preview.mp4"
@@ -91,13 +92,12 @@ emit() {
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$kind" "$mtime" "$src" "$thumb" "${hue:-0}" "${sat:-0}" "$prev"
 }
 
-for src in "$wpdir"/*; do
+# Both folders are drop-and-go: each file is classified by its own extension, so
+# a clip dropped in Wallpapers is a live wallpaper and a still in livewalls is an
+# image. livewalls stays for anyone who sorts their clips there.
+for src in "$wpdir"/* "$livedir"/*; do
     case "$src" in
     *.jpg | *.jpeg | *.png | *.webp | *.JPG | *.JPEG | *.PNG | *.WEBP) emit image "$src" ;;
-    esac
-done
-for src in "$livedir"/*; do
-    case "$src" in
     *.mp4 | *.webm | *.mkv | *.MP4 | *.WEBM | *.MKV) emit live "$src" ;;
     esac
 done
