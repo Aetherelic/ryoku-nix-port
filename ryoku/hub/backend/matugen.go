@@ -15,6 +15,7 @@ type matugenConfig struct {
 	LightnessDark    float64         `json:"lightnessDark"`    // -1.0 to 1.0
 	LightnessLight   float64         `json:"lightnessLight"`   // -1.0 to 1.0
 	Prefer           string          `json:"prefer"`           // "dominant" or "vibrant"
+	SchemeType       string          `json:"schemeType"`       // matugen -t variant
 	SourceColorIndex int             `json:"sourceColorIndex"` // 0..4
 	ThemeRyokuApps   bool            `json:"themeRyokuApps"`   // theme Ryoku's native shell & apps
 	Templates        map[string]bool `json:"templates"`        // app -> bool
@@ -130,6 +131,7 @@ func defaultMatugenConfig() matugenConfig {
 		LightnessDark:    0.0,
 		LightnessLight:   0.0,
 		Prefer:           "saturation",
+		SchemeType:       "scheme-tonal-spot",
 		SourceColorIndex: 0,
 		ThemeRyokuApps:   true,
 		Templates: map[string]bool{

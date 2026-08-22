@@ -83,6 +83,26 @@ Item {
     readonly property string genMode: pg.matugenCfg.mode || "smart"
     readonly property real genContrast: pg.matugenCfg.contrast || 0.0
 
+    // Colour scheme variant: the matugen -t algorithm. tonal-spot is the balanced
+    // default; the desaturating ones (neutral, monochrome) are offered but flagged
+    // in the row's description so a user knows they pull the colour out. Written
+    // instantly through the same matugen-set seam as mode/contrast.
+    readonly property string genScheme: pg.matugenCfg.schemeType || "scheme-tonal-spot"
+    readonly property var genVariants: [
+        { "id": "scheme-tonal-spot",  "label": "Tonal Spot" },
+        { "id": "scheme-vibrant",     "label": "Vibrant" },
+        { "id": "scheme-expressive",  "label": "Expressive" },
+        { "id": "scheme-fidelity",    "label": "Fidelity" },
+        { "id": "scheme-content",     "label": "Content" },
+        { "id": "scheme-fruit-salad", "label": "Fruit Salad" },
+        { "id": "scheme-rainbow",     "label": "Rainbow" },
+        { "id": "scheme-neutral",     "label": "Neutral" },
+        { "id": "scheme-monochrome",  "label": "Monochrome" }
+    ]
+    readonly property var genVariantLabels: pg.genVariants.map(v => v.label)
+    function variantLabel(id) { for (var i = 0; i < pg.genVariants.length; i++) if (pg.genVariants[i].id === id) return pg.genVariants[i].label; return "Tonal Spot"; }
+    function variantId(label) { for (var i = 0; i < pg.genVariants.length; i++) if (pg.genVariants[i].label === label) return pg.genVariants[i].id; return "scheme-tonal-spot"; }
+
     function refreshMatugen() { matugenGetProc.running = true; }
 
     // Mirror the value locally so the control tracks the drag, then write. The
@@ -727,9 +747,23 @@ Item {
                         width: parent.width
                         leftPadding: Tokens.s4; rightPadding: Tokens.s4
                         topPadding: Tokens.s3; bottomPadding: Tokens.s1
-                        text: I18n.tr("Live colours are read from the wallpaper. Mode picks a light or dark palette, or follows the picture's own brightness; contrast pushes the palette apart. Both apply as you set them.")
+                        text: I18n.tr("Live colours are read from the wallpaper. Variant sets how the palette is built, Mode picks light or dark or follows the picture's brightness, and contrast pushes the palette apart. All apply as you set them.")
                         color: Tokens.inkMuted; font.family: Tokens.ui
                         font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                    }
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        block: true
+                        label: I18n.tr("Variant")
+                        desc: I18n.tr("How matugen builds the palette. Neutral and Monochrome desaturate toward grey; the others keep the wallpaper's colour.")
+                        Chips {
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            options: pg.genVariantLabels
+                            current: pg.variantLabel(pg.genScheme)
+                            onChose: (l) => pg.setGen("schemeType", pg.variantId(l))
+                        }
                     }
                     SettingRow {
                         anchors.left: parent.left; anchors.right: parent.right

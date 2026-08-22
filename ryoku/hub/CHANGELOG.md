@@ -16,6 +16,14 @@
   and pruned on the next save.
 
 ### Added
+- **Appearance > Colour generation gains a Variant picker.** Follow-wallpaper
+  palettes were always built with matugen's tonal-spot; the wallpaper path now
+  reads a `schemeType` knob, and Appearance offers all nine matugen variants
+  (Tonal Spot, Vibrant, Expressive, Fidelity, Content, Fruit Salad, Rainbow,
+  Neutral, Monochrome). Tonal Spot stays the default and the row flags that
+  Neutral and Monochrome desaturate toward grey, so the choice is explicit rather
+  than hidden. The pick applies live through the same matugen-set seam as Mode
+  and Contrast (`matugen.json` schemeType, daemon `matugenArgs`).
 - **Washed-out accents no longer light the keyboard near-white.** A bright,
   low-saturation accent (a pale wallpaper palette with all three channels
   bunched near the top) read as plain white on an LED. The lighting backend now

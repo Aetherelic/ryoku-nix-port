@@ -16,8 +16,8 @@ import (
 // TestMatugenArgs pins the argv the pipeline hands matugen for each knob
 // combination: the matugen.json tokens pass straight through, the resolved
 // light/dark mode is the -m value, lightness / source-index / prefer are wired
-// from the knobs, contrast clamps to [-1, 1], and -t is always the one scheme
-// Ryoku generates with (the picker that could set it was removed).
+// from the knobs, contrast clamps to [-1, 1], and -t is the schemeType variant
+// (tonal-spot by default, or another when the matugen.json knob selects one).
 func TestMatugenArgs(t *testing.T) {
 	cases := []struct {
 		name string
@@ -49,6 +49,12 @@ func TestMatugenArgs(t *testing.T) {
 			"light",
 			[]string{"image", "/w.png", "-t", "scheme-tonal-spot", "-m", "light", "--contrast", "-1.00", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "less-saturation", "--json", "hex", "--dry-run"},
 		},
+		{
+			"dark / vibrant variant",
+			matugenKnobs{Prefer: "saturation", SchemeType: "scheme-vibrant"},
+			"dark",
+			[]string{"image", "/w.png", "-t", "scheme-vibrant", "-m", "dark", "--contrast", "0.00", "--lightness-dark", "0.00", "--lightness-light", "0.00", "--source-color-index", "0", "--prefer", "saturation", "--json", "hex", "--dry-run"},
+		},
 	}
 	for _, c := range cases {
 		got, err := matugenArgs("/w.png", c.k, c.mode)
@@ -73,6 +79,7 @@ func TestMatugenArgsRejectsUnknown(t *testing.T) {
 	}{
 		{"unresolved smart mode", matugenKnobs{Prefer: "saturation"}, "smart"},
 		{"unknown prefer", matugenKnobs{Prefer: "nope"}, "dark"},
+		{"unknown schemeType", matugenKnobs{Prefer: "saturation", SchemeType: "scheme-nope"}, "dark"},
 	}
 	for _, c := range cases {
 		if _, err := matugenArgs("/w.png", c.k, c.mode); err == nil {
@@ -81,10 +88,10 @@ func TestMatugenArgsRejectsUnknown(t *testing.T) {
 	}
 }
 
-// TestStoredSchemeTypeIsInert pins the removal: a matugen.json left over from the
-// retired picker must not reach the argv. scheme-monochrome drained every
-// wallpaper grey, which is what "live colours don't work" looked like.
-func TestStoredSchemeTypeIsInert(t *testing.T) {
+// TestStoredSchemeTypeIsHonored: a matugen.json schemeType now reaches the argv,
+// so the Hub's variant picker takes effect on the wallpaper path; an absent key
+// still resolves to the tonal-spot default.
+func TestStoredSchemeTypeIsHonored(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -92,15 +99,19 @@ func TestStoredSchemeTypeIsInert(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(home, ".config", "ryoku", "matugen.json"),
-		`{"schemeType":"scheme-monochrome","mode":"dark","prefer":"saturation"}`)
+		`{"schemeType":"scheme-vibrant","mode":"dark","prefer":"saturation"}`)
 	args, err := matugenArgs("/w.png", readMatugenKnobs(), "dark")
 	if err != nil {
 		t.Fatal(err)
 	}
+	got := ""
 	for i, a := range args {
-		if a == "-t" && args[i+1] != "scheme-tonal-spot" {
-			t.Fatalf("-t = %q, want scheme-tonal-spot (a stored schemeType must be inert)", args[i+1])
+		if a == "-t" && i+1 < len(args) {
+			got = args[i+1]
 		}
+	}
+	if got != "scheme-vibrant" {
+		t.Fatalf("-t = %q, want scheme-vibrant (a stored schemeType must be honored)", got)
 	}
 }
 
@@ -119,7 +130,7 @@ func TestReadMatugenKnobs(t *testing.T) {
 
 	// Missing file -> defaults.
 	k := readMatugenKnobs()
-	if k.Mode != "smart" || k.Prefer != "saturation" || !k.ThemeRyokuApps {
+	if k.Mode != "smart" || k.Prefer != "saturation" || !k.ThemeRyokuApps || k.SchemeType != "scheme-tonal-spot" {
 		t.Errorf("defaults: got %+v", k)
 	}
 
@@ -131,7 +142,7 @@ func TestReadMatugenKnobs(t *testing.T) {
 	k = readMatugenKnobs()
 	if k.Mode != "dark" ||
 		k.Contrast != 0.2 || k.LightnessDark != 0.1 || k.LightnessLight != -0.1 ||
-		k.Prefer != "value" || k.SourceColorIndex != 3 || k.ThemeRyokuApps {
+		k.Prefer != "value" || k.SchemeType != "scheme-vibrant" || k.SourceColorIndex != 3 || k.ThemeRyokuApps {
 		t.Errorf("full file: got %+v", k)
 	}
 	if k.Templates["kitty"] != true || k.Templates["btop"] != false || k.Templates["gtk"] != true {

@@ -57,6 +57,7 @@ type matugenKnobs struct {
 	LightnessDark    float64         // affine lightness transform for dark schemes
 	LightnessLight   float64         // affine lightness transform for light schemes
 	Prefer           string          // source-colour pick, e.g. "saturation"
+	SchemeType       string          // matugen -t variant; "" resolves to the default
 	SourceColorIndex int             // 0..4, most dominant first
 	ThemeRyokuApps   bool            // theme the GTK / GUI app suite (apps.toml)
 	Templates        map[string]bool // per-app roster, keyed by group
@@ -69,11 +70,20 @@ var matugenPrefers = map[string]bool{
 	"less-saturation": true, "value": true, "closest-to-fallback": true,
 }
 
-// The one scheme Ryoku generates with. The picker that used to choose this was
-// removed: half its options (monochrome, neutral) drain the colour out of every
-// wallpaper, which reads as "live colours are broken" rather than as a choice,
-// and the remaining spread is not worth a control that can silently do that.
+// The default scheme Ryoku generates with. A variant picker (matugen.json
+// schemeType) lets a user pick another; tonal-spot stays the default because the
+// desaturating variants (monochrome, neutral) pull the colour out of a wallpaper.
+// The Hub labels those as desaturating instead of hiding the choice.
 const matugenSchemeType = "scheme-tonal-spot"
+
+// The variants matugen 4.x accepts for -t. An out-of-set schemeType fails the
+// run loudly (the same contract as prefer) rather than feeding matugen a token
+// it would reject.
+var matugenSchemes = map[string]bool{
+	"scheme-tonal-spot": true, "scheme-vibrant": true, "scheme-expressive": true,
+	"scheme-fidelity": true, "scheme-content": true, "scheme-fruit-salad": true,
+	"scheme-rainbow": true, "scheme-neutral": true, "scheme-monochrome": true,
+}
 
 // defaultMatugenKnobs backs a missing or partial matugen.json so a run still
 // produces a valid argv. They mirror the shipped matugen.json.
@@ -82,6 +92,7 @@ func defaultMatugenKnobs() matugenKnobs {
 		Mode:           "smart",
 		Contrast:       0,
 		Prefer:         "saturation",
+		SchemeType:     matugenSchemeType,
 		ThemeRyokuApps: true,
 	}
 }
@@ -101,6 +112,7 @@ func readMatugenKnobs() matugenKnobs {
 		LightnessDark    *float64        `json:"lightnessDark"`
 		LightnessLight   *float64        `json:"lightnessLight"`
 		Prefer           *string         `json:"prefer"`
+		SchemeType       *string         `json:"schemeType"`
 		SourceColorIndex *int            `json:"sourceColorIndex"`
 		ThemeRyokuApps   *bool           `json:"themeRyokuApps"`
 		Templates        map[string]bool `json:"templates"`
@@ -110,6 +122,9 @@ func readMatugenKnobs() matugenKnobs {
 	}
 	if doc.Mode != nil && *doc.Mode != "" {
 		k.Mode = *doc.Mode
+	}
+	if doc.SchemeType != nil && *doc.SchemeType != "" {
+		k.SchemeType = *doc.SchemeType
 	}
 	if doc.Contrast != nil {
 		k.Contrast = *doc.Contrast
@@ -144,6 +159,13 @@ func matugenArgs(img string, k matugenKnobs, mode string) ([]string, error) {
 	if !matugenPrefers[k.Prefer] {
 		return nil, fmt.Errorf("unknown prefer %q", k.Prefer)
 	}
+	scheme := k.SchemeType
+	if scheme == "" {
+		scheme = matugenSchemeType
+	}
+	if !matugenSchemes[scheme] {
+		return nil, fmt.Errorf("unknown schemeType %q", scheme)
+	}
 	c := k.Contrast
 	if c < -1 {
 		c = -1
@@ -153,7 +175,7 @@ func matugenArgs(img string, k matugenKnobs, mode string) ([]string, error) {
 	f := func(v float64) string { return strconv.FormatFloat(v, 'f', 2, 64) }
 	return []string{
 		"image", img,
-		"-t", matugenSchemeType,
+		"-t", scheme,
 		"-m", mode,
 		"--contrast", f(c),
 		"--lightness-dark", f(k.LightnessDark),
