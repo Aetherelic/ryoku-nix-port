@@ -53,27 +53,9 @@ var rows = [
     {
         "tab": "",
         "group": "VISUALISER",
-        "key": "freezeVisualizerWhenIdle",
-        "label": "Freeze the visualiser when no audio is playing",
-        "desc": "Halts the idle animation, whose repaints otherwise leak memory over time",
-        "ctl": "sw",
-        "src": "performance.json"
-    },
-    {
-        "tab": "",
-        "group": "VISUALISER",
         "key": "unloadVisualizerWhenSilent",
         "label": "Unload the visualiser to free memory when silent (brief delay when audio resumes)",
         "desc": "Kills the whole process after 30s of silence, reclaiming around 250 MB",
-        "ctl": "sw",
-        "src": "performance.json"
-    },
-    {
-        "tab": "",
-        "group": "BAR",
-        "key": "freezePillWhenIdle",
-        "label": "Freeze the glowing bead animation while the bar is idle",
-        "desc": "Also drops the bead's live blur layer, so an idle bar costs no GPU frames",
         "ctl": "sw",
         "src": "performance.json"
     },

@@ -16,11 +16,15 @@ import Ryoku.Ui.Singletons
 //
 // This page is performance.json's ONLY writer, and cfg.writeAdapter() serialises
 // the whole adapter, so every key the file carries is declared below or it would
-// be dropped on the next save. The cheap-on-RAM keys ship ON (freezeVisualizer-
-// WhenIdle guards an NVIDIA idle-repaint leak; unloadWidgetsWhenCovered,
-// unloadVisualizerWhenSilent and the launcher/overview unloads each
-// free a hidden surface's whole process); their defaults mirror the Go watchers
-// and must not drift. The lowPowerMode implication is applied downstream by each
+// be dropped on the next save. That is also how a retired key leaves: the two
+// `freeze*WhenIdle` switches are gone because the behaviour they asked for is now
+// unconditional -- an audio analyser with no audio has nothing to show, so it
+// always stops -- and a stale copy in someone's file is ignored by the adapter
+// and pruned the next time this page saves. The cheap-on-RAM keys ship ON
+// (unloadWidgetsWhenCovered, unloadVisualizerWhenSilent and the launcher/overview
+// unloads each free a hidden surface's whole process); their defaults mirror the
+// Go watchers and must not drift.
+// The lowPowerMode implication is applied downstream by each
 // consumer (`lowPower || flag`), NOT here: the page writes only raw keys, so a
 // sub-toggle stays visibly OFF while lowPowerMode overrides its behaviour, and
 // un-toggling lowPowerMode restores the user's own choices intact.
@@ -47,8 +51,6 @@ Item {
         "disableShadows": false,
         "liveWallpaper60": false,
         "pauseLiveWallpaperWhenFullscreen": true,
-        "freezeVisualizerWhenIdle": true,
-        "freezePillWhenIdle": false,
         "unloadVisualizerWhenSilent": true,
         "unloadWidgetsWhenCovered": true,
         "unloadLauncherWhenIdle": true,
@@ -101,8 +103,6 @@ Item {
             "disableShadows": cfgA.disableShadows,
             "liveWallpaper60": cfgA.liveWallpaper60,
             "pauseLiveWallpaperWhenFullscreen": cfgA.pauseLiveWallpaperWhenFullscreen,
-            "freezeVisualizerWhenIdle": cfgA.freezeVisualizerWhenIdle,
-            "freezePillWhenIdle": cfgA.freezePillWhenIdle,
             "unloadVisualizerWhenSilent": cfgA.unloadVisualizerWhenSilent,
             "unloadWidgetsWhenCovered": cfgA.unloadWidgetsWhenCovered,
             "unloadLauncherWhenIdle": cfgA.unloadLauncherWhenIdle,
@@ -151,8 +151,6 @@ Item {
         cfgA.disableShadows = pg.draft.disableShadows;
         cfgA.liveWallpaper60 = pg.draft.liveWallpaper60;
         cfgA.pauseLiveWallpaperWhenFullscreen = pg.draft.pauseLiveWallpaperWhenFullscreen;
-        cfgA.freezeVisualizerWhenIdle = pg.draft.freezeVisualizerWhenIdle;
-        cfgA.freezePillWhenIdle = pg.draft.freezePillWhenIdle;
         cfgA.unloadVisualizerWhenSilent = pg.draft.unloadVisualizerWhenSilent;
         cfgA.unloadWidgetsWhenCovered = pg.draft.unloadWidgetsWhenCovered;
         cfgA.unloadLauncherWhenIdle = pg.draft.unloadLauncherWhenIdle;
@@ -197,8 +195,6 @@ Item {
             property bool disableShadows: false
             property bool liveWallpaper60: false
             property bool pauseLiveWallpaperWhenFullscreen: true
-            property bool freezeVisualizerWhenIdle: true
-            property bool freezePillWhenIdle: false
             property bool unloadVisualizerWhenSilent: true
             property bool unloadWidgetsWhenCovered: true
             property bool unloadLauncherWhenIdle: true
@@ -238,12 +234,6 @@ Item {
         { "tab": "", "group": "IDLE", "key": "pauseLiveWallpaperWhenFullscreen", "ctl": "sw", "src": "performance",
           "label": "Pause video wallpaper",
           "desc": "Stops a video wallpaper while a window is fullscreen; its still frame stays underneath, so nothing changes on screen." },
-        { "tab": "", "group": "IDLE", "key": "freezePillWhenIdle", "ctl": "sw", "src": "performance",
-          "label": "Freeze the bar",
-          "desc": "Stops the glowing bead and drops its live blur, so an idle bar costs no GPU frames." },
-        { "tab": "", "group": "IDLE", "key": "freezeVisualizerWhenIdle", "ctl": "sw", "src": "performance",
-          "label": "Freeze the visualiser",
-          "desc": "Halts the idle animation when no audio plays; its repaints otherwise leak memory over time." },
 
         { "tab": "", "group": "MEMORY", "key": "unloadWidgetsWhenCovered", "ctl": "sw", "src": "performance",
           "label": "Hide covered widgets",

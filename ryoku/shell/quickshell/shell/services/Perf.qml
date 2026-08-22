@@ -105,8 +105,6 @@ Singleton {
             property bool reduceMotion: false
             property bool disableBlur: false
             property bool disableShadows: false
-            property bool freezeVisualizerWhenIdle: true
-            property bool freezePillWhenIdle: false
             property real motionSpeed: 1.0
             property bool powerProfileEffects: true
         }
