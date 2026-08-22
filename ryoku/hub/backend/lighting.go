@@ -33,6 +33,12 @@ const (
 	// a palette this dark reads as "off" on a keyboard, so the accent is lifted
 	// until its brightest channel clears this.
 	lightingMinChannel = 96
+	// a bright accent whose channels are bunched near the top washes out to
+	// near-white on an LED; punchColor pulls the non-dominant channels down
+	// until the hue shows. Thresholds tuned on real keyboard hardware.
+	lightingWashMax    = 180 // only channels above this wash out
+	lightingWashSpread = 70  // channels within this of the top read as grey
+	lightingWashGain   = 2   // pull-down factor for the non-dominant channels
 )
 
 type lightingProviders uint8
@@ -606,7 +612,7 @@ func lightingApply(accent string) error {
 	if accent == "" {
 		accent = accentColor()
 	} else if h, ok := normalizeHex(accent); ok {
-		accent = liftColor(h)
+		accent = punchColor(liftColor(h))
 	} else {
 		accent = accentColor()
 	}
@@ -1052,7 +1058,7 @@ func accentColor() string {
 	if m == nil {
 		return lightingFallback
 	}
-	return liftColor("#" + strings.ToUpper(string(m[1])))
+	return punchColor(liftColor("#" + strings.ToUpper(string(m[1]))))
 }
 
 // liftColor scales a very dark accent up until its brightest channel is visible.
@@ -1084,6 +1090,41 @@ func liftColor(hex string) string {
 		b = b * lightingMinChannel / max
 	}
 	return fmt.Sprintf("#%02X%02X%02X", min(r, 255), min(g, 255), min(b, 255))
+}
+
+// punchColor restores saturation in a washed-out bright accent so an LED shows
+// the hue, not near-white. It pulls the non-dominant channels away from the top
+// one, lifting chroma while keeping the hue (the gaps scale together) and the
+// brightness (the top channel is fixed). A near-grey accent passes through.
+func punchColor(hex string) string {
+	h, ok := normalizeHex(hex)
+	if !ok {
+		return lightingFallback
+	}
+	n, err := strconv.ParseUint(h[1:], 16, 32)
+	if err != nil {
+		return lightingFallback
+	}
+	r, g, b := int((n>>16)&0xFF), int((n>>8)&0xFF), int(n&0xFF)
+	hi, lo := r, r
+	if g > hi {
+		hi = g
+	}
+	if b > hi {
+		hi = b
+	}
+	if g < lo {
+		lo = g
+	}
+	if b < lo {
+		lo = b
+	}
+	if hi > lightingWashMax && hi-lo < lightingWashSpread {
+		r = max(0, min(hi-(hi-r)*lightingWashGain, 255))
+		g = max(0, min(hi-(hi-g)*lightingWashGain, 255))
+		b = max(0, min(hi-(hi-b)*lightingWashGain, 255))
+	}
+	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
 }
 
 // ── the OpenRGB server ──────────────────────────────────────────────────────

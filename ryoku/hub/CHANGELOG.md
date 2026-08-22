@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Washed-out accents no longer light the keyboard near-white.** A bright,
+  low-saturation accent (a pale wallpaper palette with all three channels
+  bunched near the top) read as plain white on an LED. The lighting backend now
+  pulls the non-dominant channels down until the hue shows, keeping the hue and
+  the brightness, and leaves already-saturated, grey, and dark accents untouched
+  (`backend/lighting.go` `punchColor`). Explicit fixed colours are unchanged.
 - **Appearance > Lighting now sees the built-in Aura keyboard on supported ASUS
   laptops instead of only the OpenRGB motherboard alias.** The backend joins
   OpenRGB with `asusd`'s per-controller D-Bus API, prefers that native keyboard

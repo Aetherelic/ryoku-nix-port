@@ -255,6 +255,29 @@ func TestLiftColorKeepsDarkPalettesVisible(t *testing.T) {
 	}
 }
 
+func TestPunchColorRestoresWashedOutAccents(t *testing.T) {
+	// a bright, bunched-up pastel gains chroma: the top channel stays, the others
+	// are pulled twice as far from it (230,210,200 -> 230,190,170).
+	if got := punchColor("#E6D2C8"); got != "#E6BEAA" {
+		t.Fatalf("washed pastel = %s, want #E6BEAA", got)
+	}
+	// an already-saturated colour is left alone.
+	if got := punchColor("#F25623"); got != "#F25623" {
+		t.Fatalf("saturated = %s, want unchanged", got)
+	}
+	// a bright grey has no hue to restore, so it passes through untouched.
+	if got := punchColor("#C8C8C8"); got != "#C8C8C8" {
+		t.Fatalf("grey = %s, want unchanged", got)
+	}
+	// a dark accent is below the wash-out threshold and untouched.
+	if got := punchColor("#303030"); got != "#303030" {
+		t.Fatalf("dark = %s, want unchanged", got)
+	}
+	if got := punchColor("garbage"); got != lightingFallback {
+		t.Fatalf("nonsense = %s, want the Ryoku fallback", got)
+	}
+}
+
 func TestDeviceKeyIgnoresThePort(t *testing.T) {
 	a := orgbDevice{Name: "Board", Serial: "SN1", Location: "HID: /dev/hidraw0"}
 	b := orgbDevice{Name: "Board", Serial: "SN1", Location: "HID: /dev/hidraw3"}
