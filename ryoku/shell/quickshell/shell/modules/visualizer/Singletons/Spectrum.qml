@@ -2,12 +2,19 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import shell.services
 
 // high-resolution playback spectrum for the desktop visualiser. mirrors the
-// pill's AudioBars but reads the PipeWire playback monitor at 64 bands /
-// 60fps so the whole desktop sweep stays smooth. `active` gates the cava
-// process; levels settle to a flat rest when cava stops emitting (system
-// silent, or a restart gap) so the spectrum never freezes on the last peak.
+// pill's AudioBars but reads the PipeWire playback monitor at 64 bands / 60fps
+// so the whole desktop sweep stays smooth. `analysing` gates the cava process;
+// levels settle to a flat rest when cava stops emitting (system silent, or a
+// restart gap) so the spectrum never freezes on the last peak.
+//
+// It mirrors AudioBars' policy as well as its shape, which it previously did
+// not: `running` hung off surface visibility alone, so this analyser ignored the
+// visualiser's own freeze switch, Power Saver, lowPowerMode and Game Mode, and
+// kept a second cava alive beside the pill's whenever the surface existed. Both
+// were measured running for hours against silence.
 Singleton {
     id: root
 
@@ -27,36 +34,49 @@ Singleton {
         return a;
     }
 
+    // Visible, permitted, and something actually playing: the same three
+    // questions AudioBars asks, so the two analysers cannot drift apart again.
+    readonly property bool analysing: root.active && !Perf.visualizerFrozen
+
     Process {
         id: cavaProc
         // playback spectrum via cava's native pipewire backend, source=auto (the default sink's monitor). the pulse backend can't connect here ("Connection terminated") even with pipewire-pulse up, and this path needs no pactl. exec so quickshell's SIGTERM reaches cava, leaving no orphaned analyser when the surface unloads.
         command: ["sh", "-c", "command -v cava >/dev/null 2>&1 || exit 0; cfg=\"${XDG_RUNTIME_DIR:-/tmp}/ryoku-cava-visualizer.conf\"; printf '%s\\n' '[general]' 'framerate = " + root.fps + "' 'bars = " + root.bars + "' '' '[input]' 'method = pipewire' 'source = auto' '' '[output]' 'method = raw' 'raw_target = /dev/stdout' 'data_format = ascii' 'ascii_max_range = 100' 'channels = mono' 'mono_option = average' '' '[smoothing]' 'noise_reduction = 45' > \"$cfg\"; exec cava -p \"$cfg\""]
-        running: root.active
+        running: root.analysing
+        // Bound, never assigned. Four imperative `cavaProc.running = true` writes
+        // used to live below, and any one of them destroys this binding: from then
+        // on the analyser ignored every gate meant to stop it. The backoff window
+        // expresses a restart without taking the binding away.
+        property bool backoff: false
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: (line) => root.readBars(line)
         }
-        onExited: if (root.active) restartTimer.restart()
+        onExited: if (root.analysing) {
+            cavaProc.backoff = true;
+            restartTimer.restart();
+        }
     }
 
     Timer {
         id: restartTimer
         interval: 1200
-        onTriggered: if (root.active && !cavaProc.running) cavaProc.running = true
+        onTriggered: cavaProc.backoff = false
     }
 
-    // restart cava when the band count or framerate changes so its config
-    // picks up the new value.
+    // cava reads its band count and framerate once, at startup, so changing
+    // either has to cycle the process. Closing the backoff window is all this
+    // does; whether cava actually comes back is still the binding's call.
     Timer {
         id: barsRestart
         interval: 300
-        onTriggered: if (root.active && !cavaProc.running) cavaProc.running = true
+        onTriggered: cavaProc.backoff = false
     }
 
     // settle to a flat resting line when no frame has arrived in a bit.
     Timer {
         interval: 120
-        running: root.active
+        running: root.analysing
         repeat: true
         onTriggered: if (Date.now() - root.lastReadMs > 260) {
             root.levels = root.flat(0.02);
@@ -71,16 +91,27 @@ Singleton {
             lastReadMs = 0;
     }
 
-    onBarsChanged: {
+    // The settle Timer above only runs while analysing, so when analysis stops the
+    // last frame's levels would otherwise stay put forever. Motion reads those
+    // levels to decide whether it is "sounding", so stale peaks kept the whole
+    // visualiser animating long after the music ended: measured at 6% of a core
+    // for the shell, indefinitely, with the analyser already gone. Flatten on the
+    // way down, exactly as AudioBars does.
+    onAnalysingChanged: {
         levels = flat(0.02);
-        if (root.active) {
-            cavaProc.running = false;
-            barsRestart.restart();
-        }
+        energy = 0;
+        if (analysing)
+            lastReadMs = 0;
     }
 
-    onFpsChanged: if (root.active) {
-        cavaProc.running = false;
+    onBarsChanged: {
+        levels = flat(0.02);
+        cavaProc.backoff = true;
+        barsRestart.restart();
+    }
+
+    onFpsChanged: {
+        cavaProc.backoff = true;
         barsRestart.restart();
     }
 

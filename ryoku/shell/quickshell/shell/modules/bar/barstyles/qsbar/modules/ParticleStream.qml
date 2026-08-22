@@ -16,12 +16,27 @@ Item {
     // live so cava (owner-refcounted) runs solely when the gap animation is on
     // screen and unfrozen.
     readonly property real audioLevel: AudioBars.active ? Math.min(1, AudioBars.energy) : 0
-    // streamLive gates the whole animation on motion policy: reduce-motion (its
-    // toggle, lowPowerMode, or the Power Saver profile) releases cava and stops the
-    // repaint. ReactorLayer's LazyLoader also unloads the stream under reduce-motion,
-    // so the bar-gap animation is off (not a frozen frame) until motion resumes.
-    readonly property bool streamLive: active && !Perf.reduceMotion
-    onStreamLiveChanged: AudioBars.setActive(root, streamLive)
+    // streamLive gates the whole animation: reduce-motion (its toggle,
+    // lowPowerMode, the Power Saver profile, or Game Mode) releases cava and stops
+    // the repaint, and so does silence. ReactorLayer's LazyLoader also unloads the
+    // stream under reduce-motion, so the bar-gap animation is off (not a frozen
+    // frame) until motion resumes.
+    //
+    // Playback is part of the gate because ambient motion is not free. The
+    // per-frame canvas clear and texture upload run on every tick, and a surface
+    // that never stops being damaged keeps the compositor awake with it: measured
+    // here at 16% for the shell and 7% for Hyprland, at idle, with nothing
+    // playing. That is worst on a high-refresh panel, where the frame budget is
+    // smallest and window dragging is what visibly loses. An audio visualiser
+    // with no audio has nothing to show, so it stops instead of drifting.
+    readonly property bool streamLive: active && !Perf.reduceMotion && Media.playing
+    onStreamLiveChanged: {
+        AudioBars.setActive(root, streamLive);
+        // Releasing the feed flattens the levels, so one more frame lands the calm
+        // state on screen rather than freezing whatever motion was mid-flight.
+        if (!streamLive)
+            root.requestFrame();
+    }
     Component.onCompleted: AudioBars.setActive(root, root.streamLive)
     Component.onDestruction: AudioBars.setActive(root, false)
     property int  mode:   1          // 1=stream, 2=surge, 3=bolt, 4=bolt2, 5=stream2, 6=surge2, 7=reactor, 8=quotes
@@ -1019,7 +1034,10 @@ Item {
         // it merely drifts or fades, and a coarse watch rate while the gap is dark.
         interval: canvas.paintTick * Perf.pollFactor
         repeat: true
-        running: root.active && !Perf.reduceMotion && ((root.reactorMode7 && root.animating7)
+        // Same gate as streamLive, not a second copy of it: when these drifted
+        // apart the timer kept repainting a stream that had already released its
+        // audio feed.
+        running: root.streamLive && ((root.reactorMode7 && root.animating7)
                                  || (root.mode === 8 && root.animating8)
                                  || (!root.reactorMode7 && root.mode !== 8))
         onTriggered: root.requestFrame()

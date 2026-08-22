@@ -26,7 +26,7 @@ base="$repo/system/packages/base.packages"
 aur="$repo/system/packages/aur.packages"
 ertm="$repo/system/hardware/input/99-ryoku-controller.conf"
 desktop="$repo/release/packages/ryoku-desktop/PKGBUILD"
-toolchain="$repo/.github/workflows/publish-repo.yml"
+toolchain="$repo/release/repo/build-toolchain.packages"
 
 fails=0
 fail() { printf 'FAIL: %s\n' "$1" >&2; fails=$((fails + 1)); }
@@ -90,9 +90,15 @@ done
 
 # ---- the recipes must be buildable on the host ------------------------------
 
-# meson drives ninja; ninja alone is not enough.
-grep -qE '^\s+base-devel .*\bmeson\b' "$toolchain" ||
+# meson drives ninja; ninja alone is not enough. The list lives in one file now,
+# read by both publish-repo.yml and container-install.sh: it used to be duplicated
+# in both, and the copy that missed meson took the whole publish down.
+grep -qxF meson "$toolchain" ||
   fail 'meson is missing from the build toolchain; the meson packages cannot build'
+for consumer in .github/workflows/publish-repo.yml installation/tests/container-install.sh; do
+  grep -q 'build-toolchain.packages' "$repo/$consumer" ||
+    fail "$consumer no longer reads the shared build toolchain; a second copy will drift"
+done
 
 for p in xpadneo-dkms game-devices-udev dualsensectl broadcom-bt-firmware; do
   pkgbuild="$repo/release/packages/$p/PKGBUILD"

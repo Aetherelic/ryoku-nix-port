@@ -67,11 +67,24 @@ Singleton {
 
     // Effective eye-candy switches: explicit toggle, or the lowPowerMode master, or
     // the Power Saver tier, or Game Mode. Performance/Balanced add nothing.
-    readonly property bool reduceMotion:     lowPower || adapter.reduceMotion            || saver || gaming
-    readonly property bool blurDisabled:     lowPower || adapter.disableBlur              || saver || gaming
-    readonly property bool shadowsDisabled:  lowPower || adapter.disableShadows           || saver || gaming
-    readonly property bool visualizerFrozen: lowPower || adapter.freezeVisualizerWhenIdle || saver || gaming
-    readonly property bool pillFrozen:       lowPower || adapter.freezePillWhenIdle        || saver || gaming
+    readonly property bool reduceMotion:     lowPower || adapter.reduceMotion   || saver || gaming
+    readonly property bool blurDisabled:     lowPower || adapter.disableBlur    || saver || gaming
+    readonly property bool shadowsDisabled:  lowPower || adapter.disableShadows || saver || gaming
+
+    // The two audio-driven surfaces freeze when there is nothing to show, which is
+    // what "WhenIdle" always meant and never did: `freezeVisualizerWhenIdle` and
+    // `freezePillWhenIdle` were folded in as plain always-off switches, so the only
+    // choices were "analyse silence forever" (their default) or "never analyse at
+    // all". The first is what shipped, and it cost two cava processes plus a
+    // permanently damaged surface keeping the compositor awake.
+    //
+    // Silence is now the gate, unconditionally: there is no sensible reason to
+    // spectrum-analyse an idle sink, so the old opt-in keys no longer take part.
+    // The hard tiers still win outright, so Saver, lowPowerMode and Game Mode keep
+    // these off even mid-track.
+    readonly property bool audioIdle: !Media.playing
+    readonly property bool visualizerFrozen: lowPower || saver || gaming || audioIdle
+    readonly property bool pillFrozen:       lowPower || saver || gaming || audioIdle
 
     // Graceful cost knobs. Multiply a base poll interval by pollFactor: a second of
     // staleness in a stat readout is invisible, so sampling slows on battery / Saver.

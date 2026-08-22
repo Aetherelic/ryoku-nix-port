@@ -22,10 +22,19 @@ Singleton {
         activeOwners = MenuPoll.setOwnership(activeOwners, owner, enabled);
     }
 
-    // The live analyser: an owner claims the feed and the pill policy permits it.
-    // Perf.pillFrozen (lowPowerMode or the Power Saver profile) drops cava even
-    // while a music surface is on screen, and routes the reset below so the bars
-    // settle flat exactly as they do when the last owner releases.
+    // The live analyser: an owner claims the feed, the pill policy permits it, and
+    // something is actually playing. Perf.pillFrozen (lowPowerMode, the Power Saver
+    // profile, or Game Mode) drops cava even while a music surface is on screen,
+    // and routes the reset below so the bars settle flat exactly as they do when
+    // the last owner releases.
+    //
+    // Playback belongs in this gate rather than in each consumer. Six surfaces can
+    // claim the feed (the bar rail, the music popout, the particle stream, the
+    // desktop visualiser and two AIO widgets) and every one of them gated on its
+    // own visibility, so a visible-but-idle surface kept cava alive indefinitely:
+    // measured here as two cava processes, seven and four hours old, analysing
+    // silence. Asking the question once, here, is also the honest place for it --
+    // there is no audio to analyse, whoever is watching.
     readonly property bool analysing: root.active && !Perf.pillFrozen
 
     readonly property int bars: 40
@@ -47,18 +56,31 @@ Singleton {
         id: cavaProc
         // playback spectrum via cava's native pipewire backend, source=auto (the default sink's monitor). the pulse backend can't connect here ("Connection terminated") even with pipewire-pulse up, and this path needs no pactl. exec so quickshell's SIGTERM reaches cava, leaving no orphaned analyser when the surface unloads.
         command: ["sh", "-c", "command -v cava >/dev/null 2>&1 || exit 0; cfg=\"${XDG_RUNTIME_DIR:-/tmp}/ryoku-cava-pill.conf\"; printf '%s\\n' '[general]' 'framerate = " + root.fps + "' 'bars = " + root.bars + "' '' '[input]' 'method = pipewire' 'source = auto' '' '[output]' 'method = raw' 'raw_target = /dev/stdout' 'data_format = ascii' 'ascii_max_range = 100' 'channels = mono' 'mono_option = average' '' '[smoothing]' 'noise_reduction = 45' > \"$cfg\"; exec cava -p \"$cfg\""]
-        running: root.analysing
+        // Bound, never assigned. `cavaProc.running = true` from the restart timer
+        // used to live here, and an imperative write destroys the binding: from the
+        // first restart onward `running` no longer followed `analysing`, so cava
+        // outlived every gate meant to stop it -- playback, the pill policy, Power
+        // Saver, Game Mode. That is how two analysers ended up seven and four hours
+        // old with nothing playing. The backoff below expresses the same restart
+        // without ever taking the binding away.
+        running: root.analysing && !cavaProc.backoff
+        property bool backoff: false
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: (line) => root.readBars(line)
         }
-        onExited: if (root.analysing) restartTimer.restart()
+        // cava exiting while we still want it (a transient pipewire hiccup) earns
+        // one paced retry rather than a spin.
+        onExited: if (root.analysing) {
+            cavaProc.backoff = true;
+            restartTimer.restart();
+        }
     }
 
     Timer {
         id: restartTimer
         interval: 1200
-        onTriggered: if (root.analysing && !cavaProc.running) cavaProc.running = true
+        onTriggered: cavaProc.backoff = false
     }
 
     // cava sleeps and stops emitting frames once playback idles, so settle back
