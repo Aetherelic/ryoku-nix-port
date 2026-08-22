@@ -163,6 +163,34 @@
   user's file alone.
 
 ### Fixed
+- **The shell stops analysing silence.** Idle, with nothing playing, the shell sat
+  at 16.2% of a core and Hyprland at 6.8%, with two cava processes seven and four
+  hours old. A surface that is never done being damaged keeps the compositor awake
+  with it, and at 240 Hz the entire frame budget is 4.1 ms, so dragging a window
+  is what visibly loses: a 240 Hz panel that felt like 30-50 Hz. Three separate
+  faults, each sufficient alone:
+  - **Bindings destroyed by assignment.** `cavaProc.running = true` from a restart
+    timer (once in `AudioBars`, four times in `Spectrum`) replaces the declarative
+    binding to the gate. From the first restart onward `running` followed nothing:
+    not playback, not the pill policy, not Power Saver, not Game Mode. Restarts
+    are a backoff window now, so the binding is never taken away.
+  - **"WhenIdle" that never meant it.** `freezeVisualizerWhenIdle` and
+    `freezePillWhenIdle` were folded in as plain always-off switches, so the only
+    choices were analyse silence forever (the default, and what shipped) or never
+    analyse at all. Silence is the gate now, unconditionally; the hard tiers
+    (Saver, lowPowerMode, Game Mode) still win mid-track.
+  - **A second analyser with no policy.** `Spectrum` drove its own cava off
+    surface visibility alone, ignoring the visualiser freeze switch, Saver,
+    lowPowerMode and Game Mode, and ran beside the pill's whenever the surface
+    existed. It mirrors `AudioBars` now, including flattening levels when analysis
+    stops: the settle timer only runs while analysing, so stale peaks kept
+    `Motion` reporting "sounding" and the picture animating after the music ended.
+  Measured from a fresh session with nothing playing: shell 16.2% to 1.0%,
+  Hyprland 6.8% to 5.4%, cava 2 to 0. Verified against a real MPRIS source that
+  both analysers still spawn, the spectrum flows, and both exit when it stops.
+- **The ambient particle stream pauses on silence.** It was ambient decor by
+  design, and the design predates anyone measuring what continuous canvas repaint
+  costs the compositor.
 - **The system-stats panel stops waking a sleeping discrete GPU.** Its 1.5s poll
   ran `nvidia-smi` unconditionally, and that drags a runtime-suspended card back
   out of D3 (about 10 W on a hybrid laptop), so an open panel pinned the dGPU

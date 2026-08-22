@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Fixed
+- `power/ryoku-power`: **the CPU frequency slider stops inventing a cap.**
+  `capabilities` reported `maxFreqPct` as `scaling_max_freq` over the boost
+  ceiling, and on `amd-pstate-epp` that is not a cap: `scaling_max_freq` rests at
+  the nominal clock while boost is delivered through the CPPC perf request. So an
+  entirely unconstrained machine reported **76%** and the Machine page drew the
+  slider three quarters down, which is exactly the display that invites the one
+  interaction that makes it true. Once a `maxFreqPct` is stored,
+  `write_cpu_profile` pins `scaling_max_freq` on every core at every login and
+  every profile switch, in a retry loop built to outlast ppd, and the slider floor
+  is 20% (about 1.05 GHz here). An unset knob now reports 100, because uncapped is
+  the truth on a machine nobody has capped; a cap set outside Ryoku is not guessed
+  at, since there is no way to tell one from the driver idling at nominal.
+- `power/ryoku-power`: **a defined knob can be undone.** `charge-limit` has always
+  had a `clear`; profiles did not. `profile set <p> <key> ""` is refused by the
+  validators and nothing else removed a key, so a definition could only be undone
+  by editing `power.json` by hand, which is the thing shipped config is not
+  supposed to need. `profile clear <p> [<key>]` un-defines one knob or the whole
+  profile. `tests/power.sh` had been asserting the 76, so it was defending the
+  bug; it now asserts an unconfigured machine reads 100.
+
 ### Added
 - `power/ryoku-game-tune` and `power/53-ryoku-game-tune.rules`: the system-level
   half of Game Mode. Deep CPU idle states off (C3 costs 350 us to leave on this
