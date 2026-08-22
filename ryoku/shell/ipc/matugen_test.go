@@ -200,6 +200,37 @@ func TestResolveModeBothBranches(t *testing.T) {
 	}
 }
 
+// A clip's smart light/dark comes from its whole run, not from the frame the
+// palette was sampled at: a dark wallpaper with one bright second in it used to
+// turn the desktop white. A clip that cannot be read lands on dark.
+func TestResolveModeVideoReadsTheClip(t *testing.T) {
+	bin := t.TempDir()
+	// fake ffmpeg: raw gray bytes per clip, and a failure for the third.
+	body := `case "$*" in
+  *white.mp4*) head -c 128 /dev/zero | tr '\0' '\377' ;;
+  *black.mp4*) head -c 128 /dev/zero ;;
+  *) exit 1 ;;
+esac`
+	if err := os.WriteFile(filepath.Join(bin, "ffmpeg"), []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	cases := []struct{ name, clip, want string }{
+		{"bright clip", "/clips/white.mp4", "light"},
+		{"dark clip", "/clips/black.mp4", "dark"},
+		{"unreadable clip", "/clips/broken.mp4", "dark"},
+	}
+	for _, c := range cases {
+		if got := resolveMode("smart", c.clip); got != c.want {
+			t.Errorf("%s: resolveMode(smart, %q) = %q, want %q", c.name, c.clip, got, c.want)
+		}
+	}
+	if got := resolveMode("dark", "/clips/white.mp4"); got != "dark" {
+		t.Errorf("an explicit dark knob must ignore a bright clip, got %q", got)
+	}
+}
+
 // TestMatugenBase16Color8IsLegibleForeground defends the dark-on-dark fix:
 // base16 color8 (the "bright black" muted ink Tokens reads as inkMuted/inkFaint)
 // must map to `outline`, a legible mid-lightness foreground role, NOT to

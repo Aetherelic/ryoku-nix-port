@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -309,17 +310,74 @@ func (d *daemon) showLiveWallpaper(pic string) error {
 	return nil
 }
 
-// liveFrame: one still from the video for matugen, which reads an image. offset
-// defaults to a second in; the ryowalls frame slider can move it. "" on failure,
-// so the palette just keeps its previous value.
+// liveFrame: one still from the video, for the backdrop to hold while livewall
+// starts and for matugen to read. Cached per clip, mtime and offset like the
+// transcode is, and renamed into place. It used to be one shared file, so a
+// ryowalls preview of another clip handed the daemon that clip's frame: the
+// desktop showed the wrong video and took its light/dark from it. "" on failure,
+// so the palette keeps its previous value.
 func liveFrame(video string) string {
-	out := filepath.Join(stateDir(), "ryoku-live-frame.png")
-	err := exec.Command("ffmpeg", "-y", "-ss", frameOffset(video), "-i", video,
-		"-frames:v", "1", out).Run()
-	if err != nil || !isFile(out) {
+	st, err := os.Stat(video)
+	if err != nil {
 		return ""
 	}
+	off := frameOffset(video)
+	dir := filepath.Join(stateDir(), "ryoku-live-frames")
+	name := strings.TrimSuffix(filepath.Base(video), filepath.Ext(video))
+	out := filepath.Join(dir, name+"-"+strconv.FormatInt(st.ModTime().Unix(), 10)+"-"+off+".png")
+	if isFile(out) {
+		return out
+	}
+	if os.MkdirAll(dir, 0o755) != nil {
+		return ""
+	}
+	tmp := out + ".tmp." + strconv.Itoa(os.Getpid()) + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".png"
+	// -update says "one image, not a sequence": without it ffmpeg 8 warns, and a
+	// warning here is an error in the next release.
+	err = exec.Command("ffmpeg", "-y", "-ss", off, "-i", video,
+		"-frames:v", "1", "-update", "1", tmp).Run()
+	if err != nil || !isFile(tmp) {
+		_ = os.Remove(tmp)
+		return ""
+	}
+	if os.Rename(tmp, out) != nil {
+		_ = os.Remove(tmp)
+		return ""
+	}
+	pruneLiveFrames(dir)
 	return out
+}
+
+// pruneLiveFrames bounds the still cache: a 4K frame is a couple of MB and a
+// wallpaper library grows.
+const liveFrameKeep = 24
+
+func pruneLiveFrames(dir string) {
+	// the one shared still this cache replaced, on a box that still carries it
+	_ = os.Remove(filepath.Join(stateDir(), "ryoku-live-frame.png"))
+	ents, err := os.ReadDir(dir)
+	if err != nil || len(ents) <= liveFrameKeep {
+		return
+	}
+	type still struct {
+		path string
+		mod  time.Time
+	}
+	var stills []still
+	for _, e := range ents {
+		info, err := e.Info()
+		if err != nil || e.IsDir() {
+			continue
+		}
+		stills = append(stills, still{filepath.Join(dir, e.Name()), info.ModTime()})
+	}
+	if len(stills) <= liveFrameKeep {
+		return
+	}
+	sort.Slice(stills, func(i, j int) bool { return stills[i].mod.After(stills[j].mod) })
+	for _, s := range stills[liveFrameKeep:] {
+		_ = os.Remove(s.path)
+	}
 }
 
 // frameOffset: seconds into the video that matugen samples, from the per-video

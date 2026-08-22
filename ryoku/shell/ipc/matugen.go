@@ -200,18 +200,41 @@ func smartMode(luma float64) string {
 
 // resolveMode turns the mode knob into a concrete light/dark for matugen: an
 // explicit light/dark passes through; "smart" (or anything else) follows the
-// wallpaper's luminance.
+// wallpaper's luminance. For a clip that is the whole run, not the sampled
+// frame: one bright second in a dark wallpaper used to turn the desktop white.
 func resolveMode(mode, img string) string {
 	switch mode {
 	case "light", "dark":
 		return mode
 	}
-	luma, ok := matugenImageLuma(img)
+	var luma float64
+	var ok bool
+	if isVideo(img) {
+		luma, ok = videoLuma(img)
+	} else {
+		luma, ok = matugenImageLuma(img)
+	}
 	if !ok {
-		// Undecodable image: default to dark, the shell's own signature.
+		// Nothing decodable: default to dark, the shell's own signature.
 		return "dark"
 	}
 	return smartMode(luma)
+}
+
+// videoLuma: a clip's mean luma over its first minute, sampled a frame a second
+// at 32x18. ffmpeg's gray conversion carries the same BT.601 weights meanLuma
+// uses, so the two agree on what "bright" means.
+func videoLuma(video string) (float64, bool) {
+	out, err := exec.Command("ffmpeg", "-v", "error", "-t", "60", "-i", video,
+		"-vf", "fps=1,scale=32:18", "-f", "rawvideo", "-pix_fmt", "gray", "-").Output()
+	if err != nil || len(out) == 0 {
+		return 0, false
+	}
+	var sum int64
+	for _, b := range out {
+		sum += int64(b)
+	}
+	return float64(sum) / float64(len(out)) / 255, true
 }
 
 // matugenImageLuma returns the wallpaper's mean perceptual luma in 0..1, using
@@ -444,6 +467,7 @@ func matugenFollows() bool {
 // and nudge the toolkits to repaint. A video wallpaper is sampled to a still
 // first, since matugen decodes images only.
 func (d *daemon) matugenApply(img string) error {
+	source := img
 	if isVideo(img) {
 		frame := liveFrame(img)
 		if frame == "" {
@@ -451,7 +475,7 @@ func (d *daemon) matugenApply(img string) error {
 		}
 		img = frame
 	}
-	pal, tones, mode, err := generatePaletteStill(img)
+	pal, tones, mode, err := generatePaletteStill(img, source)
 	if err != nil {
 		return err
 	}
@@ -484,10 +508,12 @@ func (d *daemon) matugenApply(img string) error {
 // and neutralizes an achromatic picture, returning the shell palette, the tonal
 // ramps, and the resolved light/dark mode -- the exact values matugenApply
 // writes, with no cache writes and no desktop effects. Shared by apply and the
-// ryowalls preview so the specimen never diverges from what Set paints.
-func generatePaletteStill(img string) (map[string]string, map[string]map[string]string, string, error) {
+// ryowalls preview so the specimen never diverges from what Set paints. `source`
+// is the wallpaper the user picked, a clip for a live one, and it is what the
+// smart light/dark reads.
+func generatePaletteStill(img, source string) (map[string]string, map[string]map[string]string, string, error) {
 	k := readMatugenKnobs()
-	mode := resolveMode(k.Mode, img)
+	mode := resolveMode(k.Mode, source)
 	args, err := matugenArgs(img, k, mode)
 	if err != nil {
 		return nil, nil, "", err
@@ -518,6 +544,7 @@ func generatePaletteStill(img string) (map[string]string, map[string]map[string]
 // touching the cache or the desktop. ryowalls calls it so its live preview and
 // spectrum specimen show exactly what Set will paint (one generator, no drift).
 func matugenPreview(img string) error {
+	source := img
 	if isVideo(img) {
 		if f := liveFrame(img); f != "" {
 			img = f
@@ -525,7 +552,7 @@ func matugenPreview(img string) error {
 			return fmt.Errorf("matugen-preview: could not sample a still from %q", img)
 		}
 	}
-	pal, tones, _, err := generatePaletteStill(img)
+	pal, tones, _, err := generatePaletteStill(img, source)
 	if err != nil {
 		return err
 	}

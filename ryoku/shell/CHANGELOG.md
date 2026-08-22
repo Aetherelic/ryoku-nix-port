@@ -201,6 +201,25 @@
   user's file alone.
 
 ### Fixed
+- **Setting a live wallpaper no longer shows another clip first, or paints the
+  desktop white.** Every clip's sampled still was written to one shared file,
+  `ryoku-live-frame.png`, by three different callers: the backdrop's still, the
+  palette pass, and ryowalls' preview of whatever tile the pointer was on. So the
+  frame the desktop showed and the frame matugen read could belong to a clip the
+  user did not pick. Caught on this box: the stored still measured 0.612 luma
+  while the clip it claimed to represent measures 0.080 across its whole run, and
+  0.612 is what flipped smart mode to light. That is the white launcher, the white
+  terminal and the grey fonts, over a dark wallpaper.
+  Stills are cached per clip, source mtime and frame offset now
+  (`ryoku-live-frames/<clip>-<mtime>-<offset>.png`), written to a temp file and
+  renamed in, so no caller can hand another its frame and no reader sees a
+  half-written PNG. Repeated sets and previews of one clip reuse the still instead
+  of re-running ffmpeg, the cache is capped at 24 stills, and the old shared file
+  is removed when found.
+  Smart light/dark for a clip now reads the whole clip (a frame a second over its
+  first minute) instead of the one frame the palette was sampled at, so a dark
+  wallpaper with a bright second in it stays dark. `ffmpeg -update 1` for the
+  still extraction, which ffmpeg 8 warns about and a later release will refuse.
 - **Super+Escape no longer stalls the machine while it opens.** The sidebar's
   brightness fader asks `ddcutil detect` for the external monitor list, and that
   walks every i2c bus on the box: 28 of them on a hybrid laptop, 11.5s on a cold
