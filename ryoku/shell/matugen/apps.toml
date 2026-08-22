@@ -67,3 +67,24 @@ output_path = "~/.config/fish/conf.d/ryoku-colors.fish"
 [templates.yazi]
 input_path = "~/.config/matugen/templates/yazi.toml"
 output_path = "~/.config/yazi/theme.toml"
+
+[templates.obsidian]
+input_path = "~/.config/matugen/templates/obsidian.css"
+output_path = "~/.config/matugen/generated/obsidian.css"
+
+[templates.kvantum]
+input_path = "~/.config/matugen/templates/kvantum.kvconfig"
+output_path = "~/.config/Kvantum/ryoku/ryoku.kvconfig"
+post_hook = "mkdir -p ~/.config/Kvantum/ryoku && cp -f ~/.config/matugen/templates/kvantum.svg ~/.config/Kvantum/ryoku/ryoku.svg 2>/dev/null; kvantummanager --set ryoku 2>/dev/null || true"
+
+[templates.zathura]
+input_path = "~/.config/matugen/templates/zathura"
+output_path = "~/.config/zathura/zathurarc"
+
+[templates.alacritty]
+input_path = "~/.config/matugen/templates/alacritty.toml"
+output_path = "~/.config/alacritty/colors.toml"
+
+[templates.tmux]
+input_path = "~/.config/matugen/templates/tmux.conf"
+output_path = "~/.config/tmux/ryoku-colors.conf"

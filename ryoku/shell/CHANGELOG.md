@@ -12,6 +12,13 @@
   literal migrated to `dur(N)`) now tracks a global speed and a reduce-motion
   switch read live from `shell.json` `theme.motion` (`scale` 0.25 to 3, `reduce`).
   Ported from caelestia-dots/shell (`plugin/.../Config/tokens.hpp`, `Anim.qml`).
+- **The recolor engine themes five more apps: Obsidian, Kvantum, Zathura,
+  Alacritty, and tmux.** New matugen templates fan the wallpaper palette into
+  each (ported from dusklinux/dusky and mapped onto Ryoku's Material 3 roles),
+  gated by the existing per-app roster and the Theme apps toggle. Obsidian is
+  wired live by a `ryoku doctor` reconciler that links the generated snippet into
+  every vault and enables it; Kvantum installs a dedicated `ryoku` theme so Qt
+  apps follow too.
 - **Game Mode keeps a fullscreen game rendering off-screen.** Switching away from
   a game's workspace used to stop it dead: still loading and it never finished,
   mid-match and it locked up, audio still playing, input ignored, multiplayer
