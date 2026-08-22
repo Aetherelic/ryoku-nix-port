@@ -49,6 +49,12 @@ Item {
     }
     readonly property string dateText: Qt.locale("en_US").toString(now, "ddd, MMM d")
 
+    // The hero art and its text were authored light-on-dark: the edge vignette
+    // and the raised-text emboss are black so light glyphs separate from the
+    // wallpaper. On a light palette that scrim must flip white, or the dark ink
+    // muddies into its own shadow. `shade` is the channel both share.
+    readonly property real shade: Tokens.light ? 1 : 0
+
     function focusField() {
         field.forceActiveFocus();
     }
@@ -84,10 +90,10 @@ Item {
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0; color: Qt.rgba(0, 0, 0, 0.52) }
-            GradientStop { position: 0.34; color: Qt.rgba(0, 0, 0, 0.06) }
-            GradientStop { position: 0.68; color: Qt.rgba(0, 0, 0, 0.10) }
-            GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0.64) }
+            GradientStop { position: 0; color: Qt.rgba(root.shade, root.shade, root.shade, 0.52) }
+            GradientStop { position: 0.34; color: Qt.rgba(root.shade, root.shade, root.shade, 0.06) }
+            GradientStop { position: 0.68; color: Qt.rgba(root.shade, root.shade, root.shade, 0.10) }
+            GradientStop { position: 1; color: Qt.rgba(root.shade, root.shade, root.shade, 0.64) }
         }
     }
 
@@ -183,7 +189,7 @@ Item {
             text: root.greeting
             color: Theme.bright
             style: Text.Raised
-            styleColor: Qt.rgba(0, 0, 0, 0.82)
+            styleColor: Qt.rgba(root.shade, root.shade, root.shade, 0.82)
             font.family: Theme.mono
             font.pixelSize: 9 * root.s
             font.weight: Font.DemiBold
@@ -194,7 +200,7 @@ Item {
             text: Qt.formatTime(root.now, "HH:mm")
             color: Theme.bright
             style: Text.Raised
-            styleColor: Qt.rgba(0, 0, 0, 0.86)
+            styleColor: Qt.rgba(root.shade, root.shade, root.shade, 0.86)
             font.family: Theme.font
             font.pixelSize: (root.compressed ? 17 : 28) * root.s
             font.weight: Font.Light
@@ -228,7 +234,7 @@ Item {
                 text: Weather.temp
                 color: Theme.bright
                 style: Text.Raised
-                styleColor: Qt.rgba(0, 0, 0, 0.86)
+                styleColor: Qt.rgba(root.shade, root.shade, root.shade, 0.86)
                 font.family: Theme.font
                 font.pixelSize: (root.compressed ? 14 : 19) * root.s
                 font.weight: Font.Medium
@@ -242,7 +248,7 @@ Item {
             text: Weather.condition
             color: Theme.subtle
             style: Text.Raised
-            styleColor: Qt.rgba(0, 0, 0, 0.86)
+            styleColor: Qt.rgba(root.shade, root.shade, root.shade, 0.86)
             font.family: Theme.font
             font.pixelSize: 10 * root.s
         }
@@ -252,7 +258,7 @@ Item {
             text: root.dateText
             color: Theme.bright
             style: Text.Raised
-            styleColor: Qt.rgba(0, 0, 0, 0.86)
+            styleColor: Qt.rgba(root.shade, root.shade, root.shade, 0.86)
             font.family: Theme.mono
             font.pixelSize: 9 * root.s
             font.letterSpacing: 0.6 * root.s
@@ -368,9 +374,9 @@ Item {
             anchors.verticalCenter: field.verticalCenter
             visible: field.text.length === 0 && field.preeditText.length === 0
             text: I18n.tr("TYPE TO SEARCH")
-            color: Qt.rgba(1, 1, 1, 0.70)
+            color: Theme.faint
             style: Text.Raised
-            styleColor: Qt.rgba(0, 0, 0, 0.86)
+            styleColor: Qt.rgba(root.shade, root.shade, root.shade, 0.86)
             font.family: Theme.mono
             font.pixelSize: 11 * root.s
             font.weight: Font.Medium
@@ -382,7 +388,7 @@ Item {
             anchors.right: field.right
             anchors.bottom: parent.bottom
             height: Math.max(1, root.s)
-            color: field.activeFocus ? Theme.bright : Qt.rgba(1, 1, 1, 0.46)
+            color: field.activeFocus ? Theme.bright : Theme.faint
         }
     }
 

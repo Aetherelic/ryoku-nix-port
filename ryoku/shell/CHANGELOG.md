@@ -9,6 +9,13 @@
   ink ramp now derives muted and faint from on-surface-variant at reduced opacity
   so text holds contrast in both modes; fish's comment and autosuggestion colours
   move off outline too. Confirmed against caelestia and dusky (never outline for text).
+- **The hero launcher reads in a light palette.** The hero search overlay was
+  authored light-on-dark: its "TYPE TO SEARCH" placeholder and idle underline
+  were hard white, and the header emboss and edge vignette were hard black, so a
+  light wallpaper left the search prompt invisible and the art muddy. A new
+  `Tokens.light` flag (surface luma) flips the emboss and vignette to a light
+  scrim, and the placeholder/underline move to the on-surface faint token, so the
+  hero separates cleanly in either mode.
 
 ### Added
 - **A browser palette host lands the wallpaper scheme in Firefox and Chromium.**

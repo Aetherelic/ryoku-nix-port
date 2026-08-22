@@ -52,6 +52,12 @@ Singleton {
     readonly property color paper: role("surface", defaultPaper)
     readonly property color paperLift: role("surfaceContainerLow", defaultPaperLift)
 
+    // ── mode flag ────────────────────────────────────────────────────────
+    // True when the resolved surface is light. Decoration authored for a dark
+    // surface (emboss shadows, edge vignettes, light-on-dark placeholders) must
+    // flip its scrim to stay legible in a light palette; this is that switch.
+    readonly property bool light: (0.299 * paper.r + 0.587 * paper.g + 0.114 * paper.b) > 0.5
+
     // ── ink, on paper ────────────────────────────────────────────────────
     // Text uses the Material on-surface roles so it inverts with the palette; muted
     // and faint are the secondary role at reduced opacity, so they stay legible on a
