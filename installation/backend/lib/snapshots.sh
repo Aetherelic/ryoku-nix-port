@@ -24,6 +24,7 @@ EOF
   log "configuring snapper (root), snap-pac, and limine-snapper-sync"
   ryoku_snap_config
   ryoku_snap_services
+  ryoku_snap_updatedb
 }
 
 # drop the snapper "root" config by hand. `snapper create-config` wants
@@ -93,5 +94,24 @@ ryoku_snap_services() {
       || log "snapshots: warning, could not enable limine-snapper-sync.service"
   else
     log "snapshots: limine-snapper-sync not installed (offline AUR?); boot-entry sync not enabled"
+  fi
+}
+
+# prune /.snapshots from updatedb so plocate indexes the live system, not
+# hundreds of frozen copies. mirrors the ryoku doctor reconciler; no conf = no-op.
+ryoku_snap_updatedb() {
+  local conf=/mnt/etc/updatedb.conf
+  if [[ ! -f $conf ]]; then
+    log "snapshots: no updatedb.conf in target, skipping locate prune"
+    return 0
+  fi
+  if grep -q '/\.snapshots' "$conf"; then
+    return 0
+  fi
+  log "snapshots: pruning /.snapshots from updatedb"
+  if grep -q '^PRUNEPATHS=' "$conf"; then
+    run sed -i 's|^PRUNEPATHS="|PRUNEPATHS="/.snapshots |' "$conf"
+  else
+    printf 'PRUNEPATHS="/.snapshots"\n' | run tee -a "$conf" >/dev/null
   fi
 }
