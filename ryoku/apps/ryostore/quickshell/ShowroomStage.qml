@@ -30,21 +30,21 @@ Item {
             : StoreLogic.primaryAction(actionItem)
     readonly property string secondaryLabel: StoreLogic.secondaryAction(actionItem)
     readonly property bool hasActionItem: item !== null && item !== undefined
-    readonly property color stageSurface: actionItem.surface || Tokens.paper
+    readonly property color stageSurface: displayItem.surface || Tokens.paper
     readonly property var coverItem: ({
         id: displayItem.id,
         name: displayItem.name || displayItem.id,
         art: displayItem.art || "",
-        category: actionItem.category,
-        categoryName: actionItem.categoryName,
-        accent: actionItem.accent,
-        surface: actionItem.surface,
-        installed: actionItem.installed,
-        active: actionItem.active,
-        enabled: actionItem.enabled,
-        installedCount: actionItem.installedCount,
-        totalCount: actionItem.totalCount,
-        updateAvailable: actionItem.updateAvailable
+        category: displayItem.category,
+        categoryName: displayItem.categoryName,
+        accent: displayItem.accent,
+        surface: displayItem.surface,
+        installed: displayItem.installed,
+        active: displayItem.active,
+        enabled: displayItem.enabled,
+        installedCount: displayItem.installedCount,
+        totalCount: displayItem.totalCount,
+        updateAvailable: displayItem.updateAvailable
     })
 
     clip: true
@@ -73,7 +73,11 @@ Item {
         Qt.callLater(function() { stage.artworkReveal = 1; });
     }
 
-    onDisplayItemChanged: revealArtwork()
+    // Play the entrance reveal only when the committed selection changes (or the
+    // stage first gets an item), not on every hover preview: a preview swaps the
+    // hero art via ProductMedia's own crossfade, so re-dimming the whole stage on
+    // each hover is what made scanning the grid feel janky.
+    onItemChanged: revealArtwork()
     onReducedMotionChanged: {
         if (reducedMotion)
             artworkReveal = 1;
@@ -147,9 +151,9 @@ Item {
             orientation: Gradient.Horizontal
             GradientStop {
                 position: 0
-                color: Qt.rgba((stage.actionItem.accent ? Qt.color(stage.actionItem.accent) : Tokens.sun).r,
-                               (stage.actionItem.accent ? Qt.color(stage.actionItem.accent) : Tokens.sun).g,
-                               (stage.actionItem.accent ? Qt.color(stage.actionItem.accent) : Tokens.sun).b, 0.16)
+                color: Qt.rgba((stage.displayItem.accent ? Qt.color(stage.displayItem.accent) : Tokens.sun).r,
+                               (stage.displayItem.accent ? Qt.color(stage.displayItem.accent) : Tokens.sun).g,
+                               (stage.displayItem.accent ? Qt.color(stage.displayItem.accent) : Tokens.sun).b, 0.16)
             }
             GradientStop { position: 0.5; color: "#00000000" }
             GradientStop { position: 1; color: "#00000000" }
@@ -180,7 +184,7 @@ Item {
 
         Text {
             width: parent.width
-            text: String(stage.actionItem && (stage.actionItem.categoryName || stage.actionItem.category) || "").toUpperCase()
+            text: String(stage.displayItem && (stage.displayItem.categoryName || stage.displayItem.category) || "").toUpperCase()
             color: Tokens.inkDim
             font.family: Tokens.mono
             font.pixelSize: Tokens.fMicro
@@ -203,7 +207,7 @@ Item {
 
         Text {
             width: parent.width
-            text: String(stage.actionItem && (stage.actionItem.summary || stage.actionItem.description) || "")
+            text: String(stage.displayItem && (stage.displayItem.summary || stage.displayItem.description) || "")
             visible: text !== ""
             color: Tokens.inkDim
             font.family: Tokens.ui
@@ -215,7 +219,7 @@ Item {
 
         StatusReadout {
             objectName: "ryostore-stage-status"
-            item: stage.actionItem
+            item: stage.displayItem
             busyKey: stage.busyKey
             installStage: stage.installStage
             installErrorKey: stage.installErrorKey

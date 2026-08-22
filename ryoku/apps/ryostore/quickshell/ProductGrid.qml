@@ -98,6 +98,19 @@ FocusScope {
         event.accepted = true;
     }
 
+    // Hover-intent: commit a hero preview only after the pointer rests on a card
+    // briefly, so sweeping across the grid to reach a target never thrashes the
+    // hero and its remote art (no mainstream store drives a distant hero from raw
+    // hover; a short dwell is the standard guard). Deliberately not motion-scaled:
+    // this is intent detection, not an animation, so it holds under reduce-motion.
+    property var pendingPreview: null
+    Timer {
+        id: dwell
+        interval: 150
+        onTriggered: grid.previewRequested(grid.pendingPreview)
+    }
+    onItemsChanged: dwell.stop()
+
     GridView {
         id: view
         objectName: "ryostore-grid-view"
@@ -114,6 +127,12 @@ FocusScope {
             enabled: !grid.reducedMotion && !grid.restoring && !view.dragging && !view.flicking
             NumberAnimation { duration: Tokens.move; easing.type: Tokens.ease }
         }
+        // Clear the preview only when the pointer leaves the grid, not on each
+        // card exit: holding the last preview across the inter-card gap is what
+        // keeps the hero from flashing back to the selection mid-sweep.
+        HoverHandler {
+            onHoveredChanged: if (!hovered) { dwell.stop(); grid.previewRequested(null); }
+        }
 
         delegate: ProductCard {
             required property var modelData
@@ -124,7 +143,7 @@ FocusScope {
             focusVisible: grid.activeFocus
                     && StoreLogic.itemKey(modelData) === grid.selectedKey
             reducedMotion: grid.reducedMotion
-            onHoverChanged: hovered => grid.previewRequested(hovered ? modelData : null)
+            onHoverChanged: hovered => { if (hovered) { grid.pendingPreview = modelData; dwell.restart(); } }
             onActivated: grid.activated(modelData)
         }
     }

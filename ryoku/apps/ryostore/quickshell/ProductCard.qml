@@ -15,7 +15,9 @@ Item {
     signal hoverChanged(bool hovered)
     signal activated()
 
-    scale: card.selected ? 1 : 0.975
+    // Immediate local feedback on hover (rise to full size), independent of the
+    // hero's dwell delay, so the tile under the pointer always responds at once.
+    scale: card.selected ? 1 : (hover.hovered ? 1 : 0.975)
     Behavior on scale {
         enabled: !card.reducedMotion
         NumberAnimation { duration: Tokens.snap; easing.type: Tokens.easeSnap }
