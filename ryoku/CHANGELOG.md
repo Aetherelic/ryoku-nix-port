@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **Video decode no longer freezes on hybrid laptops.** The session forced the
+  nvidia VA-API/GLX drivers whenever the nvidia driver merely existed, so on a
+  hybrid where the Intel or AMD iGPU drives the panel, video froze. It now takes
+  the nvidia path only when nvidia actually drives the internal panel -- read
+  from which card's connected eDP/LVDS/DSI connector reports -- and lets mesa
+  auto-detect otherwise.
 - **Recording no longer fails when a live wallpaper is up on a hybrid GPU.**
   With a live wallpaper the recorder captures through the desktop portal (gsr's
   KMS path drops the wallpaper layer); on some multi-GPU AMD boxes the portal's

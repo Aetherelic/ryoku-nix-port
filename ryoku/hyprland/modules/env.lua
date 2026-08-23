@@ -3,18 +3,38 @@ hl.env("XCURSOR_SIZE",      "24")
 hl.env("HYPRCURSOR_THEME",  "Bibata-Modern-Ice")
 hl.env("HYPRCURSOR_SIZE",   "24")
 
--- VA-API/GLX hints are nvidia-only: mesa auto-detects, and forcing them breaks
--- video decode + Xwayland GL. AQ_NO_MODIFIERS is the opposite, a mesa-only fix.
+-- VA-API/GLX hints are nvidia-only, and forcing them when an iGPU drives the
+-- panel freezes video decode on hybrid laptops (#55); set them only when nvidia
+-- actually drives the internal panel, else let mesa auto-detect. Detect by the
+-- vendor of the card whose eDP/LVDS/DSI connector is connected -- stable across
+-- reboots and MUX/offload/dedicated modes, unlike backlight-interface names.
+local function panel_vendor()
+    local p = io.popen([[
+        for c in /sys/class/drm/card*-eDP-* /sys/class/drm/card*-LVDS-* /sys/class/drm/card*-DSI-*; do
+            [ -e "$c/status" ] && [ "$(cat "$c/status")" = connected ] || continue
+            card=${c%-*}; card=${card%-*}
+            cat "$card/device/vendor" 2>/dev/null && break
+        done
+    ]])
+    if not p then return nil end
+    local out = p:read("*a") or ""
+    p:close()
+    return out:match("0x%x+")
+end
+
 local nvidia = io.open("/proc/driver/nvidia/version")
-if nvidia then
-    nvidia:close()
+if nvidia then nvidia:close() end
+local panel = panel_vendor()
+-- Intel (0x8086) or AMD (0x1002) on the panel is the hybrid case: the iGPU decodes.
+local igpu_panel = panel == "0x8086" or panel == "0x1002"
+
+if nvidia and not igpu_panel then
     hl.env("LIBVA_DRIVER_NAME",         "nvidia")
-    -- NVD_BACKEND=direct: nvidia VA-API direct backend (Turing+), omarchy's GSP default.
-    hl.env("NVD_BACKEND",               "direct")
+    hl.env("NVD_BACKEND",               "direct") -- nvidia VA-API direct backend, Turing+
     hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
     hl.env("__GL_GSYNC_ALLOWED",        "0")
     hl.env("__GL_VRR_ALLOWED",          "0")
-else
+elseif not nvidia then
     -- dodges Hyprland's post-capture black screen (#11315). Not on nvidia: it
     -- can't import the modifier-less buffer and SIGABRTs the first multi-GPU commit.
     hl.env("AQ_NO_MODIFIERS", "1")
