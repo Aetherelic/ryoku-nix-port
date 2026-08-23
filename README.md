@@ -8,8 +8,11 @@
 
 Ryoku is a hand-built Arch Linux distribution: one cohesive Hyprland desktop, a
 guided installer, and the system definition that reproduces them, all from a
-single repository. The base is lean enough to live in from first boot and
-deliberate in how it looks and moves.
+single repository. It is a whole operating system you install to disk from its
+own ISO -- the bootloader, drivers, packages, installer and desktop are all part
+of it -- not a shell or a set of dotfiles you layer onto an existing distro. The
+base is lean enough to live in from first boot and deliberate in how it looks and
+moves.
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-E2342A?style=for-the-badge)](LICENSE)
 [![Built on Arch](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://archlinux.org)
