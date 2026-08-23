@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 
-# Make the box a CachyOS box: add the full CachyOS repositories (the x86-64-v3
-# core/extra/cachyos rebuilds plus the baseline [cachyos]) ABOVE [core], and
-# trust the CachyOS key. A later `pacman -Syu` then tracks CachyOS's optimized
-# rebuilds and its pacman fork: opting in is going full CachyOS by design. The
-# stock kernel stays installed as the boot fallback (pick it at the boot menu to
-# roll back). The CachyOS Layer extras bundle declares "requires": ["cachyos"]
-# and the actuator shells out here before routing its packages (the kernel,
-# cachyos-settings, ananicy, proton). needs a TTY for sudo.
+# Ryoku plus the CachyOS kernel, and nothing else: add ONLY the [cachyos-v3]
+# repository (where linux-cachyos lives) above [core], and trust the CachyOS
+# key. The userland stays Arch + [ryoku] -- we do NOT add the core/extra
+# rebuilds (so a later `pacman -Syu` cannot convert the userland) or the
+# baseline [cachyos] repo (which ships CachyOS's forked pacman). The stock
+# kernel stays as the boot fallback. See docs/kernels.md. Needs a TTY for sudo.
+# (The full-CachyOS install variant is a separate path: installation/backend/lib/cachyos.sh.)
 
 set -euo pipefail
 
@@ -56,11 +55,11 @@ sudo pacman-key --recv-keys "$key" --keyserver keyserver.ubuntu.com \
   || sudo pacman-key --recv-keys "$key" --keyserver hkps://keys.openpgp.org
 sudo pacman-key --lsign-key "$key"
 
-echo "==> Adding the CachyOS repositories above [core]"
-block="[cachyos-v3]\nServer = $mirror/x86_64_v3/cachyos-v3\n\n[cachyos-core-v3]\nServer = $mirror/x86_64_v3/cachyos-core-v3\n\n[cachyos-extra-v3]\nServer = $mirror/x86_64_v3/cachyos-extra-v3\n\n[cachyos]\nServer = $mirror/x86_64/cachyos\n\n[core]"
+echo "==> Adding the [cachyos-v3] repository above [core]"
+block="[cachyos-v3]\nServer = $mirror/x86_64_v3/cachyos-v3\n\n[core]"
 sudo sed -i "0,/^\[core\]/ s|^\[core\]|$block|" "$conf"
-if ! { grep -qE '^\[cachyos-v3\]' "$conf" && grep -qE '^\[cachyos\]' "$conf"; }; then
-  echo "ryoku-pkg-cachyos: could not add the CachyOS repositories to $conf" >&2
+if ! grep -qE '^\[cachyos-v3\]' "$conf"; then
+  echo "ryoku-pkg-cachyos: could not add the [cachyos-v3] repository to $conf" >&2
   exit 1
 fi
 

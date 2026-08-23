@@ -9,6 +9,15 @@
   comma-separated allowlist.
 
 ### Fixed
+- **The CachyOS kernel toggle adds only `[cachyos-v3]` again, not the whole
+  CachyOS stack.** `ryoku-pkg-cachyos` had drifted to also add
+  `[cachyos-core-v3]`, `[cachyos-extra-v3]`, and the baseline `[cachyos]` --
+  pulling CachyOS's forked pacman and letting a later `pacman -Syu` convert the
+  Arch userland, which is exactly what the kernel toggle is documented to avoid
+  (docs/kernels.md). It now inserts just `[cachyos-v3]` (where `linux-cachyos`
+  lives). The full-CachyOS install variant keeps its full stack via a separate
+  path (installation/backend/lib/cachyos.sh). Existing boxes that already got the
+  extra repos can comment or delete those repo blocks in `/etc/pacman.conf`.
 - **A failed multilib enable now aborts the bundle instead of mis-routing its
   packages.** `ensure_requires` ran `ryoku-pkg-multilib || true`, so when the
   repo could not be enabled (sed no-op on a hand-edited pacman.conf, a failed
