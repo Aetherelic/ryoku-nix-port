@@ -1001,6 +1001,14 @@ func genPlugins(o Overrides) string {
 		if len(sc) > 0 {
 			fmt.Fprintf(&b, "hl.config({ scrolling = { %s } })\n\n", strings.Join(sc, ", "))
 		}
+
+		// Follow focus is inert while the pointer can't move focus: with the
+		// shipped follow_mouse = 2 (detached) hovering a peeked column never
+		// scrolls it in until you click (#56). So when follow focus is on, let
+		// the pointer drive focus too -- unless the user pinned their own value.
+		if hs.FollowFocus && o.Input.FollowMouse == defaultOverrides().Input.FollowMouse {
+			b.WriteString("hl.config({ input = { follow_mouse = 1 } })\n\n")
+		}
 	}
 
 	return b.String()

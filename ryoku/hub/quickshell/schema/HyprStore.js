@@ -798,7 +798,7 @@ var rows = [
         "group": "plugins.hyprscrolling",
         "key": "plugins.hyprscrolling.followFocus",
         "label": "Follow focus",
-        "desc": "View scrolls to keep the focused window on screen, scrolling layout only",
+        "desc": "View scrolls to the window you focus or hover, scrolling layout only",
         "ctl": "sw",
         "src": "settings.lua"
     },

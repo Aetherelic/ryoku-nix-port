@@ -10,6 +10,12 @@
   honours it too.
 
 ### Fixed
+- **"Follow focus" on the scrolling layout now scrolls to the window under the
+  pointer.** The toggle only flipped the scrolling layout's follow-focus (already
+  on by default), so it looked like it did nothing: with the shipped detached
+  follow-mouse, hovering a peeked column never scrolled it in until you clicked.
+  With Follow focus on, the pointer now drives focus too, so hovering scrolls the
+  column into view -- matching how caelestia, dusky and omarchy set up scrolling.
 - **GPU temperature and load show on AMD and Intel GPUs, not just NVIDIA.** The
   Machine page's live plate read the GPU only through `nvidia-smi`, so on an AMD
   (or Intel) GPU the temperature stayed blank and the tile fell back to "n/a". It

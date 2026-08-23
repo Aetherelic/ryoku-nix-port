@@ -768,11 +768,38 @@ func TestGenPluginsScrollingCore(t *testing.T) {
 	if strings.Contains(genLua(o, true), "scrolling = {") {
 		t.Error("scrolling config emitted for a non-scrolling layout")
 	}
-	// scrolling layout at default knobs: no override written.
+	// scrolling layout at default knobs: no scrolling-block override, but follow
+	// focus (on by default) drives the pointer so hover scrolls a column in (#56).
 	d := defaultOverrides()
 	d.Appearance.Layout = "scrolling"
-	if strings.Contains(genPlugins(d), "scrolling = {") {
-		t.Error("default scrolling knobs must emit no override")
+	dp := genPlugins(d)
+	if strings.Contains(dp, "scrolling = {") {
+		t.Error("default scrolling knobs must emit no scrolling override")
+	}
+	if !strings.Contains(dp, "hl.config({ input = { follow_mouse = 1 } })") {
+		t.Errorf("scrolling + follow focus must drive follow_mouse = 1:\n%s", dp)
+	}
+}
+
+// follow focus on a scrolling layout drives follow_mouse = 1 so hovering a
+// peeked column scrolls it in (#56), but never overrides an explicit choice or
+// a layout without follow focus.
+func TestScrollingFollowMouse(t *testing.T) {
+	o := defaultOverrides()
+	o.Appearance.Layout = "scrolling"
+	o.Plugins.Hyprscrolling.FollowFocus = false
+	if strings.Contains(genPlugins(o), "follow_mouse") {
+		t.Error("follow focus off must not touch follow_mouse")
+	}
+	o.Plugins.Hyprscrolling.FollowFocus = true
+	o.Input.FollowMouse = 0
+	if strings.Contains(genPlugins(o), "follow_mouse = 1") {
+		t.Error("an explicit follow_mouse must not be overridden")
+	}
+	d := defaultOverrides()
+	d.Appearance.Layout = "dwindle"
+	if strings.Contains(genPlugins(d), "follow_mouse") {
+		t.Error("follow_mouse coupling must be scrolling-only")
 	}
 }
 
