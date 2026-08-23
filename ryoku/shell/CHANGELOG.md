@@ -15,7 +15,10 @@
   light wallpaper left the search prompt invisible and the art muddy. A new
   `Tokens.light` flag (surface luma) flips the emboss and vignette to a light
   scrim, and the placeholder/underline move to the on-surface faint token, so the
-  hero separates cleanly in either mode.
+  hero separates cleanly in either mode. The mode chips (ALL/IMG/FILE/REC) shared
+  the same fault: an idle chip fill hard-coded to black with dark on-surface text
+  rendered dark-on-dark on a light wallpaper. Their idle fill, hover and border
+  now flip with `Tokens.light`, so the chips read in either mode.
 
 ### Added
 - **A browser palette host lands the wallpaper scheme in Firefox and Chromium.**

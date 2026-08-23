@@ -46,7 +46,7 @@ Singleton {
     readonly property color onLeadDim: leadMetadata(onLead, leadContainer)
     readonly property color modeActive: leadContainer
     readonly property color onModeActive: onLead
-    readonly property color modeIdle: Qt.rgba(0, 0, 0, 0.76)
+    readonly property color modeIdle: Ui.Tokens.light ? Qt.rgba(1, 1, 1, 0.76) : Qt.rgba(0, 0, 0, 0.76)
     readonly property color providerApps: Ui.Tokens.sun
     readonly property color providerFind: Config.matchWallpaper ? Scheme.accent2 : vermDim
     readonly property color providerRecent: Ui.Tokens.inkMuted

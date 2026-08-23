@@ -16,9 +16,9 @@ Rectangle {
     implicitHeight: 24 * s
     radius: Math.max(2, LauncherConfig.radius * 0.18) * s
     color: active ? Theme.modeActive
-        : (pointer.hovered ? Qt.rgba(0, 0, 0, 0.88) : Theme.modeIdle)
+        : (pointer.hovered ? (Tokens.light ? Qt.rgba(1, 1, 1, 0.88) : Qt.rgba(0, 0, 0, 0.88)) : Theme.modeIdle)
     border.width: 1
-    border.color: active ? Theme.modeActive : Qt.rgba(1, 1, 1, 0.24)
+    border.color: active ? Theme.modeActive : (Tokens.light ? Qt.rgba(0, 0, 0, 0.24) : Qt.rgba(1, 1, 1, 0.24))
 
     Accessible.role: Accessible.Button
     Accessible.name: label
