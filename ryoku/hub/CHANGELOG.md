@@ -8,6 +8,12 @@
   display from 50% to 200%, separate from the monitor scale apps render at. It
   writes shell.json `displays.ui_scale.<output>`; the Settings window itself
   honours it too.
+- **QMK/VIA keyboards now follow the theme.** A third lighting provider drives a
+  VIA-enabled QMK board (Framework Laptop 16, custom mechanical keyboards) through
+  `qmk_hid`, alongside OpenRGB and ASUS Aura, so its RGB matrix takes the desktop
+  accent as a solid colour. It appears in Appearance > Lighting when `qmk_hid` is
+  installed and a board is connected, and stays silent otherwise. No EEPROM write
+  per theme change (the colour is re-applied on login and on resume instead).
 
 ### Fixed
 - **"Follow focus" on the scrolling layout now scrolls to the window under the

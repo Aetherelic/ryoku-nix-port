@@ -46,7 +46,8 @@ type lightingProviders uint8
 const (
 	lightingOpenRGB lightingProviders = 1 << iota
 	lightingAura
-	lightingAll = lightingOpenRGB | lightingAura
+	lightingQMK
+	lightingAll = lightingOpenRGB | lightingAura | lightingQMK
 )
 
 // ── state: ~/.config/ryoku/lighting.json ────────────────────────────────────
@@ -215,7 +216,7 @@ func openrgbInstalled() bool {
 }
 
 func lightingAvailable() bool {
-	return openrgbInstalled() || auraInstalled()
+	return openrgbInstalled() || auraInstalled() || qmkInstalled()
 }
 
 func runLighting(args []string) error {
@@ -269,7 +270,7 @@ func lightingStateReport() lightReport {
 	rep := lightReport{
 		Available: lightingAvailable(),
 		Enabled:   st.Enabled,
-		Server:    auraInstalled() && auraServerUp() || serverUp(),
+		Server:    auraInstalled() && auraServerUp() || serverUp() || qmkInstalled(),
 		Accent:    accentColor(),
 	}
 	for key, s := range st.Devices {
@@ -728,6 +729,9 @@ func releaseAll(st lightingState) {
 	if !reachable && providers&lightingOpenRGB != 0 {
 		reachable = serverUp()
 	}
+	if !reachable && providers&lightingQMK != 0 && qmkInstalled() {
+		reachable = true
+	}
 	if !reachable {
 		return
 	}
@@ -756,6 +760,9 @@ func restoreDevice(o *orgbConn, live []orgbDevice, key string, s *lightingSettin
 	if d.Provider == auraProvider {
 		return auraRestore(d.ProviderPath, uint32(m.Value))
 	}
+	if d.Provider == qmkProvider {
+		return nil // the board keeps its last colour; no pre-adoption state was captured to restore
+	}
 	if o == nil {
 		return fmt.Errorf("OpenRGB is not running")
 	}
@@ -774,6 +781,9 @@ func anyManaged(st lightingState) bool {
 func providersForKey(key string) lightingProviders {
 	if strings.Contains(key, "#"+auraProvider+":") {
 		return lightingAura
+	}
+	if strings.Contains(key, "#"+qmkProvider+":") {
+		return lightingQMK
 	}
 	return lightingAll
 }
@@ -814,6 +824,16 @@ func applyOne(o *orgbConn, live []orgbDevice, key string, s *lightingSettings, a
 			return fmt.Errorf("%s reports no modes", d.Name)
 		}
 		return auraWrite(d.ProviderPath, auraEffectFromMode(tuneMode(mode, s, accent)), s.Brightness)
+	}
+	if d.Provider == qmkProvider {
+		if s.Effect != "" {
+			return fmt.Errorf("%s offers its firmware effects, not Ryoku per-key effects", d.Name)
+		}
+		_, mode, ok := resolveMode(d, s.Mode)
+		if !ok {
+			return fmt.Errorf("%s reports no modes", d.Name)
+		}
+		return qmkApply(tuneMode(mode, s, accent), s.Brightness)
 	}
 	if o == nil {
 		return fmt.Errorf("OpenRGB is not running")
@@ -1242,13 +1262,21 @@ func access(wait, mayStart bool, providers lightingProviders, fn func(*orgbConn,
 	if providers&lightingAura != 0 {
 		aura, auraErr = readAuraDevices()
 	}
-	live := combineLightingDevices(openrgb, aura)
+	var qmk []orgbDevice
+	var qmkErr error
+	if providers&lightingQMK != 0 {
+		qmk, qmkErr = readQMKDevices()
+	}
+	live := append(combineLightingDevices(openrgb, aura), qmk...)
 	if len(live) == 0 {
 		if openrgbErr != nil {
 			return openrgbErr
 		}
 		if auraErr != nil {
 			return auraErr
+		}
+		if qmkErr != nil {
+			return qmkErr
 		}
 	}
 	return fn(o, live)

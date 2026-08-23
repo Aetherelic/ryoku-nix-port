@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Detect QMK/VIA keyboards by their raw HID control interface, which declares
+# HID usage page 0xFF60. This is the vendor-agnostic signal (Framework 16 and
+# custom mechanical boards alike), so it does not need qmk_hid installed and does
+# not hardcode a vendor/product list.
+#
+#   no argument         exit 0 if any connected hidraw exposes the VIA usage
+#                       page, else 1. `ryoku doctor` uses this to decide whether
+#                       to install qmk_hid.
+#   <hidraw syspath>    exit 0 if THAT device exposes it. The udev rule passes a
+#                       device path here so uaccess is granted to VIA keyboards
+#                       only, not to every hidraw node.
+set -euo pipefail
+
+sysfs="${RYOKU_QMK_SYSFS:-/sys}"
+
+# A HID report descriptor encodes Usage Page 0xFF60 as the three bytes
+# 06 60 ff (Usage Page item, 16-bit data, little-endian).
+has_via_usage() {
+	local desc="$1/device/report_descriptor"
+	[[ -r $desc ]] || return 1
+	od -An -tx1 "$desc" 2>/dev/null | tr -s ' \n' ' ' | grep -qE '(^| )06 60 ff( |$)'
+}
+
+if [[ $# -ge 1 ]]; then
+	if has_via_usage "$1"; then exit 0; fi
+	exit 1
+fi
+
+for dev in "$sysfs"/class/hidraw/hidraw*; do
+	[[ -e $dev ]] || continue
+	if has_via_usage "$dev"; then exit 0; fi
+done
+exit 1

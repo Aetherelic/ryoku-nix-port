@@ -226,6 +226,7 @@ optdepends=(
   'libisoburn: instant cloud machines in ryovm (cloud-init seed ISO; xorriso)'
   'spice-gtk: SPICE console + headless VM viewer for ryovm'
   'asusctl: ASUS laptop Aura keyboard lighting'
+  'qmk_hid: QMK/VIA keyboard lighting (Framework 16, custom boards)'
 )
 install="$pkgname.install"
 source=()
@@ -528,6 +529,10 @@ package() {
   # keyboards so it works without the broad input group (see the rule header).
   install -Dm644 "$_repo/system/hardware/input/72-ryoku-keyboard-uaccess.rules" \
     "$pkgdir/usr/lib/udev/rules.d/72-ryoku-keyboard-uaccess.rules"
+  # QMK/VIA keyboard lighting: grant the seat user a uaccess ACL on a VIA board's
+  # raw HID node so qmk_hid drives its RGB matrix without root (see rule header).
+  install -Dm644 "$_repo/system/hardware/input/62-ryoku-qmk-hid.rules" \
+    "$pkgdir/usr/lib/udev/rules.d/62-ryoku-qmk-hid.rules"
 
   # Bluetooth tuning: bluez owns /etc/bluetooth/main.conf and BlueZ has no
   # drop-in dir, so Ryoku cannot ship a copy here (pacman file conflict). The

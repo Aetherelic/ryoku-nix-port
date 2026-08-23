@@ -160,6 +160,7 @@ func reconcilers() []reconciler {
 		{"btrfs device health", reconcileBtrfsHealth},
 		{"wireless regulatory domain", reconcileWifiRegdom},
 		{"ASUS Aura lighting provider", reconcileAsusAura},
+		{"QMK/VIA keyboard lighting provider", reconcileQMK},
 		{"display backlight", reconcileBacklight},
 		{"discrete GPU idle drain", reconcileDgpuPanel},
 		{"display resolution", reconcileDisplayModes},

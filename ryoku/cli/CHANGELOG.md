@@ -12,6 +12,13 @@
   it. The seed is one-shot (a marker under the state dir), so deleting the line
   is a decision that stands; `/etc/pacman.conf` stays the user's file
   (`internal/doctor/reconcile_pacman.go`, `TestEnableILoveCandy`).
+- **`ryoku doctor` auto-provisions QMK/VIA keyboard lighting.** A new reconciler
+  detects a connected VIA board by its 0xFF60 raw HID interface (via the shared
+  `ryoku-hw-qmk` detector, no vendor list) and installs `qmk-hid` when one is
+  present, skipping every other machine. A shipped udev rule
+  (`62-ryoku-qmk-hid.rules`) grants the seat user a uaccess ACL on just that
+  device, so the shell's lighting provider drives its RGB matrix without root
+  (`internal/doctor/reconcile_qmk.go`, `system/hardware/input/`).
 - **Snapshots stop piling up unbounded.** Pruning ran only through
   `snapper-cleanup.timer` -> `snapper-cleanup.service`, whose success is coupled
   to `limine-snapper-sync` (its `ExecStopPost`); when that broke nothing was
