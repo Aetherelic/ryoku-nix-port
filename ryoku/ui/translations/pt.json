@@ -2380,7 +2380,7 @@
   "Video / GIF…": "Vídeo / GIF…",
   "Videos ·": "Vídeos ·",
   "View config": "Ver configuração",
-  "View scrolls to keep the focused window on screen, scrolling layout only": "A vista desloca-se para manter a janela focada no ecrã, apenas no esquema de deslocamento",
+  "View scrolls to the window you focus or hover, scrolling layout only": "A vista desloca-se para a janela focada ou sobre a qual paira, apenas para layout com deslocamento",
   "Vignette": "Vinheta",
   "Virtualization is off": "A virtualização está desativada",
   "Visible keys": "Teclas visíveis",
