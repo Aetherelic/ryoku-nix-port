@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- `pacstrap`: **a resumed install no longer dies on "exists in filesystem."**
+  When the first pacstrap died mid-transaction (a dropped connection or a
+  package that downloaded corrupt), it left some packages' files extracted but
+  unowned; the `--needed` retry only skips fully-installed packages, so it
+  re-tried those and aborted with e.g. `gamemode: ... exists in filesystem`, and
+  retrying the step kept hitting the same leftovers. The online retry now also
+  passes `--overwrite '*'`, so it adopts the orphaned files and resumes cleanly.
 - `bootloader`: fresh installs now `systemctl enable power-profiles-daemon.service`
   alongside sddm/NetworkManager/bluetooth/rtkit, so the shell's power-mode switching
   works out of the box instead of depending on transient D-Bus activation.

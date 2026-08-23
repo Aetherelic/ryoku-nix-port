@@ -169,6 +169,17 @@ grep -qF 'tier 2 (mirror-status API)' <<<"$pout" || fail "final message did not 
 grep -qF 'Last mirror error' <<<"$pout" || fail "final message did not extract the failing mirror URL"
 grep -qF 't2low.example' <<<"$pout" || fail "final message did not name the failing mirror"
 
+# a file conflict from a partial first extract (the gamemode "exists in
+# filesystem" report on a resumed install): fails until --overwrite lets the
+# retry adopt the orphaned files.
+stub_conflict_resumable='pacstrap() { echo "$*" >>"$CALLS"; for a in "$@"; do [[ $a == --overwrite ]] && return 0; done; echo "gamemode: /usr/lib/sysusers.d/gamemode.conf exists in filesystem" >&2; return 1; }'
+
+# --- a resumed online install adopts orphaned files: the retry passes --overwrite
+run_pacstrap "$stub_conflict_resumable"
+[[ $prc -eq 0 ]] || fail "pacstrap should recover a file conflict on the --overwrite retry (rc=$prc)"
+[[ $(grep -c -- '--overwrite' <<<"$calls") -eq 1 ]] || fail "the retry must pass --overwrite to adopt orphaned files, got: [$calls]"
+[[ $(grep -c . <<<"$calls") -eq 2 ]] || fail "expected exactly two pacstrap invocations for the resume, got: [$calls]"
+
 # ============================================================================
 # offline pacstrap failure (installation/backend/lib/{pacstrap,offline}.sh)
 # ============================================================================

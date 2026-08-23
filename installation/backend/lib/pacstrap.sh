@@ -149,18 +149,18 @@ ryoku_pacstrap_install() {
     die "the offline install could not lay the base system from the ISO's baked package set.${conflict:+ File conflict: $conflict.} No network or mirror is involved (every package is on the disc), so this is either a defect in the baked closure or something the installer put at a path a package owns. Report the file conflict above with /var/log/ryoku-install.log; re-running the installer will not help."
   fi
 
-  # online install: a wifi drop, a slow mirror, or a package that downloaded
-  # corrupt kills the install with raw pacman errors. drop the poisoned cache (a
-  # bad-signature package makes non-interactive pacstrap fail identically on the
-  # reused cache), regenerate the mirrorlist from a different source, and add
-  # --needed so it resumes over the already-installed packages (issue #21).
-  log "pacstrap failed (connection drop, slow mirror, or a package corrupt under load); clearing the target cache, dropping to the next mirror tier, and retrying once with --needed"
+  # online install: a wifi drop or corrupt download kills pacstrap with raw
+  # pacman errors. drop the poisoned cache, regenerate the mirrorlist, and retry
+  # with --needed (resume over installed packages) + --overwrite (adopt files a
+  # package left orphaned when the first attempt died mid-extract, e.g. the
+  # "gamemode ... exists in filesystem" conflict on a resumed install). issue #21.
+  log "pacstrap failed (connection drop, slow mirror, or a package corrupt under load); clearing the target cache, dropping to the next mirror tier, and retrying once with --needed --overwrite"
   run_sh 'rm -f /mnt/var/cache/pacman/pkg/*.pkg.tar.* 2>/dev/null || true'
   ryoku_mirrors_fallback || true
 
   local paclog
   paclog=$(mktemp) || paclog=/dev/null
-  if run pacstrap "${pconf[@]}" -K /mnt --noconfirm --needed "${pkgs[@]}" >"$paclog" 2>&1; then
+  if run pacstrap "${pconf[@]}" -K /mnt --noconfirm --needed --overwrite '*' "${pkgs[@]}" >"$paclog" 2>&1; then
     [[ $paclog == /dev/null ]] || { cat -- "$paclog"; rm -f -- "$paclog"; }
     return 0
   fi
