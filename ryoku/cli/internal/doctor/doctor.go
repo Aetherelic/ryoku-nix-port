@@ -108,6 +108,7 @@ func reconcilers() []reconciler {
 		{"limine snapshot sync", reconcileLimineOSName},
 		{"updatedb snapshot prune", reconcileUpdatedbPrune},
 		{"pacman database lock", reconcilePacmanLock},
+		{"pacman progress bar", reconcilePacmanCandy},
 		{"conflicting Ryoku files", reconcileConflictingRyokuFiles},
 		{"stale update run-state", reconcileStaleUpdateRun},
 		{"stale install crypt mapper", reconcileStaleCryptMapper},
@@ -692,6 +693,38 @@ func writeRootFile(path, contents, mode string) error {
 		return err
 	}
 	return sys.Run("sudo", "install", "-D", "-m", mode, "-o", "root", "-g", "root", tmp.Name(), path)
+}
+
+// markMigration records a one-shot seed under the state dir, atomically, so a
+// reconciler that plants a default plants it exactly once and a later removal
+// by the user stands.
+func markMigration(marker string) error {
+	dir := filepath.Dir(marker)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(marker)+".ryoku-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(0o644); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write([]byte("done\n")); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, marker)
 }
 
 // ---- reconciler: stale pacman lock -------------------------------------------

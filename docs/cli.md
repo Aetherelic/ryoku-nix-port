@@ -200,9 +200,10 @@ snapper config consistency, stale pacman lock, the ryoku package channel + keyri
 desktop session components, the keyring unlock policy (how the GNOME keyring
 unlocks at sign-in; see `ryoku keyring`), Hyprland config integrity (revalidates and repairs the
 generated monitors.lua/gpu.lua drop-ins so a corrupt one cannot strand the desktop
-in emergency mode), the shell daemon, failed services, btrfs device health, display
 backlight (catches a missing interface, missing brightnessctl, or a hybrid-GPU
-firmware-only backlight), pending `.pacnew` config, and orphaned packages.
+firmware-only backlight), the pacman progress bar (seeds Ryoku's `ILoveCandy`
+default into `/etc/pacman.conf` once, so deleting the line sticks), pending
+`.pacnew` config, and orphaned packages.
 Reconcilers retire once every supported install has run them, so the set stays
 small rather than growing like an ordered migration list.
 

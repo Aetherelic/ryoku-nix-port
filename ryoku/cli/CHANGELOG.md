@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Pacman draws Ryoku's progress bar.** `ILoveCandy` is now a Ryoku default:
+  pacman renders the transfer bar as Pac-Man eating pellets instead of a row of
+  hashes. The installer sets it in the target's `pacman.conf`, and a new
+  `pacman progress bar` reconciler seeds it into `/etc/pacman.conf` on a box
+  installed before it shipped -- uncommenting an existing commented directive,
+  else inserting it under `[options]`, and never anywhere pacman would ignore
+  it. The seed is one-shot (a marker under the state dir), so deleting the line
+  is a decision that stands; `/etc/pacman.conf` stays the user's file
+  (`internal/doctor/reconcile_pacman.go`, `TestEnableILoveCandy`).
 - **Snapshots stop piling up unbounded.** Pruning ran only through
   `snapper-cleanup.timer` -> `snapper-cleanup.service`, whose success is coupled
   to `limine-snapper-sync` (its `ExecStopPost`); when that broke nothing was

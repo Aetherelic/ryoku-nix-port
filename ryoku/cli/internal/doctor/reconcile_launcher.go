@@ -33,7 +33,7 @@ func reconcileLauncherLocalFrostDefault(checkOnly bool) recResult {
 		if checkOnly {
 			return okRes("no saved launcher config; local frost uses the current default")
 		}
-		if err := markLauncherLocalFrost(marker); err != nil {
+		if err := markMigration(marker); err != nil {
 			return failRes("could not record the launcher local-frost migration: %v", err)
 		}
 		return okRes("no saved launcher config; local frost uses the current default")
@@ -56,7 +56,7 @@ func reconcileLauncherLocalFrostDefault(checkOnly bool) recResult {
 		if checkOnly {
 			return okRes("launcher blur is user-selected or already uses the local-frost default")
 		}
-		if err := markLauncherLocalFrost(marker); err != nil {
+		if err := markMigration(marker); err != nil {
 			return failRes("could not record the launcher local-frost migration: %v", err)
 		}
 		return okRes("launcher blur is user-selected or already uses the local-frost default")
@@ -66,7 +66,7 @@ func reconcileLauncherLocalFrostDefault(checkOnly bool) recResult {
 		return failRes("could not migrate %s: %v", path, err).
 			withFix("fix the file permissions, then run `ryoku doctor`")
 	}
-	if err := markLauncherLocalFrost(marker); err != nil {
+	if err := markMigration(marker); err != nil {
 		return failRes("launcher frost was updated, but its migration marker could not be written: %v", err).
 			withFix("run `ryoku doctor` again")
 	}
@@ -168,33 +168,4 @@ func replaceLauncherConfig(path string, data []byte) error {
 		return err
 	}
 	return os.Rename(tmpPath, target)
-}
-
-func markLauncherLocalFrost(marker string) error {
-	dir := filepath.Dir(marker)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, "."+filepath.Base(marker)+".ryoku-*")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-	if err := tmp.Chmod(0o644); err != nil {
-		tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write([]byte("done\n")); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpPath, marker)
 }
