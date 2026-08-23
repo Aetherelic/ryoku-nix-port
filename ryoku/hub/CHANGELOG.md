@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+- **Displays gains a per-monitor Interface scale.** A stepper on each monitor's
+  tuning card (below the compositor scale) sizes the Ryoku shell chrome on that
+  display from 50% to 200%, separate from the monitor scale apps render at. It
+  writes shell.json `displays.ui_scale.<output>`; the Settings window itself
+  honours it too.
+
 ### Removed
 - **Performance > Idle loses "Freeze the bar" and "Freeze the visualiser".** Both
   asked for behaviour that is now unconditional: an audio analyser with no audio

@@ -7,6 +7,7 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Ryoku.Ui
+import Ryoku.Ui.Singletons
 import "../../shared/Singletons"
 import "../../shared/lib/lifecycle.js" as Lifecycle
 import "." as HeroVariant
@@ -28,6 +29,7 @@ PanelWindow {
     readonly property real s: Math.min(
         1.2, (modelData ? modelData.height / 1080 : 1))
         * Math.max(0.8, Math.min(1.4, Config.fontScale))
+        * Tokens.uiScaleFor(surfaceMonitor)
     readonly property bool invocationSurface: Lifecycle.mapsMonitor(
         lifecycleState, surfaceMonitor)
     readonly property bool mapWanted: invocationSurface

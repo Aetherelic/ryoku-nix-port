@@ -17,6 +17,10 @@ Item {
     // Reveal/reserve baseline for this edge (from the shared reveal model);
     // hover reveals the bar on top of this without touching the reserve.
     required property bool revealed
+    // Per-monitor UI scale from the frame; scales the content band thickness and
+    // the inter-widget gap so the drawn bar matches the reserve (Frame.qml
+    // edgeReserve, which scales by the same factor) at any ui_scale.
+    required property real railScale
     property Component delegate: null
 
     readonly property bool horizontal: edge === "top" || edge === "bottom"
@@ -25,14 +29,14 @@ Item {
     readonly property int itemCount: horizontal
         ? (rail.start || []).length + (rail.center || []).length + (rail.end || []).length
         : (rail.top || []).length + (rail.center || []).length + (rail.bottom || []).length
-    readonly property real band: itemCount > 0 ? rail.size : 0
+    readonly property real band: (itemCount > 0 ? rail.size : 0) * railScale
     // reveal_child = revealed || hovered (contract 02 sec 4).
     readonly property bool shown: revealed || bandHover.hovered
 
     // Inter-widget gap inside a zone, scaled with the band so a thin bar keeps
     // the same visual rhythm as a full one. Without it the fixed-size buttons
     // butt edge to edge with no breathing room.
-    readonly property real gap: 12 * Math.min(1, (rail.size || 48) / 48)
+    readonly property real gap: 12 * Math.min(1, (rail.size || 48) / 48) * railScale
 
     // Insets at the two ends of the rail's long axis so a rail clears the
     // perpendicular rails' bands at the shared corners instead of overlapping

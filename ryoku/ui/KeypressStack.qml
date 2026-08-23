@@ -17,6 +17,8 @@ Item {
     ]
     property int holdMs: 1800
     property int serial: 0
+    // Per-monitor UI scale, threaded from the hosting overlay (default 1 = no-op).
+    property real us: 1
 
     readonly property bool dark: theme !== "light"
     readonly property int rowCount: rows.count
@@ -127,7 +129,7 @@ Item {
 
     Row {
         id: strip
-        spacing: Tokens.s3
+        spacing: Tokens.s3 * stack.us
 
         move: Transition {
             NumberAnimation {
@@ -157,6 +159,7 @@ Item {
 
                 KeyChord {
                     id: chord
+                    us: stack.us
                     keys: JSON.parse(wrap.keyJson)
                     count: wrap.count
                     pulse: wrap.count
@@ -182,6 +185,7 @@ Item {
 
             delegate: KeyChord {
                 required property var modelData
+                us: stack.us
                 keys: modelData
                 dark: stack.dark
                 motionEnabled: stack.motionEnabled
@@ -212,6 +216,7 @@ Item {
 
             KeyChord {
                 id: ghostChord
+                us: stack.us
                 keys: JSON.parse(ghost.keyJson)
                 count: ghost.count
                 held: ghost.held

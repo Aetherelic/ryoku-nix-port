@@ -24,7 +24,7 @@ Item {
         const zs = edge === "top" || edge === "bottom" ? ["start", "center", "end"] : ["top", "center", "bottom"];
         let n = 0;
         for (const z of zs) n += (r[z] || []).length;
-        return n > 0 ? r.size : 0;
+        return n > 0 ? r.size * bar.railScale : 0;
     }
 
     Repeater {
@@ -36,6 +36,7 @@ Item {
             revealed: bar.revealState ? bar.revealState[modelData] === true : false
             rail: bar.frameBars.rails[modelData]
             style: bar.style
+            railScale: bar.railScale
             readonly property bool horiz: modelData === "top" || modelData === "bottom"
             leadInset: horiz ? 0 : bar.bandOf("top")
             tailInset: horiz ? 0 : bar.bandOf("bottom")

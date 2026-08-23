@@ -33,6 +33,15 @@ ShellRoot {
         maximumSize: win.cramped ? Qt.size(win.fitW, win.fitH) : Qt.size(16777215, 16777215)
         color: Tokens.paper
 
+        // Honour this monitor's Interface scale (Displays page): scale the whole
+        // settings UI via Tokens. The window fills its screen, so a smaller scale
+        // packs the chrome tighter rather than leaving a margin.
+        Binding {
+            target: Tokens
+            property: "uiScale"
+            value: Tokens.uiScaleFor(win.screen && win.screen.name ? win.screen.name : "")
+        }
+
         // The launcher keybind (Super+,) guards against a second instance with
         // `flock` on /tmp/ryoku-hub.lock, held for the life of this process. The
         // in-app dismissals (Escape, close button) already route requestQuit();

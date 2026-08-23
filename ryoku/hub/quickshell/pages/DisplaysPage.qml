@@ -5,6 +5,7 @@ import QtQuick.Controls
 import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import "../Singletons"
 import "lib/arrange.js" as Arrange
 
 // Displays (SYSTEM). Detect every connected monitor, arrange them to scale on a
@@ -51,6 +52,36 @@ Item {
     property string pickKind: ""
 
     readonly property var sel: (pg.selected >= 0 && pg.selected < pg.draft.length) ? pg.draft[pg.selected] : null
+
+    // ── per-monitor interface (shell) scale ──────────────────────────────
+    // Distinct from the compositor SCALE control below: this is the Ryoku shell
+    // chrome's own logical scale on a monitor (shell.json displays.ui_scale,
+    // keyed by output name), so one screen's bar, menus and this Hub can shrink
+    // or grow without touching the crisp compositor scale apps render at. A shell
+    // setting, so it live-patches straight through the daemon (Settings.patch),
+    // NOT the ryoku-monitor draft/Apply flow. uiScaleLive is an optimistic
+    // per-name override so the stepper reads back instantly, before the shell.json
+    // round-trip lands in Tokens.uiScales.
+    property var uiScaleLive: ({})
+    function uiScalePct(name) {
+        void pg.tick;
+        var v = name ? pg.uiScaleLive[name] : undefined;
+        if (typeof v === "number")
+            return v;
+        return Math.round(Tokens.uiScaleFor(name) * 100);
+    }
+    function setUiScale(name, pct) {
+        if (!name)
+            return;
+        var p = Math.max(50, Math.min(200, Math.round(pct)));
+        var m = {};
+        for (var k in pg.uiScaleLive)
+            m[k] = pg.uiScaleLive[k];
+        m[name] = p;
+        pg.uiScaleLive = m;
+        Settings.patch("displays.ui_scale." + name, p / 100);
+        pg.tick++;
+    }
 
     // ── data load (backend unchanged) ───────────────────────────────────────
     Process {
@@ -757,6 +788,24 @@ Item {
                             value: { void pg.tick; return pg.sel ? pg.nearestScaleIdx(scaleStep.ladder, pg.sel.scale) : 0; }
                             onModified: (v) => pg.setField(pg.selected, "scale",
                                 scaleStep.ladder[Math.max(0, Math.min(scaleStep.ladder.length - 1, v))])
+                        }
+                    }
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        // The SCALE above is the compositor (hardware) scale apps
+                        // render at; this is the Ryoku shell's own interface scale
+                        // on this monitor, shrinking or growing its chrome without
+                        // touching that crisp compositor scale. Live shell setting.
+                        label: I18n.tr("INTERFACE SCALE")
+                        value: { void pg.tick; return pg.sel ? (pg.uiScalePct(pg.sel.name) + "%") : ""; }
+                        controlWidth: 58
+                        Step {
+                            id: uiScaleStep
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            from: 50; to: 200; stepBy: 5
+                            value: { void pg.tick; return pg.sel ? pg.uiScalePct(pg.sel.name) : 100; }
+                            onModified: (v) => pg.setUiScale(pg.sel ? pg.sel.name : "", v)
                         }
                     }
                     SettingRow {

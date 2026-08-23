@@ -16,6 +16,10 @@ PanelWindow {
 
     required property var modelData
 
+    // Per-monitor UI scale (shell.json displays.ui_scale): scales the key badges
+    // and drag chrome without touching the fullscreen bounds. 1.0 is a no-op.
+    readonly property real us: Tokens.uiScaleFor(modelData ? modelData.name : "")
+
     readonly property var mon: {
         const monitors = Hyprland.monitors.values;
         for (var i = 0; i < monitors.length; i++) {
@@ -58,14 +62,15 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
 
     mask: Region {
-        x: drag.dragging ? 0 : display.x - 14
-        y: drag.dragging ? 0 : display.y - 14
-        width: win.pointerEnabled ? (drag.dragging ? win.width : display.width + 28) : 0
-        height: win.pointerEnabled ? (drag.dragging ? win.height : display.height + 28) : 0
+        x: drag.dragging ? 0 : display.x - 14 * win.us
+        y: drag.dragging ? 0 : display.y - 14 * win.us
+        width: win.pointerEnabled ? (drag.dragging ? win.width : display.width + 28 * win.us) : 0
+        height: win.pointerEnabled ? (drag.dragging ? win.height : display.height + 28 * win.us) : 0
     }
 
     KeypressStack {
         id: display
+        us: win.us
         x: win.clamped.x
         y: win.clamped.y
         width: display.implicitWidth
@@ -77,12 +82,12 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: display
-        anchors.margins: -10
+        anchors.margins: -10 * win.us
         visible: opacity > 0.01
         opacity: (stackHover.hovered || drag.dragging) && !Recorder.anyActive ? 1 : 0
         color: "transparent"
-        radius: Tokens.radius + 6
-        border.width: Tokens.border
+        radius: (Tokens.radius + 6) * win.us
+        border.width: Tokens.border * win.us
         border.color: Keypresses.theme === "dark" ? Tokens.keycapOnDark : Tokens.keycapOnLight
 
         Behavior on opacity {
@@ -92,9 +97,9 @@ PanelWindow {
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.bottom
-            anchors.topMargin: Tokens.s1
-            width: dragLabel.implicitWidth + 18
-            height: 24
+            anchors.topMargin: Tokens.s1 * win.us
+            width: dragLabel.implicitWidth + 18 * win.us
+            height: 24 * win.us
             radius: height / 2
             color: Keypresses.theme === "dark" ? Tokens.keycapLight : Tokens.keycapDark
 
@@ -104,9 +109,9 @@ PanelWindow {
                 text: "DRAG TO PLACE"
                 color: Keypresses.theme === "dark" ? Tokens.keycapOnLight : Tokens.keycapOnDark
                 font.family: Tokens.ui
-                font.pixelSize: 9
+                font.pixelSize: 9 * win.us
                 font.weight: Font.DemiBold
-                font.letterSpacing: Tokens.trackLabel
+                font.letterSpacing: Tokens.trackLabel * win.us
             }
         }
     }

@@ -27,6 +27,12 @@ Scope {
 
     readonly property real frameBorderPx: Config.frameThickness
 
+    // This monitor's per-monitor UI scale (shell.json displays.ui_scale, default
+    // 1.0). The bar content (railScale) and the reserved band (edgeReserve) both
+    // multiply by this one factor, so a scaled bar stays matched to its reserve
+    // without touching the Hyprland compositor scale apps depend on.
+    readonly property real uiScale: Tokens.uiScaleFor(root.modelData ? root.modelData.name : "")
+
     // The built-in Sumi frame scene draws only while the active bar style is the
     // built-in one; a receipt-owned style would load its own scene without rails.
     readonly property bool sumiActive: BarProducts.sceneUrl(Config.barStyle) === ""
@@ -87,7 +93,7 @@ Scope {
             return 0;
         if (!root.edgeRevealed(edge))
             return 1;
-        return ((rail.enabled && root.railHasWidgets(rail, edge)) ? rail.size : 1) + root.frameBorderPx;
+        return ((rail.enabled && root.railHasWidgets(rail, edge)) ? rail.size * root.uiScale : 1) + root.frameBorderPx;
     }
 
     // Four background reservation surfaces, mapped top, bottom, left, right in
@@ -332,9 +338,10 @@ Scope {
                 anchors.fill: parent
                 z: 1
                 visible: !overlay.monFullscreen && root.sumiActive
-                // Fixed reference px: the frame does not scale with the monitor or
-                // fontScale, so the bar band matches the reserve.
-                railScale: 1
+                // The bar content scales by this monitor's uiScale and the reserve
+                // (edgeReserve) scales its band by the same factor, so the drawn
+                // bar and its reserved exclusive-zone thickness stay matched.
+                railScale: root.uiScale
                 revealState: overlay.edgeReveal
                 frameBars: overlay.frameBars
                 style: ({ group: blobGroup })

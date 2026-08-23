@@ -100,34 +100,34 @@ Singleton {
     readonly property string mono: "SpaceMono Nerd Font"
     readonly property string jp: "Noto Sans CJK JP"
 
-    readonly property int fTitle: 46    // page title, Fraunces
-    readonly property int fHero: 34     // a headline readout
-    readonly property int fValue: 26    // a cell's value
-    readonly property int fRow: 15      // a row name
-    readonly property int fBody: 14
-    readonly property int fSmall: 13    // descriptions
-    readonly property int fMicro: 11    // tracked labels
-    readonly property int fTiny: 9      // corner tags, struck defaults
+    readonly property int fTitle: px(46)    // page title, Fraunces
+    readonly property int fHero: px(34)     // a headline readout
+    readonly property int fValue: px(26)    // a cell's value
+    readonly property int fRow: px(15)      // a row name
+    readonly property int fBody: px(14)
+    readonly property int fSmall: px(13)    // descriptions
+    readonly property int fMicro: px(11)    // tracked labels
+    readonly property int fTiny: px(9)      // corner tags, struck defaults
 
     readonly property real trackLabel: 1.4   // letter-spacing for micro labels
     readonly property real trackMark: 2.2    // for eyebrows and section marks
 
     // ── space ────────────────────────────────────────────────────────────
-    readonly property int s1: 4
-    readonly property int s2: 8
-    readonly property int s3: 12
-    readonly property int s4: 16
-    readonly property int s5: 24
-    readonly property int s6: 32
-    readonly property int s7: 48
+    readonly property int s1: px(4)
+    readonly property int s2: px(8)
+    readonly property int s3: px(12)
+    readonly property int s4: px(16)
+    readonly property int s5: px(24)
+    readonly property int s6: px(32)
+    readonly property int s7: px(48)
 
     // ── geometry ─────────────────────────────────────────────────────────
-    readonly property int radius: 6
+    readonly property int radius: px(6)
     readonly property real border: 1
-    readonly property int rowH: 48
-    readonly property int cellH: 104
-    readonly property int railW: 268
-    readonly property int ctlH: 26
+    readonly property int rowH: px(48)
+    readonly property int cellH: px(104)
+    readonly property int railW: px(268)
+    readonly property int ctlH: px(26)
 
     // ── motion ───────────────────────────────────────────────────────────
     // dur() scales every duration by motionScale (shell.json theme.motion) and
@@ -135,6 +135,24 @@ Singleton {
     property real motionScale: 1.0
     property bool reduceMotion: false
     function dur(ms) { return reduceMotion ? 0 : Math.round(ms * motionScale); }
+
+    // ── per-monitor UI scale ─────────────────────────────────────────────
+    // shell.json displays.ui_scale, keyed by output name. Surfaces multiply
+    // their own sizes by uiScaleFor(screen) so one monitor's chrome shrinks
+    // without touching the compositor scale that apps depend on.
+    property var uiScales: ({})
+    function uiScaleFor(name) {
+        var v = (name && uiScales) ? uiScales[name] : undefined;
+        if (typeof v !== "number" || !(v > 0))
+            return 1;
+        return Math.max(0.5, Math.min(2, v));
+    }
+
+    // A single-window process (the Hub) sets uiScale to scale its whole UI at
+    // once; the multi-monitor shell leaves it 1 and scales each surface via
+    // uiScaleFor. px() folds it into the size tokens below.
+    property real uiScale: 1
+    function px(n) { return Math.round(n * uiScale); }
 
     readonly property int snap: dur(90)     // hover, press, state flip
     readonly property int move: dur(170)    // a selector travelling
@@ -181,6 +199,7 @@ Singleton {
         var pal = null;
         var scale = 1.0;
         var reduce = false;
+        var scales = ({});
         try {
             const txt = shellFile.text();
             if (txt) {
@@ -193,6 +212,9 @@ Singleton {
                         scale = m.scale;
                     reduce = m.reduce === true;
                 }
+                const u = o && o.displays && o.displays.ui_scale;
+                if (u && typeof u === "object" && u !== null)
+                    scales = u;
             }
         } catch (e) {
             pal = null;
@@ -200,6 +222,7 @@ Singleton {
         t.namedScheme = pal;
         t.motionScale = scale;
         t.reduceMotion = reduce;
+        t.uiScales = scales;
     }
     function refreshMatch() {
         try {

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **Per-monitor interface scale.** Each display can shrink or enlarge the whole
+  Ryoku shell chrome -- frame bar, launcher, OSDs, notifications, capture
+  overlays -- independently of the Hyprland monitor scale that apps render at, so
+  a low-DPI external no longer forces the UI oversized while apps stay crisp.
+  Surfaces multiply their own logical sizes by `Tokens.uiScaleFor(output)`, read
+  live from shell.json `displays.ui_scale`; set it per monitor in Settings ->
+  Displays -> Interface scale. Ported from caelestia (per-monitor token
+  multipliers) and omarchy (a shell-wide size scale).
+
 ### Fixed
 - **Light themes are legible again.** Muted and faint text used the Material
   `outline`/`outlineVariant` roles (light greys that wash out on a light surface),

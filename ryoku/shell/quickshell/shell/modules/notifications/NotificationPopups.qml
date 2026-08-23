@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import shell.services
+import Ryoku.Ui.Singletons
 
 // Notification popup surface (contract 07 sec 1/2.4, sec 8; contract 12 sec 1).
 // A per-monitor overlay layer surface anchored to the top edge, on the left or
@@ -25,9 +26,13 @@ PanelWindow {
     id: win
 
     required property var modelData
-    // Fixed logical px: content width 400, inter-card spacing 14, corner float
-    // 16. The reference container is a fixed-size window that does not grow with
-    // monitor or font scale, so no scale term.
+    // Per-monitor UI scale (shell.json displays.ui_scale): multiplies this
+    // surface's own logical sizes so one monitor's toasts shrink/grow without
+    // touching the compositor scale. Default 1.0 is a byte-identical no-op.
+    readonly property real us: Tokens.uiScaleFor(modelData ? modelData.name : "")
+    // Base logical px: content width 400, inter-card spacing 14, corner float 16.
+    // These are multiplied by `us` above (1.0 = the base), the only scale term;
+    // the column does not otherwise grow with monitor or accessibility font scale.
 
     // Popup anchoring (contract 07 sec 7): Left -> top+left, Right (default) ->
     // top+right, Center -> top only (horizontally centred). The live setting is
@@ -39,7 +44,7 @@ PanelWindow {
 
     // Base breathing room off the screen corner, on top of the configurable
     // popup margin, so the toast column floats instead of sitting flush.
-    readonly property real inset: 16
+    readonly property real inset: 16 * win.us
 
     // How far off its own edge a card starts and leaves. Centred popups have no
     // edge to come from, so they only fade.
@@ -67,7 +72,7 @@ PanelWindow {
     margins.left: inset + margin
     margins.right: inset + margin
 
-    implicitWidth: 400
+    implicitWidth: 400 * win.us
     // The surface is as tall as its cards, but never shorter than a card that is
     // still leaving: the window clips, so collapsing to 1 px under the last toast
     // wiped its exit slide instead of letting it glide off the edge.
@@ -160,7 +165,7 @@ PanelWindow {
         anchors.right: parent.right
         anchors.top: parent.top
         height: contentHeight
-        spacing: 14
+        spacing: 14 * win.us
         interactive: false
         model: cards
 
@@ -195,6 +200,7 @@ PanelWindow {
             required property var entry
             width: ListView.view ? ListView.view.width : implicitWidth
             notif: entry
+            us: win.us
             // Popups are compact and expand on demand; the grow/collapse scales
             // about the anchored corner (top-right, top-left or top-centre).
             compact: true

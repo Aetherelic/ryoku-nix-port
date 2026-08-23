@@ -8,6 +8,7 @@ import Quickshell.Hyprland
 import Ryoku.Blobs
 import shell.services
 import "../../components"
+import Ryoku.Ui.Singletons
 
 // Draggable, shaped webcam bubble on a per-screen layer surface: it stays put
 // across workspace switches and gsr captures it into recordings. The live feed
@@ -19,6 +20,11 @@ PanelWindow {
     id: win
 
     required property var modelData
+
+    // Per-monitor UI scale (shell.json displays.ui_scale): scales this bubble's
+    // own chrome (placeholder glyph, rim, edit handles) without touching the
+    // user-dragged bubble size. Default 1.0 is a byte-identical no-op.
+    readonly property real us: Tokens.uiScaleFor(modelData ? modelData.name : "")
 
     // this screen's Hyprland monitor, for global<->screen-local mapping (logical).
     readonly property var mon: {
@@ -87,8 +93,8 @@ PanelWindow {
         }
         GlyphIcon {
             anchors.centerIn: parent
-            width: 28
-            height: 28
+            width: 28 * win.us
+            height: 28 * win.us
             name: "webcam"
             color: Theme.onSurfaceVariant
             stroke: 1.7
@@ -118,7 +124,7 @@ PanelWindow {
             anchors.fill: parent
             radius: bubble.rad
             color: "transparent"
-            border.width: 2
+            border.width: 2 * win.us
             border.color: Theme.primary
         }
 
@@ -128,6 +134,7 @@ PanelWindow {
         CameraHandles {
             anchors.fill: parent
             mode: bubble.dragMode
+            us: win.us
             opacity: (bubbleHov.hovered && !Recorder.anyActive) ? 1 : 0
             visible: opacity > 0.01
             Behavior on opacity { NumberAnimation { duration: 140 } }
@@ -161,9 +168,9 @@ PanelWindow {
                 const h = bubble.height;
                 if (Recorder.anyActive)
                     bubble.dragMode = "move"; // no shape edits mid-recording
-                else if (cx > w - 30 && cy > h - 30)
+                else if (cx > w - 30 * win.us && cy > h - 30 * win.us)
                     bubble.dragMode = "resize";
-                else if (Math.hypot(cx - bubble.rad, cy - bubble.rad) < 20)
+                else if (Math.hypot(cx - bubble.rad, cy - bubble.rad) < 20 * win.us)
                     bubble.dragMode = "round";
                 else
                     bubble.dragMode = "move";

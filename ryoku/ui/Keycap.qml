@@ -14,16 +14,18 @@ Item {
     property bool motionEnabled: true
     property int pulse: 0
     property bool ready: false
+    // Per-monitor UI scale, threaded from KeyChord (default 1 = no-op).
+    property real us: 1
 
-    readonly property int capHeight: 42
+    readonly property real capHeight: 42 * keycap.us
     readonly property bool depressed: held || pressed
-    readonly property int faceTravel: depressed ? 5 : 0
+    readonly property real faceTravel: depressed ? 5 * keycap.us : 0
     readonly property color faceColor: dark ? Tokens.keycapDark : Tokens.keycapLight
     readonly property color labelColor: dark ? Tokens.keycapOnDark : Tokens.keycapOnLight
     readonly property color lipColor: Qt.darker(faceColor, dark ? 1.9 : 1.22)
 
-    implicitWidth: Math.max(capHeight, label.implicitWidth + 28)
-    implicitHeight: capHeight + 8
+    implicitWidth: Math.max(capHeight, label.implicitWidth + 28 * keycap.us)
+    implicitHeight: capHeight + 8 * keycap.us
 
     layer.enabled: true
     layer.smooth: true
@@ -39,10 +41,10 @@ Item {
     Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
-        y: 7
+        y: 7 * keycap.us
         height: keycap.capHeight
-        radius: Tokens.radius + 2
-        border.width: Tokens.border
+        radius: (Tokens.radius + 2) * keycap.us
+        border.width: Tokens.border * keycap.us
         border.color: Qt.rgba(keycap.labelColor.r, keycap.labelColor.g, keycap.labelColor.b, 0.16)
         gradient: Gradient {
             GradientStop {
@@ -63,8 +65,8 @@ Item {
         anchors.right: parent.right
         y: keycap.faceTravel
         height: keycap.capHeight
-        radius: Tokens.radius + 2
-        border.width: Tokens.border
+        radius: (Tokens.radius + 2) * keycap.us
+        border.width: Tokens.border * keycap.us
         border.color: Qt.rgba(keycap.labelColor.r, keycap.labelColor.g, keycap.labelColor.b, 0.18)
         clip: true
         gradient: Gradient {
@@ -87,7 +89,7 @@ Item {
             Rectangle {
                 id: holdSheen
 
-                width: Math.max(24, face.width * 0.42)
+                width: Math.max(24 * keycap.us, face.width * 0.42)
                 height: face.height * 1.8
                 y: -face.height * 0.4
                 rotation: 12
@@ -115,10 +117,10 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            anchors.margins: 1
-            radius: parent.radius - 1
+            anchors.margins: 1 * keycap.us
+            radius: parent.radius - 1 * keycap.us
             color: "transparent"
-            border.width: 2
+            border.width: 2 * keycap.us
             border.color: Qt.rgba(keycap.labelColor.r, keycap.labelColor.g, keycap.labelColor.b, 0.34)
             opacity: keycap.held ? 1 : 0
 
@@ -132,10 +134,10 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            anchors.margins: 3
-            radius: parent.radius - 2
+            anchors.margins: 3 * keycap.us
+            radius: parent.radius - 2 * keycap.us
             color: "transparent"
-            border.width: Tokens.border
+            border.width: Tokens.border * keycap.us
             border.color: Qt.rgba(keycap.labelColor.r, keycap.labelColor.g, keycap.labelColor.b, 0.08)
         }
 
@@ -145,9 +147,9 @@ Item {
             text: keycap.text
             color: keycap.labelColor
             font.family: Tokens.ui
-            font.pixelSize: 14
+            font.pixelSize: 14 * keycap.us
             font.weight: Font.DemiBold
-            font.letterSpacing: text.length <= 2 ? 0.25 : 0
+            font.letterSpacing: text.length <= 2 ? 0.25 * keycap.us : 0
         }
 
         Behavior on y {

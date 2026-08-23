@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import shell.services
+import Ryoku.Ui.Singletons
 
 // One OSD window (contract 12 sec 1/2): a small overlay layer surface anchored
 // to the bottom centre, shown on every monitor. `kind` selects volume-out,
@@ -19,18 +20,23 @@ import shell.services
 // The surface spans the desktop hole (compositor clamps it between the frame's
 // bar reserves) and the panel is centred in it and pinned a small gap off the
 // bottom, so it lands bottom-centre with no manual reserve arithmetic. Size is
-// fixed logical px, scaled only by the accessibility font scale.
+// logical px, multiplied by the accessibility font scale and by this monitor's
+// UI scale (shell.json displays.ui_scale, `us`).
 PanelWindow {
     id: win
 
     required property var modelData
     required property string kind
-    readonly property real pad: 16
+    // Per-monitor UI scale (shell.json displays.ui_scale). Multiplies this
+    // surface's own logical sizes so one monitor's OSD shrinks/grows without
+    // touching the compositor scale. Default 1.0 is a byte-identical no-op.
+    readonly property real us: Tokens.uiScaleFor(modelData ? modelData.name : "")
+    readonly property real pad: 16 * win.us
     readonly property real osdScale: Config.barStyle === "nacre"
         ? Config.normalizedNacre.osdScale : 1
     // slide travel, and the headroom the surface keeps above the panel's rest
     // spot so the slide-up is never clipped by the surface edge.
-    readonly property real slide: 18
+    readonly property real slide: 18 * win.us
 
     // This monitor's visible workspace holds a fullscreen window: the whole
     // shell hides then, so the OSD stays down too. Shares the hyprctl-backed
@@ -63,7 +69,7 @@ PanelWindow {
     anchors.bottom: true
     anchors.left: true
     anchors.right: true
-    margins.bottom: 24 * win.osdScale
+    margins.bottom: 24 * win.osdScale * win.us
 
     implicitHeight: box.height * win.osdScale + win.slide * win.osdScale
 
@@ -75,7 +81,7 @@ PanelWindow {
         anchors.bottom: parent.bottom
         width: osd.implicitWidth + win.pad * 2
         height: osd.implicitHeight + win.pad * 2
-        radius: Theme.radiusWindow
+        radius: Theme.radiusWindow * win.us
         color: Theme.surface
         opacity: Theme.windowOpacity * win.prog
         border.width: Theme.borderWidth
@@ -90,6 +96,7 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: win.pad
             kind: win.kind
+            us: win.us
             suppressed: win.monFullscreen
         }
     }

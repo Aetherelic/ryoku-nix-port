@@ -21,6 +21,8 @@ Item {
 
     property string kind: "volume"          // volume | mic | brightness
     property bool suppressed: false
+    // Per-monitor UI scale, threaded from the hosting OsdWindow (default 1 = no-op).
+    property real us: 1
 
     readonly property bool isVolume: kind === "volume"
     readonly property bool isMic: kind === "mic"
@@ -106,18 +108,19 @@ Item {
     }
 
     // --- content: icon + value bar + percentage (contract 12 sec 2) ---------
-    // Fixed logical px: inner box width 250, spacing 16, icon 40, bar height 6,
-    // percentage readout 46. No monitor or font scaling; the OSD is a
-    // fixed-size readout the hosting window animates as one pill.
-    implicitWidth: 250
-    implicitHeight: 40
+    // Base logical px: inner box width 250, spacing 16, icon 40, bar height 6,
+    // percentage readout 46. These are multiplied by the per-monitor UI scale
+    // `us` the hosting window threads in (1.0 = the base above), so one monitor's
+    // OSD shrinks or grows without touching the compositor scale.
+    implicitWidth: 250 * root.us
+    implicitHeight: 40 * root.us
 
     SymbolIcon {
         id: glyph
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         name: root.iconName
-        size: 40
+        size: 40 * root.us
         color: Theme.onSurface
     }
 
@@ -127,12 +130,12 @@ Item {
     Rectangle {
         id: trough
         anchors.left: glyph.right
-        anchors.leftMargin: 16
+        anchors.leftMargin: 16 * root.us
         anchors.right: pct.left
-        anchors.rightMargin: 16
+        anchors.rightMargin: 16 * root.us
         anchors.verticalCenter: parent.verticalCenter
-        height: 6
-        radius: Theme.radiusWidget
+        height: 6 * root.us
+        radius: Theme.radiusWidget * root.us
         color: Theme.surfaceContainerLow
 
         // unity fill
@@ -157,11 +160,11 @@ Item {
         }
         // where 100% sits, once there is room past it
         Rectangle {
-            x: Math.round(parent.width / root.maxValue) - 1
+            x: Math.round(parent.width / root.maxValue) - root.us
             anchors.verticalCenter: parent.verticalCenter
-            width: 2
-            height: parent.height + 4
-            radius: 1
+            width: 2 * root.us
+            height: parent.height + 4 * root.us
+            radius: 1 * root.us
             color: Theme.onSurface
             opacity: 0.55
             visible: root.maxValue > 1.005
@@ -176,11 +179,11 @@ Item {
         id: pct
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        width: 46
+        width: 46 * root.us
         horizontalAlignment: Text.AlignRight
         text: Math.round(root.value * 100) + "%"
         color: root.over ? Theme.error : Theme.onSurface
         font.family: Theme.mono
-        font.pixelSize: Theme.fontMd
+        font.pixelSize: Theme.fontMd * root.us
     }
 }

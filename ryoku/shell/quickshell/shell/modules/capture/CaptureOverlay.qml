@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import shell.services
+import Ryoku.Ui.Singletons
 
 // One fullscreen selection overlay per output (contract 09 sec 1b/4a), raised on
 // the Overlay layer with no exclusive zone so it floats over the bars and app
@@ -28,6 +29,11 @@ PanelWindow {
     id: win
 
     required property var modelData
+
+    // Per-monitor UI scale (shell.json displays.ui_scale): scales this overlay's
+    // own chrome (outline weight, dimension readout) without touching the
+    // fullscreen bounds or the user-drawn selection. Default 1.0 is a no-op.
+    readonly property real us: Tokens.uiScaleFor(modelData ? modelData.name : "")
 
     readonly property string sel: Capture.selecting
 
@@ -150,12 +156,12 @@ PanelWindow {
     Rectangle {
         visible: win.hasRect || (win.sel === "monitor" && win.hovering)
         color: "transparent"
-        border.width: win.sel === "region" ? 2 : 3
+        border.width: (win.sel === "region" ? 2 : 3) * win.us
         border.color: Theme.outline
-        x: win.sel === "monitor" ? 1.5 : win.hlx
-        y: win.sel === "monitor" ? 1.5 : win.hly
-        width: win.sel === "monitor" ? win.scrW - 3 : win.hlw
-        height: win.sel === "monitor" ? win.scrH - 3 : win.hlh
+        x: win.sel === "monitor" ? 1.5 * win.us : win.hlx
+        y: win.sel === "monitor" ? 1.5 * win.us : win.hly
+        width: win.sel === "monitor" ? win.scrW - 3 * win.us : win.hlw
+        height: win.sel === "monitor" ? win.scrH - 3 * win.us : win.hlh
     }
 
     // Region dimension readout "W×H" (U+00D7), centred under the selection.
@@ -164,9 +170,9 @@ PanelWindow {
         text: Math.round(win.hlw) + "\u00d7" + Math.round(win.hlh)
         color: Theme.outline
         font.family: Theme.fontPrimary
-        font.pixelSize: Theme.fontSm
+        font.pixelSize: Theme.fontSm * win.us
         x: win.hlx + (win.hlw - width) / 2
-        y: win.hly + win.hlh + 20
+        y: win.hly + win.hlh + 20 * win.us
     }
 
     // --- input ----------------------------------------------------------------

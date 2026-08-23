@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Ryoku.Ui.Singletons
 import "../../shared/Singletons"
 import "../../shared/providers" as SharedProviders
 import "." as MainVariant
@@ -138,7 +139,7 @@ Scope {
             required property var modelData
             // cap the monitor-derived scale so a tall display doesn't balloon the
             // palette; 1.0 at 1080p, at most 1.2 on bigger screens, times fontScale.
-            readonly property real s: Math.min(1.2, (modelData ? modelData.height / 1080 : 1)) * Math.max(0.8, Math.min(1.4, Config.fontScale))
+            readonly property real s: Math.min(1.2, (modelData ? modelData.height / 1080 : 1)) * Math.max(0.8, Math.min(1.4, Config.fontScale)) * Tokens.uiScaleFor(modelData ? modelData.name : "")
             readonly property bool shown: root.openMon === modelData.name
 
             screen: modelData

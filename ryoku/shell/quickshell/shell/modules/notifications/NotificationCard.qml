@@ -31,6 +31,10 @@ Rectangle {
     property bool expanded: false
     property bool unifiedFrame: false
 
+    // Per-monitor UI scale, threaded from the popup surface (default 1 = no-op,
+    // so the history panel that composes this card unchanged stays identical).
+    property real us: 1
+
     // The height Behavior below must not animate the card's initial layout: a
     // fresh toast would otherwise grow tall as it arrives and churn the stack.
     // Armed after creation, it eases only the user-driven expand/collapse.
@@ -81,11 +85,11 @@ Rectangle {
         easing.type: Easing.Linear
     }
 
-    radius: card.unifiedFrame ? 0 : Theme.radiusWidget
-    border.width: card.unifiedFrame ? 0 : Theme.borderWidth
+    radius: card.unifiedFrame ? 0 : Theme.radiusWidget * card.us
+    border.width: card.unifiedFrame ? 0 : Theme.borderWidth * card.us
     border.color: Theme.outline
     color: card.unifiedFrame ? "transparent" : Theme.surface
-    implicitHeight: body.implicitHeight + Theme.paddingMd * 2
+    implicitHeight: body.implicitHeight + Theme.paddingMd * 2 * card.us
     // Ease the expand/collapse: the body clamp and the actions toggle change the
     // content height in a step, and this glides the card (and the stack it sits
     // in) between the two heights instead of snapping.
@@ -97,10 +101,10 @@ Rectangle {
     Text {
         id: bodyMeasure
         visible: false
-        width: card.width - Theme.paddingMd * 2
+        width: card.width - Theme.paddingMd * 2 * card.us
         text: card.notif.body || ""
         font.family: Theme.fontPrimary
-        font.pixelSize: Theme.fontSm
+        font.pixelSize: Theme.fontSm * card.us
         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
     }
 
@@ -113,9 +117,9 @@ Rectangle {
         property real iconRotation: 0
         signal clicked()
 
-        width: Theme.iconSm + Theme.paddingSm * 2
+        width: (Theme.iconSm + Theme.paddingSm * 2) * card.us
         height: width
-        radius: Theme.radiusWidget
+        radius: Theme.radiusWidget * card.us
         color: hbHov.hovered
             ? Qt.tint(Theme.surface, Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08))
             : "transparent"
@@ -123,7 +127,7 @@ Rectangle {
         MaterialIcon {
             anchors.centerIn: parent
             text: hb.glyph
-            font.pixelSize: Theme.iconSm
+            font.pixelSize: Theme.iconSm * card.us
             color: hbHov.hovered ? hb.activeColor : Theme.onSurfaceVariant
             rotation: hb.iconRotation
             Behavior on rotation { NumberAnimation { duration: Motion.chevronRotate; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve } }
@@ -143,8 +147,8 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: Theme.paddingMd
-        spacing: Theme.paddingMd
+        anchors.margins: Theme.paddingMd * card.us
+        spacing: Theme.paddingMd * card.us
 
         // Header: app name (fills), arrival time, and the open/expand/close cluster.
         Item {
@@ -155,12 +159,12 @@ Rectangle {
                 id: appName
                 anchors.left: parent.left
                 anchors.right: timeLabel.left
-                anchors.rightMargin: Theme.paddingSm
+                anchors.rightMargin: Theme.paddingSm * card.us
                 anchors.verticalCenter: parent.verticalCenter
                 text: card.notif.appName || ""
                 color: Theme.onSurfaceVariant
                 font.family: Theme.fontPrimary
-                font.pixelSize: Theme.fontSm
+                font.pixelSize: Theme.fontSm * card.us
                 font.weight: Font.Medium
                 elide: Text.ElideRight
             }
@@ -168,12 +172,12 @@ Rectangle {
             Text {
                 id: timeLabel
                 anchors.right: btnRow.left
-                anchors.rightMargin: Theme.paddingSm
+                anchors.rightMargin: Theme.paddingSm * card.us
                 anchors.verticalCenter: parent.verticalCenter
                 text: Notifs.timeLabel(card.notif)
                 color: Theme.onSurfaceVariant
                 font.family: Theme.fontPrimary
-                font.pixelSize: Theme.fontSm
+                font.pixelSize: Theme.fontSm * card.us
             }
 
             Row {
@@ -216,7 +220,7 @@ Rectangle {
             text: card.notif.summary || ""
             color: Theme.onSurface
             font.family: Theme.fontPrimary
-            font.pixelSize: Theme.fontMd
+            font.pixelSize: Theme.fontMd * card.us
             font.weight: Font.Bold
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         }
@@ -229,7 +233,7 @@ Rectangle {
             text: card.notif.body || ""
             color: Theme.onSurfaceVariant
             font.family: Theme.fontPrimary
-            font.pixelSize: Theme.fontSm
+            font.pixelSize: Theme.fontSm * card.us
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
             maximumLineCount: card.showFull ? 9999 : card.compactLines
             elide: card.showFull ? Text.ElideNone : Text.ElideRight
@@ -240,7 +244,7 @@ Rectangle {
         // brings them in, fading up as the card grows.
         Column {
             width: parent.width
-            spacing: Theme.paddingSm
+            spacing: Theme.paddingSm * card.us
             visible: card.visibleActions.length > 0 && card.showFull
             opacity: card.showFull ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: Motion.rowFade; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve } }
@@ -253,8 +257,8 @@ Rectangle {
                     required property var modelData
 
                     width: parent.width
-                    height: actionLabel.implicitHeight + Theme.paddingSm * 2
-                    radius: Theme.radiusWidget
+                    height: actionLabel.implicitHeight + Theme.paddingSm * 2 * card.us
+                    radius: Theme.radiusWidget * card.us
                     color: actionHov.hovered ? Theme.vermLit : Theme.primary
 
                     Behavior on color { ColorAnimation { duration: Motion.rowFade; easing.type: Motion.easeType; easing.bezierCurve: Motion.easeCurve } }
@@ -262,12 +266,12 @@ Rectangle {
                     Text {
                         id: actionLabel
                         anchors.centerIn: parent
-                        width: parent.width - Theme.paddingMd * 2
+                        width: parent.width - Theme.paddingMd * 2 * card.us
                         horizontalAlignment: Text.AlignHCenter
                         text: actionBtn.modelData.text
                         color: Theme.onPrimary
                         font.family: Theme.fontPrimary
-                        font.pixelSize: Theme.fontSm
+                        font.pixelSize: Theme.fontSm * card.us
                         font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
@@ -300,7 +304,7 @@ Rectangle {
             ctx.reset();
             if (!card.countingDown)
                 return;
-            const sw = Theme.borderWidth + 1;
+            const sw = Theme.borderWidth * card.us + 1;
             const o = sw / 2;
             const w = width - sw;
             const h = height - sw;
