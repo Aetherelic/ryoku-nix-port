@@ -542,6 +542,10 @@ done
                 SettingCard {
                     width: gfxCol.width
                     title: I18n.tr("RYOKU RENDERS ON")
+                    // Hybrid/Performance/Passthrough only mean something with a
+                    // second GPU to switch between; a single-GPU box always renders
+                    // on its one GPU, so hide the switcher rather than lock it.
+                    visible: !!(pg.caps && pg.caps.host)
 
                     SettingRow {
                         anchors.left: parent.left; anchors.right: parent.right

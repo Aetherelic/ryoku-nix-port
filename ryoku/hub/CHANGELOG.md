@@ -9,6 +9,18 @@
   writes shell.json `displays.ui_scale.<output>`; the Settings window itself
   honours it too.
 
+### Fixed
+- **GPU temperature and load show on AMD and Intel GPUs, not just NVIDIA.** The
+  Machine page's live plate read the GPU only through `nvidia-smi`, so on an AMD
+  (or Intel) GPU the temperature stayed blank and the tile fell back to "n/a". It
+  now reads utilisation, edge temperature and VRAM from the amdgpu sysfs nodes
+  when there is no NVIDIA reading.
+- **The graphics-mode switch is hidden on single-GPU machines.** Hybrid /
+  Performance / Passthrough only mean something with a second GPU to switch
+  between; a machine with one GPU always renders on it, so the switch (which had
+  looked "locked to Hybrid" and refused Performance) no longer appears. Nothing
+  was throttled -- there was simply nothing to switch.
+
 ### Removed
 - **Performance > Idle loses "Freeze the bar" and "Freeze the visualiser".** Both
   asked for behaviour that is now unconditional: an audio analyser with no audio

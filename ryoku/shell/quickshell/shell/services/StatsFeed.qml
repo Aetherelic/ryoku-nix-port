@@ -147,7 +147,13 @@ Singleton {
             "for st in /sys/bus/pci/drivers/nvidia/*/power/runtime_status; do "
             + "[ -r \"$st\" ] || continue; IFS= read -r s < \"$st\"; "
             + "[ \"$s\" = suspended ] && exit 0; break; done; "
-            + "nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits 2>/dev/null"]
+            + "g=$(nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits 2>/dev/null); "
+            + "[ -n \"$g\" ] && { echo \"$g\"; exit 0; }; "
+            + "for d in /sys/class/drm/card*/device; do [ -r \"$d/gpu_busy_percent\" ] || continue; "
+            + "u=$(cat \"$d/gpu_busy_percent\" 2>/dev/null); t=; "
+            + "for h in \"$d\"/hwmon/hwmon*/temp1_input; do [ -r \"$h\" ] && { t=$(awk '{print int($1/1000)}' \"$h\"); break; }; done; "
+            + "w=0; for p in \"$d\"/hwmon/hwmon*/power1_average; do [ -r \"$p\" ] && { w=$(awk '{print int($1/1000000)}' \"$p\"); break; }; done; "
+            + "[ -n \"$u\" ] && [ -n \"$t\" ] && { echo \"$u, $w, $t\"; exit 0; }; done"]
         stdout: StdioCollector { onStreamFinished: root._readGpu(this.text) }
     }
 

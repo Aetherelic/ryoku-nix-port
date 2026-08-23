@@ -68,6 +68,22 @@ done
 if [ "$asleep" = 1 ]; then g=""
 else g=$(nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | tr ',' ' ')
 fi
+# no NVIDIA reading (an AMD or Intel GPU): read util, edge temp, and VRAM from
+# the amdgpu sysfs nodes, matching nvidia-smi's util temp used total order.
+if [ -z "$g" ]; then
+  for d in /sys/class/drm/card*/device; do
+    [ "$(basename "$(readlink -f "$d/driver" 2>/dev/null)")" = amdgpu ] || continue
+    [ -r "$d/gpu_busy_percent" ] || continue
+    gu=$(cat "$d/gpu_busy_percent" 2>/dev/null)
+    gt=
+    for h in "$d"/hwmon/hwmon*/temp1_input; do [ -r "$h" ] && { gt=$(awk '{print int($1/1000)}' "$h"); break; }; done
+    vu=$(awk '{print int($1/1048576)}' "$d/mem_info_vram_used" 2>/dev/null)
+    vt=$(awk '{print int($1/1048576)}' "$d/mem_info_vram_total" 2>/dev/null)
+    [ -n "$vu" ] || vu=0
+    [ -n "$vt" ] || vt=1
+    [ -n "$gu" ] && [ -n "$gt" ] && { g="$gu $gt $vu $vt"; break; }
+  done
+fi
 echo "$cpu $ram $ct $ld $dn $up $g"
 `]
         stdout: SplitParser {

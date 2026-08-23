@@ -13,6 +13,10 @@
   multipliers) and omarchy (a shell-wide size scale).
 
 ### Fixed
+- **The bar's system monitor reads GPU load and temperature on AMD and Intel
+  GPUs.** `StatsFeed`'s GPU telemetry came only from `nvidia-smi`, so a non-NVIDIA
+  GPU reported nothing. It now falls back to the amdgpu sysfs nodes (utilisation,
+  edge temperature, power) when there is no NVIDIA reading.
 - **Light themes are legible again.** Muted and faint text used the Material
   `outline`/`outlineVariant` roles (light greys that wash out on a light surface),
   so a white wallpaper left the launcher, Hub and terminal barely readable. The
