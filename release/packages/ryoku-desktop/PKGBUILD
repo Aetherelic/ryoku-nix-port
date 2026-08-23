@@ -522,6 +522,12 @@ package() {
   install -Dm644 "$_repo/system/hardware/audio/70-ryoku-maono.rules" \
     "$pkgdir/usr/lib/udev/rules.d/70-ryoku-maono.rules"
 
+  # Keyboard keycast: the shell's keypress overlay (shown while recording) reads
+  # keyboard evdev via the daemon. Grant the active-seat user a uaccess ACL on
+  # keyboards so it works without the broad input group (see the rule header).
+  install -Dm644 "$_repo/system/hardware/input/72-ryoku-keyboard-uaccess.rules" \
+    "$pkgdir/usr/lib/udev/rules.d/72-ryoku-keyboard-uaccess.rules"
+
   # Bluetooth tuning: bluez owns /etc/bluetooth/main.conf and BlueZ has no
   # drop-in dir, so Ryoku cannot ship a copy here (pacman file conflict). The
   # ryoku-bluetooth-tune helper (installed by the hardware glob above) sets the

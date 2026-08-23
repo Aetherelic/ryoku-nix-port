@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Fixed
+- `input/72-ryoku-keyboard-uaccess.rules`: **the recorder's "show keyboard"
+  keycast works for every user, not just the install account.** The daemon reads
+  keyboard evdev to draw the keypress overlay, but keyboards are `root:input` and
+  the installer only puts freshly-created accounts in the `input` group -- so
+  upgraders and pre-existing users hit "Cannot read keyboard input: permission
+  denied." A new udev rule grants the active-seat user a `uaccess` ACL on
+  keyboards (the approach the references recommend over the broad `input` group),
+  shipped in `ryoku-desktop` so it reaches everyone on update, no reboot.
 - `display/ryoku-hw-backlight-fix`: **stops breaking brightness on Intel+NVIDIA
   laptops (#54).** The AMD-only `acpi_backlight=native` quirk gated on
   `nvidia_wmi_ec_backlight` present and no `amdgpu_bl*` -- but that NVIDIA WMI EC

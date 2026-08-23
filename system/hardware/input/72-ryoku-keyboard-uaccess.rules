@@ -1,0 +1,7 @@
+# Ryoku: the shell's keypress overlay (the keycast shown while recording) reads
+# keyboard evdev devices through the daemon. Grant the active-seat user an ACL on
+# keyboards via uaccess so the feature works without the broad `input` group,
+# which grants raw keyboard access on every seat and bypasses Wayland's input
+# isolation. Scoped to keyboards; runs after 60-input-id sets the tag and before
+# 73-seat-late applies the ACL (see the file number).
+SUBSYSTEM=="input", ENV{ID_INPUT_KEYBOARD}=="1", TAG+="uaccess"
