@@ -27,14 +27,23 @@ maps to a place under `~/.config` (except the small helper script noted below).
   see its README. No dconf settings to ship.
 - `mimeapps.list` The default-application map (text files route to neovim).
 
-## GUI apps (Quickshell)
+## GUI apps
 
-These are full applications, not `~/.config` seeds: each `<name>/quickshell/`
-ships as `qs -c <name>`, its `bin/` helpers and any Go helper land on `PATH`, and
-its `<name>.desktop` plus `quickshell/logo.svg` register it in the launcher.
+These are full applications, not `~/.config` seeds. Three shapes live here:
+
+- a **Quickshell app** ships its `quickshell/` tree as `qs -c <name>`
+  (`ryowalls`, `ryovm`, `ryostore`);
+- a **wrapped app** brings no QML of its own and single-instances somebody
+  else's binary (`ryotunes`, a Chromium app window);
+- a **compiled Qt app** builds from a `CMakeLists.txt` to `/usr/bin/<name>`.
+  The packaging supports it; nothing uses it today.
+
+A shell *surface* is a fourth thing and does not live here. `ryoshot` and
+`welcome` launch the same single-instance way but ship inside the shell at
+`ryoku/shell/quickshell/<name>/`, with no `.desktop` and no launcher entry.
 
 - `ryowalls/` Wallpaper browser: search wallhaven, preview the rice, set it.
-  Engine: the `ryowalls` script. Summon with Super+Shift+W.
+  Engine: the `ryowalls` script. Launcher only, no keybind.
 - `ryovm/` **Ryoport**, the machine hub: one console for local virtual machines,
   remote VPS, and SSH connections. Three plates behind a nav rail (Super+Shift+V,
   still `qs -c ryovm`): a **Dashboard** fleet overview, a **Machines** yard built
@@ -45,6 +54,64 @@ its `<name>.desktop` plus `quickshell/logo.svg` register it in the launcher.
   shows live reachability and agentless health probes, and connects in a tap
   (the `ryossh` Go helper). Engines: `ryovm` (VMs) and `ryossh` (remotes). The
   GPU-passthrough gaming VM is still configured from Ryoku Settings > GPU, not here.
+- `ryostore/` The store: discover and install lockscreens, rices, bar styles,
+  plugins and bundles. Engine: the `ryostore` Go backend.
+- `ryotunes/` YouTube Music as its own Chromium app window and profile, wired to
+  the desktop now-playing widget.
+
+## Single-instance launch
+
+Every one of them launches behind a lock:
+
+```
+flock -n -o /tmp/<name>.lock qs -c <name>
+```
+
+`-n` fails immediately while the lock is held, so a second launch dies instead of
+opening a duplicate window. `-o` closes the descriptor before exec, so the lock
+follows the app rather than the wrapper.
+
+A keybind needs more than that. Because `flock` exits nonzero on a held lock,
+pressing the key while the app already runs on another workspace does nothing
+visible: the window stays where it first opened, and the key reads as dead.
+`ryoku-summon` is the answer, and every keybind goes through it:
+
+```
+ryoku-summon <window-title> <launch command...>
+```
+
+It moves a matching window to the active workspace and focuses it, and execs the
+launch command only when nothing matches. It matches the live title first and the
+initial title second, since an app that retitles itself would otherwise fall
+through to the launcher. It ships from `ryowalls/bin/` and lands on `PATH`, so
+any app may call it.
+
+## Adding one
+
+`package()` in `release/packages/ryoku-desktop/PKGBUILD` walks `ryoku/apps/*/`,
+so dropping a directory in ships it and there is nothing to register. The
+directory name is the identity: it becomes the config name, the icon name, and
+the binary name.
+
+| Path                | Ships as                                                     |
+| ------------------- | ------------------------------------------------------------ |
+| `quickshell/`       | the package stages it under `/usr/share/ryoku/config/quickshell/<name>/` and `ryoku materialize` lays it at `~/.config/quickshell/<name>/`, where it runs as `qs -c <name>` |
+| `quickshell/logo.svg` | the launcher icon, installed as `<name>.svg`                |
+| `<name>.desktop`    | `/usr/share/applications/`, carrying the `flock` line         |
+| `bin/*`             | one `/usr/bin` entry per file                                 |
+| `<helper>/go.mod`   | a Go helper, built to the binary its `module` line names      |
+| `CMakeLists.txt`    | a compiled Qt app at `/usr/bin/<name>`                        |
+
+The loop only looks at a directory holding `quickshell/` or `CMakeLists.txt`.
+Anything else is invisible to it and needs its own install lines, which is why
+`ryotunes` has them.
+
+Two things to know before testing by hand. `~/.config/quickshell` is wholly
+Ryoku-owned: `ryoku materialize` converges it against the shipped tree and
+deletes whatever the repo does not ship, so an app dropped there by hand
+disappears on the next update. And a keybind belongs in
+`ryoku/hyprland/modules/binds.lua`, while a window that should float wants a rule
+in `window_rules.lua` (see `float-ryowalls`).
 
 ## Install paths
 
