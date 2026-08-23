@@ -143,10 +143,11 @@ var rows = [
         "group": "PLACEMENT",
         "key": "clockAnchor",
         "label": "Anchor",
-        "desc": "Snaps the widget to a screen edge or corner; free uses X/Y or dragging",
+        "desc": "Auto lands the widget on the wallpaper's calmest region and follows it; a zone snaps to an edge or corner; free uses X/Y or dragging",
         "ctl": "pick",
         "src": "widgets.json",
         "opts": [
+            "auto",
             "top-left",
             "top",
             "top-right",
@@ -269,10 +270,10 @@ var rows = [
         "group": "PLACEMENT",
         "key": "calendarAnchor",
         "label": "Anchor",
-        "desc": "Snaps the calendar to a screen edge or corner; free uses X/Y or dragging",
+        "desc": "Auto lands the calendar on the wallpaper's calmest region and follows it; a zone snaps to an edge or corner; free uses X/Y or dragging",
         "ctl": "pick",
         "src": "widgets.json",
-        "opts": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+        "opts": ["auto", "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
     },
     {
         "tab": "calendar",
@@ -338,6 +339,16 @@ var rows = [
     {
         "tab": "music",
         "group": "WIDGET",
+        "key": "musicViz",
+        "label": "Visualiser",
+        "desc": "The look when a track has no lyrics: Bars is the original spectrum, Wave a smoothed band",
+        "ctl": "seg",
+        "src": "widgets.json",
+        "opts": ["bars", "wave"]
+    },
+    {
+        "tab": "music",
+        "group": "WIDGET",
         "key": "musicApp",
         "label": "Music app",
         "desc": "The app the corner button opens; blank uses ryotunes (YouTube Music)",
@@ -373,10 +384,10 @@ var rows = [
         "group": "PLACEMENT",
         "key": "musicAnchor",
         "label": "Anchor",
-        "desc": "Snaps the sheet to a screen edge or corner; free uses X/Y or dragging",
+        "desc": "Auto lands the sheet on the wallpaper's calmest region and follows it; a zone snaps to an edge or corner; free uses X/Y or dragging",
         "ctl": "pick",
         "src": "widgets.json",
-        "opts": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+        "opts": ["auto", "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
     },
     {
         "tab": "music",
@@ -433,9 +444,9 @@ var rows = [
     },
     {
         "tab": "aio", "group": "PLACEMENT", "key": "aioAnchor", "label": "Anchor",
-        "desc": "Snaps the card to a screen edge or corner; free uses X/Y or dragging",
+        "desc": "Auto lands the card on the wallpaper's calmest region and follows it; a zone snaps to an edge or corner; free uses X/Y or dragging",
         "ctl": "pick", "src": "widgets.json",
-        "opts": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+        "opts": ["auto", "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
     },
     {
         "tab": "aio", "group": "PLACEMENT", "key": "aioX", "label": "X",
@@ -469,9 +480,9 @@ var rows = [
     },
     {
         "tab": "stats", "group": "PLACEMENT", "key": "statsAnchor", "label": "Anchor",
-        "desc": "Snaps the panel to a screen edge or corner; free uses X/Y or dragging",
+        "desc": "Auto lands the panel on the wallpaper's calmest region and follows it; a zone snaps to an edge or corner; free uses X/Y or dragging",
         "ctl": "pick", "src": "widgets.json",
-        "opts": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+        "opts": ["auto", "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
     },
     {
         "tab": "stats", "group": "PLACEMENT", "key": "statsX", "label": "X",
@@ -485,6 +496,93 @@ var rows = [
     },
     {
         "tab": "stats", "group": "PLACEMENT", "key": "statsLocked", "label": "Lock on desktop",
+        "desc": "Stops accidental moves and resizes",
+        "ctl": "sw", "src": "widgets.json"
+    },
+    {
+        "tab": "weather", "group": "WIDGET", "key": "weatherEnabled", "label": "Enabled",
+        "desc": "Shows the weather on your wallpaper; settings are kept while off",
+        "ctl": "sw", "src": "widgets.json"
+    },
+    {
+        "tab": "weather", "group": "WIDGET", "key": "weatherDesign", "label": "Layout",
+        "desc": "Compact shows the glyph, temperature and city; Full adds the condition, a humidity/wind/feels row and a three-day strip",
+        "ctl": "seg", "src": "widgets.json", "opts": ["compact", "full"]
+    },
+    {
+        "tab": "weather", "group": "SIZE & SHAPE", "key": "weatherScale", "label": "Size",
+        "desc": "Multiplies the widget's designed size",
+        "ctl": "step", "src": "widgets.json", "lo": 0.5, "hi": 2.5
+    },
+    {
+        "tab": "weather", "group": "SIZE & SHAPE", "key": "weatherOpacity", "label": "Opacity",
+        "desc": "Fades the widget while keeping it readable",
+        "ctl": "slid", "src": "widgets.json", "lo": 0.2, "hi": 1.0, "unit": "%", "pct": true
+    },
+    {
+        "tab": "weather", "group": "PLACEMENT", "key": "weatherAnchor", "label": "Anchor",
+        "desc": "Auto lands the widget on the wallpaper's calmest region and follows it; a zone snaps to an edge or corner; free uses X/Y or dragging",
+        "ctl": "pick", "src": "widgets.json",
+        "opts": ["auto", "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+    },
+    {
+        "tab": "weather", "group": "PLACEMENT", "key": "weatherX", "label": "X",
+        "desc": "Pixels from the left edge when Anchor is free",
+        "ctl": "step", "src": "widgets.json", "lo": 0, "hi": 5000, "unit": "px"
+    },
+    {
+        "tab": "weather", "group": "PLACEMENT", "key": "weatherY", "label": "Y",
+        "desc": "Pixels from the top edge when Anchor is free",
+        "ctl": "step", "src": "widgets.json", "lo": 0, "hi": 5000, "unit": "px"
+    },
+    {
+        "tab": "weather", "group": "PLACEMENT", "key": "weatherLocked", "label": "Lock on desktop",
+        "desc": "Stops accidental moves and resizes",
+        "ctl": "sw", "src": "widgets.json"
+    },
+    {
+        "tab": "notes", "group": "WIDGET", "key": "notesEnabled", "label": "Enabled",
+        "desc": "Shows the scratch pad on your wallpaper; the note itself is kept while off",
+        "ctl": "sw", "src": "widgets.json"
+    },
+    {
+        "tab": "notes", "group": "SIZE & SHAPE", "key": "notesWidth", "label": "Width",
+        "desc": "Width of the pad in pixels before Size scales it",
+        "ctl": "step", "src": "widgets.json", "lo": 160, "hi": 900, "unit": "px"
+    },
+    {
+        "tab": "notes", "group": "SIZE & SHAPE", "key": "notesHeight", "label": "Height",
+        "desc": "Height of the pad in pixels before Size scales it",
+        "ctl": "step", "src": "widgets.json", "lo": 120, "hi": 900, "unit": "px"
+    },
+    {
+        "tab": "notes", "group": "SIZE & SHAPE", "key": "notesScale", "label": "Size",
+        "desc": "Multiplies the pad's width, height and text",
+        "ctl": "step", "src": "widgets.json", "lo": 0.5, "hi": 2.5
+    },
+    {
+        "tab": "notes", "group": "SIZE & SHAPE", "key": "notesOpacity", "label": "Opacity",
+        "desc": "Fades the pad while keeping it readable",
+        "ctl": "slid", "src": "widgets.json", "lo": 0.2, "hi": 1.0, "unit": "%", "pct": true
+    },
+    {
+        "tab": "notes", "group": "PLACEMENT", "key": "notesAnchor", "label": "Anchor",
+        "desc": "Auto lands the pad on the wallpaper's calmest region and follows it; a zone snaps to an edge or corner; free uses X/Y or dragging",
+        "ctl": "pick", "src": "widgets.json",
+        "opts": ["auto", "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"]
+    },
+    {
+        "tab": "notes", "group": "PLACEMENT", "key": "notesX", "label": "X",
+        "desc": "Pixels from the left edge when Anchor is free",
+        "ctl": "step", "src": "widgets.json", "lo": 0, "hi": 5000, "unit": "px"
+    },
+    {
+        "tab": "notes", "group": "PLACEMENT", "key": "notesY", "label": "Y",
+        "desc": "Pixels from the top edge when Anchor is free",
+        "ctl": "step", "src": "widgets.json", "lo": 0, "hi": 5000, "unit": "px"
+    },
+    {
+        "tab": "notes", "group": "PLACEMENT", "key": "notesLocked", "label": "Lock on desktop",
         "desc": "Stops accidental moves and resizes",
         "ctl": "sw", "src": "widgets.json"
     }

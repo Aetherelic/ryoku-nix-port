@@ -17,7 +17,7 @@ Item {
     id: slot
 
     property string widget: "clock"            // config prefix, for persistence
-    property string anchor: "top-left"         // 9 zones | free
+    property string anchor: "top-left"         // auto | 9 zones | free
     property real freeX: 72
     property real freeY: 64
     property bool locked: false
@@ -29,6 +29,10 @@ Item {
     property real scaleCfg: 1                   // current Config <widget>Scale, for the resize readout
 
     signal menuRequested(real x, real y, string widget)
+    // emitted on drop with the slot's final pixel box, so the desktop layer can
+    // flash the edges it landed on (and any centre line it snapped to). reported
+    // one way, as a signal, like menuRequested.
+    signal dropped(rect box)
 
     default property alias content: holder.data
 
@@ -72,8 +76,33 @@ Item {
         return (h - slot.height) / 2;
     }
 
-    x: slot.holding ? slot.dragX : (slot.anchor === "free" ? slot.clampX(slot.freeX) : slot.zoneX())
-    y: slot.holding ? slot.dragY : (slot.anchor === "free" ? slot.clampY(slot.freeY) : slot.zoneY())
+    // anchor:"auto" -> the wallpaper's calmest patch. calmSpot returns a
+    // screen-normalised top-left for a box of the slot's normalised size; scale
+    // it back to monitor pixels. calmSpot reads the daemon's tone map internally,
+    // so this binding tracks it and re-resolves -- gliding via the x/y Behaviors
+    // below -- whenever a new wallpaper publishes a fresh map. marginN is the zone
+    // pixel inset against the shorter screen axis, so an auto widget stays at
+    // least as far off every edge as a zoned one.
+    readonly property point autoPoint: {
+        // only auto slots pay for calmSpot (and subscribe to the tone map);
+        // a zoned or free slot must not re-lay-out on a wallpaper change.
+        if (slot.anchor !== "auto")
+            return Qt.point(0, 0);
+        const pw = slot.parent ? slot.parent.width : 0;
+        const ph = slot.parent ? slot.parent.height : 0;
+        if (pw <= 0 || ph <= 0)
+            return Qt.point(slot.freeX, slot.freeY);
+        const s = Scheme.calmSpot(slot.width / pw, slot.height / ph,
+            slot.zoneMargin / Math.min(pw, ph));
+        return Qt.point(slot.clampX(s.x * pw), slot.clampY(s.y * ph));
+    }
+
+    x: slot.holding ? slot.dragX
+        : slot.anchor === "free" ? slot.clampX(slot.freeX)
+        : slot.anchor === "auto" ? slot.autoPoint.x : slot.zoneX()
+    y: slot.holding ? slot.dragY
+        : slot.anchor === "free" ? slot.clampY(slot.freeY)
+        : slot.anchor === "auto" ? slot.autoPoint.y : slot.zoneY()
 
     Behavior on x { enabled: !slot.holding; NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
     Behavior on y { enabled: !slot.holding; NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
@@ -185,6 +214,7 @@ Item {
         onReleased: (mouse) => {
             if (slot.dragging) {
                 Config.setFree(slot.widget, Math.round(slot.dragX), Math.round(slot.dragY));
+                slot.dropped(Qt.rect(slot.dragX, slot.dragY, slot.width, slot.height));
                 slot.dragging = false;
                 guard.restart();
             }
@@ -202,6 +232,10 @@ Item {
         width: slot.cw
         height: slot.ch
         layer.enabled: !Performance.shadowsDisabled && slot.bg === "none"
+        // a layer texture drawn at a fractional Wayland scale needs linear
+        // filtering or the bare-widget ink crawls, worst during the press
+        // bump and the drag, when the tile sits off the pixel grid.
+        layer.smooth: true
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowColor: Qt.rgba(0, 0, 0, 0.5)

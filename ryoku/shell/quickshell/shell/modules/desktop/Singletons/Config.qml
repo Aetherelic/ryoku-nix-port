@@ -41,6 +41,7 @@ Singleton {
     property alias musicEnabled: adapter.musicEnabled
     property alias musicStyle:   adapter.musicStyle    // cover | glass
     property alias musicLyrics:  adapter.musicLyrics   // show the synced lyric sheet
+    property alias musicViz:     adapter.musicViz     // bars | wave (no-lyrics visualiser look)
     property alias musicScale:   adapter.musicScale
     property alias musicAnchor:  adapter.musicAnchor
     property alias musicX:       adapter.musicX
@@ -68,6 +69,25 @@ Singleton {
     property alias statsY:       adapter.statsY
     property alias statsLocked:  adapter.statsLocked
     property alias statsOpacity: adapter.statsOpacity
+
+    property alias weatherEnabled: adapter.weatherEnabled
+    property alias weatherDesign:  adapter.weatherDesign   // compact | full
+    property alias weatherScale:   adapter.weatherScale
+    property alias weatherAnchor:  adapter.weatherAnchor
+    property alias weatherX:       adapter.weatherX
+    property alias weatherY:       adapter.weatherY
+    property alias weatherLocked:  adapter.weatherLocked
+    property alias weatherOpacity: adapter.weatherOpacity
+
+    property alias notesEnabled: adapter.notesEnabled
+    property alias notesScale:   adapter.notesScale
+    property alias notesAnchor:  adapter.notesAnchor
+    property alias notesX:       adapter.notesX
+    property alias notesY:       adapter.notesY
+    property alias notesLocked:  adapter.notesLocked
+    property alias notesOpacity: adapter.notesOpacity
+    property alias notesWidth:   adapter.notesWidth   // pad size in logical px, before scale
+    property alias notesHeight:  adapter.notesHeight
 
     // brand: the desktop's mark + name, user-overridable from Ryoku Settings ->
     // Shell -> Global. a small cross-cutting identity master (like theme.json).
@@ -148,6 +168,7 @@ Singleton {
             property bool musicEnabled: false
             property string musicStyle: "cover"
             property bool musicLyrics: true
+            property string musicViz: "bars"
             property real musicScale: 1.0
             property string musicAnchor: "bottom-left"
             property int musicX: 80
@@ -173,6 +194,23 @@ Singleton {
             property int statsY: 80
             property bool statsLocked: false
             property real statsOpacity: 1.0
+            property bool weatherEnabled: false
+            property string weatherDesign: "compact"
+            property real weatherScale: 1.0
+            property string weatherAnchor: "top-right"
+            property int weatherX: 80
+            property int weatherY: 80
+            property bool weatherLocked: false
+            property real weatherOpacity: 1.0
+            property bool notesEnabled: false
+            property real notesScale: 1.0
+            property string notesAnchor: "right"
+            property int notesX: 80
+            property int notesY: 80
+            property bool notesLocked: false
+            property real notesOpacity: 1.0
+            property int notesWidth: 260
+            property int notesHeight: 180
         }
     }
 

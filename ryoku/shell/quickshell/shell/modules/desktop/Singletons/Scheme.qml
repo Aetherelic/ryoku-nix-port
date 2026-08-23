@@ -106,6 +106,12 @@ Singleton {
     readonly property real wallLstar: Ui.Ink.wallLstar
     function lstarAt(nx, ny, nw, nh) { return Ui.Ink.lstarAt(nx, ny, nw, nh); }
     function overLstar(bgL, plate) { return Ui.Ink.overLstar(bgL, plate); }
+    // Detail (local contrast) and the calm-region placement helper, so the
+    // desktop's `auto` anchor can land a widget on a quiet, tonally-even patch.
+    // calmSpot reads Ink's tone map internally, so a binding that calls it
+    // re-resolves when a new wallpaper publishes a fresh map.
+    function detailAt(nx, ny, nw, nh) { return Ui.Ink.detailAt(nx, ny, nw, nh); }
+    function calmSpot(nw, nh, marginN) { return Ui.Ink.calmSpot(nw, nh, marginN); }
 
     function refreshWall() {
         try {

@@ -30,10 +30,12 @@ Item {
         "calendarEnabled", "calendarStyle", "calendarWeeks", "calendarWeekNumbers",
         "calendarHolidayRegion", "calendarScale", "calendarOpacity", "calendarAnchor",
         "calendarX", "calendarY", "calendarLocked",
-        "musicEnabled", "musicStyle", "musicLyrics", "musicScale", "musicOpacity",
+        "musicEnabled", "musicStyle", "musicLyrics", "musicViz", "musicScale", "musicOpacity",
         "musicAnchor", "musicX", "musicY", "musicLocked", "musicApp",
         "aioEnabled", "aioStyle", "aioScale", "aioOpacity", "aioAnchor", "aioX", "aioY", "aioLocked",
-        "statsEnabled", "statsScale", "statsOpacity", "statsAnchor", "statsX", "statsY", "statsLocked"
+        "statsEnabled", "statsScale", "statsOpacity", "statsAnchor", "statsX", "statsY", "statsLocked",
+        "weatherEnabled", "weatherDesign", "weatherScale", "weatherOpacity", "weatherAnchor", "weatherX", "weatherY", "weatherLocked",
+        "notesEnabled", "notesScale", "notesOpacity", "notesWidth", "notesHeight", "notesAnchor", "notesX", "notesY", "notesLocked"
     ]
 
     // Factory values mirror the wallpaper clock's canonical Config defaults.
@@ -46,23 +48,27 @@ Item {
         "calendarWeekNumbers": true, "calendarHolidayRegion": "", "calendarScale": 1.0,
         "calendarOpacity": 1.0, "calendarAnchor": "bottom-right", "calendarX": 80,
         "calendarY": 80, "calendarLocked": false,
-        "musicEnabled": false, "musicStyle": "cover", "musicLyrics": true,
+        "musicEnabled": false, "musicStyle": "cover", "musicLyrics": true, "musicViz": "bars",
         "musicScale": 1.0, "musicOpacity": 1.0, "musicAnchor": "bottom-left",
         "musicX": 80, "musicY": 80, "musicLocked": false, "musicApp": "",
         "aioEnabled": false, "aioStyle": "wide", "aioScale": 1.0, "aioOpacity": 1.0,
         "aioAnchor": "top-right", "aioX": 80, "aioY": 80, "aioLocked": false,
         "statsEnabled": false, "statsScale": 1.0, "statsOpacity": 1.0,
-        "statsAnchor": "bottom-right", "statsX": 80, "statsY": 80, "statsLocked": false
+        "statsAnchor": "bottom-right", "statsX": 80, "statsY": 80, "statsLocked": false,
+        "weatherEnabled": false, "weatherDesign": "compact", "weatherScale": 1.0, "weatherOpacity": 1.0,
+        "weatherAnchor": "top-right", "weatherX": 80, "weatherY": 80, "weatherLocked": false,
+        "notesEnabled": false, "notesScale": 1.0, "notesOpacity": 1.0, "notesWidth": 260, "notesHeight": 180,
+        "notesAnchor": "right", "notesX": 80, "notesY": 80, "notesLocked": false
     })
 
     // Scale and opacity persist as ratios; the sheet edits integer percents.
     readonly property var pctKeys: ({
         "clockOpacity": true, "calendarOpacity": true, "musicOpacity": true,
-        "aioOpacity": true, "statsOpacity": true
+        "aioOpacity": true, "statsOpacity": true, "weatherOpacity": true, "notesOpacity": true
     })
     readonly property var scaleKeys: ({
         "clockScale": true, "calendarScale": true, "musicScale": true,
-        "aioScale": true, "statsScale": true
+        "aioScale": true, "statsScale": true, "weatherScale": true, "notesScale": true
     })
 
     property var draft: ({})
@@ -307,6 +313,7 @@ Item {
             property bool musicEnabled: false
             property string musicStyle: "cover"
             property bool musicLyrics: true
+            property string musicViz: "bars"
             property real musicScale: 1.0
             property real musicOpacity: 1.0
             property string musicAnchor: "bottom-left"
@@ -329,6 +336,23 @@ Item {
             property int statsX: 80
             property int statsY: 80
             property bool statsLocked: false
+            property bool weatherEnabled: false
+            property string weatherDesign: "compact"
+            property real weatherScale: 1.0
+            property real weatherOpacity: 1.0
+            property string weatherAnchor: "top-right"
+            property int weatherX: 80
+            property int weatherY: 80
+            property bool weatherLocked: false
+            property bool notesEnabled: false
+            property real notesScale: 1.0
+            property real notesOpacity: 1.0
+            property int notesWidth: 260
+            property int notesHeight: 180
+            property string notesAnchor: "right"
+            property int notesX: 80
+            property int notesY: 80
+            property bool notesLocked: false
         }
     }
 
@@ -361,7 +385,7 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("Every widget that rides your wallpaper — the clock, the all-in-one card, system stats, calendar and now-playing. Pick a card to preview it live and open its settings; nothing lands on the desktop until you save.")
+            text: I18n.tr("Every widget that rides your wallpaper: the clock, the all-in-one card, system stats, calendar, now-playing, weather and notes. Pick a card to preview it live and open its settings; nothing lands on the desktop until you save.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -387,7 +411,9 @@ Item {
         { "tab": "aio",      "title": "All-in-one",   "jp": "一体", "enable": "aioEnabled",      "anchor": "aioAnchor",      "natW": 354, "natH": 227 },
         { "tab": "stats",    "title": "System Stats", "jp": "統計", "enable": "statsEnabled",    "anchor": "statsAnchor",    "natW": 261, "natH": 458 },
         { "tab": "calendar", "title": "Calendar",     "jp": "暦",   "enable": "calendarEnabled", "anchor": "calendarAnchor", "natW": 330, "natH": 210 },
-        { "tab": "music",    "title": "Music",        "jp": "音楽", "enable": "musicEnabled",    "anchor": "musicAnchor",    "natW": 400, "natH": 216 }
+        { "tab": "music",    "title": "Music",        "jp": "音楽", "enable": "musicEnabled",    "anchor": "musicAnchor",    "natW": 400, "natH": 216 },
+        { "tab": "weather",  "title": "Weather",      "jp": "天気", "enable": "weatherEnabled",  "anchor": "weatherAnchor",  "natW": 220, "natH": 390 },
+        { "tab": "notes",    "title": "Notes",        "jp": "メモ", "enable": "notesEnabled",    "anchor": "notesAnchor",    "natW": 260, "natH": 180 }
     ]
     function widgetOf(tab) { for (var i = 0; i < pg.widgets.length; i++) if (pg.widgets[i].tab === tab) return pg.widgets[i]; return null; }
     readonly property var curWidget: pg.selected === "" ? null : pg.widgetOf(pg.selected)
@@ -401,9 +427,12 @@ Item {
     Component { id: calPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../CalendarPreview.qml")
         onLoaded: { item.style = Qt.binding(() => pg.draft.calendarStyle || "glass"); item.weeks = Qt.binding(() => pg.draft.calendarWeeks || 6); item.showWeekNumbers = Qt.binding(() => pg.draft.calendarWeekNumbers === true); } } }
     Component { id: musicPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../MusicPreview.qml")
-        onLoaded: { item.style = Qt.binding(() => pg.draft.musicStyle || "cover"); item.lyrics = Qt.binding(() => pg.draft.musicLyrics === true); } } }
+        onLoaded: { item.style = Qt.binding(() => pg.draft.musicStyle || "cover"); item.lyrics = Qt.binding(() => pg.draft.musicLyrics === true); item.viz = Qt.binding(() => pg.draft.musicViz || "bars"); } } }
+    Component { id: weatherPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../WeatherPreview.qml")
+        onLoaded: { item.design = Qt.binding(() => pg.draft.weatherDesign || "compact"); } } }
+    Component { id: notesPrevC; Loader { anchors.fill: parent; source: Qt.resolvedUrl("../NotesPreview.qml") } }
     function previewFor(tab) {
-        switch (tab) { case "aio": return aioPrevC; case "stats": return statsPrevC; case "calendar": return calPrevC; case "music": return musicPrevC; default: return clockPrevC; }
+        switch (tab) { case "aio": return aioPrevC; case "stats": return statsPrevC; case "calendar": return calPrevC; case "music": return musicPrevC; case "weather": return weatherPrevC; case "notes": return notesPrevC; default: return clockPrevC; }
     }
 
     Item {
@@ -668,6 +697,9 @@ Item {
             title: pg.pickRow ? I18n.tr(pg.pickRow.label) : ""
             options: pg.pickRow ? (pg.pickRow.opts || []) : []
             current: pg.pickRow ? String(pg.draft[pg.pickRow.key]) : ""
+            // the only pick rows on this page are the anchor pickers; give the
+            // new "auto" value a human label, the rest keep their raw key.
+            labels: ({ "auto": I18n.tr("Auto (calm spot)") })
             onChose: (key) => {
                 if (pg.pickRow)
                     pg.edit(pg.pickRow.key, key);

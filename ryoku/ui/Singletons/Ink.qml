@@ -100,6 +100,12 @@ Singleton {
     // 50 before the first write, so neither pole is assumed.
     readonly property real wallLstar: (typeof ink.wall.lstar === "number") ? ink.wall.lstar : 50
 
+    // The daemon's detail map: the population stddev of L* per cell, same 8x8
+    // shape and row-major order as the grid. null until a map carrying detail is
+    // published, so detailAt falls back to 0 -- an unmeasured wallpaper reads as
+    // perfectly calm rather than blocking placement.
+    readonly property var wallDetail: (ink.wall && ink.wall.detail) ? ink.wall.detail : null
+
     // Mean L* under a rect in screen-normalised coordinates. Cells average
     // whole, so a rect spanning a bright sky and a dark tree resolves to the mid
     // tone that has to satisfy both.
@@ -128,6 +134,82 @@ Singleton {
 
     // Clamped so an off-screen or mid-drag rect still samples a real cell.
     function cell(v, n) { return Math.max(0, Math.min(n - 1, Math.floor(v * n))); }
+
+    // Mean detail (local contrast, in L* units) under a rect in screen-normalised
+    // coordinates. Same whole-cell clamping as lstarAt, so the two read the same
+    // cells for the same rect. 0 when no detail map is published.
+    function detailAt(nx, ny, nw, nh) {
+        const d = ink.wallDetail;
+        const cols = ink.wall.cols | 0;
+        const rows = ink.wall.rows | 0;
+        if (!d || cols <= 0 || rows <= 0 || d.length < cols * rows)
+            return 0;
+        const x0 = ink.cell(nx, cols), x1 = Math.max(x0, ink.cell(nx + nw, cols));
+        const y0 = ink.cell(ny, rows), y1 = Math.max(y0, ink.cell(ny + nh, rows));
+        let sum = 0, n = 0;
+        for (let y = y0; y <= y1; ++y) {
+            for (let x = x0; x <= x1; ++x) {
+                sum += d[y * cols + x];
+                ++n;
+            }
+        }
+        return n > 0 ? sum / n : 0;
+    }
+
+    // The screen-normalised TOP-LEFT where a box of normalised size nw x nh sits
+    // most comfortably, staying marginN off every edge. Scans candidate top-lefts
+    // on the cell lattice and minimises
+    //     detailAt(...) + 0.35 * |lstarAt(...) - wallLstar|.
+    //
+    // The two terms answer one question. A widget floating on the wallpaper inks
+    // itself from a SINGLE measured tone (lstarAt over its own rect), so it wants
+    // a patch that is both quiet -- low detail, nothing busy for its edge to fight
+    // -- and close to the frame mean, so the one tone it picked reads evenly
+    // across the whole box. The 0.35 keeps detail the lead term (a few L* of tonal
+    // drift is worth about one L* of contrast noise) while still nudging off a
+    // quiet-but-off-tone patch.
+    //
+    // Deterministic and allocation-free in the loop (it re-resolves under a
+    // binding on every wallpaper change): no candidate array, no per-candidate
+    // closure. Ties break toward the box nearest the screen centre, so the result
+    // is stable and never hugs a corner. Falls back to the centred position with
+    // no map published, or when the box is bigger than the margined area.
+    function calmSpot(nw, nh, marginN) {
+        const fx = (1 - nw) / 2, fy = (1 - nh) / 2; // centred fallback
+        const g = ink.wall.grid;
+        const cols = ink.wall.cols | 0, rows = ink.wall.rows | 0;
+        if (!g || cols <= 0 || rows <= 0 || g.length < cols * rows)
+            return ({ x: fx, y: fy });
+        const hiX = 1 - marginN - nw, hiY = 1 - marginN - nh;
+        if (hiX < marginN || hiY < marginN) // box bigger than the margined area
+            return ({ x: fx, y: fy });
+        // Per axis: the map is square today, but a non-square one must not walk
+        // the y lattice in x steps.
+        const stepX = 1 / cols, stepY = 1 / rows;
+        let bestX = fx, bestY = fy, bestCost = Infinity, bestPull = Infinity;
+        for (let iy = 0; iy < rows; ++iy) {
+            const y = iy * stepY;
+            if (y < marginN || y > hiY + 1e-9)
+                continue;
+            for (let ix = 0; ix < cols; ++ix) {
+                const x = ix * stepX;
+                if (x < marginN || x > hiX + 1e-9)
+                    continue;
+                const cost = ink.detailAt(x, y, nw, nh)
+                    + 0.35 * Math.abs(ink.lstarAt(x, y, nw, nh) - ink.wallLstar);
+                // Squared distance of the box centre from the screen centre.
+                const dx = x + nw / 2 - 0.5, dy = y + nh / 2 - 0.5;
+                const pull = dx * dx + dy * dy;
+                if (cost < bestCost - 1e-9 || (cost < bestCost + 1e-9 && pull < bestPull)) {
+                    bestCost = cost;
+                    bestPull = pull;
+                    bestX = x;
+                    bestY = y;
+                }
+            }
+        }
+        return ({ x: bestX, y: bestY });
+    }
 
     // ── matugen's tonal ramps ────────────────────────────────────────────────
 

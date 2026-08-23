@@ -25,6 +25,7 @@ Item {
     property bool active: true
     property string musicApp: ""            // corner-button launch command (from Config)
     property real s: 1
+    property string viz: "bars"             // bars | wave (the no-lyrics visualiser look)
     property real underL: Scheme.wallLstar
     property Item wallpaperSource: null
     property rect wallpaperRect: Qt.rect(0, 0, 0, 0)
@@ -204,6 +205,7 @@ Item {
             s: root.s
             accent: root.accent
             live: Media.playing
+            look: root.viz
         }
 
 

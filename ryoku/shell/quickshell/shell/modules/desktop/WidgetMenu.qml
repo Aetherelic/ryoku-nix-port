@@ -28,6 +28,8 @@ Item {
     readonly property bool isMusic: menu.scope === "music"
     readonly property bool isAio: menu.scope === "aio"
     readonly property bool isStats: menu.scope === "stats"
+    readonly property bool isWeather: menu.scope === "weather"
+    readonly property bool isNotes: menu.scope === "notes"
     // only offer to place the spectrum when it is actually running
     readonly property bool vizOn: VizCfg.Config.enabled
     readonly property bool locked: menu.isWidget ? Config[menu.scope + "Locked"] : false
@@ -36,7 +38,9 @@ Item {
     // persist their look as <scope>Style.
     readonly property string designKey: menu.isCalendar || menu.isMusic || menu.isAio
         ? menu.scope + "Style" : menu.scope + "Design"
-    readonly property string curDesign: menu.isWidget ? Config[menu.designKey] : ""
+    // A widget with one look (notes, stats) has no design key at all, so the
+    // lookup must resolve to a string rather than undefined.
+    readonly property string curDesign: menu.isWidget ? (Config[menu.designKey] ?? "") : ""
 
     readonly property var zones: [
         { "zone": "top-left", "glyph": "\u2196" }, { "zone": "top", "glyph": "\u2191" }, { "zone": "top-right", "glyph": "\u2197" },
@@ -54,7 +58,8 @@ Item {
             clock: ["digital", "minimal", "analog", "flip", "rings", "bighour", "metal", "goodnight"],
             calendar: ["glass", "paper"],
             music: ["cover", "glass"],
-            aio: ["wide", "tall"]
+            aio: ["wide", "tall"],
+            weather: ["compact", "full"]
         };
         const d = lists[menu.scope];
         if (!d)
@@ -126,6 +131,22 @@ Item {
             closeOnTrigger: false
             onTriggered: Config.set("statsEnabled", !Config.statsEnabled)
         }
+        MenuRow {
+            visible: !menu.isWidget
+            label: I18n.tr("Weather")
+            value: Config.weatherEnabled ? "On" : "Off"
+            on: Config.weatherEnabled
+            closeOnTrigger: false
+            onTriggered: Config.set("weatherEnabled", !Config.weatherEnabled)
+        }
+        MenuRow {
+            visible: !menu.isWidget
+            label: I18n.tr("Notes")
+            value: Config.notesEnabled ? "On" : "Off"
+            on: Config.notesEnabled
+            closeOnTrigger: false
+            onTriggered: Config.set("notesEnabled", !Config.notesEnabled)
+        }
         // The spectrum is a wallpaper surface with no pointer of its own, so the
         // desktop menu is where you reach for it.
         MenuRow {
@@ -140,7 +161,7 @@ Item {
 
         // ── widget scope ───────────────────────────────────────────────
         MenuRow {
-            visible: menu.isWidget && !menu.isStats
+            visible: menu.isWidget && !menu.isStats && !menu.isNotes
             label: I18n.tr("Design")
             value: menu.cap(menu.curDesign)
             closeOnTrigger: false
@@ -161,6 +182,14 @@ Item {
             on: Config.musicLyrics
             closeOnTrigger: false
             onTriggered: Config.toggle("musicLyrics")
+        }
+        MenuRow {
+            visible: menu.isMusic
+            label: I18n.tr("Visualiser")
+            value: Config.musicViz === "wave" ? "Wave" : "Bars"
+            on: Config.musicViz === "wave"
+            closeOnTrigger: false
+            onTriggered: Config.set("musicViz", Config.musicViz === "wave" ? "bars" : "wave")
         }
         MenuRow {
             visible: menu.isMusic
@@ -194,6 +223,27 @@ Item {
         }
 
         MenuSection { visible: menu.isWidget; label: I18n.tr("Snap") }
+
+        // "Auto" lands the widget on the wallpaper's calmest region and
+        // re-follows it on every wallpaper change; offered above the compass as
+        // the smart default. Free is the implicit dragged state, so it has no
+        // chip of its own.
+        Item {
+            visible: menu.isWidget
+            width: parent.width
+            implicitHeight: menu.isWidget ? autoChip.height + 6 : 0
+            MenuChip {
+                id: autoChip
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: 3
+                label: "Auto"
+                minWidth: 128
+                height: 28
+                selected: menu.curAnchor === "auto"
+                onClicked: { Config.setAnchor(menu.scope, "auto"); menu.close(); }
+            }
+        }
 
         // snap-to-zone pad (widget scope): a compass of chip targets.
         Item {

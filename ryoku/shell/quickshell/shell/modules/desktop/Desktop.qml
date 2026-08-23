@@ -9,6 +9,8 @@ import "calendar"
 import "music"
 import "aio"
 import "stats"
+import "weather"
+import "notes"
 import Ryoku.PluginKit
 
 // desktop widgets layer: WlrLayer.Bottom (below windows), instantiated once per
@@ -124,6 +126,29 @@ Scope {
             function onPluginsChanged() { win.syncDesktopIds(); }
         }
 
+        // the built-in slot currently being dragged (a single pointer, so at most
+        // one), for the drag guides: their grid step and centre-snap lighting.
+        readonly property var dragSlot: clockSlot.dragging ? clockSlot
+            : calendarSlot.dragging ? calendarSlot
+            : musicSlot.dragging ? musicSlot
+            : aioSlot.dragging ? aioSlot
+            : statsSlot.dragging ? statsSlot
+            : weatherSlot.dragging ? weatherSlot
+            : notesSlot.dragging ? notesSlot : null
+
+        // on release, flash the slot's four edges plus the centre line it snapped
+        // to (centre within half a grid step, the window the guides light up).
+        function flashDrop(box) {
+            const v = [box.x, box.x + box.width];
+            const h = [box.y, box.y + box.height];
+            const gs = guides.gridSize;
+            if (Math.abs(box.x + box.width / 2 - guides.width / 2) < gs / 2)
+                v.push(guides.width / 2);
+            if (Math.abs(box.y + box.height / 2 - guides.height / 2) < gs / 2)
+                h.push(guides.height / 2);
+            guides.flash(v, h);
+        }
+
         // The wallpaper is painted in a separate Wayland surface, which Qt cannot
         // sample across scene graphs. Mirror the same image into this scene as an
         // offscreen texture so ShaderEffectSource can capture the pixels beneath a
@@ -158,14 +183,27 @@ Scope {
             onPressed: (mouse) => menu.openDesktop(mouse.x, mouse.y)
         }
 
-        WidgetGrid {
+        // click-off for the notes pad: while it holds the keyboard, a press on
+        // the bare wallpaper must drop its focus (and the layer's exclusive
+        // grab). taking active focus here blurs the pad; it sits above the
+        // right-click catcher but below every widget, so a press on a widget
+        // still reaches that widget, and it passes the event on (accepted =
+        // false) so the right-click desktop menu still opens.
+        MouseArea {
+            id: notesBlur
             anchors.fill: parent
-            active: clockSlot.dragging || calendarSlot.dragging || musicSlot.dragging
-                || aioSlot.dragging || statsSlot.dragging
-            gridSize: clockSlot.dragging ? clockSlot.gridSize
-                : (calendarSlot.dragging ? calendarSlot.gridSize
-                : (musicSlot.dragging ? musicSlot.gridSize
-                : (aioSlot.dragging ? aioSlot.gridSize : statsSlot.gridSize)))
+            enabled: notesSlot.editing
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onPressed: (mouse) => { notesBlur.forceActiveFocus(); mouse.accepted = false; }
+        }
+
+        DesktopGuides {
+            id: guides
+            anchors.fill: parent
+            active: win.dragSlot !== null
+            gridSize: win.dragSlot ? win.dragSlot.gridSize : 32
+            dragCentreX: win.dragSlot ? win.dragSlot.x + win.dragSlot.width / 2 : 0
+            dragCentreY: win.dragSlot ? win.dragSlot.y + win.dragSlot.height / 2 : 0
         }
 
         WidgetSlot {
@@ -182,6 +220,7 @@ Scope {
             pad: Config.clockBg === "none" ? 0 : Math.round(24 * Config.clockScale)
             opacity: Config.clockOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            onDropped: (box) => win.flashDrop(box)
             Clock {}
         }
 
@@ -197,6 +236,7 @@ Scope {
             scaleCfg: Config.calendarScale
             opacity: Config.calendarOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            onDropped: (box) => win.flashDrop(box)
             CalendarWidget {
                 style: Config.calendarStyle
                 weeks: Config.calendarWeeks
@@ -222,9 +262,11 @@ Scope {
             scaleCfg: Config.musicScale
             opacity: Config.musicOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            onDropped: (box) => win.flashDrop(box)
             MusicWidget {
                 style: Config.musicStyle
                 showLyrics: Config.musicLyrics
+                viz: Config.musicViz
                 active: musicSlot.visible
                 musicApp: Config.musicApp
                 shape: Config.musicShape
@@ -249,6 +291,7 @@ Scope {
             scaleCfg: Config.aioScale
             opacity: Config.aioOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            onDropped: (box) => win.flashDrop(box)
             AioWidget {
                 style: Config.aioStyle
                 s: Config.aioScale
@@ -268,9 +311,56 @@ Scope {
             scaleCfg: Config.statsScale
             opacity: Config.statsOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            onDropped: (box) => win.flashDrop(box)
             StatsWidget {
                 s: Config.statsScale
                 active: statsSlot.visible
+            }
+        }
+
+        WidgetSlot {
+            id: weatherSlot
+            widget: "weather"
+            visible: Config.weatherEnabled
+            anchor: Config.weatherAnchor
+            freeX: Config.weatherX
+            freeY: Config.weatherY
+            locked: Config.weatherLocked
+            bg: "none"
+            scaleCfg: Config.weatherScale
+            opacity: Config.weatherOpacity
+            onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            onDropped: (box) => win.flashDrop(box)
+            WeatherWidget {
+                design: Config.weatherDesign
+                s: Config.weatherScale
+                active: weatherSlot.visible
+            }
+        }
+
+        WidgetSlot {
+            id: notesSlot
+            widget: "notes"
+            visible: Config.notesEnabled
+            anchor: Config.notesAnchor
+            freeX: Config.notesX
+            freeY: Config.notesY
+            locked: Config.notesLocked
+            bg: "none"
+            scaleCfg: Config.notesScale
+            opacity: Config.notesOpacity
+            onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
+            onDropped: (box) => win.flashDrop(box)
+            // notes is the first built-in editable widget: while its pad holds
+            // focus the layer must grab the keyboard (bump kbWanted), and drop
+            // the grab the instant it blurs, or the desktop is stranded.
+            onEditingChanged: win.kbWanted += editing ? 1 : -1
+            Component.onDestruction: if (editing) win.kbWanted -= 1
+            NotesWidget {
+                s: Config.notesScale
+                active: notesSlot.visible
+                wLogical: Config.notesWidth
+                hLogical: Config.notesHeight
             }
         }
 

@@ -12,7 +12,7 @@ surfaces. Run `ryoku-shell reload` after changing QML.
 
     shell.qml                monitor layers, clock slot, plugin slots, menus
     WidgetSlot.qml           clock placement, drag, resize, card
-    WidgetGrid.qml           snap grid shown during a drag
+    DesktopGuides.qml        drag grid, centre guides and snap-line flash
     DesktopMenu.qml          shared right-click chrome (card, masthead, scroll)
     MenuRow.qml              one labelled action / value row
     MenuSection.qml          a section eyebrow / hairline divider
@@ -102,7 +102,9 @@ plugin store rather than `widgets.json`.
 
 - The full monitor layer accepts only right-click on bare wallpaper. Left-click
   passes through.
-- Clock placement is either one of nine compass zones or free pixels.
-- The drag grid appears only while the clock moves.
+- Widget placement is `auto` (the wallpaper's calmest region, re-followed on
+  every wallpaper change), one of nine compass zones, or free pixels.
+- The drag guides -- grid, centre lines and the release snap-line flash --
+  appear only while a widget moves.
 - The basic render loop is intentional: this mostly static layer should idle
   instead of waking a render thread every refresh.

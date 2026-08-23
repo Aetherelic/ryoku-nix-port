@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Shapes
 
 /**
  * A plain-QML preview of the desktop music sheet for the Desktop Widgets
@@ -15,6 +16,7 @@ Item {
 
     property string style: "cover"     // cover | glass
     property bool lyrics: true
+    property string viz: "bars"        // bars | wave
 
     readonly property color accent: "#e2645a"
     readonly property color ink:    "#f3efe9"
@@ -103,18 +105,59 @@ Item {
         }
     }
 
-    // album stand-in when lyrics are off
-    Text {
+    // visualiser stand-in when lyrics are off: the live sheet drops a spectrum
+    // here in the album's colour. Static mock of the two looks.
+    Item {
+        id: vizMock
         visible: !preview.lyrics
         x: cover.x + cover.width + 14
         width: preview.width - x - preview.pad
-        y: preview.pad + preview.coverSize / 2 - implicitHeight / 2
-        horizontalAlignment: Text.AlignHCenter
-        wrapMode: Text.WordWrap
-        text: "After Hours"
-        color: preview.dim
-        font.family: "Space Grotesk"
-        font.pixelSize: 14
+        y: preview.pad
+        height: preview.coverSize
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 3
+            visible: preview.viz !== "wave"
+            Repeater {
+                model: 16
+                delegate: Rectangle {
+                    required property int index
+                    readonly property real f: 0.25 + 0.75 * Math.abs(Math.sin(index * 0.9 + 1))
+                    width: 3
+                    height: vizMock.height * 0.72 * f
+                    radius: width / 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: preview.accent
+                    opacity: 0.85
+                }
+            }
+        }
+
+        Shape {
+            anchors.fill: parent
+            visible: preview.viz === "wave"
+            antialiasing: true
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeColor: "transparent"
+                fillColor: Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.5)
+                PathPolyline {
+                    path: {
+                        var n = 40, mid = vizMock.height / 2, half = vizMock.height * 0.36, w = vizMock.width, a = [];
+                        for (var j = 0; j < n; j++) {
+                            var t = j / (n - 1);
+                            a.push(Qt.point(t * w, mid - half * (0.35 + 0.65 * Math.abs(Math.sin(t * 6.0 + 0.5)))));
+                        }
+                        for (var k = n - 1; k >= 0; k--) {
+                            var t2 = k / (n - 1);
+                            a.push(Qt.point(t2 * w, mid + half * (0.35 + 0.65 * Math.abs(Math.sin(t2 * 6.0 + 0.5)))));
+                        }
+                        return a;
+                    }
+                }
+            }
+        }
     }
 
     // title + artist

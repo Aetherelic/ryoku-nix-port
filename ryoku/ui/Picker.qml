@@ -9,6 +9,10 @@ Rectangle {
     property string title: ""
     property var options: []
     property string current: ""
+    // optional key -> display label; a key absent from the map keeps its own
+    // text. Lets a caller show a friendly option name (the anchor picker's
+    // "Auto (calm spot)") while still storing the raw key.
+    property var labels: ({})
     signal chose(string key)
     signal dismissed()
 
@@ -95,7 +99,7 @@ Rectangle {
                         Behavior on color { ColorAnimation { duration: 70 } }
                         Text {
                             anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
-                            text: I18n.tr(parent.modelData)
+                            text: (pick.labels && pick.labels[parent.modelData] !== undefined) ? pick.labels[parent.modelData] : I18n.tr(parent.modelData)
                             color: rh.hovered ? Tokens.inkOnBone : (pick.current === parent.modelData ? Tokens.ink : Tokens.inkDim)
                             font.family: Tokens.ui
                             font.pixelSize: 13
