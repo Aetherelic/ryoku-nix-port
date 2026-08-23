@@ -13,6 +13,14 @@
   multipliers) and omarchy (a shell-wide size scale).
 
 ### Fixed
+- **The desktop visualiser no longer freezes on a stale frame during playback
+  (#61).** Two regressions from the idle-freeze work: the visualiser's cava never
+  came back after exiting on its own (a pipewire hiccup) -- its `running` binding
+  ignored the restart `backoff` the pill's analyser already honoured, so it stuck
+  on the last frame until the next track -- and the shared idle gate dropped cava
+  on the brief not-playing a player reports between tracks, blipping the feed
+  every song. The binding now matches the pill, and the idle gate holds a few
+  seconds before freezing so track gaps ride through.
 - **The bar gap animation runs on the GPU, so a default desktop no longer burns
   45-60% GPU (and ~25% of a CPU core) drawing it (#60).** All six drift modes
   (stream, surge, bolt, spark gap, transfer, collider) were rasterised by a

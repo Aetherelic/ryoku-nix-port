@@ -42,11 +42,9 @@ Singleton {
         id: cavaProc
         // playback spectrum via cava's native pipewire backend, source=auto (the default sink's monitor). the pulse backend can't connect here ("Connection terminated") even with pipewire-pulse up, and this path needs no pactl. exec so quickshell's SIGTERM reaches cava, leaving no orphaned analyser when the surface unloads.
         command: ["sh", "-c", "command -v cava >/dev/null 2>&1 || exit 0; cfg=\"${XDG_RUNTIME_DIR:-/tmp}/ryoku-cava-visualizer.conf\"; printf '%s\\n' '[general]' 'framerate = " + root.fps + "' 'bars = " + root.bars + "' '' '[input]' 'method = pipewire' 'source = auto' '' '[output]' 'method = raw' 'raw_target = /dev/stdout' 'data_format = ascii' 'ascii_max_range = 100' 'channels = mono' 'mono_option = average' '' '[smoothing]' 'noise_reduction = 45' > \"$cfg\"; exec cava -p \"$cfg\""]
-        running: root.analysing
-        // Bound, never assigned. Four imperative `cavaProc.running = true` writes
-        // used to live below, and any one of them destroys this binding: from then
-        // on the analyser ignored every gate meant to stop it. The backoff window
-        // expresses a restart without taking the binding away.
+        // `backoff`'s false->true edge relaunches a cava that self-exits (a pipewire
+        // hiccup) mid-track; the shipped `running: analysing` alone never did (#61).
+        running: root.analysing && !cavaProc.backoff
         property bool backoff: false
         stdout: SplitParser {
             splitMarker: "\n"

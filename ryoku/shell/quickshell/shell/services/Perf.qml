@@ -82,7 +82,18 @@ Singleton {
     // spectrum-analyse an idle sink, so the old opt-in keys no longer take part.
     // The hard tiers still win outright, so Saver, lowPowerMode and Game Mode keep
     // these off even mid-track.
-    readonly property bool audioIdle: !Media.playing
+    // Silence gates the analysers, but bridge brief gaps: a player reports
+    // not-playing for a beat between tracks, so dropping cava on every blip made
+    // the visualiser and pill stutter each track (#61). Debounced, not a binding.
+    property bool audioIdle: !Media.playing
+    Connections {
+        target: Media
+        function onPlayingChanged() {
+            if (Media.playing) { audioGrace.stop(); root.audioIdle = false; }
+            else audioGrace.restart();
+        }
+    }
+    Timer { id: audioGrace; interval: 4000; onTriggered: root.audioIdle = true }
     readonly property bool visualizerFrozen: lowPower || saver || gaming || audioIdle
     readonly property bool pillFrozen:       lowPower || saver || gaming || audioIdle
 
