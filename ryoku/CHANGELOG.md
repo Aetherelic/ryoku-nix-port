@@ -2,7 +2,20 @@
 
 ## Unreleased
 
+### Added
+- **Instant replay: an always-on buffer you save on demand.** `ryoku-cmd-screenrecord`
+  gained a background replay buffer (`--replay-start` / `--replay-save` /
+  `--replay-stop`): it keeps the last N seconds buffering with gpu-screen-recorder
+  and drops a clip into `Recordings/Replays` when you save. Super+Alt+R saves from
+  anywhere, and it arms on login when enabled on the Recording page. gsr-only, since
+  wf-recorder has no buffer.
+
 ### Fixed
+- **Recording a live wallpaper no longer fails.** A live wallpaper draws on a layer
+  the KMS capture drops, so recording took a portal path that raced its own
+  first-run source picker and then latched "portal broken". A live wallpaper now
+  records straight through wf-recorder, which captures the whole composite --
+  wallpaper included -- with no picker.
 - **Device lighting is re-applied on resume from suspend.** Theme colours only
   reached the RGB devices on a palette change and at login, so after waking from
   suspend an OpenRGB motherboard/RAM/mouse (which reset on power loss) sat on its
