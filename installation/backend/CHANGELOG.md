@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+- **A fresh install gets Ryoku's pacman progress bar.** `ryoku_pacman_tuning`
+  now also sets `ILoveCandy` in the install-time `pacman.conf` alongside
+  `ParallelDownloads` and `DisableDownloadTimeout`, so pacman draws the Pac-Man
+  transfer bar from the first `-Syu` on. Idempotent, and existing boxes get it
+  from the matching `ryoku doctor` reconciler (`lib/mirrors.sh`).
+
 ### Fixed
 - **A fresh install now includes `asusctl` only when the target has a supported
   ASUS Aura laptop keyboard.** The desktop deployment runs the shared hardware

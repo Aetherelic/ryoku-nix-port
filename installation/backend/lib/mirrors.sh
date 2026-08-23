@@ -22,7 +22,7 @@ ryoku_rank_mirrors() {
   RYOKU_MIRROR_TIERS_TRIED=""
 
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
-    log "mirrors: would set ParallelDownloads + DisableDownloadTimeout, then rank $list (tier 1 reflector, else tier 2 status API, else tier 3 the shipped list) and always append the emergency mirrors"
+    log "mirrors: would set ParallelDownloads + DisableDownloadTimeout + ILoveCandy, then rank $list (tier 1 reflector, else tier 2 status API, else tier 3 the shipped list) and always append the emergency mirrors"
     return 0
   fi
 
@@ -168,7 +168,9 @@ ryoku_mirrors_fallback() {
 # ParallelDownloads + DisableDownloadTimeout for the install-time pacman.conf:
 # five parallel streams recover far faster when one mirror crawls, and dropping
 # the low-speed timeout stops a slow-but-alive mirror from aborting pacstrap.
-# pacstrap copies this config into the target, so the first updates benefit too.
+# ILoveCandy rides along as Ryoku's progress bar (`ryoku doctor` seeds it on a
+# box installed before this shipped). pacstrap copies this config into the
+# target, so the first updates benefit too.
 ryoku_pacman_tuning() {
   local conf=${RYOKU_PACMAN_CONF:-/etc/pacman.conf}
   [[ -f $conf ]] || { log "mirrors: no $conf to tune"; return 0; }
@@ -179,5 +181,7 @@ ryoku_pacman_tuning() {
   fi
   grep -qE '^[[:space:]]*DisableDownloadTimeout' "$conf" 2>/dev/null \
     || sed -i '/^\[options\]/a DisableDownloadTimeout' "$conf"
-  log "mirrors: set ParallelDownloads=5 + DisableDownloadTimeout for the install"
+  grep -qE '^[[:space:]]*ILoveCandy' "$conf" 2>/dev/null \
+    || sed -i '/^\[options\]/a ILoveCandy' "$conf"
+  log "mirrors: set ParallelDownloads=5 + DisableDownloadTimeout + ILoveCandy for the install"
 }
