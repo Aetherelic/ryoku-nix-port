@@ -86,44 +86,25 @@ Singleton {
     readonly property bool visualizerFrozen: lowPower || saver || gaming || audioIdle
     readonly property bool pillFrozen:       lowPower || saver || gaming || audioIdle
 
-    // Ambient motion with nothing playing: the bar's stream drifting on a passive
-    // sine when the desktop is silent. Allowed on Balanced and Performance,
-    // refused by the hard tiers, so the power profile decides it the way it
-    // decides the rest of the eye-candy.
+    // Ambient motion: the bar's stream drifting on a passive sine while the desktop
+    // is SILENT (with audio playing it reacts regardless -- that is streamLive's
+    // audioLive term, not this). This passive drift is the shell's one
+    // continuously-repainting idle surface, and it is why a default box idled far
+    // above the shells in #60: caelestia and end-4 only animate the bar while a
+    // player isPlaying, and a Waybar box has no GPU canvas at all.
     //
-    // Separate from the two freeze flags above on purpose. There is never a reason
-    // to spectrum-analyse silence, so cava stops either way; drifting a few pixels
-    // is a different question, and on a machine the user has put in Performance
-    // the answer is yes.
+    // So the silent drift is Performance-only. Balanced and Saver leave the bar
+    // still when nothing plays -- idling quiet like those shells -- while
+    // Performance spends the power the user explicitly asked for. That is the whole
+    // point of the tier split. lowPowerMode and Game Mode still force it off, and
+    // reduceMotion is enforced by the consumer (streamLive gates on !reduceMotion),
+    // so the motion toggle stops it too.
     //
-    // Two questions, not one. ambientMotion answers "may it move at all"; fullRate
-    // answers "may it move at the full frame rate the animation was designed for".
-    //
-    // The second exists because the gap animations were deliberately throttled: the
-    // pacing picks a slow tier for a field that is only drifting or charging rather
-    // than moving fast, which is why mode 3 (Bolt) settles at 160ms and reads as
-    // steppy no matter which profile is active. That throttle was the right answer
-    // to Bolt costing ~40% of a core, but it is the wrong answer on Performance,
-    // where the user has already said to spend the power and expects the animation
-    // to look the way it was drawn.
-    //
-    // So Performance paces at full rate whenever there is anything to draw, and
-    // every other profile keeps the throttle. A fully dark frame still backs off
-    // everywhere: there is no point painting nothing quickly.
-    //
-    // Priced by instrumenting the paint handler rather than by guessing from the
-    // outside, which is what it took: earlier attempts compared CPU across power
-    // profile switches and measured mostly noise, and none of it was even the
-    // stream, because a bar with barAnim 0 never loads it at all.
-    //
-    // With mode 3 (Bolt) actually running, silent desktop: the paint handler picks
-    // tick=33 on Performance against tick=160 on Balanced, confirmed over hundreds
-    // of frames. The cost of that is real -- shell 42-54% of a core and Hyprland
-    // ~16% -- which is the same bill the throttle was introduced to remove. That is
-    // the deal Performance is asking for, and it is why every other profile keeps
-    // the throttle.
-    readonly property bool ambientMotion: !(lowPower || saver || gaming)
-    readonly property bool fullRate: ambientMotion && tier === tierPerformance
+    // fullRate answers "may the drift run at the full frame rate it was drawn for".
+    // Only Performance drifts, and it drifts at full rate; loud playback (paceBusy)
+    // is always full rate on every profile, and a fully dark frame always backs off.
+    readonly property bool ambientMotion: tier === tierPerformance && !(lowPower || gaming)
+    readonly property bool fullRate: ambientMotion
 
     // Graceful cost knobs. Multiply a base poll interval by pollFactor: a second of
     // staleness in a stat readout is invisible, so sampling slows on battery / Saver.

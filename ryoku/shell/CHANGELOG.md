@@ -13,6 +13,13 @@
   multipliers) and omarchy (a shell-wide size scale).
 
 ### Fixed
+- **The bar sits still at idle on Balanced and Saver, so a default desktop no
+  longer burns 45-60% GPU doing nothing (#60).** The bar's audio stream drifted on
+  a passive sine even in silence, keeping the compositor repainting forever. That
+  ambient drift is now a Performance-profile treat only: Balanced and Saver leave
+  the bar still until audio actually plays -- the way caelestia and end-4 gate
+  their bar animations -- while Performance keeps the full motion. Music still
+  animates the bar on every profile; only the silent idle drift changed.
 - **A checkout deploy fails with a clear message when the Go toolchain is
   missing.** `deploy.sh` builds the Go programs from source, so a packaged box
   switched to a checkout update channel without `go` died mid-build with a bare
