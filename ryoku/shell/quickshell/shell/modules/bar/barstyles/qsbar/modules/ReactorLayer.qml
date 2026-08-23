@@ -93,10 +93,29 @@ Item {
     // the stream instead of freezing the canvas, so a shell reload while reduced
     // cannot strand a half-drawn frozen frame over the bar; balanced or
     // performance loads it back and animates.
+    // Drift modes 1-6 render on the GPU: StreamShader draws the same motion with a
+    // fragment shader instead of a CPU Canvas, so they cost ~0 CPU and animate on
+    // every profile (only reduce-motion / Power Saver unloads them). The stateful
+    // modes -- 7 (reactor) and 8 (quotes) -- keep cross-frame state and stay on the
+    // Canvas-based ParticleStream below.
     LazyLoader {
-        active: reactor.visible && reactor.shellVisible
-                && reactor.runs.length > 1 && !Perf.reduceMotion
+        active: reactor.visible && reactor.shellVisible && reactor.runs.length > 1
+                && !Perf.reduceMotion && reactor.theme && reactor.theme.barAnim >= 1 && reactor.theme.barAnim <= 6
+        StreamShader {
+            parent: reactor
+            x: 0
+            y: 0
+            width: reactor.width
+            height: reactor.height
+            theme:  reactor.theme
+            layout: reactor
+            monitor: reactor.monitor
+        }
+    }
 
+    LazyLoader {
+        active: reactor.visible && reactor.shellVisible && reactor.runs.length > 1
+                && !Perf.reduceMotion && reactor.theme && reactor.theme.barAnim > 6
         ParticleStream {
             parent: reactor
             x: 0
@@ -105,7 +124,7 @@ Item {
             height: reactor.height
             theme:  reactor.theme
             layout: reactor
-            mode:   (reactor.theme && reactor.theme.barAnim !== undefined) ? reactor.theme.barAnim : 0
+            mode:   reactor.theme.barAnim
             active: true
             monitor: reactor.monitor
         }

@@ -34,6 +34,7 @@ PowerProfileWidget PowerProfileWidget.qml
 ReactorLayer ReactorLayer.qml
 ScreenRecordWidget ScreenRecordWidget.qml
 StorageWidget StorageWidget.qml
+StreamShader StreamShader.qml
 ThemeDisplayWidget ThemeDisplayWidget.qml
 TooltipMixin TooltipMixin.qml
 TrayWidget TrayWidget.qml
