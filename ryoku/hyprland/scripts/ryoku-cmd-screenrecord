@@ -516,16 +516,28 @@ start_gsr() {
     args=("$recorder_cmd" -w portal -restore-portal-session yes -portal-session-token-filepath "$portal_token" -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -c mp4 -cursor "$cursor")
     [[ -n $audio_source ]] && args+=(-a "$audio_source")
     args+=(-o "$output_path")
-    # Confirm the portal screencast actually came up; if not, remember it and
-    # fall back to wf-recorder, which captures the composite via wlr-screencopy.
+    # Confirm the portal screencast is actually capturing, not merely alive: on
+    # some hybrid-GPU boxes gsr survives a failing xdph DMA-BUF negotiation while
+    # writing nothing, so a liveness check alone falsely commits and never falls
+    # back. Require the output file to grow; else mark the box bad and use
+    # wf-recorder (captures the composite, live wallpaper included, via wlr-screencopy).
     "${args[@]}" &
     local gsr_pid=$!
-    sleep 2.5
-    if kill -0 "$gsr_pid" 2>/dev/null && proc_running "$gsr_pattern"; then
+    local s1 s2 capturing=no
+    sleep 1.5
+    s1="$(stat -c%s "$output_path" 2>/dev/null || echo 0)"
+    sleep 1.5
+    s2="$(stat -c%s "$output_path" 2>/dev/null || echo 0)"
+    if kill -0 "$gsr_pid" 2>/dev/null && proc_running "$gsr_pattern" \
+      && [[ ${s2:-0} -gt ${s1:-0} && ${s2:-0} -gt 0 ]]; then
+      capturing=yes
+    fi
+    if [[ $capturing == yes ]]; then
       set_portal_status ok
       wait "$gsr_pid"
       exit $?
     fi
+    kill "$gsr_pid" 2>/dev/null || true
     wait "$gsr_pid" 2>/dev/null || true
     set_portal_status bad
     rm -f "$output_path" 2>/dev/null || true

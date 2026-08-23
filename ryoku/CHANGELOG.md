@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Fixed
+- **Recording no longer fails when a live wallpaper is up on a hybrid GPU.**
+  With a live wallpaper the recorder captures through the desktop portal (gsr's
+  KMS path drops the wallpaper layer); on some multi-GPU AMD boxes the portal's
+  DMA-BUF negotiation fails, but gsr stayed alive long enough to pass the old
+  2.5s liveness probe, so the recorder committed to a dead capture and cached the
+  portal as working. The probe now requires the output file to actually grow
+  before committing; a portal that produces nothing is marked bad and the capture
+  falls back to wf-recorder (which records the composite, live wallpaper included).
 - **GTK and Qt apps prefer native Wayland, so they scale crisply instead of
   breaking at fractional scales.** The session now sets `GDK_BACKEND`,
   `QT_QPA_PLATFORM`, `QT_AUTO_SCREEN_SCALE_FACTOR` and
