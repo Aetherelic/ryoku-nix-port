@@ -49,6 +49,10 @@ var bootChainSkip = map[string]bool{
 	"mkinitcpio": true, "sudo": true, "btrfs-progs": true, "cryptsetup": true,
 	"dosfstools": true, "efibootmgr": true, "limine": true, "plymouth": true,
 	"snapper": true, "snap-pac": true,
+	// the limine hook packages pull limine + mkinitcpio back as depends and ship
+	// /etc/pacman.d/hooks entries that collide with a host keeping its own boot
+	// stack (Garuda's garuda-hooks owns 90-mkinitcpio-install.hook, #58).
+	"limine-mkinitcpio-hook": true, "limine-snapper-sync": true,
 }
 
 // the standard Ryoku extras, all best-effort here. awww (the wallpaper daemon,

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **Converting a host that keeps its own bootloader no longer aborts on the
+  limine hooks.** `limine-mkinitcpio-hook` and `limine-snapper-sync` pull limine
+  and mkinitcpio back in as depends and ship hooks under `/etc/pacman.d/hooks`,
+  which collide with a distro that already owns those paths (Garuda's
+  `garuda-hooks`). They now sit in the boot-chain skip list next to limine,
+  mkinitcpio and snapper, so a converted box keeps its existing boot stack.
 - **Existing Arch systems with a supported ASUS Aura laptop keyboard now select
   the native `asusctl` provider during conversion.** The installer sparse-checks
   out and runs the same hardware probe as the ISO backend; other hardware never

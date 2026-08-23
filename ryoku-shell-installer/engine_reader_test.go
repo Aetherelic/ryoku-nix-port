@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -33,5 +35,38 @@ func TestCmdReaderSplitsCarriageReturns(t *testing.T) {
 	}
 	if len(finals) != 2 || finals[0] != "dl done" || finals[1] != "crlf line" {
 		t.Errorf("finals = %v, want [dl done, crlf line] (\\r\\n is one line ending)", finals)
+	}
+}
+
+// a shell-converted box keeps its own bootloader + initramfs, so the limine
+// hook packages -- which pull limine + mkinitcpio back as depends and ship
+// pacman hooks that collide with a host's own (Garuda's garuda-hooks, #58) --
+// must be filtered out of the install set alongside limine/mkinitcpio/snapper.
+func TestReadBasePackagesSkipsBootChain(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "system/packages"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	base := "# a comment\nlimine\nlimine-mkinitcpio-hook\nlimine-snapper-sync\nmkinitcpio\nsnapper\nkitty\nryoku-desktop\n"
+	if err := os.WriteFile(filepath.Join(dir, "system/packages/base.packages"), []byte(base), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := (&engine{payload: dir}).readBasePackages()
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := map[string]bool{}
+	for _, p := range got {
+		set[p] = true
+	}
+	for _, skip := range []string{"limine", "limine-mkinitcpio-hook", "limine-snapper-sync", "mkinitcpio", "snapper"} {
+		if set[skip] {
+			t.Errorf("%s must be skipped on a shell-converted box, got %v", skip, got)
+		}
+	}
+	for _, keep := range []string{"kitty", "ryoku-desktop"} {
+		if !set[keep] {
+			t.Errorf("%s must install, missing from %v", keep, got)
+		}
 	}
 }
