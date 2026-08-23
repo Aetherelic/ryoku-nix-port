@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- `display/ryoku-monitor`: **GTK apps stay crisp on fractional monitors, and the
+  scale stepper no longer offers sub-1.** `GDK_SCALE` now rounds to the nearest
+  whole scale when the monitors agree (a 1.5x panel gets 2, so GTK renders at 2x
+  and the compositor downscales, crisp) instead of falling to 1 and upscaling
+  (blurry). The Hub's per-resolution scale ladder now stops at 1x: below 1,
+  GTK/Qt/XWayland apps render in a sub-region with empty margin, so it was never
+  a usable choice.
 - `power/ryoku-power`: **the CPU frequency slider stops inventing a cap.**
   `capabilities` reported `maxFreqPct` as `scaling_max_freq` over the boost
   ceiling, and on `amd-pstate-epp` that is not a cap: `scaling_max_freq` rests at

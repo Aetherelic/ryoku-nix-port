@@ -22,6 +22,14 @@ end
 
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 
+-- Prefer native Wayland (fall back to X11) so GTK/Qt get the compositor's
+-- fractional scale, instead of XWayland force_zero_scaling drawing them at 1:1
+-- in a corner of a logical-sized window at non-integer scales.
+hl.env("GDK_BACKEND",                    "wayland,x11,*")
+hl.env("QT_QPA_PLATFORM",                "wayland;xcb")
+hl.env("QT_AUTO_SCREEN_SCALE_FACTOR",    "1")
+hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
+
 -- GTK4 apps (nautilus, the file manager) hang at startup on wlroots compositors:
 -- the default renderer opens its display through org.gnome.Mutter.ServiceChannel,
 -- which only exists under GNOME's Mutter, so on Hyprland it never connects. The

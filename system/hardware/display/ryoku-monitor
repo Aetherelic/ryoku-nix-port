@@ -8,8 +8,8 @@
 # so the layout outlives a reload / relogin. `persist` snapshots the live
 # layout, no rescale.
 #
-# GDK_SCALE rides along for GTK / XWayland: shared integer scale only when every
-# active monitor agrees (>=2x), else 1. (Wayland does fractional itself.)
+# GDK_SCALE rides along for GTK / XWayland: the nearest whole scale when every
+# active monitor agrees, else 1. (Wayland does fractional itself.)
 #
 # Catch-all monitor rule goes last so a freshly plugged display still comes up
 # at 1x until the next autoscale.
@@ -44,8 +44,8 @@ applied_layout="${RYOKU_MONITORS_APPLIED:-${XDG_CONFIG_HOME:-$HOME/.config}/ryok
 # ((w*120) % k == 0), so it reproduces Hyprland's acceptance set exactly.
 # snap() returns the valid scale nearest a target; k=120 (1.0) always
 # qualifies, so it never comes up empty. ladder() is the stepper-facing subset
-# the hub walks: 0.5x-3x, never shrinking the logical desktop below 640x360
-# (the dusky/GNOME floor), which caps a 720p panel at 2x.
+# the hub walks: 1x-3x (sub-1 breaks GTK/Qt/XWayland geometry), never shrinking
+# the logical desktop below 640x360, which caps a 720p panel at 2x.
 # shellcheck disable=SC2016  # jq program: $w/$h/$target are jq vars, not shell
 jq_scale_lib='
   def valid_scales($w; $h):
@@ -56,7 +56,7 @@ jq_scale_lib='
     valid_scales($w; $h) | min_by((. - $target) | if . < 0 then - . else . end);
   def ladder($w; $h):
     [ valid_scales($w; $h)[]
-      | select(. >= 0.5 and . <= 3 and ($w / .) >= 640 and ($h / .) >= 360) ]
+      | select(. >= 1 and . <= 3 and ($w / .) >= 640 and ($h / .) >= 360) ]
     | if length == 0 then [1] else . end;
 '
 
@@ -148,14 +148,15 @@ dpi_specs() {
   '
 }
 
-# integer GDK_SCALE when every active monitor shares one whole scale >=2, else 1.
+# GDK_SCALE for GTK/XWayland: nearest integer to the shared monitor scale (min
+# 1), else 1. GTK honours only whole scales -- a 1.5x panel wants 2 (render 2x,
+# compositor downscales, crisp) not 1 (render 1x, upscale, blurry).
 # monitor JSON on stdin.
 gdk_scale_value() {
   jq -r '
     [ .[] | select(.disabled | not) | .scale ] as $s |
     if ($s | length) > 0 and ($s | unique | length) == 1
-       and ($s[0] == ($s[0] | floor)) and $s[0] >= 2
-    then ($s[0] | floor) else 1 end
+    then ([ ($s[0] + 0.5 | floor), 1 ] | max) else 1 end
   '
 }
 
@@ -197,8 +198,8 @@ write_monitors_conf() {
       end
     '
     printf '\n'
-    printf '%s\n' "-- Keep GTK and XWayland apps crisp: shared integer scale when every monitor"
-    printf '%s\n' "-- agrees (>=2x), else 1 (Wayland scales native apps fractionally itself)."
+    printf '%s\n' "-- Keep GTK and XWayland apps crisp: the nearest whole scale when every"
+    printf '%s\n' "-- monitor agrees, else 1 (Wayland scales native apps fractionally itself)."
     printf 'hl.env("GDK_SCALE", "%s")\n' "$gdk"
     printf '\n'
     printf '%s\n' "-- Catch-all for monitors not listed above. A hotplugged display comes up at"
@@ -540,8 +541,8 @@ write_monitors_explicit() {
         + " })"
       end'
     printf '\n'
-    printf '%s\n' "-- Keep GTK and XWayland apps crisp (shared integer scale when every monitor"
-    printf '%s\n' "-- agrees at >=2x, else 1)."
+    printf '%s\n' "-- Keep GTK and XWayland apps crisp (nearest whole scale when every monitor"
+    printf '%s\n' "-- agrees, else 1)."
     printf 'hl.env("GDK_SCALE", "%s")\n' "$gdk"
     printf '\n'
     printf '%s\n' "-- Catch-all for monitors not listed above. A hotplugged display comes up at"

@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Fixed
+- **GTK and Qt apps prefer native Wayland, so they scale crisply instead of
+  breaking at fractional scales.** The session now sets `GDK_BACKEND`,
+  `QT_QPA_PLATFORM`, `QT_AUTO_SCREEN_SCALE_FACTOR` and
+  `QT_WAYLAND_DISABLE_WINDOWDECORATION` to name Wayland first (falling back to
+  X11). On Wayland an app takes the compositor's fractional scale; under XWayland
+  the same app hits `force_zero_scaling` and, at a non-integer or sub-1 scale,
+  drew at 1:1 in the corner of a logical-sized window with empty margin around it.
+  XWayland output now also uses nearest-neighbour filtering, keeping the residual
+  scaled apps pixel-crisp rather than blurred. Ported from caelestia, dusky, and
+  omarchy.
 - **Rashin's one-click Hermes setup no longer stalls forever at "installing
   chrome" and "uv lock".** Setup ran the upstream installer as `curl | bash`,
   leaving its stdin on the pipe, so its optional-package steps (Playwright

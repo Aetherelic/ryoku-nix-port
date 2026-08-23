@@ -16,5 +16,8 @@ hl.config({
     },
     xwayland = {
         force_zero_scaling = true, -- XWayland (Chromium/Electron) crisp on HiDPI
+        -- when an XWayland app is scaled by the compositor, nearest-neighbour
+        -- keeps text pixel-crisp instead of the default bilinear blur.
+        use_nearest_neighbor = true,
     },
 })
