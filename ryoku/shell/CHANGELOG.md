@@ -3,6 +3,63 @@
 ## Unreleased
 
 ### Added
+- **Two desktop widgets join the set: weather and notes.** Both ported from
+  end-4's ii widget canvas, both in Ryoku's own language (vector glyphs, ink
+  picked against the wallpaper tone under the slot, every dimension multiplied by
+  the widget's scale so nothing is a stretched texture). **Weather**
+  (`modules/desktop/weather/`) reads the shell's existing forecast daemon and has
+  two looks: `compact` is a glance (condition glyph, temperature, city) and
+  `full` adds the condition, a humidity / wind / feels row and a three-day strip;
+  with no reading yet it says so honestly and a tap re-kicks the poll. **Notes**
+  (`modules/desktop/notes/`) is a scratch pad: its text is content, not
+  configuration, so it lives in `~/.local/state/ryoku/desktop-notes.txt` (atomic,
+  debounced, so a burst of typing writes the file a few times and never once per
+  keystroke), and it holds the layer's keyboard only while it actually has focus
+  -- Escape or a click anywhere else hands it straight back.
+- **The dock is its own shell surface, and it finally behaves like a dock.** It
+  left the qsbar bar style (`barstyles/qsbar/DockSlot.qml` and `DockRow.qml` are
+  gone) and lives at `modules/dock/`, one `PanelWindow` per monitor on the edge
+  opposite the bar, so every bar style gets the same dock. What it gained, ported
+  from end-4's ii dock: **auto-hide** with a 3 px peek strip (it reveals on
+  pointer proximity, when nothing holds focus, and while a pin is being dragged,
+  and gets out of the way of a fullscreen window), **drag-to-reorder** pinned
+  apps with a ghost that follows the cursor and a live swap as it passes a
+  neighbour, a **hover label** with the app's real name, **middle click** to
+  launch a fresh instance, and a **launch bounce** on the click that starts an
+  app. What it fixes: a pinned app that started running used to jump across the
+  separator into the running group -- the order is now pinned-in-user-order
+  first, always. Magnify, the frosted islands, the running-window dots and the
+  live window-preview strip carry over. Nine keys in a new top-level `dock`
+  object in shell.json drive it (`enabled`, `edge`, `autohide`, `pinned`,
+  `magnify`, `frost`, `shadow`, `labels`, `media`), written through the daemon's
+  settings store like every other shell-owned key; `ryoku doctor` migrates the
+  retired `qsbar.dock*` keys into it. Sumi's in-rail `RailDock` widget stays as
+  the in-band alternative.
+- **Nine expressive wallpaper transitions.** `reveal.frag` grows past masks into
+  coordinate-warping effects, ported from end-4's ii transition shaders:
+  `pixelate` (a mosaic that swells and resolves), `dissolve` (noise burning
+  through behind a warm edge), `ripple`, `shatter` (the old frame diced into
+  spinning shards), `glitch` (scanline tears plus RGB split), `crt` (the frame
+  collapsing into a bright line and reopening), `stripes`, `melt` (Doom's screen
+  melt) and `peel`. The preset table goes from 13 to 22, and a fresh per-switch
+  `seed` uniform means the noise-driven ones never replay the same pattern.
+- **Desktop widgets can place themselves on the wallpaper's calm regions.** A
+  widget's anchor gains `auto` beside the nine compass zones: it lands where the
+  picture is quietest and most even in tone, and glides to a new spot when the
+  wallpaper changes. The daemon now publishes a per-cell **detail** map (the
+  local contrast of each cell of the 8x8 wallpaper tone grid, from the same
+  single ffmpeg decode) and `Ink.calmSpot()` picks the position that minimises
+  busyness and tonal drift together. This is end-4's least-busy-region placement
+  without its python/opencv sidecar.
+- **Real drag feedback for desktop widgets.** Dragging a widget now shows the
+  snap grid and a pair of centre guides that light up as the widget's centre
+  meets the screen's, and releasing flashes the lines it landed on
+  (`modules/desktop/DesktopGuides.qml`, which replaces the Canvas-drawn
+  `WidgetGrid.qml`). Ported from end-4's widget canvas.
+- **The music widget's spectrum can draw as a smoothed wave.** A new `musicViz`
+  key picks `bars` (unchanged, the default) or `wave`: the 40-band cava feed,
+  moving-averaged and resampled onto a continuous mirrored band with a glow
+  behind it, tinted from the album art rather than the scheme accent.
 - **Per-monitor interface scale.** Each display can shrink or enlarge the whole
   Ryoku shell chrome -- frame bar, launcher, OSDs, notifications, capture
   overlays -- independently of the Hyprland monitor scale that apps render at, so
@@ -13,6 +70,31 @@
   multipliers) and omarchy (a shell-wide size scale).
 
 ### Fixed
+- **Live wallpapers switch with a transition, like every other wallpaper.** A clip
+  used to arrive as a hard cut: its still frame was published with no preset and
+  the video surface covered the backdrop immediately, so the whole transition set
+  only ever applied to stills. The reveal now runs on the clip's own first frame
+  and the player is held back until it finishes, so the frame the video starts on
+  is the frame the reveal landed on and the handoff is invisible. The hold is
+  shared by every launch path, so the fullscreen gate's resume cannot cut in
+  mid-reveal either.
+- **A live wallpaper no longer freezes on its first frame after a shell reload.**
+  The video player and the shell's backdrop share the Wayland background layer,
+  where the newest surface draws on top -- so a reloaded shell covered a
+  still-running clip with its frozen still, and only the next wallpaper switch
+  (or a manual `wallpaper live-reload`) brought the motion back. The daemon now
+  publishes who owns the pixels (`live` on the wallpaper topic) and the backdrop
+  stands down while the player paints, so stacking order stops mattering.
+- **A live wallpaper's reveal is framed like the video that replaces it.** The
+  still was painted with the user's image content-fit while livewall maps the clip
+  with the ryowalls live fit, so a letterboxed clip visibly jumped scale the
+  moment it took over. The still now carries the video's geometry.
+- **The dock's active-app tint works, and its auto-hide can tell whether anything
+  is focused.** `Hyprland.activeToplevel` never populates on Ryoku's Hyprland
+  fork (the same ipc parse gap `Fullscreen.qml` documents), so the dock service
+  read focus from a property that was always null. It now reads the focused
+  window out of the toplevel list itself (hyprctl marks it `focusHistoryID 0`),
+  refreshed on the focus events.
 - **The desktop visualiser no longer freezes on a stale frame during playback
   (#61).** Two regressions from the idle-freeze work: the visualiser's cava never
   came back after exiting on its own (a pipewire hiccup) -- its `running` binding

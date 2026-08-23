@@ -40,8 +40,9 @@ truth for the live desktop.
   monitor from one scene (`shell.qml`): `modules/` is one directory per surface
   (`bar` the four-edge frame bars with the bounded menu manager, rail status
   popout cards (`bar/popouts/`), the Super+Escape control sidebar and pluggable
-  bar styles (`bar/barstyles/`, see `docs/barstyles.md`); then `launcher`,
-  `overview` (Super+Tab), `wallpaper`,
+  bar styles (`bar/barstyles/`, see `docs/barstyles.md`); then `dock` the app
+  dock on the edge opposite the bar (its own surface, shared by every bar style),
+  `launcher`, `overview` (Super+Tab), `wallpaper`,
   `visualizer` (a click-through spectrum layer that renders through the shared
   `Ryoku.Ui` spectrum field, keeping only its per-frame band math in its own
   `Motion.qml`), `osd`, `notifications`, `capture`, `confirm`, and `desktop` the

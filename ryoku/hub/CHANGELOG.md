@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Added
+- **Weather and Notes tabs in the Widgets page.** The two new desktop widgets get
+  the same treatment as the rest: a live preview card and their own controls
+  (weather: enable, layout, size, opacity, placement, lock; notes: enable, pad
+  width and height, size, opacity, placement, lock).
+- **Bar Studio's dock controls move to their own card, with the new knobs.** The
+  dock is no longer a qsbar part, so its card is always visible and writes the
+  top-level `dock` store in shell.json: Enabled, Edge (auto / top / bottom / left
+  / right), Auto-hide, Frost, Depth, Magnify, Hover labels, Media chip, and the
+  pinned-apps manager. A rice can carry the dock look too (`dock` joins the shell
+  allowlist).
+- **Desktop widgets can be placed automatically.** Each widget's placement gains
+  "Auto (calm spot)" beside the nine zones: the shell lands it where the wallpaper
+  is quietest and re-places it when the wallpaper changes.
+- **The music widget's visualiser has a look picker.** Bars (the default) or a
+  smoothed wave, in the Widgets page beside the widget's other options.
 - **Displays gains a per-monitor Interface scale.** A stepper on each monitor's
   tuning card (below the compositor scale) sizes the Ryoku shell chrome on that
   display from 50% to 200%, separate from the monitor scale apps render at. It

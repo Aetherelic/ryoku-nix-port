@@ -424,22 +424,42 @@ and per-monitor visibility from `ShellState`.
   controls out of the bar. The monitor-local menu manager owns those cards, the
   bounded frame menus, the Super+Escape control sidebar and the Super+S feature
   sidebar. See `docs/bar.md` and `docs/barstyles.md`.
-- **dock** the app island cluster on the edge opposite the bar, its own
-  transparent layer surface (`ryoku-dock`). Pinned apps first, a separator, then
-  what is running. Hovering magnifies an island to 1.4 and grows a live
-  window-preview card (thumbnail, title, window count, close); left click
-  activates, cycles or launches, right click pins or unpins. Five keys under
-  `qsbar` in `shell.json` drive it: `dockEnabled` (off by default),
-  `dockMagnify`, `dockPinned`, `dockFrost`, `dockShadow`. Sumi's equivalent is
-  the `RailDock` widget on its rail: the same pin model, no magnify and no
-  preview, with a running indicator on the outer edge.
+- **dock** an app island cluster on a screen edge, its own shell surface
+  (`shell/modules/dock/DockSurface.qml`, one per monitor) rather than a part of
+  any one bar, so it rides every bar style. Pinned apps hold a stable order you
+  set, then a separator, then whatever else is running; drag an island to
+  reorder the pins. Autohide keeps it as a thin peek strip that reveals on a
+  slow hover along the edge; off reserves its space and always shows it.
+  Hovering magnifies an island to 1.4, shows the app name as a hover label, and
+  grows a live window-preview strip (thumbnail, title, window count, close);
+  left click activates, cycles or launches, middle click opens a fresh
+  instance, right click pins or unpins. An optional media chip rides the end of
+  the band. The top-level `dock` object in `shell.json` drives it: `enabled`
+  (off by default), `edge` (`auto` = opposite the bar, or a fixed side),
+  `autohide`, `pinned`, `magnify`, `frost`, `shadow`, `labels` and `media`.
+  Sumi's `RailDock` rail widget is the in-band alternative: the same pin model
+  on the frame rail, no magnify and no preview, with a running indicator on the
+  outer edge.
 - **wallpaper** the background itself, drawn on the bottom layer with its own
-  reveal shader for transitions. Its Theme holds exactly one token, the paper
-  colour shown in the letterbox margins of a Contain fit.
-- **desktop widgets** the clock, calendar, music, all-in-one, system stats and
-  any enabled third-party widgets, hosted by one bottom-layer surface. Drag to
-  move (grid snap), scroll to resize, right click for the widget's own menu. The
-  desktop's own right-click menu toggles each widget, opens the visualiser
+  reveal shader for transitions: 22 presets the daemon draws from at random on
+  each switch, from the crossfades, directional sweeps and circle irises to a
+  coordinate-warping family ported from ii that distorts the two frames rather
+  than sweep a mask -- block, noise, wave, shatter, glitch, scanline, stripe,
+  melt and peel. Its Theme holds exactly one token, the paper colour shown in the
+  letterbox margins of a Contain fit.
+- **desktop widgets** the clock, calendar, music, all-in-one, system stats,
+  weather, notes and any enabled third-party widgets, hosted by one bottom-layer
+  surface. Weather reads the shell's own forecast daemon and shows either a
+  glance (glyph, temperature, city) or the full card (condition, humidity / wind
+  / feels, three days); notes is a scratch pad whose text lives in
+  `~/.local/state/ryoku/desktop-notes.txt`, not in a config key, and which holds
+  the keyboard only while it has focus. Each sits
+  on auto (the wallpaper's calmest, most tonally even region, re-followed on
+  every wallpaper change), a compass zone, or free pixels; drag to move (grid
+  snap, which turns auto into free), scroll to resize, right click for the
+  widget's own menu. A drag draws a faint grid and centre guides under the
+  widgets, and the release flashes the edges and any centre line it snapped to.
+  The desktop's own right-click menu toggles each widget, opens the visualiser
   placement, and reaches Settings and Reload shell. Configured in Ryoku
   Settings' Desktop Widgets page, where each widget is a live preview card rather
   than a name in a list.

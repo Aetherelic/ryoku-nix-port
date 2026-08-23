@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **`ryoku doctor` migrates the dock's settings out of the qsbar bar style.** The
+  dock is a shell surface of its own now, so its five old `qsbar` keys
+  (`dockEnabled`, `dockMagnify`, `dockPinned`, `dockFrost`, `dockShadow`) move
+  into a top-level `dock` object in shell.json, keeping the user's choices and
+  their pin list. The reconciler is idempotent, never clobbers a `dock` object
+  that is already there, and leaves the new keys (edge, auto-hide, labels, media)
+  absent so the shell's own defaults apply.
 - **Pacman draws Ryoku's progress bar.** `ILoveCandy` is now a Ryoku default:
   pacman renders the transfer bar as Pac-Man eating pellets instead of a row of
   hashes. The installer sets it in the target's `pacman.conf`, and a new
