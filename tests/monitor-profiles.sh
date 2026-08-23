@@ -116,11 +116,12 @@ jq -e '.monitors[0].scale == 1.6' "$profiles/tv.json" >/dev/null \
 
 # --- list: the per-resolution ladders the hub's scale stepper walks. Only
 # Hyprland-valid scales (1/120 multiples dividing both dims to whole pixels),
-# and never below a 640x360 logical desktop: 720p tops out at 2x, and the odd
-# 1366x768 panel has exactly four steps.
-runT list | jq -e '.[0].scaleLadders["1280x720"] == [0.5,0.5333,0.625,0.6667,0.8,0.8333,1,1.0667,1.25,1.3333,1.6,1.6667,2]' >/dev/null \
+# floored at 1x because sub-1 breaks GTK/Qt/XWayland geometry, and never
+# shrinking the logical desktop below 640x360: 720p tops out at 2x, and the odd
+# 1366x768 panel is left with just the two ends.
+runT list | jq -e '.[0].scaleLadders["1280x720"] == [1,1.0667,1.25,1.3333,1.6,1.6667,2]' >/dev/null \
   || fail "wrong 1280x720 scale ladder: $(runT list | jq -c '.[0].scaleLadders["1280x720"]')"
-runT list | jq -e '.[0].scaleLadders["1366x768"] == [0.5,0.6667,1,2]' >/dev/null \
+runT list | jq -e '.[0].scaleLadders["1366x768"] == [1,2]' >/dev/null \
   || fail "wrong 1366x768 scale ladder: $(runT list | jq -c '.[0].scaleLadders["1366x768"]')"
 
 # --- autoscale DPI snapping: the wanted scale must be Hyprland-valid for the
