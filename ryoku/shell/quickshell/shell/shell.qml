@@ -18,6 +18,7 @@ import "modules/wallpaper/switcher"
 import "modules/desktop"
 import "modules/visualizer"
 import "modules/bar"
+import "modules/dock"
 import "modules/launcher"
 import "modules/overview"
 import QtQuick
@@ -118,6 +119,13 @@ ShellRoot {
             // The frame bar (Phase 2): reads its own reveal from this slice.
             Frame {
                 modelData: perScreen.modelData
+            }
+
+            // The dock: a resident per-monitor surface on the edge opposite the
+            // bar. Style-agnostic, so it lives here rather than inside a bar style;
+            // it draws nothing until the user turns it on (Hub -> Bar Studio -> Dock).
+            DockSurface {
+                screen: perScreen.modelData
             }
 
             // Toggle-driven overlays, each bound to a ShellState flag.

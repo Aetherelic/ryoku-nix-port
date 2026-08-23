@@ -21,7 +21,7 @@ func TestOverlayAndExtractRespectAllowlist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := overlayStore(p, map[string]any{"barStyle": "caelestia", "frameBars": map[string]any{"style": "ryoku-frame"}, "weatherLocation": "X"}, riceShellLook); err != nil {
+	if err := overlayStore(p, map[string]any{"barStyle": "caelestia", "frameBars": map[string]any{"style": "ryoku-frame"}, "dock": map[string]any{"enabled": true, "edge": "bottom"}, "weatherLocation": "X"}, riceShellLook); err != nil {
 		t.Fatal(err)
 	}
 	got := readJSONMap(p)
@@ -33,6 +33,9 @@ func TestOverlayAndExtractRespectAllowlist(t *testing.T) {
 	}
 	if got["weatherLocation"] != "Oslo" {
 		t.Fatalf("non-allowlisted key clobbered: %v", got["weatherLocation"])
+	}
+	if dock, ok := got["dock"].(map[string]any); !ok || dock["enabled"] != true || dock["edge"] != "bottom" {
+		t.Fatalf("rice did not carry the dock look: %v", got["dock"])
 	}
 
 	ex := extractStore(p, riceShellLook)

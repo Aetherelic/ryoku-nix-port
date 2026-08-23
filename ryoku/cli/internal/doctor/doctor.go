@@ -131,6 +131,7 @@ func reconcilers() []reconciler {
 		{"shell config schema", reconcileShellConfig},
 		{"shell style knobs", reconcileLegacyStyleKnobs},
 		{"sumi bar simplification", reconcileSumiBar},
+		{"dock config store", reconcileDockStore},
 		{"retired shell menus", reconcileRetiredMenus},
 		{"quick-settings capture tab", reconcileCaptureModule},
 		{"retired system sidebar", reconcileLegacySystemSidebar},
@@ -1090,6 +1091,114 @@ func reconcileShellConfig(checkOnly bool) recResult {
 		return failRes("could not replace %s: %v", path, err)
 	}
 	return fixedRes("migrated shell.json to the current schema: %s", strings.Join(changes, "; "))
+}
+
+// ---- reconciler: dock config store -------------------------------------------
+
+// reconcileDockStore moves the retired dock knobs out of the qsbar map and into
+// the top-level `dock` object the shell reads now that the dock is its own
+// shell surface for every bar style. Only the five keys a box could have
+// persisted move (enabled, magnify, pinned, frost, shadow); the rest of the
+// dock object (edge, autohide, labels, media) is left absent so Config.qml's
+// defaults apply. Surgical and idempotent: a dock object the shell already
+// wrote is never clobbered, the old keys are dropped from qsbar, and a store
+// with none of them is left alone.
+func reconcileDockStore(checkOnly bool) recResult {
+	path := filepath.Join(sys.ConfigHome(), "ryoku", "shell.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return okRes("no shell.json yet (seeded on first shell run)")
+	}
+	migrated, changed, err := migrateDockStore(raw)
+	if err != nil {
+		return warnRes("shell.json does not parse (%v); the shell falls back to defaults", err).
+			withFix("delete %s to re-seed it", path)
+	}
+	if !changed {
+		return okRes("dock config lives in the top-level dock object")
+	}
+	if checkOnly {
+		return wouldRes("shell.json still keeps dock knobs in the qsbar map").
+			withFix("ryoku doctor moves them into the top-level dock object in place")
+	}
+	tmp := path + ".ryoku-tmp"
+	if err := os.WriteFile(tmp, migrated, 0o644); err != nil {
+		return failRes("could not write %s: %v", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return failRes("could not replace %s: %v", path, err)
+	}
+	return fixedRes("moved the retired qsbar dock knobs into the top-level dock object")
+}
+
+// oldDockKeys map each retired qsbar dock knob to its key in the top-level dock
+// object. Only these five carried a persisted value; the dock's other keys are
+// left to the shell's defaults.
+var oldDockKeys = map[string]string{
+	"dockEnabled": "enabled",
+	"dockMagnify": "magnify",
+	"dockPinned":  "pinned",
+	"dockFrost":   "frost",
+	"dockShadow":  "shadow",
+}
+
+// migrateDockStore lifts the retired qsbar.dock* knobs into a top-level dock
+// object under their new names, deleting them from qsbar. Every other key
+// (qsbar's own settings and each moved value) is preserved as raw bytes, a dock
+// object the shell already wrote wins key-by-key, and a store with none of the
+// old keys is a no-op, so a second run reads clean.
+func migrateDockStore(raw []byte) ([]byte, bool, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil {
+		return nil, false, err
+	}
+	qsbarRaw, ok := top["qsbar"]
+	if !ok {
+		return nil, false, nil
+	}
+	var qsbar map[string]json.RawMessage
+	if err := json.Unmarshal(qsbarRaw, &qsbar); err != nil {
+		return nil, false, err
+	}
+	moved := map[string]json.RawMessage{}
+	for old, want := range oldDockKeys {
+		if v, ok := qsbar[old]; ok {
+			moved[want] = v
+			delete(qsbar, old)
+		}
+	}
+	if len(moved) == 0 {
+		return nil, false, nil
+	}
+	// A dock object the shell already wrote wins: only fill the keys it lacks,
+	// so a re-run or a hand edit is never clobbered.
+	dock := map[string]json.RawMessage{}
+	if dockRaw, ok := top["dock"]; ok {
+		if err := json.Unmarshal(dockRaw, &dock); err != nil {
+			return nil, false, err
+		}
+	}
+	for k, v := range moved {
+		if _, ok := dock[k]; !ok {
+			dock[k] = v
+		}
+	}
+	dockBytes, err := json.Marshal(dock)
+	if err != nil {
+		return nil, false, err
+	}
+	top["dock"] = dockBytes
+	qsbarBytes, err := json.Marshal(qsbar)
+	if err != nil {
+		return nil, false, err
+	}
+	top["qsbar"] = qsbarBytes
+	out, err := json.MarshalIndent(top, "", "  ")
+	if err != nil {
+		return nil, false, err
+	}
+	return append(out, '\n'), true, nil
 }
 
 // ---- reconciler: frame bar style name ----------------------------------------

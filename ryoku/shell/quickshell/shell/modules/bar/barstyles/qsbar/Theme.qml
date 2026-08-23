@@ -2214,23 +2214,6 @@ Item {
     // hover anywhere along the edge (even over the gaps between islands).
     property bool barAutoHide: false
 
-    // ── dock (the opposite-edge app dock, persisted) ──
-    // A qsbar-styled app dock on the screen edge opposite the bar, so the two
-    // never overlap. Each eye-candy knob is its own toggle; magnify honours the
-    // reduce-motion policy so Power Saver drops it like every other animation.
-    property bool dockEnabled: false
-    property bool dockFrost: true
-    property bool dockShadow: true
-    property bool dockMagnify: true
-    // Pinned app classes (Wayland app_id / window class), pinned-first in the dock.
-    property var dockPinned: []
-    function updateDockPinned(className, add) {
-        var next = (dockPinned || []).filter(function (v) { return typeof v === "string" && v })
-        if (add) { if (next.indexOf(className) === -1) next = next.concat([className]) }
-        else next = next.filter(function (v) { return v !== className })
-        dockPinned = next
-    }
-
     // Gaps hold the shell off each output edge. Default top 3 matches the
     // reference's island offset.
     property int barGapTop: 3
@@ -2562,12 +2545,7 @@ Item {
     onModBatteryChanged:       if (_widgetsLoaded) saveWidgets()
     onBarShadowEnabledChanged: if (_widgetsLoaded) saveWidgets()
     onBarFrostEnabledChanged:  if (_widgetsLoaded) saveWidgets()
-    onDockEnabledChanged:      if (_widgetsLoaded) saveWidgets()
     onBarAutoHideChanged:      if (_widgetsLoaded) saveWidgets()
-    onDockFrostChanged:        if (_widgetsLoaded) saveWidgets()
-    onDockShadowChanged:       if (_widgetsLoaded) saveWidgets()
-    onDockMagnifyChanged:      if (_widgetsLoaded) saveWidgets()
-    onDockPinnedChanged:       if (_widgetsLoaded) saveWidgets()
     onBarGapTopChanged:        if (_widgetsLoaded) saveWidgets()
     onBarGapBottomChanged:     if (_widgetsLoaded) saveWidgets()
     onBarGapLeftChanged:       if (_widgetsLoaded) saveWidgets()
@@ -2858,11 +2836,6 @@ Item {
         q.barGapBottom = barGapBottom
         q.barGapLeft = barGapLeft
         q.barGapRight = barGapRight
-        q.dockEnabled = dockEnabled
-        q.dockFrost = dockFrost
-        q.dockShadow = dockShadow
-        q.dockMagnify = dockMagnify
-        q.dockPinned = dockPinned
         q.widgetGeom = widgetGeom
         q.widgetColorStyles = serializeWidgetColorStyles()
         q.barSeps = barSeps
@@ -2924,11 +2897,6 @@ Item {
         if (q.barGapBottom !== undefined) barGapBottom = clampGap(q.barGapBottom)
         if (q.barGapLeft !== undefined) barGapLeft = clampGap(q.barGapLeft)
         if (q.barGapRight !== undefined) barGapRight = clampGap(q.barGapRight)
-        if (q.dockEnabled !== undefined) dockEnabled = q.dockEnabled === true
-        if (q.dockFrost !== undefined) dockFrost = q.dockFrost === true
-        if (q.dockShadow !== undefined) dockShadow = q.dockShadow === true
-        if (q.dockMagnify !== undefined) dockMagnify = q.dockMagnify === true
-        if (q.dockPinned !== undefined && q.dockPinned !== null) dockPinned = q.dockPinned
         if (q.widgetGeom !== undefined && q.widgetGeom !== null) widgetGeom = q.widgetGeom
         if (q.widgetColorStyles !== undefined && q.widgetColorStyles !== null) widgetColorStyles = parseWidgetColorStyles(q.widgetColorStyles)
         if (q.barSeps !== undefined && q.barSeps !== null) barSeps = q.barSeps

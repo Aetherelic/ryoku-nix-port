@@ -174,19 +174,33 @@ Item {
         page.fedit("qsbar", q);
     }
 
-    // Dock pinned apps (custom apps): the qsbar.dockPinned list of desktop ids.
+    // ── Dock (its own shell surface) settings ─────────────────────────────────
+    // The dock is a shell surface for every bar style now, so its knobs live in
+    // the top-level `dock` object in shell.json, not the qsbar map. An absent key
+    // keeps the Dock service's own default.
+    function dval(key, fall) {
+        const d = page.fval("dock", ({}));
+        return d && d[key] !== undefined ? d[key] : fall;
+    }
+    function dset(key, v) {
+        const d = Object.assign({}, page.fval("dock", ({})));
+        d[key] = v;
+        page.fedit("dock", d);
+    }
+
+    // Dock pinned apps: the dock.pinned list of window class ids, in user order.
     property bool dockPickerOpen: false
     function dockPins() {
-        const v = page.qval("dockPinned", []);
+        const v = page.dval("pinned", []);
         return Array.isArray(v) ? v.slice() : Array.from(v || []);
     }
     function addDockApp(id) {
         if (!id) return;
         const a = page.dockPins();
-        if (a.indexOf(id) === -1) page.qset("dockPinned", a.concat([id]));
+        if (a.indexOf(id) === -1) page.dset("pinned", a.concat([id]));
     }
     function removeDockApp(id) {
-        page.qset("dockPinned", page.dockPins().filter(x => x !== id));
+        page.dset("pinned", page.dockPins().filter(x => x !== id));
     }
 
     // The gap animation is stored as an int mode in the qsbar map. Bar Studio
@@ -612,159 +626,6 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     divider: true
-                    controlWidth: 54
-                    label: qsTr("Dock")
-                    desc: qsTr("A qsbar-style app dock on the edge opposite the bar.")
-                    source: "shell.json"
-                    Sw {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("dockEnabled", false)
-                        onToggled: value => page.qset("dockEnabled", value)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
-                    controlWidth: 54
-                    label: qsTr("Dock: frost")
-                    desc: qsTr("Make the dock island translucent.")
-                    source: "shell.json"
-                    enabled: page.qval("dockEnabled", false)
-                    Sw {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("dockFrost", true)
-                        onToggled: value => page.qset("dockFrost", value)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
-                    controlWidth: 54
-                    label: qsTr("Dock: depth")
-                    desc: qsTr("Soft shadow behind the dock island.")
-                    source: "shell.json"
-                    enabled: page.qval("dockEnabled", false)
-                    Sw {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("dockShadow", true)
-                        onToggled: value => page.qset("dockShadow", value)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
-                    controlWidth: 54
-                    label: qsTr("Dock: magnify")
-                    desc: qsTr("Grow icons under the cursor. Off in Power Saver.")
-                    source: "shell.json"
-                    enabled: page.qval("dockEnabled", false)
-                    Sw {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        on: page.qval("dockMagnify", true)
-                        onToggled: value => page.qset("dockMagnify", value)
-                    }
-                }
-                Item {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    enabled: page.qval("dockEnabled", false)
-                    opacity: enabled ? 1 : 0.4
-                    height: dockAppsCol.implicitHeight + Tokens.s3 * 2
-                    Column {
-                        id: dockAppsCol
-                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                        spacing: Tokens.s2
-                        Item {
-                            width: parent.width
-                            height: 26
-                            Text {
-                                anchors.left: parent.left
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: qsTr("Dock apps")
-                                color: Tokens.ink
-                                font.family: Tokens.ui
-                                font.pixelSize: 13
-                            }
-                            Rectangle {
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: addTxt.width + 22
-                                height: 26
-                                radius: Tokens.radius
-                                color: addHov.hovered ? Tokens.paperLift : "transparent"
-                                border.width: Tokens.border
-                                border.color: Tokens.line
-                                Text {
-                                    id: addTxt
-                                    anchors.centerIn: parent
-                                    text: qsTr("+ Add app")
-                                    color: Tokens.ink
-                                    font.family: Tokens.ui
-                                    font.pixelSize: 12
-                                }
-                                HoverHandler { id: addHov }
-                                TapHandler { onTapped: page.dockPickerOpen = true }
-                            }
-                        }
-                        Flow {
-                            width: parent.width
-                            spacing: Tokens.s2
-                            visible: page.dockPins().length > 0
-                            Repeater {
-                                model: page.dockPins()
-                                delegate: Rectangle {
-                                    id: chip
-                                    required property string modelData
-                                    readonly property var entry: DesktopEntries.heuristicLookup(chip.modelData)
-                                    height: 28
-                                    radius: Tokens.radius
-                                    width: chipRow.implicitWidth + 16
-                                    color: Tokens.paperLift
-                                    border.width: Tokens.border
-                                    border.color: Tokens.line
-                                    Row {
-                                        id: chipRow
-                                        anchors.centerIn: parent
-                                        spacing: 6
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: (chip.entry && chip.entry.name) ? chip.entry.name : chip.modelData
-                                            color: Tokens.ink
-                                            font.family: Tokens.ui
-                                            font.pixelSize: 12
-                                        }
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: "\u2715"
-                                            color: chipX.hovered ? Tokens.ink : Tokens.inkFaint
-                                            font.pixelSize: 11
-                                            HoverHandler { id: chipX }
-                                            TapHandler { onTapped: page.removeDockApp(chip.modelData) }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Text {
-                            visible: page.dockPins().length === 0
-                            text: qsTr("No apps pinned. Add one, or right-click a running app in the dock.")
-                            color: Tokens.inkFaint
-                            font.family: Tokens.ui
-                            font.pixelSize: 11
-                        }
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    divider: true
                     controlWidth: 58
                     label: qsTr("Gap: top")
                     unit: "px"
@@ -1006,6 +867,231 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             on: page.qwid(modelData.id, modelData.def)
                             onToggled: value => page.qwidset(modelData.id, value)
+                        }
+                    }
+                }
+            }
+
+            // ── DOCK: an app dock as its own shell surface, for every style ──
+            SettingCard {
+                id: dockSect
+                width: col.width
+                title: qsTr("DOCK")
+
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    controlWidth: 54
+                    label: qsTr("Dock")
+                    desc: qsTr("Show an app dock as its own shell surface, for every bar style.")
+                    source: "shell.json"
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.dval("enabled", false)
+                        onToggled: value => page.dset("enabled", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    block: true
+                    label: qsTr("Edge")
+                    desc: qsTr("Which screen edge the dock sits on. Auto picks the edge opposite the bar.")
+                    source: "shell.json"
+                    enabled: page.dval("enabled", false)
+                    Seg {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["auto", "top", "bottom", "left", "right"]
+                        current: page.dval("edge", "auto")
+                        onChose: key => page.dset("edge", key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Auto-hide")
+                    desc: qsTr("Hide the dock to a peek strip and reveal it on hover; off keeps it shown and reserves its space.")
+                    source: "shell.json"
+                    enabled: page.dval("enabled", false)
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.dval("autohide", true)
+                        onToggled: value => page.dset("autohide", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Frost")
+                    desc: qsTr("Make the dock island translucent.")
+                    source: "shell.json"
+                    enabled: page.dval("enabled", false)
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.dval("frost", true)
+                        onToggled: value => page.dset("frost", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Depth")
+                    desc: qsTr("Soft shadow behind the dock island.")
+                    source: "shell.json"
+                    enabled: page.dval("enabled", false)
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.dval("shadow", true)
+                        onToggled: value => page.dset("shadow", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Magnify")
+                    desc: qsTr("Grow icons under the cursor. Off in Power Saver.")
+                    source: "shell.json"
+                    enabled: page.dval("enabled", false)
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.dval("magnify", true)
+                        onToggled: value => page.dset("magnify", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Hover labels")
+                    desc: qsTr("Show the app name above an icon on hover.")
+                    source: "shell.json"
+                    enabled: page.dval("enabled", false)
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.dval("labels", true)
+                        onToggled: value => page.dset("labels", value)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    controlWidth: 54
+                    label: qsTr("Media chip")
+                    desc: qsTr("Show a now-playing chip at the end of the dock.")
+                    source: "shell.json"
+                    enabled: page.dval("enabled", false)
+                    Sw {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        on: page.dval("media", false)
+                        onToggled: value => page.dset("media", value)
+                    }
+                }
+                Item {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    enabled: page.dval("enabled", false)
+                    opacity: enabled ? 1 : 0.4
+                    height: dockAppsCol.implicitHeight + Tokens.s3 * 2
+                    Column {
+                        id: dockAppsCol
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                        spacing: Tokens.s2
+                        Item {
+                            width: parent.width
+                            height: 26
+                            Text {
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: qsTr("Dock apps")
+                                color: Tokens.ink
+                                font.family: Tokens.ui
+                                font.pixelSize: 13
+                            }
+                            Rectangle {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: addTxt.width + 22
+                                height: 26
+                                radius: Tokens.radius
+                                color: addHov.hovered ? Tokens.paperLift : "transparent"
+                                border.width: Tokens.border
+                                border.color: Tokens.line
+                                Text {
+                                    id: addTxt
+                                    anchors.centerIn: parent
+                                    text: qsTr("+ Add app")
+                                    color: Tokens.ink
+                                    font.family: Tokens.ui
+                                    font.pixelSize: 12
+                                }
+                                HoverHandler { id: addHov }
+                                TapHandler { onTapped: page.dockPickerOpen = true }
+                            }
+                        }
+                        Flow {
+                            width: parent.width
+                            spacing: Tokens.s2
+                            visible: page.dockPins().length > 0
+                            Repeater {
+                                model: page.dockPins()
+                                delegate: Rectangle {
+                                    id: chip
+                                    required property string modelData
+                                    readonly property var entry: DesktopEntries.heuristicLookup(chip.modelData)
+                                    height: 28
+                                    radius: Tokens.radius
+                                    width: chipRow.implicitWidth + 16
+                                    color: Tokens.paperLift
+                                    border.width: Tokens.border
+                                    border.color: Tokens.line
+                                    Row {
+                                        id: chipRow
+                                        anchors.centerIn: parent
+                                        spacing: 6
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: (chip.entry && chip.entry.name) ? chip.entry.name : chip.modelData
+                                            color: Tokens.ink
+                                            font.family: Tokens.ui
+                                            font.pixelSize: 12
+                                        }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "\u2715"
+                                            color: chipX.hovered ? Tokens.ink : Tokens.inkFaint
+                                            font.pixelSize: 11
+                                            HoverHandler { id: chipX }
+                                            TapHandler { onTapped: page.removeDockApp(chip.modelData) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            visible: page.dockPins().length === 0
+                            text: qsTr("No apps pinned. Add one, or right-click a running app in the dock.")
+                            color: Tokens.inkFaint
+                            font.family: Tokens.ui
+                            font.pixelSize: 11
                         }
                     }
                 }

@@ -7,6 +7,7 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "Singletons"
 import "schema/DesktopPage.js" as DesktopSchema
+import "schema/BarStudioPage.js" as BarStudioSchema
 import "schema/AppearancePage.js" as AppearanceSchema
 import "schema/WindowsPage.js" as WindowsSchema
 import "schema/InputPage.js" as InputSchema
@@ -138,7 +139,7 @@ Rectangle {
         "dictation": "voice typing speech transcribe whisper microphone stt",
         "windows": "window windows rounding corners softness gaps border borders thickness colour tiling dwindle master scrolling layout opacity transparency transparent dim blur shadow glow glass wobble wobbly title bar titlebar float snap resize animation",
         "appearance": "theme palette accent color colour wallpaper background rice scheme dark light night bluelight comfort brightness backlight",
-        "bar-studio": "bar frame rails zones widgets menus surfaces style catalogue layout framebars sidebar",
+        "bar-studio": "bar frame rails zones widgets menus surfaces style catalogue layout framebars sidebar dock dockapps pinned pin magnify autohide auto-hide media chip peek labels edge taskbar",
         "desktop": "desktop visualizer visualiser spectrum brand logo mark name widget board wallpaper",
         "launcher": "launcher spotlight command palette greeting weather home",
         "fastfetch": "fetch neofetch terminal system info logo ascii emblem readout",
@@ -164,7 +165,7 @@ Rectangle {
     // anywhere. Ranking is fuzzy: exact word > substring > subsequence.
     readonly property var searchIndex: {
         var srcs = {
-            "bar-studio": [], "desktop": DesktopSchema.rows, "appearance": AppearanceSchema.rows, "windows": WindowsSchema.rows,
+            "bar-studio": BarStudioSchema.rows, "desktop": DesktopSchema.rows, "appearance": AppearanceSchema.rows, "windows": WindowsSchema.rows,
             "input": InputSchema.rows, "cursor": CursorSchema.rows, "keybinds": KeybindsSchema.rows,
             "displays": DisplaysSchema.rows, "gpu": GpuSchema.rows,
             "recording": RecordingSchema.rows, "dictation": DictationSchema.rows,
@@ -421,7 +422,7 @@ Rectangle {
         "adaptive": true, "smoothing": 0.5, "gain": 1.0, "peaks": false,
         "spin": 0, "x": 0, "y": 0.58, "w": 1, "h": 0.42, "grow": "up", "angle": 0, "tiltX": 0, "tiltY": 0,
         "markText": "力", "markImage": "", "markTint": true, "name": "Ryoku",
-        "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig(), "qsbar": {}
+        "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig(), "qsbar": {}, "dock": {}
     })
 
     // key -> source file, derived from the schema so it cannot drift.
@@ -529,7 +530,7 @@ Rectangle {
     // against liveBaseline: the state at open, re-snapshotted on every Save.
     // Quit and Revert walk the desktop back to that baseline through the same
     // channel, so an unsaved close leaves no residue.
-    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "barStyle", "obi", "nacre", "qsbar"]
+    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "barStyle", "obi", "nacre", "qsbar", "dock"]
     property var liveBaseline: null
     property var livePending: ({})
     function captureLiveBaseline() {

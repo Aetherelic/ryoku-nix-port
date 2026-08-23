@@ -1530,6 +1530,106 @@ func TestBarStyleDefaultsToQsbar(t *testing.T) {
 	}
 }
 
+// migrateDockStore lifts the retired qsbar.dock* knobs into a top-level dock
+// object once the dock became its own shell surface. It must move exactly the
+// five persisted knobs under their new names, drop them from qsbar, never
+// clobber a dock object the shell already wrote, leave the shell-defaulted keys
+// absent, and be idempotent so a second doctor run reads clean.
+func TestMigrateDockStore(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      string
+		changed bool
+	}{
+		{"absent both", `{"barStyle":"qsbar","qsbar":{"barGapTop":3}}`, false},
+		{"qsbar keys only", `{"qsbar":{"dockEnabled":true,"dockMagnify":false,"dockPinned":["kitty.desktop"],"dockFrost":true,"dockShadow":false,"barGapTop":3}}`, true},
+		{"both present", `{"dock":{"enabled":false,"edge":"top"},"qsbar":{"dockEnabled":true,"dockPinned":["kitty.desktop"],"barGapTop":3}}`, true},
+		{"already migrated", `{"dock":{"enabled":true,"pinned":["kitty.desktop"]},"qsbar":{"barGapTop":3}}`, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out, changed, err := migrateDockStore([]byte(c.in))
+			if err != nil {
+				t.Fatalf("migrateDockStore: %v", err)
+			}
+			if changed != c.changed {
+				t.Fatalf("changed = %v, want %v", changed, c.changed)
+			}
+			if !changed {
+				return
+			}
+			var cfg map[string]any
+			if err := json.Unmarshal(out, &cfg); err != nil {
+				t.Fatalf("migrated JSON does not parse: %v", err)
+			}
+			qsbar, _ := cfg["qsbar"].(map[string]any)
+			for old := range oldDockKeys {
+				if _, present := qsbar[old]; present {
+					t.Errorf("retired key %q survived in qsbar", old)
+				}
+			}
+			if qsbar["barGapTop"].(float64) != 3 {
+				t.Errorf("qsbar lost an unrelated key: %v", qsbar)
+			}
+			// idempotent: the migrated store is now a no-op.
+			if _, again, err := migrateDockStore(out); err != nil || again {
+				t.Errorf("re-migrating must be a no-op: changed=%v err=%v", again, err)
+			}
+		})
+	}
+
+	// qsbar-keys-only: every knob lands in the new dock object under its new name.
+	out, _, err := migrateDockStore([]byte(`{"qsbar":{"dockEnabled":true,"dockMagnify":false,"dockPinned":["kitty.desktop"],"dockFrost":true,"dockShadow":false}}`))
+	if err != nil {
+		t.Fatalf("migrateDockStore: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("migrated JSON does not parse: %v", err)
+	}
+	dock := cfg["dock"].(map[string]any)
+	if dock["enabled"] != true || dock["magnify"] != false || dock["frost"] != true || dock["shadow"] != false {
+		t.Errorf("dock knobs did not move correctly: %v", dock)
+	}
+	if pins, ok := dock["pinned"].([]any); !ok || len(pins) != 1 || pins[0] != "kitty.desktop" {
+		t.Errorf("dockPinned did not move to dock.pinned: %v", dock["pinned"])
+	}
+	// the keys the shell defaults stay absent, so its Config.qml default applies.
+	for _, absent := range []string{"edge", "autohide", "labels", "media"} {
+		if _, present := dock[absent]; present {
+			t.Errorf("migration invented a %q key; the shell default must apply", absent)
+		}
+	}
+
+	// both-present: a dock object the shell already wrote is never clobbered, but
+	// the keys it lacks are still filled from qsbar and the old keys are dropped.
+	out, _, err = migrateDockStore([]byte(`{"dock":{"enabled":false,"edge":"top"},"qsbar":{"dockEnabled":true,"dockPinned":["kitty.desktop"]}}`))
+	if err != nil {
+		t.Fatalf("migrateDockStore: %v", err)
+	}
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("migrated JSON does not parse: %v", err)
+	}
+	dock = cfg["dock"].(map[string]any)
+	if dock["enabled"] != false {
+		t.Errorf("existing dock.enabled was clobbered: %v", dock["enabled"])
+	}
+	if dock["edge"] != "top" {
+		t.Errorf("existing dock.edge was lost: %v", dock["edge"])
+	}
+	if pins, ok := dock["pinned"].([]any); !ok || len(pins) != 1 {
+		t.Errorf("dock.pinned was not filled from qsbar: %v", dock["pinned"])
+	}
+	if q := cfg["qsbar"].(map[string]any); q["dockEnabled"] != nil {
+		t.Errorf("qsbar dockEnabled was not deleted: %v", q)
+	}
+
+	// garbage errors rather than silently rewriting.
+	if _, _, err := migrateDockStore([]byte("not json")); err == nil {
+		t.Fatal("garbage must error, not silently rewrite")
+	}
+}
+
 // limineDropFlat mirrors the installer's promote surgery: flat placeholder
 // entries go (with their indented options), default_entry moves off the tree
 // directory, globals and the /+ tree survive untouched.

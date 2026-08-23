@@ -45,6 +45,13 @@ Singleton {
     property alias obi: adapter.obi
     property alias nacre: adapter.nacre
     property alias qsbar: adapter.qsbar
+
+    // dock: the first-class app dock surface (modules/dock). A top-level store,
+    // not a bar-style key, because the dock is now style-agnostic -- neither qsbar
+    // nor Sumi owns it. Off until the user turns it on (Hub -> Bar Studio -> Dock).
+    // Read and written through the services Dock singleton so every consumer goes
+    // through one place.
+    property alias dock: adapter.dock
     readonly property var normalizedNacre: NacreConfig.normalize(nacre)
 
     // typography: a scale that grows or shrinks the whole shell (the bar text
@@ -142,6 +149,17 @@ Singleton {
             property var obi: ({})
             property var nacre: NacreConfig.defaultConfig()
             property var qsbar: ({})
+            property var dock: ({
+                "enabled": false,
+                "edge": "auto",
+                "autohide": true,
+                "pinned": [],
+                "magnify": true,
+                "frost": true,
+                "shadow": true,
+                "labels": true,
+                "media": false
+            })
         }
     }
 

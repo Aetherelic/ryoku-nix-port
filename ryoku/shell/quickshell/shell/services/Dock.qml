@@ -3,12 +3,15 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import shell.services
 import "lib/dock.js" as DockList
 
 // Shared dock model: running-window + pinned-app data and the activate action,
-// one source for every dock surface (framebars RailDock, qsbar DockSlot). The
-// list maths live in the tested lib/dock.js; each consumer owns its own pins.
+// one source for every dock surface (Sumi's in-rail RailDock and the first-class
+// modules/dock surface). The list maths live in the tested lib/dock.js. The
+// first-class dock's pins and look live in this singleton's `dock` store (below);
+// RailDock keeps its own pins.
 Singleton {
     id: root
 
@@ -62,6 +65,15 @@ Singleton {
     Connections {
         target: Hyprland
         function onActiveToplevelChanged() { root._rev++; }
+        // Hyprland.activeToplevel never populates on this fork's ipc (the same
+        // request-socket parse gap Fullscreen.qml documents), so focus is read out
+        // of the toplevel list instead -- hyprctl marks the focused window
+        // focusHistoryID 0. That field only moves when the list is re-read, so a
+        // focus event has to force the refresh.
+        function onRawEvent(event) {
+            if (event.name === "activewindow" || event.name === "activewindowv2")
+                Qt.callLater(Hyprland.refreshToplevels);
+        }
     }
     Instantiator {
         model: Hyprland.toplevels
@@ -87,9 +99,27 @@ Singleton {
         return result;
     }
 
-    readonly property string activeClass: {
+    // The focused window's ipc object, or null when nothing holds focus:
+    // focusHistoryID 0 is hyprctl's focused marker, with quickshell's own
+    // activeToplevel as the fallback for an ipc shape that omits the field.
+    readonly property var focusedClient: {
         void root._rev;
+        const toplevels = Hyprland.toplevels ? Hyprland.toplevels.values : [];
+        for (let i = 0; i < toplevels.length; ++i) {
+            const data = toplevels[i] && toplevels[i].lastIpcObject;
+            if (data && data.focusHistoryID === 0)
+                return data;
+        }
         const active = Hyprland.activeToplevel && Hyprland.activeToplevel.lastIpcObject;
+        return active || null;
+    }
+
+    // True while some window holds focus; a bare desktop reads false, which the
+    // dock surface uses to show itself when there is nothing to get out of.
+    readonly property bool anyFocused: root.focusedClient !== null
+
+    readonly property string activeClass: {
+        const active = root.focusedClient;
         return active ? (active.class || active.initialClass || "") : "";
     }
 
@@ -115,6 +145,56 @@ Singleton {
         for (const className of ["kitty", "chromium", "nautilus"])
             if (DesktopEntries.heuristicLookup(className)) out.push(className);
         return out;
+    }
+
+    // ── the dock store (shell.json top-level `dock`) ─────────────────────────
+    // The dock is a first-class shell surface now, so its look and pins live in
+    // one top-level store rather than per bar style. Every consumer reads and
+    // writes it through here, so the copy-on-write below is the single path that
+    // persists it.
+    function cfg(key, fallback) {
+        const d = Config.dock;
+        return (d && d[key] !== undefined && d[key] !== null) ? d[key] : fallback;
+    }
+    function setCfg(key, value) {
+        const cur = Config.dock || {};
+        const next = {};
+        for (const k in cur) next[k] = cur[k];
+        next[key] = value;
+        // A fresh object so the live look changes this frame...
+        Config.dock = next;
+        // ...and a settings.patch so it survives: the shell's shell.json FileView
+        // is read-only (no onAdapterUpdated), because the daemon owns that file and
+        // serialises every writer through its settings store. Same channel Bar
+        // Studio and the qsbar control centre write on.
+        cfgCtl.queued += "call settings.patch " + JSON.stringify({ path: "dock", value: next }) + "\n";
+        if (cfgCtl.connected)
+            cfgCtl.flushQueued();
+        else
+            cfgCtl.connected = true;
+    }
+    function setPinned(array) { root.setCfg("pinned", array); }
+
+    // The daemon's control socket, connected only when there is something to say.
+    Socket {
+        id: cfgCtl
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
+        property string queued: ""
+        function flushQueued() {
+            if (cfgCtl.queued.length === 0)
+                return;
+            cfgCtl.write(cfgCtl.queued);
+            cfgCtl.flush();
+            cfgCtl.queued = "";
+        }
+        onConnectionStateChanged: if (cfgCtl.connected) cfgCtl.flushQueued()
+    }
+
+    // The effective pin list: the user's order, or the starter set when empty, so
+    // an unconfigured dock still shows something instead of reading as broken.
+    function pinnedOrStarter() {
+        const p = root.cfg("pinned", []);
+        return (p && p.length) ? Array.from(p) : root.starterPins();
     }
 
     // Desktop-entry icon, then class-as-icon-name; "" so callers can fall back.
