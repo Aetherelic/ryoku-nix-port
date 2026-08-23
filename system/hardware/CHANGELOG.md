@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- `display/ryoku-hw-backlight-fix`: **stops breaking brightness on Intel+NVIDIA
+  laptops (#54).** The AMD-only `acpi_backlight=native` quirk gated on
+  `nvidia_wmi_ec_backlight` present and no `amdgpu_bl*` -- but that NVIDIA WMI EC
+  backlight also registers on Intel+NVIDIA machines with no AMD GPU, so the quirk
+  fired there and fought the correct `i915.enable_dpcd_backlight=1` fix. It now
+  requires a real AMD GPU (PCI vendor `0x1002` on a DRM card) before anything
+  else, so it only touches the ASUS AMD+NVIDIA panels it was meant for.
 - `display/ryoku-monitor`: **GTK apps stay crisp on fractional monitors, and the
   scale stepper no longer offers sub-1.** `GDK_SCALE` now rounds to the nearest
   whole scale when the monitors agree (a 1.5x panel gets 2, so GTK renders at 2x

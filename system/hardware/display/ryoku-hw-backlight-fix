@@ -8,9 +8,10 @@
 # kernel bind the native AMD backlight, revealing amdgpu_bl0 so brightness
 # tracks. Ref: ArchWiki/Backlight, basecamp/omarchy#5067.
 #
-# HARDWARE-GATED: acts only when nvidia_wmi_ec_backlight is registered AND no
-# amdgpu_bl* exists -- exactly the broken ASUS case. Anywhere amdgpu_bl* already
-# works, or the EC path is absent, it no-ops, so running it on every install is
+# HARDWARE-GATED to the broken ASUS AMD+NVIDIA case: an AMD GPU is present AND
+# its native backlight is hidden (nvidia_wmi_ec_backlight registered, no
+# amdgpu_bl*). Intel+NVIDIA also registers nvidia_wmi_ec_backlight but has no AMD
+# GPU, so the AMD check stops the wrong fix firing there (#54). No-ops otherwise,
 # safe. The param goes in a /etc/limine-entry-tool.d drop-in (Ryoku's cmdline is
 # limine-entry-tool managed, read from /etc/default/limine + that dir), never
 # appended to default.conf directly. Needs a reboot to take effect.
@@ -35,8 +36,20 @@ for arg in "$@"; do
 done
 
 backlight_path="${RYOKU_BACKLIGHT_PATH:-/sys/class/backlight}"
-dropin="/etc/limine-entry-tool.d/ryoku-backlight.conf"
+dropin="${RYOKU_DROPIN:-/etc/limine-entry-tool.d/ryoku-backlight.conf}"
 param="acpi_backlight=native"
+drm_path="${RYOKU_DRM_PATH:-/sys/class/drm}"
+
+# True when a DRM card reports the AMD/ATI PCI vendor (0x1002). acpi_backlight=native
+# only reveals an AMD backlight, so without an AMD GPU the quirk cannot help and
+# must not fire -- on Intel+NVIDIA it just fights the correct i915 DPCD fix (#54).
+amd_gpu_present() {
+  local v
+  for v in "$drm_path"/card[0-9]*/device/vendor; do
+    [[ -r $v && "$(cat "$v" 2>/dev/null)" == "0x1002" ]] && return 0
+  done
+  return 1
+}
 
 run() {
   if [[ $RYOKU_DRYRUN == 1 ]]; then
@@ -55,6 +68,13 @@ write_root() {
   fi
   if (( EUID == 0 )); then cat >"$path"; else sudo -n tee "$path" >/dev/null; fi
 }
+
+# gate 0: the quirk is AMD-specific. nvidia_wmi_ec_backlight also registers on
+# Intel+NVIDIA laptops, so require a real AMD GPU before anything else (#54).
+if ! amd_gpu_present; then
+  echo "ryoku-hw-backlight-fix: no AMD GPU; acpi_backlight=native is AMD-only, nothing to fix"
+  exit 0
+fi
 
 # gate: the broken case is the EC backlight present with no native AMD one.
 if [[ ! -e "$backlight_path/nvidia_wmi_ec_backlight" ]]; then
