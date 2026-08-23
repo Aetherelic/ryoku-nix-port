@@ -17,17 +17,20 @@ func presetIndexByName(name string) int {
 	return -1
 }
 
-// TestTransitionPresetTable pins the recovered 13-preset set: every name is
-// present exactly once, and each preset's args are well-formed for the reveal
-// shader (a known kind, a bezier in range, a sane feathered edge, a wave amplitude
-// iff the kind is wave, an angle only on directional sweeps, a pos anchor only on
-// grow, and an origin that always resolves into the surface).
+// TestTransitionPresetTable pins the full 22-preset set (the recovered 13 plus the
+// nine ii expressive ports): every name is present exactly once, and each preset's
+// args are well-formed for the reveal shader (a known kind, a bezier in range, a
+// sane feathered edge, a wave amplitude iff the kind is wave, an angle only on the
+// kinds that use one (wipe / wave / stripes), a pos anchor only on grow, and an
+// origin that always resolves into the surface).
 func TestTransitionPresetTable(t *testing.T) {
 	want := []string{
 		"silk_fade", "diagonal_silk", "dream_curtain", "liquid_ribbon",
 		"iris_open", "corner_bloom", "spotlight_rise", "wander_iris",
 		"vignette_close", "celeste_veil", "comet_streak", "aurora_ripple",
 		"starfall_bloom",
+		"mosaic_swell", "ember_burn", "pond_wake", "glass_scatter", "signal_tear",
+		"cathode_wink", "shutter_sweep", "wax_descent", "page_turn",
 	}
 	if len(transitionPresets) != len(want) {
 		t.Fatalf("preset count = %d, want %d", len(transitionPresets), len(want))
@@ -60,7 +63,7 @@ func TestTransitionPresetTable(t *testing.T) {
 		if (p.waveAmp > 0) != (p.kind == "wave") {
 			t.Errorf("%s: waveAmp %v inconsistent with kind %q", p.name, p.waveAmp, p.kind)
 		}
-		if p.kind != "wipe" && p.kind != "wave" && p.angle != 0 {
+		if p.kind != "wipe" && p.kind != "wave" && p.kind != "stripes" && p.angle != 0 {
 			t.Errorf("%s: angle %v set on non-directional kind %q", p.name, p.angle, p.kind)
 		}
 		if p.kind == "grow" && p.pos == "" {
@@ -102,6 +105,28 @@ func TestPickTransitionNeverRepeats(t *testing.T) {
 			t.Fatalf("draw %d: origin (%v,%v) out of [0,1]", i, tr.OriginX, tr.OriginY)
 		}
 		prev = tr.Name
+	}
+}
+
+// transitionFor is the one rule both backends share: a user-driven switch reveals,
+// the two re-apply paths do not. Pinned because a preset on init would animate the
+// wallpaper at every login, and a preset on live-reload would re-reveal the clip
+// already on screen after a settings change.
+func TestTransitionForMode(t *testing.T) {
+	d := &daemon{lastTransition: -1}
+	for _, mode := range []string{"init", "live-reload"} {
+		if tr := d.transitionFor(mode); tr != nil {
+			t.Errorf("mode %q revealed with %q, want no preset", mode, tr.Name)
+		}
+	}
+	for _, mode := range []string{"set", "next", "random"} {
+		tr := d.transitionFor(mode)
+		if tr == nil {
+			t.Fatalf("mode %q got no preset, want a random one", mode)
+		}
+		if presetIndexByName(tr.Name) < 0 {
+			t.Errorf("mode %q: unknown preset %q", mode, tr.Name)
+		}
 	}
 }
 

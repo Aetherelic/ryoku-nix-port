@@ -177,3 +177,57 @@ func TestLiveFramePerClip(t *testing.T) {
 		t.Errorf("offset 4 reused the offset 1 still (%q)", moved)
 	}
 }
+
+// A clip's still is revealed in the geometry livewall will paint the VIDEO in, not
+// the user's image fit: the two are separate knobs, and framing the still by the
+// image fit made the wallpaper jump scale the instant the clip took over. Pins the
+// pin: showFrame carries it, republish keeps it, and the next image switch drops it.
+func TestLiveStillPinsTheVideoFit(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // no shell.json -> image fit is Cover
+	dir := t.TempDir()
+	src := filepath.Join(dir, "frame.png")
+	if err := os.WriteFile(src, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w := &wallSurface{cacheDir: filepath.Join(dir, "cache")}
+
+	if err := w.showFrame(src, nil, "Contain"); err != nil {
+		t.Fatalf("showFrame: %v", err)
+	}
+	if w.fit != "Contain" {
+		t.Errorf("pinned fit = %q, want Contain", w.fit)
+	}
+	w.republish()
+	if w.fit != "Contain" {
+		t.Errorf("republish dropped the pin: fit = %q, want Contain", w.fit)
+	}
+	if err := w.showTransition(src, nil); err != nil {
+		t.Fatalf("showTransition: %v", err)
+	}
+	if w.fit != "Cover" {
+		t.Errorf("image switch kept the pin: fit = %q, want the user's Cover", w.fit)
+	}
+}
+
+// liveContentFit speaks the backdrop's fillMode names, so a letterboxed clip is
+// revealed letterboxed and a covering clip is revealed covering.
+func TestLiveContentFit(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, "ryoku"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := filepath.Join(home, "ryoku", "ryowalls.json")
+	for _, c := range []struct{ json, want string }{
+		{`{"liveFit":"fit"}`, "Contain"},
+		{`{"liveFit":"fill"}`, "Cover"},
+		{`{}`, "Cover"},
+	} {
+		if err := os.WriteFile(cfg, []byte(c.json), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := liveContentFit(); got != c.want {
+			t.Errorf("liveContentFit() with %s = %q, want %q", c.json, got, c.want)
+		}
+	}
+}

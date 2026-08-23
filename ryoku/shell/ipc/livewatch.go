@@ -75,7 +75,7 @@ func (d *daemon) liveGateWorker() {
 	reeval := func() {
 		want := liveShouldStop(pauseLiveWallpaperWhenFullscreen(), anyFullscreen(), d.saverActive())
 		if want && !stopped {
-			stopLive()
+			d.stopLive()
 			stopped = true
 		} else if !want && stopped {
 			d.resumeLive()
@@ -98,11 +98,13 @@ func (d *daemon) liveGateWorker() {
 }
 
 // resumeLive relaunches the saved clip when the wallpaper is a video and no
-// player is up. A still wallpaper is already on screen and needs nothing.
+// player is up. A still wallpaper is already on screen and needs nothing. No
+// reveal preset: this is a resume of the wallpaper already on screen, not a
+// switch to a new one.
 func (d *daemon) resumeLive() {
 	cur := readState()
 	if !isVideo(cur) || !isFile(cur) || liveAlive() {
 		return
 	}
-	_ = d.showLiveWallpaper(cur)
+	_ = d.showLiveWallpaper(cur, nil)
 }

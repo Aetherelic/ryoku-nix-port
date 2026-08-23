@@ -10,17 +10,22 @@ import "math/rand/v2"
 const transitionDurationMs = 2200
 
 // transitionKinds is the closed set of reveal geometries the backdrop's shader
-// understands. Recovered from the daemon's --transition-type values.
+// understands. The first seven are recovered from the daemon's --transition-type
+// values; the rest are the expressive set ported from the upstream ii transitions,
+// which warp the sample coordinates rather than sweep a mask (see reveal.frag).
 var transitionKinds = map[string]bool{
 	"fade": true, "wipe": true, "wave": true,
 	"center": true, "grow": true, "any": true, "outer": true,
+	"pixelate": true, "dissolve": true, "ripple": true, "shatter": true, "glitch": true,
+	"crt": true, "stripes": true, "melt": true, "peel": true,
 }
 
 // transitionPreset is one named wallpaper reveal. The in-shell backdrop reveals the
 // new image over the old through a GPU mask whose geometry is `kind`, whose timing
 // is the cubic-bezier `bezier`, and whose boundary is feathered by `edgeSoftness`,
-// all over the shared transitionDurationMs. The 13 presets below are recovered from
-// the wallpaper daemon and re-typed from its --transition-* flags:
+// all over the shared transitionDurationMs. The 22 presets below are 13 recovered
+// from the wallpaper daemon (re-typed from its --transition-* flags) plus 9 ports
+// of the upstream ii expressive set; the recovered flag mapping is:
 //
 //	--transition-type  -> kind        --transition-wave "<w>,<h>" -> waveAmp (h/500)
 //	--transition-angle -> angle       --transition-pos            -> pos
@@ -32,7 +37,8 @@ var transitionKinds = map[string]bool{
 type transitionPreset struct {
 	name string
 	// kind is the reveal geometry: one of fade, wipe, wave, center, grow, any,
-	// outer (see transitionKinds).
+	// outer, or an expressive kind (pixelate, dissolve, ripple, shatter, glitch,
+	// crt, stripes, melt, peel); see transitionKinds.
 	kind string
 	// angle is the sweep direction in degrees for wipe / wave (0 sweeps left to
 	// right, 90 top to bottom). Unused by the radial and fade kinds.
@@ -44,18 +50,20 @@ type transitionPreset struct {
 	// "" means the surface centre. center / any resolve their own origin, so they
 	// leave it empty.
 	pos string
-	// bezier is the cubic-bezier easing (x1,y1,x2,y2) shaping the reveal's timing,
-	// recovered verbatim. All 13 stay monotonic (y in [0,1]) so no reveal wraps.
+	// bezier is the cubic-bezier easing (x1,y1,x2,y2) shaping the reveal's timing:
+	// recovered verbatim for the daemon set, reused from that same vocabulary for the
+	// expressive ports. All 22 stay monotonic (y in [0,1]) so no reveal wraps.
 	bezier [4]float64
 	// edgeSoftness is the feathered width of the reveal boundary as a fraction of
 	// the reveal coordinate: 0 = crisp, larger = a softer band.
 	edgeSoftness float64
 }
 
-// transitionPresets is the recovered 13-preset table: one crossfade, three
-// directional sweeps (wipe / wave), five circle reveals (center / grow / any /
-// outer), and four Material 3 expressive-motion ports. The per-preset intent
-// comments are the recovered originals.
+// transitionPresets is the 22-preset table: the recovered 13 (one crossfade, three
+// directional sweeps, five circle reveals, and four Material 3 expressive-motion
+// ports) plus nine coordinate-warping ports of the upstream ii set (block, noise,
+// wave, shatter, glitch, scanline, stripe, melt, peel). The per-preset intent
+// comments are the recovered originals; the ii ports carry fresh one-line intents.
 var transitionPresets = []transitionPreset{
 	// crossfade
 	{name: "silk_fade", kind: "fade", // crossfade, easeInOutCubic
@@ -90,12 +98,36 @@ var transitionPresets = []transitionPreset{
 		bezier: [4]float64{0.31, 0.94, 0.34, 1}, edgeSoftness: (120 - 80) / 300.0},
 	{name: "starfall_bloom", kind: "grow", pos: "top", // iris blooming down from the top, M3 standard
 		bezier: [4]float64{0.2, 0, 0, 1}, edgeSoftness: (120 - 100) / 300.0},
+	// coordinate-warping ports of the upstream ii set: these distort how the two
+	// frames are sampled (mosaics, ripples, flying shards, screen melt) rather than
+	// sweep a mask, so the five that draw their own hard edge leave edgeSoftness 0,
+	// exactly as fade does.
+	{name: "mosaic_swell", kind: "pixelate", // block grid swells to a mosaic at the midpoint then resolves, easeInOutCubic
+		bezier: [4]float64{0.65, 0, 0.35, 1}},
+	{name: "ember_burn", kind: "dissolve", // noise threshold burns through behind a warm edge, easeInOutQuart
+		bezier: [4]float64{0.76, 0, 0.24, 1}, edgeSoftness: (120 - 60) / 300.0},
+	{name: "pond_wake", kind: "ripple", // a wave front wells the new image up from the centre, easeOutQuint
+		bezier: [4]float64{0.22, 1, 0.36, 1}, edgeSoftness: (120 - 85) / 300.0},
+	{name: "glass_scatter", kind: "shatter", // old frame breaks into shards that spin and fly off, emphasizedDecel
+		bezier: [4]float64{0.05, 0.7, 0.1, 1}},
+	{name: "signal_tear", kind: "glitch", // scanline tears and RGB split peak mid-switch, easeInOutCubic
+		bezier: [4]float64{0.65, 0, 0.35, 1}},
+	{name: "cathode_wink", kind: "crt", // old frame collapses to a bright line, new frame reopens, easeInOutQuint
+		bezier: [4]float64{0.83, 0, 0.17, 1}},
+	{name: "shutter_sweep", kind: "stripes", angle: 24, // angled stripes comb in from alternating sides, easeOutQuart
+		bezier: [4]float64{0.25, 1, 0.5, 1}, edgeSoftness: (120 - 90) / 300.0},
+	{name: "wax_descent", kind: "melt", // old frame melts downward in ragged columns (Doom melt), easeInOutQuint
+		bezier: [4]float64{0.83, 0, 0.17, 1}},
+	{name: "page_turn", kind: "peel", // diagonal front peels the old sheet away to the new, easeOutExpo
+		bezier: [4]float64{0.16, 1, 0.3, 1}, edgeSoftness: (120 - 100) / 300.0},
 }
 
 // pickedTransition is a preset resolved for one switch: the preset fields plus a
-// concrete origin (the pos anchor, or a fresh random point for the `any` kind) and
-// the shared duration. It is what the daemon publishes on the wallpaper topic for
-// the backdrop's reveal shader to consume; the json tags match the QML frame.
+// concrete origin (the pos anchor, or a fresh random point for the `any` kind), the
+// shared duration, and a fresh 0..1 seed the noise kinds (dissolve / shatter /
+// glitch / melt) vary their pattern on. It is what the daemon publishes on the
+// wallpaper topic for the backdrop's reveal shader to consume; the json tags match
+// the QML frame.
 type pickedTransition struct {
 	Name         string     `json:"name"`
 	Kind         string     `json:"kind"`
@@ -106,6 +138,7 @@ type pickedTransition struct {
 	Bezier       [4]float64 `json:"bezier"`
 	EdgeSoftness float64    `json:"edgeSoftness"`
 	DurationMs   int        `json:"durationMs"`
+	Seed         float64    `json:"seed"`
 }
 
 // pickTransition returns a random preset resolved for one switch, never repeating
@@ -125,7 +158,20 @@ func (d *daemon) pickTransition() *pickedTransition {
 	return resolveTransition(transitionPresets[i])
 }
 
-// resolveTransition binds a preset to a concrete origin and the shared duration.
+// transitionFor is the preset a wallpaper op reveals with: a random one for a
+// user-driven switch (set / next / random), and none for the paths that must not
+// animate -- init, which paints the saved wallpaper onto a fresh backdrop at
+// login, and live-reload, which relaunches the current clip after a settings
+// change. One rule for both backends, so a still and a clip switch alike.
+func (d *daemon) transitionFor(mode string) *pickedTransition {
+	if mode == "init" || mode == "live-reload" {
+		return nil
+	}
+	return d.pickTransition()
+}
+
+// resolveTransition binds a preset to a concrete origin, a fresh per-switch seed,
+// and the shared duration.
 func resolveTransition(p transitionPreset) *pickedTransition {
 	ox, oy := originForPreset(p)
 	return &pickedTransition{
@@ -138,6 +184,7 @@ func resolveTransition(p transitionPreset) *pickedTransition {
 		Bezier:       p.bezier,
 		EdgeSoftness: p.edgeSoftness,
 		DurationMs:   transitionDurationMs,
+		Seed:         rand.Float64(),
 	}
 }
 

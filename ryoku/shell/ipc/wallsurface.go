@@ -28,6 +28,8 @@ type wallSurface struct {
 	revision   int
 	path       string            // current cache file the surface paints ("" = none set)
 	fit        string            // content fit -> QML Image.fillMode
+	fitPin     string            // pins this frame's fit; "" follows the user's setting
+	live       bool              // the video player owns the pixels; the backdrop stands down
 	transition *pickedTransition // reveal preset for the current revision (nil = plain crossfade)
 }
 
@@ -103,6 +105,17 @@ func (w *wallSurface) show(pic string) error {
 // crossfade when tr is nil). Cache files older than the previous revision are
 // pruned once published, so the outgoing image is never removed mid-reveal.
 func (w *wallSurface) showTransition(pic string, tr *pickedTransition) error {
+	return w.showFrame(pic, tr, "")
+}
+
+// showFrame is showTransition with an explicit content fit: "" follows the user's
+// wallpaper fit, any other value pins this frame's geometry until the next frame
+// replaces it. A clip's still is pinned to the fit livewall paints the VIDEO in,
+// because the two are different knobs (shell.json wallpaper.content_fit vs the
+// ryowalls live fit): revealed under the user's image fit, the still is framed
+// differently from the video that replaces it, so the wallpaper visibly jumped
+// scale the moment the clip took over.
+func (w *wallSurface) showFrame(pic string, tr *pickedTransition, fit string) error {
 	if w == nil {
 		return nil
 	}
@@ -118,11 +131,24 @@ func (w *wallSurface) showTransition(pic string, tr *pickedTransition) error {
 	}
 	w.revision = rev
 	w.path = dst
-	w.fit = wallpaperContentFit()
+	w.fitPin = fit
+	w.fit = w.effectiveFitLocked()
+	// A fresh frame is the backdrop's to paint until a player claims it again: the
+	// reveal has to be visible, and on an image switch there is no player at all.
+	w.live = false
 	w.transition = tr
 	w.publishLocked()
 	w.prune()
 	return nil
+}
+
+// effectiveFitLocked is the pinned fit when the current frame carries one, and the
+// user's wallpaper fit otherwise. The caller holds w.mu.
+func (w *wallSurface) effectiveFitLocked() string {
+	if w.fitPin != "" {
+		return w.fitPin
+	}
+	return wallpaperContentFit()
 }
 
 // republish re-reads the content fit and republishes the current frame without
@@ -135,7 +161,27 @@ func (w *wallSurface) republish() {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.fit = wallpaperContentFit()
+	w.fit = w.effectiveFitLocked()
+	w.publishLocked()
+}
+
+// setLive marks whether the video player is painting the wallpaper right now, and
+// republishes so the backdrop hears it. The backdrop steps aside (paints nothing)
+// while it is true: the two surfaces share the background layer, where the newest
+// one draws on top, so after a shell reload the fresh backdrop would otherwise
+// cover a still-running video with the clip's frozen first frame -- the video
+// "stops playing" until the next wallpaper switch. This says who owns the pixels
+// instead of relying on which surface was created last.
+func (w *wallSurface) setLive(on bool) {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.live == on {
+		return
+	}
+	w.live = on
 	w.publishLocked()
 }
 
@@ -148,8 +194,9 @@ func (w *wallSurface) publishLocked() {
 		Path       string            `json:"path"`
 		Revision   int               `json:"revision"`
 		Fit        string            `json:"fit"`
+		Live       bool              `json:"live"`
 		Transition *pickedTransition `json:"transition,omitempty"`
-	}{w.path, w.revision, w.fit, w.transition})
+	}{w.path, w.revision, w.fit, w.live, w.transition})
 	if err != nil {
 		return
 	}

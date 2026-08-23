@@ -45,7 +45,7 @@ func TestShowLiveWallpaperHandoff(t *testing.T) {
 	if err := os.WriteFile(vid, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := (&daemon{}).showLiveWallpaper(vid); err != nil {
+	if err := (&daemon{}).showLiveWallpaper(vid, nil); err != nil {
 		t.Fatalf("showLiveWallpaper: %v", err)
 	}
 
@@ -63,6 +63,55 @@ func TestShowLiveWallpaperHandoff(t *testing.T) {
 	}
 	// The still frame under the video is painted by the shell's own backdrop
 	// surface now, so there is no external image daemon left to assert on.
+}
+
+// A user-driven switch to a clip reveals the clip's first frame with a preset, so
+// livewall must NOT paint until that reveal has finished -- otherwise the video
+// covers the backdrop a few milliseconds in and the whole transition set is
+// invisible on live wallpapers (which is exactly how they used to behave). Pins
+// the hold: nothing launched while the reveal runs, launched once it is over.
+func TestShowLiveWallpaperHoldsVideoForReveal(t *testing.T) {
+	bin := t.TempDir()
+	state := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", state)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	liveLog := filepath.Join(state, "live.args")
+
+	fake := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fake("ryoku-livewall", `printf '%s\n' "$*" > "`+liveLog+`"`)
+	fake("ffmpeg", `for a in "$@"; do o="$a"; done; : > "$o"`)
+	fake("pgrep", `exit 1`)
+	fake("pkill", `exit 0`)
+	fake("hyprctl", `printf '%s' '[{"width":1920,"scale":1}]'`)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	vid := filepath.Join(t.TempDir(), "clip.mp4")
+	if err := os.WriteFile(vid, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	const revealMs = 600
+	if err := (&daemon{}).showLiveWallpaper(vid, &pickedTransition{Name: "t", Kind: "fade", DurationMs: revealMs}); err != nil {
+		t.Fatalf("showLiveWallpaper: %v", err)
+	}
+	// Mid-reveal: the still is on screen and the video is still held back.
+	time.Sleep(revealMs / 3 * time.Millisecond)
+	if b, err := os.ReadFile(liveLog); err == nil && len(b) > 0 {
+		t.Errorf("livewall painted over the reveal after %dms: %q", revealMs/3, b)
+	}
+	// After it: the video takes over the frame the reveal landed on.
+	for range 100 {
+		if b, err := os.ReadFile(liveLog); err == nil && len(b) > 0 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Error("livewall never launched after the reveal finished")
 }
 
 // An update replaces the video backend (mpvpaper -> phonto -> ryoku-livewall)

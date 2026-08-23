@@ -66,6 +66,24 @@ Item {
             return 5;
         case "outer":
             return 6;
+        case "pixelate":
+            return 7;
+        case "dissolve":
+            return 8;
+        case "ripple":
+            return 9;
+        case "shatter":
+            return 10;
+        case "glitch":
+            return 11;
+        case "crt":
+            return 12;
+        case "stripes":
+            return 13;
+        case "melt":
+            return 14;
+        case "peel":
+            return 15;
         }
         return 0;
     }
@@ -119,6 +137,7 @@ Item {
             reveal.originX = 0.5;
             reveal.originY = 0.5;
             reveal.edgeSoftness = 0.002;
+            reveal.seed = 0;
             revealAnim.easing.type = Easing.InOutQuad;
             revealAnim.duration = Motion.reduce ? 0 : Motion.wallpaperFade;
             revealAnim.restart();
@@ -130,6 +149,9 @@ Item {
         reveal.originX = t.originX !== undefined ? t.originX : 0.5;
         reveal.originY = t.originY !== undefined ? t.originY : 0.5;
         reveal.edgeSoftness = t.edgeSoftness !== undefined ? t.edgeSoftness : 0.002;
+        // Fresh per switch so the noise kinds (dissolve/shatter/glitch/melt) never
+        // replay one pattern; fall back to a local roll if the daemon sent none.
+        reveal.seed = t.seed !== undefined ? t.seed : Math.random();
         const b = t.bezier;
         if (b && b.length === 4) {
             revealAnim.easing.type = Easing.Bezier;
@@ -193,6 +215,7 @@ Item {
         property real originX: 0.5
         property real originY: 0.5
         property real edgeSoftness: 0.002
+        property real seed: 0
         property vector2d res: Qt.vector2d(width, height)
 
         fragmentShader: "reveal.frag.qsb"

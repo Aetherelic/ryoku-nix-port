@@ -55,7 +55,7 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 	// (ryowalls changed the fit). Video only; no state write and no retheme.
 	if mode == "live-reload" {
 		if cur := readState(); isVideo(cur) && isFile(cur) {
-			return d.showLiveWallpaper(cur)
+			return d.showLiveWallpaper(cur, nil)
 		}
 		return nil
 	}
@@ -65,7 +65,7 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 	if mode == "init" {
 		if cur := readState(); isVideo(cur) && isFile(cur) {
 			if !liveAlive() {
-				return d.showLiveWallpaper(cur)
+				return d.showLiveWallpaper(cur, nil)
 			}
 			return nil
 		}
@@ -101,10 +101,13 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 		return nil
 	}
 
-	// backend by file type. a video plays through ryoku-livewall on its own
-	// background surface; an image is painted by the in-shell backdrop.
+	// Backend by file type. A video plays through ryoku-livewall on its own
+	// background surface; an image is painted by the in-shell backdrop. A
+	// user-driven switch reveals either kind with a random preset -- for a clip the
+	// reveal runs on its own first frame, which the backdrop holds anyway, and the
+	// video is held back until the reveal lands on it.
 	if isVideo(pic) {
-		if err := d.showLiveWallpaper(pic); err != nil {
+		if err := d.showLiveWallpaper(pic, d.transitionFor(mode)); err != nil {
 			return err
 		}
 		_ = os.MkdirAll(stateDir(), 0o755)
@@ -117,14 +120,8 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 	// the cache and bump the revision. A user-driven switch (set / next / random)
 	// reveals with a random transition preset; init just crossfades onto the fresh
 	// backdrop, so a login never fires a full reveal.
-	stopLive()
-	var err error
-	if mode == "init" {
-		err = d.wall.show(pic)
-	} else {
-		err = d.wall.showTransition(pic, d.pickTransition())
-	}
-	if err != nil {
+	d.stopLive()
+	if err := d.wall.showTransition(pic, d.transitionFor(mode)); err != nil {
 		return err
 	}
 	_ = os.MkdirAll(stateDir(), 0o755)
@@ -206,10 +203,30 @@ func liveFit() string {
 	return "fill"
 }
 
+// liveContentFit is liveFit() in the backdrop's vocabulary: the fillMode the clip's
+// still must be painted in so the reveal is framed exactly like the video that
+// replaces it. livewall's "fit" letterboxes the whole clip (Contain); its default
+// covers the screen (Cover).
+func liveContentFit() string {
+	if liveFit() == "fit" {
+		return "Contain"
+	}
+	return "Cover"
+}
+
 // liveGen serializes the async transcode+launch: every live-set or stop bumps it,
 // and a transcode goroutine launches livewall only if its generation is still
 // current, so a clip the user already switched away from never paints.
 var liveGen atomic.Int64
+
+// liveRevealUntil is the unix-milli instant the in-flight wallpaper reveal ends.
+// The video must not paint before it, whoever starts the player: a reveal onto a
+// clip's first frame is invisible the moment livewall's surface covers the
+// backdrop, and the fullscreen gate's resume can fire mid-reveal (a window event
+// arrives, the clip is already the saved wallpaper) with no preset of its own.
+// Holding it here rather than in the caller's goroutine keeps that one rule for
+// every launch path.
+var liveRevealUntil atomic.Int64
 
 func isVideo(p string) bool {
 	switch strings.ToLower(filepath.Ext(p)) {
@@ -266,10 +283,11 @@ func killLive() {
 
 // stopLive stops the video and cancels any in-flight transcode (the generation
 // bump), so switching to an image never lets a late transcode relaunch livewall
-// over the new wallpaper.
-func stopLive() {
+// over the new wallpaper. The backdrop takes the pixels back.
+func (d *daemon) stopLive() {
 	liveGen.Add(1)
 	killLive()
+	d.wall.setLive(false)
 }
 
 // showLiveWallpaper: show a clip through the in-shell backdrop's still frame plus
@@ -279,11 +297,27 @@ func stopLive() {
 // a stale image or black; and a later switch to an image crossfades from that real
 // frame. It is also the whole wallpaper when livewall is not installed (the still
 // alone).
-func (d *daemon) showLiveWallpaper(pic string) error {
+//
+// tr is the reveal preset for a user-driven switch, or nil for init / live-reload.
+// A clip used to arrive as a hard cut: the still was published with no preset and
+// livewall's surface covered the backdrop immediately, so the whole transition set
+// applied to images only. With a preset the backdrop reveals the clip's FIRST
+// FRAME like any image, and the video launch waits out the reveal -- the frame the
+// video starts on is the frame the reveal landed on, so the handoff is invisible
+// and a live wall switches with the same motion as a still one.
+func (d *daemon) showLiveWallpaper(pic string, tr *pickedTransition) error {
 	gen := liveGen.Add(1)
 	killLive() // stop the old video now; the backdrop's frame shows under until the new paints
+	// The reveal starts now, so publish the instant it ends: the video holds off
+	// until then, whichever path launches it. A deadline rather than a sleep after
+	// the transcode, because a clip encoding for the first time already outlasts
+	// the reveal and waiting again would delay the video for nothing.
+	if tr != nil && tr.DurationMs > 0 {
+		// A frame of grace, so the still never flashes after the mask completes.
+		liveRevealUntil.Store(time.Now().Add(time.Duration(tr.DurationMs-40) * time.Millisecond).UnixMilli())
+	}
 	if frame := liveFrame(pic); frame != "" {
-		_ = d.wall.show(frame)
+		_ = d.wall.showFrame(frame, tr, liveContentFit())
 	}
 	if _, err := exec.LookPath(liveDaemon); err != nil {
 		// Degrade gracefully to the clip's still, but say so: a missing binary
@@ -301,11 +335,31 @@ func (d *daemon) showLiveWallpaper(pic string) error {
 		if src == "" || liveGen.Load() != gen {
 			return
 		}
+		// A cached clip would otherwise paint over the reveal a few milliseconds
+		// in, which is how live walls used to swap with no transition at all.
+		if wait := time.Until(time.UnixMilli(liveRevealUntil.Load())); wait > 0 {
+			time.Sleep(wait)
+			if liveGen.Load() != gen {
+				return
+			}
+		}
 		cmd := exec.Command(liveDaemon, src, capW, liveFit())
 		if cmd.Start() != nil {
 			return
 		}
-		go func() { _ = cmd.Wait() }()
+		// The player owns the pixels from here: the backdrop stands down, so the
+		// clip keeps playing even if the shell reloads and its fresh background
+		// surface would otherwise stack on top of the video.
+		d.wall.setLive(true)
+		go func() {
+			_ = cmd.Wait()
+			// The player is gone (killed by a switch, or it crashed): whoever
+			// takes over next republishes, but until then the backdrop must paint
+			// the still again rather than leave the desktop empty.
+			if liveGen.Load() == gen {
+				d.wall.setLive(false)
+			}
+		}()
 	}()
 	return nil
 }

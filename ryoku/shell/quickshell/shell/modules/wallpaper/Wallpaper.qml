@@ -37,6 +37,13 @@ Item {
     // The reveal preset for the current revision (null = plain crossfade), streamed
     // on the same wallpaper topic frame and handed to the backdrop's reveal shader.
     property var transition: null
+    // True while the video player (ryoku-livewall) is painting the wallpaper. Both
+    // it and this surface live on the background layer, where the newest surface
+    // draws on top, so a shell reload used to leave this one covering a running
+    // video with the clip's frozen first frame -- the live wall "stopped playing"
+    // until the next switch. The daemon says who owns the pixels; while the player
+    // does, this surface paints nothing at all and the clip shows through.
+    property bool live: false
 
     readonly property string sockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
 
@@ -44,6 +51,7 @@ Item {
         try {
             const f = JSON.parse(line);
             root.fit = f.fit || "Cover";
+            root.live = f.live === true;
             root.transition = f.transition || null; // set before url so onUrlChanged sees the matching preset
             root.wallpaperUrl = (f.path && f.path.length > 0) ? "file://" + f.path + "?v=" + (f.revision || 0) : "";
         } catch (e) {
@@ -84,7 +92,7 @@ Item {
         id: win
 
         screen: root.screen
-        color: Theme.paper
+        color: root.live ? "transparent" : Theme.paper
         exclusiveZone: -1
         WlrLayershell.namespace: "ryoku-wallpaper"
         WlrLayershell.layer: WlrLayer.Background
@@ -101,6 +109,7 @@ Item {
 
         Backdrop {
             anchors.fill: parent
+            visible: !root.live
             url: root.wallpaperUrl
             fit: root.fit
             transition: root.transition

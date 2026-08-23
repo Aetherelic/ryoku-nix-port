@@ -560,15 +560,13 @@ func matugenPreview(img string) error {
 		"colors": matugenColorsJSON(pal),
 		"tones":  tones,
 	}
-	if grid, ok := wallToneGrid(img); ok {
-		var sum float64
-		for _, v := range grid {
-			sum += v
+	// Merge the wallpaper tone map (grid, detail, cols, rows, lstar) through the
+	// one builder the on-disk map uses, so the preview and the published file
+	// never disagree on a cell.
+	if m, ok := wallToneMap(img); ok {
+		for k, v := range m {
+			out[k] = v
 		}
-		out["grid"] = grid
-		out["cols"] = wallToneCols
-		out["rows"] = wallToneRows
-		out["lstar"] = round2(sum / float64(len(grid)))
 	}
 	return json.NewEncoder(os.Stdout).Encode(out)
 }
