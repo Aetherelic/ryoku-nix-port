@@ -644,6 +644,28 @@ Item {
             onToggled: Recorder.discordMode = !Recorder.discordMode
         }
 
+        // INSTANT REPLAY: arm a background buffer, save the last seconds on demand
+        // (also on a keybind). Armed state and Save live here -- never the record HUD.
+        Rule { width: parent.width }
+        InlineToggle {
+            width: parent.width
+            glyph: "film"
+            label: qsTr("Instant replay")
+            on: Recorder.replayArmed
+            onToggled: Recorder.replayArmed ? Recorder.stopReplay() : Recorder.startReplay()
+        }
+        Row {
+            width: parent.width
+            visible: Recorder.replayArmed
+            ModeTile {
+                w: root.innerW
+                glyph: "download"
+                label: qsTr("Save clip")
+                accent: true
+                onTapped: Recorder.saveReplay()
+            }
+        }
+
         // RECENT - screenshots and recordings in separate labelled groups; a click
         // on any tile opens that group's folder.
         Rule { width: parent.width; visible: root.recentShots.length > 0 || root.recentClips.length > 0 }

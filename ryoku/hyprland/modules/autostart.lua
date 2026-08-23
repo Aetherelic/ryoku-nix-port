@@ -42,6 +42,9 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("command -v ryoku-gpu >/dev/null 2>&1 && ryoku-gpu persist")
     hl.exec_cmd("command -v ryoku-idle >/dev/null 2>&1 && ryoku-idle start")
     hl.exec_cmd("command -v ryoku-clamshell >/dev/null 2>&1 && ryoku-clamshell daemon")
+    -- Instant replay: arm the always-on capture buffer when the user enabled it on
+    -- the Recording page (a no-op otherwise, and where gsr cannot capture).
+    hl.exec_cmd("command -v ryoku-cmd-screenrecord >/dev/null 2>&1 && ryoku-cmd-screenrecord --replay-autostart")
     -- Power knobs the kernel forgets across a reboot: the battery charge ceiling
     -- and the PCIe link policy are plain sysfs values, so a stored choice has to
     -- be pushed back at login or it silently lapses. A no-op with no

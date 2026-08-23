@@ -8,6 +8,8 @@ Usage:
   ryoku-cmd-screenrecord [--fullscreen|--region] [--with-desktop-audio] [--with-microphone-audio]
   ryoku-cmd-screenrecord -r|-s|-sr
   ryoku-cmd-screenrecord --stop|--pause|--status
+  ryoku-cmd-screenrecord --replay-start [--seconds N] [--storage ram|disk]
+  ryoku-cmd-screenrecord --replay-save|--replay-stop|--replay-status
 
 Starts, stops, or pauses Ryoku's shell recorder.
 
@@ -63,6 +65,26 @@ require_command() {
 gsr_pattern='(^|/)gpu-screen-recorder( |$)'
 wf_pattern='(^|/)wf-recorder( |$)'
 
+# Ryoku's own replay-buffer pid (see the replay section below): the source of
+# truth for "armed", and what save/stop signal, so they never hit a buffer the
+# user started themselves.
+replay_pid_file() { printf '%s/replay.pid' "${RYOKU_STATE_PATH:-$HOME/.local/state/ryoku}"; }
+
+# pids of gpu-screen-recorder processes that are NOT replay buffers. A replay
+# buffer carries gsr's `-r <sec>` flag; a recording never does. Recording
+# detection, stop and pause act only on these, so a replay buffer is never
+# mistaken for a recording (the bug where a background buffer stranded the
+# shell's record toolbar) nor caught by a recording stop.
+recording_gsr_pids() {
+  command -v pgrep >/dev/null 2>&1 || return 0
+  local p cl
+  for p in $(pgrep -f "$gsr_pattern" 2>/dev/null || true); do
+    cl=" $(tr '\0' ' ' <"/proc/$p/cmdline" 2>/dev/null || true) "
+    case "$cl" in *" -r "*) continue ;; esac
+    printf '%s\n' "$p"
+  done
+}
+
 proc_running() {
   local pattern="$1"
 
@@ -82,39 +104,19 @@ proc_running() {
 }
 
 recorder_running() {
-  proc_running "$gsr_pattern" || proc_running "$wf_pattern"
+  [[ -n "$(recording_gsr_pids)" ]] || proc_running "$wf_pattern"
 }
 
-# A live (video) wallpaper renders through ryoku-livewall on its own background
-# layer that gsr's KMS capture drops; the portal path captures the composite.
+# A live (video) wallpaper renders through ryoku-livewall on a background layer
+# that is not on the KMS scanout gsr captures, so a gsr recording drops it;
+# wf-recorder grabs the composited output (livewall included) instead.
 live_wallpaper_active() {
   command -v pgrep >/dev/null 2>&1 && pgrep -x ryoku-livewall >/dev/null 2>&1
 }
 
-# Portal capture works on most boxes but fails on some hybrid-GPU ones where xdph
-# cannot negotiate a DMA-BUF format (no pipewire node). Remember the outcome per
-# GPU topology, so a broken box skips the picker and a changed one is retried.
-portal_status_file() { printf '%s/screenrecord-portal' "${RYOKU_STATE_PATH:-$HOME/.local/state/ryoku}"; }
-portal_status() {
-  local f sig cs st
-  f="$(portal_status_file)"
-  sig="$(gpu_topology_signature)"
-  [[ -n $sig && -r $f ]] || return 0
-  IFS=$'\t' read -r cs st <"$f" 2>/dev/null || true
-  [[ $cs == "$sig" ]] && printf '%s' "$st"
-}
-set_portal_status() {
-  local f sig
-  f="$(portal_status_file)"
-  sig="$(gpu_topology_signature)"
-  [[ -n $sig ]] || return 0
-  mkdir -p "$(dirname "$f")" 2>/dev/null || true
-  printf '%s\t%s\n' "$sig" "$1" >"$f" 2>/dev/null || true
-}
-
 # which backend owns the live recording right now, if any.
 running_backend() {
-  if proc_running "$gsr_pattern"; then
+  if [[ -n "$(recording_gsr_pids)" ]]; then
     printf 'gsr'
   elif proc_running "$wf_pattern"; then
     printf 'wf'
@@ -373,13 +375,17 @@ wf_vaapi_node() {
 }
 
 stop_recording() {
-  if ! recorder_running; then
+  local pids
+  pids="$(recording_gsr_pids)"
+  if [[ -z $pids ]] && ! proc_running "$wf_pattern"; then
     notify -u normal "Screen recording" "No active recording found"
     return 0
   fi
 
-  signal_recorder -INT "$gsr_pattern"
-  signal_recorder -INT "$wf_pattern"
+  # scope the stop to recording processes: a replay buffer (ours or the user's)
+  # must survive a recording stop.
+  [[ -n $pids ]] && kill -INT $pids >/dev/null 2>&1 || true
+  proc_running "$wf_pattern" && signal_recorder -INT "$wf_pattern" || true
   notify -u normal "Screen recording stopped" "Saving recording to Videos/Recordings"
 
   # gsr's KMS capture leaves the screen washed out until a reconfigure (#11284)
@@ -390,20 +396,15 @@ stop_recording() {
 }
 
 pause_recording() {
-  local backend
-  backend="$(running_backend)"
-
-  case "$backend" in
-  gsr)
-    signal_recorder -USR2 "$gsr_pattern"
-    ;;
-  wf)
+  local pids
+  pids="$(recording_gsr_pids)"
+  if [[ -n $pids ]]; then
+    kill -USR2 $pids >/dev/null 2>&1 || true
+  elif proc_running "$wf_pattern"; then
     notify -u normal "Screen recording" "Pause isn't available while recording with wf-recorder"
-    ;;
-  *)
+  else
     notify -u normal "Screen recording" "No active recording found"
-    ;;
-  esac
+  fi
 }
 
 status_recording() {
@@ -412,6 +413,85 @@ status_recording() {
   else
     echo "idle"
   fi
+}
+
+# --- instant replay (gpu-screen-recorder circular buffer) --------------------
+# A replay buffer runs gsr with `-r <sec>` and saves the last N seconds on
+# SIGUSR1 (stop is SIGINT, pause is SIGUSR2 above, so USR1 is free). Ryoku tracks
+# its own buffer's pid so save/stop scope to it and never touch a buffer the user
+# started themselves. Replay is gsr-only -- wf-recorder has no buffer.
+start_replay() {
+  local pid_file recorder_cmd secs storage dir fps fmode quality codec encoder cursor pid
+  pid_file="$(replay_pid_file)"
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+  if [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null; then
+    notify -u normal "Instant replay" "Replay is already armed"
+    return 0
+  fi
+  recorder_cmd="${RYOKU_SCREENRECORD_RECORDER:-gpu-screen-recorder}"
+  require_command "$recorder_cmd" gpu-screen-recorder
+  if [[ "$(select_backend)" != gsr ]]; then
+    notify -u critical "Instant replay" "Not available on this GPU setup"
+    echo "ryoku-cmd-screenrecord: gpu-screen-recorder cannot capture; replay unavailable" >&2
+    exit 1
+  fi
+  secs="${replay_seconds_override:-$(cfg_get '.replaySeconds' 60)}"
+  storage="${replay_storage_override:-$(cfg_get '.replayStorage' ram)}"
+  [[ $secs =~ ^[0-9]+$ ]] || secs=60
+  [[ $storage == ram || $storage == disk ]] || storage=ram
+  fps="${RYOKU_SCREENRECORD_FPS:-$(cfg_get '.fps' 60)}"
+  fmode="${RYOKU_SCREENRECORD_FRAMERATE_MODE:-$(cfg_get '.framerateMode' cfr)}"
+  quality="${RYOKU_SCREENRECORD_QUALITY:-$(cfg_get '.quality' very_high)}"
+  codec="${RYOKU_SCREENRECORD_CODEC:-$(cfg_get '.codec' h264)}"
+  encoder="${RYOKU_SCREENRECORD_ENCODER:-$(cfg_get '.encoder' gpu)}"
+  cursor="$(cfg_bool '.cursor' true)"
+  dir="$(recordings_dir)/Replays"
+  mkdir -p "$dir" 2>/dev/null || true
+  mkdir -p "$(dirname "$pid_file")" 2>/dev/null || true
+  # detached + nohup so the buffer outlives this invocation; one continuous
+  # buffer (no restart on save) is what an instant-replay user wants.
+  nohup "$recorder_cmd" -w screen -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" \
+    -encoder "$encoder" -cursor "$cursor" -r "$secs" -replay-storage "$storage" \
+    -restart-replay-on-save no -c mp4 -ro "$dir" >/dev/null 2>&1 &
+  pid=$!
+  printf '%s\n' "$pid" >"$pid_file"
+  notify -u normal "Instant replay armed" "Buffering the last ${secs}s"
+}
+
+save_replay() {
+  local pid_file pid secs
+  pid_file="$(replay_pid_file)"
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+  if [[ -z $pid ]] || ! kill -0 "$pid" 2>/dev/null; then
+    notify -u normal "Instant replay" "Replay is not armed"
+    return 0
+  fi
+  kill -USR1 "$pid" 2>/dev/null || true
+  secs="$(cfg_get '.replaySeconds' 60)"
+  notify -u normal "Replay saved" "Last ${secs}s to Recordings/Replays"
+}
+
+stop_replay() {
+  local pid_file pid
+  pid_file="$(replay_pid_file)"
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+  if [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null; then
+    kill -INT "$pid" 2>/dev/null || true
+  fi
+  rm -f "$pid_file" 2>/dev/null || true
+  notify -u normal "Instant replay" "Replay disarmed"
+}
+
+replay_status() {
+  local pid_file pid
+  pid_file="$(replay_pid_file)"
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+  if [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null; then echo armed; else echo idle; fi
+}
+
+replay_autostart() {
+  [[ "$(cfg_bool '.replayAutostart' false)" == yes ]] || return 0
+  start_replay
 }
 
 # vendor id of the GPU driving the focused output, for the encoder label.
@@ -462,8 +542,6 @@ start_gsr() {
   local fps fmode quality codec encoder cursor
   local capture="screen"
   local region_geom=""
-  local portal_token="${RYOKU_STATE_PATH:-$HOME/.local/state/ryoku}/screenrecord-portal-token"
-  local use_portal="no"
   local audio_source=""
   local output_dir
   local output_path
@@ -482,13 +560,6 @@ start_gsr() {
     region_geom="$(region_geometry_gsr)"
     [[ -n $region_geom ]] || exit 0
     capture="region"
-  fi
-
-  # Fullscreen over a live wallpaper: capture through the portal so the
-  # ryoku-livewall layer is composited in. Region stays on KMS (it crops to
-  # content, and -region only works with -w region).
-  if [[ $mode != "region" ]] && live_wallpaper_active; then
-    use_portal="yes"
   fi
 
   if [[ $desktop_audio == "true" && $microphone_audio == "true" ]]; then
@@ -510,40 +581,6 @@ start_gsr() {
   # -fm cfr: a steady framerate every player and editor reads correctly (vfr
   # often imports as ~30fps and looks choppy). -q/-k/-encoder come from the
   # Hub's Recording page (recording.json); env vars override.
-  if [[ $use_portal == "yes" ]]; then
-    # Ryoku's in-frame picker selects the source once; the restore token
-    # remembers it, so later captures start without a prompt.
-    args=("$recorder_cmd" -w portal -restore-portal-session yes -portal-session-token-filepath "$portal_token" -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -c mp4 -cursor "$cursor")
-    [[ -n $audio_source ]] && args+=(-a "$audio_source")
-    args+=(-o "$output_path")
-    # Confirm the portal screencast is actually capturing, not merely alive: on
-    # some hybrid-GPU boxes gsr survives a failing xdph DMA-BUF negotiation while
-    # writing nothing, so a liveness check alone falsely commits and never falls
-    # back. Require the output file to grow; else mark the box bad and use
-    # wf-recorder (captures the composite, live wallpaper included, via wlr-screencopy).
-    "${args[@]}" &
-    local gsr_pid=$!
-    local s1 s2 capturing=no
-    sleep 1.5
-    s1="$(stat -c%s "$output_path" 2>/dev/null || echo 0)"
-    sleep 1.5
-    s2="$(stat -c%s "$output_path" 2>/dev/null || echo 0)"
-    if kill -0 "$gsr_pid" 2>/dev/null && proc_running "$gsr_pattern" \
-      && [[ ${s2:-0} -gt ${s1:-0} && ${s2:-0} -gt 0 ]]; then
-      capturing=yes
-    fi
-    if [[ $capturing == yes ]]; then
-      set_portal_status ok
-      wait "$gsr_pid"
-      exit $?
-    fi
-    kill "$gsr_pid" 2>/dev/null || true
-    wait "$gsr_pid" 2>/dev/null || true
-    set_portal_status bad
-    rm -f "$output_path" 2>/dev/null || true
-    start_wf "$mode" "$desktop_audio" "$microphone_audio"
-    exit $?
-  fi
 
   args=("$recorder_cmd" -w "$capture" -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -c mp4 -cursor "$cursor")
   [[ $capture == "region" ]] && args+=(-region "$region_geom")
@@ -646,15 +683,12 @@ start_recording() {
     return 0
   fi
 
-  # A live wallpaper needs the portal path (start_gsr composites the livewall
-  # layer through it); once we learn the portal is broken on this box, skip its
-  # dead-end picker and record with the wf-recorder fallback directly.
+  # A live wallpaper's video plane is not on the KMS scanout gsr captures, so a
+  # gsr recording would drop it. wf-recorder grabs the composited output
+  # (wlr-screencopy) with the livewall included and needs no portal picker, so a
+  # live wallpaper always records through wf.
   if [[ $mode != "region" ]] && live_wallpaper_active; then
-    if [[ "$(portal_status)" == "bad" ]]; then
-      backend="wf"
-    else
-      backend="gsr"
-    fi
+    backend="wf"
   else
     backend="$(select_backend)"
   fi
@@ -673,6 +707,8 @@ mode="fullscreen"
 desktop_audio=false
 microphone_audio=false
 region_geom_override=""
+replay_seconds_override=""
+replay_storage_override=""
 
 while (($# > 0)); do
   case "$1" in
@@ -701,6 +737,29 @@ while (($# > 0)); do
   --with-microphone-audio)
     microphone_audio=true
     action="start"
+    ;;
+  --replay-start)
+    action="replay-start"
+    ;;
+  --replay-save)
+    action="replay-save"
+    ;;
+  --replay-stop)
+    action="replay-stop"
+    ;;
+  --replay-status)
+    action="replay-status"
+    ;;
+  --replay-autostart)
+    action="replay-autostart"
+    ;;
+  --seconds)
+    shift
+    replay_seconds_override="${1:-}"
+    ;;
+  --storage)
+    shift
+    replay_storage_override="${1:-}"
     ;;
   --stop|stop)
     action="stop"
@@ -754,5 +813,20 @@ status)
   ;;
 info)
   info_recording
+  ;;
+replay-start)
+  start_replay
+  ;;
+replay-save)
+  save_replay
+  ;;
+replay-stop)
+  stop_replay
+  ;;
+replay-status)
+  replay_status
+  ;;
+replay-autostart)
+  replay_autostart
   ;;
 esac

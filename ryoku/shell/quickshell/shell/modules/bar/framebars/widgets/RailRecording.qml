@@ -3,16 +3,20 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import shell.services
 
-// Recording indicator: self-hides unless a screen recording is active, drawn in
-// the error colour role (a red glyph). Left click stops the
-// recording. Contract 04 sec 3.2 (recording_indicator).
+// Recording / instant-replay indicator: self-hides unless a recording is live or
+// a replay buffer is armed. A recording draws in the error colour (red record
+// glyph); a click stops it. An armed replay draws the accent (a film glyph); a
+// click saves the last seconds. The replay buffer never raises the record HUD --
+// this small rail cue is its only persistent presence. Contract 04 sec 3.2.
 Item {
     id: root
 
     required property string edge
     required property real scale
 
-    readonly property bool selfShown: Recorder.active
+    readonly property bool recording: Recorder.active
+    readonly property bool replay: Recorder.replayArmed && !Recorder.active
+    readonly property bool selfShown: root.recording || root.replay
     visible: selfShown
     implicitWidth: selfShown ? btn.implicitWidth : 0
     implicitHeight: selfShown ? btn.implicitHeight : 0
@@ -22,8 +26,8 @@ Item {
         anchors.centerIn: parent
         edge: root.edge
         scale: root.scale
-        icon: "record"
-        iconColor: Theme.error
-        onClicked: Recorder.stop()
+        icon: root.recording ? "record" : "film"
+        iconColor: root.recording ? Theme.error : Theme.vermLit
+        onClicked: root.recording ? Recorder.stop() : Recorder.saveReplay()
     }
 }

@@ -57,6 +57,7 @@ hl.bind(K(mod .. " + grave"),     hl.dsp.exec_cmd("ryoku-shell voice"))         
 hl.bind(K(mod .. " + comma"),     hl.dsp.exec_cmd("ryoku-shell hub open"))     -- ryoku settings
 hl.bind(K(mod .. " + S"),         hl.dsp.global("ryoku:stash"))         -- Feature sidebar: screen time + downloads (Super+S)
 hl.bind(K(mod .. " + SHIFT + S"), hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))  -- ryoshot: beautify and annotate
+hl.bind(K(mod .. " + ALT + R"),   hl.dsp.exec_cmd("ryoku-cmd-screenrecord --replay-save")) -- instant replay: save the last seconds
 hl.bind(K(mod .. " + SHIFT + C"), hl.dsp.exec_cmd("hyprpicker -a"))                 -- pick a color
 
 -- Move/resize with the mouse
