@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **Device lighting is re-applied on resume from suspend.** Theme colours only
+  reached the RGB devices on a palette change and at login, so after waking from
+  suspend an OpenRGB motherboard/RAM/mouse (which reset on power loss) sat on its
+  firmware default and the keyboard could hold a stale colour. hypridle's
+  `after_sleep_cmd` now also runs `ryoku-hub lighting apply` (backgrounded, so it
+  never delays the screen coming back).
 - **Video decode no longer freezes on hybrid laptops.** The session forced the
   nvidia VA-API/GLX drivers whenever the nvidia driver merely existed, so on a
   hybrid where the Intel or AMD iGPU drives the panel, video froze. It now takes
