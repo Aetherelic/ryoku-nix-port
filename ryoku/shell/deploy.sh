@@ -124,6 +124,17 @@ if command -v hyprctl >/dev/null 2>&1; then
   if hyprctl version >/dev/null 2>&1; then hypr_live=1; fi
 fi
 
+# Building the desktop from a checkout needs the Go toolchain (cmake/ninja and
+# makepkg below self-gate; go is the one hard requirement). A packaged box that
+# was switched to a checkout channel without it would otherwise die here with a
+# bare "go: command not found"; name the problem and the fix.
+if ! command -v go >/dev/null 2>&1; then
+  printf '  the Go toolchain is required to build the desktop from a checkout, but go is not installed.\n' >&2
+  printf '    install it:  sudo pacman -S --needed go\n' >&2
+  printf '    (a packaged install updates through pacman and does not build from source; check ryoku status.)\n' >&2
+  exit 1
+fi
+
 # Build the daemon/client and put it on PATH.
 say "building ryoku-shell"
 (cd "$here/ipc" && go build -o ryoku-shell .)

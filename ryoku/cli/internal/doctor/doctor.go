@@ -898,20 +898,44 @@ func baseSource(s string) string {
 
 // ---- reconciler: ryoku package channel + keyring -----------------------------
 
-func reconcileRyokuChannel(_ bool) recResult {
+// ryokuRepoStanza is the [ryoku] block the installer appends to pacman.conf
+// (installation/backend/lib/deploy.sh ryoku_repo_pacman_conf). doctor re-adds
+// this exact block when a pacnew merge or a hand-edit drops it, so a package box
+// does not silently fall off the update channel.
+const ryokuRepoStanza = "\n[ryoku]\nSigLevel = Required\nServer = https://repo.ryoku.dev/stable/$arch\n"
+
+func reconcileRyokuChannel(checkOnly bool) recResult {
 	if !sys.PkgInstalled("ryoku-desktop") {
 		return okRes("not a packaged install (desktop runs from a checkout)")
 	}
-	conf, _ := os.ReadFile("/etc/pacman.conf")
-	if !strings.Contains(string(conf), "[ryoku]") {
-		return warnRes("ryoku-desktop is installed but the [ryoku] repo is not in pacman.conf; updates will not arrive").
-			withFix("add the [ryoku] repo (see docs/development.md)")
+	conf, err := os.ReadFile("/etc/pacman.conf")
+	if err != nil {
+		return warnRes("could not read /etc/pacman.conf: %v", err)
 	}
 	if !sys.PkgInstalled("ryoku-keyring") {
-		return warnRes("the [ryoku] repo is configured but ryoku-keyring is missing; signatures will fail").
-			withFix("sudo pacman -S ryoku-keyring")
+		// without the trusted key a Required repo fails every fetch, and the key
+		// only comes from the package, so adding the stanza alone would not help.
+		return warnRes("ryoku-keyring is missing, so the [ryoku] repo cannot be trusted; updates will fail signature checks").
+			withFix("sudo pacman -S ryoku-keyring, then run ryoku doctor")
 	}
-	return okRes("ryoku package channel configured")
+	if strings.Contains(string(conf), "[ryoku]") {
+		return okRes("ryoku package channel configured")
+	}
+	// the keyring is here but the repo stanza is gone (a pacnew merge or a
+	// hand-edit dropped it): re-add it so `ryoku update` reaches the package
+	// channel again, instead of stranding the box with no way to get updates.
+	if checkOnly {
+		return wouldRes("ryoku-desktop is installed but the [ryoku] repo is not in pacman.conf; updates will not arrive").
+			withFix("ryoku doctor")
+	}
+	if err := writeRootFile("/etc/pacman.conf", string(conf)+ryokuRepoStanza, "0644"); err != nil {
+		return warnRes("the [ryoku] repo is missing from pacman.conf and could not be re-added: %v", err).
+			withFix("add the [ryoku] repo by hand (see docs/development.md)")
+	}
+	// a reset trustdb would still fail Required even with the keyring installed;
+	// re-populating is idempotent and cheap.
+	_ = sys.Sudo("pacman-key", "--populate", "ryoku")
+	return fixedRes("re-added the [ryoku] repo to pacman.conf so updates arrive again")
 }
 
 // ---- reconciler: Material Symbols icon font ------------------------------------

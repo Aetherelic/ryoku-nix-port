@@ -13,6 +13,11 @@
   multipliers) and omarchy (a shell-wide size scale).
 
 ### Fixed
+- **A checkout deploy fails with a clear message when the Go toolchain is
+  missing.** `deploy.sh` builds the Go programs from source, so a packaged box
+  switched to a checkout update channel without `go` died mid-build with a bare
+  "go: command not found". It now checks for the toolchain up front and says how
+  to fix it (install go, or that a packaged install updates through pacman).
 - **The bar's system monitor reads GPU load and temperature on AMD and Intel
   GPUs.** `StatsFeed`'s GPU telemetry came only from `nvidia-smi`, so a non-NVIDIA
   GPU reported nothing. It now falls back to the amdgpu sysfs nodes (utilisation,

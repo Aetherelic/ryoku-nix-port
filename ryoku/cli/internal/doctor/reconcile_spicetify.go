@@ -52,7 +52,22 @@ func reconcileSpicetifyCanvas(checkOnly bool) recResult {
 	// reporting a green tick over an unpatched client: exactly the state a user
 	// then reports as "spicetify is broken".
 	if !needCli {
+		// Aim spicetify at the per-user spotify-launcher tree (writable) before
+		// judging writability: spicetify auto-detects a root-owned flatpak or /opt
+		// client but not the launcher path, so without this it flags the
+		// unpatchable client even when Ryoku's writable one is right there. Mutates
+		// only in apply mode; the check pass reads the current target.
+		if !checkOnly {
+			spicetifyPointAtLauncher()
+		}
 		if path, ok := spicetifyClientWritable(); !ok {
+			// spotify-launcher is the writable client Ryoku ships. Installed but
+			// not launched yet -> its tree is not unpacked, so the Canvas wires up
+			// after first launch; defer rather than warn about (and tell the user
+			// to install) a client that is already there.
+			if spotifyLauncherUnlaunched() {
+				return okRes("Spotify (spotify-launcher) is not launched yet; the Canvas wires up after its first launch (the %s client cannot be patched)", path)
+			}
 			return warnRes("the Spotify client at %s is not writable, so spicetify cannot patch it", path).
 				withFix("install the shipped client instead (`sudo pacman -S --needed spotify-launcher`), which unpacks a per-user tree spicetify can patch without root; a native /opt client needs `sudo chmod a+wr -R /opt/spotify /opt/spotify/Apps`")
 		}
@@ -223,6 +238,14 @@ var spotifyLauncherPending = func() bool {
 		return false
 	}
 	return !sys.Exists(spotifyLauncherDir())
+}
+
+// spotifyLauncherUnlaunched: the shipped spotify-launcher is installed but its
+// per-user client tree is not unpacked yet, regardless of any other client. When
+// the only patchable client is a root-owned flatpak/native one, the Canvas setup
+// defers to the launcher instead of misreporting a client that is already there.
+var spotifyLauncherUnlaunched = func() bool {
+	return sys.PkgInstalled("spotify-launcher") && !sys.Exists(spotifyLauncherDir())
 }
 
 // spicetifyPointAtLauncher aims spicetify at a spotify-launcher install, which

@@ -11,16 +11,17 @@ import (
 func stubSpicetifyTarget(t *testing.T, path string, writable bool) {
 	t.Helper()
 	ow, oi, oc, op := spicetifyClientWritable, spotifyInstalled, spicetifyCanvasSource, spotifyLauncherPending
-	occ, oe := spicetifyCliPresent, spicetifyExtensionEnabled
+	occ, oe, oul := spicetifyCliPresent, spicetifyExtensionEnabled, spotifyLauncherUnlaunched
 	t.Cleanup(func() {
 		spicetifyClientWritable, spotifyInstalled, spicetifyCanvasSource = ow, oi, oc
 		spotifyLauncherPending, spicetifyCliPresent = op, occ
-		spicetifyExtensionEnabled = oe
+		spicetifyExtensionEnabled, spotifyLauncherUnlaunched = oe, oul
 	})
 	// A client is present, its download is done, the CLI exists and the shipped
 	// asset resolves, so the run reaches the writability gate deterministically.
 	spotifyInstalled = func() bool { return true }
 	spotifyLauncherPending = func() bool { return false }
+	spotifyLauncherUnlaunched = func() bool { return false }
 	spicetifyCliPresent = func() bool { return true }
 	// Satisfy ALL THREE of the old ok-path conditions: the CLI exists, the
 	// extension file matches byte for byte, and the config lists it. Without the
@@ -102,5 +103,23 @@ func TestSpicetifyUnknownTargetDoesNotWarn(t *testing.T) {
 	got := reconcileSpicetifyCanvas(true)
 	if strings.Contains(got.detail, "not writable") {
 		t.Errorf("an unresolvable target must not be reported as unwritable, got: %q", got.detail)
+	}
+}
+
+// A converted box often already has a root-owned flatpak/native Spotify while
+// Ryoku's own spotify-launcher is installed but not launched yet: the current
+// client cannot be patched, but the writable launcher is on the way, so the
+// setup must DEFER (ok) rather than warn and tell the user to install a client
+// that is already there.
+func TestSpicetifyDefersWhenLauncherUnlaunched(t *testing.T) {
+	stubSpicetifyTarget(t, "/var/lib/flatpak/app/com.spotify.Client/files/extra/share/spotify", false)
+	spotifyLauncherUnlaunched = func() bool { return true }
+
+	got := reconcileSpicetifyCanvas(true)
+	if got.status != recOK {
+		t.Fatalf("unwritable client with spotify-launcher pending must defer (ok), got status %v: %q", got.status, got.detail)
+	}
+	if !strings.Contains(got.detail, "first launch") {
+		t.Errorf("detail should say the Canvas wires up after first launch, got: %q", got.detail)
 	}
 }

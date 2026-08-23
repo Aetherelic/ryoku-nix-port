@@ -82,6 +82,17 @@
   (`internal/doctor/reconcile_dgpu_panel.go`).
 
 ### Fixed
+- **`ryoku doctor` re-adds the [ryoku] repo when it falls out of pacman.conf.**
+  A packaged box with ryoku-desktop but no `[ryoku]` stanza (a pacnew merge or a
+  hand-edit dropped it) got only a warning, so updates silently stopped arriving.
+  With the keyring still present, doctor now re-adds the deterministic stanza the
+  installer writes and re-populates the key, instead of stranding the box.
+- **The Ryoku Canvas spicetify setup defers to spotify-launcher instead of
+  warning about a client it cannot patch.** On a converted box that already has a
+  root-owned flatpak or /opt Spotify, the setup aims spicetify at the writable
+  spotify-launcher tree Ryoku ships; while that launcher is installed but not yet
+  launched, the Canvas waits for its first launch rather than telling the user to
+  install a client that is already there.
 - **`ryoku doctor` can no longer hang behind a second desktop.** Its shell-load
   check runs `qs -c shell` and waits for the report, and `ryoku` is usually run
   from a terminal the desktop opened. A Quickshell instance that has crashed once
