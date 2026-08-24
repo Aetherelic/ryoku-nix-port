@@ -152,6 +152,17 @@ Singleton {
     // one top-level store rather than per bar style. Every consumer reads and
     // writes it through here, so the copy-on-write below is the single path that
     // persists it.
+
+    // The look registry, shaped like Theme.workspaceStyleOptions so one control
+    // renders them all. Persisted under `dock.style` (default islands, so an
+    // existing desktop is unchanged). A style only changes what the band draws.
+    readonly property var styleOptions: [
+        { key: "islands", label: "Islands", detail: "Split pills" },
+        { key: "rail",    label: "Rail",    detail: "One continuous plate" },
+        { key: "ledger",  label: "Ledger",  detail: "Numbered cells" },
+        { key: "tanzaku", label: "Tanzaku", detail: "Hanging strips" },
+        { key: "seal",    label: "Seal",    detail: "Colour means running" }
+    ]
     function cfg(key, fallback) {
         const d = Config.dock;
         return (d && d[key] !== undefined && d[key] !== null) ? d[key] : fallback;

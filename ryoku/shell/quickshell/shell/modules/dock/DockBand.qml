@@ -42,6 +42,22 @@ Item {
     readonly property bool shadow: Dock.cfg("shadow", true)
     readonly property bool labels: Dock.cfg("labels", true)
 
+    // Persisted look. A style only changes what is DRAWN: the geometry below is
+    // fixed, so autohide, the peek strip, the drag-reorder, the hover label and
+    // the window preview hold in every form. DockItem/chrome read it via band.
+    readonly property string style: Dock.cfg("style", "islands")
+
+    // Hairline vocabulary hoisted so every style role reads a token, not a raw
+    // alpha: `hairline` is the plate/cell border and `rule` the stronger divider
+    // (the two weights already in this file), `inkFaint` the faintest ink for a
+    // mono index or abbreviation, `bone`/`inkOnBone` the Material inversion pair
+    // that stands in for the forbidden accent tint.
+    readonly property color hairline: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.12)
+    readonly property color rule: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.22)
+    readonly property color inkFaint: Qt.rgba(Theme.onSurfaceVariant.r, Theme.onSurfaceVariant.g, Theme.onSurfaceVariant.b, 0.55)
+    readonly property color bone: Theme.inverseSurface
+    readonly property color inkOnBone: Theme.inverseOnSurface
+
     // ── the two runs ─────────────────────────────────────────────────────────
     // basePins is the persisted (or starter) order; workOrder is the live order a
     // drag edits before it commits. While dragging, the row follows workOrder.
@@ -78,6 +94,20 @@ Item {
         if (band.mediaShown) e = Math.max(e, band.mediaStart + band.mediaLen);
         return Math.max(1, e);
     }
+
+    // The app run alone (pins · separator · running), no media chip: the extent
+    // the rail/ledger backdrop plate spans. The media chip keeps its own tile.
+    readonly property real runSpan: {
+        let e = 0;
+        if (band.pins.length) e = Math.max(e, band.pins.length * band.step - band.gap);
+        if (band.sepShown) e = Math.max(e, band.afterPins + band.sepWidth);
+        if (band.running.length) e = Math.max(e, band.runBase + band.running.length * band.step - band.gap);
+        return Math.max(1, e);
+    }
+    // Perp gap between the band's outer edge and the screen edge, so a tanzaku
+    // strip can reach the edge. Derived (reservedDepth is depth+edgeGap and depth
+    // is baseSize), so no surface change is needed to know the edge gap here.
+    readonly property real edgeReach: Math.max(0, band.reservedDepth - band.baseSize)
 
     implicitWidth: band.horizontal ? band.totalSpan : band.baseSize
     implicitHeight: band.horizontal ? band.baseSize : band.totalSpan
@@ -215,6 +245,13 @@ Item {
         DockPreview.hoveredClass = Dock.countFor(cn) > 0 ? cn : "";
     }
 
+    // rail / ledger draw ONE plate behind the whole app run; the per-item marks
+    // (underline, cell divider, index) stay with the item. Empty for the others.
+    DockBackdrop {
+        band: band
+        z: -1
+    }
+
     // ── pinned run ─────────────────────────────────────────────────────────
     Repeater {
         model: pinsModel
@@ -242,17 +279,20 @@ Item {
                 alongCenter: band.pinStart(pw.index) + band.baseSize / 2
                 pinIndex: pw.index
                 className: pw.className
+                ordinal: pw.index
             }
         }
     }
 
-    // ── separator between the two runs ────────────────────────────────────────
+    // A gap mark between the two runs, or a full-depth hairline on the continuous
+    // rail/ledger sheets so the boundary reads as a ruled division, not a gap.
     Rectangle {
+        readonly property bool full: band.style === "rail" || band.style === "ledger"
         visible: band.sepShown
-        width: band.horizontal ? 2 : Math.round(band.baseSize * 0.5)
-        height: band.horizontal ? Math.round(band.baseSize * 0.5) : 2
-        radius: 1
-        color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.22)
+        width: band.horizontal ? (full ? 1 : 2) : (full ? band.baseSize : Math.round(band.baseSize * 0.5))
+        height: band.horizontal ? (full ? band.baseSize : Math.round(band.baseSize * 0.5)) : (full ? 1 : 2)
+        radius: full ? 0 : 1
+        color: band.rule
         x: band.horizontal ? (band.afterPins + (band.sepWidth - width) / 2) : (band.baseSize - width) / 2
         y: band.horizontal ? (band.baseSize - height) / 2 : (band.afterPins + (band.sepWidth - height) / 2)
     }
@@ -280,6 +320,7 @@ Item {
                 alongCenter: band.runStart(rw.index) + band.baseSize / 2
                 pinIndex: -1
                 className: rw.className
+                ordinal: band.pins.length + rw.index
             }
         }
     }

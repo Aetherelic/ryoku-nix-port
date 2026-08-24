@@ -19,6 +19,8 @@ Item {
     required property real alongCenter
     required property int pinIndex
     required property string className
+    // Position across the whole band (pins then running), for the ledger index.
+    required property int ordinal
     readonly property bool pinned: item.pinIndex >= 0
 
     readonly property bool horizontal: item.band.horizontal
@@ -29,7 +31,9 @@ Item {
     // click that starts from zero clients is the one that launches).
     readonly property int count: Dock.countFor(item.className)
     readonly property bool isActive: Dock.activeClass === item.className
-    readonly property color indColor: item.isActive ? Theme.primary : Theme.onSurface
+    // Emphasis is inversion, never the accent: the running mark on the active
+    // island is dark ink on its bone plate, otherwise bone ink on the dark one.
+    readonly property color indColor: item.isActive ? Theme.inverseOnSurface : Theme.onSurface
 
     // Continuous magnify: distance from the cursor along the band, gaussian-ish
     // falloff, gated on the dock's magnify key (the band folds in reduce-motion).
@@ -46,6 +50,17 @@ Item {
         return 1 + (item.band.maxScale - 1) * t * t;
     }
     property real bounce: 1
+
+    // Static per-item chrome for every form except islands (whose pill lives in
+    // the magnified `content` below). A child of the item, not the transformed
+    // content, so a rail underline, ledger cell or tanzaku strip stays a fixed
+    // part of the sheet while only the icon rises under the cursor.
+    DockItemChrome {
+        anchors.fill: parent
+        item: item
+        band: item.band
+        visible: item.band.style !== "islands"
+    }
 
     Item {
         id: content
@@ -93,11 +108,14 @@ Item {
 
         Rectangle {
             id: pill
+            visible: item.band.style === "islands"
             anchors.fill: parent
             radius: item.band.radius
             readonly property real frostA: item.band.frost ? 0.6 : 0.94
+            // Active inverts to a bone plate at the SAME frost alpha (frost
+            // behaviour unchanged); inactive keeps the frosted container.
             color: item.isActive
-                ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, item.band.frost ? 0.26 : 0.34)
+                ? Qt.rgba(Theme.inverseSurface.r, Theme.inverseSurface.g, Theme.inverseSurface.b, pill.frostA)
                 : Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, pill.frostA)
             border.width: 1
             border.color: Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.12)
@@ -130,13 +148,22 @@ Item {
             smooth: true
             mipmap: true
             asynchronous: true
+            // seal draws an idle app as a bone silhouette (desaturate + tint to
+            // ink, the same MultiEffect DitherImage falls back to); a running app
+            // keeps its real colour, so colour is the only "alive" mark.
+            layer.enabled: item.band.style === "seal" && item.count === 0
+            layer.effect: MultiEffect {
+                saturation: -1
+                colorization: 1
+                colorizationColor: item.band.bone
+            }
         }
 
         // Running indicator on the dock's outer edge: up to three 4 px dots, or a
         // single 14x4 bar once four or more windows are open.
         Row {
             spacing: 3
-            visible: item.count >= 1 && item.count <= 3
+            visible: item.band.style === "islands" && item.count >= 1 && item.count <= 3
             anchors.horizontalCenter: item.horizontal ? parent.horizontalCenter : undefined
             anchors.verticalCenter: item.horizontal ? undefined : parent.verticalCenter
             anchors.bottom: (item.horizontal && item.edge === "bottom") ? parent.bottom : undefined
@@ -150,7 +177,7 @@ Item {
             }
         }
         Rectangle {
-            visible: item.count >= 4
+            visible: item.band.style === "islands" && item.count >= 4
             width: item.horizontal ? 14 : 4
             height: item.horizontal ? 4 : 14
             radius: 2
