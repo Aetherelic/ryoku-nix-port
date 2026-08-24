@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Ryoku.Ui.Singletons as Ui
 
 // Shared widget tokens: the design-language geometry, motion and type, with
 // every colour resolved from the daemon palette through Scheme so the clock,
@@ -16,10 +17,17 @@ Singleton {
     readonly property color sun:   "#e2342a"
     readonly property color gold:  "#d9a441"
 
-    // accent: the live system accent (the palette's primary role). The menu
-    // chrome -- selected chips, the "on" value, toggles, sliders, borders and
-    // resize grips -- paints with this so it retints on every scheme change.
+    // accent: the live system accent (the palette's primary role). Ryoku keeps
+    // colour on the frame, not the content, so the menu chrome no longer tints
+    // its selected/on states with it -- those invert (see `bone` below). Only a
+    // widget's own live colour (resize grips, active surfaces) still paints here.
     readonly property color accent: Scheme.accent
+
+    // inversion emphasis: docs/ui-ux.md marks a selected chip or a primary row
+    // with a bone plate carrying dark ink, never an accent wash. The kit's
+    // inverse-surface pair keeps that contrast on a light OR dark palette.
+    readonly property color bone:      Ui.Tokens.bone
+    readonly property color inkOnBone: Ui.Tokens.inkOnBone
 
     // inks for the menu, which sits on its own card: the palette's own on-surface
     // roles, correct against `surface` below.
@@ -71,6 +79,26 @@ Singleton {
     // idiom); the sharp `radius: 0` above stays the clock-face default.
     readonly property int radiusWidget: 14
     readonly property int radiusTile:   9
+
+    // ── studio scale, projected from the kit so the right-click menu never
+    // hardcodes a spacing, a radius or a font size: it speaks the same
+    // 4-8-12-16-24-32-48 rhythm and 6px control radius as the Shell Studio. ──
+    readonly property int s1: Ui.Tokens.s1        // 4
+    readonly property int s2: Ui.Tokens.s2        // 8
+    readonly property int s3: Ui.Tokens.s3        // 12
+    readonly property int s4: Ui.Tokens.s4        // 16
+    readonly property int s5: Ui.Tokens.s5        // 24
+    readonly property int s6: Ui.Tokens.s6        // 32
+    readonly property int s7: Ui.Tokens.s7        // 48
+    readonly property int ctlH: Ui.Tokens.ctlH    // 26: one control tall
+    // a floating card doubles the documented control radius; its inner tiles and
+    // chips take that control radius itself.
+    readonly property int menuRadius:     Ui.Tokens.radius * 2   // 12
+    readonly property int menuTileRadius: Ui.Tokens.radius       // 6
+    readonly property int fBody:  Ui.Tokens.fBody     // 14: a row label
+    readonly property int fSmall: Ui.Tokens.fSmall    // 13: a value / a chip
+    readonly property int fMicro: Ui.Tokens.fMicro    // 11: a tracked eyebrow
+    readonly property real trackMark:  Ui.Tokens.trackMark    // eyebrow tracking
 
     // motion: short + smooth. OutExpo mirrors the shell's open curve.
     readonly property int quick:  140

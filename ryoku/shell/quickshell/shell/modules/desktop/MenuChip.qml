@@ -4,8 +4,8 @@ import "Singletons"
 import Ryoku.Ui.Singletons
 
 // A selectable chip: an option in a choice group, a style swatch, a snap-zone
-// target. Soft accent-tint fill with an accent border when selected, a quiet
-// tile wash on hover, a press dip. The quick-settings selection idiom. A label
+// target. Selected = a bone plate carrying dark ink (inversion, never a tint),
+// a quiet tile wash on hover, a press dip. The studio selection idiom. A label
 // covers the common case; a caller that needs a glyph fills the default
 // content slot and binds to `contentColor` / `hovered`.
 Item {
@@ -19,25 +19,25 @@ Item {
 
     // for custom (glyph) content that must track the chip's state.
     readonly property bool hovered: ma.containsMouse
-    readonly property color contentColor: chip.selected ? Theme.ink
+    readonly property color contentColor: chip.selected ? Theme.inkOnBone
         : (ma.containsMouse ? Theme.ink : Theme.inkDim)
 
     default property alias content: hold.data
 
-    implicitWidth: Math.max(chip.minWidth, lbl.implicitWidth + 20)
-    implicitHeight: 26
+    implicitWidth: Math.max(chip.minWidth, lbl.implicitWidth + Theme.s5)
+    implicitHeight: Theme.ctlH
 
     scale: ma.pressed ? 0.94 : 1
     Behavior on scale { NumberAnimation { duration: Theme.quick; easing.type: Theme.ease } }
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radiusTile
-        color: chip.selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+        radius: Theme.menuTileRadius
+        color: chip.selected ? Theme.bone
             : ma.pressed ? Theme.tilePress
             : ma.containsMouse ? Theme.tileHover : Theme.tile
         border.width: 1
-        border.color: chip.selected ? Theme.accent : Theme.line
+        border.color: chip.selected ? Theme.bone : Theme.line
         Behavior on color { ColorAnimation { duration: Theme.quick } }
     }
 
@@ -48,7 +48,7 @@ Item {
         text: I18n.tr(chip.label)
         color: chip.contentColor
         font.family: Theme.font
-        font.pixelSize: 13
+        font.pixelSize: Theme.fSmall
         font.weight: chip.selected ? Font.DemiBold : Font.Medium
         Behavior on color { ColorAnimation { duration: Theme.quick } }
     }

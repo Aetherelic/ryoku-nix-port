@@ -13,13 +13,13 @@ Item {
 
     property string label: ""
     property string value: ""
-    property bool on: false          // accent the value (a live / active state)
-    property bool accent: false      // accent the label (a primary action)
+    property bool on: false          // full ink when live, dim when idle
+    property bool accent: false      // a primary action: the whole row inverts
     property bool closeOnTrigger: true
     signal triggered()
 
     width: parent ? parent.width : 0
-    implicitHeight: 34
+    implicitHeight: Theme.s6
 
     // find the enclosing DesktopMenu so a triggered row can dismiss it.
     function closeMenu() {
@@ -38,28 +38,30 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radiusTile
-        color: ma.pressed ? Theme.tilePress : (ma.containsMouse ? Theme.tileHover : "transparent")
+        radius: Theme.menuTileRadius
+        color: row.accent ? Theme.bone
+            : ma.pressed ? Theme.tilePress
+            : ma.containsMouse ? Theme.tileHover : "transparent"
         Behavior on color { ColorAnimation { duration: Theme.quick } }
     }
 
     Text {
-        anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+        anchors { left: parent.left; leftMargin: Theme.s3; verticalCenter: parent.verticalCenter }
         text: I18n.tr(row.label)
-        color: row.accent ? Theme.accent : (ma.containsMouse ? Theme.ink : Theme.inkSoft)
+        color: row.accent ? Theme.inkOnBone : (ma.containsMouse ? Theme.ink : Theme.inkSoft)
         font.family: Theme.font
-        font.pixelSize: 14
+        font.pixelSize: Theme.fBody
         font.weight: Font.Medium
         Behavior on color { ColorAnimation { duration: Theme.quick } }
     }
 
     Text {
         visible: row.value.length > 0
-        anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+        anchors { right: parent.right; rightMargin: Theme.s3; verticalCenter: parent.verticalCenter }
         text: row.value
-        color: row.on ? Theme.accent : Theme.inkDim
+        color: row.accent ? Theme.inkOnBone : (row.on ? Theme.ink : Theme.inkDim)
         font.family: Theme.font
-        font.pixelSize: 13
+        font.pixelSize: Theme.fSmall
         font.weight: Font.Medium
         Behavior on color { ColorAnimation { duration: Theme.quick } }
     }

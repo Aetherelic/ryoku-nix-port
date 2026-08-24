@@ -48,6 +48,18 @@ Item {
         { "zone": "bottom-left", "glyph": "\u2199" }, { "zone": "bottom", "glyph": "\u2193" }, { "zone": "bottom-right", "glyph": "\u2198" }
     ]
 
+    // the kanji seal each scope carries in the menu masthead (docs/ui-ux.md).
+    readonly property var glosses: ({
+        "desktop": "卓上",
+        "clock": "時計",
+        "calendar": "暦",
+        "music": "音楽",
+        "aio": "一体",
+        "stats": "計測",
+        "weather": "天気",
+        "notes": "筆記"
+    })
+
     function openFor(widget, x, y) { menu.scope = widget; shell.px = x; shell.py = y; shell.open = true; }
     function openDesktop(x, y) { menu.scope = "desktop"; shell.px = x; shell.py = y; shell.open = true; }
     function close() { shell.open = false; }
@@ -89,6 +101,7 @@ Item {
     DesktopMenu {
         id: shell
         title: menu.scope
+        gloss: menu.glosses[menu.scope] || ""
 
         // ── desktop scope ──────────────────────────────────────────────
         MenuRow {
@@ -222,56 +235,48 @@ Item {
             onTriggered: Config.toggle(menu.scope + "Locked")
         }
 
-        MenuSection { visible: menu.isWidget; label: I18n.tr("Snap") }
+        MenuSection { visible: menu.isWidget; label: I18n.tr("Snap"); gloss: "位置" }
 
-        // "Auto" lands the widget on the wallpaper's calmest region and
-        // re-follows it on every wallpaper change; offered above the compass as
-        // the smart default. Free is the implicit dragged state, so it has no
-        // chip of its own.
+        // One placement control: an Auto lane above a square 3x3 compass whose
+        // centre cell is the centre zone. Auto lands the widget on the
+        // wallpaper's calmest region and re-follows every wallpaper change; Free
+        // is the implicit dragged state, so it has no cell of its own.
         Item {
             visible: menu.isWidget
             width: parent.width
-            implicitHeight: menu.isWidget ? autoChip.height + 6 : 0
-            MenuChip {
-                id: autoChip
+            implicitHeight: menu.isWidget ? placer.implicitHeight : 0
+            Column {
+                id: placer
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                anchors.topMargin: 3
-                label: "Auto"
-                minWidth: 128
-                height: 28
-                selected: menu.curAnchor === "auto"
-                onClicked: { Config.setAnchor(menu.scope, "auto"); menu.close(); }
-            }
-        }
-
-        // snap-to-zone pad (widget scope): a compass of chip targets.
-        Item {
-            visible: menu.isWidget
-            width: parent.width
-            implicitHeight: menu.isWidget ? zonePad.implicitHeight + 6 : 0
-            Grid {
-                id: zonePad
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                anchors.topMargin: 3
-                columns: 3
-                spacing: 5
-                Repeater {
-                    model: menu.zones
-                    MenuChip {
-                        id: cell
-                        required property var modelData
-                        width: 40
-                        height: 28
-                        selected: menu.curAnchor === cell.modelData.zone
-                        onClicked: { Config.setAnchor(menu.scope, cell.modelData.zone); menu.close(); }
-                        Text {
-                            anchors.centerIn: parent
-                            text: cell.modelData.glyph
-                            color: cell.contentColor
-                            font.family: Theme.font
-                            font.pixelSize: 13
+                spacing: Theme.s1
+                readonly property real cellSize: Theme.s6
+                readonly property real span: placer.cellSize * 3 + Theme.s1 * 2
+                MenuChip {
+                    label: "Auto"
+                    width: placer.span
+                    height: Theme.ctlH
+                    selected: menu.curAnchor === "auto"
+                    onClicked: { Config.setAnchor(menu.scope, "auto"); menu.close(); }
+                }
+                Grid {
+                    columns: 3
+                    spacing: Theme.s1
+                    Repeater {
+                        model: menu.zones
+                        MenuChip {
+                            id: zoneCell
+                            required property var modelData
+                            width: placer.cellSize
+                            height: placer.cellSize
+                            selected: menu.curAnchor === zoneCell.modelData.zone
+                            onClicked: { Config.setAnchor(menu.scope, zoneCell.modelData.zone); menu.close(); }
+                            Text {
+                                anchors.centerIn: parent
+                                text: zoneCell.modelData.glyph
+                                color: zoneCell.contentColor
+                                font.family: Theme.font
+                                font.pixelSize: Theme.fSmall
+                            }
                         }
                     }
                 }

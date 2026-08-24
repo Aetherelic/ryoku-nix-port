@@ -23,6 +23,7 @@ Item {
 
     property bool open: false
     property string title: ""
+    property string gloss: ""
     property real px: 0
     property real py: 0
     property real cardWidth: 248
@@ -53,17 +54,17 @@ Item {
 
     Rectangle {
         id: panel
-        readonly property int pad: 14
-        readonly property int gap: 10
+        readonly property int pad: Theme.s4
+        readonly property int gap: Theme.s3
         readonly property real fullHeight: panel.pad
             + (mast.visible ? mast.height + panel.gap : 0)
             + col.implicitHeight + panel.pad
 
-        x: Math.max(8, Math.min(menu.px, menu.width - width - 8))
-        y: Math.max(8, Math.min(menu.py, menu.height - height - 8))
+        x: Math.max(Theme.s2, Math.min(menu.px, menu.width - width - Theme.s2))
+        y: Math.max(Theme.s2, Math.min(menu.py, menu.height - height - Theme.s2))
         width: menu.cardWidth
-        height: Math.min(panel.fullHeight, menu.height - 16)
-        radius: Theme.radiusWidget
+        height: Math.min(panel.fullHeight, menu.height - Theme.s2 * 2)
+        radius: Theme.menuRadius
         color: Theme.surface
         border.width: 1
         border.color: Theme.line
@@ -72,29 +73,37 @@ Item {
         scale: menu.open ? 1 : 0.96
         opacity: menu.open ? 1 : 0
         Behavior on scale { NumberAnimation { duration: Theme.quick; easing.type: Theme.ease } }
-        Behavior on opacity { NumberAnimation { duration: 120 } }
+        Behavior on opacity { NumberAnimation { duration: Theme.quick } }
 
-        // masthead eyebrow: a small brand seal, the tracked scope, and a
-        // hairline leader running to the card edge. Pinned above the scroller.
+        // masthead eyebrow: the route's kanji gloss, its tracked Latin scope, and
+        // a hairline leader running to the card edge. Pinned above the scroller.
         Row {
             id: mast
             visible: menu.title.length > 0
             anchors { top: parent.top; left: parent.left; right: parent.right; margins: panel.pad }
-            spacing: 7
-            BrandMark { id: seal; anchors.verticalCenter: parent.verticalCenter; size: 13 }
+            spacing: Theme.s2
+            Text {
+                id: seal
+                visible: menu.gloss.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                text: menu.gloss
+                color: Theme.faint
+                font.family: Theme.fontJp
+                font.pixelSize: Theme.fBody
+            }
             Text {
                 id: cap
                 anchors.verticalCenter: parent.verticalCenter
                 text: menu.title.toUpperCase()
                 color: Theme.inkDim
                 font.family: Theme.font
-                font.pixelSize: 11
+                font.pixelSize: Theme.fMicro
                 font.weight: Font.DemiBold
-                font.letterSpacing: 2
+                font.letterSpacing: Theme.trackMark
             }
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(0, mast.width - seal.width - cap.width - mast.spacing * 2)
+                width: Math.max(0, mast.width - (seal.visible ? seal.width + mast.spacing : 0) - cap.width - mast.spacing)
                 height: 1
                 color: Theme.line
             }
@@ -127,7 +136,7 @@ Item {
             Column {
                 id: col
                 width: flick.width
-                spacing: 2
+                spacing: Theme.s1
             }
         }
     }
