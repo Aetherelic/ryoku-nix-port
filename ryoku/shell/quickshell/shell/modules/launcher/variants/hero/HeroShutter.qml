@@ -41,7 +41,12 @@ Item {
     readonly property real solarFraction: sunState ? sunState.frac : nowSeconds / 86400
     readonly property bool daylight: sunState ? sunState.isDay
         : (now.getHours() >= 6 && now.getHours() < 20)
-    readonly property color solarColor: daylight ? Theme.sunGold : Theme.moonGlow
+    // Fixed mode paints the line and marker in the stored colour; auto follows
+    // the palette sky (part 1). The disc is the bright counterpart of the line.
+    readonly property color solarColor: LauncherConfig.horizonMode === "fixed"
+        ? LauncherConfig.horizonColor : (daylight ? Theme.sunGold : Theme.moonGlow)
+    readonly property color discColor: LauncherConfig.horizonMode === "fixed"
+        ? LauncherConfig.horizonColor : (daylight ? Theme.sunGold : Theme.moonDisc)
     readonly property string greeting: {
         var hour = now.getHours();
         return hour < 5 ? "GOOD NIGHT" : hour < 12 ? "GOOD MORNING"
@@ -103,11 +108,15 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: (root.compressed ? 24 : 36) * root.s
+        visible: LauncherConfig.horizonMode !== "off"
         property real phase: 0
+        readonly property color tint: root.solarColor
 
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
         onPhaseChanged: requestPaint()
+        onTintChanged: requestPaint()
+        onVisibleChanged: if (visible) requestPaint()
 
         function rgba(color, alpha) {
             return "rgba(" + Math.round(color.r * 255) + ","
@@ -141,26 +150,25 @@ Item {
                 context.lineWidth = Math.max(1, root.s);
                 context.stroke();
             }
-            stroke(0, markerX, horizon.rgba(root.solarColor, 0.78));
+            stroke(0, markerX, horizon.rgba(horizon.tint, 0.78));
             stroke(markerX, w, horizon.rgba(Theme.bright, 0.18));
 
             var markerY = ridge(markerX);
             var glow = context.createRadialGradient(
                 markerX, markerY, 0, markerX, markerY, 12 * root.s);
-            glow.addColorStop(0, horizon.rgba(root.solarColor, 0.42));
-            glow.addColorStop(1, horizon.rgba(root.solarColor, 0));
+            glow.addColorStop(0, horizon.rgba(horizon.tint, 0.42));
+            glow.addColorStop(1, horizon.rgba(horizon.tint, 0));
             context.fillStyle = glow;
             context.beginPath();
             context.arc(markerX, markerY, 12 * root.s, 0, Math.PI * 2);
             context.fill();
 
-            context.fillStyle = horizon.rgba(
-                root.daylight ? Theme.sunGold : Theme.moonDisc, 0.98);
+            context.fillStyle = horizon.rgba(root.discColor, 0.98);
             context.beginPath();
             context.arc(markerX, markerY, 4.5 * root.s, 0, Math.PI * 2);
             context.fill();
             if (!root.daylight) {
-                context.fillStyle = "rgba(8,8,10,0.92)";
+                context.fillStyle = horizon.rgba(Theme.drawer, 0.92);
                 context.beginPath();
                 context.arc(markerX + 2.8 * root.s, markerY - 1.8 * root.s,
                     4.5 * root.s, 0, Math.PI * 2);
@@ -169,7 +177,7 @@ Item {
         }
 
         FrameAnimation {
-            running: root.shown && !Motion.reduce
+            running: root.shown && !Motion.reduce && LauncherConfig.horizonMode !== "off"
             onTriggered: {
                 horizon.phase = Date.now() / 1800;
                 horizon.requestPaint();

@@ -16,8 +16,9 @@ import "." as MainVariant
 // through the same Open-Meteo call as the weather; until that resolves the marker
 // falls back to a plain clock. It is the same fill-is-elapsed grammar as the
 // NowPlaying seekbar below it, so the resting card and the playing card read as
-// one family. The sky colours are fixed (golden day, cool night), deliberately
-// independent of the wallust accent so the sun stays a sun on any wallpaper.
+// one family. The sky follows the palette when Match wallpaper is on (warm day,
+// cool night), or the fixed gold/blue when it is off; a launcher setting can pin
+// the line to one colour or hide it.
 // Surface is the recessed cardBot with a hairline border and a top sheen so it
 // sits in the window; corner radius steps one inside the window so the nested
 // corners read concentric. Right column carries the weather glance when resolved
@@ -50,6 +51,13 @@ Item {
     readonly property bool isDay: sun ? sun.isDay : (now.getHours() >= 6 && now.getHours() < 20)
     // fixed sky colour for the phase: golden sun by day, cool moonlight by night.
     readonly property color phaseColor: isDay ? Theme.sunGold : Theme.moonGlow
+    // The horizon line and marker: fixed mode uses the stored colour, auto the
+    // palette sky. The disc is its bright counterpart. phaseColor above stays the
+    // sky tint for the breathing colon, which is the clock, not the horizon.
+    readonly property color horizonTint: LauncherConfig.horizonMode === "fixed"
+        ? LauncherConfig.horizonColor : (isDay ? Theme.sunGold : Theme.moonGlow)
+    readonly property color horizonDisc: LauncherConfig.horizonMode === "fixed"
+        ? LauncherConfig.horizonColor : (isDay ? Theme.sunGold : Theme.moonDisc)
     readonly property bool wxReady: Weather.available && LauncherConfig.showWeather
     readonly property real cardRadius: Math.max(0, LauncherConfig.radius - 4)
 
@@ -109,6 +117,7 @@ Item {
         // rounded corners so it never spills. Painted behind the text.
         ClippingRectangle {
             id: waveClip
+            visible: LauncherConfig.horizonMode !== "off"
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -121,11 +130,13 @@ Item {
                 anchors.fill: parent
                 property real phase: 0
                 readonly property real frac: root.dayFrac
-                // phase sky colour (fixed day/night, never the wallust accent).
-                readonly property color tint: root.phaseColor
+                // the horizon tint: the stored colour in fixed mode, else the
+                // palette sky (part 1).
+                readonly property color tint: root.horizonTint
 
                 onFracChanged: requestPaint()
                 onTintChanged: requestPaint()
+                onVisibleChanged: if (visible) requestPaint()
 
                 // Canvas gradients want rgba() strings, not QML color objects
                 // (a color serializes to #aarrggbb and corrupts the stop).
@@ -199,7 +210,7 @@ Item {
                     ctx.fill();
 
                     var r = 5.5 * s;
-                    ctx.fillStyle = root.isDay ? wave.rgba(Theme.sunGold, 1) : wave.rgba(Theme.moonDisc, 0.98);
+                    ctx.fillStyle = wave.rgba(root.horizonDisc, root.isDay ? 1 : 0.98);
                     ctx.beginPath();
                     ctx.arc(nodeX, sy, r, 0, 2 * Math.PI);
                     ctx.fill();
@@ -214,7 +225,7 @@ Item {
                 // Gentle drift, only while the palette is shown, so an idle
                 // launcher triggers no repaints.
                 FrameAnimation {
-                    running: root.visible
+                    running: root.visible && LauncherConfig.horizonMode !== "off"
                     onTriggered: {
                         wave.phase = Date.now() / 900;
                         wave.requestPaint();

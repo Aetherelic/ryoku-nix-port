@@ -62,11 +62,13 @@ Singleton {
     readonly property string flameBurn:  "#8f321d"
     readonly property string flameTip:   "#ffd2bf"
     readonly property color todayWarm: "#ff9e64"
-    // Hero sky: fixed day/night scene colours, deliberately independent of
-    // the accent so the sun stays golden and the night cool on any wallpaper.
-    readonly property color sunGold:  "#ffc777"
-    readonly property color moonGlow: "#7aa2f7"
-    readonly property color moonDisc: "#c8d3f5"
+    // Hero sky follows the palette when matching: the day line is the primary
+    // (Ui.Tokens.sun); the night pair is the secondary accent, a hue kept
+    // distinct from the day so the two scenes never collapse, lightened for a
+    // legible disc. Match wallpaper off keeps the fixed gold / cool blue.
+    readonly property color sunGold:  Config.matchWallpaper ? Ui.Tokens.sun : "#ffc777"
+    readonly property color moonGlow: Config.matchWallpaper ? Scheme.accent2 : "#7aa2f7"
+    readonly property color moonDisc: Config.matchWallpaper ? Qt.lighter(Scheme.accent2, 1.35) : "#c8d3f5"
     readonly property color creamMenu:   Qt.rgba(230/255, 220/255, 203/255, 0.82)
     readonly property real shadowOpacity: 0.5
     // type stack + brutalist geometry, the website language.

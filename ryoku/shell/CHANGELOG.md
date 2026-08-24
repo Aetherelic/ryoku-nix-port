@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **The launcher's solar line follows the palette, or a colour you choose.** The
+  warm line under the clock, in both the Hero and Main variants, was a hardcoded
+  gold; it now tracks the wallpaper's primary by day and the secondary accent by
+  night when Match wallpaper is on (Match off keeps today's fixed gold and cool
+  blue). Two `launcher.json` keys drive it: `horizonMode` (`auto`, the default, so
+  nothing changes; `fixed`; or `off`) and `horizonColor`. Fixed pins the line and
+  its sun/moon marker to one colour, keeping the elapsed and remaining segments
+  distinct; off hides the line and marker with no gap left behind.
 - **Print filters: the compositor can resolve the whole screen to the desktop's
   ink.** Five shaders ship in `ryoku/hyprland/shaders/` and apply to everything
   Hyprland composites, apps included: **Bone** (tone kept, hue dropped, remapped

@@ -17,6 +17,8 @@ Singleton {
     property alias showWeather:  adapter.showWeather
     property alias showGreeting: adapter.showGreeting
     property alias resultSettleMs: adapter.resultSettleMs
+    property alias horizonMode:  adapter.horizonMode
+    property alias horizonColor: adapter.horizonColor
 
     FileView {
         id: file
@@ -40,6 +42,8 @@ Singleton {
             property bool showWeather: true
             property bool showGreeting: true
             property int resultSettleMs: 360
+            property string horizonMode: "auto"
+            property string horizonColor: "#ffc777"
         }
     }
 
