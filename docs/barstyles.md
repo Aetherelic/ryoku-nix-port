@@ -128,7 +128,7 @@ barstyles/
     components/      // shared pieces (import them namespaced)
     modules/         // the bar widgets
     panels/          // the popout bodies
-    controlcenter/   // its Super+Escape-style control surface
+    controlcenter/   // its own settings panel, the Shell Studio (the logo opens it)
 ```
 
 Only `Scene.qml` is required; the rest is the style's own business, and a
@@ -537,8 +537,14 @@ W.Media { visible: win.shows("media") && Media.present }
 Where that key is edited is the style's call. The built-in Sumi bar is edited from
 **Bar Studio** in Ryoku Settings (`hub/quickshell/pages/BarStudioPage.qml`), which
 snapshots the keys and applies them live. A folder style usually ships its own
-settings surface instead, the way QS Bar carries its own control centre. A style
-with no settings omits all of this.
+settings surface instead, the way QS Bar carries the **Shell Studio**
+(`controlcenter/`, opened by clicking the bar's 力 logo): a rail of nine routes
+(Bar, Widgets, Logo, Spaces, Pickers, Dock, Desktop, System, Session) over the
+same `Ryoku.Ui` form kit the Hub uses -- `SettingCard`, `SettingRow` and the eight
+controls -- so a quick panel and the settings app read as one language and the
+studio owns no second vocabulary. It is a quick panel, not a second Hub: it edits
+the keys you reach for mid-work and sends the rest to Ryoku Settings. A style with
+no settings omits all of this.
 
 ## Frame menus
 

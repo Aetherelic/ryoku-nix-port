@@ -1,8 +1,8 @@
 # UI and UX
 
 The desktop is **paper and ink**: a monochrome printed instrument. Warm bone ink
-on pure-black paper, a film-grain tooth so the black reads matte, and inversion
-(a surface flipping to a bone plate) as the only emphasis. There is no colour in
+on pure-black paper, hairline rules instead of shadows, and inversion (a surface
+flipping to a bone plate) as the only emphasis. There is no colour in
 app chrome; the accent is reserved for the frame, the 力 seal, and art, which
 manufactures its own red sun. Fraunces sets the display, Space Grotesk carries
 the language, SpaceMono carries the data, Noto Sans CJK JP carries the seals.
@@ -26,9 +26,9 @@ Bone on black, one contrast-solved ink ramp, no colour in the content. Restraint
 is the point: flat surfaces, hairline depth, generous spacing. A surface earns
 its place; if it does not, remove it.
 
-- **Pure-black paper, warm bone ink.** The paper is `#000000` carrying a film
-  grain at 10% opacity: the grain is what makes it read matte, not a lifted
-  black. The ink is a warm bone in four contrast-solved tiers, never pure white:
+- **Pure-black paper, warm bone ink.** The paper is a flat `#000000`: nothing is
+  laid over it, because a texture behind a settings sheet is decoration a reader
+  has to see past. The ink is a warm bone in four contrast-solved tiers, never pure white:
   `#cdc4ba` (12:1, values and titles), `#b0a9a0` (9:1, nav and body), `#958f87`
   (6.6:1, descriptions), `#7a756e` (4.6:1, tags and struck defaults). Nothing
   sits below 4.5:1, so any text is legible at any tier. Those four are the
@@ -55,6 +55,12 @@ its place; if it does not, remove it.
   hairline; a shadow appears only where something genuinely floats over
   something else (a popout, a drawer, a dock island). The Hub and apps are print
   and do not cast.
+- **The print texture rides the chrome, never the content.** The poster
+  ornaments are real, but they belong on the always-present furniture, not
+  behind the thing being read: `Reg` sits behind a nav rail (the Hub's, the
+  Shell Studio's) and `Marginalia` + `Barcode` fill the rail's dead last inch.
+  A settings plate gets flat paper. `Grain` is for art surfaces only. A texture
+  under a control is decoration the reader has to see past, so it is a bug.
 - **Latin names the thing, kanji seals it.** Every nav item, section eyebrow and
   poster plate pairs a Latin word with its real Japanese gloss: 画面 Displays,
   接続 Connections, 入力 Input, 矢印 Cursor, 演算 Machine, 外観 Appearance,
@@ -257,7 +263,7 @@ each surface. That is how eleven Themes happened.
 |Live preview|`Preview` (the block a live preview sits in), `SpectrumField` (the audio field, shared with the desktop)|
 |Modals|`AppPicker` (a filterable app or command list), `PickFile` (a file or folder chooser)|
 |Navigation|`Tabs` (bone-invert plates, the `//` lead)|
-|The matte|`Grain`, one layer, topmost|
+|Art texture|`Grain` (a film tooth over art, never over chrome: the recording thumbnail, the launcher preview)|
 |Poster ornament|`Reg` (registration backdrop), `Ticks` (corner ticks), `Barcode`, `Empty` (the empty-state plate), `Motif` (the line ornament inside `Empty`), `Marginalia` + `Pixel` (a running-head strip and its 1-bit dingbats), `Watermark` (a blurred background kanji behind the content)|
 |Poster filler|`Decor` (a wide plate in a dead grid slot), `Placard` (the tall one), `DitherField` (the procedural field either falls back to)|
 |Image tools|`HeroCrop` (cover plus a draggable 0..1 focal point), `DitherImage` (an image baked to 1-bit through the Bayer shader)|

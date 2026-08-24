@@ -3,6 +3,53 @@
 ## Unreleased
 
 ### Added
+- **Print filters: the compositor can resolve the whole screen to the desktop's
+  ink.** Five shaders ship in `ryoku/hyprland/shaders/` and apply to everything
+  Hyprland composites, apps included: **Bone** (tone kept, hue dropped, remapped
+  to bone rather than white), **Halftone** (newsprint dots, area-proportional and
+  resolution-independent), **1-bit** (the shell's own image dither, screen-wide),
+  **Vignette** (a page lit from the middle, the one filter that leaves colour
+  alone) and **Grain** (film tooth). Pick one on the Shell Studio's Desktop
+  route; the choice persists in `shell.json` (`screenShader`) so it survives a
+  reload, and low power forces it off because it is a full-screen fragment pass.
+- **The palette cross-fades with the wallpaper instead of snapping ahead of it.**
+  A new wallpaper's colours used to land in a single frame while the picture it
+  was derived from was still wiping in. Every Material role now walks from the
+  outgoing palette to the incoming one over the same beat (`Tokens.blend`), so the
+  desktop's ink migrates with the reveal. Reduce-motion still lands instantly.
+- **You can choose the wallpaper reveal, not just get a random one.** The shell
+  ships 22 named reveals (silk fade, iris open, page turn, and the rest) plus a
+  `random` sentinel that plays a fresh no-repeat one per switch; until now every
+  Super+W / Super+Shift+W switch was random with no way to pin one. A new
+  `wallpaper.transition_preset` key (default `random`, so nothing changes for an
+  existing desktop) is honoured on every user-driven switch: a named preset
+  reveals the same way each time, an unknown or absent value falls back to random,
+  and the two re-apply paths (login, live-reload) still never animate. The Shell
+  Studio's Pickers route grows a REVEAL card to set it (`ipc/transitions.go`,
+  `ipc/settings.go`, `controlcenter/routes/PickersRoute.qml`).
+- **The Shell Studio and the launcher results stagger in.** A studio route's cards
+  and the launcher's ranked results used to appear all at once; each now rises and
+  fades one after the next through the shared `Entrance` wrapper (`ui/Entrance.qml`),
+  a short ripple that reads as the surface settling rather than snapping. The delay
+  is bounded so even a long route lands promptly, and reduce-motion draws everything
+  at once with no motion.
+- **The qsbar logo opens a Shell Studio, not a control panel.** The old panel was
+  a QUICK deck plus a CONFIGURE landing page with its own bespoke widget
+  vocabulary; it is now one plate with a rail of nine routes (Bar, Widgets, Logo,
+  Spaces, Pickers, Dock, Desktop, System, Session), each a page of the house form
+  kit. Latin names the route, kanji seals it, the active route is the only bone
+  plate, and `Ctrl+K` searches every control by name, keyword and route. The dock,
+  the desktop widgets, the shell switches and the session actions are reachable
+  from it for the first time; nothing that was reachable before was dropped.
+- **A live dock preview.** Changing the dock's edge used to change something you
+  could not see, because the plate covers the dock (and on the left edge it sits
+  directly underneath the panel). The Dock route now carries a schematic of the
+  screen with the bar and the dock on it, and the island travels to the edge you
+  pick.
+- **The bar accent can follow the wallpaper.** `Follow wallpaper` stores the real
+  `accent` value rather than pinning a palette slot that pretends to track the
+  image, and switching it off puts back the slot you had. The cold-start cache
+  used to flatten `accent` to `color01`; it no longer does.
 - **Two desktop widgets join the set: weather and notes.** Both ported from
   end-4's ii widget canvas, both in Ryoku's own language (vector glyphs, ink
   picked against the wallpaper tone under the slot, every dimension multiplied by
@@ -69,7 +116,54 @@
   Displays -> Interface scale. Ported from caelestia (per-monitor token
   multipliers) and omarchy (a shell-wide size scale).
 
+### Changed
+- **Notification popups are flicked away, not faded out.** Dismissing a toast
+  (its close mark, its timeout, or the app retracting it) now slides it off the
+  edge it lives on while it shrinks and fades in one parallel move, so it reads
+  as thrown aside rather than dissolving in place; the cards below hold their
+  slot until it has cleared, then rise to close the gap instead of teleporting.
+  Arriving is the mirror and deliberately slower: the card comes in from the same
+  edge with a small scale settle so it lands rather than appears. The surface
+  keeps its full height for the whole dismiss, so a dismissed popup can never
+  leave a jump or a ghost row in the stack. Ported from Ambxst's notification
+  dismiss (slide-out overshoot plus shrink and fade). Reduce-motion still cuts
+  every step to an instant add and remove with no leftover transform.
+
 ### Fixed
+- **The studio's plate corners read as rounded.** A 900px plate carried a control's
+  radius, which at that size reads sharp, and the bottom fade squared the corner
+  outright because `clip` is rectangular and ignores `radius`: the fade now carries
+  the corner itself and the plate's own radius is scaled to its size.
+- **The dock's pinned-app rows no longer collide with their own hairline.** The
+  rows sat flush against the card border with an icon taller than the gap to the
+  divider, so each icon was crossed by a line. They are inset to the card's text
+  column and tall enough to clear it.
+- **Each widget card shows the mark its widget actually draws in the bar.** The
+  inventory was a list of names; the ones whose bar mark is a single glyph now
+  carry it (volume's `graphic_eq`, the CPU sparkline, the wifi bars, the media
+  note). The ones that draw a ring, a number or a per-state logo stay glyph-less
+  rather than showing an invented icon.
+- **A click off the studio dismisses it.** The panel ate every click inside the
+  plate and ignored the rest of the screen, so the only way out was Escape or the
+  close mark, unlike every other popout on the bar.
+- **The studio no longer slices a row at its bottom edge.** The plate takes its
+  height from the page, but a page longer than the cap was cut mid-row against the
+  border, which reads as a broken layout rather than "there is more below": the
+  cut now dissolves into the paper, the rail's printed foot is counted in the
+  rail's own height instead of overflowing it, and the cap grew so the long pages
+  fit.
+- **The studio rail's barcode no longer prints across the divider.** Its module
+  width was a constant, so the Code 39 plate came out wider than the rail and its
+  bars ran over the hairline into the page column. The width is solved from the
+  rail's own inner width now, because a clipped barcode loses its stop bars and
+  quietly stops being a barcode.
+- **The studio's plate no longer snaps between routes.** Routes have different
+  natural heights, and the resize was instant while the page faded, so a switch
+  read as two unrelated events. The plate now resizes on the house spatial curve
+  and the incoming page rises into it as one gesture.
+- **A disabled setting row now looks disabled.** `SettingRow` stopped accepting
+  input when gated by a master switch but kept full ink, so an inert control lied
+  about its state -- in the Hub as well as the studio.
 - **A background gpu-screen-recorder no longer strands the record toolbar.** The
   recorder keyed "we are recording" off any gpu-screen-recorder process, so a
   manually-started replay buffer flipped the floating toolbar on and left it stuck

@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Added
+- **The wallpaper reveal is pickable from Appearance.** The Theme tab gains a
+  WALLPAPER REVEAL card: a Picker over the 22 named reveals plus `random` (the
+  default, a fresh reveal per switch), writing the daemon's
+  `wallpaper.transition_preset` key -- the same one the Shell Studio's Pickers
+  route sets, so the two stay one truth (`quickshell/pages/AppearancePage.qml`).
+- **The form kit gains a stagger-entrance wrapper.** `ui/Entrance.qml` reveals its
+  child with a small rise and fade, offset by an `index` so a column of cards
+  arrives in sequence instead of all at once. Its rise distance, durations and
+  curves come from `Tokens` (the house spatial curve for the rise, the effects
+  curve for the fade); the cumulative delay is capped so a long column still lands
+  well under a second, and under reduce-motion it renders instantly with no timer
+  left running. It is a pure decorator -- the rise is a paint translation and the
+  fade is opacity -- so it never changes the child's measured height, and a plate
+  sized from that measurement stays exact.
 - **Weather and Notes tabs in the Widgets page.** The two new desktop widgets get
   the same treatment as the rest: a live preview card and their own controls
   (weather: enable, layout, size, opacity, placement, lock; notes: enable, pad
@@ -31,6 +45,11 @@
   per theme change (the colour is re-applied on login and on resume instead).
 
 ### Fixed
+- **A row gated by a master switch now looks disabled.** `SettingRow` stopped
+  taking input when its `enabled` went false but kept full ink, so an inert
+  control read as a live one -- the dock's rows under Enabled being the clearest
+  case. The row now dims with the state (`ui/SettingRow.qml`), which the shell's
+  new studio inherits for free.
 - **"Follow focus" on the scrolling layout now scrolls to the window under the
   pointer.** The toggle only flipped the scrolling layout's follow-focus (already
   on by default), so it looked like it did nothing: with the shipped detached
