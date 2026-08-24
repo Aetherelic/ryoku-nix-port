@@ -63,6 +63,28 @@ Item {
         return id === "" ? I18n.tr("Loading") : id;
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // Wallpaper reveal: the animation the desktop plays when the wallpaper
+    // changes. The daemon ships 22 named reveals plus the "random" sentinel (a
+    // fresh no-repeat pick per switch, and the default). The pick writes
+    // wallpaper.transition_preset through the same settings seam and takes effect
+    // on the next switch; 23 options is a catalogue, so the control is a Picker.
+    // The list is the daemon's preset table (ryoku/shell/ipc/transitions.go).
+    readonly property var revealOptions: [
+        "random",
+        "silk_fade", "diagonal_silk", "dream_curtain", "liquid_ribbon",
+        "iris_open", "corner_bloom", "spotlight_rise", "wander_iris", "vignette_close",
+        "celeste_veil", "comet_streak", "aurora_ripple", "starfall_bloom",
+        "mosaic_swell", "ember_burn", "pond_wake", "glass_scatter", "signal_tear",
+        "cathode_wink", "shutter_sweep", "wax_descent", "page_turn"
+    ]
+    readonly property string reveal: {
+        Settings.revision;
+        var v = Settings.get("wallpaper.transition_preset");
+        return (v === undefined || v === null || v === "") ? "random" : String(v);
+    }
+    function setReveal(k) { if (k) Settings.patch("wallpaper.transition_preset", k); }
+
     // Ryoku default: reset the whole desktop to the shipped signature in one
     // click, via `ryoku-hub hypr ryoku-theme`. A distinct one-shot reset.
     function applyRyokuTheme() { Settings.patch("theme.theme", "Default"); ryokuThemeProc.running = true; }
@@ -864,6 +886,40 @@ Item {
                     }
                 }
 
+                // ── WALLPAPER REVEAL ──
+                // How the desktop switches wallpapers. 23 options (the "random"
+                // sentinel plus 22 named reveals) is a catalogue, so the control
+                // is a Picker; the pick writes wallpaper.transition_preset and
+                // takes effect on the next switch.
+                SettingCard {
+                    width: wallCol.width
+                    title: I18n.tr("WALLPAPER REVEAL")
+                    Text {
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s1
+                        text: I18n.tr("The animation the desktop plays when the wallpaper changes. Random plays a fresh reveal each time; pick one to make every switch reveal the same way.")
+                        color: Tokens.inkMuted; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                    }
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        footH: 32
+                        label: I18n.tr("Reveal")
+                        source: "shell.json"
+                        changed: pg.reveal !== "random"
+                        def: "random"
+                        onResetRequested: pg.setReveal("random")
+                        PickBar {
+                            anchors.fill: parent
+                            value: pg.reveal
+                            count: pg.revealOptions.length
+                            onOpened: revealPick.show()
+                        }
+                    }
+                }
+
                 // ── RYOKU DEFAULT ──
                 SettingCard {
                     width: wallCol.width
@@ -1438,6 +1494,26 @@ Item {
         startFolder: "file://" + pg.home
         onPicked: (p) => { pg.importRiceFolder(("" + p).replace("file://", "")); riceImportPicker.active = false; }
         onCanceled: riceImportPicker.active = false
+    }
+
+    // wallpaper-reveal catalogue: 23 presets is too many to browse inline, so the
+    // pick opens the shared catalogue overlay (Picker) with a filter.
+    Item {
+        id: revealPick
+        anchors.fill: parent
+        visible: false
+        z: 200
+        function show() { visible = true; revealPicker.open(); }
+        MouseArea { anchors.fill: parent; onClicked: revealPick.visible = false }
+        Picker {
+            id: revealPicker
+            anchors.centerIn: parent
+            title: I18n.tr("WALLPAPER REVEAL")
+            options: pg.revealOptions
+            current: pg.reveal
+            onChose: (k) => { pg.setReveal(k); revealPick.visible = false; }
+            onDismissed: revealPick.visible = false
+        }
     }
 
     // read-only rice manifest viewer
