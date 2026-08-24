@@ -28,6 +28,23 @@ local low_power = perf_flag("lowPowerMode")
 local no_blur   = low_power or perf_flag("disableBlur")
 local no_shadow = low_power or perf_flag("disableShadows")
 
+-- The print filter (ryoku/hyprland/shaders/), named in shell.json. This parse is
+-- what makes the choice survive a reload; the shell applies it live itself. Low
+-- power forces it off: it is a full-screen fragment pass every frame.
+local function shell_string(key)
+  local f = io.open(home .. "/.config/ryoku/shell.json", "r")
+  if not f then return nil end
+  local s = f:read("*a")
+  f:close()
+  return s:match('"' .. key .. '"%s*:%s*"([^"]*)"')
+end
+local shaders = { halftone = true, bone = true, onebit = true, vignette = true, grain = true }
+local shader_name = shell_string("screenShader")
+local screen_shader = ""
+if not low_power and shader_name and shaders[shader_name] then
+  screen_shader = home .. "/.config/hypr/shaders/" .. shader_name .. ".glsl"
+end
+
 hl.config({
   general = {
     gaps_in                 = 12,
@@ -48,6 +65,7 @@ hl.config({
     rounding_power   = 4,
     active_opacity   = 1,
     inactive_opacity = 0.94,
+    screen_shader    = screen_shader,
     shadow           = {
       enabled      = not no_shadow,
       range        = 45,
