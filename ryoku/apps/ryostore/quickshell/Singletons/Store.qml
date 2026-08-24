@@ -78,7 +78,9 @@ Singleton {
         installErrorKey = "";
         _installError = "";
         var cmd = ["ryostore", "install", String(item.category), String(item.id)];
-        var wantDither = (dither === undefined) ? true : dither;
+        // what you see is what you install: the catalogue leads with the colour
+        // original, so an install with no explicit choice takes that one
+        var wantDither = (dither === undefined) ? false : dither;
         if (wantDither && String(item.artRaw || "") !== "")
             cmd.push("--dither");
         if (Array.isArray(components) && components.length > 0)

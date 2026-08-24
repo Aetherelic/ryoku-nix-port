@@ -26,6 +26,13 @@
   a seeded `featured`, driven by `quickshell/App.qml` `discoverSeed`).
 
 ### Fixed
+- `ryostore/`: **the catalogue shows art in its own colour, not dithered.** Every
+  product carries two previews, the dithered bake (`art`) and the colour original
+  (`artRaw`), and every surface reached for the bake: browsing emblems, decors and
+  fastfetch layouts meant a wall of 1-bit bone where the actual artwork is
+  colourful. Tiles and the detail plate now lead with the colour original, the
+  detail view's DITHER toggle starts off and shows the bake on demand, and an
+  install with no explicit choice takes the look you were shown.
 - `tools/`: **"Compress video" and "Install app" open again.** Both entries ran
   `hyprctl dispatch global ryoku:<name>`, and this Hyprland takes Lua, so the
   dispatch exited 7 with a parse error and the launcher entry did nothing. They

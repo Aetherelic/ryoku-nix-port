@@ -14,7 +14,9 @@ FocusScope {
     property string installErrorKey: ""
     property string installError: ""
     property bool reducedMotion: false
-    property bool ditherOn: true
+    // off by default: a product is shown as its author made it, and the dither is
+    // a look you ask for (and the variant the install then fetches)
+    property bool ditherOn: false
     readonly property bool hasDither: String(actionItem.artRaw || "") !== ""
     property real transitionProgress: open ? 1 : 0
     property int lightboxIndex: -1
@@ -199,7 +201,8 @@ FocusScope {
         width: detail.mix(detail.effectiveOrigin.width, detail.targetWidth)
         height: detail.mix(detail.effectiveOrigin.height, detail.targetHeight)
         item: detail.actionItem
-        artOverride: detail.hasDither && !detail.ditherOn ? String(detail.actionItem.artRaw || "") : ""
+        // the cover leads with the colour original, so the override is now the bake
+        artOverride: detail.hasDither && detail.ditherOn ? String(detail.actionItem.art || "") : ""
         mode: "plate"
     }
 

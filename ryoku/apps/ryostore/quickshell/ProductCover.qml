@@ -9,10 +9,17 @@ Item {
     property string mode: "cover"       // cover | hero | plate
     property bool selected: false
     property bool active: true
-    property string artOverride: ""     // the dither toggle shows this in place of item.art
+    property string artOverride: ""     // a caller showing the other look in place of ours
 
     readonly property bool tile: mode === "cover"
-    readonly property bool hasArtwork: String(item && item.art || "") !== ""
+    // The catalogue shows a product as its author made it: `art` is the dithered
+    // bake and `artRaw` the colour original, so browse leads with the colour and
+    // the dither is what a detail view (or the install) opts into.
+    readonly property string coverArt: {
+        const raw = String(item && item.artRaw || "");
+        return raw.length > 0 ? raw : String(item && item.art || "");
+    }
+    readonly property bool hasArtwork: cover.coverArt !== ""
     readonly property bool hasIdentity: Boolean(item && (item.id || item.name))
     readonly property string coverTitle: String(item && (item.name || item.id) || "Untitled")
     readonly property color coverSurface: item && item.surface ? item.surface : Tokens.paperLift
@@ -74,7 +81,7 @@ Item {
 
     ProductMedia {
         anchors.fill: parent
-        source: cover.artOverride !== "" ? cover.artOverride : (cover.hasArtwork ? cover.item.art : "")
+        source: cover.artOverride !== "" ? cover.artOverride : cover.coverArt
         mode: cover.mode
         surface: cover.coverSurface
         active: cover.active
