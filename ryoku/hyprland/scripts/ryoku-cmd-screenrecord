@@ -368,15 +368,17 @@ wf_vaapi_node() {
 }
 
 stop_recording() {
-  local pids
-  pids="$(recording_gsr_pids)"
-  if [[ -z $pids ]] && ! proc_running "$wf_pattern"; then
+  # an array, not a bare word split: the pid list is deliberately several pids,
+  # and quoting the string would pass them to kill as one argument.
+  local -a pids
+  mapfile -t pids < <(recording_gsr_pids | tr ' ' '\n' | grep -E '^[0-9]+$' || true)
+  if [[ ${#pids[@]} -eq 0 ]] && ! proc_running "$wf_pattern"; then
     notify -u normal "Screen recording" "No active recording found"
     return 0
   fi
 
   # scope the stop to recording processes: a background replay buffer must survive.
-  [[ -n $pids ]] && kill -INT $pids >/dev/null 2>&1 || true
+  [[ ${#pids[@]} -gt 0 ]] && kill -INT "${pids[@]}" >/dev/null 2>&1 || true
   proc_running "$wf_pattern" && signal_recorder -INT "$wf_pattern" || true
   notify -u normal "Screen recording stopped" "Saving recording to Videos/Recordings"
 
@@ -388,10 +390,10 @@ stop_recording() {
 }
 
 pause_recording() {
-  local pids
-  pids="$(recording_gsr_pids)"
-  if [[ -n $pids ]]; then
-    kill -USR2 $pids >/dev/null 2>&1 || true
+  local -a pids
+  mapfile -t pids < <(recording_gsr_pids | tr ' ' '\n' | grep -E '^[0-9]+$' || true)
+  if [[ ${#pids[@]} -gt 0 ]]; then
+    kill -USR2 "${pids[@]}" >/dev/null 2>&1 || true
   elif proc_running "$wf_pattern"; then
     notify -u normal "Screen recording" "Pause isn't available while recording with wf-recorder"
   else
