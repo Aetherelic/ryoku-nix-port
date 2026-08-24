@@ -11,6 +11,8 @@ name: Release Notes
 
 on:
   push:
+    branches:
+      - unstable-dev
     tags:
       - 'v*'
   workflow_dispatch:
@@ -31,7 +33,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-notes-${{ github.event.inputs.mode || 'stable' }}
+  group: release-notes-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -53,8 +55,10 @@ jobs:
           set -euo pipefail
 
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            mode="stable"
-            ref="${{ github.ref_name }}"
+            case "${{ github.ref }}" in
+              refs/tags/*) mode="stable"; ref="${{ github.ref_name }}" ;;
+              *) mode="unstable"; ref="$(git rev-parse HEAD)" ;;
+            esac
           else
             mode="${{ inputs.mode }}"
             ref="${{ inputs.ref }}"
