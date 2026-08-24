@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- `audio/99-ryoku-audio-powersave.conf`: **the headphone hiss/whine that only
+  sounds while audio plays is gone.** The kernel default (`snd_hda_intel
+  power_save=10`) powers the codec and its headphone amp down ~10s after a stream
+  stops and back up on playback; on many codecs the amp's noise floor is a faint
+  high-frequency whine audible only while it is energised -- the "mosquito" /
+  tinnitus hiss on headphones, gone at idle. A new `/usr/lib/modprobe.d` drop-in
+  sets `power_save=0 power_save_controller=N` so the codec stays steady (nothing
+  re-writes it at runtime: power is power-profiles-daemon, not TLP). Shipped in
+  `ryoku-desktop` so it reaches everyone on update; no reboot needed to test
+  (`echo 0 | sudo tee /sys/module/snd_hda_intel/parameters/power_save`). Costs
+  ~0.3-0.5 W idle on laptops; override in `/etc/modprobe.d` to keep the saving on
+  hardware that does not hiss.
 - `input/72-ryoku-keyboard-uaccess.rules`: **the recorder's "show keyboard"
   keycast works for every user, not just the install account.** The daemon reads
   keyboard evdev to draw the keypress overlay, but keyboards are `root:input` and

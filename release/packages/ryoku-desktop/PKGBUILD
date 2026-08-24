@@ -524,6 +524,13 @@ package() {
   install -Dm644 "$_repo/system/hardware/audio/70-ryoku-maono.rules" \
     "$pkgdir/usr/lib/udev/rules.d/70-ryoku-maono.rules"
 
+  # HDA codec power management off: the kernel default (power_save=10) cycles the
+  # codec + headphone amp with playback, and on many codecs the amp's noise floor
+  # is a faint whine audible only while it is powered -- the "mosquito"/tinnitus
+  # hiss on headphones. Keeping it powered removes the whine (see the conf header).
+  install -Dm644 "$_repo/system/hardware/audio/99-ryoku-audio-powersave.conf" \
+    "$pkgdir/usr/lib/modprobe.d/99-ryoku-audio-powersave.conf"
+
   # Keyboard keycast: the shell's keypress overlay (shown while recording) reads
   # keyboard evdev via the daemon. Grant the active-seat user a uaccess ACL on
   # keyboards so it works without the broad input group (see the rule header).
