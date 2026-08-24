@@ -79,6 +79,9 @@ GridView {
                 root.resultSelected(entry.resultKey, rowData.rank - 1);
         }
 
+        Entrance {
+            anchors.fill: parent
+            index: cell.index
         Rectangle {
             anchors.fill: parent
             color: cell.entry && cell.entry.resultKey === root.selectedResultKey
@@ -188,6 +191,7 @@ GridView {
             cursorShape: Qt.PointingHandCursor
 
             onClicked: cell.selectResult()
+        }
         }
     }
 }

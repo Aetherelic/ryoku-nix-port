@@ -11,12 +11,13 @@ import Ryoku.Ui.Singletons
 // right (or centred) per the position setting, reserving nothing (exclusive
 // zone 0) and never taking keyboard focus. It holds the flat, newest-first popup
 // list (newest at index 0) at a fixed 400 px content width with 14 px between
-// cards, floating 16 px off the corner. Each card glides in from off the edge it
-// is anchored to (slide + fade, Motion.notifIn) and glides back out the same way
-// on close (Motion.notifOut). The surface holds its height for a card that is
-// still leaving and unmaps Motion.notifHide after the list empties, so the last
-// exit is neither clipped nor cut short; a popup arriving in that wait cancels
-// the unmap.
+// cards, floating 16 px off the corner. Each card arrives from off the edge it
+// is anchored to (slide + fade + a small scale settle, Motion.notifIn) and, on
+// close, is flicked back out the same way (slide + shrink + fade, Motion.notifOut)
+// while the cards below hold their slot until it clears, then rise. The surface
+// holds its height for a card that is still leaving and unmaps Motion.notifHide
+// after the list empties, so the last exit is neither clipped nor cut short; a
+// popup arriving in that wait cancels the unmap.
 //
 // `Notifs.popups` is reassigned as a whole array on every change, which resets a
 // plain view (no per-item add/remove animation). A local `cards` ListModel is
@@ -77,11 +78,14 @@ PanelWindow {
     // still leaving: the window clips, so collapsing to 1 px under the last toast
     // wiped its exit slide instead of letting it glide off the edge.
     implicitHeight: Math.max(1, list.contentHeight, exitFloor)
-    // Height held for a leaving card, released once its exit has finished.
+    // Height held for a leaving card, released once its exit has finished. This
+    // must outlast the whole dismiss: the flicked card slides out over notifOut,
+    // then the cards below wait that long and rise over durFastSpatial. Releasing
+    // sooner would drop the surface under a card still rising and clip its foot.
     property real exitFloor: 0
     Timer {
         id: exitHold
-        interval: Motion.notifOut + 60
+        interval: Motion.notifOut + Tokens.durFastSpatial + 60
         onTriggered: win.exitFloor = 0
     }
     // Only follow the height once cards are already up: growing from nothing
@@ -169,31 +173,45 @@ PanelWindow {
         interactive: false
         model: cards
 
-        // Edge slide (contract 12 sec 5, eye-candy pass): a new card fades in and
-        // glides to rest from off the edge it is anchored to; siblings slide down
-        // to fill. A leaving card glides back out the same way and fades as it
-        // goes, on a curve that starts gently instead of snatching the card away.
-        // displaced restores opacity and position, so a card interrupted
-        // mid-arrival by a newer one still settles solid and in place, never left
-        // half-faded or overlapping. The unmap delay outlasts the exit, and the
-        // surface holds its height for it, so the last card is never clipped.
+        // Physical dismiss and arrival (contract 12 sec 5, eye-candy pass): a
+        // toast is flicked off the edge it lives on rather than fading in place,
+        // and the stack settles up behind it instead of teleporting.
+        //
+        // add: the card arrives from off its own edge on the emphasized settle,
+        // with a small scale settle so it reads as landing, not just sliding.
+        // remove: the card slides out toward its edge on the overshoot spatial
+        // curve while it shrinks and fades on the effects curve, all in
+        // parallel, so it reads as flicked away instead of dissolving.
+        // removeDisplaced: the cards below hold their slot until the flicked card
+        // has cleared (a PauseAnimation the length of the exit), then rise on the
+        // spatial curve, so the gap never collapses before the dismiss reads. It
+        // also restores x/opacity/scale for a card caught mid-arrival, so an
+        // interrupted card never sticks half-flicked. displaced does the same for
+        // an arrival-time reorder.
         add: Transition {
             NumberAnimation { properties: "opacity"; from: 0; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
             NumberAnimation { property: "x"; from: win.slideFrom; to: 0; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { property: "scale"; from: 0.96; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
         displaced: Transition {
             NumberAnimation { properties: "y"; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
             NumberAnimation { properties: "opacity"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
             NumberAnimation { property: "x"; to: 0; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { property: "scale"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
         remove: Transition {
-            NumberAnimation { properties: "opacity"; to: 0; duration: Motion.notifOut; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifOutCurve }
-            NumberAnimation { property: "x"; to: win.slideFrom; duration: Motion.notifOut; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifOutCurve }
+            NumberAnimation { property: "x"; to: win.slideFrom; duration: Motion.notifOut; easing.type: Motion.easeType; easing.bezierCurve: Tokens.curveDefaultSpatial }
+            NumberAnimation { property: "scale"; to: 0.8; duration: Motion.notifOut; easing.type: Motion.easeType; easing.bezierCurve: Tokens.curveDefaultEffects }
+            NumberAnimation { properties: "opacity"; to: 0; duration: Motion.notifOut; easing.type: Motion.easeType; easing.bezierCurve: Tokens.curveDefaultEffects }
         }
         removeDisplaced: Transition {
-            NumberAnimation { properties: "y"; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            SequentialAnimation {
+                PauseAnimation { duration: Motion.notifOut }
+                NumberAnimation { properties: "y"; duration: Tokens.durFastSpatial; easing.type: Motion.easeType; easing.bezierCurve: Tokens.curveDefaultSpatial }
+            }
             NumberAnimation { properties: "opacity"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
             NumberAnimation { property: "x"; to: 0; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
+            NumberAnimation { property: "scale"; to: 1; duration: Motion.notifIn; easing.type: Motion.easeType; easing.bezierCurve: Motion.notifInCurve }
         }
 
         delegate: NotificationCard {
