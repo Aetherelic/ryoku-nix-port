@@ -146,6 +146,10 @@
   every step to an instant add and remove with no leftover transform.
 
 ### Fixed
+- **A dismissed toast stops throwing on its way out.** The delegate outlives its
+  model entry, so a card animating away read `appName` and `body` off a null and
+  logged a TypeError per frame. Reads go through one guarded accessor now. The
+  hazard predates the flick-out dismiss; the longer exit is what made it visible.
 - **The dock comes back down when the pointer leaves it.** An icon grown by the
   cursor-tracked magnify stayed grown after the pointer left the band: the tracker
   only ever takes a position from a point inside the band, so on exit it kept the
