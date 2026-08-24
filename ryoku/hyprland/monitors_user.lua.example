@@ -27,3 +27,10 @@
 -- hl.monitor({ output = "DP-1", mode = "highrr", position = "0x0", scale = 1, transform = 1 })
 -- hl.monitor({ output = "DP-2", mode = "highrr", position = "0x0", scale = 1, mirror = "eDP-1" })
 -- hl.monitor({ output = "DP-3", disabled = true })
+
+-- Turn off a phantom output. Some machines expose a connector with no display
+-- on it -- a port routed through a discrete GPU on a hybrid laptop, or a KVM /
+-- dock that keeps a dead EDID line alive -- and Hyprland lights it as a blank
+-- second desktop that windows can get lost on. `ryoku doctor` names it (as a
+-- "phantom Wayland output"); disable it here, one line per output:
+-- hl.monitor({ output = "HDMI-A-1", disabled = true })

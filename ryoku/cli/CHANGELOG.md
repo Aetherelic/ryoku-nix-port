@@ -3,6 +3,29 @@
 ## Unreleased
 
 ### Added
+- **`ryoku doctor` flags a phantom Wayland output.** Ryoku's `monitors.lua`
+  ends in a catch-all rule so a hotplugged display needs no hand-written entry,
+  but that also makes Hyprland enable every connector it reports as connected --
+  including a connector with no display on it (a port routed through a hybrid
+  laptop's discrete GPU, or a KVM/dock that keeps a dead EDID line alive), which
+  comes up as a blank second desktop windows can get lost on. A new
+  `phantom Wayland output` reconciler names any enabled, non-internal output
+  with no EDID (empty make and model) and zero physical size, and points at the
+  one-line `monitors_user.lua` rule that disables it -- unless it is the only
+  display, which is treated as a real (if quirky) screen. Report-only: doctor
+  never disables an output itself, since that could black out a real monitor
+  with a broken EDID (`internal/doctor/reconcile_phantom_output.go`,
+  `TestPlanPhantomOutput`; the override is documented in
+  `hypr/monitors_user.lua.example`).
+- **`ryoku doctor` moves the SDDM greeter to Wayland.** A new
+  `SDDM greeter display server` reconciler writes
+  `/etc/sddm.conf.d/10-ryoku-wayland.conf` (`DisplayServer=wayland`,
+  `CompositorCommand=weston --shell=kiosk`) so the greeter runs on Wayland like
+  the session and SDDM tears it down at login, instead of orphaning
+  `sddm-greeter-qt6` onto a leftover Xorg where it kept drawing power. Gated on
+  weston being installed (a `ryoku-desktop` depend `pacman -Syu` lands first), so
+  it never writes a config the greeter cannot start; idempotent, and only ever
+  touches its own conf file (`internal/doctor/doctor.go`).
 - **`ryoku doctor` migrates the dock's settings out of the qsbar bar style.** The
   dock is a shell surface of its own now, so its five old `qsbar` keys
   (`dockEnabled`, `dockMagnify`, `dockPinned`, `dockFrost`, `dockShadow`) move

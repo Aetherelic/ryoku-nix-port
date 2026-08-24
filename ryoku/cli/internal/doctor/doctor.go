@@ -145,6 +145,7 @@ func reconcilers() []reconciler {
 		{"default app map", reconcileMimeDefaults},
 		{"keyring unlock policy", reconcileKeyring},
 		{"SDDM greeter theme", reconcileGreeterTheme},
+		{"SDDM greeter display server", reconcileGreeterDisplayServer},
 		{"fastfetch readout emblem", reconcileFastfetchEmblem},
 		{"brand mark image", reconcileBrandLogo},
 		{"decor art", reconcileRyodecors},
@@ -165,6 +166,7 @@ func reconcilers() []reconciler {
 		{"display backlight", reconcileBacklight},
 		{"discrete GPU idle drain", reconcileDgpuPanel},
 		{"display resolution", reconcileDisplayModes},
+		{"phantom Wayland output", reconcilePhantomOutput},
 		{"NVIDIA boot reliability", reconcileNvidiaModeset},
 		{"NVIDIA update guard hook", reconcileNvidiaGuardHook},
 		{"pending config (.pacnew)", reconcilePacnew},
@@ -2083,6 +2085,46 @@ func reconcileGreeterTheme(checkOnly bool) recResult {
 		return failRes("could not fix greeter theme permissions: %v", err).withFix(fix)
 	}
 	return fixedRes("normalized greeter theme so the sddm greeter can read it")
+}
+
+// ---- reconciler: SDDM greeter on Wayland ------------------------------------
+
+const sddmWaylandConf = "/etc/sddm.conf.d/10-ryoku-wayland.conf"
+
+// sddmWaylandBody is written verbatim. Never set DisplayServer=wayland without
+// weston present -- the greeter could not start. weston --shell=kiosk is SDDM's
+// default kiosk compositor; the greeter connects to it as a Wayland client.
+const sddmWaylandBody = "[General]\nDisplayServer=wayland\n\n[Wayland]\nCompositorCommand=weston --shell=kiosk\n"
+
+// reconcileGreeterDisplayServer moves the SDDM greeter to Wayland. SDDM's
+// default X11 greeter is orphaned when a Wayland session (Hyprland) starts:
+// sddm-helper dies mid-teardown without reaping sddm-greeter-qt6, which lingers
+// on a leftover Xorg and keeps drawing power (a video skin decodes forever).
+// Running the greeter on Wayland like the session lets SDDM own the VT and stop
+// it cleanly at login. Installer boxes get this from sddm/setup; this backports
+// it. Only ever writes our own conf, and only once weston is installed -- a hard
+// depend `pacman -Syu` lands before doctor runs, so this is unmet only on a box
+// that has not pulled the package yet.
+func reconcileGreeterDisplayServer(checkOnly bool) recResult {
+	if !sys.Exists(greeterThemeDir) {
+		return okRes("no Ryoku greeter installed")
+	}
+	if !sys.Exists("/usr/bin/weston") {
+		return warnRes("the Wayland greeter needs weston, which is not installed yet").
+			withFix("ryoku update")
+	}
+	if strings.Contains(readFileSafe(sddmWaylandConf), "DisplayServer=wayland") {
+		return okRes("SDDM greeter runs on Wayland (weston kiosk)")
+	}
+	if checkOnly {
+		return wouldRes("SDDM greeter still runs on X11; it is orphaned when a Wayland session starts and keeps drawing power").
+			withFix("ryoku doctor")
+	}
+	if err := writeRootFile(sddmWaylandConf, sddmWaylandBody, "0644"); err != nil {
+		return failRes("could not write %s: %v", sddmWaylandConf, err).
+			withFix("check sudo access, then re-run ryoku doctor")
+	}
+	return fixedRes("moved the SDDM greeter to Wayland (weston kiosk); it is torn down cleanly at login now")
 }
 
 // ---- reconciler: fastfetch readout emblem ------------------------------------
