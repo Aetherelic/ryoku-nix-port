@@ -30,6 +30,23 @@ Item {
         Services.Dock.setPinned(next);
     }
 
+    // Presentable captions for the Style chips: Chips render the option string,
+    // so the caption lives in `options` and maps back to the stored key here.
+    function styleCap(key) {
+        const opts = Services.Dock.styleOptions;
+        for (let i = 0; i < opts.length; i++)
+            if (opts[i].key === key)
+                return opts[i].label;
+        return "";
+    }
+    function styleKey(label) {
+        const opts = Services.Dock.styleOptions;
+        for (let i = 0; i < opts.length; i++)
+            if (opts[i].label === label)
+                return opts[i].key;
+        return label;
+    }
+
     // One pinned class: its icon, its name, and a remove action. Mirrors the row
     // geometry (40 tall, hairline under, suppressed on the last) so the list reads
     // as one printed band with the switches above it.
@@ -122,6 +139,7 @@ Item {
         readonly property bool vertical: dp.edge === "left" || dp.edge === "right"
         readonly property bool live: Services.Dock.cfg("enabled", false)
         readonly property int pins: Math.max(3, Math.min(6, Services.Dock.pinnedOrStarter().length))
+        readonly property string style: Services.Dock.cfg("style", "islands")
 
         height: Tokens.px(96)
         radius: Tokens.radius
@@ -140,42 +158,94 @@ Item {
             y: page.root && page.root.barPosition === "bottom" ? parent.height - Tokens.s3 - height : Tokens.s3
         }
 
-        // the dock itself: an island of icon marks on the resolved edge
-        Rectangle {
+        // the dock itself, drawn in the picked style so a Style change shows in
+        // the diagram, not only on the real dock hidden behind this panel.
+        Item {
             id: island
-            readonly property int run: dp.pins * Tokens.s4 + Tokens.s3
-            width: dp.vertical ? Tokens.s5 : island.run
-            height: dp.vertical ? island.run : Tokens.s5
-            radius: Tokens.radius
-            color: Tokens.tint10
-            border.width: 1
-            border.color: dp.live ? Tokens.line : Tokens.lineSoft
+            readonly property int marks: dp.pins
+            readonly property int cell: Tokens.s4
+            readonly property int run: island.marks * island.cell + Tokens.s2
+            // tanzaku strips hang from the screen edge: flush, and a step deeper.
+            readonly property bool strips: dp.style === "tanzaku"
+            readonly property int depth: island.strips ? Tokens.s6 : Tokens.s5
+            readonly property int inset: island.strips ? 0 : Tokens.s2
+            // rail, ledger and seal share one plate; islands and tanzaku give
+            // each mark its own.
+            readonly property bool onePlate: dp.style === "rail" || dp.style === "ledger" || dp.style === "seal"
+
+            width: dp.vertical ? island.depth : island.run
+            height: dp.vertical ? island.run : island.depth
             opacity: dp.live ? 1 : 0.35
             Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
 
-            // the dock hugs its edge in the real thing, so it hugs it here: a
-            // hairline's worth of inset, not a whole margin.
-            x: dp.edge === "left" ? Tokens.s2
-                : dp.edge === "right" ? dp.width - width - Tokens.s2
+            x: dp.edge === "left" ? island.inset
+                : dp.edge === "right" ? dp.width - width - island.inset
                 : Math.round((dp.width - width) / 2)
-            y: dp.edge === "top" ? Tokens.s2
-                : dp.edge === "bottom" ? dp.height - height - Tokens.s2
+            y: dp.edge === "top" ? island.inset
+                : dp.edge === "bottom" ? dp.height - height - island.inset
                 : Math.round((dp.height - height) / 2)
             Behavior on x { NumberAnimation { duration: Tokens.move; easing.bezierCurve: Tokens.curveEmphasized; easing.type: Easing.Bezier } }
             Behavior on y { NumberAnimation { duration: Tokens.move; easing.bezierCurve: Tokens.curveEmphasized; easing.type: Easing.Bezier } }
 
+            Rectangle {
+                anchors.fill: parent
+                visible: island.onePlate
+                radius: dp.style === "seal" ? 0 : Tokens.radius
+                color: Tokens.tint10
+                border.width: Tokens.border
+                border.color: dp.live ? Tokens.line : Tokens.lineSoft
+            }
+
             Grid {
                 anchors.centerIn: parent
-                columns: dp.vertical ? 1 : dp.pins
-                rowSpacing: 3
-                columnSpacing: 3
+                columns: dp.vertical ? 1 : island.marks
                 Repeater {
-                    model: dp.pins
-                    delegate: Rectangle {
-                        width: 7
-                        height: 7
-                        radius: 2
-                        color: Tokens.inkMuted
+                    model: island.marks
+                    delegate: Item {
+                        id: slot
+                        required property int index
+                        readonly property bool lastCell: slot.index === island.marks - 1
+                        width: dp.vertical ? island.depth : island.cell
+                        height: dp.vertical ? island.cell : island.depth
+
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: Tokens.px(2)
+                            visible: island.strips
+                            radius: Tokens.radius
+                            color: Tokens.tint10
+                            border.width: Tokens.border
+                            border.color: dp.live ? Tokens.line : Tokens.lineSoft
+                        }
+                        Rectangle {
+                            anchors.centerIn: parent
+                            visible: dp.style === "islands"
+                            width: Tokens.s3
+                            height: Tokens.s3
+                            radius: Tokens.radius
+                            color: Tokens.tint10
+                            border.width: Tokens.border
+                            border.color: dp.live ? Tokens.line : Tokens.lineSoft
+                        }
+                        Rectangle {
+                            visible: dp.style === "ledger" && !slot.lastCell
+                            color: dp.live ? Tokens.line : Tokens.lineSoft
+                            width: dp.vertical ? parent.width : Tokens.border
+                            height: dp.vertical ? Tokens.border : parent.height
+                            x: dp.vertical ? 0 : parent.width - width
+                            y: dp.vertical ? parent.height - height : 0
+                        }
+                        // seal fills only the running apps; the rest stay hollow
+                        // silhouettes, so colour alone reads as running.
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: Tokens.s2
+                            height: Tokens.s2
+                            radius: dp.style === "seal" ? 0 : Tokens.px(2)
+                            color: dp.style !== "seal" || slot.index % 2 === 0 ? Tokens.inkMuted : "transparent"
+                            border.width: dp.style === "seal" && slot.index % 2 !== 0 ? Tokens.border : 0
+                            border.color: Tokens.inkMuted
+                        }
                     }
                 }
             }
@@ -238,6 +308,24 @@ Item {
                             options: ["auto", "top", "bottom", "left", "right"]
                             current: Services.Dock.cfg("edge", "auto")
                             onChose: (k) => Services.Dock.setCfg("edge", k)
+                        }
+                    }
+                    SettingRow {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        divider: true
+                        block: true
+                        label: I18n.tr("Style")
+                        desc: I18n.tr("How the dock is drawn.")
+                        source: "shell.json"
+                        enabled: Services.Dock.cfg("enabled", false)
+                        Chips {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            options: Services.Dock.styleOptions.map(o => o.label)
+                            current: page.styleCap(Services.Dock.cfg("style", "islands"))
+                            onChose: (label) => Services.Dock.setCfg("style", page.styleKey(label))
                         }
                     }
                     SettingRow {

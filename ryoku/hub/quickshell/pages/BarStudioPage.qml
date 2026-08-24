@@ -203,6 +203,27 @@ Item {
         page.dset("pinned", page.dockPins().filter(x => x !== id));
     }
 
+    // The dock look choice. The shell owns every render; the Hub only writes the
+    // key, so this list mirrors the Dock singleton's styleOptions registry (shell
+    // services/Dock.qml) the way qsbarForms mirrors the bar's forms.
+    readonly property var dockStyleOptions: [
+        { key: "islands", label: "Islands" },
+        { key: "rail", label: "Rail" },
+        { key: "ledger", label: "Ledger" },
+        { key: "tanzaku", label: "Tanzaku" },
+        { key: "seal", label: "Seal" }
+    ]
+    function dockStyleLabel(key) {
+        for (let i = 0; i < page.dockStyleOptions.length; i++)
+            if (page.dockStyleOptions[i].key === key) return page.dockStyleOptions[i].label;
+        return page.dockStyleOptions[0].label;
+    }
+    function dockStyleKey(label) {
+        for (let i = 0; i < page.dockStyleOptions.length; i++)
+            if (page.dockStyleOptions[i].label === label) return page.dockStyleOptions[i].key;
+        return "islands";
+    }
+
     // The gap animation is stored as an int mode in the qsbar map. Bar Studio
     // exposes a labelled subset of the usable presets; each label maps to the
     // mode int the running bar reads. Off is the sentinel 0.
@@ -907,6 +928,24 @@ Item {
                         options: ["auto", "top", "bottom", "left", "right"]
                         current: page.dval("edge", "auto")
                         onChose: key => page.dset("edge", key)
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    divider: true
+                    block: true
+                    label: qsTr("Style")
+                    desc: qsTr("How the dock is drawn: split pills, one plate, numbered cells, hanging strips, or colour-means-running.")
+                    source: "shell.json"
+                    enabled: page.dval("enabled", false)
+                    Chips {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: page.dockStyleOptions.map(o => o.label)
+                        current: page.dockStyleLabel(page.dval("style", "islands"))
+                        onChose: key => page.dset("style", page.dockStyleKey(key))
                     }
                 }
                 SettingRow {

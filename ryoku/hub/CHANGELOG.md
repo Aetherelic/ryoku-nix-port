@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Bar Studio picks the dock look.** The DOCK card gains a Style control -- the
+  five dock looks (Islands, Rail, Ledger, Tanzaku, Seal) as chips -- reading and
+  writing the top-level `dock.style` key on the same live channel its neighbours
+  write `edge` on, so the running desktop repaints as you pick
+  (`quickshell/pages/BarStudioPage.qml`).
 - **The Fastfetch emblem gains a 1-bit dither.** A DITHER switch in the EMBLEM
   group bakes the emblem to bone-on-transparent with an ordered Bayer 4x4 dither
   -- the ryodecor look -- as a sibling PNG (`<source>.1bit.png`), never touching

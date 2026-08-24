@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **The dock has five looks, picked from the Shell Studio.** The app dock keeps
+  its Islands baseline (split pills) and gains four more: Rail (one continuous
+  plate), Ledger (numbered cells), Tanzaku (hanging strips) and Seal (colour
+  means running). The Shell Studio's Dock route grows a Style row and its live
+  preview redraws to match, so the choice reads before you commit it. The look
+  persists in `shell.json` as `dock.style` (default `islands`, so an existing
+  desktop is unchanged) and applies with no reload
+  (`controlcenter/routes/DockRoute.qml`, `services/Dock.qml`, `modules/dock/`).
 - **The launcher's solar line follows the palette, or a colour you choose.** The
   warm line under the clock, in both the Hero and Main variants, was a hardcoded
   gold; it now tracks the wallpaper's primary by day and the secondary accent by
