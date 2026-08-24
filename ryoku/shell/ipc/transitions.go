@@ -1,6 +1,11 @@
 package main
 
-import "math/rand/v2"
+import (
+	"encoding/json"
+	"math/rand/v2"
+	"os"
+	"path/filepath"
+)
 
 // transitionDurationMs is the shared wall-clock length of every wallpaper reveal.
 // Recovered from the wallpaper-daemon era (the old shared transitionDuration of
@@ -158,16 +163,81 @@ func (d *daemon) pickTransition() *pickedTransition {
 	return resolveTransition(transitionPresets[i])
 }
 
-// transitionFor is the preset a wallpaper op reveals with: a random one for a
-// user-driven switch (set / next / random), and none for the paths that must not
-// animate -- init, which paints the saved wallpaper onto a fresh backdrop at
-// login, and live-reload, which relaunches the current clip after a settings
-// change. One rule for both backends, so a still and a clip switch alike.
+// transitionFor is the preset a wallpaper op reveals with. Two paths must not
+// animate and always return nil: init, which paints the saved wallpaper onto a
+// fresh backdrop at login, and live-reload, which relaunches the current clip
+// after a settings change. A user-driven switch (set / next / random) reveals
+// with the user's wallpaper.transition_preset: the "random" sentinel (the
+// default) keeps the no-repeat picker, a named preset resolves that entry, and
+// an unknown or absent value falls back to the picker rather than failing the
+// switch. One rule for both backends, so a still and a clip switch alike.
 func (d *daemon) transitionFor(mode string) *pickedTransition {
 	if mode == "init" || mode == "live-reload" {
 		return nil
 	}
+	if p, ok := lookupTransitionPreset(wallpaperTransitionPreset()); ok {
+		return resolveTransition(p)
+	}
 	return d.pickTransition()
+}
+
+// transitionRandom is the sentinel wallpaper.transition_preset value: a fresh
+// no-repeat pick per switch, the shipped default and the behaviour from before
+// the preference existed.
+const transitionRandom = "random"
+
+// transitionPresetNames lists every preset name in table order. The settings
+// enum (settings.go) prepends transitionRandom to build the value domain, and
+// the reveal pickers in the Hub and the studio list these by name.
+func transitionPresetNames() []string {
+	names := make([]string, len(transitionPresets))
+	for i := range transitionPresets {
+		names[i] = transitionPresets[i].name
+	}
+	return names
+}
+
+// lookupTransitionPreset resolves a stored preference to a preset. The random
+// sentinel, the empty string (no key), and any name absent from the table all
+// return ok=false, so transitionFor falls back to the no-repeat picker.
+func lookupTransitionPreset(name string) (transitionPreset, bool) {
+	if name == "" || name == transitionRandom {
+		return transitionPreset{}, false
+	}
+	for i := range transitionPresets {
+		if transitionPresets[i].name == name {
+			return transitionPresets[i], true
+		}
+	}
+	return transitionPreset{}, false
+}
+
+// wallpaperTransitionPreset reads wallpaper.transition_preset from shell.json,
+// mirroring wallpaperContentFit: the key is formalised in settings.go, but the
+// switch reads it per apply so a changed preference takes effect on the next
+// switch with no live plumbing. A missing file, key, or unreadable value is the
+// random sentinel, so a switch always resolves.
+func wallpaperTransitionPreset() string {
+	dir := ryokuConfigDir()
+	if dir == "" {
+		return transitionRandom
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "shell.json"))
+	if err != nil {
+		return transitionRandom
+	}
+	var m struct {
+		Wallpaper struct {
+			TransitionPreset string `json:"transition_preset"`
+		} `json:"wallpaper"`
+	}
+	if json.Unmarshal(b, &m) != nil {
+		return transitionRandom
+	}
+	if m.Wallpaper.TransitionPreset == "" {
+		return transitionRandom
+	}
+	return m.Wallpaper.TransitionPreset
 }
 
 // resolveTransition binds a preset to a concrete origin, a fresh per-switch seed,

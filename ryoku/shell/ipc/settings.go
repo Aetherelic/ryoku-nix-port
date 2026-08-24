@@ -92,6 +92,12 @@ var (
 	// theme.theme accepts the two dynamic variants (which carry no static palette)
 	// plus every static catalog name (themes_gen.go). An unknown name is rejected.
 	themeThemeValues = append([]string{"Default", "Wallpaper"}, themeCatalogNames...)
+
+	// wallpaper.transition_preset accepts the "random" sentinel (the shipped
+	// default: a fresh no-repeat reveal per switch) plus every reveal preset name
+	// (transitions.go). A hand-edited unknown value is rejected like any bad enum;
+	// the daemon's transitionFor also falls back to random when it reads one.
+	transitionPresetValues = append([]string{transitionRandom}, transitionPresetNames()...)
 )
 
 // settings mirrors the reference configuration schema (contract 14), minus the
@@ -242,6 +248,7 @@ type notificationsSettings struct {
 type wallpaperSettings struct {
 	WallpaperDir        string  `json:"wallpaper_dir"`
 	ContentFit          string  `json:"content_fit"`
+	TransitionPreset    string  `json:"transition_preset"`
 	ApplyThemeFilter    bool    `json:"apply_theme_filter"`
 	ThemeFilterStrength float64 `json:"theme_filter_strength"`
 }
@@ -310,7 +317,7 @@ func defaultSettings() *settings {
 			RightMenuExpansionType: "AlwaysExpanded",
 		},
 		Notifications: notificationsSettings{NotificationPosition: "Right", PopupWindowMargins: 0},
-		Wallpaper:     wallpaperSettings{WallpaperDir: "", ContentFit: "Cover", ApplyThemeFilter: false, ThemeFilterStrength: 1},
+		Wallpaper:     wallpaperSettings{WallpaperDir: "", ContentFit: "Cover", TransitionPreset: transitionRandom, ApplyThemeFilter: false, ThemeFilterStrength: 1},
 	}
 }
 
@@ -521,6 +528,7 @@ func (n *notificationsSettings) normalize(v *validator) {
 
 func (w *wallpaperSettings) normalize(v *validator) {
 	v.enum("wallpaper.content_fit", w.ContentFit, contentFitValues)
+	v.enum("wallpaper.transition_preset", w.TransitionPreset, transitionPresetValues)
 	v.clampF(&w.ThemeFilterStrength, 0, 1)
 }
 

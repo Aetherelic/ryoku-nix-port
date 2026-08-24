@@ -250,3 +250,71 @@ func TestWallpaperRandomRevealsRandomImageWithTransition(t *testing.T) {
 		t.Fatalf("transition origin (%v,%v) out of [0,1]", f.Transition.OriginX, f.Transition.OriginY)
 	}
 }
+
+// transitionFor honours wallpaper.transition_preset: a known name is resolved
+// verbatim on every user-driven switch, the "random" sentinel and an unknown
+// name both fall back to the no-repeat picker, and the init / live-reload rule
+// (no reveal on a re-apply path) still holds whatever the preference.
+func TestTransitionForRespectsPreference(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), ".config")
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	dir := filepath.Join(cfg, "ryoku")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	shellJSON := filepath.Join(dir, "shell.json")
+	setPref := func(v string) {
+		b, err := json.Marshal(map[string]any{"wallpaper": map[string]any{"transition_preset": v}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(shellJSON, b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	d := &daemon{lastTransition: -1}
+
+	// A named preset is honoured verbatim. Over many draws every switch reveals
+	// with exactly it; the no-repeat picker never would, so this also proves the
+	// picker is bypassed.
+	want := "wander_iris"
+	if presetIndexByName(want) < 0 {
+		t.Fatalf("test fixture preset %q is not in the table", want)
+	}
+	setPref(want)
+	for _, mode := range []string{"set", "next", "random"} {
+		for i := range 50 {
+			tr := d.transitionFor(mode)
+			if tr == nil || tr.Name != want {
+				t.Fatalf("mode %q draw %d: got %v, want honoured preset %q", mode, i, tr, want)
+			}
+		}
+	}
+
+	// The re-apply paths never animate, even with a named preference set.
+	for _, mode := range []string{"init", "live-reload"} {
+		if tr := d.transitionFor(mode); tr != nil {
+			t.Errorf("mode %q with a preference revealed with %q, want no preset", mode, tr.Name)
+		}
+	}
+
+	// An unknown name falls back to the picker rather than erroring or resolving a
+	// bogus preset: every draw is still a known table entry.
+	setPref("not_a_real_preset")
+	for i := range 50 {
+		tr := d.transitionFor("set")
+		if tr == nil {
+			t.Fatalf("unknown preference draw %d got no preset, want a random fallback", i)
+		}
+		if presetIndexByName(tr.Name) < 0 {
+			t.Fatalf("unknown preference draw %d fell back to unknown preset %q", i, tr.Name)
+		}
+	}
+
+	// The explicit "random" sentinel is the picker too.
+	setPref(transitionRandom)
+	if tr := d.transitionFor("set"); tr == nil || presetIndexByName(tr.Name) < 0 {
+		t.Fatalf("random sentinel got %v, want a known preset", tr)
+	}
+}
