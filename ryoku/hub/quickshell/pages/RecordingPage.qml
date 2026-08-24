@@ -703,7 +703,7 @@ Item {
                     wrapMode: Text.WordWrap
                     text: pg.infoBackend === ""
                         ? I18n.tr("Detecting\u2026")
-                        : (I18n.tr("Backend    ") + (pg.infoBackend === "gsr" ? I18n.tr("gpu-screen-recorder") : "wf-recorder")
+                        : (I18n.tr("Backend    ") + (pg.infoBackend === "wf" ? "wf-recorder" : pg.infoBackend === "portal" ? I18n.tr("gpu-screen-recorder (portal)") : I18n.tr("gpu-screen-recorder"))
                            + I18n.tr("\nEncoder    ") + pg.infoEncoder
                            + I18n.tr("\nContainer  MP4  \u00b7  ") + (pg.draft ? pg.draft.fps : "")
                            + "fps " + (pg.draft ? String(pg.draft.framerateMode).toUpperCase() : "")

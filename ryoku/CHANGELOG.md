@@ -3,11 +3,18 @@
 ## Unreleased
 
 ### Fixed
-- **Recording a live wallpaper no longer fails.** A live wallpaper draws on a layer
-  the KMS capture drops, so recording took a portal path that raced its own
-  first-run source picker and then latched "portal broken". A live wallpaper now
-  records straight through wf-recorder, which captures the whole composite --
-  wallpaper included -- with no picker.
+- **Screen recording works on hybrid-GPU laptops again.** On a machine whose
+  panel is driven by a card gpu-screen-recorder can't enumerate (an AMD iGPU
+  display alongside a discrete NVIDIA GPU), the backend probe mistook the webcam
+  gsr lists (`/dev/video0|1920x1080@30hz`) for a monitor and launched a KMS
+  capture that died at once with "no /dev/dri/cardX device found", so recording
+  closed instantly. With a live wallpaper up it fell to wf-recorder, whose VAAPI
+  can't encode the compositor's dma-buf here, so it dropped to software and
+  choked after ~5s. Such a box now records through gpu-screen-recorder's portal
+  capture (PipeWire, GPU-encoded, and it composites the live wallpaper in), and
+  the probe no longer counts a webcam as a monitor. KMS capture still leads where
+  it works, so ordinary machines are unchanged. Ryoku Motion (studio) capture
+  shares the path and is fixed too.
 - **Device lighting is re-applied on resume from suspend.** Theme colours only
   reached the RGB devices on a palette change and at login, so after waking from
   suspend an OpenRGB motherboard/RAM/mouse (which reset on power loss) sat on its
