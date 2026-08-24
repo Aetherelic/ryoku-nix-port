@@ -46,6 +46,12 @@
   bug; it now asserts an unconfigured machine reads 100.
 
 ### Added
+- `bluetooth/99-ryoku-bt-autosuspend.conf`: **Bluetooth headphones stop dropping
+  seconds after they connect.** `btusb` autosuspends the controller in an audio
+  stream's idle gaps, and on combo Wi-Fi+BT chips (Intel AX2xx, Realtek RTL8761,
+  MediaTek MT7921) the resume races the link. A `modprobe.d` drop-in sets
+  `options btusb enable_autosuspend=0`, shipped by `ryoku-desktop`; reboot or
+  `modprobe -r btusb && modprobe btusb` to apply. `tests/controllers.sh` pins it.
 - `power/ryoku-game-tune` and `power/53-ryoku-game-tune.rules`: the system-level
   half of Game Mode. Deep CPU idle states off (C3 costs 350 us to leave on this
   hardware, C2 costs 18, so the choice is made by exit cost rather than by state

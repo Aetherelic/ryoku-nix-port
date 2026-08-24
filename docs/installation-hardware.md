@@ -227,6 +227,31 @@ this, `ryoku update` installs both; the ERTM change needs a reboot, or
 `modprobe -r btusb && modprobe btusb` to take effect without one. A pad paired
 while ERTM was on should be removed and re-paired.
 
+## Bluetooth headphones connect, then disconnect a few seconds later
+
+**Symptom.** A headset or earbuds pair and connect, then drop within a few
+seconds, reconnect on their own, and drop again, over and over. On a cable or on
+another machine the same device is fine. Often worse right after the audio has
+been briefly idle.
+
+**Cause.** `btusb`, the USB Bluetooth driver, enables USB autosuspend by default
+(`enable_autosuspend=Y`). On the combo Wi-Fi+Bluetooth controllers most laptops
+ship -- Intel AX2xx, Realtek RTL8761, MediaTek MT7921 -- the controller
+runtime-suspends during the brief idle gaps in an A2DP/HFP stream, and the resume
+races the still-open link, so the headset reads a dropped connection. It looks
+like a broken headset or a flaky pairing, and it is the most common "my Bluetooth
+headphones keep disconnecting on Linux" report on these chipsets.
+
+**What Ryoku does.** `ryoku-desktop` ships
+`/usr/lib/modprobe.d/99-ryoku-bt-autosuspend.conf`, which sets `options btusb
+enable_autosuspend=0` as a `modprobe.d` drop-in, so it applies on the first
+`btusb` load and survives a kernel change. The cost is a few milliwatts of idle
+radio power a powered-on adapter carrying audio was not saving anyway.
+
+**What the user must do.** Nothing on a fresh install. On a machine that predates
+this, `ryoku update` installs it; the change needs a reboot, or
+`modprobe -r btusb && modprobe btusb` to take effect without one.
+
 ## Bluetooth adapter is detected but never comes up
 
 **Symptom.** `bluetoothctl` shows no controller, or the adapter appears and never

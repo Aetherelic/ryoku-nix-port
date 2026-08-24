@@ -552,6 +552,12 @@ package() {
   install -Dm644 "$_repo/system/hardware/input/99-ryoku-controller.conf" \
     "$pkgdir/usr/lib/modprobe.d/99-ryoku-controller.conf"
 
+  # Bluetooth audio drops seconds after connecting when btusb autosuspends the
+  # controller in an audio stream's idle gaps. Disable it in modprobe.d so it
+  # applies on first btusb load; separate module from the ERTM drop-in above.
+  install -Dm644 "$_repo/system/hardware/bluetooth/99-ryoku-bt-autosuspend.conf" \
+    "$pkgdir/usr/lib/modprobe.d/99-ryoku-bt-autosuspend.conf"
+
   # Wi-Fi regulatory domain: the same one-click grant for ryoku-wifi-regdom
   # (installed by the hardware glob above), so the country can be pinned without a
   # password prompt; world domain 00 disables most 5 GHz channels.

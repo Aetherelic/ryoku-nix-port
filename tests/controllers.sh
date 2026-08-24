@@ -7,6 +7,8 @@
 # only shows up as "my controller does not work" on a user's machine:
 #
 #   - ERTM back on             -> Xbox pads never finish pairing over Bluetooth
+#   - autosuspend back on      -> Bluetooth headsets drop seconds after they
+#                                 connect, reconnect, and drop again
 #   - a driver left in the AUR -> `ryoku update` is pacman and can never install
 #                                 it, so a box that missed the one-shot build
 #                                 stays broken with no route to a fix
@@ -25,6 +27,7 @@ repo="$here/.."
 base="$repo/system/packages/base.packages"
 aur="$repo/system/packages/aur.packages"
 ertm="$repo/system/hardware/input/99-ryoku-controller.conf"
+autosuspend="$repo/system/hardware/bluetooth/99-ryoku-bt-autosuspend.conf"
 desktop="$repo/release/packages/ryoku-desktop/PKGBUILD"
 toolchain="$repo/release/repo/build-toolchain.packages"
 
@@ -47,6 +50,19 @@ fi
 # a modprobe.d drop-in applies on module load; modules-load.d would not.
 grep -q 'usr/lib/modprobe.d/99-ryoku-controller.conf' "$desktop" ||
   fail 'ryoku-desktop no longer installs the ERTM drop-in into modprobe.d'
+
+# ---- Bluetooth audio links survive the controller's autosuspend -------------
+
+[[ -f $autosuspend ]] || fail "the btusb autosuspend drop-in is missing: $autosuspend"
+
+if [[ -f $autosuspend ]]; then
+  grep -qE '^options btusb enable_autosuspend=0$' "$autosuspend" ||
+    fail 'the drop-in no longer sets btusb enable_autosuspend=0, so headsets drop seconds after connecting'
+fi
+
+# a modprobe.d drop-in applies on module load; modules-load.d would not.
+grep -q 'usr/lib/modprobe.d/99-ryoku-bt-autosuspend.conf' "$desktop" ||
+  fail 'ryoku-desktop no longer installs the btusb autosuspend drop-in into modprobe.d'
 
 # ---- the drivers a machine must have ----------------------------------------
 
