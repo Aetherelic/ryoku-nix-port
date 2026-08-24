@@ -138,6 +138,13 @@
   every step to an instant add and remove with no leftover transform.
 
 ### Fixed
+- **The dock comes back down when the pointer leaves it.** An icon grown by the
+  cursor-tracked magnify stayed grown after the pointer left the band: the tracker
+  only ever takes a position from a point inside the band, so on exit it kept the
+  last one and the icon under it went on reading a full-scale falloff. The scale
+  now consults the band's hover state as well as the position, so leaving the dock
+  releases it. Measured on a 46px island: 55px at rest, 77px hovered, and 77px
+  again long after the pointer had gone; now back to 55px.
 - **The studio's plate corners read as rounded.** A 900px plate carried a control's
   radius, which at that size reads sharp, and the bottom fade squared the corner
   outright because `clip` is rectangular and ignores `radius`: the fade now carries

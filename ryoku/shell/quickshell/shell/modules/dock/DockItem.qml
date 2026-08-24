@@ -34,8 +34,13 @@ Item {
     // Continuous magnify: distance from the cursor along the band, gaussian-ish
     // falloff, gated on the dock's magnify key (the band folds in reduce-motion).
     // A separate one-shot bounce multiplies in on launch.
+    //
+    // `hovered` is part of the gate, not decoration: cursorAlong only ever takes
+    // a value from a point INSIDE the band, so on exit it keeps the last position
+    // and whatever icon sat there would stay grown until the next hover landed
+    // somewhere else.
     readonly property real mag: {
-        if (!item.band.magnify)
+        if (!item.band.magnify || !item.band.hovered)
             return 1;
         const t = Math.max(0, 1 - Math.abs(item.alongCenter - item.band.cursorAlong) / item.band.reach);
         return 1 + (item.band.maxScale - 1) * t * t;
