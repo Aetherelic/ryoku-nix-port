@@ -43,6 +43,15 @@ Singleton {
         return (typeof v === "number" && v > 0 && v <= 8) ? v : 1.0;
     }
 
+    // The two persisted user preferences the Shell Studio's System route flips.
+    // Perf is the shell's only reader of performance.json, so its write lives
+    // here too rather than a second copy in a route: setting a key rewrites the
+    // file (atomic, watched) and every derived switch above re-folds from it.
+    // lowPower already exposes adapter.lowPowerMode above; this is its counterpart.
+    readonly property bool reduceMotionPref: adapter.reduceMotion
+    function setLowPower(on) { adapter.lowPowerMode = on; file.writeAdapter(); }
+    function setReduceMotion(on) { adapter.reduceMotion = on; file.writeAdapter(); }
+
     // Power profile -> tier. With powerProfileEffects off, or no power-profiles-daemon
     // (a desktop reports no profiles), the tier is Balanced so nothing is forced.
     readonly property int tierSaver: 0
@@ -126,8 +135,10 @@ Singleton {
     readonly property int msaa: (lowPower || saver || gaming) ? 2 : 8
 
     FileView {
+        id: file
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/performance.json"
         watchChanges: true
+        atomicWrites: true
         printErrors: false
         onFileChanged: reload()
         JsonAdapter {

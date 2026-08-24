@@ -1,49 +1,44 @@
 import QtQuick
+import Ryoku.Ui.Singletons
 
-// Geometry + motion tokens for the Control Center. Colours are NOT here: routes
-// read them straight off `root` (the qsbar Theme). One place for the CC's
-// spacing and durations so pages never restate magic numbers. Durations mirror
-// the values the old ControlPanel and Shibumi's ControlSettings used.
+// The studio's own geometry: the plate, the rail, the form column, the panel's
+// rhythm, and the durations its reveal and page swaps run at. Colour, type and
+// control size are NOT here -- they come from `Tokens`, the house single door,
+// which every route and every chrome piece reads directly. `root` is the qsbar
+// Theme, kept because the bar's live colours appear in the studio as DATA: the
+// silhouette, the accent swatches, the workspace marker preview.
 QtObject {
     id: t
     property var root
 
-    // ── card geometry ──
-    readonly property int cardW: 900
-    readonly property int cardH: 760
-    readonly property int screenMargin: 18
-    readonly property int pad: 20            // card content inset
-    readonly property int gap: 10            // general vertical gap
-    readonly property int sectionGap: 16     // between titled sections
-    readonly property int colGap: 14         // between the two columns
-    readonly property int rowH: 44           // a setting row
-    readonly property int tileH: 44          // an action tile
+    // ── plate ────────────────────────────────────────────────────────────────
+    // The plate is exactly the rail plus the form column plus their insets: no
+    // dead gutter to the right of a card, and a route that needs less scrolls
+    // less, because the height comes from the page too (see ControlCenter).
+    readonly property int railW: Tokens.px(216)
+    readonly property int contentW: Tokens.px(640) // the form column
+    readonly property int plateW: t.railW + t.contentW + t.pad * 2
+    readonly property int plateH: Tokens.px(940)   // the cap; the page decides
+    readonly property int screenMargin: Tokens.s5
+    // a 900px plate needs more curve than a control to read as rounded at all
+    readonly property int corner: Tokens.radius * 4
 
-    // ── route graph ports ──
-    readonly property real portR: 3.6
-    readonly property real portDestR: 4.4
+    // ── rhythm ───────────────────────────────────────────────────────────────
+    readonly property int pad: Tokens.s5          // body inset
+    readonly property int gap: Tokens.s3          // between rows of a group
+    readonly property int sectionGap: Tokens.s5   // between titled sections
+    readonly property int colGap: Tokens.s4       // between grid columns
+    readonly property int headH: Tokens.px(64)
+    readonly property int rowH: Tokens.px(40)
+    readonly property int tileH: Tokens.px(40)
+    readonly property int eyebrowH: Tokens.px(24)
+    readonly property int navH: Tokens.px(32)
 
-    // ── typography: four roles only, per the reference control language.
-    // A size outside this set is a smell, not a decision.
-    readonly property int fontEyebrow: 10    // uppercase section label, DemiBold
-    readonly property int fontBody: 12       // labels and body copy
-    readonly property int fontValue: 12      // values and selection, DemiBold
-    readonly property int fontDetail: 10     // secondary detail, dimmed
-    readonly property int fontTitle: 24      // the single page-title tier
-    readonly property real trackEyebrow: 1
-    readonly property real detailOpacity: 0.58
 
-    // ── control geometry ──
-    readonly property int controlH: 28       // segmented option, stepper button
-    readonly property int chipH: 24          // chip inside a card
-    readonly property int railW: 3           // scroll rail thumb at its widest
-
-    // ── motion (ms) ──
-    readonly property int revealOpen: 160
-    readonly property int revealClose: 120
-    readonly property int fade: 120
-    readonly property int pageOut: 90
-    readonly property int pageIn: 240
-    readonly property int graphFade: 300
-    readonly property int dragReturn: 230
+    // ── motion ───────────────────────────────────────────────────────────────
+    readonly property int revealOpen: Tokens.durSlowEffects
+    readonly property int revealClose: Tokens.durDefaultEffects
+    readonly property int fade: Tokens.durFastEffects
+    readonly property int pageOut: Tokens.durFastEffects
+    readonly property int pageIn: Tokens.durDefaultSpatial
 }

@@ -13,12 +13,14 @@ import Ryoku.Ui.Singletons
 Item {
     id: search
     property var root
+    property var tk
     property var entries: []               // the settings index (from ControlCenter)
     property alias text: input.text
     property int suggestionLimit: 5
     property int activeIndex: -1           // -1 = no explicit pick (index 0 is active)
     property bool suppressed: true         // suppress the popup until focused + typing
 
+    signal dismissed()                     // Escape with nothing to unwind: the overlay closes
     signal accepted(var entry)             // wired by ControlCenter → cc.open(entry.route)
 
     readonly property int inputH: 40
@@ -60,6 +62,7 @@ Item {
         if (search.suggestionsVisible) { search.activeIndex = -1; search.suppressed = true; return }
         input.text = ""
         search.blur()
+        search.dismissed()
     }
 
     // ── the input field (fixed height, pinned to the top of the reserved area) ──
@@ -67,11 +70,11 @@ Item {
         id: field
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         height: search.inputH
-        radius: search.root ? search.root.tileRadius : 6
-        color: search.root ? search.root.fillIdle : "transparent"
+        radius: search.tk ? Tokens.radius : 6
+        color: "transparent"
         border.width: 1
-        border.color: input.activeFocus ? (search.root ? search.root.seal : "#888888")
-                                        : (search.root ? search.root.sep : "#333333")
+        border.color: input.activeFocus ? (search.tk ? Tokens.ink : "#cdc4ba")
+                                        : (search.tk ? Tokens.line : "#333333")
         Behavior on border.color { ColorAnimation { duration: 120 } }
 
         IconText {
@@ -79,7 +82,7 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             text: "search"
-            color: search.root ? search.root.sumi : "#888888"
+            color: search.tk ? Tokens.inkFaint : "#7a756e"
             opacity: input.activeFocus ? 0.9 : 0.55
             font.pixelSize: 16
         }
@@ -95,10 +98,10 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: input.text === ""
             text: I18n.tr("Search settings, options, or routes\u2026")
-            color: search.root ? search.root.sumi : "#888888"
+            color: search.tk ? Tokens.inkFaint : "#7a756e"
             opacity: 0.7
             elide: Text.ElideRight
-            font.family: search.root ? search.root.mono : "monospace"
+            font.family: search.tk ? Tokens.mono : "monospace"
             font.pixelSize: 12
         }
         // ghost completion - drawn under the caret; the real text overlays it
@@ -107,10 +110,10 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: input.text !== "" && search.ghost !== ""
             text: search.ghost
-            color: search.root ? search.root.sumi : "#888888"
+            color: search.tk ? Tokens.inkFaint : "#7a756e"
             opacity: 0.45
             elide: Text.ElideRight
-            font.family: search.root ? search.root.mono : "monospace"
+            font.family: search.tk ? Tokens.mono : "monospace"
             font.pixelSize: 12
         }
         TextInput {
@@ -118,12 +121,12 @@ Item {
             anchors.left: glass.right; anchors.leftMargin: 8
             anchors.right: trailing.left; anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
-            color: search.root ? search.root.ink : "#cccccc"
-            selectionColor: search.root ? search.root.fillActive : "#444444"
-            selectedTextColor: search.root ? search.root.ink : "#ffffff"
+            color: search.tk ? Tokens.ink : "#cdc4ba"
+            selectionColor: search.tk ? Tokens.tint10 : "#222222"
+            selectedTextColor: search.tk ? Tokens.ink : "#cdc4ba"
             selectByMouse: true
             clip: true
-            font.family: search.root ? search.root.mono : "monospace"
+            font.family: search.tk ? Tokens.mono : "monospace"
             font.pixelSize: 12
 
             onTextEdited: { search.suppressed = false; search.activeIndex = -1 }
@@ -161,13 +164,13 @@ Item {
                 radius: 3
                 color: "transparent"
                 border.width: 1
-                border.color: search.root ? search.root.sep : "#333333"
+                border.color: search.tk ? Tokens.line : "#333333"
                 UiText {
                     id: kb
                     anchors.centerIn: parent
                     text: I18n.tr("CTRL K")
-                    color: search.root ? search.root.sumi : "#888888"
-                    font.family: search.root ? search.root.mono : "monospace"
+                    color: search.tk ? Tokens.inkFaint : "#7a756e"
+                    font.family: search.tk ? Tokens.mono : "monospace"
                     font.pixelSize: 10
                     font.letterSpacing: 1
                 }
@@ -177,7 +180,7 @@ Item {
                 anchors.centerIn: parent
                 visible: input.text !== ""
                 text: "close"
-                color: search.root ? search.root.sumi : "#888888"
+                color: search.tk ? Tokens.inkFaint : "#7a756e"
                 opacity: clearHover.containsMouse ? 0.9 : 0.5
                 font.pixelSize: 15
                 MouseArea {
@@ -198,11 +201,11 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: field.bottom; anchors.topMargin: 6
         height: search.popupBodyH
-        radius: search.root ? search.root.tileRadius : 6
+        radius: search.tk ? Tokens.radius : 6
         // opaque surface: the card bg is translucent, so force full alpha here
-        color: search.root ? Qt.rgba(search.root.paper.r, search.root.paper.g, search.root.paper.b, 1) : "#181616"
+        color: search.tk ? Tokens.paperLift : "#0a0a0a"
         border.width: 1
-        border.color: search.root ? search.root.sep : "#333333"
+        border.color: search.tk ? Tokens.line : "#333333"
         clip: true
 
         Column {
@@ -220,13 +223,13 @@ Item {
                     width: parent ? parent.width : 0
                     height: search.suggestRowH
                     readonly property bool active: row.index === search.effectiveIndex || pointer.containsMouse
-                    color: row.active ? (search.root ? search.root.fillHover : "transparent") : "transparent"
+                    color: row.active ? (search.tk ? Tokens.tint5 : "transparent") : "transparent"
 
                     Rectangle {
                         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                         height: 1
                         visible: row.index < rep.count - 1
-                        color: search.root ? search.root.sep : "#333333"
+                        color: search.tk ? Tokens.line : "#333333"
                     }
 
                     Row {
@@ -238,10 +241,10 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width - meta.implicitWidth - parent.spacing
                             text: String(row.modelData.name || row.modelData.id || "")
-                            color: row.active ? (search.root ? search.root.ink : "#ffffff")
-                                              : (search.root ? search.root.sumiHi : "#cccccc")
+                            color: row.active ? (search.tk ? Tokens.ink : "#cdc4ba")
+                                              : (search.tk ? Tokens.inkMuted : "#958f87")
                             elide: Text.ElideRight
-                            font.family: search.root ? search.root.mono : "monospace"
+                            font.family: search.tk ? Tokens.mono : "monospace"
                             font.pixelSize: 12
                             font.weight: Font.Medium
                         }
@@ -249,9 +252,9 @@ Item {
                             id: meta
                             anchors.verticalCenter: parent.verticalCenter
                             text: String(row.modelData.category || "").toUpperCase() + I18n.tr(" \u00b7 TAB")
-                            color: search.root ? search.root.sumi : "#888888"
+                            color: search.tk ? Tokens.inkFaint : "#7a756e"
                             opacity: 0.6
-                            font.family: search.root ? search.root.mono : "monospace"
+                            font.family: search.tk ? Tokens.mono : "monospace"
                             font.pixelSize: 10
                             font.letterSpacing: 0.4
                         }

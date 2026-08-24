@@ -75,6 +75,29 @@ Singleton {
     // regional formats. Empty = follow the system locale. Set from the Hub's
     // Region control; a plain passthrough key in shell.json.
     property alias formatLocale: adapter.formatLocale
+
+    // screenShader: the compositor's print filter, by shader name. Persisted for
+    // the reload path (decoration.lua reads the key) and applied live here. The
+    // live call is `hyprctl eval` with Lua, not `keyword`, which this Hyprland
+    // fork rejects outright.
+    property alias screenShader: adapter.screenShader
+    readonly property var screenShaders: ["", "halftone", "bone", "onebit", "vignette", "grain"]
+    function setScreenShader(name) {
+        const pick = root.screenShaders.indexOf(name) >= 0 ? name : "";
+        root.screenShader = pick;
+        shaderCtl.queued += "call settings.patch "
+            + JSON.stringify({ path: "screenShader", value: pick }) + "\n";
+        if (shaderCtl.connected)
+            shaderCtl.flushQueued();
+        else
+            shaderCtl.connected = true;
+        const path = pick === ""
+            ? ""
+            : (Quickshell.env("HOME") || "") + "/.config/hypr/shaders/" + pick + ".glsl";
+        Quickshell.execDetached(["hyprctl", "eval",
+            'hl.config({ decoration = { screen_shader = "' + path + '" } })']);
+    }
+
     // resolved Qt locale: the chosen region, else the system default. the
     // ".UTF-8" suffix and a BCP47 dash are normalised to what Qt.locale() wants.
     readonly property var formatLoc: {
@@ -144,6 +167,7 @@ Singleton {
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property string formatLocale: ""
+            property string screenShader: ""
             property var frameBars: FrameBars.defaultConfig()
             property string barStyle: "qsbar"
             property var obi: ({})
@@ -194,6 +218,21 @@ Singleton {
         }
     }
 
+    // The daemon's control socket: shell.json is read-only here (the daemon owns
+    // it and serialises every writer), so a persisted write goes through it.
+    Socket {
+        id: shaderCtl
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
+        property string queued: ""
+        function flushQueued() {
+            if (queued.length === 0)
+                return;
+            write(queued);
+            flush();
+            queued = "";
+        }
+        onConnectionStateChanged: if (connected) flushQueued()
+    }
 
     // seed only on a genuine first run (nothing to load), so a slow or failed
     // load can't overwrite a present file with defaults.

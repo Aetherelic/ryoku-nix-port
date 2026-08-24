@@ -82,8 +82,11 @@ Item {
         if (id === "accent") return accentHint
         return color01
     }
+    // "accent" means follow the wallpaper's own accent, so it is a real choice and
+    // must survive the cold-start cache; only the legacy "red" collapses.
     function normalizedPaletteId(id) {
-        if (id === "red" || id === "accent") return "color01"
+        if (id === "accent") return "accent"
+        if (id === "red") return "color01"
         return paletteColorValid(id) ? id : "color01"
     }
     readonly property color seal: paletteColor(barColor)

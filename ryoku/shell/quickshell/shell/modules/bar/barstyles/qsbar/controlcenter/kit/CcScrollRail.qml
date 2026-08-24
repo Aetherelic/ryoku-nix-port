@@ -1,4 +1,5 @@
 import QtQuick
+import Ryoku.Ui.Singletons
 
 // The Control Center's one scroll affordance: a slim side rail that appears only
 // when content exceeds the viewport. Two-pixel thumb growing to three on hover or
@@ -7,6 +8,7 @@ Item {
     id: rail
 
     required property var root
+    property var tk
     required property var flick
 
     readonly property bool overflowing: flick
@@ -27,9 +29,8 @@ Item {
         anchors.rightMargin: 2
         width: rail.engaged ? 3 : 2
         radius: width / 2
-        color: rail.root
-            ? Qt.rgba(rail.root.ink.r, rail.root.ink.g, rail.root.ink.b,
-                rail.engaged ? 0.42 : 0.24)
+        color: rail.tk
+            ? Qt.rgba(Tokens.ink.r, Tokens.ink.g, Tokens.ink.b, rail.engaged ? 0.42 : 0.24)
             : "transparent"
         height: rail.flick && rail.flick.contentHeight > 0
             ? Math.max(24, rail.height * Math.min(1, rail.flick.height / rail.flick.contentHeight))
