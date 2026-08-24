@@ -123,14 +123,28 @@ Other (all optional, env-only):
   headroom for AUR builds and snapshots). Make room first by carving an existing
   partition (the TUI's carve view shrinks it in place).
 
-## Install is online-only
+## Online and offline installs
 
-There is no offline package source: the base system, the desktop, and the dev
-toolchains all download from the network mirrors and the signed `[ryoku]` repo.
-The installer probes DNS and HTTP reach *before* the disk is touched and fails
-early with plain guidance if it cannot reach them (a dead-CMOS clock that breaks
-TLS is auto-corrected from the mirror's own clock). `RYOKU_ONLINE=0` exists only
-for the backend's own tests, not for a real install.
+The backend installs either way, keyed on `RYOKU_ONLINE`:
+
+- **Offline (the ISO default).** The live ISO bakes the entire package closure
+  (base, every hardware profile, dev, the CachyOS layer, the Ryoku desktop, and
+  the AUR set) into one `file://` `[offline]` repo
+  (`installation/iso/offline-repo.sh`). When a baked repo with a synced db is
+  present the TUI sets `RYOKU_ONLINE=0`, and `lib/offline.sh` points pacstrap and
+  every in-chroot transaction at that repo, so the install needs no network. The
+  base lays first; the desktop, GPU drivers, and AUR toolset each install as
+  separate chroot transactions, so one bad package cannot take the base down.
+- **Online.** With no baked repo (or `RYOKU_ONLINE=1`), the base, desktop, and
+  dev toolchains download from the Arch mirrors and the signed `[ryoku]` repo.
+  The installer probes DNS and HTTP reach *before* the disk is touched and fails
+  early with plain guidance if it cannot reach them (a dead-CMOS clock that
+  breaks TLS is auto-corrected from the mirror's own clock).
+
+An offline install trusts the baked packages (vetted over TLS at ISO-build time,
+`SigLevel = Never` for the local repo) and re-verifies against real keyrings on
+the target's first online update. The baked set is a snapshot, so run `ryoku
+update` after first boot to pull current packages.
 
 ## Progress protocol
 

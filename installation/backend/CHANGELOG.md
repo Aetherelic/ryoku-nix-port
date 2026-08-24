@@ -10,6 +10,12 @@
   from the matching `ryoku doctor` reconciler (`lib/mirrors.sh`).
 
 ### Fixed
+- **The backend README no longer claims the install is online-only.** Offline
+  installs from the baked `[offline]` repo have been the ISO default for a while
+  (`lib/offline.sh`, `SigLevel = Never` on local packages), but the README still
+  said "there is no offline package source". Rewrote the section to describe both
+  the offline and online paths and to note that a snapshot ISO should run `ryoku
+  update` after first boot.
 - **A fresh install now includes `asusctl` only when the target has a supported
   ASUS Aura laptop keyboard.** The desktop deployment runs the shared hardware
   probe inside the target, adds the signed provider package to pacman, and lets
