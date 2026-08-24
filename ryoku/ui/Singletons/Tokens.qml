@@ -34,11 +34,15 @@ Singleton {
 
     // Resolve one Material role through the layer chain: a named scheme wins,
     // then the live wallpaper palette while Match wallpaper is on, then the base.
+    // Mid-cross-fade the wallpaper layer is a mix of the two palettes.
     function role(key, base) {
         if (namedScheme && usable(namedScheme[key]))
             return namedScheme[key];
-        if (matchWallpaper && usable(wall[key]))
-            return wall[key];
+        if (matchWallpaper && usable(wall[key])) {
+            if (blend >= 0.999 || !usable(wallPrev[key]))
+                return wall[key];
+            return t.mixRole(Qt.color(wallPrev[key]), Qt.color(wall[key]), blend);
+        }
         return base;
     }
 
@@ -186,14 +190,53 @@ Singleton {
     // ── grain ────────────────────────────────────────────────────────────
     readonly property real grainOpacity: 0.10
 
+    // ── palette cross-fade ───────────────────────────────────────────────────
+    // A new palette used to land in one frame while the wallpaper it came from was
+    // still wiping in. `blend` walks the roles across instead, so the ink arrives
+    // with the picture. Every role is a mix while it runs, so every binding that
+    // reads one re-evaluates per frame: bounded to the change, skipped when motion
+    // is reduced.
+    property var wallPrev: ({})
+    property real blend: 1
+    // an explicit animation, not a Behavior: assigning 0 then 1 in one block never
+    // leaves the property at 0, so a Behavior would animate 1 to 1 and show nothing
+    NumberAnimation {
+        id: blendWalk
+        target: t
+        property: "blend"
+        from: 0
+        to: 1
+        duration: t.durSlowEffects
+        easing.type: Easing.Bezier
+        easing.bezierCurve: t.curveDefaultEffects
+    }
+
+    function mixRole(from, to, at) {
+        return Qt.rgba(from.r + (to.r - from.r) * at,
+                       from.g + (to.g - from.g) * at,
+                       from.b + (to.b - from.b) * at,
+                       from.a + (to.a - from.a) * at);
+    }
+
     // ── daemon palette readers ───────────────────────────────────────────────
     function refreshWall() {
+        var next = ({});
         try {
             const txt = paletteFile.text();
-            t.wall = txt && txt.length ? (JSON.parse(txt) || {}) : {};
+            next = txt && txt.length ? (JSON.parse(txt) || {}) : {};
         } catch (e) {
-            t.wall = {};
+            next = {};
         }
+        // the session's first palette has nothing to come from: land it solid
+        const first = Object.keys(t.wall).length === 0;
+        t.wallPrev = t.wall;
+        t.wall = next;
+        if (first || t.reduceMotion) {
+            blendWalk.stop();
+            t.blend = 1;
+            return;
+        }
+        blendWalk.restart();
     }
     function refreshNamed() {
         var pal = null;

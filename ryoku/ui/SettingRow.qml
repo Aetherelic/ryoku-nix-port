@@ -47,6 +47,12 @@ Item {
         : Math.max(Tokens.rowH, padV + txt.implicitHeight + padV)
     height: implicitHeight
 
+    // A row gated by a master switch (a dock's rows under Enabled, an accent slot
+    // under Follow wallpaper) stops accepting input through `enabled`, so it has to
+    // stop looking live as well: an inert control at full ink lies about its state.
+    opacity: row.enabled ? 1 : 0.4
+    Behavior on opacity { NumberAnimation { duration: Tokens.snap; easing.type: Tokens.ease } }
+
     // search spotlight: a brief bone-tint wash when a search result lands here.
     Rectangle {
         anchors.fill: parent
