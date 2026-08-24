@@ -125,5 +125,28 @@ var rows = [
         "src": "launcher.json",
         "lo": 0.0,
         "hi": 1.0
+    },
+    {
+        "tab": "",
+        "group": "HERO",
+        "key": "horizonMode",
+        "label": "Solar line",
+        "desc": "The warm line under the clock; Palette follows the wallpaper, Fixed uses a set colour, Off hides it",
+        "ctl": "seg",
+        "src": "launcher.json",
+        "opts": [
+            "auto",
+            "fixed",
+            "off"
+        ]
+    },
+    {
+        "tab": "",
+        "group": "HERO",
+        "key": "horizonColor",
+        "label": "Line colour",
+        "desc": "Colour of the solar line and its marker when Solar line is set to Fixed",
+        "ctl": "color",
+        "src": "launcher.json"
     }
 ];

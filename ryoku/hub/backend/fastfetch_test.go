@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -209,5 +212,100 @@ func TestFastfetchLogoPaddingRoundTrips(t *testing.T) {
 		if out.Logo.Padding[side] != value {
 			t.Errorf("padding.%s = %d, want %d", side, out.Logo.Padding[side], value)
 		}
+	}
+}
+
+// writeTestEmblem lays down a small opaque PNG with a bright half and a dark half,
+// so the bake has tones on both sides of the Bayer threshold and both palette
+// entries get used.
+func writeTestEmblem(t *testing.T, path string) {
+	t.Helper()
+	img := image.NewNRGBA(image.Rect(0, 0, 16, 16))
+	for y := range 16 {
+		for x := range 16 {
+			if x < 8 {
+				img.SetNRGBA(x, y, color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff})
+			} else {
+				img.SetNRGBA(x, y, color.NRGBA{A: 0xff})
+			}
+		}
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, img); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDitherLogoBakesTwoColourThenIsIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "ryoku-logo.png")
+	writeTestEmblem(t, src)
+
+	baked, err := ditherFastfetchLogo("on", src)
+	if err != nil {
+		t.Fatalf("dither on: %v", err)
+	}
+	if baked != src+ffDitherSuffix {
+		t.Fatalf("baked path = %q, want %q", baked, src+ffDitherSuffix)
+	}
+
+	// the bake is a genuine 1-bit indexed PNG: a two-entry palette of transparent
+	// ground and bone ink, and nothing else.
+	f, err := os.Open(baked)
+	if err != nil {
+		t.Fatalf("open baked: %v", err)
+	}
+	defer f.Close()
+	decoded, err := png.Decode(f)
+	if err != nil {
+		t.Fatalf("decode baked: %v", err)
+	}
+	pal, ok := decoded.(*image.Paletted)
+	if !ok {
+		t.Fatalf("baked image is %T, want *image.Paletted (1-bit indexed)", decoded)
+	}
+	if len(pal.Palette) != 2 {
+		t.Fatalf("palette has %d colours, want 2", len(pal.Palette))
+	}
+	var sawGround, sawBone bool
+	wantR, wantG, wantB, wantA := ffBone.RGBA()
+	for _, c := range pal.Palette {
+		r, g, b, a := c.RGBA()
+		if a == 0 {
+			sawGround = true
+		} else if r == wantR && g == wantG && b == wantB && a == wantA {
+			sawBone = true
+		} else {
+			t.Errorf("unexpected palette colour rgba=%d,%d,%d,%d", r, g, b, a)
+		}
+	}
+	if !sawGround || !sawBone {
+		t.Errorf("palette missing a colour: ground=%v bone=%v", sawGround, sawBone)
+	}
+
+	// a second bake sees the baked source and returns it untouched: no double bake,
+	// so no baked-of-a-baked file appears.
+	again, err := ditherFastfetchLogo("on", baked)
+	if err != nil {
+		t.Fatalf("dither on (second): %v", err)
+	}
+	if again != baked {
+		t.Fatalf("second bake returned %q, want the baked path %q unchanged", again, baked)
+	}
+	if _, err := os.Stat(baked + ffDitherSuffix); !os.IsNotExist(err) {
+		t.Errorf("second bake wrote a double-baked file %q", baked+ffDitherSuffix)
+	}
+
+	// off returns the original source, which the bake never modified.
+	restored, err := ditherFastfetchLogo("off", baked)
+	if err != nil {
+		t.Fatalf("dither off: %v", err)
+	}
+	if restored != src {
+		t.Fatalf("dither off = %q, want the original %q", restored, src)
 	}
 }

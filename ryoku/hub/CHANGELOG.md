@@ -3,6 +3,25 @@
 ## Unreleased
 
 ### Added
+- **The Fastfetch emblem gains a 1-bit dither.** A DITHER switch in the EMBLEM
+  group bakes the emblem to bone-on-transparent with an ordered Bayer 4x4 dither
+  -- the ryodecor look -- as a sibling PNG (`<source>.1bit.png`), never touching
+  the original; off restores it. The bake is pure Go (`image`/`image/png`, no
+  Pillow and no shell-out), and the on/off state rides the source name so nothing
+  new lands in `config.jsonc` (`backend/fastfetch.go`,
+  `quickshell/pages/FastfetchPage.qml`).
+- **Fastfetch emblems and installed Store layouts can be removed.** The EMBLEM
+  group gains REMOVE IMPORTED EMBLEM, which deletes the `ryoku-logo.*` the Hub
+  wrote (and its bake) and repoints the readout at the shipped emblem if it was in
+  use; a store-installed emblem carries a remove mark on its own tile; and the
+  Store row gains REMOVE INSTALLED STYLE beside APPLY. All three call
+  `ryostore remove <category> <id>` and refresh the catalogue and config the way
+  the apply path does. A failed removal surfaces its stderr instead of failing
+  silently (`quickshell/pages/FastfetchPage.qml`, `backend/fastfetch.go`).
+- **The Launcher page can set the solar line.** The Hero card gains a Solar line
+  control -- Palette (follow the wallpaper), Fixed, or Off -- and, when Fixed, a
+  colour field for the line and its sun/moon marker, writing the launcher.json
+  `horizonMode` and `horizonColor` keys (`quickshell/pages/LauncherPage.qml`).
 - **The wallpaper reveal is pickable from Appearance.** The Theme tab gains a
   WALLPAPER REVEAL card: a Picker over the 22 named reveals plus `random` (the
   default, a fresh reveal per switch), writing the daemon's

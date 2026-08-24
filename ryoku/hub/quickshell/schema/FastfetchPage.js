@@ -67,6 +67,15 @@ var rows = [
     },
     {
         "tab": "",
+        "group": "EMBLEM",
+        "key": "logo.dither",
+        "label": "Dither",
+        "desc": "Render the emblem 1-bit: bone stipple on transparent, ordered Bayer 4x4",
+        "ctl": "sw",
+        "src": "config.jsonc"
+    },
+    {
+        "tab": "",
         "group": "ACCENT",
         "key": "display.color.keys",
         "label": "Readout accent",

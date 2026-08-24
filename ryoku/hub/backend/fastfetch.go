@@ -10,6 +10,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	_ "image/jpeg"
+	"image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,6 +116,9 @@ type ffLogo struct {
 	Padding      int    `json:"padding"`      // left, the one the UI exposes
 	PaddingRight int    `json:"paddingRight"`
 	PaddingTop   int    `json:"paddingTop"`
+	// Dither is on when Source names a baked 1-bit sibling; it rides the source
+	// name, never a key in config.jsonc, so fastfetch never sees an unknown field.
+	Dither bool `json:"dither"`
 }
 
 // ffRow is one readout line. break/colors/title/module keep their original JSON in
@@ -137,7 +144,7 @@ type ffModel struct {
 
 func runFastfetch(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("fastfetch needs get|save|reset|preview|import-logo")
+		return fmt.Errorf("fastfetch needs get|save|reset|preview|import-logo|remove-logo|dither-logo")
 	}
 	switch args[0] {
 	case "get":
@@ -173,6 +180,25 @@ func runFastfetch(args []string) error {
 			return fmt.Errorf("fastfetch import-logo needs a path")
 		}
 		p, err := importFastfetchLogo(args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Println(p)
+		return nil
+	case "remove-logo":
+		removed, err := removeFastfetchLogo()
+		if err != nil {
+			return err
+		}
+		if removed != "" {
+			fmt.Println(removed)
+		}
+		return nil
+	case "dither-logo":
+		if len(args) < 3 {
+			return fmt.Errorf("fastfetch dither-logo needs <on|off> and a source path")
+		}
+		p, err := ditherFastfetchLogo(args[1], args[2])
 		if err != nil {
 			return err
 		}
@@ -251,6 +277,7 @@ func ffNormalizeLogo(l map[string]any) ffLogo {
 			out.PaddingTop = int(v)
 		}
 	}
+	out.Dither = ffIsDithered(out.Source)
 	return out
 }
 
@@ -514,6 +541,144 @@ func importFastfetchLogo(src string) (string, error) {
 		return "", err
 	}
 	return dst, nil
+}
+
+// ---- emblem: 1-bit dither + imported-emblem removal -------------------------
+
+// The bake appends this to the whole source name, so trimming it always recovers
+// the exact original path whatever the extension, and a source that already ends
+// in it is known to be baked (so a re-bake is a no-op, not a double bake).
+const ffDitherSuffix = ".1bit.png"
+
+// ffBone and ffBayer4 reproduce bin/art/ryodither: the decor set's single ink,
+// bone, carried on a transparent ground by an ordered Bayer 4x4 dither.
+var (
+	ffBone   = color.NRGBA{R: 0xe8, G: 0xd8, B: 0xc9, A: 0xff}
+	ffBayer4 = [4][4]int{
+		{0, 8, 2, 10},
+		{12, 4, 14, 6},
+		{3, 11, 1, 9},
+		{15, 7, 13, 5},
+	}
+)
+
+func ffIsDithered(source string) bool { return strings.HasSuffix(source, ffDitherSuffix) }
+
+// ditherFastfetchLogo toggles the 1-bit bake, returning the source to store. The
+// stored form is kept (a leading ~ stays portable); only the filesystem side is
+// expanded. On is a no-op when the source is already the baked sibling; off points
+// back at the original, which the bake never modified.
+func ditherFastfetchLogo(mode, source string) (string, error) {
+	switch mode {
+	case "on":
+		if ffIsDithered(source) {
+			return source, nil
+		}
+		expanded := ffExpandTilde(source)
+		if err := ffBakeDither(expanded, expanded+ffDitherSuffix); err != nil {
+			return "", err
+		}
+		return source + ffDitherSuffix, nil
+	case "off":
+		return strings.TrimSuffix(source, ffDitherSuffix), nil
+	default:
+		return "", fmt.Errorf("dither-logo mode must be on or off, got %q", mode)
+	}
+}
+
+// ffBakeDither writes src as a 1-bit two-colour PNG: bone where the tone clears
+// the tiled Bayer threshold, transparent elsewhere. A two-entry palette makes it a
+// genuine 1-bit indexed PNG. A fully transparent source pixel stays ground, so an
+// emblem's cut-out survives; the original is only read, never written.
+func ffBakeDither(src, dst string) error {
+	f, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("emblem not found: %s", src)
+	}
+	defer f.Close()
+	img, _, err := image.Decode(f)
+	if err != nil {
+		return fmt.Errorf("cannot read emblem image %s: %w", src, err)
+	}
+	b := img.Bounds()
+	out := image.NewPaletted(b, color.Palette{color.NRGBA{}, ffBone})
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			c := color.NRGBAModel.Convert(img.At(x, y)).(color.NRGBA)
+			if c.A == 0 {
+				continue
+			}
+			// straight (un-premultiplied) ITU-R 601 luma, matching PIL's L.
+			luma := (299*uint32(c.R) + 587*uint32(c.G) + 114*uint32(c.B)) / 1000
+			thr := uint32((ffBayer4[(y-b.Min.Y)&3][(x-b.Min.X)&3]*2 + 1) * 255 / 32)
+			if luma > thr {
+				out.SetColorIndex(x, y, 1)
+			}
+		}
+	}
+	w, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	return png.Encode(w, out)
+}
+
+// removeFastfetchLogo deletes the imported emblem (ryoku-logo.*, including any
+// bake) from the fastfetch dir and reports what it removed. It only touches
+// ryoku-logo.* inside that dir, so the shipped fastfetch-emblem.png is never in
+// range. If config.jsonc still points at a deleted file, it repoints the source at
+// the shipped emblem so the live readout does not reference a file that is gone.
+func removeFastfetchLogo() (string, error) {
+	dir := fastfetchDir()
+	matches, err := filepath.Glob(filepath.Join(dir, "ryoku-logo.*"))
+	if err != nil {
+		return "", err
+	}
+	var removed []string
+	for _, m := range matches {
+		// the glob is already rooted in the fastfetch dir; this refuses a match
+		// that a symlink or odd name resolved to somewhere else.
+		if filepath.Dir(m) != dir {
+			continue
+		}
+		if err := os.Remove(m); err != nil && !os.IsNotExist(err) {
+			return "", err
+		}
+		removed = append(removed, m)
+	}
+	if len(removed) == 0 {
+		return "", nil
+	}
+	ffRepointAfterRemoval(dir, removed)
+	return strings.Join(removed, "\n"), nil
+}
+
+func ffRepointAfterRemoval(dir string, removed []string) {
+	m, err := loadFastfetch()
+	if err != nil {
+		return
+	}
+	src := ffExpandTilde(m.Logo.Source)
+	dangling := false
+	for _, r := range removed {
+		if src == r {
+			dangling = true
+			break
+		}
+	}
+	if !dangling {
+		return
+	}
+	if shipped := filepath.Join(dir, "fastfetch-emblem.png"); fileExists(shipped) {
+		m.Logo.Kind, m.Logo.Source = "image", shipped
+	} else {
+		m.Logo.Kind, m.Logo.Source = "builtin", ""
+	}
+	m.Logo.Dither = false
+	if b, err := buildFastfetch(m); err == nil {
+		_ = atomicWrite(fastfetchConfigPath(), b, 0o644)
+	}
 }
 
 func ffRasterizeSVG(src, out string) error {

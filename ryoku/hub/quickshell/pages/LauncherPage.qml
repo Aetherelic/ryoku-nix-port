@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import ".."
 
 Item {
     id: pg
@@ -17,12 +18,13 @@ Item {
     readonly property var keys: [
         "variant", "radius", "bgBlur", "weatherUnit", "heroImage",
         "heroStrength", "heroPosX", "heroPosY", "showWeather", "showGreeting",
-        "resultSettleMs"
+        "resultSettleMs", "horizonMode", "horizonColor"
     ]
     readonly property var factory: ({
             "variant": "hero", "radius": 16, "bgBlur": 2, "weatherUnit": "auto", "heroImage": "",
             "heroStrength": 0.6, "heroPosX": 0.5, "heroPosY": 0.5,
-            "showWeather": true, "showGreeting": true, "resultSettleMs": 360
+            "showWeather": true, "showGreeting": true, "resultSettleMs": 360,
+            "horizonMode": "auto", "horizonColor": "#ffc777"
         })
     readonly property string launcherRoot: {
         var shellDir = String(Quickshell.env("RYOKU_SHELL_DIR") || "");
@@ -137,6 +139,8 @@ Item {
 
     function unitLabel(k) { return k === "C" ? "\u00b0C" : k === "F" ? "\u00b0F" : "Auto"; }
     function unitKey(l) { return l === "\u00b0C" ? "C" : l === "\u00b0F" ? "F" : "auto"; }
+    function horizonModeLabel(k) { return k === "fixed" ? "Fixed" : k === "off" ? "Off" : "Palette"; }
+    function horizonModeKey(l) { return l === "Fixed" ? "fixed" : l === "Off" ? "off" : "auto"; }
 
 
     FileView {
@@ -171,6 +175,8 @@ Item {
             property bool showWeather: true
             property bool showGreeting: true
             property int resultSettleMs: 360
+            property string horizonMode: "auto"
+            property string horizonColor: "#ffc777"
         }
     }
 
@@ -423,6 +429,41 @@ Item {
                         options: ["Auto", "\u00b0C", "\u00b0F"]
                         current: pg.unitLabel(pg.draft.weatherUnit)
                         onChose: (l) => pg.edit("weatherUnit", pg.unitKey(l))
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    divider: true
+                    block: true
+                    label: I18n.tr("Solar line")
+                    desc: I18n.tr("The warm line under the clock. Palette follows the wallpaper, Fixed uses a colour you pick, Off hides it.")
+                    def: pg.horizonModeLabel(pg.committed.horizonMode)
+                    changed: !pg.same(pg.draft.horizonMode, pg.committed.horizonMode)
+                    source: "launcher.json"
+                    Seg {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        options: ["Palette", "Fixed", "Off"]
+                        current: pg.horizonModeLabel(pg.draft.horizonMode)
+                        onChose: (l) => pg.edit("horizonMode", pg.horizonModeKey(l))
+                    }
+                }
+                SettingRow {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    visible: pg.draft.horizonMode === "fixed"
+                    divider: true
+                    block: true
+                    label: I18n.tr("Line colour")
+                    desc: I18n.tr("Colour of the solar line and its marker when Solar line is set to Fixed.")
+                    def: String(pg.committed.horizonColor)
+                    changed: !pg.same(pg.draft.horizonColor, pg.committed.horizonColor)
+                    source: "launcher.json"
+                    ColorField {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.min(260, parent.width)
+                        value: String(pg.draft.horizonColor)
+                        onChosen: (v) => pg.edit("horizonColor", v)
                     }
                 }
             }
