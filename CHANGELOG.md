@@ -6,6 +6,14 @@ for finer detail.
 ## Unreleased
 
 ### Added
+- **Plain-language GitHub release notes, generated from commit notes.** A change
+  users notice gets a `Note: New|Fixed|Removed: ...` trailer on its commit;
+  `bin/ryoku-release-notes` collects these between releases and the
+  `release-notes.yml` bot publishes them as a formatted GitHub Release, with
+  optional demo gifs (`| release/media/...`). A stable `v*` tag becomes a full
+  release; each unstable-dev bump refreshes one rolling `unstable` pre-release.
+  The `commit-msg` and `pre-push` hooks now also hold subjects to 72 characters
+  with no trailing period and validate the trailer. See `CONTRIBUTING.md`.
 - **User edits live in a `user_edits` overlay, separate from Ryoku-owned config.**
   `~/.config/ryoku/user_edits` mirrors `~/.config` and is laid over the base on
   every `ryoku materialize`/deploy, so a file there wins while the base (the

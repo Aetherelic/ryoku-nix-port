@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: unstable-version-bump
@@ -63,3 +64,14 @@ jobs:
             echo "- Was: \`$was\`"
             echo "- Now: \`$next\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Refresh the rolling unstable pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # runs whether or not the version changed above, so a push that only
+          # adds Note: trailers still refreshes the rolling unstable pre-release.
+          gh workflow run release-notes.yml --ref unstable-dev -f mode=unstable

@@ -37,8 +37,11 @@ These are not negotiable. Most are enforced by the git hooks in `.githooks/`.
 
 5. **Always pass the git hooks. Never bypass them** (`--no-verify` is forbidden).
    Commit subjects start with an area label
-   `[global|installation|system|ryoku|docs|test|tooling|release]`. No em-dash, no
-   authorship/attribution trailers, no filler.
+   `[global|installation|system|ryoku|docs|test|tooling|release]`, stay 72
+   characters or fewer, and end without a period. No em-dash, no
+   authorship/attribution trailers, no filler. For anything a user would notice,
+   add a plain-language `Note: New|Fixed|Removed: ...` trailer; the release bot
+   harvests it into the GitHub release notes. See `CONTRIBUTING.md`.
 
 6. **Do not bury code in comments.** Code and config should read on their own.
    Comment the *why* when it is not obvious, never the *what*. Delete dead code

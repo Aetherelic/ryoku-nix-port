@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Ryoku Arch commit-msg hook.
-# blocks commits with no impact label, AI/generated-content attribution
-# (including AI/bot co-author trailers; human co-authors are allowed), or em-dashes.
+# blocks commits with no impact label, a subject over 72 chars or ending in a
+# period, AI/generated-content attribution (including AI/bot co-author trailers;
+# human co-authors are allowed), em-dashes, or a malformed Note: release trailer.
 # --no-verify bypass only if you know what you're doing.
 
 set -e
@@ -32,6 +33,14 @@ case "$subject" in
     if [[ ! $subject =~ ^\[(global|installation|system|ryoku|docs|test|tooling|release)\][[:space:]]+ ]]; then
       fail "commit subject must start with one impact label: [global], [installation], [system], [ryoku], [docs], [test], [tooling], or [release]."
     fi
+    # keep the subject short and scannable. long, technical detail belongs in
+    # the body, and the plain user-facing line belongs in a Note: trailer.
+    if ((${#subject} > 72)); then
+      fail "commit subject is ${#subject} chars; keep it to 72 or fewer. move detail to the body and the user-facing summary to a Note: trailer."
+    fi
+    if [[ $subject == *. ]]; then
+      fail "commit subject must not end with a period."
+    fi
     ;;
 esac
 
@@ -46,5 +55,17 @@ fi
 if grep -q $'\xe2\x80\x94' <<<"$msg"; then
   fail "em-dash (U+2014) found in commit message. use : or , or . instead."
 fi
+
+# validate any user-facing release-note trailers. bin/ryoku-release-notes
+# harvests these into the GitHub release grouped by category, so a line that
+# starts with Note: must read "Note: New|Fixed|Removed: plain description" with
+# an optional " | media" reference. a line-leading Note: is reserved for this.
+while IFS= read -r line; do
+  if [[ $line =~ ^[[:space:]]*[Nn]ote: ]]; then
+    if [[ ! $line =~ ^[[:space:]]*[Nn]ote:[[:space:]]*([Nn]ew|[Ff]ixed|[Rr]emoved):[[:space:]]*[^[:space:]] ]]; then
+      fail "malformed Note: trailer. write 'Note: New|Fixed|Removed: plain description' (optionally ' | media')."
+    fi
+  fi
+done <<<"$msg"
 
 exit 0

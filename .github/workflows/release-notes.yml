@@ -1,0 +1,116 @@
+name: Release Notes
+
+# Publishes a GitHub Release from the Note: trailers authors wrote on their
+# commits (see CONTRIBUTING.md and bin/ryoku-release-notes). A stable v* tag
+# becomes an immutable release; each unstable-dev bump refreshes one rolling
+# "unstable" pre-release holding everything landed since the last stable tag.
+#
+# stable-release.yml and unstable-version-bump.yml dispatch this explicitly,
+# because tags and commits pushed with GITHUB_TOKEN do not fire push triggers.
+# A hand-pushed v* tag still fires the push trigger below on its own.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: stable (a v* tag) or unstable (the rolling pre-release)
+        type: choice
+        options:
+          - stable
+          - unstable
+        default: unstable
+      ref:
+        description: the v* tag for stable; a commit or branch for unstable
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-notes-${{ github.event.inputs.mode || 'stable' }}
+  cancel-in-progress: false
+
+jobs:
+  notes:
+    name: Publish release notes
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve mode and ref
+        id: cfg
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            mode="stable"
+            ref="${{ github.ref_name }}"
+          else
+            mode="${{ inputs.mode }}"
+            ref="${{ inputs.ref }}"
+          fi
+          [[ -n $ref ]] || ref="$(git rev-parse HEAD)"
+
+          {
+            echo "mode=$mode"
+            echo "ref=$ref"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish the release
+        shell: bash
+        env:
+          MODE: ${{ steps.cfg.outputs.mode }}
+          REF: ${{ steps.cfg.outputs.ref }}
+        run: |
+          set -euo pipefail
+
+          body="$(mktemp)"
+
+          if [[ $MODE == "stable" ]]; then
+            version="${REF#v}"
+            # the most recent stable tag before this one bounds the range; a
+            # first-ever release has none, so the notes span all history.
+            from="$(git describe --tags --abbrev=0 --match 'v*' "${REF}^" 2>/dev/null || true)"
+            title="Ryoku ${version}"
+            prerelease=""
+            case "$version" in
+              *alpha* | *beta* | *rc*) prerelease="--prerelease" ;;
+            esac
+
+            MEDIA_REF="$REF" ./bin/ryoku-release-notes "$from" "$REF" --title "$title" >"$body"
+
+            if gh release view "$REF" >/dev/null 2>&1; then
+              gh release edit "$REF" --title "$title" --notes-file "$body"
+            else
+              # shellcheck disable=SC2086
+              gh release create "$REF" --title "$title" --notes-file "$body" --verify-tag $prerelease
+            fi
+          else
+            # rolling unstable pre-release: everything since the last stable tag,
+            # on a single "unstable" tag that moves to this commit each bump.
+            to="$REF"
+            from="$(git describe --tags --abbrev=0 --match 'v*' "$to" 2>/dev/null || true)"
+            version="$(tr -d '[:space:]' <VERSION)"
+            title="Ryoku ${version} (unstable)"
+
+            MEDIA_REF="$to" ./bin/ryoku-release-notes "$from" "$to" --title "$title" >"$body"
+
+            gh release delete unstable --cleanup-tag --yes 2>/dev/null || true
+            gh release create unstable --title "$title" --notes-file "$body" --prerelease --target "$to"
+          fi
+
+          {
+            echo "### Published release notes ($MODE)"
+            echo
+            cat "$body"
+          } >>"$GITHUB_STEP_SUMMARY"

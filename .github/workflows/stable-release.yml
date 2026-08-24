@@ -116,6 +116,22 @@ jobs:
           gh workflow run publish-repo.yml --ref "$RELEASE_TAG"
           echo "::notice::Dispatched publish-repo.yml on $RELEASE_TAG."
 
+      - name: Dispatch release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          # the release-notes workflow only reaches main once unstable-dev merges
+          # in, so tolerate its absence on an older main instead of failing here.
+          if gh workflow run release-notes.yml --ref main -f mode=stable -f ref="$RELEASE_TAG" 2>/tmp/rn.err; then
+            echo "::notice::Dispatched release-notes.yml for $RELEASE_TAG."
+          else
+            echo "::warning::release-notes.yml not dispatched: $(cat /tmp/rn.err)"
+          fi
+
       - name: Dispatch ISO build
         if: ${{ inputs.dispatch_iso }}
         shell: bash

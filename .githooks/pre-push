@@ -74,4 +74,22 @@ if command -v shellcheck >/dev/null 2>&1; then
 	fi
 fi
 
+# 4. commit subjects stay short. the new commits in this push (which a bypassed
+#    or missing commit-msg hook could have let through) must keep a subject of
+#    72 chars or fewer, so the log and the generated release notes read at a
+#    glance. a brand-new branch has no remote base to bound the range and its
+#    history predates the rule, so it is skipped.
+while read -r _ local_sha _ remote_sha; do
+  [[ $local_sha == "$zero" ]] && continue
+  [[ $remote_sha == "$zero" || -z $remote_sha ]] && continue
+  while IFS= read -r subject; do
+    case "$subject" in
+      Revert\ *|fixup!\ *|squash!\ *) continue ;;
+    esac
+    if ((${#subject} > 72)); then
+      fail "a pushed commit subject is ${#subject} chars (limit 72): $subject"
+    fi
+  done < <(git log --no-merges --format='%s' "$remote_sha..$local_sha")
+done <"$push_updates"
+
 exit 0

@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# ryoku-release-notes: build a GitHub release body from Note: trailers.
+#
+# Walks the commits in a range and collects the user-facing release notes their
+# authors wrote as commit trailers:
+#
+#   Note: New: pin an app by right-clicking it in the dock
+#   Note: Fixed: right-clicking a dock app now saves or removes the pin
+#   Note: Removed: the old instant-replay buffer
+#
+# and, optionally, a demo image or gif after a pipe:
+#
+#   Note: New: redesigned wallpaper picker | release/media/wallpaper.gif
+#
+# The notes group under New / Fixed / Removed and print as a Markdown body a
+# GitHub release can use verbatim. A commit with no Note: trailer contributes
+# nothing, so the list stays a curated, plain-language summary instead of a dump
+# of every commit subject.
+#
+# Usage:
+#   ryoku-release-notes <from-ref> <to-ref> [--title TITLE]
+#   ryoku-release-notes --stdin [--title TITLE]   # read commit bodies from stdin
+#
+# An empty <from-ref> means "from the start of history". A media reference that
+# is not an http(s) URL resolves to raw.githubusercontent.com from
+# GITHUB_REPOSITORY and MEDIA_REF (default: <to-ref>), so a gif committed under
+# release/media/ renders in the published release.
+
+set -euo pipefail
+
+title=""
+from=""
+to="HEAD"
+use_stdin=0
+positional=()
+
+while (($#)); do
+  case "$1" in
+    --title)
+      shift
+      title="${1:-}"
+      ;;
+    --stdin) use_stdin=1 ;;
+    -h | --help)
+      sed -n '2,32p' "$0"
+      exit 0
+      ;;
+    *) positional+=("$1") ;;
+  esac
+  shift
+done
+
+if ((use_stdin == 0)); then
+  from="${positional[0]:-}"
+  to="${positional[1]:-HEAD}"
+fi
+
+repo="${GITHUB_REPOSITORY:-}"
+media_ref="${MEDIA_REF:-$to}"
+
+# commit bodies, NUL-separated so a multi-line body is read as one record.
+emit_bodies() {
+  if ((use_stdin == 1)); then
+    cat
+  elif [[ -n $from ]]; then
+    git log --no-merges --format='%B%x00' "$from..$to"
+  else
+    git log --no-merges --format='%B%x00' "$to"
+  fi
+}
+
+# a repo-relative media path becomes a raw URL for the release ref; a full URL
+# is kept as-is, so authors can point at either an in-repo gif or an upload.
+resolve_media() {
+  local ref="$1"
+  case "$ref" in
+    http://* | https://*) printf '%s' "$ref" ;;
+    *)
+      if [[ -n $repo ]]; then
+        printf 'https://raw.githubusercontent.com/%s/%s/%s' "$repo" "$media_ref" "$ref"
+      else
+        printf '%s' "$ref"
+      fi
+      ;;
+  esac
+}
+
+trim() {
+  local s="$1"
+  s="${s#"${s%%[![:space:]]*}"}"
+  s="${s%"${s##*[![:space:]]}"}"
+  printf '%s' "$s"
+}
+
+new_items=()
+fixed_items=()
+removed_items=()
+
+while IFS= read -r -d '' body; do
+  while IFS= read -r line; do
+    [[ $line =~ ^[[:space:]]*[Nn]ote:[[:space:]]*([Nn]ew|[Ff]ixed|[Rr]emoved):[[:space:]]*(.+)$ ]] || continue
+    category="${BASH_REMATCH[1],,}"
+    rest="${BASH_REMATCH[2]}"
+
+    text="$rest"
+    media=""
+    # only treat a trailing " | ..." as media when it looks like one, so a
+    # description that happens to contain a pipe is left intact.
+    if [[ $rest == *" | "* ]]; then
+      tail_ref="${rest##* | }"
+      if [[ $tail_ref =~ ^https?:// || $tail_ref =~ \.(gif|png|jpe?g|webp|mp4|webm)$ ]]; then
+        media="$(trim "$tail_ref")"
+        text="${rest% | *}"
+      fi
+    fi
+    text="$(trim "$text")"
+    [[ -n $text ]] || continue
+
+    if [[ -n $media ]]; then
+      item="$(printf -- '- %s\n\n  ![](%s)' "$text" "$(resolve_media "$media")")"
+    else
+      item="$(printf -- '- %s' "$text")"
+    fi
+
+    case "$category" in
+      new) new_items+=("$item") ;;
+      fixed) fixed_items+=("$item") ;;
+      removed) removed_items+=("$item") ;;
+    esac
+  done <<<"$body"
+done < <(emit_bodies)
+
+print_section() {
+  local heading="$1"
+  shift
+  printf '### %s\n\n' "$heading"
+  local item
+  for item in "$@"; do
+    printf '%s\n' "$item"
+  done
+  printf '\n'
+}
+
+if [[ -n $title ]]; then
+  printf '## %s\n\n' "$title"
+fi
+
+if ((${#new_items[@]} + ${#fixed_items[@]} + ${#removed_items[@]} == 0)); then
+  printf 'Maintenance and behind-the-scenes improvements.\n'
+else
+  if ((${#new_items[@]} > 0)); then print_section "New" "${new_items[@]}"; fi
+  if ((${#fixed_items[@]} > 0)); then print_section "Fixed" "${fixed_items[@]}"; fi
+  if ((${#removed_items[@]} > 0)); then print_section "Removed" "${removed_items[@]}"; fi
+fi

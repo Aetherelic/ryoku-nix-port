@@ -84,9 +84,32 @@ Every commit passes the hooks in `.githooks/`. Never use `--no-verify`.
 - Subjects are `[area] scope: imperative summary`, where area is one of
   `global`, `installation`, `system`, `ryoku`, `docs`, `test`, `tooling`,
   `release`. Shell changes use `[global]`.
+- Keep the subject short: 72 characters or fewer, no trailing period. Long or
+  technical detail belongs in the body, not the subject.
 - No em-dash anywhere in text. No authorship or attribution trailers. No filler.
 - One logical change per commit.
 - Update the matching `CHANGELOG.md` in the area you touched.
+
+### Release notes
+
+When a change is something a user would notice, add a plain-language note as a
+commit trailer. The release bot (`bin/ryoku-release-notes`) harvests these into
+the GitHub release, grouped under New / Fixed / Removed; a commit with no note
+stays internal.
+
+    Note: New: pin an app by right-clicking it in the dock
+    Note: Fixed: right-clicking a dock app now saves or removes the pin
+    Note: Removed: the old instant-replay buffer
+
+Write it the way you would tell a friend, not the way you would tell a compiler.
+Attach a demo image or gif with a trailing `| <path-or-url>`, where a
+repo-relative path lives under `release/media/`:
+
+    Note: New: redesigned wallpaper picker | release/media/wallpaper.gif
+
+A note only reaches a release if its commit reaches the tag intact, so `main`
+advances by fast-forward from `unstable-dev`. Never squash-merge into a release
+branch: squashing collapses commits and drops their notes.
 
 ## Pull requests
 
