@@ -39,10 +39,7 @@ Item {
         "codec": "h264",
         "encoder": "gpu",
         "cursor": true,
-        "directory": "",
-        "replaySeconds": 60,
-        "replayStorage": "ram",
-        "replayAutostart": false
+        "directory": ""
     })
     readonly property var keyFactory: ({
         "theme": "dark",
@@ -121,10 +118,7 @@ Item {
             "quality": cfgA.quality,
             "codec": cfgA.codec,
             "encoder": cfgA.encoder,
-            "cursor": cfgA.cursor,
-            "replaySeconds": cfgA.replaySeconds,
-            "replayStorage": cfgA.replayStorage,
-            "replayAutostart": cfgA.replayAutostart
+            "cursor": cfgA.cursor
         };
     }
 
@@ -186,9 +180,6 @@ Item {
         cfgA.codec = pg.draft.codec;
         cfgA.encoder = pg.draft.encoder;
         cfgA.cursor = pg.draft.cursor;
-        cfgA.replaySeconds = pg.draft.replaySeconds;
-        cfgA.replayStorage = pg.draft.replayStorage;
-        cfgA.replayAutostart = pg.draft.replayAutostart;
         cfg.writeAdapter();
         pg.committed = pg.clone(pg.draft);
         if (pg.keyDraft && pg.keyCommitted && pg.keyDirtyCount > 0) {
@@ -251,9 +242,6 @@ Item {
             // a custom XDG_VIDEOS_DIR keeps following it; the recorder script and
             // the deck's list resolve this same key.
             property string directory: ""
-            property int replaySeconds: 60
-            property string replayStorage: "ram"
-            property bool replayAutostart: false
         }
 
         Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
@@ -701,68 +689,6 @@ Item {
                         placeholder: pg.defaultDir
                         text: pg.draft ? String(pg.draft.directory) : ""
                         onCommitted: (v) => pg.edit("directory", v.trim())
-                    }
-                }
-            }
-
-            // ── INSTANT REPLAY ───────────────────────────────────────────────
-            SettingCard {
-                width: col.width
-                title: I18n.tr("INSTANT REPLAY")
-                Text {
-                    width: parent.width
-                    leftPadding: Tokens.s4; rightPadding: Tokens.s4
-                    topPadding: Tokens.s3; bottomPadding: Tokens.s1
-                    text: I18n.tr("Keep the last few seconds always buffering in the background, then save a clip the instant something happens (Super+Alt+R, or Save in the capture card). Uses the quality settings above and needs gpu-screen-recorder.")
-                    color: Tokens.inkMuted; font.family: Tokens.ui
-                    font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
-                }
-                SettingRow {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    divider: true
-                    label: I18n.tr("Arm on login")
-                    desc: I18n.tr("Start the replay buffer automatically at login so it is always ready.")
-                    source: "recording.json"
-                    changed: pg.draft && pg.committed ? pg.draft.replayAutostart !== pg.committed.replayAutostart : false
-                    controlWidth: 54
-                    Sw {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        on: pg.draft ? !!pg.draft.replayAutostart : false
-                        onToggled: (v) => pg.edit("replayAutostart", v)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    divider: true
-                    label: I18n.tr("Buffer length")
-                    desc: I18n.tr("How many seconds are kept ready to save.")
-                    unit: "s"
-                    source: "recording.json"
-                    value: pg.draft ? String(pg.draft.replaySeconds) : ""
-                    def: pg.committed ? String(pg.committed.replaySeconds) : ""
-                    changed: pg.draft && pg.committed ? pg.draft.replaySeconds !== pg.committed.replaySeconds : false
-                    controlWidth: 58
-                    Step {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        value: pg.draft ? (Number(pg.draft.replaySeconds) || 60) : 60
-                        from: 5; to: 600; stepBy: 5
-                        onModified: (v) => pg.edit("replaySeconds", v)
-                    }
-                }
-                SettingRow {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    divider: true
-                    label: I18n.tr("Buffer storage")
-                    desc: I18n.tr("RAM is fastest; disk uses less memory for a long buffer.")
-                    source: "recording.json"
-                    def: pg.committed ? String(pg.committed.replayStorage) : ""
-                    changed: pg.draft && pg.committed ? pg.draft.replayStorage !== pg.committed.replayStorage : false
-                    controlWidth: 124
-                    Seg {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        options: ["ram", "disk"]
-                        current: pg.draft ? String(pg.draft.replayStorage) : ""
-                        onChose: (k) => pg.edit("replayStorage", k)
                     }
                 }
             }

@@ -2,14 +2,6 @@
 
 ## Unreleased
 
-### Added
-- **Instant replay: an always-on buffer you save on demand.** `ryoku-cmd-screenrecord`
-  gained a background replay buffer (`--replay-start` / `--replay-save` /
-  `--replay-stop`): it keeps the last N seconds buffering with gpu-screen-recorder
-  and drops a clip into `Recordings/Replays` when you save. Super+Alt+R saves from
-  anywhere, and it arms on login when enabled on the Recording page. gsr-only, since
-  wf-recorder has no buffer.
-
 ### Fixed
 - **Recording a live wallpaper no longer fails.** A live wallpaper draws on a layer
   the KMS capture drops, so recording took a portal path that raced its own

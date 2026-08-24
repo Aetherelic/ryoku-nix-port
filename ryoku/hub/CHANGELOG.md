@@ -3,9 +3,6 @@
 ## Unreleased
 
 ### Added
-- **Instant replay settings on the Recording page.** A new section: arm the buffer
-  on login, set the buffer length in seconds, and pick RAM or disk storage. Saved
-  clips land in `Recordings/Replays`, and Super+Alt+R saves on demand.
 - **Weather and Notes tabs in the Widgets page.** The two new desktop widgets get
   the same treatment as the rest: a live preview card and their own controls
   (weather: enable, layout, size, opacity, placement, lock; notes: enable, pad

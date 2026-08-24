@@ -20,11 +20,6 @@ Singleton {
     // to the ryomotion editor; our island is the toolbar and drives start/stop.
     property bool studioActive: false
     readonly property bool anyActive: root.active || root.studioActive
-    // Replay-buffer state is separate from recording: a background buffer must
-    // never drive the record toolbar (which keys off anyActive), only a small
-    // cue. Reconciled from the script's replay.pid by the poll below.
-    property bool replayArmed: false
-    readonly property string replayPidPath: (Quickshell.env("RYOKU_STATE_PATH") || (Quickshell.env("HOME") + "/.local/state/ryoku")) + "/replay.pid"
     // owning backend: "gsr" | "wf" | "" when idle.
     property string backend: ""
     readonly property bool canPause: backend === "gsr"
@@ -171,23 +166,6 @@ Singleton {
         Quickshell.execDetached([root.script, "--pause"]);
         root.paused = !root.paused;
     }
-
-    // Instant replay: arm / save / disarm the background buffer via the script.
-    // The poll reconciles replayArmed from replay.pid, so an external disarm or a
-    // crash clears the cue too; arm/disarm here is optimistic so it feels instant.
-    function startReplay() {
-        Quickshell.execDetached([root.script, "--replay-start"]);
-        root.replayArmed = true;
-        confirm.restart();
-    }
-    function saveReplay() {
-        Quickshell.execDetached([root.script, "--replay-save"]);
-    }
-    function stopReplay() {
-        Quickshell.execDetached([root.script, "--replay-stop"]);
-        root.replayArmed = false;
-        confirm.restart();
-    }
     // studio: record with gpu-screen-recorder + a cursor track, then open the clip
     // in the ryomotion editor (its auto-zoom reads the cursor track we synthesise).
     // Tracked so our stop can signal the wrapper; anyActive keeps the island up
@@ -242,21 +220,20 @@ Singleton {
     // stale state when nothing's recording. pause stays optimistic while active.
     Process {
         id: poll
-        // match the full command line, not comm: Linux truncates comm to 15
-        // chars so "gpu-screen-recorder" (19) never matches `pgrep -x`. the [g]
-        // bracket keeps this poll's own command from matching itself.
+        // match the full command line, not comm: Linux truncates comm to 15 chars
+        // so "gpu-screen-recorder" (19) never matches `pgrep -x`. The [g] bracket
+        // keeps this poll's own command from matching itself. A replay buffer (gsr
+        // with `-r`) is not a recording -- exclude it so a background buffer never
+        // flips the record toolbar on.
         command: ["sh", "-c",
             "rec=off; for p in $(pgrep -f '(^|/)[g]pu-screen-recorder( |$)' 2>/dev/null); do "
             + "cl=\" $(tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null) \"; "
             + "case \"$cl\" in *' -r '*) : ;; *) rec=gsr ;; esac; done; "
             + "[ \"$rec\" = off ] && pgrep -f '(^|/)[w]f-recorder( |$)' >/dev/null 2>&1 && rec=wf; "
-            + "pid=$(cat '" + root.replayPidPath + "' 2>/dev/null); rep=off; "
-            + "[ -n \"$pid\" ] && kill -0 \"$pid\" 2>/dev/null && rep=armed; "
-            + "printf '%s %s' \"$rec\" \"$rep\""]
+            + "printf '%s' \"$rec\""]
         stdout: StdioCollector {
             onStreamFinished: {
-                var parts = text.trim().split(/\s+/);
-                var b = parts[0] || "off";
+                var b = text.trim();
                 var nowActive = b === "gsr" || b === "wf";
                 if (nowActive && !root.active) {
                     root.startedAt = Math.floor(Date.now() / 1000);
@@ -271,7 +248,6 @@ Singleton {
                 root.active = nowActive;
                 if (nowActive) root.backend = b;
                 else if (!root.studioActive) root.backend = "";
-                root.replayArmed = parts[1] === "armed";
             }
         }
     }
@@ -281,7 +257,7 @@ Singleton {
     // enough to catch a capture started outside the shell without spawning a
     // pgrep subprocess every 2s around the clock.
     Timer {
-        interval: (root.anyActive || root.replayArmed) ? 2000 : 30000
+        interval: root.anyActive ? 2000 : 30000
         running: true
         repeat: true
         triggeredOnStart: true

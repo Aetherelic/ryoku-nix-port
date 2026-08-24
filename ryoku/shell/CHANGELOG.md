@@ -3,10 +3,6 @@
 ## Unreleased
 
 ### Added
-- **The capture card drives instant replay.** Below Record: an Instant replay
-  toggle to arm/disarm the background buffer and a Save clip button, plus a small
-  rail cue while it is armed (a click saves). The replay buffer never raises the
-  floating record toolbar.
 - **Two desktop widgets join the set: weather and notes.** Both ported from
   end-4's ii widget canvas, both in Ryoku's own language (vector glyphs, ink
   picked against the wallpaper tone under the slot, every dimension multiplied by
@@ -78,8 +74,8 @@
   recorder keyed "we are recording" off any gpu-screen-recorder process, so a
   manually-started replay buffer flipped the floating toolbar on and left it stuck
   until the process was killed. The shell now tells a replay buffer (gsr's `-r`
-  flag) from a recording and scopes its stop/pause to real recordings, so an
-  external buffer is left untouched.
+  flag) from a recording and scopes its stop/pause to real recordings, so a
+  background buffer is left untouched.
 - **Live wallpapers switch with a transition, like every other wallpaper.** A clip
   used to arrive as a hard cut: its still frame was published with no preset and
   the video surface covered the backdrop immediately, so the whole transition set
