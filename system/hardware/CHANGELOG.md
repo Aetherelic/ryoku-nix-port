@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Fixed
+- `display/ryoku-hw-backlight`: **brightness keys work on multi-backlight
+  laptops instead of driving a dead device.** A laptop can register several
+  `/sys/class/backlight` devices -- one per backlight-capable DRM connector, plus
+  a phantom for the discrete GPU (e.g. `amdgpu_bl0` for a disconnected connector
+  beside `amdgpu_bl2` for the real panel, or `nvidia_0` next to `amdgpu_bl*`). The
+  old fixed name-priority list (which omarchy and end-4/brightnessctl also use)
+  grabbed the first `amdgpu_bl*` or a device that controls nothing, so the keys
+  went dead. It now selects by ground truth -- the backlight whose DRM connector
+  is a CONNECTED internal panel (eDP/LVDS/DSI), resolving the discrete-GPU case
+  through its PCI node -- and falls back to the name list only when no connector
+  mapping exists. Covered by `tests/backlight-pick.sh`.
 - `audio/99-ryoku-audio-powersave.conf`: **the headphone hiss/whine that only
   sounds while audio plays is gone.** The kernel default (`snd_hda_intel
   power_save=10`) powers the codec and its headphone amp down ~10s after a stream

@@ -1,42 +1,88 @@
 #!/usr/bin/env bash
 #
-# ryoku-hw-backlight: print the best backlight device name for the laptop panel.
+# ryoku-hw-backlight: print the backlight device that drives the laptop's
+# internal panel, robustly across machines.
 #
-# ASUS AMD+NVIDIA laptops wire the panel to the AMD iGPU but the kernel can
-# register only nvidia_wmi_ec_backlight (an unreliable EC path) and hide
-# amdgpu_bl0 until acpi_backlight=native is set (ryoku-hw-backlight-fix). So
-# prefer the panel's real PWM controller and fall back to the EC path only when
-# nothing better exists; brightnessctl pins whatever we return.
+# The bug this fixes: a laptop can expose several /sys/class/backlight devices --
+# one per backlight-capable DRM connector, plus a phantom for the discrete GPU
+# (e.g. amdgpu_bl0 for a disconnected connector AND amdgpu_bl2 for the real
+# panel, or nvidia_0 beside amdgpu_bl*). A fixed name-priority list (what Ryoku,
+# omarchy and end-4/brightnessctl all did) then grabs the wrong one -- the first
+# amdgpu_bl*, or a device that controls nothing -- and the brightness keys go
+# dead. So pick by ground truth instead: the backlight whose DRM connector is a
+# CONNECTED internal panel (eDP/LVDS/DSI). Fall back to the old name list only
+# when the connector mapping is unavailable.
 #
-# RYOKU_BACKLIGHT_PATH overrides the sysfs root for tests.
+# RYOKU_BACKLIGHT_PATH / RYOKU_DRM_PATH override the sysfs roots for tests.
 set -euo pipefail
 
 backlight_path="${RYOKU_BACKLIGHT_PATH:-/sys/class/backlight}"
+drm_path="${RYOKU_DRM_PATH:-/sys/class/drm}"
 
-# Floor: any registered backlight, so brightnessctl always has a device to pin
-# even for an unlisted controller name. Sorted glob = same order as ls.
-device=""
+# Does DRM <card> (e.g. "card2") have a connected internal-panel connector?
+card_has_connected_panel() {
+  local card="$1" conn
+  for conn in "$drm_path/$card"-eDP-* "$drm_path/$card"-LVDS-* "$drm_path/$card"-DSI-*; do
+    [[ -e $conn/status ]] || continue
+    [[ "$(cat "$conn/status" 2>/dev/null || true)" == connected ]] && return 0
+  done
+  return 1
+}
+
+# Does this backlight drive a connected internal panel? Two shapes: its `device`
+# is the DRM connector directly (amdgpu/intel PWM -> cardN-eDP-N), or it is the
+# GPU's PCI node (nvidia_0 -> 0000:01:00.0), in which case check that card's own
+# panel connectors.
+drives_connected_panel() {
+  local dev="$1" devpath base card
+  devpath="$(readlink -f "$backlight_path/$dev/device" 2>/dev/null || true)"
+  [[ -n $devpath ]] || return 1
+
+  base="$(basename "$devpath")"
+  if [[ -e $devpath/status && $base =~ -(eDP|LVDS|DSI)- ]]; then
+    [[ "$(cat "$devpath/status" 2>/dev/null || true)" == connected ]] && return 0
+    return 1
+  fi
+
+  # PCI node: match the DRM card sharing that PCI device, then check its panels.
+  for card in "$drm_path"/card[0-9]*; do
+    base="$(basename "$card")"
+    [[ $base =~ ^card[0-9]+$ ]] || continue   # a card, not a connector
+    [[ -e $card/device ]] || continue
+    [[ "$(readlink -f "$card/device" 2>/dev/null || true)" == "$devpath" ]] || continue
+    card_has_connected_panel "$base" && return 0
+  done
+  return 1
+}
+
+# 1. Ground truth: the backlight on the connected internal panel.
 for candidate in "$backlight_path"/*; do
   [[ -e $candidate ]] || continue
-  device="${candidate##*/}"
-  break
-done
-
-# Refine to the panel's real controller ([[ ]] does no globbing, so expand the
-# candidates in the for list). amdgpu/intel PWM drive the panel directly; the
-# nvidia EC path is the ASUS dual-GPU last resort -- unreliable, and present
-# only until ryoku-hw-backlight-fix's acpi_backlight=native reveals amdgpu_bl0.
-for candidate in "$backlight_path"/amdgpu_bl* "$backlight_path"/intel_backlight \
-  "$backlight_path"/acpi_video* "$backlight_path"/nvidia_wmi_ec_backlight; do
-  if [[ -e $candidate ]]; then
-    device="${candidate##*/}"
-    break
+  name="${candidate##*/}"
+  if drives_connected_panel "$name"; then
+    printf '%s\n' "$name"
+    exit 0
   fi
 done
 
-if [[ -n $device ]]; then
-  printf '%s\n' "$device"
-else
-  echo "ryoku-hw-backlight: no backlight device under $backlight_path" >&2
-  exit 1
-fi
+# 2. Fall back to the name-priority list when the mapping is unavailable
+# (unusual hardware, or a test fixture with no DRM tree). amdgpu/intel PWM drive
+# the panel directly; the nvidia EC path is the ASUS dual-GPU last resort.
+for candidate in "$backlight_path"/amdgpu_bl* "$backlight_path"/intel_backlight \
+  "$backlight_path"/acpi_video* "$backlight_path"/nvidia_wmi_ec_backlight; do
+  if [[ -e $candidate ]]; then
+    printf '%s\n' "${candidate##*/}"
+    exit 0
+  fi
+done
+
+# 3. Floor: any registered backlight, so brightnessctl always has a device.
+for candidate in "$backlight_path"/*; do
+  if [[ -e $candidate ]]; then
+    printf '%s\n' "${candidate##*/}"
+    exit 0
+  fi
+done
+
+echo "ryoku-hw-backlight: no backlight device under $backlight_path" >&2
+exit 1
