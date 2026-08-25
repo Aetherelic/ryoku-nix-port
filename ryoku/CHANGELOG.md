@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+- **A documented fix for TVs and ultrawides that refuse a resolution.** Some
+  panels (LG ultrawides, TVs over HDMI) list a mode but snap back to a smaller
+  one, with Hyprland logging "REJECTED available mode" beside "atomic drm
+  request: failed to commit" -- the DRM backend rejecting buffer-format modifiers
+  for that sink. `monitors_user.lua.example` now documents the `AQ_NO_MODIFIERS=1`
+  override that cures it (Ryoku already sets it on AMD/Intel but not nvidia, where
+  it can crash a hybrid laptop, so a single-GPU nvidia TV box sets it by hand),
+  plus a note on Hyprland's whole-pixel scale rule
+  (`hyprland/monitors_user.lua.example`).
+
 ### Fixed
 - **Animations no longer break the desktop on a non-default preset.** Ryoku's
   signature window curves (`ryokuBloom`, `ryokuSettle`, plus `easeOutQuint`,
