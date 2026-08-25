@@ -87,26 +87,29 @@ Singleton {
     // all". The first is what shipped, and it cost two cava processes plus a
     // permanently damaged surface keeping the compositor awake.
     //
-    // Silence is now the gate, unconditionally: there is no sensible reason to
-    // spectrum-analyse an idle sink, so the old opt-in keys no longer take part.
-    // The hard tiers still win outright, so Saver, lowPowerMode and Game Mode keep
-    // these off even mid-track.
-    // Silence gates the analysers, but bridge brief gaps: a player reports
-    // not-playing for a beat between tracks, so dropping cava on every blip made
-    // the visualiser and pill stutter each track (#61). Debounced, and this time
-    // genuinely NOT a binding: `property bool audioIdle: !Media.playing` looks
-    // like an initial value but is a live binding that flips the instant
-    // Media.playing changes, defeating the grace below (the same
-    // binding-vs-imperative trap as the analysers' `running`). The Connections +
-    // audioGrace timer are the sole controllers; the initial state is seeded once.
+    // "Sounding" is real audio reaching the sink, not just a media player's
+    // reported state. Keying idle off MPRIS alone froze the analysers whenever
+    // sound had no MPRIS interface -- games, browser tabs, system sounds -- or
+    // when the player under-reported between tracks (#61). The ground truth is an
+    // active PipeWire playback stream (Audio.streams, itself settled); Media.playing
+    // stays as a fast-path so a player that flips to playing before its stream is
+    // listed still counts instantly. The hard tiers still win outright below, so
+    // Saver, lowPowerMode and Game Mode keep the analysers off even mid-track.
+    //
+    // Bridge brief gaps: a stream tears down and rebuilds for a beat between
+    // tracks, so dropping cava on every blip stuttered the visualiser and pill.
+    // The idle->active edge is instant; active->idle is debounced by audioGrace.
+    // This is imperative on purpose: `property bool audioIdle: !sounding` would be
+    // a live binding that flips the instant the signal changes, defeating the
+    // grace (the same binding-vs-imperative trap as the analysers' `running`).
+    // onSoundingChanged + audioGrace are the sole controllers; the initial state
+    // is seeded once.
+    readonly property bool sounding: Media.playing || Audio.streams.length > 0
     property bool audioIdle: true
-    Component.onCompleted: root.audioIdle = !Media.playing
-    Connections {
-        target: Media
-        function onPlayingChanged() {
-            if (Media.playing) { audioGrace.stop(); root.audioIdle = false; }
-            else audioGrace.restart();
-        }
+    Component.onCompleted: root.audioIdle = !root.sounding
+    onSoundingChanged: {
+        if (root.sounding) { audioGrace.stop(); root.audioIdle = false; }
+        else audioGrace.restart();
     }
     Timer { id: audioGrace; interval: 4000; onTriggered: root.audioIdle = true }
     readonly property bool visualizerFrozen: lowPower || saver || gaming || audioIdle

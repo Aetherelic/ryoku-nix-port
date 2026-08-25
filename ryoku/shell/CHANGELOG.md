@@ -146,15 +146,18 @@
   every step to an instant add and remove with no leftover transform.
 
 ### Fixed
-- **The audio visualiser and pill bars stop cutting out mid-song on a
-  player-state blip.** The analysers drop cava when nothing plays, gated on
-  `Perf.audioIdle`, which is meant to be debounced (a 4s grace bridges the gap
-  between tracks). It was written as a live binding on the media player's state
-  (`audioIdle: !Media.playing`) that the grace could never override -- the same
-  binding-vs-imperative trap as the analysers' own `running` -- so a player
-  reporting not-playing for a beat dropped the feed. It is a plain debounced
-  property now (`services/Perf.qml`). An earlier `stdbuf -oL` attempt on the cava
-  process is reverted: cava writes its raw output unbuffered, so it did nothing.
+- **The audio visualiser and pill bars no longer freeze while sound is
+  playing.** The analysers drop cava when nothing plays, but idle was keyed off
+  the MPRIS media player (`Media.playing`), so audio with no MPRIS interface --
+  games, browser tabs, system sounds -- read as silence and froze the feed
+  mid-sound; a player under-reporting between tracks did the same. Idle now keys
+  off real audio: an active PipeWire playback stream (`Audio.streams`), with
+  MPRIS kept only as an instant fast-path. The idle gate is also genuinely
+  debounced now (the old `audioIdle: !Media.playing` was a live binding that
+  defeated its own 4s grace -- the same binding-vs-imperative trap as the
+  analysers' `running`), so a stream blip between tracks no longer cuts cava
+  (#61) (`services/Perf.qml`). An earlier `stdbuf -oL` attempt is reverted: cava
+  writes its raw output unbuffered, so it did nothing.
 - **The sign-out button works again.** Ryoku's SDDM session runs `Exec=Hyprland`
   directly, so the old logout command (`systemctl --user exit`) stopped the user
   manager without ever ending the compositor -- the button did nothing. Logout
