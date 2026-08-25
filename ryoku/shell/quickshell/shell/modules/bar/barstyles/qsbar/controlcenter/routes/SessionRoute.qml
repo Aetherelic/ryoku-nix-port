@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
@@ -53,7 +54,7 @@ Item {
                         Btn {
                             text: I18n.tr("LOCK")
                             onAct: {
-                                Quickshell.execDetached(["hyprlock"]);
+                                Quickshell.execDetached(["ryoku-shell", "lock"]);
                                 if (page.cc)
                                     page.cc.close();
                             }
@@ -67,7 +68,7 @@ Item {
                                     return;
                                 }
                                 page.armed = "";
-                                Quickshell.execDetached(["hyprctl", "dispatch", "exit"]);
+                                Hyprland.dispatch("hl.dsp.exit()");
                                 if (page.cc)
                                     page.cc.close();
                             }

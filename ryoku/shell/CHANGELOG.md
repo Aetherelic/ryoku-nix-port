@@ -218,6 +218,12 @@
   every step to an instant add and remove with no leftover transform.
 
 ### Fixed
+- **Shell Studio's Session logout and lock work now.** The Session route fired
+  `hyprctl dispatch exit` for Log out and launched `hyprlock` for Lock, but the
+  desktop's Lua-configured Hyprland fork makes the first a no-op (`exit` is not a
+  Lua dispatcher; the working form is `hl.dsp.exit()`) and never ships hyprlock.
+  Both now use the shell's own wiring, the same `Hyprland.dispatch("hl.dsp.exit()")`
+  and `ryoku-shell lock` every other surface uses (`controlcenter/routes/SessionRoute.qml`).
 - **Recording the screen records the screen you are on.** Fullscreen capture
   passed gpu-screen-recorder `-w screen`, which its manual defines as the first
   monitor it enumerates, not the focused one, while the wf-recorder path had
