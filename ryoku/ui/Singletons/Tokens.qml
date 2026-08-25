@@ -104,7 +104,23 @@ Singleton {
     property string mono: "SpaceMono Nerd Font"
     readonly property string jp: "Noto Sans CJK JP"
 
-    readonly property int fTitle: px(46)    // page title, Fraunces
+    // ── chrome / decor level ─────────────────────────────────────────────
+    // How much decorative chrome the settings surfaces wear, from shell.json
+    // `hubDecor`. Absent reads as "calm": the quiet, function-first default.
+    // "rich" restores the full editorial treatment (chapter Placards, register
+    // crosshairs, film grain, the big display title); "minimal" is calm with an
+    // icon rail and no kanji seals. One switch, read live by every surface, so a
+    // user can strip the eye-candy without the shell hardcoding either taste.
+    property string decor: "calm"
+    readonly property bool decorRich: decor === "rich"
+    readonly property bool decorMinimal: decor === "minimal"
+    readonly property bool showPosters: decorRich   // Placard / Decor hero art
+    readonly property bool showGrid: decorRich       // register crosshair marks
+    readonly property bool showGrain: decorRich      // film-grain overlay
+    readonly property bool showSeals: !decorMinimal  // rail kanji seals
+    readonly property bool monoHeads: decorRich      // //HEADER_ vs sentence case
+
+    readonly property int fTitle: px(decorRich ? 46 : 32)    // page title, Fraunces
     readonly property int fHero: px(34)     // a headline readout
     readonly property int fValue: px(26)    // a cell's value
     readonly property int fRow: px(15)      // a row name
@@ -188,7 +204,7 @@ Singleton {
     readonly property var curveSlowEffects: [0.34, 0.88, 0.34, 1, 1, 1]
 
     // ── grain ────────────────────────────────────────────────────────────
-    readonly property real grainOpacity: 0.10
+    readonly property real grainOpacity: showGrain ? 0.10 : 0
 
     // ── palette cross-fade ───────────────────────────────────────────────────
     // A new palette used to land in one frame while the wallpaper it came from was
@@ -244,6 +260,7 @@ Singleton {
         var reduce = false;
         var scales = ({});
         var monoFont = "SpaceMono Nerd Font";
+        var decorLevel = "calm";
         try {
             const txt = shellFile.text();
             if (txt) {
@@ -260,6 +277,7 @@ Singleton {
                 if (u && typeof u === "object" && u !== null)
                     scales = u;
                 if (typeof o.fontMono === "string" && o.fontMono.length) monoFont = o.fontMono;
+                if (typeof o.hubDecor === "string" && o.hubDecor.length) decorLevel = o.hubDecor;
             }
         } catch (e) {
             pal = null;
@@ -269,6 +287,7 @@ Singleton {
         t.reduceMotion = reduce;
         t.uiScales = scales;
         t.mono = monoFont;
+        t.decor = decorLevel;
     }
     function refreshMatch() {
         try {

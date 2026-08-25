@@ -10,6 +10,7 @@ import "Singletons"
 // one. With no art it falls back to the procedural DitherField.
 Item {
     id: pl
+    visible: Tokens.showPosters
 
     property string code: "RYOKU"   // the // code line and the barcode
     property string title: ""       // big JP title
