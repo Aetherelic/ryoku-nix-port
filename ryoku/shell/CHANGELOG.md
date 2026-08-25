@@ -3,6 +3,31 @@
 ## Unreleased
 
 ### Added
+- **Recording can target a monitor or a window, not only the whole screen or a
+  drawn box.** The capture card's record row now offers Screen, Monitor, Window
+  and Region, the same four targets the screenshot row has, raised through the
+  same selection overlay. A picked monitor becomes gpu-screen-recorder's own
+  `-w <output>` on the KMS backend and degrades to that monitor's rect on the
+  portal backend, so it works on the hybrid machines that cannot enumerate a
+  monitor at all. On Wayland a window is captured by the area it covers, and the
+  control says so rather than implying it follows the window.
+- **A delay before recording, not only before a screenshot.** The capture card's
+  delay (0, 1, 3, 5 or 10 seconds) now arms recording too: the record island
+  counts the seconds down in place of its clock, and its stop control cancels.
+  With no delay set nothing changes.
+- **A recording announces itself properly when it is finished.** Stopping used
+  to fire "Saving recording to Videos/Recordings" before the file existed, with
+  no name, no length and nothing to click. gpu-screen-recorder's own completion
+  hook now runs `ryoku-cmd-recording-saved` once the file is really written, and
+  the notification carries the clip's length and size with Open, Show in folder
+  and Copy path on it. Ryoku's screenshots have said "saved to <path>" for a
+  long time; recordings now match.
+- **Controls answer under the finger.** The design system has always defined a
+  pressed ink level (`Tokens.tint16`) and documented it as such, but only three
+  surfaces used it: every button, chip, segment, tab, tile and switch in the
+  shared kit, the studio's own kit and the popout cards hovered and then went
+  dead on press. They now step to the pressed level and settle back on release,
+  colour only, so nothing moves and no layout reflows.
 - **Font changes now reach the terminal and carry a size, not just GTK.** The
   system font gained a monospace face and a base point size: the daemon writes
   `font-name`, `document-font-name` and `monospace-font-name` (with the size) to
@@ -163,6 +188,22 @@
   every step to an instant add and remove with no leftover transform.
 
 ### Fixed
+- **Recording the screen records the screen you are on.** Fullscreen capture
+  passed gpu-screen-recorder `-w screen`, which its manual defines as the first
+  monitor it enumerates, not the focused one, while the wf-recorder path had
+  always honoured the focused output. On a two-monitor desk the two backends
+  therefore recorded different screens. Both now record the output you are
+  looking at.
+- **The microphone is no longer on by default.** A first recording captured the
+  user's voice and not the application being demonstrated, which is both the
+  wrong way round and a privacy surprise. Desktop audio now defaults on and the
+  microphone off, matching what a purpose-built recorder does. An existing
+  `record.json` keeps whatever you chose.
+- **A remembered region is dropped when the desktop layout changes.** The last
+  picked box was reused with no record of the monitor arrangement it was drawn
+  in, so after a hotplug or a resolution change it could sit off-screen and the
+  recorder would crop to nothing. The region now carries a layout signature and
+  is discarded when that no longer matches.
 - **The audio visualiser and pill bars no longer freeze while sound is
   playing.** The analysers drop cava when nothing plays, but idle was keyed off
   the MPRIS media player (`Media.playing`), so audio with no MPRIS interface --

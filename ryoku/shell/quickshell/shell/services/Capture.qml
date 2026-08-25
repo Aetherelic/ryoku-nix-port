@@ -15,7 +15,8 @@ import Ryoku.Ui.Singletons
 // Screen RECORDING is deliberately NOT owned here. The card's record zone drives
 // the existing Recorder singleton (gpu-screen-recorder with a wf-recorder
 // fallback, the record island, Studio, Discord, camera). The only recording
-// thing this file does is hand a picked region to Recorder.start.
+// thing this file does is hand a picked target (monitor, window or region) to
+// Recorder.start.
 //
 // Divergence: the capture backend shells out to grim + wl-copy rather than a
 // bespoke zwlr_screencopy_v1 client -- grim speaks exactly that protocol, and
@@ -40,7 +41,7 @@ Singleton {
     property string _save: "both"          // save mode latched for the pending shot
     property bool _beautify: false         // beautify choice latched for the pending shot
     property string _outPath: ""           // resolved PNG path ("" = clipboard-only stream)
-    property var _recordAudio: []          // extra Recorder args for a region record
+    property var _recordAudio: []          // extra Recorder args for a targeted record
     property var _pending: null            // { flag, val } grim target for the pending shot
 
     // Ryoku owns its screenshot location; the filename pattern is the reference
@@ -86,12 +87,14 @@ Singleton {
         }
     }
 
-    // Region-record entry from the card: reuse the region overlay, then hand the
-    // global geometry to the existing Recorder (no capture of our own).
-    function recordRegion(audioArgs) {
+    // Record-target entry from the card: raise the same selection overlay a
+    // screenshot uses for this family, then hand the picked target to the
+    // existing Recorder (no capture of our own). mode: "monitor" | "window" |
+    // "region"; a window and a region both record their plain rect.
+    function recordTarget(mode, audioArgs) {
         root._purpose = "record";
         root._recordAudio = audioArgs || [];
-        root.selecting = "region";
+        root.selecting = mode;
     }
 
     // Called by an overlay when a selection commits. result carries the output
@@ -103,7 +106,15 @@ Singleton {
             var rgx = Math.round(result.monX + result.x);
             var rgy = Math.round(result.monY + result.y);
             var geom = Math.round(result.w) + "x" + Math.round(result.h) + "+" + rgx + "+" + rgy;
-            Recorder.start(["--region", "--geometry", geom].concat(root._recordAudio));
+            // A monitor becomes -w <NAME> on the KMS backend and degrades to this
+            // rect on the portal backend, so it carries both; a window is captured
+            // by its area, so window and region both record the plain --region rect.
+            var args = result.mode === "monitor"
+                ? ["--monitor", result.output, "--geometry", geom]
+                : ["--region", "--geometry", geom];
+            // The delay counts from the selection, exactly as it does for a shot:
+            // you frame the target first, then get the beat to clear the frame.
+            Recorder.startAfter(args.concat(root._recordAudio), root.delay);
             return;
         }
         if (result.mode === "monitor") {

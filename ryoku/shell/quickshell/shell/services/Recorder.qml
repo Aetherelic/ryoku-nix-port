@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "lib/screens.js" as Screens
 
 // screen recording state + control. drives ryoku-cmd-screenrecord
 // (gpu-screen-recorder, falling back to wf-recorder on multi-GPU machines) and
@@ -44,6 +45,32 @@ Singleton {
     // stale file left from a past session does not.
     property string regionGeom: ""
     property bool regionPicking: false
+    // A remembered region is a box in GLOBAL logical coordinates, valid only for
+    // the monitor layout it was drawn in. After a hotplug or resolution change the
+    // logical origins shift, so that box can land off-screen or on an output that
+    // no longer exists and gsr would crop the capture to nothing. Stamp the region
+    // with the layout it was picked in (a cheap string signature, compared for
+    // equality -- never geometry arithmetic) and drop it the moment the live layout
+    // stops matching, so a stale box is never reused.
+    property string regionLayoutSig: ""
+    readonly property string layoutSig: {
+        var out = Screens.uniqueByName(Quickshell.screens);
+        var parts = [];
+        for (var i = 0; i < out.length; i++) {
+            var s = out[i];
+            parts.push(s.name + "@" + s.x + "," + s.y + ":" + s.width + "x" + s.height);
+        }
+        // sort so a reordered output announce alone never invalidates the region.
+        parts.sort();
+        return parts.join("|");
+    }
+    onLayoutSigChanged: {
+        if (root.regionGeom !== "" && root.regionLayoutSig !== root.layoutSig)
+            root.regionGeom = "";
+    }
+    // clear the stamp whenever the region clears (a manual clear, or the drop
+    // above), so it is only ever consulted alongside a live region.
+    onRegionGeomChanged: if (root.regionGeom === "") root.regionLayoutSig = "";
     readonly property string regionFilePath: (Quickshell.env("RYOKU_STATE_PATH") || (Quickshell.env("HOME") + "/.local/state/ryoku")) + "/region-pick"
     function pickRegion() {
         root.regionPicking = true;
@@ -66,7 +93,13 @@ Singleton {
                 return;
             root.regionPicking = false;
             var g = (regionFile.text() || "").trim();
-            root.regionGeom = /^\d+x\d+\+\d+\+\d+$/.test(g) ? g : "";
+            if (/^\d+x\d+\+\d+\+\d+$/.test(g)) {
+                root.regionGeom = g;
+                // stamp the layout it was drawn in, so a later change drops it.
+                root.regionLayoutSig = root.layoutSig;
+            } else {
+                root.regionGeom = "";
+            }
         }
     }
 
@@ -108,8 +141,12 @@ Singleton {
         onAdapterUpdated: writeAdapter()
         JsonAdapter {
             id: recPrefs
-            property bool desktopAudio: false
-            property bool mic: true
+            // Seeded only into a fresh record.json; an existing file keeps whatever
+            // the user last chose. A first recording should capture the application
+            // being demonstrated (desktop audio), not the user's voice -- and
+            // recording a microphone by default is a privacy surprise.
+            property bool desktopAudio: true
+            property bool mic: false
             property bool edit: false
         }
     }
@@ -129,6 +166,51 @@ Singleton {
     readonly property string editScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-edit-recording"
     property bool pendingEdit: false
 
+    // pre-record countdown: the capture card can arm a delay (Capture.delay,
+    // 0/1/3/5/10s) so the desktop is framed before capture begins. startAfter ticks
+    // that delay down in the record island, then calls start(), so the count is
+    // honest -- it reflects a real wait, not a guess. countdownSec is the remaining
+    // whole seconds the island renders; countingDown gates that view.
+    property int countdownSec: 0
+    property bool countingDown: false
+    // args latched for the deferred start so a mid-count option change can't
+    // retarget the pending capture.
+    property var pendingArgs: []
+    function startAfter(args, secs) {
+        // secs <= 0 is exactly today's path: no countdown state, no added delay.
+        if (secs <= 0) {
+            root.start(args);
+            return;
+        }
+        root.pendingArgs = args || [];
+        root.countdownSec = secs;
+        root.countingDown = true;
+        countdown.restart();
+    }
+    // a stop or an explicit cancel during the count aborts it and leaves no timer
+    // running: nothing launched yet, so there is nothing to --stop.
+    function cancelCountdown() {
+        countdown.stop();
+        root.countingDown = false;
+        root.countdownSec = 0;
+        root.pendingArgs = [];
+    }
+    Timer {
+        id: countdown
+        interval: 1000
+        repeat: true
+        onTriggered: {
+            root.countdownSec--;
+            if (root.countdownSec <= 0) {
+                countdown.stop();
+                root.countingDown = false;
+                var a = root.pendingArgs;
+                root.pendingArgs = [];
+                root.start(a);
+            }
+        }
+    }
+
     function start(extraArgs) {
         // latch the persisted post-capture actions so a mid-capture toggle can't
         // retarget the just-finished Quick clip.
@@ -143,6 +225,12 @@ Singleton {
     }
 
     function stop() {
+        // a stop during the pre-record countdown just cancels it: the recorder
+        // never launched, so there is nothing to --stop, compress or edit.
+        if (root.countingDown) {
+            root.cancelCountdown();
+            return;
+        }
         Quickshell.execDetached([root.script, "--stop"]);
         root.active = false;
         root.paused = false;
@@ -210,7 +298,8 @@ Singleton {
     }
 
     SequentialAnimation on pulse {
-        running: root.anyActive && !root.paused
+        // also pulse through the pre-record countdown, as an "arming" cue.
+        running: (root.anyActive || root.countingDown) && !root.paused
         loops: Animation.Infinite
         NumberAnimation { to: 0.18; duration: 620; easing.type: Easing.InOutSine }
         NumberAnimation { to: 1.0; duration: 620; easing.type: Easing.InOutSine }

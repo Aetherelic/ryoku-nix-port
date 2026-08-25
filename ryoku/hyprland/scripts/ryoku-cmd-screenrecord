@@ -5,14 +5,15 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ryoku-cmd-screenrecord [--fullscreen|--region] [--with-desktop-audio] [--with-microphone-audio]
+  ryoku-cmd-screenrecord [--fullscreen|--region|--monitor <NAME>] [--geometry <WxH+X+Y>] [--with-desktop-audio] [--with-microphone-audio]
   ryoku-cmd-screenrecord -r|-s|-sr
   ryoku-cmd-screenrecord --stop|--pause|--status
 
 Starts, stops, or pauses Ryoku's shell recorder.
 
-By default it records with gpu-screen-recorder's KMS capture (-w screen). On
-multi-GPU machines where the display is driven by a card gpu-screen-recorder
+By default it records the focused monitor with gpu-screen-recorder's KMS capture
+(-w <output>, falling back to -w screen when the focused output can't be named).
+On multi-GPU machines where the display is driven by a card gpu-screen-recorder
 cannot enumerate (KMS then reports "no monitor"), it records through the desktop
 portal instead (PipeWire ScreenCast, still GPU-encoded, and works regardless of
 which card scans out); it only falls back to wf-recorder if gpu-screen-recorder
@@ -324,6 +325,18 @@ focused_output() {
     | jq -r '[.[] | select(.focused)][0].name // .[0].name // empty' 2>/dev/null
 }
 
+# a --monitor value reaches a backend's -w/-o flag, so gate it the same way a
+# region geometry is gated: a Hyprland connector name is letters, digits, dot and
+# dash only. reuse the notify-and-exit idiom on a bad value.
+validate_monitor_name() {
+  local name="$1"
+  if [[ -z $name || ! $name =~ ^[A-Za-z0-9._-]+$ ]]; then
+    notify -u critical "Screen recording failed" "Invalid monitor: $name"
+    echo "ryoku-cmd-screenrecord: invalid monitor: $name" >&2
+    exit 1
+  fi
+}
+
 default_sink_monitor() {
   command -v pactl >/dev/null 2>&1 || return 0
   local sink
@@ -394,7 +407,9 @@ stop_recording() {
   # scope the stop to recording processes: a background replay buffer must survive.
   [[ ${#pids[@]} -gt 0 ]] && kill -INT "${pids[@]}" >/dev/null 2>&1 || true
   proc_running "$wf_pattern" && signal_recorder -INT "$wf_pattern" || true
-  notify -u normal "Screen recording stopped" "Saving recording to Videos/Recordings"
+  # no message here: the file is not written yet, so the old "Saving recording..."
+  # was a promise made before the fact. The post-save hook (gsr -sc, or the wf path
+  # calling it directly) fires the honest "Recording saved" once the file exists.
 
   # gsr's KMS capture leaves the screen washed out until a reconfigure (#11284)
   if command -v hyprctl >/dev/null 2>&1; then
@@ -463,6 +478,28 @@ info_recording() {
     "$backend" "$enc" "$fps" "$quality" "$codec" "$fmode"
 }
 
+# absolute path to the post-save hook gpu-screen-recorder runs via -sc (a sibling
+# script, resolved the way ryoku-cmd-studiorecord resolves this one). empty when
+# the helper is missing or not executable, so we never hand gsr a -sc it can't
+# run and never call a phantom helper on the wf path.
+recording_saved_hook() {
+  local here hook
+  here="$(dirname "$(readlink -f "$0")")"
+  hook="$here/ryoku-cmd-recording-saved"
+  [[ -x $hook ]] && printf '%s' "$hook"
+}
+
+# wf-recorder has no gsr-style -sc, so after it finishes we hand the saved file
+# to the hook ourselves, detached: this wrapper (which the shell waits on) exits
+# at once instead of lingering for the notification's bounded action wait.
+spawn_saved_hook() {
+  local path="$1" hook
+  [[ -s $path ]] || return 0
+  hook="$(recording_saved_hook || true)"
+  [[ -n $hook ]] || return 0
+  setsid "$hook" "$path" regular >/dev/null 2>&1 </dev/null &
+}
+
 start_gsr() {
   local mode="$1"
   local desktop_audio="$2"
@@ -489,6 +526,17 @@ start_gsr() {
     region_geom="$(region_geometry_gsr)"
     [[ -n $region_geom ]] || exit 0
     capture="region"
+  elif [[ $mode == "monitor" ]]; then
+    # -w <NAME> records exactly that KMS connector.
+    capture="$monitor_name"
+  else
+    # man gpu-screen-recorder: -w screen records the FIRST monitor gsr enumerates,
+    # not the focused one; the wf path already targets the focused output (-o), so
+    # the two backends recorded different screens on a multi-monitor desk. Target
+    # the focused output by name, falling back to `screen` when it can't be named.
+    local focused
+    focused="$(focused_output)"
+    [[ -n $focused ]] && capture="$focused"
   fi
 
   if [[ $desktop_audio == "true" && $microphone_audio == "true" ]]; then
@@ -514,6 +562,11 @@ start_gsr() {
   args=("$recorder_cmd" -w "$capture" -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -c mp4 -cursor "$cursor")
   [[ $capture == "region" ]] && args+=(-region "$region_geom")
   [[ -n $audio_source ]] && args+=(-a "$audio_source")
+  # -sc: gsr runs this after it finishes writing the file, where the honest saved
+  # notification (real path, size and duration) belongs; only passed when present.
+  local saved_hook
+  saved_hook="$(recording_saved_hook || true)"
+  [[ -n $saved_hook ]] && args+=(-sc "$saved_hook")
   args+=(-o "$output_path")
 
   exec "${args[@]}"
@@ -560,6 +613,12 @@ start_portal() {
 
   args=("$recorder_cmd" -w portal -restore-portal-session yes -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -c mp4 -cursor "$cursor")
   [[ -n $audio_source ]] && args+=(-a "$audio_source")
+  # portal picks its own PipeWire source, so there is no monitor to name here (a
+  # --monitor request degrades to region/fullscreen upstream); -sc still fires the
+  # saved notification after gsr writes the file, exactly as on the KMS path.
+  local saved_hook
+  saved_hook="$(recording_saved_hook || true)"
+  [[ -n $saved_hook ]] && args+=(-sc "$saved_hook")
   args+=(-o "$output_path")
 
   "${args[@]}" &
@@ -599,6 +658,9 @@ start_wf() {
     geom="$(region_geometry_wf)"
     [[ -n $geom ]] || exit 0
     target_args+=(-g "$geom")
+  elif [[ $mode == "monitor" ]]; then
+    # -o <NAME> targets that exact output; wf-recorder has no X11-style window id.
+    target_args+=(-o "$monitor_name")
   else
     monitor="$(focused_output)"
     [[ -n $monitor ]] && target_args+=(-o "$monitor")
@@ -631,10 +693,13 @@ start_wf() {
   *) qp=28; crf=28 ;;
   esac
 
-  # explicit codec: skip hw/sw negotiation entirely.
+  # explicit codec: skip hw/sw negotiation entirely. run (not exec) so we can hand
+  # the finished file to the saved hook, which wf-recorder can't do itself.
   if [[ -n ${RYOKU_SCREENRECORD_WF_CODEC:-} ]]; then
-    exec "$wf_cmd" -r "$fps" "${target_args[@]}" "${audio_args[@]}" \
-      -c "$RYOKU_SCREENRECORD_WF_CODEC" -f "$output_path"
+    "$wf_cmd" -r "$fps" "${target_args[@]}" "${audio_args[@]}" \
+      -c "$RYOKU_SCREENRECORD_WF_CODEC" -f "$output_path" && status=0 || status=$?
+    spawn_saved_hook "$output_path"
+    exit "$status"
   fi
 
   # try VAAPI on the primary render node first. if the hw encoder can't be set
@@ -647,19 +712,25 @@ start_wf() {
     pid=$!
     sleep 1.5
     if kill -0 "$pid" 2>/dev/null; then
-      wait "$pid"
-      exit $?
+      wait "$pid" && status=0 || status=$?
+      spawn_saved_hook "$output_path"
+      exit "$status"
     fi
     wait "$pid" 2>/dev/null && status=0 || status=$?
     # hw encode produced something? the user just stopped it early.
-    [[ -s $output_path ]] && exit "${status:-0}"
+    if [[ -s $output_path ]]; then
+      spawn_saved_hook "$output_path"
+      exit "${status:-0}"
+    fi
     rm -f "$output_path"
     output_path="$(next_recording_path "$output_dir")"
     printf '%s\n' "$output_path" >"${RYOKU_STATE_PATH:-$HOME/.local/state/ryoku}/last-recording" 2>/dev/null || true
   fi
 
-  exec "$wf_cmd" -r "$fps" "${target_args[@]}" "${audio_args[@]}" \
-    -c libx264 -p preset=veryfast -p crf="$crf" -f "$output_path"
+  "$wf_cmd" -r "$fps" "${target_args[@]}" "${audio_args[@]}" \
+    -c libx264 -p preset=veryfast -p crf="$crf" -f "$output_path" && status=0 || status=$?
+  spawn_saved_hook "$output_path"
+  exit "$status"
 }
 
 start_recording() {
@@ -673,7 +744,21 @@ start_recording() {
     return 0
   fi
 
+  [[ $mode == "monitor" ]] && validate_monitor_name "$monitor_name"
+
   backend="$(select_backend)"
+  # portal capture picks its own PipeWire source and cannot target a named
+  # monitor, so a --monitor request degrades to a region grab of the monitor's
+  # rect (the caller passes it as --geometry); with no geometry, fall through to a
+  # plain portal capture rather than failing. A resulting region then follows the
+  # portal-can't-crop rule below and records through wf.
+  if [[ $mode == "monitor" && $backend == "portal" ]]; then
+    if [[ -n ${region_geom_override:-} ]]; then
+      mode="region"
+    else
+      mode="fullscreen"
+    fi
+  fi
   # gsr's KMS capture (-w screen) omits a live wallpaper's video plane (it renders
   # on a layer off the scanout gsr grabs), so with a livewall up swap to wf, which
   # records the composited output. portal capture already composites (livewall
@@ -704,6 +789,7 @@ mode="fullscreen"
 desktop_audio=false
 microphone_audio=false
 region_geom_override=""
+monitor_name=""
 
 while (($# > 0)); do
   case "$1" in
@@ -752,6 +838,12 @@ while (($# > 0)); do
   --geometry)
     shift
     region_geom_override="${1:-}"
+    ;;
+  --monitor)
+    shift
+    monitor_name="${1:-}"
+    mode="monitor"
+    action="start"
     ;;
   *)
     echo "ryoku-cmd-screenrecord: unknown argument: $1" >&2

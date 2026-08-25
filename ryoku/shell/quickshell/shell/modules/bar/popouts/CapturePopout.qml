@@ -44,12 +44,14 @@ Item {
         : Capture.save === "file" ? qsTr("Folder") : qsTr("Both")
 
     function shoot(mode) { root.requestClose(); Capture.shoot(mode); }
-    function record(region) {
+    function record(mode) {
         root.requestClose();
-        if (region)
-            Capture.recordRegion(Recorder.recordArgs());
-        else
+        // "screen" records the focused output (no target flag); the other three
+        // raise the shared selection overlay for that family via recordTarget.
+        if (mode === "screen")
             Recorder.start(Recorder.recordArgs());
+        else
+            Capture.recordTarget(mode, Recorder.recordArgs());
     }
 
     // ── recent captures gallery (roomy tab) ─────────────────────────────────────
@@ -187,9 +189,11 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: 5 * root.s
-            color: chHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent"
+            color: chTap.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+                : (chHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent")
             border.width: Theme.borderWidth
             border.color: root.line
+            Behavior on color { ColorAnimation { duration: Motion.fast } }
         }
         Row {
             id: chipRow
@@ -213,7 +217,7 @@ Item {
             }
         }
         HoverHandler { id: chHov; cursorShape: Qt.PointingHandCursor }
-        MouseArea { anchors.fill: parent; onClicked: chip.tapped() }
+        MouseArea { id: chTap; anchors.fill: parent; onClicked: chip.tapped() }
         Tips.QsTip { text: chip.tip; below: true; hovered: chHov.hovered }
     }
     // small icon-only toggle with a hover bubble (desktop / mic audio): bone-plate
@@ -230,7 +234,8 @@ Item {
             anchors.fill: parent
             radius: 4 * root.s
             color: itg.on ? Theme.inverseSurface
-                : (igHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent")
+                : (igTap.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+                : (igHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent"))
             border.width: itg.on ? 0 : Theme.borderWidth
             border.color: root.line
             Behavior on color { ColorAnimation { duration: Motion.fast } }
@@ -244,7 +249,7 @@ Item {
             color: itg.on ? Theme.inverseOnSurface : root.inkDim
         }
         HoverHandler { id: igHov; cursorShape: Qt.PointingHandCursor }
-        MouseArea { anchors.fill: parent; onClicked: itg.toggled() }
+        MouseArea { id: igTap; anchors.fill: parent; onClicked: itg.toggled() }
         Tips.QsTip { text: itg.tip; below: true; hovered: igHov.hovered }
     }
 
@@ -256,16 +261,19 @@ Item {
         property string glyph: ""
         property string label: ""
         property bool accent: false
+        property string tip: ""
         signal tapped()
         width: tile.w
         implicitHeight: (root.roomy ? 50 : 40) * root.s
         Rectangle {
             anchors.fill: parent
             radius: 6 * root.s
-            color: tHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent"
+            color: tTap.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+                : (tHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent")
             border.width: Theme.borderWidth
             border.color: tHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.28) : root.line
             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
+            Behavior on color { ColorAnimation { duration: Motion.fast } }
         }
         Column {
             anchors.centerIn: parent
@@ -288,7 +296,8 @@ Item {
             }
         }
         HoverHandler { id: tHov; cursorShape: Qt.PointingHandCursor }
-        MouseArea { anchors.fill: parent; onClicked: tile.tapped() }
+        MouseArea { id: tTap; anchors.fill: parent; onClicked: tile.tapped() }
+        Tips.QsTip { text: tile.tip; below: true; hovered: tHov.hovered }
     }
 
     // one-line switch row (beautify, edit-after): glyph + label + LinkToggle; the
@@ -345,7 +354,8 @@ Item {
         width: 24 * root.s
         height: width
         radius: 6 * root.s
-        color: mbHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.10) : "transparent"
+        color: mbTap.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+            : (mbHov.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.10) : "transparent")
         Behavior on color { ColorAnimation { duration: Motion.fast } }
         GlyphIcon {
             anchors.centerIn: parent
@@ -356,7 +366,7 @@ Item {
             color: mb.tint
         }
         HoverHandler { id: mbHov; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: mb.tapped() }
+        TapHandler { id: mbTap; onTapped: mb.tapped() }
     }
 
     component Rule: Rectangle {
@@ -449,8 +459,8 @@ Item {
             }
         }
         HoverHandler { id: rtHov; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: if (rt.dir) Spawn.run(["nautilus", rt.dir]) }
-        scale: rtHov.hovered ? 1.03 : 1
+        TapHandler { id: rtTap; onTapped: if (rt.dir) Spawn.run(["nautilus", rt.dir]) }
+        scale: rtTap.pressed ? 1.0 : (rtHov.hovered ? 1.03 : 1)
         Behavior on scale { NumberAnimation { duration: Motion.fast } }
     }
 
@@ -560,13 +570,17 @@ Item {
             }
         }
 
-        // record starts: Screen / Region (swap for the live indicator when active).
+        // record starts: Screen / Monitor / Window / Region (swap for the live
+        // indicator when active). Screen records the focused output; the other
+        // three raise the shared selection overlay for that family.
         Row {
             width: parent.width
             visible: !Recorder.anyActive
             spacing: root.gap
-            ModeTile { w: (root.innerW - root.gap) / 2; glyph: "monitor"; label: qsTr("Screen"); accent: true; onTapped: root.record(false) }
-            ModeTile { w: (root.innerW - root.gap) / 2; glyph: "region"; label: qsTr("Region"); accent: true; onTapped: root.record(true) }
+            ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "monitor"; label: qsTr("Screen"); accent: true; onTapped: root.record("screen") }
+            ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "screens"; label: qsTr("Monitor"); accent: true; onTapped: root.record("monitor") }
+            ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "window"; label: qsTr("Window"); accent: true; tip: qsTr("Captures the area the window covers now; it won't follow if the window moves."); onTapped: root.record("window") }
+            ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "region"; label: qsTr("Region"); accent: true; onTapped: root.record("region") }
         }
 
         // live indicator: pulsing REC tag, elapsed clock, pause + stop.

@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# Post-save hook for gpu-screen-recorder's -sc contract: gsr runs this
+# asynchronously once it has finished writing a recording, passing the saved
+# file path ($1) and a type ($2, one of regular|replay|screenshot). It exists
+# because gsr's stop path only learns the final path, size and duration HERE, so
+# this is where the honest "Recording saved" notification belongs instead of
+# ryoku-cmd-screenrecord announcing a save before the file is finalised.
+# wf-recorder has no -sc, so ryoku-cmd-screenrecord invokes this helper itself
+# (same two arguments) after wf exits, keeping one message path for both.
+
+set -euo pipefail
+
+path="${1:-}"
+kind="${2:-regular}"
+
+# gsr's own screenshot feature is not part of Ryoku's recorder, so its saves are
+# not ours to announce; replay and regular are both finished recordings we own.
+[[ $kind == "screenshot" ]] && exit 0
+[[ -n $path && -s $path ]] || exit 0
+
+# bytes -> human-readable (17.0MB, 512B). numfmt when present, else a raw byte
+# count so a size always shows.
+human_size() {
+  local bytes="$1"
+  if command -v numfmt >/dev/null 2>&1; then
+    numfmt --to=iec --suffix=B --format='%.1f' "$bytes" 2>/dev/null && return 0
+  fi
+  printf '%s B' "$bytes"
+}
+
+# whole seconds -> M:SS, or H:MM:SS once past an hour.
+format_duration() {
+  local total="${1%.*}" h m s
+  [[ $total =~ ^[0-9]+$ ]] || return 1
+  h=$((total / 3600))
+  m=$(((total % 3600) / 60))
+  s=$((total % 60))
+  if ((h > 0)); then
+    printf '%d:%02d:%02d' "$h" "$m" "$s"
+  else
+    printf '%d:%02d' "$m" "$s"
+  fi
+}
+
+size="$(human_size "$(stat -c '%s' "$path" 2>/dev/null || echo 0)")"
+
+duration=""
+if command -v ffprobe >/dev/null 2>&1; then
+  raw="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$path" 2>/dev/null || true)"
+  duration="$(format_duration "$raw" 2>/dev/null || true)"
+fi
+
+# "<M:SS> · <size>" when a duration is known, else size alone: a missing or
+# failed ffprobe must never sink the notification.
+if [[ -n $duration ]]; then
+  body="$duration · $size"
+else
+  body="$size"
+fi
+
+dir="$(dirname "$path")"
+
+command -v notify-send >/dev/null 2>&1 || exit 0
+
+# notify-send blocks until the notification is actioned or closed and prints the
+# chosen action id. Bound the wait so an ignored notification cannot leave this
+# helper alive indefinitely; timeout's non-zero exit on expiry is expected.
+action="$(timeout 120 notify-send -a ryoku \
+  --action=open=Open \
+  --action=folder='Show in folder' \
+  --action=copy='Copy path' \
+  "Recording saved" "$body" 2>/dev/null || true)"
+
+case "$action" in
+open)
+  command -v xdg-open >/dev/null 2>&1 && setsid xdg-open "$path" >/dev/null 2>&1 &
+  ;;
+folder)
+  command -v xdg-open >/dev/null 2>&1 && setsid xdg-open "$dir" >/dev/null 2>&1 &
+  ;;
+copy)
+  command -v wl-copy >/dev/null 2>&1 && printf '%s' "$path" | wl-copy >/dev/null 2>&1 || true
+  ;;
+esac
+
+exit 0

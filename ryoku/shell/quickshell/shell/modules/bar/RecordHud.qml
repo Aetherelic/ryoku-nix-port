@@ -76,7 +76,7 @@ Item {
     readonly property real nubProg: 0.1
     readonly property real wantProg: {
         if (Recorder.anyActive) return (!hud.hidden || hud.revealHeld) ? 1 : hud.nubProg;
-        return (Recorder.chooserOpen || hud.starting) ? 1 : 0;
+        return (Recorder.chooserOpen || hud.starting || Recorder.countingDown) ? 1 : 0;
     }
     property real prog: hud.wantProg
     Behavior on prog { NumberAnimation { duration: hud.meltDur; easing.type: Easing.InOutCubic } }
@@ -90,14 +90,17 @@ Item {
     property bool starting: false
     function startQuick() {
         Recorder.chooserOpen = false;
+        // The capture card's delay is the framing beat: honour it here too, since
+        // this island is the primary record trigger. With no delay set, the 420ms
+        // grace below still lets the chooser leave the frame first.
         if (Recorder.regionGeom !== "") {
-            Recorder.start(["--region", "--geometry", Recorder.regionGeom].concat(Recorder.recordArgs()));
+            Recorder.startAfter(["--region", "--geometry", Recorder.regionGeom].concat(Recorder.recordArgs()), Capture.delay);
         } else {
             hud.starting = true;
             quickTimer.restart();
         }
     }
-    Timer { id: quickTimer; interval: 420; onTriggered: { Recorder.start(Recorder.recordArgs()); hud.starting = false; } }
+    Timer { id: quickTimer; interval: 420; onTriggered: { Recorder.startAfter(Recorder.recordArgs(), Capture.delay); hud.starting = false; } }
     // Edit opens ryomotion straight to its import screen (--edit) so you pick a
     // clip to edit; notify-send keeps a click from silently doing nothing before
     // the app is installed.
@@ -126,7 +129,8 @@ Item {
         implicitWidth: aRow.implicitWidth + 14 * act.s
         implicitHeight: 26 * act.s
         radius: 7 * act.s
-        color: aHov.hovered ? Theme.frameBg
+        color: aTap.pressed ? Theme.threadBg
+            : aHov.hovered ? Theme.frameBg
             : act.primary ? Qt.rgba(Theme.vermLit.r, Theme.vermLit.g, Theme.vermLit.b, 0.16) : "transparent"
         Behavior on color { ColorAnimation { duration: Motion.fast } }
         Row {
@@ -152,7 +156,7 @@ Item {
             }
         }
         HoverHandler { id: aHov; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: act.tapped() }
+        TapHandler { id: aTap; onTapped: act.tapped() }
     }
 
     // --- orientation: vertical while a side edge is nearest and within range,
@@ -186,8 +190,8 @@ Item {
     }
     Component.onCompleted: hud.layoutVertical = hud.vertical
 
-    readonly property real curW: (Recorder.anyActive || hud.starting) ? grid.implicitWidth : chooserGrid.implicitWidth
-    readonly property real curH: (Recorder.anyActive || hud.starting) ? grid.implicitHeight : chooserGrid.implicitHeight
+    readonly property real curW: (Recorder.anyActive || hud.starting || Recorder.countingDown) ? grid.implicitWidth : chooserGrid.implicitWidth
+    readonly property real curH: (Recorder.anyActive || hud.starting || Recorder.countingDown) ? grid.implicitHeight : chooserGrid.implicitHeight
     property real bodyW: hud.curW + 20 * hud.s
     property real bodyH: hud.curH + 14 * hud.s
     Behavior on bodyW { NumberAnimation { duration: hud.moveDur; easing.type: Easing.InOutCubic } }
@@ -287,7 +291,7 @@ Item {
             id: dragH
             target: null
             dragThreshold: 8
-            enabled: Recorder.anyActive || Recorder.chooserOpen
+            enabled: Recorder.anyActive || Recorder.chooserOpen || Recorder.countingDown
             cursorShape: Qt.SizeAllCursor
             property real sx: 0
             property real sy: 0
@@ -323,7 +327,7 @@ Item {
 
             Grid {
                 id: grid
-                visible: Recorder.anyActive || hud.starting
+                visible: Recorder.anyActive || hud.starting || Recorder.countingDown
                 anchors.centerIn: parent
                 columns: hud.layoutVertical ? 1 : 99
                 rowSpacing: 7 * hud.s
@@ -361,7 +365,9 @@ Item {
                 }
 
                 Text {
-                    text: Recorder.elapsedText
+                    // counting down before capture: show the remaining seconds in
+                    // place of the elapsed clock (a bare number, no clock colon).
+                    text: Recorder.countingDown ? Recorder.countdownSec : Recorder.elapsedText
                     color: Theme.onSurface
                     font.family: Theme.fontPrimary
                     font.pixelSize: 13 * hud.s
@@ -383,18 +389,21 @@ Item {
                 }
                 RecordButton {
                     s: hud.s
+                    visible: !Recorder.countingDown
                     glyph: hud.sinkMuted ? "speaker-off" : "speaker"
                     tint: hud.sinkMuted ? Theme.onSurfaceVariant : Theme.onSurface
                     onTapped: hud.toggleSink()
                 }
                 RecordButton {
                     s: hud.s
+                    visible: !Recorder.countingDown
                     glyph: hud.micMuted ? "mic-off" : "mic"
                     tint: hud.micMuted ? Theme.onSurfaceVariant : Theme.onSurface
                     onTapped: hud.toggleMic()
                 }
                 RecordButton {
                     s: hud.s
+                    visible: !Recorder.countingDown
                     glyph: "compress"
                     tint: Theme.onSurfaceVariant
                     onTapped: hud.hidden = !hud.hidden
@@ -407,7 +416,7 @@ Item {
             Grid {
                 id: chooserGrid
                 anchors.centerIn: parent
-                visible: Recorder.chooserOpen && !Recorder.anyActive && !hud.starting
+                visible: Recorder.chooserOpen && !Recorder.anyActive && !hud.starting && !Recorder.countingDown
                 columns: hud.layoutVertical ? 1 : 99
                 rowSpacing: 7 * hud.s
                 columnSpacing: 6 * hud.s
