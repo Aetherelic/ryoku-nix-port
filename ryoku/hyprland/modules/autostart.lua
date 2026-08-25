@@ -5,7 +5,11 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("gnome-keyring-daemon --start --components=secrets,pkcs11")
     hl.exec_cmd("hyprctl setcursor Bibata-Modern-Ice 24")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme prefer-dark")
-    hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark")
+    -- adw-gtk3-dark, not Adwaita-dark: stock Adwaita GTK3 hardcodes its colours,
+    -- so the palette Ryoku generates barely reaches GTK3 apps, while adw-gtk3
+    -- derives its rules from the named colours we already emit. The daemon owns
+    -- accent-color; do not set it here.
+    hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme adw-gtk3-dark")
     -- Folder icons follow the wallpaper accent: ryoku-cmd-folders builds a small
     -- Papirus-Dark overlay under ~/.local/share/icons tinted to the palette and
     -- selects it. Rebuilt on every palette change by the shell's matugen hook.

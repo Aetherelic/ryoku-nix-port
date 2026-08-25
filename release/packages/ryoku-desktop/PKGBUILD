@@ -64,10 +64,16 @@ depends=(
   # the picker installs and updates atomically with the portal that names it.
   'hyprland-preview-share-picker'
   'xdg-desktop-portal-gtk'
-  # the standalone Adwaita-dark GTK theme the Hyprland autostart selects
-  # (gsettings gtk-theme). a hard depend so `ryoku update` pulls it onto existing
-  # boxes: nothing else brings it in, and without it the name has nothing on disk,
-  # so the portal file chooser (GTK3) falls back to light in the dark session.
+  # adw-gtk3 / adw-gtk3-dark, the GTK3 theme the Hyprland autostart selects
+  # (gsettings gtk-theme). Unlike stock Adwaita it derives its 156 widget rules
+  # from the named colours Ryoku generates, so the palette actually reaches GTK3
+  # apps. A hard depend so `ryoku update` pulls it onto existing boxes: nothing
+  # else brings it in, and without it the name resolves to nothing on disk and
+  # GTK3 apps fall back to stock Adwaita.
+  'adw-gtk-theme'
+  # Adwaita-dark, kept for the "adwaita" gtkTheme option and because the portal
+  # file chooser (GTK3) still wants it; otherwise it falls back to light in the
+  # dark session. A hard depend so `ryoku update` pulls it onto existing boxes.
   'gnome-themes-extra'
   # Qt icon theme the shipped qt6ct.conf (config/qt6ct/qt6ct.conf) selects, so
   # named freedesktop icons (e.g. the Avahi entries' network-wired) resolve in
@@ -353,6 +359,10 @@ package() {
   install -Dm644 "$_repo/ryoku/apps/fish/config.fish"       "$cfg/fish/config.fish"
   install -Dm644 "$_repo/ryoku/apps/fish/conf.d/rashin.fish" "$cfg/fish/conf.d/rashin.fish"
   install -Dm644 "$_repo/ryoku/shell/qt6ct/qt6ct.conf"     "$cfg/qt6ct/qt6ct.conf"
+  # GTK toolkit baseline for the xsettings-less Wayland session (see the header
+  # of each file); materialized and pruned by `ryoku materialize` like qt6ct.conf.
+  install -Dm644 "$_repo/ryoku/shell/gtk-3.0/settings.ini" "$cfg/gtk-3.0/settings.ini"
+  install -Dm644 "$_repo/ryoku/shell/gtk-4.0/settings.ini" "$cfg/gtk-4.0/settings.ini"
   install -Dm644 "$_repo/ryoku/apps/btop/btop.conf"       "$cfg/btop/btop.conf"
   install -Dm644 "$_repo/ryoku/apps/starship/starship.toml" "$cfg/starship.toml"
   install -Dm644 "$_repo/ryoku/apps/fastfetch/config.jsonc" "$cfg/fastfetch/config.jsonc"

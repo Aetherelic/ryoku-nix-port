@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- `ryoku-desktop` hard-depends on `adw-gtk-theme` and installs the GTK 3 and
+  GTK 4 `settings.ini` (`config/gtk-3.0`, `config/gtk-4.0`) beside the existing
+  `qt6ct.conf`, so `ryoku materialize` lays them down and prunes them. The
+  Hyprland session now selects `adw-gtk3-dark` instead of `Adwaita-dark`: stock
+  Adwaita GTK3 hardcodes its colours, so the palette Ryoku generates barely
+  reached GTK3 apps, while adw-gtk3 derives its widget rules from the named
+  colours the shell already emits. Without the dependency that theme name has
+  nothing on disk and GTK3 apps fall back to stock, so it is a hard depend that
+  `ryoku update` carries onto existing boxes.
 - `ryoku-desktop` hard-depends on `weston` (official `extra` repo). The SDDM
   greeter moves to Wayland (`DisplayServer=wayland`,
   `CompositorCommand=weston --shell=kiosk`) so it is torn down cleanly at login
