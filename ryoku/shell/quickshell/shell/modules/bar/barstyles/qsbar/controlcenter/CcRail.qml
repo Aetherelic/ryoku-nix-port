@@ -19,6 +19,7 @@ Item {
     property string current: ""
     signal chose(string id)
     signal searchRequested()
+    signal hubRequested()
 
     // The rail's groups. Each entry is a route id from kit/Routes.js, so the
     // registry stays the single source of what a route is called and glossed.
@@ -77,7 +78,7 @@ Item {
             }
             UiText {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "// STUDIO"
+                text: "SHELL STUDIO"
                 color: Tokens.inkFaint
                 font.family: Tokens.mono
                 font.pixelSize: Tokens.fTiny
@@ -241,14 +242,45 @@ Item {
             height: 1
             color: Tokens.lineSoft
         }
-        Marginalia {
+        // The studio is the quick surface; the Hub is every setting. A persistent
+        // way there, printed where the edition mark used to sit.
+        Item {
             id: edition
-            anchors { left: parent.left; top: parent.top; topMargin: rail.tk.gap }
-            index: "01"
-            label: "STUDIO"
-            glyph: "tune"
-            glyph2: ""
-            chevrons: false
+            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: rail.tk.gap }
+            height: 20
+            Row {
+                id: hubRow
+                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                spacing: Tokens.s2
+                Pixel {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 14; height: 14
+                    kind: "torii"
+                }
+                UiText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: I18n.tr("OPEN THE HUB")
+                    color: hubMa.containsMouse ? Tokens.ink : Tokens.inkFaint
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fTiny
+                    font.letterSpacing: Tokens.trackLabel
+                }
+                UiText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "\u276f"
+                    color: Tokens.inkFaint
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fTiny
+                    opacity: hubMa.containsMouse ? 1 : 0.5
+                }
+            }
+            MouseArea {
+                id: hubMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: rail.hubRequested()
+            }
         }
         // A Code 39 plate cannot be clipped -- lose the stop bars and it stops
         // being a barcode -- so the module width is solved from the rail's own

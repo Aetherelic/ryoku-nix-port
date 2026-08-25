@@ -97,7 +97,7 @@ Item {
             anchors.left: input.left; anchors.right: input.right
             anchors.verticalCenter: parent.verticalCenter
             visible: input.text === ""
-            text: I18n.tr("Search settings, options, or routes\u2026")
+            text: I18n.tr("Search the studio\u2026")
             color: search.tk ? Tokens.inkFaint : "#7a756e"
             opacity: 0.7
             elide: Text.ElideRight

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **The control center names itself the Shell Studio and points to the Hub.** It
+  reads SHELL STUDIO in the rail masthead and carries a persistent "OPEN THE HUB"
+  link in the rail foot, so it is clear this is the quick studio and the full
+  settings live in the Hub; the search now reads "Search the studio" instead of
+  the generic "settings, options, or routes" (`controlcenter/CcRail.qml`,
+  `controlcenter/ControlCenter.qml`, `controlcenter/CcSearch.qml`).
 - **Recording can target a monitor or a window, not only the whole screen or a
   drawn box.** The capture card's record row now offers Screen, Monitor, Window
   and Region, the same four targets the screenshot row has, raised through the

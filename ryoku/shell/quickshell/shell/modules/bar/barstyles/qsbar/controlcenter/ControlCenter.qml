@@ -192,6 +192,7 @@ PanelWindow {
             current: cc.route
             onChose: (id) => cc.route = id
             onSearchRequested: searchOverlay.shown = true
+            onHubRequested: { Spawn.run(["sh", "-c", "flock -n -o /tmp/ryoku-hub.lock qs -c hub"]); cc.close(); }
         }
 
         Item {
