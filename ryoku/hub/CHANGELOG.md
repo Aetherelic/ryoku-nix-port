@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Advanced settings show a worked example.** Free-text advanced fields now
+  carry one: the record editors (Window Rules, Environment, Autostart) show it in
+  the placeholder, and schema rows (the image-border fields, the desktop name and
+  mark) show a faint "e.g. ..." under the description through a new `SettingRow`
+  hint (`ui/SettingRow.qml`, `SettingsSheet.qml`, `schema/*.js`, the record pages).
 - **Global gets one "System font" and a font size.** The Font group is a single
   font picker plus a size stepper; both apply live to the shell, GTK/Qt apps and
   the terminal. Pick a monospace like Maple Mono NF for a clean terminal

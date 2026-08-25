@@ -306,7 +306,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             width: matchRow.classW
                             tabular: true
-                            placeholder: I18n.tr("Match class")
+                            placeholder: I18n.tr("Match class (e.g. firefox)")
                             text: rowRect.modelData["class"] || ""
                             onCommitted: (v) => {
                                 if (v !== (rowRect.modelData["class"] || ""))
@@ -321,7 +321,7 @@ Item {
                             anchors.right: removeBtn.left
                             anchors.rightMargin: rowRect.gap
                             anchors.verticalCenter: parent.verticalCenter
-                            placeholder: I18n.tr("Match title")
+                            placeholder: I18n.tr("Match title (e.g. Picture-in-Picture)")
                             text: rowRect.modelData.title || ""
                             onCommitted: (v) => {
                                 if (v !== (rowRect.modelData.title || ""))

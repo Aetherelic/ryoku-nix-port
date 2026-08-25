@@ -186,7 +186,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: rowRect.keyW
                         tabular: true
-                        placeholder: I18n.tr("NAME")
+                        placeholder: I18n.tr("NAME (e.g. MOZ_ENABLE_WAYLAND)")
                         text: rowRect.modelData.key
                         onCommitted: (v) => {
                             if (v !== rowRect.modelData.key)
@@ -201,7 +201,7 @@ Item {
                         anchors.rightMargin: rowRect.gap
                         anchors.verticalCenter: parent.verticalCenter
                         tabular: true
-                        placeholder: "value"
+                        placeholder: I18n.tr("value (e.g. 1)")
                         text: rowRect.modelData.value
                         onCommitted: (v) => {
                             if (v !== rowRect.modelData.value)

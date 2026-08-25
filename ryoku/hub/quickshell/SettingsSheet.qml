@@ -207,6 +207,7 @@ Item {
 
                             label: I18n.tr(r.label)
                             desc: I18n.tr(r.desc || "")
+                            eg: I18n.tr(r.eg || "")
                             value: sheet.rowValue(r)
                             unit: sheet.rowUnit(r)
                             def: sheet.shownDef(r)

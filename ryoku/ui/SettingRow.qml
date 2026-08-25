@@ -17,6 +17,7 @@ Item {
 
     property string label: ""
     property string desc: ""
+    property string eg: ""          // a worked example, shown faint under the desc
     property string value: ""       // compact readout (a slider number, a count); empty hides
     property string unit: ""
     property string def: ""         // factory value, struck when changed
@@ -156,6 +157,15 @@ Item {
             font.pixelSize: Tokens.fSmall
             wrapMode: Text.WordWrap
             maximumLineCount: 2
+            elide: Text.ElideRight
+        }
+        Text {
+            visible: row.eg !== ""
+            width: parent.width
+            text: "e.g. " + row.eg
+            color: Tokens.inkFaint
+            font.family: Tokens.mono
+            font.pixelSize: Tokens.fTiny
             elide: Text.ElideRight
         }
     }

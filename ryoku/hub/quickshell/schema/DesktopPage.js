@@ -6,6 +6,7 @@ var rows = [{
         "key": "name",
         "label": "Name",
         "desc": "The name the shell calls this desktop",
+        "eg": "Ryoku",
         "ctl": "text",
         "src": "brand"
     },{
@@ -14,6 +15,7 @@ var rows = [{
         "key": "markText",
         "label": "Text mark",
         "desc": "The glyph the shell uses as its mark",
+        "eg": "力",
         "ctl": "text",
         "src": "brand"
     },{

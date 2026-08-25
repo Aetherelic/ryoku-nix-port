@@ -751,6 +751,7 @@ var rows = [{
         "key": "plugins.imgborders.image",
         "label": "Border image",
         "desc": "The picture tiled around windows, takes effect on Save",
+        "eg": "~/Pictures/frame.png",
         "ctl": "text",
         "src": "hypr.json",
         "adv": true
@@ -789,6 +790,7 @@ var rows = [{
         "key": "plugins.imgborders.sizes",
         "label": "Border sizes",
         "desc": "Edge thicknesses as left,right,top,bottom in pixels",
+        "eg": "4,4,4,4",
         "ctl": "text",
         "src": "hypr.json",
         "adv": true
@@ -798,6 +800,7 @@ var rows = [{
         "key": "plugins.imgborders.insets",
         "label": "Border insets",
         "desc": "How far the image tucks under the window, left,right,top,bottom",
+        "eg": "0,0,0,0",
         "ctl": "text",
         "src": "hypr.json",
         "adv": true

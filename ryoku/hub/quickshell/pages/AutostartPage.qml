@@ -188,7 +188,7 @@ Item {
                         anchors.rightMargin: rowRect.gap
                         anchors.verticalCenter: parent.verticalCenter
                         tabular: true
-                        placeholder: I18n.tr("command to run")
+                        placeholder: I18n.tr("command to run (e.g. nm-applet)")
                         text: rowRect.modelData.command
                         onCommitted: (v) => {
                             if (v !== rowRect.modelData.command)
