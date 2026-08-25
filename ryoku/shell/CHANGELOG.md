@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **The bar's brand logo can open the quick settings instead of the Shell Studio.**
+  A STUDIO / QUICK SETTINGS segmented switch in both the Studio foot and the
+  Super+Esc quick-settings sidebar sets which surface the logo click opens; the
+  choice persists in `shell.json` (`launcherTarget`) and the lit segment shows the
+  current target. The Studio foot drops its dead Super+Esc caption for the switch
+  (`services/Config.qml`, `controlcenter/CcRail.qml`, `modules/LauncherWidget.qml`,
+  `framebars/menus/quicksettings/QuickSettingsHome.qml`).
 - **The Session route gains Log out, and the studio shows its Super+Esc key.**
   Session now offers Log out (arm-to-confirm, `hyprctl dispatch exit`) beside
   lock, sleep, restart and power off, and the rail foot carries a SUPER ESC

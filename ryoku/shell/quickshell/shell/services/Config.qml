@@ -102,6 +102,21 @@ Singleton {
             'hl.config({ decoration = { screen_shader = "' + path + '" } })']);
     }
 
+    // Which surface the bar's brand logo opens: "studio" (the Shell Studio) or
+    // "quick" (the Super+Esc quick-settings sidebar). Persisted like the shader,
+    // read by the launcher widget and set by the switch in either panel.
+    property alias launcherTarget: adapter.launcherTarget
+    function setLauncherTarget(v) {
+        const pick = (v === "quick") ? "quick" : "studio";
+        root.launcherTarget = pick;
+        shaderCtl.queued += "call settings.patch "
+            + JSON.stringify({ path: "launcherTarget", value: pick }) + "\n";
+        if (shaderCtl.connected)
+            shaderCtl.flushQueued();
+        else
+            shaderCtl.connected = true;
+    }
+
     // resolved Qt locale: the chosen region, else the system default. the
     // ".UTF-8" suffix and a BCP47 dash are normalised to what Qt.locale() wants.
     readonly property var formatLoc: {
@@ -175,6 +190,7 @@ Singleton {
             property string screenShader: ""
             property var frameBars: FrameBars.defaultConfig()
             property string barStyle: "qsbar"
+            property string launcherTarget: "studio"
             property var obi: ({})
             property var nacre: NacreConfig.defaultConfig()
             property var qsbar: ({})

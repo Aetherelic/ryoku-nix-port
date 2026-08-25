@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Ryoku.Ui.Singletons
+import shell.services
 
 Item {
     id: rootMod
@@ -9,7 +10,7 @@ Item {
     implicitWidth: logo.implicitWidth + logoPadding
     implicitHeight: 28
 
-    readonly property string tooltipText: "Control center"
+    readonly property string tooltipText: Config.launcherTarget === "quick" ? "Quick settings" : "Control center"
     readonly property real logoPadding: 12
     readonly property color contentColor: root.widgetContentColor("G1", root.seal)
 
@@ -120,7 +121,10 @@ Item {
         onExited:  { tip.hide() }
         onClicked: {
             tip.hide()
-            root.controlVisible = !root.controlVisible
+            if (Config.launcherTarget === "quick")
+                ShellState.requestSurfaceActive("quick-settings", undefined)
+            else
+                root.controlVisible = !root.controlVisible
         }
     }
 }

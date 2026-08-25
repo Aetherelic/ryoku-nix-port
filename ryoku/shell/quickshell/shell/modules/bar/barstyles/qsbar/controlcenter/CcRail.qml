@@ -3,6 +3,7 @@ import "../modules"
 import "kit/Routes.js" as Routes
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import shell.services
 
 // The studio's left rail: the masthead, the routes in three named groups, and a
 // search row at the foot. It replaces the old breadcrumb + QUICK/CONFIGURE tabs
@@ -231,29 +232,18 @@ Item {
                     onClicked: rail.searchRequested()
                 }
             }
-            // A hint, not a button: Super+Esc (ryoku:quicksettings) opens or closes
-            // this panel. Muted and non-interactive so it reads as a caption under
-            // the search, not a second action.
+            // Surface switch: sets which panel the bar's brand logo opens -- the
+            // Shell Studio, or the Super+Esc quick-settings sidebar. The lit
+            // segment is the current target; picking the other retargets the logo.
             Item {
                 width: parent.width
-                height: rail.tk.navH
-
-                UiText {
-                    anchors.left: parent.left
-                    anchors.leftMargin: rail.tk.gap
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: I18n.tr("Toggle")
-                    color: Tokens.inkFaint
-                    font.family: Tokens.ui
-                    font.pixelSize: Tokens.fSmall
-                }
-                Keycap {
-                    anchors.right: parent.right
-                    anchors.rightMargin: rail.tk.gap / 2
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "SUPER ESC"
-                    us: 0.5
-                    dark: !Tokens.light
+                height: navSeg.height
+                Seg {
+                    id: navSeg
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    options: ["STUDIO", "QUICK SETTINGS"]
+                    current: Config.launcherTarget === "quick" ? "QUICK SETTINGS" : "STUDIO"
+                    onChose: (key) => Config.setLauncherTarget(key === "QUICK SETTINGS" ? "quick" : "studio")
                 }
             }
         }
