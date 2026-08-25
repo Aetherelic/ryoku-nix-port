@@ -56,7 +56,7 @@ func reconcileSpicetifyMarketplace(checkOnly bool) recResult {
 				return okRes("Spotify (spotify-launcher) is not launched yet; the Marketplace wires up after its first launch (the %s client cannot be patched)", path)
 			}
 			return warnRes("the Spotify client at %s is not writable, so spicetify cannot install the Marketplace", path).
-				withFix("install the shipped client instead (`sudo pacman -S --needed spotify-launcher`), which unpacks a per-user tree spicetify can patch without root; a native /opt client needs `sudo chmod a+wr -R /opt/spotify /opt/spotify/Apps`")
+				withFix("%s", spicetifyUnwritableFix(path))
 		}
 	}
 	if !needCli && !needPlace && !needEnable {

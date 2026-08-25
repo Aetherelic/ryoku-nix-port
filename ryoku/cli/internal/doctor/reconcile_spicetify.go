@@ -69,7 +69,7 @@ func reconcileSpicetifyCanvas(checkOnly bool) recResult {
 				return okRes("Spotify (spotify-launcher) is not launched yet; the Canvas wires up after its first launch (the %s client cannot be patched)", path)
 			}
 			return warnRes("the Spotify client at %s is not writable, so spicetify cannot patch it", path).
-				withFix("install the shipped client instead (`sudo pacman -S --needed spotify-launcher`), which unpacks a per-user tree spicetify can patch without root; a native /opt client needs `sudo chmod a+wr -R /opt/spotify /opt/spotify/Apps`")
+				withFix("%s", spicetifyUnwritableFix(path))
 		}
 	}
 	if !needCli && !needPlace && !needEnable {
@@ -298,4 +298,16 @@ func sameBytes(a, b string) bool {
 		return false
 	}
 	return bytes.Equal(ba, bb)
+}
+
+// spicetifyUnwritableFix is the remedy for a Spotify client spicetify cannot
+// patch, chosen by client kind. A root-owned SYSTEM flatpak (/var/lib/flatpak) is
+// best made writable by reinstalling it per-user, or replaced by the shipped
+// spotify-launcher; a native /opt client needs a chmod or, again, the launcher.
+// The shipped per-user launcher is the safe default in both.
+func spicetifyUnwritableFix(path string) string {
+	if strings.Contains(path, "flatpak") {
+		return "your Spotify is a system-wide flatpak (root-owned), which spicetify cannot patch without root. Reinstall it per-user so its tree is writable (`flatpak uninstall --system com.spotify.Client && flatpak install --user flathub com.spotify.Client`), or switch to the shipped per-user `spotify-launcher` (`sudo pacman -S --needed spotify-launcher`), which spicetify patches without root"
+	}
+	return "install the shipped client instead (`sudo pacman -S --needed spotify-launcher`), which unpacks a per-user tree spicetify can patch without root; a native /opt client needs `sudo chmod a+wr -R /opt/spotify /opt/spotify/Apps`"
 }

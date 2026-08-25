@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- **The spicetify remedy names the right fix for a flatpak Spotify.** A root-owned
+  system flatpak (`/var/lib/flatpak`) cannot be patched without root; the Canvas
+  and Marketplace doctor warnings now say to reinstall it per-user
+  (`flatpak install --user`) or use the shipped `spotify-launcher`, instead of the
+  irrelevant `/opt` chmod (`internal/doctor/reconcile_spicetify.go`).
 - **The system font persists again.** `ryoku doctor` listed `fontFamily` among
   the retired style knobs and stripped it from `shell.json` on every run, so a
   font chosen in Hub > Global reverted on the next update. It is a live key
