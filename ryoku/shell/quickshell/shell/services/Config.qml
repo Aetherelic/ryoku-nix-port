@@ -58,14 +58,13 @@ Singleton {
     // and the surfaces around it), keeping the readout legible without overflow.
     property alias fontScale:  adapter.fontScale
 
-    // fontFamily: the shell UI font, empty resolves to Space Grotesk. It is also
-    // the system font -- the daemon mirrors it to GTK (gsettings) and Qt (qt6ct)
-    // so apps match the shell. Set from Hub -> Global.
+    // fontFamily: the single system font. Empty resolves to Space Grotesk (UI)
+    // and SpaceMono (monospace/terminal); when set, the daemon mirrors it to GTK,
+    // Qt and the terminal so everything matches. Set from Hub -> Global.
     property alias fontFamily: adapter.fontFamily
 
-    // fontMono: the monospace face for the terminal and code; fontSize: the base
-    // point size. The daemon mirrors both system-wide. Set from Hub -> Global.
-    property alias fontMono: adapter.fontMono
+    // fontSize: the base point size the daemon mirrors system-wide (apps and the
+    // terminal). Set from Hub -> Global.
     property alias fontSize: adapter.fontSize
 
     // weather: an explicit location override (a city name; blank = auto-locate by
@@ -169,7 +168,6 @@ Singleton {
             property real osdOpacity: 1
             property real fontScale: 1.3
             property string fontFamily: "Space Grotesk"
-            property string fontMono: "SpaceMono Nerd Font"
             property int fontSize: 11
             property string weatherLocation: ""
             property string weatherUnit: "auto"

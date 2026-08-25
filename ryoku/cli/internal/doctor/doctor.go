@@ -1287,9 +1287,9 @@ func migrateFrameBarsStyle(raw []byte) ([]byte, bool, error) {
 // ---- reconciler: retired shell style knobs -----------------------------------
 
 // reconcileLegacyStyleKnobs strips the style keys a persisted shell.json may
-// still carry for looks the shell no longer has. surfaceColor / fontFamily /
-// roundness each duplicated a Theme token that now owns the value (surface,
-// fontPrimary, radiusWidget); frameSmoothing / shadowStrength / shadowSize drove
+// still carry for looks the shell no longer has. surfaceColor / roundness each
+// duplicated a Theme token that now owns the value (surface, radiusWidget);
+// frameSmoothing / shadowStrength / shadowSize drove
 // the retired soft-chrome look, whose blur hid the frame's crisp 2px border.
 // Surgical and idempotent: only these keys move, every other key survives
 // untouched, and a store already free of them is left alone.
@@ -1325,7 +1325,7 @@ func reconcileLegacyStyleKnobs(checkOnly bool) recResult {
 // legacyStyleKnobs are shell.json keys the shell no longer reads: each was a look
 // override for a style the shell no longer has.
 var legacyStyleKnobs = []string{
-	"surfaceColor", "fontFamily", "roundness",
+	"surfaceColor", "roundness",
 	"frameRadius", "frameBorder",
 	"frameSmoothing", "shadowStrength", "shadowSize",
 }

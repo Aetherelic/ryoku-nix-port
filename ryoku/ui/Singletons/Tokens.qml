@@ -100,7 +100,7 @@ Singleton {
 
     // ── type ─────────────────────────────────────────────────────────────
     readonly property string display: "Fraunces"
-    readonly property string ui: "Space Grotesk"
+    property string ui: "Space Grotesk"
     property string mono: "SpaceMono Nerd Font"
     readonly property string jp: "Noto Sans CJK JP"
 
@@ -260,6 +260,7 @@ Singleton {
         var reduce = false;
         var scales = ({});
         var monoFont = "SpaceMono Nerd Font";
+        var uiFont = "Space Grotesk";
         var decorLevel = "calm";
         try {
             const txt = shellFile.text();
@@ -276,7 +277,7 @@ Singleton {
                 const u = o && o.displays && o.displays.ui_scale;
                 if (u && typeof u === "object" && u !== null)
                     scales = u;
-                if (typeof o.fontMono === "string" && o.fontMono.length) monoFont = o.fontMono;
+                if (typeof o.fontFamily === "string" && o.fontFamily.length) { uiFont = o.fontFamily; monoFont = o.fontFamily; }
                 if (typeof o.hubDecor === "string" && o.hubDecor.length) decorLevel = o.hubDecor;
             }
         } catch (e) {
@@ -286,6 +287,7 @@ Singleton {
         t.motionScale = scale;
         t.reduceMotion = reduce;
         t.uiScales = scales;
+        t.ui = uiFont;
         t.mono = monoFont;
         t.decor = decorLevel;
     }

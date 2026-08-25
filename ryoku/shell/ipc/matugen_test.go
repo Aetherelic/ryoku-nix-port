@@ -503,12 +503,12 @@ func TestApplyFont(t *testing.T) {
 		return false
 	}
 
-	applyFont([]byte(`{"fontFamily":"Inter","fontMono":"Maple Mono NF","fontSize":13}`))
-	if !has("gsettings", "set", "org.gnome.desktop.interface", "font-name", "Inter 13") {
-		t.Errorf("font-name not set to Inter 13; got %v", got)
+	applyFont([]byte(`{"fontFamily":"Maple Mono NF","fontSize":13}`))
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "font-name", "Maple Mono NF 13") {
+		t.Errorf("font-name not set to Maple Mono NF 13; got %v", got)
 	}
 	if !has("gsettings", "set", "org.gnome.desktop.interface", "monospace-font-name", "Maple Mono NF 13") {
-		t.Errorf("monospace-font-name not set to Maple Mono NF 13; got %v", got)
+		t.Errorf("the one system font must also drive monospace-font-name; got %v", got)
 	}
 
 	got = nil
@@ -520,10 +520,10 @@ func TestApplyFont(t *testing.T) {
 		t.Errorf("empty mono did not fall back to SpaceMono Nerd Font 11; got %v", got)
 	}
 
-	if fontSig([]byte(`{"fontFamily":"Fira Sans","fontMono":"Hack","fontSize":12}`)) != "Fira Sans\x1fHack\x1f12" {
-		t.Errorf("fontSig did not compose family/mono/size")
+	if fontSig([]byte(`{"fontFamily":"Fira Sans","fontSize":12}`)) != "Fira Sans\x1f12" {
+		t.Errorf("fontSig did not compose family/size")
 	}
-	if fontSig([]byte(`{}`)) != "\x1f\x1f0" {
+	if fontSig([]byte(`{}`)) != "\x1f0" {
 		t.Errorf("fontSig should be the empty composite when keys are absent")
 	}
 }

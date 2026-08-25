@@ -54,17 +54,8 @@ var rows = [
         "tab": "",
         "group": "FONT",
         "key": "fontFamily",
-        "label": "Interface font",
-        "desc": "The proportional UI font, applied to the shell bar and to GTK/Qt apps live. Pick from installed fonts.",
-        "ctl": "pick",
-        "src": "shell",
-        "opts": []
-    }, {
-        "tab": "",
-        "group": "FONT",
-        "key": "fontMono",
-        "label": "Monospace font",
-        "desc": "The terminal and code font, applied to the terminal and to GTK/Qt monospace live. Pick from installed fonts.",
+        "label": "System font",
+        "desc": "One font for the shell, apps and terminal, applied live. Pick a monospace like Maple Mono NF for a clean terminal.",
         "ctl": "pick",
         "src": "shell",
         "opts": []

@@ -29,11 +29,11 @@ Item {
         var out = [];
         for (var i = 0; i < GlobalSchema.rows.length; i++) {
             var r = GlobalSchema.rows[i];
-            if (r.key === "fontFamily" || r.key === "fontMono" || r.key === "timezone") {
+            if (r.key === "fontFamily" || r.key === "timezone") {
                 var c = {};
                 for (var k in r)
                     c[k] = r[k];
-                if (r.key === "fontFamily" || r.key === "fontMono") c.opts = pg.fontList;
+                if (r.key === "fontFamily") c.opts = pg.fontList;
                 else c.tzCurrent = pg.currentTimezone;
                 out.push(c);
             } else {

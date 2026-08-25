@@ -3,10 +3,10 @@
 ## Unreleased
 
 ### Added
-- **Global gains a monospace font and a font size, beside the interface font.**
-  The Font group now has a Monospace font picker (terminal and code) and a Font
-  size stepper; all three apply live to the shell, GTK/Qt apps and the terminal.
-  Maple Mono NF ships as an option (`pages/GlobalPage.qml`, `schema/GlobalPage.js`).
+- **Global gets one "System font" and a font size.** The Font group is a single
+  font picker plus a size stepper; both apply live to the shell, GTK/Qt apps and
+  the terminal. Pick a monospace like Maple Mono NF for a clean terminal
+  (`pages/GlobalPage.qml`, `schema/GlobalPage.js`).
 - **Enrolling or verifying a fingerprint plays a live scan.** The Sign-in &
   Fingerprint card shows the shared `FingerprintScan` animation while recording
   (the ridges and ring fill with each enrollment stage) and while verifying, and

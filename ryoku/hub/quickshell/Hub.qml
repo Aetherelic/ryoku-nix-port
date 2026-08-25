@@ -77,34 +77,29 @@ Rectangle {
 
     // The full catalogue. `wired` marks the pages whose content and
     // persistence are ported; the rest render an honest porting plate rather
-    // than a settings page that cannot save. `adv` marks the power-user
-    // sections: the rail hides them until Advanced is on (search still reaches
-    // them), so the everyday view is the handful of settings most people ever
-    // touch -- displays, wifi, theme, bar, lockscreen, updates -- while the deep
-    // desktop internals, per-window rules, tools, system plumbing and the agent
-    // OS stay out of the way until asked for.
+    // than a settings page that cannot save. The rail lists every section,
+    // grouped by task, so nothing hides -- findability first. The rail scrolls;
+    // the "Advanced" switch at its foot only reveals the deep per-page knobs
+    // inside a schema page, never whole sections, so a page stays calm until asked.
     readonly property var groups: [
-        { name: "OVERVIEW", items: [ { key: "profile", name: "Profile" }, { key: "global", name: "Global" } ] },
+        { name: "OVERVIEW", items: [ { key: "profile", name: "Profile" }, { key: "global", name: "General" }, { key: "updates", name: "Updates" } ] },
         { name: "DEVICES", items: [
             { key: "displays", name: "Displays" }, { key: "connections", name: "Connections" },
-            { key: "input", name: "Input" }, { key: "cursor", name: "Cursor", adv: true }, { key: "gpu", name: "Machine", adv: true } ] },
+            { key: "input", name: "Input" }, { key: "cursor", name: "Cursor" }, { key: "gpu", name: "Graphics & Power" } ] },
+        { name: "LOOK", items: [
+            { key: "appearance", name: "Appearance" }, { key: "animations", name: "Animations" }, { key: "lockscreen", name: "Lockscreen" } ] },
         { name: "DESKTOP", items: [
-            { key: "windows", name: "Windows" }, { key: "appearance", name: "Appearance" }, { key: "bar-studio", name: "Bar Studio", wired: true }, { key: "desktop", name: "Desktop", wired: true },
-            { key: "widgets", name: "Widgets", adv: true }, { key: "animations", name: "Animations", adv: true },
-            { key: "lockscreen", name: "Lockscreen" }, { key: "launcher", name: "App Launcher" } ] },
-        { name: "APPS & KEYS", items: [
-            { key: "keybinds", name: "Keybinds" }, { key: "windowrules", name: "Window Rules", adv: true },
-            { key: "appoverrides", name: "App Overrides", adv: true }, { key: "layerrules", name: "Layer Rules", adv: true } ] },
-        { name: "TOOLS", items: [
-            { key: "recording", name: "Recording", adv: true }, { key: "dictation", name: "Dictation", adv: true },
-            { key: "fastfetch", name: "Fastfetch", adv: true },
-            { key: "import", name: "Import config", adv: true, wired: true } ] },
+            { key: "windows", name: "Windows" }, { key: "bar-studio", name: "Bar Studio", wired: true }, { key: "desktop", name: "Desktop", wired: true },
+            { key: "widgets", name: "Widgets" }, { key: "launcher", name: "App Launcher" } ] },
+        { name: "KEYS & APPS", items: [
+            { key: "keybinds", name: "Keybinds" }, { key: "appoverrides", name: "App Overrides" },
+            { key: "windowrules", name: "Window Rules" }, { key: "layerrules", name: "Layer Rules" } ] },
         { name: "SYSTEM", items: [
-            { key: "performance", name: "Desktop Effects", adv: true }, { key: "autostart", name: "Autostart", adv: true },
-            { key: "environment", name: "Environment", adv: true } ] },
-        { name: "ADD-ONS", items: [
-            { key: "addons", name: "Add-ons" },
-            { key: "rashin", name: "Rashin", adv: true } ] },
+            { key: "performance", name: "Performance" }, { key: "autostart", name: "Autostart" }, { key: "environment", name: "Environment" },
+            { key: "recording", name: "Recording" }, { key: "dictation", name: "Dictation" }, { key: "fastfetch", name: "Fastfetch" },
+            { key: "import", name: "Import config", wired: true } ] },
+        { name: "EXTEND", items: [
+            { key: "addons", name: "Add-ons" }, { key: "rashin", name: "Rashin" } ] },
         { name: "", items: [ { key: "credits", name: "Credits" } ] }
     ]
 
@@ -413,7 +408,7 @@ Rectangle {
         "frameSmoothing": 8, "frameOpacity": 1, "shadowStrength": 0.63, "shadowSize": 12,
         "frameThickness": 2, "frameCorner": 8,
         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
-        "fontFamily": "Space Grotesk", "fontMono": "SpaceMono Nerd Font", "fontSize": 11, "fontScale": 1.3,
+        "fontFamily": "Space Grotesk", "fontSize": 11, "fontScale": 1.3,
         "frameBars": FrameBars.defaultConfig(),
         "weatherLocation": "", "weatherUnit": "auto", "formatLocale": "",
         "enabled": true, "bars": 64, "thickness": 0.58, "bloom": 0.6,
@@ -530,7 +525,7 @@ Rectangle {
     // against liveBaseline: the state at open, re-snapshotted on every Save.
     // Quit and Revert walk the desktop back to that baseline through the same
     // channel, so an unsaved close leaves no residue.
-    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "fontMono", "fontSize", "barStyle", "obi", "nacre", "qsbar", "dock"]
+    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "fontSize", "barStyle", "obi", "nacre", "qsbar", "dock"]
     property var liveBaseline: null
     property var livePending: ({})
     function captureLiveBaseline() {
@@ -925,7 +920,7 @@ Rectangle {
         Item {
             id: railFoot
             visible: Tokens.showGrid
-            anchors { left: parent.left; right: parent.right; bottom: advToggle.top }
+            anchors { left: parent.left; right: parent.right; bottom: decorRow.top }
             anchors.margins: Tokens.s5
             anchors.bottomMargin: Tokens.s4
             height: Tokens.showGrid ? (Tokens.s3 + edition.height + Tokens.s3 + plate.implicitHeight) : 0
@@ -953,10 +948,55 @@ Rectangle {
             }
         }
 
-        // the one global switch, seated at the foot below the plate: Advanced
-        // reveals the power-user sections in the rail and the deep knobs inside
-        // every schema page. Persisted like `section`, restored at startup by
-        // `advancedGet`. One control, not one per page.
+        // the decor level: how much editorial chrome the settings wear. Calm is
+        // the quiet, function-first default; Rich restores the full poster
+        // treatment. Writes shell.json hubDecor (a daemon passthrough key), so
+        // every surface reading Tokens retints live, with no per-page wiring.
+        Item {
+            id: decorRow
+            anchors { left: parent.left; right: parent.right; bottom: advToggle.top }
+            anchors.leftMargin: Tokens.s5; anchors.rightMargin: Tokens.s5
+            anchors.bottomMargin: Tokens.s3
+            height: Tokens.ctlH
+            readonly property string cur: { void Settings.revision; return Settings.get("hubDecor") || "calm"; }
+            Text {
+                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                text: I18n.tr("Decor")
+                color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+            }
+            Row {
+                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                spacing: Tokens.s1
+                Repeater {
+                    model: [ { "k": "calm", "n": I18n.tr("Calm") }, { "k": "rich", "n": I18n.tr("Rich") } ]
+                    Rectangle {
+                        required property var modelData
+                        readonly property bool sel: decorRow.cur === modelData.k
+                        width: optT.implicitWidth + Tokens.s3; height: Tokens.ctlH
+                        radius: Tokens.radius
+                        color: sel ? Tokens.bone : (dh.hovered ? Tokens.tint10 : "transparent")
+                        border.width: Tokens.border; border.color: sel ? "transparent" : Tokens.line
+                        Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                        Text {
+                            id: optT
+                            anchors.centerIn: parent
+                            text: modelData.n
+                            color: sel ? Tokens.inkOnBone : Tokens.inkDim
+                            font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+                            font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
+                        }
+                        HoverHandler { id: dh; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: Settings.patch("hubDecor", modelData.k) }
+                    }
+                }
+            }
+        }
+
+        // Two global switches at the foot: Decor (above) sets how much chrome the
+        // settings wear; Advanced reveals the deep per-page knobs inside a schema
+        // page (the rail always lists every section). Both persist and restore at
+        // startup by `advancedGet` / the settings daemon. One control each.
         Item {
             id: advToggle
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }

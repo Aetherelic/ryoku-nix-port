@@ -2230,10 +2230,12 @@ func TestMigrateFrameBarsStyle(t *testing.T) {
 	}
 }
 
-// stripLegacyStyleKnobs drops the retired surfaceColor / fontFamily / roundness
-// keys, leaves every other key untouched, and does nothing once they are gone.
+// stripLegacyStyleKnobs drops the retired surfaceColor / roundness / shadow keys,
+// leaves every other key (including the live fontFamily) untouched, and does
+// nothing once they are gone.
 func TestStripLegacyStyleKnobs(t *testing.T) {
-	// all six knobs present alongside live keys: the knobs go, the rest stay.
+	// retired knobs present alongside live keys (fontFamily is live now): the
+	// knobs go, the rest stay.
 	full := []byte(`{"surfaceColor":"#0f1115","fontFamily":"Space Grotesk","roundness":0,"frameSmoothing":8,"shadowStrength":0.63,"shadowSize":12,"frameRadius":9,"frameBorder":59,"frameEnabled":true,"frameBars":{"style":"slate-frame"},"weatherLocation":"Oslo"}`)
 	out, changed, err := stripLegacyStyleKnobs(full)
 	if err != nil || !changed {
@@ -2250,6 +2252,9 @@ func TestStripLegacyStyleKnobs(t *testing.T) {
 	}
 	if cfg["frameEnabled"] != true || cfg["weatherLocation"] != "Oslo" {
 		t.Errorf("unrelated top-level keys were lost: %v", cfg)
+	}
+	if cfg["fontFamily"] != "Space Grotesk" {
+		t.Errorf("fontFamily is a live key now and must survive the strip: %v", cfg["fontFamily"])
 	}
 	if frameBars, ok := cfg["frameBars"].(map[string]any); !ok || frameBars["style"] != "slate-frame" {
 		t.Errorf("nested frameBars was not preserved: %v", cfg["frameBars"])

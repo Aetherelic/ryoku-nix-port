@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+- **The system font persists again.** `ryoku doctor` listed `fontFamily` among
+  the retired style knobs and stripped it from `shell.json` on every run, so a
+  font chosen in Hub > Global reverted on the next update. It is a live key
+  again and is left untouched (`internal/doctor/doctor.go`).
+
 ### Added
 - **`ryoku doctor` flags a phantom Wayland output.** Ryoku's `monitors.lua`
   ends in a catch-all rule so a hotplugged display needs no hand-written entry,
