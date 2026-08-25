@@ -418,6 +418,69 @@ func matchWallpaperOn() bool {
 	return *s.FollowWallpaper
 }
 
+// gtkThemeSetting reads theme.json's gtkTheme knob (contract C3): "adw" (the
+// default), "adwaita", or "system". An absent, malformed, or unrecognised value
+// reads as "adw" -- the adw-gtk3 base whose rules derive from the accent, so the
+// palette actually lands, unlike stock Adwaita GTK3 which hardcodes its colours.
+// theme.json is the one control-plane file the daemon reads directly.
+func gtkThemeSetting() string {
+	b, err := os.ReadFile(filepath.Join(ryokuConfigDir(), "theme.json"))
+	if err != nil {
+		return "adw"
+	}
+	s := struct {
+		GtkTheme string `json:"gtkTheme"`
+	}{}
+	if json.Unmarshal(b, &s) != nil {
+		return "adw"
+	}
+	switch s.GtkTheme {
+	case "adw", "adwaita", "system":
+		return s.GtkTheme
+	}
+	return "adw"
+}
+
+// resolveGtkTheme turns the gtkTheme knob and the resolved light/dark mode into
+// the gsettings gtk-theme name the daemon sets, or "" for "system" -- where the
+// user owns gtk-theme and Ryoku never writes it. The variant must match the mode
+// so a light/dark flip lands on the right stylesheet (adw-gtk3 vs adw-gtk3-dark),
+// since the base carries the accent-derived rules the palette rides on.
+func resolveGtkTheme(mode string) string {
+	dark := mode != "light"
+	switch gtkThemeSetting() {
+	case "system":
+		return ""
+	case "adwaita":
+		if dark {
+			return "Adwaita-dark"
+		}
+		return "Adwaita"
+	default: // "adw"
+		if dark {
+			return "adw-gtk3-dark"
+		}
+		return "adw-gtk3"
+	}
+}
+
+// gnomeAccentOn reports whether Ryoku tracks the palette onto GNOME's named
+// accent (contract C3, default true). Off leaves org.gnome.desktop.interface
+// accent-color untouched so a user's own choice stands.
+func gnomeAccentOn() bool {
+	b, err := os.ReadFile(filepath.Join(ryokuConfigDir(), "theme.json"))
+	if err != nil {
+		return true
+	}
+	s := struct {
+		GnomeAccent *bool `json:"gnomeAccent"`
+	}{}
+	if json.Unmarshal(b, &s) != nil || s.GnomeAccent == nil {
+		return true
+	}
+	return *s.GnomeAccent
+}
+
 // staticThemeName returns the fixed named theme selected in shell.json, or ""
 // for the two dynamic variants (Default, Wallpaper) and an absent key. A named
 // theme's palette is the catalog's (themePalettes), which the daemon fans into
@@ -1069,32 +1132,161 @@ var (
 )
 
 // matugenReload nudges the toolkits to re-read the regenerated configs: the
-// libadwaita colour-scheme preference tracks light/dark, a gtk-theme flip makes
-// running GTK apps re-read the stylesheet, and SIGUSR1 reloads kitty (its
-// kitty.conf includes current-theme.conf). Hyprland is reloaded by the caller.
+// libadwaita colour-scheme preference tracks light/dark, org.gnome accent-color
+// tracks the palette's primary, a gtk-theme flip makes running GTK apps re-read
+// the stylesheet, and SIGUSR1 reloads kitty (its kitty.conf includes
+// current-theme.conf). The daemon is the single writer of these three GTK-facing
+// gsettings keys. Hyprland is reloaded by the caller.
 func matugenReload(mode string) {
 	scheme := "prefer-dark"
 	if mode == "light" {
 		scheme = "prefer-light"
 	}
 	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme)
-	matugenNudgeGtk()
+
+	applyGnomeAccent()
+
+	// gtkTheme "system" (name == "") means the user owns gtk-theme, so Ryoku
+	// leaves it entirely alone: no set, no nudge. Otherwise land on the mode's
+	// variant, which the nudge applies while forcing running GTK apps to re-read
+	// the regenerated stylesheet.
+	if name := resolveGtkTheme(mode); name != "" {
+		matugenNudgeGtk(name)
+	}
 	_ = runCommand("pkill", "-USR1", "-x", "kitty")
 }
 
-// matugenNudgeGtk flips the GTK theme name off and back, the standard live-reload
-// signal, so a running GTK app re-reads the regenerated stylesheet.
-func matugenNudgeGtk() {
-	out, err := runCommandOutput("gsettings", "get", "org.gnome.desktop.interface", "gtk-theme")
+// matugenNudgeGtk lands gtk-theme on `want`, flipping through a placeholder first
+// so a running GTK app re-reads the regenerated stylesheet even when the name is
+// unchanged (setting a key to its current value emits no change signal). The
+// placeholder is a real, always-installed theme rather than the empty string:
+// an app launched during the flip window reads an empty gtk-theme as no theme at
+// all and renders unstyled, the documented cause of libadwaita / Flatpak apps
+// losing their styling on a retint. `want` is always a concrete name here;
+// "system" is handled by the caller not calling this at all.
+func matugenNudgeGtk(want string) {
+	placeholder := "Adwaita"
+	if want == placeholder {
+		placeholder = "Adwaita-dark"
+	}
+	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", placeholder)
+	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", want)
+}
+
+// applyGnomeAccent tracks the palette's primary onto GNOME's nine named accents
+// (org.gnome.desktop.interface accent-color), so Flatpaks and apps that read the
+// setting rather than our CSS follow the wallpaper. The primary comes from the
+// palette the pipeline just authored (~/.cache/ryoku/colors.json, the one file
+// every colours reader shares); an unreadable palette or a non-hex primary skips
+// the write rather than guessing. Gated off (gnomeAccent false) leaves the
+// user's own accent alone.
+func applyGnomeAccent() {
+	if !gnomeAccentOn() {
+		return
+	}
+	b, err := os.ReadFile(matugenColorsPath())
 	if err != nil {
 		return
 	}
-	name := strings.Trim(strings.TrimSpace(string(out)), "'")
-	if name == "" {
+	s := struct {
+		Primary string `json:"primary"`
+	}{}
+	if json.Unmarshal(b, &s) != nil {
 		return
 	}
-	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "")
-	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", name)
+	name, ok := nearestGnomeAccent(s.Primary)
+	if !ok {
+		return
+	}
+	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "accent-color", name)
+}
+
+// gnomeNamedAccents are libadwaita's nine named accents (contract C5), the only
+// values org.gnome.desktop.interface accent-color accepts. The hex is the source
+// of truth; the nearest match converts them to OKLab at compare time.
+var gnomeNamedAccents = [][2]string{
+	{"blue", "#3584e4"}, {"teal", "#2190a4"}, {"green", "#3a944a"},
+	{"yellow", "#c88800"}, {"orange", "#ed5b00"}, {"red", "#e62d42"},
+	{"pink", "#d56199"}, {"purple", "#9141ac"}, {"slate", "#6f8396"},
+}
+
+// gnomeAccentNeutralChroma is the OKLab chroma below which a primary is treated
+// as neutral. It sits above a near-grey and comfortably below every real accent
+// (slate, the least saturated, is ~0.037), so only a genuinely colourless
+// primary trips it.
+const gnomeAccentNeutralChroma = 0.03
+
+// nearestGnomeAccent maps a #rrggbb primary to the nearest of GNOME's nine named
+// accents. The enum names are hues, so the match is by OKLab hue angle: a raw
+// a/b Euclidean distance instead pulls a desaturated hue toward a lower-chroma
+// neighbour (a light salmon, hue-wise clearly orange, lands on the dark gold
+// "yellow"), which is not what the name means. A near-neutral primary has no
+// reliable hue and maps to slate, GNOME's own neutral accent -- which is also
+// the right answer for an achromatic wallpaper's neutralized (gray) palette. ok
+// is false when the primary is not a hex colour, so the caller skips the write.
+func nearestGnomeAccent(hex string) (string, bool) {
+	_, pa, pb, ok := oklab(hex)
+	if !ok {
+		return "", false
+	}
+	if math.Hypot(pa, pb) < gnomeAccentNeutralChroma {
+		return "slate", true
+	}
+	phue := math.Atan2(pb, pa)
+	best, bestDist := "", math.MaxFloat64
+	for _, acc := range gnomeNamedAccents {
+		_, aa, ab, _ := oklab(acc[1])
+		if d := hueDistance(phue, math.Atan2(ab, aa)); d < bestDist {
+			bestDist, best = d, acc[0]
+		}
+	}
+	return best, true
+}
+
+// hueDistance is the absolute angular gap between two hue angles in radians,
+// wrapped into [0, pi] so opposite sides of the wheel measure short-way round.
+func hueDistance(a, b float64) float64 {
+	d := math.Abs(a - b)
+	if d > math.Pi {
+		d = 2*math.Pi - d
+	}
+	return d
+}
+
+// oklab converts a #rrggbb colour to OKLab (L, a, b), ok=false for a non-hex
+// value. a/b are the chroma plane the accent match compares in; L is ignored
+// there (the accent names are hues, not lightnesses).
+func oklab(hex string) (l, a, b float64, ok bool) {
+	h := strings.TrimPrefix(hex, "#")
+	if len(h) != 6 {
+		return 0, 0, 0, false
+	}
+	v, err := strconv.ParseInt(h, 16, 64)
+	if err != nil {
+		return 0, 0, 0, false
+	}
+	lr := srgbToLinear(float64((v>>16)&0xff) / 255.0)
+	lg := srgbToLinear(float64((v>>8)&0xff) / 255.0)
+	lb := srgbToLinear(float64(v&0xff) / 255.0)
+	lms0 := 0.4122214708*lr + 0.5363325363*lg + 0.0514459929*lb
+	lms1 := 0.2119034982*lr + 0.6806995451*lg + 0.1073969566*lb
+	lms2 := 0.0883024619*lr + 0.2817188376*lg + 0.6299787005*lb
+	c0 := math.Cbrt(lms0)
+	c1 := math.Cbrt(lms1)
+	c2 := math.Cbrt(lms2)
+	l = 0.2104542553*c0 + 0.7936177850*c1 - 0.0040720468*c2
+	a = 1.9779984951*c0 - 2.4285922050*c1 + 0.4505937099*c2
+	b = 0.0259040371*c0 + 0.7827717662*c1 - 0.8086757660*c2
+	return l, a, b, true
+}
+
+// srgbToLinear removes the sRGB gamma from one channel, the linear input OKLab
+// needs (the inverse of srgbFromLinear).
+func srgbToLinear(c float64) float64 {
+	if c <= 0.04045 {
+		return c / 12.92
+	}
+	return math.Pow((c+0.055)/1.055, 2.4)
 }
 
 // matugenThemeSig fingerprints the settings frame's theme keys the pipeline

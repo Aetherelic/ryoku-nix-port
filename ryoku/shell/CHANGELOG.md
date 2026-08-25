@@ -276,6 +276,24 @@
   the same fault: an idle chip fill hard-coded to black with dark on-surface text
   rendered dark-on-dark on a light wallpaper. Their idle fill, hover and border
   now flip with `Tokens.light`, so the chips read in either mode.
+- **GTK 4 and libadwaita accents follow the palette instead of stock blue.** The
+  palette only ever shipped `@define-color` names, but libadwaita 1.6+ recolours
+  its own widgets from CSS custom properties and no longer reads named colours for
+  them, so every accent stayed Adwaita blue while the surfaces went warm with the
+  wallpaper. The GTK 4 stylesheet now leads with the `:root { --accent-bg-color, ... }`
+  custom properties libadwaita actually honours and keeps the `@define-color` set
+  below it for libadwaita before 1.6 and for GTK 4 apps that are not libadwaita,
+  while GTK 3, which cannot parse custom properties, keeps the named-colour form it
+  can read. The single `matugen/templates/gtk-colors.css` splits into
+  `gtk4-colors.css` and `gtk3-colors.css` to carry the two shapes.
+- **A light scheme no longer leaves GTK apps on the dark theme.** The curated
+  light and dark schemes are painted by the Hub, which idles the daemon's paint
+  worker, so the mode flip set the colour-scheme preference but nothing ever
+  resolved the matching GTK theme name: picking Light kept every GTK 3 app on
+  `adw-gtk3-dark` over a light stylesheet. The daemon gains a `gtk apply
+  <light|dark>` verb and the Hub calls it instead of writing the preference
+  itself, so one place still owns `gtk-theme`, `color-scheme` and `accent-color`
+  and the two can no longer disagree.
 
 ### Added
 - **A browser palette host lands the wallpaper scheme in Firefox and Chromium.**

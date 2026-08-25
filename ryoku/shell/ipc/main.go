@@ -114,6 +114,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-shell lock")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell wallpaper [next|init|set <path>]")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell theme [<scheme>|catalog]")
+	fmt.Fprintln(os.Stderr, "  ryoku-shell gtk apply <light|dark>")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell voice")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell <reload|status|ping|quit>")
 }

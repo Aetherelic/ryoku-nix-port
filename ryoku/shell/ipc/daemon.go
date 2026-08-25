@@ -989,6 +989,20 @@ func (d *daemon) dispatch(line string) string {
 			return "err theme: " + err.Error()
 		}
 		return "ok"
+	case "gtk":
+		// A curated light/dark scheme is owned by the Hub: it writes colors.json
+		// itself, so the paint worker idles and nothing here would land the
+		// desktop's GTK settings for the new mode. The Hub calls this instead of
+		// setting gsettings on its own, which keeps one writer for gtk-theme,
+		// color-scheme and accent-color rather than two that can disagree.
+		if len(args) != 2 || args[0] != "apply" {
+			return "err gtk: expected `apply <light|dark>`"
+		}
+		if args[1] != "light" && args[1] != "dark" {
+			return "err gtk: mode must be light or dark"
+		}
+		matugenReload(args[1])
+		return "ok"
 	case "reload":
 		return d.reload()
 	case "status":

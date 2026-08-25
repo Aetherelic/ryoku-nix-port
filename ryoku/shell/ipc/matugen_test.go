@@ -336,24 +336,18 @@ output_path = "~/q5"
 	}
 }
 
-// TestMatugenReload proves the toolkit reload actions fire with the right argv,
-// through the process shim so the test never touches the desktop: the libadwaita
-// colour-scheme preference tracks the mode, the gtk-theme name flips off and back
-// to force a stylesheet re-read, and kitty gets SIGUSR1.
+// TestMatugenReload proves the daemon owns the three GTK-facing gsettings keys
+// on a retint, through the process shim so the test never touches the desktop.
+// For (dark, adw, accent on): color-scheme tracks the mode, accent-color tracks
+// the palette's primary, gtk-theme lands on the dark adw-gtk3 variant flipped
+// through a real placeholder (never the empty string), and kitty gets SIGUSR1.
+// The light run re-resolves the light variant.
 func TestMatugenReload(t *testing.T) {
-	var got [][]string
-	origRun, origOut := runCommand, runCommandOutput
-	t.Cleanup(func() { runCommand, runCommandOutput = origRun, origOut })
-	runCommand = func(name string, args ...string) error {
-		got = append(got, append([]string{name}, args...))
-		return nil
-	}
-	runCommandOutput = func(name string, args ...string) ([]byte, error) {
-		return []byte("'Adwaita-dark'\n"), nil
-	}
-
+	got := gtkReloadEnv(t,
+		`{"gtkTheme":"adw","gnomeAccent":true}`,
+		`{"primary":"#ffb59b"}`)
 	has := func(want ...string) bool {
-		for _, c := range got {
+		for _, c := range *got {
 			if slices.Equal(c, want) {
 				return true
 			}
@@ -363,20 +357,130 @@ func TestMatugenReload(t *testing.T) {
 
 	matugenReload("dark")
 	if !has("gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark") {
-		t.Errorf("dark: color-scheme prefer-dark not set; got %v", got)
+		t.Errorf("dark: color-scheme prefer-dark not set; got %v", *got)
 	}
-	if !has("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "") ||
-		!has("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "Adwaita-dark") {
-		t.Errorf("dark: gtk-theme not flipped off and back; got %v", got)
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "accent-color", "orange") {
+		t.Errorf("dark: accent-color not tracked to the salmon primary's orange; got %v", *got)
+	}
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "Adwaita") ||
+		!has("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "adw-gtk3-dark") {
+		t.Errorf("dark: gtk-theme not flipped through a placeholder to adw-gtk3-dark; got %v", *got)
+	}
+	if has("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "") {
+		t.Errorf("dark: nudge passed an empty gtk-theme; got %v", *got)
 	}
 	if !has("pkill", "-USR1", "-x", "kitty") {
-		t.Errorf("dark: kitty SIGUSR1 not sent; got %v", got)
+		t.Errorf("dark: kitty SIGUSR1 not sent; got %v", *got)
 	}
 
-	got = nil
+	*got = nil
 	matugenReload("light")
 	if !has("gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-light") {
-		t.Errorf("light: color-scheme prefer-light not set; got %v", got)
+		t.Errorf("light: color-scheme prefer-light not set; got %v", *got)
+	}
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "adw-gtk3") {
+		t.Errorf("light: gtk-theme not re-resolved to the light adw-gtk3 variant; got %v", *got)
+	}
+}
+
+// TestMatugenReloadSystemNoGtkTheme proves gtkTheme "system" hands gtk-theme back
+// to the user: the reload writes no gtk-theme at all (not even a nudge flip), and
+// with gnomeAccent off it writes no accent-color either, while color-scheme and
+// kitty still fire.
+func TestMatugenReloadSystemNoGtkTheme(t *testing.T) {
+	got := gtkReloadEnv(t,
+		`{"gtkTheme":"system","gnomeAccent":false}`,
+		`{"primary":"#3584e4"}`)
+	matugenReload("light")
+	for _, c := range *got {
+		if len(c) >= 5 && c[0] == "gsettings" && c[4] == "gtk-theme" {
+			t.Errorf("system: wrote gtk-theme %v", c)
+		}
+		if len(c) >= 5 && c[0] == "gsettings" && c[4] == "accent-color" {
+			t.Errorf("accent off: wrote accent-color %v", c)
+		}
+	}
+	has := func(want ...string) bool {
+		for _, c := range *got {
+			if slices.Equal(c, want) {
+				return true
+			}
+		}
+		return false
+	}
+	if !has("gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-light") {
+		t.Errorf("system: color-scheme still owned by the daemon; got %v", *got)
+	}
+	if !has("pkill", "-USR1", "-x", "kitty") {
+		t.Errorf("system: kitty SIGUSR1 not sent; got %v", *got)
+	}
+}
+
+// TestResolveGtkTheme pins contract C3's gtkTheme -> gsettings name mapping by
+// mode: adw (the default, and what an absent or unknown value reads as) resolves
+// the adw-gtk3 variants, adwaita the stock Adwaita variants, and system resolves
+// "" so the daemon never writes gtk-theme.
+func TestResolveGtkTheme(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	ryoku := filepath.Join(home, ".config", "ryoku")
+	if err := os.MkdirAll(ryoku, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(ryoku, "theme.json")
+	cases := []struct {
+		theme       string // "" means write no theme.json at all
+		dark, light string
+	}{
+		{`{"gtkTheme":"adw"}`, "adw-gtk3-dark", "adw-gtk3"},
+		{`{"gtkTheme":"adwaita"}`, "Adwaita-dark", "Adwaita"},
+		{`{"gtkTheme":"system"}`, "", ""},
+		{`{"gtkTheme":"nonsense"}`, "adw-gtk3-dark", "adw-gtk3"},
+		{`{}`, "adw-gtk3-dark", "adw-gtk3"},
+		{"", "adw-gtk3-dark", "adw-gtk3"},
+	}
+	for _, c := range cases {
+		if c.theme == "" {
+			_ = os.Remove(path)
+		} else {
+			writeFile(t, path, c.theme)
+		}
+		if got := resolveGtkTheme("dark"); got != c.dark {
+			t.Errorf("%s dark: resolveGtkTheme = %q, want %q", c.theme, got, c.dark)
+		}
+		if got := resolveGtkTheme("light"); got != c.light {
+			t.Errorf("%s light: resolveGtkTheme = %q, want %q", c.theme, got, c.light)
+		}
+	}
+}
+
+// TestNearestGnomeAccent proves the primary -> named-accent match is by hue with
+// a neutral fallback (contract C5): a warm salmon reads as orange (not the dark
+// gold "yellow" a raw a/b distance would pick), clear blue and purple hit their
+// own names, a near-grey has no reliable hue and lands on slate (GNOME's neutral
+// accent), and every named accent maps to itself. A non-hex value returns ok
+// false so the caller skips the write.
+func TestNearestGnomeAccent(t *testing.T) {
+	probes := []struct{ hex, want string }{
+		{"#ffb59b", "orange"},
+		{"#3584e4", "blue"},
+		{"#9141ac", "purple"},
+		{"#8a8f98", "slate"},
+	}
+	for _, p := range probes {
+		got, ok := nearestGnomeAccent(p.hex)
+		if !ok || got != p.want {
+			t.Errorf("nearestGnomeAccent(%s) = %q,%v; want %q,true", p.hex, got, ok, p.want)
+		}
+	}
+	for _, acc := range gnomeNamedAccents {
+		if got, ok := nearestGnomeAccent(acc[1]); !ok || got != acc[0] {
+			t.Errorf("accent %s (%s) did not map to itself: got %q,%v", acc[0], acc[1], got, ok)
+		}
+	}
+	if _, ok := nearestGnomeAccent("not-a-colour"); ok {
+		t.Errorf("non-hex primary should return ok=false")
 	}
 }
 
@@ -709,6 +813,44 @@ func writeFile(t *testing.T, path, body string) {
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// gtkReloadEnv sets an isolated HOME carrying a theme.json (the gtkTheme /
+// gnomeAccent knobs) and a colors.json (the palette's primary), then shims
+// runCommand to record every gsettings / pkill invocation so the GTK-facing
+// reload is observable without touching the desktop. An empty json argument
+// writes no file, exercising the absent-file defaults.
+func gtkReloadEnv(t *testing.T, themeJSON, colorsJSON string) *[][]string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
+	cfg := filepath.Join(home, ".config", "ryoku")
+	cache := filepath.Join(home, ".cache", "ryoku")
+	if err := os.MkdirAll(cfg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(cache, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if themeJSON != "" {
+		writeFile(t, filepath.Join(cfg, "theme.json"), themeJSON)
+	}
+	if colorsJSON != "" {
+		writeFile(t, filepath.Join(cache, "colors.json"), colorsJSON)
+	}
+	var got [][]string
+	origRun, origOut := runCommand, runCommandOutput
+	t.Cleanup(func() { runCommand, runCommandOutput = origRun, origOut })
+	runCommand = func(name string, args ...string) error {
+		got = append(got, append([]string{name}, args...))
+		return nil
+	}
+	runCommandOutput = func(name string, args ...string) ([]byte, error) {
+		return []byte("'Adwaita-dark'\n"), nil
+	}
+	return &got
 }
 
 // fakeMatugenJSON renders a matugen --json hex document covering every role the
