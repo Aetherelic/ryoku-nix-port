@@ -30,6 +30,22 @@ func reconcileSpicetifyCanvas(checkOnly bool) recResult {
 	if !spotifyInstalled() {
 		return okRes("no Spotify installed; the Canvas spicetify setup is not needed")
 	}
+	// Auto-provision the writable client. When Spotify is present only as a client
+	// spicetify cannot patch without root -- a root-owned system flatpak or /opt --
+	// and the shipped writable spotify-launcher is not installed, install it so the
+	// patch has a per-user tree it can own. The user still opens Spotify once (its
+	// tree unpacks on first launch); the spotifyLauncherUnlaunched defer below wires
+	// the Canvas up then.
+	if onlyUnpatchableSpotify() {
+		if checkOnly {
+			return wouldRes("Spotify is installed but only as a client spicetify cannot patch; would install the writable spotify-launcher").
+				withFix("ryoku doctor")
+		}
+		if installSpotifyLauncher() {
+			return fixedRes("installed spotify-launcher (a writable Spotify client); open Spotify once and the Canvas wires up on the next `ryoku doctor`")
+		}
+		// Install failed -> fall through; the writability warning below names the fix.
+	}
 	if spotifyLauncherPending() {
 		return okRes("Spotify (spotify-launcher) is not downloaded yet; the Canvas wires up after its first launch")
 	}
@@ -185,6 +201,64 @@ func installSpicetifyCli() bool {
 		}
 	}
 	return false
+}
+
+// installSpotifyLauncher installs the shipped spotify-launcher, bounded. It is a
+// stock `extra` package, so pacman is the real path; the AUR helpers are only a
+// fallback for a box whose mirror list is stale. Mirrors installSpicetifyCli so
+// the writable client Ryoku ships reaches `ryoku update`, not just a manual pacman.
+var installSpotifyLauncher = func() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	err := exec.CommandContext(ctx, "sudo", "pacman", "-S", "--needed", "--noconfirm", "spotify-launcher").Run()
+	cancel()
+	if err == nil && sys.PkgInstalled("spotify-launcher") {
+		return true
+	}
+	for _, helper := range []string{"yay", "paru"} {
+		if !sys.Has(helper) {
+			continue
+		}
+		hctx, hcancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		herr := exec.CommandContext(hctx, helper, "-S", "--needed", "--noconfirm", "spotify-launcher").Run()
+		hcancel()
+		if herr == nil && sys.PkgInstalled("spotify-launcher") {
+			return true
+		}
+	}
+	return false
+}
+
+// onlyUnpatchableSpotify reports that Spotify is present but every client is one
+// spicetify cannot patch without root (a root-owned system flatpak under
+// /var/lib/flatpak, or a root-owned native /opt), and the shipped writable
+// spotify-launcher is not installed -- the one state where doctor should provision
+// the launcher. A per-user flatpak or a writable /opt is patchable as it is, and
+// an installed launcher is already the writable path.
+var onlyUnpatchableSpotify = func() bool {
+	if sys.PkgInstalled("spotify-launcher") {
+		return false
+	}
+	if userFlatpakSpotify() {
+		return false
+	}
+	if sys.Exists("/opt/spotify") && syscall.Access("/opt/spotify", 2) == nil {
+		return false
+	}
+	return systemFlatpakSpotify() || sys.Exists("/opt/spotify")
+}
+
+// systemFlatpakSpotify reports a system-scope flatpak Spotify (root-owned).
+func systemFlatpakSpotify() bool {
+	return sys.Exists("/var/lib/flatpak/app/com.spotify.Client")
+}
+
+// userFlatpakSpotify reports a per-user flatpak Spotify (writable, patchable).
+func userFlatpakSpotify() bool {
+	data := os.Getenv("XDG_DATA_HOME")
+	if data == "" {
+		data = filepath.Join(os.Getenv("HOME"), ".local", "share")
+	}
+	return sys.Exists(filepath.Join(data, "flatpak", "app", "com.spotify.Client"))
 }
 
 func spicetifyRun(timeout time.Duration, args ...string) error {

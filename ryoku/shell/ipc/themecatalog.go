@@ -14,9 +14,9 @@ import "encoding/json"
 // themeCard is one entry in the projection: the id written to theme.theme, a
 // display label, and either the seven-swatch preview (static themes) or a glyph
 // (the two dynamic variants). Order matches the reference projection
-// [surface, onSurface, primary, secondary, tertiary, error, outline]. Image is
-// the absolute path to a scheme's own preview art when it ships one; a card that
-// carries it is drawn as that image, and the swatch pills are the fallback.
+// [surface, onSurface, primary, secondary, tertiary, error, outline]. Every card
+// carries swatches, installed library schemes included: the picker draws each
+// scheme as its own palette rather than the mockup art a library ships.
 type themeCard struct {
 	ID       string   `json:"id"`
 	Label    string   `json:"label"`
@@ -25,7 +25,6 @@ type themeCard struct {
 	Icon     string   `json:"icon,omitempty"`
 	Dark     bool     `json:"dark,omitempty"`
 	Sw       []string `json:"sw,omitempty"`
-	Image    string   `json:"image,omitempty"`
 }
 
 // themeLabels overrides the display label for the themes whose presentation name

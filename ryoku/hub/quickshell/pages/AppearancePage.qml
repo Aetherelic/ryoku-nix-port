@@ -53,6 +53,16 @@ Item {
     // Installed RyoStore schemes, read live from the daemon catalog and listed
     // beside the built-ins so a downloaded theme is pickable here too.
     readonly property var userSchemes: UserSchemes.schemes
+    // Uninstall an installed RyoStore scheme from the local library. Only library
+    // schemes carry a provider, so only those cards offer this; the daemon resets
+    // theme.theme to Default first when the removed scheme is the applied one, then
+    // deletes its files. Refresh the library once it exits so the tile drops.
+    function removeScheme(id) {
+        if (!id) return;
+        removeSchemeProc.command = ["ryoku-shell", "theme", "remove", id];
+        removeSchemeProc.running = true;
+    }
+    Process { id: removeSchemeProc; onExited: (code, status) => { UserSchemes.refresh(); } }
     function schemeName(id) {
         for (var i = 0; i < ThemeCatalog.schemes.length; i++)
             if (ThemeCatalog.schemes[i].id === id)
@@ -437,8 +447,11 @@ Item {
         readonly property bool dyn: scard.scheme.dynamic === true
         readonly property var sw: scard.dyn ? [] : (scard.scheme.sw || [])
         readonly property bool sel: pg.scheme === scard.scheme.id
-        readonly property string image: scard.dyn ? "" : (scard.scheme.image || "")
-        readonly property bool hasImage: scard.image.length > 0
+        // No preview art: the library ships a 16:9 illustrated mockup, and a
+        // centre-crop of it into this portrait tile reads as a broken nested card
+        // (a light mockup also left the white label unreadable). Every scheme is
+        // drawn as its own palette instead, which is what a palette picker owes
+        // you and what the built-ins have always shown.
         // the five colour-combo pills: the theme's ink plus its four accents.
         readonly property var pills: scard.sw.length >= 6
             ? [scard.sw[1], scard.sw[2], scard.sw[3], scard.sw[4], scard.sw[5]] : []
@@ -459,26 +472,6 @@ Item {
             color: scard.dyn || scard.sw.length === 0 ? "transparent" : scard.sw[0]
             clip: true
 
-            // preview art when the scheme ships it; the pills are the fallback.
-            Image {
-                visible: scard.hasImage
-                anchors.fill: parent
-                asynchronous: true
-                cache: true
-                fillMode: Image.PreserveAspectCrop
-                sourceSize: Qt.size(256, 256)
-                source: scard.hasImage ? "file://" + scard.image : ""
-            }
-            Rectangle {
-                visible: scard.hasImage
-                anchors { left: parent.left; right: parent.right; top: parent.top }
-                height: 22
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.55) }
-                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0) }
-                }
-            }
-
             Text {
                 id: scName
                 anchors { top: parent.top; left: parent.left; right: parent.right; margins: Tokens.s2 }
@@ -487,7 +480,7 @@ Item {
                 maximumLineCount: 2
                 elide: Text.ElideRight
                 text: scard.scheme.label || ""
-                color: scard.hasImage ? "white" : (scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink))
+                color: scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink)
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fTiny
             }
@@ -505,7 +498,7 @@ Item {
             // colour-combo pills: a centred row of tall stadium bars below the name.
             Item {
                 id: scPills
-                visible: !scard.dyn && !scard.hasImage && scard.pills.length > 0
+                visible: !scard.dyn && scard.pills.length > 0
                 anchors.top: scName.bottom
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
@@ -525,7 +518,10 @@ Item {
                         delegate: Rectangle {
                             required property color modelData
                             width: scPills.pillW
-                            height: parent.height
+                            // the sizing Item by id, not `parent`: a Repeater
+                            // delegate has no parent while it is built, and with
+                            // pills on every card that logged per pill.
+                            height: scPills.height
                             radius: width / 2
                             color: modelData
                         }
@@ -540,8 +536,35 @@ Item {
                 width: 8
                 height: 8
                 radius: 4
-                color: scard.hasImage ? "white" : (scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink))
+                color: scard.dyn ? Tokens.ink : (scard.sw.length > 1 ? scard.sw[1] : Tokens.ink)
             }
+        }
+
+        // uninstall affordance: only an installed library scheme (one tagged with
+        // a provider) can be removed, and only on hover. The x deletes the
+        // scheme's files through the daemon; its own MouseArea eats the click so
+        // the card's apply tap never fires.
+        Rectangle {
+            id: killBtn
+            readonly property bool removable: !scard.dyn && !!scard.scheme.provider
+            visible: killBtn.removable && (scHov.hovered || killHov.hovered)
+            anchors { right: parent.right; top: parent.top; rightMargin: Tokens.s2; topMargin: Tokens.s2 }
+            width: 18
+            height: 18
+            radius: 9
+            z: 3
+            color: killHov.hovered ? Tokens.alert : Tokens.paper
+            border.width: Tokens.border
+            border.color: killHov.hovered ? Tokens.alert : Tokens.lineStrong
+            Text {
+                anchors.centerIn: parent
+                text: "\u00d7"
+                color: killHov.hovered ? Tokens.paper : Tokens.ink
+                font.family: Tokens.mono
+                font.pixelSize: Tokens.fMicro
+            }
+            HoverHandler { id: killHov; cursorShape: Qt.PointingHandCursor }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pg.removeScheme(scard.scheme.id) }
         }
 
         HoverHandler { id: scHov; cursorShape: Qt.PointingHandCursor }

@@ -981,6 +981,23 @@ func (d *daemon) dispatch(line string) string {
 		if len(args) == 0 {
 			return "err theme: expected a scheme name (or `catalog`)"
 		}
+		if args[0] == "remove" && len(args) >= 2 {
+			// `theme remove <id>` uninstalls a downloaded scheme. Reset the
+			// applied scheme to the Ryoku default first when it is the one being
+			// removed, so the desktop never keeps a scheme whose files are gone;
+			// the settings store drives the retheme off that write.
+			id := strings.Join(args[1:], " ")
+			if d.settings != nil && d.settings.themeName() == id {
+				def, _ := json.Marshal("Default")
+				if err := d.settings.patch("theme.theme", def); err != nil {
+					return "err theme: " + err.Error()
+				}
+			}
+			if err := removeUserTheme(id); err != nil {
+				return "err theme: " + err.Error()
+			}
+			return "ok"
+		}
 		if d.settings == nil {
 			return "err theme: settings not ready"
 		}

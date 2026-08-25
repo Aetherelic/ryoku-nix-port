@@ -155,10 +155,12 @@ func TestUserThemeBuiltinIDNotShadowed(t *testing.T) {
 	}
 }
 
-// TestUserThemePreviewImage proves a scheme that ships preview art surfaces its
-// absolute path on the card, while a scheme without one stays on the swatch
-// fallback (empty Image) -- the "unless they have an actual image" rule.
-func TestUserThemePreviewImage(t *testing.T) {
+// TestUserThemeCardsIgnorePreviewArt proves a scheme that ships preview art is
+// still projected as swatches, like every other card. The libraries ship a 16:9
+// illustrated mockup, which cannot be cropped into the picker's portrait tile
+// without reading as a broken nested card, so the art on disk is ignored and the
+// palette is what the picker draws.
+func TestUserThemeCardsIgnorePreviewArt(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	blk := sampleBlock
 	installFixtureTheme(t, "with-art", "With Art", "Ryoku", noctaliaScheme{Dark: &blk})
@@ -173,10 +175,71 @@ func TestUserThemePreviewImage(t *testing.T) {
 	for _, c := range userThemeCards() {
 		cards[c.ID] = c
 	}
-	if got := cards["with-art"].Image; got != art {
-		t.Fatalf("with-art image = %q, want %q", got, art)
+	for _, id := range []string{"with-art", "no-art"} {
+		c, ok := cards[id]
+		if !ok {
+			t.Fatalf("%s missing from the catalog", id)
+		}
+		if len(c.Sw) != len(themeSwatchRoles) {
+			t.Fatalf("%s carries %d swatches, want %d", id, len(c.Sw), len(themeSwatchRoles))
+		}
+		for i, s := range c.Sw {
+			if s == "" {
+				t.Fatalf("%s swatch %d is empty; the picker would draw a gap", id, i)
+			}
+		}
 	}
-	if got := cards["no-art"].Image; got != "" {
-		t.Fatalf("no-art image = %q, want empty (swatch fallback)", got)
+}
+
+// TestRemoveUserTheme proves an installed scheme is deleted, and that a built-in
+// name, an unknown id, and a path-traversal id are all refused so removal can
+// never touch anything outside the library.
+func TestRemoveUserTheme(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	blk := sampleBlock
+	installFixtureTheme(t, "hancore-sample", "Sample", "HANCORE-linux", noctaliaScheme{Dark: &blk})
+
+	if err := removeUserTheme("hancore-sample"); err != nil {
+		t.Fatalf("removeUserTheme(installed) = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(userThemeDir(), "hancore-sample")); !os.IsNotExist(err) {
+		t.Fatalf("scheme dir survived removal: %v", err)
+	}
+
+	// A second removal, a built-in name, and a traversal id are all refused.
+	if err := removeUserTheme("hancore-sample"); err == nil {
+		t.Fatal("removing an absent scheme should error")
+	}
+	if err := removeUserTheme("Dracula"); err == nil {
+		t.Fatal("removing a built-in name should error")
+	}
+	if err := removeUserTheme("../evil"); err == nil {
+		t.Fatal("a traversal id should be refused")
+	}
+}
+
+// TestDispatchThemeRemove drives the wired `theme remove <id>` path: it deletes
+// the scheme and, when that scheme is the applied one, resets theme.theme to
+// Default first so the desktop never keeps a scheme whose files are gone.
+func TestDispatchThemeRemove(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	blk := sampleBlock
+	installFixtureTheme(t, "hancore-sample", "Sample", "HANCORE-linux", noctaliaScheme{Dark: &blk})
+
+	store := newSettingsStore(filepath.Join(t.TempDir(), "shell.json"))
+	id, _ := json.Marshal("hancore-sample")
+	if err := store.patch("theme.theme", id); err != nil {
+		t.Fatalf("apply installed scheme: %v", err)
+	}
+	d := &daemon{settings: store}
+
+	if got := d.dispatch("theme remove hancore-sample"); got != "ok" {
+		t.Fatalf("dispatch theme remove = %q, want ok", got)
+	}
+	if _, err := os.Stat(filepath.Join(userThemeDir(), "hancore-sample")); !os.IsNotExist(err) {
+		t.Fatalf("scheme dir survived removal: %v", err)
+	}
+	if got := store.themeName(); got != "Default" {
+		t.Fatalf("applied scheme = %q after removing the active one, want Default", got)
 	}
 }

@@ -12,10 +12,12 @@ func stubSpicetifyTarget(t *testing.T, path string, writable bool) {
 	t.Helper()
 	ow, oi, oc, op := spicetifyClientWritable, spotifyInstalled, spicetifyCanvasSource, spotifyLauncherPending
 	occ, oe, oul := spicetifyCliPresent, spicetifyExtensionEnabled, spotifyLauncherUnlaunched
+	oup, oil := onlyUnpatchableSpotify, installSpotifyLauncher
 	t.Cleanup(func() {
 		spicetifyClientWritable, spotifyInstalled, spicetifyCanvasSource = ow, oi, oc
 		spotifyLauncherPending, spicetifyCliPresent = op, occ
 		spicetifyExtensionEnabled, spotifyLauncherUnlaunched = oe, oul
+		onlyUnpatchableSpotify, installSpotifyLauncher = oup, oil
 	})
 	// A client is present, its download is done, the CLI exists and the shipped
 	// asset resolves, so the run reaches the writability gate deterministically.
@@ -23,6 +25,10 @@ func stubSpicetifyTarget(t *testing.T, path string, writable bool) {
 	spotifyLauncherPending = func() bool { return false }
 	spotifyLauncherUnlaunched = func() bool { return false }
 	spicetifyCliPresent = func() bool { return true }
+	// Auto-provision is off by default so these tests reach the writability gate;
+	// the provision tests below flip onlyUnpatchableSpotify on.
+	onlyUnpatchableSpotify = func() bool { return false }
+	installSpotifyLauncher = func() bool { return false }
 	// Satisfy ALL THREE of the old ok-path conditions: the CLI exists, the
 	// extension file matches byte for byte, and the config lists it. Without the
 	// writability gate this exact state returned ok, so the assertions below are
@@ -121,5 +127,59 @@ func TestSpicetifyDefersWhenLauncherUnlaunched(t *testing.T) {
 	}
 	if !strings.Contains(got.detail, "first launch") {
 		t.Errorf("detail should say the Canvas wires up after first launch, got: %q", got.detail)
+	}
+}
+
+// When the only Spotify is a client spicetify cannot patch without root -- a
+// root-owned system flatpak or /opt -- and the shipped writable spotify-launcher
+// is not installed, an apply run provisions the launcher so `ryoku update` gets a
+// patchable per-user client instead of a dead-end warning.
+func TestSpicetifyProvisionsLauncherOnUnpatchableClient(t *testing.T) {
+	stubSpicetifyTarget(t, t.TempDir(), true)
+	onlyUnpatchableSpotify = func() bool { return true }
+	installSpotifyLauncher = func() bool { return true }
+
+	got := reconcileSpicetifyCanvas(false)
+	if got.status != recFixed {
+		t.Fatalf("provisioning the launcher must report fixed, got status %v: %q", got.status, got.detail)
+	}
+	if !strings.Contains(got.detail, "spotify-launcher") {
+		t.Errorf("detail should name the installed launcher, got: %q", got.detail)
+	}
+}
+
+// A check-only pass must not install anything: it reports the pending provision as
+// a todo so `ryoku doctor` can apply it, without touching the system.
+func TestSpicetifyProvisionCheckOnlyReportsWould(t *testing.T) {
+	stubSpicetifyTarget(t, t.TempDir(), true)
+	onlyUnpatchableSpotify = func() bool { return true }
+	installSpotifyLauncher = func() bool {
+		t.Fatal("check-only must not install the launcher")
+		return false
+	}
+
+	got := reconcileSpicetifyCanvas(true)
+	if got.status != recWouldFix {
+		t.Fatalf("check-only provisioning must report a todo, got status %v: %q", got.status, got.detail)
+	}
+	if !strings.Contains(got.detail, "would install") {
+		t.Errorf("detail should say it would install, got: %q", got.detail)
+	}
+}
+
+// A failed install must not abort the reconciler: it falls through to the rest of
+// the flow, which (with a writable client staged) settles on a benign ok rather
+// than panicking or claiming an install that never happened.
+func TestSpicetifyProvisionInstallFailureFallsThrough(t *testing.T) {
+	stubSpicetifyTarget(t, t.TempDir(), true)
+	onlyUnpatchableSpotify = func() bool { return true }
+	installSpotifyLauncher = func() bool { return false }
+
+	got := reconcileSpicetifyCanvas(false)
+	if got.status != recOK {
+		t.Fatalf("a failed provision must fall through to the writable-client ok path, got status %v: %q", got.status, got.detail)
+	}
+	if strings.Contains(got.detail, "installed spotify-launcher") {
+		t.Errorf("a failed install must not claim success, got: %q", got.detail)
 	}
 }

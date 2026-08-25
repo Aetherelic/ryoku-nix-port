@@ -14,6 +14,15 @@
   again and is left untouched (`internal/doctor/doctor.go`).
 
 ### Added
+- **`ryoku doctor` provisions a patchable Spotify when the only one is root-owned.**
+  When Spotify is present solely as a client spicetify cannot patch without root --
+  a system-scope flatpak (`/var/lib/flatpak`) or a root-owned native `/opt` -- and
+  the shipped writable `spotify-launcher` is not installed, the Canvas reconciler
+  now installs `spotify-launcher` so `ryoku update` gets a per-user tree spicetify
+  can own. spicetify (Canvas + Marketplace) then wires up on the next update once
+  the user opens Spotify once (its tree unpacks on first launch). Best-effort and
+  bounded so it never blocks an update; a check-only run reports it as a todo
+  instead (`internal/doctor/reconcile_spicetify.go`).
 - **The Spicetify Marketplace ships wired in.** A new `reconcileSpicetifyMarketplace`
   drops the shipped Marketplace app (the `spicetify-marketplace` [ryoku] package)
   into a Spotify user's spicetify CustomApps, enables it, lays the transparent

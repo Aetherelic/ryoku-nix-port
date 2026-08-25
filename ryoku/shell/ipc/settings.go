@@ -809,6 +809,17 @@ func (s *settingsStore) notify(frame []byte) {
 	}
 }
 
+// themeName reports the applied colour scheme (theme.theme). Empty when settings
+// have not loaded; used to reset the applied scheme before its files are removed.
+func (s *settingsStore) themeName() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cur == nil {
+		return ""
+	}
+	return s.cur.Theme.Theme
+}
+
 func lockSettingsFile(path string) (func(), error) {
 	if path == "" {
 		return nil, fmt.Errorf("no config path")

@@ -60,14 +60,15 @@ type userThemeMeta struct {
 	Provider string `json:"provider"`
 }
 
-// userTheme is one installed scheme resolved to the catalog's role palette. Image
-// is the absolute path to its preview art when the scheme ships one, else "".
+// userTheme is one installed scheme resolved to the catalog's role palette. No
+// preview art: the picker draws every scheme as its own palette, because the
+// libraries ship a 16:9 illustrated mockup that cannot be cropped into a
+// portrait tile without looking broken.
 type userTheme struct {
 	ID       string
 	Label    string
 	Provider string
 	Palette  map[string]string // the 34 catalog roles
-	Image    string            // preview art path, or "" for the swatch fallback
 }
 
 // userThemes loads and converts every installed scheme, id-sorted for a stable
@@ -115,24 +116,10 @@ func userThemes() []userTheme {
 		if label == "" {
 			label = id
 		}
-		out = append(out, userTheme{ID: id, Label: label, Provider: meta.Provider, Palette: pal, Image: userThemePreview(dir)})
+		out = append(out, userTheme{ID: id, Label: label, Provider: meta.Provider, Palette: pal})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
-}
-
-// userThemePreview returns the absolute path to a scheme's preview art when its
-// install dir ships one (preview.png/.jpg/.jpeg, first match wins), else "". A
-// scheme with preview art is drawn as that image in the picker; every other
-// scheme falls back to the generated swatch pills.
-func userThemePreview(dir string) string {
-	for _, name := range []string{"preview.png", "preview.jpg", "preview.jpeg"} {
-		p := filepath.Join(dir, name)
-		if info, err := os.Stat(p); err == nil && !info.IsDir() {
-			return p
-		}
-	}
-	return ""
 }
 
 // noctaliaTo34 converts one Noctalia block into the 34-role catalog palette. The
@@ -216,6 +203,22 @@ func userThemeIDs() []string {
 	return ids
 }
 
+// removeUserTheme deletes an installed library scheme's directory. Set
+// membership in the installed library is required, so a built-in name or a
+// bogus id (path traversal included) is refused and only a real downloaded
+// scheme is ever removed.
+func removeUserTheme(id string) error {
+	if id == "" {
+		return fmt.Errorf("expected a scheme id")
+	}
+	for _, x := range userThemeIDs() {
+		if x == id {
+			return os.RemoveAll(filepath.Join(userThemeDir(), id))
+		}
+	}
+	return fmt.Errorf("%q is not an installed scheme", id)
+}
+
 // effectiveThemeThemeValues is the set theme.theme accepts: the built-in names
 // plus every installed library id, so applying a downloaded scheme validates.
 func effectiveThemeThemeValues() []string {
@@ -243,7 +246,6 @@ func userThemeCards() []themeCard {
 			Provider: t.Provider,
 			Dark:     !ok || luma < 0.5,
 			Sw:       sw,
-			Image:    t.Image,
 		})
 	}
 	return cards
