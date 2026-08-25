@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 //go:embed schemes/light.json schemes/dark.json schemes/mono.json
@@ -156,7 +155,9 @@ func currentGnomeAccent() bool { return gnomeAccentOn(loadThemeState()) }
 // applyThemeApps sets whether the palette reaches GTK / GUI apps and re-fans the
 // live palette at once, so the toggle takes hold without a wallpaper change or a
 // scheme flip. renderApps honours the new flag (renders the GTK templates, or
-// blanks them); nudgeGtk then asks already-open GTK apps to re-read.
+// blanks them). An already-open GTK app keeps the colours it started with: it
+// re-reads neither the stylesheet nor the theme name on this session, so the
+// toggle shows up in the apps you open next.
 func applyThemeApps(on bool) error {
 	st := loadThemeState()
 	st.ThemeApps = &on
@@ -166,7 +167,7 @@ func applyThemeApps(on bool) error {
 	} else if !on {
 		blankGtk()
 	}
-	nudgeGtk()
+	repaintPalette()
 	return nil
 }
 
@@ -210,21 +211,6 @@ func applyGnomeAccent(on bool) error {
 // choice up at the next login; the setters lean on this only for the live nudge.
 func repaintPalette() {
 	_ = exec.Command("ryoku-shell", "wallpaper", "repaint").Run()
-}
-
-// nudgeGtk forces already-open GTK / libadwaita apps to re-read the stylesheet
-// by flipping the GTK theme name off and back, the standard live-reload signal.
-func nudgeGtk() {
-	out, err := exec.Command("gsettings", "get", "org.gnome.desktop.interface", "gtk-theme").Output()
-	if err != nil {
-		return
-	}
-	name := strings.Trim(strings.TrimSpace(string(out)), "'")
-	if name == "" {
-		return
-	}
-	_ = exec.Command("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", "").Run()
-	_ = exec.Command("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", name).Run()
 }
 
 // themeState persists the palette master: whether colours follow the wallpaper

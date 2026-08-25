@@ -1086,7 +1086,12 @@ func matugenRenderTemplates(shell map[string]string, k matugenKnobs) {
 		return true
 	}
 	matugenRenderFiltered(filepath.Join(dir, "config.toml"), carrierPath, enabled)
-	if k.ThemeRyokuApps {
+	// Two switches gate the app suite and both have to agree: the appearance
+	// page's per-group roster (themeRyokuApps) and the master "Theme apps" in
+	// theme.json. The Hub blanks the stylesheets when the master goes off, so
+	// honouring the roster alone here re-rendered them on the next repaint and
+	// silently undid it.
+	if k.ThemeRyokuApps && themeAppsEnabled() {
 		matugenRenderFiltered(filepath.Join(dir, "apps.toml"), carrierPath, enabled)
 	} else {
 		blankGtk(matugenConfigHome())
@@ -1131,12 +1136,20 @@ var (
 	}
 )
 
-// matugenReload nudges the toolkits to re-read the regenerated configs: the
-// libadwaita colour-scheme preference tracks light/dark, org.gnome accent-color
-// tracks the palette's primary, a gtk-theme flip makes running GTK apps re-read
-// the stylesheet, and SIGUSR1 reloads kitty (its kitty.conf includes
-// current-theme.conf). The daemon is the single writer of these three GTK-facing
-// gsettings keys. Hyprland is reloaded by the caller.
+// matugenReload lands the desktop settings that follow a palette: the libadwaita
+// colour-scheme preference tracks light/dark, org.gnome accent-color tracks the
+// palette's primary, gtk-theme lands the variant for the mode, and SIGUSR1
+// reloads kitty (its kitty.conf includes current-theme.conf). The daemon is the
+// single writer of the three GTK-facing gsettings keys. Hyprland is reloaded by
+// the caller.
+//
+// What this does NOT do is repaint an already-open GTK app. Measured on a bare
+// Wayland session: a running GTK 3 or GTK 4 app picks up neither a rewritten
+// ~/.config/gtk-*/gtk.css nor a changed gtk-theme, with or without an
+// xsettings-less settings.ini, so it keeps the palette it started with until it
+// restarts. The writes below are still worth making: every app launched after
+// this point is correct, and they are what an X11 or xsettings-backed session
+// needs to follow along.
 func matugenReload(mode string) {
 	scheme := "prefer-dark"
 	if mode == "light" {
@@ -1147,9 +1160,7 @@ func matugenReload(mode string) {
 	applyGnomeAccent()
 
 	// gtkTheme "system" (name == "") means the user owns gtk-theme, so Ryoku
-	// leaves it entirely alone: no set, no nudge. Otherwise land on the mode's
-	// variant, which the nudge applies while forcing running GTK apps to re-read
-	// the regenerated stylesheet.
+	// leaves it entirely alone. Otherwise land the variant for this mode.
 	if name := resolveGtkTheme(mode); name != "" {
 		matugenNudgeGtk(name)
 	}
@@ -1157,13 +1168,12 @@ func matugenReload(mode string) {
 }
 
 // matugenNudgeGtk lands gtk-theme on `want`, flipping through a placeholder first
-// so a running GTK app re-reads the regenerated stylesheet even when the name is
-// unchanged (setting a key to its current value emits no change signal). The
-// placeholder is a real, always-installed theme rather than the empty string:
-// an app launched during the flip window reads an empty gtk-theme as no theme at
-// all and renders unstyled, the documented cause of libadwaita / Flatpak apps
-// losing their styling on a retint. `want` is always a concrete name here;
-// "system" is handled by the caller not calling this at all.
+// so the key emits a change signal even when the name is unchanged (setting a key
+// to its current value emits nothing). The placeholder is a real, always-installed
+// theme rather than the empty string: an app launched during the flip window reads
+// an empty gtk-theme as no theme at all and renders unstyled, the documented cause
+// of libadwaita and Flatpak apps losing their styling on a retint. `want` is always
+// a concrete name here; "system" is handled by the caller not calling this at all.
 func matugenNudgeGtk(want string) {
 	placeholder := "Adwaita"
 	if want == placeholder {

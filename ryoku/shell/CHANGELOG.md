@@ -297,6 +297,18 @@
   <light|dark>` verb and the Hub calls it instead of writing the preference
   itself, so one place still owns `gtk-theme`, `color-scheme` and `accent-color`
   and the two can no longer disagree.
+- **Theme apps off stays off.** The master switch is written by the Hub, which
+  blanks the GTK stylesheets, but the daemon gated its own render on the
+  appearance page's per-group roster alone. Nothing re-rendered right after the
+  toggle, so the blank used to survive by luck; once the toggle asks for a
+  repaint the daemon rebuilt the stylesheets and silently undid it. Both
+  switches are now read where the rendering happens.
+- **Where the palette lands, stated honestly.** An already-open GTK app keeps
+  the colours it started with. Measured on this session: a running GTK 3 or
+  GTK 4 app picks up neither a rewritten `~/.config/gtk-*/gtk.css` nor a changed
+  `gtk-theme`, so the long-standing comment claiming the theme-name flip forces
+  a re-read was wrong. Every app opened after a wallpaper change is correct, and
+  the code now says so rather than promising a repaint it cannot deliver.
 
 ### Added
 - **A browser palette host lands the wallpaper scheme in Firefox and Chromium.**
