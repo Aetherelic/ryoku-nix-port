@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `ttf-maple-mono-nf` (release/packages + base.packages): Maple Mono, Nerd Font
+  variant, shipped from [ryoku] as the upstream prebuilt NF release so it
+  pacstraps on install and updates with `ryoku update`. Offered as the monospace
+  font in Hub > Global.
 - `containers/ryoku-docker` and `containers/46-ryoku-docker.rules`: the one
   privileged door for container work, which is what makes the stash "Cobalt
   engine" switch a switch instead of a chore list. Verbs: `state` (read-only

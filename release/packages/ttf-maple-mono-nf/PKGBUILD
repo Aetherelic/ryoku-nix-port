@@ -1,0 +1,25 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# ttf-maple-mono-nf = Maple Mono, Nerd Font variant: the monospace face Ryoku
+# offers for the terminal and code. Shipped from [ryoku], not the AUR, for the
+# same reason as otf-space-grotesk: the AUR maplemono pkgbases build from source
+# or split into many variants, so this installs the upstream prebuilt NF release
+# directly. No build to fail, it always resolves, and it reaches every box on
+# install (pacstrapped from base.packages) and on `ryoku update`.
+#
+# fixed-version package: tracks the upstream Maple release, not RYOKU_PKGVER.
+# GitHub release assets are immutable, so the checksum is pinned. Bump pkgver +
+# sha256sums for a new upstream release.
+pkgname=ttf-maple-mono-nf
+pkgver=7.9
+pkgrel=1
+pkgdesc="Maple Mono NF (Nerd Font) monospace face"
+arch=('any')
+url="https://github.com/subframe7536/maple-font"
+license=('OFL-1.1')
+source=("MapleMono-NF-$pkgver.zip::$url/releases/download/v$pkgver/MapleMono-NF.zip")
+sha256sums=('59098b87c895d871635d37680e88000ae2b2b25b55428195b228ec589e35fb89')
+
+package() {
+  find "$srcdir" -name '*.ttf' -exec install -Dm644 {} -t "$pkgdir/usr/share/fonts/maple-mono-nf" \;
+}
