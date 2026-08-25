@@ -5,9 +5,9 @@
 ### Added
 - **The Session route gains Log out, and the studio shows its Super+Esc key.**
   Session now offers Log out (arm-to-confirm, `hyprctl dispatch exit`) beside
-  lock, sleep, restart and power off, and the control center masthead prints a
-  SUPER ESC keycap so the shortcut that opens the panel is learnable from the
-  panel itself, like the search's CTRL K (`controlcenter/routes/SessionRoute.qml`,
+  lock, sleep, restart and power off, and the rail foot carries a SUPER ESC
+  keycap beside the search's CTRL K, so the shortcut that toggles the panel is
+  learnable from the panel itself (`controlcenter/routes/SessionRoute.qml`,
   `controlcenter/CcRail.qml`).
 - **The control center names itself the Shell Studio and points to the Hub.** It
   reads SHELL STUDIO in the rail masthead and carries a persistent "OPEN THE HUB"

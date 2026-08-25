@@ -35,7 +35,7 @@ Item {
     // barcode against the plate's edge, so it counts the foot's real inset.
     implicitHeight: rail.tk
         ? rail.tk.headH + nav.implicitHeight + rail.tk.gap * 2
-          + rail.tk.navH + rail.tk.gap + margin.height + rail.tk.pad * 2
+          + foot.height + margin.height + rail.tk.pad * 2
         : 560
 
     function routeAt(id) {
@@ -84,16 +84,6 @@ Item {
                 font.pixelSize: Tokens.fTiny
                 font.letterSpacing: Tokens.trackLabel
             }
-        }
-        // the key that opens this panel (Super+Esc -> ryoku:quicksettings), so the
-        // shortcut is learnable from the panel itself, like the search's CTRL K.
-        Keycap {
-            anchors.right: parent.right
-            anchors.rightMargin: rail.tk.pad
-            anchors.verticalCenter: parent.verticalCenter
-            text: "SUPER ESC"
-            us: 0.5
-            dark: !Tokens.light
         }
         Rectangle {
             anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
@@ -201,39 +191,70 @@ Item {
     Item {
         id: foot
         anchors { bottom: margin.top; left: parent.left; right: parent.right }
-        height: rail.tk.navH + rail.tk.gap
+        height: hints.implicitHeight + rail.tk.gap
 
-        Rectangle {
+        Column {
+            id: hints
             anchors.centerIn: parent
             width: parent.width - rail.tk.gap * 2
-            height: rail.tk.navH
-            radius: Tokens.radius
-            color: searchMa.containsMouse ? Tokens.tint5 : "transparent"
-            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+            spacing: 2
 
-            UiText {
-                anchors.left: parent.left
-                anchors.leftMargin: rail.tk.gap
-                anchors.verticalCenter: parent.verticalCenter
-                text: I18n.tr("Search")
-                color: Tokens.inkFaint
-                font.family: Tokens.ui
-                font.pixelSize: Tokens.fSmall
+            Rectangle {
+                width: parent.width
+                height: rail.tk.navH
+                radius: Tokens.radius
+                color: searchMa.containsMouse ? Tokens.tint5 : "transparent"
+                Behavior on color { ColorAnimation { duration: Tokens.snap } }
+
+                UiText {
+                    anchors.left: parent.left
+                    anchors.leftMargin: rail.tk.gap
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: I18n.tr("Search")
+                    color: Tokens.inkFaint
+                    font.family: Tokens.ui
+                    font.pixelSize: Tokens.fSmall
+                }
+                Keycap {
+                    anchors.right: parent.right
+                    anchors.rightMargin: rail.tk.gap / 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "CTRL K"
+                    us: 0.5
+                    dark: !Tokens.light
+                }
+                MouseArea {
+                    id: searchMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: rail.searchRequested()
+                }
             }
-            Keycap {
-                anchors.right: parent.right
-                anchors.rightMargin: rail.tk.gap / 2
-                anchors.verticalCenter: parent.verticalCenter
-                text: "CTRL K"
-                us: 0.5
-                dark: !Tokens.light
-            }
-            MouseArea {
-                id: searchMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: rail.searchRequested()
+            // A hint, not a button: Super+Esc (ryoku:quicksettings) opens or closes
+            // this panel. Muted and non-interactive so it reads as a caption under
+            // the search, not a second action.
+            Item {
+                width: parent.width
+                height: rail.tk.navH
+
+                UiText {
+                    anchors.left: parent.left
+                    anchors.leftMargin: rail.tk.gap
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: I18n.tr("Toggle")
+                    color: Tokens.inkFaint
+                    font.family: Tokens.ui
+                    font.pixelSize: Tokens.fSmall
+                }
+                Keycap {
+                    anchors.right: parent.right
+                    anchors.rightMargin: rail.tk.gap / 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "SUPER ESC"
+                    us: 0.5
+                    dark: !Tokens.light
+                }
             }
         }
     }
