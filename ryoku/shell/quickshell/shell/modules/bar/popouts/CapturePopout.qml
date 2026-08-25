@@ -47,9 +47,12 @@ Item {
     function record(mode) {
         root.requestClose();
         // "screen" records the focused output (no target flag); the other three
-        // raise the shared selection overlay for that family via recordTarget.
+        // raise the shared selection overlay for that family via recordTarget,
+        // which applies the delay after the pick. Screen has nothing to pick, so
+        // it arms the same delay here rather than being the one target that
+        // ignores it.
         if (mode === "screen")
-            Recorder.start(Recorder.recordArgs());
+            Recorder.startAfter(Recorder.recordArgs(), Capture.delay);
         else
             Capture.recordTarget(mode, Recorder.recordArgs());
     }
