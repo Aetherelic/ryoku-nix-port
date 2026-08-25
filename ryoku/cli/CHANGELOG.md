@@ -9,6 +9,15 @@
   again and is left untouched (`internal/doctor/doctor.go`).
 
 ### Added
+- **The Spicetify Marketplace ships wired in.** A new `reconcileSpicetifyMarketplace`
+  drops the shipped Marketplace app (the `spicetify-marketplace` [ryoku] package)
+  into a Spotify user's spicetify CustomApps, enables it, lays the transparent
+  placeholder theme so theme installs land, and applies it -- so the "store" icon
+  in Spotify's sidebar is there out of the box instead of the fiddly manual install
+  (fetch a release zip, unzip, `spicetify config custom_apps marketplace`, apply).
+  Gated on Spotify installed, aimed at the per-user `spotify-launcher` tree so
+  `apply` needs no root, best-effort so it never blocks `ryoku update`, and inert
+  for anyone without Spotify (`internal/doctor/reconcile_spicetify_marketplace.go`).
 - **`ryoku doctor` flags a phantom Wayland output.** Ryoku's `monitors.lua`
   ends in a catch-all rule so a hotplugged display needs no hand-written entry,
   but that also makes Hyprland enable every connector it reports as connected --

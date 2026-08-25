@@ -138,6 +138,7 @@ func reconcilers() []reconciler {
 		{"retired system sidebar", reconcileLegacySystemSidebar},
 		{"stash features sidebar anchor", reconcileStashSidebar},
 		{"spicetify canvas extension", reconcileSpicetifyCanvas},
+		{"spicetify marketplace store", reconcileSpicetifyMarketplace},
 		{"obsidian palette snippet", reconcileObsidianSnippet},
 		{"flatpak app channel", reconcileFlatpakRemote},
 		{"browser theme host", reconcileBrowserTheme},
