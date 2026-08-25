@@ -146,12 +146,15 @@
   every step to an instant add and remove with no leftover transform.
 
 ### Fixed
-- **The audio visualiser stops freezing on a stale frame mid-song.** cava's
-  stdout goes block-buffered when it feeds a pipe rather than a terminal, so
-  frames arrived in ~1s bursts and the spectrum sat frozen between them even
-  while music kept playing. `stdbuf -oL` on the cava process forces line-buffered
-  output, so every frame flushes as it is emitted (#61)
-  (`modules/visualizer/Singletons/Spectrum.qml`).
+- **The audio visualiser and pill bars stop cutting out mid-song on a
+  player-state blip.** The analysers drop cava when nothing plays, gated on
+  `Perf.audioIdle`, which is meant to be debounced (a 4s grace bridges the gap
+  between tracks). It was written as a live binding on the media player's state
+  (`audioIdle: !Media.playing`) that the grace could never override -- the same
+  binding-vs-imperative trap as the analysers' own `running` -- so a player
+  reporting not-playing for a beat dropped the feed. It is a plain debounced
+  property now (`services/Perf.qml`). An earlier `stdbuf -oL` attempt on the cava
+  process is reverted: cava writes its raw output unbuffered, so it did nothing.
 - **The sign-out button works again.** Ryoku's SDDM session runs `Exec=Hyprland`
   directly, so the old logout command (`systemctl --user exit`) stopped the user
   manager without ever ending the compositor -- the button did nothing. Logout

@@ -93,8 +93,14 @@ Singleton {
     // these off even mid-track.
     // Silence gates the analysers, but bridge brief gaps: a player reports
     // not-playing for a beat between tracks, so dropping cava on every blip made
-    // the visualiser and pill stutter each track (#61). Debounced, not a binding.
-    property bool audioIdle: !Media.playing
+    // the visualiser and pill stutter each track (#61). Debounced, and this time
+    // genuinely NOT a binding: `property bool audioIdle: !Media.playing` looks
+    // like an initial value but is a live binding that flips the instant
+    // Media.playing changes, defeating the grace below (the same
+    // binding-vs-imperative trap as the analysers' `running`). The Connections +
+    // audioGrace timer are the sole controllers; the initial state is seeded once.
+    property bool audioIdle: true
+    Component.onCompleted: root.audioIdle = !Media.playing
     Connections {
         target: Media
         function onPlayingChanged() {
