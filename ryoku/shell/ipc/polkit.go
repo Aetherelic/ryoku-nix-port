@@ -131,6 +131,9 @@ type polkitFrame struct {
 	Error   string `json:"error"`
 	Prompt  string `json:"prompt"`
 	Echo    bool   `json:"echo"`
+	// Fingerprint narrates pam_fprintd's own PAM messages to the reader
+	// animation: "" none, "scanning" a finger is being read, "fail" no match.
+	Fingerprint string `json:"fingerprint"`
 }
 
 // polkitPrompt is one BeginAuthentication in flight. respCh carries the password
@@ -277,6 +280,7 @@ func (a *polkitAgent) converse(username, cookie string, p *polkitPrompt) (bool, 
 	}
 
 	gained := false
+	a.setFingerprint("")
 	sc := bufio.NewScanner(h.r)
 	for sc.Scan() {
 		line := sc.Text()
@@ -296,9 +300,17 @@ func (a *polkitAgent) converse(username, cookie string, p *polkitPrompt) (bool, 
 			}
 			_, _ = io.WriteString(stdin, resp+"\n")
 		case strings.HasPrefix(line, "PAM_TEXT_INFO "):
-			a.setInfo(unescapeGStr(strings.TrimPrefix(line, "PAM_TEXT_INFO ")))
+			msg := unescapeGStr(strings.TrimPrefix(line, "PAM_TEXT_INFO "))
+			if mentionsFinger(msg) {
+				a.setFingerprint("scanning")
+			}
+			a.setInfo(msg)
 		case strings.HasPrefix(line, "PAM_ERROR_MSG "):
-			a.setError(unescapeGStr(strings.TrimPrefix(line, "PAM_ERROR_MSG ")))
+			msg := unescapeGStr(strings.TrimPrefix(line, "PAM_ERROR_MSG "))
+			if mentionsFinger(msg) {
+				a.setFingerprint("fail")
+			}
+			a.setError(msg)
 		case line == "SUCCESS":
 			gained = true
 		case line == "FAILURE":
@@ -367,6 +379,21 @@ func (a *polkitAgent) setInfo(msg string) {
 	a.state.Info = msg
 	a.mu.Unlock()
 	a.publish()
+}
+
+func (a *polkitAgent) setFingerprint(state string) {
+	a.mu.Lock()
+	a.state.Fingerprint = state
+	a.mu.Unlock()
+	a.publish()
+}
+
+// mentionsFinger spots pam_fprintd's narration ("place your finger", "swipe
+// your finger", "failed to match fingerprint") so the reader animation keys off
+// the live PAM stream rather than guessing whether fprintd is in the stack.
+func mentionsFinger(msg string) bool {
+	m := strings.ToLower(msg)
+	return strings.Contains(m, "finger") || strings.Contains(m, "swipe")
 }
 
 func (a *polkitAgent) publish() {

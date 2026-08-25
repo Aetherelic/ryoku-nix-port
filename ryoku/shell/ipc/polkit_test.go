@@ -135,6 +135,54 @@ func TestPolkitConverseCancel(t *testing.T) {
 	}
 }
 
+// pam_fprintd narrates the scan through PAM messages; the agent surfaces a
+// "scanning" fingerprint state on the "place your finger" info, so the reader
+// animation appears exactly when PAM is asking for a touch.
+func TestPolkitConverseFingerprintScanning(t *testing.T) {
+	useFakeHelper(t, fakePolkitHelper(t,
+		"read u\nread c\nprintf 'PAM_TEXT_INFO Place your finger on the fingerprint reader\\n'\nprintf 'PAM_PROMPT_ECHO_OFF Password: \\n'\nread pw\nprintf 'SUCCESS\\n'\n"))
+	d := &daemon{}
+	a := &polkitAgent{topic: d.registerTopic("polkit")}
+	p := &polkitPrompt{cookie: "C", respCh: make(chan string, 1), cancelCh: make(chan struct{})}
+	p.respCh <- "pw"
+	if _, _, err := a.converse("me", "C", p); err != nil {
+		t.Fatalf("converse err = %v", err)
+	}
+	if a.state.Fingerprint != "scanning" {
+		t.Errorf("fingerprint = %q, want %q", a.state.Fingerprint, "scanning")
+	}
+}
+
+// A fingerprint mismatch (PAM_ERROR_MSG naming the finger) flips the state to
+// "fail"; a plain wrong-password error must NOT be mistaken for it.
+func TestPolkitConverseFingerprintFail(t *testing.T) {
+	useFakeHelper(t, fakePolkitHelper(t,
+		"read u\nread c\nprintf 'PAM_ERROR_MSG Failed to match fingerprint\\n'\nprintf 'PAM_PROMPT_ECHO_OFF Password: \\n'\nread pw\nprintf 'FAILURE\\n'\n"))
+	d := &daemon{}
+	a := &polkitAgent{topic: d.registerTopic("polkit")}
+	p := &polkitPrompt{cookie: "C", respCh: make(chan string, 1), cancelCh: make(chan struct{})}
+	p.respCh <- "x"
+	if _, _, err := a.converse("me", "C", p); err != nil {
+		t.Fatalf("converse err = %v", err)
+	}
+	if a.state.Fingerprint != "fail" {
+		t.Errorf("fingerprint = %q, want %q", a.state.Fingerprint, "fail")
+	}
+}
+
+func TestMentionsFinger(t *testing.T) {
+	for _, m := range []string{"Place your finger on the reader", "Swipe your finger", "Failed to match fingerprint"} {
+		if !mentionsFinger(m) {
+			t.Errorf("mentionsFinger(%q) = false, want true", m)
+		}
+	}
+	for _, m := range []string{"Password: ", "Authentication failure", "Sorry, try again"} {
+		if mentionsFinger(m) {
+			t.Errorf("mentionsFinger(%q) = true, want false", m)
+		}
+	}
+}
+
 // polkitPickUser resolves the first unix-user identity's uid to a login name, and
 // rejects an identity set with no unix-user (matching the reference error path).
 func TestPolkitPickUser(t *testing.T) {

@@ -23,6 +23,7 @@ Singleton {
     property string prompt: ""      // PAM_PROMPT_ECHO_OFF/ON text
     property bool echo: false       // true when the answer may be shown
     property bool busy: false       // an answer is with PAM, awaiting the verdict
+    property string fingerprint: "" // "" none, "scanning", "fail" (pam_fprintd)
 
     readonly property string sockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
 
@@ -41,6 +42,7 @@ Singleton {
             root.error = f.error || "";
             root.prompt = f.prompt || "";
             root.echo = f.echo === true;
+            root.fingerprint = f.fingerprint || "";
             // A new prompt (or a new error on a retry) means PAM answered; drop
             // the busy state so the field is live again.
             if (!root.active || !wasActive || root.error !== hadError)

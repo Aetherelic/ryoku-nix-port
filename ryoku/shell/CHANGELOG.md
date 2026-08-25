@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Admin (polkit) prompts can answer to a fingerprint, like macOS sudo.** When
+  the polkit stack races the reader (enabled from Hub > Sign-in & Fingerprint >
+  Admin prompts), the shell's admin island shows a live scan the moment PAM asks
+  for a touch, and authorizes on a match or the typed password. The daemon
+  derives the state from pam_fprintd's own PAM narration and publishes it; a
+  shared `FingerprintScan` component (Ryoku.Ui) draws the ridges filling and the
+  ring completing, reused unchanged by the lock screen and the Hub
+  (`ipc/polkit.go`, `services/Polkit.qml`, `modules/bar/PolkitSurface.qml`,
+  `ryoku/ui/FingerprintScan.qml`).
 - **The dock has five looks, picked from the Shell Studio.** The app dock keeps
   its Islands baseline (split pills) and gains four more: Rail (one continuous
   plate), Ledger (numbered cells), Tanzaku (hanging strips) and Seal (colour

@@ -9,6 +9,7 @@ ActionBar 1.0 ActionBar.qml
 Preview 1.0 Preview.qml
 Barcode 1.0 Barcode.qml
 Field 1.0 Field.qml
+FingerprintScan 1.0 FingerprintScan.qml
 IconBtn 1.0 IconBtn.qml
 ScrollRail 1.0 ScrollRail.qml
 Sw 1.0 Sw.qml

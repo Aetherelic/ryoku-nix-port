@@ -63,6 +63,14 @@
   is too late for the crash that happens before one.
 
 ### Added
+- **Every lock skin shows a smooth fingerprint scan, with no per-theme code.** A
+  shared `FingerprintScan` reader rides above whatever theme is loaded, in both
+  the Wayland and X11 lock surfaces, driven by the shim's fingerprint state: a
+  calm breath while armed, the ridges filling as a finger is read, and a ring
+  completing on unlock. Because it sits above the theme Loader it covers the
+  current clockwork/orbital skin and any future one automatically
+  (`quickshell-lockscreen/lock_shell.qml`,
+  `quickshell-lockscreen/FingerprintScan.qml`).
 - **Fingerprint touch-to-unlock at the lock screen, sudo, and the SDDM greeter.**
   The qylock lock unlocks with the same `pam_fprintd_grosshack` mechanism as the
   greeter, through a self-contained `ryoku-lock` PAM service loaded via

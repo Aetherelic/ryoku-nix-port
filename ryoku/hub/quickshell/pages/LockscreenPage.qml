@@ -115,13 +115,15 @@ Item {
     property string fdelConfirmFor: ""        // per-finger delete armed
     property string fdelTarget: ""            // finger being deleted right now
 
-    // grosshack line in /etc/pam.d/{sudo,sddm}; pkexec applies/removes it.
+    // grosshack line in /etc/pam.d/{sudo,sddm,polkit-1}; pkexec applies/removes it.
     property bool fpamModuleOk: false         // pam_fprintd_grosshack.so present
     property bool fsudoOn: false              // grosshack line in /etc/pam.d/sudo
     property bool fsddmOn: false              // grosshack line in /etc/pam.d/sddm
     property bool fpamLoading: true
     property bool fsudoPending: false         // an apply/remove is in flight
     property bool fsddmPending: false
+    property bool fpolkitOn: false            // grosshack line in /etc/pam.d/polkit-1
+    property bool fpolkitPending: false
     readonly property string fpamLine: "auth        sufficient    pam_fprintd_grosshack.so"
 
     function fpamReload() {
@@ -129,7 +131,7 @@ Item {
         pamStatusProc.running = true;
     }
     function fpamToggle(target, on) {         // target: "sudo" | "sddm"
-        if (pg.fpending !== "" || pg.fsudoPending || pg.fsddmPending)
+        if (pg.fpending !== "" || pg.fsudoPending || pg.fsddmPending || pg.fpolkitPending)
             return;
         pg.ferr = "";
         var f = "/etc/pam.d/" + target;
@@ -144,7 +146,9 @@ Item {
                 + "cp \"$f\" \"$f.ryoku-fp-bak\" 2>/dev/null; "
                 + "sed -i '/pam_fprintd_grosshack/d' \"$f\"";
         }
-        if (target === "sudo") pg.fsudoPending = true; else pg.fsddmPending = true;
+        if (target === "sudo") pg.fsudoPending = true;
+        else if (target === "sddm") pg.fsddmPending = true;
+        else pg.fpolkitPending = true;
         pamApplyProc.target = target;
         pamApplyProc.command = ["pkexec", "bash", "-c", script];
         pamApplyProc.running = true;
@@ -263,12 +267,14 @@ Item {
     // ── fingerprint actions ─────────────────────────────────────────────────
     function freload() {
         pg.floading = true;
+        fpTimeout.restart();
         freadProc.running = true;
         flistProc.running = true;
         fnamesReadProc.running = true;
         pg.fpamReload();
     }
     function fparseList(text) {
+        fpTimeout.stop();
         var t = text || "";
         var dev = "";
         var m = t.match(/Using\s+device\s+(\S+)/i);
@@ -286,7 +292,12 @@ Item {
         }
         pg.fdevice = dev;
         pg.ffingers = fingers;
-        pg.fready = t.indexOf("Using device") !== -1 || t.indexOf("Device at") !== -1 || t.indexOf("found ") !== -1;
+        // A reader is present only when fprintd reports an actual device. The
+        // header "found N devices" is printed even when N is 0 (no hardware),
+        // so gate on the count / a "Using device" line -- never a bare "found ".
+        var fm = t.match(/found\s+(\d+)\s+devices?/i);
+        var nDev = fm ? parseInt(fm[1], 10) : 0;
+        pg.fready = t.indexOf("Using device") !== -1 || t.indexOf("Device at") !== -1 || nDev > 0;
         pg.fdaemon = pg.fready && t.trim() !== "" && t.indexOf("no devices") === -1;
         pg.floading = false;
         if (pg.fdaemon && !pg.floading) {
@@ -593,12 +604,27 @@ Item {
         stdout: StdioCollector { id: flistOut }
         onExited: (code) => {
             if (code !== 0 && flistOut.text.trim() === "") {
-                pg.fdaemon = false; pg.fready = false; pg.ffingers = []; pg.floading = false;
+                pg.fdaemon = false; pg.fready = false; pg.ffingers = []; pg.floading = false; fpTimeout.stop();
                 pg.ferr = "The fingerprint service is not running.";
                 return;
             }
             pg.ferr = "";
             pg.fparseList(flistOut.text);
+        }
+    }
+    // fprintd is D-Bus activated; a probe can hang if the service never comes
+    // up. Don't sit on "Checking…" forever -- fail to a clear, honest state.
+    Timer {
+        id: fpTimeout
+        interval: 6000
+        onTriggered: {
+            if (!pg.floading)
+                return;
+            pg.floading = false;
+            pg.fdaemon = false;
+            pg.fready = false;
+            pg.ffingers = [];
+            pg.ferr = I18n.tr("The fingerprint service isn't responding.");
         }
     }
     Process {
@@ -733,7 +759,7 @@ Item {
         id: pamStatusProc
         command: ["bash", "-c",
             "printf 'module='; [ -f /usr/lib/security/pam_fprintd_grosshack.so ] && echo 1 || echo 0; "
-            + "for f in sudo sddm; do printf '%s=' \"$f\"; "
+            + "for f in sudo sddm polkit-1; do printf '%s=' \"$f\"; "
             + "grep -qs pam_fprintd_grosshack \"/etc/pam.d/$f\" && echo 1 || echo 0; done"]
         stdout: StdioCollector { id: pamStatusOut }
         onExited: () => {
@@ -745,6 +771,7 @@ Item {
             pg.fpamModuleOk = o["module"] === "1";
             pg.fsudoOn = o["sudo"] === "1";
             pg.fsddmOn = o["sddm"] === "1";
+            pg.fpolkitOn = o["polkit-1"] === "1";
             pg.fpamLoading = false;
         }
     }
@@ -753,9 +780,12 @@ Item {
         property string target: ""
         stderr: StdioCollector { id: pamApplyErr }
         onExited: (code) => {
-            if (pamApplyProc.target === "sudo") pg.fsudoPending = false; else pg.fsddmPending = false;
+            if (pamApplyProc.target === "sudo") pg.fsudoPending = false;
+            else if (pamApplyProc.target === "sddm") pg.fsddmPending = false;
+            else pg.fpolkitPending = false;
             if (code !== 0) {
-                var t = pamApplyProc.target === "sudo" ? I18n.tr("sudo") : I18n.tr("the sign-in screen");
+                var t = pamApplyProc.target === "sudo" ? I18n.tr("sudo")
+                    : (pamApplyProc.target === "sddm" ? I18n.tr("the sign-in screen") : I18n.tr("admin prompts"));
                 pg.ferr = (pamApplyErr.text.trim() !== "")
                     ? I18n.tr("Couldn't update") + " " + t + ": " + pamApplyErr.text.trim()
                     : I18n.tr("Couldn't update") + " " + t + " (" + I18n.tr("cancelled?") + ")";
@@ -1055,7 +1085,9 @@ Item {
                     Item {
                         width: parent.width
                         height: Math.max(toggleCol.height, tog.implicitHeight)
-                        enabled: pg.fready
+                        // A stored preference never needs hardware: stay operable
+                        // even with no sensor so it can always be switched off.
+                        enabled: !pg.floading
 
                         Column {
                             id: toggleCol
@@ -1064,8 +1096,9 @@ Item {
                             Text { text: I18n.tr("Unlock with fingerprint"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
                             Text {
                                 width: parent.width
-                                text: pg.ffpEnabled ? I18n.tr("The lock screen listens for a touch before asking your password")
-                                                    : I18n.tr("Password only")
+                                text: !pg.ffpEnabled ? I18n.tr("Password only")
+                                    : (pg.fready ? I18n.tr("The lock screen listens for a touch before asking your password")
+                                                 : I18n.tr("On, but no fingerprint sensor is connected"))
                                 color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                                 wrapMode: Text.WordWrap
                             }
@@ -1136,6 +1169,31 @@ Item {
                             }
                         }
 
+                        Item {
+                            width: parent.width
+                            height: Math.max(polkitCol.height, polkitSw.implicitHeight)
+                            Column {
+                                id: polkitCol
+                                anchors { left: parent.left; right: polkitSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                spacing: 2
+                                Text { text: I18n.tr("Admin prompts"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                Text {
+                                    width: parent.width
+                                    text: I18n.tr("Touch for the pop-up admin question (polkit)")
+                                    color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                            Sw {
+                                id: polkitSw
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                opacity: pg.fpolkitPending ? 0.4 : 1
+                                Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                on: pg.fpolkitOn
+                                onToggled: (v) => pg.fpamToggle("polkit-1", v)
+                            }
+                        }
+
                         // hairline
                         Rectangle { width: parent.width; height: Tokens.border; color: Tokens.lineSoft }
                     }
@@ -1166,6 +1224,22 @@ Item {
                             text: pg.fpending === "enroll" ? I18n.tr("ENROLLING\u2026") : (pg.floading ? I18n.tr("Checking\u2026") : "")
                             color: Tokens.inkFaint; font.family: Tokens.ui
                             font.pixelSize: Tokens.fTiny; elide: Text.ElideRight
+                        }
+                    }
+
+                    // live scan while enrolling (recording) or verifying (using)
+                    Item {
+                        width: parent.width
+                        height: visible ? 96 : 0
+                        visible: pg.fpending === "enroll" || pg.fpending === "verify"
+                        FingerprintScan {
+                            anchors.centerIn: parent
+                            sizePx: 84
+                            accent: Tokens.sun
+                            ink: Tokens.ink
+                            phase: pg.fpending === "enroll" ? "enroll"
+                                 : (pg.fpending === "verify" ? "scanning" : "ready")
+                            progress: pg.fstagesTotal > 0 ? pg.fstagesPassed / pg.fstagesTotal : 0
                         }
                     }
                     Text {

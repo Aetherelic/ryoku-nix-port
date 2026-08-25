@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Enrolling or verifying a fingerprint plays a live scan.** The Sign-in &
+  Fingerprint card shows the shared `FingerprintScan` animation while recording
+  (the ridges and ring fill with each enrollment stage) and while verifying, and
+  a new "Admin prompts" switch wires fingerprint into the pop-up polkit question
+  (`/etc/pam.d/polkit-1`) beside the existing Sudo and Sign-in switches
+  (`pages/LockscreenPage.qml`).
 - **Appearance groups the GTK app-theming controls into one card.** The Theme
   tab, under the palette scheme, gains an APP THEMING card that surfaces the
   Theme apps toggle beside two new controls: a GTK theme chooser (Adw, the
@@ -92,6 +98,14 @@
   per theme change (the colour is re-applied on login and on resume instead).
 
 ### Fixed
+- **"Unlock with fingerprint" can be switched off on a box with no reader.** The
+  switch was gated on a present sensor, so a machine with no fingerprint hardware
+  showed it stuck on with no way to turn it off; it is now always operable (a
+  stored preference needs no hardware) and reads "no fingerprint sensor is
+  connected" when left on without one. Detection is fixed too: `fprintd-list`
+  prints "found 0 devices" with no hardware, which used to register as a device,
+  and a hung probe now times out instead of sitting on "Checking..." forever
+  (`pages/LockscreenPage.qml`).
 - **Steam theming no longer breaks Steam's first launch.** Matugen pre-created
   the Steam skin output path under `~/.steam/steam/steamui`, so on a box where
   Steam had never run it created `~/.steam/steam` as a plain directory and stopped
