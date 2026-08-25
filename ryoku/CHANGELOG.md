@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Fixed
+- **Animations no longer break the desktop on a non-default preset.** Ryoku's
+  signature window curves (`ryokuBloom`, `ryokuSettle`, plus `easeOutQuint`,
+  `quick`, `almostLinear`, `ryokuWobble`) were defined only by the `ryoku`
+  animation preset, yet the Hub's generated `settings.lua` references them for
+  window motion on whatever preset is active -- so switching to any other preset
+  (the dusky ports: bounce, air, fade, minimal, ...) left those beziers undefined
+  and Hyprland threw its config-error overlay ("no bezier ryokuBloom /
+  ryokuSettle"). The preset loader (`modules/animations.lua`) now defines these
+  base curves before any preset loads, so `settings.lua`'s references always
+  resolve; it ships in the desktop package, so `ryoku update` (materialize) heals
+  an already-broken `settings.lua` with no regeneration.
 - **Screen recording works on hybrid-GPU laptops again.** On a machine whose
   panel is driven by a card gpu-screen-recorder can't enumerate (an AMD iGPU
   display alongside a discrete NVIDIA GPU), the backend probe mistook the webcam

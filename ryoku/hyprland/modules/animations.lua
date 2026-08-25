@@ -39,4 +39,21 @@ local name = readName()
 if not shipped(name) then
     name = "ryoku"
 end
+
+-- Ryoku's base animation curves. The Hub's generated settings.lua (loaded after
+-- this, in hyprland.lua) can reference any of these for its per-leaf and window
+-- motion, on ANY preset -- but they used to be defined only by the `ryoku`
+-- preset, so a window-style tweak or a curve pick on any other preset hit an
+-- undefined bezier and threw Hyprland's config-error overlay ("no bezier
+-- ryokuBloom / ryokuSettle"). Define them here, before the preset loads, so
+-- those references always resolve whatever preset is active. The preset (ryoku
+-- redefines these to the same points; others may set their own) or a user's
+-- custom curve in settings.lua both load later, so last still wins.
+hl.curve("easeOutQuint", { type = "bezier", points = { { 0.23, 1 }, { 0.32, 1 } } })
+hl.curve("quick", { type = "bezier", points = { { 0.15, 0 }, { 0.1, 1 } } })
+hl.curve("almostLinear", { type = "bezier", points = { { 0.5, 0.5 }, { 0.75, 1 } } })
+hl.curve("ryokuBloom", { type = "bezier", points = { { 0.16, 1.12 }, { 0.24, 1 } } })
+hl.curve("ryokuSettle", { type = "bezier", points = { { 0.18, 0.86 }, { 0.24, 1 } } })
+hl.curve("ryokuWobble", { type = "bezier", points = { { 0.34, 1.56 }, { 0.64, 1 } } })
+
 require("modules.animations." .. name)
