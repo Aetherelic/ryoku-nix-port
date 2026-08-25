@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `ryoku-desktop` hard-depends on `weston` (official `extra` repo). The SDDM
+  greeter moves to Wayland (`DisplayServer=wayland`,
+  `CompositorCommand=weston --shell=kiosk`) so it is torn down cleanly at login
+  instead of being orphaned on a leftover Xorg when the Wayland session starts;
+  weston is the kiosk compositor that hosts it. A hard depend (not optdepend) so
+  `pacman -Syu` pulls it onto existing boxes before `ryoku doctor` writes the
+  Wayland config -- that config cannot work without it.
 - `game-devices-udev` 1.0 and `dualsensectl` 0.7 build into the signed `[ryoku]`
   repository. `game-devices-udev` moves out of `aur.packages` (it is in
   `base.packages`, so it must be reachable by pacman); `dualsensectl` is a

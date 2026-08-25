@@ -14,6 +14,24 @@
   this root installer). Honors `RYOKU_DRYRUN`; `ryoku keyring` changes it later.
 
 ### Fixed
+- **The SDDM greeter no longer lingers after login, draining power.** SDDM ran
+  the greeter on X11 while the Hyprland session is Wayland; at login SDDM's
+  `sddm-helper` died mid-teardown without reaping `sddm-greeter-qt6`, so the
+  greeter was orphaned onto a leftover Xorg and kept rendering forever. A video
+  greeter skin (e.g. Store "forest") decoded a 1440p60 clip on a screen nobody
+  was looking at, and even the default clockwork clock woke the CPU ~60x/s,
+  blocking deep idle on a laptop. `sddm/setup` now writes
+  `/etc/sddm.conf.d/10-ryoku-wayland.conf` (`DisplayServer=wayland`,
+  `CompositorCommand=weston --shell=kiosk`), so the greeter runs on Wayland like
+  the session and SDDM tears it down cleanly at login. Validated headlessly:
+  weston hosts the greeter as a separate client, the exact separate-process
+  model SDDM uses. `ryoku doctor` backports it to existing boxes; `base.packages`
+  and `ryoku-desktop` ship weston. Honors `RYOKU_DRYRUN`.
+- **The clockwork/orbital greeter clock stops animating off screen.** Its 60fps
+  smooth-second-hand timer ran unconditionally; it now gates on `Window.active`,
+  so a backgrounded or orphaned greeter never wakes the CPU for a clock no one
+  can see. The in-session lock (which alone sets `sddm.fingerprintHint`) keeps
+  animating -- its surface exists only while shown.
 - **Suspend now waits for the lock to actually cover the screen.** qylock's
   `lock_shell.qml` touches `$XDG_RUNTIME_DIR/qylock.locked` the moment the
   compositor confirms every output is covered (`WlSessionLock.secure`) and

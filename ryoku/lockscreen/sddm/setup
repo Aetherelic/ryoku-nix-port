@@ -57,6 +57,17 @@ else
 fi
 priv() { run "${PRIV[@]}" "$@"; }
 
+# write a root-owned system file, content on stdin (mirrors install-qylock).
+write_root() {
+  local path="$1" content
+  content="$(cat)"
+  if [[ $RYOKU_DRYRUN == 1 ]]; then
+    printf 'DRYRUN: write (root) %s:\n%s\n' "$path" "$content"
+    return 0
+  fi
+  printf '%s\n' "$content" | "${PRIV[@]}" tee "$path" >/dev/null
+}
+
 PAM_FILE="/etc/pam.d/sddm"
 SESSION_DIR="/usr/share/wayland-sessions"
 HYPRLAND_SESSION="$SESSION_DIR/hyprland.desktop"
@@ -147,5 +158,24 @@ Type=Application
 EOF
   fi
 fi
+
+# --- 5. run the greeter on Wayland, not X11 ----------------------------------
+# SDDM's default X11 greeter is orphaned when a Wayland session (Hyprland)
+# starts: sddm-helper dies mid-teardown without reaping sddm-greeter-qt6, which
+# lingers on a leftover Xorg and keeps drawing power (a video skin decodes a
+# 1440p60 clip forever). Running the greeter on Wayland like the session lets
+# SDDM own the VT and tear it down cleanly at login. weston --shell=kiosk is
+# SDDM's default kiosk compositor (base.packages ships weston); the greeter
+# connects to it as a separate Wayland client.
+WAYLAND_CONF="/etc/sddm.conf.d/10-ryoku-wayland.conf"
+echo "  greeter display server -> wayland ($WAYLAND_CONF)"
+priv mkdir -p /etc/sddm.conf.d
+write_root "$WAYLAND_CONF" <<'EOF'
+[General]
+DisplayServer=wayland
+
+[Wayland]
+CompositorCommand=weston --shell=kiosk
+EOF
 
 echo "SDDM wiring complete."

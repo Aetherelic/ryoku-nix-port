@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: **weston, to run the SDDM greeter on Wayland.** SDDM's default
+  X11 greeter was orphaned when the Hyprland (Wayland) session started -- it
+  lingered on a leftover Xorg and kept drawing power -- so the greeter now runs
+  on Wayland (`DisplayServer=wayland`, `CompositorCommand=weston --shell=kiosk`)
+  and SDDM tears it down cleanly at login. weston is the kiosk compositor that
+  hosts the greeter as a Wayland client; without it a Wayland greeter cannot
+  start. Official `extra` repo, and a `ryoku-desktop` depend so it also reaches
+  existing boxes on `ryoku update`.
 - `base.packages` / `aur.packages`: `game-devices-udev` moves from the AUR set to
   the base set, shipped from `[ryoku]`. It is not a driver: the kernel binds
   these pads already, but without its rules userspace cannot open their hidraw

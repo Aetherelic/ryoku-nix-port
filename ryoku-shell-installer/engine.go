@@ -989,15 +989,17 @@ func stepSession(e *engine) error {
 		return err
 	}
 
-	// greeter theme policy: install-qylock wrote 99-ryoku.conf, but SDDM reads
-	// conf.d lexically and later files win per key, so KDE's kde_settings.conf
-	// outranks it. the greeter toggle decides who ends up on top.
+	// greeter policy: install-qylock wrote 99-ryoku.conf and sddm/setup wrote
+	// 10-ryoku-wayland.conf (DisplayServer=wayland). SDDM reads conf.d lexically
+	// and later files win per key, so KDE's kde_settings.conf outranks the theme.
+	// The greeter toggle decides who ends up on top; opting out drops both Ryoku
+	// files so the user's greeter theme AND display server stand.
 	switch {
 	case !e.p.greeter:
-		if err := e.sudo("rm", "-f", "/etc/sddm.conf.d/99-ryoku.conf", "/etc/sddm.conf.d/zz-ryoku.conf"); err != nil {
+		if err := e.sudo("rm", "-f", "/etc/sddm.conf.d/99-ryoku.conf", "/etc/sddm.conf.d/zz-ryoku.conf", "/etc/sddm.conf.d/10-ryoku-wayland.conf"); err != nil {
 			return err
 		}
-		e.say("kept your current SDDM greeter theme (the Ryoku theme is installed, not selected)")
+		e.say("kept your current SDDM greeter (Ryoku's theme and Wayland greeter are installed, not selected)")
 	case e.f.kdeSddmConf:
 		zz := "# written by ryoku-shell-install: sorts after kde_settings.conf so the\n" +
 			"# ryoku greeter theme wins. delete this file to get the KDE greeter back.\n" +
@@ -1005,10 +1007,10 @@ func stepSession(e *engine) error {
 		if err := e.sudoWrite("/etc/sddm.conf.d/zz-ryoku.conf", zz); err != nil {
 			return err
 		}
-		e.recordRestore("sudo rm -f /etc/sddm.conf.d/zz-ryoku.conf /etc/sddm.conf.d/99-ryoku.conf")
+		e.recordRestore("sudo rm -f /etc/sddm.conf.d/zz-ryoku.conf /etc/sddm.conf.d/99-ryoku.conf /etc/sddm.conf.d/10-ryoku-wayland.conf")
 		e.say("Ryoku greeter theme selected past KDE's kde_settings.conf drop-in")
 	default:
-		e.recordRestore("sudo rm -f /etc/sddm.conf.d/99-ryoku.conf")
+		e.recordRestore("sudo rm -f /etc/sddm.conf.d/99-ryoku.conf /etc/sddm.conf.d/10-ryoku-wayland.conf")
 	}
 
 	// sddm/setup strips pam_gnome_keyring on purpose: a fresh Ryoku box uses a

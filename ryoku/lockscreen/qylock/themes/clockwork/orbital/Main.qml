@@ -19,6 +19,14 @@ Rectangle {
 
     property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
 
+    // The 60fps clock timer below only feeds the smooth second-hand, so keep it
+    // awake only while this surface is on screen. Under the SDDM greeter that is
+    // when the window is focused; a backgrounded or orphaned greeter then stops
+    // waking the CPU ~60x/s for a clock nobody can see. The in-session lock shim
+    // (which alone defines sddm.fingerprintHint) lives only while shown, so it
+    // always animates.
+    readonly property bool clockAwake: ((typeof sddm !== "undefined") && sddm.fingerprintHint === true) || Window.active
+
     // ── fingerprint sensor hint ─────────────────────────────────────────────
     // Driven by the lock shim's carry-over props (fingerprintHint,
     // fingerprintReady, fingerprintState). These are undefined under a real
@@ -66,7 +74,7 @@ Rectangle {
     readonly property real localTimeMS: (curH * 3600000) + (curM * 60000) + (curS * 1000) + curMS
 
     Timer {
-        interval: 16; running: true; repeat: true
+        interval: 16; running: root.clockAwake; repeat: true
         onTriggered: {
             var d = new Date()
             root.curH = d.getHours(); root.curM = d.getMinutes(); root.curS = d.getSeconds(); root.curMS = d.getMilliseconds()

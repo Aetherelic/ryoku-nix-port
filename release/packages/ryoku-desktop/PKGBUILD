@@ -50,6 +50,13 @@ depends=(
   # and Fastfetch cover renders blank. A hard depend so the art shows on the ISO
   # and on existing boxes after `ryoku update`.
   'qt6-imageformats'
+  # weston hosts the SDDM greeter as a Wayland compositor (weston --shell=kiosk),
+  # so the greeter runs on Wayland like the session and SDDM tears it down
+  # cleanly at login; the old X11 greeter was orphaned when a Wayland session
+  # started and kept drawing power. Official extra repo, hard depend so it ships
+  # on the ISO and reaches existing boxes on `ryoku update` -- a Wayland greeter
+  # config without weston cannot start.
+  'weston'
   'hyprpolkitagent'
   'xdg-desktop-portal-hyprland'
   # XDPH invokes /usr/bin/hyprland-preview-share-picker by name for the

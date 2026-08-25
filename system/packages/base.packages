@@ -113,6 +113,12 @@ flatpak
 
 # Login + lockscreen (SDDM greeter + qylock clockwork)
 sddm
+# weston: the SDDM greeter's Wayland compositor (weston --shell=kiosk). Running
+# the greeter on Wayland like the Hyprland session lets SDDM tear it down at
+# login; the old X11 greeter was orphaned when a Wayland session started and
+# kept drawing power. A Wayland greeter cannot start without it. See
+# ryoku/lockscreen/sddm/setup.
+weston
 polkit
 gnome-keyring
 qt6-declarative
