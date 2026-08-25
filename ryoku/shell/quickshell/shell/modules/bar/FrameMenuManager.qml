@@ -334,6 +334,12 @@ Item {
             out[dockPreviewHost.edge].bw = dockPreviewHost.maskW;
             out[dockPreviewHost.edge].bh = dockPreviewHost.maskH;
         }
+        if (musicHoverHost.maskW > 0 && musicHoverHost.maskH > 0 && out[musicHoverHost.edge]) {
+            out[musicHoverHost.edge].bx = musicHoverHost.maskX;
+            out[musicHoverHost.edge].by = musicHoverHost.maskY;
+            out[musicHoverHost.edge].bw = musicHoverHost.maskW;
+            out[musicHoverHost.edge].bh = musicHoverHost.maskH;
+        }
         return out;
     }
 
@@ -346,6 +352,15 @@ Item {
         y: dockPreviewHost.maskY,
         w: dockPreviewHost.maskW,
         h: dockPreviewHost.maskH
+    })
+
+    // Music card body rect on its own, like dockMask, so it catches input in
+    // every bar style.
+    readonly property var musicMask: ({
+        x: musicHoverHost.maskX,
+        y: musicHoverHost.maskY,
+        w: musicHoverHost.maskW,
+        h: musicHoverHost.maskH
     })
 
     // A centred plugin popout hangs off no screen edge, so it cannot ride the
@@ -615,6 +630,15 @@ Item {
         s: root.scale
         active: root.active
         frameThickness: root.clearanceFor(DockPreview.edge)
+    }
+
+    // The dock's now-playing card, driven by MusicPreview on chip hover.
+    MusicHoverPopout {
+        id: musicHoverHost
+        group: root.group
+        s: root.scale
+        active: root.active
+        frameThickness: root.clearanceFor(MusicPreview.edge)
     }
     onPluginUnpinRequested: pluginId => root.closeSurface("plugin:" + pluginId, root.monitorName)
 }

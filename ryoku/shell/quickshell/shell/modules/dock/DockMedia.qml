@@ -23,7 +23,7 @@ Item {
 
     readonly property var player: Media.player
     readonly property bool playing: Media.playing
-    readonly property string artUrl: media.player ? (media.player.trackArtUrl || "") : ""
+    readonly property string artUrl: Music.artUrl.length > 0 ? Music.artUrl : (media.player ? (media.player.trackArtUrl || "") : "")
     readonly property real art: media.depth - 10
 
     // Album-art accent (MusicPopout's approach): quantise the sleeve and lift its
@@ -197,5 +197,24 @@ Item {
                 onAct: if (media.player) media.player.next()
             }
         }
+    }
+
+    // Hovering the chip opens the music card via MusicPreview; DockBand suppresses
+    // the app window-preview over the chip's span.
+    function syncMusicPreview() {
+        if (chipHover.hovered) {
+            const c = media.mapToGlobal(media.width / 2, media.height / 2);
+            MusicPreview.gx = c.x;
+            MusicPreview.gy = c.y;
+            MusicPreview.edge = media.band.edge;
+            MusicPreview.margin = media.band.reservedDepth + 14;
+            MusicPreview.hovered = true;
+        } else if (MusicPreview.hovered) {
+            MusicPreview.hovered = false;
+        }
+    }
+    HoverHandler {
+        id: chipHover
+        onHoveredChanged: media.syncMusicPreview()
     }
 }
