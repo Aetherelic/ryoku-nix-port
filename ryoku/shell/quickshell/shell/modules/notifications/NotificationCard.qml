@@ -247,6 +247,7 @@ Rectangle {
         // 2.3). Hidden while a popup is compact and collapsed; the expand chevron
         // brings them in, fading up as the card grows.
         Column {
+            id: actionCol
             width: parent.width
             spacing: Theme.paddingSm * card.us
             visible: card.visibleActions.length > 0 && card.showFull
@@ -260,7 +261,10 @@ Rectangle {
                     id: actionBtn
                     required property var modelData
 
-                    width: parent.width
+                    // the column by id, not `parent`: a Repeater delegate has no
+                    // parent while it is being created, so a notification that
+                    // carries actions logged a TypeError for every button.
+                    width: actionCol.width
                     height: actionLabel.implicitHeight + Theme.paddingSm * 2 * card.us
                     radius: Theme.radiusWidget * card.us
                     color: actionHov.hovered ? Theme.vermLit : Theme.primary
