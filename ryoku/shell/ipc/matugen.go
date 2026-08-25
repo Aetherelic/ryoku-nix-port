@@ -1014,6 +1014,9 @@ func matugenRenderTemplates(shell map[string]string, k matugenKnobs) {
 	// Absent-means-off would have kept every app added from here on dark for
 	// everyone who had ever opened the appearance page.
 	enabled := func(group string) bool {
+		if group == "steam" && !steamThemeReady() {
+			return false
+		}
 		if v, ok := k.Templates[group]; ok {
 			return v
 		}
@@ -1236,6 +1239,7 @@ func matugenEnsureDirs() {
 	cfg := matugenConfigHome()
 	cache := matugenCacheHome()
 	data := matugenDataHome()
+	home := os.Getenv("HOME")
 	for _, d := range []string{
 		filepath.Join(cache, "ryoku"),
 		filepath.Join(cache, "matugen"),
@@ -1261,10 +1265,22 @@ func matugenEnsureDirs() {
 		filepath.Join(cfg, "alacritty"),
 		filepath.Join(cfg, "tmux"),
 		filepath.Join(data, "TelegramDesktop", "tdata"),
-		filepath.Join(os.Getenv("HOME"), ".steam", "steam", "steamui", "skins", "Material-Theme", "css", "main", "colors"),
 	} {
 		_ = os.MkdirAll(d, 0o755)
 	}
+	if steamThemeReady() {
+		_ = os.MkdirAll(filepath.Join(home, ".steam", "steam", "steamui", "skins", "Material-Theme", "css", "main", "colors"), 0o755)
+	}
+}
+
+func steamThemeReady() bool {
+	home := os.Getenv("HOME")
+	if home == "" {
+		return false
+	}
+
+	info, err := os.Stat(filepath.Join(home, ".steam", "steam", "steamui"))
+	return err == nil && info.IsDir()
 }
 
 // writeJSONFile writes v as indented JSON atomically (temp file then rename), so

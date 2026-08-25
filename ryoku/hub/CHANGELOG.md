@@ -69,6 +69,12 @@
   per theme change (the colour is re-applied on login and on resume instead).
 
 ### Fixed
+- **Steam theming no longer breaks Steam's first launch.** Matugen pre-created
+  the Steam skin output path under `~/.steam/steam/steamui`, so on a box where
+  Steam had never run it created `~/.steam/steam` as a plain directory and stopped
+  Steam laying down its own bootstrap there. Steam directory creation and the
+  Steam template now wait until `~/.steam/steam/steamui` exists (#64)
+  (`backend/matugen.go`, `ipc/matugen.go`).
 - **A row gated by a master switch now looks disabled.** `SettingRow` stopped
   taking input when its `enabled` went false but kept full ink, so an inert
   control read as a live one -- the dock's rows under Enabled being the clearest
