@@ -104,31 +104,48 @@ jobs:
               gh release create "$REF" --title "$title" --notes-file "$body" --verify-tag $prerelease
             fi
 
-            # Announce the release to Discord too, reusing the existing webhook
-            # secret. Stable only: the rolling unstable pre-release refreshes on
-            # every push and would flood the channel. Non-fatal, so a webhook
-            # hiccup never fails the release.
+            # Announce the stable release to Discord, reusing the existing webhook
+            # secret. The message carries the published GitHub changelog verbatim
+            # (its ### New/Fixed/Removed headings render natively in Discord) in a
+            # branded embed with the wordmark banner. Stable only, so the rolling
+            # unstable pre-release never floods the channel; non-fatal, so a
+            # webhook hiccup can never fail the release.
             if [[ -n "${DISCORD_WEBHOOK_URL:-}" ]]; then
               release_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$REF"
-              mark="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/ryoku/assets/brand/logo-mark.png"
+              raw="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/ryoku/assets/brand"
               footer="Ryoku Arch : For the sake of power and beauty."
-              # -Rs slurps the notes body as one string; Discord caps an embed
-              # description at 4096 chars, so trim with room for the ellipsis.
-              jq -Rs --arg title "$title" --arg url "$release_url" --arg mark "$mark" --arg footer "$footer" '
-                {
-                  username: "Ryoku GitHub",
-                  avatar_url: $mark,
-                  allowed_mentions: { parse: [] },
-                  embeds: [ {
-                    title: $title,
-                    url: $url,
-                    color: 8955261,
-                    description: (gsub("\r"; "") | if length > 4000 then .[0:3997] + "..." else . end),
-                    thumbnail: { url: $mark },
-                    footer: { text: $footer, icon_url: $mark },
-                    timestamp: (now | todateiso8601)
-                  } ]
-                }' <"$body" >/tmp/discord.json
+              notes_file="$(mktemp)"
+              # pull the changelog straight from the published GitHub release, so
+              # Discord shows exactly what the release page shows.
+              gh release view "$REF" --json body -q .body >"$notes_file" 2>/dev/null || cp "$body" "$notes_file"
+              jq -n \
+                --rawfile notes "$notes_file" \
+                --arg title "$title" \
+                --arg url "$release_url" \
+                --arg raw "$raw" \
+                --arg footer "$footer" \
+                '($notes | gsub("\r"; "")) as $b
+                 | (if ($b | length) > 3800
+                      then $b[0:3800] + "\n\n**[Read the full changelog](" + $url + ")**"
+                      else $b end) as $desc
+                 | {
+                     username: "Ryoku",
+                     avatar_url: ($raw + "/logo-mark.png"),
+                     allowed_mentions: { parse: [] },
+                     content: ("**" + $title + " is now available.**"),
+                     embeds: [ {
+                       author: { name: "Ryoku Arch", icon_url: ($raw + "/logo-mark.png") },
+                       title: $title,
+                       url: $url,
+                       description: $desc,
+                       color: 8955261,
+                       image: { url: ($raw + "/dark.png") },
+                       thumbnail: { url: ($raw + "/logo-mark.png") },
+                       footer: { text: $footer, icon_url: ($raw + "/logo-mark.png") },
+                       timestamp: (now | todateiso8601)
+                     } ]
+                   }' >/tmp/discord.json
+              rm -f "$notes_file"
               code="$(curl -sS -o /tmp/discord-resp.json -w '%{http_code}' \
                 -H 'Content-Type: application/json' -X POST \
                 --data-binary @/tmp/discord.json "$DISCORD_WEBHOOK_URL")"

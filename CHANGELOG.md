@@ -14,9 +14,10 @@ for finer detail.
   release; each unstable-dev bump refreshes one rolling `unstable` pre-release.
   The `commit-msg` and `pre-push` hooks now also hold subjects to 72 characters
   with no trailing period and validate the trailer. A stable release is also
-  announced to Discord, reusing the existing `DISCORD_WEBHOOK_URL` secret; the
-  rolling `unstable` pre-release is not, to keep the channel quiet. See
-  `CONTRIBUTING.md`.
+  announced to Discord, reusing the existing `DISCORD_WEBHOOK_URL` secret: the
+  published GitHub changelog is posted verbatim in a branded embed (wordmark
+  banner, logo mark, brand footer). The rolling `unstable` pre-release is not
+  announced, to keep the channel quiet. See `CONTRIBUTING.md`.
 - **User edits live in a `user_edits` overlay, separate from Ryoku-owned config.**
   `~/.config/ryoku/user_edits` mirrors `~/.config` and is laid over the base on
   every `ryoku materialize`/deploy, so a file there wins while the base (the
