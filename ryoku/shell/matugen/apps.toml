@@ -4,11 +4,14 @@
 # Configured and toggled via Ryoku Settings (Hub) -> Appearance -> Matugen
 
 [templates.gtk3]
-input_path = "~/.config/matugen/templates/gtk-colors.css"
+input_path = "~/.config/matugen/templates/gtk3-colors.css"
 output_path = "~/.config/gtk-3.0/gtk.css"
 
+# GTK 4 and GTK 3 read separate inputs: libadwaita 1.6+ recolours its widgets
+# from CSS custom properties (:root) that GTK 3 cannot parse, so the GTK 4
+# template leads with those and GTK 3 keeps the @define-color form it can read.
 [templates.gtk4]
-input_path = "~/.config/matugen/templates/gtk-colors.css"
+input_path = "~/.config/matugen/templates/gtk4-colors.css"
 output_path = "~/.config/gtk-4.0/gtk.css"
 
 [templates.vesktop]
