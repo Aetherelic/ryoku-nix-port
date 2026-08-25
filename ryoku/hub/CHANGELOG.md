@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Added
+- **Appearance groups the GTK app-theming controls into one card.** The Theme
+  tab, under the palette scheme, gains an APP THEMING card that surfaces the
+  Theme apps toggle beside two new controls: a GTK theme chooser (Adw, the
+  libadwaita-consistent GTK3 theme that follows the palette; Adwaita, the stock
+  GNOME look; or System, which leaves the choice to the user) writing theme.json
+  `gtkTheme` through `ryoku-hub hypr gtk-theme`, and a GNOME accent switch writing
+  `gnomeAccent` through `ryoku-hub hypr gnome-accent`, which syncs the desktop's
+  accent-colour setting to the nearest named accent so Flatpak and GNOME apps
+  that read the system setting follow the palette too. Both keys are additive and
+  default on absence (`gtkTheme` to `adw`, `gnomeAccent` to on); the hub only
+  persists them and asks the daemon to re-apply, so the daemon stays the single
+  writer of gtk-theme and accent-color. A new `ryoku doctor` reconciler converges
+  GTK session drift, resetting gsettings gtk-theme to the resolved name for the
+  current mode and restoring the settings.ini baselines when they go missing
+  (`quickshell/pages/AppearancePage.qml`, `backend/schemes.go`, `backend/hypr.go`,
+  `cli/internal/doctor/doctor.go`).
 - **Displays lets you type a custom resolution.** The Resolution picker gains a
   "Custom…" entry: a small W × H @ Hz form on the page's own surface. The typed
   mode stages into the draft like any other pick, and on Apply it is forced even

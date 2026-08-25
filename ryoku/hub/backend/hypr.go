@@ -618,6 +618,16 @@ func runHypr(args []string) error {
 			return printJSON(map[string]bool{"themeApps": currentThemeApps()})
 		}
 		return applyThemeApps(args[1] == "on" || args[1] == "true")
+	case "gtk-theme":
+		if len(args) < 2 {
+			return printJSON(map[string]string{"gtkTheme": currentGtkTheme()})
+		}
+		return applyGtkTheme(args[1])
+	case "gnome-accent":
+		if len(args) < 2 {
+			return printJSON(map[string]bool{"gnomeAccent": currentGnomeAccent()})
+		}
+		return applyGnomeAccent(args[1] == "on" || args[1] == "true")
 	case "matugen":
 		return runMatugenCmd(args[1:])
 	case "anim-preset":

@@ -2368,3 +2368,29 @@ func TestStrayRyokuFilesSelectsUnownedOnly(t *testing.T) {
 		}
 	}
 }
+
+// resolveGtkThemeName maps the theme.json GTK choice + session mode to the exact
+// gsettings gtk-theme name the daemon writes (C3), so the GTK session reconciler
+// converges to a name the next repaint will not immediately flip. system means
+// Ryoku never owns gtk-theme, so it resolves to the empty name, and an absent
+// choice reads as adw.
+func TestResolveGtkThemeName(t *testing.T) {
+	cases := []struct {
+		pref string
+		dark bool
+		want string
+	}{
+		{"adw", true, "adw-gtk3-dark"},
+		{"adw", false, "adw-gtk3"},
+		{"adwaita", true, "Adwaita-dark"},
+		{"adwaita", false, "Adwaita"},
+		{"system", true, ""},
+		{"system", false, ""},
+		{"", true, "adw-gtk3-dark"},
+	}
+	for _, c := range cases {
+		if got := resolveGtkThemeName(c.pref, c.dark); got != c.want {
+			t.Errorf("resolveGtkThemeName(%q, %v) = %q, want %q", c.pref, c.dark, got, c.want)
+		}
+	}
+}

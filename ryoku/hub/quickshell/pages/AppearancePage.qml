@@ -163,6 +163,51 @@ Item {
     }
     Process { id: matugenSetProc }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // App theming: how far the palette reaches beyond the shell. Theme apps
+    // decides whether GTK / libadwaita apps recolour at all; GTK theme picks the
+    // base theme that carries the palette into GTK 3; GNOME accent syncs the
+    // desktop's own accent setting so apps that read it (Flatpaks, GNOME apps)
+    // follow the palette too. All three write theme.json through the hub and
+    // re-apply at once; the daemon owns the gsettings writes.
+    // ════════════════════════════════════════════════════════════════════════
+    property bool themeApps: true
+    property string gtkTheme: "adw"
+    property bool gnomeAccent: true
+
+    readonly property var gtkThemeOptions: [
+        { "id": "adw",     "label": "Adw" },
+        { "id": "adwaita", "label": "Adwaita" },
+        { "id": "system",  "label": "System" }
+    ]
+    readonly property var gtkThemeLabels: pg.gtkThemeOptions.map(o => o.label)
+    function gtkThemeLabel(id) { for (var i = 0; i < pg.gtkThemeOptions.length; i++) if (pg.gtkThemeOptions[i].id === id) return pg.gtkThemeOptions[i].label; return "Adw"; }
+    function gtkThemeId(label) { for (var i = 0; i < pg.gtkThemeOptions.length; i++) if (pg.gtkThemeOptions[i].label === label) return pg.gtkThemeOptions[i].id; return "adw"; }
+
+    function refreshAppTheming() { themeAppsGet.running = true; gtkThemeGet.running = true; gnomeAccentGet.running = true; }
+    function setThemeApps(on) { pg.themeApps = on; themeAppsSet.command = ["ryoku-hub", "hypr", "theme-apps", on ? "on" : "off"]; themeAppsSet.running = true; }
+    function setGtkTheme(id) { pg.gtkTheme = id; gtkThemeSet.command = ["ryoku-hub", "hypr", "gtk-theme", id]; gtkThemeSet.running = true; }
+    function setGnomeAccent(on) { pg.gnomeAccent = on; gnomeAccentSet.command = ["ryoku-hub", "hypr", "gnome-accent", on ? "on" : "off"]; gnomeAccentSet.running = true; }
+
+    Process {
+        id: themeAppsGet
+        command: ["ryoku-hub", "hypr", "theme-apps"]
+        stdout: StdioCollector { onStreamFinished: { try { var d = JSON.parse(this.text); if (d && d.themeApps !== undefined) pg.themeApps = !!d.themeApps; } catch (e) {} } }
+    }
+    Process { id: themeAppsSet }
+    Process {
+        id: gtkThemeGet
+        command: ["ryoku-hub", "hypr", "gtk-theme"]
+        stdout: StdioCollector { onStreamFinished: { try { var d = JSON.parse(this.text); if (d && d.gtkTheme) pg.gtkTheme = String(d.gtkTheme); } catch (e) {} } }
+    }
+    Process { id: gtkThemeSet }
+    Process {
+        id: gnomeAccentGet
+        command: ["ryoku-hub", "hypr", "gnome-accent"]
+        stdout: StdioCollector { onStreamFinished: { try { var d = JSON.parse(this.text); if (d && d.gnomeAccent !== undefined) pg.gnomeAccent = !!d.gnomeAccent; } catch (e) {} } }
+    }
+    Process { id: gnomeAccentSet }
+
 
     // ════════════════════════════════════════════════════════════════════════
     // Comfort: backlight and night light, applied at once via the shipped tools.
@@ -375,7 +420,7 @@ Item {
         if (pg.tab === "Comfort") pg.refreshComfort();
         else if (pg.tab === "Rices") pg.reloadRices();
     }
-    Component.onCompleted: { pg.refreshComfort(); pg.reloadRices(); pg.refreshMatugen(); }
+    Component.onCompleted: { pg.refreshComfort(); pg.reloadRices(); pg.refreshMatugen(); pg.refreshAppTheming(); }
 
     // ════════════════════════════════════════════════════════════════════════
     // small shared pieces
@@ -882,6 +927,68 @@ Item {
                                     delegate: SchemeCard { required property var modelData; scheme: modelData }
                                 }
                             }
+                        }
+                    }
+                }
+
+                // ── APP THEMING: how far the palette reaches into GTK / GUI
+                // apps. The shell, terminal, borders and Qt always track it;
+                // Theme apps decides whether GTK / libadwaita apps recolour too,
+                // GTK theme picks the base theme that carries the palette into
+                // GTK 3, and GNOME accent syncs the desktop's own accent setting
+                // for apps that read it instead of Ryoku's stylesheet. All three
+                // write theme.json through the hub; the daemon owns gsettings.
+                SettingCard {
+                    width: wallCol.width
+                    title: I18n.tr("APP THEMING")
+
+                    Text {
+                        width: parent.width
+                        leftPadding: Tokens.s4; rightPadding: Tokens.s4
+                        topPadding: Tokens.s3; bottomPadding: Tokens.s2
+                        text: I18n.tr("How far the palette reaches beyond the shell. The shell, terminal, borders and Qt always track it; these decide whether GTK and libadwaita apps recolour too, which GTK theme carries the palette, and whether the desktop's own accent setting follows along.")
+                        color: Tokens.inkMuted; font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall; wrapMode: Text.WordWrap
+                    }
+
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        controlWidth: 54
+                        label: I18n.tr("Theme apps")
+                        desc: I18n.tr("Recolour Files, text editors and other GTK / libadwaita apps to the palette. Off leaves them on their own stock colours.")
+                        Sw {
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            on: pg.themeApps
+                            onToggled: (v) => pg.setThemeApps(v)
+                        }
+                    }
+
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        block: true
+                        label: I18n.tr("GTK theme")
+                        desc: I18n.tr("Adw is the libadwaita-consistent GTK3 theme that follows the palette; Adwaita is the stock GNOME look; System leaves the choice to whatever you set yourself.")
+                        Seg {
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            options: pg.gtkThemeLabels
+                            current: pg.gtkThemeLabel(pg.gtkTheme)
+                            onChose: (l) => pg.setGtkTheme(pg.gtkThemeId(l))
+                        }
+                    }
+
+                    SettingRow {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        divider: true
+                        controlWidth: 54
+                        label: I18n.tr("GNOME accent")
+                        desc: I18n.tr("Sync the desktop's accent colour to the nearest named accent, so Flatpak and GNOME apps that read the system setting instead of Ryoku's stylesheet follow the palette too.")
+                        Sw {
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            on: pg.gnomeAccent
+                            onToggled: (v) => pg.setGnomeAccent(v)
                         }
                     }
                 }

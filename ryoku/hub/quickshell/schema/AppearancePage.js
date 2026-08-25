@@ -19,6 +19,35 @@ var rows = [{
         ]
     },{
         "tab": "Theme",
+        "group": "APP THEMING",
+        "key": "theme.json themeApps",
+        "label": "Theme apps",
+        "desc": "Recolour Files, editors and other GTK / libadwaita apps to the palette, or leave them on their own stock colours",
+        "ctl": "sw",
+        "src": "~/.config/ryoku/theme.json via `ryoku-hub hypr theme-apps on|off`; the daemon renders or blanks the GTK stylesheets"
+    },{
+        "tab": "Theme",
+        "group": "APP THEMING",
+        "key": "theme.json gtkTheme",
+        "label": "GTK theme",
+        "desc": "Adw follows the palette (the libadwaita-consistent GTK3 theme), Adwaita is the stock GNOME look, and System leaves the choice to you",
+        "ctl": "seg",
+        "opts": [
+            "Adw",
+            "Adwaita",
+            "System"
+        ],
+        "src": "~/.config/ryoku/theme.json via `ryoku-hub hypr gtk-theme <adw|adwaita|system>`; the daemon owns the gsettings gtk-theme write"
+    },{
+        "tab": "Theme",
+        "group": "APP THEMING",
+        "key": "theme.json gnomeAccent",
+        "label": "GNOME accent",
+        "desc": "Sync the desktop's accent colour to the nearest named accent so Flatpak and GNOME apps that read the system setting follow the palette too",
+        "ctl": "sw",
+        "src": "~/.config/ryoku/theme.json via `ryoku-hub hypr gnome-accent on|off`; the daemon owns the gsettings accent-color write"
+    },{
+        "tab": "Theme",
         "group": "WALLPAPER",
         "key": "(no key - a path in a state file)",
         "label": "Wallpaper",

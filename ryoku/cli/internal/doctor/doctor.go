@@ -126,6 +126,7 @@ func reconcilers() []reconciler {
 		{"keyboard layout detection", reconcileKeyboardSeed},
 		{"in-session lockscreen", reconcileLockscreen},
 		{"cursor theme", reconcileCursorTheme},
+		{"GTK session theme", reconcileGtkSession},
 		{"Material Symbols icon font", reconcileIconFont},
 		{"frame bar style name", reconcileFrameBarsStyle},
 		{"shell config schema", reconcileShellConfig},
@@ -2037,6 +2038,142 @@ func reconcileCursorTheme(checkOnly bool) recResult {
 	// best-effort live apply; no-ops off a running session.
 	_ = exec.Command("hyprctl", "setcursor", defaultCursorTheme, fmt.Sprintf("%d", size)).Run()
 	return fixedRes("cursor theme %q missing on disk; reset to %s (re-pick your theme in the Hub after installing it)", theme, defaultCursorTheme)
+}
+
+// ---- reconciler: GTK session theme -------------------------------------------
+
+// resolveGtkThemeName maps the theme.json GTK choice and the session's light or
+// dark mode to the gsettings gtk-theme name, the exact C3 mapping the daemon
+// uses so doctor never converges to a variant the next repaint flips: adw uses
+// adw-gtk3 (whose widget rules derive from the named colours the palette emits),
+// adwaita the stock GNOME look, and system means Ryoku never owns gtk-theme.
+func resolveGtkThemeName(pref string, dark bool) string {
+	switch pref {
+	case "adwaita":
+		if dark {
+			return "Adwaita-dark"
+		}
+		return "Adwaita"
+	case "system":
+		return ""
+	default: // "adw", and an absent choice
+		if dark {
+			return "adw-gtk3-dark"
+		}
+		return "adw-gtk3"
+	}
+}
+
+// gtkThemePref reads the GTK base-theme choice out of theme.json. Absent (an
+// older file, or none) reads as "adw", matching the hub's default.
+func gtkThemePref() string {
+	var s struct {
+		GtkTheme string `json:"gtkTheme"`
+	}
+	b, err := os.ReadFile(filepath.Join(sys.ConfigHome(), "ryoku", "theme.json"))
+	if err != nil || json.Unmarshal(b, &s) != nil || s.GtkTheme == "" {
+		return "adw"
+	}
+	return s.GtkTheme
+}
+
+// gsettingsInterface reads one org.gnome.desktop.interface key, unquoted. ok is
+// false when gsettings is absent or no settings bus answers, so a TTY or a
+// non-desktop box reads as "can't tell" and the GTK reconciler stands down
+// instead of inventing drift.
+func gsettingsInterface(key string) (string, bool) {
+	out, err := sys.RunOut("gsettings", "get", "org.gnome.desktop.interface", key)
+	if err != nil {
+		return "", false
+	}
+	return strings.Trim(strings.TrimSpace(out), "'"), true
+}
+
+// restoreGtkSettingsIni copies the missing settings.ini baselines from the
+// packaged base config tree materialize lays, the same files the shell deploys.
+// The daemon rewrites their contents on every palette or mode change, so
+// restoring the baseline only needs to make the files exist. false when the
+// packaged copy is itself absent (a box still on the pre-fix package), where the
+// cure is to pull the update first.
+func restoreGtkSettingsIni(missingRel []string) (bool, error) {
+	for _, rel := range missingRel {
+		src := filepath.Join(sys.BaseConfigDir(), rel)
+		if !sys.Exists(src) {
+			return false, nil
+		}
+		if err := sys.CopyFile(src, filepath.Join(sys.ConfigHome(), rel)); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// reconcileGtkSession keeps the GTK session in step with the theme.json GTK
+// choice: gsettings gtk-theme should be the C3 name resolved for the current
+// light/dark mode, and the two settings.ini baselines (the on-disk theme names a
+// bare Wayland session's xsettings-less apps read) should exist. The daemon
+// writes gtk-theme on every palette or mode change (C4); this converges the
+// drift a crash, a hand-edit, or a box that updated before the theme shipped
+// leaves behind. system mode leaves gtk-theme untouched. Idempotent, and quiet
+// off a desktop session or when no settings bus answers.
+func reconcileGtkSession(checkOnly bool) recResult {
+	pref := gtkThemePref()
+	if pref == "system" {
+		return okRes("GTK theme left to the system (gtkTheme=system); gtk-theme not managed")
+	}
+	if !sys.Has("gsettings") {
+		return okRes("gsettings unavailable; GTK theme not managed here")
+	}
+	scheme, ok := gsettingsInterface("color-scheme")
+	if !ok {
+		return okRes("no reachable settings bus; GTK theme reconciled at next login")
+	}
+	want := resolveGtkThemeName(pref, !strings.Contains(scheme, "light"))
+	cur, ok := gsettingsInterface("gtk-theme")
+	if !ok {
+		return okRes("no reachable settings bus; GTK theme reconciled at next login")
+	}
+
+	var missing []string
+	for _, rel := range []string{"gtk-3.0/settings.ini", "gtk-4.0/settings.ini"} {
+		if !sys.Exists(filepath.Join(sys.ConfigHome(), rel)) {
+			missing = append(missing, rel)
+		}
+	}
+	themeDrift := cur != want
+	if !themeDrift && len(missing) == 0 {
+		return okRes("GTK session theme is %s and the settings.ini baselines are present", want)
+	}
+
+	if checkOnly {
+		switch {
+		case themeDrift && len(missing) > 0:
+			return wouldRes("GTK theme is %q, want %q, and %s missing", cur, want, strings.Join(missing, ", ")).withFix("ryoku doctor")
+		case themeDrift:
+			return wouldRes("GTK theme is %q, want %q for the current mode", cur, want).withFix("ryoku doctor")
+		default:
+			return wouldRes("GTK settings.ini baseline(s) missing: %s", strings.Join(missing, ", ")).withFix("ryoku doctor")
+		}
+	}
+
+	var did []string
+	if themeDrift {
+		if err := sys.Run("gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", want); err != nil {
+			return failRes("could not set gtk-theme to %s: %v", want, err).withFix("ryoku doctor")
+		}
+		did = append(did, fmt.Sprintf("set gtk-theme to %s", want))
+	}
+	if len(missing) > 0 {
+		restored, err := restoreGtkSettingsIni(missing)
+		if err != nil {
+			return failRes("could not restore GTK settings.ini: %v", err).withFix("ryoku materialize")
+		}
+		if !restored {
+			return warnRes("GTK settings.ini missing (%s) and no packaged baseline to restore", strings.Join(missing, ", ")).withFix("ryoku update")
+		}
+		did = append(did, "restored "+strings.Join(missing, ", "))
+	}
+	return fixedRes("GTK session reconciled: %s", strings.Join(did, "; "))
 }
 
 // ---- reconciler: SDDM greeter theme readable ---------------------------------

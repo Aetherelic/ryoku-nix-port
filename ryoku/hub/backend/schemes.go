@@ -57,6 +57,19 @@ func runMatugen(cfg, carrier string) {
 // keep the themed apps they already had.
 func themeAppsOn(s themeState) bool { return s.ThemeApps == nil || *s.ThemeApps }
 
+// gtkThemeChoice reports the GTK base-theme choice. Absent (an older theme.json)
+// reads as "adw", the libadwaita-consistent GTK3 theme that follows the palette.
+func gtkThemeChoice(s themeState) string {
+	if s.GtkTheme == "" {
+		return "adw"
+	}
+	return s.GtkTheme
+}
+
+// gnomeAccentOn reports whether the GNOME named accent tracks the palette. A
+// theme state without the key (an older theme.json) reads as on.
+func gnomeAccentOn(s themeState) bool { return s.GnomeAccent == nil || *s.GnomeAccent }
+
 // gtkOff is written to the generated GTK stylesheets when app theming is off, so
 // GTK / libadwaita apps drop the Ryoku palette and use their own stock colours.
 const gtkOff = "/* Ryoku: app theming is off; apps use their own colours. */\n"
@@ -113,13 +126,16 @@ func applyScheme(mode string) error {
 			return err
 		}
 		writePalette(pal)
-		// GTK apps re-read gtk.css when the colour-scheme preference flips; pin
-		// light/dark so libadwaita picks the freshly rendered palette up.
-		gtkScheme := "prefer-dark"
+		// The desktop's GTK settings (colour-scheme preference, the theme name
+		// for this mode, the accent) are the daemon's to write: it owns the
+		// resolver, and a second writer here would drift from it the moment the
+		// GTK theme preference changes. A curated scheme idles the paint worker,
+		// so ask explicitly rather than waiting for a repaint that never comes.
+		gtkMode := "dark"
 		if mode == "light" {
-			gtkScheme = "prefer-light"
+			gtkMode = "light"
 		}
-		_ = exec.Command("gsettings", "set", "org.gnome.desktop.interface", "color-scheme", gtkScheme).Run()
+		_ = exec.Command("ryoku-shell", "gtk", "apply", gtkMode).Run()
 	default:
 		return fmt.Errorf("unknown scheme %q (want follow|light|dark|mono)", mode)
 	}
@@ -130,6 +146,12 @@ func applyScheme(mode string) error {
 
 // currentThemeApps reports the app-theming toggle for the UI.
 func currentThemeApps() bool { return themeAppsOn(loadThemeState()) }
+
+// currentGtkTheme reports the GTK base-theme choice for the UI.
+func currentGtkTheme() string { return gtkThemeChoice(loadThemeState()) }
+
+// currentGnomeAccent reports the GNOME-accent sync toggle for the UI.
+func currentGnomeAccent() bool { return gnomeAccentOn(loadThemeState()) }
 
 // applyThemeApps sets whether the palette reaches GTK / GUI apps and re-fans the
 // live palette at once, so the toggle takes hold without a wallpaper change or a
@@ -146,6 +168,48 @@ func applyThemeApps(on bool) error {
 	}
 	nudgeGtk()
 	return nil
+}
+
+// applyGtkTheme records the GTK base-theme choice and asks the daemon to
+// re-apply. The daemon owns gtk-theme (C4): a repaint re-runs the palette
+// pipeline, which resolves the choice into a gtk-theme name for the current mode
+// (adw -> adw-gtk3[-dark], adwaita -> Adwaita[-dark], system -> left untouched),
+// writes it and nudges running apps. The hub writes no gsettings itself, and the
+// generated stylesheets are unchanged by the choice, so there is nothing to
+// re-render here.
+func applyGtkTheme(mode string) error {
+	switch mode {
+	case "adw", "adwaita", "system":
+	default:
+		return fmt.Errorf("unknown gtk theme %q (want adw|adwaita|system)", mode)
+	}
+	st := loadThemeState()
+	st.GtkTheme = mode
+	saveThemeState(st)
+	repaintPalette()
+	return nil
+}
+
+// applyGnomeAccent records whether the desktop accent-color tracks the palette
+// and asks the daemon to re-apply. The daemon owns accent-color (C4): on a
+// repaint it reads the palette primary and, when this is on, writes the nearest
+// named GNOME accent so apps reading the system setting follow along.
+func applyGnomeAccent(on bool) error {
+	st := loadThemeState()
+	st.GnomeAccent = &on
+	saveThemeState(st)
+	repaintPalette()
+	return nil
+}
+
+// repaintPalette asks the daemon to re-run the palette pipeline in place, with
+// no re-animation: the single seam that re-resolves and writes the toolkit
+// settings the daemon owns (gtk-theme, color-scheme, accent-color) from
+// theme.json. Best-effort, like applyScheme's own repaint -- the persisted
+// theme.json is the durable truth, and a box with no live daemon picks the
+// choice up at the next login; the setters lean on this only for the live nudge.
+func repaintPalette() {
+	_ = exec.Command("ryoku-shell", "wallpaper", "repaint").Run()
 }
 
 // nudgeGtk forces already-open GTK / libadwaita apps to re-read the stylesheet
@@ -170,6 +234,15 @@ type themeState struct {
 	FollowWallpaper bool   `json:"followWallpaper"`
 	Scheme          string `json:"scheme"`
 	ThemeApps       *bool  `json:"themeApps,omitempty"`
+	// GtkTheme is the GTK base-theme choice: "adw" (default; the
+	// libadwaita-consistent GTK3 theme that follows the palette), "adwaita" (the
+	// stock GNOME look) or "system" (Ryoku never writes gtk-theme). Absent reads
+	// as "adw".
+	GtkTheme string `json:"gtkTheme,omitempty"`
+	// GnomeAccent, when on (the default), syncs org.gnome.desktop.interface
+	// accent-color to the nearest named accent so Flatpak and GNOME apps that
+	// read the system setting follow the palette too. Absent reads as on.
+	GnomeAccent *bool `json:"gnomeAccent,omitempty"`
 }
 
 func themeStatePath() string {
