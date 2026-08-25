@@ -1320,32 +1320,55 @@ func matugenThemeSig(frame []byte) string {
 // the font to the toolkits the same way a theme change retunes them.
 func fontSig(frame []byte) string {
 	var doc struct {
-		FontFamily string `json:"fontFamily"`
+		FontFamily string  `json:"fontFamily"`
+		FontMono   string  `json:"fontMono"`
+		FontSize   float64 `json:"fontSize"`
 	}
 	if json.Unmarshal(frame, &doc) != nil {
 		return ""
 	}
-	return doc.FontFamily
+	return doc.FontFamily + "\x1f" + doc.FontMono + "\x1f" + strconv.FormatFloat(doc.FontSize, 'f', -1, 64)
 }
 
-// applyFont pushes the chosen UI font to the toolkits so every surface matches
-// the shell without a logout: gsettings' font-name is read live by running GTK
-// apps, and the qt6ct general font is rewritten so Qt apps pick it up on their
-// next launch. Empty resolves to the shipped Space Grotesk.
-func applyFont(family string) {
-	family = strings.TrimSpace(family)
-	if family == "" {
+// applyFont pushes the chosen fonts to the toolkits without a logout: gsettings
+// font-name / monospace-font-name are read live by running GTK apps, the qt6ct
+// general font is rewritten for Qt's next launch, and the terminal font lands in
+// a kitty include reloaded via SIGUSR1. Empty keys resolve to the shipped faces.
+func applyFont(frame []byte) {
+	family, mono, size := fontChoice(frame)
+	sz := strconv.Itoa(size)
+	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "font-name", family+" "+sz)
+	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "document-font-name", family+" "+sz)
+	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "monospace-font-name", mono+" "+sz)
+	writeQt6ctFont(family, size)
+	writeKittyFont(mono, size)
+	_ = runCommand("pkill", "-USR1", "-x", "kitty")
+}
+
+// fontChoice resolves the three system-font keys, each with its shipped fallback.
+func fontChoice(frame []byte) (family, mono string, size int) {
+	var doc struct {
+		FontFamily string  `json:"fontFamily"`
+		FontMono   string  `json:"fontMono"`
+		FontSize   float64 `json:"fontSize"`
+	}
+	_ = json.Unmarshal(frame, &doc)
+	if family = strings.TrimSpace(doc.FontFamily); family == "" {
 		family = "Space Grotesk"
 	}
-	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "font-name", family+" 11")
-	_ = runCommand("gsettings", "set", "org.gnome.desktop.interface", "document-font-name", family+" 11")
-	writeQt6ctFont(family)
+	if mono = strings.TrimSpace(doc.FontMono); mono == "" {
+		mono = "SpaceMono Nerd Font"
+	}
+	if size = int(doc.FontSize); size <= 0 {
+		size = 11
+	}
+	return
 }
 
-// writeQt6ctFont swaps the family in qt6ct's general font line, keeping the size
-// and style fields, so Qt apps under qt6ct render in the same face. Best-effort:
-// a missing file or an unexpected shape is left untouched.
-func writeQt6ctFont(family string) {
+// writeQt6ctFont swaps the family and size in qt6ct's general font line, keeping
+// the style fields, so Qt apps under qt6ct render in the same face on next
+// launch. Best-effort: a missing file or an unexpected shape is left untouched.
+func writeQt6ctFont(family string, size int) {
 	path := filepath.Join(matugenConfigHome(), "qt6ct", "qt6ct.conf")
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -1357,14 +1380,26 @@ func writeQt6ctFont(family string) {
 			continue
 		}
 		rest := strings.Trim(strings.TrimPrefix(ln, "general="), "\"")
-		parts := strings.SplitN(rest, ",", 2)
-		if len(parts) != 2 {
+		parts := strings.SplitN(rest, ",", 3)
+		if len(parts) < 3 {
 			return
 		}
-		lines[i] = "general=\"" + family + "," + parts[1] + "\""
+		lines[i] = "general=\"" + family + "," + strconv.Itoa(size) + "," + parts[2] + "\""
 		_ = os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
 		return
 	}
+}
+
+// writeKittyFont lands the mono face + size in a daemon-owned kitty include, so a
+// SIGUSR1 reload retypes the terminal without touching the shipped kitty.conf
+// (which carries `include current-font.conf`).
+func writeKittyFont(mono string, size int) {
+	dir := filepath.Join(matugenConfigHome(), "kitty")
+	if _, err := os.Stat(dir); err != nil {
+		return
+	}
+	body := "font_family " + mono + "\nfont_size " + strconv.Itoa(size) + "\n"
+	_ = os.WriteFile(filepath.Join(dir, "current-font.conf"), []byte(body), 0o644)
 }
 
 // watchMatugenKnobs retints the desktop whenever the knob store changes, so a Hub

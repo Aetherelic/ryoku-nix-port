@@ -63,6 +63,11 @@ Singleton {
     // so apps match the shell. Set from Hub -> Global.
     property alias fontFamily: adapter.fontFamily
 
+    // fontMono: the monospace face for the terminal and code; fontSize: the base
+    // point size. The daemon mirrors both system-wide. Set from Hub -> Global.
+    property alias fontMono: adapter.fontMono
+    property alias fontSize: adapter.fontSize
+
     // weather: an explicit location override (a city name; blank = auto-locate by
     // IP) and the temperature unit ("auto" follows the locale, else "celsius" /
     // "fahrenheit"). the Weather singleton reads both.
@@ -164,6 +169,8 @@ Singleton {
             property real osdOpacity: 1
             property real fontScale: 1.3
             property string fontFamily: "Space Grotesk"
+            property string fontMono: "SpaceMono Nerd Font"
+            property int fontSize: 11
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property string formatLocale: ""

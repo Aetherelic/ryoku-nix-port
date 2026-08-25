@@ -413,7 +413,7 @@ Rectangle {
         "frameSmoothing": 8, "frameOpacity": 1, "shadowStrength": 0.63, "shadowSize": 12,
         "frameThickness": 2, "frameCorner": 8,
         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
-        "fontFamily": "Space Grotesk", "fontScale": 1.3,
+        "fontFamily": "Space Grotesk", "fontMono": "SpaceMono Nerd Font", "fontSize": 11, "fontScale": 1.3,
         "frameBars": FrameBars.defaultConfig(),
         "weatherLocation": "", "weatherUnit": "auto", "formatLocale": "",
         "enabled": true, "bars": 64, "thickness": 0.58, "bloom": 0.6,
@@ -530,7 +530,7 @@ Rectangle {
     // against liveBaseline: the state at open, re-snapshotted on every Save.
     // Quit and Revert walk the desktop back to that baseline through the same
     // channel, so an unsaved close leaves no residue.
-    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "barStyle", "obi", "nacre", "qsbar", "dock"]
+    readonly property var liveKeys: ["frameBars", "frameEnabled", "frameOpacity", "frameThickness", "frameCorner", "fontFamily", "fontMono", "fontSize", "barStyle", "obi", "nacre", "qsbar", "dock"]
     property var liveBaseline: null
     property var livePending: ({})
     function captureLiveBaseline() {

@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Font changes now reach the terminal and carry a size, not just GTK.** The
+  system font gained a monospace face and a base point size: the daemon writes
+  `font-name`, `document-font-name` and `monospace-font-name` (with the size) to
+  gsettings, rewrites the qt6ct general font, and lands the terminal font in a
+  kitty include it reloads over SIGUSR1, so the terminal retypes live alongside
+  GTK apps. The kit monospace (`Tokens.mono`) follows the choice; the Fraunces
+  and Space Grotesk brand faces stay fixed (`ipc/matugen.go`,
+  `services/Config.qml`, `ui/Singletons/Tokens.qml`, `apps/kitty/kitty.conf`).
 - **Admin (polkit) prompts can answer to a fingerprint, like macOS sudo.** When
   the polkit stack races the reader (enabled from Hub > Sign-in & Fingerprint >
   Admin prompts), the shell's admin island shows a live scan the moment PAM asks

@@ -101,7 +101,7 @@ Singleton {
     // ── type ─────────────────────────────────────────────────────────────
     readonly property string display: "Fraunces"
     readonly property string ui: "Space Grotesk"
-    readonly property string mono: "SpaceMono Nerd Font"
+    property string mono: "SpaceMono Nerd Font"
     readonly property string jp: "Noto Sans CJK JP"
 
     readonly property int fTitle: px(46)    // page title, Fraunces
@@ -243,6 +243,7 @@ Singleton {
         var scale = 1.0;
         var reduce = false;
         var scales = ({});
+        var monoFont = "SpaceMono Nerd Font";
         try {
             const txt = shellFile.text();
             if (txt) {
@@ -258,6 +259,7 @@ Singleton {
                 const u = o && o.displays && o.displays.ui_scale;
                 if (u && typeof u === "object" && u !== null)
                     scales = u;
+                if (typeof o.fontMono === "string" && o.fontMono.length) monoFont = o.fontMono;
             }
         } catch (e) {
             pal = null;
@@ -266,6 +268,7 @@ Singleton {
         t.motionScale = scale;
         t.reduceMotion = reduce;
         t.uiScales = scales;
+        t.mono = monoFont;
     }
     function refreshMatch() {
         try {

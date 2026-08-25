@@ -1021,7 +1021,7 @@ func (d *daemon) startSettings() {
 		}
 		if fs := fontSig(f); fs != lastFontSig {
 			lastFontSig = fs
-			go applyFont(fs)
+			go applyFont(f)
 		}
 	}
 	store.mu.Unlock()
@@ -1029,7 +1029,7 @@ func (d *daemon) startSettings() {
 	// Apply the configured system font on startup so a fresh login matches the
 	// saved choice without waiting for a change (this replaces the old autostart
 	// hardcode). Off the hot path, best-effort.
-	go applyFont(lastFontSig)
+	go applyFont(frame)
 
 	d.registerCall("settings.patch", func(raw json.RawMessage) (any, error) {
 		var a struct {

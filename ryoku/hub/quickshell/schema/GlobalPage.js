@@ -54,10 +54,30 @@ var rows = [
         "tab": "",
         "group": "FONT",
         "key": "fontFamily",
-        "label": "System font",
-        "desc": "The interface font, applied to the shell and to GTK/Qt apps live. Pick from the fonts installed on this machine.",
+        "label": "Interface font",
+        "desc": "The proportional UI font, applied to the shell bar and to GTK/Qt apps live. Pick from installed fonts.",
         "ctl": "pick",
         "src": "shell",
         "opts": []
+    }, {
+        "tab": "",
+        "group": "FONT",
+        "key": "fontMono",
+        "label": "Monospace font",
+        "desc": "The terminal and code font, applied to the terminal and to GTK/Qt monospace live. Pick from installed fonts.",
+        "ctl": "pick",
+        "src": "shell",
+        "opts": []
+    }, {
+        "tab": "",
+        "group": "FONT",
+        "key": "fontSize",
+        "label": "Font size",
+        "desc": "Base text size in points for apps and the terminal.",
+        "ctl": "step",
+        "src": "shell",
+        "lo": 8,
+        "hi": 24,
+        "unit": " pt"
     }
 ];
