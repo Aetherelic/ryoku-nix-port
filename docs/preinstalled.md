@@ -255,6 +255,7 @@ pass.
 | `localsend-bin` | AirDrop-style LAN file sharing, spoken by the file stash |
 | `nvibrant-bin` | NVIDIA digital vibrance for the pill's saturation fader |
 | `spicetify-cli` | Patches Spotify so the Ryoku Canvas widget can read the playing track |
+| `spicetify-marketplace` | The Marketplace "store" icon in Spotify (install themes and extensions); `ryoku doctor` wires it into the client out of the box |
 | `game-devices-udev` | udev rules and battery reporting for DualSense and Switch Pro pads |
 | `xpadneo-dkms` | The Xbox One/Series wireless controller driver |
 | `phinger-cursors`, `catppuccin-cursors-mocha`, `apple_cursor` | Extra cursor themes the Hub cursor picker offers |
