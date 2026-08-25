@@ -187,6 +187,9 @@ Item {
         property string label: ""
         signal tapped()
         property string tip: ""
+        // A chip near the card's edge pins its bubble inward, or a long tip runs
+        // off the card and clips: the bubble is one line and sized to its text.
+        property string tipAlign: "center"
         implicitHeight: 19 * root.s
         implicitWidth: chipRow.implicitWidth + 12 * root.s
         Rectangle {
@@ -221,7 +224,7 @@ Item {
         }
         HoverHandler { id: chHov; cursorShape: Qt.PointingHandCursor }
         MouseArea { id: chTap; anchors.fill: parent; onClicked: chip.tapped() }
-        Tips.QsTip { text: chip.tip; below: true; hovered: chHov.hovered }
+        Tips.QsTip { text: chip.tip; below: true; hovered: chHov.hovered; align: chip.tipAlign }
     }
     // small icon-only toggle with a hover bubble (desktop / mic audio): bone-plate
     // when on, hairline when off.
@@ -494,7 +497,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: root.saveGlyph
                     label: root.saveLabel
-                    tip: Capture.save === "clipboard" ? qsTr("Copy to clipboard only") : Capture.save === "file" ? qsTr("Save to Screenshots folder") : qsTr("Save to Screenshots folder + clipboard")
+                    tip: Capture.save === "clipboard" ? qsTr("Clipboard only") : Capture.save === "file" ? qsTr("Screenshots folder") : qsTr("Folder + clipboard")
+                    tipAlign: "right"
                     onTapped: Capture.save = root.cycle(root.saveSteps, Capture.save)
                 }
                 CycleChip {
@@ -502,6 +506,7 @@ Item {
                     glyph: "watch"
                     label: Capture.delay + "s"
                     tip: Capture.delay === 0 ? qsTr("No delay before the shot") : qsTr("%1s delay before the shot").arg(Capture.delay)
+                    tipAlign: "right"
                     onTapped: Capture.delay = root.cycle(root.delaySteps, Capture.delay)
                 }
             }
@@ -546,15 +551,17 @@ Item {
                 visible: !Recorder.anyActive
                 IconToggle {
                     glyph: "keyboard"
+                    // A bubble is one line sized to its text, so these stay labels:
+                    // a sentence overflows the card and clips at its edge.
                     tip: Keypresses.backendStatus === "error"
                         ? Keypresses.backendError
-                        : qsTr("Show key presses (drag the preview into place)")
+                        : qsTr("Show key presses")
                     on: Keypresses.active
                     onToggled: Keypresses.toggle()
                 }
                 IconToggle {
                     glyph: "webcam"
-                    tip: qsTr("Webcam mirror (place it before recording)")
+                    tip: qsTr("Webcam mirror")
                     on: Camera.active
                     onToggled: Camera.toggle()
                 }
@@ -582,7 +589,9 @@ Item {
             spacing: root.gap
             ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "monitor"; label: qsTr("Screen"); accent: true; onTapped: root.record("screen") }
             ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "screens"; label: qsTr("Monitor"); accent: true; onTapped: root.record("monitor") }
-            ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "window"; label: qsTr("Window"); accent: true; tip: qsTr("Captures the area the window covers now; it won't follow if the window moves."); onTapped: root.record("window") }
+            // The tip is a one-line pill sized to its text, so it has to read as a
+            // label, not a sentence: a longer string overflows the card and clips.
+            ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "window"; label: qsTr("Window"); accent: true; tip: qsTr("Records the area, not the window"); onTapped: root.record("window") }
             ModeTile { w: (root.innerW - root.gap * 3) / 4; glyph: "region"; label: qsTr("Region"); accent: true; onTapped: root.record("region") }
         }
 
