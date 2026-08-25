@@ -176,6 +176,14 @@ spotify-launcher
 # listed together here because neither is useful for this feature without the
 # other. Inert for anyone who does not use Spotify.
 spicetify-cli
+# spicetify-marketplace: the store custom app -- the Marketplace icon in
+# Spotify's sidebar that installs themes and extensions. Shipped from [ryoku]
+# (release/packages/spicetify-marketplace) for the same reason as spicetify-cli:
+# a plain pacman target that lands on install, on `ryoku update`, and in the
+# offline closure. `ryoku doctor` (reconcileSpicetifyMarketplace) drops it into
+# the per-user spicetify CustomApps, enables it and applies it, so the store is
+# there out of the box instead of the fiddly manual install. Inert without Spotify.
+spicetify-marketplace
 
 # Virtual machines (Ryoku Settings > GPU > Machine): a windowed VM runs in QEMU
 # on the host GPU. edk2-ovmf is the UEFI firmware and virglrenderer the host-GL

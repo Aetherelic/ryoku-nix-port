@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: **the Spicetify Marketplace store ships by default.**
+  `spicetify-marketplace` (the store custom app -- the Marketplace icon in
+  Spotify's sidebar for themes and extensions) joins `spotify-launcher` and
+  `spicetify-cli`, shipped from `[ryoku]` (`release/packages/spicetify-marketplace`)
+  so it is a plain pacman target on install, on `ryoku update`, and in the offline
+  closure. `ryoku doctor` (`reconcileSpicetifyMarketplace`) copies it into the
+  per-user spicetify CustomApps, enables it and applies it, so the store is set up
+  out of the box instead of the fiddly manual install. Inert without Spotify.
 - `base.packages`: **weston, to run the SDDM greeter on Wayland.** SDDM's default
   X11 greeter was orphaned when the Hyprland (Wayland) session started -- it
   lingered on a leftover Xorg and kept drawing power -- so the greeter now runs
