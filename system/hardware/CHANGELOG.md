@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- `display/ryoku-monitor`: **a hand-entered resolution is forced, not ignored.**
+  When a layout carries a `WxH@rate` mode the panel does not advertise (the Hub's
+  new Displays "Custom…" entry), `apply`/`save` generate a CVT reduced-blanking
+  modeline (`cvt`, from the already-present libxcvt) and use that, which Hyprland
+  accepts as a forced timing; advertised modes pass through unchanged. Covered by
+  `tests/monitor-custom-mode.sh`.
+
 ### Fixed
 - `bluetooth/ryoku-bluetooth-reset.service`: **a Bluetooth audio device that
   connected then dropped a second later now stays connected.** BlueZ 5.83+

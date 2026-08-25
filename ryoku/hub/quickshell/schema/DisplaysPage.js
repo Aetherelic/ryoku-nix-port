@@ -28,7 +28,7 @@ var rows = [
         "group": "<selected monitor name> (dynamic; fallback \"DISPLAY\")",
         "key": "mode",
         "label": "Resolution",
-        "desc": "Pixel size and refresh rate together; one choice sets both",
+        "desc": "Pixel size and refresh rate together; one choice sets both. A \"Custom\u2026\" entry types any W\u00d7H@Hz and forces it via a CVT modeline, with a timed keep-or-revert on Apply",
         "ctl": "chips",
         "src": "<name>.json (Save)",
         "opts": [

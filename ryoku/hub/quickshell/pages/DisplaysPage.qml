@@ -48,8 +48,16 @@ Item {
     // re-anchored by normalize(); "Set as main" re-bases the layout onto it.
     property string mainName: ""
 
-    // which catalogue overlay is open: "" | "mode" | "mirror".
+    // which catalogue overlay is open: "" | "mode" | "mirror" | "custom".
     property string pickKind: ""
+    // "Custom…" chip in the mode picker opens a W×H@Hz form; the typed mode
+    // stages into the draft like any other, and ryoku-monitor forces a
+    // non-advertised one via a CVT modeline on Apply.
+    readonly property string customLabel: I18n.tr("Custom\u2026")
+    // timed keep-changes safety after applying a custom mode: apply() stashes the
+    // prior layout here and counts revertSecs down; not kept in time -> re-apply.
+    property string revertBaseline: ""
+    property int revertSecs: 0
 
     readonly property var sel: (pg.selected >= 0 && pg.selected < pg.draft.length) ? pg.draft[pg.selected] : null
 
@@ -193,7 +201,22 @@ Item {
     // stepper rather than wrong arithmetic.
     function scaleLadder(m) {
         var l = m && m.scaleLadders ? m.scaleLadders[m.width + "x" + m.height] : null;
-        return (l && l.length) ? l : [m.scale];
+        // a custom W×H is absent from the precomputed map; derive the valid
+        // ladder the same way the helper does so the scale stepper still works.
+        return (l && l.length) ? l : pg.computeLadder(m.width, m.height);
+    }
+    // Hyprland-valid scales for an arbitrary mode: k/120 (k in 30..720) dividing
+    // both dimensions to whole logical pixels, floored at 1x and never shrinking
+    // the logical desktop below 640×360 (mirrors ryoku-monitor's ladder()).
+    function computeLadder(w, h) {
+        var out = [];
+        for (var k = 30; k <= 720; k++)
+            if ((w * 120) % k === 0 && (h * 120) % k === 0) {
+                var s = Math.round(k / 120 * 10000) / 10000;
+                if (s >= 1 && s <= 3 && (w / s) >= 640 && (h / s) >= 360)
+                    out.push(s);
+            }
+        return out.length ? out : [1];
     }
     function nearestScaleIdx(l, s) {
         var best = 0;
@@ -245,6 +268,23 @@ Item {
         pg.draft[i].refresh = p.rate;
         // the ladder is per-resolution: re-snap the scale so a mode change
         // never stages a scale the new mode cannot hold.
+        var l = pg.scaleLadder(pg.draft[i]);
+        pg.draft[i].scale = l[pg.nearestScaleIdx(l, pg.draft[i].scale)];
+        pg.tick++;
+    }
+    // stage a hand-entered resolution into the draft. The mode is "WxH@Hz"; on
+    // Apply ryoku-monitor forces a non-advertised one via a CVT modeline. Scale
+    // re-snaps to the new mode's valid ladder.
+    function setCustomMode(i, w, h, hz) {
+        if (i < 0 || i >= pg.draft.length)
+            return;
+        w = Math.round(w); h = Math.round(h); hz = Math.round(hz);
+        if (!(w >= 320 && h >= 200 && hz >= 20 && w <= 16384 && h <= 16384 && hz <= 480))
+            return;
+        pg.draft[i].mode = w + "x" + h + "@" + hz;
+        pg.draft[i].width = w;
+        pg.draft[i].height = h;
+        pg.draft[i].refresh = hz;
         var l = pg.scaleLadder(pg.draft[i]);
         pg.draft[i].scale = l[pg.nearestScaleIdx(l, pg.draft[i].scale)];
         pg.tick++;
@@ -388,12 +428,54 @@ Item {
 
     // ── apply / profiles (backend unchanged) ────────────────────────────────
     function apply() {
-        applyProc.command = ["ryoku-monitor", "apply", JSON.stringify(pg.specsAll())];
+        var prev = pg.committed;
+        var next = JSON.stringify(pg.specsAll());
+        applyProc.command = ["ryoku-monitor", "apply", next];
         applyProc.running = true;
-        pg.committed = JSON.stringify(pg.specsAll());
+        pg.committed = next;
         pg.tick++;
         // read back what the compositor actually accepted (it may still adjust
         // a value); the delayed reload keeps "matches your displays" honest.
+        listRefresh.start();
+        // a custom (non-advertised) mode can come up wrong; offer a timed
+        // keep-or-revert like every other display manager.
+        if (pg.hasCustomMode())
+            pg.startRevert(prev);
+    }
+    // any enabled monitor whose staged mode is a typed WxH@rate not in the
+    // panel's advertised list -- the case that wants the keep-or-revert net.
+    function hasCustomMode() {
+        for (var i = 0; i < pg.draft.length; i++) {
+            var m = pg.draft[i];
+            if (m.disabled || !/^\d+x\d+@/.test(m.mode))
+                continue;
+            var opts = pg.modeOptions(m), found = false;
+            for (var j = 0; j < opts.length; j++)
+                if (opts[j].key === m.mode) { found = true; break; }
+            if (!found)
+                return true;
+        }
+        return false;
+    }
+    function startRevert(baseline) {
+        pg.revertBaseline = baseline;
+        pg.revertSecs = 15;
+        revertTimer.restart();
+    }
+    function keepChanges() {
+        revertTimer.stop();
+        pg.revertSecs = 0;
+        pg.revertBaseline = "";
+    }
+    function doRevert() {
+        revertTimer.stop();
+        pg.revertSecs = 0;
+        if (pg.revertBaseline === "")
+            return;
+        applyProc.command = ["ryoku-monitor", "apply", pg.revertBaseline];
+        applyProc.running = true;
+        pg.committed = pg.revertBaseline;
+        pg.revertBaseline = "";
         listRefresh.start();
     }
     function saveProfile(name) {
@@ -425,6 +507,14 @@ Item {
     // fixed-delay refreshes after helper writes, kept from the old page.
     Timer { id: listRefresh; interval: 700; onTriggered: pg.reload() }
     Timer { id: profileRefresh; interval: 300; onTriggered: pg.reloadProfiles() }
+    // counts the keep-or-revert window down; if it reaches zero unconfirmed, the
+    // prior layout is re-applied (doRevert).
+    Timer {
+        id: revertTimer
+        interval: 1000
+        repeat: true
+        onTriggered: { pg.revertSecs--; if (pg.revertSecs <= 0) pg.doRevert(); }
+    }
 
     // ── presentation helpers (rotation/vrr labels, catalogue mapping) ──
     function rotLabel(t) { return (t * 90) + "\u00b0"; }
@@ -1109,7 +1199,7 @@ Item {
     MouseArea {
         id: scrim
         anchors.fill: parent
-        visible: pg.pickKind !== ""
+        visible: pg.pickKind === "mode" || pg.pickKind === "mirror"
         z: 100
         // a bare click-catcher: no fill, since translucency is banned on app
         // surfaces (DESIGN section 6).
@@ -1121,7 +1211,7 @@ Item {
             title: pg.pickKind === "mode" ? I18n.tr("Resolution") : I18n.tr("Mirror of")
             options: {
                 if (pg.pickKind === "mode")
-                    return pg.sel ? pg.modeOptions(pg.sel).map(function (o) { return o.label; }) : [];
+                    return pg.sel ? pg.modeOptions(pg.sel).map(function (o) { return o.label; }).concat([pg.customLabel]) : [];
                 return pg.mirrorOptions().map(function (o) { return o.label; });
             }
             current: {
@@ -1133,6 +1223,7 @@ Item {
             }
             onChose: (label) => {
                 if (pg.pickKind === "mode") {
+                    if (label === pg.customLabel) { pg.pickKind = "custom"; return; }
                     var mk = pg.keyForLabel(pg.modeOptions(pg.sel), label);
                     if (mk)
                         pg.setMode(pg.selected, mk);
@@ -1146,6 +1237,101 @@ Item {
             // absorb clicks inside the card so the scrim does not treat a
             // header/padding tap as an outside dismiss.
             MouseArea { anchors.fill: parent; z: -1 }
+        }
+    }
+
+    // ── custom-resolution form: type W × H @ Hz. Stages into the draft like any
+    // mode; ryoku-monitor forces a non-advertised timing via a CVT modeline on
+    // Apply, and Apply arms the keep-or-revert banner below. ──────────────────
+    MouseArea {
+        id: customScrim
+        anchors.fill: parent
+        visible: pg.pickKind === "custom"
+        z: 101
+        onClicked: pg.pickKind = ""
+        // prefill from the selected monitor's current mode when the form opens.
+        onVisibleChanged: if (customScrim.visible && pg.sel) {
+            cwField.text = "" + pg.sel.width;
+            chField.text = "" + pg.sel.height;
+            chzField.text = "" + Math.round(pg.sel.refresh);
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 320
+            height: cform.implicitHeight + Tokens.s5 * 2
+            radius: Tokens.radius
+            color: Tokens.paper
+            border.width: Tokens.border
+            border.color: Tokens.line
+            MouseArea { anchors.fill: parent }  // absorb clicks inside the card
+
+            Column {
+                id: cform
+                anchors.centerIn: parent
+                width: parent.width - Tokens.s5 * 2
+                spacing: Tokens.s4
+
+                Text {
+                    text: I18n.tr("Custom resolution")
+                    color: Tokens.ink
+                    font.family: Tokens.ui; font.pixelSize: Tokens.fBody
+                }
+                Row {
+                    spacing: Tokens.s3
+                    Field { id: cwField; width: 74; tabular: true; placeholder: I18n.tr("Width"); onAccepted: addBtn.submit() }
+                    Text { text: "\u00d7"; color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fBody; anchors.verticalCenter: parent.verticalCenter }
+                    Field { id: chField; width: 74; tabular: true; placeholder: I18n.tr("Height"); onAccepted: addBtn.submit() }
+                    Field { id: chzField; width: 56; tabular: true; placeholder: I18n.tr("Hz"); onAccepted: addBtn.submit() }
+                }
+                Row {
+                    spacing: Tokens.s3
+                    anchors.right: parent.right
+                    Btn { text: I18n.tr("CANCEL"); onAct: pg.pickKind = "" }
+                    Btn {
+                        id: addBtn
+                        text: I18n.tr("ADD"); primary: true
+                        function submit() {
+                            var w = parseInt(cwField.text), h = parseInt(chField.text), hz = parseInt(chzField.text);
+                            if (!(w > 0 && h > 0 && hz > 0))
+                                return;
+                            pg.setCustomMode(pg.selected, w, h, hz);
+                            pg.pickKind = "";
+                        }
+                        onAct: submit()
+                    }
+                }
+            }
+        }
+    }
+
+    // ── keep-or-revert banner: a custom mode can come up wrong, so Apply arms a
+    // countdown that re-applies the prior layout unless kept. ─────────────────
+    Rectangle {
+        visible: pg.revertSecs > 0
+        z: 102
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Tokens.s7
+        width: rrow.implicitWidth + Tokens.s5 * 2
+        height: rrow.implicitHeight + Tokens.s4 * 2
+        radius: Tokens.radius
+        color: Tokens.paper
+        border.width: Tokens.border
+        border.color: Tokens.ink
+
+        Row {
+            id: rrow
+            anchors.centerIn: parent
+            spacing: Tokens.s4
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: I18n.tr("Keep this resolution? Reverting in") + " " + pg.revertSecs + "s"
+                color: Tokens.ink
+                font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+            }
+            Btn { text: I18n.tr("KEEP"); primary: true; onAct: pg.keepChanges() }
+            Btn { text: I18n.tr("REVERT NOW"); onAct: pg.doRevert() }
         }
     }
 }

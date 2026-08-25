@@ -508,6 +508,45 @@ sanitize_layout() {
         end)'
 }
 
+# Force a custom resolution the panel does not advertise. The Hub sends a plain
+# "WxH@rate" mode; an advertised one Hyprland uses as-is, but a non-advertised
+# mode is otherwise ignored (Hyprland falls back to preferred). So for any
+# WxH@rate mode NOT in the output's availableModes, generate a CVT
+# reduced-blanking modeline (cvt, from libxcvt -- already pulled by
+# xorg-xwayland) and swap it in, which Hyprland accepts as a forced timing.
+# Advertised modes, and modeline/highrr/preferred entries, pass through
+# untouched. Runs AFTER sanitize_layout, so the scale was already snapped against
+# the WxH form. JSON layout on stdin -> stdout. RYOKU_MONITOR_CVT points cvt at a
+# stub for tests.
+expand_custom_modes() {
+  local layout cvt_bin live needs out w h r ml
+  layout="$(cat)"
+  cvt_bin="${RYOKU_MONITOR_CVT:-cvt}"
+  command -v "$cvt_bin" >/dev/null 2>&1 || { printf '%s' "$layout"; return; }
+  live="$(monitors_json)"
+  needs="$(jq -r --argjson live "$live" '
+    .[]
+    | select((.mode // "") | test("^[0-9]+x[0-9]+@[0-9.]+$"))
+    | . as $s
+    | ($s.mode | capture("^(?<w>[0-9]+)x(?<h>[0-9]+)@(?<r>[0-9.]+)$")) as $m
+    | (([ $live[] | select(.name == $s.output) ][0].availableModes) // []) as $avail
+    | select(([ $avail[]
+                | capture("^(?<w>[0-9]+)x(?<h>[0-9]+)@(?<r>[0-9.]+)")?
+                | select(.w == $m.w and .h == $m.h
+                         and ((.r | tonumber | round) == ($m.r | tonumber | round))) ] | length) == 0)
+    | "\($s.output)\t\($m.w)\t\($m.h)\t\($m.r)"' <<<"$layout" 2>/dev/null || true)"
+  [[ -n $needs ]] || { printf '%s' "$layout"; return; }
+  while IFS=$'\t' read -r out w h r; do
+    [[ -n $out && -n $w && -n $h && -n $r ]] || continue
+    ml="$("$cvt_bin" -r "$w" "$h" "${r%.*}" 2>/dev/null \
+          | awk '/[Mm]odeline/ { s = "modeline"; for (i = 3; i <= NF; i++) s = s " " $i; print s; exit }')"
+    [[ $ml == "modeline "* ]] || continue
+    layout="$(jq -c --arg o "$out" --arg ml "$ml" \
+      'map(if .output == $o then .mode = $ml else . end)' <<<"$layout")"
+  done <<<"$needs"
+  printf '%s' "$layout"
+}
+
 # write monitors.lua from an explicit layout (JSON array on stdin), keeping the
 # chosen modes (unlike persist, which captures highrr). syncs GDK_SCALE, appends
 # the hotplug catch-all.
@@ -561,6 +600,7 @@ cmd_apply() {
   local json="${1:-}"
   [[ -n $json ]] || json="$(cat)"
   json="$(printf '%s' "$json" | sanitize_layout)"
+  json="$(printf '%s' "$json" | expand_custom_modes)"
   printf '%s' "$json" | apply_specs
   printf '%s' "$json" | write_monitors_explicit
   mkdir -p "$(dirname "$applied_layout")"
@@ -577,6 +617,7 @@ cmd_save() {
   [[ -n $name ]] || { echo "ryoku-monitor: save needs a profile name" >&2; return 1; }
   [[ -n $json ]] || json="$(cat)"
   json="$(printf '%s' "$json" | sanitize_layout)"
+  json="$(printf '%s' "$json" | expand_custom_modes)"
   mkdir -p "$monitors_dir"
   printf '%s' "$json" | jq '{monitors: .}' >"$monitors_dir/$name.json"
   printf '%s' "$json" | apply_specs

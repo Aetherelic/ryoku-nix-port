@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **Displays lets you type a custom resolution.** The Resolution picker gains a
+  "Custom…" entry: a small W × H @ Hz form on the page's own surface. The typed
+  mode stages into the draft like any other pick, and on Apply it is forced even
+  when the panel does not advertise it -- ryoku-monitor turns a non-advertised
+  mode into a CVT modeline. Because a bad custom mode can come up wrong, Apply
+  arms a 15-second keep-or-revert banner that re-applies the previous layout
+  unless you keep it (`quickshell/pages/DisplaysPage.qml`).
 - **Bar Studio picks the dock look.** The DOCK card gains a Style control -- the
   five dock looks (Islands, Rail, Ledger, Tanzaku, Seal) as chips -- reading and
   writing the top-level `dock.style` key on the same live channel its neighbours
