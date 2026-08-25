@@ -4,6 +4,9 @@ name: Release Notes
 # commits (see CONTRIBUTING.md and bin/ryoku-release-notes). A stable v* tag
 # becomes an immutable release; each unstable-dev bump refreshes one rolling
 # "unstable" pre-release holding everything landed since the last stable tag.
+# A stable release is also announced to Discord (the DISCORD_WEBHOOK_URL secret,
+# shared with discord-notifications.yml); the rolling unstable pre-release is not,
+# to keep the channel quiet.
 #
 # stable-release.yml and unstable-version-bump.yml dispatch this explicitly,
 # because tags and commits pushed with GITHUB_TOKEN do not fire push triggers.
@@ -42,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,6 +102,40 @@ jobs:
             else
               # shellcheck disable=SC2086
               gh release create "$REF" --title "$title" --notes-file "$body" --verify-tag $prerelease
+            fi
+
+            # Announce the release to Discord too, reusing the existing webhook
+            # secret. Stable only: the rolling unstable pre-release refreshes on
+            # every push and would flood the channel. Non-fatal, so a webhook
+            # hiccup never fails the release.
+            if [[ -n "${DISCORD_WEBHOOK_URL:-}" ]]; then
+              release_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$REF"
+              mark="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/ryoku/assets/brand/logo-mark.png"
+              footer="Ryoku Arch : For the sake of power and beauty."
+              # -Rs slurps the notes body as one string; Discord caps an embed
+              # description at 4096 chars, so trim with room for the ellipsis.
+              jq -Rs --arg title "$title" --arg url "$release_url" --arg mark "$mark" --arg footer "$footer" '
+                {
+                  username: "Ryoku GitHub",
+                  avatar_url: $mark,
+                  allowed_mentions: { parse: [] },
+                  embeds: [ {
+                    title: $title,
+                    url: $url,
+                    color: 8955261,
+                    description: (gsub("\r"; "") | if length > 4000 then .[0:3997] + "..." else . end),
+                    thumbnail: { url: $mark },
+                    footer: { text: $footer, icon_url: $mark },
+                    timestamp: (now | todateiso8601)
+                  } ]
+                }' <"$body" >/tmp/discord.json
+              code="$(curl -sS -o /tmp/discord-resp.json -w '%{http_code}' \
+                -H 'Content-Type: application/json' -X POST \
+                --data-binary @/tmp/discord.json "$DISCORD_WEBHOOK_URL")"
+              case "$code" in
+                200 | 204) echo "Discord release announcement sent." ;;
+                *) echo "::warning::Discord webhook returned HTTP $code"; cat /tmp/discord-resp.json 2>/dev/null || true ;;
+              esac
             fi
           else
             # rolling unstable pre-release: everything since the last stable tag,
