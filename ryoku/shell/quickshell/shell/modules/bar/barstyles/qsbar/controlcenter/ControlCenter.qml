@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import "../modules"
 import "kit"
 import "kit/Routes.js" as Routes
+import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
 // The Shell Studio: the panel the bar's logo opens. It owns everything the shell
@@ -273,6 +274,18 @@ PanelWindow {
                 }
                 onDismissed: searchOverlay.shown = false
             }
+        }
+
+        // Instrument-panel corner ticks: the studio's frame chrome, the same
+        // L-bracket vocabulary Decor's art panel and the reference sheet use. It
+        // marks the plate as a registered surface. Anchored to the plate and inset
+        // past its corner radius, so the frame reframes as the plate resizes on a
+        // route change rather than sitting outside the motion.
+        Item {
+            anchors.fill: parent
+            anchors.margins: tk.corner
+            z: 10
+            Ticks { color: Tokens.line; arm: 10 }
         }
 
     }

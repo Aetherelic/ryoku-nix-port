@@ -192,6 +192,12 @@
   one in from the right on the house spatial curve, swapping off the plate so the
   change reads as one continuous lateral move with no fade or seam
   (`controlcenter/PageMotionStage.qml`).
+- **The control center wears a frame.** The studio plate gains HUD corner ticks,
+  the same L-bracket vocabulary the poster art and reference sheet use, so it
+  reads as a registered instrument surface like the Super+S sidebar rather than a
+  bare card. The ticks are anchored to the plate, so the frame reframes as the
+  plate resizes on a route change, on the same spatial curve as the page slide
+  (`controlcenter/ControlCenter.qml`).
 - **Notification popups are flicked away, not faded out.** Dismissing a toast
   (its close mark, its timeout, or the app retracting it) now slides it off the
   edge it lives on while it shrinks and fades in one parallel move, so it reads
