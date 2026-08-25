@@ -1015,7 +1015,10 @@ Item {
 
                                         delegate: Btn {
                                             required property var modelData
-                                            anchors.verticalCenter: parent.verticalCenter
+                                            // the row by id, not `parent`: a Repeater delegate has no
+                                            // parent yet while it is being created, so anchoring to it
+                                            // logged a TypeError for every band chip built.
+                                            anchors.verticalCenter: bandRow.verticalCenter
                                             compact: true
                                             text: wifi.bandLabel(modelData.band)
                                             primary: wifi.selectedBands[netItem.ssid] === modelData.band

@@ -74,12 +74,14 @@ Item {
                 height: 1; color: Tokens.lineSoft
             }
             Text {
+                visible: Tokens.showGrid
                 id: crossMark
                 anchors { right: slashMark.left; rightMargin: Tokens.s2; verticalCenter: parent.verticalCenter }
                 text: "+"; color: Tokens.inkFaint
                 font.family: Tokens.mono; font.pixelSize: 10
             }
             Text {
+                visible: Tokens.showGrid
                 id: slashMark
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                 text: "///"; color: Tokens.inkFaint
