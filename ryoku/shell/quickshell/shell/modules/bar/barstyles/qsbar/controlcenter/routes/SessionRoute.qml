@@ -44,7 +44,7 @@ Item {
                     anchors.right: parent.right
                     block: true
                     label: I18n.tr("End the session")
-                    desc: I18n.tr("Sleep, restart and power off ask twice.")
+                    desc: I18n.tr("Log out, sleep, restart and power off ask twice.")
                     Row {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
@@ -54,6 +54,20 @@ Item {
                             text: I18n.tr("LOCK")
                             onAct: {
                                 Quickshell.execDetached(["hyprlock"]);
+                                if (page.cc)
+                                    page.cc.close();
+                            }
+                        }
+                        Btn {
+                            text: page.armed === "logout" ? I18n.tr("CONFIRM") : I18n.tr("LOG OUT")
+                            primary: page.armed === "logout"
+                            onAct: {
+                                if (page.armed !== "logout") {
+                                    page.armed = "logout";
+                                    return;
+                                }
+                                page.armed = "";
+                                Quickshell.execDetached(["hyprctl", "dispatch", "exit"]);
                                 if (page.cc)
                                     page.cc.close();
                             }

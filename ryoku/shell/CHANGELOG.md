@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **The Session route gains Log out, and the studio shows its Super+Esc key.**
+  Session now offers Log out (arm-to-confirm, `hyprctl dispatch exit`) beside
+  lock, sleep, restart and power off, and the control center masthead prints a
+  SUPER ESC keycap so the shortcut that opens the panel is learnable from the
+  panel itself, like the search's CTRL K (`controlcenter/routes/SessionRoute.qml`,
+  `controlcenter/CcRail.qml`).
 - **The control center names itself the Shell Studio and points to the Hub.** It
   reads SHELL STUDIO in the rail masthead and carries a persistent "OPEN THE HUB"
   link in the rail foot, so it is clear this is the quick studio and the full
@@ -181,6 +187,11 @@
   multipliers) and omarchy (a shell-wide size scale).
 
 ### Changed
+- **Control center routes slide instead of cross-fading.** Switching a route in
+  the studio now slides the outgoing page off to the left and brings the incoming
+  one in from the right on the house spatial curve, swapping off the plate so the
+  change reads as one continuous lateral move with no fade or seam
+  (`controlcenter/PageMotionStage.qml`).
 - **Notification popups are flicked away, not faded out.** Dismissing a toast
   (its close mark, its timeout, or the app retracting it) now slides it off the
   edge it lives on while it shrinks and fades in one parallel move, so it reads

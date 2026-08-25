@@ -85,6 +85,16 @@ Item {
                 font.letterSpacing: Tokens.trackLabel
             }
         }
+        // the key that opens this panel (Super+Esc -> ryoku:quicksettings), so the
+        // shortcut is learnable from the panel itself, like the search's CTRL K.
+        Keycap {
+            anchors.right: parent.right
+            anchors.rightMargin: rail.tk.pad
+            anchors.verticalCenter: parent.verticalCenter
+            text: "SUPER ESC"
+            us: 0.5
+            dark: !Tokens.light
+        }
         Rectangle {
             anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
             height: 1
