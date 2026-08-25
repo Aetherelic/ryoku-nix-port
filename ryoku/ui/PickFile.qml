@@ -122,11 +122,12 @@ Item {
                     anchors.fill: parent
                     anchors.margins: Tokens.s1
                     radius: Tokens.radius
-                    color: fpTile.fileIsDir && tHov.hovered ? Tokens.tint5 : "transparent"
+                    color: fpTile.fileIsDir ? (tap.pressed ? Tokens.tint16 : (tHov.hovered ? Tokens.tint5 : "transparent")) : "transparent"
                     border.width: Tokens.border
                     border.color: tHov.hovered ? Tokens.lineStrong : Tokens.line
                     clip: true
                     Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+                    Behavior on color { ColorAnimation { duration: Tokens.snap } }
 
                     Column {
                         visible: fpTile.fileIsDir
@@ -203,6 +204,7 @@ Item {
                     }
                     HoverHandler { id: tHov; cursorShape: Qt.PointingHandCursor }
                     TapHandler {
+                        id: tap
                         onTapped: {
                             if (fpTile.fileIsDir) fp.currentFolder = fpTile.fileUrl;
                             else fp.picked("" + fpTile.fileUrl);

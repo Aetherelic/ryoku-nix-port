@@ -172,9 +172,11 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: 3 * root.s
-            color: cHover.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent"
+            color: cTap.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+                : (cHover.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent")
             border.width: Theme.borderWidth
             border.color: chip.conn ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4) : root.line
+            Behavior on color { ColorAnimation { duration: Motion.fast } }
         }
         Row {
             id: chipRow
@@ -216,7 +218,7 @@ Item {
             }
         }
         HoverHandler { id: cHover; cursorShape: Qt.PointingHandCursor }
-        MouseArea { anchors.fill: parent; onClicked: root.tapDevice(chip.dev) }
+        MouseArea { id: cTap; anchors.fill: parent; onClicked: root.tapDevice(chip.dev) }
     }
 
     // --- layout ---------------------------------------------------------------

@@ -33,7 +33,7 @@ Grid {
             color: sw.root.paletteColor(modelData)
             border.width: cell.on ? 2 : 1
             border.color: cell.on ? (sw.tk ? Tokens.bone : "#cdc4ba") : (sw.tk ? Tokens.line : "#333333")
-            scale: ma.containsMouse ? 1.06 : 1.0
+            scale: ma.pressed ? 1.0 : (ma.containsMouse ? 1.06 : 1.0)
             z: ma.containsMouse ? 1 : 0
             Behavior on scale { NumberAnimation { duration: sw.tk ? Tokens.snap : 90; easing.type: Easing.OutCubic } }
 

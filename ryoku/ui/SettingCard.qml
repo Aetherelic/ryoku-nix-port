@@ -67,7 +67,7 @@ Item {
             visible: card.collapsible
             anchors { right: parent.right; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
             text: "\u25b8"
-            color: hh.hovered ? Tokens.inkDim : Tokens.inkFaint
+            color: hh.hovered ? (tap.pressed ? Tokens.ink : Tokens.inkDim) : Tokens.inkFaint
             font.family: Tokens.ui; font.pixelSize: 10
             rotation: card.expanded ? 90 : 0
             Behavior on rotation { NumberAnimation { duration: Tokens.snap; easing.type: Tokens.easeSnap } }
@@ -85,7 +85,7 @@ Item {
         }
 
         HoverHandler { id: hh; enabled: card.collapsible; cursorShape: Qt.PointingHandCursor }
-        TapHandler { enabled: card.collapsible; onTapped: card.expanded = !card.expanded }
+        TapHandler { id: tap; enabled: card.collapsible; onTapped: card.expanded = !card.expanded }
     }
 
     // body: the rows, clipped so a collapsed group cannot be clicked and a

@@ -28,7 +28,7 @@ Flow {
             width: 132
             height: 74
             radius: Tokens.radius
-            color: on ? Tokens.tint10 : (th.hovered ? Tokens.tint5 : "transparent")
+            color: tap.pressed ? Tokens.tint16 : (on ? Tokens.tint10 : (th.hovered ? Tokens.tint5 : "transparent"))
             border.width: Tokens.border
             border.color: on ? Tokens.ink : (th.hovered ? Tokens.lineStrong : Tokens.line)
             Behavior on color { ColorAnimation { duration: Tokens.snap } }
@@ -73,7 +73,7 @@ Flow {
                 font.pixelSize: 7
             }
             HoverHandler { id: th; cursorShape: Qt.PointingHandCursor }
-            TapHandler { onTapped: gal.chose(tile.modelData.key) }
+            TapHandler { id: tap; onTapped: gal.chose(tile.modelData.key) }
         }
     }
 }

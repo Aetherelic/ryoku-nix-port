@@ -31,9 +31,11 @@ Item {
         anchors.fill: parent
         radius: 3 * root.s
         color: root.on ? Theme.inverseSurface
-            : (root.act && hh.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.10) : "transparent")
+            : (root.act && ma.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+            : (root.act && hh.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.10) : "transparent"))
         border.width: root.on ? 0 : Theme.borderWidth
         border.color: root.line
+        Behavior on color { ColorAnimation { duration: Motion.fast } }
     }
     Row {
         id: rowc
@@ -57,5 +59,5 @@ Item {
         }
     }
     HoverHandler { id: hh; enabled: root.act; cursorShape: Qt.PointingHandCursor }
-    MouseArea { anchors.fill: parent; enabled: root.act; onClicked: root.clicked() }
+    MouseArea { id: ma; anchors.fill: parent; enabled: root.act; onClicked: root.clicked() }
 }

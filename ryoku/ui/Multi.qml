@@ -19,7 +19,7 @@ Flow {
             width: row.width + 20
             height: 24
             radius: Tokens.radius
-            color: on ? Tokens.bone : (mh.hovered ? Tokens.tint10 : "transparent")
+            color: on ? Tokens.bone : (tap.pressed ? Tokens.tint16 : (mh.hovered ? Tokens.tint10 : "transparent"))
             border.width: Tokens.border
             border.color: mh.hovered && !on ? Tokens.lineStrong : Tokens.line
             Behavior on color { ColorAnimation { duration: Tokens.snap } }
@@ -43,7 +43,7 @@ Flow {
                 }
             }
             HoverHandler { id: mh; cursorShape: Qt.PointingHandCursor }
-            TapHandler { onTapped: multi.toggled(parent.modelData) }
+            TapHandler { id: tap; onTapped: multi.toggled(parent.modelData) }
         }
     }
 }

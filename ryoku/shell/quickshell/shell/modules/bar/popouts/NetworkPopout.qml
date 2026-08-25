@@ -160,9 +160,11 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 radius: 3 * root.s
-                color: apHover.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent"
+                color: apTap.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+                    : (apHover.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent")
                 border.width: Theme.borderWidth
                 border.color: root.line
+                Behavior on color { ColorAnimation { duration: Motion.fast } }
             }
             GlyphIcon {
                 id: apIcon
@@ -221,6 +223,7 @@ Item {
             }
             HoverHandler { id: apHover; cursorShape: Qt.PointingHandCursor }
             MouseArea {
+                id: apTap
                 anchors.fill: parent
                 onClicked: {
                     if (apr.needsPw) {

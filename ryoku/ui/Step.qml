@@ -35,7 +35,7 @@ Row {
             height: 24
             radius: Tokens.radius
             opacity: spent ? 0.3 : 1
-            color: bh.hovered && !spent ? Tokens.tint10 : "transparent"
+            color: !spent && tap.pressed ? Tokens.tint16 : (bh.hovered && !spent ? Tokens.tint10 : "transparent")
             border.width: Tokens.border
             border.color: bh.hovered && !spent ? Tokens.lineStrong : Tokens.line
             Behavior on color { ColorAnimation { duration: Tokens.snap } }
@@ -49,6 +49,7 @@ Row {
             }
             HoverHandler { id: bh; enabled: !parent.spent; cursorShape: Qt.PointingHandCursor }
             TapHandler {
+                id: tap
                 enabled: !parent.spent
                 longPressThreshold: 0.4
                 onTapped: step.bump(parent.up)

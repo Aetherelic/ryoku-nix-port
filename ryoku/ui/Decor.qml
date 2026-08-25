@@ -22,6 +22,7 @@ import "Singletons"
 // in-engine `DitherField`.
 Item {
     id: dec
+    visible: Tokens.showPosters
 
     property string title: ""        // big JP title, e.g. 入力
     property string sub: ""          // small JP subtitle
@@ -208,7 +209,7 @@ Item {
                     verticalAlignment: Text.AlignVCenter; leftPadding: Tokens.s2
                 }
                 background: Rectangle {
-                    color: mi.highlighted ? Tokens.tint10 : "transparent"; radius: Tokens.radius
+                    color: mi.down ? Tokens.tint16 : (mi.highlighted ? Tokens.tint10 : "transparent"); radius: Tokens.radius
                 }
             }
             C.Menu {
@@ -525,15 +526,16 @@ Item {
                         // always-present tile to add or choose a custom file
                         Rectangle {
                             width: 54; height: 54; radius: Tokens.radius
-                            color: addHov.hovered ? Tokens.tint10 : "transparent"
+                            color: addTap.pressed ? Tokens.tint16 : (addHov.hovered ? Tokens.tint10 : "transparent")
                             border.width: Tokens.border; border.color: Tokens.line
+                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
                             Text {
                                 anchors.centerIn: parent
                                 text: "\uff0b"; color: Tokens.inkDim
                                 font.family: Tokens.ui; font.pixelSize: 22
                             }
                             HoverHandler { id: addHov; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: fileDlg.open() }
+                            TapHandler { id: addTap; onTapped: fileDlg.open() }
                         }
                     }
                 }
@@ -564,11 +566,12 @@ Item {
                         spacing: Tokens.s2
                         Rectangle {
                             width: cxl.implicitWidth + Tokens.s4; height: 26; radius: Tokens.radius
-                            color: cxlHov.hovered ? Tokens.tint10 : "transparent"
+                            color: cxlTap.pressed ? Tokens.tint16 : (cxlHov.hovered ? Tokens.tint10 : "transparent")
                             border.width: Tokens.border; border.color: Tokens.line
+                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
                             Text { id: cxl; anchors.centerIn: parent; text: "CANCEL"; color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: 10; font.letterSpacing: 1 }
                             HoverHandler { id: cxlHov; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: editor.close() }
+                            TapHandler { id: cxlTap; onTapped: editor.close() }
                         }
                         Rectangle {
                             width: svl.implicitWidth + Tokens.s4; height: 26; radius: Tokens.radius

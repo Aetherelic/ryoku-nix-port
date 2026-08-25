@@ -489,7 +489,7 @@ Item {
                 id: instDecor
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                 height: Math.min(300, parent.height - Tokens.cellH * 2 - Tokens.s5)
-                visible: pg.loaded && pg.shown.length > 0 && pg.query.trim() === "" && height > 140
+                visible: Tokens.showPosters && (pg.loaded && pg.shown.length > 0 && pg.query.trim() === "" && height > 140)
                 title: "拡張"; sub: "アドオン"
                 tate: "力を継ぎ足す"
                 caption: I18n.tr("Plugins extend the shell: live surfaces installed through RyoStore.")

@@ -98,7 +98,9 @@ Item {
             anchors.fill: parent
             radius: width / 2
             color: tb.accent ? root.artAccent
-                : (hover.hovered ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08) : "transparent")
+                : (tap.pressed ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.16)
+                : (hover.hovered ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08) : "transparent"))
+            Behavior on color { ColorAnimation { duration: Motion.fast } }
         }
         GlyphIcon {
             anchors.centerIn: parent
@@ -108,7 +110,7 @@ Item {
             color: tb.accent ? Theme.ink(root.artAccent) : Theme.ink(Theme.effectiveSurface)
         }
         HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
-        MouseArea { anchors.fill: parent; onClicked: tb.clicked() }
+        MouseArea { id: tap; anchors.fill: parent; onClicked: tb.clicked() }
     }
 
     // ── the card ───────────────────────────────────────────────────────────

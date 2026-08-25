@@ -299,6 +299,7 @@ Item {
 
     // marginalia dressing the dead top-right margin beside the title. Ink only.
     Marginalia {
+        visible: Tokens.showPosters
         anchors { right: parent.right; top: head.top }
         anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s1
         kana: "性能"
@@ -311,9 +312,9 @@ Item {
     Flickable {
         id: flick
         anchors {
-            left: parent.left; right: hawkPlacard.left
+            left: parent.left; right: hawkPlacard.visible ? hawkPlacard.left : parent.right
             top: head.bottom; bottom: bar.top
-            leftMargin: Tokens.s6; rightMargin: Tokens.s5
+            leftMargin: Tokens.s6; rightMargin: hawkPlacard.visible ? Tokens.s5 : Tokens.s6
             topMargin: Tokens.s5
         }
         contentWidth: width

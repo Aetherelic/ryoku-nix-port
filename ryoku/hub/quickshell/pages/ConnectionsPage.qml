@@ -2064,7 +2064,7 @@ Item {
             id: heroPlacard
             anchors { right: parent.right; top: tabStrip.bottom; topMargin: Tokens.s5; bottom: parent.bottom }
             width: 224
-            visible: content.width - width - Tokens.s6 >= 320
+            visible: Tokens.showPosters && (content.width - width - Tokens.s6 >= 320)
             code: "BLADE-07"
             title: "\u7cf8\u3092\u65ad\u3064"
             sub: I18n.tr("SEVER THE THREAD")

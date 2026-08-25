@@ -28,9 +28,11 @@ Item {
         anchors.fill: parent
         radius: 3 * root.s
         color: root.active ? Theme.inverseSurface
-            : (hh.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent")
+            : (ma.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+            : (hh.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent"))
         border.width: root.active ? 0 : Theme.borderWidth
         border.color: root.line
+        Behavior on color { ColorAnimation { duration: Motion.fast } }
     }
     GlyphIcon {
         anchors.centerIn: parent
@@ -46,5 +48,5 @@ Item {
         }
     }
     HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
-    MouseArea { anchors.fill: parent; onClicked: root.clicked() }
+    MouseArea { id: ma; anchors.fill: parent; onClicked: root.clicked() }
 }

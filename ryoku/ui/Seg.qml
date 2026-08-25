@@ -71,7 +71,7 @@ Item {
                 width: Math.max(seg.minSeg, lab.implicitWidth + seg.padSeg)
                 height: seg.segH
                 radius: Tokens.radius
-                color: on ? Tokens.bone : (sh.hovered ? Tokens.tint10 : "transparent")
+                color: on ? Tokens.bone : (tap.pressed ? Tokens.tint16 : (sh.hovered ? Tokens.tint10 : "transparent"))
                 border.width: Tokens.border
                 border.color: sh.hovered && !on ? Tokens.lineStrong : Tokens.line
                 Behavior on color { ColorAnimation { duration: Tokens.snap } }
@@ -87,7 +87,7 @@ Item {
                     font.letterSpacing: 0.6
                 }
                 HoverHandler { id: sh; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: seg.chose(parent.modelData) }
+                TapHandler { id: tap; onTapped: seg.chose(parent.modelData) }
             }
         }
     }

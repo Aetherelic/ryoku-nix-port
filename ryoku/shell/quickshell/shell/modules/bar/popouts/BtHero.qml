@@ -135,9 +135,11 @@ Item {
                 height: width
                 radius: 4 * root.s
                 color: root.detailOpen ? Theme.inverseSurface
-                    : (infoHover.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent")
+                    : (infoTap.pressed ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+                    : (infoHover.hovered ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.08) : "transparent"))
                 border.width: root.detailOpen ? 0 : Theme.borderWidth
                 border.color: root.line
+                Behavior on color { ColorAnimation { duration: Motion.fast } }
                 GlyphIcon {
                     anchors.centerIn: parent
                     width: 12 * root.s
@@ -147,7 +149,7 @@ Item {
                     color: root.detailOpen ? Theme.inverseOnSurface : root.inkDim
                 }
                 HoverHandler { id: infoHover; cursorShape: Qt.PointingHandCursor }
-                MouseArea { anchors.fill: parent; onClicked: root.detailOpen = !root.detailOpen }
+                MouseArea { id: infoTap; anchors.fill: parent; onClicked: root.detailOpen = !root.detailOpen }
             }
 
             Column {

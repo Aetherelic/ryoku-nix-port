@@ -11,7 +11,7 @@ Rectangle {
 
     implicitHeight: 26
     radius: Tokens.radius
-    color: bh.hovered ? Tokens.tint10 : "transparent"
+    color: tap.pressed ? Tokens.tint16 : (bh.hovered ? Tokens.tint10 : "transparent")
     border.width: Tokens.border
     border.color: bh.hovered ? Tokens.lineStrong : Tokens.line
     Behavior on color { ColorAnimation { duration: Tokens.snap } }
@@ -33,5 +33,5 @@ Rectangle {
         font.pixelSize: 9
     }
     HoverHandler { id: bh; cursorShape: Qt.PointingHandCursor }
-    TapHandler { onTapped: bar.opened() }
+    TapHandler { id: tap; onTapped: bar.opened() }
 }

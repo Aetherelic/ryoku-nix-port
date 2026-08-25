@@ -746,7 +746,7 @@ Item {
             bottomMargin: Tokens.s6
         }
         width: Math.round(pg.width * 0.28)
-        visible: pg.width - width - Tokens.s7 >= 460
+        visible: Tokens.showPosters && (pg.width - width - Tokens.s7 >= 460)
         code: "MIC-02"
         title: "\u30de\u30a4\u30af"
         sub: I18n.tr("RIBBON \u00b7 1938")

@@ -23,7 +23,7 @@ Row {
             width: lab.implicitWidth + (tabs.options.length > 6 ? 16 : 26)
             height: 34
             radius: Tokens.radius
-            color: on ? Tokens.bone : (th.hovered ? Tokens.tint5 : "transparent")
+            color: on ? Tokens.bone : (tap.pressed ? Tokens.tint16 : (th.hovered ? Tokens.tint5 : "transparent"))
             border.width: Tokens.border
             border.color: on ? Tokens.bone : Tokens.line
             Behavior on color { ColorAnimation { duration: Tokens.snap } }
@@ -54,7 +54,7 @@ Row {
                 }
             }
             HoverHandler { id: th; cursorShape: Qt.PointingHandCursor }
-            TapHandler { onTapped: tabs.chose(plate.modelData) }
+            TapHandler { id: tap; onTapped: tabs.chose(plate.modelData) }
         }
     }
 }

@@ -19,11 +19,12 @@ Rectangle {
     implicitWidth: 54
     implicitHeight: 24
     radius: Tokens.radius
-    color: "transparent"
+    color: tap.pressed ? Tokens.tint16 : "transparent"
     border.width: Tokens.border
     border.color: activeFocus ? Tokens.bone : (hh.hovered ? Tokens.lineStrong : Tokens.line)
     antialiasing: false
     Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
+    Behavior on color { ColorAnimation { duration: Tokens.snap } }
 
     Rectangle {
         width: 25
@@ -38,5 +39,5 @@ Rectangle {
         Behavior on x { NumberAnimation { duration: Tokens.snap; easing.type: Tokens.easeSnap } }
     }
     HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
-    TapHandler { onTapped: sw.toggled(!sw.on) }
+    TapHandler { id: tap; onTapped: sw.toggled(!sw.on) }
 }

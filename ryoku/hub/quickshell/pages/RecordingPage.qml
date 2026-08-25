@@ -730,7 +730,7 @@ Item {
             bottomMargin: Tokens.s4
         }
         width: Math.round(pg.width * 0.30)
-        visible: pg.width - width - Tokens.s7 >= 560
+        visible: Tokens.showPosters && (pg.width - width - Tokens.s7 >= 560)
         code: "REC-02"
         title: "\u9332\u753b"
         sub: I18n.tr("ON THE RECORD")

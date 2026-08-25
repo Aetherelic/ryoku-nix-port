@@ -22,7 +22,7 @@ Rectangle {
     implicitHeight: compact ? 24 : 32
     radius: Tokens.radius
     opacity: armed ? 1 : 0.3
-    color: primary && armed ? Tokens.bone : (bh.hovered && armed ? Tokens.tint10 : "transparent")
+    color: primary && armed ? Tokens.bone : (tap.pressed && armed ? Tokens.tint16 : (bh.hovered && armed ? Tokens.tint10 : "transparent"))
     border.width: Tokens.border
     border.color: activeFocus ? Tokens.bone : (primary && armed ? Tokens.bone : (bh.hovered && armed ? Tokens.lineStrong : Tokens.line))
     Behavior on color { ColorAnimation { duration: Tokens.snap } }
@@ -38,5 +38,5 @@ Rectangle {
         font.letterSpacing: Tokens.trackLabel
     }
     HoverHandler { id: bh; enabled: btn.armed; cursorShape: Qt.PointingHandCursor }
-    TapHandler { enabled: btn.armed; onTapped: btn.act() }
+    TapHandler { id: tap; enabled: btn.armed; onTapped: btn.act() }
 }
