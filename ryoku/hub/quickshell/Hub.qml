@@ -92,12 +92,12 @@ Rectangle {
             { key: "windows", name: "Windows" }, { key: "bar-studio", name: "Bar Studio", wired: true }, { key: "desktop", name: "Desktop", wired: true },
             { key: "widgets", name: "Widgets" }, { key: "launcher", name: "App Launcher" } ] },
         { name: "KEYS & APPS", items: [
-            { key: "keybinds", name: "Keybinds" }, { key: "appoverrides", name: "App Overrides" },
-            { key: "windowrules", name: "Window Rules" }, { key: "layerrules", name: "Layer Rules" } ] },
+            { key: "keybinds", name: "Keybinds" }, { key: "appoverrides", name: "App Overrides", adv: true },
+            { key: "windowrules", name: "Window Rules", adv: true }, { key: "layerrules", name: "Layer Rules", adv: true } ] },
         { name: "SYSTEM", items: [
-            { key: "performance", name: "Performance" }, { key: "autostart", name: "Autostart" }, { key: "environment", name: "Environment" },
-            { key: "recording", name: "Recording" }, { key: "dictation", name: "Dictation" }, { key: "fastfetch", name: "Fastfetch" },
-            { key: "import", name: "Import config", wired: true } ] },
+            { key: "performance", name: "Performance" }, { key: "autostart", name: "Autostart", adv: true }, { key: "environment", name: "Environment", adv: true },
+            { key: "recording", name: "Recording" }, { key: "dictation", name: "Dictation" }, { key: "fastfetch", name: "Fastfetch", adv: true },
+            { key: "import", name: "Import config", adv: true, wired: true } ] },
         { name: "EXTEND", items: [
             { key: "addons", name: "Add-ons" }, { key: "rashin", name: "Rashin" } ] },
         { name: "", items: [ { key: "credits", name: "Credits" } ] }
