@@ -41,7 +41,8 @@ Singleton {
     Process {
         id: cavaProc
         // playback spectrum via cava's native pipewire backend, source=auto (the default sink's monitor). the pulse backend can't connect here ("Connection terminated") even with pipewire-pulse up, and this path needs no pactl. exec so quickshell's SIGTERM reaches cava, leaving no orphaned analyser when the surface unloads.
-        command: ["sh", "-c", "command -v cava >/dev/null 2>&1 || exit 0; cfg=\"${XDG_RUNTIME_DIR:-/tmp}/ryoku-cava-visualizer.conf\"; printf '%s\\n' '[general]' 'framerate = " + root.fps + "' 'bars = " + root.bars + "' '' '[input]' 'method = pipewire' 'source = auto' '' '[output]' 'method = raw' 'raw_target = /dev/stdout' 'data_format = ascii' 'ascii_max_range = 100' 'channels = mono' 'mono_option = average' '' '[smoothing]' 'noise_reduction = 45' > \"$cfg\"; exec cava -p \"$cfg\""]
+        // stdbuf -oL: on a pipe (not a tty) cava block-buffers stdout, so frames arrive in ~1s bursts and the visualiser freezes on a stale frame between them (#61); line buffering flushes each frame as it is emitted.
+        command: ["sh", "-c", "command -v cava >/dev/null 2>&1 || exit 0; cfg=\"${XDG_RUNTIME_DIR:-/tmp}/ryoku-cava-visualizer.conf\"; printf '%s\\n' '[general]' 'framerate = " + root.fps + "' 'bars = " + root.bars + "' '' '[input]' 'method = pipewire' 'source = auto' '' '[output]' 'method = raw' 'raw_target = /dev/stdout' 'data_format = ascii' 'ascii_max_range = 100' 'channels = mono' 'mono_option = average' '' '[smoothing]' 'noise_reduction = 45' > \"$cfg\"; if command -v stdbuf >/dev/null 2>&1; then exec stdbuf -oL cava -p \"$cfg\"; fi; exec cava -p \"$cfg\""]
         // `backoff`'s false->true edge relaunches a cava that self-exits (a pipewire
         // hiccup) mid-track; the shipped `running: analysing` alone never did (#61).
         running: root.analysing && !cavaProc.backoff

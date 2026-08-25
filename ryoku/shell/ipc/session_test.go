@@ -5,12 +5,13 @@ import (
 	"testing"
 )
 
-// The three power actions must map to the documented systemctl invocations, and
-// there must be no suspend action anywhere: the reference tree has none, so
-// inventing one is a parity failure.
+// The three power actions must map to their documented commands (logout exits
+// the compositor; reboot and shutdown go through systemctl), and there must be
+// no suspend action anywhere: the reference tree has none, so inventing one is a
+// parity failure.
 func TestSessionActionArgv(t *testing.T) {
 	want := map[string][]string{
-		"logout":   {"systemctl", "--user", "exit"},
+		"logout":   {"hyprctl", "dispatch", "exit"},
 		"reboot":   {"systemctl", "reboot"},
 		"shutdown": {"systemctl", "poweroff"},
 	}

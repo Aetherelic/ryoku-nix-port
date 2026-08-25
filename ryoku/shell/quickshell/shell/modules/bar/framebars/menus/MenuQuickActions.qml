@@ -64,7 +64,7 @@ Item {
         case "color": Quickshell.execDetached(["ryoku-cmd-color-picker"]); root.requestClose(); return;
         case "settings": Quickshell.execDetached(["ryoku-shell", "hub", "open"]); root.requestClose(); return;
         case "lock": Quickshell.execDetached(["ryoku-shell", "lock"]); root.requestClose(); return;
-        case "logout": Hyprland.dispatch("hl.dsp.exit()"); return;
+        case "logout": Hyprland.dispatch("exit"); return;
         case "reboot": Quickshell.execDetached(["systemctl", "reboot"]); return;
         case "shutdown": Quickshell.execDetached(["systemctl", "poweroff"]); return;
         }

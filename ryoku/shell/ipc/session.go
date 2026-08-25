@@ -8,15 +8,19 @@ import (
 )
 
 // session.go runs the session power actions the confirmation dialog triggers:
-// logout, reboot, and shutdown. Each maps to the documented systemctl
-// invocation and is fire-and-forget, matching the reference's three helper
-// functions (spawn a process, log a non-zero exit, never block the caller).
-// Reboot and poweroff tear the session down, so the reply is best-effort.
+// logout, reboot, and shutdown. Reboot and shutdown are system-level, so they
+// go through systemctl. Logout exits the compositor directly: Ryoku's SDDM
+// session is `Exec=Hyprland` (not uwsm), so `systemctl --user exit` stopped the
+// user manager without ever tearing down the directly-spawned Hyprland -- the
+// sign-out button then did nothing (#62). `hyprctl dispatch exit` ends the
+// compositor, returning SDDM to the greeter (and also tears down a uwsm session,
+// whose compositor unit exits with it). Fire-and-forget: the action tears the
+// session down, so the reply is best-effort.
 //
 // There is deliberately no suspend action: the reference tree has none (no
 // suspend helper, no quick-action, no systemctl suspend), so Ryoku adds none.
 var sessionActions = map[string][]string{
-	"logout":   {"systemctl", "--user", "exit"},
+	"logout":   {"hyprctl", "dispatch", "exit"},
 	"reboot":   {"systemctl", "reboot"},
 	"shutdown": {"systemctl", "poweroff"},
 }

@@ -146,6 +146,18 @@
   every step to an instant add and remove with no leftover transform.
 
 ### Fixed
+- **The audio visualiser stops freezing on a stale frame mid-song.** cava's
+  stdout goes block-buffered when it feeds a pipe rather than a terminal, so
+  frames arrived in ~1s bursts and the spectrum sat frozen between them even
+  while music kept playing. `stdbuf -oL` on the cava process forces line-buffered
+  output, so every frame flushes as it is emitted (#61)
+  (`modules/visualizer/Singletons/Spectrum.qml`).
+- **The sign-out button works again.** Ryoku's SDDM session runs `Exec=Hyprland`
+  directly, so the old logout command (`systemctl --user exit`) stopped the user
+  manager without ever ending the compositor -- the button did nothing. Logout
+  now runs `hyprctl dispatch exit`, which exits Hyprland and returns SDDM to the
+  greeter (#62) (`ipc/session.go`,
+  `modules/bar/framebars/menus/MenuQuickActions.qml`).
 - **A dismissed toast stops throwing on its way out.** The delegate outlives its
   model entry, so a card animating away read `appName` and `body` off a null and
   logged a TypeError per frame. Reads go through one guarded accessor now. The
