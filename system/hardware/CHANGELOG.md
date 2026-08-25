@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Fixed
+- `bluetooth/ryoku-bluetooth-reset.service`: **a Bluetooth audio device that
+  connected then dropped a second later now stays connected.** BlueZ 5.83+
+  actively disconnects a device whose authentication is retried mid-stream (an
+  upstream regression, bluez#1545); the reliable remedy is restarting the
+  bluetooth service once the session audio stack (WirePlumber, which owns BlueZ's
+  A2DP endpoints) is up. A new user-session unit does exactly that, gated on a
+  Bluetooth radio being present and ordered after WirePlumber, with a scoped
+  polkit rule (`54-ryoku-bluetooth-a2dp.rules`) so it needs no password.
+  Restarting before anything is connected clears the race with no audible drop;
+  if polkit ever denies it the fix simply no-ops, never a regression (#63).
 - `display/ryoku-hw-backlight`: **brightness keys work on multi-backlight
   laptops instead of driving a dead device.** A laptop can register several
   `/sys/class/backlight` devices -- one per backlight-capable DRM connector, plus

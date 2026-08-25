@@ -116,6 +116,17 @@ _ai_usage_timer() {
   mkdir -p /var/lib/ryoku && : >"$marker"
 }
 
+# enable the Bluetooth A2DP-race reset unit once via --global (the unit lives in
+# /usr/lib/systemd/user), so every user picks it up on next login. Marker keeps
+# it one-shot: a user who later disables it stays disabled across upgrades.
+_bt_reset_unit() {
+  [ -e /usr/lib/systemd/user/ryoku-bluetooth-reset.service ] || return 0
+  local marker=/var/lib/ryoku/bt-reset-enabled
+  [ -e "$marker" ] && return 0
+  systemctl --global enable ryoku-bluetooth-reset.service 2>/dev/null || true
+  mkdir -p /var/lib/ryoku && : >"$marker"
+}
+
 post_install() {
   _refresh
   _bluetooth
@@ -126,6 +137,7 @@ post_install() {
   _powerprofiles
   _logind_lid
   _ai_usage_timer
+  _bt_reset_unit
   _hint
 }
 
@@ -139,6 +151,7 @@ post_upgrade() {
   _powerprofiles
   _logind_lid
   _ai_usage_timer
+  _bt_reset_unit
   _hint
 }
 

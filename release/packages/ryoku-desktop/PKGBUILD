@@ -572,6 +572,15 @@ package() {
   install -Dm644 "$_repo/system/hardware/bluetooth/99-ryoku-bt-autosuspend.conf" \
     "$pkgdir/usr/lib/modprobe.d/99-ryoku-bt-autosuspend.conf"
 
+  # A2DP-drop workaround (bluez#1545): a user-session unit restarts bluetooth
+  # once WirePlumber is up, clearing the BlueZ 5.83+ regression where a device
+  # disconnects ~1s after connecting; a scoped polkit rule lets it do so without
+  # a prompt. Enabled per-user by the .install (systemctl --global enable).
+  install -Dm644 "$_repo/system/hardware/bluetooth/ryoku-bluetooth-reset.service" \
+    "$pkgdir/usr/lib/systemd/user/ryoku-bluetooth-reset.service"
+  install -Dm644 "$_repo/system/hardware/bluetooth/54-ryoku-bluetooth-a2dp.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/54-ryoku-bluetooth-a2dp.rules"
+
   # Wi-Fi regulatory domain: the same one-click grant for ryoku-wifi-regdom
   # (installed by the hardware glob above), so the country can be pinned without a
   # password prompt; world domain 00 disables most 5 GHz channels.

@@ -1,0 +1,14 @@
+// Ryoku: let the desktop user (in the wheel group) restart bluetooth.service
+// without a password prompt. ryoku-bluetooth-reset.service uses this once the
+// session audio stack is up, to clear the BlueZ 5.83+ regression (bluez#1545)
+// where an A2DP device disconnects ~1s after connecting and stays broken until
+// the bluetooth service is restarted. Scoped to the single manage-units action
+// on bluetooth.service; no other privilege is granted. Installed to
+// /usr/share/polkit-1/rules.d/ by the ryoku-desktop package.
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") === "bluetooth.service" &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});

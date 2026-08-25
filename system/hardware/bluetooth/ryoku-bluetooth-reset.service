@@ -1,0 +1,25 @@
+[Unit]
+# Work around the BlueZ 5.83+ A2DP-disconnect regression (bluez#1545, #1646): a
+# device connects, streams for ~1s, then drops, and stays broken until the
+# bluetooth service is restarted. The restart is only reliable once the session
+# audio stack (WirePlumber, which registers BlueZ's media endpoints) is up, so
+# this is a user-session unit ordered after it -- a system unit cannot wait for a
+# per-user service. Restarting with nothing connected yet (login, before the
+# user reaches for headphones) clears the race with no audible drop.
+Description=Reset the Bluetooth controller once the session audio stack is up (BlueZ A2DP-drop workaround)
+PartOf=hyprland-session.target
+After=hyprland-session.target wireplumber.service
+# Skip the whole thing on a box with no Bluetooth radio.
+ConditionPathExistsGlob=/sys/class/bluetooth/*
+
+[Service]
+Type=oneshot
+# Restarting a system unit from a user session goes through polkit; the shipped
+# 54-ryoku-bluetooth-a2dp.rules authorizes exactly this one action, so no prompt.
+# If it is ever denied the unit just fails and nothing is restarted -- never a
+# regression, only the fix not taking effect.
+ExecStart=/usr/bin/systemctl restart bluetooth.service
+TimeoutStartSec=30
+
+[Install]
+WantedBy=hyprland-session.target
