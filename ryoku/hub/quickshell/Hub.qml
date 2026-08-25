@@ -862,7 +862,7 @@ Rectangle {
     }
 
     // the registration sheet: the HUD backdrop the whole instrument sits on.
-    Reg { anchors.fill: parent }
+    Reg { anchors.fill: parent; visible: Tokens.showGrid }
 
     // ── rail ────────────────────────────────────────────────────────────
     Item {
@@ -886,7 +886,7 @@ Rectangle {
                 radius: Tokens.radius
                 border.width: Tokens.border
                 border.color: Tokens.line
-                Ticks { }
+                Ticks { visible: Tokens.showGrid }
                 Row {
                     anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: Tokens.s4 }
                     spacing: Tokens.s3
@@ -899,12 +899,13 @@ Rectangle {
                             font.pixelSize: 14; font.weight: Font.Medium; font.letterSpacing: 2.4
                         }
                         Text {
-                            text: "//SETTINGS_"; color: Tokens.inkMuted
+                            text: Tokens.monoHeads ? "//SETTINGS_" : "SETTINGS"; color: Tokens.inkMuted
                             font.family: Tokens.mono; font.pixelSize: 10; font.letterSpacing: 1.4
                         }
                     }
                 }
                 Text {
+                    visible: Tokens.showGrid
                     anchors { right: parent.right; top: parent.top; margins: Tokens.s2 }
                     text: "///"; color: Tokens.inkFaint
                     font.family: Tokens.mono; font.pixelSize: 10
@@ -923,10 +924,11 @@ Rectangle {
         // the rail foot: a genuine Code 39 plate, the poster's totem. It scans.
         Item {
             id: railFoot
+            visible: Tokens.showGrid
             anchors { left: parent.left; right: parent.right; bottom: advToggle.top }
             anchors.margins: Tokens.s5
             anchors.bottomMargin: Tokens.s4
-            height: Tokens.s3 + edition.height + Tokens.s3 + plate.implicitHeight
+            height: Tokens.showGrid ? (Tokens.s3 + edition.height + Tokens.s3 + plate.implicitHeight) : 0
             Rectangle { anchors { left: parent.left; right: parent.right; top: parent.top } height: 1; color: Tokens.lineSoft }
             // marginalia above the plate: an edition register, shared by every
             // page since the rail is the one always-present chrome.
