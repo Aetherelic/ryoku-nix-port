@@ -31,17 +31,18 @@ const limineBranding = `timeout: 3
 default_entry: 1
 remember_last_entry: yes
 interface_branding: Ryoku Bootloader
-interface_branding_color: F25623
-interface_help_color: F25623
+interface_branding_color: C75D2B
+interface_help_color: C75D2B
 hash_mismatch_panic: no
 
-term_background: 171717
-backdrop: 171717
-term_palette: 171717;aeab94;F25623;4D4D4D;88A57D;F56E0F;8A8A8A;bcbfbc
-term_palette_bright: 333333;aeab94;F25623;4D4D4D;88A57D;F56E0F;8A8A8A;757d75
-term_foreground: CCD0CF
-term_foreground_bright: CCD0CF
-term_background_bright: 333333
+term_background: 060607
+backdrop: 060607
+wallpaper: boot():/ryoku-wall.png
+term_palette: 060607;EAE2D5;C75D2B;3A3630;88A57D;C75D2B;8C857A;EAE2D5
+term_palette_bright: 141210;EAE2D5;C75D2B;3A3630;88A57D;C75D2B;8C857A;EAE2D5
+term_foreground: EAE2D5
+term_foreground_bright: EAE2D5
+term_background_bright: 141210
 `
 
 const (
@@ -341,7 +342,7 @@ var limineBrandedKeys = []string{
 	"interface_branding_color:", "interface_branding_colour:",
 	"interface_help_color:", "interface_help_colour:",
 	"interface_help_color_bright:", "interface_help_colour_bright:",
-	"hash_mismatch_panic:", "term_background:", "backdrop:",
+	"hash_mismatch_panic:", "term_background:", "backdrop:", "wallpaper:",
 	"term_palette:", "term_palette_bright:", "term_foreground:",
 	"term_foreground_bright:", "term_background_bright:",
 }
