@@ -51,12 +51,10 @@ Item {
     }
 
     readonly property bool sounding: Spectrum.energy > 0.04 || motion.activity > 0.02
-    // The idle wave breathes only while sound is actually present and freezes on
-    // real silence, keyed off measured energy rather than an uncorked stream: a
-    // silent-but-open stream (a call, a browser holding an audio context) would
-    // otherwise leave the desktop breathing at rest.
-    readonly property bool idleFrozen: Performance.visualizerFrozen && !motion.sounding
-    readonly property bool wantIdleWave: Config.idleWave && !motion.idleFrozen
+    // The idle wave is the user's opted-in resting animation, so plain silence
+    // must leave it breathing; only the hard tiers (Power Saver, lowPowerMode,
+    // Game Mode) force it off, as Performance documents.
+    readonly property bool wantIdleWave: Config.idleWave && !Performance.visualizerHardFrozen
     readonly property bool wantPeaks: Config.peaks
         && (motion.style === "bars" || motion.style === "segments")
     readonly property bool animating: motion.sounding || motion.wantIdleWave
