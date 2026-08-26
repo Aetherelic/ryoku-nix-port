@@ -30,6 +30,16 @@ applied, and every choice that matters put behind a control you can actually
 find. A beginner gets a real computer on day one. Everyone else gets to stop
 babysitting a pile of configs and just use the thing.
 
+Freedom of choice cuts the other way too. There is a strange trick going
+around lately where a desktop built on Arch, an operating system whose whole
+reason for being is choice and restraint, gets turned into a storefront: a
+stack of big-tech web wrappers and somebody's paid, subscription apps bundled
+in and sold to you as open-source freedom. That is not freedom, it is a sales
+pitch with a monthly bill hiding inside your window manager. Ryoku ships what a
+desktop genuinely needs and then gets out of the way: no services you never
+asked for, no telemetry, no lock-in wearing an open-source badge. What you put
+on top is your call, because that was always the point.
+
 Power and beauty, in that order, and never one without the other, and never
 locked behind a text editor.
 
