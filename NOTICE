@@ -2,13 +2,11 @@ Ryoku Arch
 
 Ryoku Arch is distributed under the GNU General Public License version 3.
 
-The project began as an Omarchy-derived Arch environment, created by David
-Heinemeier Hansson and contributors. The original project is available at:
-
-  https://github.com/basecamp/omarchy
-
-The MIT License and original copyright notice for the Omarchy-derived base are
-preserved in LICENSES/MIT-Omarchy-Ryoku-core.txt.
+Ryoku's alpha series (through v0.1.1-alpha) began as a fork of Omarchy, created by
+David Heinemeier Hansson and contributors (https://github.com/basecamp/omarchy).
+From the beta series onward the tree was pruned and rebuilt from an empty root, and
+no Omarchy code or assets remain: the installer, shell, theming, boot art, tooling,
+and system definition are Ryoku's own.
 
 The Ryoku shell is an original, custom shell. Its frame-blob rendering (the
 Ryoku.Blobs QML/C++ plugin) and parts of its animation and motion curves are

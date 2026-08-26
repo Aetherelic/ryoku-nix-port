@@ -62,10 +62,11 @@ The desktop, the installer, and the system definition all live in this
 repository, and every machine is built from it; the repository is the single
 source of truth, and a live machine is only ever a deployment target. The
 desktop is a Hyprland Wayland session authored in Lua with the Quickshell-based
-Ryoku shell on top. The project began as an Omarchy fork, and its command and
-package conventions still descend from it, but the installer, shell, theming, and
-desktop are Ryoku's own. The shell is custom: its frame-blob rendering and some
-animation curves are adapted from Caelestia.
+Ryoku shell on top. Ryoku's alpha series was a fork of Omarchy. From the beta
+series on, the tree was pruned and rebuilt from an empty root, so the installer,
+shell, theming, tooling, and system definition are all Ryoku's own, and the
+current codebase shares no code with Omarchy. The shell is custom: its frame-blob
+rendering and some animation curves are adapted from Caelestia.
 
 ## The desktop
 
@@ -297,9 +298,10 @@ deploy, test, and commit loop.
 
 ## Credits and license
 
-Ryoku began as a fork of Omarchy, created by David Heinemeier Hansson and
-contributors; its command and package conventions descend from it. The Ryoku
-shell is custom, with its frame-blob rendering and some animations adapted from
+Ryoku's alpha series began as a fork of Omarchy, created by David Heinemeier
+Hansson and contributors. From the beta series on it was pruned and rebuilt as an
+independent project that shares no code with Omarchy. The Ryoku shell is custom,
+with its frame-blob rendering and some animations adapted from
 the [Caelestia shell](https://github.com/caelestia-dots/shell), and parts of the
 display configuration UI adapted from
 [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell). Full
