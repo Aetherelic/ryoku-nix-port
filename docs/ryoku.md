@@ -5,6 +5,34 @@ opinionated Hyprland desktop plus the installer and system definition that
 reproduce it on any machine. The whole thing lives in this one repository and is
 built from it; the live machine is only ever a deployment target.
 
+## Philosophy
+
+Ryoku is built on one belief: a desktop should be ready to live in the moment
+it finishes installing. Not ready the way a blank page is ready, but the way a
+good tool is. You pick it up, it already works, and it already looks like
+someone cared.
+
+Most Hyprland setups hand you freedom the way a hardware store does: here are
+the parts, good luck. Want to move the clock, restyle the bar, change the accent
+color? Open a config file, learn its syntax, edit it by hand, reload, and hope.
+That is not freedom, it is homework, and it quietly tells every newcomer that
+this world was not built for them.
+
+Freedom should be simpler than that. You should be able to change your desktop
+by using your desktop: open a panel, click a control, watch it happen. No
+digging through files, no memorizing options, no editing code to do something as
+ordinary as changing how your bar looks. The power is all still there. It is
+just within reach.
+
+So Ryoku is not a dotfile repository with good marketing. It is a finished
+desktop with a front door: taste already applied, and every choice that matters
+put behind a control you can actually find. A beginner gets a real computer on
+day one. Everyone else gets to stop babysitting a pile of configs and just use
+the thing.
+
+Power and beauty, in that order, and never one without the other, and never
+locked behind a text editor.
+
 ## Goals
 
 - **A cohesive Wayland desktop.** One look, one motion language, one control
