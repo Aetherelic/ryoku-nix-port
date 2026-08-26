@@ -128,6 +128,30 @@ hl.layer_rule({
   no_anim = true,
 })
 
+-- the keybind cheatsheet (qs -c keys, Super+K) is a full-screen layer-shell
+-- overlay: blur the desktop behind its dim scrim so the card reads on any
+-- wallpaper, and suppress Hyprland's own layer animation (QML owns the fade).
+hl.layer_rule({
+  name    = "ryoku-keys-blur",
+  match   = { namespace = "^ryoku-keys$" },
+  blur    = not no_blur,
+  no_anim = true,
+})
+-- the first-boot hint (qs -c keys-hint) is a small top-centre card on a clear
+-- full-width layer: blur only the card (ignore_alpha keeps the frost off the
+-- transparent surround) and let QML drive its slide-in.
+hl.layer_rule({
+  name    = "ryoku-keys-hint-noanim",
+  match   = { namespace = "^ryoku-keys-hint$" },
+  no_anim = true,
+})
+hl.layer_rule({
+  name         = "ryoku-keys-hint-blur",
+  match        = { namespace = "^ryoku-keys-hint$" },
+  blur         = not no_blur,
+  ignore_alpha = 0.05,
+})
+
 -- the wallpaper switcher (Super+W) is a translucent bottom-centre picker card on
 -- a full-screen layer: blur only the card (ignore_alpha keeps the frost off the
 -- clear surround), so it reads as frosted glass floating over the desktop with

@@ -1,0 +1,163 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+import Quickshell
+import Quickshell.Wayland
+import Quickshell.Hyprland
+import Ryoku.Ui.Singletons
+
+// First-boot hint -- a one-shot `qs -c keys-hint` toast the Hyprland autostart
+// launches exactly once, ever (a state marker gates it), to point a new user at
+// the keyboard cheatsheet. A quiet top-centre card in the reference vocabulary:
+// ink kanji seal, hairline mono caps, no accent. It never steals keyboard focus
+// and has no timeout -- it stays until the user clicks its X, then quits so the
+// launch flock releases.
+ShellRoot {
+    id: app
+
+    property bool closing: false
+    function dismiss() {
+        if (app.closing)
+            return;
+        app.closing = true;
+        quitTimer.start();
+    }
+    Timer {
+        id: quitTimer
+        interval: Tokens.durSmall + 30
+        onTriggered: Qt.quit()
+    }
+
+    // A hairline mono cap, the legend's key vocabulary.
+    component Cap: Rectangle {
+        property string text: ""
+        implicitHeight: 22
+        implicitWidth: Math.max(22, capLabel.implicitWidth + 14)
+        radius: Tokens.radius
+        color: "transparent"
+        border.width: Tokens.border
+        border.color: Tokens.line
+        Text {
+            id: capLabel
+            anchors.centerIn: parent
+            text: parent.text
+            color: Tokens.inkDim
+            font.family: Tokens.mono
+            font.pixelSize: Tokens.fMicro
+        }
+    }
+
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            id: win
+            required property var modelData
+            screen: modelData
+            color: "transparent"
+            exclusiveZone: 0
+            WlrLayershell.namespace: "ryoku-keys-hint"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            anchors { top: true; left: true; right: true }
+            implicitHeight: 132
+
+            // Show only on the monitor the user is on when Ryoku first comes up.
+            readonly property bool onFocused: {
+                var fm = Hyprland.focusedMonitor;
+                return fm && fm.name ? (modelData ? fm.name === modelData.name : false) : true;
+            }
+            visible: win.onFocused
+
+            property real appear: 0
+            NumberAnimation on appear {
+                running: true
+                from: 0
+                to: 1
+                duration: Tokens.durNormal
+                easing.type: Easing.OutCubic
+            }
+            readonly property real shown: app.closing ? 0 : appear
+
+            Rectangle {
+                id: card
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Tokens.s5 + (win.shown - 1) * 14
+                opacity: win.shown
+                Behavior on opacity { NumberAnimation { duration: Tokens.durSmall; easing.type: Easing.OutCubic } }
+                Behavior on y { NumberAnimation { duration: Tokens.durSmall; easing.type: Easing.OutCubic } }
+
+                width: content.implicitWidth + Tokens.s5 * 2
+                height: 54
+                radius: Tokens.radius * 1.5
+                color: Tokens.paperLift
+                border.width: Tokens.border
+                border.color: Tokens.line
+
+                Row {
+                    id: content
+                    anchors.centerIn: parent
+                    spacing: Tokens.s3
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 12
+                        height: 1
+                        color: Tokens.ink
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "\u529b"
+                        color: Tokens.ink
+                        font.family: Tokens.jp
+                        font.pixelSize: Tokens.fBody
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: I18n.tr("Press")
+                        color: Tokens.ink
+                        font.family: Tokens.ui
+                        font.pixelSize: Tokens.fBody
+                    }
+                    Cap { anchors.verticalCenter: parent.verticalCenter; text: "Super" }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "+"
+                        color: Tokens.inkFaint
+                        font.family: Tokens.ui
+                        font.pixelSize: Tokens.fMicro
+                    }
+                    Cap { anchors.verticalCenter: parent.verticalCenter; text: "K" }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: I18n.tr("for every keyboard shortcut")
+                        color: Tokens.inkDim
+                        font.family: Tokens.ui
+                        font.pixelSize: Tokens.fBody
+                    }
+
+                    Item { width: Tokens.s2; height: 1 }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 28
+                        height: 28
+                        radius: Tokens.radius
+                        color: closeHover.hovered ? Tokens.tint10 : "transparent"
+                        border.width: Tokens.border
+                        border.color: closeHover.hovered ? Tokens.lineStrong : Tokens.line
+                        Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u2715"
+                            color: Tokens.inkDim
+                            font.family: Tokens.ui
+                            font.pixelSize: Tokens.fMicro
+                        }
+                        HoverHandler { id: closeHover }
+                        TapHandler { onTapped: app.dismiss() }
+                    }
+                }
+            }
+        }
+    }
+}

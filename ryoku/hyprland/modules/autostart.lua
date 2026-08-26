@@ -92,4 +92,19 @@ hl.on("hyprland.start", function()
     if seen_version < welcome_version then
         hl.exec_cmd("flock -n \"${XDG_RUNTIME_DIR:-/tmp}/ryoku-welcome.lock\" qs -c welcome && mkdir -p '" .. welcome_state .. "' && printf '" .. welcome_version .. "' > '" .. welcome_state .. "/welcome-seen'")
     end
+
+    -- First-boot keyboard hint. A one-shot toast pointing new users at Super+K,
+    -- shown exactly once ever: the marker is written the first time this runs and
+    -- checked forever after, so it never returns on a relogin, reboot or update
+    -- (unlike the versioned welcome flag above). The marker is written before the
+    -- async launch, so a reboot before the user dismisses the toast cannot bring
+    -- it back. It rides the overlay layer above the welcome tour and stays until
+    -- its X is clicked.
+    local keys_hint_seen = welcome_state .. "/keys-hint-seen"
+    local kh = io.open(keys_hint_seen, "r")
+    if kh then
+        kh:close()
+    else
+        hl.exec_cmd("mkdir -p '" .. welcome_state .. "' && printf 'seen' > '" .. keys_hint_seen .. "' && flock -n \"${XDG_RUNTIME_DIR:-/tmp}/ryoku-keys-hint.lock\" qs -c keys-hint")
+    end
 end)

@@ -16,7 +16,7 @@ hl.bind(K(mod .. " + Q"),         hl.dsp.window.close())                        
 hl.bind(K(mod .. " + F"),         hl.dsp.window.fullscreen())                      -- fullscreen
 hl.bind(K(mod .. " + A"),         function() hl.dispatch(hl.dsp.window.float({ action = "toggle" })); hl.dispatch(hl.dsp.window.resize({ x = 1000, y = 660, exact = true })); hl.dispatch(hl.dsp.window.center()) end) -- float at 1000x660, centred (press again to tile back)
 hl.bind(K(mod .. " + R"),         function() hl.dispatch(hl.dsp.submap("resize")); hl.dispatch(hl.dsp.exec_cmd("hyprctl notify -1 2200 0 'Resize mode: arrows or hjkl resize, Esc exits'")) end) -- resize mode (arrows/hjkl resize, Esc exits)
-hl.bind(K(mod .. " + P"),         hl.dsp.exec_cmd("ryoku-monitor toggle"))         -- mirror <-> extend displays
+hl.bind(K(mod .. " + P"),         hl.dsp.exec_cmd("ryoku-monitor toggle"))         -- mirror or extend displays (monitor layout)
 
 -- Focus and move windows
 hl.bind(K(mod .. " + Left"),          hl.dsp.focus({ direction = "left" }))        -- focus left
@@ -41,9 +41,10 @@ hl.bind(K(mod .. " + O"),         hl.dsp.exec_cmd("ryoku-app notes"))           
 hl.bind(K(mod .. " + ALT + E"),   hl.dsp.exec_cmd("kitty -e yazi"))               -- yazi file manager
 
 -- Shell surfaces and tools
-hl.bind(K(mod .. " + Space"),     hl.dsp.global("ryoku:launcher"))
-hl.bind(K(mod .. " + L"),         hl.dsp.exec_cmd("ryoku-shell lock"))
-hl.bind(K(mod .. " + Escape"),    hl.dsp.global("ryoku:quicksettings")) -- session actions live in quick settings
+hl.bind(K(mod .. " + Space"),     hl.dsp.global("ryoku:launcher"))                 -- open the app launcher
+hl.bind(K(mod .. " + K"),         hl.dsp.exec_cmd("flock -n -o /tmp/ryoku-keys.lock qs -c keys")) -- keybind cheatsheet: every shortcut, searchable
+hl.bind(K(mod .. " + L"),         hl.dsp.exec_cmd("ryoku-shell lock"))             -- lock the screen
+hl.bind(K(mod .. " + Escape"),    hl.dsp.global("ryoku:quicksettings")) -- quick settings: power, logout, restart, shutdown, wifi
 hl.bind(K(mod .. " + W"),         hl.dsp.global("ryoku:wallpaper-menu"))      -- wallpaper + theme menu (bottom-centre frame blob: scrolling images/live, colour filter, themes)
 hl.bind(K(mod .. " + SHIFT + W"), hl.dsp.exec_cmd("ryoku-shell wallpaper random")) -- random wallpaper, random transition
 hl.bind(K(mod .. " + SHIFT + V"), hl.dsp.exec_cmd("ryoku-summon ryovm flock -n -o /tmp/ryovm.lock qs -c ryovm")) -- ryovm: summon to current workspace
@@ -52,11 +53,11 @@ hl.bind(K(mod .. " + Tab"),       hl.dsp.global("ryoku:overview")) -- workspace 
 hl.bind(K(mod .. " + ALT + Tab"), hl.dsp.global("ryoku:overview")) -- workspace overview, stepping desktops (Alt+Tab again inside cycles desktops)
 hl.bind(K(mod .. " + M"),         hl.dsp.global("ryoku:visualizer"))        -- toggle the desktop audio visualiser
 hl.bind(K(mod .. " + SHIFT + M"), hl.dsp.global("ryoku:visualizer-overlay")) -- raise the visualiser over windows (flip back to desktop)
-hl.bind(K(mod .. " + ALT + M"),   hl.dsp.global("ryoku:visualizer-place"))   -- grab the ring or orb and drag it where you want it
-hl.bind(K(mod .. " + grave"),     hl.dsp.exec_cmd("ryoku-shell voice"))             -- tap: Voxtype speech-to-text + mic wave (tap again to stop)
+hl.bind(K(mod .. " + ALT + M"),   hl.dsp.global("ryoku:visualizer-place"))   -- move the audio visualiser: drag the ring or orb into place
+hl.bind(K(mod .. " + grave"),     hl.dsp.exec_cmd("ryoku-shell voice"))             -- voice typing: speech-to-text with a mic wave (tap again to stop)
 hl.bind(K(mod .. " + comma"),     hl.dsp.exec_cmd("ryoku-shell hub open"))     -- ryoku settings
-hl.bind(K(mod .. " + S"),         hl.dsp.global("ryoku:stash"))         -- Feature sidebar: screen time + downloads (Super+S)
-hl.bind(K(mod .. " + SHIFT + S"), hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))  -- ryoshot: beautify and annotate
+hl.bind(K(mod .. " + S"),         hl.dsp.global("ryoku:stash"))         -- sidebar: screen time and downloads
+hl.bind(K(mod .. " + SHIFT + S"), hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))  -- screenshot: capture, annotate and beautify
 hl.bind(K(mod .. " + SHIFT + C"), hl.dsp.exec_cmd("hyprpicker -a"))                 -- pick a color
 
 -- Move/resize with the mouse
@@ -78,14 +79,14 @@ hl.bind(K(mod .. " + mouse_up"),   hl.dsp.focus({ workspace = "r-1" }))         
 hl.bind(K(mod .. " + mouse_down"), hl.dsp.focus({ workspace = "r+1" }))            -- next workspace
 for i = 1, 10 do
     local key = i % 10 -- 10 maps to the 0 key
-    hl.bind(K(mod .. " + " .. key),          hl.dsp.exec_cmd(ws_helper .. " focus " .. i)) -- focus slot i of the current desktop
-    hl.bind(K(mod .. " + ALT + " .. key),    hl.dsp.exec_cmd(ws_helper .. " move " .. i))  -- send active window to slot i of the current desktop
+    hl.bind(K(mod .. " + " .. key),          hl.dsp.exec_cmd(ws_helper .. " focus " .. i)) -- focus workspace 1-10 on this desktop
+    hl.bind(K(mod .. " + ALT + " .. key),    hl.dsp.exec_cmd(ws_helper .. " move " .. i))  -- move window to workspace 1-10 on this desktop
 end
 
 -- Media and volume keys. ryoku-volume honours the volume panel's BOOST toggle
 -- (Config.qsbar.audioBoost in shell.json): off = safe 100% cap, on = 150%.
-hl.bind(K("XF86AudioRaiseVolume"), hl.dsp.exec_cmd("ryoku-volume up"),   { locked = true, repeating = true })
-hl.bind(K("XF86AudioLowerVolume"), hl.dsp.exec_cmd("ryoku-volume down"), { locked = true, repeating = true })
+hl.bind(K("XF86AudioRaiseVolume"), hl.dsp.exec_cmd("ryoku-volume up"),   { locked = true, repeating = true }) -- raise the volume
+hl.bind(K("XF86AudioLowerVolume"), hl.dsp.exec_cmd("ryoku-volume down"), { locked = true, repeating = true }) -- lower the volume
 hl.bind(K("XF86AudioMute"),        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     { locked = true })
 hl.bind(K("XF86AudioPlay"),        hl.dsp.exec_cmd("playerctl play-pause"),                           { locked = true })
 hl.bind(K("XF86AudioNext"),        hl.dsp.exec_cmd("playerctl next"),                                 { locked = true })
@@ -93,8 +94,8 @@ hl.bind(K("XF86AudioPrev"),        hl.dsp.exec_cmd("playerctl previous"),       
 hl.bind(K(mod .. " + SHIFT + A"), hl.dsp.exec_cmd("ryoku-restart-audio")) -- recover audio when sound stops coming back
 
 -- Brightness keys (laptop backlight + external DDC monitors)
-hl.bind(K("XF86MonBrightnessUp"),   hl.dsp.exec_cmd("ryoku-cmd-brightness +5"), { locked = true, repeating = true })
-hl.bind(K("XF86MonBrightnessDown"), hl.dsp.exec_cmd("ryoku-cmd-brightness -5"), { locked = true, repeating = true })
+hl.bind(K("XF86MonBrightnessUp"),   hl.dsp.exec_cmd("ryoku-cmd-brightness +5"), { locked = true, repeating = true }) -- raise screen brightness
+hl.bind(K("XF86MonBrightnessDown"), hl.dsp.exec_cmd("ryoku-cmd-brightness -5"), { locked = true, repeating = true }) -- lower screen brightness
 
 -- Touchpad lock (the FN touchpad key)
 hl.bind(K("XF86TouchpadToggle"), hl.dsp.exec_cmd("ryoku-cmd-touchpad toggle"), { locked = true }) -- toggle the touchpad

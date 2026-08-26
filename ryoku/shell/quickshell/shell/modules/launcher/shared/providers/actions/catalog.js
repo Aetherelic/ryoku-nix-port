@@ -31,7 +31,7 @@ var CATALOG = [
     { id: "media-visualizer", name: "Audio Visualizer",   category: "Media",      icon: "wave",        exec: ["ryoku-shell", "visualizer-overlay"] },
 
     { id: "open-settings",    name: "Ryoku Settings",     category: "Settings",   icon: "settings",    exec: ["sh", "-c", "flock -n -o /tmp/ryoku-hub.lock qs -c hub"] },
-    { id: "keybind-legend",   name: "Keybind Reference",  category: "Settings",   icon: "keyboard",    exec: ["sh", "-c", "ryoku-hub config set section keybinds; flock -n -o /tmp/ryoku-hub.lock qs -c hub"] },
+    { id: "keybind-legend",   name: "Keybind Reference",  category: "Settings",   icon: "keyboard",    exec: ["sh", "-c", "flock -n -o /tmp/ryoku-keys.lock qs -c keys"] },
     { id: "reload-shell",     name: "Reload Shell",       category: "Settings",   icon: "refresh",     exec: ["ryoku-shell", "reload"] }
 ];
 
