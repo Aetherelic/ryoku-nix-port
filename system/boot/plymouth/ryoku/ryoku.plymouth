@@ -6,6 +6,6 @@ ModuleName=script
 [script]
 ImageDir=/usr/share/plymouth/themes/ryoku
 ScriptFile=/usr/share/plymouth/themes/ryoku/ryoku.script
-ConsoleLogBackgroundColor=0x171717
+ConsoleLogBackgroundColor=0x060607
 MonospaceFont=Cantarell 11
 Font=Cantarell 11
