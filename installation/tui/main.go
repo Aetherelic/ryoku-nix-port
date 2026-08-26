@@ -40,16 +40,16 @@ const (
 
 // ───────────────────────── palette ─────────────────────────
 var (
-	cBg    = lipgloss.Color("#16161e")
-	cText  = lipgloss.Color("#c0caf5")
-	cSub   = lipgloss.Color("#7079b3")
-	cDim   = lipgloss.Color("#3b4261")
-	cBrand = lipgloss.Color("#F25623")
-	cBlue  = lipgloss.Color("#7aa2f7")
-	cGreen = lipgloss.Color("#9ece6a")
-	cYell  = lipgloss.Color("#e0af68")
-	cMauve = lipgloss.Color("#bb9af7")
-	cRed   = lipgloss.Color("#f7768e")
+	cBg    = lipgloss.Color("#060607")
+	cText  = lipgloss.Color("#eae2d5")
+	cSub   = lipgloss.Color("#8c857a")
+	cDim   = lipgloss.Color("#3a3630")
+	cBrand = lipgloss.Color("#c75d2b")
+	cBlue  = lipgloss.Color("#8c857a")
+	cGreen = lipgloss.Color("#88a57d")
+	cYell  = lipgloss.Color("#c79a5b")
+	cMauve = lipgloss.Color("#c75d2b")
+	cRed   = lipgloss.Color("#b24a38")
 )
 
 func sty() lipgloss.Style                 { return lipgloss.NewStyle() }
@@ -126,7 +126,7 @@ func border() lipgloss.Border {
 	if ascii {
 		return asciiBorder
 	}
-	return lipgloss.RoundedBorder()
+	return lipgloss.NormalBorder()
 }
 func borderDouble() lipgloss.Border {
 	if ascii {
