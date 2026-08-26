@@ -1855,7 +1855,9 @@ PanelWindow {
         Keys.onEscapePressed: barSlot.root.barUnlocked = false
 
         readonly property int fitPadding: 8
-        readonly property int fitRegionGap: 12
+        // Compact shells pack the clusters flush, leaving the gap stream no
+        // channel to flow through; open a wider one while an animation runs.
+        readonly property int fitRegionGap: barSlot.root.barAnim > 0 ? 56 : 12
         readonly property int fitRegionCount:
             (leftRowItem.implicitWidth > 0.5 ? 1 : 0)
             + (centerRowItem.implicitWidth > 0.5 ? 1 : 0)
