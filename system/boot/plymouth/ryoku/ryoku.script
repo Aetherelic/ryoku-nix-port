@@ -1,228 +1,349 @@
 # Ryoku Plymouth splash.
 #
-# A crisp logo reveal: the 力 seal blooms, dissolves on an ink wipe, and the
-# RYOKU wordmark resolves. The frames in frames/ are transparent sprites;
-# Plymouth paints the near-black background itself, so the logo composites sharp
-# and is only ever downscaled to the panel, never upscaled (so never blurred).
+# Two layers: a full-screen sakura field that loops the whole time the system
+# boots, and a crisp centred logo that reveals (seal -> RYOKU) once, then breathes
+# so it never looks frozen. Plymouth paints the near-black background; the petal
+# layer is stretched to the panel (soft petals, fine) while the logo layer is only
+# downscaled (never upscaled), so the mark stays sharp on any resolution.
 
-# near-black (#060607): the same colour the Limine menu and the shell paper use,
-# so every boot handoff is one flat colour with no flash between stages.
 Window.SetBackgroundTopColor(0.0235, 0.0235, 0.0275);
 Window.SetBackgroundBottomColor(0.0235, 0.0235, 0.0275);
-
-global.num_frames = 48;
 
 sw = Window.GetWidth();
 sh = Window.GetHeight();
 
-# Preload and pre-scale every frame once, at load. Fit to a fraction of the
-# screen, capped at 1.0, so a small panel shrinks the logo and a 4K panel never
-# stretches it: downscale-only keeps the mark razor-sharp on any resolution.
-index = 0;
-while (index < global.num_frames)
+# ---- sakura layer (full screen, seamless loop) ----
+praw[0] = Image("petals/petal-0.png");
+praw[1] = Image("petals/petal-1.png");
+praw[2] = Image("petals/petal-2.png");
+praw[3] = Image("petals/petal-3.png");
+praw[4] = Image("petals/petal-4.png");
+praw[5] = Image("petals/petal-5.png");
+praw[6] = Image("petals/petal-6.png");
+praw[7] = Image("petals/petal-7.png");
+praw[8] = Image("petals/petal-8.png");
+praw[9] = Image("petals/petal-9.png");
+praw[10] = Image("petals/petal-10.png");
+praw[11] = Image("petals/petal-11.png");
+praw[12] = Image("petals/petal-12.png");
+praw[13] = Image("petals/petal-13.png");
+praw[14] = Image("petals/petal-14.png");
+praw[15] = Image("petals/petal-15.png");
+praw[16] = Image("petals/petal-16.png");
+praw[17] = Image("petals/petal-17.png");
+praw[18] = Image("petals/petal-18.png");
+praw[19] = Image("petals/petal-19.png");
+praw[20] = Image("petals/petal-20.png");
+praw[21] = Image("petals/petal-21.png");
+praw[22] = Image("petals/petal-22.png");
+praw[23] = Image("petals/petal-23.png");
+praw[24] = Image("petals/petal-24.png");
+praw[25] = Image("petals/petal-25.png");
+praw[26] = Image("petals/petal-26.png");
+praw[27] = Image("petals/petal-27.png");
+praw[28] = Image("petals/petal-28.png");
+praw[29] = Image("petals/petal-29.png");
+praw[30] = Image("petals/petal-30.png");
+praw[31] = Image("petals/petal-31.png");
+praw[32] = Image("petals/petal-32.png");
+praw[33] = Image("petals/petal-33.png");
+praw[34] = Image("petals/petal-34.png");
+praw[35] = Image("petals/petal-35.png");
+praw[36] = Image("petals/petal-36.png");
+praw[37] = Image("petals/petal-37.png");
+praw[38] = Image("petals/petal-38.png");
+praw[39] = Image("petals/petal-39.png");
+praw[40] = Image("petals/petal-40.png");
+praw[41] = Image("petals/petal-41.png");
+praw[42] = Image("petals/petal-42.png");
+praw[43] = Image("petals/petal-43.png");
+praw[44] = Image("petals/petal-44.png");
+praw[45] = Image("petals/petal-45.png");
+praw[46] = Image("petals/petal-46.png");
+praw[47] = Image("petals/petal-47.png");
+praw[48] = Image("petals/petal-48.png");
+praw[49] = Image("petals/petal-49.png");
+praw[50] = Image("petals/petal-50.png");
+praw[51] = Image("petals/petal-51.png");
+praw[52] = Image("petals/petal-52.png");
+praw[53] = Image("petals/petal-53.png");
+praw[54] = Image("petals/petal-54.png");
+praw[55] = Image("petals/petal-55.png");
+praw[56] = Image("petals/petal-56.png");
+praw[57] = Image("petals/petal-57.png");
+praw[58] = Image("petals/petal-58.png");
+praw[59] = Image("petals/petal-59.png");
+global.PETN = 60;
+p = 0;
+while (p < global.PETN)
   {
-    img = Image("frames/frame-" + index + ".png");
-    if (index == 0)
-      {
-        mw = img.GetWidth();
-        mh = img.GetHeight();
-        scale = sh * 0.42 / mh;
-        if (sw * 0.60 / mw < scale)
-          scale = sw * 0.60 / mw;
-        if (scale > 1)
-          scale = 1;
-        global.fw = mw * scale;
-        global.fh = mh * scale;
-      }
-    anim[index] = img.Scale(global.fw, global.fh);
-    index++;
+    panim[p] = praw[p].Scale(sw, sh);
+    p++;
   }
+petSprite = Sprite();
+petSprite.SetImage(panim[0]);
+petSprite.SetPosition(0, 0, 0);
 
-logo.sprite = Sprite();
-logo.sprite.SetImage(anim[0]);
-logo.sprite.SetX(sw / 2 - global.fw / 2);
-logo.sprite.SetY(sh / 2 - global.fh / 2);
-logo.sprite.SetOpacity(1);
+# ---- logo layer (centred, downscale-only, reveal then breathe) ----
+lraw[0] = Image("frames/frame-0.png");
+lraw[1] = Image("frames/frame-1.png");
+lraw[2] = Image("frames/frame-2.png");
+lraw[3] = Image("frames/frame-3.png");
+lraw[4] = Image("frames/frame-4.png");
+lraw[5] = Image("frames/frame-5.png");
+lraw[6] = Image("frames/frame-6.png");
+lraw[7] = Image("frames/frame-7.png");
+lraw[8] = Image("frames/frame-8.png");
+lraw[9] = Image("frames/frame-9.png");
+lraw[10] = Image("frames/frame-10.png");
+lraw[11] = Image("frames/frame-11.png");
+lraw[12] = Image("frames/frame-12.png");
+lraw[13] = Image("frames/frame-13.png");
+lraw[14] = Image("frames/frame-14.png");
+lraw[15] = Image("frames/frame-15.png");
+lraw[16] = Image("frames/frame-16.png");
+lraw[17] = Image("frames/frame-17.png");
+lraw[18] = Image("frames/frame-18.png");
+lraw[19] = Image("frames/frame-19.png");
+lraw[20] = Image("frames/frame-20.png");
+lraw[21] = Image("frames/frame-21.png");
+lraw[22] = Image("frames/frame-22.png");
+lraw[23] = Image("frames/frame-23.png");
+lraw[24] = Image("frames/frame-24.png");
+lraw[25] = Image("frames/frame-25.png");
+lraw[26] = Image("frames/frame-26.png");
+lraw[27] = Image("frames/frame-27.png");
+lraw[28] = Image("frames/frame-28.png");
+lraw[29] = Image("frames/frame-29.png");
+lraw[30] = Image("frames/frame-30.png");
+lraw[31] = Image("frames/frame-31.png");
+lraw[32] = Image("frames/frame-32.png");
+lraw[33] = Image("frames/frame-33.png");
+lraw[34] = Image("frames/frame-34.png");
+lraw[35] = Image("frames/frame-35.png");
+lraw[36] = Image("frames/frame-36.png");
+lraw[37] = Image("frames/frame-37.png");
+lraw[38] = Image("frames/frame-38.png");
+lraw[39] = Image("frames/frame-39.png");
+lraw[40] = Image("frames/frame-40.png");
+lraw[41] = Image("frames/frame-41.png");
+lraw[42] = Image("frames/frame-42.png");
+lraw[43] = Image("frames/frame-43.png");
+lraw[44] = Image("frames/frame-44.png");
+lraw[45] = Image("frames/frame-45.png");
+lraw[46] = Image("frames/frame-46.png");
+lraw[47] = Image("frames/frame-47.png");
+lraw[48] = Image("frames/frame-48.png");
+lraw[49] = Image("frames/frame-49.png");
+lraw[50] = Image("frames/frame-50.png");
+lraw[51] = Image("frames/frame-51.png");
+lraw[52] = Image("frames/frame-52.png");
+lraw[53] = Image("frames/frame-53.png");
+lraw[54] = Image("frames/frame-54.png");
+lraw[55] = Image("frames/frame-55.png");
+lraw[56] = Image("frames/frame-56.png");
+lraw[57] = Image("frames/frame-57.png");
+lraw[58] = Image("frames/frame-58.png");
+lraw[59] = Image("frames/frame-59.png");
+lraw[60] = Image("frames/frame-60.png");
+lraw[61] = Image("frames/frame-61.png");
+lraw[62] = Image("frames/frame-62.png");
+lraw[63] = Image("frames/frame-63.png");
+lraw[64] = Image("frames/frame-64.png");
+lraw[65] = Image("frames/frame-65.png");
+lraw[66] = Image("frames/frame-66.png");
+lraw[67] = Image("frames/frame-67.png");
+lraw[68] = Image("frames/frame-68.png");
+lraw[69] = Image("frames/frame-69.png");
+lraw[70] = Image("frames/frame-70.png");
+lraw[71] = Image("frames/frame-71.png");
+lraw[72] = Image("frames/frame-72.png");
+lraw[73] = Image("frames/frame-73.png");
+lraw[74] = Image("frames/frame-74.png");
+lraw[75] = Image("frames/frame-75.png");
+lraw[76] = Image("frames/frame-76.png");
+lraw[77] = Image("frames/frame-77.png");
+lraw[78] = Image("frames/frame-78.png");
+lraw[79] = Image("frames/frame-79.png");
+lraw[80] = Image("frames/frame-80.png");
+lraw[81] = Image("frames/frame-81.png");
+lraw[82] = Image("frames/frame-82.png");
+lraw[83] = Image("frames/frame-83.png");
+lraw[84] = Image("frames/frame-84.png");
+lraw[85] = Image("frames/frame-85.png");
+lraw[86] = Image("frames/frame-86.png");
+lraw[87] = Image("frames/frame-87.png");
+lraw[88] = Image("frames/frame-88.png");
+lraw[89] = Image("frames/frame-89.png");
+global.LOGN = 90;
+global.INTRO = 30;
+mw = lraw[0].GetWidth();
+mh = lraw[0].GetHeight();
+scale = sh * 0.42 / mh;
+if (sw * 0.60 / mw < scale)
+  scale = sw * 0.60 / mw;
+if (scale > 1)
+  scale = 1;
+global.fw = mw * scale;
+global.fh = mh * scale;
+i = 0;
+while (i < global.LOGN)
+  {
+    lanim[i] = lraw[i].Scale(global.fw, global.fh);
+    i++;
+  }
+logo.y = sh / 2 - global.fh / 2;
+logoSprite = Sprite();
+logoSprite.SetImage(lanim[0]);
+logoSprite.SetPosition(sw / 2 - global.fw / 2, logo.y, 1);
 
-global.fake_progress_limit = 0.7;
-global.fake_progress_duration = 15.0;
-global.fake_progress = 0.0;
-global.real_progress = 0.0;
-global.fake_progress_active = 0;
+global.pf = 0;
+global.lf = 0;
+global.step = 0;
+global.active = 0;
 global.tick = 0;
-global.password_shown = 0;
-global.max_progress = 0.0;
-global.frame = 0;
+global.shown = 0;
+global.maxp = 0.0;
 
 fun refresh_callback ()
   {
-    # Play the reveal once, then hold on the RYOKU wordmark for the rest of boot.
-    if (global.frame < global.num_frames - 1)
-      global.frame++;
-    logo.sprite.SetImage(anim[global.frame]);
+    global.step++;
+    if (global.step >= 2)
+      {
+        global.step = 0;
+        global.pf++;
+        if (global.pf >= global.PETN)
+          global.pf = 0;
+        global.lf++;
+        if (global.lf >= global.LOGN)
+          global.lf = global.INTRO;
+      }
+    petSprite.SetImage(panim[global.pf]);
+    logoSprite.SetImage(lanim[global.lf]);
 
     global.tick++;
-    if (global.fake_progress_active == 1)
+    if (global.active == 1)
       {
         elapsed = global.tick / 50.0;
-        ratio = elapsed / global.fake_progress_duration;
+        ratio = elapsed / 15.0;
         if (ratio > 1.0)
           ratio = 1.0;
         eased = 1 - ((1 - ratio) * (1 - ratio));
-        global.fake_progress = eased * global.fake_progress_limit;
-        update_progress_bar(global.fake_progress);
+        update_bar(eased * 0.7);
       }
   }
-
 Plymouth.SetRefreshFunction (refresh_callback);
 
-# ---------------- progress bar ----------------
-
-fun update_progress_bar(progress)
+# ---- progress bar ----
+fun update_bar (v)
   {
-    if (progress > global.max_progress)
+    if (v > global.maxp)
       {
-        global.max_progress = progress;
-        width = Math.Int(progress_bar.original_image.GetWidth() * progress);
-        if (width < 1)
-          width = 1;
-        progress_bar.image = progress_bar.original_image.Scale(width, progress_bar.original_image.GetHeight());
-        progress_bar.sprite.SetImage(progress_bar.image);
+        global.maxp = v;
+        w = Math.Int(bar.orig.GetWidth() * v);
+        if (w < 1)
+          w = 1;
+        bar.sprite.SetImage(bar.orig.Scale(w, bar.orig.GetHeight()));
       }
   }
+fun show_bar () { box.sprite.SetOpacity(1); bar.sprite.SetOpacity(1); }
+fun hide_bar () { box.sprite.SetOpacity(0); bar.sprite.SetOpacity(0); }
 
-fun show_progress_bar () { progress_box.sprite.SetOpacity(1); progress_bar.sprite.SetOpacity(1); }
-fun hide_progress_bar () { progress_box.sprite.SetOpacity(0); progress_bar.sprite.SetOpacity(0); }
-
-fun start_fake_progress ()
-  {
-    if (global.max_progress == 0.0)
-      {
-        global.fake_progress = 0.0;
-        global.real_progress = 0.0;
-        update_progress_bar(0.0);
-      }
-    global.fake_progress_active = 1;
-    global.tick = 0;
-  }
-
-fun stop_fake_progress () { global.fake_progress_active = 0; }
-
-# ---------------- password dialog ----------------
-
+# ---- password dialog ----
 lock.image = Image("lock.png");
 entry.image = Image("entry.png");
 bullet.image = Image("bullet.png");
 
 entry.sprite = Sprite(entry.image);
-entry.x = Window.GetWidth() / 2 - entry.image.GetWidth() / 2;
-entry.y = logo.sprite.GetY() + global.fh + 48;
+entry.x = sw / 2 - entry.image.GetWidth() / 2;
+entry.y = logo.y + global.fh + 48;
 entry.sprite.SetPosition(entry.x, entry.y, 10001);
 entry.sprite.SetOpacity(0);
 
-lock_height = entry.image.GetHeight() * 0.8;
-lock_scale = lock_height / 96;
-lock_width = 84 * lock_scale;
-scaled_lock = lock.image.Scale(lock_width, lock_height);
-lock.sprite = Sprite(scaled_lock);
-lock.x = entry.x - lock_width - 16;
-lock.y = entry.y + entry.image.GetHeight() / 2 - lock_height / 2;
-lock.sprite.SetPosition(lock.x, lock.y, 10001);
+lh = entry.image.GetHeight() * 0.8;
+lw = 84 * (lh / 96);
+lock.sprite = Sprite(lock.image.Scale(lw, lh));
+lock.sprite.SetPosition(entry.x - lw - 16, entry.y + entry.image.GetHeight() / 2 - lh / 2, 10001);
 lock.sprite.SetOpacity(0);
 
 bullet.sprites = [];
 
-fun show_password_dialog () { lock.sprite.SetOpacity(1); entry.sprite.SetOpacity(1); }
-
-fun hide_password_dialog ()
+fun show_dialog () { lock.sprite.SetOpacity(1); entry.sprite.SetOpacity(1); }
+fun hide_dialog ()
   {
     lock.sprite.SetOpacity(0);
     entry.sprite.SetOpacity(0);
-    for (i = 0; bullet.sprites[i]; i++)
-      bullet.sprites[i].SetOpacity(0);
+    for (b = 0; bullet.sprites[b]; b++)
+      bullet.sprites[b].SetOpacity(0);
   }
 
 fun display_normal_callback ()
   {
-    hide_password_dialog();
+    hide_dialog();
     mode = Plymouth.GetMode();
-    if ((mode == "boot" || mode == "resume") && global.password_shown == 1)
+    if ((mode == "boot" || mode == "resume") && global.shown == 1)
       {
-        show_progress_bar();
-        start_fake_progress();
+        show_bar();
+        global.active = 1;
+        global.tick = 0;
       }
   }
 
 fun display_password_callback (prompt, bullets)
   {
-    global.password_shown = 1;
-    stop_fake_progress();
-    hide_progress_bar();
-    global.max_progress = 0.0;
-    global.fake_progress = 0.0;
-    global.real_progress = 0.0;
-    show_password_dialog();
-
-    for (i = 0; bullet.sprites[i]; i++)
-      bullet.sprites[i].SetOpacity(0);
-
-    max_bullets = 21;
-    shown = bullets;
-    if (shown > max_bullets)
-      shown = max_bullets;
-
-    for (i = 0; i < shown; i++)
+    global.shown = 1;
+    global.active = 0;
+    hide_bar();
+    global.maxp = 0.0;
+    show_dialog();
+    for (b = 0; bullet.sprites[b]; b++)
+      bullet.sprites[b].SetOpacity(0);
+    n = bullets;
+    if (n > 21)
+      n = 21;
+    for (b = 0; b < n; b++)
       {
-        if (!bullet.sprites[i])
+        if (!bullet.sprites[b])
           {
-            scaled_bullet = bullet.image.Scale(8, 8);
-            bullet.sprites[i] = Sprite(scaled_bullet);
-            bx = entry.x + 22 + i * (8 + 6);
-            by = entry.y + entry.image.GetHeight() / 2 - 4;
-            bullet.sprites[i].SetPosition(bx, by, 10002);
+            bullet.sprites[b] = Sprite(bullet.image.Scale(8, 8));
+            bullet.sprites[b].SetPosition(entry.x + 22 + b * 14, entry.y + entry.image.GetHeight() / 2 - 4, 10002);
           }
-        bullet.sprites[i].SetOpacity(1);
+        bullet.sprites[b].SetOpacity(1);
       }
   }
 
 Plymouth.SetDisplayNormalFunction(display_normal_callback);
 Plymouth.SetDisplayPasswordFunction(display_password_callback);
 
-progress_box.image = Image("progress_box.png");
-progress_box.sprite = Sprite(progress_box.image);
-progress_box.x = Window.GetWidth() / 2 - progress_box.image.GetWidth() / 2;
-progress_box.y = entry.y + entry.image.GetHeight() + 28;
-progress_box.sprite.SetPosition(progress_box.x, progress_box.y, 0);
-progress_box.sprite.SetOpacity(0);
+box.image = Image("progress_box.png");
+box.sprite = Sprite(box.image);
+box.x = sw / 2 - box.image.GetWidth() / 2;
+box.y = entry.y + entry.image.GetHeight() + 28;
+box.sprite.SetPosition(box.x, box.y, 5);
+box.sprite.SetOpacity(0);
 
-progress_bar.original_image = Image("progress_bar.png");
-progress_bar.sprite = Sprite();
-progress_bar.image = progress_bar.original_image.Scale(1, progress_bar.original_image.GetHeight());
-progress_bar.x = Window.GetWidth() / 2 - progress_bar.original_image.GetWidth() / 2;
-progress_bar.y = progress_box.y + (progress_box.image.GetHeight() - progress_bar.original_image.GetHeight()) / 2;
-progress_bar.sprite.SetPosition(progress_bar.x, progress_bar.y, 1);
-progress_bar.sprite.SetOpacity(0);
+bar.orig = Image("progress_bar.png");
+bar.sprite = Sprite();
+bar.sprite.SetImage(bar.orig.Scale(1, bar.orig.GetHeight()));
+bar.sprite.SetPosition(sw / 2 - bar.orig.GetWidth() / 2, box.y + (box.image.GetHeight() - bar.orig.GetHeight()) / 2, 6);
+bar.sprite.SetOpacity(0);
 
 fun progress_callback (duration, progress)
   {
-    global.real_progress = progress;
-    if (progress > global.fake_progress_limit)
+    if (progress > 0.7)
       {
-        stop_fake_progress();
-        update_progress_bar(progress);
+        global.active = 0;
+        update_bar(progress);
       }
   }
-
 Plymouth.SetBootProgressFunction(progress_callback);
 
-fun quit_callback () { logo.sprite.SetOpacity(1); }
+fun quit_callback () { logoSprite.SetOpacity(1); }
 Plymouth.SetQuitFunction(quit_callback);
 
-message_sprite = Sprite();
-message_sprite.SetPosition(12, 12, 10000);
-
-fun display_message_callback (text) { message_sprite.SetImage(Image.Text(text, 0.55, 0.53, 0.48)); }
-fun hide_message_callback (text) { message_sprite.SetOpacity(0); }
-
+msg = Sprite();
+msg.SetPosition(12, 12, 10000);
+fun display_message_callback (text) { msg.SetImage(Image.Text(text, 0.55, 0.53, 0.48)); }
+fun hide_message_callback (text) { msg.SetOpacity(0); }
 Plymouth.SetDisplayMessageFunction (display_message_callback);
 Plymouth.SetHideMessageFunction (hide_message_callback);
