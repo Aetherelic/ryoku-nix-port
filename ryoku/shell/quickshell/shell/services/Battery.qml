@@ -35,6 +35,13 @@ Singleton {
     readonly property bool discharging: state === UPowerDeviceState.Discharging
     readonly property bool low: !charging && pct <= 20
 
+    // Real line-power state. UPower's global OnBattery tracks the mains adapter,
+    // not the cell, so a full battery idling on AC still reads as on-AC and
+    // pulling the plug flips immediately. This is the signal for "may I enter a
+    // high-performance mode", which charging/discharging cannot answer on a
+    // machine that holds the cell at a charge limit. No battery reads as AC.
+    readonly property bool onAc: !UPower.onBattery
+
     readonly property real rateW: !batDev ? 0
         : (discharging ? -batDev.changeRate : (charging ? batDev.changeRate : 0))
     readonly property real capacityWh: batDev ? batDev.energyCapacity : 0
