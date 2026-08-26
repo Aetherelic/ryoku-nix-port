@@ -24,11 +24,11 @@ digging through files, no memorizing options, no editing code to do something as
 ordinary as changing how your bar looks. The power is all still there. It is
 just within reach.
 
-So Ryoku is not a dotfile repository with good marketing. It is a finished
-desktop with a front door: taste already applied, and every choice that matters
-put behind a control you can actually find. A beginner gets a real computer on
-day one. Everyone else gets to stop babysitting a pile of configs and just use
-the thing.
+So Ryoku is not a pile of overglorified basic dotfiles pretending to be the
+future of Arch. It is a finished desktop with a front door: taste already
+applied, and every choice that matters put behind a control you can actually
+find. A beginner gets a real computer on day one. Everyone else gets to stop
+babysitting a pile of configs and just use the thing.
 
 Power and beauty, in that order, and never one without the other, and never
 locked behind a text editor.
