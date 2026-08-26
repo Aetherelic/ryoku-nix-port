@@ -962,8 +962,13 @@ func (d *daemon) dispatch(line string) string {
 		if len(args) > 0 {
 			mode = args[0]
 		}
-		if mode == "set" && len(args) > 1 {
-			arg = args[1]
+		if mode == "set" {
+			// The path may contain spaces, which strings.Fields above splits into
+			// several args, so recover it verbatim from the line after
+			// "wallpaper set " (same approach as clip-copy) rather than args[1].
+			if p := strings.SplitN(line, " ", 3); len(p) == 3 {
+				arg = p[2]
+			}
 		}
 		d.wallMu.Lock()
 		err := d.wallpaperApply(mode, arg)
