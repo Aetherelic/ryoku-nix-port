@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Match the running system to the shipped Ryoku boot look: set the Plymouth
-# splash default, deploy the Limine wallpaper + branding to the ESP, and rebuild
-# the initramfs (hash-gated). Run by the ryoku-desktop scriptlet on upgrade;
-# skips the install chroot, where the installer owns the boot chain.
+# splash default, sync the Limine branding onto the ESP, and rebuild the
+# initramfs (hash-gated). Run by the ryoku-desktop scriptlet on upgrade; skips
+# the install chroot, where the installer owns the boot chain.
 set -uo pipefail
 
 theme_dir=/usr/share/plymouth/themes/ryoku
@@ -20,10 +20,8 @@ if command -v plymouth-set-default-theme >/dev/null 2>&1; then
   plymouth-set-default-theme ryoku >/dev/null 2>&1 || true
 fi
 
-if [ -f "$boot_src/ryoku-wall.png" ] && [ -f "$esp/limine.conf" ]; then
-  cmp -s "$boot_src/ryoku-wall.png" "$esp/ryoku-wall.png" ||
-    install -Dm644 "$boot_src/ryoku-wall.png" "$esp/ryoku-wall.png" || true
-fi
+# no wallpaper art: drop any file an older version left on the ESP.
+rm -f "$esp/ryoku-wall.png" 2>/dev/null || true
 
 # sync only the visual globals from the shipped template; default_entry, timeout
 # and the generated kernel/snapshot entries stay with limine's own tools.
@@ -33,7 +31,7 @@ sync_limine_globals() {
   tmp=$(mktemp) || return 0
   cp "$conf" "$tmp" || { rm -f "$tmp"; return 0; }
   for k in interface_branding interface_branding_color interface_help_color \
-    hash_mismatch_panic term_background backdrop wallpaper term_palette \
+    hash_mismatch_panic term_background backdrop term_palette \
     term_palette_bright term_foreground term_foreground_bright \
     term_background_bright; do
     canon=$(grep -m1 "^$k:" "$tmpl") || continue
@@ -45,6 +43,7 @@ sync_limine_globals() {
         "$tmp" >"$tmp.2" && mv "$tmp.2" "$tmp"
     fi
   done
+  sed -i '/^wallpaper:/d' "$tmp"
   if ! cmp -s "$tmp" "$conf"; then
     cp -f "$conf" "$conf.ryoku-bak" 2>/dev/null || true
     cat "$tmp" >"$conf" || true
@@ -55,9 +54,7 @@ sync_limine_globals
 
 # rebuild only when the splash content changed; the plymouth mkinitcpio hook
 # embeds whatever theme is default.
-fp=$( { find "$theme_dir" -type f -exec sha256sum {} +
-  sha256sum "$boot_src/ryoku-wall.png" 2>/dev/null
-} | sort | sha256sum | cut -d' ' -f1)
+fp=$(find "$theme_dir" -type f -exec sha256sum {} + | sort | sha256sum | cut -d' ' -f1)
 if [ ! -f "$stamp" ] || [ "$(cat "$stamp" 2>/dev/null)" != "$fp" ]; then
   if command -v limine-mkinitcpio >/dev/null 2>&1; then
     limine-mkinitcpio || true

@@ -345,12 +345,6 @@ ryoku_boot_limine_conf() {
     branding=$(printf '%s\n' "$branding" | sed 's/^default_entry: 2$/default_entry: 1/')
   fi
 
-  # ship the boot wallpaper beside limine.conf on the ESP (the seal on
-  # near-black). a missing file just leaves Limine on the backdrop colour.
-  if [[ -f $RYOKU_REPO/system/boot/limine/ryoku-wall.png ]]; then
-    run install -Dm644 "$RYOKU_REPO/system/boot/limine/ryoku-wall.png" /mnt/boot/ryoku-wall.png
-  fi
-
   ryoku_boot_limine_conflicts
   {
     printf '%s\n' "$branding"
@@ -698,9 +692,8 @@ interface_branding_color: C75D2B
 interface_help_color: C75D2B
 hash_mismatch_panic: no
 
-term_background: FF000000
+term_background: 060607
 backdrop: 060607
-wallpaper: boot():/ryoku-wall.png
 term_palette: 060607;EAE2D5;C75D2B;3A3630;88A57D;C75D2B;8C857A;EAE2D5
 term_palette_bright: 141210;EAE2D5;C75D2B;3A3630;88A57D;C75D2B;8C857A;EAE2D5
 term_foreground: EAE2D5

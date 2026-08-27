@@ -1,250 +1,188 @@
-# Ryoku Plymouth splash.
-#
-# One crisp centred morph: the 力 seal flows into the RYOKU wordmark once, then
-# holds on the finished mark until the display manager takes over (near-black,
-# no flash). Plymouth paints the near-black background; the morph layer is only
-# downscaled (never upscaled), so the mark stays sharp on any resolution.
-
+# Ryoku Plymouth splash: the installer's block "RYOKU" in live monospace text,
+# orange->gold gradient. No frame sequence, so early boot and shutdown stay cheap.
 Window.SetBackgroundTopColor(0, 0, 0);
 Window.SetBackgroundBottomColor(0, 0, 0);
 
 sw = Window.GetWidth();
 sh = Window.GetHeight();
 
-# ---- morph layer (centred, downscale-only, play once then hold) ----
-lraw[0] = Image("frames/frame-0.png");
-lraw[1] = Image("frames/frame-1.png");
-lraw[2] = Image("frames/frame-2.png");
-lraw[3] = Image("frames/frame-3.png");
-lraw[4] = Image("frames/frame-4.png");
-lraw[5] = Image("frames/frame-5.png");
-lraw[6] = Image("frames/frame-6.png");
-lraw[7] = Image("frames/frame-7.png");
-lraw[8] = Image("frames/frame-8.png");
-lraw[9] = Image("frames/frame-9.png");
-lraw[10] = Image("frames/frame-10.png");
-lraw[11] = Image("frames/frame-11.png");
-lraw[12] = Image("frames/frame-12.png");
-lraw[13] = Image("frames/frame-13.png");
-lraw[14] = Image("frames/frame-14.png");
-lraw[15] = Image("frames/frame-15.png");
-lraw[16] = Image("frames/frame-16.png");
-lraw[17] = Image("frames/frame-17.png");
-lraw[18] = Image("frames/frame-18.png");
-lraw[19] = Image("frames/frame-19.png");
-lraw[20] = Image("frames/frame-20.png");
-lraw[21] = Image("frames/frame-21.png");
-lraw[22] = Image("frames/frame-22.png");
-lraw[23] = Image("frames/frame-23.png");
-lraw[24] = Image("frames/frame-24.png");
-lraw[25] = Image("frames/frame-25.png");
-lraw[26] = Image("frames/frame-26.png");
-lraw[27] = Image("frames/frame-27.png");
-lraw[28] = Image("frames/frame-28.png");
-lraw[29] = Image("frames/frame-29.png");
-lraw[30] = Image("frames/frame-30.png");
-lraw[31] = Image("frames/frame-31.png");
-lraw[32] = Image("frames/frame-32.png");
-lraw[33] = Image("frames/frame-33.png");
-lraw[34] = Image("frames/frame-34.png");
-lraw[35] = Image("frames/frame-35.png");
-lraw[36] = Image("frames/frame-36.png");
-lraw[37] = Image("frames/frame-37.png");
-lraw[38] = Image("frames/frame-38.png");
-lraw[39] = Image("frames/frame-39.png");
-lraw[40] = Image("frames/frame-40.png");
-lraw[41] = Image("frames/frame-41.png");
-lraw[42] = Image("frames/frame-42.png");
-lraw[43] = Image("frames/frame-43.png");
-lraw[44] = Image("frames/frame-44.png");
-lraw[45] = Image("frames/frame-45.png");
-lraw[46] = Image("frames/frame-46.png");
-lraw[47] = Image("frames/frame-47.png");
-lraw[48] = Image("frames/frame-48.png");
-lraw[49] = Image("frames/frame-49.png");
-lraw[50] = Image("frames/frame-50.png");
-lraw[51] = Image("frames/frame-51.png");
-lraw[52] = Image("frames/frame-52.png");
-lraw[53] = Image("frames/frame-53.png");
-lraw[54] = Image("frames/frame-54.png");
-lraw[55] = Image("frames/frame-55.png");
-lraw[56] = Image("frames/frame-56.png");
-lraw[57] = Image("frames/frame-57.png");
-lraw[58] = Image("frames/frame-58.png");
-lraw[59] = Image("frames/frame-59.png");
-lraw[60] = Image("frames/frame-60.png");
-lraw[61] = Image("frames/frame-61.png");
-lraw[62] = Image("frames/frame-62.png");
-lraw[63] = Image("frames/frame-63.png");
-lraw[64] = Image("frames/frame-64.png");
-lraw[65] = Image("frames/frame-65.png");
-lraw[66] = Image("frames/frame-66.png");
-lraw[67] = Image("frames/frame-67.png");
-lraw[68] = Image("frames/frame-68.png");
-lraw[69] = Image("frames/frame-69.png");
-lraw[70] = Image("frames/frame-70.png");
-lraw[71] = Image("frames/frame-71.png");
-lraw[72] = Image("frames/frame-72.png");
-lraw[73] = Image("frames/frame-73.png");
-lraw[74] = Image("frames/frame-74.png");
-lraw[75] = Image("frames/frame-75.png");
-lraw[76] = Image("frames/frame-76.png");
-lraw[77] = Image("frames/frame-77.png");
-lraw[78] = Image("frames/frame-78.png");
-lraw[79] = Image("frames/frame-79.png");
-lraw[80] = Image("frames/frame-80.png");
-lraw[81] = Image("frames/frame-81.png");
-lraw[82] = Image("frames/frame-82.png");
-lraw[83] = Image("frames/frame-83.png");
-lraw[84] = Image("frames/frame-84.png");
-lraw[85] = Image("frames/frame-85.png");
-lraw[86] = Image("frames/frame-86.png");
-lraw[87] = Image("frames/frame-87.png");
-lraw[88] = Image("frames/frame-88.png");
-lraw[89] = Image("frames/frame-89.png");
-lraw[90] = Image("frames/frame-90.png");
-lraw[91] = Image("frames/frame-91.png");
-lraw[92] = Image("frames/frame-92.png");
-lraw[93] = Image("frames/frame-93.png");
-lraw[94] = Image("frames/frame-94.png");
-lraw[95] = Image("frames/frame-95.png");
-lraw[96] = Image("frames/frame-96.png");
-lraw[97] = Image("frames/frame-97.png");
-lraw[98] = Image("frames/frame-98.png");
-lraw[99] = Image("frames/frame-99.png");
-lraw[100] = Image("frames/frame-100.png");
-lraw[101] = Image("frames/frame-101.png");
-lraw[102] = Image("frames/frame-102.png");
-lraw[103] = Image("frames/frame-103.png");
-lraw[104] = Image("frames/frame-104.png");
-lraw[105] = Image("frames/frame-105.png");
-lraw[106] = Image("frames/frame-106.png");
-lraw[107] = Image("frames/frame-107.png");
-lraw[108] = Image("frames/frame-108.png");
-lraw[109] = Image("frames/frame-109.png");
-lraw[110] = Image("frames/frame-110.png");
-lraw[111] = Image("frames/frame-111.png");
-lraw[112] = Image("frames/frame-112.png");
-lraw[113] = Image("frames/frame-113.png");
-lraw[114] = Image("frames/frame-114.png");
-lraw[115] = Image("frames/frame-115.png");
-lraw[116] = Image("frames/frame-116.png");
-lraw[117] = Image("frames/frame-117.png");
-lraw[118] = Image("frames/frame-118.png");
-lraw[119] = Image("frames/frame-119.png");
-lraw[120] = Image("frames/frame-120.png");
-lraw[121] = Image("frames/frame-121.png");
-lraw[122] = Image("frames/frame-122.png");
-lraw[123] = Image("frames/frame-123.png");
-lraw[124] = Image("frames/frame-124.png");
-lraw[125] = Image("frames/frame-125.png");
-lraw[126] = Image("frames/frame-126.png");
-lraw[127] = Image("frames/frame-127.png");
-lraw[128] = Image("frames/frame-128.png");
-lraw[129] = Image("frames/frame-129.png");
-lraw[130] = Image("frames/frame-130.png");
-lraw[131] = Image("frames/frame-131.png");
-lraw[132] = Image("frames/frame-132.png");
-global.LOGN = 133;
-mw = lraw[0].GetWidth();
-mh = lraw[0].GetHeight();
-scale = sh * 0.42 / mh;
-if (sw * 0.60 / mw < scale)
-  scale = sw * 0.60 / mw;
-if (scale > 1)
-  scale = 1;
-global.fw = mw * scale;
-global.fh = mh * scale;
-i = 0;
-while (i < global.LOGN)
-  {
-    lanim[i] = lraw[i].Scale(global.fw, global.fh);
-    i++;
-  }
-logo.y = sh / 2 - global.fh / 2;
-logoSprite = Sprite();
-logoSprite.SetImage(lanim[0]);
-logoSprite.SetPosition(sw / 2 - global.fw / 2, logo.y, 1);
+ref = Image.Text("█", 1, 1, 1, 1, "monospace bold 40");
+cw = ref.GetWidth();
+rh = ref.GetHeight();
+COLS = 29;
+ROWS = 5;
+bx = sw / 2 - (COLS * cw) / 2;
+by = sh / 2 - (ROWS * rh) / 2 - rh * 2;
 
-global.lf = 0;
-global.step = 0;
-global.intro = 0;
-global.active = 0;
-global.tick = 0;
-global.shown = 0;
-global.prompt = 0;
-global.maxp = 0.0;
+# block cells (reused installer wordmark), coloured along the gradient by column
+blk[0] = Sprite(Image.Text("█", 0.949, 0.337, 0.137, 1, "monospace bold 40"));
+blk[0].SetPosition(bx + 0 * cw, by + 0 * rh, 1);
+blk[1] = Sprite(Image.Text("█", 0.951, 0.355, 0.143, 1, "monospace bold 40"));
+blk[1].SetPosition(bx + 1 * cw, by + 0 * rh, 1);
+blk[2] = Sprite(Image.Text("█", 0.953, 0.372, 0.148, 1, "monospace bold 40"));
+blk[2].SetPosition(bx + 2 * cw, by + 0 * rh, 1);
+blk[3] = Sprite(Image.Text("█", 0.954, 0.389, 0.154, 1, "monospace bold 40"));
+blk[3].SetPosition(bx + 3 * cw, by + 0 * rh, 1);
+blk[4] = Sprite(Image.Text("█", 0.96, 0.441, 0.17, 1, "monospace bold 40"));
+blk[4].SetPosition(bx + 6 * cw, by + 0 * rh, 1);
+blk[5] = Sprite(Image.Text("█", 0.967, 0.511, 0.192, 1, "monospace bold 40"));
+blk[5].SetPosition(bx + 10 * cw, by + 0 * rh, 1);
+blk[6] = Sprite(Image.Text("█", 0.971, 0.546, 0.203, 1, "monospace bold 40"));
+blk[6].SetPosition(bx + 12 * cw, by + 0 * rh, 1);
+blk[7] = Sprite(Image.Text("█", 0.973, 0.563, 0.208, 1, "monospace bold 40"));
+blk[7].SetPosition(bx + 13 * cw, by + 0 * rh, 1);
+blk[8] = Sprite(Image.Text("█", 0.975, 0.58, 0.214, 1, "monospace bold 40"));
+blk[8].SetPosition(bx + 14 * cw, by + 0 * rh, 1);
+blk[9] = Sprite(Image.Text("█", 0.976, 0.598, 0.219, 1, "monospace bold 40"));
+blk[9].SetPosition(bx + 15 * cw, by + 0 * rh, 1);
+blk[10] = Sprite(Image.Text("█", 0.978, 0.615, 0.225, 1, "monospace bold 40"));
+blk[10].SetPosition(bx + 16 * cw, by + 0 * rh, 1);
+blk[11] = Sprite(Image.Text("█", 0.982, 0.65, 0.236, 1, "monospace bold 40"));
+blk[11].SetPosition(bx + 18 * cw, by + 0 * rh, 1);
+blk[12] = Sprite(Image.Text("█", 0.987, 0.702, 0.252, 1, "monospace bold 40"));
+blk[12].SetPosition(bx + 21 * cw, by + 0 * rh, 1);
+blk[13] = Sprite(Image.Text("█", 0.993, 0.754, 0.268, 1, "monospace bold 40"));
+blk[13].SetPosition(bx + 24 * cw, by + 0 * rh, 1);
+blk[14] = Sprite(Image.Text("█", 1.0, 0.824, 0.29, 1, "monospace bold 40"));
+blk[14].SetPosition(bx + 28 * cw, by + 0 * rh, 1);
+blk[15] = Sprite(Image.Text("█", 0.949, 0.337, 0.137, 1, "monospace bold 40"));
+blk[15].SetPosition(bx + 0 * cw, by + 1 * rh, 1);
+blk[16] = Sprite(Image.Text("█", 0.954, 0.389, 0.154, 1, "monospace bold 40"));
+blk[16].SetPosition(bx + 3 * cw, by + 1 * rh, 1);
+blk[17] = Sprite(Image.Text("█", 0.962, 0.459, 0.175, 1, "monospace bold 40"));
+blk[17].SetPosition(bx + 7 * cw, by + 1 * rh, 1);
+blk[18] = Sprite(Image.Text("█", 0.965, 0.494, 0.186, 1, "monospace bold 40"));
+blk[18].SetPosition(bx + 9 * cw, by + 1 * rh, 1);
+blk[19] = Sprite(Image.Text("█", 0.971, 0.546, 0.203, 1, "monospace bold 40"));
+blk[19].SetPosition(bx + 12 * cw, by + 1 * rh, 1);
+blk[20] = Sprite(Image.Text("█", 0.978, 0.615, 0.225, 1, "monospace bold 40"));
+blk[20].SetPosition(bx + 16 * cw, by + 1 * rh, 1);
+blk[21] = Sprite(Image.Text("█", 0.982, 0.65, 0.236, 1, "monospace bold 40"));
+blk[21].SetPosition(bx + 18 * cw, by + 1 * rh, 1);
+blk[22] = Sprite(Image.Text("█", 0.985, 0.685, 0.246, 1, "monospace bold 40"));
+blk[22].SetPosition(bx + 20 * cw, by + 1 * rh, 1);
+blk[23] = Sprite(Image.Text("█", 0.993, 0.754, 0.268, 1, "monospace bold 40"));
+blk[23].SetPosition(bx + 24 * cw, by + 1 * rh, 1);
+blk[24] = Sprite(Image.Text("█", 1.0, 0.824, 0.29, 1, "monospace bold 40"));
+blk[24].SetPosition(bx + 28 * cw, by + 1 * rh, 1);
+blk[25] = Sprite(Image.Text("█", 0.949, 0.337, 0.137, 1, "monospace bold 40"));
+blk[25].SetPosition(bx + 0 * cw, by + 2 * rh, 1);
+blk[26] = Sprite(Image.Text("█", 0.951, 0.355, 0.143, 1, "monospace bold 40"));
+blk[26].SetPosition(bx + 1 * cw, by + 2 * rh, 1);
+blk[27] = Sprite(Image.Text("█", 0.953, 0.372, 0.148, 1, "monospace bold 40"));
+blk[27].SetPosition(bx + 2 * cw, by + 2 * rh, 1);
+blk[28] = Sprite(Image.Text("█", 0.954, 0.389, 0.154, 1, "monospace bold 40"));
+blk[28].SetPosition(bx + 3 * cw, by + 2 * rh, 1);
+blk[29] = Sprite(Image.Text("█", 0.964, 0.476, 0.181, 1, "monospace bold 40"));
+blk[29].SetPosition(bx + 8 * cw, by + 2 * rh, 1);
+blk[30] = Sprite(Image.Text("█", 0.971, 0.546, 0.203, 1, "monospace bold 40"));
+blk[30].SetPosition(bx + 12 * cw, by + 2 * rh, 1);
+blk[31] = Sprite(Image.Text("█", 0.978, 0.615, 0.225, 1, "monospace bold 40"));
+blk[31].SetPosition(bx + 16 * cw, by + 2 * rh, 1);
+blk[32] = Sprite(Image.Text("█", 0.982, 0.65, 0.236, 1, "monospace bold 40"));
+blk[32].SetPosition(bx + 18 * cw, by + 2 * rh, 1);
+blk[33] = Sprite(Image.Text("█", 0.984, 0.667, 0.241, 1, "monospace bold 40"));
+blk[33].SetPosition(bx + 19 * cw, by + 2 * rh, 1);
+blk[34] = Sprite(Image.Text("█", 0.993, 0.754, 0.268, 1, "monospace bold 40"));
+blk[34].SetPosition(bx + 24 * cw, by + 2 * rh, 1);
+blk[35] = Sprite(Image.Text("█", 1.0, 0.824, 0.29, 1, "monospace bold 40"));
+blk[35].SetPosition(bx + 28 * cw, by + 2 * rh, 1);
+blk[36] = Sprite(Image.Text("█", 0.949, 0.337, 0.137, 1, "monospace bold 40"));
+blk[36].SetPosition(bx + 0 * cw, by + 3 * rh, 1);
+blk[37] = Sprite(Image.Text("█", 0.953, 0.372, 0.148, 1, "monospace bold 40"));
+blk[37].SetPosition(bx + 2 * cw, by + 3 * rh, 1);
+blk[38] = Sprite(Image.Text("█", 0.964, 0.476, 0.181, 1, "monospace bold 40"));
+blk[38].SetPosition(bx + 8 * cw, by + 3 * rh, 1);
+blk[39] = Sprite(Image.Text("█", 0.971, 0.546, 0.203, 1, "monospace bold 40"));
+blk[39].SetPosition(bx + 12 * cw, by + 3 * rh, 1);
+blk[40] = Sprite(Image.Text("█", 0.978, 0.615, 0.225, 1, "monospace bold 40"));
+blk[40].SetPosition(bx + 16 * cw, by + 3 * rh, 1);
+blk[41] = Sprite(Image.Text("█", 0.982, 0.65, 0.236, 1, "monospace bold 40"));
+blk[41].SetPosition(bx + 18 * cw, by + 3 * rh, 1);
+blk[42] = Sprite(Image.Text("█", 0.985, 0.685, 0.246, 1, "monospace bold 40"));
+blk[42].SetPosition(bx + 20 * cw, by + 3 * rh, 1);
+blk[43] = Sprite(Image.Text("█", 0.993, 0.754, 0.268, 1, "monospace bold 40"));
+blk[43].SetPosition(bx + 24 * cw, by + 3 * rh, 1);
+blk[44] = Sprite(Image.Text("█", 1.0, 0.824, 0.29, 1, "monospace bold 40"));
+blk[44].SetPosition(bx + 28 * cw, by + 3 * rh, 1);
+blk[45] = Sprite(Image.Text("█", 0.949, 0.337, 0.137, 1, "monospace bold 40"));
+blk[45].SetPosition(bx + 0 * cw, by + 4 * rh, 1);
+blk[46] = Sprite(Image.Text("█", 0.954, 0.389, 0.154, 1, "monospace bold 40"));
+blk[46].SetPosition(bx + 3 * cw, by + 4 * rh, 1);
+blk[47] = Sprite(Image.Text("█", 0.964, 0.476, 0.181, 1, "monospace bold 40"));
+blk[47].SetPosition(bx + 8 * cw, by + 4 * rh, 1);
+blk[48] = Sprite(Image.Text("█", 0.971, 0.546, 0.203, 1, "monospace bold 40"));
+blk[48].SetPosition(bx + 12 * cw, by + 4 * rh, 1);
+blk[49] = Sprite(Image.Text("█", 0.973, 0.563, 0.208, 1, "monospace bold 40"));
+blk[49].SetPosition(bx + 13 * cw, by + 4 * rh, 1);
+blk[50] = Sprite(Image.Text("█", 0.975, 0.58, 0.214, 1, "monospace bold 40"));
+blk[50].SetPosition(bx + 14 * cw, by + 4 * rh, 1);
+blk[51] = Sprite(Image.Text("█", 0.976, 0.598, 0.219, 1, "monospace bold 40"));
+blk[51].SetPosition(bx + 15 * cw, by + 4 * rh, 1);
+blk[52] = Sprite(Image.Text("█", 0.978, 0.615, 0.225, 1, "monospace bold 40"));
+blk[52].SetPosition(bx + 16 * cw, by + 4 * rh, 1);
+blk[53] = Sprite(Image.Text("█", 0.982, 0.65, 0.236, 1, "monospace bold 40"));
+blk[53].SetPosition(bx + 18 * cw, by + 4 * rh, 1);
+blk[54] = Sprite(Image.Text("█", 0.987, 0.702, 0.252, 1, "monospace bold 40"));
+blk[54].SetPosition(bx + 21 * cw, by + 4 * rh, 1);
+blk[55] = Sprite(Image.Text("█", 0.993, 0.754, 0.268, 1, "monospace bold 40"));
+blk[55].SetPosition(bx + 24 * cw, by + 4 * rh, 1);
+blk[56] = Sprite(Image.Text("█", 0.995, 0.771, 0.274, 1, "monospace bold 40"));
+blk[56].SetPosition(bx + 25 * cw, by + 4 * rh, 1);
+blk[57] = Sprite(Image.Text("█", 0.996, 0.789, 0.279, 1, "monospace bold 40"));
+blk[57].SetPosition(bx + 26 * cw, by + 4 * rh, 1);
+blk[58] = Sprite(Image.Text("█", 0.998, 0.806, 0.285, 1, "monospace bold 40"));
+blk[58].SetPosition(bx + 27 * cw, by + 4 * rh, 1);
+blk[59] = Sprite(Image.Text("█", 1.0, 0.824, 0.29, 1, "monospace bold 40"));
+blk[59].SetPosition(bx + 28 * cw, by + 4 * rh, 1);
 
-# hold the 力 while the disk is locked, morph to RYOKU once unlocking begins.
+# tagline
+tag.img = Image.Text("for the sake of power and beauty", 0.42, 0.40, 0.36, 1, "monospace 18");
+tag.y = by + ROWS * rh + rh;
+tag.sprite = Sprite(tag.img);
+tag.sprite.SetPosition(sw / 2 - tag.img.GetWidth() / 2, tag.y, 1);
+
+# ascii spinner: the one moving part, cheap to swap
+sp[0] = Image.Text("|", 0.949, 0.337, 0.137, 1, "monospace bold 28");
+sp[1] = Image.Text("/", 0.949, 0.337, 0.137, 1, "monospace bold 28");
+sp[2] = Image.Text("-", 0.949, 0.337, 0.137, 1, "monospace bold 28");
+sp[3] = Image.Text("\\", 0.949, 0.337, 0.137, 1, "monospace bold 28");
+global.SPN = 4;
+spin.y = tag.y + tag.img.GetHeight() + rh;
+spin.sprite = Sprite(sp[0]);
+spin.sprite.SetPosition(sw / 2 - sp[0].GetWidth() / 2, spin.y, 2);
+global.st = 0;
+global.si = 0;
+
 fun refresh_callback ()
   {
-    if (global.prompt == 1)
-      global.lf = 0;
-    else
+    global.st++;
+    if (global.st >= 6)
       {
-        if (global.intro < 30)
-          global.intro++;
-        else
-          {
-            global.step++;
-            if (global.step >= 2)
-              {
-                global.step = 0;
-                if (global.lf < global.LOGN - 1)
-                  global.lf++;
-              }
-          }
-      }
-    logoSprite.SetImage(lanim[global.lf]);
-
-    global.tick++;
-    if (global.active == 1)
-      {
-        elapsed = global.tick / 50.0;
-        ratio = elapsed / 15.0;
-        if (ratio > 1.0)
-          ratio = 1.0;
-        eased = 1 - ((1 - ratio) * (1 - ratio));
-        update_bar(eased * 0.7);
+        global.st = 0;
+        global.si++;
+        if (global.si >= global.SPN)
+          global.si = 0;
+        spin.sprite.SetImage(sp[global.si]);
       }
   }
 Plymouth.SetRefreshFunction (refresh_callback);
 
-# ---- progress bar ----
-fun update_bar (v)
-  {
-    if (v > global.maxp)
-      {
-        global.maxp = v;
-        w = Math.Int(bar.orig.GetWidth() * v);
-        if (w < 1)
-          w = 1;
-        bar.sprite.SetImage(bar.orig.Scale(w, bar.orig.GetHeight()));
-      }
-  }
-fun show_bar () { box.sprite.SetOpacity(1); bar.sprite.SetOpacity(1); }
-fun hide_bar () { box.sprite.SetOpacity(0); bar.sprite.SetOpacity(0); }
-
-# ---- password dialog ----
+# LUKS unlock dialog
 lock.image = Image("lock.png");
 entry.image = Image("entry.png");
 bullet.image = Image("bullet.png");
-
 entry.sprite = Sprite(entry.image);
 entry.x = sw / 2 - entry.image.GetWidth() / 2;
-entry.y = logo.y + global.fh + 48;
+entry.y = spin.y + rh * 2;
 entry.sprite.SetPosition(entry.x, entry.y, 10001);
 entry.sprite.SetOpacity(0);
-
 lh = entry.image.GetHeight() * 0.8;
 lw = 84 * (lh / 96);
 lock.sprite = Sprite(lock.image.Scale(lw, lh));
 lock.sprite.SetPosition(entry.x - lw - 16, entry.y + entry.image.GetHeight() / 2 - lh / 2, 10001);
 lock.sprite.SetOpacity(0);
-
 bullet.sprites = [];
-
-fun show_dialog () { lock.sprite.SetOpacity(1); entry.sprite.SetOpacity(1); }
 fun hide_dialog ()
   {
     lock.sprite.SetOpacity(0);
@@ -252,28 +190,11 @@ fun hide_dialog ()
     for (b = 0; bullet.sprites[b]; b++)
       bullet.sprites[b].SetOpacity(0);
   }
-
-fun display_normal_callback ()
-  {
-    hide_dialog();
-    global.prompt = 0;
-    mode = Plymouth.GetMode();
-    if ((mode == "boot" || mode == "resume") && global.shown == 1)
-      {
-        show_bar();
-        global.active = 1;
-        global.tick = 0;
-      }
-  }
-
+fun display_normal_callback () { hide_dialog(); }
 fun display_password_callback (prompt, bullets)
   {
-    global.shown = 1;
-    global.prompt = 1;
-    global.active = 0;
-    hide_bar();
-    global.maxp = 0.0;
-    show_dialog();
+    lock.sprite.SetOpacity(1);
+    entry.sprite.SetOpacity(1);
     for (b = 0; bullet.sprites[b]; b++)
       bullet.sprites[b].SetOpacity(0);
     n = bullets;
@@ -289,36 +210,8 @@ fun display_password_callback (prompt, bullets)
         bullet.sprites[b].SetOpacity(1);
       }
   }
-
-Plymouth.SetDisplayNormalFunction(display_normal_callback);
-Plymouth.SetDisplayPasswordFunction(display_password_callback);
-
-box.image = Image("progress_box.png");
-box.sprite = Sprite(box.image);
-box.x = sw / 2 - box.image.GetWidth() / 2;
-box.y = entry.y + entry.image.GetHeight() + 28;
-box.sprite.SetPosition(box.x, box.y, 5);
-box.sprite.SetOpacity(0);
-
-bar.orig = Image("progress_bar.png");
-bar.sprite = Sprite();
-bar.sprite.SetImage(bar.orig.Scale(1, bar.orig.GetHeight()));
-bar.sprite.SetPosition(sw / 2 - bar.orig.GetWidth() / 2, box.y + (box.image.GetHeight() - bar.orig.GetHeight()) / 2, 6);
-bar.sprite.SetOpacity(0);
-
-fun progress_callback (duration, progress)
-  {
-    if (progress > 0.7)
-      {
-        global.active = 0;
-        update_bar(progress);
-      }
-  }
-Plymouth.SetBootProgressFunction(progress_callback);
-
-# snap to the finished wordmark at handoff so the desktop appears under RYOKU.
-fun quit_callback () { logoSprite.SetImage(lanim[global.LOGN - 1]); logoSprite.SetOpacity(1); }
-Plymouth.SetQuitFunction(quit_callback);
+Plymouth.SetDisplayNormalFunction (display_normal_callback);
+Plymouth.SetDisplayPasswordFunction (display_password_callback);
 
 msg = Sprite();
 msg.SetPosition(12, 12, 10000);
