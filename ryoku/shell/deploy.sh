@@ -239,8 +239,6 @@ if command -v sudo >/dev/null 2>&1; then
   bootsrc="$here/../../system/boot"
   sudo install -d /usr/share/plymouth/themes/ryoku
   sudo cp -a "$bootsrc/plymouth/ryoku/." /usr/share/plymouth/themes/ryoku/
-  sudo install -Dm644 "$bootsrc/plymouth/plymouth-quit-retain-splash.conf" \
-    /usr/lib/systemd/system/plymouth-quit.service.d/10-ryoku-retain-splash.conf
   sudo install -Dm644 "$bootsrc/limine/limine.conf" /usr/share/ryoku/boot/limine.conf
   sudo install -Dm644 "$bootsrc/limine/default.conf" /usr/share/ryoku/boot/default.conf
   sudo install -Dm755 "$bootsrc/ryoku-boot-apply" /usr/bin/ryoku-boot-apply
