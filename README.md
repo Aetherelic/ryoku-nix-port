@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku/assets/brand/logo-mark-v2.png" alt="Ryoku" width="160" />
+<img src="ryoku/assets/brand/logo-mark-v2.png" alt="Ryoku" width="160" />
 
 # Ryoku Arch
 
