@@ -37,7 +37,7 @@ import (
 const (
 	wxForecastURL  = "https://api.open-meteo.com/v1/forecast"
 	wxGeocodingURL = "https://geocoding-api.open-meteo.com/v1/search"
-	wxIPURL        = "http://ip-api.com/json/?fields=status,city,regionName,country,lat,lon"
+	wxIPURL        = "https://ipwho.is/"
 	wxAirURL       = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 	wxHourlyParams = "temperature_2m,relative_humidity_2m,apparent_temperature," +
@@ -48,12 +48,13 @@ const (
 		"precipitation_probability_max,wind_speed_10m_max"
 	wxAirParams = "pm10,pm2_5,ozone,european_aqi"
 
-	wxPollInterval = 15 * time.Minute
-	wxMaxRetries   = 3
-	wxRetryBase    = 5 * time.Second
-	wxRateWait     = 60 * time.Second
-	wxHTTPTimeout  = 10 * time.Second
-	wxDailyRows    = 3
+	wxPollInterval    = 15 * time.Minute
+	wxRecoverInterval = 30 * time.Second
+	wxMaxRetries      = 3
+	wxRetryBase       = 5 * time.Second
+	wxRateWait        = 60 * time.Second
+	wxHTTPTimeout     = 10 * time.Second
+	wxDailyRows       = 3
 )
 
 // Weather conditions, reproduced from the reference WeatherCondition enum. Only
@@ -546,7 +547,6 @@ type wxState struct {
 
 	wake  chan struct{}
 	quit  chan struct{}
-	first bool
 }
 
 // hasSubscribers reports whether any client is subscribed to the topic, so a
@@ -628,31 +628,53 @@ func (s *wxState) signalWake() {
 	}
 }
 
-// run is the poll loop: it fetches immediately, then every 15 minutes, skipping
-// a tick when nothing is subscribed (after the first fetch). configure and retry
-// wake it out of band.
+// run is the poll loop. It fetches immediately, then on the 15-minute poll
+// (skipped when nothing is subscribed) and whenever configure/retry wake it. A
+// fetch that does not land a loaded frame - the common case is the daemon
+// starting before the network is up at login - arms a short recovery ticker that
+// re-tries every wxRecoverInterval until data lands, so the readout heals on its
+// own instead of waiting out the 15-minute poll or a manual retry.
 func (s *wxState) run() {
-	ticker := time.NewTicker(wxPollInterval)
-	defer ticker.Stop()
-	s.fetchOnce()
+	poll := time.NewTicker(wxPollInterval)
+	defer poll.Stop()
+	heal := time.NewTicker(wxRecoverInterval)
+	heal.Stop()
+	defer heal.Stop()
+	recovering := false
+	arm := func(loaded bool) {
+		want := !loaded
+		if want == recovering {
+			return
+		}
+		recovering = want
+		if want {
+			heal.Reset(wxRecoverInterval)
+		} else {
+			heal.Stop()
+		}
+	}
+	arm(s.fetchOnce())
 	for {
 		select {
 		case <-s.quit:
 			return
 		case <-s.wake:
-			s.fetchOnce()
-		case <-ticker.C:
+			arm(s.fetchOnce())
+		case <-poll.C:
 			if !s.topic.hasSubscribers() {
 				continue
 			}
-			s.fetchOnce()
+			arm(s.fetchOnce())
+		case <-heal.C:
+			arm(s.fetchOnce())
 		}
 	}
 }
 
 // fetchOnce resolves the location if needed and fetches the forecast with the
-// retry ladder, publishing the loaded frame or an error frame.
-func (s *wxState) fetchOnce() {
+// retry ladder, publishing the loaded frame or an error frame. It reports
+// whether a loaded frame was published, so run can arm its recovery ticker.
+func (s *wxState) fetchOnce() bool {
 	s.mu.Lock()
 	cfg := s.cfg
 	loc := s.loc
@@ -664,7 +686,7 @@ func (s *wxState) fetchOnce() {
 		resolved, kind, err := s.resolveLocation(cfg)
 		if err != nil {
 			s.publishError(kind)
-			return
+			return false
 		}
 		loc = resolved
 		s.mu.Lock()
@@ -677,11 +699,11 @@ func (s *wxState) fetchOnce() {
 		if err == nil {
 			air, _ := s.fetchAir(loc.lat, loc.lon)
 			s.publishFrame(buildFrame(data, air, *loc, unit, cfg.clock24))
-			return
+			return true
 		}
 		if !wxRetryable(kind) || attempt == wxMaxRetries {
 			s.publishError(kind)
-			return
+			return false
 		}
 		delay := wxRetryBase * time.Duration(1<<(attempt-1))
 		if kind == wxErrRateLimited {
@@ -689,14 +711,15 @@ func (s *wxState) fetchOnce() {
 		}
 		select {
 		case <-s.quit:
-			return
+			return false
 		case <-s.wake:
 			// A configure/retry arrived mid-backoff: restart the fetch cycle.
 			s.signalWake()
-			return
+			return false
 		case <-time.After(delay):
 		}
 	}
+	return false
 }
 
 func wxRetryable(kind string) bool {
@@ -739,22 +762,27 @@ func (s *wxState) geocode(name string) (*wxLocation, string, error) {
 	return &wxLocation{city: r.Name, region: r.Admin1, country: r.Country, lat: r.Latitude, lon: r.Longitude}, "", nil
 }
 
+// ipLocate resolves the coordinate from the client's public IP over a keyless
+// HTTPS endpoint (ipwho.is). A lookup that fails or reports no success is a
+// provider/connectivity condition, not a user-typed bad place, so it is returned
+// as a retryable network error: the caller's recovery loop then re-tries instead
+// of wedging on a permanent locationNotFound.
 func (s *wxState) ipLocate() (*wxLocation, string, error) {
 	var resp struct {
-		Status     string  `json:"status"`
-		City       string  `json:"city"`
-		RegionName string  `json:"regionName"`
-		Country    string  `json:"country"`
-		Lat        float64 `json:"lat"`
-		Lon        float64 `json:"lon"`
+		Success   bool    `json:"success"`
+		City      string  `json:"city"`
+		Region    string  `json:"region"`
+		Country   string  `json:"country"`
+		Latitude  float64 `json:"latitude"`
+		Longitude float64 `json:"longitude"`
 	}
 	if kind, err := s.getJSON(wxIPURL, &resp); err != nil {
 		return nil, kind, err
 	}
-	if resp.Status != "" && resp.Status != "success" {
-		return nil, wxErrLocationNotFound, fmt.Errorf("ip lookup failed")
+	if !resp.Success {
+		return nil, wxErrNetwork, fmt.Errorf("ip lookup failed")
 	}
-	return &wxLocation{city: resp.City, region: resp.RegionName, country: resp.Country, lat: resp.Lat, lon: resp.Lon}, "", nil
+	return &wxLocation{city: resp.City, region: resp.Region, country: resp.Country, lat: resp.Latitude, lon: resp.Longitude}, "", nil
 }
 
 // fetchForecast requests the forecast for a coordinate, always in celsius/kmh.
