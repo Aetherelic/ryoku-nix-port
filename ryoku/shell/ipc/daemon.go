@@ -308,6 +308,7 @@ func (d *daemon) bootstrap() {
 	d.startSession()
 	d.startPolkit()
 	d.startWallpaper()
+	d.startUpdates()
 	go d.paintWorker()
 	go d.watchMatugenKnobs()
 	go d.ledsWorker()

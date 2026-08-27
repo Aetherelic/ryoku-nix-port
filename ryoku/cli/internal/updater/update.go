@@ -648,14 +648,29 @@ type statusReport struct {
 	Recent    []updateItem `json:"recent"`
 	Channel   string       `json:"channel"`
 	Snapshots int          `json:"snapshots"`
+	Packages  []updateItem `json:"packages"`
 }
 
-// buildStatus prefers the git update channel (a checkout tracking main). No
-// checkout (a packaged install) -> read the running and available commits from
-// the [ryoku] repo's package versions and list what is incoming between them via
-// the public GitHub compare API, so the Hub's Updates list is the same commit
-// subjects a dev box shows, not bare package names.
+// buildStatus is the full Updates report: the Ryoku channel (baseStatus) plus
+// the system packages a `pacman -Syu` would pull. baseStatus prefers the git
+// update channel (a checkout tracking main); a packaged install reads the
+// running and available commits from the [ryoku] repo's package versions and
+// lists what is incoming via the public GitHub compare API, so the Hub's list is
+// the same commit subjects a dev box shows, not bare package names.
 func buildStatus() statusReport {
+	r := baseStatus()
+	// System packages a `pacman -Syu` would pull, check-only, so the Updates
+	// section surfaces what the OS needs alongside the Ryoku channel.
+	r.Packages = systemPackageUpdates()
+	if len(r.Packages) > 0 {
+		r.Available = true
+	}
+	return r
+}
+
+// baseStatus builds the Ryoku-channel report: the git update channel on a
+// checkout, else the [ryoku] repo package versions on a packaged install.
+func baseStatus() statusReport {
 	if r, ok := channelStatus(); ok {
 		return r
 	}
@@ -772,6 +787,31 @@ func pendingUpdates() []updateItem {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	out, _ := exec.CommandContext(ctx, "checkupdates").Output()
+	sc := bufio.NewScanner(strings.NewReader(string(out)))
+	for sc.Scan() {
+		f := strings.Fields(sc.Text())
+		if len(f) >= 4 && f[2] == "->" {
+			ups = append(ups, updateItem{Name: f[0], Old: f[1], New: f[3]})
+		}
+	}
+	return ups
+}
+
+// systemPackageUpdates lists what a system upgrade would pull outside the Ryoku
+// channel: repo packages (checkupdates) and AUR packages (yay -Qua). Check-only.
+func systemPackageUpdates() []updateItem {
+	return append(pendingUpdates(), aurUpdates()...)
+}
+
+// aurUpdates lists AUR packages with a newer version via `yay -Qua` (no install).
+func aurUpdates() []updateItem {
+	ups := []updateItem{}
+	if !sys.Has("yay") {
+		return ups
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	out, _ := exec.CommandContext(ctx, "yay", "-Qua").Output()
 	sc := bufio.NewScanner(strings.NewReader(string(out)))
 	for sc.Scan() {
 		f := strings.Fields(sc.Text())

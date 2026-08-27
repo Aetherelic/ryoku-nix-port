@@ -83,7 +83,9 @@ Item {
             Text {
                 visible: Tokens.showGrid
                 id: slashMark
-                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                // clear the shared top-right FILES/UPDATES chips so the register
+                // marks never ride under them.
+                anchors { right: parent.right; rightMargin: 150; verticalCenter: parent.verticalCenter }
                 text: "///"; color: Tokens.inkFaint
                 font.family: Tokens.mono; font.pixelSize: 10
             }

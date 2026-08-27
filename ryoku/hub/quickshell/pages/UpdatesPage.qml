@@ -271,7 +271,7 @@ Item {
     // marginalia dressing the head's empty right margin (eyebrow line). Ink only.
     Marginalia {
         anchors { right: parent.right; top: head.top }
-        anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s1
+        anchors.rightMargin: 150; anchors.topMargin: Tokens.s1  // clear the top-right chips
         kana: "更新"
         glyph: "wave"; glyph2: "column"
     }
@@ -518,6 +518,77 @@ Item {
                     font.pixelSize: Tokens.fSmall
                     topPadding: Tokens.s2
                     leftPadding: 40
+                }
+            }
+
+            // ── system packages (pacman -Syu, check-only) ──
+            Column {
+                width: idleCol.width
+                spacing: 0
+                visible: Updates.packages.length > 0
+
+                Item {
+                    width: parent.width
+                    height: 30
+                    Row {
+                        id: pkgLabel
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Tokens.s2
+                        Rectangle {
+                            width: 4; height: 4; color: Tokens.ink
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: I18n.tr("SYSTEM PACKAGES") + "  " + Updates.packages.length
+                            color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+                            font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                    Rectangle {
+                        anchors.left: pkgLabel.right; anchors.leftMargin: Tokens.s3
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        height: 1; color: Tokens.lineSoft
+                    }
+                }
+
+                Repeater {
+                    model: Updates.packages
+                    delegate: Item {
+                        id: prow
+                        required property var modelData
+                        width: idleCol.width
+                        height: 34
+
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.topMargin: 3; anchors.bottomMargin: 3
+                            radius: Tokens.radius
+                            color: pkgHover.hovered ? Tokens.tint5 : "transparent"
+                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                        }
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: Tokens.s3
+                            anchors.right: pver.left; anchors.rightMargin: Tokens.s3
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: prow.modelData.name
+                            color: pkgHover.hovered ? Tokens.ink : Tokens.inkDim
+                            font.family: Tokens.ui; font.pixelSize: Tokens.fSmall; font.weight: Font.Medium
+                            elide: Text.ElideRight
+                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                        }
+                        Text {
+                            id: pver
+                            anchors.right: parent.right; anchors.rightMargin: Tokens.s3
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: (prow.modelData.old || "") !== ""
+                                ? (prow.modelData.old + "  \u2192  " + prow.modelData.new)
+                                : (prow.modelData.new || "")
+                            color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
+                        }
+                        HoverHandler { id: pkgHover }
+                    }
                 }
             }
 
