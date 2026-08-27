@@ -196,18 +196,12 @@ say "installed rashin systemd user unit"
 say "building ryoku CLI"
 (cd "$here/../cli" && go build -o ryoku .)
 install -m755 "$here/../cli/ryoku" "$bindir/ryoku"
-install -m755 "$here/../../system/hardware/power/ryoku-hw-laptop" "$bindir/ryoku-hw-laptop"
-install -m755 "$here/../../system/hardware/power/ryoku-idle" "$bindir/ryoku-idle"
-install -m755 "$here/../../system/hardware/audio/ryoku-mic" "$bindir/ryoku-mic"
-install -m755 "$here/../../system/hardware/audio/ryoku-volume" "$bindir/ryoku-volume"
-install -m755 "$here/../../system/hardware/audio/ryoku-restart-audio" "$bindir/ryoku-restart-audio"
-install -m755 "$here/../../system/hardware/display/ryoku-monitor" "$bindir/ryoku-monitor"
-install -m755 "$here/../../system/hardware/network/ryoku-dns" "$bindir/ryoku-dns"
-install -m755 "$here/../../system/hardware/gpu/ryoku-gpu" "$bindir/ryoku-gpu"
-install -m755 "$here/../../system/hardware/gpu/ryoku-gpu-detect" "$bindir/ryoku-gpu-detect"
-install -m755 "$here/../../system/hardware/gpu/ryoku-gpu-lib32" "$bindir/ryoku-gpu-lib32"
-install -m755 "$here/../../system/hardware/input/ryoku-hw-asus-aura" "$bindir/ryoku-hw-asus-aura"
-install -m755 "$here/../../system/hardware/input/ryoku-hw-qmk" "$bindir/ryoku-hw-qmk"
+# every system helper the package ships to /usr/bin, by the same globs, so a new
+# hardware or container helper reaches a checkout the moment it lands.
+for s in "$here/../../system/hardware"/*/ryoku-* "$here/../../system/containers"/ryoku-*; do
+  [[ -f $s && -x $s ]] || continue
+  install -m755 "$s" "$bindir/${s##*/}"
+done
 for s in "$here/../../system/extras"/ryoku-*; do
   install -m755 "$s" "$bindir/${s##*/}"
 done
