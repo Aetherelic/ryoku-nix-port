@@ -46,6 +46,26 @@ ShellRoot {
         }
     }
 
+    // A shortcut line: Super + <key> + what it does, in the same cap vocabulary.
+    component Hint: Row {
+        id: hint
+        property string keyCap: ""
+        property string label: ""
+        spacing: Tokens.s3
+        Cap { anchors.verticalCenter: parent.verticalCenter; text: "Super" }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "+"; color: Tokens.inkFaint
+            font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+        }
+        Cap { anchors.verticalCenter: parent.verticalCenter; text: hint.keyCap }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: hint.label; color: Tokens.inkDim
+            font.family: Tokens.ui; font.pixelSize: Tokens.fBody
+        }
+    }
+
     Variants {
         model: Quickshell.screens
 
@@ -59,7 +79,7 @@ ShellRoot {
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             anchors { top: true; left: true; right: true }
-            implicitHeight: 132
+            implicitHeight: 210
 
             // Show only on the monitor the user is on when Ryoku first comes up.
             readonly property bool onFocused: {
@@ -78,83 +98,98 @@ ShellRoot {
             }
             readonly property real shown: app.closing ? 0 : appear
 
-            Rectangle {
-                id: card
+            // Two stacked cards, appearing together: the cheatsheet pointer (with
+            // the dismiss control) and the sidebar / settings shortcuts. One X
+            // dismisses the whole set.
+            Column {
+                id: stack
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: Tokens.s5 + (win.shown - 1) * 14
                 opacity: win.shown
+                spacing: Tokens.s3
                 Behavior on opacity { NumberAnimation { duration: Tokens.durSmall; easing.type: Easing.OutCubic } }
                 Behavior on y { NumberAnimation { duration: Tokens.durSmall; easing.type: Easing.OutCubic } }
 
-                width: content.implicitWidth + Tokens.s5 * 2
-                height: 54
-                radius: Tokens.radius * 1.5
-                color: Tokens.paperLift
-                border.width: Tokens.border
-                border.color: Tokens.line
+                // both cards take the wider content's width so they stack flush.
+                readonly property real cardW: Math.max(kRow.implicitWidth, hintCol.implicitWidth) + Tokens.s5 * 2
 
-                Row {
-                    id: content
-                    anchors.centerIn: parent
-                    spacing: Tokens.s3
+                // ── card 1: the cheatsheet pointer + dismiss ──
+                Rectangle {
+                    width: stack.cardW
+                    height: 54
+                    radius: Tokens.radius * 1.5
+                    color: Tokens.paperLift
+                    border.width: Tokens.border
+                    border.color: Tokens.line
 
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 12
-                        height: 1
-                        color: Tokens.ink
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "\u529b"
-                        color: Tokens.ink
-                        font.family: Tokens.jp
-                        font.pixelSize: Tokens.fBody
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: I18n.tr("Press")
-                        color: Tokens.ink
-                        font.family: Tokens.ui
-                        font.pixelSize: Tokens.fBody
-                    }
-                    Cap { anchors.verticalCenter: parent.verticalCenter; text: "Super" }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "+"
-                        color: Tokens.inkFaint
-                        font.family: Tokens.ui
-                        font.pixelSize: Tokens.fMicro
-                    }
-                    Cap { anchors.verticalCenter: parent.verticalCenter; text: "K" }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: I18n.tr("for every keyboard shortcut")
-                        color: Tokens.inkDim
-                        font.family: Tokens.ui
-                        font.pixelSize: Tokens.fBody
-                    }
+                    Row {
+                        id: kRow
+                        anchors.centerIn: parent
+                        spacing: Tokens.s3
 
-                    Item { width: Tokens.s2; height: 1 }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 28
-                        height: 28
-                        radius: Tokens.radius
-                        color: closeHover.hovered ? Tokens.tint10 : "transparent"
-                        border.width: Tokens.border
-                        border.color: closeHover.hovered ? Tokens.lineStrong : Tokens.line
-                        Behavior on color { ColorAnimation { duration: Tokens.snap } }
-                        Text {
-                            anchors.centerIn: parent
-                            text: "\u2715"
-                            color: Tokens.inkDim
-                            font.family: Tokens.ui
-                            font.pixelSize: Tokens.fMicro
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 12; height: 1; color: Tokens.ink
                         }
-                        HoverHandler { id: closeHover }
-                        TapHandler { onTapped: app.dismiss() }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "\u529b"; color: Tokens.ink
+                            font.family: Tokens.jp; font.pixelSize: Tokens.fBody
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: I18n.tr("Press"); color: Tokens.ink
+                            font.family: Tokens.ui; font.pixelSize: Tokens.fBody
+                        }
+                        Cap { anchors.verticalCenter: parent.verticalCenter; text: "Super" }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "+"; color: Tokens.inkFaint
+                            font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+                        }
+                        Cap { anchors.verticalCenter: parent.verticalCenter; text: "K" }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: I18n.tr("for every keyboard shortcut"); color: Tokens.inkDim
+                            font.family: Tokens.ui; font.pixelSize: Tokens.fBody
+                        }
+
+                        Item { width: Tokens.s2; height: 1 }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 28; height: 28
+                            radius: Tokens.radius
+                            color: closeHover.hovered ? Tokens.tint10 : "transparent"
+                            border.width: Tokens.border
+                            border.color: closeHover.hovered ? Tokens.lineStrong : Tokens.line
+                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\u2715"; color: Tokens.inkDim
+                                font.family: Tokens.ui; font.pixelSize: Tokens.fMicro
+                            }
+                            HoverHandler { id: closeHover }
+                            TapHandler { onTapped: app.dismiss() }
+                        }
+                    }
+                }
+
+                // ── card 2: the sidebar + settings shortcuts ──
+                Rectangle {
+                    width: stack.cardW
+                    height: hintCol.implicitHeight + Tokens.s4 * 2
+                    radius: Tokens.radius * 1.5
+                    color: Tokens.paperLift
+                    border.width: Tokens.border
+                    border.color: Tokens.line
+
+                    Column {
+                        id: hintCol
+                        anchors.centerIn: parent
+                        spacing: Tokens.s2
+                        Hint { keyCap: "Esc"; label: I18n.tr("for the sidebar") }
+                        Hint { keyCap: ","; label: I18n.tr("for settings") }
                     }
                 }
             }
