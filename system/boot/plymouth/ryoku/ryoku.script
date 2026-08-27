@@ -172,21 +172,27 @@ global.intro = 0;
 global.active = 0;
 global.tick = 0;
 global.shown = 0;
+global.prompt = 0;
 global.maxp = 0.0;
 
-# hold the seal briefly, morph once at ~25fps, then hold the final wordmark.
+# hold the 力 while the disk is locked, morph to RYOKU once unlocking begins.
 fun refresh_callback ()
   {
-    if (global.intro < 30)
-      global.intro++;
+    if (global.prompt == 1)
+      global.lf = 0;
     else
       {
-        global.step++;
-        if (global.step >= 2)
+        if (global.intro < 30)
+          global.intro++;
+        else
           {
-            global.step = 0;
-            if (global.lf < global.LOGN - 1)
-              global.lf++;
+            global.step++;
+            if (global.step >= 2)
+              {
+                global.step = 0;
+                if (global.lf < global.LOGN - 1)
+                  global.lf++;
+              }
           }
       }
     logoSprite.SetImage(lanim[global.lf]);
@@ -250,6 +256,7 @@ fun hide_dialog ()
 fun display_normal_callback ()
   {
     hide_dialog();
+    global.prompt = 0;
     mode = Plymouth.GetMode();
     if ((mode == "boot" || mode == "resume") && global.shown == 1)
       {
@@ -262,6 +269,7 @@ fun display_normal_callback ()
 fun display_password_callback (prompt, bullets)
   {
     global.shown = 1;
+    global.prompt = 1;
     global.active = 0;
     hide_bar();
     global.maxp = 0.0;

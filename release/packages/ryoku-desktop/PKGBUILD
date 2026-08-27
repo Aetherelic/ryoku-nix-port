@@ -658,4 +658,15 @@ package() {
     "$pkgdir/usr/bin/ryoku-windows-entry"
   install -Dm755 "$_repo/system/boot/limine/45-ryoku-windows" \
     "$pkgdir/etc/boot/hooks/post.d/45-ryoku-windows"
+
+  # The boot look, shipped so `ryoku update` refreshes it on every box, not just
+  # fresh installs; the ryoku-desktop scriptlet then runs ryoku-boot-apply.
+  install -d "$pkgdir/usr/share/plymouth/themes/ryoku"
+  cp -a "$_repo/system/boot/plymouth/ryoku/." "$pkgdir/usr/share/plymouth/themes/ryoku/"
+  chmod -R u=rwX,go=rX "$pkgdir/usr/share/plymouth/themes/ryoku"
+  install -Dm644 "$_repo/system/boot/limine/ryoku-wall.png" \
+    "$pkgdir/usr/share/ryoku/boot/ryoku-wall.png"
+  install -Dm644 "$_repo/system/boot/limine/limine.conf" \
+    "$pkgdir/usr/share/ryoku/boot/limine.conf"
+  install -Dm755 "$_repo/system/boot/ryoku-boot-apply" "$pkgdir/usr/bin/ryoku-boot-apply"
 }

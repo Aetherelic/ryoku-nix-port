@@ -127,6 +127,13 @@ _bt_reset_unit() {
   mkdir -p /var/lib/ryoku && : >"$marker"
 }
 
+# apply the boot splash + Limine theme when an upgrade ships new art; a no-op in
+# the install chroot, where the installer lays the boot chain.
+_boot_theme() {
+  command -v ryoku-boot-apply >/dev/null 2>&1 || return 0
+  ryoku-boot-apply >/dev/null 2>&1 || true
+}
+
 post_install() {
   _refresh
   _bluetooth
@@ -138,6 +145,7 @@ post_install() {
   _logind_lid
   _ai_usage_timer
   _bt_reset_unit
+  _boot_theme
   _hint
 }
 
@@ -152,6 +160,7 @@ post_upgrade() {
   _logind_lid
   _ai_usage_timer
   _bt_reset_unit
+  _boot_theme
   _hint
 }
 
