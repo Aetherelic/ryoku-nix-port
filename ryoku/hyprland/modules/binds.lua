@@ -42,7 +42,7 @@ hl.bind(K(mod .. " + ALT + E"),   hl.dsp.exec_cmd("kitty -e yazi"))             
 
 -- Shell surfaces and tools
 hl.bind(K(mod .. " + Space"),     hl.dsp.global("ryoku:launcher"))                 -- open the app launcher
-hl.bind(K(mod .. " + K"),         hl.dsp.exec_cmd("flock -n -o /tmp/ryoku-keys.lock qs -c keys")) -- keybind cheatsheet: every shortcut, searchable
+hl.bind(K(mod .. " + K"),         hl.dsp.exec_cmd("pkill -x -f 'qs -c keys' 2>/dev/null || flock -n -o /tmp/ryoku-keys.lock qs -c keys")) -- keybind cheatsheet: toggle (press to open, press again to close)
 hl.bind(K(mod .. " + L"),         hl.dsp.exec_cmd("ryoku-shell lock"))             -- lock the screen
 hl.bind(K(mod .. " + Escape"),    hl.dsp.global("ryoku:quicksettings")) -- quick settings: power, logout, restart, shutdown, wifi
 hl.bind(K(mod .. " + W"),         hl.dsp.global("ryoku:wallpaper-menu"))      -- wallpaper + theme menu (bottom-centre frame blob: scrolling images/live, colour filter, themes)
