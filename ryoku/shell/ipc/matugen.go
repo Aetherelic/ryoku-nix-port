@@ -1165,6 +1165,18 @@ func matugenReload(mode string) {
 		matugenNudgeGtk(name)
 	}
 	_ = runCommand("pkill", "-USR1", "-x", "kitty")
+	nudgePalette()
+}
+
+// nudgePalette tells the shell's bar to re-read the palette just written to
+// colors.json. The bar and frame chrome otherwise learn of a palette change only
+// through a colors.json file watch, which can miss an atomic-rename replacement
+// and strand them on a stale palette until the next change (or a manual
+// re-theme). This socket push over the bar's `theme` IpcHandler is the reliable
+// path; the file watch stays as a best-effort fallback. Fire-and-forget so a
+// restarting or absent bar never stalls the paint worker.
+func nudgePalette() {
+	go ipcCall("shell", "theme", "reload", "")
 }
 
 // matugenNudgeGtk lands gtk-theme on `want`, flipping through a placeholder first
