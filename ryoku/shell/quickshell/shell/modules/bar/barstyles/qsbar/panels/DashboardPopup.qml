@@ -381,6 +381,8 @@ PanelWindow {
                                 spacing: 9
                                 IconText {
                                     anchors.verticalCenter: parent.verticalCenter
+                                    width: 24
+                                    horizontalAlignment: Text.AlignHCenter
                                     text: modelData.icon
                                     color: root.sumi
                                     font.pixelSize: 20
@@ -422,7 +424,13 @@ PanelWindow {
 
                     readonly property int n: Math.min(8, Weather.hourly.length)
                     readonly property int padX: 20
-                    readonly property int curveH: height - 34
+                    // Vertical bands: a top gap so the highest temperature label
+                    // clears the tile edge, and a bottom axis strip sized for the
+                    // glyph+hour column so neither number clips.
+                    readonly property int curveTop: 20
+                    readonly property int axisH: 30
+                    readonly property int curveBot: height - axisH - 6
+                    function tempY(norm) { return curveBot - norm * (curveBot - curveTop) }
                     function px(i) { return padX + (width - 2 * padX) * (n > 1 ? (i + 0.5) / n : 0.5) }
 
                     Canvas {
@@ -436,7 +444,7 @@ PanelWindow {
                             var ctx = getContext("2d"); ctx.reset();
                             ctx.save(); ctx.beginPath(); ctx.rect(0, 0, width * graphTile.graphProg, height); ctx.clip();
                             var n = graphTile.n; if (n < 2) return;
-                            var top = 12, bot = graphTile.curveH;
+                            var top = graphTile.curveTop, bot = graphTile.curveBot;
                             var lo = 1e9, hi = -1e9, i;
                             for (i = 0; i < n; i++) { var t = Weather.hourly[i].temp; if (t < lo) lo = t; if (t > hi) hi = t; }
                             if (hi - lo < 1) { hi += 1; lo -= 1; }
@@ -487,7 +495,7 @@ PanelWindow {
                                 return (h.temp - lo) / (hi - lo);
                             }
                             x: graphTile.px(index) - width / 2
-                            y: (graphTile.curveH - 12) - norm * (graphTile.curveH - 24) - 16
+                            y: graphTile.tempY(norm) - 16
                             text: h.temp + "\u00b0"
                             color: index === 0 ? root.seal : root.inkDeep
                             font.family: root.mono; font.pixelSize: 10; font.weight: index === 0 ? Font.Medium : Font.Normal
@@ -502,7 +510,7 @@ PanelWindow {
                             readonly property var h: Weather.hourly[index]
                             x: graphTile.px(index) - width / 2
                             width: 34
-                            y: graphTile.height - 26
+                            y: graphTile.height - graphTile.axisH
                             spacing: 0
                             IconText {
                                 anchors.horizontalCenter: parent.horizontalCenter
