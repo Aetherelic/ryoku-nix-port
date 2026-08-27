@@ -130,10 +130,12 @@ Item {
         }
 
         Marginalia {
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.rightMargin: card.pad
-            anchors.topMargin: card.pad + 20
+            // sit just left of the close control, vertically centred on it, so the
+            // trailing torii + chevrons never ride under the X (Marginalia dresses a
+            // margin "without crowding a control").
+            anchors.right: closeBtn.left
+            anchors.rightMargin: Tokens.s3
+            anchors.verticalCenter: closeBtn.verticalCenter
             kana: "\u8fd1\u9053"
             index: sheet.total > 0 ? ("" + sheet.total) : ""
             label: I18n.tr("SHORTCUTS")
