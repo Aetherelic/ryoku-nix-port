@@ -1,9 +1,8 @@
 # Ryoku Plymouth splash.
 #
-# Two layers: a full-screen sakura field that loops the whole time the system
-# boots, and a crisp centred logo that reveals (seal -> RYOKU) once, then breathes
-# so it never looks frozen. Plymouth paints the near-black background; the petal
-# layer is stretched to the panel (soft petals, fine) while the logo layer is only
+# One crisp centred morph: the 力 seal flows into the RYOKU wordmark once, then
+# holds on the finished mark until the display manager takes over (near-black,
+# no flash). Plymouth paints the near-black background; the morph layer is only
 # downscaled (never upscaled), so the mark stays sharp on any resolution.
 
 Window.SetBackgroundTopColor(0.0235, 0.0235, 0.0275);
@@ -12,79 +11,7 @@ Window.SetBackgroundBottomColor(0.0235, 0.0235, 0.0275);
 sw = Window.GetWidth();
 sh = Window.GetHeight();
 
-# ---- sakura layer (full screen, seamless loop) ----
-praw[0] = Image("petals/petal-0.png");
-praw[1] = Image("petals/petal-1.png");
-praw[2] = Image("petals/petal-2.png");
-praw[3] = Image("petals/petal-3.png");
-praw[4] = Image("petals/petal-4.png");
-praw[5] = Image("petals/petal-5.png");
-praw[6] = Image("petals/petal-6.png");
-praw[7] = Image("petals/petal-7.png");
-praw[8] = Image("petals/petal-8.png");
-praw[9] = Image("petals/petal-9.png");
-praw[10] = Image("petals/petal-10.png");
-praw[11] = Image("petals/petal-11.png");
-praw[12] = Image("petals/petal-12.png");
-praw[13] = Image("petals/petal-13.png");
-praw[14] = Image("petals/petal-14.png");
-praw[15] = Image("petals/petal-15.png");
-praw[16] = Image("petals/petal-16.png");
-praw[17] = Image("petals/petal-17.png");
-praw[18] = Image("petals/petal-18.png");
-praw[19] = Image("petals/petal-19.png");
-praw[20] = Image("petals/petal-20.png");
-praw[21] = Image("petals/petal-21.png");
-praw[22] = Image("petals/petal-22.png");
-praw[23] = Image("petals/petal-23.png");
-praw[24] = Image("petals/petal-24.png");
-praw[25] = Image("petals/petal-25.png");
-praw[26] = Image("petals/petal-26.png");
-praw[27] = Image("petals/petal-27.png");
-praw[28] = Image("petals/petal-28.png");
-praw[29] = Image("petals/petal-29.png");
-praw[30] = Image("petals/petal-30.png");
-praw[31] = Image("petals/petal-31.png");
-praw[32] = Image("petals/petal-32.png");
-praw[33] = Image("petals/petal-33.png");
-praw[34] = Image("petals/petal-34.png");
-praw[35] = Image("petals/petal-35.png");
-praw[36] = Image("petals/petal-36.png");
-praw[37] = Image("petals/petal-37.png");
-praw[38] = Image("petals/petal-38.png");
-praw[39] = Image("petals/petal-39.png");
-praw[40] = Image("petals/petal-40.png");
-praw[41] = Image("petals/petal-41.png");
-praw[42] = Image("petals/petal-42.png");
-praw[43] = Image("petals/petal-43.png");
-praw[44] = Image("petals/petal-44.png");
-praw[45] = Image("petals/petal-45.png");
-praw[46] = Image("petals/petal-46.png");
-praw[47] = Image("petals/petal-47.png");
-praw[48] = Image("petals/petal-48.png");
-praw[49] = Image("petals/petal-49.png");
-praw[50] = Image("petals/petal-50.png");
-praw[51] = Image("petals/petal-51.png");
-praw[52] = Image("petals/petal-52.png");
-praw[53] = Image("petals/petal-53.png");
-praw[54] = Image("petals/petal-54.png");
-praw[55] = Image("petals/petal-55.png");
-praw[56] = Image("petals/petal-56.png");
-praw[57] = Image("petals/petal-57.png");
-praw[58] = Image("petals/petal-58.png");
-praw[59] = Image("petals/petal-59.png");
-global.PETN = 60;
-p = 0;
-while (p < global.PETN)
-  {
-    panim[p] = praw[p].Scale(sw, sh);
-    p++;
-  }
-petSprite = Sprite();
-petSprite.SetImage(panim[0]);
-petSprite.SetPosition(0, 0, 0);
-
-# ---- logo layer (centred, downscale-only, reveal then breathe) ----
+# ---- morph layer (centred, downscale-only, play once then hold) ----
 lraw[0] = Image("frames/frame-0.png");
 lraw[1] = Image("frames/frame-1.png");
 lraw[2] = Image("frames/frame-2.png");
@@ -175,8 +102,50 @@ lraw[86] = Image("frames/frame-86.png");
 lraw[87] = Image("frames/frame-87.png");
 lraw[88] = Image("frames/frame-88.png");
 lraw[89] = Image("frames/frame-89.png");
-global.LOGN = 90;
-global.INTRO = 30;
+lraw[90] = Image("frames/frame-90.png");
+lraw[91] = Image("frames/frame-91.png");
+lraw[92] = Image("frames/frame-92.png");
+lraw[93] = Image("frames/frame-93.png");
+lraw[94] = Image("frames/frame-94.png");
+lraw[95] = Image("frames/frame-95.png");
+lraw[96] = Image("frames/frame-96.png");
+lraw[97] = Image("frames/frame-97.png");
+lraw[98] = Image("frames/frame-98.png");
+lraw[99] = Image("frames/frame-99.png");
+lraw[100] = Image("frames/frame-100.png");
+lraw[101] = Image("frames/frame-101.png");
+lraw[102] = Image("frames/frame-102.png");
+lraw[103] = Image("frames/frame-103.png");
+lraw[104] = Image("frames/frame-104.png");
+lraw[105] = Image("frames/frame-105.png");
+lraw[106] = Image("frames/frame-106.png");
+lraw[107] = Image("frames/frame-107.png");
+lraw[108] = Image("frames/frame-108.png");
+lraw[109] = Image("frames/frame-109.png");
+lraw[110] = Image("frames/frame-110.png");
+lraw[111] = Image("frames/frame-111.png");
+lraw[112] = Image("frames/frame-112.png");
+lraw[113] = Image("frames/frame-113.png");
+lraw[114] = Image("frames/frame-114.png");
+lraw[115] = Image("frames/frame-115.png");
+lraw[116] = Image("frames/frame-116.png");
+lraw[117] = Image("frames/frame-117.png");
+lraw[118] = Image("frames/frame-118.png");
+lraw[119] = Image("frames/frame-119.png");
+lraw[120] = Image("frames/frame-120.png");
+lraw[121] = Image("frames/frame-121.png");
+lraw[122] = Image("frames/frame-122.png");
+lraw[123] = Image("frames/frame-123.png");
+lraw[124] = Image("frames/frame-124.png");
+lraw[125] = Image("frames/frame-125.png");
+lraw[126] = Image("frames/frame-126.png");
+lraw[127] = Image("frames/frame-127.png");
+lraw[128] = Image("frames/frame-128.png");
+lraw[129] = Image("frames/frame-129.png");
+lraw[130] = Image("frames/frame-130.png");
+lraw[131] = Image("frames/frame-131.png");
+lraw[132] = Image("frames/frame-132.png");
+global.LOGN = 133;
 mw = lraw[0].GetWidth();
 mh = lraw[0].GetHeight();
 scale = sh * 0.42 / mh;
@@ -197,28 +166,29 @@ logoSprite = Sprite();
 logoSprite.SetImage(lanim[0]);
 logoSprite.SetPosition(sw / 2 - global.fw / 2, logo.y, 1);
 
-global.pf = 0;
 global.lf = 0;
 global.step = 0;
+global.intro = 0;
 global.active = 0;
 global.tick = 0;
 global.shown = 0;
 global.maxp = 0.0;
 
+# hold the seal briefly, morph once at ~25fps, then hold the final wordmark.
 fun refresh_callback ()
   {
-    global.step++;
-    if (global.step >= 2)
+    if (global.intro < 30)
+      global.intro++;
+    else
       {
-        global.step = 0;
-        global.pf++;
-        if (global.pf >= global.PETN)
-          global.pf = 0;
-        global.lf++;
-        if (global.lf >= global.LOGN)
-          global.lf = global.INTRO;
+        global.step++;
+        if (global.step >= 2)
+          {
+            global.step = 0;
+            if (global.lf < global.LOGN - 1)
+              global.lf++;
+          }
       }
-    petSprite.SetImage(panim[global.pf]);
     logoSprite.SetImage(lanim[global.lf]);
 
     global.tick++;
@@ -338,7 +308,8 @@ fun progress_callback (duration, progress)
   }
 Plymouth.SetBootProgressFunction(progress_callback);
 
-fun quit_callback () { logoSprite.SetOpacity(1); }
+# snap to the finished wordmark at handoff so the desktop appears under RYOKU.
+fun quit_callback () { logoSprite.SetImage(lanim[global.LOGN - 1]); logoSprite.SetOpacity(1); }
 Plymouth.SetQuitFunction(quit_callback);
 
 msg = Sprite();
