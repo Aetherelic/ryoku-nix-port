@@ -47,15 +47,44 @@ Item {
     property string dockEdge: "bottom"
     property real alongPx: 0
     property bool placed: false
+    property bool userPlaced: false
     readonly property bool dragging: dragH.active
     property bool hidden: false
+
+    // this monitor's dock lane (edge + band size + centre), fed from Frame, so the
+    // island's default rest is flush beside the dock rather than off in a corner.
+    property string laneDockEdge: ""
+    property real laneDockSize: 0
+    property real laneDockCenter: 0
+
+    // default along-edge position: parked snug beside the dock band when the island
+    // shares the dock's edge, else centred on the edge. Kept reactive so a dock that
+    // grows, or a first frame that had no band size yet, still lands it right; once
+    // the user drags, alongPx (userPlaced) takes over and this is ignored.
+    function defaultAlong() {
+        const horiz = hud.dockEdge === "top" || hud.dockEdge === "bottom";
+        const size = horiz ? hud.bodyW : hud.bodyH;
+        const lo = horiz ? hud.lipL : hud.lipT;
+        const hi = (horiz ? hud.width - hud.lipR : hud.height - hud.lipB) - size;
+        const axisMid = horiz ? hud.width / 2 : hud.height / 2;
+        const gap = 12 * hud.s;
+        if (hud.laneDockEdge === hud.dockEdge && hud.laneDockSize > 0) {
+            const center = hud.laneDockCenter > 0 ? hud.laneDockCenter : axisMid;
+            const right = center + hud.laneDockSize / 2 + gap;       // just past the band
+            if (right <= hi) return right;
+            const left = center - hud.laneDockSize / 2 - gap - size; // or just before it
+            if (left >= lo) return left;
+        }
+        return Math.max(lo, Math.min(hi, axisMid - size / 2));       // centred fallback
+    }
+    readonly property real autoAlong: hud.width > 0 ? hud.defaultAlong() : 0
+    readonly property real alongPos: hud.userPlaced ? hud.alongPx : hud.autoAlong
 
     onWidthChanged: hud.reposition()
     onHeightChanged: hud.reposition()
     function reposition() {
         if (hud.placed || hud.width <= 0)
             return;
-        hud.alongPx = (hud.width - hud.bodyW) / 2;
         hud.px = hud.dockX;
         hud.py = hud.dockY;
         hud.placed = true;
@@ -64,7 +93,7 @@ Item {
     // --- reveal + melt: 0 tucked behind the edge, 1 fully out, a small nub cue
     // when hidden.
     property bool revealHeld: false
-    readonly property bool revealed: bodyHov.hovered || edgeHov.hovered
+    readonly property bool revealed: bodyHov.hovered || peekHov.hovered
     // tucked = hidden and not currently being revealed by a hover.
     readonly property bool tucked: hud.hidden && !hud.revealHeld
     onRevealedChanged: {
@@ -199,10 +228,10 @@ Item {
 
     readonly property real dockX: hud.dockEdge === "left" ? hud.lipL
         : hud.dockEdge === "right" ? (hud.width - hud.lipR - hud.bodyW)
-        : Math.max(hud.lipL, Math.min(hud.width - hud.lipR - hud.bodyW, hud.alongPx))
+        : Math.max(hud.lipL, Math.min(hud.width - hud.lipR - hud.bodyW, hud.alongPos))
     readonly property real dockY: hud.dockEdge === "top" ? hud.lipT
         : hud.dockEdge === "bottom" ? (hud.height - hud.lipB - hud.bodyH)
-        : Math.max(hud.lipT, Math.min(hud.height - hud.lipB - hud.bodyH, hud.alongPx))
+        : Math.max(hud.lipT, Math.min(hud.height - hud.lipB - hud.bodyH, hud.alongPos))
     property real px: 0
     property real py: 0
     Behavior on px { enabled: !hud.dragging; NumberAnimation { duration: hud.mergeDur; easing.type: Easing.InOutCubic } }
@@ -215,24 +244,34 @@ Item {
     onPxChanged: hud.settleEdge()
     onPyChanged: hud.settleEdge()
 
-    // input-mask rects: the body while it's out, the edge strip so a hidden nub
-    // can be hovered back out. shell.qml unions both.
+    // input-mask rects: the body while it's out, and the tucked peek so a hidden
+    // island can be hovered back out. shell.qml unions both.
     readonly property real hudX: hud.px
     readonly property real hudY: hud.py
     readonly property real hudW: hud.bodyW
     readonly property real hudH: hud.bodyH
-    // while tucked the reveal zone grows: deeper into the screen and wider along
-    // the edge, so flicking the cursor to that edge reliably pops the nub back
-    // out instead of needing to land on the small nub exactly.
-    readonly property real trigReach: hud.tucked ? 46 * hud.s : 18 * hud.s
-    readonly property real trigPad: hud.tucked ? 44 * hud.s : 0
-    readonly property real trigDepth: hud.lipFor(hud.dockEdge) + hud.trigReach
-    readonly property real trigX: hud.dockEdge === "right" ? (hud.width - hud.trigDepth)
-        : hud.dockEdge === "left" ? 0 : (hud.dockX - hud.trigPad)
-    readonly property real trigY: hud.dockEdge === "bottom" ? (hud.height - hud.trigDepth)
-        : hud.dockEdge === "top" ? 0 : (hud.dockY - hud.trigPad)
-    readonly property real trigW: (hud.dockEdge === "left" || hud.dockEdge === "right") ? hud.trigDepth : (hud.bodyW + 2 * hud.trigPad)
-    readonly property real trigH: (hud.dockEdge === "top" || hud.dockEdge === "bottom") ? hud.trigDepth : (hud.bodyH + 2 * hud.trigPad)
+
+    // the tucked peek: a slim pill (record dot + running clock) that rests flush at
+    // the docked edge, in the island's own along-edge lane, so it never sits under
+    // the dock's centred peek. It is the sole reveal affordance -- hover it and the
+    // full card slides back in -- replacing the old blind edge strip.
+    readonly property real peekPad: 7 * hud.s
+    readonly property real peekW: peekRow.implicitWidth + 2 * hud.peekPad
+    readonly property real peekH: peekRow.implicitHeight + 2 * hud.peekPad
+    readonly property real peekX: hud.dockEdge === "left" ? hud.lipL
+        : hud.dockEdge === "right" ? (hud.width - hud.lipR - hud.peekW)
+        : Math.max(hud.lipL, Math.min(hud.width - hud.lipR - hud.peekW, hud.px + (hud.bodyW - hud.peekW) / 2))
+    readonly property real peekY: hud.dockEdge === "top" ? hud.lipT
+        : hud.dockEdge === "bottom" ? (hud.height - hud.lipB - hud.peekH)
+        : Math.max(hud.lipT, Math.min(hud.height - hud.lipB - hud.peekH, hud.py + (hud.bodyH - hud.peekH) / 2))
+    // reveal hot-zone = the peek pill plus a small buffer, only while tucked; when
+    // the card is out it owns its own region, so the zone collapses to nothing and
+    // never competes with the dock's or bar's edge reveal.
+    readonly property real trigPadOut: 8 * hud.s
+    readonly property real trigX: hud.tucked ? (hud.peekX - hud.trigPadOut) : hud.px
+    readonly property real trigY: hud.tucked ? (hud.peekY - hud.trigPadOut) : hud.py
+    readonly property real trigW: hud.tucked ? (hud.peekW + 2 * hud.trigPadOut) : 0
+    readonly property real trigH: hud.tucked ? (hud.peekH + 2 * hud.trigPadOut) : 0
 
     // nearest edge = where the island docks on release; the gap to each lip also
     // feeds the orientation flip. (No more liquid merge-reach: the card is crisp.)
@@ -263,7 +302,9 @@ Item {
         : hud.dockEdge === "right" ? (1 - hud.prog) * (hud.bodyW + hud.lipR) : 0
     readonly property real revealY: hud.dockEdge === "top" ? -(1 - hud.prog) * (hud.bodyH + hud.lipT)
         : hud.dockEdge === "bottom" ? (1 - hud.prog) * (hud.bodyH + hud.lipB) : 0
-    readonly property real cardOpacity: Math.max(0, Math.min(1, (hud.prog - 0.04) / 0.5))
+    // fully transparent until the card is clearly revealing, so the tucked state
+    // shows only the peek pill (no faint nub-card sliver behind it).
+    readonly property real cardOpacity: Math.max(0, Math.min(1, (hud.prog - 0.16) / 0.5))
 
     // the crisp card: the frame's surface, a 2px outline and rounded corners,
     // matching FrameChrome and the frame-edge cards. clips its content so the
@@ -310,6 +351,8 @@ Item {
                     hud.nearEdge = e;
                     hud.alongPx = (e === "top" || e === "bottom") ? hud.px : hud.py;
                     hud.dockEdge = e;
+                    // the user has chosen a spot; stop auto-parking beside the dock.
+                    hud.userPlaced = true;
                 }
             }
             onCentroidChanged: {
@@ -498,32 +541,46 @@ Item {
         }
     }
 
-    // edge strip: hovering here pops a hidden nub back out.
-    Item {
-        x: hud.trigX
-        y: hud.trigY
-        width: hud.trigW
-        height: hud.trigH
-        HoverHandler { id: edgeHov }
-    }
-
-    // tucked cue: a record dot pulses at the docked edge so a hidden island still
-    // reads as "recording, tucked here" rather than gone. it fades out as the card
-    // reveals.
+    // tucked peek: a slim frosted pill carrying the record dot and the running
+    // clock, resting flush at the docked edge in the island's lane. Always visible
+    // while tucked so the island never vanishes into a nub you must hunt for;
+    // hovering it slides the full card back in, and it fades as the card arrives.
     Rectangle {
-        readonly property real dot: 8 * hud.s
-        width: dot
-        height: dot
-        radius: dot / 2
-        x: hud.dockEdge === "left" ? (hud.lipL + dot * 0.5)
-            : hud.dockEdge === "right" ? (hud.width - hud.lipR - dot * 1.5)
-            : (hud.px + hud.bodyW / 2 - dot / 2)
-        y: hud.dockEdge === "top" ? (hud.lipT + dot * 0.5)
-            : hud.dockEdge === "bottom" ? (hud.height - hud.lipB - dot * 1.5)
-            : (hud.py + hud.bodyH / 2 - dot / 2)
-        color: Recorder.paused ? Theme.onSurfaceVariant : Theme.vermLit
-        opacity: Recorder.anyActive ? Math.max(0, 1 - hud.prog / 0.4) * (Recorder.paused ? 0.9 : Recorder.pulse) : 0
+        id: peek
+        x: hud.peekX
+        y: hud.peekY
+        width: hud.peekW
+        height: hud.peekH
+        radius: height / 2
+        color: Theme.surface
+        border.width: Theme.borderWidth
+        border.color: Theme.outline
+        opacity: Recorder.anyActive
+            ? Math.max(0, Math.min(1, 1 - (hud.prog - hud.nubProg) / 0.4)) * (Recorder.paused ? 0.9 : 1)
+            : 0
         visible: opacity > 0.01
+        HoverHandler { id: peekHov; cursorShape: Qt.PointingHandCursor }
+        Row {
+            id: peekRow
+            anchors.centerIn: parent
+            spacing: 6 * hud.s
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 8 * hud.s
+                height: 8 * hud.s
+                radius: width / 2
+                color: Recorder.paused ? Theme.onSurfaceVariant : Theme.vermLit
+                opacity: Recorder.paused ? 1 : Recorder.pulse
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Recorder.elapsedText
+                color: Theme.onSurface
+                font.family: Theme.fontPrimary
+                font.pixelSize: 12 * hud.s
+                font.features: { "tnum": 1 }
+            }
+        }
     }
 
     // audio mute through the shared Pipewire graph.

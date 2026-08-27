@@ -119,12 +119,17 @@ ShellRoot {
             // The frame bar (Phase 2): reads its own reveal from this slice.
             Frame {
                 modelData: perScreen.modelData
+                // park the record island flush beside this monitor's dock band
+                dockLaneEdge: perScreenDock.edge
+                dockLaneSize: perScreenDock.bandSize
+                dockLaneCenter: perScreenDock.bandCenter
             }
 
             // The dock: a resident per-monitor surface on the edge opposite the
             // bar. Style-agnostic, so it lives here rather than inside a bar style;
             // it draws nothing until the user turns it on (Hub -> Bar Studio -> Dock).
             DockSurface {
+                id: perScreenDock
                 screen: perScreen.modelData
             }
 

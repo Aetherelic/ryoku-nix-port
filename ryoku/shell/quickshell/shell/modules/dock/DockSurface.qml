@@ -45,6 +45,14 @@ PanelWindow {
     readonly property real headroom: ((Dock.cfg("magnify", true) && !Perf.reduceMotion) ? 22 : 0)
         + (Dock.cfg("labels", true) ? 30 : 0)
 
+    // The dock band's along-edge size and centre in screen coordinates (0 size
+    // while the dock is off), so a neighbour -- the record island -- can park flush
+    // beside the band instead of drifting into a corner. Uses the band's resting
+    // geometry, independent of reveal, so an autohiding dock still defines a stable
+    // lane. The band is centred on the edge, so the centre is the surface midpoint.
+    readonly property real bandSize: dock.visible ? (dock.horizontal ? band.implicitWidth : band.implicitHeight) : 0
+    readonly property real bandCenter: dock.horizontal ? (dock.width / 2) : (dock.height / 2)
+
     color: "transparent"
     visible: Dock.cfg("enabled", false)
     // `screen` is PanelWindow's own property, set per monitor from shell.qml.

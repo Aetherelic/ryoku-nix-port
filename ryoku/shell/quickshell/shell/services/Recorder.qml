@@ -152,6 +152,29 @@ Singleton {
     }
     Component.onCompleted: if (!recPrefsFile.text()) recPrefsFile.writeAdapter();
 
+    // Persist the capture's start time so a shell reload mid-recording keeps
+    // counting from the real start instead of resetting the clock. Written when a
+    // capture begins and cleared when it ends; the process poll below reads it
+    // back on reload. A capture started outside the shell has no stamp and falls
+    // back to counting from when the shell first saw it.
+    readonly property string sessionFile: (Quickshell.env("RYOKU_STATE_PATH") || (Quickshell.env("HOME") + "/.local/state/ryoku")) + "/record-session"
+    function writeSession(v) {
+        Quickshell.execDetached(["sh", "-c",
+            "mkdir -p \"${1%/*}\"; printf '%s' \"$2\" > \"$1\"", "sh", root.sessionFile, v]);
+    }
+    function readSessionStart() {
+        const n = parseInt((sessionView.text() || "").trim(), 10);
+        return (isFinite(n) && n > 0) ? n : 0;
+    }
+    FileView {
+        id: sessionView
+        path: root.sessionFile
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+    }
+
     // desktop-audio + mic flags -> ryoku-cmd-screenrecord args, shared by the card
     // and the island so the two never build the argument list differently.
     function recordArgs() {
@@ -221,6 +244,7 @@ Singleton {
         root.active = true;
         root.startedAt = Math.floor(Date.now() / 1000);
         root.elapsedSec = 0;
+        root.writeSession(String(root.startedAt));
         confirm.restart();
     }
 
@@ -234,6 +258,7 @@ Singleton {
         Quickshell.execDetached([root.script, "--stop"]);
         root.active = false;
         root.paused = false;
+        root.writeSession("");
         // discord-quick: hand the just-finished clip to the compressor, which
         // waits for gsr/wf to finalise the mp4 before re-encoding it in place.
         if (root.pendingDiscord) {
@@ -270,6 +295,7 @@ Singleton {
         root.backend = "studio";
         root.startedAt = Math.floor(Date.now() / 1000);
         root.elapsedSec = 0;
+        root.writeSession(String(root.startedAt));
     }
     function stopStudio() {
         // SIGTERM the wrapper (not gsr): it stops the capture, writes the cursor
@@ -281,6 +307,7 @@ Singleton {
         root.backend = "";
         root.startedAt = 0;
         root.elapsedSec = 0;
+        root.writeSession("");
     }
 
     Process {
@@ -293,6 +320,7 @@ Singleton {
                 root.backend = "";
                 root.startedAt = 0;
                 root.elapsedSec = 0;
+                root.writeSession("");
             }
         }
     }
@@ -325,14 +353,25 @@ Singleton {
                 var b = text.trim();
                 var nowActive = b === "gsr" || b === "wf";
                 if (nowActive && !root.active) {
-                    root.startedAt = Math.floor(Date.now() / 1000);
-                    root.elapsedSec = 0;
+                    // A shell reload restarts this process with active=false while
+                    // gsr keeps running; restore the real start from the session
+                    // stamp so the clock keeps counting instead of resetting to 0.
+                    const persisted = root.readSessionStart();
+                    if (persisted > 0) {
+                        root.startedAt = persisted;
+                        root.elapsedSec = Math.max(0, Math.floor(Date.now() / 1000) - persisted);
+                    } else {
+                        root.startedAt = Math.floor(Date.now() / 1000);
+                        root.elapsedSec = 0;
+                        root.writeSession(String(root.startedAt));
+                    }
                 }
                 if (!nowActive && !root.studioActive) {
                     root.startedAt = 0;
                     root.elapsedSec = 0;
                     root.pulse = 1;
                     root.paused = false;
+                    root.writeSession("");
                 }
                 root.active = nowActive;
                 if (nowActive) root.backend = b;

@@ -25,6 +25,13 @@ Scope {
     // shell.qml; null only for the instant before that binding lands.
     property var modelData: null
 
+    // This monitor's dock lane, fed from the sibling DockSurface in shell.qml: the
+    // edge it sits on, and its band's along-edge size and centre. The record island
+    // parks flush beside the band on a shared edge instead of drifting to a corner.
+    property string dockLaneEdge: ""
+    property real dockLaneSize: 0
+    property real dockLaneCenter: 0
+
     readonly property real frameBorderPx: Config.frameThickness
 
     // This monitor's per-monitor UI scale (shell.json displays.ui_scale, default
@@ -412,6 +419,9 @@ Scope {
                 clearanceBottom: overlay.railClearance("bottom")
                 clearanceLeft: overlay.railClearance("left")
                 clearanceRight: overlay.railClearance("right")
+                laneDockEdge: root.dockLaneEdge
+                laneDockSize: root.dockLaneSize
+                laneDockCenter: root.dockLaneCenter
             }
         }
     }
