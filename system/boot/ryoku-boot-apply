@@ -50,12 +50,32 @@ sync_limine_globals() {
   fi
   rm -f "$tmp" "$tmp.2" 2>/dev/null || true
 }
+need_rebuild=0
 sync_limine_globals
 
-# rebuild only when the splash content changed; the plymouth mkinitcpio hook
-# embeds whatever theme is default.
+# Sync the fixed kernel-cmdline suffix (the boot-look flags: quiet splash plus
+# the log/status silencers that keep systemd/udev/kernel text off the splash)
+# from the shipped template onto /etc/default/limine. Only that one suffix line
+# is touched; the machine's real root cmdline sits on its own KERNEL_CMDLINE
+# line and is never read here. A change forces the UKI rebuild below so it
+# reaches the next boot.
+sync_limine_cmdline() {
+  local tmpl=$boot_src/default.conf conf=/etc/default/limine canon
+  local prefix='KERNEL_CMDLINE[default]+=" quiet splash'
+  [ -f "$tmpl" ] && [ -f "$conf" ] || return 0
+  canon=$(grep -F "$prefix" "$tmpl" | head -n1) || return 0
+  [ -n "$canon" ] || return 0
+  grep -qF "$prefix" "$conf" || return 0
+  grep -qxF "$canon" "$conf" && return 0
+  awk -v new="$canon" -v p="$prefix" 'index($0,p)==1{print new;next}{print}' \
+    "$conf" >"$conf.ryoku-tmp" && mv "$conf.ryoku-tmp" "$conf" && need_rebuild=1
+}
+sync_limine_cmdline
+
+# rebuild when the splash content or the cmdline changed; the plymouth mkinitcpio
+# hook embeds whatever theme is default and the UKI bakes in the cmdline.
 fp=$(find "$theme_dir" -type f -exec sha256sum {} + | sort | sha256sum | cut -d' ' -f1)
-if [ ! -f "$stamp" ] || [ "$(cat "$stamp" 2>/dev/null)" != "$fp" ]; then
+if [ "$need_rebuild" -eq 1 ] || [ ! -f "$stamp" ] || [ "$(cat "$stamp" 2>/dev/null)" != "$fp" ]; then
   if command -v limine-mkinitcpio >/dev/null 2>&1; then
     limine-mkinitcpio || true
   elif command -v mkinitcpio >/dev/null 2>&1; then

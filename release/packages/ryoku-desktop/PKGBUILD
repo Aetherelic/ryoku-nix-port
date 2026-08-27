@@ -666,5 +666,7 @@ package() {
   chmod -R u=rwX,go=rX "$pkgdir/usr/share/plymouth/themes/ryoku"
   install -Dm644 "$_repo/system/boot/limine/limine.conf" \
     "$pkgdir/usr/share/ryoku/boot/limine.conf"
+  install -Dm644 "$_repo/system/boot/limine/default.conf" \
+    "$pkgdir/usr/share/ryoku/boot/default.conf"
   install -Dm755 "$_repo/system/boot/ryoku-boot-apply" "$pkgdir/usr/bin/ryoku-boot-apply"
 }
