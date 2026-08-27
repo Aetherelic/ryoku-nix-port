@@ -5,8 +5,8 @@
 # no flash). Plymouth paints the near-black background; the morph layer is only
 # downscaled (never upscaled), so the mark stays sharp on any resolution.
 
-Window.SetBackgroundTopColor(0.0235, 0.0235, 0.0275);
-Window.SetBackgroundBottomColor(0.0235, 0.0235, 0.0275);
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
 
 sw = Window.GetWidth();
 sh = Window.GetHeight();
