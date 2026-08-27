@@ -664,6 +664,8 @@ package() {
   install -d "$pkgdir/usr/share/plymouth/themes/ryoku"
   cp -a "$_repo/system/boot/plymouth/ryoku/." "$pkgdir/usr/share/plymouth/themes/ryoku/"
   chmod -R u=rwX,go=rX "$pkgdir/usr/share/plymouth/themes/ryoku"
+  install -Dm644 "$_repo/system/boot/plymouth/plymouth-quit-retain-splash.conf" \
+    "$pkgdir/usr/lib/systemd/system/plymouth-quit.service.d/10-ryoku-retain-splash.conf"
   install -Dm644 "$_repo/system/boot/limine/limine.conf" \
     "$pkgdir/usr/share/ryoku/boot/limine.conf"
   install -Dm644 "$_repo/system/boot/limine/default.conf" \
