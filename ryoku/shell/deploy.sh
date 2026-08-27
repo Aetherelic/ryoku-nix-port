@@ -240,6 +240,16 @@ if command -v sudo >/dev/null 2>&1; then
   _priv_install "$netdir/ryoku-wifi-powersave" /usr/bin/ryoku-wifi-powersave 755
   _priv_install "$netdir/49-ryoku-wifi-powersave.rules" /usr/share/polkit-1/rules.d/49-ryoku-wifi-powersave.rules 644
   say "installed privileged network helpers + polkit rules"
+  # Boot look: lay the splash theme, Limine art and ryoku-boot-apply, then apply
+  # them (set the splash, deploy the ESP wallpaper + globals, rebuild initramfs).
+  bootsrc="$here/../../system/boot"
+  sudo install -d /usr/share/plymouth/themes/ryoku
+  sudo cp -a "$bootsrc/plymouth/ryoku/." /usr/share/plymouth/themes/ryoku/
+  sudo install -Dm644 "$bootsrc/limine/ryoku-wall.png" /usr/share/ryoku/boot/ryoku-wall.png
+  sudo install -Dm644 "$bootsrc/limine/limine.conf" /usr/share/ryoku/boot/limine.conf
+  sudo install -Dm755 "$bootsrc/ryoku-boot-apply" /usr/bin/ryoku-boot-apply
+  sudo ryoku-boot-apply || true
+  say "installed and applied the boot splash + Limine theme"
 fi
 
 # Record the checkout this deploy came from and the commit it laid down, so the
