@@ -144,7 +144,15 @@ Rectangle {
     // Input Focus
     Timer { interval: 300; running: true; onTriggered: passInput.forceActiveFocus() }
 
-    Component.onCompleted: { fadeIn.start(); keyboard.numLock = true }
+    Component.onCompleted: {
+        keyboard.numLock = true
+        if (typeof sessionModel !== "undefined")
+            root.sessionIndex = preferredSessionIndex()
+        if (root.enableWindup)
+            playLockReveal()
+        else
+            fadeIn.start()
+    }
     NumberAnimation { id: fadeIn; target: root; property: "uiOpacity"; to: 1; duration: 350; easing.type: Easing.OutCubic }
 
     // Main Layout
@@ -383,6 +391,10 @@ Rectangle {
                 boomSequence.stop()
                 boomReveal.start()
             }
+            // Auth is already committed here, so the iris-out is purely
+            // cosmetic and can never keep the user locked out.
+            if (root.enableWindup)
+                playUnlockReveal()
         }
         function onLoginFailed() { _unlocked = false; isWindup = false; windupAnim.stop(); boomTriggerTimer.stop(); boomSequence.stop(); root.windupOffset = 0; root.boomScale = 1.0; root.boomOpacity = 0.0; root.sparkIntensity = 0; root.authInfo = ""; errText.text = "ACCESS DENIED"; passInput.text = ""; passInput.forceActiveFocus(); shake.start() }
     }
@@ -397,5 +409,99 @@ Rectangle {
         Text { id: actTxt; anchors.right: parent.right; anchors.rightMargin: actM.containsMouse ? 15 * s : 0; text: label.toUpperCase(); color: actM.containsMouse ? root.mainText : root.dimText; font.family: outfitFont.name; font.pixelSize: 10 * s; font.letterSpacing: 3 * s; Behavior on color { ColorAnimation { duration: 200 } } Behavior on anchors.rightMargin { NumberAnimation { duration: 200 } } }
         Text { text: "✦"; anchors.left: actTxt.right; anchors.leftMargin: 4 * s; anchors.verticalCenter: actTxt.verticalCenter; color: root.mainText; opacity: actM.containsMouse ? 1.0 : 0; font.pixelSize: 8 * s; Behavior on opacity { NumberAnimation { duration: 200 } } }
         MouseArea { id: actM; anchors.fill: parent; hoverEnabled: true; onClicked: { actItem.clicked() } cursorShape: Qt.PointingHandCursor }
+    }
+    // ── swww-style circular reveal ──────────────────────────────────────────
+    // Lock-in grows a circular window of the lock out of the surface colour;
+    // unlock irises it back closed just before the surface tears down. Both
+    // beats share one curtain -- a full-surface fill with an animated circular
+    // hole punched by an inverted OpacityMask -- and run only under the
+    // fancy-motion toggle. The curtain drops its render layers the instant it is
+    // idle, so the 60fps clock never pays for a full-screen mask nobody sees.
+    readonly property real revealDiag: Math.sqrt(width * width + height * height)
+    property real revealR: 0
+    property bool revealActive: false
+
+    Item {
+        id: revealCurtain
+        anchors.fill: parent
+        z: 20000
+        visible: root.revealActive
+        layer.enabled: root.revealActive
+        layer.effect: OpacityMask { invert: true; maskSource: revealMaskSrc }
+        Rectangle { anchors.fill: parent; color: root.bgColor }
+    }
+    Item {
+        id: revealMaskSrc
+        anchors.fill: parent
+        visible: false
+        layer.enabled: root.revealActive
+        Rectangle {
+            anchors.centerIn: parent
+            width: root.revealR * 2
+            height: root.revealR * 2
+            radius: root.revealR
+            color: "white"
+        }
+    }
+
+    NumberAnimation {
+        id: revealIn
+        target: root; property: "revealR"
+        from: 0; to: root.revealDiag; duration: 720; easing.type: Easing.OutQuint
+        onFinished: root.revealActive = false
+    }
+    NumberAnimation {
+        id: revealOut
+        target: root; property: "revealR"
+        from: root.revealDiag; to: 0; duration: 380; easing.type: Easing.InQuint
+    }
+
+    function playLockReveal() {
+        revealOut.stop()
+        root.uiOpacity = 1
+        root.revealR = 0
+        root.revealActive = true
+        revealIn.restart()
+    }
+    function playUnlockReveal() {
+        revealIn.stop()
+        root.revealR = root.revealDiag
+        root.revealActive = true
+        revealOut.restart()
+    }
+
+    // ── canonical session default (SDDM greeter only) ───────────────────────
+    // The hyprland package ships two sessions: "Hyprland" (Ryoku's
+    // start-hyprland) and "Hyprland (uwsm-managed)". Ryoku's logout path assumes
+    // the former, and SDDM's remembered index can land on the uwsm entry, so the
+    // picker defaults to the plain Hyprland session whenever it is present.
+    Item {
+        visible: false
+        Repeater {
+            id: sessionScan
+            model: (typeof sessionModel !== "undefined") ? sessionModel : null
+            delegate: Item { property string sName: model.name || "" }
+        }
+    }
+    function preferredSessionIndex() {
+        if (typeof sessionModel === "undefined")
+            return 0
+        var exact = -1, loose = -1
+        for (var i = 0; i < sessionScan.count; i++) {
+            var it = sessionScan.itemAt(i)
+            if (!it)
+                continue
+            var nm = it.sName || ""
+            var low = nm.toLowerCase()
+            if (nm === "Hyprland")
+                exact = i
+            else if (low.indexOf("hyprland") >= 0 && low.indexOf("uwsm") < 0 && loose < 0)
+                loose = i
+        }
+        if (exact >= 0)
+            return exact
+        if (loose >= 0)
+            return loose
+        return (sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     }
 }
