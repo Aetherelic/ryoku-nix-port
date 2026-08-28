@@ -56,6 +56,9 @@ hl.on("hyprland.start", function()
     -- no OpenRGB at all, until lighting is on with a device adopted.
     hl.exec_cmd("command -v ryoku-hub >/dev/null 2>&1 && ryoku-hub lighting apply")
     hl.exec_cmd("command -v ryoku-mic >/dev/null 2>&1 && ryoku-mic")
+    -- Night light: hyprsunset is a plain process a reboot drops, so restore the
+    -- warm screen when the user left it on. A no-op when it was off or absent.
+    hl.exec_cmd("command -v ryoku-cmd-nightlight >/dev/null 2>&1 && ryoku-cmd-nightlight restore")
     -- Booted into a btrfs snapshot from the Limine menu: offer the one-click
     -- restore. limine-snapper-sync ships this as an XDG autostart entry, which
     -- Hyprland never runs (no autostart manager), so start it here; on a normal

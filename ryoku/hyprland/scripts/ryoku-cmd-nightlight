@@ -6,6 +6,7 @@
 #   on [temp]   ensure on (default = saved temp, or 4000)
 #   off         ensure off
 #   status      "on <temp>" | "off"
+#   restore     start only if it was left enabled (boot autostart)
 #
 # killing hyprsunset puts gamma back, so off is just pkill. temp is persisted,
 # so status prints it and the next enable reuses it.
@@ -13,6 +14,9 @@ set -u
 
 state="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-nightlight"
 default_temp=4000
+# a marker records that the user left the night light ON, so the boot autostart
+# can restore it: hyprsunset is a plain process and does not survive a reboot.
+enabled="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-nightlight-enabled"
 
 saved_temp() {
   if [[ -r $state ]]; then
@@ -32,12 +36,13 @@ start() {
   fi
   mkdir -p "$(dirname "$state")" 2>/dev/null || true
   printf '%s\n' "$temp" >"$state" 2>/dev/null || true
+  : >"$enabled" 2>/dev/null || true
   pkill -x hyprsunset 2>/dev/null || true
   # detach so we outlive whatever called us (keybind, hub).
   setsid -f hyprsunset -t "$temp" >/dev/null 2>&1
 }
 
-stop() { pkill -x hyprsunset 2>/dev/null || true; }
+stop() { pkill -x hyprsunset 2>/dev/null || true; rm -f "$enabled" 2>/dev/null || true; }
 
 case "${1:-toggle}" in
   status)
@@ -55,8 +60,11 @@ case "${1:-toggle}" in
   [0-9]*)
     if is_on; then stop; else start "$1"; fi
     ;;
+  restore)
+    [[ -f $enabled ]] && start "$(saved_temp)"
+    ;;
   *)
-    echo "usage: ryoku-cmd-nightlight [status | on [temp] | off | toggle | <temp>]" >&2
+    echo "usage: ryoku-cmd-nightlight [status | on [temp] | off | toggle | restore | <temp>]" >&2
     exit 1
     ;;
 esac
