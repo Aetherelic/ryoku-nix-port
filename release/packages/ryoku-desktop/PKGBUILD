@@ -401,6 +401,12 @@ package() {
     "$pkgdir/usr/share/applications/compress-video.desktop"
   install -Dm644 "$_repo/ryoku/apps/tools/install-app.desktop" \
     "$pkgdir/usr/share/applications/install-app.desktop"
+  # Ryoku Hub: a launcher-searchable entry for the settings surface, so it shows
+  # in the app launcher alongside its Super+comma keybind.
+  install -Dm644 "$_repo/ryoku/hub/ryoku-hub.desktop" \
+    "$pkgdir/usr/share/applications/ryoku-hub.desktop"
+  install -Dm644 "$_repo/ryoku/assets/brand/logo.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/ryoku-hub.svg"
   # ryotunes: YouTube Music as a Chromium app-window wired to the desktop
   # now-playing widget over MPRIS. Not a quickshell app, so it ships explicitly:
   # the wrapper on PATH, its .desktop, and its icon. chromium comes from

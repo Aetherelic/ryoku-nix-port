@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Ryoku Hub
+GenericName=Ryoku Settings
+Comment=Configure the Ryoku desktop: appearance, bar, inputs, keybinds and more
+Exec=ryoku-shell hub open
+Terminal=false
+Icon=ryoku-hub
+Categories=Settings;DesktopSettings;
+Keywords=hub;settings;preferences;ryoku;configure;appearance;keybinds;bar;input;

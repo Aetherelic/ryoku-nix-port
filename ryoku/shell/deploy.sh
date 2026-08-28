@@ -409,6 +409,12 @@ for appdir in "$here"/../apps/*/; do
   say "installed app $appname -> $cfg/quickshell/$appname"
 done
 
+# Ryoku Hub (hub/): the surface is deployed above; ship a launcher entry so it
+# shows in the app launcher search too, next to the Super+comma keybind.
+install -Dm644 "$here/../hub/ryoku-hub.desktop" "$appshare/applications/ryoku-hub.desktop"
+install -Dm644 "$here/../assets/brand/logo.svg" "$appshare/icons/hicolor/scalable/apps/ryoku-hub.svg"
+say "installed ryoku-hub launcher entry"
+
 # ryotunes: YouTube Music as a Chromium app-window (apps/ryotunes). Not a
 # quickshell app, so it ships explicitly like the other non-qs launchers: the
 # wrapper on PATH, its .desktop, and its icon into the hicolor set.
