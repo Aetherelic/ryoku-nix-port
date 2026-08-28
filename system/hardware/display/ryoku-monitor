@@ -188,12 +188,12 @@ write_monitors_conf() {
     monitors_json | jq -r --argjson pinned "$pinned_json" '
       .[] | select(.name as $n | ($pinned | index($n)) == null) |
       if .disabled then
-        "hl.monitor({ output = \"\(.name)\", disabled = true })"
+        "hl.monitor({ output = \(.name|@json), disabled = true })"
       else
-        "hl.monitor({ output = \"\(.name)\", mode = \"" + (if (.mirrorOf // "none") != "none" then "\(.width)x\(.height)@\(.refreshRate | round)" else "highrr" end) + "\", position = \"\(.x)x\(.y)\", scale = \(.scale)"
+        "hl.monitor({ output = \(.name|@json), mode = \"" + (if (.mirrorOf // "none") != "none" then "\(.width)x\(.height)@\(.refreshRate | round)" else "highrr" end) + "\", position = \"\(.x)x\(.y)\", scale = \(.scale)"
         + (if .transform != 0 then ", transform = \(.transform)" else "" end)
         + (if .vrr then ", vrr = 1" else "" end)
-        + (if (.mirrorOf // "none") != "none" then ", mirror = \"\(.mirrorOf)\"" else "" end)
+        + (if (.mirrorOf // "none") != "none" then ", mirror = \(.mirrorOf|@json)" else "" end)
         + " })"
       end
     '
@@ -570,13 +570,13 @@ write_monitors_explicit() {
     printf '%s' "$specs" | jq -r '
       .[] |
       if .disabled then
-        "hl.monitor({ output = \"\(.output)\", disabled = true })"
+        "hl.monitor({ output = \(.output|@json), disabled = true })"
       else
-        "hl.monitor({ output = \"\(.output)\", mode = \"\(.mode)\", position = \"\(.position)\", scale = \(.scale)"
+        "hl.monitor({ output = \(.output|@json), mode = \(.mode|@json), position = \(.position|@json), scale = \(.scale)"
         + (if (.transform // 0) != 0 then ", transform = \(.transform)" else "" end)
         + (if (.vrr // 0) != 0 then ", vrr = \(.vrr)" else "" end)
-        + (if (.mirror // "") != "" and (.mirror // "") != "none" then ", mirror = \"\(.mirror)\"" else "" end)
-        + ((.cm // "srgb") as $cm | ", cm = \"\($cm)\", bitdepth = \(if $cm == "srgb" then 8 else 10 end), sdrbrightness = \(if $cm == "hdr" then (.sdrbrightness // 1) else 1 end)")
+        + (if (.mirror // "") != "" and (.mirror // "") != "none" then ", mirror = \(.mirror|@json)" else "" end)
+        + ((.cm // "srgb") as $cm | ", cm = \($cm|@json), bitdepth = \(if $cm == "srgb" then 8 else 10 end), sdrbrightness = \(if $cm == "hdr" then (.sdrbrightness // 1) else 1 end)")
         + " })"
       end'
     printf '\n'

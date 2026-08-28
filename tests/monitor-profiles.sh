@@ -255,4 +255,14 @@ grep -q 'DP-5 -> scale' <<<"$hpout" || fail "hotplug autoscale did not DPI-scale
 grep -q 'eDP-1 -> scale' <<<"$hpout" && fail "hotplug autoscale reset the already-tuned eDP-1 (should preserve it): $hpout"
 has "$hpconf" 'output = "", mode = "preferred"' "autoscale wrote a highrr catch-all (a hotplugged link errors on highrr; want preferred)"
 
+# --- a monitor name with a quote must not break the generated Lua (@json escaping).
+cat >"$tmp/evil.json" <<'JSON'
+[
+  {"name":"DP-1\"x","make":"E","model":"M","serial":"S","width":1920,"height":1080,"refreshRate":60.0,"physicalWidth":301,"x":0,"y":0,"scale":1.0,"transform":0,"vrr":false,"disabled":false,"focused":true,"mirrorOf":"none","availableModes":["1920x1080@60.00Hz"]}
+]
+JSON
+RYOKU_MONITOR_JSON="$tmp/evil.json" RYOKU_MONITORS_CONF="$tmp/evil.lua" \
+  RYOKU_MONITORS_DIR="$tmp/none-evil" RYOKU_MONITORS_APPLIED="$tmp/evil-applied.json" RYOKU_MONITOR_VM=0 "$mon" autoscale >/dev/null 2>&1 || true
+luac -p "$tmp/evil.lua" 2>/dev/null || fail "a quoted monitor name produced invalid Lua in monitors.lua"
+
 echo "monitor-profiles: all checks passed"
