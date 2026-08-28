@@ -510,4 +510,18 @@ ShellRoot {
         description: "Open the feature sidebar's file picker to install a package"
         onPressed: ShellState.requestSurfaceActive("stash#install", undefined)
     }
+
+    // External surface opener: the ryoku-shell daemon calls
+    // `qs ipc call shell openSurface <monitor> <id>` for its `menu`/tool verbs
+    // (install-app and compress-video launch through here). It routes the id onto
+    // the same surfaceRequested bus the global-shortcut keybinds use.
+    IpcHandler {
+        target: "shell"
+        function openSurface(monitor: string, id: string): void {
+            if (monitor && monitor.length > 0)
+                ShellState.requestSurface(id, monitor, "");
+            else
+                ShellState.requestSurfaceActive(id, undefined);
+        }
+    }
 }

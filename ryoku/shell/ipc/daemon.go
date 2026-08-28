@@ -807,12 +807,13 @@ func (d *daemon) handle(conn net.Conn) {
 var surfaceCommands = map[string]string{
 	"menu screenshot": "screenshot",
 	"menu stash":      "stash",
-	// ryoku: launcher/overview/visualizer are toggled in-process
-	// by the shell's own global:ryoku:* keybinds (CustomShortcut -> ShellState),
-	// not by the daemon. These CLI verbs stay mapped to the closest openSurface
-	// call on the shell target, but the shell's surface bus does not route these
-	// ids yet, so they are no-ops pending the retire phase (wire the ids there, or
-	// drop the dead verbs). Do NOT invent a shell IPC function for them.
+	// The file-picker tools (install-app.desktop, compress-video.desktop) open the
+	// stash sidebar straight onto their picker through the shell openSurface bus.
+	"install":  "stash#install",
+	"compress": "stash#compress",
+	// launcher/overview/visualizer are in-process toggles driven by the shell's own
+	// global:ryoku:* keybinds (CustomShortcut -> ShellState), not the surface bus,
+	// so these daemon verbs stay no-ops. Do NOT invent a shell IPC function for them.
 	"menu app-launcher":  "launcher",
 	"launcher":           "launcher",
 	"overview":           "overview",

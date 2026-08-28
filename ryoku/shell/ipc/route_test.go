@@ -18,6 +18,8 @@ func TestRoute(t *testing.T) {
 		{"menu wallpaper", "shell", "shell", "openSurface"},
 		{"menu screenshot", "shell", "shell", "openSurface"},
 		{"menu stash", "shell", "shell", "openSurface"},
+		{"install", "shell", "shell", "openSurface"},
+		{"compress", "shell", "shell", "openSurface"},
 	}
 	for _, c := range cases {
 		config, target, fn, ok := route(c.cmd)
@@ -139,5 +141,24 @@ func TestDispatchSurfaceRouting(t *testing.T) {
 	}
 	if got := <-calls; got != "openSurface DP-1 voice-off" {
 		t.Fatalf("voice shell IPC = %q", got)
+	}
+}
+
+// The file-picker tool verbs open the stash sidebar straight onto their picker,
+// so install-app.desktop and compress-video.desktop reach the right surface.
+func TestDispatchFilePickerTools(t *testing.T) {
+	calls := make(chan string, 2)
+	stubShellIpc(t, calls)
+	d := &daemon{sup: map[string]bool{"shell": true}, activeMon: "DP-1"}
+	for verb, want := range map[string]string{
+		"install":  "openSurface DP-1 stash#install",
+		"compress": "openSurface DP-1 stash#compress",
+	} {
+		if got := d.dispatch(verb); got != "ok" {
+			t.Fatalf("dispatch(%q) = %q, want ok", verb, got)
+		}
+		if got := <-calls; got != want {
+			t.Fatalf("%s shell IPC = %q, want %q", verb, got, want)
+		}
 	}
 }
