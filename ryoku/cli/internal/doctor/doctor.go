@@ -2229,10 +2229,19 @@ func reconcileGreeterTheme(checkOnly bool) recResult {
 
 const sddmWaylandConf = "/etc/sddm.conf.d/10-ryoku-wayland.conf"
 
-// sddmWaylandBody is written verbatim. Never set DisplayServer=wayland without
-// weston present -- the greeter could not start. weston --shell=kiosk is SDDM's
-// default kiosk compositor; the greeter connects to it as a Wayland client.
-const sddmWaylandBody = "[General]\nDisplayServer=wayland\n\n[Wayland]\nCompositorCommand=weston --shell=kiosk\n"
+// The greeter compositor. When the ryoku-greeter wrapper is present (shipped by
+// ryoku-desktop) it runs weston --shell=kiosk at each output's top mode; else
+// plain weston at its preferred mode. Never set DisplayServer=wayland without
+// weston present -- the greeter could not start.
+const greeterCompositorBin = "/usr/share/ryoku/lockscreen/ryoku-greeter"
+
+func sddmWaylandBody() string {
+	compositor := "weston --shell=kiosk"
+	if sys.Exists(greeterCompositorBin) {
+		compositor = greeterCompositorBin
+	}
+	return "[General]\nDisplayServer=wayland\n\n[Wayland]\nCompositorCommand=" + compositor + "\n"
+}
 
 // reconcileGreeterDisplayServer moves the SDDM greeter to Wayland. SDDM's
 // default X11 greeter is orphaned when a Wayland session (Hyprland) starts:
@@ -2251,14 +2260,15 @@ func reconcileGreeterDisplayServer(checkOnly bool) recResult {
 		return warnRes("the Wayland greeter needs weston, which is not installed yet").
 			withFix("ryoku update")
 	}
-	if strings.Contains(readFileSafe(sddmWaylandConf), "DisplayServer=wayland") {
+	want := sddmWaylandBody()
+	if readFileSafe(sddmWaylandConf) == want {
 		return okRes("SDDM greeter runs on Wayland (weston kiosk)")
 	}
 	if checkOnly {
 		return wouldRes("SDDM greeter still runs on X11; it is orphaned when a Wayland session starts and keeps drawing power").
 			withFix("ryoku doctor")
 	}
-	if err := writeRootFile(sddmWaylandConf, sddmWaylandBody, "0644"); err != nil {
+	if err := writeRootFile(sddmWaylandConf, want, "0644"); err != nil {
 		return failRes("could not write %s: %v", sddmWaylandConf, err).
 			withFix("check sudo access, then re-run ryoku doctor")
 	}

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#
+# ryoku-greeter: the SDDM Wayland greeter compositor.
+#
+# Runs `weston --shell=kiosk` at each connected output's top mode (native
+# resolution, highest refresh) so the login screen matches a high-refresh
+# session instead of the EDID-preferred rate (often 60Hz). This is the Wayland
+# equivalent of the xrandr-in-Xsetup hack, without touching a stock SDDM file or
+# fighting Hyprland's own mode selection.
+#
+# modetest (libdrm) reads each connector's modes without holding DRM master, so
+# it runs before weston takes the card. Any uncertainty -- no modetest, nothing
+# connected, an empty parse -- falls back to plain weston (preferred mode), so
+# the greeter always comes up. weston itself ignores an unmatched output mode
+# and keeps the preferred one, so a wrong pick degrades to today's behaviour
+# rather than a blank login screen.
+set -u
+
+# exec plain weston (preferred mode); the login screen must always start.
+weston_plain() { exec weston --shell=kiosk "$@"; }
+
+command -v weston >/dev/null 2>&1 || { echo "ryoku-greeter: weston not found" >&2; exit 127; }
+command -v modetest >/dev/null 2>&1 || weston_plain "$@"
+
+# Per connected connector, pick the largest resolution then its highest refresh.
+# Output: "<name> <w> <h> <refresh-string>" lines. Refresh is kept verbatim from
+# modetest so weston matches the exact modelist entry.
+modes="$(
+  modetest -c 2>/dev/null | awk '
+    /^Connectors:/ { insec = 1; next }
+    /^(CRTCs|Encoders|Planes|Framebuffers):/ { insec = 0 }
+    !insec { next }
+    $3 == "connected"    { conn = $4; next }
+    $3 == "disconnected" { conn = "";  next }
+    conn != "" && $1 ~ /^#[0-9]+$/ {
+      split($2, wh, "x"); w = wh[1] + 0; h = wh[2] + 0; rr = $3 + 0
+      if (w <= 0 || h <= 0 || rr <= 0) next
+      area = w * h
+      if (area > ba[conn] || (area == ba[conn] && rr > br[conn])) {
+        ba[conn] = area; br[conn] = rr; bw[conn] = w; bh[conn] = h; brs[conn] = $3
+      }
+    }
+    END { for (c in bw) printf "%s %d %d %s\n", c, bw[c], bh[c], brs[c] }
+  '
+)"
+
+[ -n "$modes" ] || weston_plain "$@"
+
+gen_ini() {
+  while read -r name w h rr; do
+    [ -n "$name" ] && [ "${w:-0}" -gt 0 ] && [ "${h:-0}" -gt 0 ] || continue
+    printf '[output]\nname=%s\nmode=%sx%s@%s\n\n' "$name" "$w" "$h" "$rr"
+  done <<< "$modes"
+}
+
+# Inspect the generated config without starting the greeter.
+if [ "${RYOKU_GREETER_DRYRUN:-0}" = 1 ]; then
+  gen_ini
+  exit 0
+fi
+
+ini="$(mktemp --tmpdir ryoku-greeter.XXXXXX.ini 2>/dev/null)" || weston_plain "$@"
+gen_ini > "$ini"
+[ -s "$ini" ] || weston_plain "$@"
+
+exec weston --shell=kiosk --config="$ini" "$@"

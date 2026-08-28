@@ -448,6 +448,10 @@ package() {
   cp -a "$_repo/ryoku/lockscreen/qylock" "$pkgdir/usr/share/ryoku/lockscreen/qylock"
   install -Dm755 "$_repo/ryoku/lockscreen/install-qylock" \
     "$pkgdir/usr/share/ryoku/lockscreen/install-qylock"
+  # the Wayland greeter compositor wrapper: weston --shell=kiosk at each
+  # output's top mode, so the login screen matches a high-refresh session.
+  install -Dm755 "$_repo/ryoku/lockscreen/sddm/ryoku-greeter" \
+    "$pkgdir/usr/share/ryoku/lockscreen/ryoku-greeter"
 
   # user session units: the target, and the shell daemon service the autostart
   # now starts (systemctl --user start ryoku-shell). Ship the whole dir so a

@@ -168,14 +168,22 @@ fi
 # SDDM's default kiosk compositor (base.packages ships weston); the greeter
 # connects to it as a separate Wayland client.
 WAYLAND_CONF="/etc/sddm.conf.d/10-ryoku-wayland.conf"
+GREETER_BIN="/usr/share/ryoku/lockscreen/ryoku-greeter"
+# the wrapper runs weston at each output's top mode; plain weston (preferred) if
+# the package has not landed it yet.
+if [[ -x $GREETER_BIN ]]; then
+  COMPOSITOR="$GREETER_BIN"
+else
+  COMPOSITOR="weston --shell=kiosk"
+fi
 echo "  greeter display server -> wayland ($WAYLAND_CONF)"
 priv mkdir -p /etc/sddm.conf.d
-write_root "$WAYLAND_CONF" <<'EOF'
+write_root "$WAYLAND_CONF" <<EOF
 [General]
 DisplayServer=wayland
 
 [Wayland]
-CompositorCommand=weston --shell=kiosk
+CompositorCommand=$COMPOSITOR
 EOF
 
 echo "SDDM wiring complete."
