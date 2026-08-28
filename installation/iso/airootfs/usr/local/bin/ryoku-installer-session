@@ -175,7 +175,10 @@ run_graphical() {
 	read -r cw ch <<<"$(native_res)"
 	pt=$(foot_pt "$ch")
 	echo "ryoku: panel ${cw}x${ch}, kiosk font ${pt}pt." >>"$log"
-	env "${genv[@]}" cage -- foot -o term=xterm-256color -o main.dpi-aware=no \
+	# `-m last` pins the kiosk to a single output; cage otherwise spans the foot
+	# window across the bounding box of every connected monitor, which stretched
+	# the installer across a dual-monitor setup and split options over the bezel.
+	env "${genv[@]}" cage -m last -- foot -o term=xterm-256color -o main.dpi-aware=no \
 		-f "JetBrainsMono Nerd Font:size=$pt" -e ryoku-tui >"$log" 2>&1
 }
 

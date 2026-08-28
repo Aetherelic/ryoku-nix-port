@@ -34,6 +34,10 @@ sed -n '/^sysfs=/p;/^native_res()/,/^}/p;/^fb_res()/,/^}/p;/^foot_pt()/,/^}/p;/^
 for fn in native_res fb_res foot_pt console_font; do
   grep -q "^$fn()" "$lib" || fail "could not extract $fn from the session script"
 done
+
+# The graphical kiosk must pin to a single output, or cage spans the foot window
+# across every connected monitor and the installer stretches over the bezel (#87).
+grep -qE 'cage -m last' "$session" || fail "graphical kiosk must run 'cage -m last' to stay on one monitor"
 # shellcheck source=/dev/null
 source "$lib"
 
