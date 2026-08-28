@@ -38,20 +38,9 @@ PanelWindow {
     // spot so the slide-up is never clipped by the surface edge.
     readonly property real slide: 18 * win.us
 
-    // This monitor's visible workspace holds a fullscreen window: the whole
-    // shell hides then, so the OSD stays down too. Shares the hyprctl-backed
-    // Fullscreen map with the pill.
-    readonly property bool monFullscreen: {
-        var mons = Hyprland.monitors.values;
-        for (var i = 0; i < mons.length; i++)
-            if (mons[i].name === (modelData ? modelData.name : ""))
-                return mons[i].activeWorkspace ? (Fullscreen.byWs[mons[i].activeWorkspace.id] === true) : false;
-        return false;
-    }
-
-    // Eased reveal: prog 0 hidden, 1 shown. A dwell-then-hide flash retargets it
-    // and the Behavior carries the panel in and out.
-    property real prog: (osd.flashing && !win.monFullscreen) ? 1 : 0
+    // Eased reveal: prog 0 hidden, 1 shown. Shown even over fullscreen (Overlay,
+    // no keyboard focus, click-through) so volume/brightness reach games.
+    property real prog: osd.flashing ? 1 : 0
     Behavior on prog { NumberAnimation { duration: Motion.effects; easing.type: Easing.OutCubic } }
 
     screen: modelData
@@ -97,7 +86,6 @@ PanelWindow {
             anchors.margins: win.pad
             kind: win.kind
             us: win.us
-            suppressed: win.monFullscreen
         }
     }
 
