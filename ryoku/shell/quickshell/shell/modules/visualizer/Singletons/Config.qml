@@ -1,165 +1,280 @@
+pragma ComponentBehavior: Bound
 pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// live config for the desktop visualiser. single source of truth for the
-// knobs Ryoku Settings' Shell section edits + the defaults it falls back to.
-// JSON at ~/.config/ryoku/visualizer.json, watched, so a save in Ryoku
-// Settings (or a Super+M toggle) retunes the running spectrum on the next
-// file event, no reload. defaults here are canonical; Ryoku Settings mirrors
-// them for reset-to-default.
+// Live config for the desktop visualiser. One or more visualisers can share the
+// desktop: the PRIMARY is the flat top-level config (the one Ryoku Settings'
+// Visualizer tab still edits and reset-to-defaults mirrors), and any EXTRAS ride
+// an `extras` list, each a full per-viz object. `active` is the instance the
+// on-desktop editor is tuning. The renderer paints `list` (primary + extras);
+// the editor reads/writes the active instance through here.
 //
-// fractions are of the monitor height or the per-band slot, matching how the
-// spectrum sizes itself, so they stay right across resolutions.
+// JSON at ~/.config/ryoku/visualizer.json, watched, so a save in Settings (or a
+// Super+M toggle) retunes the running spectrum on the next file event. Fractions
+// are of the monitor, matching how the spectrum sizes itself.
 Singleton {
     id: root
 
-    property alias enabled:    adapter.enabled     // master on/off (also Super+M)
-    property alias bars:       adapter.bars        // cava band count
-    property alias thickness:  adapter.thickness   // bar width, fraction of its slot
-    property alias bloom:      adapter.bloom       // glow behind bars while playing
-    property alias reflection: adapter.reflection  // mirrored band height, fraction of the box
-    property alias idleWave:   adapter.idleWave    // breathing line while silent
-    property alias style:      adapter.style       // see knownStyles
-    property alias shape:      adapter.shape       // rounded | flat (bar/dot cap)
-    property alias mirror:     adapter.mirror      // symmetric low->high->low band order
-    property alias segments:   adapter.segments    // lit blocks per band in the segments style
-    property alias spin:       adapter.spin        // polar rotation, degrees a second
+    // --- globals (shared by every instance) -----------------------------------
+    property alias enabled:  adapter.enabled     // master on/off (also Super+M)
+    property alias fps:      adapter.fps          // 30 default, up to 60
+    property alias adaptive: adapter.adaptive     // auto-throttle under load
 
-    // The box the look lives in, as fractions of the screen, and which of its
-    // edges the bands grow from. One free rectangle replaced the old anchored
-    // position/span/align/height/originX/originY/size set: a look can sit
-    // anywhere, and it is dragged and sized on the desktop rather than typed in.
-    property alias x:          adapter.x
-    property alias y:          adapter.y
-    property alias w:          adapter.w
-    property alias h:          adapter.h
-    property alias grow:       adapter.grow        // up | down | center | left | right
-    property alias angle:      adapter.angle       // whole-look turn about the box centre, degrees
-    property alias tiltX:      adapter.tiltX       // lean the far edge back, degrees
-    property alias tiltY:      adapter.tiltY       // lean one side back, degrees
+    // The looks the renderer knows, canonical here for cycleStyle.
+    readonly property var knownStyles: act.knownStyles
 
-    // motion + budget. fps is the render ceiling (cava is fed at the same rate);
-    // adaptive sheds effects and rate under sustained load, never the spectrum.
-    property alias fps:        adapter.fps         // 30 default, up to 60
-    property alias adaptive:   adapter.adaptive    // auto-throttle under load
-    property alias smoothing:  adapter.smoothing   // decay slowness, 0 snappy .. 1 fluid
-    property alias gain:       adapter.gain         // level multiplier before clamp
-    property alias peaks:      adapter.peaks       // falling peak caps on bars/segments
+    // --- the instances --------------------------------------------------------
+    // The primary as a plain object (its flat keys), so it sits in `list` beside
+    // the extras and the renderer treats them uniformly.
+    function primaryData() {
+        return {
+            "style": adapter.style, "shape": adapter.shape,
+            "color": adapter.color, "color2": adapter.color2, "gradient": adapter.gradient,
+            "bars": adapter.bars, "thickness": adapter.thickness, "bloom": adapter.bloom,
+            "reflection": adapter.reflection, "idleWave": adapter.idleWave,
+            "mirror": adapter.mirror, "segments": adapter.segments,
+            "gain": adapter.gain, "smoothing": adapter.smoothing, "peaks": adapter.peaks,
+            "spin": adapter.spin, "x": adapter.x, "y": adapter.y, "w": adapter.w,
+            "h": adapter.h, "grow": adapter.grow, "angle": adapter.angle,
+            "tiltX": adapter.tiltX, "tiltY": adapter.tiltY
+        };
+    }
+    readonly property var list: {
+        var out = [root.primaryData()];
+        var ex = adapter.extras || [];
+        for (var i = 0; i < ex.length; i++)
+            out.push(ex[i]);
+        return out;
+    }
+    readonly property int count: root.list.length
+    readonly property int active: Math.max(0, Math.min(root.count - 1, adapter.active))
+    readonly property var activeData: root.list[root.active]
 
-    // The looks the renderer knows. `circle` grew into `orb` (a lit sphere
-    // rather than an outline), so a config written before that reads as orb and
-    // is rewritten once, rather than needing a doctor reconciler.
-    readonly property var knownStyles: ["bars", "split", "dots", "segments", "wave",
-                                        "ribbon", "curtain", "line", "radial", "orb", "spiral"]
-    readonly property string styleId: root.knownStyles.indexOf(adapter.style) >= 0 ? adapter.style
-        : (adapter.style === "circle" ? "orb" : "bars")
-    // The polar three sit at the tail of the list, so one index decides the family.
-    readonly property bool isPolar: root.knownStyles.indexOf(root.styleId) >= 8
-    // Which knobs mean anything for the look in hand: the renderer and the editing
-    // bar both ask here, so the rule is stated once.
-    readonly property bool peaksApply: root.styleId === "bars" || root.styleId === "segments"
-    readonly property bool mirrorApplies: !root.isPolar
+    // Never more than this many at once; each adds a full-screen GPU pass.
+    readonly property int maxVisualizers: 4
+    // A light estimate for the RAM a visualiser costs (its render buffers; cava is
+    // shared), so the editor can warn before the desktop is stacked with passes.
+    readonly property int ramPerVizMB: 35
+    readonly property int ramEstimateMB: root.count * root.ramPerVizMB
 
-    // Edits settle through the same coalescer as a placement gesture: the file is
-    // watched, so a write returns as a reload and two edits in one instant raced it.
+    // The active instance, normalised, for the editor and placer to read.
+    VizItem { id: act; data: root.activeData }
+
+    readonly property string styleId:       act.styleId
+    readonly property bool   isPolar:       act.isPolar
+    readonly property bool   peaksApply:    act.peaksApply
+    readonly property bool   mirrorApplies: act.mirrorApplies
+    readonly property int    bars:          act.bars
+    readonly property real   thickness:     act.thickness
+    readonly property real   gain:          act.gain
+
+    // Cava is fed once for every instance: at the largest band count any of them
+    // wants (each Motion resamples down), and the scope waveform is captured while
+    // any instance is the line look.
+    readonly property int maxBars: {
+        var m = 16;
+        for (var i = 0; i < root.list.length; i++)
+            m = Math.max(m, Math.round(root.list[i].bars || 64));
+        return Math.max(16, Math.min(128, m));
+    }
+    readonly property bool anyLine: {
+        for (var i = 0; i < root.list.length; i++)
+            if (("" + (root.list[i].style || "")) === "line")
+                return true;
+        return false;
+    }
+    readonly property real   smoothing:     act.smoothing
+    readonly property bool   mirror:        act.mirror
+    readonly property bool   peaks:         act.peaks
+    readonly property int    segments:      act.segments
+    readonly property real   spin:          act.spin
+    readonly property real   x:             act.x
+    readonly property real   y:             act.y
+    readonly property real   w:             act.w
+    readonly property real   h:             act.h
+    readonly property string grow:          act.grow
+    readonly property real   angle:         act.angle
+    readonly property real   tiltX:         act.tiltX
+    readonly property real   tiltY:         act.tiltY
+
+    // Colour + gradient of the active instance, for the editor's picker.
+    readonly property bool   hasCustomColor: act.hasCustomColor
+    readonly property color  customColor:    act.customColor
+    readonly property string colorHex:       act.hasCustomColor ? act.rawColor : ""
+    readonly property bool   gradient:       adapter.active <= 0 ? (adapter.gradient === true) : (act.val("gradient", false) === true)
+    readonly property bool   hasColor2:      act.hasColor2
+    readonly property color  color2Value:    act.color2Value
+    readonly property string color2Hex:      act.hasColor2 ? act.rawColor2 : ""
+
+    // --- editing the active instance ------------------------------------------
+    // Every per-viz edit lands on the active instance: the primary writes its flat
+    // keys, an extra rewrites its slot in the list. Edits settle through one
+    // coalescer, since the watched file returns a write as a reload.
+    function poke(key, value) {
+        if (root.active <= 0) {
+            adapter[key] = value;
+        } else {
+            var arr = (adapter.extras || []).slice();
+            var e = Object.assign({}, arr[root.active - 1]);
+            e[key] = value;
+            arr[root.active - 1] = e;
+            adapter.extras = arr;
+        }
+        settle.restart();
+    }
+
     function setStyle(k) {
         if (root.knownStyles.indexOf(k) < 0)
             return;
-        adapter.style = k;
-        settle.restart();
+        root.poke("style", k);
     }
     function cycleStyle(by) {
         var i = root.knownStyles.indexOf(root.styleId);
         var n = root.knownStyles.length;
         root.setStyle(root.knownStyles[(i + by + n) % n]);
     }
-    function setBars(n) {
-        adapter.bars = Math.max(16, Math.min(128, Math.round(n)));
-        settle.restart();
-    }
-    function toggleMirror() {
-        adapter.mirror = !adapter.mirror;
-        settle.restart();
-    }
-    function togglePeaks() {
-        adapter.peaks = !adapter.peaks;
-        settle.restart();
-    }
-    function setGain(v) {
-        adapter.gain = Math.max(0.5, Math.min(2, v));
-        settle.restart();
-    }
-    function setSmoothing(v) {
-        adapter.smoothing = Math.max(0, Math.min(1, v));
-        settle.restart();
-    }
+    function setBars(n) { root.poke("bars", Math.max(16, Math.min(128, Math.round(n)))); }
+    function toggleMirror() { root.poke("mirror", !root.mirror); }
+    function togglePeaks() { root.poke("peaks", !root.peaks); }
+    function setGain(v) { root.poke("gain", Math.max(0.5, Math.min(2, v))); }
+    function setSmoothing(v) { root.poke("smoothing", Math.max(0, Math.min(1, v))); }
+
     // Well short of edge-on: past this the bands crowd into a line.
     readonly property real tiltMax: 35
-    function setTiltX(v) {
-        adapter.tiltX = Math.max(-root.tiltMax, Math.min(root.tiltMax, v));
-        settle.restart();
-    }
-    function setTiltY(v) {
-        adapter.tiltY = Math.max(-root.tiltMax, Math.min(root.tiltMax, v));
-        settle.restart();
-    }
+    function setTiltX(v) { root.poke("tiltX", Math.max(-root.tiltMax, Math.min(root.tiltMax, v))); }
+    function setTiltY(v) { root.poke("tiltY", Math.max(-root.tiltMax, Math.min(root.tiltMax, v))); }
     function levelTilt() {
-        adapter.tiltX = 0;
-        adapter.tiltY = 0;
-        settle.restart();
+        root.poke("tiltX", 0);
+        root.poke("tiltY", 0);
     }
 
+    // Colour: a pinned #rrggbb, "" to follow the wallpaper. A gradient adds a
+    // second stop; both stops must be valid hex for it to paint.
+    function setColor(hex) {
+        var t = ("" + hex).trim();
+        if (t.length > 0 && t[0] !== "#") t = "#" + t;
+        if (!/^#[0-9a-fA-F]{6}$/.test(t)) return;
+        root.poke("color", t);
+    }
+    function clearColor() { root.poke("color", ""); }
+    function setColor2(hex) {
+        var t = ("" + hex).trim();
+        if (t.length > 0 && t[0] !== "#") t = "#" + t;
+        if (!/^#[0-9a-fA-F]{6}$/.test(t)) return;
+        root.poke("color2", t);
+    }
+    function setGradient(on) { root.poke("gradient", on === true); }
+    function toggleGradient() { root.setGradient(!root.gradient); }
+
     // persist on/off so the hub toggle and Super+M keybind agree, and it
-    // survives a restart.
+    // survives a restart. Global, so it always writes the flat key.
     function setEnabled(on) {
         adapter.enabled = on;
         file.writeAdapter();
     }
 
     // Placement from the desktop: the properties move with the pointer so the
-    // look follows the drag frame by frame, and the file is written once the
-    // gesture settles rather than on every step of it.
+    // look follows the drag frame by frame, written once the gesture settles.
     function moveBox(nx, ny) {
-        adapter.x = Math.max(-0.25, Math.min(1.25 - adapter.w, nx));
-        adapter.y = Math.max(-0.25, Math.min(1.25 - adapter.h, ny));
-        settle.restart();
+        root.poke("x", Math.max(-0.25, Math.min(1.25 - root.w, nx)));
+        root.poke("y", Math.max(-0.25, Math.min(1.25 - root.h, ny)));
     }
     function sizeBox(nw, nh) {
-        adapter.w = Math.max(0.04, Math.min(1.5, nw));
-        adapter.h = Math.max(0.03, Math.min(1.5, nh));
-        settle.restart();
+        root.poke("w", Math.max(0.04, Math.min(1.5, nw)));
+        root.poke("h", Math.max(0.03, Math.min(1.5, nh)));
     }
-    // Size and position land together, or a turned box swings between the two writes.
+    // Size and position land together, or a turned box swings between two writes.
     function setBox(nx, ny, nw, nh) {
-        adapter.w = Math.max(0.04, Math.min(1.5, nw));
-        adapter.h = Math.max(0.03, Math.min(1.5, nh));
-        adapter.x = Math.max(-0.5, Math.min(1.5, nx));
-        adapter.y = Math.max(-0.5, Math.min(1.5, ny));
+        if (root.active <= 0) {
+            adapter.w = Math.max(0.04, Math.min(1.5, nw));
+            adapter.h = Math.max(0.03, Math.min(1.5, nh));
+            adapter.x = Math.max(-0.5, Math.min(1.5, nx));
+            adapter.y = Math.max(-0.5, Math.min(1.5, ny));
+        } else {
+            var arr = (adapter.extras || []).slice();
+            var e = Object.assign({}, arr[root.active - 1]);
+            e.w = Math.max(0.04, Math.min(1.5, nw));
+            e.h = Math.max(0.03, Math.min(1.5, nh));
+            e.x = Math.max(-0.5, Math.min(1.5, nx));
+            e.y = Math.max(-0.5, Math.min(1.5, ny));
+            arr[root.active - 1] = e;
+            adapter.extras = arr;
+        }
         settle.restart();
     }
     // Wrapped, so a full circle of dragging never runs into a stop.
     function rotate(deg) {
         var d = deg % 360;
-        adapter.angle = d < 0 ? d + 360 : d;
-        settle.restart();
+        root.poke("angle", d < 0 ? d + 360 : d);
     }
     // Mirroring what is on screen is a different thing per family.
     function flip() {
         if (root.isPolar)
-            adapter.spin = -adapter.spin;
-        else if (adapter.grow === "up")
-            adapter.grow = "down";
-        else if (adapter.grow === "down")
-            adapter.grow = "up";
-        else if (adapter.grow === "left")
-            adapter.grow = "right";
-        else if (adapter.grow === "right")
-            adapter.grow = "left";
+            root.poke("spin", -root.spin);
+        else if (root.grow === "up")
+            root.poke("grow", "down");
+        else if (root.grow === "down")
+            root.poke("grow", "up");
+        else if (root.grow === "left")
+            root.poke("grow", "right");
+        else if (root.grow === "right")
+            root.poke("grow", "left");
         else
-            adapter.mirror = !adapter.mirror;
+            root.poke("mirror", !root.mirror);
+    }
+
+    // --- instance management --------------------------------------------------
+    function setActive(i) {
+        adapter.active = Math.max(0, Math.min(root.count - 1, i));
         settle.restart();
+    }
+    function addVisualizer() {
+        if (root.count >= root.maxVisualizers)
+            return;
+        var arr = (adapter.extras || []).slice();
+        // Seed from the active instance, nudged so the new one is not hidden
+        // exactly under it, and given a fresh box so it is easy to grab.
+        var seed = Object.assign({}, root.activeData);
+        seed.x = Math.max(-0.2, Math.min(0.8, (seed.x || 0) + 0.06));
+        seed.y = Math.max(-0.2, Math.min(0.8, (seed.y || 0.58) - 0.12));
+        arr.push(seed);
+        adapter.extras = arr;
+        adapter.active = arr.length;   // the new extra is the last instance
+        file.writeAdapter();
+    }
+    function applyPrimary(o) {
+        adapter.style = o.style; adapter.shape = o.shape;
+        adapter.color = o.color || ""; adapter.color2 = o.color2 || "";
+        adapter.gradient = o.gradient === true;
+        adapter.bars = o.bars; adapter.thickness = o.thickness; adapter.bloom = o.bloom;
+        adapter.reflection = o.reflection; adapter.idleWave = o.idleWave;
+        adapter.mirror = o.mirror; adapter.segments = o.segments;
+        adapter.gain = o.gain; adapter.smoothing = o.smoothing; adapter.peaks = o.peaks;
+        adapter.spin = o.spin; adapter.x = o.x; adapter.y = o.y; adapter.w = o.w;
+        adapter.h = o.h; adapter.grow = o.grow; adapter.angle = o.angle;
+        adapter.tiltX = o.tiltX; adapter.tiltY = o.tiltY;
+    }
+    function removeVisualizer(i) {
+        var idx = i === undefined ? root.active : i;
+        if (idx <= 0) {
+            // Removing the primary promotes the first extra into the flat slot, so
+            // there is always a primary; refuse if it is the only visualiser.
+            var ex = (adapter.extras || []).slice();
+            if (ex.length === 0)
+                return;
+            var promoted = ex.shift();
+            root.applyPrimary(promoted);
+            adapter.extras = ex;
+        } else {
+            var arr = (adapter.extras || []).slice();
+            if (idx - 1 < arr.length)
+                arr.splice(idx - 1, 1);
+            adapter.extras = arr;
+        }
+        adapter.active = Math.max(0, Math.min(root.count - 1, adapter.active));
+        file.writeAdapter();
     }
 
     Timer {
@@ -187,6 +302,9 @@ Singleton {
             property bool idleWave: true
             property string style: "bars"
             property string shape: "rounded"
+            property string color: ""
+            property string color2: ""
+            property bool gradient: false
             property bool mirror: false
             property int segments: 10
             property int fps: 30
@@ -203,12 +321,16 @@ Singleton {
             property real angle: 0
             property real tiltX: 0
             property real tiltY: 0
+            // Additional visualisers beyond the primary, each a full per-viz
+            // object, and which instance the desktop editor is tuning.
+            property var extras: []
+            property int active: 0
         }
     }
 
-    // A config written before the box carries an anchored position,
-    // height, span and origin instead; fold those into the box once so the
-    // spectrum stays where its owner put it, then keep only the box.
+    // A config written before the box carries an anchored position, height, span
+    // and origin instead; fold those into the box once so the spectrum stays where
+    // its owner put it, then keep only the box.
     function migrate() {
         var o = {};
         try {

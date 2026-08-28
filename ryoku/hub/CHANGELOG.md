@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **Desktop Visualizer exposes exact colours and two-stop gradients.** The
+  Visualizer tab adds the shared colour picker, a Gradient switch and a second
+  colour picker, keeps extra visualizer state when saving, includes Frame in the
+  look gallery, and paints the chosen gradient in the live preview
+  (`quickshell/Hub.qml`, `quickshell/VizPreview.qml`,
+  `quickshell/schema/DesktopPage.js`).
+
 - **Advanced settings show a worked example.** Free-text advanced fields now
   carry one: the record editors (Window Rules, Environment, Autostart) show it in
   the placeholder, and schema rows (the image-border fields, the desktop name and

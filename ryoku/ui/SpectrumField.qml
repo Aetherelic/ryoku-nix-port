@@ -50,10 +50,12 @@ Item {
     property real tiltY: 0               // degrees, lean one side back
 
     readonly property var styles: ["bars", "split", "dots", "segments", "wave",
-                                   "ribbon", "curtain", "line", "radial", "orb", "spiral"]
+                                   "ribbon", "curtain", "line", "frame", "radial", "orb", "spiral"]
     // An unknown look falls back to bars rather than painting nothing.
     readonly property int styleIndex: Math.max(0, root.styles.indexOf(root.style))
-    readonly property bool polar: root.styleIndex >= 8
+    // The polar three sit at the tail; the frame is a whole-screen edge look.
+    readonly property bool polar: root.styleIndex >= 9
+    readonly property bool frame: root.style === "frame"
     readonly property bool vertical: root.grow === "left" || root.grow === "right"
     readonly property bool centred: (root.grow === "center" && root.style !== "curtain")
         || root.style === "split"
@@ -69,7 +71,12 @@ Item {
 
     readonly property real acrossFull: root.vertical ? root.bw : root.bh
     readonly property real alongFull: root.vertical ? root.bh : root.bw
-    readonly property real maxLen: Math.max(2, Math.round(root.acrossFull - root.reflectPx))
+    // The frame wraps the whole screen: its axis is the perimeter and its bars
+    // grow inward up to a fraction of the shorter screen edge.
+    readonly property real framePerim: 2 * (root.width + root.height)
+    readonly property real frameDepth: Math.max(6, Math.min(root.width, root.height) * 0.06)
+    readonly property real maxLen: root.frame ? root.frameDepth
+        : Math.max(2, Math.round(root.acrossFull - root.reflectPx))
     readonly property real reflectPx: (root.grow === "up" && !root.polar && !root.centred)
         ? Math.round(root.acrossFull * root.reflection) : 0
 
@@ -83,10 +90,12 @@ Item {
 
     // The bloom is sized to the shape it wraps, never to the screen: a skirt
     // wider than the gap between two bands dissolves the spectrum into one mass.
-    readonly property real slotPx: root.alongFull / root.drawBands
-    readonly property real shapePx: root.polar
-        ? Math.max(3, 2 * Math.PI * root.r0 / root.drawBands * root.thickness)
-        : Math.max(2, root.slotPx * root.thickness)
+    readonly property real slotPx: (root.frame ? root.framePerim : root.alongFull) / root.drawBands
+    readonly property real shapePx: root.frame
+        ? Math.max(2, root.framePerim / (root.drawBands * 3) * root.thickness)
+        : (root.polar
+           ? Math.max(3, 2 * Math.PI * root.r0 / root.drawBands * root.thickness)
+           : Math.max(2, root.slotPx * root.thickness))
     readonly property real glowPx: Math.max(1.5, Math.min(root.shapePx * 0.9, 12 * root.ui))
         * (0.35 + 0.65 * Math.max(0, Math.min(1, root.glow)))
     readonly property real margin: Math.ceil(root.glow > 0 ? root.glowPx * 3.5 + 2 : 2 * root.ui)
@@ -102,9 +111,12 @@ Item {
     // about the pass centre is a turn about the box centre.
     readonly property rect passRect: Qt.rect(pass.x, pass.y, pass.width, pass.height)
     // The box itself, for a host drawing placement guides.
-    readonly property rect boxRect: Qt.rect(root.bx, root.by, root.bw, root.bh)
+    readonly property rect boxRect: root.frame ? Qt.rect(0, 0, root.width, root.height)
+        : Qt.rect(root.bx, root.by, root.bw, root.bh)
     // What the turned look covers, for a host sampling the wallpaper under it.
     readonly property rect coverRect: {
+        if (root.frame)
+            return Qt.rect(0, 0, root.width, root.height);
         var a = root.angle * Math.PI / 180;
         var c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
         var w = root.bw * c + root.bh * s;
@@ -115,15 +127,19 @@ Item {
     Item {
         id: pass
 
-        x: root.bx - root.margin
-        y: root.by - root.margin
-        width: root.bw + 2 * root.margin
-        height: root.bh + 2 * root.margin
-        // Spin and lean in one matrix, so the lean pivots about the box's own axes.
+        // The frame owns the whole screen and never turns; every other look sits
+        // in its box plus room for the bloom to fall off, centred so a turn about
+        // the pass centre is a turn about the box centre.
+        x: root.frame ? 0 : root.bx - root.margin
+        y: root.frame ? 0 : root.by - root.margin
+        width: root.frame ? root.width : root.bw + 2 * root.margin
+        height: root.frame ? root.height : root.bh + 2 * root.margin
         transform: Matrix4x4 {
             matrix: {
-                var m = PlaceMath.flat(PlaceMath.boxMatrix(root.angle, root.tiltX, root.tiltY,
-                                                           pass.width, pass.height));
+                var m = root.frame
+                    ? PlaceMath.flat(PlaceMath.boxMatrix(0, 0, 0, pass.width, pass.height))
+                    : PlaceMath.flat(PlaceMath.boxMatrix(root.angle, root.tiltX, root.tiltY,
+                                                         pass.width, pass.height));
                 return Qt.matrix4x4(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7],
                                     m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
             }
@@ -137,10 +153,11 @@ Item {
             fragmentShader: Qt.resolvedUrl("shaders/spectrum.frag.qsb")
 
             property real style: root.styleIndex
-            property real posMode: root.grow === "down" ? 1
+            property real posMode: root.frame ? 0
+                : (root.grow === "down" ? 1
                 : (root.grow === "center" ? 2
-                : (root.grow === "left" ? 3 : (root.grow === "right" ? 4 : 0)))
-            property real pad: root.margin
+                : (root.grow === "left" ? 3 : (root.grow === "right" ? 4 : 0))))
+            property real pad: root.frame ? 0 : root.margin
             property real bands: root.drawBands
             property real maxLen: root.maxLen
             property real minLen: Math.max(1.5, 2 * root.ui) * (root.fade > 0.9 ? 1 : root.fade)

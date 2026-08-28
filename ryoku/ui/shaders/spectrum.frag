@@ -31,8 +31,8 @@ layout(std140, binding = 0) uniform buf {
     vec2 res;
     vec2 origin;
 
-    float style;     // 0 bars 1 split 2 dots 3 segments 4 wave
-                     // 5 ribbon 6 curtain 7 line 8 radial 9 orb 10 spiral
+    float style;     // 0 bars 1 split 2 dots 3 segments 4 wave 5 ribbon
+                     // 6 curtain 7 line 8 frame 9 radial 10 orb 11 spiral
     float posMode;   // 0 bottom 1 top 2 center 3 left 4 right
     float bands;
     float maxLen;
@@ -173,7 +173,8 @@ void main() {
         axisLen = cw;
     }
 
-    bool polar = st >= 8;
+    bool polar = st >= 9;
+    bool frame = st == 8;
     bool centred = (pm == 2 && st != 6) || st == 1;
     float signedAcross = polar ? 0.0
         : ((pm == 3 || pm == 4) ? cpx.x - cw * 0.5 : ch * 0.5 - cpx.y);
@@ -181,7 +182,7 @@ void main() {
     if (centred) across = abs(signedAcross);
 
     float mirrorFade = 1.0;
-    if (!polar && !centred && across < 0.0) {
+    if (!polar && !frame && !centred && across < 0.0) {
         if (reflectPx <= 0.0) {
             fragColor = vec4(0.0);
             return;
@@ -318,6 +319,44 @@ void main() {
         float bl = abs(p.y - base) - max(0.6, aa * 0.7);
         extraA += (1.0 - smoothstep(-aa, aa, bl)) * 0.16 * energy;
     } else if (st == 8) {
+        // the frame: a full ring of bars around the whole screen's edge, packed
+        // with a small gap and each grown inward to its own height, so it reads
+        // as a bar spectrum wrapped around the display.
+        float dL = cpx.x;
+        float dR = cw - cpx.x;
+        float dT = cpx.y;
+        float dB = ch - cpx.y;
+        float perim = 2.0 * (cw + ch);
+        float ed;   // inward distance from the nearest edge
+        float s;    // arc length clockwise from the top-left corner
+        float mE = min(min(dL, dR), min(dT, dB));
+        if (mE == dT)      { ed = dT; s = cpx.x; }
+        else if (mE == dR) { ed = dR; s = cw + cpx.y; }
+        else if (mE == dB) { ed = dB; s = cw + ch + (cw - cpx.x); }
+        else               { ed = dL; s = 2.0 * cw + ch + (ch - cpx.y); }
+        float al = s / perim;
+        // Many bars, packed: each samples the smoothed spectrum at its own spot,
+        // so the ring fills with bars of uneven height rather than sparse ticks.
+        float ticks = max(bands, 1.0) * 3.0;
+        float slotP = perim / ticks;
+        float ti = floor(s / slotP);
+        float ci = (ti + 0.5) * slotP;
+        float tAl = (ti + 0.5) / ticks;
+        float lvv = lvSmooth(tAl);
+        float len = max(minLen, maxLen * lvv);
+        float barWp = max(1.5, slotP * thickness);
+        tRamp = tAl;
+        hot = lvv;
+        sd = roundBox(vec2(s - ci, ed - len * 0.5), vec2(barWp * 0.5, len * 0.5), capR);
+        lift = clamp(ed / max(len, 1.0), 0.0, 1.0);
+        if (peakOn > 0.5) {
+            float ph = maxLen * pkAt(bandAt(tAl));
+            float capH = max(2.0, min(capR * 1.1, barWp * 0.34));
+            float sdp = roundBox(vec2(s - ci, ed - (ph + capH * 1.6)),
+                                 vec2(barWp * 0.46, capH * 0.5), capH * 0.5);
+            extraA += (1.0 - smoothstep(-aa, aa, sdp)) * 0.85;
+        }
+    } else if (st == 9) {
         vec2 q = px - origin;
         float d = length(q);
         float a01 = fract((atan(q.y, q.x) + spinRad + PI * 0.5) / TAU + 1.0);
@@ -338,7 +377,7 @@ void main() {
         float ringW = max(1.2, shapeW * 0.22);
         float ring = abs(d - r0 * (1.0 + 0.08 * energy)) - ringW;
         extraA += (1.0 - smoothstep(-aa, aa, ring)) * 0.45;
-    } else if (st == 9) {
+    } else if (st == 10) {
         vec2 q = px - origin;
         float d = length(q);
         float a01 = fract((atan(q.y, q.x) + spinRad + PI * 0.5) / TAU + 1.0);
@@ -413,8 +452,9 @@ void main() {
         : 0.0;
 
     float a = clamp(cover + halo, 0.0, 1.0) * fade * mirrorFade * qt_Opacity;
-    // Edge looks melt into the wallpaper at both ends instead of being cut off.
-    if (!polar)
+    // Edge looks melt into the wallpaper at both ends instead of being cut off;
+    // the frame wraps, so it has no ends to fade.
+    if (!polar && !frame)
         a *= smoothstep(0.0, 0.035, along) * (1.0 - smoothstep(0.965, 1.0, along));
     if (a <= 0.002) {
         fragColor = vec4(0.0);

@@ -60,7 +60,7 @@ var rows = [{
         "ctl": "seg",
         "src": "viz",
         "opts": ["rounded","flat"],
-        "when": {"style":["bars","split","dots","segments","radial","spiral"]}
+        "when": {"style":["bars","split","dots","segments","frame","radial","spiral"]}
     },{
         "tab": "Visualizer",
         "group": "STYLE",
@@ -70,6 +70,31 @@ var rows = [{
         "ctl": "sw",
         "src": "viz",
         "when": {"style":["bars","split","dots","segments","wave","ribbon","curtain","line"]}
+    },{
+        "tab": "Visualizer",
+        "group": "COLOUR",
+        "key": "color",
+        "label": "Colour",
+        "desc": "Pin an exact colour; clear to follow the wallpaper",
+        "ctl": "color",
+        "src": "viz"
+    },{
+        "tab": "Visualizer",
+        "group": "COLOUR",
+        "key": "gradient",
+        "label": "Gradient",
+        "desc": "Sweep from the colour above to a second one across the spectrum",
+        "ctl": "sw",
+        "src": "viz"
+    },{
+        "tab": "Visualizer",
+        "group": "COLOUR",
+        "key": "color2",
+        "label": "Second colour",
+        "desc": "The far end of the gradient",
+        "ctl": "color",
+        "src": "viz",
+        "when": {"gradient":[true]}
     },{
         "tab": "Visualizer",
         "group": "PLACEMENT",
@@ -221,7 +246,7 @@ var rows = [{
         "hi": 1,
         "unit": "%",
         "pct": true,
-        "when": {"style":["bars","split","dots","segments","radial","spiral"]}
+        "when": {"style":["bars","split","dots","segments","frame","radial","spiral"]}
     },{
         "tab": "Visualizer",
         "group": "SPECTRUM",
@@ -244,7 +269,7 @@ var rows = [{
         "desc": "Hold a mark at each bar's peak",
         "ctl": "sw",
         "src": "viz",
-        "when": {"style":["bars","segments"]}
+        "when": {"style":["bars","segments","frame"]}
     },{
         "tab": "Visualizer",
         "group": "SPECTRUM",

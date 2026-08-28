@@ -3,17 +3,17 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// The ten visualiser looks, drawn. This is the ONE catalogue of looks: the Hub
-// gallery, the preview and anything else read it instead of re-listing the ten
+// The twelve visualiser looks, drawn. This is the ONE catalogue of looks: the Hub
+// gallery, the preview and anything else read it instead of re-listing the
 // ids or re-inventing what each looks like. It mirrors Silhouette (the bar
 // skins) so the gallery can swap painters without knowing the difference: same
 // draw(c, key, W, H, fgA, dimA) signature, same monochrome bone ink, same
 // pill/dot helpers. Descriptions come from the spec's look table, not taste.
 Singleton {
-    // key + kind (edge honours span/align, polar honours origin/size) + a
-    // one-line what. Order is the spec's: the seven edge looks, then the three
-    // polar looks. keys/edgeKeys/polarKeys derive from this so nothing else
-    // ever re-lists the set.
+    // key + kind (edge honours span/align, polar honours origin/size, frame owns
+    // the whole screen) + a one-line what. Order is the spec's: the edge looks,
+    // the whole-screen frame, then the three polar looks. keys/edgeKeys/polarKeys
+    // derive from this so nothing else ever re-lists the set.
     readonly property var styles: [
         { key: "bars",     kind: "edge",  what: "Rounded columns with a gradient along their length, glow and optional peak caps" },
         { key: "split",    kind: "edge",  what: "Bars mirrored above and below the axis, the classic centre-out look" },
@@ -23,6 +23,7 @@ Singleton {
         { key: "ribbon",   kind: "edge",  what: "Three phase-offset translucent waves, an aurora" },
         { key: "curtain",  kind: "edge",  what: "A short wave hanging from the bar's edge, lit where it meets it" },
         { key: "line",     kind: "edge",  what: "An oscilloscope trace with a bright core and windowed edges" },
+        { key: "frame",    kind: "frame", what: "Bars around the whole screen's edge, growing inward as one body" },
         { key: "radial",   kind: "polar", what: "Rounded bars around a placeable ring with a bass-pulsed centre" },
         { key: "orb",      kind: "polar", what: "A filled orb with a crisp lit rim and a pulsing pupil ring" },
         { key: "spiral",   kind: "polar", what: "Bands laid along an Archimedean spiral over one and a half turns" }
@@ -162,6 +163,27 @@ Singleton {
                 if (lx === 0) c.moveTo(lx, ly); else c.lineTo(lx, ly);
             }
             c.stroke();
+        } else if (key === "frame") {
+            // a rail hugging the tile edge with little bars growing inward off
+            // all four sides, so it reads as one body around the display
+            var fm = 3, fbw = 2;
+            var flv = [0.55, 0.9, 0.45, 0.8, 0.6, 0.85, 0.5];
+            c.strokeStyle = faint; c.lineWidth = 1;
+            c.strokeRect(fm + 0.5, fm + 0.5, W - 2 * fm - 1, H - 2 * fm - 1);
+            c.fillStyle = fg;
+            var innerW = W - 2 * fm, innerH = H - 2 * fm, fb = 7, fbv = 4;
+            for (i = 0; i < fb; i++) {
+                var fx = fm + (i + 0.5) * innerW / fb - fbw / 2;
+                var tl = 3 + flv[i] * 8, bln = 3 + flv[(i + 3) % fb] * 8;
+                c.fillRect(fx, fm, fbw, tl);
+                c.fillRect(fx, H - fm - bln, fbw, bln);
+            }
+            for (i = 0; i < fbv; i++) {
+                var fy = fm + (i + 0.5) * innerH / fbv - fbw / 2;
+                var ll = 3 + flv[i] * 8, rl = 3 + flv[(i + 1) % fbv] * 8;
+                c.fillRect(fm, fy, ll, fbw);
+                c.fillRect(W - fm - rl, fy, rl, fbw);
+            }
         } else if (key === "radial") {
             // a ring of stubby bars pointing outward off a lit inner ring
             var rin = 6, rn = 10, pa, plen;

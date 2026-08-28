@@ -689,6 +689,9 @@ Rectangle {
             property bool idleWave: true
             property string style: "bars"
             property string shape: "rounded"
+            property string color: ""
+            property string color2: ""
+            property bool gradient: false
             property bool mirror: false
             property real segments: 10
             property real fps: 30
@@ -705,6 +708,10 @@ Rectangle {
         property real angle: 0
         property real tiltX: 0
         property real tiltY: 0
+        // Preserved so a hub save never drops the desktop's extra visualisers or
+        // which one it is editing; the hub itself tunes the primary (flat keys).
+        property var extras: []
+        property int active: 0
         }
     }
     FileView {

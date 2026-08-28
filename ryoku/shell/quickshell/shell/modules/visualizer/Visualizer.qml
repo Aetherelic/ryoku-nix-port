@@ -1,4 +1,5 @@
 //@ pragma DefaultEnv QSG_RENDER_LOOP = threaded
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
@@ -40,11 +41,12 @@ Item {
         value: root.active
     }
 
-    // configured band count; changing it restarts cava with the new bars.
+    // one shared cava for every instance, at the largest band count any of them
+    // wants; each Motion resamples down. changing it restarts cava.
     Binding {
         target: Spectrum
         property: "bars"
-        value: Config.bars
+        value: Config.maxBars
     }
 
     // cava's framerate follows the render ceiling: no point sampling faster than
@@ -55,12 +57,12 @@ Item {
         value: Config.fps
     }
 
-    // the scope look draws the actual playback waveform; capture the monitor
-    // only while that look is selected and the visualiser is on.
+    // the scope look draws the actual playback waveform; capture the monitor only
+    // while some instance is the line look and the visualiser is on.
     Binding {
         target: Waveform
         property: "active"
-        value: root.active && Config.styleId === "line"
+        value: root.active && Config.anyLine
     }
 
     PanelWindow {
@@ -88,19 +90,38 @@ Item {
 
         anchors { top: true; left: true; right: true; bottom: true }
 
-        VisualizerView {
-            id: view
+        // One view per instance: the primary plus every extra, each painting its
+        // own look on the shared surface.
+        Item {
             anchors.fill: parent
+            Repeater {
+                id: rep
+                model: Config.list
+                delegate: VisualizerView {
+                    id: vizView
+                    required property int index
+                    required property var modelData
+                    anchors.fill: parent
+                    cfg: VizItem { data: vizView.modelData }
+                }
+            }
         }
     }
 
-    // The placement overlay only exists while a look is being aimed.
+    // The active view, for the placement overlay to frame and colour-match.
+    readonly property Item activeView: {
+        rep.count;   // rebuild the binding when the delegates change
+        return rep.itemAt(Config.active);
+    }
+
+    // The placement overlay only exists while a look is being aimed; it tunes the
+    // active instance.
     Loader {
         active: root.placeable
         sourceComponent: Placer {
             screen: root.screen
-            box: view.boxRect
-            guide: view.guide
+            box: root.activeView ? root.activeView.boxRect : Qt.rect(0, 0, win.width, win.height)
+            guide: root.activeView ? root.activeView.guide : "white"
             onDone: root.placingDone()
         }
     }

@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **The desktop visualizer can stack several looks, use exact gradients, and wrap
+  the display in a reactive frame.** The placement bar switches, adds and removes
+  up to four visualizers, shows a light RAM estimate for each full-screen pass,
+  and opens a two-stop colour picker with draggable selectors and hex entry. A
+  shared spectrum feed drives every instance, while the new Frame look fills the
+  display edge with dense inward-growing bars (`modules/visualizer/`,
+  `ui/SpectrumField.qml`, `ui/shaders/spectrum.frag`).
+
 - **The bar's brand logo can open the quick settings instead of the Shell Studio.**
   A STUDIO / QUICK SETTINGS segmented switch in both the Studio foot and the
   Super+Esc quick-settings sidebar sets which surface the logo click opens; the

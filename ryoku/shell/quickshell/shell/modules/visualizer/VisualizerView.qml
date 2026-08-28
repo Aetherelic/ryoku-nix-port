@@ -11,7 +11,11 @@ import "Singletons"
 Item {
     id: root
 
-    readonly property string style: Config.styleId
+    // The instance this surface paints. Every per-viz knob is read from here, so
+    // one draw path serves the primary and each extra visualiser alike.
+    required property VizItem cfg
+
+    readonly property string style: root.cfg.styleId
     readonly property bool polar: field.polar
 
     // What the placement overlay needs: the look's box, and a colour lit for the
@@ -21,6 +25,7 @@ Item {
 
     Motion {
         id: motion
+        cfg: root.cfg
         style: root.style
         active: root.visible && Config.enabled
     }
@@ -38,6 +43,28 @@ Item {
     readonly property int fieldSide: Scheme.side(root.fieldLstar)
 
     readonly property var ramp: {
+        // A two-stop gradient wins: eight stops sweep from the first pinned colour
+        // to the second across the spectrum, exactly as chosen, no wallpaper relight.
+        if (root.cfg.gradient) {
+            var g0 = root.cfg.customColor;
+            var g1 = root.cfg.color2Value;
+            var grad = [];
+            for (var j = 0; j < 8; j++)
+                grad.push(Qt.tint(g0, Qt.rgba(g1.r, g1.g, g1.b, j / 7)));
+            return grad;
+        }
+        // A single pinned colour is respected exactly: the same gentle bass->treble
+        // walk the wallpaper ramp uses, but no re-lighting against the picture.
+        if (root.cfg.hasCustomColor) {
+            var base = root.cfg.customColor;
+            var pinned = [];
+            for (var k = 0; k < 8; k++) {
+                var tk = k / 7;
+                var fk = 1 + (tk - 0.5) * 0.36;
+                pinned.push(fk >= 1 ? Qt.lighter(base, fk) : Qt.darker(base, 1 / fk));
+            }
+            return pinned;
+        }
         var out = [];
         for (var i = 0; i < 8; i++) {
             var t = i / 7;
@@ -61,21 +88,21 @@ Item {
         ramp: root.ramp
 
         style: root.style
-        shape: Config.shape
-        thickness: Config.thickness
-        reflection: Config.reflection
-        segments: Config.segments
-        // Config owns the rule, so the bar dims the switch this binding ignores.
-        peakCaps: Config.peaks && Config.peaksApply
-        glow: Config.bloom
-        boxX: Config.x
-        boxY: Config.y
-        boxW: Config.w
-        boxH: Config.h
-        grow: Config.grow
-        angle: Config.angle
-        tiltX: Config.tiltX
-        tiltY: Config.tiltY
+        shape: root.cfg.shape
+        thickness: root.cfg.thickness
+        reflection: root.cfg.reflection
+        segments: root.cfg.segments
+        // cfg owns the rule, so the bar dims the switch this binding ignores.
+        peakCaps: root.cfg.peaks && root.cfg.peaksApply
+        glow: root.cfg.bloom
+        boxX: root.cfg.x
+        boxY: root.cfg.y
+        boxW: root.cfg.w
+        boxH: root.cfg.h
+        grow: root.cfg.grow
+        angle: root.cfg.angle
+        tiltX: root.cfg.tiltX
+        tiltY: root.cfg.tiltY
         spin: motion.spinDeg
     }
 }

@@ -18,11 +18,14 @@ Item {
     // the look being drawn: only the scope reads a waveform instead of bands.
     property string style: "bars"
     property bool active: true
+    // the instance being eased; every per-viz knob is read from here, the budget
+    // (fps/adaptive) and master switch stay global on Config.
+    required property VizItem cfg
 
     readonly property bool scope: motion.style === "line"
     readonly property int bands: motion.scope
-        ? Math.max(16, Math.min(128, Config.bars * 2))
-        : Math.max(4, Math.min(128, Config.bars))
+        ? Math.max(16, Math.min(128, motion.cfg.bars * 2))
+        : Math.max(4, Math.min(128, motion.cfg.bars))
 
     // --- outputs -----------------------------------------------------------
     property var levels: []
@@ -54,22 +57,22 @@ Item {
     // The idle wave is the user's opted-in resting animation, so plain silence
     // must leave it breathing; only the hard tiers (Power Saver, lowPowerMode,
     // Game Mode) force it off, as Performance documents.
-    readonly property bool wantIdleWave: Config.idleWave && !Performance.visualizerHardFrozen
-    readonly property bool wantPeaks: Config.peaks
+    readonly property bool wantIdleWave: motion.cfg.idleWave && !Performance.visualizerHardFrozen
+    readonly property bool wantPeaks: motion.cfg.peaks
         && (motion.style === "bars" || motion.style === "segments")
     readonly property bool animating: motion.sounding || motion.wantIdleWave
         || motion.maxLevel > 0.004 || (motion.scope && Waveform.samples.length > 0)
-        || Config.spin > 0
+        || motion.cfg.spin > 0
 
     function rawLevel(i) {
         var l = Spectrum.levels;
-        var s = SpectrumMath.srcIndex(i, motion.bands, Config.mirror);
+        var s = SpectrumMath.srcIndex(i, motion.bands, motion.cfg.mirror);
         var v = (l && s < l.length) ? l[s] : 0;
-        return Math.min(1, Math.pow(v, 0.72) * Config.gain);
+        return Math.min(1, Math.pow(v, 0.72) * motion.cfg.gain);
     }
     function idleLevel(i) {
         return 0.012 + 0.02 * (0.5 + 0.5 * Math.sin(
-            SpectrumMath.srcIndex(i, motion.bands, Config.mirror) * 0.4 + motion.idlePhase));
+            SpectrumMath.srcIndex(i, motion.bands, motion.cfg.mirror) * 0.4 + motion.idlePhase));
     }
 
     Timer {
@@ -113,8 +116,8 @@ Item {
             * (1 - Math.exp(-dt / (goal > motion.activity ? 0.05 : 1.1)));
         if (motion.wantIdleWave)
             motion.idlePhase += dt * (Math.PI * 2 / 6);
-        if (Config.spin > 0)
-            motion.spinDeg = (motion.spinDeg + dt * Config.spin) % 360;
+        if (motion.cfg.spin > 0)
+            motion.spinDeg = (motion.spinDeg + dt * motion.cfg.spin) % 360;
 
         if (motion.scope) {
             motion.stepScope(dt);
@@ -125,8 +128,8 @@ Item {
         var prev = motion.levels;
         var idleAmt = motion.wantIdleWave ? (1 - motion.activity) : 0;
         // smoothing stretches the decay, and a touch of the attack.
-        var decay = 0.06 + 0.20 * Config.smoothing;
-        var attack = 0.035 + 0.02 * Config.smoothing;
+        var decay = 0.06 + 0.20 * motion.cfg.smoothing;
+        var attack = 0.035 + 0.02 * motion.cfg.smoothing;
         var out = new Array(n);
         var mx = 0;
         for (var i = 0; i < n; i++) {
@@ -179,7 +182,7 @@ Item {
                 frame = m;
         }
         motion.scopePeak = Math.max(frame, motion.scopePeak - dt * 0.25);
-        var norm = Config.gain / Math.max(0.02, motion.scopePeak);
+        var norm = motion.cfg.gain / Math.max(0.02, motion.scopePeak);
         var out = new Array(n);
         var mx = 0;
         for (var i = 0; i < n; i++) {

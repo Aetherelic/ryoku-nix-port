@@ -220,6 +220,8 @@ PanelWindow {
         Keys.onEscapePressed: {
             if (editBar.trayOpen)
                 editBar.closeTray();
+            else if (editBar.colorOpen)
+                editBar.closeColor();
             else
                 win.done();
         }
