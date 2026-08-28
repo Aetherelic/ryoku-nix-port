@@ -250,7 +250,7 @@ Item {
                 id: segTxt
                 anchors.centerIn: parent
                 text: I18n.tr(seg.label)
-                color: seg.on ? Theme.inkOnBone : (segHov.hovered ? Theme.onSurface : Theme.sumi)
+                color: seg.on ? Theme.inkOnBone : (segHov.hovered ? Theme.onSurface : Theme.sumiHi)
                 font.family: Theme.ui
                 font.pixelSize: Math.round(12 * body.s)
                 font.weight: seg.on ? Font.DemiBold : Font.Medium
@@ -282,7 +282,7 @@ Item {
                     visible: ib.glyph.length > 0
                     anchors.verticalCenter: parent.verticalCenter
                     text: ib.glyph
-                    color: ib.on ? Theme.seal : (ibHov.hovered ? Theme.onSurface : Theme.sumi)
+                    color: ib.on ? Theme.seal : (ibHov.hovered ? Theme.onSurface : Theme.sumiHi)
                     font.family: Theme.mono
                     font.pixelSize: Math.round(13 * body.s)
                 }
@@ -290,7 +290,7 @@ Item {
                     visible: ib.label.length > 0
                     anchors.verticalCenter: parent.verticalCenter
                     text: I18n.tr(ib.label)
-                    color: ib.on ? Theme.onSurface : (ibHov.hovered ? Theme.onSurface : Theme.sumi)
+                    color: ib.on ? Theme.onSurface : (ibHov.hovered ? Theme.onSurface : Theme.sumiHi)
                     font.family: Theme.ui
                     font.pixelSize: Math.round(11.5 * body.s)
                 }
@@ -317,10 +317,7 @@ Item {
         width: Math.round(Math.min(parent.width - 48 * body.s, 1100 * body.s))
         height: Math.round(Math.min(parent.height * 0.40, 460 * body.s))
         visible: body.shown.length > 0
-        radius: Math.round(12 * body.s)
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.92)
-        border.width: 1
-        border.color: Theme.lineStrong
+        color: "transparent"
         clip: true
 
         Loader {
@@ -521,7 +518,7 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "\u2315"
-                    color: body.search.length > 0 ? Theme.onSurface : Theme.sumi
+                    color: body.search.length > 0 ? Theme.onSurface : Theme.sumiHi
                     font.family: Theme.mono
                     font.pixelSize: Math.round(13 * body.s)
                 }
@@ -538,7 +535,7 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: body.shown.length > 0 ? (body.pad2(body.selIndex + 1) + " / " + body.pad2(body.shown.length)) : "--"
-                color: Theme.onSurfaceVariant
+                color: Theme.sumiHi
                 font.family: Theme.mono
                 font.pixelSize: Math.round(11 * body.s)
                 font.letterSpacing: 1 * body.s
