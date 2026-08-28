@@ -376,6 +376,9 @@ say "installing quickshell components -> $cfg/quickshell"
 rm -rf "$cfg/quickshell"
 mkdir -p "$cfg/quickshell"
 cp -a "$here/quickshell/." "$cfg/quickshell/"
+
+# xdg-desktop-portal: route ScreenCast/Screenshot to hyprland so screen sharing works.
+install -Dm644 "$here/portals/hyprland-portals.conf" "$cfg/xdg-desktop-portal/hyprland-portals.conf"
 # The single-instance shell ships as ryoku/shell/quickshell/shell and lands at
 # $cfg/quickshell/shell via the copy above; the ryoku-shell daemon launches it as
 # `qs -c shell`, the live desktop.
