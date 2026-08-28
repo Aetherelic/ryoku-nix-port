@@ -18,6 +18,7 @@ Item {
     property bool topRow: true       // unused; kept for the belt cell API
     property bool live: true         // on-screen; gates the thumbnail decode
     property bool beltMoving: false  // belt drifting/scrolling; holds video off
+    property string activeKey: ""    // wallpaper set on the target screen; "" = global current
     signal entered()
     signal chosen()
 
@@ -62,7 +63,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             // Fixed decode size: binding this to the animating tile width/height
             // re-decodes the thumbnail every frame of a slide and flashes black.
-            sourceSize: Qt.size(512, 512)
+            sourceSize: Qt.size(1024, 1024)
             source: (cell.live && cell.item && cell.item.thumb) ? "file://" + cell.item.thumb : ""
             // fade the still out once the live preview presents, so the clip
             // replaces the thumbnail cleanly instead of playing on top of it.
@@ -116,7 +117,7 @@ Item {
 
     // on-air dot for the wallpaper currently set, top-left.
     Rectangle {
-        visible: cell.item && cell.item.path === Walls.current
+        visible: cell.item && cell.item.path === (cell.activeKey.length > 0 ? cell.activeKey : Walls.current)
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.margins: Math.round(8 * cell.s)

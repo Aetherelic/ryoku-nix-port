@@ -60,6 +60,7 @@ Item {
                 id: wallC
                 WallCell {
                     s: grid.s; item: cellSlot.modelData; bg: grid.bg
+                    activeKey: grid.activeKey
                     selected: cellSlot.index === grid.selIndex
                     live: true
                     beltMoving: gv.moving

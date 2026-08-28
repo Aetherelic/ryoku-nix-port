@@ -194,18 +194,18 @@ func TestLiveStillPinsTheVideoFit(t *testing.T) {
 	if err := w.showFrame(src, nil, "Contain"); err != nil {
 		t.Fatalf("showFrame: %v", err)
 	}
-	if w.fit != "Contain" {
-		t.Errorf("pinned fit = %q, want Contain", w.fit)
+	if w.def.fit != "Contain" {
+		t.Errorf("pinned fit = %q, want Contain", w.def.fit)
 	}
 	w.republish()
-	if w.fit != "Contain" {
-		t.Errorf("republish dropped the pin: fit = %q, want Contain", w.fit)
+	if w.def.fit != "Contain" {
+		t.Errorf("republish dropped the pin: fit = %q, want Contain", w.def.fit)
 	}
 	if err := w.showTransition(src, nil); err != nil {
 		t.Fatalf("showTransition: %v", err)
 	}
-	if w.fit != "Cover" {
-		t.Errorf("image switch kept the pin: fit = %q, want the user's Cover", w.fit)
+	if w.def.fit != "Cover" {
+		t.Errorf("image switch kept the pin: fit = %q, want the user's Cover", w.def.fit)
 	}
 }
 

@@ -97,7 +97,7 @@ func TestShowLiveWallpaperFlipsLiveAfterReady(t *testing.T) {
 	live := func() bool {
 		d.wall.mu.Lock()
 		defer d.wall.mu.Unlock()
-		return d.wall.live
+		return d.wall.def.live
 	}
 	for range 200 {
 		if live() {
@@ -147,7 +147,7 @@ func TestWallInitAdoptsSurvivingLivewall(t *testing.T) {
 	d.wallInit()
 
 	d.wall.mu.Lock()
-	gotLive := d.wall.live
+	gotLive := d.wall.def.live
 	d.wall.mu.Unlock()
 	if !gotLive {
 		t.Error("init did not mark the surface live for the surviving player: the fresh backdrop would cover the still-playing video")

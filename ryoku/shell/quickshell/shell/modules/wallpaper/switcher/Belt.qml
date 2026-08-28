@@ -109,6 +109,7 @@ Item {
                     s: row.s
                     item: slot.modelData
                     bg: row.bg
+                    activeKey: row.activeKey
                     topRow: row.topRow
                     live: slot.visible
                     beltMoving: row.moving || row.scrollHold

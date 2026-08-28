@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
@@ -37,43 +37,130 @@ func wallDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "W
 func liveDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "livewalls") }
 func wallState() string { return filepath.Join(stateDir(), "ryoku-wallpaper") }
 func wallBag() string   { return filepath.Join(stateDir(), "ryoku-wallpaper-bag") }
+func wallStateJSON() string { return filepath.Join(stateDir(), "ryoku-wallpaper.json") }
 
-// wallpaperApply: pick a wallpaper per mode (init | set | next | random | refresh)
-// show it. Images are painted by the in-shell backdrop surface (the daemon copies
-// the pick into a cache file, bumps a revision, and publishes it); videos play
-// through ryoku-livewall. The slow retheme (palette, borders, LEDs) goes to
-// coalescing background workers via scheduleTheme so rapid Super+W stays smooth.
-// best-effort: a missing wallpaper dir is a no-op, not an error.
-func (d *daemon) wallpaperApply(mode, arg string) error {
-	// repaint = re-derive the palette / borders / LEDs and re-fit the current
-	// wallpaper (a settings change re-applies without re-animating). No image copy
-	// or revision bump, so the backdrop re-fits with no crossfade.
-	if mode == "repaint" {
+// wallStateFile is the persisted per-output state (contract 08): a global default
+// plus per-connector overrides.
+type wallStateFile struct {
+	Default string            `json:"default"`
+	Outputs map[string]string `json:"outputs"`
+}
+
+// currentFor is the wallpaper a screen shows now: its override, else the default.
+func (st wallStateFile) currentFor(screen string) string {
+	if screen != "" {
+		if p, ok := st.Outputs[screen]; ok {
+			return p
+		}
+	}
+	return st.Default
+}
+
+// readWallState loads the per-output state, migrating a legacy plain-path file
+// (default = its path, no overrides) when the json is absent or unreadable.
+func readWallState() wallStateFile {
+	if b, err := os.ReadFile(wallStateJSON()); err == nil {
+		var st wallStateFile
+		if json.Unmarshal(b, &st) == nil {
+			if st.Outputs == nil {
+				st.Outputs = map[string]string{}
+			}
+			return st
+		}
+	}
+	return wallStateFile{Default: readState(), Outputs: map[string]string{}}
+}
+
+// writeWallState persists the state as json and mirrors the default into the
+// legacy plain-path file for back-compat.
+func writeWallState(st wallStateFile) {
+	if st.Outputs == nil {
+		st.Outputs = map[string]string{}
+	}
+	_ = os.MkdirAll(stateDir(), 0o755)
+	if b, err := json.Marshal(st); err == nil {
+		_ = os.WriteFile(wallStateJSON(), b, 0o644)
+	}
+	_ = os.WriteFile(wallState(), []byte(st.Default+"\n"), 0o644)
+}
+
+// stateHasVideo reports whether the default or any override is a live clip.
+func stateHasVideo(st wallStateFile) bool {
+	if isVideo(st.Default) && isFile(st.Default) {
+		return true
+	}
+	for _, p := range st.Outputs {
+		if isVideo(p) && isFile(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// connectedOutputs lists connector names of connected monitors from hyprctl. nil
+// when the list can't be read, so callers fall back to global behaviour.
+func connectedOutputs() []string {
+	out, err := exec.Command("hyprctl", "monitors", "-j").Output()
+	if err != nil {
+		return nil
+	}
+	var mons []struct {
+		Name string `json:"name"`
+	}
+	if json.Unmarshal(out, &mons) != nil {
+		return nil
+	}
+	names := make([]string, 0, len(mons))
+	for _, m := range mons {
+		if m.Name != "" {
+			names = append(names, m.Name)
+		}
+	}
+	return names
+}
+
+// liveSlots is the set of slots a broadcast/default live wallpaper spans: every
+// connected output, or the NULL slot ("") when the list can't be read (today's
+// single-monitor / no-hyprctl behaviour).
+func liveSlots() []string {
+	if slots := connectedOutputs(); len(slots) > 0 {
+		return slots
+	}
+	return []string{""}
+}
+
+// wallpaperApply picks a wallpaper per mode (init | set | next | random | refresh
+// | repaint | live-reload) and shows it. screen "" is a broadcast (the default and
+// every connected output); a connector name targets one output. Images are painted
+// by the in-shell backdrop; videos play through ryoku-livewall, one player per live
+// output. The slow retheme goes to coalescing workers via scheduleTheme so rapid
+// Super+W stays smooth. best-effort: a missing wallpaper dir is a no-op, not error.
+func (d *daemon) wallpaperApply(mode, arg, screen string) error {
+	switch mode {
+	case "repaint":
+		// re-derive palette / borders / LEDs and re-fit in place, no reveal.
 		d.scheduleTheme()
 		d.wall.republish()
 		return nil
-	}
-	// live-reload = relaunch the current live wallpaper with fresh motion opts
-	// (ryowalls changed the fit). Video only; no state write and no retheme.
-	if mode == "live-reload" {
-		if cur := readState(); isVideo(cur) && isFile(cur) {
-			return d.showLiveWallpaper(cur)
+	case "live-reload":
+		// relaunch the live wallpapers with fresh motion opts (ryowalls fit).
+		st := readWallState()
+		if stateHasVideo(st) {
+			d.stopLive()
+			d.showSavedLive(st)
 		}
 		return nil
-	}
-	// init: a saved live wallpaper's player either survived the daemon (adopt it,
-	// no restart) or died with it (relaunch); a saved image is set below.
-	if mode == "init" {
-		if cur := readState(); isVideo(cur) && isFile(cur) {
-			if liveAlive() {
-				d.adoptLive(cur)
-				return nil
-			}
-			return d.showLiveWallpaper(cur)
-		}
+	case "init":
+		d.restoreState()
+		return nil
+	case "refresh":
+		// hotplug: re-send the full map (a new backdrop already gets the snapshot
+		// on subscribe) and start a player for any newly connected live output.
+		d.wall.republish()
+		d.reconcileLive()
+		return nil
 	}
 
-	// resolve the target for this op before choosing a backend.
 	var pic string
 	switch mode {
 	case "set":
@@ -81,52 +168,64 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 			return nil
 		}
 		pic = arg
-	case "refresh":
-		// hotplug: a new monitor's backdrop window subscribes and paints the
-		// current revision on its own, so there is nothing to repaint here.
-		return nil
 	case "random":
-		// Super+Shift+W: a random wallpaper from the switcher pool, never the
-		// current one. Includes live walls: the type branch below plays a video
-		// through ryoku-livewall, or reveals an image with a random transition.
-		pic = pickRandomImage(listPics(), readState())
-	case "init":
-		if cur := readState(); cur != "" && isFile(cur) {
-			pic = cur
-		} else {
-			pic = popBag()
-		}
+		// Super+Shift+W: a random pool wallpaper, never this screen's current one.
+		pic = pickRandomImage(listPics(), readWallState().currentFor(screen))
 	default: // next
 		pic = popBag()
 	}
 	if pic == "" {
 		return nil
 	}
+	return d.applyPick(mode, pic, screen)
+}
 
-	// A video plays through ryoku-livewall over its own still frame; an image is
-	// revealed by the in-shell backdrop.
+// applyPick shows one resolved pick and persists it: a video through
+// ryoku-livewall, an image through the backdrop. screen "" broadcasts (default +
+// every output); a name targets one output, leaving the others running.
+func (d *daemon) applyPick(mode, pic, screen string) error {
 	if isVideo(pic) {
-		if err := d.showLiveWallpaper(pic); err != nil {
+		if screen == "" {
+			if err := d.showLiveWallpaper(pic); err != nil {
+				return err
+			}
+		} else if err := d.showLiveOutput(screen, pic); err != nil {
 			return err
 		}
-		_ = os.MkdirAll(stateDir(), 0o755)
-		_ = os.WriteFile(wallState(), []byte(pic+"\n"), 0o644)
-		d.scheduleTheme()
-		return nil
+	} else if screen == "" {
+		// stop every video so the backdrops are revealed, then reveal the image.
+		d.stopLive()
+		if err := d.wall.showFrame(pic, d.transitionFor(mode), ""); err != nil {
+			return err
+		}
+	} else {
+		d.ensureLive().stop(screen)
+		if err := d.wall.showOutput(screen, pic, d.transitionFor(mode), ""); err != nil {
+			return err
+		}
 	}
-
-	// images: stop any video so the backdrop is revealed, then copy the pick into
-	// the cache and bump the revision. A user-driven switch (set / next / random)
-	// reveals with a random transition preset; init just crossfades onto the fresh
-	// backdrop, so a login never fires a full reveal.
-	d.stopLive()
-	if err := d.wall.showTransition(pic, d.transitionFor(mode)); err != nil {
-		return err
-	}
-	_ = os.MkdirAll(stateDir(), 0o755)
-	_ = os.WriteFile(wallState(), []byte(pic+"\n"), 0o644)
+	d.saveState(pic, screen)
 	d.scheduleTheme()
 	return nil
+}
+
+// saveState persists the pick: a broadcast writes the default and every connected
+// output; a per-output set writes one override.
+func (d *daemon) saveState(pic, screen string) {
+	st := readWallState()
+	if screen == "" {
+		st.Default = pic
+		st.Outputs = map[string]string{}
+		for _, name := range connectedOutputs() {
+			st.Outputs[name] = pic
+		}
+	} else {
+		if st.Outputs == nil {
+			st.Outputs = map[string]string{}
+		}
+		st.Outputs[screen] = pic
+	}
+	writeWallState(st)
 }
 
 // --- live (video) wallpapers: the ryoku-livewall daemon ---------------------
@@ -213,10 +312,120 @@ func liveContentFit() string {
 	return "Cover"
 }
 
-// liveGen serializes the async transcode+launch: every live-set or stop bumps it,
-// and a transcode goroutine launches livewall only if its generation is still
-// current, so a clip the user already switched away from never paints.
-var liveGen atomic.Int64
+// liveManager runs at most one ryoku-livewall process per live output. The slot
+// key is a connector name, or "" for the NULL-output / global fallback used when
+// the output list can't be read (today's single-monitor behaviour). Each slot's
+// generation serializes its async transcode+launch: a bump cancels an in-flight
+// transcode so a clip the user already switched away from never paints.
+type liveManager struct {
+	mu    sync.Mutex
+	slots map[string]*liveSlot
+}
+
+type liveSlot struct {
+	gen int64
+	cmd *exec.Cmd // running player, nil if none
+}
+
+func newLiveManager() *liveManager { return &liveManager{slots: map[string]*liveSlot{}} }
+
+func (d *daemon) ensureLive() *liveManager {
+	d.liveMu.Lock()
+	defer d.liveMu.Unlock()
+	if d.live == nil {
+		d.live = newLiveManager()
+	}
+	return d.live
+}
+
+func (m *liveManager) slot(name string) *liveSlot {
+	s := m.slots[name]
+	if s == nil {
+		s = &liveSlot{}
+		m.slots[name] = s
+	}
+	return s
+}
+
+// begin bumps a slot's generation (cancelling any in-flight transcode), kills its
+// current player, and returns the new generation for the caller to launch under.
+func (m *liveManager) begin(name string) int64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s := m.slot(name)
+	s.gen++
+	killProc(s.cmd)
+	s.cmd = nil
+	return s.gen
+}
+
+func (m *liveManager) stale(name string, gen int64) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.slot(name).gen != gen
+}
+
+// attach records a launched player if the slot is still current; false (stale)
+// tells the caller to kill the process it just started.
+func (m *liveManager) attach(name string, gen int64, cmd *exec.Cmd) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s := m.slot(name)
+	if s.gen != gen {
+		return false
+	}
+	s.cmd = cmd
+	return true
+}
+
+// done clears a player that has exited, if it is still the current one.
+func (m *liveManager) done(name string, gen int64, cmd *exec.Cmd) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s := m.slot(name)
+	if s.gen == gen && s.cmd == cmd {
+		s.cmd = nil
+	}
+}
+
+// stop kills one slot's player and cancels its in-flight transcode.
+func (m *liveManager) stop(name string) { m.begin(name) }
+
+// stopAll kills every slot's player.
+func (m *liveManager) stopAll() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, s := range m.slots {
+		s.gen++
+		killProc(s.cmd)
+		s.cmd = nil
+	}
+}
+
+func (m *liveManager) running(name string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.slots[name] != nil && m.slots[name].cmd != nil
+}
+
+// liveNames returns the slots with a running player.
+func (m *liveManager) liveNames() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []string
+	for name, s := range m.slots {
+		if s.cmd != nil {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+func killProc(cmd *exec.Cmd) {
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Process.Kill()
+	}
+}
 
 func isVideo(p string) bool {
 	switch strings.ToLower(filepath.Ext(p)) {
@@ -236,9 +445,9 @@ func liveAlive() bool { return exec.Command("pgrep", "-x", liveDaemon).Run() == 
 // manages them anymore, so killLegacyLive reaps them where the daemon takes
 // ownership of the wallpaper stack: once at bootstrap (wallInit), and in the
 // updater's quiesce. NOT in killLive: an orphan cannot appear mid-session (no
-// old daemon is left to spawn one), and livewall is single-output today, so a
-// user may legitimately run mpvpaper on a second monitor -- reaping on every
-// wallpaper change would kill that setup over and over.
+// old daemon is left to spawn one), and a user may legitimately run a legacy
+// backend on a monitor Ryoku does not drive -- reaping on every wallpaper change
+// would kill that setup over and over.
 var legacyLiveDaemons = []string{"mpvpaper", "phonto"}
 
 func killLegacyLive() {
@@ -253,7 +462,7 @@ func killLegacyLive() {
 // keep occluding the desktop until the user's next wallpaper change.
 func (d *daemon) wallInit() {
 	killLegacyLive()
-	_ = d.wallpaperApply("init", "")
+	_ = d.wallpaperApply("init", "", "")
 }
 
 // killLive terminates every livewall instance and waits for it to exit, so a
@@ -271,39 +480,84 @@ func killLive() {
 	_ = exec.Command("pkill", "-9", "-x", liveDaemon).Run()
 }
 
-// stopLive stops the video and cancels any in-flight transcode (the generation
-// bump), so switching to an image never lets a late transcode relaunch livewall
-// over the new wallpaper. The backdrop takes the pixels back.
+// stopLive stops every live player (all outputs), cancels in-flight transcodes,
+// and hands the pixels back to the backdrops. Used by an image broadcast and by
+// the fullscreen / power gate.
 func (d *daemon) stopLive() {
-	liveGen.Add(1)
+	d.ensureLive().stopAll()
 	killLive()
-	d.wall.setLive(false)
+	d.wall.setLiveAll(false)
 }
 
-// showLiveWallpaper plays a clip through ryoku-livewall. It paints the clip's own
-// first frame (a still) as the wallpaper, launches the player over it, and steps
-// the backdrop aside once the player has actually painted (READY), so the desktop
-// shows the clip's content throughout with no black seam. Without livewall the
-// still alone is the wallpaper.
+// showLiveWallpaper plays a clip as the broadcast (default) wallpaper: it paints
+// the clip's still on every backdrop, then launches one ryoku-livewall per
+// connected output (each bound to its output), stepping each backdrop aside once
+// its player has painted (READY). Falls back to a single NULL-output player when
+// the output list can't be read (today's single-monitor behaviour).
 func (d *daemon) showLiveWallpaper(pic string) error {
-	gen := liveGen.Add(1)
-	killLive()
-	if frame := liveFrame(pic); frame != "" {
-		_ = d.wall.showFrame(frame, nil, liveContentFit())
+	mgr := d.ensureLive()
+	cfit := liveContentFit()
+	still := liveFrame(pic)
+	if still != "" {
+		_ = d.wall.showFrame(still, nil, cfit)
 	}
+	mgr.stopAll()
+	killLive()
+	slots := connectedOutputs()
+	if len(slots) == 0 {
+		d.launchLive("", pic)
+		return nil
+	}
+	for _, name := range slots {
+		if still != "" {
+			_ = d.wall.showOutput(name, still, nil, cfit)
+		}
+		d.launchLive(name, pic)
+	}
+	return nil
+}
+
+// showLiveOutput plays a clip on one output only: its still on that backdrop, a
+// player bound to that output launched over it. Other outputs are untouched.
+func (d *daemon) showLiveOutput(screen, pic string) error {
+	mgr := d.ensureLive()
+	if still := liveFrame(pic); still != "" {
+		_ = d.wall.showOutput(screen, still, nil, liveContentFit())
+	}
+	mgr.stop(screen)
+	d.launchLive(screen, pic)
+	return nil
+}
+
+// launchLive transcodes pic (off the hot path) and runs one ryoku-livewall bound
+// to slot ("" = NULL/primary), stepping that backdrop aside on READY and back once
+// the player exits. The slot's generation guards the async launch so a clip the
+// user switched away from never paints.
+func (d *daemon) launchLive(slot, pic string) {
+	mgr := d.ensureLive()
+	gen := mgr.begin(slot)
 	if _, err := exec.LookPath(liveDaemon); err != nil {
 		log.Printf("live wallpaper: %s not on PATH (build it with ryoku/shell/livewall/build.sh); showing the clip's still frame", liveDaemon)
-		return nil
+		return
 	}
 	go func() {
 		capW := liveCapWidth()
 		src := livewallSource(pic, capW)
-		if src == "" || liveGen.Load() != gen {
+		if src == "" || mgr.stale(slot, gen) {
 			return
 		}
-		cmd := exec.Command(liveDaemon, src, capW, liveFit())
+		args := []string{src, capW, liveFit()}
+		if slot != "" {
+			args = append(args, slot) // bind the player to this output
+		}
+		cmd := exec.Command(liveDaemon, args...)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil || cmd.Start() != nil {
+			return
+		}
+		if !mgr.attach(slot, gen, cmd) {
+			killProc(cmd)
+			_ = cmd.Wait()
 			return
 		}
 		// Step the backdrop aside only once the player has painted (READY); until
@@ -311,29 +565,115 @@ func (d *daemon) showLiveWallpaper(pic string) error {
 		// liveAlive guard keeps a player that died first on the still, not a hole.
 		go func() {
 			liveReady(stdout, 6*time.Second)
-			if liveGen.Load() == gen && liveAlive() {
-				d.wall.setLive(true)
+			if !mgr.stale(slot, gen) && liveAlive() {
+				d.wall.setLiveSlot(slot, true)
 			}
 		}()
 		_ = cmd.Wait()
-		if liveGen.Load() == gen {
-			d.wall.setLive(false)
+		mgr.done(slot, gen, cmd)
+		if !mgr.stale(slot, gen) {
+			d.wall.setLiveSlot(slot, false)
 		}
 	}()
-	return nil
 }
 
-// adoptLive re-publishes the live state for a clip whose player the previous daemon
-// left running (KillMode=process orphans it on a restart). Without it the fresh
-// daemon's empty snapshot lets the new backdrop cover the still-playing video and
-// black the desktop. It republishes the still + live without restarting the
-// player; the watcher drops live if that orphan later exits.
-func (d *daemon) adoptLive(pic string) {
-	gen := liveGen.Load()
-	if frame := liveFrame(pic); frame != "" {
-		_ = d.wall.showFrame(frame, nil, liveContentFit())
+// showSavedLive paints the still and (re)launches a player for every live output
+// described by st, following the current motion opts. Used by live-reload.
+func (d *daemon) showSavedLive(st wallStateFile) {
+	d.ensureLive()
+	cfit := liveContentFit()
+	if isVideo(st.Default) && isFile(st.Default) {
+		if still := liveFrame(st.Default); still != "" {
+			_ = d.wall.showFrame(still, nil, cfit)
+		}
+		for _, s := range liveSlots() {
+			if _, ov := st.Outputs[s]; ov {
+				continue
+			}
+			if s != "" {
+				if still := liveFrame(st.Default); still != "" {
+					_ = d.wall.showOutput(s, still, nil, cfit)
+				}
+			}
+			d.launchLive(s, st.Default)
+		}
 	}
-	d.wall.setLive(true)
+	for name, p := range st.Outputs {
+		if name == "" || !(isVideo(p) && isFile(p)) {
+			continue
+		}
+		if still := liveFrame(p); still != "" {
+			_ = d.wall.showOutput(name, still, nil, cfit)
+		}
+		d.launchLive(name, p)
+	}
+}
+
+// restoreState is the daemon's first wallpaper pass (init): it repaints every
+// output from the saved per-output state. A surviving player (KillMode=process
+// orphans it on a restart) is adopted -- the still is republished and the backdrop
+// marked live so it never covers a still-playing video -- rather than relaunched.
+// With no saved default it falls back to a bag pick (today's first-run behaviour).
+func (d *daemon) restoreState() {
+	d.ensureLive()
+	st := readWallState()
+	if st.Default == "" || !isFile(st.Default) {
+		if pic := popBag(); pic != "" {
+			_ = d.applyPick("init", pic, "")
+		}
+		return
+	}
+	adopt := stateHasVideo(st) && liveAlive()
+	cfit := liveContentFit()
+	if isVideo(st.Default) {
+		if still := liveFrame(st.Default); still != "" {
+			_ = d.wall.showFrame(still, nil, cfit)
+		}
+		for _, s := range liveSlots() {
+			if _, ov := st.Outputs[s]; ov {
+				continue
+			}
+			if s != "" {
+				if still := liveFrame(st.Default); still != "" {
+					_ = d.wall.showOutput(s, still, nil, cfit)
+				}
+			}
+			if adopt {
+				d.wall.setLiveSlot(s, true)
+			} else {
+				d.launchLive(s, st.Default)
+			}
+		}
+	} else {
+		_ = d.wall.showFrame(st.Default, nil, "") // no reveal on a login
+	}
+	for name, p := range st.Outputs {
+		if name == "" || !isFile(p) {
+			continue
+		}
+		if isVideo(p) {
+			if still := liveFrame(p); still != "" {
+				_ = d.wall.showOutput(name, still, nil, cfit)
+			}
+			if adopt {
+				d.wall.setLiveOutput(name, true)
+			} else {
+				d.launchLive(name, p)
+			}
+		} else {
+			_ = d.wall.showOutput(name, p, nil, "")
+		}
+	}
+	if adopt {
+		d.adoptWatch()
+	}
+	d.scheduleTheme()
+}
+
+// adoptWatch drops every live flag once no ryoku-livewall survives, for players
+// the previous daemon left running. Until then the adopted stills + live flags
+// keep the backdrops standing aside so the videos show.
+func (d *daemon) adoptWatch() {
 	go func() {
 		for {
 			select {
@@ -341,17 +681,48 @@ func (d *daemon) adoptLive(pic string) {
 				return
 			case <-time.After(2 * time.Second):
 			}
-			if liveGen.Load() != gen {
-				return
-			}
 			if !liveAlive() {
-				if liveGen.Load() == gen {
-					d.wall.setLive(false)
-				}
+				d.wall.setLiveAll(false)
 				return
 			}
 		}
 	}()
+}
+
+// reconcileLive brings the running players in line with the connected outputs
+// after a hotplug: it starts a player for any connected live output missing one
+// (a monitor plugged in under a broadcast/live wallpaper) and stops players for
+// outputs that vanished. A no-op when nothing live is configured or the output
+// list can't be read.
+func (d *daemon) reconcileLive() {
+	mgr := d.ensureLive()
+	st := readWallState()
+	if !stateHasVideo(st) {
+		return
+	}
+	slots := connectedOutputs()
+	if len(slots) == 0 {
+		return
+	}
+	cfit := liveContentFit()
+	connected := map[string]bool{}
+	for _, s := range slots {
+		connected[s] = true
+		p := st.currentFor(s)
+		if !(isVideo(p) && isFile(p)) || mgr.running(s) {
+			continue
+		}
+		if still := liveFrame(p); still != "" {
+			_ = d.wall.showOutput(s, still, nil, cfit)
+		}
+		d.launchLive(s, p)
+	}
+	for _, s := range mgr.liveNames() {
+		if s != "" && !connected[s] {
+			mgr.stop(s)
+			d.wall.setLiveOutput(s, false)
+		}
+	}
 }
 
 // liveReady blocks until the player prints READY (its first painted frame), its

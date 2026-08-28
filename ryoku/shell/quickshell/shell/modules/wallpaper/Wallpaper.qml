@@ -11,15 +11,18 @@ import "Singletons"
  * monitor (the shell root's per-screen scope constructs it with `screen`).
  *
  * A Background layer window (namespace ryoku-wallpaper, exclusive zone -1, all
- * four edges anchored, no input) draws the single global wallpaper on this
- * output. The ryoku-shell daemon copies the chosen image into a cache file,
- * bumps a revision, and streams {path, revision, fit} on the `wallpaper` topic;
- * the window crossfades (200 ms) to every new revision. This replaces the
- * external wallpaper daemon so wallpaper state, the colour scheme, and the
- * shell all live in one place. Contract 08 sec 1, 2.6, 3.1, 5, 7.
+ * four edges anchored, no input) draws this output's wallpaper. The ryoku-shell
+ * daemon copies each chosen image into a cache file, bumps a revision, and
+ * streams one coalesced full-state frame on the `wallpaper` topic:
+ * {default: ENTRY, outputs: {connector: ENTRY}}. This surface applies
+ * outputs[screen.name] or, absent an override, default -- so a broadcast set and
+ * a per-monitor set feed the same topic. The window crossfades (200 ms) to every
+ * new revision. This replaces the external wallpaper daemon so wallpaper state,
+ * the colour scheme, and the shell all live in one place. Contract 08 sec 1, 2.6,
+ * 3.1, 5, 7.
  *
  * The wallpaper switcher (modules/wallpaper/switcher) still sets wallpapers
- * through `ryoku-shell wallpaper set`, which feeds this same topic.
+ * through `ryoku-shell wallpaper set [--screen <name>]`, which feeds this topic.
  */
 Item {
     id: root
@@ -55,12 +58,19 @@ Item {
     function apply(line) {
         try {
             const f = JSON.parse(line);
+            // Per-output frame: this monitor's override, else the default
+            // (contract 08 sec 3). A hotplugged monitor with no override, or a
+            // frame lacking outputs, falls back to the default.
+            const name = root.screen ? root.screen.name : "";
+            const e = (f.outputs && f.outputs[name]) || f.default;
+            if (!e)
+                return; // malformed frame: keep the last image, never blank
             root.ready = true;
-            root.fit = f.fit || "Cover";
-            root.live = f.live === true;
-            root.transition = f.transition || null; // set before url so onUrlChanged sees the matching preset
-            root.wallpaperUrl = (f.path && f.path.length > 0) ? "file://" + f.path + "?v=" + (f.revision || 0) : "";
-        } catch (e) {
+            root.fit = e.fit || "Cover";
+            root.live = e.live === true;
+            root.transition = e.transition || null; // set before url so onUrlChanged sees the matching preset
+            root.wallpaperUrl = (e.path && e.path.length > 0) ? "file://" + e.path + "?v=" + (e.revision || 0) : "";
+        } catch (err) {
             // A malformed frame must never blank the desktop; keep the last image.
         }
     }

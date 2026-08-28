@@ -110,6 +110,7 @@ Item {
                 id: wallC
                 WallCell {
                     s: strip.s; item: slot.modelData; bg: strip.bg
+                    activeKey: strip.activeKey
                     selected: slot.foc
                     live: slot.visible
                     beltMoving: strip.moving

@@ -23,18 +23,48 @@ Singleton {
     readonly property string script: (shellDir && shellDir.length > 0)
         ? shellDir + "/quickshell/shell/modules/wallpaper/switcher/index.sh"
         : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/shell/modules/wallpaper/switcher/index.sh"
-    readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku-wallpaper"
+    readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state"))
+    readonly property string statePath: root.stateDir + "/ryoku-wallpaper"
+    readonly property string jsonPath: root.stateDir + "/ryoku-wallpaper.json"
 
-    // absolute path of the wallpaper on screen, watched so a pick lights its cell
-    // as soon as the daemon writes the state.
-    readonly property string current: stateView.text().trim()
+    // per-output wallpaper state written by the daemon: { default, outputs }.
+    // the legacy plain-path file is the fallback for state that predates the map.
+    property var outputs: ({})
+    property string defaultWall: ""
+    readonly property string current: root.defaultWall
+    function currentFor(name) {
+        return (name && root.outputs[name]) ? root.outputs[name] : root.defaultWall;
+    }
+    function loadState() {
+        var d = "";
+        try {
+            var o = JSON.parse(jsonView.text() || "{}");
+            root.outputs = (o && o.outputs) ? o.outputs : ({});
+            if (o && typeof o.default === "string")
+                d = o.default;
+        } catch (e) {
+            root.outputs = ({});
+        }
+        root.defaultWall = d.length > 0 ? d : legacyView.text().trim();
+    }
     FileView {
-        id: stateView
+        id: jsonView
+        path: root.jsonPath
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.loadState()
+        onLoadFailed: root.loadState()
+    }
+    FileView {
+        id: legacyView
         path: root.statePath
         blockLoading: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
+        onLoaded: root.loadState()
     }
 
     function refresh() {
@@ -83,24 +113,33 @@ Singleton {
         }
     }
 
-    // apply the pick; a pick landing while one is in flight queues and replays on
-    // exit, so rapid picks converge on the last one.
+    // apply the pick to a screen ("" / "*" = all outputs); a pick landing while
+    // one is in flight queues and replays on exit, so rapid picks converge.
     property string queuedApply: ""
-    function apply(path) {
+    property string queuedScreen: ""
+    function setCmd(path, screen) {
+        var c = ["ryoku-shell", "wallpaper", "set", path];
+        if (screen && screen !== "*")
+            c = c.concat(["--screen", screen]);
+        return c;
+    }
+    function apply(path, screen) {
         if (applyProc.running) {
-            queuedApply = path;
+            root.queuedApply = path;
+            root.queuedScreen = screen || "";
             return;
         }
-        applyProc.command = ["ryoku-shell", "wallpaper", "set", path];
+        applyProc.command = root.setCmd(path, screen || "");
         applyProc.running = true;
     }
     Process {
         id: applyProc
         onExited: {
             if (root.queuedApply.length) {
-                var next = root.queuedApply;
+                var next = root.queuedApply, ns = root.queuedScreen;
                 root.queuedApply = "";
-                applyProc.command = ["ryoku-shell", "wallpaper", "set", next];
+                root.queuedScreen = "";
+                applyProc.command = root.setCmd(next, ns);
                 applyProc.running = true;
             }
         }

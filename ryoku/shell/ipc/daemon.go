@@ -103,6 +103,8 @@ type daemon struct {
 	tray           *trayState               // system tray watcher/host state (nil until started)
 	wall           *wallSurface             // in-shell desktop wallpaper (nil until started)
 	lastTransition int                      // previous wallpaper transition preset index (-1 = none); guarded by wallMu
+	liveMu         sync.Mutex               // guards live
+	live           *liveManager             // per-output ryoku-livewall players (nil until first use)
 	polkit         *polkitAgent             // PolicyKit1 authentication agent (nil until started)
 	settings       *settingsStore           // shell.json store (nil until startSettings); theme apply patches through it
 	pp             *powerProfilesState      // power-profiles-daemon bus state; nil until startPowerProfiles
@@ -959,21 +961,33 @@ func (d *daemon) dispatch(line string) string {
 		}()
 		return "ok"
 	case "wallpaper":
-		mode := "next"
-		arg := ""
-		if len(args) > 0 {
-			mode = args[0]
+		// Grammar: wallpaper <mode> [--screen <name>] [path]. The path (set) may
+		// contain spaces, so it is recovered verbatim from the raw line after the
+		// flag is stripped; a connector name never contains spaces.
+		rest := ""
+		if p := strings.SplitN(line, " ", 2); len(p) == 2 {
+			rest = p[1]
 		}
-		if mode == "set" {
-			// The path may contain spaces, which strings.Fields above splits into
-			// several args, so recover it verbatim from the line after
-			// "wallpaper set " (same approach as clip-copy) rather than args[1].
-			if p := strings.SplitN(line, " ", 3); len(p) == 3 {
-				arg = p[2]
+		screen := ""
+		if i := strings.Index(rest, "--screen "); i >= 0 {
+			after := rest[i+len("--screen "):]
+			end := strings.IndexByte(after, ' ')
+			if end < 0 {
+				end = len(after)
 			}
+			screen = strings.TrimSpace(after[:end])
+			rest = strings.TrimSpace(rest[:i] + " " + after[end:])
+		}
+		mode := "next"
+		if f := strings.Fields(rest); len(f) > 0 {
+			mode = f[0]
+		}
+		arg := ""
+		if mode == "set" {
+			arg = strings.TrimSpace(strings.TrimPrefix(rest, "set"))
 		}
 		d.wallMu.Lock()
-		err := d.wallpaperApply(mode, arg)
+		err := d.wallpaperApply(mode, arg, screen)
 		d.wallMu.Unlock()
 		if err != nil {
 			return "err wallpaper: " + err.Error()

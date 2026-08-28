@@ -1,10 +1,12 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import "../kit"
 import "../../modules"
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import shell.services as Services
 
 // Pickers route on the house Ryoku.Ui kit: choose the media/image browser layout
 // the next wallpaper/screenshot picker opens in. The style writes straight to
@@ -26,6 +28,17 @@ Item {
         { key: "hearthstone", label: "Hearthstone", sub: "Single column" },
         { key: "carousel", label: "Carousel", sub: "Thumb row" }
     ]
+
+    // Aim the wallpaper switcher at a screen ("*" = all, else a connector) then
+    // open it, mirroring SystemRoute. ShellState reads and clears the target on open.
+    function openSwitcher(target) {
+        Services.ShellState.wallpaperSwitcherTarget = target;
+        const st = Services.ShellState.forActive();
+        if (st)
+            st.wallpaperSwitcherOpen = true;
+        if (page.cc)
+            page.cc.close();
+    }
 
     // ── wallpaper reveal preference ──────────────────────────────────────────
     // The animation the desktop plays on a wallpaper switch. The daemon owns 22
@@ -180,6 +193,53 @@ Item {
                             options: page.revealOptions
                             current: page.reveal
                             onChose: (k) => page.setReveal(k)
+                        }
+                    }
+                }
+            }
+
+            // ── DISPLAYS ──
+            // Per-monitor wallpaper: each row aims the switcher at one screen, All
+            // at every one. Hidden on a single-head machine where the choice is moot.
+            Entrance {
+                width: page.colW
+                index: 2
+                visible: Hyprland.monitors.values.length > 1
+                SettingCard {
+                    width: page.colW
+                    title: I18n.tr("DISPLAYS")
+                    kana: "\u753b"
+
+                    SettingRow {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        controlWidth: 90
+                        label: I18n.tr("All screens")
+                        desc: I18n.tr("Set every display at once.")
+                        Btn {
+                            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                            compact: true
+                            text: I18n.tr("SET")
+                            onAct: page.openSwitcher("*")
+                        }
+                    }
+                    Repeater {
+                        model: Hyprland.monitors
+                        delegate: SettingRow {
+                            id: monRow
+                            required property var modelData
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            divider: true
+                            controlWidth: 90
+                            label: monRow.modelData.name
+                            desc: monRow.modelData.width + "\u00d7" + monRow.modelData.height
+                            Btn {
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                compact: true
+                                text: I18n.tr("SET")
+                                onAct: page.openSwitcher(monRow.modelData.name)
+                            }
                         }
                     }
                 }

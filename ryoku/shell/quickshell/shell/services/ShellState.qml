@@ -95,6 +95,11 @@ Singleton {
     signal focusRestoreRequested()
     function restoreFocus() { root.focusRestoreRequested(); }
 
+    // Which output the wallpaper switcher targets: "" = the focused monitor,
+    // "*" = all screens, else a connector name. The bar's display list sets it
+    // before opening the switcher; the switcher clears it on close.
+    property string wallpaperSwitcherTarget: ""
+
     Variants {
         id: states
         model: root.screens

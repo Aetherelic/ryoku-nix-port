@@ -104,6 +104,7 @@ Item {
                 id: wallC
                 WallCell {
                     s: hand.s; item: card.modelData; bg: hand.bg
+                    activeKey: hand.activeKey
                     selected: card.focused
                     live: card.visible
                     beltMoving: hand.moving

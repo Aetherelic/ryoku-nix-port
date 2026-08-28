@@ -208,7 +208,7 @@ func TestWallpaperRandomRevealsRandomImageWithTransition(t *testing.T) {
 	d := &daemon{lastTransition: -1}
 	d.startWallpaper()
 
-	if err := d.wallpaperApply("random", ""); err != nil {
+	if err := d.wallpaperApply("random", "", ""); err != nil {
 		t.Fatalf("wallpaperApply(random) = %v", err)
 	}
 
@@ -221,9 +221,11 @@ func TestWallpaperRandomRevealsRandomImageWithTransition(t *testing.T) {
 	}
 
 	var f struct {
-		Path       string            `json:"path"`
-		Revision   int               `json:"revision"`
-		Transition *pickedTransition `json:"transition"`
+		Default struct {
+			Path       string            `json:"path"`
+			Revision   int               `json:"revision"`
+			Transition *pickedTransition `json:"transition"`
+		} `json:"default"`
 	}
 	sub := d.wall.topic.subscribe()
 	defer d.wall.topic.unsubscribe(sub)
@@ -231,23 +233,24 @@ func TestWallpaperRandomRevealsRandomImageWithTransition(t *testing.T) {
 	if err := json.Unmarshal(frame, &f); err != nil {
 		t.Fatalf("published frame not JSON: %v", err)
 	}
-	if f.Revision != 1 {
-		t.Fatalf("first image revision = %d, want 1", f.Revision)
+	if f.Default.Revision != 1 {
+		t.Fatalf("first image revision = %d, want 1", f.Default.Revision)
 	}
-	if f.Transition == nil {
+	tr := f.Default.Transition
+	if tr == nil {
 		t.Fatal("published frame carried no transition")
 	}
-	if presetIndexByName(f.Transition.Name) < 0 {
-		t.Fatalf("transition name %q is not a recovered preset", f.Transition.Name)
+	if presetIndexByName(tr.Name) < 0 {
+		t.Fatalf("transition name %q is not a recovered preset", tr.Name)
 	}
-	if !transitionKinds[f.Transition.Kind] {
-		t.Fatalf("transition kind %q not in the known set", f.Transition.Kind)
+	if !transitionKinds[tr.Kind] {
+		t.Fatalf("transition kind %q not in the known set", tr.Kind)
 	}
-	if f.Transition.DurationMs != transitionDurationMs {
-		t.Fatalf("transition duration = %d, want %d", f.Transition.DurationMs, transitionDurationMs)
+	if tr.DurationMs != transitionDurationMs {
+		t.Fatalf("transition duration = %d, want %d", tr.DurationMs, transitionDurationMs)
 	}
-	if f.Transition.OriginX < 0 || f.Transition.OriginX > 1 || f.Transition.OriginY < 0 || f.Transition.OriginY > 1 {
-		t.Fatalf("transition origin (%v,%v) out of [0,1]", f.Transition.OriginX, f.Transition.OriginY)
+	if tr.OriginX < 0 || tr.OriginX > 1 || tr.OriginY < 0 || tr.OriginY > 1 {
+		t.Fatalf("transition origin (%v,%v) out of [0,1]", tr.OriginX, tr.OriginY)
 	}
 }
 

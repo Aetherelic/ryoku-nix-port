@@ -21,11 +21,14 @@ livedir="$HOME/Pictures/livewalls"
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku-wp-thumbs"
 policy="$HOME/.config/hypr/scripts/magick-policy"
 mkdir -p "$cache"
+# thumb/preview resolution version: bump to force a one-time rebuild at a new size.
+tv=2
+[ "$(cat "$cache/.tv" 2>/dev/null)" = "$tv" ] || { rm -f "$cache"/*.png "$cache"/*.hue "$cache"/*.preview.mp4; printf '%s' "$tv" >"$cache/.tv"; }
 
-# one small preview loop from a clip: ~480p, muted, capped length, fast encode.
+# one small preview loop from a clip: ~540p, muted, capped length, fast encode.
 mkprev() {
     ffmpeg -y -loglevel error -t 12 -i "$1" -an \
-        -vf "scale=480:-2:flags=bicubic,fps=24" \
+        -vf "scale=960:-2:flags=bicubic,fps=24" \
         -c:v libx264 -preset veryfast -crf 30 -pix_fmt yuv420p -movflags +faststart \
         "$2.tmp.mp4" 2>/dev/null
     if [ -s "$2.tmp.mp4" ]; then mv "$2.tmp.mp4" "$2"; else rm -f "$2.tmp.mp4"; fi
@@ -71,10 +74,10 @@ emit() {
     huef="$cache/$name.hue"
     if [ ! -s "$thumb" ] || [ "$src" -nt "$thumb" ]; then
         if [ "$kind" = live ]; then
-            ffmpeg -y -loglevel error -ss 1 -i "$src" -frames:v 1 -vf "scale=512:-2" "$thumb.tmp.png" 2>/dev/null
-            [ -s "$thumb.tmp.png" ] || ffmpeg -y -loglevel error -i "$src" -frames:v 1 -vf "scale=512:-2" "$thumb.tmp.png" 2>/dev/null
+            ffmpeg -y -loglevel error -ss 1 -i "$src" -frames:v 1 -vf "scale=1024:-2" "$thumb.tmp.png" 2>/dev/null
+            [ -s "$thumb.tmp.png" ] || ffmpeg -y -loglevel error -i "$src" -frames:v 1 -vf "scale=1024:-2" "$thumb.tmp.png" 2>/dev/null
         else
-            caged "${src}[0]" -strip -resize 512x "$thumb.tmp.png" 2>/dev/null
+            caged "${src}[0]" -strip -resize 1024x "$thumb.tmp.png" 2>/dev/null
         fi
         if [ -s "$thumb.tmp.png" ]; then mv "$thumb.tmp.png" "$thumb"; rm -f "$huef"; else rm -f "$thumb.tmp.png"; fi
     fi

@@ -8,7 +8,7 @@
 // swww/awww class regardless of GPU vendor. Decoded frames live in ordinary
 // shared memory, kept tiny by decoding at <=CAP_W width; the compositor scales.
 //
-// Usage: livewall <video-file> [cap_width] [fit]
+// Usage: livewall <video-file> [cap_width] [fit] [output_name]
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,10 +50,39 @@ struct buffer {
 static struct buffer bufs[NBUF];
 static int render_w, render_h, stride;
 
+// ---- outputs (per-monitor binding) ----
+// Track every wl_output and its connector name (wl_output v4 `name` event) so a
+// per-output wallpaper can bind its surface to the requested monitor. An empty or
+// unmatched name keeps the NULL-output default (the compositor's primary).
+#define MAX_OUTPUTS 16
+struct output { struct wl_output *wl; char name[64]; };
+static struct output outputs[MAX_OUTPUTS];
+static int n_outputs;
+
+static void out_geometry(void *d, struct wl_output *o, int32_t x, int32_t y,
+                         int32_t pw, int32_t ph, int32_t sp, const char *make,
+                         const char *model, int32_t tr) {
+	(void)d;(void)o;(void)x;(void)y;(void)pw;(void)ph;(void)sp;(void)make;(void)model;(void)tr;
+}
+static void out_mode(void *d, struct wl_output *o, uint32_t f, int32_t w, int32_t h, int32_t r) {
+	(void)d;(void)o;(void)f;(void)w;(void)h;(void)r;
+}
+static void out_done(void *d, struct wl_output *o) { (void)d;(void)o; }
+static void out_scale(void *d, struct wl_output *o, int32_t s) { (void)d;(void)o;(void)s; }
+static void out_name(void *d, struct wl_output *o, const char *name) {
+	(void)o;
+	struct output *e = d;
+	snprintf(e->name, sizeof e->name, "%s", name);
+}
+static void out_description(void *d, struct wl_output *o, const char *desc) { (void)d;(void)o;(void)desc; }
+static const struct wl_output_listener out_listener = {
+	out_geometry, out_mode, out_done, out_scale, out_name, out_description,
+};
+
 // ---- registry ----
 static void reg_global(void *d, struct wl_registry *r, uint32_t name,
                        const char *iface, uint32_t ver) {
-	(void)d; (void)ver;
+	(void)d;
 	if (!strcmp(iface, wl_compositor_interface.name))
 		comp = wl_registry_bind(r, name, &wl_compositor_interface, 4);
 	else if (!strcmp(iface, wl_shm_interface.name))
@@ -62,6 +91,13 @@ static void reg_global(void *d, struct wl_registry *r, uint32_t name,
 		layer_shell = wl_registry_bind(r, name, &zwlr_layer_shell_v1_interface, 1);
 	else if (!strcmp(iface, wp_viewporter_interface.name))
 		viewporter = wl_registry_bind(r, name, &wp_viewporter_interface, 1);
+	else if (!strcmp(iface, wl_output_interface.name) && n_outputs < MAX_OUTPUTS) {
+		uint32_t v = ver < 4 ? ver : 4; // v4 carries the `name` event
+		struct output *e = &outputs[n_outputs++];
+		e->name[0] = '\0';
+		e->wl = wl_registry_bind(r, name, &wl_output_interface, v);
+		wl_output_add_listener(e->wl, &out_listener, e);
+	}
 }
 static void reg_remove(void *d, struct wl_registry *r, uint32_t name) { (void)d;(void)r;(void)name; }
 static const struct wl_registry_listener reg_listener = { reg_global, reg_remove };
@@ -139,13 +175,16 @@ static void pump_until(int64_t deadline) {
 }
 
 int main(int argc, char **argv) {
-	if (argc < 2) { fprintf(stderr, "usage: %s <video> [cap_width] [fit]\n", argv[0]); return 2; }
+	if (argc < 2) { fprintf(stderr, "usage: %s <video> [cap_width] [fit] [output_name]\n", argv[0]); return 2; }
 	const char *path = argv[1];
 	int cap_w = argc > 2 ? atoi(argv[2]) : 1280;
 	if (cap_w < 64) cap_w = 1280;
 	// fill (cover, default) crops the frame to the screen aspect; fit
 	// letterboxes it whole. ryoku-shell passes the ryowalls Fit knob as argv[3].
 	int fit = (argc > 3 && strcmp(argv[3], "fit") == 0);
+	// argv[4]: bind to this connector (per-output wallpaper). Empty/absent binds
+	// NULL (the compositor's primary), today's single-monitor behaviour.
+	const char *want = (argc > 4 && argv[4][0]) ? argv[4] : NULL;
 
 	dpy = wl_display_connect(NULL);
 	if (!dpy) { fprintf(stderr, "no wayland display\n"); return 1; }
@@ -158,12 +197,21 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+	// Resolve the requested output. The wl_output `name` events arrive after the
+	// bind, so a second roundtrip collects them before matching.
+	struct wl_output *chosen = NULL;
+	if (want) {
+		wl_display_roundtrip(dpy);
+		for (int i = 0; i < n_outputs; i++)
+			if (!strcmp(outputs[i].name, want)) { chosen = outputs[i].wl; break; }
+		if (!chosen)
+			fprintf(stderr, "livewall: output %s not found; using primary\n", want);
+	}
+
 	surface = wl_compositor_create_surface(comp);
-	// NULL output: the compositor places this on its primary output. Single
-	// output for now; multi-monitor (a surface per wl_output, one shared decoder)
-	// is a follow-up before this replaces mpvpaper's ALL-outputs behaviour.
+	// chosen output (per-output wallpaper) or NULL (compositor's primary).
 	layer_surface = zwlr_layer_shell_v1_get_layer_surface(
-		layer_shell, surface, NULL, ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND, "ryoku-livewall");
+		layer_shell, surface, chosen, ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND, "ryoku-livewall");
 	zwlr_layer_surface_v1_add_listener(layer_surface, &ls_listener, NULL);
 	zwlr_layer_surface_v1_set_anchor(layer_surface,
 		ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |

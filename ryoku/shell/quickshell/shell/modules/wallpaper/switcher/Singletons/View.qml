@@ -1,18 +1,20 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
-// Session view state for the switcher: which layout renders the entries and how
-// they sort. Held in memory only, so it survives a reopen within a shell session
-// but needs no shell.json key and no doctor reconciler (the "focused"
-// customization surface). Mode and the type/colour filters are transient body
-// state that resets each open; only the view shape and sort order persist here.
+// View state for the switcher: which layout renders the entries, how they sort,
+// and the live-preview toggle. Persisted to
+// ~/.local/state/ryoku/wallpaper-view.json so the chosen scrolling design
+// survives a shell refresh or a reboot.
 Singleton {
     id: root
 
+    readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku"
+
     // "strips" (hero preview + shelf) | "hearthstone" (fanned cards) |
     // "drift" (two drifting belts) | "grid" (scan)
-    property string layout: "strips"
+    property string layout: "grid"
     readonly property var layouts: ["strips", "hearthstone", "drift", "grid"]
     function cycleLayout() {
         var i = root.layouts.indexOf(root.layout);
@@ -25,10 +27,9 @@ Singleton {
     }
 
     // apply the focused wallpaper to the desktop while browsing (live canvas).
-    // off = the strip is the preview and the pick applies only on keep.
-    property bool livePreview: false
+    property bool livePreview: true
 
-    // "colour" (hue buckets, the scan's own order) | "recent" (mtime) | "name"
+    // "colour" (hue buckets) | "recent" (mtime) | "name"
     property string sort: "colour"
     readonly property var sorts: ["colour", "recent", "name"]
     function cycleSort() {
@@ -37,5 +38,44 @@ Singleton {
     }
     function sortLabel(id) {
         return id === "colour" ? "Colour" : id === "recent" ? "Recent" : "Name";
+    }
+
+    // don't echo the file back into itself while loading it into the properties.
+    property bool _loaded: false
+    function persist() {
+        if (!root._loaded)
+            return;
+        file.setText(JSON.stringify({ layout: root.layout, sort: root.sort, livePreview: root.livePreview }));
+    }
+    onLayoutChanged: persist()
+    onSortChanged: persist()
+    onLivePreviewChanged: persist()
+
+    Process {
+        command: ["mkdir", "-p", root.stateDir]
+        running: true
+    }
+
+    FileView {
+        id: file
+        path: root.stateDir + "/wallpaper-view.json"
+        blockLoading: true
+        watchChanges: true
+        atomicWrites: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                var o = JSON.parse(file.text() || "{}");
+                if (root.layouts.indexOf(o.layout) >= 0)
+                    root.layout = o.layout;
+                if (root.sorts.indexOf(o.sort) >= 0)
+                    root.sort = o.sort;
+                if (typeof o.livePreview === "boolean")
+                    root.livePreview = o.livePreview;
+            } catch (e) {}
+            root._loaded = true;
+        }
+        onLoadFailed: root._loaded = true
     }
 }
