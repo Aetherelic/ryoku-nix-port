@@ -47,6 +47,7 @@ Item {
     readonly property string pChevron: "M6 9.5l6 6 6 -6"
     readonly property string pRefresh: "M21 12a9 9 0 1 1 -2.6 -6.4 M21 3v5h-5"
     readonly property string pFingerprint: "M2 12a10 10 0 0 1 18-6 M21.8 16c.2-2 .13-5.35 0-6 M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2 M9 6.8a6 6 0 0 1 9 5.2v2 M12 10a2 2 0 0 0 -2 2c0 1.02-.1 2.51-.26 4 M14 13.12c0 2.38 0 6.38-1 8.88 M17.29 21.02c.12-.6.43-2.3.5-3.02 M8.65 22c.21-.66.45-1.32.57-2 M2 16h.01"
+    readonly property string pKey: "M14 7a4 4 0 1 0 0 8a4 4 0 0 0 3.58-2.21H22v-2h-2v-2h-2.42A4 4 0 0 0 14 7"
     readonly property string pCheck: "M4.5 12.5l5 5L19.5 7"
     readonly property string pX: "M6 6l12 12 M18 6L6 18"
 
@@ -169,6 +170,49 @@ Item {
         return parts.join("  \u00b7  ");
     }
 
+    // ── security key state (pam_u2f / pamu2fcfg) ───────────────────────────
+    property bool skSupported: false
+    property bool skDevicePresent: false
+    property string skDeviceName: ""
+    property bool skEnrolled: false
+    property int skCredentials: 0
+    property var skCredentialIds: []
+    property bool skSudoOn: false
+    property bool skPolkitOn: false
+    property bool skLoginOn: false
+    property bool skLockOn: false
+    property bool skLockSupported: false
+    property string skAuthMode: "either"
+    property bool skTouchRequired: true
+    property bool skPinVerification: false
+    property bool skUserVerification: false
+    property bool skLoading: true
+    property string skError: ""
+    property string skPending: ""
+    property string skPendingTarget: ""
+    property int skEnrollPolls: 0
+
+    readonly property string skModeLine: {
+        var parts = [pg.skAuthMode === "mfa" ? "security key + password" : "security key or password"];
+        parts.push(pg.skTouchRequired ? "touch required" : "no touch requirement");
+        if (pg.skPinVerification)
+            parts.push("PIN required");
+        if (pg.skUserVerification)
+            parts.push("user verification required");
+        return parts.join("  \u00b7  ");
+    }
+
+    readonly property string skStatusLine: {
+        if (pg.skLoading)
+            return "Checking\u2026";
+        if (!pg.skSupported)
+            return "security-key support is unavailable";
+        var parts = [];
+        parts.push(pg.skDevicePresent ? (pg.skDeviceName || "security key detected") : "no security key detected");
+        parts.push(pg.skEnrolled ? (pg.skCredentials + (pg.skCredentials === 1 ? " key enrolled" : " keys enrolled")) : "not enrolled yet");
+        return parts.join("  \u00b7  ");
+    }
+
     function ffriendly(finger) {
         return pg.fnames[finger] || finger.replace(/-/g, " ");
     }
@@ -216,7 +260,7 @@ Item {
 
     property bool settOpen: false
 
-    Component.onCompleted: { pg.reload(); pg.kreload(); pg.freload(); pg.fpamReload(); }
+    Component.onCompleted: { pg.reload(); pg.kreload(); pg.freload(); pg.fpamReload(); pg.skreload(); }
 
     function kreload() {
         kstatusProc.running = true;
@@ -262,6 +306,56 @@ Item {
         pg.kpending = pg.kconvertFor;
         ksetProc.command = ["ryoku", "keyring", "set", pg.kconvertFor, "--reset"];
         ksetProc.running = true;
+    }
+
+    // ── security key actions ────────────────────────────────────────────────
+    function skreload() {
+        pg.skLoading = true;
+        skStatusProc.running = true;
+    }
+    function skenroll() {
+        if (pg.skPending !== "")
+            return;
+        pg.skError = I18n.tr("Finish security-key setup in the terminal window, then return here.");
+        pg.skEnrollPolls = 0;
+        Quickshell.execDetached(["sh", "-c", "exec \"${TERMINAL:-kitty}\" --class ryoku-passkey -e sh -c 'ryoku security-key enroll; printf \"\\n── press enter to close ──\\n\"; read _'"]);
+        skEnrollRefresh.restart();
+    }
+    function skremove(id) {
+        if (pg.skPending !== "")
+            return;
+        pg.skError = "";
+        pg.skPending = "remove";
+        pg.skPendingTarget = id;
+        skActionProc.command = ["ryoku", "security-key", "remove", id];
+        skActionProc.running = true;
+    }
+    function sktoggle(target, on) {
+        if (pg.skPending !== "")
+            return;
+        pg.skError = "";
+        pg.skPending = "toggle";
+        pg.skPendingTarget = target;
+        skActionProc.command = ["ryoku", "security-key", "set", target, on ? "on" : "off"];
+        skActionProc.running = true;
+    }
+    function sksetMode(mode) {
+        if (pg.skPending !== "")
+            return;
+        pg.skError = "";
+        pg.skPending = "mode";
+        pg.skPendingTarget = mode;
+        skActionProc.command = ["ryoku", "security-key", "set", "mode", mode];
+        skActionProc.running = true;
+    }
+    function sksetFlag(name, on) {
+        if (pg.skPending !== "")
+            return;
+        pg.skError = "";
+        pg.skPending = "flag";
+        pg.skPendingTarget = name;
+        skActionProc.command = ["ryoku", "security-key", "set", name, on ? "on" : "off"];
+        skActionProc.running = true;
     }
 
     // ── fingerprint actions ─────────────────────────────────────────────────
@@ -585,6 +679,63 @@ Item {
                 pg.kconfirmReset = false;
             }
             pg.kreload();
+        }
+    }
+
+    // ── security key backend (pam_u2f / pamu2fcfg) ─────────────────────────
+    Process {
+        id: skStatusProc
+        command: ["ryoku", "security-key", "status", "--json"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    var o = JSON.parse(this.text);
+                    pg.skSupported = o.supported === true;
+                    pg.skDevicePresent = o.devicePresent === true;
+                    pg.skDeviceName = o.deviceName || "";
+                    pg.skEnrolled = o.enrolled === true;
+                    pg.skCredentials = o.credentials || 0;
+                    pg.skCredentialIds = o.credentialIds || [];
+                    pg.skSudoOn = o.sudo === true;
+                    pg.skPolkitOn = o.polkit === true;
+                    pg.skLoginOn = o.login === true;
+                    pg.skLockOn = o.lock === true;
+                    pg.skLockSupported = o.lockSupported === true;
+                    pg.skAuthMode = o.authMode || "either";
+                    pg.skTouchRequired = o.touchRequired !== false;
+                    pg.skPinVerification = o.pinVerification === true;
+                    pg.skUserVerification = o.userVerification === true;
+                    pg.skError = "";
+                } catch (e) {
+                    pg.skError = "Couldn't read the security-key status.";
+                }
+                pg.skLoading = false;
+            }
+        }
+    }
+    Process {
+        id: skActionProc
+        stdout: StdioCollector { id: skActionOut }
+        stderr: StdioCollector { id: skActionErr }
+        onExited: (code) => {
+            pg.skPending = "";
+            pg.skPendingTarget = "";
+            if (code !== 0)
+                pg.skError = skActionErr.text.trim() || skActionOut.text.trim() || ("exit " + code);
+            else
+                pg.skError = "";
+            pg.skreload();
+        }
+    }
+    Timer {
+        id: skEnrollRefresh
+        interval: 2500
+        repeat: true
+        onTriggered: {
+            pg.skEnrollPolls++;
+            pg.skreload();
+            if (pg.skEnrolled || pg.skEnrollPolls >= 24)
+                stop();
         }
     }
 
@@ -938,7 +1089,7 @@ Item {
                 spacing: Tokens.s2
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: I18n.tr("Sign-in & Fingerprint")
+                    text: I18n.tr("Sign-in, Fingerprint & Security key")
                     color: Tokens.ink; font.family: Tokens.ui
                     font.pixelSize: Tokens.fRow; font.weight: Font.DemiBold
                 }
@@ -965,10 +1116,20 @@ Item {
                 spacing: Tokens.s5
 
                 // ── left: keyring, sensor, switches ──
-                Column {
+                Flickable {
                     id: settingsLeft
                     width: Math.round((settCol.width - Tokens.s5 - Tokens.border) * 0.56)
-                    spacing: Tokens.s3
+                    height: Math.min(settingsLeftCol.implicitHeight, Math.max(260, pg.height - sett.y - 180))
+                    contentWidth: width
+                    contentHeight: settingsLeftCol.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
+
+                    Column {
+                        id: settingsLeftCol
+                        width: settingsLeft.width - Tokens.s3
+                        spacing: Tokens.s3
 
                 // ── Keyring section ──
                 Column {
@@ -1197,6 +1358,235 @@ Item {
                         // hairline
                         Rectangle { width: parent.width; height: Tokens.border; color: Tokens.lineSoft }
                     }
+
+                    // ── security key: enroll & PAM switches ──
+                    Column {
+                        width: parent.width
+                        spacing: Tokens.s2
+
+                        Rectangle { width: parent.width; height: Tokens.border; color: Tokens.line }
+
+                        Row {
+                            width: parent.width
+                            spacing: Tokens.s2
+                            Text { text: I18n.tr("Security key / Passkey"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.capitalization: Font.AllUppercase; font.letterSpacing: Tokens.trackMark }
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: I18n.tr("Choose where enrolled passkeys are accepted and how they authenticate.")
+                            color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Rectangle { width: parent.width; height: Tokens.border; color: Tokens.lineSoft }
+
+                        Column {
+                            width: parent.width
+                            spacing: Tokens.s2
+                            Text {
+                                width: parent.width
+                                text: I18n.tr("Use passkey for")
+                                color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            }
+
+                            Item {
+                                width: parent.width
+                                height: Math.max(skSudoCol.height, skSudoSw.implicitHeight)
+                                visible: pg.skSupported
+                                Column {
+                                    id: skSudoCol
+                                    anchors { left: parent.left; right: skSudoSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                    spacing: 2
+                                    Text { text: I18n.tr("Sudo"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                    Text {
+                                        width: parent.width
+                                        text: I18n.tr("Use your security key for terminal admin commands")
+                                        color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                        wrapMode: Text.WordWrap
+                                    }
+                                }
+                                Sw {
+                                    id: skSudoSw
+                                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                    opacity: pg.skPending === "toggle" && pg.skPendingTarget === "sudo" ? 0.4 : 1
+                                    Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                    on: pg.skSudoOn
+                                    onToggled: (v) => pg.sktoggle("sudo", v)
+                                }
+                            }
+
+                            Item {
+                                width: parent.width
+                                height: Math.max(skPolkitCol.height, skPolkitSw.implicitHeight)
+                                visible: pg.skSupported
+                                Column {
+                                    id: skPolkitCol
+                                    anchors { left: parent.left; right: skPolkitSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                    spacing: 2
+                                    Text { text: I18n.tr("Admin prompts"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                    Text {
+                                        width: parent.width
+                                        text: I18n.tr("Use your security key for graphical admin prompts")
+                                        color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                        wrapMode: Text.WordWrap
+                                    }
+                                }
+                                Sw {
+                                    id: skPolkitSw
+                                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                    opacity: pg.skPending === "toggle" && pg.skPendingTarget === "polkit" ? 0.4 : 1
+                                    Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                    on: pg.skPolkitOn
+                                    onToggled: (v) => pg.sktoggle("polkit", v)
+                                }
+                            }
+
+                            Item {
+                                width: parent.width
+                                height: Math.max(skLoginCol.height, skLoginSw.implicitHeight)
+                                visible: pg.skSupported
+                                Column {
+                                    id: skLoginCol
+                                    anchors { left: parent.left; right: skLoginSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                    spacing: 2
+                                    Text { text: I18n.tr("Sign-in screen"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                    Text {
+                                        width: parent.width
+                                        text: I18n.tr("Use your security key at the SDDM greeter")
+                                        color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                        wrapMode: Text.WordWrap
+                                    }
+                                }
+                                Sw {
+                                    id: skLoginSw
+                                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                    opacity: pg.skPending === "toggle" && pg.skPendingTarget === "login" ? 0.4 : 1
+                                    Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                    on: pg.skLoginOn
+                                    onToggled: (v) => pg.sktoggle("login", v)
+                                }
+                            }
+                        }
+
+                        Rectangle { width: parent.width; height: Tokens.border; color: Tokens.lineSoft }
+
+                        Column {
+                            width: parent.width
+                            spacing: Tokens.s2
+                            Text {
+                                width: parent.width
+                                text: I18n.tr("Security key behavior")
+                                color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            }
+                            Row { topPadding: Tokens.s1; spacing: Tokens.s2
+                                Chip { label: I18n.tr("Security key or password"); mode: "sk-either"; kind: "security-key" }
+                                Chip { label: I18n.tr("Security key + password"); mode: "sk-mfa"; kind: "security-key" }
+                            }
+                            Text {
+                                width: parent.width
+                                text: pg.skModeLine
+                                color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Item {
+                            width: parent.width
+                            height: Math.max(skTouchCol.height, skTouchSw.implicitHeight)
+                            visible: pg.skSupported
+                            Column {
+                                id: skTouchCol
+                                anchors { left: parent.left; right: skTouchSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                spacing: 2
+                                Text { text: I18n.tr("Touch requirement"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                Text {
+                                    width: parent.width
+                                    text: I18n.tr("Require touching the key during authentication")
+                                    color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                            Sw {
+                                id: skTouchSw
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                opacity: pg.skPending === "flag" && pg.skPendingTarget === "touch-required" ? 0.4 : 1
+                                Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                on: pg.skTouchRequired
+                                onToggled: (v) => pg.sksetFlag("touch-required", v)
+                            }
+                        }
+
+                        Item {
+                            width: parent.width
+                            height: Math.max(skPinCol.height, skPinSw.implicitHeight)
+                            visible: pg.skSupported
+                            Column {
+                                id: skPinCol
+                                anchors { left: parent.left; right: skPinSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                spacing: 2
+                                Text { text: I18n.tr("PIN verification"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                Text {
+                                    width: parent.width
+                                    text: I18n.tr("Require the authenticator PIN when the key supports it")
+                                    color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                            Sw {
+                                id: skPinSw
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                opacity: pg.skPending === "flag" && pg.skPendingTarget === "pin-verification" ? 0.4 : 1
+                                Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                on: pg.skPinVerification
+                                onToggled: (v) => pg.sksetFlag("pin-verification", v)
+                            }
+                        }
+
+                        Item {
+                            width: parent.width
+                            height: Math.max(skUvCol.height, skUvSw.implicitHeight)
+                            visible: pg.skSupported
+                            Column {
+                                id: skUvCol
+                                anchors { left: parent.left; right: skUvSw.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter }
+                                spacing: 2
+                                Text { text: I18n.tr("User verification"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall }
+                                Text {
+                                    width: parent.width
+                                    text: I18n.tr("Require the key's built-in user verification when available")
+                                    color: Tokens.inkDim; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                            Sw {
+                                id: skUvSw
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                opacity: pg.skPending === "flag" && pg.skPendingTarget === "user-verification" ? 0.4 : 1
+                                Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
+                                on: pg.skUserVerification
+                                onToggled: (v) => pg.sksetFlag("user-verification", v)
+                            }
+                        }
+
+
+                        Text {
+                            width: parent.width
+                            visible: pg.skSupported
+                            text: I18n.tr("Real key setup that needs a PIN works best from a terminal right now. The Hub can show status and policy, but the underlying enrollment tool still prompts on stdin.")
+                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            width: parent.width
+                            visible: pg.skSupported
+                            text: I18n.tr("Lock screen security-key unlock is not wired yet. This version handles enrollment plus sudo, admin prompts, and the sign-in screen.")
+                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
                 }
                 }
 
@@ -1249,6 +1639,7 @@ Item {
                         color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
                         wrapMode: Text.WordWrap
                     }
+
 
                     // enrolled fingers: one quiet row each, delete behind an
                     // armed second click so nothing vanishes on a stray tap.
@@ -1369,6 +1760,130 @@ Item {
                         color: Tokens.ink; font.family: Tokens.ui
                         font.pixelSize: Tokens.fSmall; font.weight: Font.Medium; wrapMode: Text.WordWrap
                     }
+
+                    Rectangle { width: parent.width; height: Tokens.border; color: Tokens.line }
+
+                    Column {
+                        width: parent.width
+                        spacing: Tokens.s2
+
+                        Row {
+                            width: parent.width
+                            spacing: Tokens.s2
+                            Text { text: I18n.tr("Passkeys"); color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fMicro; font.weight: Font.Medium; font.capitalization: Font.AllUppercase; font.letterSpacing: Tokens.trackMark }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: Math.max(0, parent.width - x)
+                                horizontalAlignment: Text.AlignRight
+                                text: pg.skPending === "enroll" ? I18n.tr("SETTING UP\u2026") : pg.skStatusLine
+                                color: Tokens.inkFaint; font.family: Tokens.ui
+                                font.pixelSize: Tokens.fTiny; elide: Text.ElideRight
+                            }
+                        }
+
+                        Text {
+                            width: parent.width
+                            visible: !pg.skLoading && !pg.skSupported
+                            text: I18n.tr("Install pam-u2f to enroll a FIDO2 or U2F security key here.")
+                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            width: parent.width
+                            visible: !pg.skLoading && pg.skSupported && !pg.skDevicePresent
+                            text: I18n.tr("Insert your YubiKey or other security key, then retry setup.")
+                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            width: parent.width
+                            visible: !pg.skLoading && pg.skSupported && pg.skDevicePresent && !pg.skEnrolled
+                            text: I18n.tr("No passkeys yet. Set up the inserted security key below and it will show up here.")
+                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            width: parent.width
+                            visible: !pg.skLoading && pg.skSupported && pg.skDevicePresent && pg.skEnrolled
+                            text: I18n.tr("Use Add security key to enroll another key, or remove an old one below.")
+                            color: Tokens.inkMuted; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Btn {
+                            width: parent.width
+                            visible: !pg.skLoading && pg.skSupported && !pg.skDevicePresent
+                            text: I18n.tr("RETRY SECURITY KEY")
+                            compact: true
+                            armed: pg.skPending === ""
+                            onAct: pg.skreload()
+                        }
+
+                        Column {
+                            width: parent.width
+                            visible: pg.skEnrolled
+                            spacing: 0
+
+                            Repeater {
+                                model: pg.skCredentialIds
+                                delegate: Rectangle {
+                                    id: passkeyRow
+                                    required property var modelData
+                                    required property int index
+                                    width: parent.width
+                                    height: 34
+                                    color: "transparent"
+
+                                    Text {
+                                        id: passkeyName
+                                        anchors { left: parent.left; leftMargin: Tokens.s2; verticalCenter: parent.verticalCenter }
+                                        width: Math.min(180, passkeyRow.width - 170)
+                                        text: passkeyRow.modelData.label || (I18n.tr("Security key") + " " + passkeyRow.modelData.id)
+                                        color: Tokens.ink; font.family: Tokens.ui; font.pixelSize: Tokens.fSmall
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        anchors { left: passkeyName.right; leftMargin: Tokens.s3; right: skRemoveBtn.left; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                                        text: I18n.tr("Credential") + " " + passkeyRow.modelData.id
+                                        color: Tokens.inkFaint; font.family: Tokens.mono; font.pixelSize: Tokens.fTiny
+                                        elide: Text.ElideRight
+                                    }
+                                    Btn {
+                                        id: skRemoveBtn
+                                        anchors { right: parent.right; rightMargin: Tokens.s2; verticalCenter: parent.verticalCenter }
+                                        text: pg.skPending === "remove" && pg.skPendingTarget === passkeyRow.modelData.id ? I18n.tr("REMOVING\u2026") : I18n.tr("REMOVE")
+                                        compact: true
+                                        armed: pg.skPending === ""
+                                        onAct: pg.skremove(passkeyRow.modelData.id)
+                                    }
+                                    Rectangle {
+                                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                                        height: Tokens.border; color: Tokens.lineSoft
+                                        visible: passkeyRow.index < pg.skCredentialIds.length - 1
+                                    }
+                                }
+                            }
+                        }
+
+                        Btn {
+                            width: parent.width
+                            text: pg.skPending === "enroll" ? I18n.tr("SETTING UP\u2026") : (pg.skEnrolled ? I18n.tr("ADD SECURITY KEY") : I18n.tr("SET UP SECURITY KEY"))
+                            primary: true
+                            armed: pg.skPending === "" && pg.skSupported && pg.skDevicePresent
+                            onAct: pg.skenroll()
+                        }
+
+                        Text {
+                            width: parent.width
+                            visible: pg.skError !== ""
+                            text: pg.skError
+                            color: Tokens.ink; font.family: Tokens.ui
+                            font.pixelSize: Tokens.fSmall; font.weight: Font.Medium; wrapMode: Text.WordWrap
+                        }
+                    }
                 }
             }
         }
@@ -1456,15 +1971,20 @@ Item {
         id: chip
         property string label: ""
         property string mode: ""
-        readonly property bool on: pg.kmode === chip.mode
-        readonly property bool busy: pg.kpending === chip.mode
+        property string kind: "keyring"
+        readonly property bool on: chip.kind === "security-key"
+            ? ((chip.mode === "sk-mfa" && pg.skAuthMode === "mfa") || (chip.mode === "sk-either" && pg.skAuthMode !== "mfa"))
+            : (pg.kmode === chip.mode)
+        readonly property bool busy: chip.kind === "security-key"
+            ? (pg.skPending === "mode" && ((chip.mode === "sk-mfa" && pg.skPendingTarget === "mfa") || (chip.mode === "sk-either" && pg.skPendingTarget === "either")))
+            : (pg.kpending === chip.mode)
         implicitWidth: chLab.implicitWidth + Tokens.s4 * 2
         height: Tokens.ctlH + 4
         radius: Tokens.radius
         color: chip.on ? Tokens.tint10 : (chHover.hovered ? Tokens.tint5 : "transparent")
         border.width: Tokens.border
         border.color: chip.on ? Tokens.ink : (chHover.hovered ? Tokens.lineStrong : Tokens.line)
-        opacity: (pg.kpending !== "" && !chip.busy) ? 0.4 : 1
+        opacity: (((chip.kind === "security-key") ? (pg.skPending !== "") : (pg.kpending !== "")) && !chip.busy) ? 0.4 : 1
         Behavior on color { ColorAnimation { duration: Tokens.snap } }
         Behavior on border.color { ColorAnimation { duration: Tokens.snap } }
         Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
@@ -1488,7 +2008,14 @@ Item {
         }
 
         HoverHandler { id: chHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: pg.kchoose(chip.mode) }
+        TapHandler {
+            onTapped: {
+                if (chip.kind === "security-key")
+                    pg.sksetMode(chip.mode === "sk-mfa" ? "mfa" : "either");
+                else
+                    pg.kchoose(chip.mode);
+            }
+        }
     }
 
     // ── one lock-skin tile ──────────────────────────────────────────────────

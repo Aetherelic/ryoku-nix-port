@@ -1,0 +1,96 @@
+package securitykey
+
+import (
+	"fmt"
+	"strings"
+
+	"ryoku-cli/internal/sys"
+)
+
+func parseOnOff(s string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "on", "true", "1", "yes":
+		return true, nil
+	case "off", "false", "0", "no":
+		return false, nil
+	default:
+		return false, fmt.Errorf("expected on or off, got %q", s)
+	}
+}
+
+func requireEnrollment(target string) error {
+	if !sys.Has("pamu2fcfg") {
+		return fmt.Errorf("pamu2fcfg is not installed; install pam-u2f first")
+	}
+	a, err := loadAuthFile()
+	if err != nil {
+		return err
+	}
+	if len(a.creds) == 0 {
+		return fmt.Errorf("enroll a security key before enabling %s", target)
+	}
+	return nil
+}
+
+func runSet(args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: ryoku security-key set <sudo|polkit|login> <on|off>|mode <either|mfa>|touch-required <on|off>|pin-verification <on|off>|user-verification <on|off>")
+	}
+	subject := args[0]
+	if subject == "mode" {
+		mode, err := parseMode(args[1])
+		if err != nil {
+			return err
+		}
+		p := readPolicy()
+		p.Mode = mode
+		if err := writePolicy(p); err != nil {
+			return err
+		}
+		if err := rewriteEnabledTargets(); err != nil {
+			fmt.Printf("note: policy saved; re-apply enabled PAM targets with sudo (%v)\n", err)
+		}
+		fmt.Printf("security key mode set to %s\n", mode)
+		return nil
+	}
+	if subject == "touch-required" || subject == "pin-verification" || subject == "user-verification" {
+		on, err := parseOnOff(args[1])
+		if err != nil {
+			return err
+		}
+		p := readPolicy()
+		if subject == "touch-required" {
+			p.TouchRequired = on
+		} else if subject == "pin-verification" {
+			p.PinVerification = on
+		} else {
+			p.UserVerification = on
+		}
+		if err := writePolicy(p); err != nil {
+			return err
+		}
+		if err := rewriteEnabledTargets(); err != nil {
+			fmt.Printf("note: policy saved; re-apply enabled PAM targets with sudo (%v)\n", err)
+		}
+		fmt.Printf("security key %s %s\n", subject, map[bool]string{true: "enabled", false: "disabled"}[on])
+		return nil
+	}
+	target := subject
+	on, err := parseOnOff(args[1])
+	if err != nil {
+		return err
+	}
+	if _, err := targetName(target); err != nil {
+		return err
+	}
+	if on {
+		if err := requireEnrollment(target); err != nil {
+			return err
+		}
+	}
+	if err := applyPAMHalf(target, on); err != nil {
+		return fmt.Errorf("wire PAM: %w", err)
+	}
+	fmt.Printf("security key %s for %s\n", map[bool]string{true: "enabled", false: "disabled"}[on], target)
+	return nil
+}

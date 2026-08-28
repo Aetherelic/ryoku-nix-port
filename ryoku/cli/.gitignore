@@ -1,0 +1,2 @@
+# Go test binaries (go test -c output); never commit these.
+*.test
