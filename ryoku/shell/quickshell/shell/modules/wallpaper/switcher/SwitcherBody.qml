@@ -250,7 +250,7 @@ Item {
                 id: segTxt
                 anchors.centerIn: parent
                 text: I18n.tr(seg.label)
-                color: seg.on ? Theme.inkOnBone : (segHov.hovered ? Theme.onSurface : Theme.sumiHi)
+                color: seg.on ? Theme.inkOnBone : (segHov.hovered ? Theme.onSurface : Theme.inkDim)
                 font.family: Theme.ui
                 font.pixelSize: Math.round(12 * body.s)
                 font.weight: seg.on ? Font.DemiBold : Font.Medium
@@ -282,7 +282,7 @@ Item {
                     visible: ib.glyph.length > 0
                     anchors.verticalCenter: parent.verticalCenter
                     text: ib.glyph
-                    color: ib.on ? Theme.seal : (ibHov.hovered ? Theme.onSurface : Theme.sumiHi)
+                    color: ib.on ? Theme.seal : (ibHov.hovered ? Theme.onSurface : Theme.inkDim)
                     font.family: Theme.mono
                     font.pixelSize: Math.round(13 * body.s)
                 }
@@ -290,7 +290,7 @@ Item {
                     visible: ib.label.length > 0
                     anchors.verticalCenter: parent.verticalCenter
                     text: I18n.tr(ib.label)
-                    color: ib.on ? Theme.onSurface : (ibHov.hovered ? Theme.onSurface : Theme.sumiHi)
+                    color: ib.on ? Theme.onSurface : (ibHov.hovered ? Theme.onSurface : Theme.inkDim)
                     font.family: Theme.ui
                     font.pixelSize: Math.round(11.5 * body.s)
                 }
@@ -518,7 +518,7 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "\u2315"
-                    color: body.search.length > 0 ? Theme.onSurface : Theme.sumiHi
+                    color: body.search.length > 0 ? Theme.onSurface : Theme.inkDim
                     font.family: Theme.mono
                     font.pixelSize: Math.round(13 * body.s)
                 }
@@ -535,7 +535,7 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: body.shown.length > 0 ? (body.pad2(body.selIndex + 1) + " / " + body.pad2(body.shown.length)) : "--"
-                color: Theme.sumiHi
+                color: Theme.inkDim
                 font.family: Theme.mono
                 font.pixelSize: Math.round(11 * body.s)
                 font.letterSpacing: 1 * body.s

@@ -115,6 +115,10 @@ Singleton {
     // language (warm paper, mono labels, sep hairlines, seal-lift tiles). ──
     readonly property color sumi:       onSurfaceVariant
     readonly property color sumiHi:     Qt.rgba(onSurfaceVariant.r * 0.45 + onSurface.r * 0.55, onSurfaceVariant.g * 0.45 + onSurface.g * 0.55, onSurfaceVariant.b * 0.45 + onSurface.b * 0.55, 1.0)
+    // quiet-but-legible label ink: the high-contrast on-surface hue dimmed by
+    // opacity (not blended toward the dark variant), so pill labels keep their
+    // contrast on any theme instead of sinking into a dark surface.
+    readonly property color inkDim: Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.82)
     readonly property color sep:        Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.18)
     readonly property color fillIdle:   Qt.rgba(0, 0, 0, 0.12)
     readonly property color fillHover:  Qt.rgba(seal.r, seal.g, seal.b, 0.10)
