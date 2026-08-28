@@ -418,6 +418,16 @@ install -Dm644 "$here/../hub/ryoku-hub.desktop" "$appshare/applications/ryoku-hu
 install -Dm644 "$here/../assets/brand/logo.svg" "$appshare/icons/hicolor/scalable/apps/ryoku-hub.svg"
 say "installed ryoku-hub launcher entry"
 
+# In-session lockscreen (qylock): deploy otherwise never lays it down, so the
+# lock button and lock-on-sleep no-op. User-only half, mirroring ryoku doctor.
+if [[ -x "$here/../lockscreen/install-qylock" ]]; then
+  if RYOKU_QYLOCK_USER_ONLY=1 "$here/../lockscreen/install-qylock" >/dev/null 2>&1; then
+    say "installed in-session lockscreen"
+  else
+    say "lockscreen install skipped"
+  fi
+fi
+
 # ryotunes: YouTube Music as a Chromium app-window (apps/ryotunes). Not a
 # quickshell app, so it ships explicitly like the other non-qs launchers: the
 # wrapper on PATH, its .desktop, and its icon into the hicolor set.
