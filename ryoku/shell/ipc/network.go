@@ -447,12 +447,39 @@ func (n *networkState) wifiConnect(ssid, password, bssid string) error {
 					return err
 				}
 			}
-			return n.obj(nmPath).Call(nmIface+".ActivateConnection", 0, c.path, dbus.ObjectPath(wifiDev), specific).Err
+			var active dbus.ObjectPath
+			if err := n.obj(nmPath).Call(nmIface+".ActivateConnection", 0, c.path, dbus.ObjectPath(wifiDev), specific).Store(&active); err != nil {
+				return err
+			}
+			return n.waitForActivation(active)
 		}
 	}
 	settings := wifiConnectSettings(ssid, password, bssid, ap)
 	var newConn, newActive dbus.ObjectPath
-	return n.obj(nmPath).Call(nmIface+".AddAndActivateConnection", 0, settings, dbus.ObjectPath(wifiDev), specific).Store(&newConn, &newActive)
+	if err := n.obj(nmPath).Call(nmIface+".AddAndActivateConnection", 0, settings, dbus.ObjectPath(wifiDev), specific).Store(&newConn, &newActive); err != nil {
+		return err
+	}
+	return n.waitForActivation(newActive)
+}
+
+// waitForActivation blocks until the connection activates, so a wrong passphrase
+// or a timeout returns an error instead of the old silent "success".
+func (n *networkState) waitForActivation(active dbus.ObjectPath) error {
+	if active == "" || active == "/" {
+		return nil
+	}
+	const stateActivated, stateDeactivated = 2, 4
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		switch n.uintProp(n.obj(active), nmActiveIface+".State") {
+		case stateActivated:
+			return nil
+		case stateDeactivated:
+			return fmt.Errorf("could not connect (check the password)")
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return fmt.Errorf("connection timed out")
 }
 
 // editableSettings reads a saved profile's settings in a shape that can be
