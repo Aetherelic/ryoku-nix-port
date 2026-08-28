@@ -65,7 +65,7 @@ ShellRoot {
             // need a longer delay so the reveal animation completes.
             let delay = 100;
             if (activeTheme.includes("clockwork") && sddmShim.config.enableWindup === "true") {
-                delay = 500;
+                delay = 720;
             }
             quitTimer.interval = delay;
             quitTimer.start()
@@ -172,6 +172,8 @@ ShellRoot {
                     if (lock.secure) {
                         Quickshell.execDetached(["sh", "-c", "umask 077; : > \"${XDG_RUNTIME_DIR:-/tmp}/qylock.locked\""])
                         sddmShim.armWhenReady = true
+                        // surface is up: arm the lock-in reveal (onCompleted too early)
+                        sddmShim.sddm.surfaceRevealed()
                     } else {
                         Quickshell.execDetached(["sh", "-c", "rm -f \"${XDG_RUNTIME_DIR:-/tmp}/qylock.locked\""])
                         sddmShim.armWhenReady = false

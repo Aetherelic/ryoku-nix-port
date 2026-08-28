@@ -203,6 +203,8 @@ Item {
         property string hostName: shim.hostName
         signal loginFailed()
         signal loginSucceeded()
+        // lock_shell emits this once the secure surface is shown
+        signal surfaceRevealed()
 
         // Fingerprint properties exposed to the theme. Under a real SDDM
         // greeter these are undefined, so theme gates on them evaluate false

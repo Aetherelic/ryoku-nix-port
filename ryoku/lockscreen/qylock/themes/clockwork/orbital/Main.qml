@@ -148,10 +148,13 @@ Rectangle {
         keyboard.numLock = true
         if (typeof sessionModel !== "undefined")
             root.sessionIndex = preferredSessionIndex()
-        if (root.enableWindup)
-            playLockReveal()
-        else
+        // in-session lock paints only once secure; the greeter is up at load
+        if (root.enableWindup) {
+            if (!(typeof sddm !== "undefined" && sddm.fingerprintHint === true))
+                playLockReveal()
+        } else {
             fadeIn.start()
+        }
     }
     NumberAnimation { id: fadeIn; target: root; property: "uiOpacity"; to: 1; duration: 350; easing.type: Easing.OutCubic }
 
@@ -378,6 +381,8 @@ Rectangle {
     // ── login event handlers ────────────────────────────────────────────────
     Connections {
         target: typeof sddm !== "undefined" ? sddm : null
+        ignoreUnknownSignals: true
+        function onSurfaceRevealed() { playLockReveal() }
         function onInformationMessage(message) { root.authInfo = message || ""; errText.text = root.authInfo.toUpperCase(); passInput.forceActiveFocus() }
         function onErrorMessage(message) { errText.text = (message || "").toUpperCase() }
         function onLoginSucceeded() {
@@ -391,8 +396,7 @@ Rectangle {
                 boomSequence.stop()
                 boomReveal.start()
             }
-            // Auth is already committed here, so the iris-out is purely
-            // cosmetic and can never keep the user locked out.
+            // auth already committed, so this is cosmetic only
             if (root.enableWindup)
                 playUnlockReveal()
         }
@@ -410,13 +414,8 @@ Rectangle {
         Text { text: "✦"; anchors.left: actTxt.right; anchors.leftMargin: 4 * s; anchors.verticalCenter: actTxt.verticalCenter; color: root.mainText; opacity: actM.containsMouse ? 1.0 : 0; font.pixelSize: 8 * s; Behavior on opacity { NumberAnimation { duration: 200 } } }
         MouseArea { id: actM; anchors.fill: parent; hoverEnabled: true; onClicked: { actItem.clicked() } cursorShape: Qt.PointingHandCursor }
     }
-    // ── swww-style circular reveal ──────────────────────────────────────────
-    // Lock-in grows a circular window of the lock out of the surface colour;
-    // unlock irises it back closed just before the surface tears down. Both
-    // beats share one curtain -- a full-surface fill with an animated circular
-    // hole punched by an inverted OpacityMask -- and run only under the
-    // fancy-motion toggle. The curtain drops its render layers the instant it is
-    // idle, so the 60fps clock never pays for a full-screen mask nobody sees.
+    // swww-style circular reveal: an inverted OpacityMask punches a growing
+    // hole in a surface-colour curtain; the layers drop when idle.
     readonly property real revealDiag: Math.sqrt(width * width + height * height)
     property real revealR: 0
     property bool revealActive: false
@@ -447,13 +446,13 @@ Rectangle {
     NumberAnimation {
         id: revealIn
         target: root; property: "revealR"
-        from: 0; to: root.revealDiag; duration: 720; easing.type: Easing.OutQuint
+        from: 0; to: root.revealDiag; duration: 1150; easing.type: Easing.InOutCubic
         onFinished: root.revealActive = false
     }
     NumberAnimation {
         id: revealOut
         target: root; property: "revealR"
-        from: root.revealDiag; to: 0; duration: 380; easing.type: Easing.InQuint
+        from: root.revealDiag; to: 0; duration: 560; easing.type: Easing.InOutCubic
     }
 
     function playLockReveal() {
@@ -470,11 +469,8 @@ Rectangle {
         revealOut.restart()
     }
 
-    // ── canonical session default (SDDM greeter only) ───────────────────────
-    // The hyprland package ships two sessions: "Hyprland" (Ryoku's
-    // start-hyprland) and "Hyprland (uwsm-managed)". Ryoku's logout path assumes
-    // the former, and SDDM's remembered index can land on the uwsm entry, so the
-    // picker defaults to the plain Hyprland session whenever it is present.
+    // Default the picker to the plain "Hyprland" session, not the package's
+    // "Hyprland (uwsm-managed)", which Ryoku's logout path does not drive.
     Item {
         visible: false
         Repeater {
