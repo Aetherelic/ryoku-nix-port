@@ -38,7 +38,28 @@ free --si | awk '/Swap:/{ if ($2 > 0) printf "%d%%\n", $3 / $2 * 100; else print
 printf '%s\n' "$bat"
 hyprctl version 2>/dev/null | grep -oP 'Hyprland \K[0-9][0-9.]*' | head -1
 hyprctl monitors 2>/dev/null | grep -c '^Monitor'
-pacman -Qen 2>/dev/null | wc -l
-pacman -Qm 2>/dev/null | wc -l
+distro_id="$(
+    . /etc/os-release 2>/dev/null
+    printf '%s' "${ID:-linux}"
+)"
+
+if [ "$distro_id" = "nixos" ]; then
+    if [ -r /etc/ryoku/nix-system-package-count ]; then
+        cat /etc/ryoku/nix-system-package-count 2>/dev/null || echo 0
+    else
+        echo 0
+    fi
+
+    if command -v nix >/dev/null 2>&1; then
+        nix profile list --json 2>/dev/null |
+            jq -r '.elements | length' 2>/dev/null ||
+            echo 0
+    else
+        echo 0
+    fi
+else
+    pacman -Qen 2>/dev/null | wc -l
+    pacman -Qm 2>/dev/null | wc -l
+fi
 printf '%s\n' "${XCURSOR_THEME:--}${XCURSOR_SIZE:+ · $XCURSOR_SIZE}"
 printf '%s\n' "$palette"

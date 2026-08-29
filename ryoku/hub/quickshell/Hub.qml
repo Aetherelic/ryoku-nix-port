@@ -890,7 +890,15 @@ Rectangle {
                         spacing: 1
                         anchors.verticalCenter: parent.verticalCenter
                         Text {
-                            text: "RYOKU ARCH"; color: Tokens.ink; font.family: Tokens.ui
+                            text: {
+                    const distro = String(SysInfo.sysDistro || "").toLowerCase();
+                    if (distro.indexOf("nixos") >= 0)
+                        return "RYOKU NIXOS";
+                    if (distro.indexOf("arch") >= 0)
+                        return "RYOKU ARCH";
+                    return "RYOKU LINUX";
+                }
+                color: Tokens.ink; font.family: Tokens.ui
                             font.pixelSize: 14; font.weight: Font.Medium; font.letterSpacing: 2.4
                         }
                         Text {

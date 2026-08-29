@@ -203,6 +203,30 @@ func TestInstallGreeterMakesThemeWorldReadable(t *testing.T) {
 	}
 }
 
+func TestGreeterEscalationCommand(t *testing.T) {
+	arch := greeterEscalationCommand("/usr/bin/ryoku-hub", "clockwork/orbital", false)
+	wantArch := []string{
+		"pkexec",
+		"/usr/bin/ryoku-hub",
+		"lock",
+		"apply-greeter",
+		"clockwork/orbital",
+	}
+	if strings.Join(arch, "\x00") != strings.Join(wantArch, "\x00") {
+		t.Fatalf("Arch greeter command = %q, want %q", arch, wantArch)
+	}
+
+	nix := greeterEscalationCommand("/ignored", "clockwork/orbital", true)
+	wantNix := []string{
+		"pkexec",
+		"/run/current-system/sw/bin/ryoku-sddm-theme-apply",
+		"clockwork/orbital",
+	}
+	if strings.Join(nix, "\x00") != strings.Join(wantNix, "\x00") {
+		t.Fatalf("Nix greeter command = %q, want %q", nix, wantNix)
+	}
+}
+
 func TestRunLockRejectsMovedStoreCommands(t *testing.T) {
 	for _, command := range []string{"catalog", "install", "cache"} {
 		if err := runLock([]string{command}); err == nil {

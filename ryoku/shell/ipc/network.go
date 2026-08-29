@@ -784,6 +784,11 @@ func dnsHelperPath() string {
 	if _, err := os.Stat(dnsPackagedHelper); err == nil {
 		return dnsPackagedHelper
 	}
+	// Non-FHS distributions such as NixOS install the helper in the
+	// session PATH rather than /usr/bin or beside the daemon binary.
+	if helper, err := exec.LookPath("ryoku-dns"); err == nil {
+		return helper
+	}
 	if shellDir != "" {
 		return filepath.Join(shellDir, "..", "..", "system", "hardware", "network", "ryoku-dns")
 	}

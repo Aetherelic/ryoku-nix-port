@@ -755,7 +755,17 @@ Item {
                         }
                     }
                     Text {
-                        text: SysInfo.sysPkgExplicit + I18n.tr(" EXPLICIT · ") + SysInfo.sysPkgAur + I18n.tr(" AUR · ") + SysInfo.sysPackages + I18n.tr(" TOTAL")
+                        text: {
+                            const nixos = String(SysInfo.sysDistro || "").toLowerCase().indexOf("nixos") >= 0;
+                            if (nixos)
+                                return SysInfo.sysPkgExplicit + I18n.tr(" SYSTEM · ")
+                                    + SysInfo.sysPkgAur + I18n.tr(" USER · ")
+                                    + SysInfo.sysPackages + I18n.tr(" TOTAL");
+
+                            return SysInfo.sysPkgExplicit + I18n.tr(" EXPLICIT · ")
+                                + SysInfo.sysPkgAur + I18n.tr(" AUR · ")
+                                + SysInfo.sysPackages + I18n.tr(" TOTAL");
+                        }
                         color: Tokens.inkMuted
                         font.family: Tokens.mono
                         font.pixelSize: 10

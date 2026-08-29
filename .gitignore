@@ -51,3 +51,6 @@ __pycache__/
 # Developer scratch: local reports and working notes, never part of Ryoku.
 /local/
 .superpowers/
+
+# Nix build output
+/result

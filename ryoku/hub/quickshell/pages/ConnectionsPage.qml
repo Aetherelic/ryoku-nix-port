@@ -437,7 +437,10 @@ Item {
             if (wifi.backendBusy || choice === wifi.wifiBackend)
                 return;
             wifi.backendBusy = true;
-            backendSetProc.command = ["pkexec", "ryoku-wifi-backend", choice];
+            backendSetProc.command =
+                Quickshell.env("RYOKU_NIX_SYSTEM_BRIDGE") === "1"
+                    ? ["ryoku-wifi-backend", choice]
+                    : ["pkexec", "ryoku-wifi-backend", choice];
             backendSetProc.running = true;
         }
 

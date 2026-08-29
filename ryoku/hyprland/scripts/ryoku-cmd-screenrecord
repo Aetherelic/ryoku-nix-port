@@ -559,7 +559,7 @@ start_gsr() {
   # often imports as ~30fps and looks choppy). -q/-k/-encoder come from the
   # Hub's Recording page (recording.json); env vars override.
 
-  args=("$recorder_cmd" -w "$capture" -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -c mp4 -cursor "$cursor")
+  args=("$recorder_cmd" -w "$capture" -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -fallback-cpu-encoding yes -c mp4 -cursor "$cursor")
   [[ $capture == "region" ]] && args+=(-region "$region_geom")
   [[ -n $audio_source ]] && args+=(-a "$audio_source")
   # -sc: gsr runs this after it finishes writing the file, where the honest saved
@@ -611,7 +611,7 @@ start_portal() {
   mkdir -p "${RYOKU_STATE_PATH:-$HOME/.local/state/ryoku}" 2>/dev/null || true
   printf '%s\n' "$output_path" >"${RYOKU_STATE_PATH:-$HOME/.local/state/ryoku}/last-recording" 2>/dev/null || true
 
-  args=("$recorder_cmd" -w portal -restore-portal-session yes -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -c mp4 -cursor "$cursor")
+  args=("$recorder_cmd" -w portal -restore-portal-session yes -f "$fps" -fm "$fmode" -q "$quality" -k "$codec" -encoder "$encoder" -fallback-cpu-encoding yes -c mp4 -cursor "$cursor")
   [[ -n $audio_source ]] && args+=(-a "$audio_source")
   # portal picks its own PipeWire source, so there is no monitor to name here (a
   # --monitor request degrades to region/fullscreen upstream); -sc still fires the

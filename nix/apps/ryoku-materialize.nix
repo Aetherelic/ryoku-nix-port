@@ -1,0 +1,163 @@
+{ pkgs, ryoku }:
+
+pkgs.writeShellApplication {
+  name = "ryoku-materialize";
+
+  runtimeInputs = with pkgs; [
+    coreutils
+    findutils
+    systemd
+  ];
+
+  text = ''
+    base="${ryoku.desktopData}/share/ryoku/config"
+    qml="${ryoku.qml}/lib/qt-6/qml"
+
+    config_home="''${XDG_CONFIG_HOME:-$HOME/.config}"
+    user_units="$config_home/systemd/user"
+    state="''${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/nix"
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    backup="$state/backups/$stamp"
+
+    mkdir -p "$state"
+
+    # ----------------------------------------------------------
+    # First deployment backup
+    #
+    # Derive the backup set from the packaged config itself.
+    # This keeps the backup complete when upstream adds another
+    # application config instead of maintaining a second list here.
+    # ----------------------------------------------------------
+
+    if [ ! -e "$state/initial-backup-complete" ]; then
+      mkdir -p "$backup/config"
+
+      while IFS= read -r -d "" packaged; do
+        name="''${packaged##*/}"
+        current="$config_home/$name"
+
+        if [ -e "$current" ] || [ -L "$current" ]; then
+          cp -a -- "$current" "$backup/config/"
+        fi
+      done < <(
+        find "$base" \
+          -mindepth 1 \
+          -maxdepth 1 \
+          -print0
+      )
+
+      # Ryoku also owns these user-local QML module names. They live
+      # outside XDG_CONFIG_HOME, so preserve a previous deployment
+      # before replacing the modules with Nix-store links.
+      current_qml="$HOME/.local/lib/qt6/qml/Ryoku"
+
+      if [ -e "$current_qml" ] || [ -L "$current_qml" ]; then
+        mkdir -p "$backup/local-qml"
+        cp -a -- "$current_qml" "$backup/local-qml/"
+      fi
+
+      # Preserve any existing Ryoku user units before NixOS takes
+      # ownership of these names.
+      for unit in \
+        hyprland-session.target \
+        ryoku-shell.service \
+        ryoku-rashin.service \
+        ryoku-ai-usage.service \
+        ryoku-ai-usage.timer
+      do
+        current="$user_units/$unit"
+
+        if [ -e "$current" ] || [ -L "$current" ]; then
+          mkdir -p "$backup/systemd-user"
+          cp -a -- "$current" "$backup/systemd-user/"
+        fi
+      done
+
+      printf '%s\n' "$backup" > "$state/initial-backup-path"
+      touch "$state/initial-backup-complete"
+    fi
+
+    # ----------------------------------------------------------
+    # Upstream materialization
+    # ----------------------------------------------------------
+
+    export RYOKU_CONFIG_BASE="$base"
+
+    ${ryoku.cli}/bin/ryoku materialize
+
+    # Nix store files are immutable and arrive without user write bits.
+    # current-theme.conf is only a seed: Matugen owns it at runtime and
+    # must be able to replace it whenever the active palette changes.
+    if [ -f "$config_home/kitty/current-theme.conf" ]; then
+      chmod u+w "$config_home/kitty/current-theme.conf"
+    fi
+
+    # ----------------------------------------------------------
+    # QML modules
+    #
+    # Upstream env.lua expects ~/.local/lib/qt6/qml for a
+    # non-/usr development deployment.
+    # ----------------------------------------------------------
+
+    user_qml="$HOME/.local/lib/qt6/qml/Ryoku"
+
+    mkdir -p "$user_qml"
+
+    for module in Ui PluginKit FrameBars Blobs; do
+      rm -rf -- "''${user_qml:?}/$module"
+
+      ln -s \
+        "$qml/Ryoku/$module" \
+        "$user_qml/$module"
+    done
+
+    # ----------------------------------------------------------
+    # NixOS owns Ryoku's systemd user units declaratively.
+    #
+    # Remove legacy units left by an older materialization or an
+    # existing Arch Ryoku deployment. User-local units otherwise
+    # override the NixOS-managed definitions.
+    # ----------------------------------------------------------
+
+    rm -f -- \
+      "$user_units/hyprland-session.target" \
+      "$user_units/ryoku-shell.service" \
+      "$user_units/ryoku-rashin.service" \
+      "$user_units/ryoku-ai-usage.service" \
+      "$user_units/ryoku-ai-usage.timer"
+
+    systemctl --user daemon-reload 2>/dev/null || true
+
+    # ----------------------------------------------------------
+    # Seed visible assets without replacing user files
+    # ----------------------------------------------------------
+
+    mkdir -p \
+      "$HOME/Pictures/Wallpapers" \
+      "$HOME/Pictures/ryodecors"
+
+    if [ -d "${ryoku.desktopData}/share/ryoku/wallpapers" ]; then
+      cp -n \
+        "${ryoku.desktopData}/share/ryoku/wallpapers/"* \
+        "$HOME/Pictures/Wallpapers/" \
+        2>/dev/null || true
+    fi
+
+    if [ -d "${ryoku.desktopData}/share/ryoku/ryodecors" ]; then
+      cp -n \
+        "${ryoku.desktopData}/share/ryoku/ryodecors/"* \
+        "$HOME/Pictures/ryodecors/" \
+        2>/dev/null || true
+    fi
+
+    printf '\n'
+    printf 'Ryoku desktop materialized successfully.\n'
+
+    if [ -f "$state/initial-backup-path" ]; then
+      printf 'Original config backup: %s\n' \
+        "$(cat "$state/initial-backup-path")"
+    fi
+
+    printf '\nLog out and start Hyprland to enter Ryoku.\n'
+  '';
+}

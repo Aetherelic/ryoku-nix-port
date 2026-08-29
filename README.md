@@ -219,6 +219,19 @@ Preview everything it would do without changing anything by appending
 > not responsible for data loss or for breaking your current desktop. Run it with
 > `--dry-run` before you commit, and prefer a machine you can afford to reinstall.
 
+### Already on NixOS
+
+Ryoku is also available as a Nix flake for an existing NixOS system. The NixOS
+module packages the same Ryoku desktop and manages its services declaratively
+without replacing the host's bootloader, kernel, partitions or NixOS system
+configuration.
+
+Import `ryoku.nixosModules.default`, enable `programs.ryoku.enable`, rebuild the
+system, then run `ryoku-materialize` to deploy the user configuration.
+
+See [`docs/nixos.md`](docs/nixos.md) for installation, updating and architecture
+details.
+
 ### CachyOS kernel, in one click
 
 Want the CachyOS scheduler and build? Open the Hub, go to **Extras**, and install

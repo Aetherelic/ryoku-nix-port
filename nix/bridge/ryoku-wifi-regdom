@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+export PATH="/run/wrappers/bin:@RYOKU_RUNTIME_PATH@"
+
+real_state=/var/lib/ryoku/network
+
+if (( EUID == 0 )); then
+    state_dir="$real_state"
+else
+    state_dir="${RYOKU_NIX_NETWORK_STATE_DIR:-$real_state}"
+fi
+
+country_file="$state_dir/regdom"
+iwd_conf="$state_dir/iwd.conf"
+
+need_root() {
+    (( EUID == 0 )) && return 0
+
+    exec /run/wrappers/bin/pkexec \
+        "$(readlink -f "$0")" \
+        "$@"
+}
+
+configured_country() {
+    [[ -r "$country_file" ]] || return 0
+
+    local cc
+    cc="$(tr -d '[:space:]' <"$country_file")"
+
+    [[ "$cc" =~ ^[A-Z]{2}$ ]] &&
+        printf '%s' "$cc"
+}
+
+driver_country() {
+    command -v iw >/dev/null 2>&1 ||
+        return 0
+
+    iw reg get 2>/dev/null |
+        awk '
+            /^country [A-Z0-9][A-Z0-9]:/ {
+                c = $2
+                sub(/:.*/, "", c)
+                print c
+                exit
+            }
+        '
+}
+
+render_iwd() {
+    local cc tmp
+
+    install -d -m755 "$state_dir"
+
+    cc="$(configured_country)"
+
+    tmp="$(mktemp "$state_dir/.iwd.conf.XXXXXX")"
+
+    if [[ -n "$cc" ]]; then
+        cat >>"$tmp" <<EOF
+[General]
+Country=$cc
+
+EOF
+    fi
+
+    cat >>"$tmp" <<'EOF'
+[Rank]
+BandModifier5GHz=1.3
+EOF
+
+    chmod 0644 "$tmp"
+    mv -f "$tmp" "$iwd_conf"
+}
+
+regdom_get() {
+    local cc
+
+    cc="$(configured_country)"
+
+    if [[ -n "$cc" ]]; then
+        printf '%s configured\n' "$cc"
+        return
+    fi
+
+    cc="$(driver_country)"
+
+    if [[ -n "$cc" && "$cc" != 00 ]]; then
+        printf '%s driver\n' "$cc"
+        return
+    fi
+
+    printf '00 unset\n'
+}
+
+regdom_set() {
+    local cc="${1:-}"
+
+    [[ "$cc" =~ ^[A-Za-z]{2}$ ]] || {
+        echo \
+            "usage: ryoku-wifi-regdom set <CC>  (two-letter ISO country code)" \
+            >&2
+        exit 2
+    }
+
+    cc="${cc^^}"
+
+    need_root set "$cc"
+
+    install -d -m755 "$state_dir"
+
+    printf '%s\n' "$cc" >"$country_file"
+    chmod 0644 "$country_file"
+
+    render_iwd
+
+    iw reg set "$cc" >/dev/null 2>&1 ||
+        true
+
+    systemctl \
+        --no-ask-password \
+        try-restart iwd.service \
+        >/dev/null 2>&1 ||
+        true
+}
+
+regdom_apply() {
+    need_root apply
+
+    render_iwd
+
+    local cc
+    cc="$(configured_country)"
+
+    [[ -n "$cc" ]] ||
+        return 0
+
+    iw reg set "$cc" >/dev/null 2>&1 ||
+        true
+}
+
+regdom_status() {
+    local cc src usable blocked
+
+    read -r cc src < <(regdom_get)
+
+    if ! command -v iw >/dev/null 2>&1; then
+        printf \
+            'regdom %s (%s); 5 GHz channel status unavailable (iw not installed)\n' \
+            "$cc" \
+            "$src"
+        return
+    fi
+
+    read -r usable blocked < <(
+        iw phy 2>/dev/null |
+            awk '
+                {
+                    f = 0
+
+                    for (i = 2; i <= NF; i++) {
+                        if ($i == "MHz") {
+                            f = $(i - 1) + 0
+                            break
+                        }
+                    }
+
+                    if (f >= 5000 && f < 5925) {
+                        if ($0 ~ /disabled/ || $0 ~ /no IR/)
+                            blocked++
+                        else
+                            usable++
+                    }
+                }
+
+                END {
+                    printf "%d %d", usable + 0, blocked + 0
+                }
+            '
+    )
+
+    printf \
+        'regdom %s (%s); 5 GHz channels: %s usable, %s blocked\n' \
+        "$cc" \
+        "$src" \
+        "$usable" \
+        "$blocked"
+}
+
+case "${1:-status}" in
+    get)
+        regdom_get
+        ;;
+
+    set)
+        shift
+        regdom_set "${1:-}"
+        ;;
+
+    apply)
+        regdom_apply
+        ;;
+
+    status)
+        regdom_status
+        ;;
+
+    *)
+        echo \
+            "usage: ryoku-wifi-regdom [get | set <CC> | apply | status]" \
+            >&2
+        exit 2
+        ;;
+esac

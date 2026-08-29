@@ -1,33 +1,121 @@
 #!/usr/bin/env bash
-# sysread for the pill's SYSTEM card. one field per line, exact order SysInfo.qml
-# parses. dual-GPU aware: matches device classes (not bus ids), strips the
-# bus/class prefix and vendor noise. first run rolls a random codename and saves
-# it to ~/.local/state/ryoku/codename, so the operator handle stays stable
-# across reboots for this install.
+
 export LC_ALL=C
 
 clean_gpu() {
-    sed -E 's/^[^ ]+ [^:]*: //; s/ \(rev [0-9a-f]+\)//; s/NVIDIA Corporation //; s/Advanced Micro Devices, Inc\. //; s/Intel Corporation //; s/\[AMD\/ATI\] //; s/.*\[([^]]+)\].*/\1/' | xargs | cut -c1-30
+    sed -E \
+      's/^[^ ]+ [^:]*: //;
+       s/ \(rev [0-9a-f]+\)//;
+       s/NVIDIA Corporation //;
+       s/Advanced Micro Devices, Inc\. //;
+       s/Intel Corporation //;
+       s/\[AMD\/ATI\] //;
+       s/.*\[([^]]+)\].*/\1/' |
+      xargs |
+      cut -c1-30
 }
 
-gpus=$(lspci 2>/dev/null | grep -iE 'vga compatible|3d controller|display controller')
-gpu1=$(printf '%s\n' "$gpus" | sed -n '1p' | clean_gpu)
-gpu2=$(printf '%s\n' "$gpus" | sed -n '2p' | clean_gpu)
+gpus="$(
+    lspci 2>/dev/null |
+      grep -iE 'vga compatible|3d controller|display controller'
+)"
+
+gpu1="$(printf '%s\n' "$gpus" | sed -n '1p' | clean_gpu)"
+gpu2="$(printf '%s\n' "$gpus" | sed -n '2p' | clean_gpu)"
 
 cf="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/codename"
+
 if [ ! -s "$cf" ]; then
     mkdir -p "$(dirname "$cf")"
-    names=(VESPER ONYX KESTREL CIPHER NOVA EMBER RONIN ZENITH OBSIDIAN HALCYON \
-           VANTA KAIROS AZRAEL SABLE FENRIR ORACLE PHANTOM VECTOR RIFT ECHO \
-           FLUX NEXUS QUASAR PULSAR COBALT SPECTRE VORTEX ZEPHYR AXIOM BASTION \
-           DRIFT ETHER GLITCH HAVOC IGNIS KARMA LUMEN MIRAGE NOCTIS OMEN \
-           PRISM QUILL RAVEN SOLACE TEMPEST UMBRA VIGIL WRAITH XENON ZEALOT \
-           BLAZE CRUX DUSK FORGE GRIM HELIX ION JADE LYNX MAZE \
-           NOMAD ODIN PYRE QUARTZ RUNE STYX TALON VOID WARP ZERO \
-           ARGON BOREAL CINDER DELTA FABLE GOSSAMER HOLLOW INDIGO JUNO KITE)
-    printf '%s\n' "${names[$((RANDOM % ${#names[@]}))]}" > "$cf"
+
+    names=(
+      VESPER ONYX KESTREL CIPHER NOVA EMBER RONIN ZENITH OBSIDIAN HALCYON
+      VANTA KAIROS AZRAEL SABLE FENRIR ORACLE PHANTOM VECTOR RIFT ECHO
+      FLUX NEXUS QUASAR PULSAR COBALT SPECTRE VORTEX ZEPHYR AXIOM BASTION
+      DRIFT ETHER GLITCH HAVOC IGNIS KARMA LUMEN MIRAGE NOCTIS OMEN
+      PRISM QUILL RAVEN SOLACE TEMPEST UMBRA VIGIL WRAITH XENON ZEALOT
+      BLAZE CRUX DUSK FORGE GRIM HELIX ION JADE LYNX MAZE
+      NOMAD ODIN PYRE QUARTZ RUNE STYX TALON VOID WARP ZERO
+      ARGON BOREAL CINDER DELTA FABLE GOSSAMER HOLLOW INDIGO JUNO KITE
+    )
+
+    printf '%s\n' \
+      "${names[$((RANDOM % ${#names[@]}))]}" \
+      > "$cf"
 fi
-codename=$(cat "$cf")
+
+codename="$(cat "$cf")"
+
+# ── Package count ────────────────────────────────────────────
+
+distro_id="$(
+    . /etc/os-release 2>/dev/null
+    printf '%s' "${ID:-linux}"
+)"
+
+if [ "$distro_id" = "nixos" ]; then
+    system_packages=0
+    user_packages=0
+
+    # The NixOS module writes the number of direct packages in
+    # environment.systemPackages here. Do not count the complete
+    # Nix store closure: that includes dependencies and wildly
+    # inflates the number shown by the Hub.
+    if [ -r /etc/ryoku/nix-system-package-count ]; then
+        system_packages="$(
+            cat /etc/ryoku/nix-system-package-count 2>/dev/null ||
+            printf '0'
+        )"
+    fi
+
+    # User packages installed imperatively with `nix profile`.
+    if command -v nix >/dev/null 2>&1; then
+        user_packages="$(
+            nix profile list --json 2>/dev/null |
+              jq -r '.elements | length' 2>/dev/null ||
+              printf '0'
+        )"
+    fi
+
+    packages=$((system_packages + user_packages))
+else
+    packages="$(
+        pacman -Qq 2>/dev/null |
+          wc -l
+    )"
+fi
+
+# ── Active monitor ───────────────────────────────────────────
+#
+# Upstream took the first monitor Hyprland returned. For a
+# multi-monitor desktop that is arbitrary. The Hub opens on the
+# active monitor, so report Hyprland's focused monitor instead.
+
+monitor_json="$(hyprctl monitors -j 2>/dev/null || printf '[]')"
+
+resolution="$(
+    printf '%s' "$monitor_json" |
+      jq -r '
+        ([.[] | select(.focused == true)][0] // .[0] // {}) |
+        if (.width and .height)
+        then "\(.width)x\(.height)"
+        else "-"
+        end
+      ' 2>/dev/null
+)"
+
+refresh="$(
+    printf '%s' "$monitor_json" |
+      jq -r '
+        ([.[] | select(.focused == true)][0] // .[0] // {}) |
+        if .refreshRate
+        then "\(.refreshRate | round)Hz"
+        else ""
+        end
+      ' 2>/dev/null
+)"
+
+# ── Existing SysInfo line protocol ───────────────────────────
 
 whoami
 cat /etc/hostname 2>/dev/null || hostname
@@ -35,16 +123,50 @@ grep -m1 'PRETTY_NAME' /etc/os-release 2>/dev/null | cut -d'"' -f2
 uname -m
 uname -r
 echo "${SHELL##*/}"
-grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/ *@ .*//; s/([^)]*)//; s/ w\/.*//' | xargs | cut -c1-26
-echo "$(nproc)C / $(nproc --all)T"
+
+grep -m1 'model name' /proc/cpuinfo |
+  sed 's/.*: //; s/ *@ .*//; s/([^)]*)//; s/ w\/.*//' |
+  xargs |
+  cut -c1-26
+
+physical_cores="$(
+    lscpu -p=Core,Socket 2>/dev/null |
+      awk -F, '!/^#/ && NF >= 2 { print $1 "," $2 }' |
+      sort -u |
+      wc -l
+)"
+
+threads="$(nproc --all)"
+
+# Fall back gracefully on unusual systems where lscpu does not
+# expose physical core/socket topology.
+if [ "${physical_cores:-0}" -le 0 ]; then
+    physical_cores="$threads"
+fi
+
+echo "${physical_cores}C / ${threads}T"
 echo "${gpu1:--}"
 echo "$gpu2"
-free -h --si | awk '/Mem:/{print $3" / "$2}'
-free | awk '/Mem:/{print int($3/$2*100)}'
-df -h / | awk 'NR==2{print $3" / "$2}'
-df / | awk 'NR==2{print int($3/($3+$4)*100)}'
-awk '{h=int($1/3600); m=int(($1%3600)/60); print h"h "m"m"}' /proc/uptime
-pacman -Qq 2>/dev/null | wc -l
-hyprctl monitors 2>/dev/null | awk '/x.*@/{match($0,/([0-9]+x[0-9]+)/,a); print a[1]; exit}'
-hyprctl monitors 2>/dev/null | awk '/x.*@/{match($0,/@([0-9]+)/,a); print a[1]"Hz"; exit}'
+
+free -h --si |
+  awk '/Mem:/{print $3" / "$2}'
+
+free |
+  awk '/Mem:/{print int($3/$2*100)}'
+
+df -h / |
+  awk 'NR==2{print $3" / "$2}'
+
+df / |
+  awk 'NR==2{print int($3/($3+$4)*100)}'
+
+awk '{
+    h=int($1/3600);
+    m=int(($1%3600)/60);
+    print h"h "m"m"
+}' /proc/uptime
+
+echo "$packages"
+echo "${resolution:--}"
+echo "$refresh"
 echo "$codename"

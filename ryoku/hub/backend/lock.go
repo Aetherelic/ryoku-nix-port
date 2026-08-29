@@ -257,21 +257,54 @@ func validSlug(slug string) error {
 	return nil
 }
 
-// escalateGreeter re-execs this binary under pkexec to install the skin as the
-// SDDM greeter (it has to write /usr/share/sddm + /etc). pkexec pops the
-// graphical polkit prompt; cancel -> error.
-func escalateGreeter(slug string) error {
-	self, err := os.Executable()
-	if err != nil {
-		return err
+// greeterEscalationCommand selects the privileged greeter activation path.
+//
+// Arch keeps the original self-reexec path that owns /usr/share/sddm and
+// /etc/sddm.conf.d. NixOS instead hands the selected slug to a Nix-owned helper
+// whose only mutable destination is /var/lib/ryoku/sddm-theme.
+func greeterEscalationCommand(self, slug string, nixBridge bool) []string {
+	if nixBridge {
+		return []string{
+			"pkexec",
+			"/run/current-system/sw/bin/ryoku-sddm-theme-apply",
+			slug,
+		}
 	}
-	cmd := exec.Command("pkexec", self, "lock", "apply-greeter", slug)
+
+	return []string{
+		"pkexec",
+		self,
+		"lock",
+		"apply-greeter",
+		slug,
+	}
+}
+
+// escalateGreeter installs the chosen skin for the SDDM sign-in screen.
+// Cancellation or an unavailable privileged bridge leaves the already-written
+// session-lock preference intact.
+func escalateGreeter(slug string) error {
+	nixBridge := os.Getenv("RYOKU_NIX_SYSTEM_BRIDGE") == "1"
+
+	self := ""
+	if !nixBridge {
+		var err error
+		self, err = os.Executable()
+		if err != nil {
+			return err
+		}
+	}
+
+	args := greeterEscalationCommand(self, slug, nixBridge)
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("sign-in screen needs admin authentication: %w", err)
 	}
+
 	return nil
 }
 

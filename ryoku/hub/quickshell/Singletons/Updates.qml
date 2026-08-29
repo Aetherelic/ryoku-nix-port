@@ -8,6 +8,10 @@ import Quickshell.Io
 Singleton {
     id: root
 
+    // Some distributions own system updates outside Ryoku.
+    readonly property bool externalSystemUpdates:
+        Quickshell.env("RYOKU_SYSTEM_UPDATES_EXTERNAL") === "1"
+
     readonly property string sockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
 
     property bool available: false
@@ -42,7 +46,12 @@ Singleton {
         return Math.floor(h / 24) + "d ago";
     }
 
-    function check() { root.send("updates.check", {}); }
+    function check() {
+        if (root.externalSystemUpdates)
+            return;
+
+        root.send("updates.check", {});
+    }
 
     function apply(t) {
         try {

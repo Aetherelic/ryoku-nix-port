@@ -29,7 +29,16 @@ HELPER="${RYOKU_DOCKER_HELPER:-ryoku-docker}"
 ACCESS=""
 resolve_access() {
   [ -n "$ACCESS" ] && return
-  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+
+  # NixOS deliberately keeps Docker host-managed and uses Ryoku's narrowly
+  # scoped privileged helper as the normal container access path. Prefer that
+  # helper before probing `docker info`: with docker.socket active, even a
+  # read-only direct probe would socket-activate docker.service.
+  if [ "${RYOKU_DOCKER_HOST_MANAGED:-0}" = 1 ] &&
+     command -v "$HELPER" >/dev/null 2>&1; then
+    ACCESS=helper
+  elif command -v docker >/dev/null 2>&1 &&
+       docker info >/dev/null 2>&1; then
     ACCESS=direct
   elif command -v "$HELPER" >/dev/null 2>&1; then
     ACCESS=helper
@@ -46,9 +55,23 @@ docker_state() {
   command -v docker >/dev/null 2>&1 || { echo missing; return; }
   resolve_access
   case "$ACCESS" in
-    direct) echo ready ;;
-    helper) echo setup ;;
-    *)      echo denied ;;
+    direct)
+      echo ready
+      ;;
+    helper)
+      # On NixOS the host owns Docker declaratively and Ryoku is
+      # intentionally not granted broad docker-group access. The scoped
+      # helper is therefore the normal permanent access path rather than
+      # a temporary first-login setup state.
+      if [ "${RYOKU_DOCKER_HOST_MANAGED:-0}" = 1 ]; then
+        echo ready
+      else
+        echo setup
+      fi
+      ;;
+    *)
+      echo denied
+      ;;
   esac
 }
 

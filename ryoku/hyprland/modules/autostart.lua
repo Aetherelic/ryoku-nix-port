@@ -44,7 +44,7 @@ hl.on("hyprland.start", function()
     -- effort: an old ryoku without the subcommand just fails silently here.
     hl.exec_cmd("command -v ryoku >/dev/null 2>&1 && ryoku keyring init")
     hl.exec_cmd("command -v ryoku-gpu >/dev/null 2>&1 && ryoku-gpu persist")
-    hl.exec_cmd("command -v ryoku-idle >/dev/null 2>&1 && ryoku-idle start")
+    hl.exec_cmd("if [ ${RYOKU_NIX_SYSTEM_BRIDGE:-0} = 1 ]; then systemctl --user start hypridle.service; else command -v ryoku-idle >/dev/null 2>&1 && ryoku-idle start; fi")
     hl.exec_cmd("command -v ryoku-clamshell >/dev/null 2>&1 && ryoku-clamshell daemon")
     -- Power knobs the kernel forgets across a reboot: the battery charge ceiling
     -- and the PCIe link policy are plain sysfs values, so a stored choice has to

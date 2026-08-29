@@ -105,6 +105,12 @@ Item {
     property int fstagesPassed: 0             // enroll-stage-passed count
     property int fstagesTotal: 0              // num-enroll-stages; 0 = unknown
     property string fuser: Quickshell.env("USER") || "traveler"
+
+    // NixOS owns PAM declaratively. The Arch implementation below may inspect
+    // and rewrite /etc/pam.d directly, so keep that surface completely disabled
+    // when the Nix system bridge is active.
+    readonly property bool nixSystemBridge:
+        Quickshell.env("RYOKU_NIX_SYSTEM_BRIDGE") === "1"
     // naming flow after successful enroll
     property string fnewFinger: ""            // finger name just enrolled (from fprintd)
     property string fnameDraft: ""            // user's draft name for the new finger
@@ -127,10 +133,24 @@ Item {
     readonly property string fpamLine: "auth        sufficient    pam_fprintd_grosshack.so"
 
     function fpamReload() {
+        if (pg.nixSystemBridge) {
+            pg.fpamModuleOk = false;
+            pg.fsudoOn = false;
+            pg.fsddmOn = false;
+            pg.fpolkitOn = false;
+            pg.fpamLoading = false;
+            return;
+        }
+
         pg.fpamLoading = true;
         pamStatusProc.running = true;
     }
-    function fpamToggle(target, on) {         // target: "sudo" | "sddm"
+    function fpamToggle(target, on) {         // target: "sudo" | "sddm" | "polkit-1"
+        if (pg.nixSystemBridge) {
+            pg.ferr = I18n.tr("NixOS manages system authentication declaratively; Ryoku will not modify PAM files.");
+            return;
+        }
+
         if (pg.fpending !== "" || pg.fsudoPending || pg.fsddmPending || pg.fpolkitPending)
             return;
         pg.ferr = "";
@@ -1111,9 +1131,40 @@ Item {
                         }
                     }
 
-                    // grosshack for sudo / sddm; root half runs via pkexec.
+                    // NixOS owns sudo / SDDM / polkit PAM configuration through
+                    // the system configuration rather than imperative edits.
                     Column {
-                        visible: pg.fpamModuleOk && !pg.fpamLoading
+                        visible: pg.nixSystemBridge
+                        width: parent.width
+                        spacing: Tokens.s2
+
+                        Rectangle {
+                            width: parent.width
+                            height: Tokens.border
+                            color: Tokens.lineSoft
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: I18n.tr("System authentication")
+                            color: Tokens.ink
+                            font.family: Tokens.ui
+                            font.pixelSize: Tokens.fSmall
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: I18n.tr("NixOS manages PAM declaratively. Ryoku will not modify sudo, SDDM, or admin-prompt authentication from this page.")
+                            color: Tokens.inkDim
+                            font.family: Tokens.ui
+                            font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    // Arch-only grosshack controls; root half runs via pkexec.
+                    Column {
+                        visible: !pg.nixSystemBridge && pg.fpamModuleOk && !pg.fpamLoading
                         width: parent.width
                         spacing: Tokens.s2
 

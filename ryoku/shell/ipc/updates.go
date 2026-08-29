@@ -26,13 +26,25 @@ func (d *daemon) startUpdates() {
 		wake:  make(chan struct{}, 1),
 		quit:  d.quit,
 	}
+	externalSystemUpdates := os.Getenv("RYOKU_SYSTEM_UPDATES_EXTERNAL") == "1"
+
 	d.registerCall("updates.check", func(json.RawMessage) (any, error) {
+		if externalSystemUpdates {
+			return map[string]any{"ok": true}, nil
+		}
+
 		select {
 		case s.wake <- struct{}{}:
 		default:
 		}
+
 		return map[string]any{"ok": true}, nil
 	})
+
+	if externalSystemUpdates {
+		return
+	}
+
 	go s.run()
 }
 

@@ -1,0 +1,48 @@
+{
+  "nodes": {
+    "glazepkg": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787756274,
+        "narHash": "sha256-N9p505s1va1nGWo6LknNvAvMRlFWDL6qiANwxxCjXSo=",
+        "owner": "neur0map",
+        "repo": "glazepkg",
+        "rev": "cfe9243a402a016960c87b1c55b0da57b7e7b7d6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "neur0map",
+        "repo": "glazepkg",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1787498568,
+        "narHash": "sha256-9i/VTdusq/+NM/tz+J1Re+ojkMB8MBf0QshnYfzHz30=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "56c02bc00adcf003215cc4bd996d6efaf4cff188",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "glazepkg": "glazepkg",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
