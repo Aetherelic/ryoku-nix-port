@@ -1,30 +1,23 @@
 # Ryoku NixOS Port
 
-> Private review snapshot of the NixOS port of Ryoku.
->
-> This repository is currently for upstream inspection/testing rather than
-> public distribution.
+> Private repo for the NixOS port of Ryoku.
+
 
 ## Overview
 
 The goal is to support Ryoku natively on NixOS while keeping upstream behaviour
-intact and avoiding a separate long-term fork.
+intact and avoiding a separate fork. Updates to the Nix version will probably come between 1-7 days of an arch update upstream apart from small things like widgets or a new wallpaper then itd be instant just to keep it stable and stop the updater trying to pull aur packages or pacman. 
 
-Most NixOS-specific implementation lives under `nix/`. Small compatibility
-hooks are only used where Ryoku needs different behaviour on an immutable,
+Most NixOS specific implementation lives under `/etc/nixos/`. Small compatibility
+hooks are only used where Ryoku needs different behavior on an immutable
 declarative system.
 
+Current upstream base:
 ```text
 Upstream branch:   unstable-dev
 Upstream revision: e57d11c09
 Ryoku release:     0.45.7-beta.18
 NixOS channel:     nixos-unstable
-```
-
-Initial NixOS checkpoint:
-
-```text
-2957cf765 feat(nix): add initial Ryoku NixOS platform port
 ```
 
 ---
@@ -42,7 +35,12 @@ Initial NixOS checkpoint:
 - [x] RyoStore
 - [x] Fastfetch integration
 - [x] Matugen integration
-- [x] Kitty theme refresh
+- [x] Kitty theming with Matugen
+- [x] Fastfetch working with Matugen
+- [x] fish configs
+- [x] zsh configs
+- [x] Ryostore working and installing correctly
+- [x] Rashin implimentation  
 
 ### Lockscreen / Session
 
@@ -56,8 +54,8 @@ Initial NixOS checkpoint:
 - [x] dynamic RyoStore → SDDM theme bridge
 - [x] declarative PAM handling
 - [x] disable Arch PAM mutation controls on NixOS
-- [ ] fresh-session SDDM validation
-- [ ] final NVIDIA suspend/resume validation
+- [x] fresh-session SDDM validation
+- [x] final NVIDIA suspend/resume validation
 
 ### Ryo Motion / Recording
 
@@ -67,7 +65,7 @@ Initial NixOS checkpoint:
 - [x] Studio recording
 - [x] cursor sidecar generation
 - [x] CPU encoding fallback
-- [ ] final UI-triggered edit/open tests
+- [x] UI-triggered edit/open tests
 
 ### Remaining
 
@@ -75,8 +73,10 @@ Initial NixOS checkpoint:
 - [ ] final RyoStore parity audit
 - [ ] final Hub page parity audit
 - [ ] peripheral integration audit
-- [ ] clean-machine / VM validation
-- [ ] final upstream compatibility audit
+- [ ] fresh install test and VM test
+- [ ] final upstream compatibility
+- [ ] Creating some Nix specific fastfetch configs for Ryostore as theyre all Arch based
+- [ ] Adding [Chroma](https://github.com/Aetherelic/chroma-shell) as a rice add on in the ryoku store [OPTIONAL] 
 
 ---
 
@@ -86,12 +86,6 @@ Initial NixOS checkpoint:
 
 <p align="center">
   <img src="docs/screenshots/desktop.png" width="900" alt="Ryoku desktop on NixOS">
-</p>
-
-### Ryoku Hub
-
-<p align="center">
-  <img src="docs/screenshots/hub.png" width="900" alt="Ryoku Hub on NixOS">
 </p>
 
 ### RyoStore
@@ -106,12 +100,10 @@ Initial NixOS checkpoint:
   <img src="docs/screenshots/ryomotion.png" width="900" alt="Ryo Motion on NixOS">
 </p>
 
-### Lockscreens
+### Lockscreen
 
 <p align="center">
   <img src="docs/screenshots/lockscreen.png" width="49%" alt="Ryoku lockscreen on NixOS">
-  <img src="docs/screenshots/custom-lockscreen.png" width="49%" alt="Custom RyoStore lockscreen on NixOS">
-</p>
 
 ---
 
@@ -184,15 +176,15 @@ NVIDIA encode path has an API compatibility issue.
 Repeated shell restarts can leave child processes associated with the service,
 causing excessive cgroup memory/CPU accounting.
 
-This is the main active cleanup issue.
+This is the main final issue.
 
 ### NVIDIA suspend/resume
 
 A previous suspend test exposed an NVIDIA resume failure that terminated
-Hyprland after resume.
+Hyprland after resume causing a Hyprland crash and having to use TTY to fix
 
-The next system generation already contains the required NVIDIA power-management
-changes, but they have not yet been activated and live-tested after reboot.
+The current nix generation already contains the required NVIDIA power-management
+changes and seem to work, I wont know till I test it on my spare laptop which has a nvidia GPU
 
 Status: **pending validation**, not confirmed fixed.
 
@@ -206,15 +198,14 @@ If the port is accepted, the preferred structure is:
 
 ```text
 Ryoku
-├── ryoku/       # shared application/platform code
-└── nix/         # NixOS implementation
+├── ryoku/       # The actual project for Arch and Cachy
+└── nix/         # NixOS implementation which I maintain 
 ```
 
 The intention is for the NixOS version to follow normal Ryoku releases closely,
-with Nix-specific maintenance isolated to the platform layer.
+with a possible week delay between versions to make sure it will work properly with Nix 
 
-A Ryoku NixOS ISO can be built on top of this once the desktop port itself is
-stable.
+A Ryoku NixOS ISO can be built on top of this the desktop port itself is merged in but will take a few months to complete probably around 2/3 months as ive only done it once before with a custom Fedora iso
 
 ---
 
