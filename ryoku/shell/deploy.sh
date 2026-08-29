@@ -508,12 +508,21 @@ wireplumber_before=
 mkdir -p "$cfg/matugen"; cp -a "$here/matugen/." "$cfg/matugen/"
 cp -a "$here/../apps/fish/config.fish" "$cfg/fish/config.fish"
 mkdir -p "$cfg/fish/conf.d"; cp -a "$here/../apps/fish/conf.d/." "$cfg/fish/conf.d/"
+mkdir -p "$cfg/ryoku-terminal"; cp -a "$here/../apps/terminal-shell/." "$cfg/ryoku-terminal/"
+mkdir -p "$cfg/bash"; cp -a "$here/../apps/bash/." "$cfg/bash/"
+mkdir -p "$cfg/zsh"; cp -a "$here/../apps/zsh/." "$cfg/zsh/"
 mkdir -p "$cfg/qt6ct"; cp -a "$here/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
 # GTK toolkit baseline for the xsettings-less session; the matugen hook renders
 # gtk.css into these same dirs at runtime, so only settings.ini is copied here.
 mkdir -p "$cfg/gtk-3.0"; cp -a "$here/gtk-3.0/settings.ini" "$cfg/gtk-3.0/settings.ini"
 mkdir -p "$cfg/gtk-4.0"; cp -a "$here/gtk-4.0/settings.ini" "$cfg/gtk-4.0/settings.ini"
 mkdir -p "$cfg/btop"; cp -a "$here/../apps/btop/btop.conf" "$cfg/btop/btop.conf"
+mkdir -p "$cfg/fastfetch"
+cp -a "$here/../apps/fastfetch/config.jsonc" "$cfg/fastfetch/config.jsonc"
+install -m755 "$here/../apps/fastfetch/ryoku-fastfetch" "$bindir/ryoku-fastfetch"
+mkdir -p "$cfg/kitty"
+cp -a "$here/../apps/kitty/kitty.conf" "$cfg/kitty/kitty.conf"
+cp -a "$here/../apps/kitty/current-theme.conf" "$cfg/kitty/current-theme.conf"
 mkdir -p "$cfg/wireplumber"; cp -a "$here/../apps/wireplumber/." "$cfg/wireplumber/"
 mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
 # dev deploy runs the daemon from ~/.local/bin; the package ships /usr/bin.
