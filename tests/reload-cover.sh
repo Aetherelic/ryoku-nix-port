@@ -30,6 +30,7 @@ test -n "$token"
 test "$(stat -c %a "$XDG_RUNTIME_DIR/ryoku-reload-cover.json")" = 600
 test "$(jq -r .token "$XDG_RUNTIME_DIR/ryoku-reload-cover.json")" = "$token"
 test "$(jq -r .pid "$XDG_RUNTIME_DIR/ryoku-reload-cover.json")" -gt 0
+test -n "$(jq -r .pidStart "$XDG_RUNTIME_DIR/ryoku-reload-cover.json")"
 RYOKU_RELOAD_COVER_TEST=1 "$cover" finish wrong-token
 test "$(jq -r .token "$XDG_RUNTIME_DIR/ryoku-reload-cover.json")" = "$token"
 RYOKU_RELOAD_COVER_TEST=1 "$cover" finish "$token"
@@ -65,6 +66,7 @@ if [[ ${RYOKU_RELOAD_COVER_LIVE:-0} == 1 ]]; then
         env XDG_RUNTIME_DIR="$live_runtime" grim "$tmp/reload-cover-$mark.png"
         delay=$(awk "BEGIN { print ($mark == 0 ? 0.1 : $mark == 100 ? 0.2 : $mark == 300 ? 0.4 : 0.5) }")
     done
+
     magick montage "$tmp"/reload-cover-*.png -thumbnail 560x -tile 3x2 -geometry +4+4 /tmp/ryoku-reload-cover-montage.png
 
     for _ in $(seq 1 240); do
@@ -77,10 +79,30 @@ if [[ ${RYOKU_RELOAD_COVER_LIVE:-0} == 1 ]]; then
     fi
     wait "$reload_pid"
     reload_pid=""
-    sleep 0.6
-    if env XDG_RUNTIME_DIR="$live_runtime" hyprctl layers -j | grep -q '"ryoku-reload-cover"'; then
+    cleared=0
+    for _ in $(seq 1 60); do
+        if ! env XDG_RUNTIME_DIR="$live_runtime" hyprctl layers -j | grep -q '"ryoku-reload-cover"'; then
+            cleared=1
+            break
+        fi
+        sleep 0.05
+    done
+    if [[ $cleared != 1 ]]; then
         echo "reload cover remained after finish" >&2
         exit 1
+    fi
+    if [[ ${RYOKU_RELOAD_COVER_WATCHDOG:-0} == 1 ]]; then
+        token=$(env XDG_RUNTIME_DIR="$live_runtime" ryoku-reload-cover begin)
+        sleep 15.2
+        phase=$(env XDG_RUNTIME_DIR="$live_runtime" qs -p "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/reload-cover" ipc call reload-cover status "$token")
+        test "$phase" = failed
+        env XDG_RUNTIME_DIR="$live_runtime" hyprctl layers -j | grep -q '"ryoku-reload-cover"'
+        sleep 2.3
+        if env XDG_RUNTIME_DIR="$live_runtime" hyprctl layers -j | grep -q '"ryoku-reload-cover"'; then
+            echo "failed cover did not release" >&2
+            exit 1
+        fi
+        test ! -e "$live_runtime/ryoku-reload-cover.json"
     fi
     echo "reload cover live: PASS (/tmp/ryoku-reload-cover-montage.png)"
 fi

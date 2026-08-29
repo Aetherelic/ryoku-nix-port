@@ -10,6 +10,7 @@ PanelWindow {
 
     required property var targetScreen
     required property string phase
+    required property bool startClose
     signal mapped()
 
     screen: targetScreen
@@ -42,13 +43,11 @@ PanelWindow {
         openAnim.restart();
     }
 
-    Component.onCompleted: {
-        closeIris();
-        reportMapped();
-    }
+    Component.onCompleted: reportMapped()
     onBackingWindowVisibleChanged: reportMapped()
     onWidthChanged: reportMapped()
     onHeightChanged: reportMapped()
+    onStartCloseChanged: if (startClose) closeIris()
     onPhaseChanged: if (phase === "opening") openIris()
 
     NumberAnimation {
@@ -107,7 +106,7 @@ PanelWindow {
         opacity: {
             if (cover.phase === "closing") return Math.max(0, 1 - cover.iris / (cover.diagonal * 0.38));
             if (cover.phase === "hold" || cover.phase === "failed") return 1;
-            if (cover.phase === "opening") return Math.max(0, 1 - Math.max(0, (cover.iris - cover.diagonal * 0.62) / (cover.diagonal * 0.38)));
+            if (cover.phase === "opening") return Math.max(0, 1 - cover.iris / (cover.diagonal * 0.38));
             return 0;
         }
         scale: opacity < 1 ? 0.94 + opacity * 0.06 : 1

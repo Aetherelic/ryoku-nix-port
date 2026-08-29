@@ -41,7 +41,8 @@ Item {
     readonly property var transition: frame.transition
     readonly property bool live: frame.live
     readonly property bool ready: frame.ready
-    readonly property bool reloadReady: frame.ready
+    property bool reloadDecoded: false
+    readonly property bool reloadReady: frame.ready && (frame.live || reloadDecoded)
 
     readonly property string sockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
 
@@ -98,11 +99,13 @@ Item {
         mask: Region {}
 
         Backdrop {
+            id: backdrop
             anchors.fill: parent
             visible: root.ready && !root.live
             url: root.wallpaperUrl
             fit: root.fit
             transition: root.transition
+            onDecodedChanged: root.reloadDecoded = decoded
         }
     }
 }
