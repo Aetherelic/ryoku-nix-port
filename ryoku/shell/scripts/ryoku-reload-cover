@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state="${XDG_RUNTIME_DIR:-/tmp}/ryoku-reload-cover.json"
+base="${XDG_CONFIG_HOME:-$HOME/.config}"
+dir="${RYOKU_SHELL_DIR:+$RYOKU_SHELL_DIR/quickshell/reload-cover}"
+dir="${dir:-$base/quickshell/reload-cover}"
+
+write_state() {
+    local tmp
+    umask 077
+    mkdir -p "$(dirname "$state")"
+    tmp=$(mktemp "${state}.XXXXXX")
+    printf '{"token":"%s","pid":%s}\n' "$1" "$2" >"$tmp"
+    chmod 600 "$tmp"
+    mv -f "$tmp" "$state"
+}
+claim_state() {
+    umask 077
+    mkdir -p "$(dirname "$state")"
+    (set -C; printf '{"token":"%s","pid":0}\n' "$1" >"$state") 2>/dev/null
+}
+state_token() {
+    jq -r '.token // empty' "$state" 2>/dev/null || true
+}
+state_pid() {
+    jq -r '.pid // empty' "$state" 2>/dev/null || true
+}
+call() {
+    qs -p "$dir" ipc call reload-cover "$@" >/dev/null 2>&1
+}
+cleanup_after_open() {
+    local token="$1" pid="$2"
+    (
+        sleep 0.55
+        if [[ $(state_token) != "$token" || $(state_pid) != "$pid" ]]; then
+            exit 0
+        fi
+        kill "$pid" 2>/dev/null || true
+        for _ in $(seq 1 40); do
+            kill -0 "$pid" 2>/dev/null || {
+                [[ $(state_token) == "$token" && $(state_pid) == "$pid" ]] && rm -f "$state"
+                exit 0
+            }
+            sleep 0.05
+        done
+    ) >/dev/null 2>&1 &
+}
+
+case "${1:-}" in
+    begin)
+        if [[ ${RYOKU_RELOAD_COVER_TEST:-0} == 1 ]]; then
+            token="test-$(date +%s%N)"
+            claim_state "$token" || exit 1
+            write_state "$token" "$$"
+            printf '%s\n' "$token"
+            exit 0
+        fi
+        command -v qs >/dev/null 2>&1 && [[ -f "$dir/shell.qml" ]] || exit 1
+        token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+        claim_state "$token" || exit 1
+        if command -v setsid >/dev/null 2>&1; then
+            setsid env RYOKU_RELOAD_COVER_TOKEN="$token" qs -p "$dir" >/dev/null 2>&1 < /dev/null &
+        else
+            env RYOKU_RELOAD_COVER_TOKEN="$token" qs -p "$dir" >/dev/null 2>&1 < /dev/null &
+        fi
+        pid=$!
+        write_state "$token" "$pid"
+        for _ in $(seq 1 40); do
+            if call mapped "$token"; then
+                printf '%s\n' "$token"
+                exit 0
+            fi
+            sleep 0.05
+        done
+        kill "$pid" 2>/dev/null || true
+        rm -f "$state"
+        exit 1
+        ;;
+    finish|fail)
+        token="${2:-}"
+        [[ -n "$token" && $(state_token) == "$token" ]] || exit 0
+        if [[ ${RYOKU_RELOAD_COVER_TEST:-0} == 1 ]]; then
+            [[ $1 == finish ]] && rm -f "$state"
+            exit 0
+        fi
+        call "$1" "$token" || exit 1
+        [[ $1 == finish ]] && cleanup_after_open "$token" "$(state_pid)"
+        ;;
+    *)
+        printf 'usage: ryoku-reload-cover begin | finish <token> | fail <token>\n' >&2
+        exit 2
+        ;;
+esac
