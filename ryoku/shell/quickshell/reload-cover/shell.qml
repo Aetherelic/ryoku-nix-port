@@ -19,13 +19,14 @@ ShellRoot {
             mappedCount += 1;
         }
     }
-    function finish(value: string): void {
+    function finish(value: string): bool {
         if (value !== token || phase === "opening" || phase === "failed")
-            return;
+            return false;
         if (phase === "hold")
             phase = "opening";
         else
             finishQueued = true;
+        return true;
     }
     function fail(value: string): void {
         if (value === token && phase !== "opening")
@@ -57,7 +58,7 @@ ShellRoot {
         function mapped(value: string): bool {
             return value === root.token && root.mappedCount >= Quickshell.screens.length;
         }
-        function finish(value: string): void { root.finish(value); }
+        function finish(value: string): bool { return root.finish(value); }
         function fail(value: string): void { root.fail(value); }
     }
 

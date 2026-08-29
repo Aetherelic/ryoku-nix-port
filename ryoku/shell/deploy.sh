@@ -70,6 +70,7 @@ restart_shell() {
 
   [[ -x $shell ]] || return 0
   check_renderer || return 0
+  "$bindir/ryoku-reload-cover" begin >/dev/null 2>&1 || true
   systemctl --user stop ryoku-shell 2>/dev/null || true
   "$shell" quit >/dev/null 2>&1 || true
   for _ in {1..20}; do

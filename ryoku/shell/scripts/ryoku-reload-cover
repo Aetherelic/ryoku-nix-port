@@ -29,6 +29,9 @@ state_pid() {
 call() {
     qs -p "$dir" ipc call reload-cover "$@" >/dev/null 2>&1
 }
+call_finish() {
+    [[ $(qs -p "$dir" ipc call reload-cover finish "$1" 2>/dev/null) == true ]]
+}
 cleanup_after_open() {
     local token="$1" pid="$2"
     (
@@ -84,8 +87,12 @@ case "${1:-}" in
             [[ $1 == finish ]] && rm -f "$state"
             exit 0
         fi
-        call "$1" "$token" || exit 1
-        [[ $1 == finish ]] && cleanup_after_open "$token" "$(state_pid)"
+        if [[ $1 == finish ]]; then
+            call_finish "$token" || exit 1
+            cleanup_after_open "$token" "$(state_pid)"
+        else
+            call fail "$token" || exit 1
+        fi
         ;;
     *)
         printf 'usage: ryoku-reload-cover begin | finish <token> | fail <token>\n' >&2
