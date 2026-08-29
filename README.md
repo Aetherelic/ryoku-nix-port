@@ -1,137 +1,121 @@
-# Ryoku NixOS Port — Review Snapshot
+# Ryoku NixOS Port
 
-> Private review copy of the Ryoku NixOS port.
+> Private review snapshot of the NixOS port of Ryoku.
 >
-> This repository is currently intended for upstream inspection rather than
-> public distribution. The goal is to show how Ryoku has been adapted to NixOS,
-> what required platform-specific handling, what currently works, and what still
-> needs validation before the port is considered complete.
+> This repository is currently for upstream inspection/testing rather than
+> public distribution.
 
----
+## Overview
 
-## Context
+The goal is to support Ryoku natively on NixOS while keeping upstream behaviour
+intact and avoiding a separate long-term fork.
 
-This work ports Ryoku to NixOS while keeping the upstream Ryoku codebase and
-behaviour as intact as possible.
-
-The general approach has been:
-
-- keep Ryoku itself platform-neutral where practical;
-- preserve existing Arch behaviour;
-- keep NixOS-specific implementation primarily under `nix/`;
-- use small compatibility hooks only where the application needs to know it is
-  running on the NixOS integration;
-- prefer declarative NixOS configuration over runtime mutation of `/etc`,
-  `/usr`, PAM, systemd units, or other system-owned state.
-
-Current upstream base:
+Most NixOS-specific implementation lives under `nix/`. Small compatibility
+hooks are only used where Ryoku needs different behaviour on an immutable,
+declarative system.
 
 ```text
-Branch:   unstable-dev
-Revision: e57d11c09
-Release:  0.45.7-beta.18
+Upstream branch:   unstable-dev
+Upstream revision: e57d11c09
+Ryoku release:     0.45.7-beta.18
+NixOS channel:     nixos-unstable
 ```
 
-Initial NixOS port checkpoint:
+Initial NixOS checkpoint:
 
 ```text
 2957cf765 feat(nix): add initial Ryoku NixOS platform port
 ```
 
-The Nix integration currently targets `nixos-unstable`.
-
 ---
 
-## Current State
+## Port Status
 
-The port is functional as a daily desktop environment on the development
-machine, but this should still be considered a review/testing branch rather
-than a release-ready NixOS target.
+### Core
 
-### Working
+- [x] Nix flake integration
+- [x] NixOS module
+- [x] Ryoku package/runtime environment
+- [x] Ryoku shell startup
+- [x] Hyprland desktop integration
+- [x] Ryoku Hub
+- [x] RyoStore
+- [x] Fastfetch integration
+- [x] Matugen integration
+- [x] Kitty theme refresh
 
-- Ryoku shell startup and desktop integration
-- NixOS flake/module integration
-- Ryoku package/runtime environment
-- Ryoku Hub
-- RyoStore
-- Ryo Motion packaging and core runtime
-- recording integration with CPU fallback
-- Matugen theme generation
-- Kitty theme refresh
-- Fastfetch integration
-- qylock deployment
-- qylock authentication
-- stock lockscreen themes
-- custom RyoStore lockscreen themes
-- Hypridle integration
-- pre-suspend locking
-- SDDM Ryoku theme packaging
-- dynamic SDDM theme bridge for RyoStore lock themes
-- NixOS-safe handling of Hub authentication settings
-- declarative PAM configuration
+### Lockscreen / Session
 
-### Still Being Worked On / Validated
+- [x] qylock deployment
+- [x] qylock password authentication
+- [x] stock lockscreen themes
+- [x] custom RyoStore lockscreen themes
+- [x] Hypridle service
+- [x] pre-suspend locking
+- [x] SDDM Ryoku theme
+- [x] dynamic RyoStore → SDDM theme bridge
+- [x] declarative PAM handling
+- [x] disable Arch PAM mutation controls on NixOS
+- [ ] fresh-session SDDM validation
+- [ ] final NVIDIA suspend/resume validation
 
-- Ryoku shell child-process/cgroup cleanup
-- final RyoStore parity audit
-- remaining Hub page parity checks
-- remaining Ryo Motion UI workflow tests
-- peripheral integration audit
-- clean-machine / VM validation
-- full fresh-session SDDM validation
-- final NVIDIA suspend/resume validation
+### Ryo Motion / Recording
 
-The NVIDIA suspend changes are already present in the next system generation,
-but still require a reboot before the live kernel parameters can be validated.
+- [x] Ryo Motion Nix package
+- [x] application launch/runtime
+- [x] recording integration
+- [x] Studio recording
+- [x] cursor sidecar generation
+- [x] CPU encoding fallback
+- [ ] final UI-triggered edit/open tests
+
+### Remaining
+
+- [ ] fix `ryoku-shell.service` child-process/cgroup leak
+- [ ] final RyoStore parity audit
+- [ ] final Hub page parity audit
+- [ ] peripheral integration audit
+- [ ] clean-machine / VM validation
+- [ ] final upstream compatibility audit
 
 ---
 
 ## Screenshots
 
-These are from the current NixOS development system rather than mock-ups.
-
 ### Desktop
 
 <p align="center">
-  <img src="docs/screenshots/desktop.png" width="900" alt="Ryoku desktop running on NixOS">
+  <img src="docs/screenshots/desktop.png" width="900" alt="Ryoku desktop on NixOS">
 </p>
 
 ### Ryoku Hub
 
 <p align="center">
-  <img src="docs/screenshots/hub.png" width="900" alt="Ryoku Hub running on NixOS">
+  <img src="docs/screenshots/hub.png" width="900" alt="Ryoku Hub on NixOS">
 </p>
 
 ### RyoStore
 
 <p align="center">
-  <img src="docs/screenshots/ryostore.png" width="900" alt="RyoStore running on NixOS">
+  <img src="docs/screenshots/ryostore.png" width="900" alt="RyoStore on NixOS">
 </p>
 
 ### Ryo Motion
 
 <p align="center">
-  <img src="docs/screenshots/ryomotion.png" width="900" alt="Ryo Motion running on NixOS">
+  <img src="docs/screenshots/ryomotion.png" width="900" alt="Ryo Motion on NixOS">
 </p>
 
-### Lockscreen
+### Lockscreens
 
 <p align="center">
-  <img src="docs/screenshots/lockscreen.png" width="900" alt="Ryoku lockscreen running on NixOS">
-</p>
-
-### Custom RyoStore Lockscreen
-
-<p align="center">
-  <img src="docs/screenshots/custom-lockscreen.png" width="900" alt="Custom RyoStore lockscreen running on NixOS">
+  <img src="docs/screenshots/lockscreen.png" width="49%" alt="Ryoku lockscreen on NixOS">
+  <img src="docs/screenshots/custom-lockscreen.png" width="49%" alt="Custom RyoStore lockscreen on NixOS">
 </p>
 
 ---
 
-## NixOS Layout
-
-Most Nix-specific work lives under:
+## NixOS Structure
 
 ```text
 nix/
@@ -140,146 +124,109 @@ nix/
 └── ...
 ```
 
-The intent is for this layer to adapt Ryoku to NixOS rather than maintain a
-separate Nix-specific fork of the desktop.
+The Nix layer adapts Ryoku to NixOS rather than replacing or duplicating
+upstream functionality.
 
-The system is exposed through the flake and NixOS module so a host can consume
-Ryoku roughly as:
-
-```nix
-inputs.ryoku = {
-  url = "path:/path/to/ryoku";
-  inputs.nixpkgs.follows = "nixpkgs";
-};
-
-# ...
-
-modules = [
-  ryoku.nixosModules.default
-  {
-    programs.ryoku.enable = true;
-  }
-];
-```
-
----
-
-## Platform Compatibility Approach
-
-A small environment bridge is used where Ryoku needs different behaviour on
-NixOS:
+Where platform-specific behaviour is required, Ryoku can detect:
 
 ```text
 RYOKU_NIX_SYSTEM_BRIDGE=1
 ```
 
-This is used to avoid Arch-style imperative system changes while leaving the
-existing behaviour available outside NixOS.
+This currently handles cases such as:
 
-Examples include:
+- systemd services being managed declaratively;
+- PAM remaining owned by NixOS;
+- SDDM theme changes going through a Nix-owned helper;
+- Hypridle being provided as a user systemd service;
+- dependencies being supplied by Nix rather than installer scripts.
 
-- system services being provided declaratively by NixOS;
-- PAM files not being edited from the Hub;
-- SDDM theme application being routed through a NixOS-owned helper;
-- Hypridle being managed as a user systemd service;
-- runtime dependencies being supplied by the Nix package/module rather than
-  installed by shell scripts.
-
-The aim is to keep these compatibility points small enough that upstream Ryoku
-changes can still be merged without maintaining two separate implementations.
+Existing non-Nix behaviour remains available outside the bridge.
 
 ---
 
-## Lockscreen / SDDM Notes
+## Notable NixOS Adaptations
 
-qylock is materialised into writable user state rather than attempting to write
-into the Nix store.
+### qylock / SDDM
 
-Custom RyoStore themes are stored beneath the user's qylock theme directory and
-can be selected normally from Ryoku.
+Writable lockscreen themes are kept in normal user state rather than the Nix
+store.
 
-For SDDM, the active theme is copied into Ryoku-owned mutable state under:
+The currently selected SDDM theme is materialised under:
 
 ```text
 /var/lib/ryoku/sddm-theme
 ```
 
-The Nix-built SDDM theme entry points at that state. This allows RyoStore theme
-selection to affect the greeter without modifying immutable Nix store paths.
+This allows RyoStore themes to affect SDDM without attempting to modify
+immutable Nix store paths.
 
-The Hub's Arch-specific PAM mutation controls are disabled when the Nix bridge
-is active because PAM is managed declaratively by NixOS.
+### PAM
 
----
+Ryoku's Arch-side PAM mutation controls are not allowed to modify `/etc/pam.d`
+when the Nix bridge is active.
 
-## Ryo Motion / Recording Notes
+Authentication remains declaratively managed by NixOS.
 
-Ryo Motion is packaged through Nix and exposed in the system environment.
+### Recording
 
-Recording currently includes a CPU encoding fallback because the NVIDIA encode
-path on the development system has an API compatibility issue. Core recording
-and Studio recording have both produced valid clips, including cursor sidecar
-data.
+Ryo Motion is packaged natively through Nix.
 
-Some UI-triggered edit/open workflows still need final validation.
+The current development machine also uses a CPU recording fallback because its
+NVIDIA encode path has an API compatibility issue.
 
 ---
 
-## Known Development Issue
+## Known Issues
 
-The main active issue is process ownership around `ryoku-shell.service`.
+### `ryoku-shell.service`
 
-During repeated shell restarts, child processes have remained associated with
-the service and the unit has shown unusually high memory/CPU accounting.
+Repeated shell restarts can leave child processes associated with the service,
+causing excessive cgroup memory/CPU accounting.
 
-This is being treated separately from the desktop functionality itself and is
-the next major cleanup item.
+This is the main active cleanup issue.
 
----
+### NVIDIA suspend/resume
 
-## Suspend / NVIDIA
+A previous suspend test exposed an NVIDIA resume failure that terminated
+Hyprland after resume.
 
-A suspend test exposed an NVIDIA resume failure which caused Hyprland and the
-lockscreen session to terminate after resume.
+The next system generation already contains the required NVIDIA power-management
+changes, but they have not yet been activated and live-tested after reboot.
 
-The next NixOS generation contains the corresponding NVIDIA power-management
-configuration, including preserved video memory, kernel suspend notifiers, and
-a temporary backing-file location.
-
-That generation has been built successfully but has not yet been activated by
-a reboot, so the suspend fix should currently be considered **pending live
-validation** rather than confirmed.
+Status: **pending validation**, not confirmed fixed.
 
 ---
 
-## Upstream Intent
+## Upstream Direction
 
-This repository is not intended to become an independently diverging Ryoku
-fork.
+This repository is not intended to become a permanently separate Ryoku fork.
 
-If the NixOS work is accepted upstream, the preferred long-term shape would be
-for the Nix implementation to remain alongside Ryoku itself, with the NixOS
-platform layer maintained separately from normal application development.
+If the port is accepted, the preferred structure is:
 
-That should allow normal upstream Ryoku releases to be followed closely without
-having to repeatedly re-port the desktop.
+```text
+Ryoku
+├── ryoku/       # shared application/platform code
+└── nix/         # NixOS implementation
+```
 
-A future Ryoku NixOS ISO can be built on top of this work once the desktop port
-itself is stable.
+The intention is for the NixOS version to follow normal Ryoku releases closely,
+with Nix-specific maintenance isolated to the platform layer.
+
+A Ryoku NixOS ISO can be built on top of this once the desktop port itself is
+stable.
 
 ---
 
-## Review Focus
+## Review
 
-The areas most useful to review at this stage are:
+The main things worth reviewing are:
 
-1. whether the separation between upstream Ryoku code and `nix/` is appropriate;
-2. whether the small Nix compatibility hooks are acceptable upstream;
-3. whether any of the Arch-specific behaviour should be abstracted differently;
-4. whether the current module/package structure fits how Ryoku should support
-   NixOS long-term;
-5. any areas that should be changed before this is prepared for upstream
-   integration.
+- [ ] NixOS module/package structure
+- [ ] separation between upstream code and `nix/`
+- [ ] Nix compatibility hooks
+- [ ] handling of Arch-specific imperative behaviour
+- [ ] suitability for eventual upstream integration
 
-This repository can be cleaned, rebased, or reorganised after review depending
-on how the NixOS support should ultimately live upstream.
+The structure can be cleaned, rebased, or reorganised after review depending on
+how NixOS support should live upstream.
