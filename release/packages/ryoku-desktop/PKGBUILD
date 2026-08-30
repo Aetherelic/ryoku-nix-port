@@ -28,6 +28,7 @@ depends=(
   "ryoku-blobs=$pkgver"
   "ryoku=$pkgver"
   'ryoku-keyring'
+  "ryoku-oh-my-zsh=$pkgver"
   # the RyokuArch package manager (GlazePKG)
   'gpk'
   # compositor + Wayland session

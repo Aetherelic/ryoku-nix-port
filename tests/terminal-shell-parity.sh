@@ -47,8 +47,9 @@ done
 grep -Fxq 'pkgver=0.4.0_devel3' "$repo/release/packages/blesh/PKGBUILD" ||
   fail "ble.sh 0.4 or newer is required for Starship prompt integration"
 (( ble_line < starship_line )) || fail "Bash must initialize Starship after ble.sh"
-grep -Fxq 'oh-my-zsh-git' "$repo/system/packages/aur.packages" ||
-  fail "Oh My Zsh must be installed through the existing AUR path"
+grep -Fq '"ryoku-oh-my-zsh=$pkgver"' "$repo/release/packages/ryoku-desktop/PKGBUILD" &&
+  test -f "$repo/release/packages/ryoku-oh-my-zsh/PKGBUILD" ||
+  fail "Oh My Zsh must be a signed ryoku-desktop dependency"
 need fish
 need bash
 need zsh

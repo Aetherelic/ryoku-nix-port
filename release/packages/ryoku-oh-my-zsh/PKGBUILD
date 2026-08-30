@@ -1,0 +1,22 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# Oh My Zsh framework, packaged by Ryoku so it reaches existing users through
+# the signed repository instead of relying on a fresh install's best-effort AUR
+# pass. Ryoku's zsh loader disables its self-updater; pacman owns this tree.
+pkgname=ryoku-oh-my-zsh
+pkgver=${RYOKU_PKGVER:-0.1.0}
+pkgrel=1
+pkgdesc="Oh My Zsh framework for the Ryoku Zsh integration"
+arch=('any')
+url='https://github.com/ohmyzsh/ohmyzsh'
+license=('MIT')
+makedepends=('git')
+_omz_commit=4b657407c98bbc8830ae66c2ac7ff3d737c55a83
+source=("oh-my-zsh::git+$url.git#commit=$_omz_commit")
+sha256sums=('SKIP')
+
+package() {
+  install -d "$pkgdir/usr/share/oh-my-zsh"
+  cp -a oh-my-zsh/. "$pkgdir/usr/share/oh-my-zsh/"
+  install -Dm644 oh-my-zsh/LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
