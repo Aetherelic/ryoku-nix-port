@@ -95,6 +95,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
 			os.Exit(1)
 		}
+	case "reload-cover":
+		if err := runReloadCover(args[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
+			os.Exit(1)
+		}
 	case "import":
 		if err := runImport(args[1:]); err != nil {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
@@ -161,6 +166,8 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-hub fastfetch get|preview <json>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub fastfetch save <json>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub fastfetch import-logo <path>")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub reload-cover import <path>")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub reload-cover prune [<managed-path>]")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub import scan <path|url>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub import apply <decisions.json|->")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub import undo [<ts>]")
