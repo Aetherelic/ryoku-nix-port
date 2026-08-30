@@ -1919,12 +1919,26 @@ func iconSearchDirs() []string {
 	if dataHome == "" {
 		dataHome = filepath.Join(home, ".local", "share")
 	}
-	return []string{
+
+	dirs := []string{
 		filepath.Join(home, ".icons"),
 		filepath.Join(dataHome, "icons"),
-		"/usr/share/icons",
-		"/usr/local/share/icons",
 	}
+
+	dataDirs := os.Getenv("XDG_DATA_DIRS")
+	if dataDirs == "" {
+		dataDirs = "/usr/local/share:/usr/share"
+	}
+	for _, dir := range filepath.SplitList(dataDirs) {
+		if dir != "" {
+			dirs = append(dirs, filepath.Join(dir, "icons"))
+		}
+	}
+
+	// Keep the normal FHS paths explicit for sessions with a reduced
+	// XDG_DATA_DIRS, while NixOS can expose /run/current-system/sw/share.
+	dirs = append(dirs, "/run/current-system/sw/share/icons", "/usr/share/icons", "/usr/local/share/icons")
+	return dirs
 }
 
 // listKbLayouts: X11 keyboard layout codes from the xkb rules base, each as

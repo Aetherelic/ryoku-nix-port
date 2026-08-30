@@ -32,6 +32,36 @@ function uniqueByName(screens) {
 // new object with the same name, so a per-monitor slice found by object identity
 // resolves to nothing exactly when a surface is being rebuilt for it, and every
 // binding reading that slice falls back to its stale value.
+function onlyName(screens, name) {
+    var list = uniqueByName(screens);
+    var target = String(name || "");
+
+    if (target === "")
+        return list;
+
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+        if (list[i] && list[i].name === target)
+            out.push(list[i]);
+    }
+    return out;
+}
+
+function exceptName(screens, name) {
+    var list = uniqueByName(screens);
+    var target = String(name || "");
+
+    if (target === "")
+        return [];
+
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+        if (list[i] && list[i].name !== target)
+            out.push(list[i]);
+    }
+    return out;
+}
+
 function sliceForName(instances, name) {
     if (!instances || !name)
         return null;
@@ -48,4 +78,4 @@ function sliceForScreen(instances, screen) {
 }
 
 if (typeof module !== "undefined" && module.exports)
-    module.exports = { uniqueByName, sliceForName, sliceForScreen };
+    module.exports = { uniqueByName, onlyName, exceptName, sliceForName, sliceForScreen };

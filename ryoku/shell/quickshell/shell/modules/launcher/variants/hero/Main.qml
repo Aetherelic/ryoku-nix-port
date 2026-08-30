@@ -49,10 +49,16 @@ Scope {
             ? "" : LauncherConfig.weatherUnit
     }
 
+    readonly property string primaryOutput: Quickshell.env("RYOKU_PRIMARY_OUTPUT") || ""
+
     function focusedMonitor() {
+        if (root.primaryOutput !== "")
+            return root.primaryOutput;
+
         var monitor = Hyprland.focusedMonitor;
         if (monitor && monitor.name)
             return monitor.name;
+
         return Quickshell.screens.length > 0
             ? Quickshell.screens[0].name : "";
     }
@@ -441,7 +447,7 @@ Scope {
     }
 
     Variants {
-        model: Screens.uniqueByName(Quickshell.screens)
+        model: Screens.onlyName(Quickshell.screens, root.primaryOutput)
 
         HeroVariant.LauncherSurface {
             providerSet: sharedProviders
@@ -463,7 +469,7 @@ Scope {
     }
 
     Variants {
-        model: Screens.uniqueByName(Quickshell.screens)
+        model: Screens.onlyName(Quickshell.screens, root.primaryOutput)
 
         HeroVariant.WindowRailSurface {
             launcher: root.activeLauncher

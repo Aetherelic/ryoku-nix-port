@@ -16,7 +16,19 @@
 # colours. Run at login and on every palette change.
 set -u
 
-pap=/usr/share/icons/Papirus
+pap=${RYOKU_PAPIRUS_ROOT:-}
+if [ -z "$pap" ]; then
+  old_ifs=$IFS
+  IFS=:
+  for data_dir in ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do
+    if [ -d "$data_dir/icons/Papirus" ]; then
+      pap="$data_dir/icons/Papirus"
+      break
+    fi
+  done
+  IFS=$old_ifs
+fi
+pap=${pap:-/usr/share/icons/Papirus}
 src=$pap/64x64/places
 [ -d "$src" ] || exit 0
 

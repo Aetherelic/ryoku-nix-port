@@ -8,9 +8,24 @@
       url = "github:neur0map/glazepkg";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    hyprglassSrc = {
+      url = "github:hyprnux/hyprglass/v0.7.0";
+      flake = false;
+    };
+
+    bibataMaterialSrc = {
+      url = "github:rtgiskard/bibata_cursor/f4ccfe8abb63fddc7b3ce51a866fd8378395cb3d";
+      flake = false;
+    };
+
+    imgbordersSrc = {
+      url = "git+https://codeberg.org/zacoons/imgborders.git?ref=master";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, glazepkg, ... }:
+  outputs = { self, nixpkgs, glazepkg, hyprglassSrc, bibataMaterialSrc, imgbordersSrc, ... }:
     let
       system = "x86_64-linux";
 
@@ -19,7 +34,7 @@
       };
 
       ryoku = import ./nix/packages {
-        inherit pkgs;
+        inherit pkgs hyprglassSrc bibataMaterialSrc imgbordersSrc;
         src = self;
       };
 
@@ -59,6 +74,11 @@
         ryoku-helpers = ryoku.helpers;
         ryoku-nixos-system-bridge = ryoku.nixosSystemBridge;
         ryoku-desktop-data = ryoku.desktopData;
+        ryoku-hyprglass = ryoku.hyprglass;
+        ryoku-imgborders = ryoku.imgborders;
+        ryoku-hypr-plugins = ryoku.hyprPlugins;
+        ryoku-cursor-material = ryoku.cursorMaterial;
+        ryoku-maple-mono-nf = ryoku.mapleMonoNF;
 
         ryoku-bundle = ryoku.bundle;
 

@@ -64,7 +64,10 @@ def hexval(h):
         h = "".join(c * 2 for c in h)
     if len(h) != 6:
         return None
-    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    try:
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return None
 
 
 def tohex(rgb):
@@ -94,6 +97,7 @@ def compile_theme(flags, body, primary, watch):
     for sub in ("src", "svg", "config"):
         shutil.copytree(SRC / sub, work / sub)
     render = work / "config/render.json"
+    render.chmod(render.stat().st_mode | 0o200)
     d = json.loads(render.read_text())
     t = "Bibata-Modern-Classic"
     d[t]["colors"][0]["replace"] = body

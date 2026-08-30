@@ -270,6 +270,12 @@ LUA
     # ── Browser integration ────────────────────────────────────
 
     mkdir -p "$out/share/ryoku/browser"
+
+    (
+      cd ryoku/browser
+      sh ./build.sh
+    )
+
     cp -a ryoku/browser/. "$out/share/ryoku/browser/"
 
     # ── Wallpapers ─────────────────────────────────────────────

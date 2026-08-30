@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "bibataMaterialSrc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1738046050,
+        "narHash": "sha256-p36pHyoVOcDPm/tbk8YKsL+ItTaVKrGTfQ8zp022mGA=",
+        "owner": "rtgiskard",
+        "repo": "bibata_cursor",
+        "rev": "f4ccfe8abb63fddc7b3ce51a866fd8378395cb3d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rtgiskard",
+        "repo": "bibata_cursor",
+        "rev": "f4ccfe8abb63fddc7b3ce51a866fd8378395cb3d",
+        "type": "github"
+      }
+    },
     "glazepkg": {
       "inputs": {
         "nixpkgs": [
@@ -20,6 +37,40 @@
         "type": "github"
       }
     },
+    "hyprglassSrc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1784579282,
+        "narHash": "sha256-x/584kY+XXlU/OWKtZAFo89VtowjLXs1DiP9PC0o0Os=",
+        "owner": "hyprnux",
+        "repo": "hyprglass",
+        "rev": "5bc835dcc909cef6980291688143048cf16942b5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hyprnux",
+        "ref": "v0.7.0",
+        "repo": "hyprglass",
+        "type": "github"
+      }
+    },
+    "imgbordersSrc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786876215,
+        "narHash": "sha256-O+896T2qrisxiWTotB5HlzKw8XEJqPDTgSUHAAVUD18=",
+        "ref": "master",
+        "rev": "08be22236144d3c91607bcfa955ed0d457f4f50b",
+        "revCount": 76,
+        "type": "git",
+        "url": "https://codeberg.org/zacoons/imgborders.git"
+      },
+      "original": {
+        "ref": "master",
+        "type": "git",
+        "url": "https://codeberg.org/zacoons/imgborders.git"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1787498568,
@@ -38,7 +89,10 @@
     },
     "root": {
       "inputs": {
+        "bibataMaterialSrc": "bibataMaterialSrc",
         "glazepkg": "glazepkg",
+        "hyprglassSrc": "hyprglassSrc",
+        "imgbordersSrc": "imgbordersSrc",
         "nixpkgs": "nixpkgs"
       }
     }

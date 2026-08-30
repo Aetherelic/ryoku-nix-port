@@ -100,9 +100,15 @@ Scope {
         value: LauncherConfig.weatherUnit === "auto" ? "" : LauncherConfig.weatherUnit
     }
 
+    readonly property string primaryOutput: Quickshell.env("RYOKU_PRIMARY_OUTPUT") || ""
+
     function focusedMonitor() {
+        if (root.primaryOutput !== "")
+            return root.primaryOutput;
+
         var m = Hyprland.focusedMonitor;
-        return m && m.name ? m.name : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
+        return m && m.name ? m.name
+            : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
     }
 
     function show(mon) {
@@ -132,7 +138,7 @@ Scope {
 
 
     Variants {
-        model: Screens.uniqueByName(Quickshell.screens)
+        model: Screens.onlyName(Quickshell.screens, root.primaryOutput)
 
         PanelWindow {
             id: win

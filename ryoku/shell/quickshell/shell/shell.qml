@@ -84,13 +84,25 @@ ShellRoot {
         }
     }
 
+    // In single-output mode, non-primary monitors keep only Ryoku's wallpaper.
+    // Bars, widgets, menus, overlays, notifications and other interactive shell
+    // surfaces are created exclusively on ShellState.shellScreens.
+    Variants {
+        model: ShellState.wallpaperOnlyScreens
+
+        Wallpaper {
+            required property var modelData
+            screen: modelData
+        }
+    }
+
     // One per-monitor surface stack. Each screen gets a Scope carrying its
     // ShellState slice (st); every resident surface binds its screen and its
     // visibility to that slice, so flipping a flag on the active monitor reveals
     // or hides this monitor's copy. The order here reads top-to-bottom only; the
     // Wayland layer each surface maps on decides the real stacking.
     Variants {
-        model: ShellState.screens
+        model: ShellState.shellScreens
 
         Scope {
             id: perScreen

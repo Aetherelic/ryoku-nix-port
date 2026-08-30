@@ -13,6 +13,42 @@ import Ryoku.Ui.Singletons
 Singleton {
     id: root
 
+    // NixOS runs the resident shell as a systemd user service. Applications
+    // launched directly by Quickshell would otherwise inherit that service's
+    // cgroup and be killed or leaked when the shell restarts.
+    //
+    // Put user applications in transient app.slice scopes on NixOS. Arch keeps
+    // the existing direct Spawn behaviour unchanged.
+    readonly property bool isolateUserApps:
+        (Quickshell.env("RYOKU_NIX_SYSTEM_BRIDGE") || "") === "1"
+
+    readonly property string systemdRun:
+        Quickshell.env("RYOKU_SYSTEMD_RUN") || "systemd-run"
+
+    function spawnUserApp(argv, workingDirectory) {
+        if (!argv || argv.length === 0)
+            return;
+
+        var command = [];
+
+        if (root.isolateUserApps) {
+            command = [
+                root.systemdRun,
+                "--user",
+                "--scope",
+                "--quiet",
+                "--collect",
+                "--slice=app.slice",
+                "--"
+            ];
+        }
+
+        for (let i = 0; i < argv.length; i++)
+            command.push(String(argv[i]));
+
+        Spawn.run(command, workingDirectory || "");
+    }
+
     // run(entry) launches the entry; run(entry, action) launches one of its
     // actions, which inherit Terminal= from the entry that declares them.
     function run(entry, action) {
@@ -21,12 +57,15 @@ Singleton {
             return;
         const argv = entry && entry.runInTerminal ? (target.command || []) : [];
         if (argv.length === 0) {
-            Spawn.run(target.command, entry ? entry.workingDirectory : "");
+            root.spawnUserApp(
+                target.command,
+                entry ? entry.workingDirectory : ""
+            );
             return;
         }
         const command = ["ryoku-app", "terminal", "--"];
         for (let i = 0; i < argv.length; i++)
             command.push(String(argv[i]));
-        Spawn.run(command);
+        root.spawnUserApp(command, "");
     }
 }

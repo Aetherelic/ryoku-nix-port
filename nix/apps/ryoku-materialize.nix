@@ -111,6 +111,20 @@ pkgs.writeShellApplication {
         "$user_qml/$module"
     done
 
+    # Hyprland's optional plugins are immutable Nix packages, but the
+    # upstream Hub already knows how to discover/load ~/.local plugin files.
+    # Materialize stable user-facing symlinks instead of teaching the Hub Nix
+    # store paths or writing into /usr/lib.
+    plugin_dir="$HOME/.local/lib/hyprland/plugins"
+    mkdir -p "$plugin_dir"
+
+    for plugin in dynamic-cursors hyprbars hyprfocus hyprglass imgborders; do
+      rm -f -- "$plugin_dir/$plugin.so"
+      ln -s \
+        "${ryoku.hyprPlugins}/lib/hyprland/plugins/$plugin.so" \
+        "$plugin_dir/$plugin.so"
+    done
+
     # ----------------------------------------------------------
     # NixOS owns Ryoku's systemd user units declaratively.
     #
@@ -132,9 +146,12 @@ pkgs.writeShellApplication {
     # Seed visible assets without replacing user files
     # ----------------------------------------------------------
 
+    data_home="''${XDG_DATA_HOME:-$HOME/.local/share}"
+
     mkdir -p \
       "$HOME/Pictures/Wallpapers" \
-      "$HOME/Pictures/ryodecors"
+      "$HOME/Pictures/ryodecors" \
+      "$data_home/ryoku/assets/brand"
 
     if [ -d "${ryoku.desktopData}/share/ryoku/wallpapers" ]; then
       cp -n \
@@ -147,6 +164,13 @@ pkgs.writeShellApplication {
       cp -n \
         "${ryoku.desktopData}/share/ryoku/ryodecors/"* \
         "$HOME/Pictures/ryodecors/" \
+        2>/dev/null || true
+    fi
+
+    if [ -d "${ryoku.desktopData}/share/ryoku/brand" ]; then
+      cp -n \
+        "${ryoku.desktopData}/share/ryoku/brand/"* \
+        "$data_home/ryoku/assets/brand/" \
         2>/dev/null || true
     fi
 

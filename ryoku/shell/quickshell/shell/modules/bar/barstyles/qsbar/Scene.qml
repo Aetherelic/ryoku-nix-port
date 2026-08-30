@@ -30,7 +30,10 @@ Item {
     // when a duplicate output announce briefly swaps the ShellScreen object, so
     // the bar system is never hosted twice.
     readonly property bool isPrimary: {
-        var list = Screens.uniqueByName(Quickshell.screens)
+        var list = Screens.onlyName(
+            Quickshell.screens,
+            Quickshell.env("RYOKU_PRIMARY_OUTPUT") || ""
+        )
         return list.length > 0 && !!sceneRoot.modelData
             && list[0].name === sceneRoot.modelData.name
     }

@@ -40,7 +40,8 @@ Item {
     // and collapses a duplicate output announce, so a monitor re-add can never
     // stack a second BarSlot on the same output. A genuinely new ShellScreen still
     // makes Variants destroy the old BarSlot and instantiate a fresh one.
-    readonly property var barScreens: Screens.uniqueByName(Quickshell.screens)
+    readonly property string primaryOutput: Quickshell.env("RYOKU_PRIMARY_OUTPUT") || ""
+    readonly property var barScreens: Screens.onlyName(Quickshell.screens, root.primaryOutput)
 
     function lifecycleReady() {
         if (!theme._widgetsLoaded || barScreens.length === 0) return false

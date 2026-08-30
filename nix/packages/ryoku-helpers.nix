@@ -43,6 +43,13 @@ pkgs.stdenvNoCC.mkDerivation {
     install_helpers \
       system/extras/ryoku-cmd-present
 
+    # RyoStore's upstream bundle actuator mutates pacman/AUR state. NixOS
+    # instead exposes a read-only status shim and rejects package mutations
+    # with a clear declarative-system message.
+    install -Dm755 \
+      nix/bridge/ryostore-install \
+      "$out/bin/ryostore-install"
+
     # Settings -> language integration.
     install -Dm755 \
       ryoku/ui/i18n-sync.py \

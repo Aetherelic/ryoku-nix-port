@@ -15,6 +15,8 @@ import Ryoku.Ui.Singletons
 Scope {
     id: root
 
+    readonly property string primaryOutput: Quickshell.env("RYOKU_PRIMARY_OUTPUT") || ""
+
     // ── palette: the live matugen roles ─────────────────────────────────────
     property var pal: ({})       // colors.json: the live wallpaper palette
     property var named: null     // shell.json themePalette: the active coded theme
@@ -193,7 +195,7 @@ Scope {
     }
 
     Variants {
-        model: Screens.uniqueByName(Quickshell.screens)
+        model: Screens.onlyName(Quickshell.screens, root.primaryOutput)
 
         PanelWindow {
             id: win

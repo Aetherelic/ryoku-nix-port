@@ -24,6 +24,13 @@ Singleton {
     // Quickshell.screens, so a genuine hotplug still flows through.
     readonly property var screens: Screens.uniqueByName(Quickshell.screens)
 
+    // Optional single-output shell mode. Empty preserves Ryoku's normal
+    // multi-monitor behaviour. NixOS can set RYOKU_PRIMARY_OUTPUT to keep all
+    // interactive shell surfaces on one monitor while wallpapers remain global.
+    readonly property string primaryOutput: Quickshell.env("RYOKU_PRIMARY_OUTPUT") || ""
+    readonly property var shellScreens: Screens.onlyName(Quickshell.screens, root.primaryOutput)
+    readonly property var wallpaperOnlyScreens: Screens.exceptName(Quickshell.screens, root.primaryOutput)
+
     // State for a specific screen, or null before its per-monitor instance is
     // built (a binding can evaluate ahead of screen hotplug). Matched on output
     // name, so a screen the compositor destroyed and recreated still resolves.
@@ -34,12 +41,20 @@ Singleton {
     // State for the monitor Hyprland currently focuses; falls back to the first
     // screen so a caller before focus is known still gets a live target.
     function forActive() {
+        if (root.primaryOutput !== "")
+            return Screens.sliceForName(states.instances, root.primaryOutput);
+
         const mon = Hyprland.focusedMonitor;
         const slice = Screens.sliceForName(states.instances, mon && mon.name ? mon.name : "");
         if (slice)
             return slice;
+
         const list = states.instances;
         return list.length > 0 ? list[0] : null;
+    }
+
+    function shellMonitor(mon) {
+        return root.primaryOutput !== "" ? root.primaryOutput : String(mon || "");
     }
 
     // --- Session-action confirmation (contract 13 sec 2c, 8) ---------------
@@ -58,8 +73,10 @@ Singleton {
     readonly property string sessionPositive: root.sessionAction !== "" ? root.sessionCopy[root.sessionAction].positive : ""
 
     function askSessionAction(id, mon) {
-        root.sessionActionMonitor = (mon && mon !== "") ? mon
-            : (root.screens.length > 0 ? root.screens[0].name : "");
+        root.sessionActionMonitor = root.shellMonitor(
+            (mon && mon !== "") ? mon
+                : (root.shellScreens.length > 0 ? root.shellScreens[0].name : "")
+        );
         root.sessionAction = id;
     }
     function clearSessionAction() {
@@ -76,13 +93,23 @@ Singleton {
     signal surfaceRequested(string id, string mon, var context)
     signal surfaceClosed(string id, string mon)
     signal keyringPromptChanged(int promptId)
-    function requestSurface(id, mon, context) { root.surfaceRequested(id, mon, context); }
-    function closeSurface(id, mon) { root.surfaceClosed(id, mon); }
+    function requestSurface(id, mon, context) {
+        root.surfaceRequested(id, root.shellMonitor(mon), context);
+    }
+
+    function closeSurface(id, mon) {
+        root.surfaceClosed(id, root.shellMonitor(mon));
+    }
 
     // Open a surface on the focused monitor: the menu global-shortcut handlers
     // call this so a keybind lands on the active screen, matching the old
     // `ryoku-shell menu <id>` which routed to the daemon's activeMonitor.
     function requestSurfaceActive(id, context) {
+        if (root.primaryOutput !== "") {
+            root.surfaceRequested(id, root.primaryOutput, context);
+            return;
+        }
+
         const m = Hyprland.focusedMonitor;
         root.surfaceRequested(id, m && m.name ? m.name : "", context);
     }
@@ -97,7 +124,7 @@ Singleton {
 
     Variants {
         id: states
-        model: root.screens
+        model: root.shellScreens
 
         PersistentProperties {
             id: slice

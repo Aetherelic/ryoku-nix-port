@@ -15,6 +15,9 @@ let
   ryokuHelpers = ryokuPkgs.ryoku-helpers;
   ryokuSystemBridge = ryokuPkgs.ryoku-nixos-system-bridge;
   ryokuDesktopData = ryokuPkgs.ryoku-desktop-data;
+  ryokuHyprPlugins = ryokuPkgs.ryoku-hypr-plugins;
+  ryokuCursorMaterial = ryokuPkgs.ryoku-cursor-material;
+  ryokuMapleMonoNF = ryokuPkgs.ryoku-maple-mono-nf;
   materializer = ryokuPkgs.ryoku-materialize;
 
   # ───────────────────────────────────────────────────────────
@@ -407,6 +410,7 @@ EOF
 
     quickshell
     hyprland
+    ryokuHyprPlugins
 
     # ─────────────────────────────────────────────────────────
     # Qt / QML
@@ -418,6 +422,7 @@ EOF
     qt6.qt5compat
     qt6.qtsvg
     qt6.qtimageformats
+    qt6Packages.qt6ct
     kdePackages.syntax-highlighting
 
     # ─────────────────────────────────────────────────────────
@@ -463,6 +468,14 @@ EOF
     imagemagick
     matugen
     ffmpeg
+    vulkan-tools
+    ryokuCursorMaterial
+
+    # Cursor catalogue offered by the Hub.
+    bibata-cursors
+    vimix-cursors
+    phinger-cursors
+    apple-cursor
 
     # ─────────────────────────────────────────────────────────
     # Networking / hardware
@@ -596,6 +609,18 @@ in
 {
   options.programs.ryoku = {
     enable = lib.mkEnableOption "Ryoku desktop";
+
+    primaryOutput = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      example = "DP-2";
+
+      description = ''
+        Optional monitor name that exclusively owns Ryoku shell surfaces.
+        When empty, Ryoku keeps its normal multi-monitor behaviour.
+        Other outputs retain wallpaper surfaces when this is set.
+      '';
+    };
     shell = lib.mkOption {
       type = lib.types.enum [
         "fish"
@@ -964,9 +989,12 @@ in
     fonts.packages =
       [
         pkgs.inter
+        pkgs.fraunces
         spaceGrotesk
+        ryokuMapleMonoNF
 
         pkgs.nerd-fonts.jetbrains-mono
+        pkgs.nerd-fonts.space-mono
         pkgs.nerd-fonts.fira-code
         pkgs.nerd-fonts.hack
         pkgs.noto-fonts
@@ -1188,6 +1216,8 @@ in
 
         RYOKU_NIX_SYSTEM_BRIDGE = "1";
         RYOKU_POLKIT_AGENT = "1";
+        RYOKU_PRIMARY_OUTPUT = cfg.primaryOutput;
+        RYOKU_SYSTEMD_RUN = "${pkgs.systemd}/bin/systemd-run";
 
         # NixOS owns system generations and package upgrades. Tell the
         # Ryoku Hub not to expose the Arch `ryoku update` transaction.
@@ -1219,7 +1249,9 @@ in
         Restart = "always";
         RestartSec = 2;
 
-        KillMode = "process";
+        # User applications are launched into independent app.slice scopes,
+        # so the shell can safely own and clean up its complete process tree.
+        KillMode = "control-group";
         Slice = "session.slice";
       };
     };

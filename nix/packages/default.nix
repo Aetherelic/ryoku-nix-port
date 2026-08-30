@@ -1,4 +1,4 @@
-{ pkgs, src }:
+{ pkgs, src, hyprglassSrc, bibataMaterialSrc, imgbordersSrc }:
 
 let
   qmlRoot = "lib/qt-6/qml";
@@ -45,6 +45,31 @@ let
 
   helpers = import ./ryoku-helpers.nix {
     inherit pkgs src;
+  };
+
+  hyprglass = import ./ryoku-hyprglass.nix {
+    inherit pkgs;
+    src = hyprglassSrc;
+  };
+
+  imgborders = pkgs.hyprlandPlugins.imgborders.overrideAttrs (_: {
+    pname = "ryoku-imgborders";
+    version = "unstable";
+    src = imgbordersSrc;
+  });
+
+  hyprPlugins = import ./ryoku-hypr-plugins.nix {
+    inherit pkgs hyprglass imgborders;
+  };
+
+  cursorMaterial = import ./ryoku-cursor-material.nix {
+    inherit pkgs;
+    ryokuSrc = src;
+    bibataSrc = bibataMaterialSrc;
+  };
+
+  mapleMonoNF = import ./ryoku-maple-mono-nf.nix {
+    inherit pkgs;
   };
 
   nixosSystemBridge = import ./ryoku-nixos-system-bridge.nix {
@@ -180,6 +205,11 @@ in
     desktopData
     helpers
     nixosSystemBridge
+    hyprglass
+    imgborders
+    hyprPlugins
+    cursorMaterial
+    mapleMonoNF
 
     ui
     pluginKit
