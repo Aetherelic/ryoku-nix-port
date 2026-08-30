@@ -107,6 +107,7 @@ type daemon struct {
 	paintSig       chan struct{}        // coalescing wake for the palette/border worker
 	depthSig       chan struct{}        // coalescing wake for the depth-cutout worker
 	depthForce     atomic.Bool          // a pending forced regenerate (enable / model change)
+	depthBusy      atomic.Bool          // a cutout generation is in flight (for status)
 	ledsSig        chan struct{}        // coalescing wake for the OpenRGB worker
 	widgetSig      chan struct{}        // coalescing wake for the widget-occupancy gate
 	liveSig        chan struct{}        // coalescing wake for the live-wallpaper fullscreen gate
@@ -997,9 +998,14 @@ func (d *daemon) dispatch(line string) string {
 	case "depth":
 		// refresh forces a regenerate for the current wallpaper (enable / model
 		// change); the worker no-ops when depth is off or the engine is absent.
+		// status reports generation progress and the current cutout to the UI.
 		if len(args) >= 1 && args[0] == "refresh" {
 			d.depthForce.Store(true)
 			d.scheduleDepth()
+			return "ok"
+		}
+		if len(args) >= 1 && args[0] == "status" {
+			return depthStatusJSON(d.depthBusy.Load())
 		}
 		return "ok"
 	case "wallpaper":

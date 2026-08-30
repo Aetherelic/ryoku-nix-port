@@ -18,7 +18,7 @@ negative space. Both are handled below.
 ryoku-shell daemon                     shell (QML)
 ------------------                     -----------
 wallpaper apply / depth refresh        depth/Singletons/Config.qml  (depth.json)
-  -> scheduleDepth (async worker)          |  enabled, model, alphaMatting, feather, lift, front
+  -> scheduleDepth (async worker)          |  enabled, model, alphaMatting, feather, lift, shadow, front
   -> ryoku-depth cutout <wp> <out.png>     v
   -> wallEntry.depthPath                QuickSettingsDepth.qml (on/off, model, edge, COMPOSE)
   -> wall.republish()                      |
@@ -55,10 +55,11 @@ update-safety `visualizer.json` already relies on (`docs/updates.md`). No
 | Key | Type | Default | What it is |
 |---|---|---|---|
 | `enabled` | bool | `false` | Master on/off. Also the daemon's cue to generate. |
-| `model` | string | `u2netp` | Segmentation model. The UI offers only the curated set the installed engine actually carries. |
-| `alphaMatting` | bool | `false` | Edge refinement. Traces finer edges (hair, fur) at some cost in generation time. Regenerates the cutout when changed. |
+| `model` | string | `u2netp` | Segmentation model. The Depth tab folds this and `alphaMatting` into one **Detail** control: Draft (u2netp), Standard (+ matting), Fine (birefnet + matting). |
+| `alphaMatting` | bool | `false` | Edge matting for finer edges (hair, fur); part of the Detail control. Regenerates the cutout when changed. |
 | `feather` | real 0..1 | `0.15` | Edge softness of the cutout, a mask blur at the silhouette. |
 | `lift` | real 0..1 | `1.0` | Foreground strength. Below 1 lets a hint of the background through the subject for a softer set-in. |
+| `shadow` | real 0..1 | `0` | A soft cast shadow behind the subject (render-only, a MultiEffect drop shadow). |
 | `front` | list\<string\> | `[]` | Widget ids that draw *above* the cutout (default: every widget behind the subject). Each widget's right-click menu toggles its own; the compose bar also quick-toggles the clock. |
 
 `available` is **not** config; it is reported live by `DepthBackend` (below).
@@ -105,8 +106,9 @@ engine reports them.
   `republish()`. Videos are skipped (a static cutout over motion drifts). A
   failure leaves the cutout empty and is logged, never fatal.
 - **Triggers.** Every wallpaper apply/repaint schedules depth when enabled; the
-  `depth refresh` IPC subcommand (called by the Config singleton on enable or
-  model change) sets a force flag so the current wallpaper regenerates in place.
+  `depth refresh` IPC subcommand (Config on enable / detail change) sets a force
+  flag so the current wallpaper regenerates in place. `depth status` reports
+  `{busy, path}` so the Depth tab shows a progress bar and a preview of the cutout.
 
 ## Where cutouts live: `~/Pictures/Depth`
 

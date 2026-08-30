@@ -5,8 +5,8 @@ import Quickshell
 import Quickshell.Io
 
 // Wallpaper depth config: a watched, self-seeded ~/.config/ryoku/depth.json,
-// mirroring the visualiser (docs/depth.md). enabled/model/alphaMatting changes ask
-// the daemon to regenerate the cutout; feather/lift/front are render-only.
+// mirroring the visualiser (docs/depth.md). quality (model + edge matting) asks
+// the daemon to regenerate; feather/lift/shadow/front are render-only.
 Singleton {
     id: root
 
@@ -16,6 +16,7 @@ Singleton {
     property alias lift: adapter.lift
     property alias front: adapter.front
     property alias alphaMatting: adapter.alphaMatting
+    property alias shadow: adapter.shadow
 
     // Filtered to what the engine actually carries by DepthBackend.
     readonly property var knownModels: ["u2netp", "birefnet-general-lite"]
@@ -59,6 +60,31 @@ Singleton {
         adapter.front = arr;
         settle.restart();
     }
+    // Quality folds the model and edge-matting knobs into three plain tiers, so
+    // the UI never exposes "u2netp" or "alpha matting".
+    function setQuality(level) {
+        if (level === "fine") {
+            adapter.model = "birefnet-general-lite";
+            adapter.alphaMatting = true;
+        } else if (level === "standard") {
+            adapter.model = "u2netp";
+            adapter.alphaMatting = true;
+        } else {
+            adapter.model = "u2netp";
+            adapter.alphaMatting = false;
+        }
+        file.writeAdapter();
+        root.refresh();
+    }
+    function qualityLevel() {
+        if (adapter.model === "birefnet-general-lite")
+            return "fine";
+        return adapter.alphaMatting ? "standard" : "draft";
+    }
+    function setShadow(v) {
+        adapter.shadow = Math.max(0, Math.min(1, v));
+        settle.restart();
+    }
 
     function refresh() {
         refreshProc.running = false;
@@ -92,6 +118,7 @@ Singleton {
             property real lift: 1.0
             property var front: []
             property bool alphaMatting: false
+            property real shadow: 0.0
         }
     }
 

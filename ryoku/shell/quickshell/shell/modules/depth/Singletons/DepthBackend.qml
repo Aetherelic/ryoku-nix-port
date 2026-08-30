@@ -88,9 +88,12 @@ Singleton {
         }
     }
 
+    // Open the cutouts folder in the graphical file manager. xdg-open resolves to
+    // the user's default, which on Ryoku can be the terminal file manager; the
+    // Files app (nautilus) is what a "show files" button should open.
     Process {
         id: openProc
-        command: ["sh", "-c", "mkdir -p \"$HOME/Pictures/Depth\" && xdg-open \"$HOME/Pictures/Depth\""]
+        command: ["sh", "-c", "d=\"$HOME/Pictures/Depth\"; mkdir -p \"$d\"; nautilus \"$d\" 2>/dev/null || gio open \"$d\" 2>/dev/null || xdg-open \"$d\""]
     }
 
     Component.onCompleted: root.recheck()

@@ -55,11 +55,17 @@ Item {
         }
     }
 
-    // Edge feather so the cutout sets into the scene; no FBO at zero.
-    layer.enabled: Config.feather > 0.001
+    // Edge feather and an optional cast shadow set the cutout into the scene; the
+    // FBO stays off when both are zero.
+    layer.enabled: Config.feather > 0.001 || Config.shadow > 0.001
     layer.effect: MultiEffect {
-        blurEnabled: true
+        blurEnabled: Config.feather > 0.001
         blurMax: 16
         blur: Config.feather
+        shadowEnabled: Config.shadow > 0.001
+        shadowColor: Qt.rgba(0, 0, 0, 0.72 * Config.shadow)
+        shadowBlur: 0.55 + 0.45 * Config.shadow
+        shadowVerticalOffset: Math.round(20 * Config.shadow)
+        shadowHorizontalOffset: Math.round(12 * Config.shadow)
     }
 }

@@ -71,6 +71,22 @@ func depthOut(source string) string {
 	return filepath.Join(depthDir(), stem+"-depth.png")
 }
 
+// depthStatusJSON reports generation state and the current default cutout to the
+// UI: busy drives the progress bar, path drives the preview thumbnail.
+func depthStatusJSON(busy bool) string {
+	path := ""
+	if st := readWallState(); st.Default != "" && !isVideo(st.Default) {
+		if p := depthOut(st.Default); isFile(p) {
+			path = p
+		}
+	}
+	b, _ := json.Marshal(struct {
+		Busy bool   `json:"busy"`
+		Path string `json:"path"`
+	}{busy, path})
+	return string(b)
+}
+
 // depthMeta keeps reuse correct: a cutout is reused only for the same source,
 // model, and edge setting, so returning to a wallpaper never shows a stale cut.
 type depthMeta struct {
@@ -141,6 +157,8 @@ func (d *daemon) generateDepth(model string, matting bool, force bool) {
 	if len(targets) == 0 {
 		return
 	}
+	d.depthBusy.Store(true)
+	defer d.depthBusy.Store(false)
 	if err := os.MkdirAll(depthDir(), 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "depthWorker: %v\n", err)
 		return
