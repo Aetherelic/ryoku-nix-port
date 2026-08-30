@@ -250,6 +250,25 @@ Item {
     // lit while you reach across to it.
     HoverHandler { id: slotHover }
 
+    // scroll to scale: Ctrl + wheel anywhere on the widget resizes it, an easier
+    // reach than the corner bracket. setLive keeps it smooth; the settle timer
+    // does the one persisting write once scrolling stops.
+    WheelHandler {
+        enabled: !slot.locked
+        acceptedModifiers: Qt.ControlModifier
+        onWheel: event => {
+            const step = event.angleDelta.y > 0 ? 1.06 : 1 / 1.06;
+            const ns = Math.max(0.5, Math.min(2.5, slot.scaleCfg * step));
+            Config.setLive(slot.widget + "Scale", ns);
+            scalePersist.restart();
+        }
+    }
+    Timer {
+        id: scalePersist
+        interval: 350
+        onTriggered: Config.set(slot.widget + "Scale", slot.scaleCfg)
+    }
+
     // quick resize: drag the bottom-right bracket to scrub the widget's
     // scale. top-left is pinned during the resize so it grows toward the
     // cursor; on release the new scale + a pinned free position persist in
@@ -323,7 +342,7 @@ Item {
 
     // live size readout while resizing.
     Rectangle {
-        visible: slot.resizing
+        visible: slot.resizing || scalePersist.running
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.rightMargin: 26

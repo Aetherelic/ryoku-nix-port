@@ -74,9 +74,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 18 * root.s
-        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.10)
+        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
         border.width: 1
-        border.color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+        border.color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.32)
     }
 
     // A non-interactive viewport: it clips and follows the caret without ever
@@ -103,7 +103,7 @@ Item {
             wrapMode: TextEdit.Wrap
             font.family: Theme.font
             font.pixelSize: Math.round(15 * root.s)
-            font.weight: Font.Normal
+            font.weight: Font.Medium
 
             onTextChanged: if (root.loaded && !root.loading && root.active) debounce.restart()
             onCursorRectangleChanged: {
