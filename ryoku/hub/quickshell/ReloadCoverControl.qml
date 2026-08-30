@@ -21,6 +21,7 @@ Item {
 
     signal addRequested()
     signal defaultRequested()
+    signal enabledToggled(bool enabled)
 
     implicitHeight: grid.implicitHeight
 
@@ -84,10 +85,12 @@ Item {
             spacing: Tokens.s2
 
             Rectangle {
-                readonly property string kindLabel: control.media.kind === "video"
+                readonly property string kindLabel: control.media.path !== "" && !control.media.enabled
+                    ? I18n.tr("CUSTOM OFF")
+                    : (control.media.kind === "video"
                     ? I18n.tr("VIDEO · MUTED")
                     : (control.media.kind === "animated" ? I18n.tr("ANIMATED IMAGE")
-                    : (control.media.kind === "image" ? I18n.tr("IMAGE") : I18n.tr("DEFAULT")))
+                    : (control.media.kind === "image" ? I18n.tr("IMAGE") : I18n.tr("DEFAULT"))))
                 Layout.alignment: Qt.AlignLeft
                 implicitWidth: kind.implicitWidth + Tokens.s3 * 2
                 implicitHeight: Tokens.ctlH
@@ -105,6 +108,29 @@ Item {
                     font.pixelSize: Tokens.fMicro
                     font.weight: Font.Medium
                     font.letterSpacing: Tokens.trackLabel
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.s2
+
+                Text {
+                    text: I18n.tr("CUSTOM ASSET")
+                    color: Tokens.ink
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fMicro
+                    font.weight: Font.Medium
+                    font.letterSpacing: Tokens.trackLabel
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Sw {
+                    on: control.media.enabled
+                    enabled: !control.busy && control.media.path !== ""
+                    Accessible.name: I18n.tr("CUSTOM ASSET")
+                    onToggled: (enabled) => control.enabledToggled(enabled)
                 }
             }
 

@@ -436,6 +436,11 @@ Item {
                                     busy: sheet.reloadCoverImportBusy
                                     onAddRequested: sheet.reloadCoverPick(srow.r)
                                     onDefaultRequested: sheet.reloadCoverDefault(srow.r)
+                                    onEnabledToggled: (enabled) => {
+                                        var descriptor = Object.assign({}, ReloadCoverModel.normalize(sheet.val(srow.r)));
+                                        descriptor.enabled = enabled;
+                                        sheet.edited(srow.r.key, descriptor);
+                                    }
                                 }
                             }
                             Component {

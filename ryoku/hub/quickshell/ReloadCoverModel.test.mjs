@@ -5,13 +5,19 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const Model = require("./ReloadCoverModel.js");
 
-test("empty descriptor is the shipped default", () => {
-    assert.deepEqual(Model.empty(), { path: "", name: "", kind: "default", bytes: 0 });
+test("empty descriptor enables the shipped default", () => {
+    assert.deepEqual(Model.empty(), { path: "", name: "", kind: "default", bytes: 0, enabled: true });
 });
 
-test("normalization preserves a valid imported descriptor", () => {
+test("normalization enables a valid imported descriptor that lacks the new flag", () => {
     assert.deepEqual(Model.normalize({ path: "/data/a.mp4", name: "a.mp4", kind: "video", bytes: 14873124 }), {
-        path: "/data/a.mp4", name: "a.mp4", kind: "video", bytes: 14873124
+        path: "/data/a.mp4", name: "a.mp4", kind: "video", bytes: 14873124, enabled: true
+    });
+});
+
+test("normalization preserves an explicitly disabled imported descriptor", () => {
+    assert.deepEqual(Model.normalize({ path: "/data/a.mp4", name: "a.mp4", kind: "video", bytes: 14873124, enabled: false }), {
+        path: "/data/a.mp4", name: "a.mp4", kind: "video", bytes: 14873124, enabled: false
     });
 });
 

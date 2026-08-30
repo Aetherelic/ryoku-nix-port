@@ -1,5 +1,5 @@
 function empty() {
-    return { path: "", name: "", kind: "default", bytes: 0 };
+    return { path: "", name: "", kind: "default", bytes: 0, enabled: true };
 }
 
 function normalize(value) {
@@ -13,7 +13,7 @@ function normalize(value) {
         ? value.name
         : path.split("/").pop();
     var bytes = Math.max(0, Math.floor(Number(value.bytes) || 0));
-    return { path: path, name: name, kind: kind, bytes: bytes };
+    return { path: path, name: name, kind: kind, bytes: bytes, enabled: value.enabled !== false };
 }
 
 function path(value) {

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Hard reload accepts still, animated, and muted video media while retaining the bundled wordmark fallback and unchanged iris/readiness lifecycle.** Reload covers read the selected media descriptor from `brand.json`; a persisted custom-media On/Off gate releases all custom decoders when Off and restores the saved asset when On (`quickshell/reload-cover/`).
 - **The desktop visualizer can stack several looks, use exact gradients, and wrap
   the display in a reactive frame.** The placement bar switches, adds and removes
   up to four visualizers, shows a light RAM estimate for each full-screen pass,
