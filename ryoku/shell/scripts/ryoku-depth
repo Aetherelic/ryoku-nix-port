@@ -132,7 +132,11 @@ import sys
 from rembg import new_session, remove
 inp, out, model = sys.argv[1], sys.argv[2], sys.argv[3]
 matting = sys.argv[4] == "1"
-session = new_session(model)
+# Prefer the GPU (CUDA) provider, fall back to CPU; onnxruntime skips any it lacks.
+try:
+    session = new_session(model, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+except TypeError:  # rembg too old for providers=
+    session = new_session(model)
 with open(inp, "rb") as f:
     data = f.read()
 kw = dict(session=session)
@@ -194,7 +198,16 @@ cmd_install() {
     for m in "${want[@]}"; do
         is_curated "$m" || continue
         printf 'Downloading model %s...\n' "$m"
-        "$venv/bin/python" -c "import sys; from rembg import new_session; new_session(sys.argv[1])" "$m"
+        # Prefer GPU (CUDA), fall back to CPU; onnxruntime skips a provider it lacks.
+        "$venv/bin/python" - "$m" <<'PY'
+import sys
+from rembg import new_session
+model = sys.argv[1]
+try:
+    new_session(model, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+except TypeError:  # rembg too old for providers=
+    new_session(model)
+PY
     done
     if cmd_check >/dev/null; then
         printf 'done\n'
