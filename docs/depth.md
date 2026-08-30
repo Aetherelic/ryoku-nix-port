@@ -88,33 +88,43 @@ engine reports them.
 
 ## Daemon integration (`ipc/`)
 
-- **Topic.** `wallEntry` gains `depthPath string`; `wallFrameEntry` gains
-  `Depth string json:"depth"` (contract 08). `republish()` and the publish path
-  carry it; an empty string means no cutout (disabled, still generating, video,
-  or the engine is absent).
+- **Topic.** `wallEntry` gains `depthPath` and `depthRev` (the cutout's mtime);
+  `wallFrameEntry` gains `Depth string json:"depth"` and `DepthRev` (contract
+  08). `republish()` and the publish path carry them; an empty `depth` means no
+  cutout (disabled, still generating, video, or the engine is absent).
 - **Reading intent.** `depthConfig()` reads `enabled`/`model` from `depth.json`
   per apply, mirroring `wallpaperContentFit()` reading `shell.json`.
 - **Worker.** `scheduleDepth()` -> `depthWorker()` coalesces like the theme
-  worker: for each still entry, if enabled and `ryoku-depth check` passes, run
-  `ryoku-depth cutout <wp-cache> <wp-cache>-depth.png --model <m>`, set
-  `depthPath`, then `republish()`. Videos are skipped (a static cutout over
-  motion drifts). A failure leaves `depthPath` empty and is logged, never fatal.
-- **Triggers.** Every wallpaper apply/repaint schedules depth when enabled; a
-  new `depth refresh` IPC subcommand (called by the Config singleton on
-  enable/model change) schedules it for the current wallpaper without a switch.
-- **Cache.** The cutout is named off the wallpaper cache file
-  (`wp-<rev>-depth.png`), so it is revision- and content-keyed and pruned with
-  its wallpaper.
+  worker: for each on-screen still wallpaper (read from the saved per-output
+  state), if enabled and `ryoku-depth check` passes, resolve its cutout in
+  `~/Pictures/Depth` (reusing the saved file when it still matches, else
+  `ryoku-depth cutout <wallpaper> <out> --model <m>`), then `setDepth` and
+  `republish()`. Videos are skipped (a static cutout over motion drifts). A
+  failure leaves the cutout empty and is logged, never fatal.
+- **Triggers.** Every wallpaper apply/repaint schedules depth when enabled; the
+  `depth refresh` IPC subcommand (called by the Config singleton on enable or
+  model change) sets a force flag so the current wallpaper regenerates in place.
+
+## Where cutouts live: `~/Pictures/Depth`
+
+Cutouts are not a hidden cache; they are the user's, kept where they can be found
+and reused. Each is a PNG named after its wallpaper (`<wallpaper>-depth.png`), one
+per wallpaper, together in `~/Pictures/Depth`. A hidden `.index.json` records the
+source and model each was made from, so a returning wallpaper is shown instantly
+while a change (a new model, an edited image) regenerates in place; the published
+`depthRev` (the file's mtime) refreshes a regenerated file at the same path.
+Nothing prunes them - they persist for reuse - and the control center's **Saved
+cutouts / SHOW FILES** action opens the folder.
 
 ## Rendering (`modules/depth/`, `modules/desktop/`, `shell.qml`)
 
-- `Wallpaper.qml` parses the new `depth` field and exposes `depthUrl`
-  (`file://<path>?v=<rev>`), alongside `wallpaperUrl`.
+- `Wallpaper.qml` parses `depth` + `depthRev` and exposes `depthUrl`
+  (`file://<path>?v=<depthRev>`), alongside `wallpaperUrl`.
 - `shell.qml` passes `depthUrl: wallpaper.depthUrl` into `Desktop` beside the
   existing `wallpaperUrl`/`wallpaperFit`.
 - `desktop/DepthForeground.qml`: a full-surface `Image` of the cutout, `fillMode`
-  resolved through the wallpaper's fit (the same mapping as
-  `wallpaper/Backdrop.fillModeFor`, kept as one shared function so the cutout and
+  resolved through the wallpaper's fit (the same switch as
+  `wallpaper/Backdrop.fillModeFor`, mirrored inline and kept in sync so the cutout and
   the wallpaper can never crop differently), `sourceSize` set, a short opacity
   crossfade on url change, `opacity: Config.lift`, and an edge feather via a
   single `MultiEffect` mask pass driven by `Config.feather`. No `MouseArea`, so

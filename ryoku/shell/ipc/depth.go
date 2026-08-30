@@ -6,24 +6,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
-// depth is the wallpaper foreground effect (docs/depth.md): the subject of the
-// current wallpaper, cut out into a transparent PNG and drawn in front of the
-// desktop widgets. Generation is slow, so it runs on a coalescing worker off the
-// wallpaper hot path (mirroring scheduleTheme/paintWorker), and the cutout path
-// rides the existing wallpaper topic as the entry's `depth` field.
+// Wallpaper depth: the current wallpaper's subject, cut out to a transparent PNG
+// and drawn in front of the desktop widgets (docs/depth.md). Generation is slow,
+// so it runs on a coalescing worker off the wallpaper hot path. Cutouts are the
+// user's, kept in ~/Pictures/Depth and reused, not a hidden cache.
 
-// depthSettings is what the shell asks for, read live from depth.json (the same
-// GUI-managed file the desktop Config singleton writes).
 type depthSettings struct {
 	enabled bool
 	model   string
 }
 
-// depthConfig reads enabled/model from ~/.config/ryoku/depth.json per pass, so a
-// coalesced burst always acts on the latest intent. A missing file, key or
-// unreadable value leaves depth off with the small CPU default model.
 func depthConfig() depthSettings {
 	def := depthSettings{enabled: false, model: "u2netp"}
 	dir := ryokuConfigDir()
@@ -49,10 +44,8 @@ func depthConfig() depthSettings {
 	return out
 }
 
-// depthBin resolves the ryoku-depth helper the way the desktop resolves its
-// placement tool: a dev run points RYOKU_SHELL_DIR at the shell tree where the
-// script is not on PATH; a packaged install ships it to /usr/bin, where the bare
-// name resolves.
+// depthBin: on PATH once packaged, but a dev run must reach it under
+// RYOKU_SHELL_DIR where it is not.
 func depthBin() string {
 	if dir := os.Getenv("RYOKU_SHELL_DIR"); dir != "" {
 		p := filepath.Join(dir, "scripts", "ryoku-depth")
@@ -63,23 +56,58 @@ func depthBin() string {
 	return "ryoku-depth"
 }
 
-// depthEngineAvailable reports whether the opt-in segmentation engine is
-// installed and carries a model, so the worker never blocks on a missing backend.
 func depthEngineAvailable() bool {
 	return exec.Command(depthBin(), "check").Run() == nil
 }
 
-// depthFile is the cutout path for a wallpaper cache file: named off it so the
-// cutout is revision- and content-keyed and pruned alongside its wallpaper.
-func depthFile(p string) string {
-	if p == "" {
-		return ""
-	}
-	return p + "-depth.png"
+func depthDir() string { return filepath.Join(os.Getenv("HOME"), "Pictures", "Depth") }
+
+func depthOut(source string) string {
+	base := filepath.Base(source)
+	stem := strings.TrimSuffix(base, filepath.Ext(base))
+	return filepath.Join(depthDir(), stem+"-depth.png")
 }
 
-// scheduleDepth: nudge the depth worker, non-blocking. The buffered channel
-// coalesces a burst of wallpaper switches into one regeneration of the final one.
+// depthMeta keeps reuse correct: a cutout is reused only for the same source and
+// model, so two wallpapers sharing a name never show the wrong one.
+type depthMeta struct {
+	Source string `json:"source"`
+	Model  string `json:"model"`
+}
+
+func depthIndexPath() string { return filepath.Join(depthDir(), ".index.json") }
+
+func loadDepthIndex() map[string]depthMeta {
+	out := map[string]depthMeta{}
+	if b, err := os.ReadFile(depthIndexPath()); err == nil {
+		_ = json.Unmarshal(b, &out)
+	}
+	return out
+}
+
+func saveDepthIndex(idx map[string]depthMeta) {
+	if b, err := json.MarshalIndent(idx, "", "  "); err == nil {
+		_ = os.WriteFile(depthIndexPath(), b, 0o644)
+	}
+}
+
+func fileModTime(p string) int64 {
+	if st, err := os.Stat(p); err == nil {
+		return st.ModTime().Unix()
+	}
+	return 0
+}
+
+func depthReusable(idx map[string]depthMeta, source, model, out string) bool {
+	m, ok := idx[out]
+	if !ok || m.Source != source || m.Model != model {
+		return false
+	}
+	ot := fileModTime(out)
+	return ot > 0 && ot >= fileModTime(source)
+}
+
+// scheduleDepth coalesces a burst of switches into one regeneration.
 func (d *daemon) scheduleDepth() {
 	select {
 	case d.depthSig <- struct{}{}:
@@ -87,72 +115,83 @@ func (d *daemon) scheduleDepth() {
 	}
 }
 
-// depthWorker regenerates the cutout for whatever is on screen. It reads intent
-// every pass, so a coalesced burst acts on the final wallpaper. When depth is off
-// or the engine is absent it clears any published cutout so the overlay
-// disappears. Runs for the life of the daemon.
 func (d *daemon) depthWorker() {
 	for range d.depthSig {
 		if d.wall == nil {
 			continue
 		}
+		force := d.depthForce.Swap(false)
 		cfg := depthConfig()
 		if !cfg.enabled || !depthEngineAvailable() {
 			d.wall.clearDepth()
 			continue
 		}
-		d.generateDepth(cfg.model)
+		d.generateDepth(cfg.model, force)
 	}
 }
 
-// generateDepth runs the helper for each still entry that has no cutout yet, then
-// republishes with the cutout path. The slow helper runs off the surface lock; a
-// stale result (the entry moved on to another image) is dropped by setDepth.
-func (d *daemon) generateDepth(model string) {
-	for _, t := range d.wall.depthTargets() {
-		out := depthFile(t.path)
-		if err := exec.Command(depthBin(), "cutout", t.path, out, "--model", model).Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "depthWorker cutout: %v\n", err)
-			continue
+// generateDepth reuses each on-screen wallpaper's saved cutout or regenerates it,
+// then publishes. The slow helper runs off the surface lock.
+func (d *daemon) generateDepth(model string, force bool) {
+	targets := d.depthTargets()
+	if len(targets) == 0 {
+		return
+	}
+	if err := os.MkdirAll(depthDir(), 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "depthWorker: %v\n", err)
+		return
+	}
+	idx := loadDepthIndex()
+	changed := false
+	for _, t := range targets {
+		out := depthOut(t.source)
+		if force || !depthReusable(idx, t.source, model, out) {
+			if err := exec.Command(depthBin(), "cutout", t.source, out, "--model", model).Run(); err != nil {
+				fmt.Fprintf(os.Stderr, "depthWorker cutout: %v\n", err)
+				continue
+			}
+			idx[out] = depthMeta{Source: t.source, Model: model}
+			changed = true
 		}
-		d.wall.setDepth(t.slot, t.path, out)
+		d.wall.setDepth(t.slot, t.source, out)
+	}
+	if changed {
+		saveDepthIndex(idx)
 	}
 }
 
-// depthTarget is one entry to segment: its slot ("" = default) and the wallpaper
-// cache file the cutout is made from.
+// depthTarget pairs an output ("" = default) with the ORIGINAL wallpaper path, so
+// the cutout is named after the wallpaper and reused when it returns.
 type depthTarget struct {
-	slot string
-	path string
+	slot   string
+	source string
 }
 
-// depthTargets snapshots the still entries that still need a cutout, under the
-// surface lock, so the slow helper can run unlocked.
-func (w *wallSurface) depthTargets() []depthTarget {
-	if w == nil {
-		return nil
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (d *daemon) depthTargets() []depthTarget {
+	st := readWallState()
 	var out []depthTarget
-	if w.def.path != "" && !w.def.live && w.def.depthPath == "" {
-		out = append(out, depthTarget{"", w.def.path})
+	if st.Default != "" && !isVideo(st.Default) && isFile(st.Default) {
+		out = append(out, depthTarget{"", st.Default})
 	}
-	for name, e := range w.outputs {
-		if e.path != "" && !e.live && e.depthPath == "" {
-			out = append(out, depthTarget{name, e.path})
+	for name, p := range st.Outputs {
+		if p != "" && !isVideo(p) && isFile(p) {
+			out = append(out, depthTarget{name, p})
 		}
 	}
 	return out
 }
 
-// setDepth points an entry at its finished cutout and republishes, but only if
-// the entry still shows the image that was segmented (a wallpaper switch mid-
-// generation supersedes it).
-func (w *wallSurface) setDepth(slot, srcPath, depthPath string) {
+// setDepth publishes a slot's cutout unless a switch mid-generation already moved
+// it to another wallpaper. The revision is the cutout's mtime, so a regenerated
+// file at the same path still busts the image cache.
+func (w *wallSurface) setDepth(slot, source, out string) {
 	if w == nil {
 		return
 	}
+	if readWallState().currentFor(slot) != source {
+		return
+	}
+	rev := int(fileModTime(out))
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	e := &w.def
@@ -162,15 +201,11 @@ func (w *wallSurface) setDepth(slot, srcPath, depthPath string) {
 			return
 		}
 	}
-	if e.path != srcPath {
-		return
-	}
-	e.depthPath = depthPath
+	e.depthPath = out
+	e.depthRev = rev
 	w.publishLocked()
 }
 
-// clearDepth drops every published cutout and republishes if anything changed,
-// so turning depth off (or losing the engine) removes the overlay at once.
 func (w *wallSurface) clearDepth() {
 	if w == nil {
 		return
@@ -180,11 +215,13 @@ func (w *wallSurface) clearDepth() {
 	changed := false
 	if w.def.depthPath != "" {
 		w.def.depthPath = ""
+		w.def.depthRev = 0
 		changed = true
 	}
 	for _, e := range w.outputs {
 		if e.depthPath != "" {
 			e.depthPath = ""
+			e.depthRev = 0
 			changed = true
 		}
 	}

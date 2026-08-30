@@ -38,7 +38,7 @@ Item {
     readonly property string wallpaperUrl: frame.path.length > 0
         ? "file://" + frame.path + "?v=" + frame.revision : ""
     readonly property string depthUrl: frame.depth.length > 0
-        ? "file://" + frame.depth + "?v=" + frame.revision : ""
+        ? "file://" + frame.depth + "?v=" + frame.depthRev : ""
     readonly property string fit: frame.fit
     readonly property var transition: frame.transition
     readonly property bool live: frame.live

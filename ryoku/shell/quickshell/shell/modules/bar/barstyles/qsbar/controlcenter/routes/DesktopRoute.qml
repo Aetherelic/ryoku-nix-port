@@ -291,6 +291,21 @@ Item {
                             }
                         }
                     }
+                    SettingRow {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        divider: true
+                        visible: DepthCfg.DepthBackend.available
+                        footH: 32
+                        label: I18n.tr("Saved cutouts")
+                        desc: I18n.tr("Kept in Pictures/Depth, one per wallpaper.")
+                        Btn {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: I18n.tr("SHOW FILES")
+                            onAct: DepthCfg.DepthBackend.openFolder()
+                        }
+                    }
                 }
             }
             // A look, not a performance knob, so it lives here rather than on the

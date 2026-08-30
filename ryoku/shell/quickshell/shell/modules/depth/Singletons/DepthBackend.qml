@@ -4,18 +4,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Availability + provisioning for the opt-in depth engine. The base ships the
-// UI and the ryoku-depth helper but not the model runtime; this runs
-// `ryoku-depth check` to learn whether the engine is installed, `models` to know
-// which cutout models are usable, and `install` to provision the runtime on
-// first enable. The control center binds to `available`/`installing` to swap
-// between the normal controls and an "install to enable" action.
+// Availability and provisioning for the opt-in depth engine, plus a door to the
+// cutouts in ~/Pictures/Depth. check/models/install drive the control center's
+// install-to-enable flow (docs/depth.md).
 Singleton {
     id: root
 
-    // Resolve the helper the way the daemon does: a dev run points
-    // RYOKU_SHELL_DIR at the shell tree where the script is not on PATH; a
-    // packaged install ships it to /usr/bin, where the bare name resolves.
+    // On PATH once packaged; a dev run reaches it under RYOKU_SHELL_DIR.
     readonly property string bin: {
         const d = Quickshell.env("RYOKU_SHELL_DIR");
         return (d && d.length > 0) ? d + "/scripts/ryoku-depth" : "ryoku-depth";
@@ -38,9 +33,12 @@ Singleton {
         installProc.running = false;
         installProc.running = true;
     }
+    function openFolder() {
+        openProc.running = false;
+        openProc.running = true;
+    }
 
-    // `check` prints "available" or "missing"; reading stdout avoids depending on
-    // the exit-status enum and matches the shell's other Process users.
+    // "available"/"missing" on stdout avoids depending on the exit-status enum.
     Process {
         id: checkProc
         command: [root.bin, "check"]
@@ -83,6 +81,11 @@ Singleton {
             root.installing = false;
             root.recheck();
         }
+    }
+
+    Process {
+        id: openProc
+        command: ["sh", "-c", "mkdir -p \"$HOME/Pictures/Depth\" && xdg-open \"$HOME/Pictures/Depth\""]
     }
 
     Component.onCompleted: root.recheck()

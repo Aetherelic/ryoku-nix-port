@@ -4,25 +4,19 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Live config for the wallpaper depth effect (docs/depth.md): the wallpaper's
-// subject, cut out and drawn in front of the desktop widgets. Mirrors the
-// visualiser's Config exactly - a watched, atomically-written, GUI-managed
-// depth.json under ~/.config/ryoku, self-seeded on first run. Because the
-// package ships no file here, an update never clobbers it (docs/updates.md).
-//
-// enabled/model changes need a fresh cutout, so they nudge the daemon to
-// regenerate; feather/lift/front are pure render knobs and only settle to disk.
+// Wallpaper depth config: a watched, self-seeded ~/.config/ryoku/depth.json,
+// mirroring the visualiser (docs/depth.md). enabled/model changes ask the daemon
+// to regenerate the cutout; feather/lift/front are render-only.
 Singleton {
     id: root
 
-    property alias enabled: adapter.enabled // master on/off (also the daemon's cue)
-    property alias model: adapter.model     // segmentation model id
-    property alias feather: adapter.feather // edge softness, 0..1
-    property alias lift: adapter.lift        // foreground strength, 0.2..1
-    property alias front: adapter.front      // widget ids drawn ABOVE the cutout
+    property alias enabled: adapter.enabled
+    property alias model: adapter.model
+    property alias feather: adapter.feather
+    property alias lift: adapter.lift
+    property alias front: adapter.front
 
-    // The models the UI may offer; DepthBackend filters this to what is actually
-    // installed, so the pick never lists a model the engine can't run.
+    // Filtered to what the engine actually carries by DepthBackend.
     readonly property var knownModels: ["u2netp", "birefnet-general-lite"]
 
     function isFront(id) {
@@ -60,8 +54,6 @@ Singleton {
         settle.restart();
     }
 
-    // Ask the daemon to (re)generate the cutout for the current wallpaper. The
-    // daemon owns the slow model run; this is a cheap, immediate ack.
     function refresh() {
         refreshProc.running = false;
         refreshProc.running = true;

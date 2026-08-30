@@ -29,6 +29,7 @@ type wallEntry struct {
 	live       bool              // the video player owns this output's pixels
 	transition *pickedTransition // reveal preset (nil = plain crossfade)
 	depthPath  string            // foreground cutout PNG ("" = none / not yet generated)
+	depthRev   int               // cutout cache-buster (its mtime); 0 = none
 }
 
 type wallSurface struct {
@@ -181,6 +182,7 @@ func (w *wallSurface) fillLocked(e *wallEntry, pic string, tr *pickedTransition,
 	e.transition = tr
 	// A fresh wallpaper needs a fresh cutout; the depth worker regenerates it.
 	e.depthPath = ""
+	e.depthRev = 0
 	return nil
 }
 
@@ -278,6 +280,7 @@ type wallFrameEntry struct {
 	Live       bool              `json:"live"`
 	Transition *pickedTransition `json:"transition"`
 	Depth      string            `json:"depth"`
+	DepthRev   int               `json:"depthRev"`
 }
 
 // wallFrame is the coalesced full-state frame: a default plus per-output
@@ -288,7 +291,7 @@ type wallFrame struct {
 }
 
 func entryJSON(e *wallEntry) wallFrameEntry {
-	return wallFrameEntry{e.path, e.revision, e.fit, e.live, e.transition, e.depthPath}
+	return wallFrameEntry{e.path, e.revision, e.fit, e.live, e.transition, e.depthPath, e.depthRev}
 }
 
 // publishLocked marshals and ships the full per-output frame. The caller holds
@@ -313,12 +316,7 @@ func (w *wallSurface) publishLocked() {
 // image. The caller holds w.mu.
 func (w *wallSurface) prune() {
 	keep := map[string]bool{}
-	paths := []string{w.def.path, w.def.depthPath, w.prev, depthFile(w.prev)}
-	paths = append(paths, w.outputPathsLocked()...)
-	for _, e := range w.outputs {
-		paths = append(paths, e.depthPath)
-	}
-	for _, p := range paths {
+	for _, p := range append([]string{w.def.path, w.prev}, w.outputPathsLocked()...) {
 		if p != "" {
 			keep[filepath.Base(p)] = true
 		}

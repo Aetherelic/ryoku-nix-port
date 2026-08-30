@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -105,6 +106,7 @@ type daemon struct {
 	wallMu         sync.Mutex           // serializes the wallpaper hot path (pick + apply)
 	paintSig       chan struct{}        // coalescing wake for the palette/border worker
 	depthSig       chan struct{}        // coalescing wake for the depth-cutout worker
+	depthForce     atomic.Bool          // a pending forced regenerate (enable / model change)
 	ledsSig        chan struct{}        // coalescing wake for the OpenRGB worker
 	widgetSig      chan struct{}        // coalescing wake for the widget-occupancy gate
 	liveSig        chan struct{}        // coalescing wake for the live-wallpaper fullscreen gate
@@ -993,13 +995,10 @@ func (d *daemon) dispatch(line string) string {
 		}()
 		return "ok"
 	case "depth":
-		// depth refresh regenerates the wallpaper cutout for the current
-		// wallpaper, called on enable / model change; the worker skips it when
-		// depth is off or the engine is not installed.
+		// refresh forces a regenerate for the current wallpaper (enable / model
+		// change); the worker no-ops when depth is off or the engine is absent.
 		if len(args) >= 1 && args[0] == "refresh" {
-			if d.wall != nil {
-				d.wall.clearDepth()
-			}
+			d.depthForce.Store(true)
 			d.scheduleDepth()
 		}
 		return "ok"

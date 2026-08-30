@@ -9,6 +9,7 @@ QtObject {
     property bool live: false
     property var transition: null
     property string depth: ""
+    property int depthRev: 0
 
     function apply(line: string): bool {
         try {
@@ -22,6 +23,7 @@ QtObject {
             transition = entry.transition || null;
             path = entry.path || "";
             depth = entry.depth || "";
+            depthRev = entry.depthRev || 0;
             revision = entry.revision || 0;
             return true;
         } catch (error) {
