@@ -14,13 +14,10 @@ Item {
     property string errorText: ""
     property bool busy: false
     readonly property var media: ReloadCoverModel.normalize(descriptor)
-    readonly property url rendererSource: {
-        const dev = Quickshell.env("RYOKU_SHELL_DIR")
-        if (dev !== "")
-            return "file://" + dev + "/quickshell/reload-cover/ReloadMedia.qml"
-        const config = Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
-        return "file://" + config + "/quickshell/reload-cover/ReloadMedia.qml"
-    }
+    readonly property url rendererSource: ReloadCoverModel.rendererSource(
+        Quickshell.env("RYOKU_SHELL_DIR"),
+        Quickshell.env("XDG_CONFIG_HOME"),
+        Quickshell.env("HOME"))
 
     signal addRequested()
     signal defaultRequested()

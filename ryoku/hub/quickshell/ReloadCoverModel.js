@@ -39,5 +39,15 @@ function filters() {
     return out;
 }
 
+
+function rendererSource(shellDir, configHome, home) {
+    var dev = typeof shellDir === "string" ? shellDir : "";
+    if (dev !== "")
+        return "file://" + dev + "/quickshell/reload-cover/ReloadMedia.qml";
+    var config = typeof configHome === "string" && configHome !== ""
+        ? configHome
+        : (typeof home === "string" ? home : "") + "/.config";
+    return "file://" + config + "/quickshell/reload-cover/ReloadMedia.qml";
+}
 if (typeof module !== "undefined" && module.exports)
-    module.exports = { empty, normalize, path, formatBytes, filters };
+    module.exports = { empty, normalize, path, formatBytes, filters, rendererSource };
