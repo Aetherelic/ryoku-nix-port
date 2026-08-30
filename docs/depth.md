@@ -58,7 +58,7 @@ update-safety `visualizer.json` already relies on (`docs/updates.md`). No
 | `model` | string | `u2netp` | Segmentation model. The UI offers only the curated set the installed engine actually carries. |
 | `feather` | real 0..1 | `0.15` | Edge softness of the cutout, a mask blur at the silhouette. |
 | `lift` | real 0..1 | `1.0` | Foreground strength. Below 1 lets a hint of the background through the subject for a softer set-in. |
-| `front` | list\<string\> | `[]` | Widget ids that draw *above* the cutout (default: every widget behind the subject). The card exposes only the clock; the list keeps it extensible. |
+| `front` | list\<string\> | `[]` | Widget ids that draw *above* the cutout (default: every widget behind the subject). Each widget's right-click menu toggles its own; the compose bar also quick-toggles the clock. |
 
 `available` is **not** config; it is reported live by `DepthBackend` (below).
 
@@ -132,8 +132,9 @@ cutouts / SHOW FILES** action opens the folder.
   single `MultiEffect` mask pass driven by `Config.feather`. No `MouseArea`, so
   widget drag and the desktop menu pass straight through.
 - `Desktop.qml` places `DepthForeground` above the widget slots. A widget id in
-  `Config.front` (only the clock is exposed) raises that slot's `z` above the
-  cutout, so "clock in front" is a `z` swap, not a second renderer.
+  `Config.front` raises that slot's `z` above the cutout, so "in front of subject"
+  is a `z` swap, not a second renderer. Every built-in slot binds it, and a
+  widget's right-click menu (or the clock's compose-bar toggle) edits the set.
 
 ## Compose mode (the "place the visualiser" analogue)
 
@@ -141,14 +142,15 @@ cutouts / SHOW FILES** action opens the folder.
 - The DEPTH card's **COMPOSE** button enables depth, sets
   `ShellState.forActive().depthComposing = true`, and closes the control center -
   the exact shape of the visualiser's PLACE button (`DesktopRoute.qml`).
-- While composing, `Desktop.qml` shows the cutout at full strength (even mid-tune)
-  and raises `depth/DepthEditBar.qml`: a compact toolbar mirroring the
-  visualiser's `EditBar` chrome with only the honest knobs - a **Feather**
-  slider, a **Foreground** (lift) slider, a **Clock in front** toggle, a
-  **Regenerate** action (re-run the model for the current wallpaper), and
-  **Done**. The user drags the clock into the subject's negative space with the
-  ordinary widget drag, seeing the overlap live. There is no cutout move/resize
-  and no image editor: the cutout is locked to the wallpaper by contract.
+- While composing, `Desktop.qml` shows the cutout at full strength (even mid-tune),
+  frees every widget for dragging (locks suspended like visualiser placement,
+  restored on Done), and raises `depth/DepthEditBar.qml`: a compact toolbar
+  mirroring the visualiser's `EditBar` chrome with only the honest knobs - a
+  **Feather** slider, a **Foreground** (lift) slider, a **Clock in front** toggle,
+  a **Regenerate** action (re-run the model for the current wallpaper), and
+  **Done**. The user nestles the clock (or any widget) into the subject's negative
+  space with the ordinary widget drag, seeing the overlap live. There is no cutout
+  move/resize and no image editor: the cutout is locked to the wallpaper by contract.
 
 ## Availability + install (`depth/Singletons/DepthBackend.qml`)
 

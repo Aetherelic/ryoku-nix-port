@@ -33,6 +33,9 @@ Scope {
     property string wallpaperFit: "Cover"
     property string depthUrl: ""
     readonly property var depthState: Services.ShellState.forScreen(root.screen)
+    // compose mode frees every widget for dragging (like visualiser placement),
+    // so a locked clock can still be nestled into the subject; Done restores it.
+    readonly property bool depthComposing: root.depthState ? root.depthState.depthComposing : false
     readonly property bool reloadReady: readiness.ready
 
     ReloadReadiness {
@@ -228,7 +231,7 @@ Scope {
             anchor: Config.clockAnchor
             freeX: Config.clockX
             freeY: Config.clockY
-            locked: Config.clockLocked
+            locked: Config.clockLocked && !root.depthComposing
             bg: Config.clockBg
             radius: Config.clockRadius
             scaleCfg: Config.clockScale
@@ -242,11 +245,12 @@ Scope {
         WidgetSlot {
             id: calendarSlot
             widget: "calendar"
+            z: DepthCfg.Config.isFront("calendar") ? 1 : 0
             visible: root.reloadReady && Config.calendarEnabled
             anchor: Config.calendarAnchor
             freeX: Config.calendarX
             freeY: Config.calendarY
-            locked: Config.calendarLocked
+            locked: Config.calendarLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.calendarScale
             opacity: Config.calendarOpacity
@@ -268,11 +272,12 @@ Scope {
         WidgetSlot {
             id: musicSlot
             widget: "music"
+            z: DepthCfg.Config.isFront("music") ? 1 : 0
             visible: root.reloadReady && Config.musicEnabled
             anchor: Config.musicAnchor
             freeX: Config.musicX
             freeY: Config.musicY
-            locked: Config.musicLocked
+            locked: Config.musicLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.musicScale
             opacity: Config.musicOpacity
@@ -297,11 +302,12 @@ Scope {
         WidgetSlot {
             id: aioSlot
             widget: "aio"
+            z: DepthCfg.Config.isFront("aio") ? 1 : 0
             visible: root.reloadReady && Config.aioEnabled
             anchor: Config.aioAnchor
             freeX: Config.aioX
             freeY: Config.aioY
-            locked: Config.aioLocked
+            locked: Config.aioLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.aioScale
             opacity: Config.aioOpacity
@@ -317,11 +323,12 @@ Scope {
         WidgetSlot {
             id: statsSlot
             widget: "stats"
+            z: DepthCfg.Config.isFront("stats") ? 1 : 0
             visible: root.reloadReady && Config.statsEnabled
             anchor: Config.statsAnchor
             freeX: Config.statsX
             freeY: Config.statsY
-            locked: Config.statsLocked
+            locked: Config.statsLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.statsScale
             opacity: Config.statsOpacity
@@ -336,11 +343,12 @@ Scope {
         WidgetSlot {
             id: weatherSlot
             widget: "weather"
+            z: DepthCfg.Config.isFront("weather") ? 1 : 0
             visible: root.reloadReady && Config.weatherEnabled
             anchor: Config.weatherAnchor
             freeX: Config.weatherX
             freeY: Config.weatherY
-            locked: Config.weatherLocked
+            locked: Config.weatherLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.weatherScale
             opacity: Config.weatherOpacity
@@ -356,11 +364,12 @@ Scope {
         WidgetSlot {
             id: notesSlot
             widget: "notes"
+            z: DepthCfg.Config.isFront("notes") ? 1 : 0
             visible: root.reloadReady && Config.notesEnabled
             anchor: Config.notesAnchor
             freeX: Config.notesX
             freeY: Config.notesY
-            locked: Config.notesLocked
+            locked: Config.notesLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.notesScale
             opacity: Config.notesOpacity
@@ -402,7 +411,7 @@ Scope {
 
                 pluginId: slot.pid
                 visible: root.reloadReady
-                locked: slot.dw.locked === true
+                locked: (slot.dw.locked === true) && !root.depthComposing
                 scaleCfg: slot.dw.scale || 0.85
                 freeX: slot.dw.x !== undefined ? slot.dw.x : 80
                 freeY: slot.dw.y !== undefined ? slot.dw.y : 80

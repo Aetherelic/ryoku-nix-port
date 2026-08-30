@@ -7,6 +7,7 @@ import Ryoku.Ui.Singletons
 // shadowed this menu's own, leaving every widget toggle reading undefined.
 import shell.services as Services
 import "../visualizer/Singletons" as VizCfg
+import "../depth/Singletons" as DepthCfg
 
 // The desktop right-click menu, built on the shared DesktopMenu chrome in the
 // quick-settings sidebar idiom. Two scopes:
@@ -233,6 +234,14 @@ Item {
             on: menu.locked
             closeOnTrigger: false
             onTriggered: Config.toggle(menu.scope + "Locked")
+        }
+        MenuRow {
+            visible: menu.isWidget && DepthCfg.Config.enabled
+            label: I18n.tr("In front of subject")
+            value: DepthCfg.Config.isFront(menu.scope) ? "On" : "Off"
+            on: DepthCfg.Config.isFront(menu.scope)
+            closeOnTrigger: false
+            onTriggered: DepthCfg.Config.toggleFront(menu.scope)
         }
 
         MenuSection { visible: menu.isWidget; label: I18n.tr("Snap"); gloss: "位置" }
