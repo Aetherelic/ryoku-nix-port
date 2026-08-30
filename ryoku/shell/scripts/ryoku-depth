@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# ryoku-depth: the desktop's foreground-cutout engine. The one place model logic
-# lives; ryoku-shell calls it to turn the current wallpaper into a transparent
-# PNG of its subject, which the desktop draws in front of the widgets (see
-# docs/depth.md). The heavy runtime is opt-in: `install` provisions a
-# self-contained venv on first enable, so nothing ML ships in the base image.
+# ryoku-depth: the desktop's foreground-cutout engine. ryoku-shell calls it to
+# turn the current wallpaper into a transparent PNG of its subject, drawn in
+# front of the desktop widgets (docs/depth.md). The heavy runtime is opt-in:
+# `install` provisions a self-contained venv on first enable, so nothing ML ships
+# in the base image.
 set -euo pipefail
 
 state="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/depth"
 venv="$state/venv"
 models="$state/models"
 export REMBG_HOME="$models"
-export U2NET_HOME="$models"   # older rembg reads this name
+export U2NET_HOME="$models" # older rembg reads this name
 
 # The curated set the UI may offer. u2netp is the small CPU default (~4.6 MB);
 # birefnet-general-lite is the heavier quality option, offered only once cached.
@@ -25,24 +25,30 @@ is_curated() {
     return 1
 }
 
-# Resolve a rembg command: the Ryoku-managed venv first, then a system rembg.
-# Sets REMBG; returns non-zero when no backend is present.
-rembg_cmd() {
-    if [[ -x "$venv/bin/rembg" ]]; then
-        REMBG="$venv/bin/rembg"
+# Resolve a python that can import rembg (the API, so the CLI extra is not
+# needed): the Ryoku venv first, then any system interpreter that has it. Sets PY.
+rembg_python() {
+    if [[ -x "$venv/bin/python" ]] && "$venv/bin/python" -c "import rembg" 2>/dev/null; then
+        PY="$venv/bin/python"
         return 0
     fi
-    if command -v rembg >/dev/null 2>&1; then
-        REMBG="$(command -v rembg)"
-        return 0
-    fi
+    local p
+    for p in python3.13 python3.12 python3.11 python3; do
+        command -v "$p" >/dev/null 2>&1 || continue
+        if "$p" -c "import rembg" 2>/dev/null; then
+            PY="$p"
+            return 0
+        fi
+    done
     return 1
 }
 
-model_cached() { [[ -f "$models/$1.onnx" ]]; }
+# rembg's cache layout varies by version (flat, or models/<name>/<name>.onnx), so
+# find the onnx rather than assume a path.
+model_cached() { [[ -n "$(find "$models" -name "$1.onnx" -print -quit 2>/dev/null)" ]]; }
 
 cmd_check() {
-    if rembg_cmd && model_cached "$default_model"; then
+    if rembg_python && model_cached "$default_model"; then
         printf 'available\n'
         return 0
     fi
@@ -51,7 +57,7 @@ cmd_check() {
 }
 
 cmd_models() {
-    rembg_cmd || return 1
+    rembg_python || return 1
     local m any=0
     for m in "${curated[@]}"; do
         if model_cached "$m"; then
@@ -66,43 +72,99 @@ cmd_cutout() {
     local in="" out="" model="$default_model"
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -m|--model) model="${2:-}"; shift 2 ;;
-            --) shift; break ;;
-            -*) printf 'ryoku-depth: unknown option %s\n' "$1" >&2; return 2 ;;
-            *) if [[ -z $in ]]; then in="$1"; elif [[ -z $out ]]; then out="$1"; fi; shift ;;
+        -m | --model)
+            model="${2:-}"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            printf 'ryoku-depth: unknown option %s\n' "$1" >&2
+            return 2
+            ;;
+        *)
+            if [[ -z $in ]]; then in="$1"; elif [[ -z $out ]]; then out="$1"; fi
+            shift
+            ;;
         esac
     done
-    [[ -z $in && $# -gt 0 ]] && { in="$1"; shift; }
-    [[ -z $out && $# -gt 0 ]] && { out="$1"; shift; }
+    [[ -z $in && $# -gt 0 ]] && {
+        in="$1"
+        shift
+    }
+    [[ -z $out && $# -gt 0 ]] && {
+        out="$1"
+        shift
+    }
 
     if [[ -z $in || -z $out ]]; then
         printf 'usage: ryoku-depth cutout <in> <out.png> [--model <id>]\n' >&2
         return 2
     fi
-    [[ -f "$in" ]] || { printf 'ryoku-depth: input not found: %s\n' "$in" >&2; return 1; }
+    [[ -f "$in" ]] || {
+        printf 'ryoku-depth: input not found: %s\n' "$in" >&2
+        return 1
+    }
     is_curated "$model" || model="$default_model"
 
-    rembg_cmd || { printf 'ryoku-depth: engine not installed (run: ryoku-depth install)\n' >&2; return 1; }
-    model_cached "$model" || { printf 'ryoku-depth: model %s not downloaded\n' "$model" >&2; return 1; }
+    rembg_python || {
+        printf 'ryoku-depth: engine not installed (run: ryoku-depth install)\n' >&2
+        return 1
+    }
+    model_cached "$model" || {
+        printf 'ryoku-depth: model %s not downloaded\n' "$model" >&2
+        return 1
+    }
 
     mkdir -p "$(dirname -- "$out")"
     local tmp
     tmp="$(mktemp "${out}.XXXXXX")"
-    # Write to a temp file and swap in atomically so a reader never sees a
-    # half-written cutout; on any failure the temp is dropped.
-    if "$REMBG" i -m "$model" "$in" "$tmp" >/dev/null 2>&1 && [[ -s "$tmp" ]]; then
-        mv -f "$tmp" "$out"
-        printf '%s\n' "$out"
-        return 0
+    # Write to a temp file and swap it in atomically, so a reader never sees a
+    # half-written cutout; drop the temp on any failure.
+    if "$PY" - "$in" "$tmp" "$model" <<'PY'
+import sys
+from rembg import new_session, remove
+inp, out, model = sys.argv[1], sys.argv[2], sys.argv[3]
+session = new_session(model)
+with open(inp, "rb") as f:
+    data = f.read()
+with open(out, "wb") as f:
+    f.write(remove(data, session=session))
+PY
+    then
+        if [[ -s "$tmp" ]]; then
+            mv -f "$tmp" "$out"
+            printf '%s\n' "$out"
+            return 0
+        fi
     fi
     rm -f "$tmp"
     printf 'ryoku-depth: cutout failed\n' >&2
     return 1
 }
 
+pick_python() {
+    # rembg needs Python 3.11-3.13; the system python3 may be newer.
+    local p ver
+    for p in python3.13 python3.12 python3.11 python3; do
+        command -v "$p" >/dev/null 2>&1 || continue
+        ver="$("$p" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null)" || continue
+        case "$ver" in
+        3.11 | 3.12 | 3.13)
+            printf '%s\n' "$p"
+            return 0
+            ;;
+        esac
+    done
+    return 1
+}
+
 cmd_install() {
-    command -v python3 >/dev/null 2>&1 || {
-        printf 'ryoku-depth: python3 is required to install the engine\n' >&2
+    local py
+    py="$(pick_python)" || {
+        printf 'ryoku-depth: rembg needs Python 3.11-3.13; none found\n' >&2
         return 1
     }
     local want=("$@")
@@ -110,8 +172,8 @@ cmd_install() {
 
     mkdir -p "$state" "$models"
     if [[ ! -x "$venv/bin/python" ]]; then
-        printf 'Creating engine environment...\n'
-        python3 -m venv "$venv"
+        printf 'Creating engine environment (%s)...\n' "$py"
+        "$py" -m venv "$venv"
     fi
     printf 'Installing rembg (CPU)...\n'
     "$venv/bin/pip" install --quiet --upgrade pip
@@ -132,12 +194,21 @@ cmd_install() {
 }
 
 case "${1:-}" in
-    check)   cmd_check ;;
-    models)  shift; cmd_models ;;
-    cutout)  shift; cmd_cutout "$@" ;;
-    install) shift; cmd_install "$@" ;;
-    *)
-        printf 'usage: ryoku-depth check | models | cutout <in> <out.png> [--model <id>] | install [model...]\n' >&2
-        exit 2
-        ;;
+check) cmd_check ;;
+models)
+    shift
+    cmd_models
+    ;;
+cutout)
+    shift
+    cmd_cutout "$@"
+    ;;
+install)
+    shift
+    cmd_install "$@"
+    ;;
+*)
+    printf 'usage: ryoku-depth check | models | cutout <in> <out.png> [--model <id>] | install [model...]\n' >&2
+    exit 2
+    ;;
 esac

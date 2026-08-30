@@ -80,9 +80,11 @@ provisioning a self-contained backend on demand.
 | `ryoku-depth cutout <in> <out.png> [--model <id>]` | Write a transparent PNG of the foreground; exit non-zero on any failure (never write a partial file). |
 | `ryoku-depth install` | Provision the backend (a Ryoku-managed venv at `~/.local/state/ryoku/depth/venv` with `rembg[cpu]` + a prefetched model), streaming progress to stdout. Opt-in; never run automatically. |
 
-Backend resolution order: the Ryoku-managed venv first, then a system `rembg` on
-`PATH`. CPU is the contract; a GPU is never required (generation is a one-shot,
-off-frame job, per `beta19features/depth-stack-versus-lightweight-models.md`).
+Backend resolution: a Python that can `import rembg`, the Ryoku-managed venv
+first, then a system `python3.11`-`3.13` (rembg needs that range, and the API is
+called so the CLI extra is not required). CPU is the contract; a GPU is never
+required (generation is a one-shot, off-frame job, per
+`beta19features/depth-stack-versus-lightweight-models.md`).
 The default model is `u2netp` (~4.6 MB); heavier models are offered only if the
 engine reports them.
 
