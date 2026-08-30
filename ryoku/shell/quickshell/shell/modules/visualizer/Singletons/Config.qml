@@ -41,6 +41,11 @@ Singleton {
             "tiltX": adapter.tiltX, "tiltY": adapter.tiltY
         };
     }
+    function dataAt(index) {
+        if (index <= 0)
+            return root.primaryData();
+        return (adapter.extras || [])[index - 1] || ({});
+    }
     readonly property var list: {
         var out = [root.primaryData()];
         var ex = adapter.extras || [];

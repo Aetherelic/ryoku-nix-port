@@ -96,13 +96,12 @@ Item {
             anchors.fill: parent
             Repeater {
                 id: rep
-                model: Config.list
+                model: Config.count
                 delegate: VisualizerView {
                     id: vizView
                     required property int index
-                    required property var modelData
                     anchors.fill: parent
-                    cfg: VizItem { data: vizView.modelData }
+                    cfg: VizItem { data: Config.dataAt(vizView.index) }
                 }
             }
         }
@@ -117,11 +116,11 @@ Item {
     // The placement overlay only exists while a look is being aimed; it tunes the
     // active instance.
     Loader {
-        active: root.placeable
+        active: root.placeable && root.activeView !== null
         sourceComponent: Placer {
             screen: root.screen
-            box: root.activeView ? root.activeView.boxRect : Qt.rect(0, 0, win.width, win.height)
-            guide: root.activeView ? root.activeView.guide : "white"
+            box: root.activeView.boxRect
+            guide: root.activeView.guide
             onDone: root.placingDone()
         }
     }
