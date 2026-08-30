@@ -48,8 +48,8 @@ Item {
             id: w
             implicitWidth: 708
             implicitHeight: 454
-            readonly property color ink: "#ffffff"
-            readonly property color dim: "#b9bcc2"
+            readonly property color ink: Theme.inkOn(root.underL)
+            readonly property color dim: Theme.inkDimOn(root.underL)
             readonly property string sym: "Material Symbols Rounded"
 
             // today's hi/lo, probed off the daemon frame; hidden if absent.
@@ -72,7 +72,7 @@ Item {
             Shape {
                 anchors.fill: parent
                 ShapePath {
-                    strokeColor: "#ffffff"; strokeWidth: 2; fillColor: "transparent"
+                    strokeColor: w.ink; strokeWidth: 2; fillColor: "transparent"
                     startX: 360; startY: 20
                     PathLine { x: 314; y: 150 }
                 }
@@ -168,7 +168,7 @@ Item {
                             required property int index
                             readonly property int band: Math.round(barW.index * (AudioBars.bars - 1) / 33)
                             readonly property real lvl: AudioBars.active ? (AudioBars.levels[barW.band] || 0) : 0
-                            width: 5; radius: 2.5; color: "#ffffff"
+                            width: 5; radius: 2.5; color: Theme.accentOn(root.underL)
                             anchors.bottom: parent.bottom
                             height: Math.max(6, Math.min(120, barW.lvl * 120))
                             Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutSine } }
