@@ -180,7 +180,7 @@ func walkRel(root string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
+		if !d.Type().IsRegular() {
 			return nil
 		}
 		rel, err := filepath.Rel(root, p)

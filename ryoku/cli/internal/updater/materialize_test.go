@@ -369,3 +369,27 @@ func TestMaterializeDeliversChromiumFlags(t *testing.T) {
 		t.Fatalf("update did not re-deliver chromium-flags.conf: got %q err %v", b, err)
 	}
 }
+
+func TestMaterializeSkipsDirectorySymlinks(t *testing.T) {
+	base, dest := t.TempDir(), t.TempDir()
+	t.Setenv("RYOKU_CONFIG_BASE", base)
+	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	writeFile(t, filepath.Join(base, "quickshell/hub/SettingsSheet.qml"), "Item {}\n")
+	target := filepath.Join(base, "quickshell/lockscreen/imports/QtGraphicalEffects/private-target")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "quickshell/lockscreen/imports/QtGraphicalEffects/private")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Materialize(); err != nil {
+		t.Fatalf("materialize with a directory symlink: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(dest, "quickshell/lockscreen/imports/QtGraphicalEffects/private")); !os.IsNotExist(err) {
+		t.Fatalf("directory symlink was materialized: %v", err)
+	}
+}
