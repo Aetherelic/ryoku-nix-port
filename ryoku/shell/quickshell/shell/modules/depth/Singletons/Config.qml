@@ -5,8 +5,8 @@ import Quickshell
 import Quickshell.Io
 
 // Wallpaper depth config: a watched, self-seeded ~/.config/ryoku/depth.json,
-// mirroring the visualiser (docs/depth.md). enabled/model changes ask the daemon
-// to regenerate the cutout; feather/lift/front are render-only.
+// mirroring the visualiser (docs/depth.md). enabled/model/alphaMatting changes ask
+// the daemon to regenerate the cutout; feather/lift/front are render-only.
 Singleton {
     id: root
 
@@ -15,6 +15,7 @@ Singleton {
     property alias feather: adapter.feather
     property alias lift: adapter.lift
     property alias front: adapter.front
+    property alias alphaMatting: adapter.alphaMatting
 
     // Filtered to what the engine actually carries by DepthBackend.
     readonly property var knownModels: ["u2netp", "birefnet-general-lite"]
@@ -32,6 +33,11 @@ Singleton {
         if (root.knownModels.indexOf(m) < 0)
             return;
         adapter.model = m;
+        file.writeAdapter();
+        root.refresh();
+    }
+    function setAlphaMatting(on) {
+        adapter.alphaMatting = on === true;
         file.writeAdapter();
         root.refresh();
     }
@@ -85,6 +91,7 @@ Singleton {
             property real feather: 0.15
             property real lift: 1.0
             property var front: []
+            property bool alphaMatting: false
         }
     }
 

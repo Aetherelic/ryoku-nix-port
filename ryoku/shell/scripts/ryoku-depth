@@ -69,12 +69,16 @@ cmd_models() {
 }
 
 cmd_cutout() {
-    local in="" out="" model="$default_model"
+    local in="" out="" model="$default_model" matting=0
     while [[ $# -gt 0 ]]; do
         case "$1" in
         -m | --model)
             model="${2:-}"
             shift 2
+            ;;
+        --alpha-matting)
+            matting=1
+            shift
             ;;
         --)
             shift
@@ -100,7 +104,7 @@ cmd_cutout() {
     }
 
     if [[ -z $in || -z $out ]]; then
-        printf 'usage: ryoku-depth cutout <in> <out.png> [--model <id>]\n' >&2
+        printf 'usage: ryoku-depth cutout <in> <out.png> [--model <id>] [--alpha-matting]\n' >&2
         return 2
     fi
     [[ -f "$in" ]] || {
@@ -123,15 +127,22 @@ cmd_cutout() {
     tmp="$(mktemp "${out}.XXXXXX")"
     # Write to a temp file and swap it in atomically, so a reader never sees a
     # half-written cutout; drop the temp on any failure.
-    if "$PY" - "$in" "$tmp" "$model" <<'PY'
+    if "$PY" - "$in" "$tmp" "$model" "$matting" <<'PY'
 import sys
 from rembg import new_session, remove
 inp, out, model = sys.argv[1], sys.argv[2], sys.argv[3]
+matting = sys.argv[4] == "1"
 session = new_session(model)
 with open(inp, "rb") as f:
     data = f.read()
+kw = dict(session=session)
+if matting:
+    # Alpha matting refines the silhouette (hair, fur, soft edges) at some cost
+    # in time; the thresholds are rembg's, tuned for a clean foreground.
+    kw.update(alpha_matting=True, alpha_matting_foreground_threshold=240,
+              alpha_matting_background_threshold=10, alpha_matting_erode_size=10)
 with open(out, "wb") as f:
-    f.write(remove(data, session=session))
+    f.write(remove(data, **kw))
 PY
     then
         if [[ -s "$tmp" ]]; then

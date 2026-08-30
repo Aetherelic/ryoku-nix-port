@@ -15,8 +15,9 @@ import (
 // user's, kept in ~/Pictures/Depth and reused, not a hidden cache.
 
 type depthSettings struct {
-	enabled bool
-	model   string
+	enabled      bool
+	model        string
+	alphaMatting bool
 }
 
 func depthConfig() depthSettings {
@@ -30,14 +31,16 @@ func depthConfig() depthSettings {
 		return def
 	}
 	var m struct {
-		Enabled bool   `json:"enabled"`
-		Model   string `json:"model"`
+		Enabled      bool   `json:"enabled"`
+		Model        string `json:"model"`
+		AlphaMatting bool   `json:"alphaMatting"`
 	}
 	if json.Unmarshal(b, &m) != nil {
 		return def
 	}
 	out := def
 	out.enabled = m.Enabled
+	out.alphaMatting = m.AlphaMatting
 	if m.Model != "" {
 		out.model = m.Model
 	}
@@ -68,11 +71,12 @@ func depthOut(source string) string {
 	return filepath.Join(depthDir(), stem+"-depth.png")
 }
 
-// depthMeta keeps reuse correct: a cutout is reused only for the same source and
-// model, so two wallpapers sharing a name never show the wrong one.
+// depthMeta keeps reuse correct: a cutout is reused only for the same source,
+// model, and edge setting, so returning to a wallpaper never shows a stale cut.
 type depthMeta struct {
-	Source string `json:"source"`
-	Model  string `json:"model"`
+	Source       string `json:"source"`
+	Model        string `json:"model"`
+	AlphaMatting bool   `json:"alphaMatting"`
 }
 
 func depthIndexPath() string { return filepath.Join(depthDir(), ".index.json") }
@@ -98,9 +102,9 @@ func fileModTime(p string) int64 {
 	return 0
 }
 
-func depthReusable(idx map[string]depthMeta, source, model, out string) bool {
+func depthReusable(idx map[string]depthMeta, source, model string, matting bool, out string) bool {
 	m, ok := idx[out]
-	if !ok || m.Source != source || m.Model != model {
+	if !ok || m.Source != source || m.Model != model || m.AlphaMatting != matting {
 		return false
 	}
 	ot := fileModTime(out)
@@ -126,13 +130,13 @@ func (d *daemon) depthWorker() {
 			d.wall.clearDepth()
 			continue
 		}
-		d.generateDepth(cfg.model, force)
+		d.generateDepth(cfg.model, cfg.alphaMatting, force)
 	}
 }
 
 // generateDepth reuses each on-screen wallpaper's saved cutout or regenerates it,
 // then publishes. The slow helper runs off the surface lock.
-func (d *daemon) generateDepth(model string, force bool) {
+func (d *daemon) generateDepth(model string, matting bool, force bool) {
 	targets := d.depthTargets()
 	if len(targets) == 0 {
 		return
@@ -145,12 +149,16 @@ func (d *daemon) generateDepth(model string, force bool) {
 	changed := false
 	for _, t := range targets {
 		out := depthOut(t.source)
-		if force || !depthReusable(idx, t.source, model, out) {
-			if err := exec.Command(depthBin(), "cutout", t.source, out, "--model", model).Run(); err != nil {
+		if force || !depthReusable(idx, t.source, model, matting, out) {
+			args := []string{"cutout", t.source, out, "--model", model}
+			if matting {
+				args = append(args, "--alpha-matting")
+			}
+			if err := exec.Command(depthBin(), args...).Run(); err != nil {
 				fmt.Fprintf(os.Stderr, "depthWorker cutout: %v\n", err)
 				continue
 			}
-			idx[out] = depthMeta{Source: t.source, Model: model}
+			idx[out] = depthMeta{Source: t.source, Model: model, AlphaMatting: matting}
 			changed = true
 		}
 		d.wall.setDepth(t.slot, t.source, out)

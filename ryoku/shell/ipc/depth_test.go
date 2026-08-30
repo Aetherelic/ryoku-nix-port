@@ -59,16 +59,19 @@ func TestDepthReusable(t *testing.T) {
 	}
 	idx := map[string]depthMeta{out: {Source: source, Model: "u2netp"}}
 
-	if !depthReusable(idx, source, "u2netp", out) {
+	if !depthReusable(idx, source, "u2netp", false, out) {
 		t.Fatal("a matching, fresh cutout must be reusable")
 	}
-	if depthReusable(idx, source, "birefnet-general-lite", out) {
+	if depthReusable(idx, source, "birefnet-general-lite", false, out) {
 		t.Fatal("a different model must not reuse")
 	}
-	if depthReusable(idx, filepath.Join(dir, "other.png"), "u2netp", out) {
+	if depthReusable(idx, source, "u2netp", true, out) {
+		t.Fatal("a different edge setting must not reuse")
+	}
+	if depthReusable(idx, filepath.Join(dir, "other.png"), "u2netp", false, out) {
 		t.Fatal("a different source must not reuse")
 	}
-	if depthReusable(map[string]depthMeta{}, source, "u2netp", out) {
+	if depthReusable(map[string]depthMeta{}, source, "u2netp", false, out) {
 		t.Fatal("an unindexed cutout must not reuse")
 	}
 	// a source edited after the cutout was made must regenerate.
@@ -76,7 +79,7 @@ func TestDepthReusable(t *testing.T) {
 	if err := os.Chtimes(source, future, future); err != nil {
 		t.Fatal(err)
 	}
-	if depthReusable(idx, source, "u2netp", out) {
+	if depthReusable(idx, source, "u2netp", false, out) {
 		t.Fatal("a source newer than its cutout must regenerate")
 	}
 }

@@ -191,6 +191,7 @@ Item {
         case "weather":
         case "capture":
         case "media":
+        case "depth":
             root.showPage("");
             root.switchToModule(root.initialPage);
             break;

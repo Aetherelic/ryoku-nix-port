@@ -2,8 +2,8 @@
 
 The wallpaper's subject, cut out and drawn **in front of** the desktop widgets,
 so the clock reads as sitting *inside* the scene rather than on top of it. It is
-turned on, tuned and composed from the Super+Escape control center's Desktop
-route, exactly the way the audio spectrum is placed.
+turned on, tuned and composed from its own **Depth** tab in the Super+Escape
+quick-settings sidebar, the way the audio spectrum is placed.
 
 Depth is not a depth map or a 3D effect. It is two images and a strict layer
 order: the wallpaper behind, the widgets in the middle, and a transparent PNG of
@@ -18,9 +18,9 @@ negative space. Both are handled below.
 ryoku-shell daemon                     shell (QML)
 ------------------                     -----------
 wallpaper apply / depth refresh        depth/Singletons/Config.qml  (depth.json)
-  -> scheduleDepth (async worker)          |  enabled, model, feather, lift, front
+  -> scheduleDepth (async worker)          |  enabled, model, alphaMatting, feather, lift, front
   -> ryoku-depth cutout <wp> <out.png>     v
-  -> wallEntry.depthPath                DesktopRoute.qml  DEPTH card  (on/off, model, COMPOSE)
+  -> wallEntry.depthPath                QuickSettingsDepth.qml (on/off, model, edge, COMPOSE)
   -> wall.republish()                      |
         |  wallpaper topic (+ "depth")     v
         +------------------------------> Wallpaper.qml -> depthUrl -> Desktop.qml
@@ -39,7 +39,7 @@ wallpaper apply / depth refresh        depth/Singletons/Config.qml  (depth.json)
   policy decision.
 - **The segmentation engine is opt-in.** The base desktop ships the UI, the
   daemon plumbing and the `ryoku-depth` helper, but **not** the model or its
-  runtime. The first time depth is switched on, the control center offers to
+  runtime. The first time depth is switched on, the Depth tab offers to
   install the engine. Nothing heavy lands in the base ISO, matching how Extras
   and Rashin are opt-in.
 
@@ -56,6 +56,7 @@ update-safety `visualizer.json` already relies on (`docs/updates.md`). No
 |---|---|---|---|
 | `enabled` | bool | `false` | Master on/off. Also the daemon's cue to generate. |
 | `model` | string | `u2netp` | Segmentation model. The UI offers only the curated set the installed engine actually carries. |
+| `alphaMatting` | bool | `false` | Edge refinement. Traces finer edges (hair, fur) at some cost in generation time. Regenerates the cutout when changed. |
 | `feather` | real 0..1 | `0.15` | Edge softness of the cutout, a mask blur at the silhouette. |
 | `lift` | real 0..1 | `1.0` | Foreground strength. Below 1 lets a hint of the background through the subject for a softer set-in. |
 | `front` | list\<string\> | `[]` | Widget ids that draw *above* the cutout (default: every widget behind the subject). Each widget's right-click menu toggles its own; the compose bar also quick-toggles the clock. |
@@ -77,7 +78,7 @@ provisioning a self-contained backend on demand.
 |---|---|
 | `ryoku-depth check` | Exit 0 and print `available` when a working backend + at least one model is present; else exit non-zero and print `missing`. |
 | `ryoku-depth models` | Print the usable model ids, one per line (for the UI's curated pick). |
-| `ryoku-depth cutout <in> <out.png> [--model <id>]` | Write a transparent PNG of the foreground; exit non-zero on any failure (never write a partial file). |
+| `ryoku-depth cutout <in> <out.png> [--model <id>] [--alpha-matting]` | Write a transparent PNG of the foreground; exit non-zero on any failure (never write a partial file). |
 | `ryoku-depth install` | Provision the backend (a Ryoku-managed venv at `~/.local/state/ryoku/depth/venv` with `rembg[cpu]` + a prefetched model), streaming progress to stdout. Opt-in; never run automatically. |
 
 Backend resolution: a Python that can `import rembg`, the Ryoku-managed venv
@@ -94,8 +95,8 @@ engine reports them.
   `wallFrameEntry` gains `Depth string json:"depth"` and `DepthRev` (contract
   08). `republish()` and the publish path carry them; an empty `depth` means no
   cutout (disabled, still generating, video, or the engine is absent).
-- **Reading intent.** `depthConfig()` reads `enabled`/`model` from `depth.json`
-  per apply, mirroring `wallpaperContentFit()` reading `shell.json`.
+- **Reading intent.** `depthConfig()` reads `enabled`/`model`/`alphaMatting` from
+  `depth.json` per apply, mirroring `wallpaperContentFit()` reading `shell.json`.
 - **Worker.** `scheduleDepth()` -> `depthWorker()` coalesces like the theme
   worker: for each on-screen still wallpaper (read from the saved per-output
   state), if enabled and `ryoku-depth check` passes, resolve its cutout in
@@ -115,7 +116,7 @@ per wallpaper, together in `~/Pictures/Depth`. A hidden `.index.json` records th
 source and model each was made from, so a returning wallpaper is shown instantly
 while a change (a new model, an edited image) regenerates in place; the published
 `depthRev` (the file's mtime) refreshes a regenerated file at the same path.
-Nothing prunes them - they persist for reuse - and the control center's **Saved
+Nothing prunes them - they persist for reuse - and the Depth tab's **Saved
 cutouts / SHOW FILES** action opens the folder.
 
 ## Rendering (`modules/depth/`, `modules/desktop/`, `shell.qml`)
@@ -139,9 +140,9 @@ cutouts / SHOW FILES** action opens the folder.
 ## Compose mode (the "place the visualiser" analogue)
 
 - `ShellState` gains a per-screen `depthComposing` flag beside `visualizerPlacing`.
-- The DEPTH card's **COMPOSE** button enables depth, sets
-  `ShellState.forActive().depthComposing = true`, and closes the control center -
-  the exact shape of the visualiser's PLACE button (`DesktopRoute.qml`).
+- The Depth tab's **COMPOSE** button enables depth, sets
+  `ShellState.forActive().depthComposing = true`, and closes the panel -
+  the exact shape of the visualiser's PLACE button (`QuickSettingsDepth.qml`).
 - While composing, `Desktop.qml` shows the cutout at full strength (even mid-tune),
   frees every widget for dragging (locks suspended like visualiser placement,
   restored on Done), and raises `depth/DepthEditBar.qml`: a compact toolbar
