@@ -23,6 +23,10 @@ grep -qF 'visible: cover.phase !== "failed" && logo.opacity > 0' "$renderer"
 grep -qF 'import QtQuick.Shapes' "$renderer"
 grep -qF 'fillRule: ShapePath.OddEvenFill' "$renderer"
 grep -qF 'PathSvg {' "$renderer"
+test "$(grep -cF 'duration: 520' "$renderer")" = 2
+grep -qF 'visible: cover.phase === "closing" || cover.phase === "opening"' "$renderer"
+grep -qF 'interval: 520' "$cover_shell"
+grep -qF 'interval: 560' "$cover_shell"
 live_runtime="${XDG_RUNTIME_DIR:-}"
 reload_pid=""
 

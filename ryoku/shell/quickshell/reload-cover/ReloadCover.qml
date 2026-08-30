@@ -57,7 +57,7 @@ PanelWindow {
         property: "iris"
         from: cover.diagonal
         to: 0
-        duration: 320
+        duration: 520
         easing.type: Easing.InOutCubic
     }
     NumberAnimation {
@@ -66,7 +66,7 @@ PanelWindow {
         property: "iris"
         from: 0
         to: cover.diagonal
-        duration: 380
+        duration: 520
         easing.type: Easing.InOutCubic
     }
 
@@ -149,7 +149,7 @@ PanelWindow {
         opacity: {
             if (cover.phase === "closing") return Math.max(0, 1 - cover.iris / (cover.diagonal * 0.38));
             if (cover.phase === "hold" || cover.phase === "failed") return 1;
-            if (cover.phase === "opening") return Math.max(0, 1 - cover.iris / (cover.diagonal * 0.38));
+            if (cover.phase === "opening") return 0;
             return 0;
         }
         scale: opacity < 1 ? 0.94 + opacity * 0.06 : 1
