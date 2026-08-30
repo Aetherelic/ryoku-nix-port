@@ -12,6 +12,7 @@ on:
       - 'system/hardware/drivers/ryoku-nvidia-guard'
       - 'system/hardware/drivers/nvidia.sh'
       - 'tests/nvidia-guard.sh'
+      - 'tests/nvidia-driver-selection.sh'
       - '.github/workflows/nvidia-guard.yml'
   push:
     branches:
@@ -20,6 +21,7 @@ on:
       - 'system/hardware/drivers/ryoku-nvidia-guard'
       - 'system/hardware/drivers/nvidia.sh'
       - 'tests/nvidia-guard.sh'
+      - 'tests/nvidia-driver-selection.sh'
       - '.github/workflows/nvidia-guard.yml'
   workflow_dispatch:
 
@@ -37,3 +39,7 @@ jobs:
       - name: Run nvidia-guard test
         shell: bash
         run: bash tests/nvidia-guard.sh
+
+      - name: Run NVIDIA driver selection test
+        shell: bash
+        run: bash tests/nvidia-driver-selection.sh

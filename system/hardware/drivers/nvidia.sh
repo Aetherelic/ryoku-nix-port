@@ -3,13 +3,10 @@
 # nvidia.sh: pick + install the right NVIDIA stack if a card is there.
 #
 # Turing+ (GTX 16xx, RTX 20xx-up, datacenter A/H/L) ship GSP firmware and use
-# the open kernel modules; older cards (Maxwell/Pascal/Volta) use the
-# proprietary ones. On the stock `linux` kernel we install the PREBUILT module
-# (nvidia-open / nvidia) so there is no DKMS build to fail on a fresh kernel; a
-# custom kernel falls back to nvidia-open-dkms / nvidia-dkms + headers. Both add
-# nvidia-utils + libva-nvidia-driver. The early-KMS mkinitcpio config is written
-# only when the module actually landed, so a driver that cannot build never
-# breaks the initramfs (the machine still boots on the iGPU).
+# the open kernel modules. Kepler needs NVIDIA's 470xx legacy branch; Maxwell,
+# Pascal, and Volta use 580xx. The early-KMS mkinitcpio config is written only
+# when the module actually landed, so a driver that cannot build never breaks the
+# initramfs (the machine still boots on the iGPU).
 #
 # idempotent, gated on detection, dry-run via RYOKU_DRYRUN (or --dry-run).
 
@@ -99,6 +96,14 @@ nvidia_has_gsp() {
     | grep -qE "GTX 16[0-9]{2}|RTX [2-5][0-9]{3}|RTX PRO [0-9]{4}|Quadro RTX|RTX A[0-9]{4}|A[1-9][0-9]{2}|H[1-9][0-9]{2}|T4|L[0-9]+"
 }
 
+# Kepler names in pci.ids carry the GPU's GK chip code (GK104/GK106/GK107/GK208).
+# NVIDIA's 580xx branch no longer supports it; selecting that branch can leave a
+# loadable but unbound module while Nouveau is blacklisted.
+nvidia_is_kepler() {
+  has_lspci || return 1
+  lspci | grep -i 'nvidia' | grep -qE '(^|[^[:alnum:]])GK[0-9]+'
+}
+
 if ! has_nvidia; then
   echo "nvidia.sh: no NVIDIA GPU detected, nothing to do."
   exit 0
@@ -142,13 +147,11 @@ else
   # NVIDIA driver by GPU generation. Turing+ (GSP firmware) runs the open modules:
   # the prebuilt nvidia-open on stock linux (no DKMS build to fail on a fresh
   # kernel), nvidia-open-dkms on a custom kernel, both with the official
-  # nvidia-utils. Pre-Turing cards (Maxwell/Pascal/Volta) are not covered by the
-  # open modules and Arch dropped the closed `nvidia`, so they run the AUR-legacy
-  # 580xx branch (nvidia-580xx-dkms pulls its own nvidia-580xx-utils), DKMS on
-  # every kernel. The ISO bakes the 580xx and 470xx branches into the offline repo
-  # best-effort (they are large vendor blobs), so these usually install with no
-  # network; when a bake was skipped the card falls back to nouveau/mesa.
-  # headers cover the DKMS build.
+  # nvidia-utils. Kepler is the older 470xx legacy branch. Maxwell/Pascal/Volta
+  # are not covered by the open modules and use the AUR 580xx branch. The ISO
+  # bakes both legacy branches into the offline repo best-effort (they are large
+  # vendor blobs), so these usually install with no network; when a bake was
+  # skipped the card falls back to nouveau/mesa. Headers cover the DKMS build.
   headers=()
   for kb in "${kernels[@]}"; do headers+=("${kb}-headers"); done
   multilib=0
@@ -163,8 +166,12 @@ else
       echo "nvidia.sh: Turing+ GPU, custom kernel(s), using nvidia-open-dkms."
       pkgs=(nvidia-open-dkms "${base[@]}" "${headers[@]}")
     fi
+  elif nvidia_is_kepler; then
+    echo "nvidia.sh: Kepler GPU, using the legacy 470xx branch (nvidia-470xx-dkms)."
+    pkgs=(nvidia-470xx-dkms libva-nvidia-driver "${headers[@]}")
+    if (( multilib )); then pkgs+=(lib32-nvidia-470xx-utils); fi
   else
-    echo "nvidia.sh: pre-Turing GPU, using the legacy 580xx branch (nvidia-580xx-dkms)."
+    echo "nvidia.sh: Maxwell, Pascal, or Volta GPU, using the legacy 580xx branch (nvidia-580xx-dkms)."
     pkgs=(nvidia-580xx-dkms libva-nvidia-driver "${headers[@]}")
     if (( multilib )); then pkgs+=(lib32-nvidia-580xx-utils); fi
   fi

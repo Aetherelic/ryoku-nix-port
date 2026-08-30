@@ -169,6 +169,7 @@ func reconcilers() []reconciler {
 		{"discrete GPU idle drain", reconcileDgpuPanel},
 		{"display resolution", reconcileDisplayModes},
 		{"phantom Wayland output", reconcilePhantomOutput},
+		{"Kepler NVIDIA recovery", reconcileKeplerNvidia},
 		{"NVIDIA boot reliability", reconcileNvidiaModeset},
 		{"NVIDIA update guard hook", reconcileNvidiaGuardHook},
 		{"pending config (.pacnew)", reconcilePacnew},

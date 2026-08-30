@@ -129,6 +129,54 @@ options nouveau modeset=0
 
 const nvidiaMkinitcpioConf = "MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)\n"
 
+var (
+	nvidiaPCIOutput = func() string {
+		out, err := exec.Command("lspci").Output()
+		if err != nil {
+			return ""
+		}
+		return string(out)
+	}
+	nvidia580Installed   = func() bool { return sys.PkgInstalled("nvidia-580xx-dkms") }
+	removeKepler580      = func() error { return sys.Sudo(kepler580RemovalArgs()...) }
+	restoreKeplerNouveau = func() error {
+		return removeRootFiles("/etc/modprobe.d/nvidia.conf", "/etc/mkinitcpio.conf.d/nvidia.conf")
+	}
+	rebuildKeplerNouveau = rebuildInitramfs
+)
+
+func kepler580RemovalArgs() []string {
+	return []string{"pacman", "-R", "--noconfirm", "nvidia-580xx-dkms"}
+}
+
+func keplerGpuPresent() bool {
+	pci := strings.ToLower(nvidiaPCIOutput())
+	return strings.Contains(pci, "nvidia") && strings.Contains(pci, "gk")
+}
+
+func reconcileKeplerNvidia(checkOnly bool) recResult {
+	if !keplerGpuPresent() || !nvidia580Installed() {
+		return okRes("no incompatible 580xx driver on Kepler hardware")
+	}
+	if checkOnly {
+		return wouldRes("Kepler hardware has nvidia-580xx-dkms, which cannot bind this GPU and leaves Nouveau blacklisted").
+			withFix("ryoku doctor  (removes 580xx and restores Nouveau)")
+	}
+	if err := removeKepler580(); err != nil {
+		return failRes("could not remove incompatible nvidia-580xx-dkms: %v", err).
+			withFix("sudo pacman -R --noconfirm nvidia-580xx-dkms")
+	}
+	if err := restoreKeplerNouveau(); err != nil {
+		return failRes("removed 580xx but could not restore Nouveau: %v", err).
+			withFix("sudo rm /etc/modprobe.d/nvidia.conf /etc/mkinitcpio.conf.d/nvidia.conf")
+	}
+	if err := rebuildKeplerNouveau(); err != nil {
+		return warnRes("restored Nouveau, but the initramfs rebuild failed: %v", err).
+			withFix("sudo limine-mkinitcpio  (or: sudo mkinitcpio -P)")
+	}
+	return fixedRes("removed unsupported 580xx from Kepler hardware and restored Nouveau for the next boot")
+}
+
 // nvidiaDriverActive: does this box use the proprietary/open nvidia driver?
 // a loaded module is the clearest tell, but the bug we repair is exactly
 // that nouveau won the boot race, so the module may NOT be loaded -- fall
@@ -136,12 +184,23 @@ const nvidiaMkinitcpioConf = "MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_d
 // (userspace) alone is excluded: with no module to load, writing
 // MODULES=(nvidia ...) would only break the initramfs.
 func nvidiaDriverActive() bool {
-	for _, m := range gpuDriversLoaded() {
+	return nvidiaDriverActiveFor(keplerGpuPresent(), nvidiaDriverPackagePresent(), gpuDriversLoaded())
+}
+
+func nvidiaDriverActiveFor(kepler, packagePresent bool, loaded []string) bool {
+	if kepler && !packagePresent {
+		return false
+	}
+	for _, m := range loaded {
 		if m == "nvidia" {
 			return true
 		}
 	}
-	return anyPkgInstalled("nvidia-open-dkms", "nvidia-dkms", "nvidia-open", "nvidia", "nvidia-lts", "nvidia-open-lts")
+	return packagePresent
+}
+
+func nvidiaDriverPackagePresent() bool {
+	return anyPkgInstalled("nvidia-open-dkms", "nvidia-dkms", "nvidia-open", "nvidia", "nvidia-lts", "nvidia-open-lts", "nvidia-470xx-dkms", "nvidia-580xx-dkms")
 }
 
 // nvidiaConfigOK: do the modprobe + mkinitcpio drop-ins already carry the
