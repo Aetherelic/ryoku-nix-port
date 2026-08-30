@@ -267,7 +267,27 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             options: DepthCfg.DepthBackend.models
                             current: DepthCfg.Config.model
+                            labels: ({
+                                    "u2netp": I18n.tr("Fast"),
+                                    "birefnet-general-lite": I18n.tr("Quality")
+                                })
                             onChose: m => DepthCfg.Config.setModel(m)
+                        }
+                    }
+                    SettingRow {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        divider: true
+                        visible: DepthCfg.DepthBackend.available && !DepthCfg.DepthBackend.hasModel("birefnet-general-lite")
+                        block: true
+                        label: DepthCfg.DepthBackend.installing ? I18n.tr("Fetching quality model") : I18n.tr("Higher quality")
+                        desc: DepthCfg.DepthBackend.installing ? DepthCfg.DepthBackend.progress : I18n.tr("A larger model (~224 MB) for cleaner edges on detailed subjects.")
+                        Btn {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: DepthCfg.DepthBackend.installing ? I18n.tr("WORKING") : I18n.tr("GET")
+                            enabled: !DepthCfg.DepthBackend.installing
+                            onAct: DepthCfg.DepthBackend.install("birefnet-general-lite")
                         }
                     }
                     SettingRow {

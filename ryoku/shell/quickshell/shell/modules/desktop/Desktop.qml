@@ -36,6 +36,9 @@ Scope {
     // compose mode frees every widget for dragging (like visualiser placement),
     // so a locked clock can still be nestled into the subject; Done restores it.
     readonly property bool depthComposing: root.depthState ? root.depthState.depthComposing : false
+    // grab the keyboard while composing so Esc/Enter exit the mode (the bar owns
+    // the keys); dropping it hands the keyboard back like any widget edit.
+    onDepthComposingChanged: win.kbWanted += root.depthComposing ? 1 : -1
     readonly property bool reloadReady: readiness.ready
 
     ReloadReadiness {

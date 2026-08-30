@@ -148,19 +148,21 @@ cutouts / SHOW FILES** action opens the folder.
   mirroring the visualiser's `EditBar` chrome with only the honest knobs - a
   **Feather** slider, a **Foreground** (lift) slider, a **Clock in front** toggle,
   a **Regenerate** action (re-run the model for the current wallpaper), and
-  **Done**. The user nestles the clock (or any widget) into the subject's negative
-  space with the ordinary widget drag, seeing the overlap live. There is no cutout
-  move/resize and no image editor: the cutout is locked to the wallpaper by contract.
+  **Done** (or Esc/Enter, since the layer holds the keyboard while composing). The
+  user nestles the clock (or any widget) into the subject's negative space with the
+  ordinary widget drag, seeing the overlap live. There is no cutout move/resize and
+  no image editor: the cutout is locked to the wallpaper by contract.
 
 ## Availability + install (`depth/Singletons/DepthBackend.qml`)
 
 A tiny singleton that runs `ryoku-depth check` (a `Process`) and exposes
-`available` and `installing`. The DEPTH card binds to it: when unavailable it
-shows an **Install engine** action that runs `ryoku-depth install` through
-`Spawn` with streamed progress, flipping to the normal controls once `check`
-passes. Generation degrades safely without it - the daemon's `cutout` simply
-fails and `depthUrl` stays empty, so the desktop is never broken by a missing
-engine.
+`available`, `installing`, and the installed `models`. The DEPTH card binds to it:
+when unavailable it shows an **Install engine** action (`ryoku-depth install`,
+streamed progress) that fetches the small default model; once available a **Higher
+quality** action fetches the larger `birefnet-general-lite` on demand, and the
+**Model** picker (labelled Fast / Quality) appears once more than one is present.
+Generation degrades safely without it - the daemon's `cutout` simply fails and
+`depthUrl` stays empty, so the desktop is never broken by a missing engine.
 
 ## Delivery
 

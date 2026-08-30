@@ -13,6 +13,12 @@ Item {
 
     anchors.fill: parent
 
+    // Esc or Enter leaves compose; the bar takes focus when shown so the keys
+    // land here even after a slider or button was clicked (they bubble up).
+    onVisibleChanged: if (bar.visible) bar.forceActiveFocus()
+    Keys.onEscapePressed: e => { bar.done(); e.accepted = true; }
+    Keys.onReturnPressed: e => { bar.done(); e.accepted = true; }
+
     Rectangle {
         id: plate
         anchors.horizontalCenter: parent.horizontalCenter

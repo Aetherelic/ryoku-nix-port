@@ -25,13 +25,18 @@ Singleton {
         checkProc.running = false;
         checkProc.running = true;
     }
-    function install() {
+    function install(model) {
         if (root.installing)
             return;
         root.installing = true;
         root.progress = "";
+        installProc.command = (model && model.length > 0) ? [root.bin, "install", model] : [root.bin, "install"];
         installProc.running = false;
         installProc.running = true;
+    }
+    // Which curated models are already downloaded (drives the quality option).
+    function hasModel(m) {
+        return (root.models || []).indexOf(m) >= 0;
     }
     function openFolder() {
         openProc.running = false;

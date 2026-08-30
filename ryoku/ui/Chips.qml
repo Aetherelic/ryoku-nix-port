@@ -6,6 +6,8 @@ Flow {
     id: chips
     property var options: []
     property string current: ""
+    // optional value -> display map; a value not present falls back to I18n.tr(value)
+    property var labels: ({})
     signal chose(string key)
 
     activeFocusOnTab: true
@@ -36,7 +38,7 @@ Flow {
             Text {
                 id: cl
                 anchors.centerIn: parent
-                text: I18n.tr(parent.modelData)
+                text: chips.labels[parent.modelData] !== undefined ? chips.labels[parent.modelData] : I18n.tr(parent.modelData)
                 color: parent.on ? Tokens.inkOnBone : Tokens.inkDim
                 font.family: Tokens.ui
                 font.pixelSize: 10
