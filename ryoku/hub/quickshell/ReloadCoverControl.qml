@@ -12,6 +12,7 @@ Item {
 
     property var descriptor: ReloadCoverModel.empty()
     property string errorText: ""
+    property bool busy: false
     readonly property var media: ReloadCoverModel.normalize(descriptor)
     readonly property url rendererSource: {
         const dev = Quickshell.env("RYOKU_SHELL_DIR")
@@ -194,11 +195,13 @@ Item {
 
                 Btn {
                     text: I18n.tr("DEFAULT")
+                    armed: !control.busy
                     onAct: control.defaultRequested()
                 }
                 Btn {
                     text: I18n.tr("ADD ASSET…")
                     primary: true
+                    armed: !control.busy
                     onAct: control.addRequested()
                 }
                 Item { Layout.fillWidth: true }

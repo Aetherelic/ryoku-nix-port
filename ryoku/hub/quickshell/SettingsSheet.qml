@@ -35,6 +35,7 @@ Item {
     // flashed. Cleared shortly after so the wash is a pulse, not a highlight.
     property string spotlightKey: ""
     property string reloadCoverError: ""
+    property bool reloadCoverImportBusy: false
 
     signal edited(string key, var value)
 
@@ -432,6 +433,7 @@ Item {
                                     anchors.fill: parent
                                     descriptor: ReloadCoverModel.normalize(sheet.val(srow.r))
                                     errorText: sheet.reloadCoverError
+                                    busy: sheet.reloadCoverImportBusy
                                     onAddRequested: sheet.reloadCoverPick(srow.r)
                                     onDefaultRequested: sheet.reloadCoverDefault(srow.r)
                                 }

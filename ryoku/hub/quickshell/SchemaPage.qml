@@ -30,9 +30,16 @@ Item {
     property string externalReloadCoverError: ""
     property string importReloadCoverError: ""
     property var pendingReloadCoverRow: null
+    property bool reloadCoverImportBusy: false
+    property int reloadCoverImportGeneration: 0
 
     signal edited(string key, var value)
     signal pickRequested(var row)
+
+    function invalidateReloadCoverImport() {
+        reloadCoverImportGeneration++;
+        pendingReloadCoverRow = null;
+    }
     signal timezonePickRequested(var row)
 
     // a search jump forwards here; the sheet switches tab, scrolls, and flashes.
@@ -143,12 +150,15 @@ Item {
         onEdited: (k, v) => page.edited(k, v)
         onPickRequested: (r) => page.pickRequested(r)
         reloadCoverError: page.importReloadCoverError || page.externalReloadCoverError
+        reloadCoverImportBusy: page.reloadCoverImportBusy
         onReloadCoverPickRequested: (r) => {
+            if (page.reloadCoverImportBusy) return;
             page.importReloadCoverError = "";
             page.pendingReloadCoverRow = r;
             reloadCoverPick.open();
         }
         onReloadCoverDefaultRequested: (r) => {
+            page.invalidateReloadCoverImport();
             page.importReloadCoverError = "";
             page.edited(r.key, ReloadCoverModel.empty());
         }
@@ -176,22 +186,31 @@ Item {
         fileFilters: ReloadCoverModel.filters()
         onPicked: (p) => {
             reloadCoverPick.active = false;
-            if (!page.pendingReloadCoverRow) return;
+            if (page.reloadCoverImportBusy || !page.pendingReloadCoverRow) return;
+            page.reloadCoverImportGeneration++;
+            reloadCoverImport.requestGeneration = page.reloadCoverImportGeneration;
             reloadCoverImport.command = ["ryoku-hub", "reload-cover", "import", "" + p];
+            page.reloadCoverImportBusy = true;
             reloadCoverImport.running = true;
         }
         onCanceled: {
             reloadCoverPick.active = false;
-            page.pendingReloadCoverRow = null;
+            if (!page.reloadCoverImportBusy)
+                page.pendingReloadCoverRow = null;
         }
     }
 
     Process {
         id: reloadCoverImport
+        property int requestGeneration: 0
         running: false
         stdout: StdioCollector { id: reloadCoverImportOut }
         stderr: StdioCollector { id: reloadCoverImportErr }
         onExited: function(code) {
+            var isCurrent = requestGeneration === page.reloadCoverImportGeneration;
+            page.reloadCoverImportBusy = false;
+            if (!isCurrent) return;
+
             var row = page.pendingReloadCoverRow;
             if (code === 0) {
                 try {
