@@ -1,0 +1,12 @@
+[Unit]
+Description=Ryoku network kill-switch NetworkManager disconnect
+After=NetworkManager.service ryoku-network-kill-guard.service
+Requires=ryoku-network-kill-guard.service
+ConditionPathExists=/var/lib/ryoku/network-kill-switch.enabled
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nmcli networking off
+
+[Install]
+WantedBy=multi-user.target

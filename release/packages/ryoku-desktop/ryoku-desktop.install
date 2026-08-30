@@ -127,6 +127,16 @@ _bt_reset_unit() {
   mkdir -p /var/lib/ryoku && : >"$marker"
 }
 
+# The guard unit is inert until the kill switch writes its marker, but must be
+# enabled before that can happen so a power loss never resurrects connectivity
+# on the next boot. The helper re-enables it when arming as a second safeguard.
+_network_kill_units() {
+  [ -e /usr/lib/systemd/system/ryoku-network-kill-guard.service ] || return 0
+  [ -e /usr/lib/systemd/system/ryoku-network-kill-disconnect.service ] || return 0
+  systemctl enable ryoku-network-kill-guard.service \
+    ryoku-network-kill-disconnect.service 2>/dev/null || true
+}
+
 # apply the boot splash + Limine theme when an upgrade ships new art; a no-op in
 # the install chroot, where the installer lays the boot chain.
 _boot_theme() {
@@ -145,6 +155,7 @@ post_install() {
   _logind_lid
   _ai_usage_timer
   _bt_reset_unit
+  _network_kill_units
   _boot_theme
   _hint
 }
@@ -161,6 +172,7 @@ post_upgrade() {
   _ai_usage_timer
   _bt_reset_unit
   _boot_theme
+  _network_kill_units
   _hint
 }
 

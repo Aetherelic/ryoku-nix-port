@@ -9,7 +9,7 @@
 # this dir from a full checkout, so the repo root is three levels up.
 pkgname=ryoku-desktop
 pkgver=${RYOKU_PKGVER:-0.1.0}
-pkgrel=1
+pkgrel=2
 pkgdesc="Ryoku desktop: Hyprland + Quickshell configuration, helpers, and runtime"
 # package() compiles Go helpers (ryovm-fetch), so the payload is arch-specific.
 arch=('x86_64')
@@ -168,6 +168,10 @@ depends=(
   'zenity'
   # Game Mode wifi power-save toggle (ryoku-wifi-powersave runs iw)
   'iw'
+  # Full network isolation: ryoku-network-kill installs an inet nftables table
+  # before deactivating NetworkManager, so Wi-Fi, Ethernet, VPN, LAN, IPv4 and
+  # IPv6 have no path to leak through. Hard depend reaches existing boxes.
+  'nftables'
   # Bluetooth: the pill link + Hub Connections drive bluetoothd over D-Bus
   # (Quickshell.Bluetooth) and shell out to bluetoothctl to pair; the .install
   # enables bluetooth.service once so upgrades from bluez-less installs work.
@@ -510,6 +514,7 @@ package() {
   install -Dm755 "$_repo/ryoku/hyprland/scripts/ryoku-music-toggle" \
     "$pkgdir/usr/bin/ryoku-music-toggle"
   for s in "$_repo"/system/hardware/*/ryoku-*; do
+    [[ -f $s && -x $s ]] || continue
     install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
   done
   for s in "$_repo"/system/extras/ryoku-*; do
@@ -631,6 +636,16 @@ package() {
   # without a password, so the deck toggle stays one click.
   install -Dm644 "$_repo/system/hardware/network/49-ryoku-wifi-powersave.rules" \
     "$pkgdir/usr/share/polkit-1/rules.d/49-ryoku-wifi-powersave.rules"
+
+  # Full network isolation: package the exact polkit grant plus boot units. The
+  # helper itself rides the hardware glob above; the guard restores its drop
+  # table before NetworkManager starts when the user left the switch armed.
+  install -Dm644 "$_repo/system/hardware/network/55-ryoku-network-kill.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/55-ryoku-network-kill.rules"
+  install -Dm644 "$_repo/system/hardware/network/ryoku-network-kill-guard.service" \
+    "$pkgdir/usr/lib/systemd/system/ryoku-network-kill-guard.service"
+  install -Dm644 "$_repo/system/hardware/network/ryoku-network-kill-disconnect.service" \
+    "$pkgdir/usr/lib/systemd/system/ryoku-network-kill-disconnect.service"
 
   # DNS provider switch: the same one-click grant for ryoku-dns (installed above),
   # so the network panel's DNS buttons apply without a password prompt.

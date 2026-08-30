@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# Full network isolation for Ryoku. A dedicated inet table drops every packet
+# that is not loopback (IPv4 + IPv6, Wi-Fi, Ethernet, VPN, LAN, and forwarding).
+# The table is installed before NetworkManager is disabled, then restored before
+# NetworkManager starts at boot whenever the persistent marker exists.
+set -euo pipefail
+
+state=${RYOKU_NETWORK_KILL_STATE:-/var/lib/ryoku/network-kill-switch.enabled}
+nft=${RYOKU_NETWORK_KILL_NFT:-nft}
+nmcli=${RYOKU_NETWORK_KILL_NMCLI:-nmcli}
+systemctl=${RYOKU_NETWORK_KILL_SYSTEMCTL:-systemctl}
+table='ryoku_kill_switch'
+
+usage() {
+    echo "usage: ryoku-network-kill [on | off | status | boot]" >&2
+    exit 2
+}
+
+require() {
+    command -v "$1" >/dev/null 2>&1 || {
+        echo "ryoku-network-kill: required command not found: $1" >&2
+        exit 1
+    }
+}
+
+rules() {
+    if "$nft" list table inet "$table" >/dev/null 2>&1; then
+        cat <<'NFT'
+flush table inet ryoku_kill_switch
+add chain inet ryoku_kill_switch input { type filter hook input priority -300; policy accept; }
+add rule inet ryoku_kill_switch input iifname "lo" accept
+add rule inet ryoku_kill_switch input counter drop
+add chain inet ryoku_kill_switch output { type filter hook output priority -300; policy accept; }
+add rule inet ryoku_kill_switch output oifname "lo" accept
+add rule inet ryoku_kill_switch output counter drop
+add chain inet ryoku_kill_switch forward { type filter hook forward priority -300; policy accept; }
+add rule inet ryoku_kill_switch forward counter drop
+NFT
+    else
+        cat <<'NFT'
+table inet ryoku_kill_switch {
+    chain input {
+        type filter hook input priority -300; policy accept;
+        iifname "lo" accept
+        counter drop
+    }
+    chain output {
+        type filter hook output priority -300; policy accept;
+        oifname "lo" accept
+        counter drop
+    }
+    chain forward {
+        type filter hook forward priority -300; policy accept;
+        counter drop
+    }
+}
+NFT
+    fi
+}
+
+arm_firewall() {
+    rules | "$nft" --check -f -
+    rules | "$nft" -f -
+}
+
+firewall_present() {
+    "$nft" list table inet "$table" >/dev/null 2>&1
+}
+
+lock_transitions() {
+    require flock
+    install -d -m 700 "$(dirname "$state")"
+    exec 9>"${state}.lock"
+    flock -x 9
+}
+
+persist() {
+    install -d -m 700 "$(dirname "$state")"
+    umask 077
+    : >"$state"
+}
+
+on() {
+    require "$nft"
+    require "$nmcli"
+    require "$systemctl"
+    lock_transitions
+    # Make the boot guard durable before changing live state. If the host loses
+    # power mid-transition, the guard recreates the drop table before NM starts.
+    "$systemctl" enable --quiet ryoku-network-kill-guard.service ryoku-network-kill-disconnect.service
+    persist
+    arm_firewall
+    "$nmcli" networking off
+}
+
+off() {
+    require "$nft"
+    require "$nmcli"
+    lock_transitions
+    if firewall_present; then
+        "$nft" delete table inet "$table"
+    fi
+    rm -f "$state"
+    "$nmcli" networking on
+}
+
+status() {
+    if [[ -e $state ]] && firewall_present; then
+        printf 'on\n'
+    elif [[ ! -e $state ]] && ! firewall_present; then
+        printf 'off\n'
+    elif [[ -e $state ]]; then
+        printf 'armed\n'
+    else
+        printf 'blocked\n'
+    fi
+}
+
+boot() {
+    [[ -e $state ]] || exit 0
+    require "$nft"
+    lock_transitions
+    arm_firewall
+}
+
+case "${1:-}" in
+    on) on ;;
+    off) off ;;
+    status) status ;;
+    boot) boot ;;
+    *) usage ;;
+esac

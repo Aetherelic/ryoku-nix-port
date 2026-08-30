@@ -1,0 +1,15 @@
+[Unit]
+Description=Ryoku network kill-switch firewall guard
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target NetworkManager.service
+Wants=network-pre.target
+ConditionPathExists=/var/lib/ryoku/network-kill-switch.enabled
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ryoku-network-kill boot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

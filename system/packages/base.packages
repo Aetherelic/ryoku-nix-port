@@ -50,6 +50,10 @@ wpa_supplicant
 wireless-regdb
 # iw: ryoku-wifi-powersave (Game Mode) disables 802.11 power-save for low latency
 iw
+# nftables: fail-closed firewall backing the Connections kill switch. The helper
+# drops all non-loopback IPv4/IPv6 traffic before it asks NetworkManager to
+# deactivate managed interfaces.
+nftables
 
 # Bluetooth (BlueZ). bluetoothd is the org.bluez D-Bus daemon the shell and hub
 # Bluetooth UIs (Quickshell.Bluetooth) talk to; bluez-utils ships bluetoothctl,

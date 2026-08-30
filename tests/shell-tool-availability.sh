@@ -85,6 +85,7 @@ declare -A need=(
   [music-recognition]=songrec
   [display-brightness]=ddcutil
   [vibrance]=nvibrant-bin
+  [network-kill-switch]=nftables
 )
 
 missing=()

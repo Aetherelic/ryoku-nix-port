@@ -43,6 +43,64 @@ Item {
         return 0;
     }
 
+    // Full machine isolation is intentionally outside the Wi-Fi subtab: it
+    // blocks every non-loopback path (including Ethernet, VPN, LAN and IPv6).
+    // The helper owns the firewall and NetworkManager transition; this page
+    // only asks it for a state and renders the result.
+    property string killState: "checking"
+    property string killError: ""
+    property bool killBusy: false
+    readonly property bool killActive: killState === "on"
+
+    function refreshKillState() {
+        if (!killStatus.running)
+            killStatus.running = true;
+    }
+
+    function toggleKillSwitch() {
+        killBusy = true;
+        killError = "";
+        killSetProc.target = killActive ? "off" : "on";
+        killSetProc.running = true;
+    }
+
+    Process {
+        id: killStatus
+        command: ["pkexec", "/usr/bin/ryoku-network-kill", "status"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var state = this.text.trim();
+                if (state === "on" || state === "off" || state === "armed" || state === "blocked") {
+                    pg.killState = state;
+                    pg.killError = "";
+                } else {
+                    pg.killState = "unknown";
+                    pg.killError = I18n.tr("Could not read the network kill switch.");
+                }
+        }
+        stderr: StdioCollector {}
+        onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                pg.killState = "unknown";
+                pg.killError = I18n.tr("Could not read the network kill switch.");
+            }
+        }
+    }
+
+    Process {
+        id: killSetProc
+        property string target: ""
+        command: ["pkexec", "/usr/bin/ryoku-network-kill", target]
+        stderr: StdioCollector {}
+        onExited: function(exitCode) {
+            pg.killBusy = false;
+            if (exitCode !== 0)
+                pg.killError = I18n.tr("Could not change the network kill switch.");
+            pg.refreshKillState();
+        }
+    }
+
     // ── shared drawn chrome (monochrome, ink) ──────────────────────────────
 
     // signal strength as four ascending ink bars. data drawn in ink, sharp
@@ -2015,6 +2073,69 @@ Item {
             }
         }
 
+        // The kill switch is a machine-wide firewall, not a radio toggle. The
+        // copy names SSH because an activated switch severs remote sessions too.
+        Rectangle {
+            id: killSwitch
+            anchors { left: parent.left; right: heroDecor.left; rightMargin: Tokens.s5; top: head.bottom; topMargin: Tokens.s4 }
+            implicitHeight: killCopy.implicitHeight + Tokens.s4
+            radius: Tokens.radius
+            color: pg.killActive ? Tokens.bone : "transparent"
+            border.width: Tokens.border
+            border.color: pg.killActive ? Tokens.bone : Tokens.line
+
+            Column {
+                id: killCopy
+                anchors { left: parent.left; right: killAction.left; rightMargin: Tokens.s4; verticalCenter: parent.verticalCenter; leftMargin: Tokens.s3 }
+                spacing: Tokens.s1
+                Text {
+                    text: pg.killActive ? I18n.tr("INTERNET ISOLATED") : I18n.tr("INTERNET KILL SWITCH")
+                    color: pg.killActive ? Tokens.inkOnBone : Tokens.ink
+                    font.family: Tokens.ui
+                    font.pixelSize: Tokens.fMicro
+                    font.weight: Font.Medium
+                    font.letterSpacing: Tokens.trackMark
+                }
+                Text {
+                    width: parent.width
+                    text: pg.killState === "armed" ? I18n.tr("Firewall repair required before this machine is safe.")
+                        : (pg.killState === "blocked" ? I18n.tr("Traffic is blocked but the boot guard is not armed.")
+                        : I18n.tr("Blocks Wi-Fi, Ethernet, VPN, LAN and IPv4/IPv6. It also severs SSH."))
+                    color: pg.killActive ? Tokens.inkOnBone : Tokens.inkMuted
+                    font.family: Tokens.ui
+                    font.pixelSize: Tokens.fMicro
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    visible: pg.killError !== ""
+                    text: pg.killError
+                    color: pg.killActive ? Tokens.inkOnBone : Tokens.inkMuted
+                    font.family: Tokens.ui
+                    font.pixelSize: Tokens.fMicro
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            MiniPill {
+                id: killAction
+                anchors { right: parent.right; rightMargin: Tokens.s3; verticalCenter: parent.verticalCenter }
+                text: pg.killBusy ? I18n.tr("WORKING") : (pg.killActive ? I18n.tr("RESTORE") : I18n.tr("ISOLATE"))
+                armed: !pg.killBusy && pg.killState !== "checking"
+                onAct: pg.toggleKillSwitch()
+            }
+        }
+
+        Text {
+            id: killWarning
+            anchors { left: killSwitch.left; right: killSwitch.right; top: killSwitch.bottom; topMargin: Tokens.s1 }
+            visible: !pg.killActive
+            text: I18n.tr("Use ISOLATE from the physical machine; every remote connection is cut immediately.")
+            color: Tokens.inkFaint
+            font.family: Tokens.ui
+            font.pixelSize: Tokens.fMicro
+            wrapMode: Text.WordWrap
+        }
+
         // a decorative hero in the head's dead right, shared across every subtab
         Decor {
             id: heroDecor
@@ -2030,7 +2151,7 @@ Item {
         // the shared Tabs plate: selection is the // lead on bone, no slider.
         Tabs {
             id: tabStrip
-            anchors { left: parent.left; top: head.bottom; topMargin: Tokens.s5 }
+            anchors { left: parent.left; top: killWarning.bottom; topMargin: Tokens.s4 }
             options: pg.tabs.map(function (t) { return t.label; })
             current: {
                 for (var i = 0; i < pg.tabs.length; i++)
