@@ -33,10 +33,10 @@ func findHubBin() string {
 	}
 	return "ryoku-hub"
 }
-func wallDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "Wallpapers") }
-func liveDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "livewalls") }
-func wallState() string { return filepath.Join(stateDir(), "ryoku-wallpaper") }
-func wallBag() string   { return filepath.Join(stateDir(), "ryoku-wallpaper-bag") }
+func wallDir() string       { return filepath.Join(os.Getenv("HOME"), "Pictures", "Wallpapers") }
+func liveDir() string       { return filepath.Join(os.Getenv("HOME"), "Pictures", "livewalls") }
+func wallState() string     { return filepath.Join(stateDir(), "ryoku-wallpaper") }
+func wallBag() string       { return filepath.Join(stateDir(), "ryoku-wallpaper-bag") }
 func wallStateJSON() string { return filepath.Join(stateDir(), "ryoku-wallpaper.json") }
 
 // wallStateFile is the persisted per-output state (contract 08): a global default
@@ -206,6 +206,7 @@ func (d *daemon) applyPick(mode, pic, screen string) error {
 	}
 	d.saveState(pic, screen)
 	d.scheduleTheme()
+	d.scheduleDepth()
 	return nil
 }
 
@@ -668,6 +669,7 @@ func (d *daemon) restoreState() {
 		d.adoptWatch()
 	}
 	d.scheduleTheme()
+	d.scheduleDepth()
 }
 
 // adoptWatch drops every live flag once no ryoku-livewall survives, for players

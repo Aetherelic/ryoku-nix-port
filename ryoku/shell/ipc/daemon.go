@@ -55,6 +55,7 @@ var reloadCoverBegin = func() string {
 	}
 	return strings.TrimSpace(string(out))
 }
+
 func beginReloadCover() string {
 	return reloadCoverBegin()
 }
@@ -103,6 +104,7 @@ type daemon struct {
 	proc           map[string]*exec.Cmd // current live process per component
 	wallMu         sync.Mutex           // serializes the wallpaper hot path (pick + apply)
 	paintSig       chan struct{}        // coalescing wake for the palette/border worker
+	depthSig       chan struct{}        // coalescing wake for the depth-cutout worker
 	ledsSig        chan struct{}        // coalescing wake for the OpenRGB worker
 	widgetSig      chan struct{}        // coalescing wake for the widget-occupancy gate
 	liveSig        chan struct{}        // coalescing wake for the live-wallpaper fullscreen gate
@@ -189,6 +191,7 @@ func runDaemon() error {
 		sup:            map[string]bool{},
 		proc:           map[string]*exec.Cmd{},
 		paintSig:       make(chan struct{}, 1),
+		depthSig:       make(chan struct{}, 1),
 		ledsSig:        make(chan struct{}, 1),
 		widgetSig:      make(chan struct{}, 1),
 		liveSig:        make(chan struct{}, 1),
@@ -340,6 +343,7 @@ func (d *daemon) bootstrap() {
 	d.startWallpaper()
 	d.startUpdates()
 	go d.paintWorker()
+	go d.depthWorker()
 	go d.watchMatugenKnobs()
 	go d.ledsWorker()
 	go d.watchHyprland()
@@ -987,6 +991,17 @@ func (d *daemon) dispatch(line string) string {
 		go func() {
 			_ = exec.Command("flock", append([]string{"-n", "-o", "/tmp/ryoku-wallpaper.lock", "qs"}, qsSelect("wallpaper")...)...).Run()
 		}()
+		return "ok"
+	case "depth":
+		// depth refresh regenerates the wallpaper cutout for the current
+		// wallpaper, called on enable / model change; the worker skips it when
+		// depth is off or the engine is not installed.
+		if len(args) >= 1 && args[0] == "refresh" {
+			if d.wall != nil {
+				d.wall.clearDepth()
+			}
+			d.scheduleDepth()
+		}
 		return "ok"
 	case "wallpaper":
 		// Grammar: wallpaper <mode> [--screen <name>] [path]. The path (set) may

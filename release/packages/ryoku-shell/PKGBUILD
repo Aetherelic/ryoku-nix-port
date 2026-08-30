@@ -36,6 +36,8 @@ package() {
   install -Dm755 "$srcdir/ryoku-livewall" "$pkgdir/usr/bin/ryoku-livewall"
   install -Dm755 "$_repo/ryoku/shell/scripts/ryoku-reload-cover" \
     "$pkgdir/usr/bin/ryoku-reload-cover"
+  install -Dm755 "$_repo/ryoku/shell/scripts/ryoku-depth" \
+    "$pkgdir/usr/bin/ryoku-depth"
   install -d "$pkgdir/usr/share/ryoku/reload-cover"
   cp -a "$_repo/ryoku/shell/quickshell/reload-cover/." "$pkgdir/usr/share/ryoku/reload-cover/"
 }

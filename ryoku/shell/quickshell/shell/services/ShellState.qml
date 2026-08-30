@@ -128,6 +128,11 @@ Singleton {
             // overlay is what the user chose.
             property bool visualizerPlacing: false
 
+            // Depth "compose" mode on this monitor: shows the wallpaper cutout at
+            // full strength and raises the depth bar while the clock is dragged
+            // into the subject's negative space (docs/depth.md).
+            property bool depthComposing: false
+
             // A place for the on-screen-display and notification surfaces to
             // signal activity when they migrate (Phase 5).
             property bool osdVisible: false

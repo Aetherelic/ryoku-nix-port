@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# ryoku-depth: the desktop's foreground-cutout engine. The one place model logic
+# lives; ryoku-shell calls it to turn the current wallpaper into a transparent
+# PNG of its subject, which the desktop draws in front of the widgets (see
+# docs/depth.md). The heavy runtime is opt-in: `install` provisions a
+# self-contained venv on first enable, so nothing ML ships in the base image.
+set -euo pipefail
+
+state="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/depth"
+venv="$state/venv"
+models="$state/models"
+export REMBG_HOME="$models"
+export U2NET_HOME="$models"   # older rembg reads this name
+
+# The curated set the UI may offer. u2netp is the small CPU default (~4.6 MB);
+# birefnet-general-lite is the heavier quality option, offered only once cached.
+curated=(u2netp birefnet-general-lite)
+default_model="u2netp"
+
+is_curated() {
+    local m
+    for m in "${curated[@]}"; do
+        [[ "$1" == "$m" ]] && return 0
+    done
+    return 1
+}
+
+# Resolve a rembg command: the Ryoku-managed venv first, then a system rembg.
+# Sets REMBG; returns non-zero when no backend is present.
+rembg_cmd() {
+    if [[ -x "$venv/bin/rembg" ]]; then
+        REMBG="$venv/bin/rembg"
+        return 0
+    fi
+    if command -v rembg >/dev/null 2>&1; then
+        REMBG="$(command -v rembg)"
+        return 0
+    fi
+    return 1
+}
+
+model_cached() { [[ -f "$models/$1.onnx" ]]; }
+
+cmd_check() {
+    if rembg_cmd && model_cached "$default_model"; then
+        printf 'available\n'
+        return 0
+    fi
+    printf 'missing\n'
+    return 1
+}
+
+cmd_models() {
+    rembg_cmd || return 1
+    local m any=0
+    for m in "${curated[@]}"; do
+        if model_cached "$m"; then
+            printf '%s\n' "$m"
+            any=1
+        fi
+    done
+    [[ $any == 1 ]]
+}
+
+cmd_cutout() {
+    local in="" out="" model="$default_model"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -m|--model) model="${2:-}"; shift 2 ;;
+            --) shift; break ;;
+            -*) printf 'ryoku-depth: unknown option %s\n' "$1" >&2; return 2 ;;
+            *) if [[ -z $in ]]; then in="$1"; elif [[ -z $out ]]; then out="$1"; fi; shift ;;
+        esac
+    done
+    [[ -z $in && $# -gt 0 ]] && { in="$1"; shift; }
+    [[ -z $out && $# -gt 0 ]] && { out="$1"; shift; }
+
+    if [[ -z $in || -z $out ]]; then
+        printf 'usage: ryoku-depth cutout <in> <out.png> [--model <id>]\n' >&2
+        return 2
+    fi
+    [[ -f "$in" ]] || { printf 'ryoku-depth: input not found: %s\n' "$in" >&2; return 1; }
+    is_curated "$model" || model="$default_model"
+
+    rembg_cmd || { printf 'ryoku-depth: engine not installed (run: ryoku-depth install)\n' >&2; return 1; }
+    model_cached "$model" || { printf 'ryoku-depth: model %s not downloaded\n' "$model" >&2; return 1; }
+
+    mkdir -p "$(dirname -- "$out")"
+    local tmp
+    tmp="$(mktemp "${out}.XXXXXX")"
+    # Write to a temp file and swap in atomically so a reader never sees a
+    # half-written cutout; on any failure the temp is dropped.
+    if "$REMBG" i -m "$model" "$in" "$tmp" >/dev/null 2>&1 && [[ -s "$tmp" ]]; then
+        mv -f "$tmp" "$out"
+        printf '%s\n' "$out"
+        return 0
+    fi
+    rm -f "$tmp"
+    printf 'ryoku-depth: cutout failed\n' >&2
+    return 1
+}
+
+cmd_install() {
+    command -v python3 >/dev/null 2>&1 || {
+        printf 'ryoku-depth: python3 is required to install the engine\n' >&2
+        return 1
+    }
+    local want=("$@")
+    [[ ${#want[@]} -eq 0 ]] && want=("$default_model")
+
+    mkdir -p "$state" "$models"
+    if [[ ! -x "$venv/bin/python" ]]; then
+        printf 'Creating engine environment...\n'
+        python3 -m venv "$venv"
+    fi
+    printf 'Installing rembg (CPU)...\n'
+    "$venv/bin/pip" install --quiet --upgrade pip
+    "$venv/bin/pip" install --quiet "rembg[cpu]"
+
+    local m
+    for m in "${want[@]}"; do
+        is_curated "$m" || continue
+        printf 'Downloading model %s...\n' "$m"
+        "$venv/bin/python" -c "import sys; from rembg import new_session; new_session(sys.argv[1])" "$m"
+    done
+    if cmd_check >/dev/null; then
+        printf 'done\n'
+        return 0
+    fi
+    printf 'ryoku-depth: install finished but the engine is still unavailable\n' >&2
+    return 1
+}
+
+case "${1:-}" in
+    check)   cmd_check ;;
+    models)  shift; cmd_models ;;
+    cutout)  shift; cmd_cutout "$@" ;;
+    install) shift; cmd_install "$@" ;;
+    *)
+        printf 'usage: ryoku-depth check | models | cutout <in> <out.png> [--model <id>] | install [model...]\n' >&2
+        exit 2
+        ;;
+esac

@@ -12,6 +12,9 @@ import "stats"
 import "weather"
 import "notes"
 import Ryoku.PluginKit
+import shell.services as Services
+import "../depth"
+import "../depth/Singletons" as DepthCfg
 
 // desktop widgets layer: WlrLayer.Bottom (below windows), instantiated once per
 // monitor by the main shell, carrying the clock. only clicks on bare wallpaper
@@ -28,6 +31,8 @@ Scope {
     property bool active: true
     property string wallpaperUrl: ""
     property string wallpaperFit: "Cover"
+    property string depthUrl: ""
+    readonly property var depthState: Services.ShellState.forScreen(root.screen)
     readonly property bool reloadReady: readiness.ready
 
     ReloadReadiness {
@@ -218,6 +223,7 @@ Scope {
         WidgetSlot {
             id: clockSlot
             widget: "clock"
+            z: DepthCfg.Config.isFront("clock") ? 1 : 0
             visible: root.reloadReady && Config.clockEnabled
             anchor: Config.clockAnchor
             freeX: Config.clockX
@@ -457,6 +463,14 @@ Scope {
                 }
             }
         }
+        // the wallpaper's subject, drawn in front of the widgets: above the
+        // slots (declared later), below the menus and the photo viewer.
+        DepthForeground {
+            anchors.fill: parent
+            url: root.depthUrl
+            fit: root.wallpaperFit
+            composing: root.depthState ? root.depthState.depthComposing : false
+        }
 
         WidgetMenu { id: menu }
 
@@ -561,6 +575,14 @@ Scope {
                     height: implicitHeight > 0 ? Math.min(photoViewer.height * 0.85, implicitHeight) : photoViewer.height * 0.85
                 }
             }
+        }
+        // the depth composing toolbar; the clock is placed with the ordinary
+        // widget drag while this carries the few depth knobs.
+        DepthEditBar {
+            z: 101
+            visible: root.depthState ? root.depthState.depthComposing : false
+            onDone: if (root.depthState)
+                root.depthState.depthComposing = false
         }
 
         // position/scale writeback for plugin tiles. ryoku-plugins-place

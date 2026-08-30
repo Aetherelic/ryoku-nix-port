@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **The wallpaper's subject can be cut out and drawn in front of the desktop
+  widgets, composed from the Super+Esc Desktop route.** A DEPTH card turns the
+  effect on, picks the model, and enters a COMPOSE mode where the clock is
+  dragged into the subject's negative space while feather, foreground strength,
+  and clock-in-front are tuned live. The daemon generates the cutout off the
+  wallpaper hot path and carries it on the wallpaper topic; the opt-in engine
+  installs on first enable, so nothing ML ships in the base image
+  (`modules/depth/`, `ipc/depth.go`, `scripts/ryoku-depth`,
+  `controlcenter/routes/DesktopRoute.qml`, `docs/depth.md`).
+
 - **Hard reload accepts still, animated, and muted video media while retaining the bundled wordmark fallback and unchanged iris/readiness lifecycle.** Reload covers read the selected media descriptor from `brand.json`; a persisted custom-media On/Off gate releases all custom decoders when Off and restores the saved asset when On (`quickshell/reload-cover/`).
 - **The desktop visualizer can stack several looks, use exact gradients, and wrap
   the display in a reactive frame.** The placement bar switches, adds and removes

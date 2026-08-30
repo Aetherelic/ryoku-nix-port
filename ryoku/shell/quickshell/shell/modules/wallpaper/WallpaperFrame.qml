@@ -8,6 +8,7 @@ QtObject {
     property string fit: "Cover"
     property bool live: false
     property var transition: null
+    property string depth: ""
 
     function apply(line: string): bool {
         try {
@@ -20,6 +21,7 @@ QtObject {
             live = entry.live === true;
             transition = entry.transition || null;
             path = entry.path || "";
+            depth = entry.depth || "";
             revision = entry.revision || 0;
             return true;
         } catch (error) {

@@ -7,6 +7,7 @@ import Ryoku.Ui.Singletons
 import shell.services as Services
 import "../../../../../desktop/Singletons" as DesktopCfg
 import "../../../../../visualizer/Singletons" as VizCfg
+import "../../../../../depth/Singletons" as DepthCfg
 
 // DESKTOP route (卓上). What rides the wallpaper: the seven desktop widgets and
 // the audio spectrum. Widget on/off writes widgets.json through the desktop
@@ -222,11 +223,81 @@ Item {
                     }
                 }
             }
+            Entrance {
+                width: page.colW
+                index: 2
+                SettingCard {
+                    width: page.colW
+                    title: I18n.tr("DEPTH")
+                    kana: "\u5965\u884c"
+
+                    OnOff {
+                        label: I18n.tr("Depth effect")
+                        source: "depth.json"
+                        value: DepthCfg.Config.enabled
+                        enabled: DepthCfg.DepthBackend.available
+                        onToggled: on => DepthCfg.Config.setEnabled(on)
+                    }
+                    SettingRow {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        divider: true
+                        visible: !DepthCfg.DepthBackend.available
+                        block: true
+                        label: DepthCfg.DepthBackend.installing ? I18n.tr("Installing engine") : I18n.tr("Install engine")
+                        desc: DepthCfg.DepthBackend.installing ? DepthCfg.DepthBackend.progress : I18n.tr("Downloads a small on-device model to cut the wallpaper's subject out.")
+                        Btn {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: DepthCfg.DepthBackend.installing ? I18n.tr("WORKING") : I18n.tr("INSTALL")
+                            enabled: !DepthCfg.DepthBackend.installing
+                            onAct: DepthCfg.DepthBackend.install()
+                        }
+                    }
+                    SettingRow {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        divider: true
+                        visible: DepthCfg.DepthBackend.available && DepthCfg.DepthBackend.models.length > 1
+                        block: true
+                        label: I18n.tr("Model")
+                        source: "depth.json"
+                        Chips {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            options: DepthCfg.DepthBackend.models
+                            current: DepthCfg.Config.model
+                            onChose: m => DepthCfg.Config.setModel(m)
+                        }
+                    }
+                    SettingRow {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        divider: true
+                        visible: DepthCfg.DepthBackend.available
+                        footH: 32
+                        label: I18n.tr("Compose depth")
+                        Btn {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: I18n.tr("COMPOSE")
+                            onAct: {
+                                DepthCfg.Config.setEnabled(true);
+                                const st = Services.ShellState.forActive();
+                                if (st)
+                                    st.depthComposing = true;
+                                if (page.cc)
+                                    page.cc.close();
+                            }
+                        }
+                    }
+                }
+            }
             // A look, not a performance knob, so it lives here rather than on the
             // System route. Low power forces it off in decoration.lua.
             Entrance {
                 width: page.colW
-                index: 2
+                index: 3
                 SettingCard {
                     width: page.colW
                     title: I18n.tr("PRINT")
