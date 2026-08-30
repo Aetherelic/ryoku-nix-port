@@ -79,6 +79,21 @@ if [[ ${RYOKU_RELOAD_COVER_LIVE:-0} == 1 ]]; then
         sleep 0.05
     done
     test "$seen" = 1
+    token=$(jq -r '.token // empty' "$live_runtime/ryoku-reload-cover.json")
+    test "$token" != ""
+    opening_seen=0
+    for _ in $(seq 1 800); do
+        phase=$(env XDG_RUNTIME_DIR="$live_runtime" qs -p "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/reload-cover" ipc call reload-cover status "$token" 2>/dev/null || true)
+        if [[ $phase == opening ]]; then
+            sleep 0.05
+            env XDG_RUNTIME_DIR="$live_runtime" grim "$tmp/reload-cover-opening.png"
+            cp "$tmp/reload-cover-opening.png" /tmp/ryoku-reload-cover-opening.png
+            opening_seen=1
+            break
+        fi
+        sleep 0.02
+    done
+    test "$opening_seen" = 1
 
     delay=0
     for mark in 0 100 300 700 1200 1700 2000; do
