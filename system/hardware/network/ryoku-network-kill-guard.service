@@ -13,3 +13,4 @@ RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
+RequiredBy=NetworkManager.service

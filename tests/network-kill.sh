@@ -19,6 +19,8 @@ grep -qxF nftables "$base_packages"
 grep -qF "  'nftables'" "$pkgbuild"
 grep -qF '55-ryoku-network-kill.rules' "$pkgbuild"
 grep -qF 'ryoku-network-kill-guard.service' "$pkgbuild"
+grep -qF 'RequiredBy=NetworkManager.service' "$guard"
+grep -qF 'WantedBy=multi-user.target NetworkManager.service' "$disconnect"
 grep -qF 'ryoku-network-kill-disconnect.service' "$pkgbuild"
 grep -qF '_network_kill_units' "$install_hook"
 

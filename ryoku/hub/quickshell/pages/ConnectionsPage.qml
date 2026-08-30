@@ -79,6 +79,7 @@ Item {
                     pg.killError = I18n.tr("Could not read the network kill switch.");
                 }
         }
+        }
         stderr: StdioCollector {}
         onExited: function(exitCode) {
             if (exitCode !== 0) {

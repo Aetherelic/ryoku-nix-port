@@ -9,4 +9,4 @@ Type=oneshot
 ExecStart=/usr/bin/nmcli networking off
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target NetworkManager.service
