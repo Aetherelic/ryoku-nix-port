@@ -63,6 +63,7 @@ ShellRoot {
         : "ryoku-reload-cover"
     property string reloadToken: ""
     property bool reloadFinishSent: false
+    property bool reloadReleaseArmed: false
     property var reloadScreens: ({})
     function setReloadScreenReady(name: string, ready: bool): void {
         var next = ({});
@@ -80,9 +81,10 @@ ShellRoot {
             if (!screen || !reloadScreens[screen.name])
                 return;
         }
-        reloadFinishSent = true;
-        reloadFinish.command = [reloadCoverBin, "finish", reloadToken];
-        reloadFinish.running = true;
+        if (!reloadReleaseArmed) {
+            reloadReleaseArmed = true;
+            reloadHold.restart();
+        }
     }
 
     FileView {
@@ -102,6 +104,17 @@ ShellRoot {
     }
     Process {
         id: reloadFinish
+    }
+    Timer {
+        id: reloadHold
+        interval: 1500
+        onTriggered: {
+            if (!root.reloadToken || root.reloadFinishSent)
+                return;
+            root.reloadFinishSent = true;
+            reloadFinish.command = [root.reloadCoverBin, "finish", root.reloadToken];
+            reloadFinish.running = true;
+        }
     }
 
     // Power Saver strips compositor blur and shadow too (the heaviest present-time

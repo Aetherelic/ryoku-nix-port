@@ -4,6 +4,11 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp="$(mktemp -d)"
 renderer="$root/ryoku/shell/quickshell/reload-cover/ReloadCover.qml"
+shell="$root/ryoku/shell/quickshell/shell/shell.qml"
+
+grep -qF 'id: reloadHold' "$shell"
+grep -qF 'interval: 1500' "$shell"
+grep -qF 'reloadHold.restart()' "$shell"
 
 grep -qF 'id: loadingSweep' "$renderer"
 grep -qF 'NumberAnimation on x' "$renderer"
