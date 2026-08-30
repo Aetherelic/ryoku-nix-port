@@ -30,6 +30,7 @@ import "schema/AutostartPage.js" as AutostartSchema
 import "schema/EnvironmentPage.js" as EnvironmentSchema
 import "schema/PerformancePage.js" as PerformanceSchema
 import "schema/UpdatesPage.js" as UpdatesSchema
+import "ReloadCoverModel.js" as ReloadCoverModel
 import Ryoku.FrameBars
 
 // Ryoku Settings, assembled. The rail owns navigation and global search; the
@@ -417,6 +418,7 @@ Rectangle {
         "adaptive": true, "smoothing": 0.5, "gain": 1.0, "peaks": false,
         "spin": 0, "x": 0, "y": 0.58, "w": 1, "h": 0.42, "grow": "up", "angle": 0, "tiltX": 0, "tiltY": 0,
         "markText": "力", "markImage": "", "markTint": true, "name": "Ryoku",
+        "reloadCover": ReloadCoverModel.empty(),
         "language": "Auto", "barStyle": "sumi", "obi": {}, "nacre": NacreConfig.defaultConfig(), "qsbar": {}, "dock": {}
     })
 
@@ -593,7 +595,10 @@ Rectangle {
             files[src] = true;
         }
         if (files.viz) vizFV.writeAdapter();
-        if (files.brand) brandFV.writeAdapter();
+        if (files.brand) {
+            brandFV.writeAdapter();
+            hub.requestReloadCoverPrune(hub.draft.reloadCover);
+        }
         hub.committed = JSON.parse(JSON.stringify(hub.draft));
         // language rides the normal Save: the file it just wrote (shell.json) is
         // watched by every Ryoku surface's shared I18n, so the whole desktop
@@ -613,11 +618,47 @@ Rectangle {
         hub.hyprDraft = JSON.parse(JSON.stringify(hub.hyprCommitted));
         if (hub.hyprLoaded) { hyprRestore.command = ["ryoku-hub", "hypr", "restore"]; hyprRestore.running = true; }
         hub.revertPage();
+        hub.requestReloadCoverPrune(hub.committed.reloadCover);
     }
     function resetDefaults() {
         hub.pristine = false;
         hub.draft = JSON.parse(JSON.stringify(hub.defs));
         if (Object.keys(hub.hyprDefaults).length) hub.hyprDraft = JSON.parse(JSON.stringify(hub.hyprDefaults));
+    }
+
+    property string reloadCoverCleanupError: ""
+    property string reloadCoverPruneWanted: ""
+    function requestReloadCoverPrune(value) {
+        reloadCoverPruneWanted = ReloadCoverModel.path(value);
+        if (!reloadCoverPrune.running)
+            reloadCoverPruneKick.restart();
+    }
+    Timer {
+        id: reloadCoverPruneKick
+        interval: 20
+        onTriggered: {
+            if (reloadCoverPrune.running)
+                return;
+            var command = ["ryoku-hub", "reload-cover", "prune"];
+            if (hub.reloadCoverPruneWanted !== "")
+                command.push(hub.reloadCoverPruneWanted);
+            reloadCoverPrune.keep = hub.reloadCoverPruneWanted;
+            reloadCoverPrune.command = command;
+            reloadCoverPrune.running = true;
+        }
+    }
+    Process {
+        id: reloadCoverPrune
+        property string keep: ""
+        stderr: StdioCollector { id: reloadCoverPruneStderr }
+        onExited: function(code) {
+            if (code !== 0)
+                hub.reloadCoverCleanupError = reloadCoverPruneStderr.text.trim() || I18n.tr("Couldn't clean old reload-cover assets.");
+            else
+                hub.reloadCoverCleanupError = "";
+            if (keep !== hub.reloadCoverPruneWanted)
+                reloadCoverPruneKick.restart();
+        }
     }
 
     // the diff, grouped by file, in each file's own JSON syntax.
@@ -719,13 +760,18 @@ Rectangle {
         path: hub.cfgDir + "/brand.json"
         watchChanges: true
         onFileChanged: reload()
-        onLoaded: hub.rebase()
+        onLoaded: {
+            brandA.reloadCover = ReloadCoverModel.normalize(brandA.reloadCover);
+            hub.rebase();
+            hub.requestReloadCoverPrune(brandA.reloadCover);
+        }
         JsonAdapter {
             id: brandA
             property string markText: "力"
             property string markImage: ""
             property bool markTint: true
             property string name: "Ryoku"
+            property var reloadCover: ReloadCoverModel.empty()
         }
     }
 
@@ -789,6 +835,11 @@ Rectangle {
     Process { id: hyprRestore; onRunningChanged: if (!running && hub.quitting) Qt.quit() }
     function requestQuit() {
         if (hub.quitting) return;
+        var cleanup = ["ryoku-hub", "reload-cover", "prune"];
+        var keep = ReloadCoverModel.path(hub.committed.reloadCover);
+        if (keep !== "")
+            cleanup.push(keep);
+        Spawn.run(cleanup);
         // Bar Studio edits are already live on the desktop: an unsaved quit
         // puts the saved state back through the same channel before the Hub
         // goes, whichever way it was closed.
