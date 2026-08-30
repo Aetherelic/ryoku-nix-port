@@ -16,11 +16,15 @@ Item {
 
     // MoeWalls serves only its low-res preview loops, so the browse view says so.
     readonly property bool showMoeNote: Wallhaven.source === "moewalls"
+    readonly property bool showLoadMore:
+        Wallhaven.pagedSource && Wallhaven.results.length > 0
 
     GridView {
         id: grid
         anchors.fill: parent
         anchors.topMargin: g.showMoeNote ? moeNote.height + Tokens.s2 : 0
+        anchors.bottomMargin:
+            g.showLoadMore ? loadMoreBar.height + Tokens.s2 : 0
         visible: Wallhaven.results.length > 0
         clip: true
         cellWidth: Math.floor(g.width / g.cols)
@@ -48,6 +52,57 @@ Item {
                 selectable: Wallhaven.source === "local"
                 selected: Wallhaven.localSelection.indexOf(parent.modelData.id) >= 0
                 onToggledSelect: Wallhaven.toggleLocalSelect(parent.modelData)
+            }
+        }
+    }
+
+    // Remote catalogues are much larger than one page. Keep the compact page
+    // controls above for direct navigation, while LOAD MORE grows the current
+    // collection in place for normal browsing.
+    Item {
+        id: loadMoreBar
+
+        visible: g.showLoadMore
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+
+        height: visible ? 38 : 0
+
+        Row {
+            anchors.centerIn: parent
+            spacing: Tokens.s3
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+
+                text:
+                    Wallhaven.results.length
+                    + " LOADED · PAGE "
+                    + Wallhaven.page
+
+                color: Tokens.inkFaint
+                font.family: Tokens.mono
+                font.pixelSize: 9
+            }
+
+            Btn {
+                anchors.verticalCenter: parent.verticalCenter
+                compact: true
+
+                text:
+                    Wallhaven.loadingMore
+                        ? I18n.tr("LOADING…")
+                        : (Wallhaven.hasMore
+                            ? I18n.tr("LOAD MORE")
+                            : I18n.tr("END"))
+
+                armed:
+                    Wallhaven.hasMore
+                    && !Wallhaven.searching
+
+                onAct: Wallhaven.loadMore()
             }
         }
     }

@@ -749,7 +749,19 @@ caps)
 	# vulkan = a GPU that can run it; upscaler = the ncnn tool installed (one tool
 	# now sharpens both images and, frame by frame, video).
 	vk=false; up=false
-	[ -n "$(ls /usr/share/vulkan/icd.d/*.json 2>/dev/null)" ] && vk=true
+	if command -v vulkaninfo >/dev/null 2>&1 && vulkaninfo --summary >/dev/null 2>&1; then
+		vk=true
+	else
+		for icd_dir in \
+			/usr/share/vulkan/icd.d \
+			/usr/local/share/vulkan/icd.d \
+			/run/opengl-driver/share/vulkan/icd.d
+		do
+			[ -d "$icd_dir" ] || continue
+			set -- "$icd_dir"/*.json
+			[ -e "$1" ] && { vk=true; break; }
+		done
+	fi
 	{ command -v waifu2x-ncnn-vulkan || command -v realesrgan-ncnn-vulkan; } >/dev/null 2>&1 && up=true
 	jq -cn --argjson vk "$vk" --argjson up "$up" '{vulkan:$vk,upscaler:$up}'
 	;;

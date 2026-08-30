@@ -30,7 +30,9 @@ Rectangle {
         { key: "wallhaven", label: "Wallhaven" },
         { key: "live",      label: "Live" },
         { key: "local",     label: "Local" },
-        { key: "moewalls",  label: "MoeWalls" },
+
+        // MoeWalls' legacy provider currently returns HTTP 403. Backend support
+        // remains intact so the source can be restored if the service recovers.
         { key: "motionbgs", label: "motionbgs" },
         { key: "ryoku",     label: "Ryoku" }
     ]

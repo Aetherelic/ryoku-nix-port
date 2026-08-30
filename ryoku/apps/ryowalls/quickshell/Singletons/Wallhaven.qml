@@ -15,8 +15,16 @@ Singleton {
     property int page: 1
     property var results: []
     property bool searching
+    property bool loadingMore
+    property bool hasMore: true
+    property bool _appendSearch
     property string error
     property string _searchErr
+
+    readonly property bool pagedSource:
+        source !== "live"
+        && source !== "ryoku"
+        && source !== "local"
 
     // ---- selection + live preview palette -----------------------------------
     property var selected: null
@@ -319,6 +327,9 @@ Singleton {
         source = s;
         if (s === "local") libraryType = "all";
         results = []; selected = null; error = ""; page = 1; localSelection = [];
+        hasMore = true;
+        loadingMore = false;
+        _appendSearch = false;
         reload();
     }
     function reload() {
@@ -384,12 +395,19 @@ Singleton {
     }
 
     // ---- search -------------------------------------------------------------
-    function search(q, p, range) {
+    function search(q, p, range, append) {
         query = (q || "").trim();
         page = Math.max(1, p || 1);
         topRange = range || "";
         error = "";
         _searchErr = "";
+
+        _appendSearch = !!append;
+        loadingMore = _appendSearch;
+
+        if (!_appendSearch)
+            hasMore = true;
+
         searching = true;
         if (source === "local") { loadLocal(); return; }
         var args;
@@ -419,27 +437,70 @@ Singleton {
     }
     function searchLatest(q) { search(q, 1, ""); }
     function searchTop(range) { search(query, 1, range); }
-    function nextPage() { if (!searching) search(query, page + 1, topRange); }
-    function prevPage() { if (page > 1 && !searching) search(query, page - 1, topRange); }
-    function setRatios(r) { ratios = r || ""; search(query, 1, topRange); }
+    function nextPage() {
+        if (!searching)
+            search(query, page + 1, topRange);
+    }
+
+    function prevPage() {
+        if (page > 1 && !searching)
+            search(query, page - 1, topRange);
+    }
+
+    function loadMore() {
+        if (pagedSource && hasMore && !searching)
+            search(query, page + 1, topRange, true);
+    }
+
+    function setRatios(r) {
+        ratios = r || "";
+        search(query, 1, topRange);
+    }
 
     function _parseResults(text) {
         var rows = [];
         var lines = text.split("\n").filter(l => l.trim().length > 0);
+
         try {
             for (const l of lines)
                 rows.push(JSON.parse(l));
-            results = rows;
+
+            if (_appendSearch) {
+                var merged = results.slice();
+                var seen = {};
+
+                for (const existing of merged)
+                    seen[existing.id] = true;
+
+                for (const row of rows) {
+                    if (!seen[row.id]) {
+                        seen[row.id] = true;
+                        merged.push(row);
+                    }
+                }
+
+                results = merged;
+            } else {
+                results = rows;
+            }
+
+            hasMore = rows.length > 0;
             error = "";
         } catch (e) {
             error = "Could not read results";
-            results = [];
+
+            if (!_appendSearch)
+                results = [];
         }
-        // keep a live preview: follow the search with the first result.
-        if (results.length > 0)
-            select(results[0]);
-        else
-            selected = null;
+
+        // A fresh search previews its first result. Appending keeps the current
+        // selection in place while the catalogue grows underneath it.
+        if (!_appendSearch) {
+            if (results.length > 0)
+                select(results[0]);
+            else
+                selected = null;
+        }
     }
 
     // ---- selection + palette ------------------------------------------------
@@ -594,10 +655,23 @@ Singleton {
         stderr: StdioCollector { onStreamFinished: root._searchErr = text }
         onExited: code => {
             root.searching = false;
+            root.loadingMore = false;
+
             if (code !== 0) {
-                root.error = root._searchErr.trim() || "Search failed";
-                root.results = [];
+                var message = root._searchErr.trim() || "Search failed";
+
+                if (root._appendSearch) {
+                    // Keep the catalogue already on screen if a later page fails.
+                    root.page = Math.max(1, root.page - 1);
+                    root.hasMore = true;
+                    root.status = message;
+                } else {
+                    root.error = message;
+                    root.results = [];
+                }
             }
+
+            root._appendSearch = false;
         }
     }
 
