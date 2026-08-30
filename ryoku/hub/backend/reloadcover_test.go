@@ -238,6 +238,41 @@ func TestImportReloadCoverRejectsInvalidDestinationCollision(t *testing.T) {
 	}
 }
 
+func TestImportReloadCoverRejectsFIFODestinationCollision(t *testing.T) {
+	_, data := reloadCoverTestHome(t)
+	body := []byte("FIFO collision fixture")
+	source := writeReloadAsset(t, t.TempDir(), "collision.png", body)
+	digest := sha256.Sum256(body)
+	dir := filepath.Join(data, "ryoku", "reload-cover")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(dir, hex.EncodeToString(digest[:])+".png")
+	if err := syscall.Mkfifo(destination, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(destination) })
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := importReloadCover(source)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("FIFO collision was accepted")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("import blocked on FIFO collision")
+	}
+	info, err := os.Lstat(destination)
+	if err != nil || info.Mode()&os.ModeNamedPipe == 0 {
+		t.Fatalf("FIFO collision changed: %v, %v", info, err)
+	}
+}
+
 func TestImportReloadCoverEnforcesLimit(t *testing.T) {
 	reloadCoverTestHome(t)
 	source := filepath.Join(t.TempDir(), "large.mp4")

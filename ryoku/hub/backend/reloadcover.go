@@ -209,7 +209,7 @@ func pruneReloadCover(keep string) error {
 }
 
 func reusableReloadCoverDestination(dir *os.File, name string, size int64, digest string) (bool, error) {
-	fd, err := unix.Openat(int(dir.Fd()), name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	fd, err := unix.Openat(int(dir.Fd()), name, unix.O_RDONLY|unix.O_NONBLOCK|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return false, err
 	}
