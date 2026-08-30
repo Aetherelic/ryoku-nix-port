@@ -95,6 +95,42 @@ PanelWindow {
         }
     }
 
+    Item {
+        id: logoGlow
+        x: logo.x
+        y: logo.y
+        width: logo.width
+        height: logo.height
+        visible: logo.visible
+        opacity: logo.opacity
+        z: 1
+
+        Item {
+            id: loadingSweep
+            x: logoGlow.width
+            width: Math.max(36, logoGlow.width * 0.24)
+            height: logoGlow.height
+            clip: true
+
+            ColorOverlay {
+                x: -loadingSweep.x
+                width: logoGlow.width
+                height: logoGlow.height
+                source: logo
+                color: "#e2f0ff"
+                opacity: 0.28
+            }
+
+            NumberAnimation on x {
+                from: logoGlow.width
+                to: -loadingSweep.width
+                duration: 1200
+                running: logoGlow.visible && logo.opacity > 0
+                loops: Animation.Infinite
+            }
+        }
+    }
+
     Image {
         id: logo
         anchors.centerIn: parent

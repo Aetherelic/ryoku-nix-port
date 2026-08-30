@@ -3,6 +3,13 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp="$(mktemp -d)"
+renderer="$root/ryoku/shell/quickshell/reload-cover/ReloadCover.qml"
+
+grep -qF 'id: loadingSweep' "$renderer"
+grep -qF 'NumberAnimation on x' "$renderer"
+grep -qF 'running: logoGlow.visible && logo.opacity > 0' "$renderer"
+grep -qF 'duration: 1200' "$renderer"
+grep -qF 'ColorOverlay {' "$renderer"
 live_runtime="${XDG_RUNTIME_DIR:-}"
 reload_pid=""
 
