@@ -5,6 +5,9 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp="$(mktemp -d)"
 renderer="$root/ryoku/shell/quickshell/reload-cover/ReloadCover.qml"
 shell="$root/ryoku/shell/quickshell/shell/shell.qml"
+cover_shell="$root/ryoku/shell/quickshell/reload-cover/shell.qml"
+
+grep -qF 'interval: 16500' "$cover_shell"
 
 grep -qF 'id: reloadHold' "$shell"
 grep -qF 'interval: 1500' "$shell"

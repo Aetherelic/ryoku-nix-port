@@ -48,7 +48,7 @@ ShellRoot {
         }
     }
     Timer {
-        interval: 15000
+        interval: 16500
         running: root.phase !== "opening" && root.phase !== "failed"
         onTriggered: root.phase = "failed"
     }
