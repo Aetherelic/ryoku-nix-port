@@ -297,6 +297,7 @@ Item {
                         visible: DepthCfg.DepthBackend.available
                         footH: 32
                         label: I18n.tr("Compose depth")
+                        desc: I18n.tr("Slide the clock behind the subject for a layered, 3D look.")
                         Btn {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
