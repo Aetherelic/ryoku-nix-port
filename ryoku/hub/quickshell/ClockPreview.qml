@@ -70,6 +70,9 @@ Item {
         case "bighour": return bighourC;
         case "metal":   return metalC;
         case "goodnight": return goodnightC;
+        case "grand":   return grandC;
+        case "column":  return columnC;
+        case "outline": return outlineC;
         default:        return digitalC;
         }
     }
@@ -233,6 +236,54 @@ Item {
             for (var i = 0; i < txt.length; i++) { c.strokeText(txt[i], x, y); x += c.measureText(txt[i]).width + track; }
         }
         Component.onCompleted: requestPaint()
+    }
+    Component {
+        id: grandC
+        Row {
+            spacing: preview.seconds || !preview.is24 ? 8 : 0
+            Row {
+                id: gHm
+                spacing: 0
+                Text { text: preview.hh; color: preview.ink; font.family: "Fraunces"; font.weight: Font.Medium; font.pixelSize: 72 }
+                Text { text: ":"; color: preview.accent; font.family: "Fraunces"; font.weight: Font.Medium; font.pixelSize: 72 }
+                Text { text: preview.mm; color: preview.ink; font.family: "Fraunces"; font.weight: Font.Medium; font.pixelSize: 72 }
+            }
+            Item {
+                height: gHm.height
+                width: Math.max(gSec.implicitWidth, gAmpm.implicitWidth)
+                visible: preview.seconds || !preview.is24
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 3
+                    Text { id: gSec; visible: preview.seconds; text: preview.ss; color: preview.accent; font.family: "Fraunces"; font.pixelSize: 20 }
+                    Text { id: gAmpm; visible: !preview.is24; text: preview.ampm; color: preview.inkDim; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 2 }
+                }
+            }
+        }
+    }
+    Component {
+        id: columnC
+        Column {
+            spacing: -14
+            Text { text: preview.hh; color: preview.ink; font.family: "Space Grotesk"; font.weight: Font.Bold; font.pixelSize: 66; font.letterSpacing: -1 }
+            Text { text: preview.mm; color: preview.accent; font.family: "Space Grotesk"; font.weight: Font.Bold; font.pixelSize: 66; font.letterSpacing: -1 }
+            Row {
+                spacing: 6
+                topPadding: 6
+                visible: preview.seconds || !preview.is24
+                Text { visible: preview.seconds; text: preview.ss; color: preview.inkDim; font.family: "Space Grotesk"; font.weight: Font.DemiBold; font.pixelSize: 15 }
+                Text { visible: !preview.is24; text: preview.ampm; color: preview.inkDim; font.family: "Space Grotesk"; font.weight: Font.DemiBold; font.pixelSize: 15; font.letterSpacing: 2 }
+            }
+        }
+    }
+    Component {
+        id: outlineC
+        Row {
+            spacing: 4
+            Hollow { anchors.verticalCenter: parent.verticalCenter; txt: preview.hh; ps: 76; lw: 2.4 }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: ":"; color: preview.accent; font.family: "Space Grotesk"; font.weight: Font.Bold; font.pixelSize: 76 }
+            Hollow { anchors.verticalCenter: parent.verticalCenter; txt: preview.mm; ps: 76; lw: 2.4 }
+        }
     }
 
     // big-hour: weekday/day + hollow month | giant hour | minute + hollow second

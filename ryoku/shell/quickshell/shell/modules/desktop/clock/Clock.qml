@@ -51,6 +51,9 @@ Item {
         case "bighour": return bigHourComp;
         case "metal":   return metalComp;
         case "goodnight": return goodNightComp;
+        case "grand":   return grandComp;
+        case "column":  return columnComp;
+        case "outline": return outlineComp;
         default:        return digitalComp;
         }
     }
@@ -70,6 +73,9 @@ Item {
     Component { id: bigHourComp; ClockBigHour { underL: clock.underL } }
     Component { id: metalComp;   ClockMetal { underL: clock.underL } }
     Component { id: goodNightComp; ClockGoodNight { underL: clock.underL } }
+    Component { id: grandComp;   ClockGrand { underL: clock.underL } }
+    Component { id: columnComp;  ClockColumn { underL: clock.underL } }
+    Component { id: outlineComp; ClockOutline { underL: clock.underL } }
 
     Component { id: dateInlineComp;  DateInline { underL: clock.underL } }
     Component { id: dateBadgeComp;   DateBadge { underL: clock.underL } }
