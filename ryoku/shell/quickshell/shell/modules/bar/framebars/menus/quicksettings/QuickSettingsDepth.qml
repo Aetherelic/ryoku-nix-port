@@ -7,12 +7,9 @@ import "../../../../../components"
 import ".." as Menus
 import "../../../../depth/Singletons" as DepthCfg
 
-// The Depth tab of the Super+Esc quick-settings panel: lift the wallpaper's
-// subject in front of the widgets, tune it per image, and arrange the clock
-// behind it. A live preview shows the detected subject and the generation
-// progress; the controls read in plain language (no model ids, no "matting").
-// Mirrors the other quick-settings modules (a Theme surface under a Flickable).
-// See docs/depth.md.
+// Depth tab of the Super+Esc quick-settings panel. Detail is staged and applied
+// only on a deliberate Recut because the cut is expensive; while one runs the
+// tunables lock and the preview shows progress. See docs/depth.md.
 Item {
     id: root
 
@@ -21,18 +18,49 @@ Item {
     property var navigate: null
     property var closePanel: null
 
+    readonly property bool checked: DepthCfg.DepthBackend.checked
     readonly property bool ready: DepthCfg.DepthBackend.available
     readonly property bool installing: DepthCfg.DepthBackend.installing
     readonly property bool hasFine: DepthCfg.DepthBackend.hasModel("birefnet-general-lite")
 
-    // Live generation state + the current cutout, polled from the daemon while
-    // the tab is open, so the preview and the progress bar reflect reality.
-    property bool generating: false
+    // Busy is held for a beat after a recut (minBusy) so the lock engages
+    // instantly and never flickers between poll ticks. busyStuck releases the
+    // lock if a cut never reports done, so controls can't stick forever.
+    property bool statusBusy: false
+    property bool busyStuck: false
+    readonly property bool generating: (root.statusBusy && !root.busyStuck) || minBusy.running
     property string cutoutPath: ""
     property int previewRev: 0
 
-    function compose() {
-        DepthCfg.Config.setEnabled(true);
+    // Staged detail; applied only on Recut. Kept synced with the applied value.
+    property string draftDetail: DepthCfg.Config.qualityLevel()
+    readonly property bool detailDirty: root.draftDetail !== DepthCfg.Config.qualityLevel()
+    Connections {
+        target: DepthCfg.Config
+        function onModelChanged() { if (!root.generating) root.draftDetail = DepthCfg.Config.qualityLevel(); }
+        function onAlphaMattingChanged() { if (!root.generating) root.draftDetail = DepthCfg.Config.qualityLevel(); }
+    }
+    onOpenChanged: if (root.open) root.draftDetail = DepthCfg.Config.qualityLevel()
+
+    Timer { id: minBusy; interval: 900 }
+
+    // Belt-and-suspenders: give up the lock if a cut never reports done, while
+    // the poll keeps running so a real completion still lands.
+    Timer {
+        id: stuckGuard
+        interval: 50000
+        running: root.statusBusy && !root.busyStuck
+        onTriggered: root.busyStuck = true
+    }
+
+    function recut() {
+        minBusy.restart();
+        root.busyStuck = false;
+        root.statusBusy = true;
+        DepthCfg.Config.setQuality(root.draftDetail);
+        poll.restart();
+    }
+    function editWidgets() {
         const st = ShellState.forActive();
         if (st)
             st.depthComposing = true;
@@ -42,7 +70,7 @@ Item {
 
     Timer {
         id: poll
-        interval: 700
+        interval: 500
         repeat: true
         running: root.open
         triggeredOnStart: true
@@ -57,26 +85,30 @@ Item {
                 try {
                     d = JSON.parse(("" + this.text).trim() || "{}");
                 } catch (e) {}
-                const wasBusy = root.generating;
-                root.generating = d.busy === true;
+                const wasBusy = root.statusBusy;
+                root.statusBusy = d.busy === true;
+                if (!root.statusBusy)
+                    root.busyStuck = false;
                 const p = d.path || "";
                 if (p !== root.cutoutPath) {
                     root.cutoutPath = p;
                     root.previewRev++;
-                } else if (wasBusy && !root.generating) {
+                } else if (wasBusy && !root.statusBusy) {
                     root.previewRev++;
                 }
             }
         }
     }
 
-    // Opaque backing so the incoming push covers the outgoing module cleanly.
+    function blendTint(a) {
+        return Theme.blend(Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, a), Theme.surface);
+    }
+
     Rectangle {
         anchors.fill: parent
         color: Theme.surface
     }
 
-    // ── a labelled segmented field: title, a plain-language hint, and the choices.
     component Field: Column {
         id: field
         property string title: ""
@@ -110,26 +142,27 @@ Item {
         }
     }
 
-    // ── an action button: filled (primary), outlined, or ghost.
     component ActBtn: Rectangle {
         id: btn
         property string icon: ""
         property string label: ""
         property string kind: "outlined" // filled | outlined | ghost
-        property bool primaryTint: false
+        property bool enabledAct: true
         signal act()
         width: parent ? parent.width : 0
         height: 46
         radius: Theme.radiusWidget
+        opacity: btn.enabledAct ? 1 : 0.4
         readonly property color tint: Theme.primary
-        color: btn.kind === "filled" ? Qt.rgba(btn.tint.r, btn.tint.g, btn.tint.b, ma.containsMouse ? 0.30 : 0.22)
-            : ma.containsMouse ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08) : "transparent"
+        color: btn.kind === "filled" ? Qt.rgba(btn.tint.r, btn.tint.g, btn.tint.b, ma.containsMouse && btn.enabledAct ? 0.30 : 0.22)
+            : (ma.containsMouse && btn.enabledAct) ? Qt.rgba(Theme.onSurface.r, Theme.onSurface.g, Theme.onSurface.b, 0.08) : "transparent"
         border.width: btn.kind === "ghost" ? 0 : 1
         border.color: btn.kind === "filled"
             ? Qt.rgba(btn.tint.r, btn.tint.g, btn.tint.b, 0.55)
             : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.35)
         Behavior on color { ColorAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
-        scale: ma.pressed ? 0.98 : 1
+        Behavior on opacity { NumberAnimation { duration: Motion.crossfade } }
+        scale: ma.pressed && btn.enabledAct ? 0.98 : 1
         Behavior on scale { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutBack; easing.overshoot: 2 } }
         Row {
             anchors.centerIn: parent
@@ -139,7 +172,7 @@ Item {
                 text: btn.icon
                 font.pixelSize: 18
                 fill: btn.kind === "filled" ? 1 : 0
-                color: btn.kind === "filled" ? Theme.inkOn(root.blendTint(0.22), Theme.onSurface) : Theme.onSurface
+                color: Theme.onSurface
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -154,13 +187,9 @@ Item {
             id: ma
             anchors.fill: parent
             hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: btn.act()
+            cursorShape: btn.enabledAct ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: if (btn.enabledAct) btn.act()
         }
-    }
-
-    function blendTint(a) {
-        return Theme.blend(Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, a), Theme.surface);
     }
 
     Flickable {
@@ -177,7 +206,6 @@ Item {
             width: parent.width
             spacing: 12
 
-            // ── header: what this is, in one line.
             Column {
                 width: parent.width
                 spacing: 2
@@ -198,7 +226,7 @@ Item {
                 }
             }
 
-            // ── preview: the detected subject, and the live generation progress.
+            // Live preview of the detected subject, with generation progress.
             Rectangle {
                 id: preview
                 width: parent.width
@@ -209,20 +237,19 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.30)
 
-                // faint checker so a transparent cutout reads as lifted, not empty.
                 Image {
                     anchors.fill: parent
-                    source: root.cutoutPath !== "" ? "file://" + root.cutoutPath : ""
+                    anchors.margins: 6
+                    // #previewRev busts the Image cache on a regenerated cutout;
+                    // the wallpaper path change reloads on its own.
+                    source: root.cutoutPath !== "" ? "file://" + root.cutoutPath + "#" + root.previewRev : ""
                     cache: false
                     asynchronous: true
                     fillMode: Image.PreserveAspectFit
                     sourceSize.width: preview.width
                     sourceSize.height: preview.height
-                    opacity: root.generating ? 0.35 : (status === Image.Ready ? 1 : 0)
+                    opacity: root.generating ? 0.3 : (status === Image.Ready ? 1 : 0)
                     Behavior on opacity { NumberAnimation { duration: Motion.crossfade } }
-                    // previewRev busts the cache when the cutout is regenerated.
-                    property int rev: root.previewRev
-                    onRevChanged: { const s = source; source = ""; source = s; }
                 }
 
                 Text {
@@ -230,7 +257,7 @@ Item {
                     width: parent.width - 40
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
-                    visible: root.cutoutPath === "" && !root.generating
+                    visible: root.checked && root.cutoutPath === "" && !root.generating
                     text: root.ready ? qsTr("Turn Depth on to lift your subject.")
                                      : qsTr("Install the engine to detect your subject.")
                     color: Theme.onSurfaceVariant
@@ -238,7 +265,6 @@ Item {
                     font.pixelSize: Theme.fontSm - 1
                 }
 
-                // generation progress: a label and an indeterminate sweep.
                 Column {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -275,19 +301,20 @@ Item {
                 }
             }
 
-            // ── the master switch (or the engine install when it is missing).
-            Menus.QsTile {
+            // Engine not resolved yet: a placeholder, never the install flash.
+            Text {
                 width: parent.width
-                visible: root.ready
-                icon: "layers"
-                label: qsTr("Depth effect")
-                sub: DepthCfg.Config.enabled ? qsTr("On") : qsTr("Off")
-                on: DepthCfg.Config.enabled
-                onToggled: DepthCfg.Config.setEnabled(!DepthCfg.Config.enabled)
+                visible: !root.checked
+                text: qsTr("Preparing…")
+                color: Theme.onSurfaceVariant
+                font.family: Theme.fontPrimary
+                font.pixelSize: Theme.fontSm - 1
             }
+
+            // Engine missing: one-time opt-in install.
             Menus.QsNavRow {
                 width: parent.width
-                visible: !root.ready
+                visible: root.checked && !root.ready
                 icon: "download"
                 label: root.installing ? qsTr("Installing engine…") : qsTr("Install engine")
                 sub: root.installing ? DepthCfg.DepthBackend.progress
@@ -296,90 +323,104 @@ Item {
                     DepthCfg.DepthBackend.install()
             }
 
-            // ── quality: one plain control folding model + edge refinement.
-            Menus.QsSection {
+            Menus.QsTile {
                 width: parent.width
-                visible: root.ready
-                label: qsTr("Quality")
-            }
-            Field {
-                visible: root.ready
-                title: qsTr("Detail")
-                hint: qsTr("Higher detail traces hair and fine edges, but takes longer to make.")
-                choices: root.hasFine
-                    ? [{ id: "draft", label: qsTr("Draft") }, { id: "standard", label: qsTr("Standard") }, { id: "fine", label: qsTr("Fine") }]
-                    : [{ id: "draft", label: qsTr("Draft") }, { id: "standard", label: qsTr("Standard") }]
-                current: DepthCfg.Config.qualityLevel()
-                onChose: id => DepthCfg.Config.setQuality(id)
-            }
-            Menus.QsNavRow {
-                width: parent.width
-                visible: root.ready && !root.hasFine
-                icon: "auto_awesome"
-                label: root.installing ? qsTr("Fetching Fine detail…") : qsTr("Unlock Fine detail")
-                sub: root.installing ? DepthCfg.DepthBackend.progress
-                                     : qsTr("The cleanest edges (~224 MB).")
-                onActivated: if (!root.installing)
-                    DepthCfg.DepthBackend.install("birefnet-general-lite")
+                visible: root.checked && root.ready
+                icon: "layers"
+                label: qsTr("Depth effect")
+                sub: DepthCfg.Config.enabled ? qsTr("On") : qsTr("Off")
+                on: DepthCfg.Config.enabled
+                onToggled: DepthCfg.Config.setEnabled(!DepthCfg.Config.enabled)
             }
 
-            // ── look: live, no regeneration.
-            Menus.QsSection {
+            // Tunables lock while a cut runs (no click-through).
+            Item {
                 width: parent.width
-                visible: root.ready
-                label: qsTr("Look")
-            }
-            Field {
-                visible: root.ready
-                title: qsTr("Edge fade")
-                hint: qsTr("Soften where the cut-out meets the scene.")
-                choices: [{ id: "none", label: qsTr("None") }, { id: "soft", label: qsTr("Soft") }, { id: "strong", label: qsTr("Strong") }]
-                current: DepthCfg.Config.feather < 0.05 ? "none" : DepthCfg.Config.feather < 0.35 ? "soft" : "strong"
-                onChose: id => DepthCfg.Config.setFeather(id === "none" ? 0 : id === "soft" ? 0.15 : 0.45)
-            }
-            Field {
-                visible: root.ready
-                title: qsTr("Strength")
-                hint: qsTr("How much the subject stands out in front.")
-                choices: [{ id: "subtle", label: qsTr("Subtle") }, { id: "medium", label: qsTr("Medium") }, { id: "full", label: qsTr("Full") }]
-                current: DepthCfg.Config.lift <= 0.5 ? "subtle" : DepthCfg.Config.lift < 0.9 ? "medium" : "full"
-                onChose: id => DepthCfg.Config.setLift(id === "subtle" ? 0.4 : id === "medium" ? 0.7 : 1.0)
-            }
-            Field {
-                visible: root.ready
-                title: qsTr("Shadow")
-                hint: qsTr("A soft shadow behind the subject, for more depth.")
-                choices: [{ id: "none", label: qsTr("None") }, { id: "soft", label: qsTr("Soft") }, { id: "strong", label: qsTr("Strong") }]
-                current: DepthCfg.Config.shadow < 0.05 ? "none" : DepthCfg.Config.shadow < 0.6 ? "soft" : "strong"
-                onChose: id => DepthCfg.Config.setShadow(id === "none" ? 0 : id === "soft" ? 0.45 : 0.85)
-            }
+                visible: root.checked && root.ready
+                implicitHeight: tune.implicitHeight
+                enabled: !root.generating
+                opacity: root.generating ? 0.45 : 1
+                Behavior on opacity { NumberAnimation { duration: Motion.crossfade } }
 
-            // ── arrange + actions.
-            Menus.QsSection {
-                width: parent.width
-                visible: root.ready
-                label: qsTr("Arrange")
-            }
-            ActBtn {
-                visible: root.ready
-                kind: "filled"
-                icon: "open_with"
-                label: qsTr("Place clock behind subject")
-                onAct: root.compose()
-            }
-            ActBtn {
-                visible: root.ready
-                kind: "outlined"
-                icon: "cached"
-                label: qsTr("Redo the cut-out")
-                onAct: DepthCfg.Config.refresh()
-            }
-            ActBtn {
-                visible: root.ready
-                kind: "ghost"
-                icon: "folder_open"
-                label: qsTr("Open cutouts folder")
-                onAct: DepthCfg.DepthBackend.openFolder()
+                Column {
+                    id: tune
+                    width: parent.width
+                    spacing: 12
+
+                    Menus.QsSection { width: parent.width; label: qsTr("Quality") }
+                    Field {
+                        title: qsTr("Detail")
+                        hint: qsTr("Higher detail traces hair and fine edges, but the cut takes longer.")
+                        choices: root.hasFine
+                            ? [{ id: "draft", label: qsTr("Draft") }, { id: "standard", label: qsTr("Standard") }, { id: "fine", label: qsTr("Fine") }]
+                            : [{ id: "draft", label: qsTr("Draft") }, { id: "standard", label: qsTr("Standard") }]
+                        current: root.draftDetail
+                        onChose: id => root.draftDetail = id
+                    }
+                    // Recut only appears once a new Detail is staged; it fades and
+                    // collapses to nothing otherwise, so there is no leftover gap.
+                    ActBtn {
+                        id: recutBtn
+                        readonly property bool shown: root.detailDirty && !root.generating
+                        kind: "filled"
+                        icon: "auto_fix_high"
+                        label: qsTr("Recut the subject")
+                        enabledAct: recutBtn.shown
+                        clip: true
+                        visible: recutBtn.height > 0
+                        height: recutBtn.shown ? 46 : 0
+                        opacity: recutBtn.shown ? 1 : 0
+                        onAct: root.recut()
+                        Behavior on height { NumberAnimation { duration: Motion.crossfade; easing.type: Motion.crossfadeCurve } }
+                    }
+                    Menus.QsNavRow {
+                        width: parent.width
+                        visible: !root.hasFine
+                        icon: "hd"
+                        label: root.installing ? qsTr("Fetching Fine detail…") : qsTr("Unlock Fine detail")
+                        sub: root.installing ? DepthCfg.DepthBackend.progress
+                                             : qsTr("The cleanest edges (~224 MB).")
+                        onActivated: if (!root.installing)
+                            DepthCfg.DepthBackend.install("birefnet-general-lite")
+                    }
+
+                    Menus.QsSection { width: parent.width; label: qsTr("Look") }
+                    Field {
+                        title: qsTr("Edge fade")
+                        hint: qsTr("Soften where the cut-out meets the scene.")
+                        choices: [{ id: "none", label: qsTr("None") }, { id: "soft", label: qsTr("Soft") }, { id: "strong", label: qsTr("Strong") }]
+                        current: DepthCfg.Config.feather < 0.05 ? "none" : DepthCfg.Config.feather < 0.35 ? "soft" : "strong"
+                        onChose: id => DepthCfg.Config.setFeather(id === "none" ? 0 : id === "soft" ? 0.15 : 0.45)
+                    }
+                    Field {
+                        title: qsTr("Strength")
+                        hint: qsTr("How much the subject stands out in front.")
+                        choices: [{ id: "subtle", label: qsTr("Subtle") }, { id: "medium", label: qsTr("Medium") }, { id: "full", label: qsTr("Full") }]
+                        current: DepthCfg.Config.lift <= 0.5 ? "subtle" : DepthCfg.Config.lift < 0.9 ? "medium" : "full"
+                        onChose: id => DepthCfg.Config.setLift(id === "subtle" ? 0.4 : id === "medium" ? 0.7 : 1.0)
+                    }
+                    Field {
+                        title: qsTr("Shadow")
+                        hint: qsTr("A soft shadow behind the subject, for more depth.")
+                        choices: [{ id: "none", label: qsTr("None") }, { id: "soft", label: qsTr("Soft") }, { id: "strong", label: qsTr("Strong") }]
+                        current: DepthCfg.Config.shadow < 0.05 ? "none" : DepthCfg.Config.shadow < 0.6 ? "soft" : "strong"
+                        onChose: id => DepthCfg.Config.setShadow(id === "none" ? 0 : id === "soft" ? 0.45 : 0.85)
+                    }
+
+                    Menus.QsSection { width: parent.width; label: qsTr("Arrange") }
+                    ActBtn {
+                        kind: "filled"
+                        icon: "open_with"
+                        label: qsTr("Edit widgets")
+                        onAct: root.editWidgets()
+                    }
+                    ActBtn {
+                        kind: "ghost"
+                        icon: "folder_open"
+                        label: qsTr("Open cutouts folder")
+                        onAct: DepthCfg.DepthBackend.openFolder()
+                    }
+                }
             }
         }
     }

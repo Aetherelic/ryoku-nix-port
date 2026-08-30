@@ -43,6 +43,10 @@ Singleton {
         openProc.running = true;
     }
 
+    // The UI waits for `checked` before drawing engine-state controls, so a fresh
+    // panel never flashes "Install engine" before the first check resolves.
+    property bool checked: false
+
     // "available"/"missing" on stdout avoids depending on the exit-status enum.
     Process {
         id: checkProc
@@ -52,6 +56,8 @@ Singleton {
                 root.available = ("" + this.text).trim() === "available";
                 if (root.available)
                     modelsProc.running = true;
+                else
+                    root.checked = true;
             }
         }
     }
@@ -69,6 +75,7 @@ Singleton {
                         out.push(t);
                 }
                 root.models = out;
+                root.checked = true;
             }
         }
     }
