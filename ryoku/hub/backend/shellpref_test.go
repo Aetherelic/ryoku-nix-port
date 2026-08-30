@@ -63,6 +63,22 @@ func TestShellChoiceValidation(t *testing.T) {
 	}
 }
 
+func TestZshPromptDefaultsAndPersists(t *testing.T) {
+	home := t.TempDir()
+	if got, err := zshPrompt(home); err != nil || got != "starship" {
+		t.Fatalf("default zsh prompt = %q, %v", got, err)
+	}
+	if err := setZshPrompt(home, "oh-my-zsh"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := zshPrompt(home); err != nil || got != "oh-my-zsh" {
+		t.Fatalf("saved zsh prompt = %q, %v", got, err)
+	}
+	if err := setZshPrompt(home, "invalid"); err == nil {
+		t.Fatal("invalid zsh prompt accepted")
+	}
+}
+
 func TestSyncSessionShellUpdatesLaunchEnvironments(t *testing.T) {
 	old := runSessionCommand
 	defer func() { runSessionCommand = old }()

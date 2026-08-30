@@ -108,6 +108,14 @@ Item {
         shellSet.command = ["ryoku-hub", "shell", "set", key];
         shellSet.running = true;
     }
+    function setZshPrompt(mode) {
+        if (pg.shellBusy || mode === pg.shellState.zshPrompt)
+            return;
+        pg.shellBusy = true;
+        pg.shellError = "";
+        shellSet.command = ["ryoku-hub", "shell", "prompt", mode];
+        shellSet.running = true;
+    }
     // role -> chosen command (draft); empty/absent uses the shipped fallback.
     readonly property var chosen: pg.hubReady ? (pg.hub.hyprVal("apps") || ({})) : ({})
     function effOf(role, fallback) {
@@ -794,6 +802,75 @@ Item {
                                         }
                                     }
                                 }
+                            }
+
+                            Row {
+                                spacing: Tokens.s2
+                                Text {
+                                    text: I18n.tr("ZSH PROMPT")
+                                    color: Tokens.inkMuted
+                                    font.family: Tokens.ui
+                                    font.pixelSize: Tokens.fMicro
+                                    font.weight: Font.Medium
+                                    font.letterSpacing: Tokens.trackMark
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: I18n.tr("Used when Zsh is selected.")
+                                    color: Tokens.inkFaint
+                                    font.family: Tokens.ui
+                                    font.pixelSize: Tokens.fTiny
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            Flow {
+                                width: parent.width
+                                spacing: Tokens.s2
+                                Repeater {
+                                    model: [
+                                        { "mode": "starship", "label": "Starship" },
+                                        { "mode": "oh-my-zsh", "label": "Oh My Zsh" }
+                                    ]
+                                    delegate: Rectangle {
+                                        id: promptChip
+                                        required property var modelData
+                                        readonly property bool selected: pg.shellState.zshPrompt === promptChip.modelData.mode
+                                        implicitWidth: promptLabel.implicitWidth + Tokens.s4
+                                        implicitHeight: 28
+                                        radius: Tokens.radius
+                                        opacity: pg.shellBusy ? 0.35 : 1
+                                        color: promptChip.selected ? Tokens.ink : (promptHover.hovered ? Tokens.tint10 : "transparent")
+                                        border.width: Tokens.border
+                                        border.color: promptChip.selected ? Tokens.ink : Tokens.line
+                                        Text {
+                                            id: promptLabel
+                                            anchors.centerIn: parent
+                                            text: I18n.tr(promptChip.modelData.label)
+                                            color: promptChip.selected ? Tokens.paper : Tokens.inkDim
+                                            font.family: Tokens.ui
+                                            font.pixelSize: Tokens.fSmall
+                                        }
+                                        HoverHandler {
+                                            id: promptHover
+                                            enabled: !pg.shellBusy
+                                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                        }
+                                        TapHandler {
+                                            enabled: !pg.shellBusy
+                                            onTapped: pg.setZshPrompt(promptChip.modelData.mode)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: I18n.tr("Custom: ~/.config/fish/user.fish · ~/.config/bash/user.bash · ~/.config/zsh/user.zsh · ~/.config/zsh/oh-my-zsh/")
+                                color: Tokens.inkFaint
+                                font.family: Tokens.mono
+                                font.pixelSize: Tokens.fTiny
+                                wrapMode: Text.Wrap
                             }
                             Text {
                                 visible: pg.shellError !== ""

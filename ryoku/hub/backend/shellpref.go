@@ -29,8 +29,9 @@ type shellChoice struct {
 }
 
 type shellState struct {
-	Current string        `json:"current"`
-	Choices []shellChoice `json:"choices"`
+	Current   string        `json:"current"`
+	Choices   []shellChoice `json:"choices"`
+	ZshPrompt string        `json:"zshPrompt"`
 }
 
 func validateShellChoice(key string, choices map[string]string, shellsFile string) (string, error) {
@@ -130,6 +131,40 @@ func shellKey(path string) string {
 	return filepath.Base(path)
 }
 
+func zshPromptPath(home string) string {
+	return filepath.Join(home, ".config", "zsh", "ryoku-prompt")
+}
+
+func zshPrompt(home string) (string, error) {
+	b, err := os.ReadFile(zshPromptPath(home))
+	if os.IsNotExist(err) {
+		return "starship", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	prompt := strings.TrimSpace(string(b))
+	if prompt == "starship" || prompt == "oh-my-zsh" {
+		return prompt, nil
+	}
+	return "starship", nil
+}
+
+func setZshPrompt(home, prompt string) error {
+	if prompt != "starship" && prompt != "oh-my-zsh" {
+		return fmt.Errorf("zsh prompt must be starship or oh-my-zsh")
+	}
+	path := zshPromptPath(home)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmp := path + ".ryoku-tmp"
+	if err := os.WriteFile(tmp, []byte(prompt+"\n"), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
 func passwdShell(path, username string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -158,7 +193,11 @@ func runShellPref(args []string) error {
 		if err != nil {
 			return err
 		}
-		state := shellState{Current: shellKey(path)}
+		prompt, err := zshPrompt(current.HomeDir)
+		if err != nil {
+			return err
+		}
+		state := shellState{Current: shellKey(path), ZshPrompt: prompt}
 		for _, key := range []string{"fish", "bash", "zsh"} {
 			path := accountShells[key]
 			_, err := os.Stat(path)
@@ -181,6 +220,11 @@ func runShellPref(args []string) error {
 		}
 		syncSessionShell(path)
 		return nil
+	case "prompt":
+		if len(args) != 2 {
+			return fmt.Errorf("shell prompt needs starship or oh-my-zsh")
+		}
+		return setZshPrompt(current.HomeDir, args[1])
 	case "apply":
 		if len(args) != 2 || os.Geteuid() != 0 {
 			return fmt.Errorf("shell apply requires privileged fish, bash, or zsh")
