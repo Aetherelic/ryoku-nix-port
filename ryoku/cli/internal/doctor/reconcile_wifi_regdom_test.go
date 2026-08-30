@@ -52,6 +52,21 @@ func TestRegdomWorldDomainWouldSetFromLocale(t *testing.T) {
 	}
 }
 
+func TestRegdomAppliesThroughSudo(t *testing.T) {
+	stubWifi(t, true, "00", "unset", true, "FR")
+	old := setWifiRegdom
+	t.Cleanup(func() { setWifiRegdom = old })
+	called := ""
+	setWifiRegdom = func(country string) error {
+		called = country
+		return nil
+	}
+	reconcileWifiRegdom(false)
+	if called != "FR" {
+		t.Fatalf("regdom helper country = %q, want FR", called)
+	}
+}
+
 // Domain 00 with no country to infer: warn honestly and tell the user to pass
 // their own country code, since guessing one would be wrong.
 func TestRegdomWorldDomainNoLocaleWarns(t *testing.T) {

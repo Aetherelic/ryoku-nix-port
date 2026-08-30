@@ -3,6 +3,7 @@ package doctor
 import (
 	"os/exec"
 	"path/filepath"
+	"ryoku-cli/internal/sys"
 	"strings"
 )
 
@@ -56,6 +57,10 @@ var wifiRegdom = func() (domain, source string, ok bool) {
 		return "00", "unset", true
 	}
 	return iwRegCountry(string(out)), "driver", true
+}
+
+var setWifiRegdom = func(country string) error {
+	return sys.Sudo("ryoku-wifi-regdom", "set", country)
 }
 
 // iwRegCountry pulls the two-letter domain from the first `country XX:` line of
@@ -139,7 +144,10 @@ func reconcileWifiRegdom(checkOnly bool) recResult {
 		return warnRes("the wireless regulatory domain is unset (00) and ryoku-wifi-regdom is not installed to set it from the locale country %s", country).
 			withFix("ryoku-wifi-regdom set " + country)
 	}
-	_ = exec.Command("ryoku-wifi-regdom", "set", country).Run()
+	if err := setWifiRegdom(country); err != nil {
+		return warnRes("could not set the wireless regulatory domain to %s: %v", country, err).
+			withFix("sudo ryoku-wifi-regdom set " + country)
+	}
 	if again, _, ok := wifiRegdom(); ok && again != "00" {
 		return fixedRes("set the wireless regulatory domain to %s from the system locale, so the kernel enables 5 GHz channels again", again)
 	}
