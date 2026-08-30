@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import Qt5Compat.GraphicalEffects
@@ -77,21 +78,27 @@ PanelWindow {
     Item {
         anchors.fill: parent
         visible: cover.phase === "closing" || cover.phase === "opening"
-        layer.enabled: visible
-        layer.effect: OpacityMask { invert: true; maskSource: irisMask }
-        Rectangle { anchors.fill: parent; color: "black" }
-    }
-    Item {
-        id: irisMask
-        anchors.fill: parent
-        visible: false
-        layer.enabled: cover.phase === "closing" || cover.phase === "opening"
-        Rectangle {
-            anchors.centerIn: parent
-            width: cover.iris * 2
-            height: cover.iris * 2
-            radius: cover.iris
-            color: "white"
+
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                fillColor: "black"
+                strokeColor: "transparent"
+                fillRule: ShapePath.OddEvenFill
+                PathRectangle { x: 0; y: 0; width: cover.width; height: cover.height }
+                PathSvg {
+                    path: {
+                        const r = Math.max(0.001, cover.iris);
+                        const x = cover.width / 2 - r;
+                        const y = cover.height / 2;
+                        return "M " + x + " " + y
+                            + " A " + r + " " + r + " 0 1 0 " + (x + r * 2) + " " + y
+                            + " A " + r + " " + r + " 0 1 0 " + x + " " + y + " Z";
+                    }
+                }
+            }
         }
     }
 

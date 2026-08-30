@@ -20,6 +20,9 @@ grep -qF 'duration: 1200' "$renderer"
 grep -qF 'ColorOverlay {' "$renderer"
 grep -qF 'text: "SHELL RELOADING"' "$renderer"
 grep -qF 'visible: cover.phase !== "failed" && logo.opacity > 0' "$renderer"
+grep -qF 'import QtQuick.Shapes' "$renderer"
+grep -qF 'fillRule: ShapePath.OddEvenFill' "$renderer"
+grep -qF 'PathSvg {' "$renderer"
 live_runtime="${XDG_RUNTIME_DIR:-}"
 reload_pid=""
 
@@ -78,13 +81,20 @@ if [[ ${RYOKU_RELOAD_COVER_LIVE:-0} == 1 ]]; then
     test "$seen" = 1
 
     delay=0
-    for mark in 0 100 300 700 1200; do
+    for mark in 0 100 300 700 1200 1700 2000; do
         sleep "$delay"
         env XDG_RUNTIME_DIR="$live_runtime" grim "$tmp/reload-cover-$mark.png"
-        delay=$(awk "BEGIN { print ($mark == 0 ? 0.1 : $mark == 100 ? 0.2 : $mark == 300 ? 0.4 : 0.5) }")
+        case "$mark" in
+            0) delay=0.1 ;;
+            100) delay=0.2 ;;
+            300) delay=0.4 ;;
+            700) delay=0.5 ;;
+            1200) delay=0.5 ;;
+            1700) delay=0.3 ;;
+        esac
     done
 
-    magick montage "$tmp"/reload-cover-*.png -thumbnail 560x -tile 3x2 -geometry +4+4 /tmp/ryoku-reload-cover-montage.png
+    magick montage "$tmp"/reload-cover-*.png -thumbnail 560x -tile 4x2 -geometry +4+4 /tmp/ryoku-reload-cover-montage.png
 
     for _ in $(seq 1 240); do
         kill -0 "$reload_pid" 2>/dev/null || break
