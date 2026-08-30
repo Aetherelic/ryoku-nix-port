@@ -116,7 +116,7 @@ Item {
                 font.family: Tokens.ui
                 font.pixelSize: Tokens.fRow
                 font.weight: Font.Medium
-                elide: Text.ElideRight
+                elide: Text.ElideMiddle
             }
 
             Text {

@@ -613,6 +613,7 @@ Rectangle {
         hub.savePage();
     }
     function revert() {
+        hub.invalidatePageWork();
         hub.draft = JSON.parse(JSON.stringify(hub.committed));
         hub.restoreLiveUnsaved();
         hub.hyprDraft = JSON.parse(JSON.stringify(hub.hyprCommitted));
@@ -621,6 +622,7 @@ Rectangle {
         hub.requestReloadCoverPrune(hub.committed.reloadCover);
     }
     function resetDefaults() {
+        hub.invalidatePageWork();
         hub.pristine = false;
         hub.draft = JSON.parse(JSON.stringify(hub.defs));
         if (Object.keys(hub.hyprDefaults).length) hub.hyprDraft = JSON.parse(JSON.stringify(hub.hyprDefaults));
@@ -792,6 +794,7 @@ Rectangle {
     property bool pageDirty: false
     signal savePage()
     signal revertPage()
+    signal invalidatePageWork()
 
     Process {
         id: hyprGet

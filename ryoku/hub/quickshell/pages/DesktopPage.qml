@@ -43,4 +43,11 @@ Item {
             visible: sp.tab === "Visualizer"
         }
     }
+
+    Connections {
+        target: pg.hub
+        function onInvalidatePageWork() {
+            sp.invalidateReloadCoverImport();
+        }
+    }
 }
