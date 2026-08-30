@@ -28,6 +28,7 @@ Item {
         eyebrow: pg.pEyebrow
         blurb: pg.pBlurb
         query: pg.hub ? pg.hub.query : ""
+        externalReloadCoverError: pg.hub ? pg.hub.reloadCoverCleanupError : ""
         onEdited: (k, v) => { if (pg.hub) pg.hub.edit(k, v); }
         onPickRequested: (r) => { if (pg.hub) pg.hub.openPick(r); }
 

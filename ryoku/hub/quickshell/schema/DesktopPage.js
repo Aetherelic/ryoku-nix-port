@@ -35,6 +35,14 @@ var rows = [{
         "ctl": "sw",
         "src": "brand"
     },{
+        "tab": "General",
+        "group": "SHELL RELOAD",
+        "key": "reloadCover",
+        "label": "Reload cover",
+        "desc": "Shown while the desktop shell restarts; media is fitted without cropping and video is always muted",
+        "ctl": "reload-cover",
+        "src": "brand"
+    },{
         "tab": "Visualizer",
         "group": "STYLE",
         "key": "enabled",

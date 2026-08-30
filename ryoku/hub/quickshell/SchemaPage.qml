@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import "ReloadCoverModel.js" as ReloadCoverModel
 
 // Every settings page, once. A page supplies its schema, its draft and its
 // defaults; this draws the tabs its schema declares and hands the rows to a
@@ -26,6 +27,9 @@ Item {
     property alias advanced: sheet.advanced
     default property alias extras: extraSlot.data
     property var pendingImageRow: null
+    property string externalReloadCoverError: ""
+    property string importReloadCoverError: ""
+    property var pendingReloadCoverRow: null
 
     signal edited(string key, var value)
     signal pickRequested(var row)
@@ -138,6 +142,16 @@ Item {
         tab: page.tabs.length ? page.tabs[0] : ""
         onEdited: (k, v) => page.edited(k, v)
         onPickRequested: (r) => page.pickRequested(r)
+        reloadCoverError: page.importReloadCoverError || page.externalReloadCoverError
+        onReloadCoverPickRequested: (r) => {
+            page.importReloadCoverError = "";
+            page.pendingReloadCoverRow = r;
+            reloadCoverPick.open();
+        }
+        onReloadCoverDefaultRequested: (r) => {
+            page.importReloadCoverError = "";
+            page.edited(r.key, ReloadCoverModel.empty());
+        }
         onImagePickRequested: (r) => { page.pendingImageRow = r; imgPick.open(); }
         onTimezonePickRequested: (r) => page.timezonePickRequested(r)
     }
@@ -153,5 +167,48 @@ Item {
             imgPick.active = false;
         }
         onCanceled: imgPick.active = false
+    }
+
+    PickFile {
+        id: reloadCoverPick
+        title: I18n.tr("Add reload-cover asset")
+        emptyText: I18n.tr("No supported media or folders here")
+        fileFilters: ReloadCoverModel.filters()
+        onPicked: (p) => {
+            reloadCoverPick.active = false;
+            if (!page.pendingReloadCoverRow) return;
+            reloadCoverImport.command = ["ryoku-hub", "reload-cover", "import", "" + p];
+            reloadCoverImport.running = true;
+        }
+        onCanceled: {
+            reloadCoverPick.active = false;
+            page.pendingReloadCoverRow = null;
+        }
+    }
+
+    Process {
+        id: reloadCoverImport
+        running: false
+        stdout: StdioCollector { id: reloadCoverImportOut }
+        stderr: StdioCollector { id: reloadCoverImportErr }
+        onExited: function(code) {
+            var row = page.pendingReloadCoverRow;
+            if (code === 0) {
+                try {
+                    var descriptor = ReloadCoverModel.normalize(JSON.parse(reloadCoverImportOut.text.trim()));
+                    if (descriptor.path === "")
+                        throw new Error("missing managed path");
+                    if (row)
+                        page.edited(row.key, descriptor);
+                    page.importReloadCoverError = "";
+                } catch (e) {
+                    page.importReloadCoverError = I18n.tr("Couldn't import this asset. Choose a supported local file under 64 MiB.");
+                }
+            } else {
+                page.importReloadCoverError = reloadCoverImportErr.text.trim()
+                    || I18n.tr("Couldn't import this asset. Choose a supported local file under 64 MiB.");
+            }
+            page.pendingReloadCoverRow = null;
+        }
     }
 }

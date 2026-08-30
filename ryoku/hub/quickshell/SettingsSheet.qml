@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
+import "ReloadCoverModel.js" as ReloadCoverModel
 
 // Renders a page from its schema as grouped, compact rows. A setting is a row
 // of data; which card it lands in comes from its group and what draws it from
@@ -33,6 +34,7 @@ Item {
     // the row a search jump lands on: switched to, scrolled into view, and
     // flashed. Cleared shortly after so the wash is a pulse, not a highlight.
     property string spotlightKey: ""
+    property string reloadCoverError: ""
 
     signal edited(string key, var value)
 
@@ -86,6 +88,7 @@ Item {
         return String(v);
     }
     function shownDef(r) {
+        if (r.ctl === "reload-cover") return I18n.tr("DEFAULT");
         var d = defaults[r.key];
         if (d === undefined) return "";
         if (r.ctl === "sw") return d ? "ON" : "OFF";
@@ -95,11 +98,17 @@ Item {
     }
     function isChanged(r) {
         var v = val(r), d = defaults[r.key];
+        if (r.ctl === "reload-cover")
+            return JSON.stringify(ReloadCoverModel.normalize(v)) !== JSON.stringify(ReloadCoverModel.normalize(d));
         if (d === undefined) return false;
         if (r.ctl === "multi") return JSON.stringify(v || []) !== JSON.stringify(d || []);
         return v !== d;
     }
     function resetRow(r) {
+        if (r.ctl === "reload-cover") {
+            sheet.edited(r.key, ReloadCoverModel.empty());
+            return;
+        }
         var d = defaults[r.key];
         if (d !== undefined) sheet.edited(r.key, d);
     }
@@ -110,7 +119,7 @@ Item {
     // band; everything else sits inline at the row's right.
     function ctlBlock(r) {
         var c = r.ctl, n = (r.opts || []).length;
-        if (c === "chips" || c === "multi" || c === "gallery" || c === "layoutdemo") return true;
+        if (c === "chips" || c === "multi" || c === "gallery" || c === "layoutdemo" || c === "reload-cover") return true;
         if (c === "seg" && n >= 3) return true;
         return false;
     }
@@ -234,6 +243,7 @@ Item {
                                     case "multi": return multiC;
                                     case "pick": return pickC;
                                     case "gallery": return galleryC;
+                                    case "reload-cover": return reloadCoverC;
                                     case "image": return imageC;
                                     case "app": return appC;
                                     case "location": return locationC;
@@ -414,6 +424,16 @@ Item {
                                         : Silhouette.skins.filter((skin) => !srow.r.opts || srow.r.opts.indexOf(skin.key) >= 0)
                                     current: String(sheet.val(srow.r))
                                     onChose: (k) => sheet.edited(srow.r.key, k)
+                                }
+                            }
+                            Component {
+                                id: reloadCoverC
+                                ReloadCoverControl {
+                                    anchors.fill: parent
+                                    descriptor: ReloadCoverModel.normalize(sheet.val(srow.r))
+                                    errorText: sheet.reloadCoverError
+                                    onAddRequested: sheet.reloadCoverPick(srow.r)
+                                    onDefaultRequested: sheet.reloadCoverDefault(srow.r)
                                 }
                             }
                             Component {
@@ -692,6 +712,12 @@ Item {
 
     signal timezonePickRequested(var row)
     function timezonePick(r) { timezonePickRequested(r) }
+
+    signal reloadCoverPickRequested(var row)
+    function reloadCoverPick(r) { reloadCoverPickRequested(r) }
+
+    signal reloadCoverDefaultRequested(var row)
+    function reloadCoverDefault(r) { reloadCoverDefaultRequested(r) }
 
     Column {
         anchors.centerIn: parent

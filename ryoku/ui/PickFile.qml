@@ -20,6 +20,7 @@ Item {
     // ["*.ryoprofile"]); empty keeps the default image set (png/jpg/webp/gif/svg).
     property var fileFilters: []
     property string title: "Choose a file"
+    property string emptyText: ""
     property string home: Quickshell.env("HOME") || ""
     property url startFolder: "file://" + fp.home + "/Pictures"
     property url currentFolder: fp.startFolder
@@ -217,7 +218,9 @@ Item {
         Text {
             anchors.centerIn: fpGrid
             visible: fm.status === FolderListModel.Ready && fm.count === 0
-            text: fp.foldersOnly ? "No folders here" : "No images or folders here"
+            text: fp.emptyText !== ""
+                ? fp.emptyText
+                : (fp.foldersOnly ? I18n.tr("No folders here") : I18n.tr("No images or folders here"))
             color: Tokens.inkMuted
             font.family: Tokens.ui
             font.pixelSize: Tokens.fSmall

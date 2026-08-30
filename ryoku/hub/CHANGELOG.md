@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Desktop > General gains managed shell-reload media.** Preview an image,
+  animation, or muted video; use Default or Add Asset with visible format
+  guidance, managed import, and the existing Save/Revert flow
+  (`quickshell/ReloadCoverControl.qml`, `SchemaPage.qml`,
+  `SettingsSheet.qml`, `schema/DesktopPage.js`).
+
 - **The terminal application and account shell are separate choices.** Keybinds
   > Apps keeps the terminal-emulator picker and adds Fish, Bash and Zsh chips
   beneath it. A validated privileged backend changes the account login shell,
