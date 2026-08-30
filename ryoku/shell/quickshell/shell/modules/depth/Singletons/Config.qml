@@ -4,13 +4,16 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Wallpaper depth config: a watched, self-seeded ~/.config/ryoku/depth.json,
-// mirroring the visualiser (docs/depth.md). quality (model + edge matting) asks
-// the daemon to regenerate; feather/lift/shadow/front are render-only.
+// Wallpaper depth config, mirroring the visualiser (docs/depth.md). depth.json
+// (watched, self-seeded) holds the shell-owned render knobs; whether depth is on
+// is per-wallpaper and daemon-owned -- `enabled` reflects the current wallpaper's
+// effective state, read from the daemon's registry, set through the daemon.
 Singleton {
     id: root
 
-    property alias enabled: adapter.enabled
+    // Effective for the wallpaper on screen now: the daemon's per-wall registry,
+    // watched read-only (the daemon is the sole writer, via setEnabled -> IPC).
+    readonly property bool enabled: wallsData.current
     property alias model: adapter.model
     property alias feather: adapter.feather
     property alias lift: adapter.lift
@@ -26,9 +29,9 @@ Singleton {
     }
 
     function setEnabled(on) {
-        adapter.enabled = on === true;
-        file.writeAdapter();
-        root.refresh();
+        setEnabledProc.command = ["ryoku-shell", "depth", "set-enabled", on === true ? "1" : "0"];
+        setEnabledProc.running = false;
+        setEnabledProc.running = true;
     }
     function setModel(m) {
         if (root.knownModels.indexOf(m) < 0)
@@ -94,6 +97,10 @@ Singleton {
         id: refreshProc
         command: ["ryoku-shell", "depth", "refresh"]
     }
+    Process {
+        id: setEnabledProc
+        command: ["ryoku-shell", "depth", "set-enabled", "0"]
+    }
 
     Timer {
         id: settle
@@ -112,13 +119,29 @@ Singleton {
 
         JsonAdapter {
             id: adapter
-            property bool enabled: false
             property string model: "u2netp"
             property real feather: 0.15
             property real lift: 1.0
             property var front: []
             property bool alphaMatting: false
             property real shadow: 0.0
+        }
+    }
+
+    // The daemon's per-wall depth registry: `current` is depth's effective state
+    // for the wallpaper on screen now. Read-only here; setEnabled goes through the
+    // daemon so the opt-in persists and survives wallpaper switches and reboots.
+    FileView {
+        id: walls
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku/depth-walls.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+
+        JsonAdapter {
+            id: wallsData
+            property bool current: false
         }
     }
 

@@ -106,7 +106,8 @@ type daemon struct {
 	wallMu         sync.Mutex           // serializes the wallpaper hot path (pick + apply)
 	paintSig       chan struct{}        // coalescing wake for the palette/border worker
 	depthSig       chan struct{}        // coalescing wake for the depth-cutout worker
-	depthForce     atomic.Bool          // a pending forced regenerate (enable / model change)
+	depthForce     atomic.Bool          // a pending forced regenerate (detail change / refresh)
+	depthGen       atomic.Bool          // a pending enable: reuse a saved cutout, else generate
 	depthBusy      atomic.Bool          // a cutout generation is in flight (for status)
 	ledsSig        chan struct{}        // coalescing wake for the OpenRGB worker
 	widgetSig      chan struct{}        // coalescing wake for the widget-occupancy gate
@@ -996,9 +997,10 @@ func (d *daemon) dispatch(line string) string {
 		}()
 		return "ok"
 	case "depth":
-		// refresh forces a regenerate for the current wallpaper (enable / model
-		// change); the worker no-ops when depth is off or the engine is absent.
+		// refresh forces a regenerate for the current wallpaper (model change);
+		// the worker no-ops when depth is off for it or the engine is absent.
 		// status reports generation progress and the current cutout to the UI.
+		// set-enabled records the per-wall opt-in (daemon-owned, persisted).
 		if len(args) >= 1 && args[0] == "refresh" {
 			d.depthForce.Store(true)
 			d.scheduleDepth()
@@ -1006,6 +1008,10 @@ func (d *daemon) dispatch(line string) string {
 		}
 		if len(args) >= 1 && args[0] == "status" {
 			return depthStatusJSON(d.depthBusy.Load())
+		}
+		if len(args) >= 2 && args[0] == "set-enabled" {
+			d.depthSetEnabled(args[1] == "1" || args[1] == "true")
+			return "ok"
 		}
 		return "ok"
 	case "wallpaper":

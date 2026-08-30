@@ -8,9 +8,10 @@ import (
 	"time"
 )
 
-// TestDepthConfigParses pins the live-intent contract: an absent file is off with
-// the small CPU default, and enabled/model are read verbatim with the model
-// falling back to the default when the key is missing.
+// TestDepthConfigParses pins the render-knob contract: an absent file is the
+// small-CPU default, model and alphaMatting are read verbatim, and the model
+// falls back to the default when the key is missing. Whether depth is on is the
+// per-wall registry, not depth.json, so enabled is no longer read here.
 func TestDepthConfigParses(t *testing.T) {
 	cfg := filepath.Join(t.TempDir(), ".config")
 	t.Setenv("XDG_CONFIG_HOME", cfg)
@@ -19,16 +20,16 @@ func TestDepthConfigParses(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := depthConfig(); got.enabled || got.model != "u2netp" {
-		t.Fatalf("absent depth.json = %+v, want {false u2netp}", got)
+	if got := depthConfig(); got.model != "u2netp" || got.alphaMatting {
+		t.Fatalf("absent depth.json = %+v, want {u2netp false}", got)
 	}
-	writeFile(t, filepath.Join(dir, "depth.json"), `{"enabled":true,"model":"birefnet-general-lite"}`)
-	if got := depthConfig(); !got.enabled || got.model != "birefnet-general-lite" {
-		t.Fatalf("depth.json = %+v, want {true birefnet-general-lite}", got)
+	writeFile(t, filepath.Join(dir, "depth.json"), `{"model":"birefnet-general-lite","alphaMatting":true}`)
+	if got := depthConfig(); got.model != "birefnet-general-lite" || !got.alphaMatting {
+		t.Fatalf("depth.json = %+v, want {birefnet-general-lite true}", got)
 	}
-	writeFile(t, filepath.Join(dir, "depth.json"), `{"enabled":true}`)
-	if got := depthConfig(); !got.enabled || got.model != "u2netp" {
-		t.Fatalf("model-absent depth.json = %+v, want {true u2netp}", got)
+	writeFile(t, filepath.Join(dir, "depth.json"), `{"alphaMatting":true}`)
+	if got := depthConfig(); got.model != "u2netp" || !got.alphaMatting {
+		t.Fatalf("model-absent depth.json = %+v, want {u2netp true}", got)
 	}
 }
 
@@ -168,5 +169,91 @@ func TestDepthSetClearAndStale(t *testing.T) {
 	d.wall.clearDepth()
 	if d.wall.def.depthPath != "" || d.wall.def.depthRev != 0 {
 		t.Fatalf("clearDepth left {%q,%d}", d.wall.def.depthPath, d.wall.def.depthRev)
+	}
+}
+
+// TestDepthPerWallRegistry pins the per-wall opt-in: an untagged wallpaper is off
+// and generates nothing (busy never sticks -- the switch-stuck fix), enabling
+// tags the wallpaper, and switching away and back restores it from the persisted
+// registry, which a fresh daemon reads on boot. The engine is forced absent so
+// the effective flag and busy state are exercised without a real cutout.
+func TestDepthPerWallRegistry(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
+	t.Setenv("PATH", t.TempDir()) // no ryoku-depth: engine reads as absent
+
+	wx := filepath.Join(home, "x.png")
+	wy := filepath.Join(home, "y.png")
+	writeFile(t, wx, "x")
+	writeFile(t, wy, "y")
+	if err := os.MkdirAll(stateDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	show := func(d *daemon, pic string) {
+		writeWallState(wallStateFile{Default: pic})
+		if err := d.wall.show(pic); err != nil {
+			t.Fatalf("show: %v", err)
+		}
+	}
+
+	d := &daemon{lastTransition: -1}
+	d.startWallpaper()
+
+	// Untagged wallpaper: off, no generation, busy never set, and the overlay is
+	// cleared -- the switch never sticks on "Cutting out".
+	show(d, wx)
+	d.reconcileDepth(false, false)
+	if loadDepthWalls().Current {
+		t.Fatal("untagged wallpaper reported effective-enabled")
+	}
+	if d.depthBusy.Load() {
+		t.Fatal("busy stuck true for an untagged wallpaper")
+	}
+	if !isFile(depthWallsPath()) {
+		t.Fatal("registry not ensured on boot")
+	}
+
+	// Enable on X: tagged and effective immediately.
+	d.depthSetEnabled(true)
+	if reg := loadDepthWalls(); !reg.Current || !reg.Walls[wx] {
+		t.Fatalf("after enable X = %+v, want current+tagged", reg)
+	}
+
+	// Switch to an untagged Y: off, busy clear, X's tag persists.
+	show(d, wy)
+	d.reconcileDepth(false, false)
+	if loadDepthWalls().Current {
+		t.Fatal("Y (never enabled) reported effective-enabled")
+	}
+	if d.depthBusy.Load() {
+		t.Fatal("busy stuck true switching to an untagged wallpaper")
+	}
+	if !loadDepthWalls().Walls[wx] {
+		t.Fatal("X's opt-in was lost when switching away")
+	}
+
+	// Switch back to X: depth restored from the registry.
+	show(d, wx)
+	d.reconcileDepth(false, false)
+	if !loadDepthWalls().Current {
+		t.Fatal("returning to X did not restore depth")
+	}
+
+	// Persisted across a daemon restart: a fresh daemon reads the same registry.
+	d2 := &daemon{lastTransition: -1}
+	d2.startWallpaper()
+	d2.reconcileDepth(false, false)
+	if !loadDepthWalls().Current {
+		t.Fatal("depth opt-in did not survive a daemon restart")
+	}
+
+	// Disable on X: untagged again, off.
+	d.depthSetEnabled(false)
+	if reg := loadDepthWalls(); reg.Current || reg.Walls[wx] {
+		t.Fatalf("after disable X = %+v, want off+untagged", reg)
 	}
 }

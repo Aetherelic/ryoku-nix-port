@@ -54,7 +54,6 @@ update-safety `visualizer.json` already relies on (`docs/updates.md`). No
 
 | Key | Type | Default | What it is |
 |---|---|---|---|
-| `enabled` | bool | `false` | Master on/off. Also the daemon's cue to generate. |
 | `model` | string | `u2netp` | Segmentation model. The Depth tab folds this and `alphaMatting` into one **Detail** control: Draft (u2netp), Standard (+ matting), Fine (birefnet + matting). |
 | `alphaMatting` | bool | `false` | Edge matting for finer edges (hair, fur); part of the Detail control. Regenerates the cutout when changed. |
 | `feather` | real 0..1 | `0.15` | Edge softness of the cutout, a mask blur at the silhouette. |
@@ -63,11 +62,15 @@ update-safety `visualizer.json` already relies on (`docs/updates.md`). No
 | `front` | list\<string\> | `[]` | Widget ids that draw *above* the cutout (default: every widget behind the subject). Each widget's right-click menu toggles its own; the compose bar also quick-toggles the clock. |
 
 `available` is **not** config; it is reported live by `DepthBackend` (below).
+Whether depth is **on** is also not in this file: it is per-wallpaper and
+daemon-owned (the registry below), so a new wallpaper starts with depth off and a
+wallpaper you enabled it on remembers that across switches and reboots.
 
 Setter API on the singleton (each an immediate or settled write, mirroring the
 visualiser): `setEnabled(on)`, `setModel(m)`, `setFeather(v)`, `setLift(v)`,
-`toggleFront(widgetId)`. `setEnabled(true)` and `setModel` also nudge the daemon
-to (re)generate for the current wallpaper via `ryoku-shell depth refresh`.
+`setShadow(v)`, `toggleFront(widgetId)`. `setEnabled` routes through the daemon
+(`ryoku-shell depth set-enabled`) so the per-wallpaper opt-in persists; `setModel`
+and a Recut nudge `ryoku-shell depth refresh` to regenerate the current wallpaper.
 
 ## The segmentation helper: `ryoku-depth`
 
@@ -84,9 +87,10 @@ provisioning a self-contained backend on demand.
 
 Backend resolution: a Python that can `import rembg`, the Ryoku-managed venv
 first, then a system `python3.11`-`3.13` (rembg needs that range, and the API is
-called so the CLI extra is not required). CPU is the contract; a GPU is never
-required (generation is a one-shot, off-frame job, per
-`beta19features/depth-stack-versus-lightweight-models.md`).
+called so the CLI extra is not required). Rendering prefers the GPU (the ONNX
+Runtime CUDA provider) when available and falls back to CPU, so it is fast on a
+GPU box and never fails on a CPU-only one; generation stays a one-shot, off-frame
+job (`beta19features/depth-stack-versus-lightweight-models.md`).
 The default model is `u2netp` (~4.6 MB); heavier models are offered only if the
 engine reports them.
 
@@ -96,19 +100,22 @@ engine reports them.
   `wallFrameEntry` gains `Depth string json:"depth"` and `DepthRev` (contract
   08). `republish()` and the publish path carry them; an empty `depth` means no
   cutout (disabled, still generating, video, or the engine is absent).
-- **Reading intent.** `depthConfig()` reads `enabled`/`model`/`alphaMatting` from
-  `depth.json` per apply, mirroring `wallpaperContentFit()` reading `shell.json`.
-- **Worker.** `scheduleDepth()` -> `depthWorker()` coalesces like the theme
-  worker: for each on-screen still wallpaper (read from the saved per-output
-  state), if enabled and `ryoku-depth check` passes, resolve its cutout in
-  `~/Pictures/Depth` (reusing the saved file when it still matches, else
-  `ryoku-depth cutout <wallpaper> <out> --model <m>`), then `setDepth` and
-  `republish()`. Videos are skipped (a static cutout over motion drifts). A
-  failure leaves the cutout empty and is logged, never fatal.
-- **Triggers.** Every wallpaper apply/repaint schedules depth when enabled; the
-  `depth refresh` IPC subcommand (Config on enable / detail change) sets a force
-  flag so the current wallpaper regenerates in place. `depth status` reports
-  `{busy, path}` so the Depth tab shows a progress bar and a preview of the cutout.
+- **Reading intent.** `depthConfig()` reads `model`/`alphaMatting` from
+  `depth.json` per apply; whether depth is on for a wallpaper comes from the
+  per-wall registry `~/.local/state/ryoku/depth-walls.json` (`{current, walls}`),
+  which the daemon owns and the shell reads for the toggle.
+- **Worker.** `scheduleDepth()` -> `depthWorker()` -> `reconcileDepth()` coalesces
+  like the theme worker: it resolves the on-screen wallpaper's effective-enabled
+  from the registry, publishes `current`, then for a tagged wallpaper reuses the
+  saved cutout (or clears if none) and for an untagged one clears. Videos are
+  skipped. A failure leaves the cutout empty and is logged, never fatal.
+- **Triggers.** A wallpaper switch reconciles but **never auto-generates**: a
+  tagged wallpaper reuses its cutout instantly, an untagged one shows nothing.
+  Generation is manual -- only a forced reconcile (`depth set-enabled`, the
+  per-wall opt-in, or `depth refresh` on a detail change / Recut) runs the helper.
+  A switch reuses without ever setting the busy flag, so it can never stick the
+  panel on "Cutting out".
+  `depth status` reports `{busy, path}` for the tab's progress bar and preview.
 
 ## Where cutouts live: `~/Pictures/Depth`
 
