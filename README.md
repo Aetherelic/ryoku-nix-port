@@ -69,11 +69,11 @@ NixOS channel:     nixos-unstable
 
 ### Remaining
 
-- [ ] fix `ryoku-shell.service` child-process/cgroup leak
-- [ ] final RyoStore parity audit
-- [ ] final Hub page parity audit
-- [ ] peripheral integration audit
-- [ ] fresh install test and VM test
+- [x] fix `ryoku-shell.service` child-process/cgroup leak
+- [x] final RyoStore parity audit
+- [x] final Hub page parity audit
+- [x] peripheral integration audit
+- [x] fresh install test and VM test
 - [ ] final upstream compatibility
 - [ ] Creating some Nix specific fastfetch configs for Ryostore as theyre all Arch based
 - [ ] Adding [Chroma](https://github.com/Aetherelic/chroma-shell) as a rice add on in the ryoku store [OPTIONAL] 
