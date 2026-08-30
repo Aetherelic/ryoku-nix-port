@@ -54,6 +54,7 @@ Item {
         case "grand":   return grandComp;
         case "column":  return columnComp;
         case "outline": return outlineComp;
+        case "banner":  return bannerComp;
         default:        return digitalComp;
         }
     }
@@ -76,6 +77,7 @@ Item {
     Component { id: grandComp;   ClockGrand { underL: clock.underL } }
     Component { id: columnComp;  ClockColumn { underL: clock.underL } }
     Component { id: outlineComp; ClockOutline { underL: clock.underL } }
+    Component { id: bannerComp;  ClockBanner { underL: clock.underL } }
 
     Component { id: dateInlineComp;  DateInline { underL: clock.underL } }
     Component { id: dateBadgeComp;   DateBadge { underL: clock.underL } }

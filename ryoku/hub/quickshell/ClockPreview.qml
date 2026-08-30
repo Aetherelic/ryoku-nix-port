@@ -73,6 +73,7 @@ Item {
         case "grand":   return grandC;
         case "column":  return columnC;
         case "outline": return outlineC;
+        case "banner":  return bannerC;
         default:        return digitalC;
         }
     }
@@ -283,6 +284,30 @@ Item {
             Hollow { anchors.verticalCenter: parent.verticalCenter; txt: preview.hh; ps: 76; lw: 2.4 }
             Text { anchors.verticalCenter: parent.verticalCenter; text: ":"; color: preview.accent; font.family: "Space Grotesk"; font.weight: Font.Bold; font.pixelSize: 76 }
             Hollow { anchors.verticalCenter: parent.verticalCenter; txt: preview.mm; ps: 76; lw: 2.4 }
+        }
+    }
+
+    // banner: one wide, calm sans time (hh:mm) with AM/PM set inline and small,
+    // the NibrasShell readout; the colon carries the accent.
+    Component {
+        id: bannerC
+        Row {
+            spacing: 9
+            Row {
+                id: bHm
+                spacing: 0
+                Text { text: preview.hh; color: preview.ink; font.family: "Inter"; font.weight: Font.Bold; font.pixelSize: 64; font.letterSpacing: -1 }
+                Text { text: ":"; color: preview.accent; font.family: "Inter"; font.weight: Font.Bold; font.pixelSize: 64; font.letterSpacing: -1 }
+                Text { text: preview.mm; color: preview.ink; font.family: "Inter"; font.weight: Font.Bold; font.pixelSize: 64; font.letterSpacing: -1 }
+            }
+            Text {
+                visible: !preview.is24
+                anchors.bottom: bHm.bottom
+                anchors.bottomMargin: 10
+                text: preview.ampm; color: preview.inkDim
+                font.family: "Inter"; font.weight: Font.DemiBold
+                font.pixelSize: 13; font.letterSpacing: 2
+            }
         }
     }
 

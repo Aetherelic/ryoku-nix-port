@@ -68,7 +68,7 @@ Item {
 
     function cycleDesign() {
         const lists = {
-            clock: ["digital", "minimal", "grand", "column", "outline", "analog", "flip", "rings", "bighour", "metal", "goodnight"],
+            clock: ["digital", "minimal", "grand", "column", "outline", "banner", "analog", "flip", "rings", "bighour", "metal", "goodnight"],
             calendar: ["glass", "paper"],
             music: ["cover", "glass"],
             aio: ["wide", "tall"],

@@ -19,7 +19,7 @@ var rows = [
         "group": "WIDGET",
         "key": "clockDesign",
         "label": "Face",
-        "desc": "How the time is drawn: digits, a grand serif, a stacked column, an outline, analog hands, flip cards, rings, a big hour, a metal readout or a good-night card",
+        "desc": "How the time is drawn: digits, a grand serif, a stacked column, an outline, a wide banner, analog hands, flip cards, rings, a big hour, a metal readout or a good-night card",
         "ctl": "chips",
         "src": "widgets.json",
         "opts": [
@@ -28,6 +28,7 @@ var rows = [
             "grand",
             "column",
             "outline",
+            "banner",
             "analog",
             "flip",
             "rings",
