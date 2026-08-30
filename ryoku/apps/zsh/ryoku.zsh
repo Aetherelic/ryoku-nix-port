@@ -9,16 +9,38 @@ unset _ryoku_env
 [[ -o interactive ]] || return
 
 command -v ryoku-fastfetch >/dev/null 2>&1 && ryoku-fastfetch
-command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+
+_ryoku_prompt=${RYOKU_ZSH_PROMPT:-starship}
+_ryoku_omz=0
+if [[ -r ${ZSH:-/usr/share/oh-my-zsh}/oh-my-zsh.sh ]]; then
+  export ZSH=${ZSH:-/usr/share/oh-my-zsh}
+  export ZSH_CUSTOM=${ZSH_CUSTOM:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh/oh-my-zsh}
+  DISABLE_AUTO_UPDATE=true
+  ZSH_COMPDUMP=${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump
+  (( ${+plugins} )) || plugins=(git)
+  if [[ $_ryoku_prompt == oh-my-zsh ]]; then
+    : ${ZSH_THEME:=robbyrussell}
+  else
+    ZSH_THEME=""
+  fi
+  source "$ZSH/oh-my-zsh.sh"
+  _ryoku_omz=1
+fi
+
+if [[ $_ryoku_prompt != oh-my-zsh || $_ryoku_omz != 1 ]]; then
+  command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+fi
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh --cmd cd)"
 command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
 command -v fzf >/dev/null 2>&1 && eval "$(fzf --zsh)"
 
-autoload -Uz compinit
-_cache=${XDG_CACHE_HOME:-$HOME/.cache}/zsh
-mkdir -p "$_cache"
-compinit -d "$_cache/zcompdump"
-unset _cache
+if (( ! _ryoku_omz )); then
+  autoload -Uz compinit
+  _cache=${XDG_CACHE_HOME:-$HOME/.cache}/zsh
+  mkdir -p "$_cache"
+  compinit -d "$_cache/zcompdump"
+  unset _cache
+fi
 
 [[ -r /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]] &&
   source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
@@ -69,4 +91,6 @@ fi
 _ryoku_cfg=${XDG_CONFIG_HOME:-$HOME/.config}
 [[ -r $_ryoku_cfg/zsh/rashin.zsh ]] && source "$_ryoku_cfg/zsh/rashin.zsh"
 [[ -r $_ryoku_cfg/zsh/user.zsh ]] && source "$_ryoku_cfg/zsh/user.zsh"
+
+unset _ryoku_prompt _ryoku_omz
 unset _ryoku_cfg

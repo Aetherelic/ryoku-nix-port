@@ -47,6 +47,8 @@ done
 grep -Fxq 'pkgver=0.4.0_devel3' "$repo/release/packages/blesh/PKGBUILD" ||
   fail "ble.sh 0.4 or newer is required for Starship prompt integration"
 (( ble_line < starship_line )) || fail "Bash must initialize Starship after ble.sh"
+grep -Fxq 'oh-my-zsh-git' "$repo/system/packages/aur.packages" ||
+  fail "Oh My Zsh must be installed through the existing AUR path"
 need fish
 need bash
 need zsh
@@ -101,7 +103,27 @@ run_shell() {
   grep -Fq "fzf --$shell" "$log" || fail "$shell fzf init"
 }
 
+run_zsh_omz() {
+  local home="$tmp/zsh-omz" out="$tmp/zsh-omz.out" log="$tmp/zsh-omz.log"
+  mkdir -p "$home/.config/zsh" "$home/.local/bin" "$home/oh-my-zsh"
+  cat >"$home/oh-my-zsh/oh-my-zsh.sh" <<'OMZ'
+typeset -g RYOKU_OMZ_LOADED=1
+typeset -g RYOKU_OMZ_THEME="$ZSH_THEME"
+typeset -g RYOKU_OMZ_PLUGINS="${plugins[*]}"
+OMZ
+  : >"$log"
+  env HOME="$home" PATH="$stub:/usr/bin" RYOKU_SHELL_LOG="$log" \
+    ZDOTDIR="$home/.config/zsh" ZSH="$home/oh-my-zsh" RYOKU_ZSH_PROMPT=oh-my-zsh \
+    zsh -dfi -c "source '$repo/ryoku/apps/zsh/ryoku.zsh'; print OMZ=\$RYOKU_OMZ_LOADED:\$RYOKU_OMZ_THEME:\$RYOKU_OMZ_PLUGINS" >"$out" 2>&1 ||
+    { cat "$out" >&2; fail "zsh Oh My Zsh startup failed"; }
+  grep -Fq 'OMZ=1:robbyrussell:git' "$out" || fail "zsh Oh My Zsh defaults"
+  if grep -Fq 'starship init zsh' "$log"; then
+    fail "zsh Oh My Zsh prompt mode also initialized Starship"
+  fi
+}
+
 run_shell fish
 run_shell bash
 run_shell zsh
+run_zsh_omz
 printf 'terminal shell parity: fish bash zsh passed\n'

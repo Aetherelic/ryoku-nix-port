@@ -6,6 +6,10 @@
 # AUR helper (bootstrapped first so the rest can be built)
 yay-bin
 
+# Zsh framework. ryoku.zsh loads its completions/plugins while Starship stays
+# the default prompt; users can opt into an Oh My Zsh theme.
+oh-my-zsh-git
+
 # Cursor themes: extra XCursor themes the Ryoku Settings picker offers on top of
 # the configured default. Bibata (XCURSOR_THEME defaults to Bibata-Modern-Ice)
 # now ships first-class from the [ryoku] repo as a hard ryoku-desktop dependency,
