@@ -150,6 +150,18 @@ PanelWindow {
     Text {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: logo.bottom
+        anchors.topMargin: 18
+        visible: cover.phase !== "failed" && logo.opacity > 0
+        text: "SHELL RELOADING"
+        color: "#d8e8f5"
+        opacity: logo.opacity * 0.72
+        font.family: "JetBrainsMono Nerd Font"
+        font.pixelSize: 11
+        font.letterSpacing: 4
+    }
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: logo.bottom
         anchors.topMargin: 28
         visible: cover.phase === "failed"
         text: "RELOAD FAILED"

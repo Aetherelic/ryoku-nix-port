@@ -15,6 +15,8 @@ grep -qF 'NumberAnimation on x' "$renderer"
 grep -qF 'running: logoGlow.visible && logo.opacity > 0' "$renderer"
 grep -qF 'duration: 1200' "$renderer"
 grep -qF 'ColorOverlay {' "$renderer"
+grep -qF 'text: "SHELL RELOADING"' "$renderer"
+grep -qF 'visible: cover.phase !== "failed" && logo.opacity > 0' "$renderer"
 live_runtime="${XDG_RUNTIME_DIR:-}"
 reload_pid=""
 
