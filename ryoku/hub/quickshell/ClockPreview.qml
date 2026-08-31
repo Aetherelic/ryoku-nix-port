@@ -287,8 +287,7 @@ Item {
         }
     }
 
-    // banner: one wide, calm sans time (hh:mm) with AM/PM set inline and small,
-    // the NibrasShell readout; the colon carries the accent.
+    // banner: NibrasShell's wide readout -- hh:mm AP - MM/DD; the colon carries the accent.
     Component {
         id: bannerC
         Row {
@@ -296,6 +295,7 @@ Item {
             Row {
                 id: bHm
                 spacing: 0
+                anchors.verticalCenter: parent.verticalCenter
                 Text { text: preview.hh; color: preview.ink; font.family: "Inter"; font.weight: Font.Bold; font.pixelSize: 64; font.letterSpacing: -1 }
                 Text { text: ":"; color: preview.accent; font.family: "Inter"; font.weight: Font.Bold; font.pixelSize: 64; font.letterSpacing: -1 }
                 Text { text: preview.mm; color: preview.ink; font.family: "Inter"; font.weight: Font.Bold; font.pixelSize: 64; font.letterSpacing: -1 }
@@ -308,6 +308,8 @@ Item {
                 font.family: "Inter"; font.weight: Font.DemiBold
                 font.pixelSize: 13; font.letterSpacing: 2
             }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: "\u2013"; color: preview.inkDim; font.family: "Inter"; font.weight: Font.Bold; font.pixelSize: 64 }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: preview.pad2(preview.monIdx + 1) + "/" + preview.pad2(preview.dom); color: preview.ink; font.family: "Inter"; font.weight: Font.Bold; font.pixelSize: 64; font.letterSpacing: -1 }
         }
     }
 
