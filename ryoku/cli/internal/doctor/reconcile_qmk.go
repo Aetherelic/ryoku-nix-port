@@ -30,7 +30,7 @@ func probeQMKStatus() qmkStatus {
 	if !st.supported {
 		return st
 	}
-	st.installed = sys.PkgInstalled("qmk-hid")
+	st.installed = sys.Has("qmk_hid")
 	return st
 }
 

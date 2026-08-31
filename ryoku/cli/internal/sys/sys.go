@@ -35,8 +35,13 @@ func Has(name string) bool { _, err := exec.LookPath(name); return err == nil }
 // Exists reports whether the path exists.
 func Exists(p string) bool { _, err := os.Stat(p); return err == nil }
 
-// PkgInstalled reports whether a pacman package is installed.
+// PkgInstalled reports whether a package is installed in Pacman's local
+// database. Platforms without Pacman return false; cross-platform callers
+// should prefer capability checks such as Has().
 func PkgInstalled(name string) bool {
+	if !Has("pacman") {
+		return false
+	}
 	return exec.Command("pacman", "-Q", name).Run() == nil
 }
 
@@ -48,6 +53,9 @@ func UnitEnabled(unit string) bool {
 
 // InstalledVersion is the installed ryoku-desktop package version, or "".
 func InstalledVersion() string {
+	if !Has("pacman") {
+		return ""
+	}
 	out, err := RunOut("pacman", "-Q", "ryoku-desktop")
 	if err != nil {
 		return ""

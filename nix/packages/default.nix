@@ -35,6 +35,10 @@ let
     inherit pkgs src;
   };
 
+  qmkHid = import ./qmk-hid.nix {
+    inherit pkgs;
+  };
+
   waifu2x = import ./waifu2x-ncnn-vulkan.nix {
     inherit pkgs;
   };
@@ -183,6 +187,7 @@ let
       ryomotion
       ryovmHelpers
       livewall
+      qmkHid
       waifu2x
       desktopData
       helpers
@@ -201,6 +206,7 @@ in
     ryomotion
     ryovmHelpers
     livewall
+    qmkHid
     waifu2x
     desktopData
     helpers

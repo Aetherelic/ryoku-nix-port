@@ -954,22 +954,84 @@ func reconcileRyokuChannel(checkOnly bool) recResult {
 // plain text ("network_wifi"). the package depend heals packaged boxes on
 // their next full update; this heals git-channel boxes and anyone already
 // broken today.
+func materialSymbolsAvailable() bool {
+	if !sys.Has("fc-match") {
+		return false
+	}
+
+	for _, family := range []string{
+		"Material Symbols Rounded",
+		"Material Symbols Outlined",
+	} {
+		out, err := sys.RunOut(
+			"fc-match",
+			"-f",
+			"%{family}\n",
+			family,
+		)
+		if err == nil &&
+			strings.Contains(
+				strings.ToLower(out),
+				strings.ToLower(family),
+			) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func reconcileIconFont(checkOnly bool) recResult {
-	if !sys.Exists(filepath.Join(sys.Home(), ".config", "hypr")) && !sys.Has("Hyprland") {
+	if !sys.Exists(filepath.Join(sys.Home(), ".config", "hypr")) &&
+		!sys.Has("Hyprland") {
 		return okRes("not a Hyprland desktop")
 	}
-	if anyPkgInstalled("ttf-material-symbols-variable", "ttf-material-symbols-variable-git") {
+
+	if materialSymbolsAvailable() {
+		return okRes("Material Symbols icon font available through Fontconfig")
+	}
+
+	if anyPkgInstalled(
+		"ttf-material-symbols-variable",
+		"ttf-material-symbols-variable-git",
+	) {
 		return okRes("Material Symbols icon font installed")
 	}
+
+	if !sys.Has("pacman") {
+		return warnRes(
+			"Material Symbols font is unavailable through Fontconfig",
+		).withFix(
+			"install Material Symbols through the system package configuration",
+		)
+	}
+
 	if checkOnly {
-		return wouldRes("Material Symbols font missing; every shell icon renders as its ligature name").
-			withFix("ryoku doctor installs ttf-material-symbols-variable")
+		return wouldRes(
+			"Material Symbols font missing; every shell icon renders as its ligature name",
+		).withFix(
+			"ryoku doctor installs ttf-material-symbols-variable",
+		)
 	}
-	if err := sys.Sudo("pacman", "-S", "--needed", "--noconfirm", "ttf-material-symbols-variable"); err != nil {
-		return failRes("could not install ttf-material-symbols-variable: %v", err).
-			withFix("sudo pacman -S ttf-material-symbols-variable")
+
+	if err := sys.Sudo(
+		"pacman",
+		"-S",
+		"--needed",
+		"--noconfirm",
+		"ttf-material-symbols-variable",
+	); err != nil {
+		return failRes(
+			"could not install ttf-material-symbols-variable: %v",
+			err,
+		).withFix(
+			"sudo pacman -S ttf-material-symbols-variable",
+		)
 	}
-	return fixedRes("installed the Material Symbols icon font; `ryoku reload` picks it up")
+
+	return fixedRes(
+		"installed the Material Symbols icon font; `ryoku reload` picks it up",
+	)
 }
 
 // ---- reconciler: stale dev/recovery residue ------------------------------------

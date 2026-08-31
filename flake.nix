@@ -74,6 +74,7 @@
         ryoku-ryomotion = ryoku.ryomotion;
         ryoku-ryovm-helpers = ryoku.ryovmHelpers;
         ryoku-livewall = ryoku.livewall;
+        ryoku-qmk-hid = ryoku.qmkHid;
         ryoku-waifu2x = ryoku.waifu2x;
         ryoku-helpers = ryoku.helpers;
         ryoku-nixos-system-bridge = ryoku.nixosSystemBridge;
@@ -129,6 +130,7 @@
         ryoku-ryomotion = ryoku.ryomotion;
         ryoku-ryovm-helpers = ryoku.ryovmHelpers;
         ryoku-livewall = ryoku.livewall;
+        ryoku-qmk-hid = ryoku.qmkHid;
         ryoku-waifu2x = ryoku.waifu2x;
 
         ryoku-waifu2x-models = pkgs.runCommand
