@@ -167,7 +167,7 @@ On NixOS:
 For an existing flake-based NixOS system:
 
 ~~~bash
-nix run github:Aetherelic/ryoku-nix-port/nixos-port-review#install
+nix run github:Aetherelic/Ryoku-on-NixOS/main#install
 ~~~
 
 The installer detects the NixOS host, backs up the existing flake configuration,
@@ -179,7 +179,7 @@ It does not modify bootloader, kernel, disk, or partition settings.
 For a non-default flake or multi-host configuration:
 
 ~~~bash
-nix run github:Aetherelic/ryoku-nix-port/nixos-port-review#install -- \
+nix run github:Aetherelic/Ryoku-on-NixOS/main#install -- \
   --flake /path/to/nixos#hostname
 ~~~
 
