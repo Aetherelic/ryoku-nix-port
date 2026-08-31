@@ -26,7 +26,7 @@ Item {
     readonly property var keys: [
         "clockEnabled", "clockDesign", "clock24h", "clockSeconds", "clockScale",
         "clockOpacity", "clockRadius", "clockAccent", "clockBg", "clockAnchor",
-        "clockX", "clockY", "clockLocked", "dateShow", "dateDesign",
+        "clockX", "clockY", "clockLocked", "dateShow", "dateDesign", "widgetFont",
         "calendarEnabled", "calendarStyle", "calendarWeeks", "calendarWeekNumbers",
         "calendarHolidayRegion", "calendarScale", "calendarOpacity", "calendarAnchor",
         "calendarX", "calendarY", "calendarLocked",
@@ -43,7 +43,7 @@ Item {
         "clockEnabled": true, "clockDesign": "digital", "clock24h": true, "clockSeconds": false,
         "clockScale": 1.0, "clockOpacity": 1.0, "clockRadius": 26, "clockAccent": "palette",
         "clockBg": "none", "clockAnchor": "top-left", "clockX": 72, "clockY": 64, "clockLocked": false,
-        "dateShow": true, "dateDesign": "inline",
+        "dateShow": true, "dateDesign": "inline", "widgetFont": "",
         "calendarEnabled": true, "calendarStyle": "glass", "calendarWeeks": 6,
         "calendarWeekNumbers": true, "calendarHolidayRegion": "", "calendarScale": 1.0,
         "calendarOpacity": 1.0, "calendarAnchor": "bottom-right", "calendarX": 80,
@@ -74,6 +74,32 @@ Item {
     property var draft: ({})
     property var committed: ({})
     property bool loaded: false
+
+    // Widget-font picker source. The bundled NibrasShell display faces (mirrors
+    // the shell's Fonts singleton -- these live in the shell process, not
+    // fontconfig, so they are named here as literals) come first, then every
+    // installed family, read live like the Global page's system-font picker.
+    // Injected into the widgetFont row's options so all fonts are reachable.
+    readonly property var bundledFonts: [
+        "Reckoner", "Reckoner Bold", "JF Flat", "Abberancy", "Daydream",
+        "sabana", "Unrealised", "VIP Rawy Regular", "Xenophobia",
+        "VEXA light R", "Overhead BRK"
+    ]
+    property var fontList: []
+    readonly property var fontOptions: pg.bundledFonts.concat(pg.fontList)
+
+    Process {
+        id: fonts
+        running: true
+        command: ["bash", "-c", "fc-list : family | cut -d, -f1 | sort -u"]
+        stdout: StdioCollector {
+            id: fontsOut
+            onStreamFinished: {
+                var t = ("" + fontsOut.text).trim();
+                pg.fontList = t.length > 0 ? t.split("\n").filter(function (x) { return x.length > 0; }) : [];
+            }
+        }
+    }
 
     function readAdapter() {
         var m = {};
@@ -154,6 +180,8 @@ Item {
             } else if (pg.scaleKeys[r.key]) {
                 c.ctl = "slid"; c.lo = 50; c.hi = 250; c.unit = "%"; c.pct = false;
             }
+            if (r.key === "widgetFont")
+                c.opts = pg.fontOptions;
             out.push(c);
         }
         return out;
@@ -299,6 +327,7 @@ Item {
             property bool clockLocked: false
             property bool dateShow: true
             property string dateDesign: "inline"
+            property string widgetFont: ""
             property bool calendarEnabled: true
             property string calendarStyle: "glass"
             property int calendarWeeks: 6

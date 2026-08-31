@@ -4,3 +4,4 @@ singleton Now Now.qml
 singleton Theme Theme.qml
 singleton Registry Registry.qml
 singleton Performance Performance.qml
+singleton Fonts Fonts.qml

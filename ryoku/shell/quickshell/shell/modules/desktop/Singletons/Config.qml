@@ -27,6 +27,11 @@ Singleton {
     property alias dateShow:     adapter.dateShow
     property alias dateDesign:   adapter.dateDesign     // inline | badge | stacked
 
+    // widget typography: the sans family every clock face and Theme.font widget
+    // renders with. Empty = the built-in default (Space Grotesk); a bundled or
+    // installed family name overrides it. Picked in Hub -> Widgets.
+    property alias widgetFont: adapter.widgetFont
+
     property alias calendarEnabled:       adapter.calendarEnabled
     property alias calendarStyle:         adapter.calendarStyle
     property alias calendarWeeks:         adapter.calendarWeeks
@@ -157,6 +162,7 @@ Singleton {
             property int clockRadius: 26
             property bool dateShow: true
             property string dateDesign: "inline"
+            property string widgetFont: ""
             property bool calendarEnabled: true
             property string calendarStyle: "glass"
             property int calendarWeeks: 6

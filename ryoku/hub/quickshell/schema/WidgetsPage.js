@@ -53,6 +53,16 @@ var rows = [
     },
     {
         "tab": "clock",
+        "group": "FONT",
+        "key": "widgetFont",
+        "label": "Widget font",
+        "desc": "Font for the clock and every desktop widget; blank uses the built-in Space Grotesk. Bundled display faces and your installed fonts are all listed",
+        "ctl": "pick",
+        "src": "widgets.json",
+        "opts": []
+    },
+    {
+        "tab": "clock",
         "group": "FORMAT",
         "key": "clock24h",
         "label": "24-hour clock",

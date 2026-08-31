@@ -64,7 +64,9 @@ Singleton {
     readonly property color tilePress: Qt.rgba(ink.r, ink.g, ink.b, 0.16)
 
     readonly property string display: "Fraunces"
-    readonly property string font:   "Space Grotesk"
+    // sans for every clock face and desktop widget. Follows the user's widget
+    // font (Hub -> Widgets), bundled faces included, falling back to the default.
+    readonly property string font:   Config.widgetFont.length > 0 ? Config.widgetFont : "Space Grotesk"
     readonly property string fontJp: "Noto Sans CJK JP"
     readonly property string mono:   "JetBrainsMono Nerd Font"
     // brand mark + name, user-overridable via ~/.config/ryoku/brand.json (Shell ->
