@@ -71,7 +71,7 @@ start_inhibitor_with_systemd() {
     --what=idle:sleep \
     --who=Ryoku \
     --why="Ryoku caffeine mode" \
-    bash -c 'exec -a ryoku-caffeine-inhibit sleep infinity' 9>&- >/dev/null 2>&1
+    bash -c 'exec sleep infinity' 9>&- >/dev/null 2>&1
 }
 
 start_inhibitor_with_setsid() {
@@ -79,7 +79,7 @@ start_inhibitor_with_setsid() {
     --what=idle:sleep \
     --who=Ryoku \
     --why="Ryoku caffeine mode" \
-    bash -c 'exec -a ryoku-caffeine-inhibit sleep infinity' 9>&- >/dev/null 2>&1 &
+    bash -c 'exec sleep infinity' 9>&- >/dev/null 2>&1 &
 }
 
 start_inhibitor() {
@@ -102,6 +102,7 @@ wait_for_inhibitor() {
 
 stop_inhibitor() {
   command_present systemctl && systemctl --user stop "$unit_name.service" >/dev/null 2>&1 || true
+  pkill -f "$desired_inhibit_pattern" >/dev/null 2>&1 || true
   pkill -f "$inhibit_pattern" >/dev/null 2>&1 || true
 }
 

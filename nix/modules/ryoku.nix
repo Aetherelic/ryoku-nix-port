@@ -629,6 +629,25 @@ in
       '';
     };
 
+    updateFlake = lib.mkOption {
+      type = lib.types.str;
+      default = "/etc/nixos";
+
+      description = ''
+        Flake whose Ryoku input is managed by the Hub update page.
+        Only that input is advanced; unrelated Nix inputs are left alone.
+      '';
+    };
+
+    updateInput = lib.mkOption {
+      type = lib.types.str;
+      default = "ryoku";
+
+      description = ''
+        Name of the Ryoku flake input updated by the NixOS update backend.
+      '';
+    };
+
   };
 
   config = lib.mkIf cfg.enable {
@@ -964,12 +983,15 @@ in
         ];
       };
 
-    # Ryoku's Arch updater must not own NixOS system upgrades.
+    # NixOS uses Ryoku's Nix-only update backend; the Arch transaction stays disabled.
     # Session scope also covers Hub instances launched directly.
     environment.sessionVariables = {
       RYOKU_NIX_SYSTEM_BRIDGE = "1";
       RYOKU_DOCKER_HOST_MANAGED = "1";
-      RYOKU_SYSTEM_UPDATES_EXTERNAL = "1";
+      RYOKU_UPDATE_BACKEND = "nix";
+      RYOKU_NIX_FLAKE = cfg.updateFlake;
+      RYOKU_NIX_INPUT = cfg.updateInput;
+      RYOKU_SYSTEM_UPDATES_EXTERNAL = "0";
 
       # Ryowalls and Ryoshot normally use Arch's /usr/share
       # model path. Point them at the immutable nixpkgs payload.
@@ -1173,8 +1195,30 @@ in
         Type = "oneshot";
         RemainAfterExit = true;
 
-        ExecStart =
-          "${materializer}/bin/ryoku-materialize";
+        # Materialization rewrites the live Ryoku config tree. Hyprland
+        # normally watches its config and reloads on every change, which can
+        # expose a partially materialized tree during `nixos-rebuild switch`.
+        # Quiesce autoreload for the transaction, then reload exactly once.
+        ExecStart = pkgs.writeShellScript "ryoku-materialize-live" ''
+          set -eu
+
+          reload_hyprland=0
+
+          if ${pkgs.hyprland}/bin/hyprctl             keyword misc:disable_autoreload true             >/dev/null 2>&1
+          then
+            reload_hyprland=1
+          fi
+
+          cleanup() {
+            if [ "$reload_hyprland" -eq 1 ]; then
+              ${pkgs.hyprland}/bin/hyprctl reload                 >/dev/null 2>&1 || true
+            fi
+          }
+
+          trap cleanup EXIT
+
+          ${materializer}/bin/ryoku-materialize
+        '';
 
         ExecStartPost =
           "${qylockMaterializer}";
@@ -1211,9 +1255,12 @@ in
         RYOKU_POLKIT_AGENT = "1";
         RYOKU_SYSTEMD_RUN = "${pkgs.systemd}/bin/systemd-run";
 
-        # NixOS owns system generations and package upgrades. Tell the
-        # Ryoku Hub not to expose the Arch `ryoku update` transaction.
-        RYOKU_SYSTEM_UPDATES_EXTERNAL = "1";
+        # NixOS owns system generations. The Hub may advance only the
+        # configured Ryoku flake input through the Nix update backend.
+        RYOKU_UPDATE_BACKEND = "nix";
+        RYOKU_NIX_FLAKE = cfg.updateFlake;
+        RYOKU_NIX_INPUT = cfg.updateInput;
+        RYOKU_SYSTEM_UPDATES_EXTERNAL = "0";
         RYOKU_WAIFU2X_MODELS = waifu2xModels;
 
         QT_MEDIA_BACKEND = "ffmpeg";

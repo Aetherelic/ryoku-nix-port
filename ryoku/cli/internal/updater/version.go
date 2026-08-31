@@ -25,6 +25,9 @@ func Version(args []string) error {
 
 	if branch {
 		ch := ryokuChannel()
+		if nixBackend() {
+			ch = nixChannel()
+		}
 		if sha != "" {
 			fmt.Printf("%s · %s\n", ch, sha)
 		} else {
@@ -47,6 +50,10 @@ func Version(args []string) error {
 // pacman version "<core>.r<count>.g<sha>-<rel>" the repo build embeds (the
 // r<count> token is skipped). Any field comes back "" when undeterminable.
 func versionParts() (base, sha string) {
+	if nixBackend() {
+		return nixVersion(), ""
+	}
+
 	if repo := sys.ResolveRepo(); repo != "" {
 		if b, err := os.ReadFile(filepath.Join(repo, "VERSION")); err == nil {
 			base = strings.TrimSpace(string(b))

@@ -21,6 +21,15 @@ const usage = `Usage: ryoku keyboard <command>
       --no-boot        skip the boot image rebuild (greeter and TTY only)
 `
 
+// nixManagedSystem reports whether system keyboard state belongs to NixOS.
+// Ryoku may still own the live Hyprland layout, but /etc, the greeter and boot
+// image must be changed declaratively through the NixOS configuration.
+func nixManagedSystem() bool {
+	return os.Getenv("RYOKU_UPDATE_BACKEND") == "nix" ||
+		os.Getenv("RYOKU_NIX_SYSTEM_BRIDGE") == "1" ||
+		sys.Exists("/etc/NIXOS")
+}
+
 // Run is the `ryoku keyboard` entry point.
 func Run(args []string) error {
 	if len(args) == 0 {
@@ -162,6 +171,10 @@ func runApply(args []string) error {
 			return fmt.Errorf("only one layout may be given")
 		}
 	}
+	if nixManagedSystem() {
+		return fmt.Errorf("NixOS owns the greeter, console and boot keyboard state declaratively; change the keyboard options in your NixOS configuration and rebuild instead of using `ryoku keyboard apply`")
+	}
+
 	l := DesktopLayout()
 	if want != "" {
 		l.Layout = want

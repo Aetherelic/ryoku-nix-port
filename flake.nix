@@ -27,6 +27,12 @@
 
   outputs = { self, nixpkgs, glazepkg, hyprglassSrc, bibataMaterialSrc, imgbordersSrc, ... }:
     let
+      version =
+        builtins.replaceStrings
+          [ "\n" "\r" ]
+          [ "" "" ]
+          (builtins.readFile ./VERSION);
+
       system = "x86_64-linux";
 
       pkgs = import nixpkgs {
@@ -34,7 +40,14 @@
       };
 
       ryoku = import ./nix/packages {
-        inherit pkgs hyprglassSrc bibataMaterialSrc imgbordersSrc;
+        inherit
+          pkgs
+          hyprglassSrc
+          bibataMaterialSrc
+          imgbordersSrc
+          version
+          ;
+
         src = self;
       };
 
@@ -51,6 +64,7 @@
       };
     in
     {
+      lib.version = version;
 
       nixosModules.default =
         import ./nix/modules/ryoku.nix {
@@ -68,6 +82,7 @@
         ryoku-qml = ryoku.qml;
 
         ryoku-cli = ryoku.cli;
+        ryoku-nix-update = ryoku.nixUpdate;
         ryoku-hub = ryoku.hub;
         ryoku-rashin = ryoku.rashin;
         ryoku-ryostore = ryoku.ryostore;

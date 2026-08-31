@@ -55,6 +55,13 @@ var (
 func Update(args []string) error {
 	stage2 := len(args) >= 2 && args[0] == "--stage2"
 
+	if nixBackend() {
+		if stage2 {
+			return fmt.Errorf("the Arch update handoff is unavailable on NixOS")
+		}
+		return nixUpdate()
+	}
+
 	// One update at a time: a second run mid-transaction (a double-click, a timer
 	// racing a manual update) can corrupt pacman or the config swap. Best-effort
 	// -- a lock we cannot even create never blocks an update, only a held one does.
@@ -624,6 +631,20 @@ func Status(args []string) error {
 	} else {
 		fmt.Println("behind:        up to date")
 	}
+	if r.Backend == "nix" {
+		fmt.Printf("backend:       NixOS\n")
+		if r.Source != "" {
+			fmt.Printf("source:        %s\n", r.Source)
+		}
+		if r.CanUpdate {
+			fmt.Println("updates:       Ryoku flake input only")
+		} else {
+			fmt.Println("updates:       local Nix source (manual checkout)")
+		}
+		fmt.Println("rollback:      NixOS generations")
+		return nil
+	}
+
 	// a bare 0 can't tell "configured but empty" from "snapper has no root
 	// config at all". doctor restores a missing config, so send the user
 	// there rather than letting status look healthy on a broken setup.
@@ -649,6 +670,9 @@ type statusReport struct {
 	Channel   string       `json:"channel"`
 	Snapshots int          `json:"snapshots"`
 	Packages  []updateItem `json:"packages"`
+	Backend   string       `json:"backend,omitempty"`
+	CanUpdate bool         `json:"canUpdate"`
+	Source    string       `json:"source,omitempty"`
 }
 
 // buildStatus is the full Updates report: the Ryoku channel (baseStatus) plus
@@ -658,6 +682,10 @@ type statusReport struct {
 // lists what is incoming via the public GitHub compare API, so the Hub's list is
 // the same commit subjects a dev box shows, not bare package names.
 func buildStatus() statusReport {
+	if nixBackend() {
+		return nixStatus()
+	}
+
 	r := baseStatus()
 	// System packages a `pacman -Syu` would pull, check-only, so the Updates
 	// section surfaces what the OS needs alongside the Ryoku channel.

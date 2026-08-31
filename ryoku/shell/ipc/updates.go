@@ -26,7 +26,9 @@ func (d *daemon) startUpdates() {
 		wake:  make(chan struct{}, 1),
 		quit:  d.quit,
 	}
-	externalSystemUpdates := os.Getenv("RYOKU_SYSTEM_UPDATES_EXTERNAL") == "1"
+	externalSystemUpdates :=
+		os.Getenv("RYOKU_SYSTEM_UPDATES_EXTERNAL") == "1" &&
+			os.Getenv("RYOKU_UPDATE_BACKEND") != "nix"
 
 	d.registerCall("updates.check", func(json.RawMessage) (any, error) {
 		if externalSystemUpdates {

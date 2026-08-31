@@ -1,4 +1,11 @@
-{ pkgs, src, hyprglassSrc, bibataMaterialSrc, imgbordersSrc }:
+{
+  pkgs,
+  src,
+  hyprglassSrc,
+  bibataMaterialSrc,
+  imgbordersSrc,
+  version,
+}:
 
 let
   qmlRoot = "lib/qt-6/qml";
@@ -8,6 +15,10 @@ let
   };
 
   cli = import ./ryoku-cli.nix {
+    inherit pkgs src version;
+  };
+
+  nixUpdate = import ./ryoku-nix-update.nix {
     inherit pkgs src;
   };
 
@@ -181,6 +192,7 @@ let
     paths = [
       shell
       cli
+      nixUpdate
       hub
       rashin
       ryostore
@@ -200,6 +212,7 @@ in
   inherit
     shell
     cli
+    nixUpdate
     hub
     rashin
     ryostore

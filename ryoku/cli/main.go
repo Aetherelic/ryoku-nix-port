@@ -85,7 +85,7 @@ func main() {
 func usage() {
 	fmt.Print(`Usage: ryoku <command>
 
-  update         apply channel commits (or pacman -Syu), redeploy, reload
+  update         apply the configured Ryoku update backend and reload
   track <chan>   switch update channel to main (stable) or unstable-dev (source)
   rollback [id]  guide restoring a snapshot from the boot menu (no id: list them)
   snapshots      list snapper snapshots

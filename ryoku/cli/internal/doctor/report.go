@@ -41,6 +41,12 @@ var diagnosticPackages = []string{
 	"pipewire", "wireplumber", "nvidia-utils", "mesa", "limine", "snapper",
 }
 
+func reportNixOS() bool {
+	return os.Getenv("RYOKU_UPDATE_BACKEND") == "nix" ||
+		os.Getenv("RYOKU_NIX_SYSTEM_BRIDGE") == "1" ||
+		sys.Exists("/etc/NIXOS")
+}
+
 // gatherReport: one self-contained text report. doctor findings, then the
 // system state a maintainer needs to diagnose the unknown. safe to share --
 // system state + recent error logs, no secrets.
@@ -74,20 +80,37 @@ func gatherReport(findings []finding) string {
 	section("ryoku")
 	cmd("ryoku", "status")
 	line("state dir:\n%s", captureOut("ls", "-la", filepath.Join(sys.Xdg("XDG_STATE_HOME", ".local/state"), "ryoku")))
-	line("[ryoku] repo configured: %v", strings.Contains(readFileSafe("/etc/pacman.conf"), "[ryoku]"))
+	if reportNixOS() {
+		line("update backend: nix")
+		line("Ryoku flake: %s", os.Getenv("RYOKU_NIX_FLAKE"))
+		line("Ryoku input: %s", os.Getenv("RYOKU_NIX_INPUT"))
+	} else {
+		line("[ryoku] repo configured: %v", strings.Contains(readFileSafe("/etc/pacman.conf"), "[ryoku]"))
+	}
 
-	section("storage (btrfs)")
-	cmd("sudo", "-n", "btrfs", "filesystem", "usage", "/")
-	cmd("sudo", "-n", "btrfs", "device", "stats", "/")
+	section("storage")
+	rootFS := strings.TrimSpace(captureOut("findmnt", "-n", "-o", "FSTYPE", "/"))
+	line("root filesystem: %s", rootFS)
+	if rootFS == "btrfs" {
+		cmd("sudo", "-n", "btrfs", "filesystem", "usage", "/")
+		cmd("sudo", "-n", "btrfs", "device", "stats", "/")
+	}
 	line("/proc/swaps:\n%s", readFileSafe("/proc/swaps"))
-	line("/etc/conf.d/snapper:\n%s", readFileSafe("/etc/conf.d/snapper"))
 
-	section("packages")
-	cmd("pacman", append([]string{"-Q"}, diagnosticPackages...)...)
-	cmd("pacman", "-Qtdq")
-	cmd("pacman", "-Dk")
-	line(".pacnew files:\n%s", captureOut("find", "/etc", "-name", "*.pacnew"))
-	line("pacman.log (tail):\n%s", tailLines(readFileSafe("/var/log/pacman.log"), 25))
+	if reportNixOS() {
+		section("packages")
+		cmd("nixos-version")
+		cmd("nix", "--version")
+		line("current system: %s", strings.TrimSpace(captureOut("readlink", "-f", "/run/current-system")))
+		cmd("ryoku-nix-update", "status", "--json")
+	} else {
+		section("packages")
+		cmd("pacman", append([]string{"-Q"}, diagnosticPackages...)...)
+		cmd("pacman", "-Qtdq")
+		cmd("pacman", "-Dk")
+		line(".pacnew files:\n%s", captureOut("find", "/etc", "-name", "*.pacnew"))
+		line("pacman.log (tail):\n%s", tailLines(readFileSafe("/var/log/pacman.log"), 25))
+	}
 
 	section("services")
 	cmd("systemctl", "--failed", "--no-legend", "--plain")

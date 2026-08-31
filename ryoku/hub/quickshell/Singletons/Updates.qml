@@ -8,9 +8,15 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    // Some distributions own system updates outside Ryoku.
+    // The packaged Nix CLI owns a Ryoku-only Nix backend. An older session may
+    // still carry the external-updates flag, so a live Nix status frame wins.
+    property string backend:
+        Quickshell.env("RYOKU_UPDATE_BACKEND") || ""
+    property bool canUpdate: backend !== "nix"
+    property string source: ""
     readonly property bool externalSystemUpdates:
         Quickshell.env("RYOKU_SYSTEM_UPDATES_EXTERNAL") === "1"
+        && backend !== "nix"
 
     readonly property string sockPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-shell.sock"
 
@@ -56,6 +62,9 @@ Singleton {
     function apply(t) {
         try {
             var o = JSON.parse(t);
+            root.backend = o.backend || root.backend;
+            root.canUpdate = root.backend !== "nix" || o.canUpdate === true;
+            root.source = o.source || "";
             root.currentVersion = o.installedVersion || "";
             root.latestVersion = o.latestVersion || "";
             root.branch = o.channel || "main";

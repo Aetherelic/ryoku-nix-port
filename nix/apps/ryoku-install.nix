@@ -17,7 +17,7 @@ pkgs.writeShellApplication {
   text = ''
     set -euo pipefail
 
-    source_ref="''${RYOKU_INSTALL_SOURCE:-github:Aetherelic/ryoku-nix-port/nixos-port-review}"
+    source_ref="''${RYOKU_INSTALL_SOURCE:-github:Aetherelic/ryoku-nix-port/main}"
     flake_arg="/etc/nixos"
     assume_yes=0
     dry_run=0

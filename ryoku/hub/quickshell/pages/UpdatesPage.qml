@@ -28,6 +28,7 @@ Item {
     property var hub
     // A full-bleed page owns the whole content region itself.
     readonly property bool fullBleed: true
+    readonly property bool nixBackend: Updates.backend === "nix"
 
     // ── automatic-check schedule (persisted in the hub's TOML) ──────────────
     property string interval: "daily"
@@ -225,7 +226,8 @@ Item {
     }
 
     function startUpdate() {
-        if (Updates.externalSystemUpdates)
+        if (Updates.externalSystemUpdates
+                || (pg.nixBackend && !Updates.canUpdate))
             return;
 
         Spawn.run(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
@@ -234,7 +236,9 @@ Item {
     // idle list: incoming commits when behind, else the recent history the
     // installed version contains, so the page is informative either way.
     readonly property var sectionModel: Updates.available ? Updates.updates : Updates.recent
-    readonly property string sectionLabel: Updates.available ? "INCOMING COMMITS" : "RECENT CHANGES"
+    readonly property string sectionLabel: pg.nixBackend
+        ? (Updates.available ? "AVAILABLE VERSION" : "CURRENT VERSION")
+        : (Updates.available ? "INCOMING COMMITS" : "RECENT CHANGES")
 
     // ── head: eyebrow, Fraunces title, blurb (matches every settings page) ──
     Column {
@@ -265,7 +269,9 @@ Item {
         }
         Text {
             width: Math.min(parent.width, 720)
-            text: I18n.tr("The Ryoku update channel: how far this install sits behind origin, the commits that would land (or the recent history it already runs), and a one-click update that runs in a terminal and reports its progress here.")
+            text: pg.nixBackend
+                ? I18n.tr("Ryoku for NixOS tracks only the configured Ryoku Nix source. A new Ryoku version advances that flake input, builds a NixOS generation, and switches to it without touching unrelated Nix inputs.")
+                : I18n.tr("The Ryoku update channel: how far this install sits behind origin, the commits that would land (or the recent history it already runs), and a one-click update that runs in a terminal and reports its progress here.")
             color: Tokens.inkMuted; font.family: Tokens.ui
             font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
         }
@@ -332,9 +338,12 @@ Item {
                         spacing: Tokens.s2
 
                         Text {
-                            text: Updates.externalSystemUpdates
-                                ? (I18n.tr("SYSTEM") + " · " + I18n.tr("Updates"))
-                                : (Updates.available ? I18n.tr("UPDATE AVAILABLE") : I18n.tr("UP TO DATE"))
+                            text: pg.nixBackend
+                                ? (I18n.tr("RYOKU FOR NIXOS") + " · "
+                                    + (Updates.available ? I18n.tr("UPDATE AVAILABLE") : I18n.tr("UP TO DATE")))
+                                : (Updates.externalSystemUpdates
+                                    ? (I18n.tr("SYSTEM") + " · " + I18n.tr("Updates"))
+                                    : (Updates.available ? I18n.tr("UPDATE AVAILABLE") : I18n.tr("UP TO DATE")))
                             color: Tokens.ink; font.family: Tokens.ui
                             font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
                             font.letterSpacing: Tokens.trackMark
@@ -367,7 +376,9 @@ Item {
 
                         Text {
                             text: Updates.available
-                                ? (Updates.behind + " commit" + (Updates.behind === 1 ? "" : "s") + I18n.tr(" behind  \u00b7  checked ") + Updates.checkedAgo)
+                                ? (pg.nixBackend
+                                    ? (Updates.behind + " version" + (Updates.behind === 1 ? "" : "s") + I18n.tr(" available  \u00b7  checked ") + Updates.checkedAgo)
+                                    : (Updates.behind + " commit" + (Updates.behind === 1 ? "" : "s") + I18n.tr(" behind  \u00b7  checked ") + Updates.checkedAgo))
                                 : ("on " + Updates.branch + I18n.tr("  \u00b7  checked ") + Updates.checkedAgo)
                             color: Tokens.inkMuted; font.family: Tokens.ui
                             font.pixelSize: Tokens.fSmall
@@ -531,7 +542,7 @@ Item {
             Column {
                 width: idleCol.width
                 spacing: 0
-                visible: Updates.packages.length > 0
+                visible: !pg.nixBackend && Updates.packages.length > 0
 
                 Item {
                     width: parent.width
@@ -606,8 +617,22 @@ Item {
                 height: Tokens.cellH * 2 + Tokens.s5
                 title: "更新"; sub: "アップデート"
                 tate: "常に最新へ"
-                caption: I18n.tr("Ryoku tracks its channel; one command snapshots, pulls, and reloads.")
-                readout: ["CHANNEL|main", "METHOD|ryoku update", "SAFETY|snapshot first", "SCOPE|whole system"]
+                caption: pg.nixBackend
+                    ? I18n.tr("Ryoku for NixOS follows its own version channel and leaves the rest of your flake alone.")
+                    : I18n.tr("Ryoku tracks its channel; one command snapshots, pulls, and reloads.")
+                readout: pg.nixBackend
+                    ? [
+                        "CHANNEL|" + Updates.branch,
+                        "METHOD|Nix flake input",
+                        "SAFETY|NixOS generation",
+                        "SCOPE|Ryoku only"
+                    ]
+                    : [
+                        "CHANNEL|main",
+                        "METHOD|ryoku update",
+                        "SAFETY|snapshot first",
+                        "SCOPE|whole system"
+                    ]
                 code: "SYS-07"; seal: "更"; boxId: "updates.channel"; seed: 3; ditherFreq: 1.0
             }
         }
@@ -949,7 +974,9 @@ Item {
             }
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: Updates.available && !Updates.externalSystemUpdates
+                visible: Updates.available
+                    && !Updates.externalSystemUpdates
+                    && (!pg.nixBackend || Updates.canUpdate)
                 text: I18n.tr("UPDATE NOW")
                 primary: true
                 onAct: pg.startUpdate()
