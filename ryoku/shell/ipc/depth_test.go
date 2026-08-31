@@ -85,25 +85,123 @@ func TestDepthReusable(t *testing.T) {
 	}
 }
 
-// TestDepthTargets returns the still wallpapers on screen, default plus per-
-// output overrides, and skips videos.
-func TestDepthTargets(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	if err := os.MkdirAll(stateDir(), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	img := filepath.Join(home, "a.png")
-	vid := filepath.Join(home, "b.mp4")
-	writeFile(t, img, "img")
-	writeFile(t, vid, "vid")
-	writeWallState(wallStateFile{Default: img, Outputs: map[string]string{"DP-1": vid}})
+// TestDepthTargetsUseConnectedOutputs reproduces the mixed-output state that
+// exposed the bug: the legacy default is a video, while every connected monitor
+// has a static override. Depth must use the visible overrides and never let the
+// stale default disable the feature.
+func TestDepthTargetsUseConnectedOutputs(t *testing.T) {
+	dir := t.TempDir()
 
-	d := &daemon{}
-	targets := d.depthTargets()
-	if len(targets) != 1 || targets[0].slot != "" || targets[0].source != img {
-		t.Fatalf("targets = %+v, want only the default still image", targets)
+	video := filepath.Join(dir, "old-default.mp4")
+	lain := filepath.Join(dir, "lain-walk.jpg")
+	portrait := filepath.Join(dir, "portrait.png")
+
+	writeFile(t, video, "video")
+	writeFile(t, lain, "jpg")
+	writeFile(t, portrait, "png")
+
+	st := wallStateFile{
+		Default: video,
+		Outputs: map[string]string{
+			"DP-1":     lain,
+			"DP-2":     lain,
+			"HDMI-A-1": portrait,
+		},
+	}
+
+	targets := depthTargetsForState(
+		st,
+		[]string{"HDMI-A-1", "DP-1", "DP-2"},
+	)
+
+	if len(targets) != 3 {
+		t.Fatalf("targets = %+v, want three visible static outputs", targets)
+	}
+
+	want := []depthTarget{
+		{slot: "HDMI-A-1", source: portrait},
+		{slot: "DP-1", source: lain},
+		{slot: "DP-2", source: lain},
+	}
+
+	for i := range want {
+		if targets[i] != want[i] {
+			t.Fatalf("target[%d] = %+v, want %+v", i, targets[i], want[i])
+		}
+	}
+}
+
+// TestDepthTargetsUseDefaultPerOutput verifies currentFor semantics: an output
+// without an override inherits the static default, while a video override is
+// independently ineligible.
+func TestDepthTargetsUseDefaultPerOutput(t *testing.T) {
+	dir := t.TempDir()
+
+	image := filepath.Join(dir, "default.png")
+	video := filepath.Join(dir, "live.mp4")
+
+	writeFile(t, image, "image")
+	writeFile(t, video, "video")
+
+	st := wallStateFile{
+		Default: image,
+		Outputs: map[string]string{
+			"DP-1": video,
+		},
+	}
+
+	targets := depthTargetsForState(st, []string{"DP-1", "DP-2"})
+
+	if len(targets) != 1 ||
+		targets[0].slot != "DP-2" ||
+		targets[0].source != image {
+		t.Fatalf("targets = %+v, want DP-2 inheriting the static default", targets)
+	}
+}
+
+// TestDepthTargetRegistryAggregate pins the one-toggle/many-output contract:
+// enabling tags every visible static wallpaper, duplicate wallpapers share one
+// registry key, and stale video entries are removed.
+func TestDepthTargetRegistryAggregate(t *testing.T) {
+	targets := []depthTarget{
+		{slot: "HDMI-A-1", source: "/wall/a.png"},
+		{slot: "DP-1", source: "/wall/b.jpg"},
+		{slot: "DP-2", source: "/wall/b.jpg"},
+	}
+
+	reg := depthWalls{
+		Walls: map[string]bool{
+			"/wall/old.mp4": true,
+		},
+	}
+
+	if !pruneDepthVideoEntries(&reg) {
+		t.Fatal("stale video registry entry was not pruned")
+	}
+	if reg.Walls["/wall/old.mp4"] {
+		t.Fatal("video remained depth-enabled")
+	}
+
+	if depthTargetsAllEnabled(targets, reg) {
+		t.Fatal("untagged visible wallpapers reported enabled")
+	}
+
+	setDepthTargetsEnabled(&reg, targets, true)
+
+	if !depthTargetsAllEnabled(targets, reg) {
+		t.Fatalf("enabled targets reported off: %+v", reg)
+	}
+	if len(enabledDepthTargets(targets, reg)) != 3 {
+		t.Fatal("not every visible output resolved as enabled")
+	}
+
+	setDepthTargetsEnabled(&reg, targets, false)
+
+	if depthTargetsAllEnabled(targets, reg) {
+		t.Fatal("disabled targets still reported enabled")
+	}
+	if len(enabledDepthTargets(targets, reg)) != 0 {
+		t.Fatal("disabled targets remained in the render set")
 	}
 }
 

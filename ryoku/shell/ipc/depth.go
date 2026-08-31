@@ -50,8 +50,8 @@ func depthConfig() depthSettings {
 // depth-walls.json): depth is opt-in per wallpaper, keyed by the wallpaper's
 // path, and remembered across reboots. A wallpaper never enabled is "untagged" --
 // switching to it generates nothing, so a new image never spins the panel on
-// "Cutting out". `current` mirrors the effective-enabled for the wallpaper on
-// screen now, which the shell watches for Config.enabled.
+// "Cutting out". `current` is true when every visible, eligible static wallpaper
+// is enabled; video outputs are ignored.
 type depthWalls struct {
 	Current bool            `json:"current"`
 	Walls   map[string]bool `json:"walls"`
@@ -79,11 +79,6 @@ func saveDepthWalls(w depthWalls) {
 		_ = os.WriteFile(depthWallsPath(), b, 0o644)
 	}
 }
-
-// currentWall is the wallpaper the registry keys off: the default (broadcast)
-// wallpaper, the same path the shell watches in ryoku-wallpaper and the cutout is
-// named after.
-func currentWall() string { return readWallState().Default }
 
 // depthBin: on PATH once packaged, but a dev run must reach it under
 // RYOKU_SHELL_DIR where it is not.
@@ -113,11 +108,17 @@ func depthOut(source string) string {
 // UI: busy drives the progress bar, path drives the preview thumbnail.
 func depthStatusJSON(busy bool) string {
 	path := ""
-	if st := readWallState(); st.Default != "" && !isVideo(st.Default) {
-		if p := depthOut(st.Default); isFile(p) {
+
+	// Preview a cutout belonging to a wallpaper that is actually visible on a
+	// connected output. The legacy default may be stale when every monitor has
+	// its own override.
+	for _, t := range depthTargetsForState(readWallState(), connectedOutputs()) {
+		if p := depthOut(t.source); isFile(p) {
 			path = p
+			break
 		}
 	}
+
 	b, _ := json.Marshal(struct {
 		Busy bool   `json:"busy"`
 		Path string `json:"path"`
@@ -188,48 +189,57 @@ func (d *daemon) depthWorker() {
 // generates nothing and never sets the busy flag, so a switch never sticks the
 // panel on "Cutting out".
 func (d *daemon) reconcileDepth(force, gen bool) {
-	wall := currentWall()
+	targets := d.depthTargets()
 	reg := loadDepthWalls()
-	effective := wall != "" && !isVideo(wall) && reg.Walls[wall]
-	if reg.Current != effective || !isFile(depthWallsPath()) {
+
+	changed := pruneDepthVideoEntries(&reg)
+	effective := depthTargetsAllEnabled(targets, reg)
+
+	if reg.Current != effective {
 		reg.Current = effective
+		changed = true
+	}
+
+	if changed || !isFile(depthWallsPath()) {
 		saveDepthWalls(reg)
 	}
-	if !effective || !depthEngineAvailable() {
+
+	enabled := enabledDepthTargets(targets, reg)
+	if len(enabled) == 0 || !depthEngineAvailable() {
 		d.wall.clearDepth()
 		return
 	}
+
 	cfg := depthConfig()
-	// force (a detail change / refresh) regenerates; gen (an enable) reuses a saved
-	// cutout when one matches and only generates when it is missing, so turning
-	// depth on is instant; a plain switch (neither) reuses or clears but never runs
-	// the helper.
+
+	// force (a detail change / refresh) regenerates; gen (an enable) reuses a
+	// saved cutout when one matches and only generates when it is missing. A
+	// plain switch reuses only, so changing wallpaper never starts the model.
 	switch {
 	case force:
-		d.generateDepth(cfg.model, cfg.alphaMatting, true)
+		d.generateDepth(enabled, cfg.model, cfg.alphaMatting, true)
 	case gen:
-		d.generateDepth(cfg.model, cfg.alphaMatting, false)
+		d.generateDepth(enabled, cfg.model, cfg.alphaMatting, false)
 	default:
-		d.reuseDepth(cfg.model, cfg.alphaMatting)
+		d.reuseDepth(enabled, cfg.model, cfg.alphaMatting)
 	}
 }
 
 // reuseDepth publishes each on-screen wallpaper's saved cutout when one already
 // matches, and clears otherwise. It never runs the helper, so switching to a
 // wallpaper reuses a cut instantly but never auto-recuts a new one.
-func (d *daemon) reuseDepth(model string, matting bool) {
-	targets := d.depthTargets()
+func (d *daemon) reuseDepth(targets []depthTarget, model string, matting bool) {
 	idx := loadDepthIndex()
-	any := false
+
+	// Clear first so a wallpaper that is no longer eligible cannot retain a
+	// subject overlay from the previous per-output state.
+	d.wall.clearDepth()
+
 	for _, t := range targets {
 		out := depthOut(t.source)
 		if depthReusable(idx, t.source, model, matting, out) {
 			d.wall.setDepth(t.slot, t.source, out)
-			any = true
 		}
-	}
-	if !any {
-		d.wall.clearDepth()
 	}
 }
 
@@ -239,54 +249,72 @@ func (d *daemon) reuseDepth(model string, matting bool) {
 // depth back on is instant; disabling clears the overlay. The registry write is
 // synchronous so the shell's toggle reflects at once.
 func (d *daemon) depthSetEnabled(on bool) {
-	wall := currentWall()
+	targets := d.depthTargets()
 	reg := loadDepthWalls()
-	if wall != "" {
-		if on {
-			reg.Walls[wall] = true
-		} else {
-			delete(reg.Walls, wall)
-		}
-	}
-	reg.Current = on && wall != "" && !isVideo(wall)
+
+	pruneDepthVideoEntries(&reg)
+	setDepthTargetsEnabled(&reg, targets, on)
+
+	// The UI has one toggle, so Current means every visible, eligible static
+	// wallpaper is opted in. A mixed registry remains valid; its enabled outputs
+	// still render independently.
+	reg.Current = depthTargetsAllEnabled(targets, reg)
 	saveDepthWalls(reg)
-	if on {
+
+	if on && len(targets) > 0 {
 		d.depthGen.Store(true)
 	}
+
 	d.scheduleDepth()
 }
 
 // generateDepth reuses each on-screen wallpaper's saved cutout or regenerates it,
 // then publishes. The slow helper runs off the surface lock.
-func (d *daemon) generateDepth(model string, matting bool, force bool) {
-	targets := d.depthTargets()
+func (d *daemon) generateDepth(targets []depthTarget, model string, matting bool, force bool) {
 	if len(targets) == 0 {
 		return
 	}
+
 	d.depthBusy.Store(true)
 	defer d.depthBusy.Store(false)
+
 	if err := os.MkdirAll(depthDir(), 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "depthWorker: %v\n", err)
 		return
 	}
+
+	// Remove overlays for outputs that are no longer enabled before publishing
+	// this generation's target set.
+	d.wall.clearDepth()
+
 	idx := loadDepthIndex()
 	changed := false
+
 	for _, t := range targets {
 		out := depthOut(t.source)
+
 		if force || !depthReusable(idx, t.source, model, matting, out) {
 			args := []string{"cutout", t.source, out, "--model", model}
 			if matting {
 				args = append(args, "--alpha-matting")
 			}
+
 			if err := exec.Command(depthBin(), args...).Run(); err != nil {
 				fmt.Fprintf(os.Stderr, "depthWorker cutout: %v\n", err)
 				continue
 			}
-			idx[out] = depthMeta{Source: t.source, Model: model, AlphaMatting: matting}
+
+			idx[out] = depthMeta{
+				Source:       t.source,
+				Model:        model,
+				AlphaMatting: matting,
+			}
 			changed = true
 		}
+
 		d.wall.setDepth(t.slot, t.source, out)
 	}
+
 	if changed {
 		saveDepthIndex(idx)
 	}
@@ -299,18 +327,107 @@ type depthTarget struct {
 	source string
 }
 
-func (d *daemon) depthTargets() []depthTarget {
-	st := readWallState()
-	var out []depthTarget
-	if st.Default != "" && !isVideo(st.Default) && isFile(st.Default) {
-		out = append(out, depthTarget{"", st.Default})
+// depthTargetsForState resolves the static wallpapers actually visible on the
+// connected outputs. A connector override wins over the global default. When
+// Hyprland's output list is unavailable, retain the old default-plus-overrides
+// fallback so startup and non-Hyprland test environments remain best-effort.
+func depthTargetsForState(st wallStateFile, outputs []string) []depthTarget {
+	var targets []depthTarget
+
+	if len(outputs) > 0 {
+		for _, name := range outputs {
+			p := st.currentFor(name)
+			if p == "" || isVideo(p) || !isFile(p) {
+				continue
+			}
+			targets = append(targets, depthTarget{
+				slot:   name,
+				source: p,
+			})
+		}
+		return targets
 	}
+
+	if st.Default != "" && !isVideo(st.Default) && isFile(st.Default) {
+		targets = append(targets, depthTarget{
+			slot:   "",
+			source: st.Default,
+		})
+	}
+
 	for name, p := range st.Outputs {
-		if p != "" && !isVideo(p) && isFile(p) {
-			out = append(out, depthTarget{name, p})
+		if p == "" || isVideo(p) || !isFile(p) {
+			continue
+		}
+		targets = append(targets, depthTarget{
+			slot:   name,
+			source: p,
+		})
+	}
+
+	return targets
+}
+
+// depthTargetsAllEnabled is the aggregate state represented by the single UI
+// toggle. Zero eligible static wallpapers is always off.
+func depthTargetsAllEnabled(targets []depthTarget, reg depthWalls) bool {
+	if len(targets) == 0 {
+		return false
+	}
+
+	for _, t := range targets {
+		if !reg.Walls[t.source] {
+			return false
 		}
 	}
+
+	return true
+}
+
+func enabledDepthTargets(targets []depthTarget, reg depthWalls) []depthTarget {
+	out := make([]depthTarget, 0, len(targets))
+
+	for _, t := range targets {
+		if reg.Walls[t.source] {
+			out = append(out, t)
+		}
+	}
+
 	return out
+}
+
+func setDepthTargetsEnabled(reg *depthWalls, targets []depthTarget, on bool) {
+	if reg.Walls == nil {
+		reg.Walls = map[string]bool{}
+	}
+
+	for _, t := range targets {
+		if on {
+			reg.Walls[t.source] = true
+		} else {
+			delete(reg.Walls, t.source)
+		}
+	}
+}
+
+// Older multi-monitor logic could accidentally tag a video as depth-enabled.
+// Videos can never have a cutout, so discard only those impossible entries while
+// retaining static wallpapers that are currently off-screen.
+func pruneDepthVideoEntries(reg *depthWalls) bool {
+	changed := false
+
+	for wall := range reg.Walls {
+		if isVideo(wall) {
+			delete(reg.Walls, wall)
+			changed = true
+		}
+	}
+
+	return changed
+}
+
+func (d *daemon) depthTargets() []depthTarget {
+	return depthTargetsForState(readWallState(), connectedOutputs())
 }
 
 // setDepth publishes a slot's cutout unless a switch mid-generation already moved
