@@ -44,6 +44,12 @@
   end it. The recorder now judges the capture by frames actually landing, force-
   kills a stalled gsr, and falls back to wf-recorder (caching that backend so the
   next capture skips the doomed portal probe).
+- **The dock's window preview no longer opens alongside the music card.**
+  Hovering the dock's music chip raised its now-playing card but also popped the
+  app window-preview strip, because the band suppressed the app preview from a
+  cursor coordinate that could desync from the chip. It now keys the suppression
+  off the chip's own hover -- the same signal that raises the music card -- so the
+  two surfaces are mutually exclusive.
 - **Device lighting is re-applied on resume from suspend.** Theme colours only
   reached the RGB devices on a palette change and at login, so after waking from
   suspend an OpenRGB motherboard/RAM/mouse (which reset on power loss) sat on its

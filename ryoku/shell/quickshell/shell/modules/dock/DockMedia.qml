@@ -20,6 +20,8 @@ Item {
     required property var band
     readonly property bool horizontal: media.band.horizontal
     readonly property real depth: media.band.baseSize
+    // Exposed so the band suppresses its app preview while the chip is hovered.
+    readonly property bool chipHovered: chipHover.hovered
 
     readonly property var player: Media.player
     readonly property bool playing: Media.playing

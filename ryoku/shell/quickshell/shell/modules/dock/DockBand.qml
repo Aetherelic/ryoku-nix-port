@@ -207,7 +207,7 @@ Item {
         if (!bandHover.hovered || band.dragging)
             return null;
         // The chip drives its own card; keep it out of the nearest-app search.
-        if (band.mediaShown && band.cursorAlong >= band.mediaStart)
+        if (band.mediaShown && (mediaChip.chipHovered || band.cursorAlong >= band.mediaStart))
             return null;
         let best = null, bd = 1e9;
         for (let i = 0; i < band.pins.length; ++i) {
