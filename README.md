@@ -200,12 +200,7 @@ nix run github:Aetherelic/Ryoku-on-NixOS/main#install -- --dry-run
 The dry run shows the proposed `flake.nix` changes and the generated `ryoku.nix`
 module, but does not modify your system.
 
-The installer expects 
-/etc/nixos/
-├── flake.nix
-├── flake.lock
-└── configuration.nix
-to already exist, Flakes need to be avaliable before attempting to install.
+The installer expects Flakes to already exist, Flakes need to be avaliable before attempting to install.
 
 > [!WARNING]
 > The NixOS installer is still relatively new and is being tested across different
