@@ -1,0 +1,279 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+export PATH="/run/wrappers/bin:@RYOKU_RUNTIME_PATH@"
+
+NAME="ryoku-cobalt"
+IMAGE="ghcr.io/imputnet/cobalt:11"
+DEFAULT_PORT=9000
+SOCKET=/var/run/docker.sock
+
+emit() {
+    printf '%s\t%s\n' "$1" "${2:-}"
+}
+
+have_docker() {
+    command -v docker >/dev/null 2>&1
+}
+
+service_state() {
+    have_docker || {
+        echo absent
+        return
+    }
+
+    if systemctl is-active --quiet docker.service; then
+        echo active
+    else
+        echo inactive
+    fi
+}
+
+group_exists() {
+    getent group docker >/dev/null 2>&1
+}
+
+caller_name() {
+    local uid="${PKEXEC_UID:-${SUDO_UID:-}}"
+
+    if [[ -n "$uid" ]]; then
+        getent passwd "$uid" 2>/dev/null |
+            cut -d: -f1
+        return
+    fi
+
+    id -un
+}
+
+is_member() {
+    local user="$1"
+
+    getent group docker 2>/dev/null |
+        awk -F: -v u="$user" '
+            {
+                n = split($4, members, ",")
+
+                for (i = 1; i <= n; i++) {
+                    if (members[i] == u)
+                        found = 1
+                }
+            }
+
+            END {
+                exit(found ? 0 : 1)
+            }
+        '
+}
+
+socket_ready() {
+    [[ -S "$SOCKET" ]]
+}
+
+ensure_docker() {
+    # NixOS owns Docker installation and unit definitions, but the
+    # daemon intentionally stays lazy until Ryoku actually needs it.
+    if systemctl is-active --quiet docker.service &&
+       socket_ready
+    then
+        return 0
+    fi
+
+    systemctl start docker.socket >/dev/null 2>&1 ||
+        true
+
+    systemctl start docker.service >/dev/null 2>&1 ||
+        return 1
+
+    for _ in $(seq 1 50); do
+        socket_ready &&
+            return 0
+
+        sleep 0.2
+    done
+
+    return 1
+}
+
+need_root() {
+    (( EUID == 0 )) &&
+        return 0
+
+    exec /run/wrappers/bin/pkexec \
+        "$(readlink -f "$0")" \
+        "$@"
+}
+
+ORIG_ARGV=("$@")
+cmd="${1:-}"
+
+case "$cmd" in
+    state)
+        user="$(caller_name)"
+
+        emit binary "$(have_docker && echo yes || echo no)"
+        emit service "$(service_state)"
+        emit group "$(group_exists && echo yes || echo no)"
+        emit member "$(is_member "$user" && echo yes || echo no)"
+        emit socket "$(socket_ready && echo yes || echo no)"
+        ;;
+
+    provision)
+        have_docker || {
+            emit ERROR "docker is not installed"
+            exit 2
+        }
+
+        if [[ "$(service_state)" == active ]] &&
+           socket_ready
+        then
+            emit OK
+            exit 0
+        fi
+
+        need_root "${ORIG_ARGV[@]}"
+
+        if [[ "$(service_state)" != active ]] ||
+           ! socket_ready
+        then
+            emit STEP service
+
+            ensure_docker || {
+                emit ERROR "could not start the NixOS Docker service"
+                exit 1
+            }
+        fi
+
+        # NixOS owns groups declaratively. Ryoku intentionally does not
+        # groupadd/gpasswd here; all Cobalt operations continue through
+        # this narrowly-scoped privileged helper.
+        emit OK
+        ;;
+
+    container-status)
+        have_docker || {
+            emit ERROR "docker is not installed"
+            exit 2
+        }
+
+        need_root "${ORIG_ARGV[@]}"
+
+        if ! systemctl is-active --quiet docker.service; then
+            echo absent
+            exit 0
+        fi
+
+        if state="$(
+            docker inspect \
+                -f '{{.State.Running}}' \
+                "$NAME" \
+                2>/dev/null
+        )"
+        then
+            [[ "$state" == true ]] &&
+                echo running ||
+                echo stopped
+        else
+            echo absent
+        fi
+        ;;
+
+    container-up)
+        have_docker || {
+            emit ERROR "docker is not installed"
+            exit 2
+        }
+
+        port="${2:-$DEFAULT_PORT}"
+
+        if ! [[ "$port" =~ ^[0-9]+$ ]] ||
+           (( port < 1024 || port > 65535 ))
+        then
+            emit ERROR "port must be an integer 1024-65535"
+            exit 2
+        fi
+
+        need_root "${ORIG_ARGV[@]}"
+
+        ensure_docker || {
+            emit ERROR "could not start the NixOS Docker service"
+            exit 1
+        }
+
+        if state="$(
+            docker inspect \
+                -f '{{.State.Running}}' \
+                "$NAME" \
+                2>/dev/null
+        )"
+        then
+            if [[ "$state" == true ]]; then
+                emit OK
+                exit 0
+            fi
+
+            docker start "$NAME" >/dev/null 2>&1 || {
+                emit ERROR "could not start the cobalt container"
+                exit 1
+            }
+
+            emit OK
+            exit 0
+        fi
+
+        docker image inspect "$IMAGE" >/dev/null 2>&1 ||
+            emit STEP pulling
+
+        docker run \
+            -d \
+            --name "$NAME" \
+            --restart unless-stopped \
+            -p "127.0.0.1:${port}:9000" \
+            -e "API_URL=http://localhost:${port}/" \
+            "$IMAGE" \
+            >/dev/null 2>&1 ||
+        {
+            emit ERROR "could not start cobalt (is port ${port} free?)"
+            exit 1
+        }
+
+        emit OK
+        ;;
+
+    container-down)
+        have_docker || {
+            emit OK
+            exit 0
+        }
+
+        need_root "${ORIG_ARGV[@]}"
+
+        if ! systemctl is-active --quiet docker.service; then
+            emit OK
+            exit 0
+        fi
+
+        if state="$(
+            docker inspect \
+                -f '{{.State.Running}}' \
+                "$NAME" \
+                2>/dev/null
+        )"
+        then
+            if [[ "$state" == true ]]; then
+                docker stop "$NAME" >/dev/null 2>&1 || {
+                    emit ERROR "could not stop the cobalt container"
+                    exit 1
+                }
+            fi
+        fi
+
+        emit OK
+        ;;
+
+    *)
+        echo \
+            "usage: ryoku-docker state | provision | container-status | container-up [port] | container-down" \
+            >&2
+        exit 2
+        ;;
+esac

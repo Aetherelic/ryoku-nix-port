@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+export PATH="/run/wrappers/bin:@RYOKU_RUNTIME_PATH@"
+
+real_state=/var/lib/ryoku/network
+
+if (( EUID == 0 )); then
+    state_dir="$real_state"
+else
+    state_dir="${RYOKU_NIX_NETWORK_STATE_DIR:-$real_state}"
+fi
+
+conf="$state_dir/wifi-backend.conf"
+main_conf=/etc/NetworkManager/NetworkManager.conf
+
+need_root() {
+    (( EUID == 0 )) && return 0
+
+    exec /run/wrappers/bin/pkexec \
+        "$(readlink -f "$0")" \
+        "$@"
+}
+
+read_backend() {
+    local file="$1"
+
+    [[ -r "$file" ]] || return 1
+
+    if grep -qiE \
+        '^[[:space:]]*wifi\.backend[[:space:]]*=[[:space:]]*wpa_supplicant' \
+        "$file"
+    then
+        echo wpa_supplicant
+        return 0
+    fi
+
+    if grep -qiE \
+        '^[[:space:]]*wifi\.backend[[:space:]]*=[[:space:]]*iwd' \
+        "$file"
+    then
+        echo iwd
+        return 0
+    fi
+
+    return 1
+}
+
+current() {
+    local backend
+
+    backend="$(read_backend "$conf" 2>/dev/null || true)"
+
+    if [[ -n "$backend" ]]; then
+        echo "$backend"
+        return
+    fi
+
+    backend="$(read_backend "$main_conf" 2>/dev/null || true)"
+
+    if [[ -n "$backend" ]]; then
+        echo "$backend"
+        return
+    fi
+
+    # NixOS/NetworkManager's normal fallback.
+    echo wpa_supplicant
+}
+
+unit_for() {
+    case "$1" in
+        iwd)
+            echo iwd.service
+            ;;
+        wpa_supplicant)
+            echo wpa_supplicant.service
+            ;;
+    esac
+}
+
+other_unit_for() {
+    case "$1" in
+        iwd)
+            echo wpa_supplicant.service
+            ;;
+        wpa_supplicant)
+            echo iwd.service
+            ;;
+    esac
+}
+
+unit_exists() {
+    systemctl cat "$1" >/dev/null 2>&1
+}
+
+write_backend() {
+    local backend="$1"
+    local tmp
+
+    install -d -m755 "$state_dir"
+
+    tmp="$(mktemp "$state_dir/.wifi-backend.conf.XXXXXX")"
+
+    cat >"$tmp" <<EOF
+# Managed by Ryoku's NixOS network bridge.
+[device]
+wifi.backend=$backend
+EOF
+
+    chmod 0644 "$tmp"
+    mv -f "$tmp" "$conf"
+}
+
+activate_backend_service() {
+    local backend="$1"
+    local wanted other
+
+    wanted="$(unit_for "$backend")"
+    other="$(other_unit_for "$backend")"
+
+    unit_exists "$wanted" || {
+        echo \
+            "Ryoku: required Wi-Fi backend unit is unavailable: $wanted" \
+            >&2
+        return 1
+    }
+
+    systemctl stop "$other" >/dev/null 2>&1 ||
+        true
+
+    systemctl start "$wanted"
+}
+
+switch_backend() {
+    local backend="$1"
+    local old backup
+
+    old="$(current)"
+
+    [[ "$old" == "$backend" ]] &&
+        return 0
+
+    need_root "$backend"
+
+    install -d -m755 "$state_dir"
+
+    backup="$(mktemp)"
+    trap 'rm -f "$backup"' RETURN
+
+    if [[ -f "$conf" ]]; then
+        cp -a "$conf" "$backup"
+    else
+        : >"$backup"
+    fi
+
+    write_backend "$backend"
+
+    if ! activate_backend_service "$backend"; then
+        cp "$backup" "$conf"
+        activate_backend_service "$old" >/dev/null 2>&1 ||
+            true
+        return 1
+    fi
+
+    if ! systemctl restart NetworkManager.service; then
+        echo \
+            "Ryoku: NetworkManager restart failed; restoring previous backend" \
+            >&2
+
+        cp "$backup" "$conf"
+
+        activate_backend_service "$old" >/dev/null 2>&1 ||
+            true
+
+        systemctl restart NetworkManager.service >/dev/null 2>&1 ||
+            true
+
+        return 1
+    fi
+}
+
+reconcile() {
+    need_root reconcile
+
+    activate_backend_service "$(current)"
+}
+
+case "${1:-get}" in
+    get)
+        current
+        ;;
+
+    iwd|wpa_supplicant)
+        switch_backend "$1"
+        ;;
+
+    reconcile)
+        reconcile
+        ;;
+
+    *)
+        echo \
+            "usage: ryoku-wifi-backend [get | iwd | wpa_supplicant]" \
+            >&2
+        exit 2
+        ;;
+esac

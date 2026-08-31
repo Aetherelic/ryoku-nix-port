@@ -135,8 +135,11 @@ Singleton {
             }
         } else if (t[0] === "OK") {
             setupMark("service", "done");
-            setupMark("access", "done",
-                qsTr("Plain `docker` on the command line starts working at your next login"));
+            const accessMsg =
+                Quickshell.env("RYOKU_DOCKER_HOST_MANAGED") === "1"
+                    ? qsTr("Ryoku uses its scoped container helper; command-line Docker access stays host-managed")
+                    : qsTr("Plain `docker` on the command line starts working at your next login");
+            setupMark("access", "done", accessMsg);
             setupMark("image", "running");
             root.setupOwnsEngine = true;
             root.setEngine(true);

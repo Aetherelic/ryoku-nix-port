@@ -94,7 +94,7 @@ Item {
 
     Timer {
         interval: pg.intervalMs
-        running: pg.interval !== "off"
+        running: pg.interval !== "off" && !Updates.externalSystemUpdates
         repeat: true
         onTriggered: Updates.check()
     }
@@ -210,7 +210,7 @@ Item {
     // (`ryoku rollback` prints the boot-menu restore steps and exits, so hold
     // the window for the user to read), then clear the error state.
     function rollback() {
-        if (pg.snapshot === "")
+        if (Updates.externalSystemUpdates || pg.snapshot === "")
             return;
         Spawn.run(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", pg.snapshot]);
         pg.dismiss();
@@ -225,6 +225,9 @@ Item {
     }
 
     function startUpdate() {
+        if (Updates.externalSystemUpdates)
+            return;
+
         Spawn.run(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
     }
 
@@ -329,7 +332,9 @@ Item {
                         spacing: Tokens.s2
 
                         Text {
-                            text: Updates.available ? I18n.tr("UPDATE AVAILABLE") : I18n.tr("UP TO DATE")
+                            text: Updates.externalSystemUpdates
+                                ? (I18n.tr("SYSTEM") + " · " + I18n.tr("Updates"))
+                                : (Updates.available ? I18n.tr("UPDATE AVAILABLE") : I18n.tr("UP TO DATE"))
                             color: Tokens.ink; font.family: Tokens.ui
                             font.pixelSize: Tokens.fMicro; font.weight: Font.Medium
                             font.letterSpacing: Tokens.trackMark
@@ -373,6 +378,7 @@ Item {
                 // automatic checks: a Seg over the cadence + a derived blurb.
                 Column {
                     id: autoCol
+                    visible: !Updates.externalSystemUpdates
                     anchors.right: parent.right; anchors.top: parent.top
                     anchors.topMargin: 2
                     spacing: Tokens.s2
@@ -821,7 +827,7 @@ Item {
                 Row {
                     spacing: Tokens.s3
                     Btn {
-                        visible: pg.snapshot !== ""
+                        visible: pg.snapshot !== "" && !Updates.externalSystemUpdates
                         text: I18n.tr("ROLL BACK")
                         primary: true
                         onAct: pg.rollback()
@@ -937,12 +943,13 @@ Item {
 
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
+                visible: !Updates.externalSystemUpdates
                 text: I18n.tr("CHECK AGAIN")
                 onAct: Updates.check()
             }
             Btn {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: Updates.available
+                visible: Updates.available && !Updates.externalSystemUpdates
                 text: I18n.tr("UPDATE NOW")
                 primary: true
                 onAct: pg.startUpdate()

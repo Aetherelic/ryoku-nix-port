@@ -133,3 +133,18 @@ func TestKeplerRemovalFailureUsesScopedRemedy(t *testing.T) {
 		t.Fatalf("remedy = %q, want %q", got.remedy, want)
 	}
 }
+
+func TestNvidiaReconcilersSkipWithoutPacman(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	for name, reconcile := range map[string]func(bool) recResult{
+		"modeset": reconcileNvidiaModeset,
+		"guard":   reconcileNvidiaGuardHook,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := reconcile(true); got.status != recOK {
+				t.Fatalf("status = %v, want ok", got.status)
+			}
+		})
+	}
+}

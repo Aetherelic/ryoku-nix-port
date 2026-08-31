@@ -144,7 +144,7 @@ Item {
         function upscale(src, dst, cb_) {
             hdProc.cb = cb_;
             command = ["sh", "-c",
-                'src="$1"; dst="$2"; m=/usr/share/waifu2x-ncnn-vulkan/models-cunet; ' +
+                'src="$1"; dst="$2"; m="${RYOKU_WAIFU2X_MODELS:-/usr/share/waifu2x-ncnn-vulkan/models-cunet}"; ' +
                 'h=$(identify -format "%h" "$src" 2>/dev/null | head -1); ' +
                 'if command -v waifu2x-ncnn-vulkan >/dev/null 2>&1 && [ "${h:-0}" -gt 0 ] && [ "${h:-0}" -lt 2000 ]; then ' +
                 'waifu2x-ncnn-vulkan -i "$src" -o "$dst" -s 2 -n 0 -m "$m" >/dev/null 2>&1 && [ -s "$dst" ] || cp -f "$src" "$dst"; ' +
