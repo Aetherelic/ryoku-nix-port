@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
+import Qt5Compat.GraphicalEffects
 import "Singletons"
 
 // placement / shape / interaction frame for one desktop widget. measures its
@@ -43,6 +44,14 @@ Item {
     // the host raises the layer's keyboard grab off this, the same way plugin
     // tiles do; the clock never exposes it, so it stays input-passive.
     readonly property bool editing: slot.visible && !!(slot.item && slot.item.editing)
+
+    // custom ink: a bg:none widget can wear a pinned colour or an A->B sweep in
+    // place of its adaptive ink. empty <widget>Color keeps the adaptive look, so
+    // Auto costs nothing (no layer, no mask); a hex turns the recolour path on.
+    readonly property string inkColorA: slot.bg === "none" ? (Config[slot.widget + "Color"] || "") : ""
+    readonly property string inkColorB: Config[slot.widget + "Color2"] || ""
+    readonly property bool inkRecolor: slot.inkColorA !== ""
+    readonly property bool inkGradient: slot.inkRecolor && (Config[slot.widget + "Gradient"] === true) && slot.inkColorB !== ""
 
     // drag state. while holding (dragging, or briefly after release until
     // the config write lands) the rendered position follows the drag so it
@@ -235,18 +244,38 @@ Item {
         y: slot.pad
         width: slot.cw
         height: slot.ch
-        layer.enabled: !Performance.shadowsDisabled && slot.bg === "none"
+        layer.enabled: slot.inkRecolor || (!Performance.shadowsDisabled && slot.bg === "none")
         // a layer texture drawn at a fractional Wayland scale needs linear
         // filtering or the bare-widget ink crawls, worst during the press
         // bump and the drag, when the tile sits off the pixel grid.
         layer.smooth: true
-        layer.effect: MultiEffect {
+        layer.effect: slot.inkRecolor ? recolorFx : shadowFx
+    }
+
+    // the bare-widget shadow, and the ink recolour: a gradient (or a solid, both
+    // stops equal) masked by the live content's alpha via LinearGradient's source,
+    // so only the glyph shapes wear the pinned colour, never the box. Auto uses the
+    // plain shadow and the widget's own adaptive inkOn(underL).
+    Component {
+        id: shadowFx
+        MultiEffect {
             shadowEnabled: true
             shadowColor: Qt.rgba(0, 0, 0, 0.5)
             shadowBlur: 0.8
             shadowVerticalOffset: 2
             blurMax: 28
             autoPaddingEnabled: true
+        }
+    }
+    Component {
+        id: recolorFx
+        LinearGradient {
+            start: Qt.point(0, 0)
+            end: Qt.point(0, height)
+            gradient: Gradient {
+                GradientStop { position: 0; color: slot.inkColorA }
+                GradientStop { position: 1; color: slot.inkGradient ? slot.inkColorB : slot.inkColorA }
+            }
         }
     }
 

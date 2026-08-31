@@ -42,6 +42,11 @@ Item {
     // A widget with one look (notes, stats) has no design key at all, so the
     // lookup must resolve to a string rather than undefined.
     readonly property string curDesign: menu.isWidget ? (Config[menu.designKey] ?? "") : ""
+    // ink colour of the open widget: "" follows the wallpaper (Auto), a hex is a
+    // solid, and Gradient blends <scope>Color -> <scope>Color2 across the glyphs.
+    readonly property string curColor: menu.isWidget ? (Config[menu.scope + "Color"] || "") : ""
+    readonly property bool curGradient: menu.isWidget ? (Config[menu.scope + "Gradient"] === true) : false
+    readonly property string colorMode: menu.curColor === "" ? "auto" : (menu.curGradient ? "gradient" : "solid")
 
     readonly property var zones: [
         { "zone": "top-left", "glyph": "\u2196" }, { "zone": "top", "glyph": "\u2191" }, { "zone": "top-right", "glyph": "\u2197" },
@@ -78,6 +83,31 @@ Item {
         if (!d)
             return;
         Config.set(menu.designKey, d[(d.indexOf(Config[menu.designKey]) + 1) % d.length]);
+    }
+    // "#RRGGBB" for a colour, the syntax widgets.json stores.
+    function hexOf(c) {
+        return "#" + [c.r, c.g, c.b].map(function (x) {
+            const s = Math.round(x * 255).toString(16);
+            return s.length === 1 ? "0" + s : s;
+        }).join("").toUpperCase();
+    }
+    // Auto clears the pin; Solid/Gradient need a base, so seed the wallpaper
+    // accent (and a lighter twin for the second stop) when coming from Auto.
+    function setColorMode(m) {
+        if (m === "auto") {
+            Config.set(menu.scope + "Color", "");
+            Config.set(menu.scope + "Gradient", false);
+            return;
+        }
+        if (menu.curColor === "")
+            Config.set(menu.scope + "Color", menu.hexOf(Scheme.accent));
+        if (m === "gradient") {
+            if ((Config[menu.scope + "Color2"] || "") === "")
+                Config.set(menu.scope + "Color2", menu.hexOf(Qt.lighter(Scheme.accent, 1.5)));
+            Config.set(menu.scope + "Gradient", true);
+        } else {
+            Config.set(menu.scope + "Gradient", false);
+        }
     }
     function openSettings() {
         Spawn.run(["sh", "-c", "ryoku-hub config set section widgets; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
@@ -271,6 +301,48 @@ Item {
             valueText: Math.round(opacitySlider.value * 100) + "%"
             onMoved: (v) => Config.setLive(menu.scope + "Opacity", v)
             onReleased: (v) => Config.set(menu.scope + "Opacity", v)
+        }
+
+        // Colour: the widget's ink follows the wallpaper (Auto), a solid pin, or
+        // an A->B gradient -- the same model the visualiser wears. Solid/Gradient
+        // reveal a compact picker; edits scrub live and persist on release.
+        MenuSection { visible: menu.isWidget; label: I18n.tr("Colour"); gloss: "彩色" }
+        Item {
+            visible: menu.isWidget
+            width: parent.width
+            implicitHeight: menu.isWidget ? colorCol.implicitHeight : 0
+            Column {
+                id: colorCol
+                width: parent.width
+                spacing: Theme.s1
+                Row {
+                    id: modeRow
+                    width: parent.width
+                    spacing: Theme.s1
+                    readonly property real cw: (width - 2 * Theme.s1) / 3
+                    MenuChip {
+                        width: modeRow.cw; height: Theme.ctlH
+                        label: "Auto"; selected: menu.colorMode === "auto"
+                        onClicked: menu.setColorMode("auto")
+                    }
+                    MenuChip {
+                        width: modeRow.cw; height: Theme.ctlH
+                        label: "Solid"; selected: menu.colorMode === "solid"
+                        onClicked: menu.setColorMode("solid")
+                    }
+                    MenuChip {
+                        width: modeRow.cw; height: Theme.ctlH
+                        label: "Gradient"; selected: menu.colorMode === "gradient"
+                        onClicked: menu.setColorMode("gradient")
+                    }
+                }
+                MenuColorPicker {
+                    width: parent.width
+                    visible: menu.colorMode !== "auto"
+                    scope: menu.scope
+                    gradient: menu.colorMode === "gradient"
+                }
+            }
         }
 
         MenuSection { visible: menu.isWidget; label: I18n.tr("Snap"); gloss: "位置" }
