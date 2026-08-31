@@ -126,15 +126,17 @@ Arch keeps its existing explicit/AUR package display.
 
 ## Updating
 
-Update the Ryoku input through the host NixOS configuration:
+Installed Ryoku systems update through the Ryoku CLI:
 
-```bash
-nix flake update ryoku
-sudo nixos-rebuild switch --flake .#my-host
-ryoku-materialize
-```
+    ryoku update
 
-Do not use Ryoku's Arch package-update path to update NixOS. NixOS continues to own system generations, upgrades and rollback.
+On NixOS this uses Ryoku's Nix-specific update backend. It updates only the
+configured Ryoku flake input, builds the resulting NixOS system, and switches to
+the new generation.
+
+The Arch package transaction path is not used on NixOS. Systems using a local
+`path:` Ryoku input are intentionally not modified automatically; update the
+development checkout manually and rebuild the host flake instead.
 
 ## Development
 

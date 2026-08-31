@@ -176,7 +176,7 @@ nix run github:Aetherelic/Ryoku-on-NixOS/main#install -- --dry-run
 The dry run shows the proposed `flake.nix` changes and the generated `ryoku.nix`
 module, but does not modify your system.
 
-The installer expects Flakes to already exist, Flakes need to be avaliable before attempting to install.
+The installer requires an existing flake-based NixOS configuration before installation.
 
 > [!WARNING]
 > The NixOS installer is still relatively new and is being tested across different
@@ -223,7 +223,12 @@ On developer installations using a local `path:` flake input, Ryoku reports the
 current source and version but deliberately does not mutate the local checkout.
 Update the development checkout manually, then rebuild NixOS as usual.
 
-## NixOS updated will come later than upstream Arch due to new versions requiring the AUR and pacman to update. I aim to update Ryoku on Nix within 7 days of upstream release.
+## Release cadence
+
+Ryoku on NixOS follows upstream Ryoku releases, but NixOS releases may arrive
+slightly later when new upstream components require Nix-specific packaging or
+integration work. The goal is to bring new upstream Ryoku releases to NixOS
+within seven days where practical.
 
 ## Repository layout
 
