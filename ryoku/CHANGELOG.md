@@ -37,6 +37,13 @@
   the probe no longer counts a webcam as a monitor. KMS capture still leads where
   it works, so ordinary machines are unchanged. Ryoku Motion (studio) capture
   shares the path and is fixed too.
+- **Recording no longer saves an empty clip when the desktop portal stalls.** On
+  the hybrid boxes that record through gpu-screen-recorder's portal capture, some
+  xdg-desktop-portal backends never negotiate a stream -- gsr stays alive but
+  writes nothing, and a stalled gsr ignores SIGINT/SIGTERM so even stop couldn't
+  end it. The recorder now judges the capture by frames actually landing, force-
+  kills a stalled gsr, and falls back to wf-recorder (caching that backend so the
+  next capture skips the doomed portal probe).
 - **Device lighting is re-applied on resume from suspend.** Theme colours only
   reached the RGB devices on a palette change and at login, so after waking from
   suspend an OpenRGB motherboard/RAM/mouse (which reset on power loss) sat on its

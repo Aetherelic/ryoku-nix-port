@@ -210,6 +210,18 @@ backend_cache_file() {
   printf '%s/screenrecord-backend' "${RYOKU_STATE_PATH:-$HOME/.local/state/ryoku}"
 }
 
+# persist the chosen backend for the current GPU/monitor topology so the next
+# capture skips the probe; a run-time fallback (portal -> wf) sticks until it changes.
+remember_backend() {
+  local chosen="$1" cache sig
+  case "$chosen" in gsr | portal | wf) ;; *) return 0 ;; esac
+  cache="$(backend_cache_file)"
+  sig="$(gpu_topology_signature)"
+  [[ -n $sig ]] || return 0
+  mkdir -p "$(dirname "$cache")" 2>/dev/null || true
+  printf '%s\t%s\n' "$sig" "$chosen" >"$cache" 2>/dev/null || true
+}
+
 select_backend() {
   local backend="${RYOKU_SCREENRECORD_BACKEND:-auto}"
 
@@ -247,10 +259,7 @@ select_backend() {
     chosen="gsr"
   fi
 
-  if [[ -n $sig ]]; then
-    mkdir -p "$(dirname "$cache")" 2>/dev/null || true
-    printf '%s\t%s\n' "$sig" "$chosen" >"$cache" 2>/dev/null || true
-  fi
+  remember_backend "$chosen"
 
   printf '%s' "$chosen"
 }
@@ -584,7 +593,7 @@ start_gsr() {
 # gsr still GPU-encodes (NVENC / VAAPI). The first run shows the portal source
 # picker once; -restore-portal-session reuses the grant after that. Some hybrid
 # boxes' xdph cannot negotiate a DMA-BUF format and the capture comes up empty --
-# if portal dies before producing anything, fall back to wf-recorder.
+# if portal never yields frames (dies, or stalls alive empty), fall back to wf.
 start_portal() {
   local mode="$1"
   local desktop_audio="$2"
@@ -592,7 +601,7 @@ start_portal() {
   local recorder_cmd="${RYOKU_SCREENRECORD_RECORDER:-gpu-screen-recorder}"
   local fps fmode quality codec encoder cursor
   local audio_source=""
-  local output_dir output_path pid status
+  local output_dir output_path pid token ticks grant i
   local -a args
 
   fps="${RYOKU_SCREENRECORD_FPS:-$(cfg_get '.fps' 60)}"
@@ -630,16 +639,24 @@ start_portal() {
 
   "${args[@]}" &
   pid=$!
-  # portal negotiation (and a first-run picker) keeps gsr alive; a hard xdph
-  # failure kills it within a second or two. give it a moment, then commit.
-  sleep 3
-  if kill -0 "$pid" 2>/dev/null; then
-    wait "$pid"
-    exit $?
-  fi
-  wait "$pid" 2>/dev/null && status=0 || status=$?
-  # produced something before dying? the user just stopped it early.
-  [[ -s $output_path ]] && exit "${status:-0}"
+
+  # A stalled portal negotiation leaves gsr alive but capturing nothing (empty
+  # file) and deaf to SIGINT/SIGTERM, so commit on real frames landing, not on
+  # liveness. With no saved grant a picker may be open, so wait longer for it.
+  token="${XDG_CONFIG_HOME:-$HOME/.config}/gpu-screen-recorder/restore_token"
+  if [[ -s $token ]]; then ticks=10; grant=yes; else ticks=40; grant=no; fi
+  for ((i = 0; i < ticks; i++)); do
+    [[ -s $output_path ]] && { wait "$pid" 2>/dev/null || true; exit 0; }
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.5
+  done
+  [[ -s $output_path ]] && { wait "$pid" 2>/dev/null || true; exit 0; }
+
+  # Nothing captured: SIGKILL the signal-deaf gsr and record through wf instead.
+  # A restored-grant stall also caches wf so the next capture skips portal.
+  kill -KILL "$pid" 2>/dev/null || true
+  for ((i = 0; i < 20; i++)); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  [[ $grant == yes ]] && remember_backend wf
   rm -f "$output_path"
   output_path="$(next_recording_path "$output_dir")"
   printf '%s\n' "$output_path" >"${RYOKU_STATE_PATH:-$HOME/.local/state/ryoku}/last-recording" 2>/dev/null || true
