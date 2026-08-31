@@ -245,6 +245,8 @@ On developer installations using a local `path:` flake input, Ryoku reports the
 current source and version but deliberately does not mutate the local checkout.
 Update the development checkout manually, then rebuild NixOS as usual.
 
+## NixOS updated will come later than upstream Arch due to new versions requiring the AUR and pacman to update. I aim to update Ryoku on Nix within 7 days of upstream release.
+
 ## Repository layout
 
 | Path | One job |
