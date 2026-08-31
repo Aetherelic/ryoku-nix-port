@@ -112,6 +112,10 @@ Item {
     transformOrigin: Item.Center
     Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutExpo } }
 
+    // per-widget opacity (the menu and Ryoku Settings write <widget>Opacity),
+    // clamped so a widget can fade back but never vanish or lose its clicks.
+    opacity: Math.max(0.2, Math.min(1, Config[slot.widget + "Opacity"]))
+
     Timer { id: guard; interval: 90 }
 
     // the tone the hosted widget's ink actually sits on: the wallpaper under

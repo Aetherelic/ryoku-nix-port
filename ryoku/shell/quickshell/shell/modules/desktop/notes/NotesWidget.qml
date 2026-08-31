@@ -32,8 +32,9 @@ Item {
 
     readonly property bool editing: pad.activeFocus
 
-    readonly property color ink:    Theme.inkOn(root.underL)
-    readonly property color inkDim: Theme.inkDimOn(root.underL)
+    readonly property color ink:     Theme.inkOn(root.underL)
+    readonly property color inkDim:  Theme.inkDimOn(root.underL)
+    readonly property color inkSoft: Theme.inkSoftOn(root.underL)
 
     // `loaded` gates writes until the disk copy is in, so the initial load can
     // never echo back out as a write; `loading` suppresses the onTextChanged the
@@ -67,16 +68,18 @@ Item {
     Component.onCompleted: root.adopt()
     Component.onDestruction: root.flush()
 
-    // faint plate: an ink-derived wash over the wallpaper with a hairline edge,
-    // kept low enough that the ink still reads against `underL` (the raw
-    // wallpaper) rather than a panel. A Rectangle takes no mouse, so a press on
-    // its margin falls through to the slot grip below the content and drags.
+    // readable card: an ink-derived plate lifted enough to read as a distinct
+    // note surface on any wallpaper, with a visible hairline. The ink still
+    // resolves against `underL` (the raw wallpaper the slot sits on) plus the
+    // slot's drop shadow, so the body stays legible over the plate. A Rectangle
+    // takes no mouse, so a press on its margin falls through to the slot grip
+    // below the content and drags.
     Rectangle {
         anchors.fill: parent
         radius: 18 * root.s
-        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.16)
+        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.26)
         border.width: 1
-        border.color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.32)
+        border.color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.5)
     }
 
     // A non-interactive viewport: it clips and follows the caret without ever
@@ -118,7 +121,7 @@ Item {
                 anchors.fill: parent
                 visible: pad.text.length === 0
                 text: I18n.tr("Jot a note\u2026")
-                color: root.inkDim
+                color: root.inkSoft
                 font: pad.font
                 wrapMode: Text.Wrap
             }

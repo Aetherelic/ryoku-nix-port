@@ -239,7 +239,6 @@ Scope {
             radius: Config.clockRadius
             scaleCfg: Config.clockScale
             pad: Config.clockBg === "none" ? 0 : Math.round(24 * Config.clockScale)
-            opacity: Config.clockOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
             onDropped: (box) => win.flashDrop(box)
             Clock {}
@@ -256,7 +255,6 @@ Scope {
             locked: Config.calendarLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.calendarScale
-            opacity: Config.calendarOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
             onDropped: (box) => win.flashDrop(box)
             CalendarWidget {
@@ -283,7 +281,6 @@ Scope {
             locked: Config.musicLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.musicScale
-            opacity: Config.musicOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
             onDropped: (box) => win.flashDrop(box)
             MusicWidget {
@@ -313,7 +310,6 @@ Scope {
             locked: Config.aioLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.aioScale
-            opacity: Config.aioOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
             onDropped: (box) => win.flashDrop(box)
             AioWidget {
@@ -334,7 +330,6 @@ Scope {
             locked: Config.statsLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.statsScale
-            opacity: Config.statsOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
             onDropped: (box) => win.flashDrop(box)
             StatsWidget {
@@ -354,7 +349,6 @@ Scope {
             locked: Config.weatherLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.weatherScale
-            opacity: Config.weatherOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
             onDropped: (box) => win.flashDrop(box)
             WeatherWidget {
@@ -375,7 +369,6 @@ Scope {
             locked: Config.notesLocked && !root.depthComposing
             bg: "none"
             scaleCfg: Config.notesScale
-            opacity: Config.notesOpacity
             onMenuRequested: (x, y, w) => menu.openFor(w, x, y)
             onDropped: (box) => win.flashDrop(box)
             // notes is the first built-in editable widget: while its pad holds

@@ -244,6 +244,35 @@ Item {
             onTriggered: DepthCfg.Config.toggleFront(menu.scope)
         }
 
+        // Size + Opacity: discoverable equivalents of the corner-drag resize and
+        // Ryoku Settings' opacity, targeting whichever widget the menu is open
+        // for. Both scrub live and persist on release.
+        MenuSection { visible: menu.isWidget; label: I18n.tr("Adjust"); gloss: "調整" }
+        MenuSlider {
+            id: sizeSlider
+            visible: menu.isWidget
+            label: I18n.tr("Size")
+            from: 0.5
+            to: 2.5
+            step: 0.02
+            value: menu.isWidget ? Config[menu.scope + "Scale"] : 1
+            valueText: Math.round(sizeSlider.value * 100) + "%"
+            onMoved: (v) => Config.setLive(menu.scope + "Scale", v)
+            onReleased: (v) => Config.set(menu.scope + "Scale", v)
+        }
+        MenuSlider {
+            id: opacitySlider
+            visible: menu.isWidget
+            label: I18n.tr("Opacity")
+            from: 0.2
+            to: 1.0
+            step: 0.01
+            value: menu.isWidget ? Config[menu.scope + "Opacity"] : 1
+            valueText: Math.round(opacitySlider.value * 100) + "%"
+            onMoved: (v) => Config.setLive(menu.scope + "Opacity", v)
+            onReleased: (v) => Config.set(menu.scope + "Opacity", v)
+        }
+
         MenuSection { visible: menu.isWidget; label: I18n.tr("Snap"); gloss: "位置" }
 
         // One placement control: an Auto lane above a square 3x3 compass whose
