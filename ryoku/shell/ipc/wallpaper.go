@@ -243,41 +243,70 @@ func (d *daemon) saveState(pic, screen string) {
 
 const liveDaemon = "ryoku-livewall"
 
-// liveCapWidth caps livewall's decode/render width at the widest monitor's
-// logical width (physical / fractional scale), so a video wallpaper renders near
-// 1:1 with its surface instead of the old fixed 1280 upscaled to a blur. Software
-// decode scales with resolution, so the width is clamped to 2560 to hold
-// livewall's PSS under the 100 MB budget (~47 MB at 2048, ~59 MB at 2560); a
-// wider panel plays at 2560 rather than blow it. "1920" when hyprctl is absent.
+// liveMonitor is the subset of Hyprland's monitor state needed to size a
+// livewall render surface.
+type liveMonitor struct {
+	Name  string  `json:"name"`
+	Width int     `json:"width"`
+	Scale float64 `json:"scale"`
+}
+
+// liveCapWidthFor returns a render width for one output. Per-output players use
+// that output's logical width instead of the widest monitor in the session. This
+// matters especially for portrait and small displays, where using a wide
+// landscape monitor's width would create an unnecessarily huge fit buffer.
+//
+// An empty output keeps the global fallback used when no connector is available.
+// liveCapWidth keeps the global fallback used by callers that do not target a
+// specific connector.
 func liveCapWidth() string {
-	const floor, ceil = 1280, 2560
+	return liveCapWidthFor("")
+}
+
+func liveCapWidthFor(output string) string {
 	out, err := exec.Command("hyprctl", "monitors", "-j").Output()
 	if err != nil {
 		return "1920"
 	}
-	var mons []struct {
-		Width int     `json:"width"`
-		Scale float64 `json:"scale"`
-	}
+
+	var mons []liveMonitor
 	if json.Unmarshal(out, &mons) != nil {
 		return "1920"
 	}
+
+	return liveCapWidthFromMonitors(mons, output)
+}
+
+func liveCapWidthFromMonitors(mons []liveMonitor, output string) string {
+	const minWidth, maxWidth = 64, 2560
+
 	best := 0
+
 	for _, m := range mons {
+		if output != "" && m.Name != output {
+			continue
+		}
+
 		w := m.Width
 		if m.Scale > 0 {
 			w = int(float64(m.Width)/m.Scale + 0.5)
 		}
+
 		if w > best {
 			best = w
 		}
 	}
-	if best < floor {
-		best = floor
+
+	if best == 0 {
+		return "1920"
 	}
-	if best > ceil {
-		best = ceil
+	if best < minWidth {
+		best = minWidth
 	}
+	if best > maxWidth {
+		best = maxWidth
+	}
+
 	return strconv.Itoa(best)
 }
 
@@ -542,7 +571,7 @@ func (d *daemon) launchLive(slot, pic string) {
 		return
 	}
 	go func() {
-		capW := liveCapWidth()
+		capW := liveCapWidthFor(slot)
 		src := livewallSource(pic, capW)
 		if src == "" || mgr.stale(slot, gen) {
 			return

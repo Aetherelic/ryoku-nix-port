@@ -20,6 +20,38 @@ func TestIsVideo(t *testing.T) {
 	}
 }
 
+func TestLiveCapWidthPerOutput(t *testing.T) {
+	mons := []liveMonitor{
+		{Name: "HDMI-A-1", Width: 600, Scale: 1},
+		{Name: "DP-1", Width: 1920, Scale: 1},
+		{Name: "DP-2", Width: 2560, Scale: 1},
+	}
+
+	cases := map[string]string{
+		"HDMI-A-1": "600",
+		"DP-1":     "1920",
+		"DP-2":     "2560",
+		"":         "2560",
+	}
+
+	for output, want := range cases {
+		if got := liveCapWidthFromMonitors(mons, output); got != want {
+			t.Errorf("output %q: got %q, want %q", output, got, want)
+		}
+	}
+
+	scaled := []liveMonitor{
+		{Name: "eDP-1", Width: 2880, Scale: 1.5},
+	}
+	if got := liveCapWidthFromMonitors(scaled, "eDP-1"); got != "1920" {
+		t.Errorf("scaled output: got %q, want 1920", got)
+	}
+
+	if got := liveCapWidthFromMonitors(mons, "missing"); got != "1920" {
+		t.Errorf("missing output fallback: got %q, want 1920", got)
+	}
+}
+
 func TestFrameOffset(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", dir)
