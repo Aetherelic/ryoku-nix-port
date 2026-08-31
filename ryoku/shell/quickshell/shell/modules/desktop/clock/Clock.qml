@@ -13,6 +13,9 @@ Item {
     // pushed in by WidgetSlot, forwarded to the face and date strip so both pick
     // their ink against the same patch of wallpaper.
     property real underL: Scheme.wallLstar
+    // pinned per-widget colour, forwarded to the face and date strip so a solid
+    // colour reaches the glyphs (gradient is applied by the slot over the whole).
+    property string inkColorA: ""
 
     readonly property var faceItem: faceLoader.item
     readonly property var dateItem: dateLoader.item
@@ -66,20 +69,20 @@ Item {
         }
     }
 
-    Component { id: digitalComp; ClockDigital { underL: clock.underL } }
-    Component { id: minimalComp; ClockMinimal { underL: clock.underL } }
-    Component { id: analogComp;  ClockAnalog { underL: clock.underL } }
-    Component { id: flipComp;    ClockFlip { underL: clock.underL } }
-    Component { id: ringsComp;   ClockRings { underL: clock.underL } }
-    Component { id: bigHourComp; ClockBigHour { underL: clock.underL } }
-    Component { id: metalComp;   ClockMetal { underL: clock.underL } }
-    Component { id: goodNightComp; ClockGoodNight { underL: clock.underL } }
-    Component { id: grandComp;   ClockGrand { underL: clock.underL } }
-    Component { id: columnComp;  ClockColumn { underL: clock.underL } }
-    Component { id: outlineComp; ClockOutline { underL: clock.underL } }
-    Component { id: bannerComp;  ClockBanner { underL: clock.underL } }
+    Component { id: digitalComp; ClockDigital { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: minimalComp; ClockMinimal { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: analogComp;  ClockAnalog { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: flipComp;    ClockFlip { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: ringsComp;   ClockRings { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: bigHourComp; ClockBigHour { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: metalComp;   ClockMetal { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: goodNightComp; ClockGoodNight { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: grandComp;   ClockGrand { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: columnComp;  ClockColumn { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: outlineComp; ClockOutline { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: bannerComp;  ClockBanner { underL: clock.underL; inkColorA: clock.inkColorA } }
 
-    Component { id: dateInlineComp;  DateInline { underL: clock.underL } }
-    Component { id: dateBadgeComp;   DateBadge { underL: clock.underL } }
-    Component { id: dateStackedComp; DateStacked { underL: clock.underL } }
+    Component { id: dateInlineComp;  DateInline { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: dateBadgeComp;   DateBadge { underL: clock.underL; inkColorA: clock.inkColorA } }
+    Component { id: dateStackedComp; DateStacked { underL: clock.underL; inkColorA: clock.inkColorA } }
 }
