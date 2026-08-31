@@ -632,10 +632,15 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # apple-cursor is part of Ryoku's cursor catalogue and is unfree in nixpkgs.
+    nixpkgs.config.allowUnfreePredicate = lib.mkDefault (
+      pkg: lib.getName pkg == "apple_cursor"
+    );
+
     # Preserve Fish as Ryoku's upstream default while allowing Zsh as a
     # declarative NixOS alternative. Explicit per-user shell settings win.
     users.defaultUserShell =
-      lib.mkDefault (
+      lib.mkOverride 900 (
         if cfg.shell == "fish"
         then pkgs.fish
         else pkgs.zsh

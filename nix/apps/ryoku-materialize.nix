@@ -6,6 +6,7 @@ pkgs.writeShellApplication {
   runtimeInputs = with pkgs; [
     coreutils
     findutils
+    jq
     systemd
   ];
 
@@ -84,6 +85,30 @@ pkgs.writeShellApplication {
     export RYOKU_CONFIG_BASE="$base"
 
     ${ryoku.cli}/bin/ryoku materialize
+
+    # NixOS updates bypass `ryoku update`, so carry the 0.48.8 Depth
+    # quick-settings migration during materialization.
+    shell_store="$config_home/ryoku/shell.json"
+
+    if [ -f "$shell_store" ]; then
+      modules="$(
+        jq -c \
+          '.frameBars.menus["quick-settings"].modules // null' \
+          "$shell_store" \
+          2>/dev/null || true
+      )"
+
+      if [ "$modules" = '["home","notifications","weather","capture"]' ]; then
+        tmp="$shell_store.ryoku-nix-tmp"
+
+        jq \
+          '.frameBars.menus["quick-settings"].modules += ["depth"]' \
+          "$shell_store" > "$tmp"
+
+        chmod --reference="$shell_store" "$tmp"
+        mv -f -- "$tmp" "$shell_store"
+      fi
+    fi
 
     # Seeds copied out of the Nix store need to remain writable.
     for file in \
