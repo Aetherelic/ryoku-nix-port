@@ -46,6 +46,9 @@
       ryokuMaterialize = import ./nix/apps/ryoku-materialize.nix {
         inherit pkgs ryoku;
       };
+      ryokuInstall = import ./nix/apps/ryoku-install.nix {
+        inherit pkgs;
+      };
     in
     {
 
@@ -55,6 +58,7 @@
         };
 
       packages.${system} = {
+        ryoku-install = ryokuInstall;
         ryoku-shell = ryoku.shell;
         ryoku-ui = ryoku.ui;
         ryoku-plugin-kit = ryoku.pluginKit;
@@ -90,6 +94,12 @@
       };
 
       apps.${system} = {
+        install = {
+          type = "app";
+          program = "${ryokuInstall}/bin/ryoku-install";
+          meta.description = "Install Ryoku on an existing flake-based NixOS system";
+        };
+
         ryoku-dev = {
           type = "app";
           program = "${ryokuDev}/bin/ryoku-dev";

@@ -161,3 +161,26 @@ On NixOS:
 - Ryoku does not repartition disks
 - the host keeps its existing kernel and graphics-driver policy
 - NixOS generations remain the system rollback mechanism
+
+## One-command installation
+
+For an existing flake-based NixOS system:
+
+~~~bash
+nix run github:Aetherelic/ryoku-nix-port/nixos-port-review#install
+~~~
+
+The installer detects the NixOS host, backs up the existing flake configuration,
+adds the Ryoku module, builds the new generation before switching, and
+materializes the desktop after a successful switch.
+
+It does not modify bootloader, kernel, disk, or partition settings.
+
+For a non-default flake or multi-host configuration:
+
+~~~bash
+nix run github:Aetherelic/ryoku-nix-port/nixos-port-review#install -- \
+  --flake /path/to/nixos#hostname
+~~~
+
+Use `--dry-run` to inspect the proposed configuration without changing files.
