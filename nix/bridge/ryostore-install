@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+#
+# NixOS RyoStore bundle boundary.
+#
+# Upstream bundles can contain pacman/AUR packages and repository mutations.
+# Those operations do not belong on a declarative NixOS system. This helper
+# keeps bundle status usable while refusing install/remove transactions.
+#
+# Non-bundle RyoStore content such as themes, shell plugins, lockscreen themes,
+# decor and other guest assets continues to be managed by RyoStore itself.
+
+set -euo pipefail
+
+cache_dir() {
+    ryostore internal cache 2>/dev/null
+}
+
+registry_file() {
+    local cache
+
+    cache="$(cache_dir)" || return 1
+    printf '%s/bundles/registry.json\n' "$cache"
+}
+
+bundle_components() {
+    local id="$1"
+    local registry
+
+    registry="$(registry_file)" || return 1
+    [[ -f "$registry" ]] || return 1
+
+    jq -r --arg id "$id" '
+        .bundles[]
+        | select(.id == $id)
+        | .components[]?
+        | [
+            .type,
+            .name,
+            (.detect // .name),
+            (.summary // "")
+          ]
+        | @tsv
+    ' "$registry"
+}
+
+registry_ids() {
+    local registry
+
+    registry="$(registry_file)" || return 1
+    [[ -f "$registry" ]] || return 1
+
+    jq -r '.bundles[].id' "$registry"
+}
+
+plugin_installed() {
+    local name="$1"
+
+    [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/ryoku/plugins/$name/manifest.json" ]]
+}
+
+nautilus_installed() {
+    local name="$1"
+
+    [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/ryoku/nautilus/$name/manifest.json" ]]
+}
+
+item_state() {
+    local type="$1"
+    local name="$2"
+    local detect="$3"
+
+    case "$type" in
+        package|script)
+            command -v "$detect" >/dev/null 2>&1 &&
+                printf 'present\n' ||
+                printf 'absent\n'
+            ;;
+
+        plugin)
+            plugin_installed "$name" &&
+                printf 'present\n' ||
+                printf 'absent\n'
+            ;;
+
+        nautilus-pack)
+            nautilus_installed "$name" &&
+                printf 'present\n' ||
+                printf 'absent\n'
+            ;;
+
+        *)
+            printf 'absent\n'
+            ;;
+    esac
+}
+
+status_bundle() {
+    local id="$1"
+    local type name detect summary state
+    local items='[]'
+
+    while IFS=$'\t' read -r type name detect summary; do
+        [[ -n "$name" ]] || continue
+
+        state="$(item_state "$type" "$name" "$detect")"
+
+        items="$(
+            jq \
+                --arg type "$type" \
+                --arg name "$name" \
+                --arg status "$state" \
+                --arg summary "$summary" \
+                '. + [{
+                    type: $type,
+                    name: $name,
+                    status: $status,
+                    summary: $summary
+                }]' \
+                <<<"$items"
+        )"
+    done < <(bundle_components "$id")
+
+    jq -n \
+        --arg id "$id" \
+        --argjson items "$items" \
+        '{id: $id, items: $items}'
+}
+
+status_all() {
+    local id bundle
+    local bundles='[]'
+
+    while IFS= read -r id; do
+        [[ -n "$id" ]] || continue
+
+        bundle="$(status_bundle "$id")"
+
+        bundles="$(
+            jq \
+                --argjson bundle "$bundle" \
+                '. + [$bundle]' \
+                <<<"$bundles"
+        )"
+    done < <(registry_ids)
+
+    jq -n \
+        --argjson bundles "$bundles" \
+        '{bundles: $bundles}'
+}
+
+readonly_message() {
+    cat >&2 <<'MSG'
+RyoStore system bundles are read-only on NixOS.
+
+This bundle contains package or system mutations designed for the Arch Ryoku
+installation. NixOS owns packages and system configuration declaratively, so
+RyoStore will not run pacman, AUR helpers, repository installers, or equivalent
+imperative package changes here.
+
+Add the required packages/options to your NixOS configuration instead.
+
+Themes, shell plugins, wallpapers, lockscreen themes and other RyoStore guest
+content remain available normally.
+MSG
+}
+
+case "${1:-}" in
+    status)
+        shift
+
+        if [[ "${1:-}" == "bundle" ]]; then
+            [[ -n "${2:-}" ]] || {
+                echo "ryostore-install: status bundle needs an id" >&2
+                exit 2
+            }
+
+            status_bundle "$2"
+        else
+            status_all
+        fi
+        ;;
+
+    install|remove)
+        readonly_message
+        exit 2
+        ;;
+
+    *)
+        echo "usage: ryostore-install status [bundle <id>]" >&2
+        echo "       ryostore-install install|remove ...  # unavailable on NixOS" >&2
+        exit 2
+        ;;
+esac

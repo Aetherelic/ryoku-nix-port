@@ -61,7 +61,7 @@ screen_cap() {
 # is suspended, and it intermittently emits all-black frames under PRIME), so
 # every run still validates its output and falls back to the next GPU, keeping
 # the first that is not black; the last good GPU is remembered as a fallback hint.
-w2x_model="/usr/share/waifu2x-ncnn-vulkan/models-cunet"
+w2x_model="${RYOKU_WAIFU2X_MODELS:-/usr/share/waifu2x-ncnn-vulkan/models-cunet}"
 
 # sane_img: succeed only when an image has real content, not the near-black /
 # flat garbage a wedged or overloaded GPU can emit. Guards every waifu2x output

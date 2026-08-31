@@ -323,6 +323,8 @@ func TestDnsHelperArgs(t *testing.T) {
 }
 
 func TestDnsHelperPathUsesExecutableDirectory(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
 	previousShellDir := shellDir
 	shellDir = ""
 	t.Cleanup(func() { shellDir = previousShellDir })
@@ -340,6 +342,29 @@ func TestDnsHelperPathUsesExecutableDirectory(t *testing.T) {
 	want := filepath.Join(filepath.Dir(executable), "ryoku-dns")
 	if got := dnsHelperPath(); got != want {
 		t.Errorf("dnsHelperPath() = %q, want %q", got, want)
+	}
+}
+
+func TestDnsHelperPathUsesPath(t *testing.T) {
+	dir := t.TempDir()
+	helper := filepath.Join(dir, "ryoku-dns")
+
+	if err := os.WriteFile(helper, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("PATH", dir)
+
+	previousShellDir := shellDir
+	shellDir = ""
+	t.Cleanup(func() { shellDir = previousShellDir })
+
+	previousPackaged := dnsPackagedHelper
+	dnsPackagedHelper = filepath.Join(t.TempDir(), "absent-ryoku-dns")
+	t.Cleanup(func() { dnsPackagedHelper = previousPackaged })
+
+	if got := dnsHelperPath(); got != helper {
+		t.Errorf("dnsHelperPath() = %q, want PATH helper %q", got, helper)
 	}
 }
 

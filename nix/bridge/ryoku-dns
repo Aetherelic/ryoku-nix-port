@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="/run/wrappers/bin:@RYOKU_RUNTIME_PATH@"
+
+real_state=/var/lib/ryoku/network
+
+if (( EUID == 0 )); then
+    state_dir="$real_state"
+else
+    state_dir="${RYOKU_NIX_NETWORK_STATE_DIR:-$real_state}"
+fi
+
+conf="$state_dir/dns.conf"
+provider="${1:-}"
+
+need_root() {
+    (( EUID == 0 )) && return 0
+
+    exec /run/wrappers/bin/pkexec \
+        "$(readlink -f "$0")" \
+        "$@"
+}
+
+valid_server() {
+    python3 - "$1" <<'PY'
+import ipaddress
+import sys
+
+try:
+    ipaddress.ip_address(sys.argv[1])
+except ValueError:
+    raise SystemExit(1)
+PY
+}
+
+write_dns() {
+    local servers="$1"
+    local tmp
+
+    install -d -m755 "$state_dir"
+
+    tmp="$(mktemp "$state_dir/.dns.conf.XXXXXX")"
+
+    cat >"$tmp" <<EOF
+# Managed by Ryoku's NixOS network bridge.
+# Run ryoku-dns dhcp to restore connection-provided DNS.
+[global-dns]
+
+[global-dns-domain-*]
+servers=$servers
+EOF
+
+    chmod 0644 "$tmp"
+    mv -f "$tmp" "$conf"
+}
+
+case "${provider,,}" in
+    dhcp)
+        need_root "$@"
+        install -d -m755 "$state_dir"
+        : >"$conf"
+        chmod 0644 "$conf"
+        ;;
+
+    cloudflare)
+        need_root "$@"
+        write_dns \
+            "1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001"
+        ;;
+
+    google)
+        need_root "$@"
+        write_dns \
+            "8.8.8.8,8.8.4.4,2001:4860:4860::8888,2001:4860:4860::8844"
+        ;;
+
+    custom)
+        shift
+
+        (( $# > 0 )) || {
+            echo "custom DNS requires at least one server" >&2
+            exit 1
+        }
+
+        for server in "$@"; do
+            valid_server "$server" || {
+                echo "invalid DNS server: $server" >&2
+                exit 1
+            }
+        done
+
+        need_root custom "$@"
+
+        servers="$(
+            IFS=,
+            printf '%s' "$*"
+        )"
+
+        write_dns "$servers"
+        ;;
+
+    *)
+        echo \
+            "usage: ryoku-dns <dhcp|cloudflare|google|custom> [servers...]" \
+            >&2
+        exit 2
+        ;;
+esac
+
+if systemctl is-active --quiet NetworkManager.service; then
+    nmcli general reload conf >/dev/null ||
+        systemctl reload NetworkManager.service
+
+    nmcli general reload dns-full >/dev/null 2>&1 ||
+        true
+fi
