@@ -411,11 +411,18 @@ stop_recording() {
   # was a promise made before the fact. The post-save hook (gsr -sc, or the wf path
   # calling it directly) fires the honest "Recording saved" once the file exists.
 
-  # gsr's KMS capture leaves the screen washed out until a reconfigure (#11284)
-  if command -v hyprctl >/dev/null 2>&1; then
-    for _ in $(seq 30); do recorder_running || break; sleep 0.1; done
-    hyprctl reload >/dev/null 2>&1 || true
+  # A hung recorder (a portal session that never came up) ignores SIGINT: give it
+  # a short grace, then force-kill any survivor so --stop always clears the capture
+  # instead of stranding the island on a zombie gsr.
+  for _ in $(seq 20); do recorder_running || break; sleep 0.1; done
+  if recorder_running; then
+    mapfile -t pids < <(recording_gsr_pids | tr ' ' '\n' | grep -E '^[0-9]+$' || true)
+    [[ ${#pids[@]} -gt 0 ]] && kill -KILL "${pids[@]}" >/dev/null 2>&1 || true
+    proc_running "$wf_pattern" && signal_recorder -KILL "$wf_pattern" || true
   fi
+
+  # gsr's KMS capture leaves the screen washed out until a reconfigure (#11284)
+  command -v hyprctl >/dev/null 2>&1 && hyprctl reload >/dev/null 2>&1 || true
 }
 
 pause_recording() {
