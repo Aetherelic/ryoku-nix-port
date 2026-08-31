@@ -150,10 +150,12 @@ var spotifyInstalled = func() bool {
 	return false
 }
 
-// spicetifyCanvasSource is the shipped ryoku-canvas.js: the package asset, else
-// the checkout on a dev box.
+// spicetifyCanvasSource finds the installed Canvas asset or a checkout copy.
 var spicetifyCanvasSource = func() string {
-	cands := []string{"/usr/share/ryoku/spicetify/ryoku-canvas.js"}
+	cands := []string{
+		"/usr/share/ryoku/spicetify/ryoku-canvas.js",
+		filepath.Join(browserDataHome(), "ryoku", "spicetify", "ryoku-canvas.js"),
+	}
 	if repo := sys.ResolveRepo(); repo != "" {
 		cands = append(cands, filepath.Join(repo, "ryoku", "apps", "spicetify", "ryoku-canvas.js"))
 	}
