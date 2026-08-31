@@ -29,7 +29,13 @@ how it looks, moves, and gets out of your way.
 
 </div>
 
-##The Arch version of Ryoku can be found [here]("https://github.com/neur0map/ryoku-arch") Credit to [Neur0map]("https://github.com/neur0map")
+<div align="center">
+
+## **The Arch version of Ryoku can be found [here](https://github.com/neur0map/ryoku-arch)**
+
+**Credit to [Neur0map](https://github.com/neur0map)**
+
+</div>
 
 ---
 
