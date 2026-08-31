@@ -175,6 +175,9 @@ func removeRootFiles(paths ...string) error {
 }
 
 func reconcileNvidiaModeset(checkOnly bool) recResult {
+	if !sys.Has("pacman") {
+		return okRes("NVIDIA boot config is managed outside pacman")
+	}
 	if !nvidiaDriverActive() {
 		return okRes("no proprietary NVIDIA driver in use")
 	}
@@ -277,6 +280,9 @@ func nvidiaGuardHookOK(got string) bool {
 }
 
 func reconcileNvidiaGuardHook(checkOnly bool) recResult {
+	if !sys.Has("pacman") {
+		return okRes("pacman NVIDIA hook not applicable")
+	}
 	if !nvidiaDriverActive() {
 		return okRes("no proprietary NVIDIA driver in use")
 	}

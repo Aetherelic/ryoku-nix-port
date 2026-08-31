@@ -85,12 +85,17 @@ pkgs.writeShellApplication {
 
     ${ryoku.cli}/bin/ryoku materialize
 
-    # Nix store files are immutable and arrive without user write bits.
-    # current-theme.conf is only a seed: Matugen owns it at runtime and
-    # must be able to replace it whenever the active palette changes.
-    if [ -f "$config_home/kitty/current-theme.conf" ]; then
-      chmod u+w "$config_home/kitty/current-theme.conf"
-    fi
+    # Seeds copied out of the Nix store need to remain writable.
+    for file in \
+      hypr/monitors.lua \
+      hypr/gpu.lua \
+      hypr/keyboard.lua \
+      hypr/user.lua \
+      fastfetch/config.jsonc \
+      kitty/current-theme.conf
+    do
+      [ -f "$config_home/$file" ] && chmod u+w "$config_home/$file"
+    done
 
     # ----------------------------------------------------------
     # QML modules
@@ -173,6 +178,27 @@ pkgs.writeShellApplication {
         "$data_home/ryoku/assets/brand/" \
         2>/dev/null || true
     fi
+
+    # User-space equivalents for integrations normally installed under /usr.
+    ryoku_data="$data_home/ryoku"
+
+    mkdir -p \
+      "$data_home/nautilus-python/extensions" \
+      "$ryoku_data/spicetify"
+
+    ln -sfn \
+      "${ryoku.desktopData}/share/ryoku/nautilus/ryoku-stash-menu.py" \
+      "$data_home/nautilus-python/extensions/ryoku-stash-menu.py"
+
+    if [ ! -e "$ryoku_data/browser" ] || [ -L "$ryoku_data/browser" ]; then
+      ln -sfnT \
+        "${ryoku.desktopData}/share/ryoku/browser" \
+        "$ryoku_data/browser"
+    fi
+
+    ln -sfn \
+      "${ryoku.desktopData}/share/ryoku/spicetify/ryoku-canvas.js" \
+      "$ryoku_data/spicetify/ryoku-canvas.js"
 
     printf '\n'
     printf 'Ryoku desktop materialized successfully.\n'

@@ -2399,3 +2399,14 @@ func TestResolveGtkThemeName(t *testing.T) {
 		}
 	}
 }
+
+func TestPacmanOnlyReconcilersSkipWithoutPacman(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	if got := reconcilePacmanCandy(true); got.status != recOK {
+		t.Fatalf("pacman progress status = %v, want ok", got.status)
+	}
+	if got := reconcileSessionComponents(true); got.status != recOK {
+		t.Fatalf("session components status = %v, want ok", got.status)
+	}
+}

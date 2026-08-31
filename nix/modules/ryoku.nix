@@ -444,6 +444,7 @@ EOF
     yazi
     neovim
     nautilus
+    nautilus-python
 
     # ─────────────────────────────────────────────────────────
     # Ryoku command dependencies
@@ -468,6 +469,8 @@ EOF
     imagemagick
     matugen
     ffmpeg
+    openssl
+    nvibrant
     vulkan-tools
     ryokuCursorMaterial
 

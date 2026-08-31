@@ -1760,6 +1760,9 @@ func migrateShellConfig(raw []byte) ([]byte, []string, error) {
 // ---- reconciler: desktop session components ----------------------------------
 
 func reconcileSessionComponents(_ bool) recResult {
+	if !sys.Has("pacman") {
+		return okRes("desktop session packages are managed outside pacman")
+	}
 	if !sys.Exists(filepath.Join(sys.Home(), ".config", "hypr")) && !sys.Has("Hyprland") {
 		return okRes("not a Hyprland desktop")
 	}

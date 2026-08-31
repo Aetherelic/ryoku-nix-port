@@ -25,6 +25,12 @@ pkgs.stdenvNoCC.mkDerivation {
     mkdir -p "$cfg/hypr"
     cp -a ryoku/hyprland/. "$cfg/hypr/"
 
+    # Qt QML modules are exposed through the system profile on NixOS.
+    substituteInPlace "$cfg/hypr/modules/env.lua" \
+      --replace-fail \
+        'os.getenv("HOME") .. "/.local/lib/qt6/qml"' \
+        'os.getenv("HOME") .. "/.local/lib/qt6/qml:/run/current-system/sw/lib/qt-6/qml"'
+
     # ----------------------------------------------------------
     # NixOS session bridge
     #
@@ -266,6 +272,16 @@ LUA
     install -Dm755 \
       ryoku/lockscreen/install-qylock \
       "$out/share/ryoku/lockscreen/install-qylock"
+
+    # ── Desktop integration ────────────────────────────────────
+
+    install -Dm644 \
+      ryoku/apps/nautilus/ryoku-stash-menu.py \
+      "$out/share/ryoku/nautilus/ryoku-stash-menu.py"
+
+    install -Dm644 \
+      ryoku/apps/spicetify/ryoku-canvas.js \
+      "$out/share/ryoku/spicetify/ryoku-canvas.js"
 
     # ── Browser integration ────────────────────────────────────
 
