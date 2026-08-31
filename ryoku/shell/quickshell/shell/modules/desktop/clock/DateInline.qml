@@ -13,12 +13,14 @@ Item {
     // the widget floats on the wallpaper, so its ink is picked against the patch
     // of picture under it. WidgetSlot measures it and pushes it in.
     property real underL: Scheme.wallLstar
-    readonly property color ink:     Theme.inkOn(date.underL)
-    readonly property color inkDim:  Theme.inkDimOn(date.underL)
-    readonly property color inkSoft: Theme.inkSoftOn(date.underL)
+    // a pinned colour ("" = follow wallpaper) paints this strip's own ink.
+    property string inkColorA: ""
+    readonly property color ink:     Theme.inkOn2(date.underL, date.inkColorA)
+    readonly property color inkDim:  Theme.inkDimOn2(date.underL, date.inkColorA)
+    readonly property color inkSoft: Theme.inkSoftOn2(date.underL, date.inkColorA)
 
     readonly property var dp: Clk.dateParts(Now.date, Svc.Config.formatLoc)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(date.underL), Theme.brand, date.ink)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn2(date.underL, date.inkColorA), Theme.brand, date.ink)
     readonly property real px: Math.round(22 * Config.clockScale)
 
     implicitWidth: row.implicitWidth

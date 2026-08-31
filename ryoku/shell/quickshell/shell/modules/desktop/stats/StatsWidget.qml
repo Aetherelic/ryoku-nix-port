@@ -19,6 +19,8 @@ Item {
     id: root
 
     property real underL: 0        // local wallpaper L* under the widget; ink adapts to it
+    // WidgetSlot pins a hex here to paint this widget's ink; "" follows the wallpaper.
+    property string inkColorA: ""
     property real s: 1             // scale (Config.statsScale)
     property bool active: true     // visible/enabled
 
@@ -83,8 +85,8 @@ Item {
         height: 916
         transform: Scale { xScale: root.s; yScale: root.s }
 
-        readonly property color ink: Theme.inkOn(root.underL)
-        readonly property color dim: Theme.inkDimOn(root.underL)
+        readonly property color ink: Theme.inkOn2(root.underL, root.inkColorA)
+        readonly property color dim: Theme.inkDimOn2(root.underL, root.inkColorA)
         readonly property real lx: 64      // label left
         readonly property real rx: 456     // value right edge
 

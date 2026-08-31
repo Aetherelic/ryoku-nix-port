@@ -21,6 +21,14 @@ Item {
     property Item wallpaperSource: null
     property rect wallpaperRect: Qt.rect(0, 0, 0, 0)
 
+    // WidgetSlot pins a hex here to paint this widget's ink; "" keeps the palette ink.
+    // dim/faint derive from it so the whole face reads as one tone; card + plates stay.
+    property string inkColorA: ""
+    readonly property color ink:    root.inkColorA !== "" ? root.inkColorA : Theme.ink
+    readonly property color inkDim: root.inkColorA !== "" ? Qt.rgba(Qt.color(root.inkColorA).r, Qt.color(root.inkColorA).g, Qt.color(root.inkColorA).b, 0.7) : Theme.inkDim
+    readonly property color faint:  root.inkColorA !== "" ? Qt.rgba(Qt.color(root.inkColorA).r, Qt.color(root.inkColorA).g, Qt.color(root.inkColorA).b, 0.42) : Theme.faint
+    readonly property color accent: root.inkColorA !== "" ? root.inkColorA : Theme.accent
+
     readonly property bool paper: root.style === "paper"
     readonly property var loc: Svc.Config.formatLoc
     readonly property int firstDay: root.loc.firstDayOfWeek === 7 ? 0 : root.loc.firstDayOfWeek
@@ -105,14 +113,14 @@ Item {
             spacing: 2 * root.s
             Text {
                 text: root.loc.standaloneMonthName(root.viewMonth, Locale.LongFormat) + " " + root.viewYear
-                color: Theme.ink
+                color: root.ink
                 font.family: Theme.display
                 font.pixelSize: 23 * root.s
                 font.weight: Font.Medium
             }
             Text {
                 text: qsTr("WEEK %1 · %2 WEEKS").arg(root.currentWeek.week).arg(root.visibleWeeks)
-                color: Theme.faint
+                color: root.faint
                 font.family: Theme.mono
                 font.pixelSize: 9 * root.s
                 font.letterSpacing: 1.1 * root.s
@@ -136,14 +144,14 @@ Item {
                     radius: Theme.radiusTile * root.s
                     color: navHover.hovered || activeFocus ? (root.paper ? Theme.ink : Theme.tileHover) : "transparent"
                     border.width: activeFocus ? 1 : 0
-                    border.color: Theme.accent
+                    border.color: root.accent
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: modelData.name
                     Text {
                         anchors.centerIn: parent
                         text: I18n.tr(modelData.label)
-                        color: root.paper && (navHover.hovered || parent.activeFocus) ? Theme.surface : Theme.ink
+                        color: root.paper && (navHover.hovered || parent.activeFocus) ? Theme.surface : root.ink
                         font.family: Theme.font
                         font.pixelSize: modelData.delta === 0 ? 10 * root.s : 18 * root.s
                         font.weight: Font.Medium
@@ -167,6 +175,10 @@ Item {
         loc: root.loc
         showWeekNumbers: root.showWeekNumbers
         paper: root.paper
+        ink: root.ink
+        inkDim: root.inkDim
+        faint: root.faint
+        accent: root.accent
         selectedKey: root.activeKey
         s: root.s
         holidayForDate: function(key) { return Holidays.forDate(key); }
@@ -189,6 +201,8 @@ Item {
         holidays: root.selectedHolidays
         events: root.selectedEvents
         paper: root.paper
+        ink: root.ink
+        faint: root.faint
         s: root.s
     }
 

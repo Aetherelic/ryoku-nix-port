@@ -19,15 +19,17 @@ Item {
     // pushed by WidgetSlot: the wallpaper L* under this slot, so ink is picked
     // against the picture rather than a surface that is not there.
     property real underL: Scheme.wallLstar
+    // WidgetSlot pins a hex here to paint this widget's ink; "" follows the wallpaper.
+    property string inkColorA: ""
     property real s: 1
     property bool active: true
     property string design: "compact"   // compact | full
 
     // Theme is the desktop module's one door to the ink helpers, the way every
     // clock face reaches them.
-    readonly property color ink:    Theme.inkOn(root.underL)
-    readonly property color inkDim: Theme.inkDimOn(root.underL)
-    readonly property color accent: Theme.accentOn(root.underL)
+    readonly property color ink:    Theme.inkOn2(root.underL, root.inkColorA)
+    readonly property color inkDim: Theme.inkDimOn2(root.underL, root.inkColorA)
+    readonly property color accent: Theme.accentOn2(root.underL, root.inkColorA)
 
     readonly property bool full: root.design === "full"
     readonly property bool ready: Svc.Weather.available

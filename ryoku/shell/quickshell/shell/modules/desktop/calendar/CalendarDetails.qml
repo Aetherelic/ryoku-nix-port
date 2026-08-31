@@ -9,6 +9,9 @@ Item {
     property var events: []
     property bool paper: false
     property real s: 1
+    // resolved ink tones from the widget root ("" override keeps the palette).
+    property color ink: Theme.ink
+    property color faint: Theme.faint
 
     readonly property bool hasDetails: root.holidays.length > 0 || root.events.length > 0
     readonly property string holidayText: root.holidays.map(function(item) { return item.name; }).join(" · ")
@@ -31,7 +34,7 @@ Item {
         anchors.top: parent.top
         anchors.topMargin: 9 * root.s
         text: root.dateLabel
-        color: Theme.faint
+        color: root.faint
         font.family: Theme.mono
         font.pixelSize: 9 * root.s
         font.letterSpacing: 0.8 * root.s
@@ -45,7 +48,7 @@ Item {
         text: root.hasDetails
             ? [root.holidayText, root.eventText].filter(function(value) { return value.length > 0; }).join("   //   ")
             : qsTr("No holidays or events")
-        color: root.hasDetails ? Theme.ink : Theme.faint
+        color: root.hasDetails ? root.ink : root.faint
         elide: Text.ElideRight
         font.family: Theme.font
         font.pixelSize: 11 * root.s

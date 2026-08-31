@@ -14,8 +14,10 @@ Item {
     id: face
 
     property real underL: Scheme.wallLstar
+    // a pinned colour ("" = the reference bright ink) paints this face's ink.
+    property string inkColorA: ""
     readonly property real s: Config.clockScale
-    readonly property color ink: "#f4f6f8"
+    readonly property color ink: face.inkColorA !== "" ? face.inkColorA : "#f4f6f8"
 
     readonly property var t: Clk.parts(Now.date, Config.clock24h)
     readonly property var dp: Clk.dateParts(Now.date, Svc.Config.formatLoc)

@@ -22,6 +22,8 @@ Item {
     id: root
 
     property real underL: Scheme.wallLstar   // wallpaper tone under the slot, pushed by WidgetSlot
+    // WidgetSlot pins a hex here to paint this widget's ink; "" follows the wallpaper.
+    property string inkColorA: ""
     property real s: 1                        // scale (Config.notesScale)
     property bool active: true                // visible/enabled
     property int wLogical: 260                // Config.notesWidth, native px before scale
@@ -32,9 +34,13 @@ Item {
 
     readonly property bool editing: pad.activeFocus
 
-    readonly property color ink:     Theme.inkOn(root.underL)
-    readonly property color inkDim:  Theme.inkDimOn(root.underL)
-    readonly property color inkSoft: Theme.inkSoftOn(root.underL)
+    readonly property color ink:     Theme.inkOn2(root.underL, root.inkColorA)
+    readonly property color inkDim:  Theme.inkDimOn2(root.underL, root.inkColorA)
+    readonly property color inkSoft: Theme.inkSoftOn2(root.underL, root.inkColorA)
+
+    // The plate is a surface, not the widget's ink: it always tracks the wallpaper
+    // tone, so a pinned colour paints the note body, never the card behind it.
+    readonly property color plateInk: Theme.inkOn(root.underL)
 
     // `loaded` gates writes until the disk copy is in, so the initial load can
     // never echo back out as a write; `loading` suppresses the onTextChanged the
@@ -77,9 +83,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 18 * root.s
-        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.26)
+        color: Qt.rgba(root.plateInk.r, root.plateInk.g, root.plateInk.b, 0.26)
         border.width: 1
-        border.color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.5)
+        border.color: Qt.rgba(root.plateInk.r, root.plateInk.g, root.plateInk.b, 0.5)
     }
 
     // A non-interactive viewport: it clips and follows the caret without ever
@@ -100,7 +106,7 @@ Item {
             height: Math.max(implicitHeight, flick.height)
             enabled: root.active
             color: root.ink
-            selectionColor: Theme.accentOn(root.underL)
+            selectionColor: Theme.accentOn2(root.underL, root.inkColorA)
             selectedTextColor: root.ink
             selectByMouse: true
             wrapMode: TextEdit.Wrap

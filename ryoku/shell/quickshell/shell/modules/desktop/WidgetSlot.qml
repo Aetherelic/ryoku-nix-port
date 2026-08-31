@@ -46,12 +46,15 @@ Item {
     readonly property bool editing: slot.visible && !!(slot.item && slot.item.editing)
 
     // custom ink: a bg:none widget can wear a pinned colour or an A->B sweep in
-    // place of its adaptive ink. empty <widget>Color keeps the adaptive look, so
-    // Auto costs nothing (no layer, no mask); a hex turns the recolour path on.
+    // place of its adaptive ink. The solid colour is pushed into the widget so it
+    // paints only the ink (text/marks), never a card; a gradient is layered on top
+    // via the mask, but only for card-less widgets (calendar/music/aio keep their
+    // card, so they take the solid colour, never the mask). Empty = adaptive.
     readonly property string inkColorA: slot.bg === "none" ? (Config[slot.widget + "Color"] || "") : ""
     readonly property string inkColorB: Config[slot.widget + "Color2"] || ""
-    readonly property bool inkRecolor: slot.inkColorA !== ""
-    readonly property bool inkGradient: slot.inkRecolor && (Config[slot.widget + "Gradient"] === true) && slot.inkColorB !== ""
+    readonly property bool cardWidget: slot.widget === "calendar" || slot.widget === "music" || slot.widget === "aio"
+    readonly property bool inkGradient: slot.inkColorA !== "" && (Config[slot.widget + "Gradient"] === true) && slot.inkColorB !== ""
+    readonly property bool inkMaskOn: slot.inkGradient && !slot.cardWidget
 
     // drag state. while holding (dragging, or briefly after release until
     // the config write lands) the rendered position follows the drag so it
@@ -143,6 +146,14 @@ Item {
         property: "underL"
         value: slot.underL
         when: slot.item !== null && slot.item.underL !== undefined
+    }
+    // push the pinned solid colour into the widget so it paints its own ink (never
+    // a card). "" leaves the widget on its adaptive inkOn(underL).
+    Binding {
+        target: slot.item
+        property: "inkColorA"
+        value: slot.inkColorA
+        when: slot.item !== null && slot.item.inkColorA !== undefined
     }
 
     // soft lift off the wallpaper for the backed styles.
@@ -244,12 +255,12 @@ Item {
         y: slot.pad
         width: slot.cw
         height: slot.ch
-        layer.enabled: slot.inkRecolor || (!Performance.shadowsDisabled && slot.bg === "none")
+        layer.enabled: slot.inkMaskOn || (!Performance.shadowsDisabled && slot.bg === "none")
         // a layer texture drawn at a fractional Wayland scale needs linear
         // filtering or the bare-widget ink crawls, worst during the press
         // bump and the drag, when the tile sits off the pixel grid.
         layer.smooth: true
-        layer.effect: slot.inkRecolor ? recolorFx : shadowFx
+        layer.effect: slot.inkMaskOn ? recolorFx : shadowFx
     }
 
     // the bare-widget shadow, and the ink recolour: a gradient (or a solid, both

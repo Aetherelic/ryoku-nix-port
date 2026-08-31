@@ -45,6 +45,15 @@ Singleton {
     function inkSoftOn(l) { return Scheme.inkSoftOn(l); }
     function accentOn(l)  { return Scheme.accentOn(l); }
 
+    // override-aware inks: a pinned per-widget colour ("" follows the wallpaper).
+    // One colour paints the whole widget a single tone; dim/soft derive from it so
+    // the widget reads as one colour rather than a clash. Gradient is layered on
+    // top of these by the slot, for the widgets that carry no card.
+    function inkOn2(l, c)     { return (c && c.length > 0) ? c : Scheme.inkOn(l); }
+    function inkDimOn2(l, c)  { return (c && c.length > 0) ? Qt.rgba(Qt.color(c).r, Qt.color(c).g, Qt.color(c).b, 0.7) : Scheme.inkDimOn(l); }
+    function inkSoftOn2(l, c) { return (c && c.length > 0) ? Qt.rgba(Qt.color(c).r, Qt.color(c).g, Qt.color(c).b, 0.85) : Scheme.inkSoftOn(l); }
+    function accentOn2(l, c)  { return (c && c.length > 0) ? c : Scheme.accentOn(l); }
+
     // carbon-dossier surface for the desktop menu: the palette surface over a
     // recessed floor, with ink-derived hairline + faint eyebrow tints so the
     // chrome follows the theme.

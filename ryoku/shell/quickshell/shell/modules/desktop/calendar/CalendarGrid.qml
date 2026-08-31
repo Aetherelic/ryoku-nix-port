@@ -11,6 +11,11 @@ Item {
     property var loc: Qt.locale()
     property bool showWeekNumbers: true
     property bool paper: false
+    // resolved ink tones from the widget root ("" override keeps the palette).
+    property color ink: Theme.ink
+    property color inkDim: Theme.inkDim
+    property color faint: Theme.faint
+    property color accent: Theme.accent
     property string selectedKey: ""
     property real s: 1
     property real pulse: 0
@@ -38,7 +43,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: root.loc.standaloneDayName((index + root.firstDay) % 7, Locale.NarrowFormat)
-                    color: Theme.faint
+                    color: root.faint
                     font.family: Theme.mono
                     font.pixelSize: 9 * root.s
                     font.letterSpacing: 1 * root.s
@@ -80,7 +85,7 @@ Item {
                     const day = root.days[index * 7];
                     return day ? String(day.isoWeek).padStart(2, "0") : "";
                 }
-                color: Theme.faint
+                color: root.faint
                 font.family: Theme.mono
                 font.pixelSize: 9 * root.s
             }
@@ -99,6 +104,10 @@ Item {
             holidays: root.holidayForDate(modelData.key)
             events: root.eventForDate(modelData.key)
             paper: root.paper
+            ink: root.ink
+            inkDim: root.inkDim
+            faint: root.faint
+            accent: root.accent
             selected: root.selectedKey === modelData.key
             s: root.s
             onActivated: key => root.selected(key)

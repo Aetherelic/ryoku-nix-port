@@ -13,12 +13,14 @@ Item {
     // the widget floats on the wallpaper, so its ink is picked against the patch
     // of picture under it. WidgetSlot measures it and pushes it in.
     property real underL: Scheme.wallLstar
-    readonly property color ink:     Theme.inkOn(face.underL)
-    readonly property color inkDim:  Theme.inkDimOn(face.underL)
-    readonly property color inkSoft: Theme.inkSoftOn(face.underL)
+    // a pinned colour ("" = follow wallpaper) paints this face's own ink.
+    property string inkColorA: ""
+    readonly property color ink:     Theme.inkOn2(face.underL, face.inkColorA)
+    readonly property color inkDim:  Theme.inkDimOn2(face.underL, face.inkColorA)
+    readonly property color inkSoft: Theme.inkSoftOn2(face.underL, face.inkColorA)
 
     readonly property var t: Clk.parts(Now.date, Config.clock24h)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(face.underL), Theme.brand, face.ink)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn2(face.underL, face.inkColorA), Theme.brand, face.ink)
     readonly property real s: Config.clockScale
     readonly property real ch: Math.round(104 * s)
     readonly property real cw: Math.round(face.ch * 0.72)

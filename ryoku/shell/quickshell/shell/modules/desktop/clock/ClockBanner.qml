@@ -14,9 +14,11 @@ Item {
     id: face
 
     property real underL: Scheme.wallLstar
-    readonly property color ink: Theme.inkOn(face.underL)
-    readonly property color inkDim: Theme.inkDimOn(face.underL)
-    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn(face.underL), Theme.brand, face.ink)
+    // a pinned colour ("" = follow wallpaper) paints this face's own ink.
+    property string inkColorA: ""
+    readonly property color ink: Theme.inkOn2(face.underL, face.inkColorA)
+    readonly property color inkDim: Theme.inkDimOn2(face.underL, face.inkColorA)
+    readonly property color accent: Clk.pickAccent(Config.clockAccent, Theme.accentOn2(face.underL, face.inkColorA), Theme.brand, face.ink)
 
     readonly property var t: Clk.parts(Now.date, Config.clock24h)
     readonly property var dt: Clk.dateParts(Now.date)

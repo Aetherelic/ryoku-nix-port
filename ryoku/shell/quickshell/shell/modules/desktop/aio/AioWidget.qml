@@ -18,7 +18,9 @@ import "../../../services/lib/weather.js" as Wx
 Item {
     id: root
 
-    property real underL: 0                 // pushed by WidgetSlot; ink is fixed white, so ignored
+    property real underL: 0                 // wallpaper L* under this slot; feeds inkOn2
+    // WidgetSlot pins a hex here to paint this widget's ink; "" follows the wallpaper.
+    property string inkColorA: ""
     property string style: "wide"           // wide | tall
     property real s: 1                       // scale (Config.aioScale)
     property bool active: true               // visible/enabled
@@ -48,8 +50,8 @@ Item {
             id: w
             implicitWidth: 708
             implicitHeight: 454
-            readonly property color ink: Theme.inkOn(root.underL)
-            readonly property color dim: Theme.inkDimOn(root.underL)
+            readonly property color ink: Theme.inkOn2(root.underL, root.inkColorA)
+            readonly property color dim: Theme.inkDimOn2(root.underL, root.inkColorA)
             readonly property string sym: "Material Symbols Rounded"
 
             // today's hi/lo, probed off the daemon frame; hidden if absent.
@@ -168,7 +170,7 @@ Item {
                             required property int index
                             readonly property int band: Math.round(barW.index * (AudioBars.bars - 1) / 33)
                             readonly property real lvl: AudioBars.active ? (AudioBars.levels[barW.band] || 0) : 0
-                            width: 5; radius: 2.5; color: Theme.accentOn(root.underL)
+                            width: 5; radius: 2.5; color: Theme.accentOn2(root.underL, root.inkColorA)
                             anchors.bottom: parent.bottom
                             height: Math.max(6, Math.min(120, barW.lvl * 120))
                             Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutSine } }
@@ -209,7 +211,7 @@ Item {
                             readonly property real lvl: AudioBars.active ? (AudioBars.levels[barT.band] || 0) : 0
                             width: 3; height: 70
                             Rectangle {
-                                width: 2; radius: 1; color: Theme.accentOn(root.underL); opacity: 0.85
+                                width: 2; radius: 1; color: Theme.accentOn2(root.underL, root.inkColorA); opacity: 0.85
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.verticalCenter: parent.verticalCenter
                                 height: Math.max(2, Math.min(56, barT.lvl * 56))
@@ -228,7 +230,7 @@ Item {
                 text: Qt.formatDate(Now.date, "dd")
                 font.family: "Inter Display"; font.weight: Font.Black
                 font.pixelSize: 620; font.letterSpacing: -30
-                color: Theme.accentOn(root.underL); opacity: 0.55
+                color: Theme.accentOn2(root.underL, root.inkColorA); opacity: 0.55
             }
 
             // ---- month overlaid ----
@@ -238,7 +240,7 @@ Item {
                 text: Now.date.toLocaleDateString(Svc.Config.formatLoc, "MMMM").toUpperCase()
                 font.family: "Inter Display"; font.weight: Font.Bold
                 font.pixelSize: 92; font.letterSpacing: 6
-                color: Theme.inkOn(root.underL); opacity: 0.92
+                color: Theme.inkOn2(root.underL, root.inkColorA); opacity: 0.92
             }
 
             // ---- time + underline ----
@@ -247,19 +249,19 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: 560
                 text: Qt.formatTime(Now.date, Config.clock24h ? "HH:mm" : "hh:mm AP")
-                color: Theme.inkOn(root.underL)
+                color: Theme.inkOn2(root.underL, root.inkColorA)
                 font.family: "Inter Display"; font.weight: Font.Medium
                 font.pixelSize: 30; font.letterSpacing: 4
             }
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
-                y: 606; width: 120; height: 2; color: Theme.inkDimOn(root.underL)
+                y: 606; width: 120; height: 2; color: Theme.inkDimOn2(root.underL, root.inkColorA)
             }
 
             // ---- vertical weekday ----
             Text {
                 text: Now.date.toLocaleDateString(Svc.Config.formatLoc, "dddd").toUpperCase()
-                color: Theme.inkDimOn(root.underL)
+                color: Theme.inkDimOn2(root.underL, root.inkColorA)
                 font.family: "Inter Display"; font.weight: Font.Medium
                 font.pixelSize: 22; font.letterSpacing: 8
                 transformOrigin: Item.Center
@@ -274,7 +276,7 @@ Item {
                 Rectangle {
                     required property var modelData
                     x: modelData[0]; y: modelData[1]
-                    width: 3; height: 3; radius: 1.5; color: Theme.inkDimOn(root.underL); opacity: 0.5
+                    width: 3; height: 3; radius: 1.5; color: Theme.inkDimOn2(root.underL, root.inkColorA); opacity: 0.5
                 }
             }
         }

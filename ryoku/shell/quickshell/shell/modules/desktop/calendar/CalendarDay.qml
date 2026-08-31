@@ -11,6 +11,11 @@ Item {
     property bool paper: false
     property bool selected: false
     property real s: 1
+    // resolved ink tones from the grid ("" override keeps the palette).
+    property color ink: Theme.ink
+    property color inkDim: Theme.inkDim
+    property color faint: Theme.faint
+    property color accent: Theme.accent
     signal activated(string key)
     signal hoverChanged(string key, bool inside)
 
@@ -19,7 +24,7 @@ Item {
     Accessible.name: root.day.key
 
     readonly property bool emphasized: root.selected || root.day.today || hover.hovered || root.activeFocus
-    readonly property color foreground: root.paper && root.emphasized ? Theme.surface : (root.day.inMonth ? Theme.ink : Theme.faint)
+    readonly property color foreground: root.paper && root.emphasized ? Theme.surface : (root.day.inMonth ? root.ink : root.faint)
 
     Rectangle {
         id: plate
@@ -32,7 +37,7 @@ Item {
             : (root.day.today ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.20)
                               : (root.emphasized ? Theme.tileHover : "transparent"))
         border.width: root.day.today && !root.paper ? 1 : 0
-        border.color: Theme.accent
+        border.color: root.accent
         scale: root.emphasized ? 1 : 0.88
         Behavior on scale { NumberAnimation { duration: Theme.quick; easing.type: Theme.ease } }
         Behavior on color { ColorAnimation { duration: Theme.quick } }
@@ -54,7 +59,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 2 * root.s
-        color: root.paper ? Theme.inkDim : Theme.accent
+        color: root.paper ? root.inkDim : root.accent
     }
 
     Rectangle {
@@ -66,7 +71,7 @@ Item {
         anchors.rightMargin: 4 * root.s
         anchors.top: parent.top
         anchors.topMargin: 4 * root.s
-        color: root.paper ? Theme.inkDim : Theme.ink
+        color: root.paper ? root.inkDim : root.ink
     }
 
     HoverHandler {

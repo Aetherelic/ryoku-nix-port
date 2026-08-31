@@ -27,6 +27,9 @@ Item {
     property real s: 1
     property string viz: "bars"             // bars | wave (the no-lyrics visualiser look)
     property real underL: Scheme.wallLstar
+    // WidgetSlot pins a hex here to paint this widget's ink; "" keeps the palette ink.
+    // Only the theme inks follow it; the per-song accent + plate stay album data.
+    property string inkColorA: ""
     property Item wallpaperSource: null
     property rect wallpaperRect: Qt.rect(0, 0, 0, 0)
     property string shape: "wide"           // wide | tall (9:16 canvas)
@@ -74,8 +77,8 @@ Item {
         rescaleSize: 48
     }
     readonly property color accent: ArtColor.accentOf(quant.colors, Scheme.accent)
-    readonly property color ink: Theme.ink
-    readonly property color dim: Theme.inkDim
+    readonly property color ink: root.inkColorA !== "" ? root.inkColorA : Theme.ink
+    readonly property color dim: root.inkColorA !== "" ? Qt.rgba(Qt.color(root.inkColorA).r, Qt.color(root.inkColorA).g, Qt.color(root.inkColorA).b, 0.7) : Theme.inkDim
     readonly property color plate: ArtColor.plateOf(root.accent, Theme.surface)
     readonly property bool hasLyrics: Music.synced || Music.unsynced
     // Hysteresis for the side area so lyrics and the visualizer never strobe: a
@@ -323,6 +326,7 @@ Item {
         id: tallComp
         MusicTall {
             s: root.s
+            inkColorA: root.inkColorA
             accent: root.accent
             plate: root.plate
             videoSource: root.videoSource
