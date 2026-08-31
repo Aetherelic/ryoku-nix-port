@@ -115,66 +115,42 @@ Everything else waits in Ryoku Settings (`Super + ,`).
 
 ## What ships
 
-- **The desktop** under `ryoku/`: a Hyprland session authored in Lua (not a
-  hand-written `hyprland.conf`), the Quickshell-based Ryoku shell, the
-  lockscreen, app configs, and brand assets.
-- **The system definition** under `system/`: the boot chain, hardware policy,
-  and package sets that make a machine a Ryoku machine.
-- **The installer** under `installation/`: a guided TUI, the backend installer,
-  and the archiso profile that builds the signed ISO.
-- **The update system** under `release/`: the `ryoku` control CLI, the desktop
-  packages, and the signed `[ryoku]` pacman repository.
+- **The desktop** under `ryoku/`: the Hyprland session, Quickshell-based Ryoku
+  shell, lockscreen, Hub, app configs, helpers, and brand assets.
+- **The NixOS implementation** under `nix/`: Nix packages, the NixOS module,
+  system bridge, materializer, updater, and Nix-specific runtime integration.
+- **The flake** at `flake.nix`: the public entrypoint exposing Ryoku's module,
+  packages, installer, checks, and development environment.
+- **The installer** as `#install`: integrates Ryoku into an existing flake-based
+  NixOS system and builds a normal NixOS generation.
+- **The updater** through `ryoku update`: advances the configured Ryoku flake
+  input and switches to the resulting NixOS generation.
 
 ## Requirements
 
-Ryoku is `x86_64` only and boots in UEFI mode. The session is Wayland: Hyprland
-with the GPU-composited Ryoku shell on top. The installer refuses a machine with
-Secure Boot on (Limine ships unsigned) unless you have enrolled your own keys,
-and there is no 32-bit build and no legacy BIOS path.
+Ryoku on NixOS currently targets `x86_64-linux` and requires an existing
+flake-based NixOS installation.
 
-|  | Minimum | Recommended |
+| | Minimum | Recommended |
 |---|---|---|
 | CPU | 64-bit x86_64, dual-core | quad-core or better |
-| RAM | 4 GB | 8 GB, 16 GB with the dev toolchains |
-| GPU | any card with working KMS and OpenGL/Vulkan | recent integrated or discrete |
-| Storage | 32 GB (installer floor) | 64 GB+ SSD |
-| Firmware | UEFI, Secure Boot off | UEFI, Secure Boot off |
+| RAM | 4 GB | 8 GB+ |
+| GPU | working Wayland / DRM / KMS acceleration | recent integrated or discrete GPU |
+| System | flake-based NixOS | recent NixOS |
+| Session | Wayland | Hyprland |
 
-The desktop is light on its own: a resting session (the compositor, the shell,
-and its daemons) uses under 1 GB of RAM. What you run on top, the browser,
-editor, and toolchains, is the rest of the budget: 8 GB is a sensible floor for
-daily use, and 16 GB is comfortable once the language toolchains are in. The
-32 GB disk figure is the installer's hard floor. The base plus developer and
-desktop package closure is about 13 to 15 GB, and the root filesystem needs 20 GB
-before swap so Btrfs snapshots and AUR builds have somewhere to go. Use an SSD;
-snapshots on every `ryoku update`, package builds, and the shell itself all feel
-a slow disk.
+Ryoku does not repartition disks, replace the bootloader, choose the system
+kernel, or replace the host graphics-driver configuration. Those remain owned by
+the existing NixOS configuration.
 
 ### Graphics
 
-The shell is an accelerated Qt surface (live blur, the blob frame, motion
-throughout), so it wants a real GPU with working DRM/KMS. Software rendering will
-start but will not feel good. Anything from roughly the last decade is fine, and
-the right driver is picked for the detected hardware at install time:
+Ryoku uses accelerated Qt and Hyprland surfaces, so working hardware acceleration
+is strongly recommended.
 
-- **AMD** the open Mesa stack and the RADV Vulkan driver (GCN and newer, on
-  amdgpu). No proprietary blob, nothing to install by hand.
-- **Intel** Broadwell (Gen8) and newer, on i915 or the newer Xe driver, with the
-  modern media driver and the ANV Vulkan driver.
-- **NVIDIA** the open kernel modules on Turing and newer (GTX 16-series, RTX
-  20-series and up), the proprietary modules on older Maxwell, Pascal, and Volta
-  cards. On the stock kernel Ryoku installs the prebuilt module, so there is no
-  DKMS build to fail on first boot.
-
-On a hybrid laptop with two GPUs, Ryoku ranks them and pins the strongest as the
-primary renderer on a desktop, while a laptop keeps the integrated GPU primary
-for battery; an external GPU always wins. Every GPU stays available, so a monitor
-on a second card still lights up, and dense HiDPI panels are scaled on first
-login.
-
-The playbook for awkward hardware (Intel VMD, NVIDIA modeset, Windows dual-boot,
-Broadcom Wi-Fi, read-only NVRAM, slow USB media) is in
-[`docs/installation-hardware.md`](docs/installation-hardware.md).
+GPU configuration remains declarative and belongs to the host NixOS system.
+Ryoku does not automatically replace AMD, Intel, or NVIDIA drivers. If Hyprland
+already works correctly on the machine, Ryoku uses that existing graphics stack.
 
 ## Install
 
