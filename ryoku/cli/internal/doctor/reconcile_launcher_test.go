@@ -145,6 +145,11 @@ func TestReconcileLauncherLocalFrostPreservesConfigSymlink(t *testing.T) {
 	if err := os.WriteFile(target, []byte(`{"bgBlur":12,"radius":18}`), 0o640); err != nil {
 		t.Fatal(err)
 	}
+	// WriteFile applies the process umask. Set the intended fixture mode
+	// explicitly so this preservation test is independent of the caller's umask.
+	if err := os.Chmod(target, 0o640); err != nil {
+		t.Fatal(err)
+	}
 	path := filepath.Join(configRoot, "ryoku", "launcher.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
