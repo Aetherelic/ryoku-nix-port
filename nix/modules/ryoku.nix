@@ -474,7 +474,6 @@ EOF
     vulkan-tools
     ryokuCursorMaterial
 
-    # Cursor catalogue offered by the Hub.
     bibata-cursors
     vimix-cursors
     phinger-cursors
@@ -896,17 +895,14 @@ in
     services.upower.enable = lib.mkDefault true;
     services.power-profiles-daemon.enable = lib.mkDefault true;
 
-    # Ryoku hardware integration.
     boot.kernelModules = lib.mkAfter [
       "i2c-dev"
       "uinput"
     ];
 
     boot.extraModprobeConfig = lib.mkAfter ''
-      # Ryoku audio policy.
       options snd_hda_intel power_save=0 power_save_controller=N
 
-      # Ryoku Bluetooth audio/controller policy.
       options btusb enable_autosuspend=0
       options bluetooth disable_ertm=1
     '';

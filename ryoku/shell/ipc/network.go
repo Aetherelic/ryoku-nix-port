@@ -811,8 +811,8 @@ func dnsHelperPath() string {
 	if _, err := os.Stat(dnsPackagedHelper); err == nil {
 		return dnsPackagedHelper
 	}
-	// Some distributions install the helper outside standard system paths, so
-	// session PATH rather than /usr/bin or beside the daemon binary.
+	// Some distributions install the helper outside standard system paths, so use
+	// session PATH rather than assuming /usr/bin or the daemon's directory.
 	if helper, err := exec.LookPath("ryoku-dns"); err == nil {
 		return helper
 	}

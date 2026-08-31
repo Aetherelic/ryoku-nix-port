@@ -30,10 +30,9 @@ ACCESS=""
 resolve_access() {
   [ -n "$ACCESS" ] && return
 
-  # The host may keep Docker externally managed and uses Ryoku's narrowly
-  # scoped privileged helper as the normal container access path. Prefer that
-  # helper before probing `docker info`: with docker.socket active, even a
-  # read-only direct probe would socket-activate docker.service.
+  # Docker may be host-managed, with Ryoku using the scoped helper as its
+  # normal access path. Prefer it before `docker info`, which can activate
+  # docker.service through docker.socket even for a read-only probe.
   if [ "${RYOKU_DOCKER_HOST_MANAGED:-0}" = 1 ] &&
      command -v "$HELPER" >/dev/null 2>&1; then
     ACCESS=helper
@@ -59,10 +58,8 @@ docker_state() {
       echo ready
       ;;
     helper)
-      # When the host owns Docker externally and Ryoku is
-      # intentionally not granted broad docker-group access. The scoped
-      # helper is therefore the normal permanent access path rather than
-      # a temporary first-login setup state.
+      # A host-managed Docker setup may intentionally omit docker-group
+      # access. The scoped helper is the normal access path in that case.
       if [ "${RYOKU_DOCKER_HOST_MANAGED:-0}" = 1 ]; then
         echo ready
       else
