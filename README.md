@@ -6,22 +6,30 @@
 
 **力と美のために** &middot; *For the sake of power and beauty.*
 
-Ryoku is a hand-built Arch Linux distribution, Ryoku on NixOS is the official port of Ryoku to NixOS. One cohesive Hyprland desktop, a
-guided installer, and the system definition that reproduces them, all from a
-single repository. Ryoku is deliberate in how it looks and
-moves.
+Ryoku is a hand-built Arch Linux distribution. **Ryoku on NixOS** is the official
+NixOS port of the Ryoku desktop: one cohesive Hyprland environment, a guided
+installer, and a declarative system definition that reproduces it.
 
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-E2342A?style=for-the-badge)](LICENSE)
-[![Built on Arch](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://archlinux.org)
-[![Hyprland](https://img.shields.io/badge/Hyprland-58E1C2?style=for-the-badge&logoColor=white)](https://hypr.land)
-[![Release status](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fiso.ryoku.dev%2Fstable%2Flatest.json&query=%24.channel&label=status&color=E2342A&style=for-the-badge)](https://ryoku.dev)
-[![Build ISO](https://github.com/neur0map/ryoku-arch/actions/workflows/build-iso.yml/badge.svg)](https://github.com/neur0map/ryoku-arch/actions/workflows/build-iso.yml)
-[![Discord](https://img.shields.io/badge/Discord-join-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/8KjBmUEyKA)
-[![Reddit](https://img.shields.io/badge/Reddit-r%2FRyokuArch-FF4500?style=for-the-badge&logo=reddit&logoColor=white)](https://www.reddit.com/r/RyokuArch/)
+The implementation changes. The identity does not. Ryoku remains deliberate in
+how it looks, moves, and gets out of your way.
 
-<kbd>[Download](https://ryoku.dev)</kbd> &middot; <kbd>[Ryoku](docs/ryoku.md)</kbd> &middot; <kbd>[Docs](docs/)</kbd> &middot; <kbd>[Structure](docs/structure.md)</kbd> &middot; <kbd>[Discord](https://discord.gg/8KjBmUEyKA)</kbd> &middot; <kbd>[Subreddit](https://www.reddit.com/r/RyokuArch/)</kbd>
+<br />
+
+[![Ryoku](https://img.shields.io/badge/RYOKU-UPSTREAM-E2342A?style=for-the-badge&labelColor=111111)](https://ryoku.dev)
+[![NixOS](https://img.shields.io/badge/NIXOS-OFFICIAL_PORT-E2342A?style=for-the-badge&logo=nixos&logoColor=white&labelColor=111111)](https://nixos.org)
+[![Hyprland](https://img.shields.io/badge/HYPRLAND-DESKTOP-E2342A?style=for-the-badge&logoColor=white&labelColor=111111)](https://hypr.land)
+[![License](https://img.shields.io/badge/LICENSE-GPL--3.0-E2342A?style=for-the-badge&labelColor=111111)](LICENSE)
+
+<br />
+
+[![Discord](https://img.shields.io/badge/DISCORD-COMMUNITY-E2342A?style=for-the-badge&logo=discord&logoColor=white&labelColor=111111)](https://discord.gg/8KjBmUEyKA)
+[![Reddit](https://img.shields.io/badge/REDDIT-r%2FRYOKUARCH-E2342A?style=for-the-badge&logo=reddit&logoColor=white&labelColor=111111)](https://www.reddit.com/r/RyokuArch/)
+[![Docs](https://img.shields.io/badge/DOCS-RYOKU-E2342A?style=for-the-badge&labelColor=111111)](docs/)
+[![Structure](https://img.shields.io/badge/PROJECT-STRUCTURE-E2342A?style=for-the-badge&labelColor=111111)](docs/structure.md)
 
 </div>
+
+##The Arch version of Ryoku can be found [here]("https://github.com/neur0map/ryoku-arch") Credit to [Neur0map]("https://github.com/neur0map")
 
 ---
 
@@ -164,24 +172,19 @@ Broadcom Wi-Fi, read-only NVRAM, slow USB media) is in
 
 ## Install
 
-On NixOS there are two ways in however, one of the ways (.iso) is still under development. So for now, to install Ryoku on a NixOS machine is by doing the following.
+Ryoku for NixOS installs on top of an existing **flake-based NixOS system**.
+It does not repartition the disk or replace NixOS itself; the installer adds the
+Ryoku flake and module to your existing configuration, builds a new NixOS
+generation, and switches to it.
 
+### Existing NixOS installation
 
+The recommended installation method is the Ryoku NixOS installer:
 
+```bash
+nix run github:Aetherelic/Ryoku-on-NixOS/main#install
+```
 
-
-A fresh machine boots the signed **ISO**; an existing Arch box
-converts in place with the **shell installer**.
-
-### Fresh install (the ISO)
-
-Signed ISO builds are published at **[ryoku.dev](https://ryoku.dev)**. Download
-the latest image, its signature, and the checksums, write it to a USB stick, and
-boot it. The guided installer partitions the disk (Btrfs with subvolumes),
-installs the package set and the Ryoku desktop from the signed repository, sets
-up the Limine boot chain, and configures snapshots.
-
-Releases are signed with:
 
 - **Key:** `Ryoku Releases <releases@ryoku.dev>`
 - **Fingerprint:** `EB6D 3C0F 55A7 B3CA BA6B  2838 847B 274F 025D D6E3`
@@ -208,55 +211,69 @@ partitions a disk.
 curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
 ```
 
-Preview everything it would do without changing anything by appending
-`-s -- --dry-run` after `bash`. Details in
-[`ryoku-shell-installer/`](ryoku-shell-installer/README.md).
+Preview everything the installer would change without writing anything:
+
+```bash
+nix run github:Aetherelic/Ryoku-on-NixOS/main#install -- --dry-run
+```
+
+The dry run shows the proposed `flake.nix` changes and the generated `ryoku.nix`
+module, but does not modify your system.
 
 > [!WARNING]
-> The shell installer is young and still being tested across different hardware,
-> distributions, and existing setups. It rewrites your shell and desktop
-> configuration in place, and it may not behave the same on a setup we have not
-> seen yet. **Back up your system first.** It writes a `restore.sh` and refuses
-> to run as root, but making proper backups is your responsibility, and Ryoku is
-> not responsible for data loss or for breaking your current desktop. Run it with
-> `--dry-run` before you commit, and prefer a machine you can afford to reinstall.
+> The NixOS installer is still relatively new and is being tested across different
+> flake layouts, hardware configurations, and existing NixOS setups.
+>
+> It modifies your existing NixOS flake and creates an installer-managed
+> `ryoku.nix`, so **back up your configuration before installing**.
+>
+> Before making changes, the installer stores copies of the affected configuration
+> under `/var/backups/ryoku-nixos/`. It also builds the new NixOS generation before
+> switching to it, and restores the previous configuration files if the flake lock,
+> build, or switch fails.
+>
+> Run the installer as your normal user; it will request `sudo` only when system
+> changes are required. Using `--dry-run` first is recommended on heavily customized
+> NixOS configurations.
 
 ## Updating
 
-Everything updates through one command:
+Ryoku updates through the same command:
 
 ```bash
 ryoku update
 ```
 
-It takes a snapshot, runs the package transactions (`pacman -Syu` against the
-official repos and the signed `[ryoku]` repo, then `yay` for the AUR), re-lays
-the desktop configs into your home, reloads the shell, and takes a paired
-post-snapshot. A failed package step aborts before anything else changes.
+On NixOS, this does **not** run Pacman or modify Arch packages like the Arch variant. Ryoku uses its
+Nix-specific update backend, updates only the configured Ryoku flake input, then
+builds and switches to the resulting NixOS generation.
 
-The desktop ships from the `[ryoku]` pacman repository, signed by the release key
-and trusted through the `ryoku-keyring` package, so updates are verified the same
-way the rest of the system is.
+The NixOS implementation follows its own Ryoku source and version lifecycle.
+Arch package releases, the `[ryoku]` Pacman repository, and AUR updates do not
+control the NixOS release.
 
-Your settings survive every update. The base configs are Ryoku-owned and
-refreshed in place, while your own edits live in override files that are never
-shipped or touched (`hypr/user.lua`, `kitty/user.conf`, `fish/user.fish`); they
-load last, so your changes win. There is no ordered migration ledger: the config
-is reconciled to the shipped state on every update, and the rare stateful fix
-(disk layout and the like) is an idempotent `ryoku doctor` reconciler that runs
-inside `ryoku update`. If an update goes wrong, run `ryoku rollback` or pick the
-previous snapshot from the Limine boot menu.
+Because updates produce normal NixOS generations, the previous system remains
+available through the standard NixOS rollback mechanisms if an update causes a
+problem.
 
+Your Ryoku settings are preserved across updates. Packaged desktop files are
+reconciled to the version shipped by Ryoku, while user-owned overrides remain
+separate and load afterwards so your customizations can continue to take
+precedence.
+
+On developer installations using a local `path:` flake input, Ryoku reports the
+current source and version but deliberately does not mutate the local checkout.
+Update the development checkout manually, then rebuild NixOS as usual.
 
 ## Repository layout
 
 | Path | One job |
 |---|---|
-| `ryoku/` | The desktop: the Hyprland (Lua) config, the Quickshell shell, the lockscreen, app configs, brand assets. |
-| `system/` | The machine definition: boot chain, hardware policy, package sets. |
-| `installation/` | How a machine is built: the TUI, the backend installer, the ISO profile. |
-| `release/` | Packaging: the desktop PKGBUILDs, the `[ryoku]` repo builder, the signing keyring. |
-| `docs/` | The guides. Start with [`docs/ryoku.md`](docs/ryoku.md) and [`docs/structure.md`](docs/structure.md). |
+| `ryoku/` | The shared Ryoku desktop: Hyprland configuration, Quickshell shell, lockscreen, app configs, CLI, Hub, services, and brand assets. |
+| `nix/` | The NixOS implementation: packages, NixOS module, installer, system bridge, materializer, update integration, and Nix-specific runtime glue. |
+| `flake.nix` | The public Nix entrypoint exposing the Ryoku NixOS module, packages, apps, checks, and development environment. |
+| `VERSION` | The authoritative version of the NixOS implementation. |
+| `docs/` | Documentation and supporting guides shared with or adapted from the wider Ryoku project. |
 
 
 ## Credits and license
