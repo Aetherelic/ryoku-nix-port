@@ -191,32 +191,6 @@ The recommended installation method is the Ryoku NixOS installer:
 nix run github:Aetherelic/Ryoku-on-NixOS/main#install
 ```
 
-
-- **Key:** `Ryoku Releases <releases@ryoku.dev>`
-- **Fingerprint:** `EB6D 3C0F 55A7 B3CA BA6B  2838 847B 274F 025D D6E3`
-- **Public key in repo:** [`keys/ryoku-release-key.pub.asc`](keys/ryoku-release-key.pub.asc)
-
-Verify the imported key's fingerprint matches before trusting it:
-
-```bash
-gpg --import keys/ryoku-release-key.pub.asc
-gpg --verify ryoku-*.iso.sig ryoku-*.iso
-```
-
-Prefer to build it yourself? The archiso profile and build script live in
-[`installation/iso`](installation/iso).
-
-### Already on Arch (no ISO)
-
-One line converts an existing Arch machine into a Ryoku box: it backs up your
-configs (with a `restore.sh` to undo), trusts the signed `[ryoku]` repo, migrates
-you off conflicting shells and daemons, and wires up the full desktop. It never
-partitions a disk.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
-```
-
 Preview everything the installer would change without writing anything:
 
 ```bash
