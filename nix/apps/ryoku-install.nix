@@ -189,7 +189,6 @@ if not re.search(r"(?m)^[ \t]*ryoku[ \t]*=", input_region):
         "\n"
         f"{indent}ryoku = {{\n"
         f'{indent}  url = "{source}";\n'
-        f'{indent}  inputs.nixpkgs.follows = "nixpkgs";\n'
         f"{indent}}};\n"
     )
 

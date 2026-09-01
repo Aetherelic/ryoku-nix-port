@@ -15,6 +15,11 @@ let
   ryokuHelpers = ryokuPkgs.ryoku-helpers;
   ryokuSystemBridge = ryokuPkgs.ryoku-nixos-system-bridge;
   ryokuDesktopData = ryokuPkgs.ryoku-desktop-data;
+
+  # Hyprland plugins are ABI-sensitive, so the compositor, portal and
+  # plugin bundle must all come from Ryoku's own locked package set.
+  ryokuHyprland = ryokuPkgs.ryoku-hyprland;
+  ryokuHyprlandPortal = ryokuPkgs.ryoku-xdg-desktop-portal-hyprland;
   ryokuHyprPlugins = ryokuPkgs.ryoku-hypr-plugins;
   ryokuCursorMaterial = ryokuPkgs.ryoku-cursor-material;
   ryokuMapleMonoNF = ryokuPkgs.ryoku-maple-mono-nf;
@@ -409,7 +414,6 @@ EOF
     # ─────────────────────────────────────────────────────────
 
     quickshell
-    hyprland
     ryokuHyprPlugins
 
     # ─────────────────────────────────────────────────────────
@@ -430,7 +434,6 @@ EOF
     # ─────────────────────────────────────────────────────────
 
     gnome-keyring
-    xdg-desktop-portal-hyprland
     xdg-desktop-portal-gtk
 
     # ─────────────────────────────────────────────────────────
@@ -686,6 +689,12 @@ in
 
     programs.hyprland = {
       enable = true;
+
+      # Ryoku requires an exact compositor/plugin ABI match. Do not inherit
+      # the host's Hyprland package, which may be older on NixOS stable.
+      package = lib.mkForce ryokuHyprland;
+      portalPackage = lib.mkForce ryokuHyprlandPortal;
+
       xwayland.enable = true;
     };
 
@@ -693,7 +702,6 @@ in
       enable = true;
 
       extraPortals = [
-        pkgs.xdg-desktop-portal-hyprland
         pkgs.xdg-desktop-portal-gtk
       ];
 
@@ -1204,14 +1212,14 @@ in
 
           reload_hyprland=0
 
-          if ${pkgs.hyprland}/bin/hyprctl             keyword misc:disable_autoreload true             >/dev/null 2>&1
+          if ${ryokuHyprland}/bin/hyprctl             keyword misc:disable_autoreload true             >/dev/null 2>&1
           then
             reload_hyprland=1
           fi
 
           cleanup() {
             if [ "$reload_hyprland" -eq 1 ]; then
-              ${pkgs.hyprland}/bin/hyprctl reload                 >/dev/null 2>&1 || true
+              ${ryokuHyprland}/bin/hyprctl reload                 >/dev/null 2>&1 || true
             fi
           }
 

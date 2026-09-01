@@ -94,6 +94,12 @@
         ryoku-helpers = ryoku.helpers;
         ryoku-nixos-system-bridge = ryoku.nixosSystemBridge;
         ryoku-desktop-data = ryoku.desktopData;
+
+        # Ryoku owns its compositor ABI. These come from Ryoku's
+        # locked nixpkgs rather than the host's package set.
+        ryoku-hyprland = pkgs.hyprland;
+        ryoku-xdg-desktop-portal-hyprland = pkgs.xdg-desktop-portal-hyprland;
+
         ryoku-hyprglass = ryoku.hyprglass;
         ryoku-imgborders = ryoku.imgborders;
         ryoku-hypr-plugins = ryoku.hyprPlugins;
