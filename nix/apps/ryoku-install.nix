@@ -10,17 +10,30 @@ pkgs.writeShellApplication {
     jq
     nix
     python3
-    sudo
     systemd
   ];
 
   text = ''
     set -euo pipefail
 
-    source_ref="''${RYOKU_INSTALL_SOURCE:-github:Aetherelic/Ryoku-on-NixOS/main}"
+    source_ref="''${RYOKU_INSTALL_SOURCE:-github:aethctl/Ryoku-on-NixOS/main}"
     flake_arg="/etc/nixos"
     assume_yes=0
     dry_run=0
+
+    run_root() {
+      if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+        return
+      fi
+
+      if [ ! -x /run/wrappers/bin/sudo ]; then
+        echo "ryoku-install: NixOS sudo wrapper is unavailable at /run/wrappers/bin/sudo" >&2
+        exit 1
+      fi
+
+      /run/wrappers/bin/sudo "$@"
+    }
 
     usage() {
       cat <<'EOF'
@@ -354,39 +367,39 @@ PY
     [ -f "$flake_root/flake.lock" ] && had_lock=1
     [ -f "$module_file" ] && had_module=1
 
-    sudo mkdir -p "$backup_dir"
-    sudo cp -a "$flake_file" "$backup_dir/flake.nix"
+    run_root mkdir -p "$backup_dir"
+    run_root cp -a "$flake_file" "$backup_dir/flake.nix"
 
     if [ "$had_lock" -eq 1 ]; then
-      sudo cp -a "$flake_root/flake.lock" "$backup_dir/flake.lock"
+      run_root cp -a "$flake_root/flake.lock" "$backup_dir/flake.lock"
     fi
 
     if [ "$had_module" -eq 1 ]; then
-      sudo cp -a "$module_file" "$backup_dir/ryoku.nix"
+      run_root cp -a "$module_file" "$backup_dir/ryoku.nix"
     fi
 
     rollback() {
-      sudo cp -a "$backup_dir/flake.nix" "$flake_file"
+      run_root cp -a "$backup_dir/flake.nix" "$flake_file"
 
       if [ "$had_lock" -eq 1 ]; then
-        sudo cp -a "$backup_dir/flake.lock" "$flake_root/flake.lock"
+        run_root cp -a "$backup_dir/flake.lock" "$flake_root/flake.lock"
       else
-        sudo rm -f "$flake_root/flake.lock"
+        run_root rm -f "$flake_root/flake.lock"
       fi
 
       if [ "$had_module" -eq 1 ]; then
-        sudo cp -a "$backup_dir/ryoku.nix" "$module_file"
+        run_root cp -a "$backup_dir/ryoku.nix" "$module_file"
       else
-        sudo rm -f "$module_file"
+        run_root rm -f "$module_file"
       fi
     }
 
-    sudo cp "$work_flake" "$flake_file"
-    sudo install -m 0644 "$work_module" "$module_file"
+    run_root cp "$work_flake" "$flake_file"
+    run_root install -m 0644 "$work_module" "$module_file"
 
     printf '\nUpdating flake lock...\n'
 
-    if ! sudo nix flake lock "path:$flake_root"; then
+    if ! run_root nix flake lock "path:$flake_root"; then
       rollback
       echo "ryoku-install: flake lock failed; files restored" >&2
       exit 1
@@ -394,7 +407,7 @@ PY
 
     printf '\nBuilding NixOS generation...\n'
 
-    if ! sudo "$nixos_rebuild" build \
+    if ! run_root "$nixos_rebuild" build \
       --flake "path:$flake_root#$host"
     then
       rollback
@@ -404,7 +417,7 @@ PY
 
     printf '\nSwitching generation...\n'
 
-    if ! sudo "$nixos_rebuild" switch \
+    if ! run_root "$nixos_rebuild" switch \
       --flake "path:$flake_root#$host"
     then
       rollback
