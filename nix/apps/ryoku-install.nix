@@ -6,6 +6,7 @@ pkgs.writeShellApplication {
   runtimeInputs = with pkgs; [
     coreutils
     diffutils
+    git
     gnugrep
     jq
     nix
@@ -21,6 +22,13 @@ pkgs.writeShellApplication {
     assume_yes=0
     dry_run=0
 
+    trusted_root_path="${pkgs.lib.makeBinPath [
+      pkgs.coreutils
+      pkgs.git
+      pkgs.nix
+      pkgs.systemd
+    ]}:/run/current-system/sw/bin:/run/wrappers/bin"
+
     run_root() {
       if [ "$(id -u)" -eq 0 ]; then
         "$@"
@@ -32,7 +40,10 @@ pkgs.writeShellApplication {
         exit 1
       fi
 
-      /run/wrappers/bin/sudo "$@"
+      /run/wrappers/bin/sudo \
+        ${pkgs.coreutils}/bin/env \
+        "PATH=$trusted_root_path" \
+        "$@"
     }
 
     usage() {
