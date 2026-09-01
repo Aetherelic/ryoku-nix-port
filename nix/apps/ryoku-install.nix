@@ -122,8 +122,8 @@ EOF
       current_host="$(cat /proc/sys/kernel/hostname)"
 
       show="$(
-        nix flake show "path:$flake_root" --json 2>/dev/null ||
-        nix flake show "path:$flake_root" --json --impure
+        nix flake show "path:$flake_root" --json --no-write-lock-file 2>/dev/null ||
+        nix flake show "path:$flake_root" --json --impure --no-write-lock-file
       )"
 
       mapfile -t hosts < <(
