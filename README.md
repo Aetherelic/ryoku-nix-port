@@ -164,13 +164,13 @@ generation, and switches to it.
 The recommended installation method is the Ryoku NixOS installer:
 
 ```bash
-nix run github:Aetherelic/Ryoku-on-NixOS/main#install
+nix run github:aethctl/Ryoku-on-NixOS/main#install
 ```
 
 Preview everything the installer would change without writing anything:
 
 ```bash
-nix run github:Aetherelic/Ryoku-on-NixOS/main#install -- --dry-run
+nix run github:aethctl/Ryoku-on-NixOS/main#install -- --dry-run
 ```
 
 The dry run shows the proposed `flake.nix` changes and the generated `ryoku.nix`
